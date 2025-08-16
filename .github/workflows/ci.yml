@@ -1,0 +1,275 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Security and dependency scanning
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Security audit
+        run: cargo audit --deny warnings
+      
+      - name: Check for known vulnerabilities
+        run: cargo audit --deny warnings --ignore RUSTSEC-2023-0001
+      
+      - name: Check for outdated dependencies
+        run: cargo outdated --exit-code 1
+
+  # Code quality and formatting
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Clippy linting
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      
+      - name: Check for unused dependencies
+        run: cargo check --all-targets --all-features
+
+  # Unit and integration tests
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            features: "std"
+          - target: x86_64-unknown-linux-gnu
+            features: "std,all-algorithms"
+          - target: x86_64-unknown-linux-gnu
+            features: "std,wasm"
+          - target: x86_64-unknown-linux-gnu
+            features: "std,zkp"
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }} --features "${{ matrix.features }}" --verbose
+      
+      - name: Run tests with release optimizations
+        run: cargo test --target ${{ matrix.target }} --features "${{ matrix.features }}" --release --verbose
+
+  # WASM compilation and testing
+  wasm:
+    name: WASM Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            pkg
+          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-
+      
+      - name: Build WASM (web target)
+        run: wasm-pack build --target web --features "wasm,all-algorithms"
+      
+      - name: Build WASM (nodejs target)
+        run: wasm-pack build --target nodejs --features "wasm,all-algorithms"
+      
+      - name: Test WASM
+        run: wasm-pack test --headless --firefox --features "wasm,all-algorithms"
+      
+      - name: Test WASM (Chrome)
+        run: wasm-pack test --headless --chrome --features "wasm,all-algorithms"
+
+  # Performance benchmarks
+  benchmark:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Run benchmarks
+        run: cargo bench --features "all-algorithms" --verbose
+
+  # Documentation generation
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Generate documentation
+        run: cargo doc --all-features --no-deps
+      
+      - name: Check documentation
+        run: cargo doc --all-features --no-deps --document-private-items
+
+  # Cross-platform compilation
+  cross-compile:
+    name: Cross-Platform Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+          - aarch64-unknown-linux-gnu
+          - aarch64-apple-darwin
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build for target
+        run: cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
+      
+      - name: Check for target
+        run: cargo check --target ${{ matrix.target }} --features "all-algorithms"
+
+  # Constant-time verification (critical for crypto)
+  constant-time:
+    name: Constant-Time Verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Install cargo-valgrind
+        run: cargo install cargo-valgrind
+      
+      - name: Run constant-time tests
+        run: cargo test --features "all-algorithms" --test constant_time
+        # Note: This requires specific constant-time test modules to be implemented
