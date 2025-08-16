@@ -1,8 +1,8 @@
-# libQ API Design Specification
+# lib-Q API Design Specification
 
 ## Design Philosophy
 
-libQ provides an API that makes post-quantum cryptography simple and secure to use. The API follows these principles:
+lib-Q provides an API that makes post-quantum cryptography simple and secure to use. The API follows these principles:
 
 1. **Simple functions for common problems**: Instead of low-level primitives, expose functions that solve real cryptographic problems
 2. **Zero dynamic allocations**: All operations use stack-allocated buffers for constrained environments
@@ -15,7 +15,7 @@ libQ provides an API that makes post-quantum cryptography simple and secure to u
 ### Core API Structure
 
 ```
-libQ API Layers
+lib-Q API Layers
 ├── Simple API     # High-level, problem-solving functions
 ├── Algorithm API                      # Algorithm-specific operations
 ├── Core API                          # Low-level cryptographic primitives
@@ -54,7 +54,7 @@ pub struct Plaintext([u8; MAX_PLAINTEXT_SIZE]);
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let (pk, sk) = simple::keygen(1)?;
 /// ```
@@ -74,7 +74,7 @@ pub fn keygen(security_level: u32) -> Result<(PublicKey, SecretKey)>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let shared = simple::exchange(my_secret, their_public)?;
 /// ```
@@ -93,7 +93,7 @@ pub fn exchange(my_secret: &SecretKey, their_public: &PublicKey) -> Result<Share
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let (shared, enc) = simple::encapsulate(recipient_pk)?;
 /// ```
@@ -112,7 +112,7 @@ pub fn encapsulate(recipient_public: &PublicKey) -> Result<(SharedSecret, Encaps
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let shared = simple::decapsulate(recipient_sk, &enc)?;
 /// ```
@@ -134,7 +134,7 @@ pub fn decapsulate(recipient_secret: &SecretKey, encapsulated_key: &Encapsulated
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let (pk, sk) = simple::sign_keygen(1)?;
 /// ```
@@ -153,7 +153,7 @@ pub fn sign_keygen(security_level: u32) -> Result<(SigPublicKey, SigSecretKey)>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let signature = simple::sign(&sk, message)?;
 /// ```
@@ -173,7 +173,7 @@ pub fn sign(secret_key: &SigSecretKey, message: &[u8]) -> Result<Signature>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let is_valid = simple::verify(&pk, message, &signature)?;
 /// ```
@@ -197,7 +197,7 @@ pub fn verify(public_key: &SigPublicKey, message: &[u8], signature: &Signature) 
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let ciphertext = simple::encrypt(&key, message, Some(ad))?;
 /// ```
@@ -217,7 +217,7 @@ pub fn encrypt(key: &EncryptionKey, message: &[u8], associated_data: Option<&[u8
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let plaintext = simple::decrypt(&key, &ciphertext, Some(ad))?;
 /// ```
@@ -242,7 +242,7 @@ pub fn decrypt(key: &EncryptionKey, ciphertext: &Ciphertext, associated_data: Op
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let ciphertext = simple::hpke_encrypt(&recipient_pk, message, Some(ad), SecurityTier::Balanced)?;
 /// ```
@@ -267,7 +267,7 @@ pub fn hpke_encrypt(
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let plaintext = simple::hpke_decrypt(&recipient_sk, &ciphertext, Some(ad))?;
 /// ```
@@ -294,7 +294,7 @@ pub fn hpke_decrypt(
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let hash = simple::hash(data, 32)?;
 /// ```
@@ -315,7 +315,7 @@ pub fn hash(data: &[u8], output_length: usize) -> Result<Vec<u8>>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let custom_hash = simple::custom_hash(data, b"MyApp", b"UserID", 32)?;
 /// ```
@@ -343,7 +343,7 @@ pub fn custom_hash(
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let key = simple::derive_key(&shared_secret, b"encryption")?;
 /// ```
@@ -362,7 +362,7 @@ pub fn derive_key(shared_secret: &SharedSecret, context: &[u8]) -> Result<Encryp
 /// 
 /// # Example
 /// ```rust
-/// use libq::simple;
+/// use lib-q::simple;
 /// 
 /// let keys = simple::derive_keys(&shared_secret, &[b"encryption", b"auth", b"metadata"])?;
 /// ```
@@ -386,7 +386,7 @@ pub fn derive_keys(shared_secret: &SharedSecret, contexts: &[&[u8]]) -> Result<V
 /// 
 /// # Example
 /// ```rust
-/// use libq::kem;
+/// use lib-q::kem;
 /// 
 /// let (pk, sk) = kem::keygen(KemAlgorithm::Kyber5)?;
 /// ```
@@ -405,7 +405,7 @@ pub fn keygen(algorithm: KemAlgorithm) -> Result<(KemPublicKey, KemSecretKey)>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::kem;
+/// use lib-q::kem;
 /// 
 /// let (shared, enc) = kem::encaps(KemAlgorithm::Kyber5, &pk)?;
 /// ```
@@ -425,7 +425,7 @@ pub fn encaps(algorithm: KemAlgorithm, public_key: &KemPublicKey) -> Result<(Sha
 /// 
 /// # Example
 /// ```rust
-/// use libq::kem;
+/// use lib-q::kem;
 /// 
 /// let shared = kem::decaps(KemAlgorithm::Kyber5, &sk, &enc)?;
 /// ```
@@ -447,7 +447,7 @@ pub fn decaps(algorithm: KemAlgorithm, secret_key: &KemSecretKey, encapsulated_k
 /// 
 /// # Example
 /// ```rust
-/// use libq::sig;
+/// use lib-q::sig;
 /// 
 /// let (pk, sk) = sig::keygen(SigAlgorithm::Dilithium5)?;
 /// ```
@@ -467,7 +467,7 @@ pub fn keygen(algorithm: SigAlgorithm) -> Result<(SigPublicKey, SigSecretKey)>;
 /// 
 /// # Example
 /// ```rust
-/// use libq::sig;
+/// use lib-q::sig;
 /// 
 /// let signature = sig::sign(SigAlgorithm::Dilithium5, &sk, message)?;
 /// ```
@@ -488,7 +488,7 @@ pub fn sign(algorithm: SigAlgorithm, secret_key: &SigSecretKey, message: &[u8]) 
 /// 
 /// # Example
 /// ```rust
-/// use libq::sig;
+/// use lib-q::sig;
 /// 
 /// let is_valid = sig::verify(SigAlgorithm::Dilithium5, &pk, message, &signature)?;
 /// ```
@@ -626,16 +626,16 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub struct LibQ {
+pub struct Lib-Q {
     // Internal state
 }
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-impl LibQ {
+impl Lib-Q {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        // Initialize libQ
+        // Initialize lib-Q
     }
     
     /// Generate a keypair (WASM)
@@ -710,7 +710,7 @@ pub extern "C" fn libq_verify(
 ### Error Types
 
 ```rust
-/// libQ error types
+/// lib-Q error types
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     /// Invalid key size
@@ -758,7 +758,7 @@ pub enum Error {
     },
 }
 
-/// Result type for libQ operations
+/// Result type for lib-Q operations
 pub type Result<T> = std::result::Result<T, Error>;
 ```
 
@@ -767,11 +767,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 ### Basic Key Exchange
 
 ```rust
-use libq::simple;
+use lib-q::simple;
 
-fn main() -> libq::Result<()> {
-    // Initialize libQ
-    libq::init()?;
+fn main() -> lib-q::Result<()> {
+    // Initialize lib-Q
+    lib-q::init()?;
     
     // Generate keypairs for Alice and Bob
     let (alice_pk, alice_sk) = simple::keygen(1)?;
@@ -792,11 +792,11 @@ fn main() -> libq::Result<()> {
 ### Digital Signatures
 
 ```rust
-use libq::simple;
+use lib-q::simple;
 
-fn main() -> libq::Result<()> {
-    // Initialize libQ
-    libq::init()?;
+fn main() -> lib-q::Result<()> {
+    // Initialize lib-Q
+    lib-q::init()?;
     
     // Generate signature keypair
     let (pk, sk) = simple::sign_keygen(1)?;
@@ -817,11 +817,11 @@ fn main() -> libq::Result<()> {
 ### HPKE Encryption
 
 ```rust
-use libq::simple;
+use lib-q::simple;
 
-fn main() -> libq::Result<()> {
-    // Initialize libQ
-    libq::init()?;
+fn main() -> lib-q::Result<()> {
+    // Initialize lib-Q
+    lib-q::init()?;
     
     // Generate recipient keypair
     let (recipient_pk, recipient_sk) = simple::keygen(1)?;
@@ -853,11 +853,11 @@ fn main() -> libq::Result<()> {
 ### Algorithm-Specific Operations
 
 ```rust
-use libq::{kem, sig, KemAlgorithm, SigAlgorithm};
+use lib-q::{kem, sig, KemAlgorithm, SigAlgorithm};
 
-fn main() -> libq::Result<()> {
-    // Initialize libQ
-    libq::init()?;
+fn main() -> lib-q::Result<()> {
+    // Initialize lib-Q
+    lib-q::init()?;
     
     // Use specific KEM algorithm
     let (pk, sk) = kem::keygen(KemAlgorithm::Kyber5)?;

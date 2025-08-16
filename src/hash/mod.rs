@@ -1,4 +1,4 @@
-//! Hash Functions for libQ
+//! Hash Functions for lib-Q
 //!
 //! This module provides SHA-3 family hash functions.
 

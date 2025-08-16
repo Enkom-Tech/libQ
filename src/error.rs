@@ -1,10 +1,10 @@
-//! Error handling for libQ
+//! Error handling for lib-Q
 //!
 //! This module defines the error types used throughout the library.
 
 use core::fmt;
 
-/// The error type for libQ operations
+/// The error type for lib-Q operations
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Invalid key size
@@ -147,10 +147,10 @@ impl fmt::Display for Error {
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
-/// Result type for libQ operations
+/// Result type for lib-Q operations
 pub type Result<T> = core::result::Result<T, Error>;
 
-/// Security levels supported by libQ
+/// Security levels supported by lib-Q
 pub const SECURITY_LEVELS: &[u32] = &[1, 3, 4, 5];
 
 /// Check if a security level is supported

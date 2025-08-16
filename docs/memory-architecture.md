@@ -2,7 +2,7 @@
 
 ## Design Philosophy
 
-libQ implements a **zero dynamic allocation** memory model inspired by libhydrogen, making it suitable for constrained environments such as microcontrollers, embedded systems, and high-performance applications. All cryptographic operations use stack-allocated buffers with fixed sizes.
+lib-Q implements a **zero dynamic allocation** memory model inspired by libhydrogen, making it suitable for constrained environments such as microcontrollers, embedded systems, and high-performance applications. All cryptographic operations use stack-allocated buffers with fixed sizes.
 
 ## Memory Management Strategy
 
@@ -17,7 +17,7 @@ libQ implements a **zero dynamic allocation** memory model inspired by libhydrog
 ### Memory Layout
 
 ```
-libQ Memory Model
+lib-Q Memory Model
 ├── Stack Allocations (Fixed Size)
 │   ├── Key Buffers (Public/Secret keys)
 │   ├── Signature Buffers
@@ -321,7 +321,7 @@ impl DilithiumMemory {
 
 | Library | Dynamic Allocations | Stack Usage | Heap Usage | Total Memory |
 |---------|-------------------|-------------|------------|--------------|
-| libQ | 0 | 64KB | 0KB | 64KB |
+| lib-Q | 0 | 64KB | 0KB | 64KB |
 | libsodium | 0 | 32KB | 0KB | 32KB |
 | OpenSSL | 10+ | 16KB | 128KB | 144KB |
 | BouncyCastle | 20+ | 8KB | 256KB | 264KB |
@@ -590,7 +590,7 @@ mod benchmarks {
 ### Memory-Efficient Operations
 
 ```rust
-use libq::memory::{CryptoBuffer, MemoryPool};
+use lib-q::memory::{CryptoBuffer, MemoryPool};
 
 // Use fixed-size buffers for operations
 fn hash_large_data(data: &[u8]) -> Result<Hash> {
@@ -644,4 +644,4 @@ pub extern "C" fn libq_keygen_embedded(
 }
 ```
 
-This memory architecture ensures that libQ can operate in the most constrained environments while maintaining security and performance. The zero dynamic allocation model makes it suitable for microcontrollers, embedded systems, and high-performance applications where predictable memory usage is critical.
+This memory architecture ensures that lib-Q can operate in the most constrained environments while maintaining security and performance. The zero dynamic allocation model makes it suitable for microcontrollers, embedded systems, and high-performance applications where predictable memory usage is critical.

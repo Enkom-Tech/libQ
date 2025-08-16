@@ -1,6 +1,6 @@
-# libQ Development Guide
+# lib-Q Development Guide
 
-This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to libQ.
+This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to lib-Q.
 
 ## Quick Start
 
@@ -22,8 +22,8 @@ source ~/.cargo/env
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 # Clone repository
-git clone https://github.com/libq/libq.git
-cd libq
+git clone https://github.com/lib-q/lib-q.git
+cd lib-q
 
 # Install pre-commit hooks
 cargo install pre-commit
@@ -227,7 +227,7 @@ We follow [Semantic Versioning](https://semver.org/):
 ### Publishing Targets
 
 - **Rust Crate**: `crates.io` (automated)
-- **NPM Package**: `@libq/core` (automated)
+- **NPM Package**: `@lib-q/core` (automated)
 - **GitHub Release**: With changelog (automated)
 
 ## Development Tools
@@ -337,17 +337,17 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 For security issues:
 
 1. **DO NOT** create public issues
-2. **Email** security@libq.org
+2. **Email** security@lib-q.org
 3. **Use** the security report template
 4. **Follow** responsible disclosure
 
 ## Support
 
-- **Documentation**: [docs.rs/libq](https://docs.rs/libq)
-- **Issues**: [GitHub Issues](https://github.com/libq/libq/issues)
-- **Security**: security@libq.org
-- **Discussions**: [GitHub Discussions](https://github.com/libq/libq/discussions)
+- **Documentation**: [docs.rs/lib-q](https://docs.rs/lib-q)
+- **Issues**: [GitHub Issues](https://github.com/lib-q/lib-q/issues)
+- **Security**: security@lib-q.org
+- **Discussions**: [GitHub Discussions](https://github.com/lib-q/lib-q/discussions)
 
 ## License
 
-By contributing to libQ, you agree that your contributions will be licensed under the Apache 2.0 License.
+By contributing to lib-Q, you agree that your contributions will be licensed under the Apache 2.0 License.

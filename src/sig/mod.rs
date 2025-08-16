@@ -1,4 +1,4 @@
-//! Digital Signatures for libQ
+//! Digital Signatures for lib-Q
 //!
 //! This module provides post-quantum digital signature schemes.
 

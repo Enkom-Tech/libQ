@@ -1,11 +1,11 @@
 [package]
-name = "libq"
+name = "lib-q"
 version = "0.0.1"
 edition = "2021"
-authors = ["libQ Contributors"]
+authors = ["lib-Q Contributors"]
 description = "Post-quantum cryptography library with libsodium-equivalent API"
 license = "Apache-2.0"
-repository = "https://github.com/libq/libq"
+repository = "https://github.com/lib-q/lib-q"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
 readme = "README.md"
@@ -103,11 +103,11 @@ codegen-units = 1
 # [workspace]
 # members = [
 #     ".",
-#     "libq-kem",
-#     "libq-sig", 
-#     "libq-hash",
-#     "libq-aead",
-#     "libq-utils"
+#     "lib-q-kem",
+#     "lib-q-sig", 
+#     "lib-q-hash",
+#     "lib-q-aead",
+#     "lib-q-utils"
 # ]
 
 [package.metadata.docs.rs]

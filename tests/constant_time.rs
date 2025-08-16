@@ -1,4 +1,4 @@
-//! Constant-time verification tests for libQ
+//! Constant-time verification tests for lib-Q
 //!
 //! These tests verify that cryptographic operations are constant-time
 //! and don't leak information through timing side-channels.

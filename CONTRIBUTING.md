@@ -1,10 +1,10 @@
-# Contributing to libQ
+# Contributing to lib-Q
 
-Thank you for your interest in contributing to libQ! This document outlines the development practices, security guidelines, and contribution process.
+Thank you for your interest in contributing to lib-Q! This document outlines the development practices, security guidelines, and contribution process.
 
 ## Security-First Development
 
-libQ is a cryptography library, which means security is paramount. All contributions must follow these principles:
+lib-Q is a cryptography library, which means security is paramount. All contributions must follow these principles:
 
 ### 1. **Zero Classical Crypto**
 - **NEVER** use classical cryptographic algorithms (RSA, ECC, AES, SHA-256, etc.)
@@ -45,8 +45,8 @@ libQ is a cryptography library, which means security is paramount. All contribut
 cargo install wasm-pack cargo-audit cargo-tarpaulin
 
 # Clone and setup
-git clone https://github.com/libq/libq.git
-cd libq
+git clone https://github.com/lib-q/lib-q.git
+cd lib-q
 cargo build
 ```
 
@@ -209,7 +209,7 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ## Getting Help
 
-- **Security issues**: Email security@libq.org (private)
+- **Security issues**: Email security@lib-q.org (private)
 - **General questions**: Open an issue on GitHub
 - **Development questions**: Join our Discord/Matrix
 
@@ -224,6 +224,6 @@ We welcome contributions to our roadmap:
 
 ## License
 
-By contributing to libQ, you agree that your contributions will be licensed under the Apache 2.0 License.
+By contributing to lib-Q, you agree that your contributions will be licensed under the Apache 2.0 License.
 
 Security is everyone's responsibility.
