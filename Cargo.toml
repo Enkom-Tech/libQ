@@ -1,0 +1,117 @@
+[package]
+name = "libq"
+version = "0.0.1"
+edition = "2021"
+authors = ["libQ Contributors"]
+description = "Post-quantum cryptography library with libsodium-equivalent API"
+license = "Apache-2.0"
+repository = "https://github.com/libq/libq"
+keywords = ["cryptography", "post-quantum", "security", "wasm"]
+categories = ["cryptography", "wasm"]
+readme = "README.md"
+
+[lib]
+name = "libq"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core cryptographic dependencies
+getrandom = { version = "0.3.3", features = ["std"] }
+rand = "0.9.2"
+rand_core = "0.9.3"
+
+# Zeroize for secure memory clearing
+zeroize = "1.8.1"
+
+# Serde for serialization (optional)
+serde = { version = "1.0.219", optional = true, features = ["derive"] }
+
+# WASM-specific dependencies
+wasm-bindgen = { version = "0.2.100", optional = true }
+js-sys = { version = "0.3.77", optional = true }
+web-sys = { version = "0.3.77", optional = true, features = ["console"] }
+
+# ZKP dependencies (optional) - temporarily disabled due to compatibility issues
+# winterfell = { git = "https://github.com/Nexlab-One/winterfell", branch = "main", optional = true } # Main branch has issued due to aux.rs file causing issue on windows
+# zkp-stark = { version = "0.2.1", optional = true }
+
+[dev-dependencies]
+# Testing
+criterion = "0.7.0"
+proptest = "1.7.0"
+quickcheck = "1.0.3"
+
+# WASM testing
+wasm-bindgen-test = "0.3.5"
+
+[features]
+default = ["std"]
+std = []
+alloc = []
+no_std = []
+
+# Algorithm features
+kyber = []
+dilithium = []
+falcon = []
+sphincs = []
+mceliece = []
+hqc = []
+
+# ZKP features - temporarily disabled due to compatibility issues
+zkp = []
+# stark = ["dep:zkp-stark"]  # Temporarily disabled
+# winterfell = ["dep:winterfell"]  # Temporarily disabled
+openzkp = []
+
+# Serialization features
+serde = ["dep:serde"]
+
+# WASM features
+wasm = ["wasm-bindgen", "js-sys", "web-sys"]
+
+# Performance features
+simd = []
+avx2 = []
+avx512 = []
+
+# Convenience features
+# all-zkp = ["stark"]  # Temporarily disabled
+all-algorithms = ["kyber", "dilithium", "falcon", "sphincs", "mceliece", "hqc"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+# Workspace configuration - uncomment when workspace members are created
+# [workspace]
+# members = [
+#     ".",
+#     "libq-kem",
+#     "libq-sig", 
+#     "libq-hash",
+#     "libq-aead",
+#     "libq-utils"
+# ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Os']
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = ['-O0']
