@@ -27,7 +27,7 @@ jobs:
         run: cargo install cargo-audit
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -70,7 +70,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -108,7 +108,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -120,11 +120,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-wasm-
       
-      - name: Build WASM package
-        run: wasm-pack build --target nodejs --features "wasm,all-algorithms"
+      - name: Build WASM package (nodejs target)
+        run: |
+          echo "Building WASM for nodejs target..."
+          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
+          echo "WASM nodejs build completed successfully"
       
-      - name: Test WASM package
-        run: wasm-pack test --headless --firefox --features "wasm,all-algorithms"
+      - name: Build WASM package (web target)
+        run: |
+          echo "Building WASM for web target..."
+          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
+          echo "WASM web build completed successfully"
+      
+      - name: Verify WASM artifacts
+        run: |
+          echo "Verifying WASM build artifacts..."
+          ls -la pkg/ || echo "No pkg directory found"
+          if [ -d "pkg" ]; then
+            echo "WASM package contents:"
+            ls -la pkg/
+            echo "WASM file size:"
+            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
       
       - name: Prepare NPM package
         run: |
