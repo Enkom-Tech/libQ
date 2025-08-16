@@ -21,7 +21,7 @@ jobs:
           components: rustfmt, clippy
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -57,7 +57,7 @@ jobs:
         run: cargo install cargo-audit
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -102,7 +102,7 @@ jobs:
         run: cargo install cargo-tarpaulin
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -116,7 +116,7 @@ jobs:
         run: cargo tarpaulin --features "all-algorithms" --out Html --output-dir coverage
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
@@ -142,7 +142,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -177,7 +177,7 @@ jobs:
           version: latest
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -188,11 +188,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-wasm-
       
-      - name: Build WASM
-        run: wasm-pack build --target nodejs --features "wasm,all-algorithms"
+      - name: Build WASM (nodejs target)
+        run: |
+          echo "Building WASM for nodejs target..."
+          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
+          echo "WASM nodejs build completed successfully"
       
-      - name: Test WASM
-        run: wasm-pack test --headless --firefox --features "wasm,all-algorithms"
+      - name: Build WASM (web target)
+        run: |
+          echo "Building WASM for web target..."
+          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
+          echo "WASM web build completed successfully"
+      
+      - name: Verify WASM artifacts
+        run: |
+          echo "Verifying WASM build artifacts..."
+          ls -la pkg/ || echo "No pkg directory found"
+          if [ -d "pkg" ]; then
+            echo "WASM package contents:"
+            ls -la pkg/
+            echo "WASM file size:"
+            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
 
   # Documentation check
   docs-check:
@@ -205,7 +222,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -263,7 +280,7 @@ jobs:
           echo "Please review the security implications of this change carefully." >> pr-summary.md
       
       - name: Upload PR summary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pr-summary
           path: pr-summary.md

@@ -72,7 +72,7 @@ openzkp = []
 serde = ["dep:serde"]
 
 # WASM features
-wasm = ["wasm-bindgen", "js-sys", "web-sys", "getrandom/wasm_js"]
+wasm = ["wasm-bindgen", "js-sys", "web-sys"]
 
 # Performance features
 simd = []
