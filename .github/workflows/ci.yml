@@ -126,12 +126,37 @@ jobs:
   # WASM compilation and testing
   wasm:
     name: WASM Build & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Debug network connectivity
+        run: |
+          echo "Testing network connectivity..."
+          curl -I https://static.rust-lang.org/ || echo "Failed to reach rust-lang.org"
+          curl -I https://github.com/ || echo "Failed to reach github.com"
+          echo "Network test completed"
+      
+      - name: Install Rust (with retry)
+        run: |
+          echo "Installing Rust toolchain..."
+          for i in {1..3}; do
+            echo "Attempt $i of 3"
+            if rustup toolchain install stable --profile minimal --no-self-update; then
+              echo "Rust installation successful"
+              break
+            else
+              echo "Rust installation failed, attempt $i"
+              if [ $i -eq 3 ]; then
+                echo "All attempts failed"
+                exit 1
+              fi
+              sleep 10
+            fi
+          done
+          rustup default stable
+          rustup component add rustfmt clippy
       
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
@@ -151,16 +176,27 @@ jobs:
             ${{ runner.os }}-wasm-
       
       - name: Build WASM (web target)
-        run: wasm-pack build --target web --features "wasm,all-algorithms"
+        run: |
+          echo "Building WASM for web target..."
+          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
+          echo "WASM web build completed successfully"
       
       - name: Build WASM (nodejs target)
-        run: wasm-pack build --target nodejs --features "wasm,all-algorithms"
+        run: |
+          echo "Building WASM for nodejs target..."
+          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
+          echo "WASM nodejs build completed successfully"
       
-      - name: Test WASM (Firefox) - Build Only
-        run: wasm-pack build --target web --features "wasm,all-algorithms"
-      
-      - name: Test WASM (Chrome) - Build Only
-        run: wasm-pack build --target nodejs --features "wasm,all-algorithms"
+      - name: Verify WASM artifacts
+        run: |
+          echo "Verifying WASM build artifacts..."
+          ls -la pkg/ || echo "No pkg directory found"
+          if [ -d "pkg" ]; then
+            echo "WASM package contents:"
+            ls -la pkg/
+            echo "WASM file size:"
+            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
 
   # Performance benchmarks
   benchmark:
@@ -213,9 +249,9 @@ jobs:
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
 
-  # Cross-platform compilation (Linux and Windows)
-  cross-compile-linux-windows:
-    name: Cross-Platform Build (Linux/Windows)
+  # Cross-platform compilation (Linux only)
+  cross-compile-linux:
+    name: Cross-Platform Build (Linux)
     runs-on: ubuntu-latest
     env:
       CARGO_TERM_COLOR: always
@@ -224,7 +260,6 @@ jobs:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
-          - x86_64-pc-windows-msvc
     
     steps:
       - uses: actions/checkout@v4
@@ -265,6 +300,58 @@ jobs:
         run: |
           echo "Build artifacts for target: ${{ matrix.target }}"
           ls -la target/${{ matrix.target }}/release/ || echo "No build artifacts found"
+
+  # Windows compilation (separate job for proper toolchain)
+  cross-compile-windows:
+    name: Cross-Platform Build (Windows)
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+    strategy:
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+      
+      - name: Show target info
+        run: rustup target list --installed
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build for target
+        run: |
+          echo "Building for target: ${{ matrix.target }}"
+          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
+          echo "Build completed successfully"
+      
+      - name: Check for target
+        run: |
+          echo "Checking for target: ${{ matrix.target }}"
+          cargo check --target ${{ matrix.target }} --features "all-algorithms"
+          echo "Check completed successfully"
+      
+      - name: Show build artifacts
+        run: |
+          echo "Build artifacts for target: ${{ matrix.target }}"
+          dir target\${{ matrix.target }}\release\ || echo "No build artifacts found"
 
   # ARM64 compilation (separate job for proper toolchain)
   cross-compile-arm64:
