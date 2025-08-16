@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# libQ Security Check Script
+# lib-Q Security Check Script
 # This script validates the codebase for security compliance
 
 set -euo pipefail
 
-echo "🔒 Running libQ Security Checks..."
+echo "🔒 Running lib-Q Security Checks..."
 
 # Colors for output
 RED='\033[0;31m'

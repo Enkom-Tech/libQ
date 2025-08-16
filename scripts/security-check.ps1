@@ -1,11 +1,11 @@
-# libQ Security Check Script (PowerShell)
+# lib-Q Security Check Script (PowerShell)
 # This script validates the codebase for security compliance
 
 param(
     [switch]$Verbose
 )
 
-Write-Host "Running libQ Security Checks..." -ForegroundColor Cyan
+Write-Host "Running lib-Q Security Checks..." -ForegroundColor Cyan
 
 # Function to print colored output
 function Write-Status {

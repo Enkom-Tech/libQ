@@ -146,21 +146,21 @@ jobs:
       - name: Prepare NPM package
         run: |
           cd pkg
-          npm pkg set name="@libq/core"
+          npm pkg set name="@lib-q/core"
           npm pkg set version=${GITHUB_REF#refs/tags/}
           npm pkg set description="Post-quantum cryptography library for Node.js"
           npm pkg set keywords="cryptography,post-quantum,security,wasm"
-          npm pkg set author="libQ Contributors"
+          npm pkg set author="lib-Q Contributors"
           npm pkg set license="Apache-2.0"
           npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/libq/libq.git"
-          npm pkg set homepage="https://github.com/libq/libq#readme"
-          npm pkg set bugs.url="https://github.com/libq/libq/issues"
+          npm pkg set repository.url="https://github.com/lib-q/lib-q.git"
+          npm pkg set homepage="https://github.com/lib-q/lib-q#readme"
+          npm pkg set bugs.url="https://github.com/lib-q/lib-q/issues"
           npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="libq.js"
-          npm pkg set types="libq.d.ts"
-          npm pkg set exports.import="./libq.js"
-          npm pkg set exports.require="./libq.js"
+          npm pkg set main="lib-q.js"
+          npm pkg set types="lib-q.d.ts"
+          npm pkg set exports.import="./lib-q.js"
+          npm pkg set exports.require="./lib-q.js"
       
       - name: Publish to NPM
         env:
@@ -209,15 +209,15 @@ jobs:
             
             ## Installation
             
-            ### Rust
-            ```bash
-            cargo add libq
-            ```
-            
-            ### Node.js
-            ```bash
-            npm install @libq/core
-            ```
+                         ### Rust
+             ```bash
+             cargo add lib-q
+             ```
+             
+             ### Node.js
+             ```bash
+             npm install @lib-q/core
+             ```
             
             ## Security
             
@@ -226,9 +226,9 @@ jobs:
             
             ## Documentation
             
-            - [API Documentation](https://docs.rs/libq)
-            - [Security Model](https://github.com/libq/libq/blob/main/docs/security.md)
-            - [Development Guide](https://github.com/libq/libq/blob/main/CONTRIBUTING.md)
+                         - [API Documentation](https://docs.rs/lib-q)
+            - [Security Model](https://github.com/lib-q/lib-q/blob/main/docs/security.md)
+            - [Development Guide](https://github.com/lib-q/lib-q/blob/main/CONTRIBUTING.md)
           draft: false
           prerelease: false
 
@@ -246,13 +246,13 @@ jobs:
       - name: Verify published crate
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          cargo install --version $VERSION libq
+                     cargo install --version $VERSION lib-q
       
       - name: Verify WASM package
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-          npm install @libq/core@$VERSION
-          node -e "const libq = require('@libq/core'); console.log('WASM package loaded successfully');"
+          npm install @lib-q/core@$VERSION
+          node -e "const lib-q = require('@lib-q/core'); console.log('WASM package loaded successfully');"
       
       - name: Run security tests
         run: |

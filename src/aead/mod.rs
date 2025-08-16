@@ -1,4 +1,4 @@
-//! Authenticated Encryption with Associated Data (AEAD) for libQ
+//! Authenticated Encryption with Associated Data (AEAD) for lib-Q
 //!
 //! This module provides post-quantum AEAD constructions.
 

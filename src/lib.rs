@@ -1,4 +1,4 @@
-//! libQ - Post-Quantum Cryptography Library
+//! lib-Q - Post-Quantum Cryptography Library
 //!
 //! A modern, secure cryptography library built exclusively with NIST-approved
 //! post-quantum algorithms. Written in Rust with WASM compilation support.
@@ -124,7 +124,7 @@ pub mod wasm_api {
         }
     }
 
-    /// Main WASM API for libQ
+    /// Main WASM API for lib-Q
     #[wasm_bindgen]
     pub struct LibQ {
         initialized: bool,
@@ -158,10 +158,10 @@ pub mod wasm_api {
             match super::init() {
                 Ok(()) => {
                     self.initialized = true;
-                    console::log_1(&"libQ initialized successfully".into());
+                    console::log_1(&"lib-Q initialized successfully".into());
                     Ok(())
                 }
-                Err(_) => Err(JsValue::from_str("Failed to initialize libQ")),
+                Err(_) => Err(JsValue::from_str("Failed to initialize lib-Q")),
             }
         }
 
@@ -342,7 +342,7 @@ pub mod wasm_api {
     pub fn libq_init_standalone() -> StdResult<(), JsValue> {
         match super::init() {
             Ok(()) => Ok(()),
-            Err(_) => Err(JsValue::from_str("Failed to initialize libQ")),
+            Err(_) => Err(JsValue::from_str("Failed to initialize lib-Q")),
         }
     }
 

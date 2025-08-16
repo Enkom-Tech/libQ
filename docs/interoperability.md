@@ -2,7 +2,7 @@
 
 ## Overview
 
-libQ provides comprehensive interoperability with existing cryptographic libraries and networking protocols, enabling seamless integration into existing systems while maintaining post-quantum security. The architecture supports multiple formats, protocols, and integration patterns.
+lib-Q provides comprehensive interoperability with existing cryptographic libraries and networking protocols, enabling seamless integration into existing systems while maintaining post-quantum security. The architecture supports multiple formats, protocols, and integration patterns.
 
 ## Interoperability Strategy
 
@@ -17,7 +17,7 @@ libQ provides comprehensive interoperability with existing cryptographic librari
 ### Interoperability Layers
 
 ```
-libQ Interoperability Stack
+lib-Q Interoperability Stack
 ├── Application Layer
 │   ├── High-level APIs (libhydrogen-style)
 │   ├── Protocol-specific bindings
@@ -44,7 +44,7 @@ libQ Interoperability Stack
 ### Binary Formats
 
 ```rust
-/// Binary format traits for libQ types
+/// Binary format traits for lib-Q types
 pub trait BinaryFormat {
     /// Serialize to raw bytes
     fn to_bytes(&self) -> Vec<u8>;
@@ -180,7 +180,7 @@ impl TextEncoding for PublicKey {
 ```rust
 use serde::{Deserialize, Serialize};
 
-/// JSON serialization for libQ types
+/// JSON serialization for lib-Q types
 #[derive(Serialize, Deserialize)]
 pub struct JsonPublicKey {
     /// Algorithm identifier
@@ -193,7 +193,7 @@ pub struct JsonPublicKey {
     pub created_at: Option<String>,
 }
 
-/// CBOR serialization for libQ types
+/// CBOR serialization for lib-Q types
 #[derive(Serialize, Deserialize)]
 pub struct CborPublicKey {
     /// Algorithm identifier
@@ -375,7 +375,7 @@ pub mod openssl {
 ### Platform-Specific Bindings
 
 ```rust
-/// C bindings for libQ
+/// C bindings for lib-Q
 #[no_mangle]
 pub extern "C" fn libq_keygen(
     security_level: u32,
@@ -445,24 +445,24 @@ pub extern "C" fn libq_exchange(
 ### TLS/DTLS Integration
 
 ```rust
-/// TLS integration for libQ
+/// TLS integration for lib-Q
 pub mod tls {
     use super::*;
     
-    /// TLS cipher suite for libQ
+    /// TLS cipher suite for lib-Q
     pub const TLS_CIPHER_SUITE: u16 = 0x1301; // TLS_AES_256_GCM_SHA384
     
-    /// TLS key exchange for libQ
+    /// TLS key exchange for lib-Q
     pub const TLS_KEY_EXCHANGE: u16 = 0x0016; // TLS_KEM_KYBER
     
-    /// TLS signature algorithm for libQ
+    /// TLS signature algorithm for lib-Q
     pub const TLS_SIGNATURE_ALGORITHM: u16 = 0x0808; // TLS_SIG_DILITHIUM
     
-    /// TLS extension for libQ support
-    pub const TLS_EXTENSION: u16 = 0x0017; // libQ post-quantum extension
+    /// TLS extension for lib-Q support
+    pub const TLS_EXTENSION: u16 = 0x0017; // lib-Q post-quantum extension
     
-    /// TLS handshake message for libQ
-    pub struct LibQTlsHandshake {
+    /// TLS handshake message for lib-Q
+    pub struct Lib-QTlsHandshake {
         /// Supported algorithms
         pub algorithms: Vec<u16>,
         /// Public key
@@ -475,11 +475,11 @@ pub mod tls {
     pub fn generate_key_exchange(
         algorithms: &[u16],
         secret_key: &SecretKey,
-    ) -> Result<LibQTlsHandshake> {
+    ) -> Result<Lib-QTlsHandshake> {
         let public_key = PublicKey::from_secret_key(secret_key)?;
         let signature = simple::sign(secret_key, &public_key.to_bytes())?;
         
-        Ok(LibQTlsHandshake {
+        Ok(Lib-QTlsHandshake {
             algorithms: algorithms.to_vec(),
             public_key,
             signature,
@@ -488,7 +488,7 @@ pub mod tls {
     
     /// Process TLS key exchange message
     pub fn process_key_exchange(
-        handshake: &LibQTlsHandshake,
+        handshake: &Lib-QTlsHandshake,
         peer_public_key: &PublicKey,
     ) -> Result<SharedSecret> {
         // Verify signature
@@ -513,12 +513,12 @@ pub mod tls {
 ### SSH Integration
 
 ```rust
-/// SSH integration for libQ
+/// SSH integration for lib-Q
 pub mod ssh {
     use super::*;
     
-    /// SSH key format for libQ
-    pub const SSH_KEY_TYPE: &str = "ssh-libq-kyber5";
+    /// SSH key format for lib-Q
+    pub const SSH_KEY_TYPE: &str = "ssh-lib-q-kyber5";
     
     /// SSH public key
     pub struct SshPublicKey {
@@ -598,7 +598,7 @@ pub mod ssh {
 ### WireGuard Integration
 
 ```rust
-/// WireGuard integration for libQ
+/// WireGuard integration for lib-Q
 pub mod wireguard {
     use super::*;
     
@@ -673,14 +673,14 @@ pub mod wireguard {
 pub mod migration {
     use super::*;
     
-    /// Convert libsodium key to libQ key
+    /// Convert libsodium key to lib-Q key
     pub fn sodium_to_libq_key(sodium_key: &[u8]) -> Result<PublicKey> {
         // libsodium keys are typically 32 bytes for X25519
-        // libQ keys are larger, so we need to handle the conversion
+        // lib-Q keys are larger, so we need to handle the conversion
         if sodium_key.len() == 32 {
-            // Convert X25519 key to libQ key
+            // Convert X25519 key to lib-Q key
             // This would require a conversion function
-            unimplemented!("X25519 to libQ key conversion")
+            unimplemented!("X25519 to lib-Q key conversion")
         } else {
             Err(Error::InvalidKeySize {
                 expected: 32,
@@ -689,18 +689,18 @@ pub mod migration {
         }
     }
     
-    /// Convert libQ key to libsodium key
+    /// Convert lib-Q key to libsodium key
     pub fn libq_to_sodium_key(libq_key: &PublicKey) -> Result<Vec<u8>> {
-        // Convert libQ key to libsodium-compatible format
+        // Convert lib-Q key to libsodium-compatible format
         // This might involve key derivation or format conversion
-        unimplemented!("libQ to libsodium key conversion")
+        unimplemented!("lib-Q to libsodium key conversion")
     }
     
     /// Migration helper for applications
     pub struct MigrationHelper {
         /// Original libsodium keys
         pub sodium_keys: Vec<Vec<u8>>,
-        /// New libQ keys
+        /// New lib-Q keys
         pub libq_keys: Vec<PublicKey>,
     }
     
@@ -718,7 +718,7 @@ pub mod migration {
             self.sodium_keys.push(key);
         }
         
-        /// Migrate all keys to libQ
+        /// Migrate all keys to lib-Q
         pub fn migrate_keys(&mut self) -> Result<()> {
             for sodium_key in &self.sodium_keys {
                 let libq_key = sodium_to_libq_key(sodium_key)?;
@@ -737,16 +737,16 @@ pub mod migration {
 pub mod openssl_migration {
     use super::*;
     
-    /// Convert OpenSSL key to libQ key
+    /// Convert OpenSSL key to lib-Q key
     pub fn openssl_to_libq_key(openssl_key: &[u8], key_type: &str) -> Result<PublicKey> {
         match key_type {
             "RSA" => {
-                // Convert RSA key to libQ key
-                unimplemented!("RSA to libQ key conversion")
+                // Convert RSA key to lib-Q key
+                unimplemented!("RSA to lib-Q key conversion")
             }
             "EC" => {
-                // Convert EC key to libQ key
-                unimplemented!("EC to libQ key conversion")
+                // Convert EC key to lib-Q key
+                unimplemented!("EC to lib-Q key conversion")
             }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: key_type.to_string(),
@@ -754,10 +754,10 @@ pub mod openssl_migration {
         }
     }
     
-    /// Convert libQ key to OpenSSL key
+    /// Convert lib-Q key to OpenSSL key
     pub fn libq_to_openssl_key(libq_key: &PublicKey) -> Result<Vec<u8>> {
-        // Convert libQ key to OpenSSL-compatible format
-        unimplemented!("libQ to OpenSSL key conversion")
+        // Convert lib-Q key to OpenSSL-compatible format
+        unimplemented!("lib-Q to OpenSSL key conversion")
     }
 }
 ```
@@ -827,4 +827,4 @@ mod tests {
 }
 ```
 
-This interoperability architecture ensures that libQ can seamlessly integrate with existing systems while providing post-quantum security. The comprehensive format support, library compatibility layers, and networking protocol integration make it easy to adopt libQ in existing applications.
+This interoperability architecture ensures that lib-Q can seamlessly integrate with existing systems while providing post-quantum security. The comprehensive format support, library compatibility layers, and networking protocol integration make it easy to adopt lib-Q in existing applications.
