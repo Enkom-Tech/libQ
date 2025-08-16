@@ -162,6 +162,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+      
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
