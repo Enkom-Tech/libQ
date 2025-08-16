@@ -1,8 +1,8 @@
-# libQ Development Plan
+# lib-Q Development Plan
 
 ## Executive Summary
 
-libQ is a post-quantum cryptography library designed to replace libsodium with quantum-resistant algorithms. This document outlines the development strategy, technical architecture, and implementation approach.
+lib-Q is a post-quantum cryptography library designed to replace libsodium with quantum-resistant algorithms. This document outlines the development strategy, technical architecture, and implementation approach.
 
 ## Technical Architecture
 
@@ -18,7 +18,7 @@ libQ is a post-quantum cryptography library designed to replace libsodium with q
 ### Module Architecture
 
 ```
-libQ/
+lib-Q/
 ├── src/
 │   ├── lib.rs              # Main library entry point
 │   ├── error.rs            # Error handling

@@ -2,15 +2,15 @@
 
 ## Overview
 
-This document outlines the implementation strategy for integrating zero-knowledge proofs (ZKPs) into libQ, with a primary focus on zk-STARKs for their post-quantum security properties and scalability.
+This document outlines the implementation strategy for integrating zero-knowledge proofs (ZKPs) into lib-Q, with a primary focus on zk-STARKs for their post-quantum security properties and scalability.
 
-## Why ZKPs in libQ?
+## Why ZKPs in lib-Q?
 
 ### Strategic Alignment
 - **Post-quantum security**: zk-STARKs are based on collision-resistant hash functions, making them quantum-resistant
 - **Privacy enhancement**: Enables privacy-preserving applications while maintaining security
 - **Scalability**: Proof size grows logarithmically with computation complexity
-- **Transparency**: No trusted setup required, aligning with libQ's security philosophy
+- **Transparency**: No trusted setup required, aligning with lib-Q's security philosophy
 
 ### Use Cases
 1. **Privacy-preserving authentication**: Prove identity without revealing credentials
@@ -24,7 +24,7 @@ This document outlines the implementation strategy for integrating zero-knowledg
 ### Core Components
 
 ```
-libQ ZKP Architecture
+lib-Q ZKP Architecture
 ├── src/zkp/
 │   ├── mod.rs              # Main ZKP module
 │   ├── stark/              # zk-STARK implementation
@@ -107,7 +107,7 @@ libQ ZKP Architecture
 
 ### Phase 4: Integration & Optimization
 
-#### libQ Integration
+#### lib-Q Integration
 - [ ] Integration with post-quantum crypto
 - [ ] Unified API design
 - [ ] Performance benchmarking

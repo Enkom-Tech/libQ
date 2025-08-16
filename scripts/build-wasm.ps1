@@ -1,5 +1,5 @@
-# libQ WASM Build Script (PowerShell Version)
-# This script builds WASM binaries from the libQ post-quantum cryptography library
+# lib-Q WASM Build Script (PowerShell Version)
+# This script builds WASM binaries from the lib-Q post-quantum cryptography library
 
 param(
     [switch]$Force,
@@ -8,7 +8,7 @@ param(
 )
 
 if ($Help) {
-    Write-Host "libQ WASM Build Script"
+    Write-Host "lib-Q WASM Build Script"
     Write-Host ""
     Write-Host "Usage: .\scripts\build-wasm.ps1 [-Force] [-Help] [-Verbose]"
     Write-Host ""
@@ -17,14 +17,14 @@ if ($Help) {
     Write-Host "  -Help     Show this help message"
     Write-Host "  -Verbose  Show detailed output"
     Write-Host ""
-    Write-Host "This script builds WASM binaries from the libQ post-quantum cryptography library."
+    Write-Host "This script builds WASM binaries from the lib-Q post-quantum cryptography library."
     Write-Host "It requires wasm-pack to be installed and configured."
     exit 0
 }
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building libQ WASM Binaries..." -ForegroundColor Green
+Write-Host "Building lib-Q WASM Binaries..." -ForegroundColor Green
 
 # Configuration
 $WASM_OUTPUT_DIR = "pkg"
@@ -107,7 +107,7 @@ function Remove-PreviousBuild {
 function Invoke-WasmBuild {
     Write-Status "INFO" "Building WASM module..."
     
-    # Build command for libQ
+    # Build command for lib-Q
     $buildCommand = @(
         "wasm-pack", "build",
         "--target", "web",
@@ -263,12 +263,12 @@ function Show-NextSteps {
     Write-Host "  3. For production: npm run build" -ForegroundColor White
     Write-Host ""
     Write-Host "  WASM files are in: $WASM_OUTPUT_DIR" -ForegroundColor Gray
-    Write-Host "  Include in HTML: script src='$WASM_OUTPUT_DIR\libq.js'" -ForegroundColor Gray
+    Write-Host "  Include in HTML: script src='$WASM_OUTPUT_DIR\lib-q.js'" -ForegroundColor Gray
 }
 
 # Main execution
 function Main {
-    Write-Host "Starting libQ WASM build process..." -ForegroundColor Cyan
+    Write-Host "Starting lib-Q WASM build process..." -ForegroundColor Cyan
     Write-Host "==================================================" -ForegroundColor Cyan
     
     # Check prerequisites
@@ -285,7 +285,7 @@ function Main {
     }
     
     Write-Host ""
-    Write-Host "Building libQ post-quantum cryptography library for WASM..." -ForegroundColor White
+    Write-Host "Building lib-Q post-quantum cryptography library for WASM..." -ForegroundColor White
     Write-Host "   Features: wasm-bindgen, js-sys, web-sys" -ForegroundColor Gray
     Write-Host "   Target: wasm32-unknown-unknown" -ForegroundColor Gray
     Write-Host "   Output: $WASM_OUTPUT_DIR" -ForegroundColor Gray
@@ -322,7 +322,7 @@ function Main {
     Show-NextSteps
     
     Write-Host "==================================================" -ForegroundColor Cyan
-    Write-Status "PASS" "libQ WASM build process completed successfully!"
+    Write-Status "PASS" "lib-Q WASM build process completed successfully!"
     Write-Host "==================================================" -ForegroundColor Cyan
 }
 

@@ -1,6 +1,6 @@
-# libQ CI/CD Pipeline
+# lib-Q CI/CD Pipeline
 
-This document describes the CI/CD pipeline implementation for libQ, a post-quantum cryptography library.
+This document describes the CI/CD pipeline implementation for lib-Q, a post-quantum cryptography library.
 
 ## Overview
 
@@ -86,8 +86,8 @@ This document describes the CI/CD pipeline implementation for libQ, a post-quant
 4. Post-release verification
 
 ### Publishing Targets
-- Rust crate: `crates.io` (libq)
-- NPM package: `@libq/core`
+- Rust crate: `crates.io` (lib-q)
+- NPM package: `@lib-q/core`
 - GitHub release with changelog
 
 ## Development Workflow
@@ -95,8 +95,8 @@ This document describes the CI/CD pipeline implementation for libQ, a post-quant
 ### Local Development
 ```bash
 # Setup
-git clone https://github.com/libq/libq.git
-cd libq
+git clone https://github.com/lib-q/lib-q.git
+cd lib-q
 cargo install cargo-audit cargo-tarpaulin wasm-pack
 pre-commit install
 
@@ -198,10 +198,10 @@ NPM_TOKEN: "npm publish token"
 
 ## Resources
 
-- GitHub Repository: https://github.com/libq/libq
-- Crates.io: https://crates.io/crates/libq
-- NPM Package: https://www.npmjs.com/package/@libq/core
-- Documentation: https://docs.rs/libq
+- GitHub Repository: https://github.com/lib-q/lib-q
+- Crates.io: https://crates.io/crates/lib-q
+- NPM Package: https://www.npmjs.com/package/@lib-q/core
+- Documentation: https://docs.rs/lib-q
 
 ---
 

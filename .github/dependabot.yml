@@ -9,9 +9,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 10
     reviewers:
-      - "libq/security-team"
+      - "lib-q/security-team"
     assignees:
-      - "libq/maintainers"
+      - "lib-q/maintainers"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -38,9 +38,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "libq/security-team"
+      - "lib-q/security-team"
     assignees:
-      - "libq/maintainers"
+      - "lib-q/maintainers"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -57,9 +57,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "libq/security-team"
+      - "lib-q/security-team"
     assignees:
-      - "libq/maintainers"
+      - "lib-q/maintainers"
     commit-message:
       prefix: "deps"
       include: "scope"
