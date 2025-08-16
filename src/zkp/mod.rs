@@ -15,16 +15,21 @@
 //! ```rust
 //! use libq::zkp::{ZkpProver, ZkpVerifier, ZkpProof};
 //!
-//! // Create a proof that you know a secret value without revealing it
-//! let prover = ZkpProver::new();
-//! let proof = prover.prove_secret_value(secret_value, public_statement)?;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a proof that you know a secret value without revealing it
+//!     let mut prover = ZkpProver::new();
+//!     let secret_value = b"secret_value";
+//!     let public_statement = b"public_statement";
+//!     let proof = prover.prove_secret_value(secret_value, public_statement)?;
 //!
-//! // Verify the proof without learning the secret
-//! let verifier = ZkpVerifier::new();
-//! let is_valid = verifier.verify(proof, public_statement)?;
+//!     // Verify the proof without learning the secret
+//!     let verifier = ZkpVerifier::new();
+//!     let is_valid = verifier.verify(proof, public_statement)?;
+//!     Ok(())
+//! }
 //! ```
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 /// A zero-knowledge proof
 #[derive(Debug, Clone)]
@@ -61,13 +66,15 @@ pub struct ZkpVerifier {
 }
 
 /// STARK-specific prover implementation
-#[cfg(feature = "stark")]
+#[cfg(feature = "zkp")]
+#[allow(dead_code)]
 struct StarkProver {
     // Implementation details will depend on the chosen STARK library
 }
 
 /// STARK-specific verifier implementation
-#[cfg(feature = "stark")]
+#[cfg(feature = "zkp")]
+#[allow(dead_code)]
 struct StarkVerifier {
     // Implementation details will depend on the chosen STARK library
 }
@@ -78,7 +85,7 @@ struct StarkVerifier {
 // struct WinterfellProver {
 //     // Implementation details will depend on the chosen STARK library
 // }
-// 
+//
 // /// Winterfell-specific verifier implementation
 // #[cfg(feature = "winterfell")]
 // struct WinterfellVerifier {
@@ -113,8 +120,8 @@ impl ZkpProver {
     /// Prove knowledge of a secret value without revealing it
     pub fn prove_secret_value(
         &mut self,
-        secret: &[u8],
-        public_statement: &[u8],
+        _secret: &[u8],
+        _public_statement: &[u8],
     ) -> Result<ZkpProof> {
         // Implementation will depend on the chosen STARK library
         // For now, return a placeholder
@@ -128,9 +135,9 @@ impl ZkpProver {
     /// Prove that a computation was performed correctly
     pub fn prove_computation(
         &mut self,
-        computation: &Computation,
-        inputs: &[u8],
-        outputs: &[u8],
+        _computation: &Computation,
+        _inputs: &[u8],
+        _outputs: &[u8],
     ) -> Result<ZkpProof> {
         // Implementation will depend on the chosen STARK library
         Ok(ZkpProof {
@@ -170,17 +177,17 @@ impl ZkpVerifier {
     pub fn verify(&self, proof: ZkpProof, public_statement: &[u8]) -> Result<bool> {
         match proof.proof_type {
             ProofType::Stark => self.verify_stark(proof, public_statement),
-            ProofType::Snark => Err(Error::NotImplemented {
+            ProofType::Snark => Err(crate::error::Error::NotImplemented {
                 feature: "zk-SNARK".to_string(),
             }),
-            ProofType::Bulletproof => Err(Error::NotImplemented {
+            ProofType::Bulletproof => Err(crate::error::Error::NotImplemented {
                 feature: "Bulletproofs".to_string(),
             }),
         }
     }
 
     /// Verify a STARK proof
-    fn verify_stark(&self, proof: ZkpProof, public_statement: &[u8]) -> Result<bool> {
+    fn verify_stark(&self, _proof: ZkpProof, _public_statement: &[u8]) -> Result<bool> {
         // Implementation will depend on the chosen STARK library
         // For now, return a placeholder
         Ok(true) // Placeholder
@@ -225,38 +232,42 @@ mod tests {
 
     #[test]
     fn test_zkp_prover_creation() {
-        let prover = ZkpProver::new();
+        let _prover = ZkpProver::new();
         // assert!(prover.stark_prover.is_none()); // Temporarily disabled
     }
 
     #[test]
     fn test_zkp_verifier_creation() {
-        let verifier = ZkpVerifier::new();
+        let _verifier = ZkpVerifier::new();
         // assert!(verifier.stark_verifier.is_none()); // Temporarily disabled
     }
 
     #[test]
     fn test_proof_creation() {
         let mut prover = ZkpProver::new();
-        let secret = b"secret_value";
-        let statement = b"public_statement";
-        
-        let proof = prover.prove_secret_value(secret, statement).unwrap();
+        let _secret = b"secret_value";
+        let _statement = b"public_statement";
+
+        let proof = prover
+            .prove_secret_value(_secret, _statement)
+            .expect("Proof creation should succeed");
         assert_eq!(proof.proof_type, ProofType::Stark);
         assert_eq!(proof.security_level, 128);
     }
 
     #[test]
     fn test_proof_verification() {
-        let verifier = ZkpVerifier::new();
+        let _verifier = ZkpVerifier::new();
         let proof = ZkpProof {
             data: vec![],
             proof_type: ProofType::Stark,
             security_level: 128,
         };
-        let statement = b"public_statement";
-        
-        let is_valid = verifier.verify(proof, statement).unwrap();
+        let _statement = b"public_statement";
+
+        let is_valid = _verifier
+            .verify(proof, _statement)
+            .expect("Proof verification should succeed");
         assert!(is_valid); // Placeholder implementation returns true
     }
 }

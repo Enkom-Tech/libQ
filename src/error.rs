@@ -1,5 +1,5 @@
 //! Error handling for libQ
-//! 
+//!
 //! This module defines the error types used throughout the library.
 
 use core::fmt;
@@ -8,169 +8,137 @@ use core::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Invalid key size
-    InvalidKeySize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidKeySize { expected: usize, actual: usize },
+
     /// Invalid signature size
-    InvalidSignatureSize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidSignatureSize { expected: usize, actual: usize },
+
     /// Invalid nonce size
-    InvalidNonceSize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidNonceSize { expected: usize, actual: usize },
+
     /// Invalid message size
-    InvalidMessageSize {
-        max: usize,
-        actual: usize,
-    },
-    
+    InvalidMessageSize { max: usize, actual: usize },
+
     /// Invalid ciphertext size
-    InvalidCiphertextSize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidCiphertextSize { expected: usize, actual: usize },
+
     /// Invalid plaintext size
-    InvalidPlaintextSize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidPlaintextSize { expected: usize, actual: usize },
+
     /// Invalid hash size
-    InvalidHashSize {
-        expected: usize,
-        actual: usize,
-    },
-    
+    InvalidHashSize { expected: usize, actual: usize },
+
     /// Invalid algorithm
-    InvalidAlgorithm {
-        algorithm: String,
-    },
-    
+    InvalidAlgorithm { algorithm: String },
+
     /// Invalid security level
     InvalidSecurityLevel {
         level: u32,
         supported: &'static [u32],
     },
-    
+
     /// Verification failed
-    VerificationFailed {
-        operation: String,
-    },
-    
+    VerificationFailed { operation: String },
+
     /// Encryption failed
-    EncryptionFailed {
-        operation: String,
-    },
-    
+    EncryptionFailed { operation: String },
+
     /// Decryption failed
-    DecryptionFailed {
-        operation: String,
-    },
-    
+    DecryptionFailed { operation: String },
+
     /// Key generation failed
-    KeyGenerationFailed {
-        operation: String,
-    },
-    
+    KeyGenerationFailed { operation: String },
+
     /// Random number generation failed
-    RandomGenerationFailed {
-        operation: String,
-    },
-    
+    RandomGenerationFailed { operation: String },
+
     /// Memory allocation failed
-    MemoryAllocationFailed {
-        operation: String,
-    },
-    
+    MemoryAllocationFailed { operation: String },
+
     /// Internal error
-    InternalError {
-        operation: String,
-        details: String,
-    },
-    
+    InternalError { operation: String, details: String },
+
     /// Not implemented
-    NotImplemented {
-        feature: String,
-    },
-    
+    NotImplemented { feature: String },
+
     /// Unsupported operation
-    UnsupportedOperation {
-        operation: String,
-    },
-    
+    UnsupportedOperation { operation: String },
+
     /// Invalid state
-    InvalidState {
-        state: String,
-    },
+    InvalidState { state: String },
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidKeySize { expected, actual } => {
-                write!(f, "Invalid key size: expected {}, got {}", expected, actual)
+                write!(f, "Invalid key size: expected {expected}, got {actual}")
             }
             Error::InvalidSignatureSize { expected, actual } => {
-                write!(f, "Invalid signature size: expected {}, got {}", expected, actual)
+                write!(
+                    f,
+                    "Invalid signature size: expected {expected}, got {actual}"
+                )
             }
             Error::InvalidNonceSize { expected, actual } => {
-                write!(f, "Invalid nonce size: expected {}, got {}", expected, actual)
+                write!(f, "Invalid nonce size: expected {expected}, got {actual}")
             }
             Error::InvalidMessageSize { max, actual } => {
-                write!(f, "Invalid message size: maximum {}, got {}", max, actual)
+                write!(f, "Invalid message size: maximum {max}, got {actual}")
             }
             Error::InvalidCiphertextSize { expected, actual } => {
-                write!(f, "Invalid ciphertext size: expected {}, got {}", expected, actual)
+                write!(
+                    f,
+                    "Invalid ciphertext size: expected {expected}, got {actual}"
+                )
             }
             Error::InvalidPlaintextSize { expected, actual } => {
-                write!(f, "Invalid plaintext size: expected {}, got {}", expected, actual)
+                write!(
+                    f,
+                    "Invalid plaintext size: expected {expected}, got {actual}"
+                )
             }
             Error::InvalidHashSize { expected, actual } => {
-                write!(f, "Invalid hash size: expected {}, got {}", expected, actual)
+                write!(f, "Invalid hash size: expected {expected}, got {actual}")
             }
             Error::InvalidAlgorithm { algorithm } => {
-                write!(f, "Invalid algorithm: {}", algorithm)
+                write!(f, "Invalid algorithm: {algorithm}")
             }
             Error::InvalidSecurityLevel { level, supported } => {
-                write!(f, "Invalid security level: {} (supported: {:?})", level, supported)
+                write!(
+                    f,
+                    "Invalid security level: {level} (supported: {supported:?})"
+                )
             }
             Error::VerificationFailed { operation } => {
-                write!(f, "Verification failed: {}", operation)
+                write!(f, "Verification failed: {operation}")
             }
             Error::EncryptionFailed { operation } => {
-                write!(f, "Encryption failed: {}", operation)
+                write!(f, "Encryption failed: {operation}")
             }
             Error::DecryptionFailed { operation } => {
-                write!(f, "Decryption failed: {}", operation)
+                write!(f, "Decryption failed: {operation}")
             }
             Error::KeyGenerationFailed { operation } => {
-                write!(f, "Key generation failed: {}", operation)
+                write!(f, "Key generation failed: {operation}")
             }
             Error::RandomGenerationFailed { operation } => {
-                write!(f, "Random generation failed: {}", operation)
+                write!(f, "Random generation failed: {operation}")
             }
             Error::MemoryAllocationFailed { operation } => {
-                write!(f, "Memory allocation failed: {}", operation)
+                write!(f, "Memory allocation failed: {operation}")
             }
             Error::InternalError { operation, details } => {
-                write!(f, "Internal error in {}: {}", operation, details)
+                write!(f, "Internal error in {operation}: {details}")
             }
             Error::NotImplemented { feature } => {
-                write!(f, "Feature not implemented: {}", feature)
+                write!(f, "Feature not implemented: {feature}")
             }
             Error::UnsupportedOperation { operation } => {
-                write!(f, "Unsupported operation: {}", operation)
+                write!(f, "Unsupported operation: {operation}")
             }
             Error::InvalidState { state } => {
-                write!(f, "Invalid state: {}", state)
+                write!(f, "Invalid state: {state}")
             }
         }
     }
@@ -200,10 +168,7 @@ mod tests {
             expected: 32,
             actual: 16,
         };
-        assert_eq!(
-            error.to_string(),
-            "Invalid key size: expected 32, got 16"
-        );
+        assert_eq!(error.to_string(), "Invalid key size: expected 32, got 16");
     }
 
     #[test]
