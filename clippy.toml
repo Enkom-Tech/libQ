@@ -19,5 +19,4 @@ disallowed-types = [
 doc-valid-idents = []
 
 # Additional warnings
-warn-on-all-wildcards = true
-warn-on-all-unsafe = true
+warn-on-all-wildcard-imports = true
