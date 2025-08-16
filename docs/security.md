@@ -2,7 +2,7 @@
 
 ## Security Philosophy
 
-libQ is built on the principle that **all classical cryptography is broken**. Our threat model assumes:
+lib-Q is built on the principle that **all classical cryptography is broken**. Our threat model assumes:
 
 1. **Quantum computers exist** and can break classical algorithms
 2. **Adversaries have unlimited computational power** (both classical and quantum)
@@ -28,7 +28,7 @@ libQ is built on the principle that **all classical cryptography is broken**. Ou
 ## Algorithm Selection
 
 ### Security Tiers
-libQ provides three security tiers to balance quantum resistance with performance:
+lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
 - **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
@@ -110,7 +110,7 @@ We only use algorithms that have been standardized or are in the final round of 
 - **HQC**: Final round candidate, good performance
 
 ### Forbidden Classical Algorithms
-The following classical algorithms are explicitly forbidden in libQ:
+The following classical algorithms are explicitly forbidden in lib-Q:
 
 #### Forbidden KEMs
 - **RSA**: Broken by Shor's algorithm
@@ -320,7 +320,7 @@ pub fn secure_random_bytes(buffer: &mut [u8]) -> Result<(), Error> {
 - **User notification**: Clear notification of affected users
 
 ### Security Contact
-- **Security email**: security@libq.org
+- **Security email**: security@lib-q.org
 - **PGP key**: Published for secure communication
 - **Bug bounty**: Rewards for security researchers
 - **Responsible disclosure**: Recognition for responsible disclosure

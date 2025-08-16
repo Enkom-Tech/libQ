@@ -1,8 +1,8 @@
-# libQ Architecture Summary
+# lib-Q Architecture Summary
 
 ## Executive Summary
 
-libQ is a comprehensive post-quantum cryptography library designed to replace classical cryptographic libraries with quantum-resistant alternatives. The architecture follows libhydrogen's principles of simplicity, security, and performance while providing a complete post-quantum cryptographic ecosystem.
+lib-Q is a comprehensive post-quantum cryptography library designed to replace classical cryptographic libraries with quantum-resistant alternatives. The architecture follows libhydrogen's principles of simplicity, security, and performance while providing a complete post-quantum cryptographic ecosystem.
 
 ## Complete Architecture Overview
 
@@ -18,7 +18,7 @@ libQ is a comprehensive post-quantum cryptography library designed to replace cl
 ### Architecture Stack
 
 ```
-libQ Complete Architecture
+lib-Q Complete Architecture
 ├── Application Layer
 │   ├── Simple API (libhydrogen-style)
 │   ├── High-Level Functions
@@ -341,7 +341,7 @@ let pem_key = format!(
 
 ### Architecture Completeness
 
-The libQ architecture is comprehensive and covers all major aspects of a modern cryptography library:
+The lib-Q architecture is comprehensive and covers all major aspects of a modern cryptography library:
 
 - **API Design**: Complete API design with multiple abstraction levels
 - **Security Model**: Comprehensive security model with clear threat analysis
@@ -398,4 +398,4 @@ With the architecture complete, the next phase is implementation:
 - **Adoption**: Successful migration from existing cryptographic libraries
 - **Community**: Active community with contributions and feedback
 
-The libQ architecture provides a solid foundation for building a comprehensive, secure, and performant post-quantum cryptography library that can replace classical cryptographic libraries while maintaining compatibility and ease of use.
+The lib-Q architecture provides a solid foundation for building a comprehensive, secure, and performant post-quantum cryptography library that can replace classical cryptographic libraries while maintaining compatibility and ease of use.

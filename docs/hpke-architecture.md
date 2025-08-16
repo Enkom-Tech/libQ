@@ -2,14 +2,14 @@
 
 ## Overview
 
-libQ implements a three-tier Hybrid Public Key Encryption (HPKE) system that provides post-quantum security with different performance characteristics. HPKE combines post-quantum key encapsulation mechanisms (KEMs) with symmetric encryption to provide secure, authenticated encryption.
+lib-Q implements a three-tier Hybrid Public Key Encryption (HPKE) system that provides post-quantum security with different performance characteristics. HPKE combines post-quantum key encapsulation mechanisms (KEMs) with symmetric encryption to provide secure, authenticated encryption.
 
 ## Architecture Design
 
 ### Three-Tier System
 
 ```
-libQ HPKE Architecture
+lib-Q HPKE Architecture
 ├── Tier 1: Ultra-Secure (Pure Post-Quantum)
 │   ├── KEM: CRYSTALS-Kyber (Level 5)
 │   ├── AEAD: SHAKE256-based construction
@@ -144,7 +144,7 @@ impl UltraHpke {
         // Use SHAKE256 for key derivation
         let mut key = [0u8; 32];
         let mut hasher = Shake256::new();
-        hasher.update(b"libQ-HPKE-Ultra-v1");
+        hasher.update(b"lib-Q-HPKE-Ultra-v1");
         hasher.update(shared_secret.as_ref());
         hasher.update(encapsulated_key.as_ref());
         hasher.finalize(&mut key);
@@ -210,7 +210,7 @@ impl Shake256Aead {
     fn generate_nonce(&self, key: &EncryptionKey) -> Result<[u8; 12]> {
         let mut nonce = [0u8; 12];
         let mut hasher = Shake256::new();
-        hasher.update(b"libQ-HPKE-Nonce");
+        hasher.update(b"lib-Q-HPKE-Nonce");
         hasher.update(key.as_ref());
         hasher.update(&random_bytes(16)?);
         hasher.finalize(&mut nonce);
@@ -227,7 +227,7 @@ impl Shake256Aead {
     ) -> Result<[u8; 16]> {
         let mut tag = [0u8; 16];
         let mut hasher = Shake256::new();
-        hasher.update(b"libQ-HPKE-Tag");
+        hasher.update(b"lib-Q-HPKE-Tag");
         hasher.update(key.as_ref());
         hasher.update(nonce);
         hasher.update(ciphertext);
@@ -322,7 +322,7 @@ impl BalancedHpke {
         // Use SHAKE256 for key derivation
         let mut key = [0u8; 32];
         let mut hasher = Shake256::new();
-        hasher.update(b"libQ-HPKE-Balanced-v1");
+        hasher.update(b"lib-Q-HPKE-Balanced-v1");
         hasher.update(shared_secret.as_ref());
         hasher.update(encapsulated_key.as_ref());
         hasher.finalize(&mut key);
@@ -415,7 +415,7 @@ impl PerformanceHpke {
         // Use SHAKE256 for key derivation
         let mut key = [0u8; 32];
         let mut hasher = Shake256::new();
-        hasher.update(b"libQ-HPKE-Performance-v1");
+        hasher.update(b"lib-Q-HPKE-Performance-v1");
         hasher.update(shared_secret.as_ref());
         hasher.update(encapsulated_key.as_ref());
         hasher.finalize(&mut key);
@@ -636,10 +636,10 @@ fn test_hpke_tier_interoperability() {
 ### Basic HPKE Usage
 
 ```rust
-use libq::hpke::{SecurityTier, encrypt, decrypt};
+use lib-q::hpke::{SecurityTier, encrypt, decrypt};
 
 // Generate keypair
-let (pk, sk) = libq::simple::keygen(1)?;
+let (pk, sk) = lib-q::simple::keygen(1)?;
 
 // Encrypt message using balanced tier
 let message = b"Secret message";
@@ -672,7 +672,7 @@ fn encrypt_general_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCip
 ### Stateful HPKE Context
 
 ```rust
-use libq::hpke::create_context;
+use lib-q::hpke::create_context;
 
 // Create HPKE context for multiple operations
 let context = create_context(&recipient_pk, SecurityTier::Balanced)?;
