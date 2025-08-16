@@ -1,4 +1,4 @@
-//! Utility functions for libQ
+//! Utility functions for lib-Q
 //!
 //! This module provides common utility functions used throughout the library.
 

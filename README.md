@@ -1,10 +1,10 @@
-# libQ - Post-Quantum Cryptography Library
+# lib-Q - Post-Quantum Cryptography Library
 
 A modern cryptography library built exclusively with NIST-approved post-quantum algorithms. Written in Rust with WASM compilation support.
 
 ## Mission
 
-libQ provides a libsodium-equivalent API for post-quantum cryptography, ensuring quantum resistance while maintaining familiar, easy-to-use interfaces.
+lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensuring quantum resistance while maintaining familiar, easy-to-use interfaces.
 
 ## Key Features
 
@@ -47,7 +47,7 @@ libQ provides a libsodium-equivalent API for post-quantum cryptography, ensuring
 ## Architecture
 
 ```
-libQ/
+lib-Q/
 ├── src/
 │   ├── kem/           # Key Encapsulation Mechanisms
 │   ├── sig/           # Digital Signatures

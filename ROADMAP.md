@@ -1,6 +1,6 @@
-# libQ Development Roadmap
+# lib-Q Development Roadmap
 
-This roadmap outlines the development phases for libQ, a post-quantum cryptography library equivalent to libsodium. The roadmap is driven by security requirements, NIST standardization progress, and community needs.
+This roadmap outlines the development phases for lib-Q, a post-quantum cryptography library equivalent to libsodium. The roadmap is driven by security requirements, NIST standardization progress, and community needs.
 
 ## Phase 0: Foundation (Current)
 
