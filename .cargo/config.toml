@@ -1,8 +1,8 @@
 [target.wasm32-unknown-unknown]
-rustflags = ["--cfg", "getrandom_wasm_js"]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 
 [target.wasm32-unknown-emscripten]
-rustflags = ["--cfg", "getrandom_wasm_js"]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 
 [env]
-CARGO_CFG_GETRANDOM_WASM_JS = "1"
+CARGO_CFG_GETRANDOM_BACKEND = "wasm_js"

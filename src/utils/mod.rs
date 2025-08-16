@@ -3,7 +3,7 @@
 //! This module provides common utility functions used throughout the library.
 
 use crate::error::{Error, Result};
-use getrandom::getrandom;
+use getrandom;
 
 /// Constant-time comparison of two byte slices
 ///
@@ -58,7 +58,7 @@ pub fn random_bytes(length: usize) -> Result<Vec<u8>> {
     }
 
     let mut bytes = vec![0u8; length];
-    getrandom(&mut bytes).map_err(|_| Error::RandomGenerationFailed {
+    getrandom::fill(&mut bytes).map_err(|_| Error::RandomGenerationFailed {
         operation: "random_bytes".to_string(),
     })?;
 
