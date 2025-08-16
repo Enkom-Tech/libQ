@@ -342,6 +342,27 @@ jobs:
         with:
           components: rustfmt, clippy
       
+      - name: Verify Rust installation
+        run: |
+          echo "Rust version: $(rustc --version)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Available targets:"
+          rustup target list --installed
+      
+      - name: Add ARM64 target
+        run: |
+          echo "Installing ARM64 target..."
+          
+          # Install target with error handling
+          if ! rustup target add aarch64-unknown-linux-gnu; then
+            echo "Failed to install aarch64-unknown-linux-gnu target"
+            exit 1
+          fi
+          
+          echo "Verifying target installation..."
+          rustup target list --installed | grep aarch64-unknown-linux-gnu
+          echo "Target installation completed"
+      
       - name: Install cross-compilation tools
         run: |
           sudo apt-get update
@@ -350,9 +371,9 @@ jobs:
       - name: Configure cross-compilation
         run: |
           mkdir -p ~/.cargo
-          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config
-          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config
-          echo 'ar = "aarch64-linux-gnu-ar"' >> ~/.cargo/config
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+          echo 'ar = "aarch64-linux-gnu-ar"' >> ~/.cargo/config.toml
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -402,6 +423,32 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      
+      - name: Verify Rust installation
+        run: |
+          echo "Rust version: $(rustc --version)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Available targets:"
+          rustup target list --installed
+      
+      - name: Add macOS targets
+        run: |
+          echo "Installing macOS targets..."
+          
+          # Install targets with error handling
+          if ! rustup target add x86_64-apple-darwin; then
+            echo "Failed to install x86_64-apple-darwin target"
+            exit 1
+          fi
+          
+          if ! rustup target add aarch64-apple-darwin; then
+            echo "Failed to install aarch64-apple-darwin target"
+            exit 1
+          fi
+          
+          echo "Verifying target installation..."
+          rustup target list --installed | grep apple-darwin
+          echo "Target installation completed"
       
       - name: Cache dependencies
         uses: actions/cache@v4

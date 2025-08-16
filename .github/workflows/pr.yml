@@ -12,13 +12,19 @@ jobs:
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (with retry)
+        uses: nick-fields/retry@v3
         with:
-          components: rustfmt, clippy
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            rustup toolchain install stable --profile minimal --no-self-update
+            rustup component add rustfmt clippy
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -47,11 +53,18 @@ jobs:
   security-check:
     name: Security Check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (with retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            rustup toolchain install stable --profile minimal --no-self-update
       
       - name: Install cargo-audit
         run: cargo install cargo-audit
@@ -92,11 +105,18 @@ jobs:
   test-coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (with retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            rustup toolchain install stable --profile minimal --no-self-update
       
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
@@ -135,11 +155,18 @@ jobs:
   performance:
     name: Performance Check
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (with retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            rustup toolchain install stable --profile minimal --no-self-update
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -165,11 +192,18 @@ jobs:
   wasm-check:
     name: WASM Compatibility
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust (with retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            rustup toolchain install stable --profile minimal --no-self-update
       
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
