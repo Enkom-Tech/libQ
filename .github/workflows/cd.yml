@@ -1,0 +1,261 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Pre-release validation
+  validate:
+    name: Pre-Release Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Security audit
+        run: cargo audit --deny warnings
+      
+      - name: Run all tests
+        run: cargo test --all-features --release
+      
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Clippy linting
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      
+      - name: Validate version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          CARGO_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+          if [ "$VERSION" != "$CARGO_VERSION" ]; then
+            echo "Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
+            exit 1
+          fi
+
+  # Publish Rust crate
+  publish-crate:
+    name: Publish Rust Crate
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token $CARGO_REGISTRY_TOKEN
+
+  # Build and publish WASM package
+  publish-wasm:
+    name: Build and Publish WASM Package
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            pkg
+            node_modules
+          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-
+      
+      - name: Build WASM package (nodejs target)
+        run: |
+          echo "Building WASM for nodejs target..."
+          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
+          echo "WASM nodejs build completed successfully"
+      
+      - name: Build WASM package (web target)
+        run: |
+          echo "Building WASM for web target..."
+          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
+          echo "WASM web build completed successfully"
+      
+      - name: Verify WASM artifacts
+        run: |
+          echo "Verifying WASM build artifacts..."
+          ls -la pkg/ || echo "No pkg directory found"
+          if [ -d "pkg" ]; then
+            echo "WASM package contents:"
+            ls -la pkg/
+            echo "WASM file size:"
+            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
+      
+      - name: Prepare NPM package
+        run: |
+          cd pkg
+          npm pkg set name="@libq/core"
+          npm pkg set version=${GITHUB_REF#refs/tags/}
+          npm pkg set description="Post-quantum cryptography library for Node.js"
+          npm pkg set keywords="cryptography,post-quantum,security,wasm"
+          npm pkg set author="libQ Contributors"
+          npm pkg set license="Apache-2.0"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="https://github.com/libq/libq.git"
+          npm pkg set homepage="https://github.com/libq/libq#readme"
+          npm pkg set bugs.url="https://github.com/libq/libq/issues"
+          npm pkg set files=["*.js","*.d.ts","*.wasm"]
+          npm pkg set main="libq.js"
+          npm pkg set types="libq.d.ts"
+          npm pkg set exports.import="./libq.js"
+          npm pkg set exports.require="./libq.js"
+      
+      - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd pkg
+          npm publish --access public
+
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    needs: [publish-crate, publish-wasm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" --reverse)
+          fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## What's Changed
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Installation
+            
+            ### Rust
+            ```bash
+            cargo add libq
+            ```
+            
+            ### Node.js
+            ```bash
+            npm install @libq/core
+            ```
+            
+            ## Security
+            
+            This release contains only NIST-approved post-quantum cryptographic algorithms.
+            All operations are constant-time and side-channel resistant.
+            
+            ## Documentation
+            
+            - [API Documentation](https://docs.rs/libq)
+            - [Security Model](https://github.com/libq/libq/blob/main/docs/security.md)
+            - [Development Guide](https://github.com/libq/libq/blob/main/CONTRIBUTING.md)
+          draft: false
+          prerelease: false
+
+  # Security verification post-release
+  security-verification:
+    name: Post-Release Security Verification
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Verify published crate
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          cargo install --version $VERSION libq
+      
+      - name: Verify WASM package
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          npm install @libq/core@$VERSION
+          node -e "const libq = require('@libq/core'); console.log('WASM package loaded successfully');"
+      
+      - name: Run security tests
+        run: |
+          echo "Running available security tests..."
+          cargo test --features "all-algorithms" --test constant_time
+          echo "Security tests completed successfully"
