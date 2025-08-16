@@ -1,4 +1,4 @@
-//! Zero-Knowledge Proofs (ZKPs) for libQ
+//! Zero-Knowledge Proofs (ZKPs) for lib-Q
 //!
 //! This module provides post-quantum secure zero-knowledge proof systems,
 //! primarily focusing on zk-STARKs for their scalability and transparency.
@@ -42,7 +42,7 @@ pub struct ZkpProof {
     pub security_level: u32,
 }
 
-/// Types of zero-knowledge proofs supported by libQ
+/// Types of zero-knowledge proofs supported by lib-Q
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProofType {
     /// zk-STARK proof

@@ -1,4 +1,4 @@
-//! Key Encapsulation Mechanisms (KEMs) for libQ
+//! Key Encapsulation Mechanisms (KEMs) for lib-Q
 //!
 //! This module provides post-quantum key encapsulation mechanisms.
 

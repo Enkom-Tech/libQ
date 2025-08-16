@@ -1,9 +1,9 @@
 ---
 name: Security report
-about: Report a security vulnerability in libQ
+about: Report a security vulnerability in lib-Q
 title: '[SECURITY] '
 labels: ['security', 'confidential']
-assignees: ['libq/security-team']
+assignees: ['lib-q/security-team']
 
 ---
 
@@ -50,7 +50,7 @@ Describe the potential impact of this vulnerability:
 ```rust
 // If possible, provide a proof of concept
 // DO NOT include actual attack code that could be harmful
-use libq::{init, Kem};
+use lib-q::{init, Kem};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     init()?;
@@ -74,7 +74,7 @@ What actually happens that makes this a vulnerability.
 **Environment**
  - OS: [e.g. Ubuntu 22.04, Windows 11, macOS 13]
  - Rust version: [e.g. 1.70.0]
- - libQ version: [e.g. 0.1.0]
+ - lib-Q version: [e.g. 0.1.0]
  - Target: [e.g. x86_64-unknown-linux-gnu, wasm32-unknown-unknown]
  - Features: [e.g. "all-algorithms", "wasm"]
 
