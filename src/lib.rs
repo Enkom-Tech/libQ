@@ -5,8 +5,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-
-
 // Core modules
 pub mod aead;
 pub mod error;
@@ -40,10 +38,10 @@ pub fn version() -> &'static str {
 #[cfg(feature = "wasm")]
 pub mod wasm_api {
     use super::*;
-    use wasm_bindgen::prelude::*;
     use js_sys::{Array, Object, Uint8Array};
-    use web_sys::console;
     use std::result::Result as StdResult;
+    use wasm_bindgen::prelude::*;
+    use web_sys::console;
 
     /// WASM-compatible key pair for KEM operations
     #[wasm_bindgen]
@@ -56,7 +54,10 @@ pub mod wasm_api {
     impl KemKeyPairWasm {
         #[wasm_bindgen(constructor)]
         pub fn new(public_key: Uint8Array, secret_key: Uint8Array) -> Self {
-            Self { public_key, secret_key }
+            Self {
+                public_key,
+                secret_key,
+            }
         }
 
         #[wasm_bindgen(getter)]
@@ -81,7 +82,10 @@ pub mod wasm_api {
     impl SigKeyPairWasm {
         #[wasm_bindgen(constructor)]
         pub fn new(public_key: Uint8Array, secret_key: Uint8Array) -> Self {
-            Self { public_key, secret_key }
+            Self {
+                public_key,
+                secret_key,
+            }
         }
 
         #[wasm_bindgen(getter)]
@@ -145,7 +149,6 @@ pub mod wasm_api {
 
     #[wasm_bindgen]
     impl LibQ {
-
         /// Initialize the library
         pub fn init(&mut self) -> StdResult<(), JsValue> {
             if self.initialized {
@@ -157,7 +160,7 @@ pub mod wasm_api {
                     self.initialized = true;
                     console::log_1(&"libQ initialized successfully".into());
                     Ok(())
-                },
+                }
                 Err(_) => Err(JsValue::from_str("Failed to initialize libQ")),
             }
         }
@@ -172,7 +175,7 @@ pub mod wasm_api {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
-            
+
             match utils::random_bytes(length) {
                 Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
                 Err(_) => Err(JsValue::from_str("Failed to generate random bytes")),
@@ -184,7 +187,7 @@ pub mod wasm_api {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
-            
+
             match utils::random_key(size) {
                 Ok(key) => Ok(Uint8Array::from(&key[..])),
                 Err(_) => Err(JsValue::from_str("Failed to generate random key")),
@@ -210,24 +213,28 @@ pub mod wasm_api {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
-            
+
             let data_vec: Vec<u8> = data.to_vec();
             let hash_impl = HashAlgorithm::Shake256.create_hash();
             match hash_impl.hash(&data_vec) {
                 Ok(hash) => Ok(HashResultWasm::new(
                     Uint8Array::from(&hash[..]),
-                    "SHAKE256".to_string()
+                    "SHAKE256".to_string(),
                 )),
                 Err(_) => Err(JsValue::from_str("Failed to hash data")),
             }
         }
 
         /// Generate KEM key pair (placeholder implementation)
-        pub fn kem_generate_keypair(&self, algorithm: &str, security_level: u32) -> StdResult<KemKeyPairWasm, JsValue> {
+        pub fn kem_generate_keypair(
+            &self,
+            algorithm: &str,
+            security_level: u32,
+        ) -> StdResult<KemKeyPairWasm, JsValue> {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
-            
+
             // Simple validation
             if ![1, 3, 4, 5].contains(&security_level) {
                 return Err(JsValue::from_str("Invalid security level"));
@@ -242,25 +249,27 @@ pub mod wasm_api {
             };
 
             match utils::random_bytes(public_key_size) {
-                Ok(public_key) => {
-                    match utils::random_bytes(public_key_size) {
-                        Ok(secret_key) => Ok(KemKeyPairWasm::new(
-                            Uint8Array::from(&public_key[..]),
-                            Uint8Array::from(&secret_key[..])
-                        )),
-                        Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
-                    }
+                Ok(public_key) => match utils::random_bytes(public_key_size) {
+                    Ok(secret_key) => Ok(KemKeyPairWasm::new(
+                        Uint8Array::from(&public_key[..]),
+                        Uint8Array::from(&secret_key[..]),
+                    )),
+                    Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
                 },
                 Err(_) => Err(JsValue::from_str("Failed to generate public key")),
             }
         }
 
         /// Generate signature key pair (placeholder implementation)
-        pub fn sig_generate_keypair(&self, algorithm: &str, security_level: u32) -> StdResult<SigKeyPairWasm, JsValue> {
+        pub fn sig_generate_keypair(
+            &self,
+            algorithm: &str,
+            security_level: u32,
+        ) -> StdResult<SigKeyPairWasm, JsValue> {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
-            
+
             // Simple validation
             if ![1, 3, 4, 5].contains(&security_level) {
                 return Err(JsValue::from_str("Invalid security level"));
@@ -275,14 +284,12 @@ pub mod wasm_api {
             };
 
             match utils::random_bytes(public_key_size) {
-                Ok(public_key) => {
-                    match utils::random_bytes(public_key_size) {
-                        Ok(secret_key) => Ok(SigKeyPairWasm::new(
-                            Uint8Array::from(&public_key[..]),
-                            Uint8Array::from(&secret_key[..])
-                        )),
-                        Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
-                    }
+                Ok(public_key) => match utils::random_bytes(public_key_size) {
+                    Ok(secret_key) => Ok(SigKeyPairWasm::new(
+                        Uint8Array::from(&public_key[..]),
+                        Uint8Array::from(&secret_key[..]),
+                    )),
+                    Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
                 },
                 Err(_) => Err(JsValue::from_str("Failed to generate public key")),
             }
@@ -291,7 +298,7 @@ pub mod wasm_api {
         /// Get supported algorithms
         pub fn get_supported_algorithms(&self) -> Object {
             let algorithms = Object::new();
-            
+
             // KEM algorithms
             let kem_algorithms = Array::new();
             kem_algorithms.push(&"kyber".into());
