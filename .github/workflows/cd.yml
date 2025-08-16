@@ -258,7 +258,7 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           npm install @lib-q/core@$VERSION
-          node -e "const lib-q = require('@lib-q/core'); console.log('WASM package loaded successfully');"
+          node -e "const libq = require('@lib-q/core'); console.log('WASM package loaded successfully');"
       
       - name: Run security tests
         run: |
