@@ -1,0 +1,23 @@
+# libQ Clippy Configuration
+# Additional lints for security and code quality
+
+# Security-focused lints
+disallowed-methods = [
+    "std::env::var",
+    "std::env::var_os",
+    "std::env::set_var",
+    "std::env::remove_var",
+]
+
+# Performance lints
+disallowed-types = [
+    "std::collections::HashMap",
+    "std::collections::HashSet",
+]
+
+# Documentation requirements
+doc-valid-idents = []
+
+# Additional warnings
+warn-on-all-wildcards = true
+warn-on-all-unsafe = true
