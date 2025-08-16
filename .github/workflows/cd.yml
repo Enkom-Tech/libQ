@@ -52,6 +52,7 @@ jobs:
       - name: Validate version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
           CARGO_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
           if [ "$VERSION" != "$CARGO_VERSION" ]; then
             echo "Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
@@ -147,7 +148,9 @@ jobs:
         run: |
           cd pkg
           npm pkg set name="@lib-q/core"
-          npm pkg set version=${GITHUB_REF#refs/tags/}
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          npm pkg set version=$VERSION
           npm pkg set description="Post-quantum cryptography library for Node.js"
           npm pkg set keywords="cryptography,post-quantum,security,wasm"
           npm pkg set author="lib-Q Contributors"
@@ -183,6 +186,7 @@ jobs:
         id: changelog
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           
           if [ -n "$PREVIOUS_TAG" ]; then
@@ -239,18 +243,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       
       - name: Verify published crate
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
-                     cargo install --version $VERSION lib-q
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          cargo install --version $VERSION lib-q
       
       - name: Verify WASM package
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
           npm install @lib-q/core@$VERSION
           node -e "const lib-q = require('@lib-q/core'); console.log('WASM package loaded successfully');"
       
