@@ -1,0 +1,26 @@
+[package]
+name = "ascon"
+version = "0.5.0-pre"
+description = "Pure Rust implementation of the Ascon permutation"
+authors = [
+    "Sebastian Ramacher <sebastian.ramacher@ait.ac.at>",
+    "RustCrypto Developers",
+]
+license = "Apache-2.0 OR MIT"
+documentation = "https://docs.rs/ascon"
+homepage = "https://github.com/RustCrypto/sponges/tree/master/ascon"
+repository = "https://github.com/RustCrypto/sponges"
+keywords = ["Ascon", "crypto", "permutation"]
+categories = ["cryptography", "no-std"]
+readme = "README.md"
+edition = "2021"
+rust-version = "1.81"
+
+[dependencies]
+zeroize = { version = "1.6.0", default-features = false, optional=true }
+
+[features]
+no_unroll = [] # Do not unroll loops for binary size reduction
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]

@@ -40,6 +40,10 @@ pub enum Algorithm {
     Shake256,
     CShake128,
     CShake256,
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
 }
 
 impl Algorithm {
@@ -80,7 +84,11 @@ impl Algorithm {
             Algorithm::Shake128
             | Algorithm::Shake256
             | Algorithm::CShake128
-            | Algorithm::CShake256 => 0,
+            | Algorithm::CShake256
+            | Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512 => 0,
         }
     }
 
@@ -114,7 +122,11 @@ impl Algorithm {
             Algorithm::Shake128
             | Algorithm::Shake256
             | Algorithm::CShake128
-            | Algorithm::CShake256 => AlgorithmCategory::Hash,
+            | Algorithm::CShake256
+            | Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512 => AlgorithmCategory::Hash,
         }
     }
 }
@@ -223,7 +235,8 @@ impl KemContext {
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         if !self.inner.is_initialized() {
             return Err(crate::error::Error::InvalidState {
-                state: "Context not initialized".to_string(),
+                operation: "encapsulate".to_string(),
+                reason: "Context not initialized".to_string(),
             });
         }
 
@@ -243,7 +256,8 @@ impl KemContext {
     ) -> Result<Vec<u8>> {
         if !self.inner.is_initialized() {
             return Err(crate::error::Error::InvalidState {
-                state: "Context not initialized".to_string(),
+                operation: "decapsulate".to_string(),
+                reason: "Context not initialized".to_string(),
             });
         }
 
@@ -315,7 +329,8 @@ impl SignatureContext {
     ) -> Result<Vec<u8>> {
         if !self.inner.is_initialized() {
             return Err(crate::error::Error::InvalidState {
-                state: "Context not initialized".to_string(),
+                operation: "sign".to_string(),
+                reason: "Context not initialized".to_string(),
             });
         }
 
@@ -348,7 +363,8 @@ impl SignatureContext {
     ) -> Result<bool> {
         if !self.inner.is_initialized() {
             return Err(crate::error::Error::InvalidState {
-                state: "Context not initialized".to_string(),
+                operation: "verify".to_string(),
+                reason: "Context not initialized".to_string(),
             });
         }
 
@@ -390,6 +406,7 @@ impl HashContext {
         }
 
         // TODO: Implement actual hashing
+        // This should delegate to the hash crate implementations
         let output_size = match algorithm {
             Algorithm::Shake128 => 16,
             Algorithm::Shake256 => 32,

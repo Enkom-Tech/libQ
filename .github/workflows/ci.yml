@@ -612,3 +612,126 @@ jobs:
       
       - name: Run constant-time tests
         run: cargo test --features "all-algorithms" --test constant_time
+
+  # Composite Action Jobs for Individual Crate Testing
+  
+  # Test Keccak with composite action
+  test-keccak:
+    name: Test Keccak (Composite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-keccak
+        with:
+          working-directory: lib-q-sponge/keccak
+          features: "asm"
+          rust-version: "stable"
+          run-benchmarks: "false"
+          run-simd: "false"
+
+  # Test Keccak with nightly features
+  test-keccak-nightly:
+    name: Test Keccak (Nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-keccak
+        with:
+          working-directory: lib-q-sponge/keccak
+          features: "asm,simd"
+          rust-version: "nightly"
+          run-benchmarks: "true"
+          run-simd: "true"
+
+  # Test SHA3 with composite action
+  test-sha3:
+    name: Test SHA3 (Composite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-sha3
+        with:
+          working-directory: lib-q-hash
+          features: "alloc,oid"
+          rust-version: "stable"
+          test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
+
+  # Test K12 with composite action
+  test-k12:
+    name: Test K12 (Composite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-k12
+        with:
+          working-directory: lib-q-hash
+          features: "alloc,oid"
+          rust-version: "stable"
+          run-benchmarks: "false"
+
+  # Test K12 with nightly features
+  test-k12-nightly:
+    name: Test K12 (Nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-k12
+        with:
+          working-directory: lib-q-hash
+          features: "alloc,oid"
+          rust-version: "nightly"
+          run-benchmarks: "true"
+
+  # Test Ascon with composite action
+  test-ascon:
+    name: Test Ascon (Composite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-ascon
+        with:
+          working-directory: lib-q-sponge/ascon
+          features: ""
+          rust-version: "stable"
+          run-benchmarks: "false"
+
+  # Test Ascon with nightly features
+  test-ascon-nightly:
+    name: Test Ascon (Nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-ascon
+        with:
+          working-directory: lib-q-sponge/ascon
+          features: ""
+          rust-version: "nightly"
+          run-benchmarks: "true"
+
+  # Test lib-q-sponge integration with composite action
+  test-lib-q-sponge:
+    name: Test lib-q-sponge (Composite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-lib-q-sponge
+        with:
+          working-directory: lib-q-sponge
+          features: "asm"
+          rust-version: "stable"
+          run-benchmarks: "false"
+
+  # Test lib-q-sponge integration with nightly features
+  test-lib-q-sponge-nightly:
+    name: Test lib-q-sponge (Nightly)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/test-lib-q-sponge
+        with:
+          working-directory: lib-q-sponge
+          features: "asm"
+          rust-version: "nightly"
+          run-benchmarks: "true"
+
+

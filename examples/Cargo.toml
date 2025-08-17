@@ -1,0 +1,15 @@
+[package]
+name = "lib-q-examples"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Examples for lib-Q post-quantum cryptography library"
+license = "Apache-2.0"
+
+[dependencies]
+lib-q-hash = { path = "../lib-q-hash" }
+lib-q-core = { path = "../lib-q-core" }
+
+[[example]]
+name = "hash_example"
+path = "hash_example.rs"

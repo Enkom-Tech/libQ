@@ -1,0 +1,135 @@
+name: Test Keccak
+description: Run Keccak tests with security validation and benchmarking
+inputs:
+  working-directory:
+    description: Working directory for keccak crate
+    default: lib-q-sponge/keccak
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "asm"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks (requires nightly)
+    default: "false"
+    required: false
+  run-simd:
+    description: Whether to run SIMD tests (requires nightly)
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@v1.75.0
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-keccak-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-keccak-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for Keccak..."
+        cd ${{ inputs.working-directory }}
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Run SIMD tests (nightly only)
+      if: inputs.run-simd == 'true' && inputs.rust-version == 'nightly'
+      shell: bash
+      run: |
+        echo "Running SIMD tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "simd"
+        echo "SIMD tests completed"
+    
+    - name: Run benchmarks (nightly only)
+      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "nightly"
+        echo "Benchmarks completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: WASM compilation test
+      shell: bash
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}"
+        echo "WASM compilation test completed"

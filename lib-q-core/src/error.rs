@@ -65,7 +65,7 @@ pub enum Error {
     UnsupportedOperation { operation: String },
 
     /// Invalid state
-    InvalidState { state: String },
+    InvalidState { operation: String, reason: String },
 }
 
 impl fmt::Display for Error {
@@ -137,8 +137,8 @@ impl fmt::Display for Error {
             Error::UnsupportedOperation { operation } => {
                 write!(f, "Unsupported operation: {operation}")
             }
-            Error::InvalidState { state } => {
-                write!(f, "Invalid state: {state}")
+            Error::InvalidState { operation, reason } => {
+                write!(f, "Invalid state in {operation}: {reason}")
             }
         }
     }

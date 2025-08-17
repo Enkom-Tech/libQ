@@ -1,0 +1,34 @@
+[package]
+name = "lib-q-sponge"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Sponge functions for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "sponge", "keccak", "ascon"]
+categories = ["cryptography"]
+
+[dependencies]
+keccak = { path = "keccak" }
+ascon = { path = "ascon" }
+
+[lib]
+name = "lib_q_sponge"
+path = "src/lib.rs"
+
+[features]
+default = []
+asm = ["keccak/asm"]
+
+[[test]]
+name = "integration_keccak"
+path = "tests/integration_keccak.rs"
+
+[[test]]
+name = "integration_ascon"
+path = "tests/integration_ascon.rs"
+
+[[test]]
+name = "integration_cross_sponge"
+path = "tests/integration_cross_sponge.rs"
