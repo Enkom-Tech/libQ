@@ -5,7 +5,7 @@ use crate::{
     Sha3_256, Sha3_384, Sha3_512, Shake128, Shake256,
 };
 use alloc::vec::Vec;
-use digest::{CustomizedInit, Digest, ExtendableOutputReset, Update, XofReader};
+use digest::{CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset, Update, XofReader};
 use lib_q_core::{Hash, Result};
 
 /// Wrapper for cSHAKE128 that implements lib-q-core Hash trait
@@ -302,7 +302,7 @@ impl Hash for KangarooTwelveHash {
         let mut hasher = self.0.clone();
         Update::update(&mut hasher, data);
         let mut output = [0u8; 32]; // Default output size
-        let mut reader = hasher.finalize_xof_reset();
+        let mut reader = hasher.finalize_xof();
         reader.read(&mut output);
         Ok(output.to_vec())
     }

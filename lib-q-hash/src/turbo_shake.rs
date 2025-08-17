@@ -1,4 +1,4 @@
-use crate::block_api::{Sha3HasherCore, Sha3ReaderCore};
+use crate::internal_block_api::{Sha3HasherCore, Sha3ReaderCore};
 use core::fmt;
 use digest::{
     block_api::{

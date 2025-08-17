@@ -68,6 +68,18 @@ mod armv8;
 #[cfg(all(target_arch = "aarch64", feature = "asm"))]
 cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
 
+#[cfg(all(target_arch = "x86_64", feature = "asm"))]
+mod x86;
+
+#[cfg(feature = "simd")]
+mod advanced_simd;
+
+mod features;
+mod optimized_core;
+
+#[cfg(all(feature = "multithreading", feature = "std"))]
+mod multithreading;
+
 const PLEN: usize = 25;
 
 const RHO: [u32; 24] = [
@@ -228,6 +240,12 @@ pub mod simd {
     impl_keccak!(p1600x2, f1600x2, u64x2);
     impl_keccak!(p1600x4, f1600x4, u64x4);
     impl_keccak!(p1600x8, f1600x8, u64x8);
+}
+
+#[cfg(feature = "simd")]
+/// Advanced SIMD optimizations using nightly features
+pub mod advanced {
+    pub use super::advanced_simd::*;
 }
 
 #[allow(unused_assignments)]
@@ -493,3 +511,25 @@ mod tests {
         impl_keccak_f1600xn!(keccak_f1600x8, u64x8);
     }
 }
+
+// Re-export optimized functions
+pub use crate::optimized_core::{fast_loop_absorb_optimized, p1600_optimized, OptimizationLevel};
+
+#[cfg(feature = "simd")]
+pub use crate::optimized_core::parallel;
+
+#[cfg(all(feature = "multithreading", feature = "std"))]
+pub use crate::optimized_core::parallel::p1600_multithreaded;
+
+// Re-export feature configuration
+pub use crate::features::detection;
+pub use crate::features::{
+    get_global_config, reset_global_config, set_global_config, FeatureConfig, FeatureReport,
+};
+
+// Re-export multi-threading functionality
+#[cfg(all(feature = "multithreading", feature = "std"))]
+pub use crate::multithreading::{
+    get_global_thread_pool, init_global_thread_pool, process_keccak_states_global,
+    CryptoThreadPool, ThreadingConfig,
+};

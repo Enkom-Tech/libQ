@@ -1,6 +1,6 @@
 //! lib-Q HASH - Post-quantum Hash Functions
 //!
-//! This crate provides implementations of post-quantum hash functions based on SHA-3.
+//! This crate provides implementations of post-quantum hash functions.
 
 #![no_std]
 #![forbid(unsafe_code)]
@@ -19,14 +19,34 @@ pub use digest::{
     Update,
 };
 
-// Block-level types and core implementation
-/// Block-level API for hash functions
-pub mod block_api;
+// Re-export external hash implementations (explicit to avoid ambiguity)
+pub use k12::{KangarooTwelve, KangarooTwelveReader};
+pub use sha3::{
+    Keccak224, Keccak256, Keccak256Full, Keccak384, Keccak512, Sha3_224, Sha3_256, Sha3_384,
+    Sha3_512, Shake128, Shake128Reader, Shake256, Shake256Reader,
+};
+
+// Internal modules
 mod cshake;
-mod k12;
-mod sha3;
+mod hash_types;
+mod internal_block_api;
 mod shake;
 mod turbo_shake;
+
+// Re-export internal implementations
+pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
+pub use shake::{
+    Shake128 as InternalShake128, Shake128Reader as InternalShake128Reader,
+    Shake256 as InternalShake256, Shake256Reader as InternalShake256Reader,
+};
+pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
+
+// Re-export hash types
+pub use crate::hash_types::{
+    CShake128Hash, CShake256Hash, KangarooTwelveHash, Keccak224Hash, Keccak256Hash, Keccak384Hash,
+    Keccak512Hash, Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash, Shake128Hash,
+    Shake256Hash,
+};
 
 // Constants for SHA-3 implementation
 /// Length of the Keccak state array
@@ -43,26 +63,6 @@ pub const SHA3_PAD: u8 = 0x06;
 pub const SHAKE_PAD: u8 = 0x1f;
 /// cSHAKE padding value
 pub const CSHAKE_PAD: u8 = 0x04;
-
-// Re-export the SHA-3 implementations
-pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
-pub use k12::{KangarooTwelve, KangarooTwelveReader};
-pub use sha3::{
-    Keccak224, Keccak256, Keccak256Full, Keccak384, Keccak512, Sha3_224, Sha3_256, Sha3_384,
-    Sha3_512,
-};
-pub use shake::{Shake128, Shake128Reader, Shake256, Shake256Reader};
-pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
-
-// Re-export hash types
-pub use crate::hash_types::{
-    CShake128Hash, CShake256Hash, KangarooTwelveHash, Keccak224Hash, Keccak256Hash, Keccak384Hash,
-    Keccak512Hash, Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash, Shake128Hash,
-    Shake256Hash,
-};
-
-// Hash type implementations
-mod hash_types;
 
 /// Hash algorithm types
 #[derive(Debug, Clone, PartialEq, Eq)]

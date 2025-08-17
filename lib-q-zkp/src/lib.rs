@@ -114,11 +114,10 @@ impl Default for ZkpVerifier {
 }
 
 /// Get available ZKP algorithms
-#[allow(clippy::vec_init_then_push)]
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = vec![];
+    let mut algorithms = Vec::new();
 
-    #[cfg(feature = "zkp")]
+    #[cfg(feature = "stark")]
     algorithms.push("stark");
 
     algorithms
@@ -142,13 +141,13 @@ mod tests {
 
     #[test]
     fn test_zkp_prover_creation() {
-        let prover = ZkpProver::new();
+        let _prover = ZkpProver::new();
         assert!(true); // Just check that creation doesn't panic
     }
 
     #[test]
     fn test_zkp_verifier_creation() {
-        let verifier = ZkpVerifier::new();
+        let _verifier = ZkpVerifier::new();
         assert!(true); // Just check that creation doesn't panic
     }
 
@@ -187,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_available_algorithms() {
-        let algorithms = available_algorithms();
+        let _algorithms = available_algorithms();
         // assert!(!algorithms.is_empty()); // TODO: Implement algorithms
     }
 

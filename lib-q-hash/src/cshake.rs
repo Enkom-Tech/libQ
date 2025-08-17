@@ -1,5 +1,5 @@
 use crate::{
-    block_api::{xor_block, Sha3ReaderCore},
+    internal_block_api::{xor_block, Sha3ReaderCore},
     CSHAKE_PAD, DEFAULT_ROUND_COUNT as ROUNDS, PLEN, SHAKE_PAD,
 };
 use core::fmt;
@@ -89,7 +89,14 @@ macro_rules! impl_cshake {
             fn update_blocks(&mut self, blocks: &[Block<Self>]) {
                 for block in blocks {
                     xor_block(&mut self.state, block);
-                    keccak::p1600(&mut self.state, ROUNDS);
+                    #[cfg(feature = "simd")]
+                    {
+                        keccak::p1600_optimized(&mut self.state, keccak::OptimizationLevel::best_available());
+                    }
+                    #[cfg(not(feature = "simd"))]
+                    {
+                        keccak::p1600(&mut self.state, ROUNDS);
+                    }
                 }
             }
         }
@@ -111,7 +118,14 @@ macro_rules! impl_cshake {
                 block[n - 1] |= 0x80;
 
                 xor_block(&mut self.state, &block);
-                keccak::p1600(&mut self.state, ROUNDS);
+                #[cfg(feature = "simd")]
+                {
+                    keccak::p1600_optimized(&mut self.state, keccak::OptimizationLevel::best_available());
+                }
+                #[cfg(not(feature = "simd"))]
+                {
+                    keccak::p1600(&mut self.state, ROUNDS);
+                }
 
                 Sha3ReaderCore::new(&self.state)
             }

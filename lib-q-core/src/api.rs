@@ -456,7 +456,7 @@ impl Utils {
     pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {
         let hex = hex.trim();
 
-        if hex.len() % 2 != 0 {
+        if !hex.len().is_multiple_of(2) {
             return Err(crate::error::Error::InvalidMessageSize {
                 max: 0,
                 actual: hex.len(),

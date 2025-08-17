@@ -5,11 +5,11 @@ description = """
 Pure Rust implementation of the Keccak sponge function including the keccak-f
 and keccak-p variants
 """
-authors = ["RustCrypto Developers"]
-license = "Apache-2.0 OR MIT"
+authors = ["RustCrypto Developers", "Nexlab-One", "Enkom Tech"]
+license = "Apache-2.0"
 documentation = "https://docs.rs/keccak"
-homepage = "https://github.com/RustCrypto/sponges/tree/master/keccak"
-repository = "https://github.com/RustCrypto/sponges"
+homepage = "https://github.com/lib-q/lib-q-sponge/tree/master/keccak"
+repository = "https://github.com/lib-q/lib-q-sponge"
 keywords = ["crypto", "sponge", "keccak", "keccak-f", "keccak-p"]
 categories = ["cryptography", "no-std"]
 readme = "README.md"
@@ -17,10 +17,19 @@ edition = "2021"
 rust-version = "1.81"
 
 [features]
-asm = []       # Use optimized assembly when available (currently only ARMv8)
+asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)
 no_unroll = [] # Do no unroll loops for binary size reduction
 simd = []      # Use core::simd (nightly-only)
 nightly = []   # Enable nightly-only features like benchmarking
+advanced-simd = ["simd"]  # Enable advanced SIMD features (requires nightly)
+std = []       # Enable std support (required for multi-threading)
+multithreading = ["std"]  # Enable multi-threading support (requires std)
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-cpufeatures = "0.2"
+cpufeatures = "0.2.17"
+
+[dependencies]
+num_cpus = "1.17.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = "0.30.1"

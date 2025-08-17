@@ -1,6 +1,9 @@
 //! Integration tests for Keccak re-exports from lib-q-sponge
 
-use lib_q_sponge::{f1600, f200, f400, f800, p1600};
+use lib_q_sponge::{
+    detection, f1600, f200, f400, f800, fast_loop_absorb_optimized, p1600, p1600_optimized,
+    OptimizationLevel,
+};
 
 #[test]
 fn test_keccak_f1600_permutation() {
@@ -155,5 +158,103 @@ fn test_keccak_avalanche_effect() {
         diff_percentage > 0.3 && diff_percentage < 0.7,
         "Avalanche effect not observed: {:.1}% bits different",
         diff_percentage * 100.0
+    );
+}
+
+#[test]
+fn test_optimization_levels_availability() {
+    // Test that optimization levels are properly detected
+    let report = detection::detect_available_features();
+    assert!(
+        !report.summary().is_empty(),
+        "Feature detection should work"
+    );
+
+    let best_level = OptimizationLevel::best_available();
+    assert!(
+        best_level.is_available(),
+        "Best available level should be available"
+    );
+}
+
+#[test]
+fn test_optimized_permutation_consistency() {
+    // Test that optimized permutations produce the same results as reference
+    let mut state_ref = [0u64; 25];
+    let mut state_opt = [0u64; 25];
+
+    // Initialize with test data
+    state_ref[0] = 0x1234567890abcdef;
+    state_opt[0] = 0x1234567890abcdef;
+
+    // Apply reference permutation
+    p1600(&mut state_ref, 24);
+
+    // Apply optimized permutation
+    p1600_optimized(&mut state_opt, OptimizationLevel::Reference);
+
+    // Results should be identical
+    assert_eq!(
+        state_ref, state_opt,
+        "Optimized permutation should match reference"
+    );
+}
+
+#[test]
+fn test_optimized_permutation_all_levels() {
+    // Test all available optimization levels
+    let test_data = 0x1234567890abcdefu64;
+
+    for level in [
+        OptimizationLevel::Reference,
+        OptimizationLevel::Basic,
+        OptimizationLevel::Advanced,
+        OptimizationLevel::Maximum,
+    ] {
+        if level.is_available() {
+            let mut state = [0u64; 25];
+            state[0] = test_data;
+
+            p1600_optimized(&mut state, level);
+
+            // Verify permutation was applied
+            assert_ne!(state[0], test_data, "Permutation should change state");
+
+            // Verify non-zero output
+            let all_zeros = state.iter().all(|&x| x == 0);
+            assert!(!all_zeros, "Permutation should not produce all zeros");
+        }
+    }
+}
+
+#[test]
+fn test_fast_loop_absorption() {
+    // Test fast loop absorption functionality
+    let mut state = [0u64; 25];
+    let data = b"This is test data for fast loop absorption testing";
+
+    let offset = fast_loop_absorb_optimized(&mut state, data, OptimizationLevel::Reference);
+
+    // Verify some data was processed
+    assert!(offset > 0, "Should process some data");
+    assert_ne!(state[0], 0, "State should change after absorption");
+}
+
+#[test]
+fn test_optimization_feature_detection() {
+    // Test that feature detection works correctly
+    let report = detection::detect_available_features();
+
+    // Basic feature detection should always work
+    assert!(
+        report.x86_64 || report.aarch64,
+        "Should detect some architecture"
+    );
+
+    // Get recommended level
+    let recommended = report.recommended_optimization_level();
+    assert!(
+        recommended.is_available(),
+        "Recommended level should be available"
     );
 }

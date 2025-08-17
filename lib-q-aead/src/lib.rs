@@ -27,7 +27,7 @@ mod tests {
 
     #[test]
     fn test_available_algorithms() {
-        let algorithms = available_algorithms();
+        let _algorithms = available_algorithms();
         // assert!(!algorithms.is_empty()); // TODO: Implement algorithms
     }
 

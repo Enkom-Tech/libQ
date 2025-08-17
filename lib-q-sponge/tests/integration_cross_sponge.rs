@@ -1,6 +1,6 @@
 //! Integration tests for cross-sponge functionality in lib-q-sponge
 
-use lib_q_sponge::{f1600, State};
+use lib_q_sponge::{detection, f1600, p1600_optimized, OptimizationLevel, State};
 
 #[test]
 fn test_cross_sponge_availability() {
@@ -207,4 +207,47 @@ fn test_sponge_state_independence() {
     assert!(keccak2_non_zero, "Keccak2 should produce non-zero output");
     assert!(ascon1_non_zero, "Ascon1 should produce non-zero output");
     assert!(ascon2_non_zero, "Ascon2 should produce non-zero output");
+}
+
+#[test]
+fn test_optimization_integration() {
+    // Test that optimizations work correctly with both sponge types
+    // Verify feature detection works (even if we don't use the report)
+    let _report = detection::detect_available_features();
+    let best_level = OptimizationLevel::best_available();
+
+    // Test Keccak with optimizations
+    let mut keccak_state = [0u64; 25];
+    keccak_state[0] = 0x1234567890abcdef;
+    p1600_optimized(&mut keccak_state, best_level);
+
+    // Test Ascon (no optimizations available, but should still work)
+    let mut ascon_state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    ascon_state.permute_12();
+
+    // Both should produce non-zero output
+    let keccak_non_zero = keccak_state.iter().any(|&x| x != 0);
+    let ascon_non_zero = ascon_state.as_bytes().iter().any(|&x| x != 0);
+
+    assert!(
+        keccak_non_zero,
+        "Optimized Keccak should produce non-zero output"
+    );
+    assert!(ascon_non_zero, "Ascon should produce non-zero output");
+}
+
+#[test]
+fn test_feature_detection_consistency() {
+    // Test that feature detection is consistent across different calls
+    let report1 = detection::detect_available_features();
+    let report2 = detection::detect_available_features();
+
+    // Same platform should produce same report
+    assert_eq!(report1.x86_64, report2.x86_64);
+    assert_eq!(report1.aarch64, report2.aarch64);
+    assert_eq!(report1.avx2, report2.avx2);
+    assert_eq!(report1.avx512f, report2.avx512f);
+    assert_eq!(report1.sha3_intrinsics, report2.sha3_intrinsics);
+    assert_eq!(report1.simd_support, report2.simd_support);
+    assert_eq!(report1.nightly_features, report2.nightly_features);
 }

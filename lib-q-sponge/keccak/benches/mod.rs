@@ -5,8 +5,6 @@ extern crate keccak;
 #[cfg(all(test, feature = "nightly"))]
 extern crate test;
 
-use keccak::{f1600, f200, f400, f800, p1600};
-
 #[cfg(all(test, feature = "nightly"))]
 macro_rules! impl_bench {
     ($name:ident, $fn:ident, $type:expr) => {
