@@ -95,7 +95,7 @@ This document describes the CI/CD pipeline implementation for lib-Q, a post-quan
 ### Local Development
 ```bash
 # Setup
-git clone https://github.com/lib-q/lib-q.git
+git clone https://github.com/Enkom-Tech/libQ.git
 cd lib-q
 cargo install cargo-audit cargo-tarpaulin wasm-pack
 pre-commit install
@@ -198,7 +198,7 @@ NPM_TOKEN: "npm publish token"
 
 ## Resources
 
-- GitHub Repository: https://github.com/lib-q/lib-q
+- GitHub Repository: https://github.com/Enkom-Tech/libQ
 - Crates.io: https://crates.io/crates/lib-q
 - NPM Package: https://www.npmjs.com/package/@lib-q/core
 - Documentation: https://docs.rs/lib-q

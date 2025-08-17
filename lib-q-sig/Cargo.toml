@@ -1,0 +1,28 @@
+[package]
+name = "lib-q-sig"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Post-quantum Digital Signatures for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "signatures", "digital-signatures"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+dilithium = []
+falcon = []
+sphincs = []
+
+[lib]
+name = "lib_q_sig"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,0 +1,25 @@
+[package]
+name = "lib-q-aead"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Post-quantum Authenticated Encryption for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "aead", "authenticated-encryption"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+
+[lib]
+name = "lib_q_aead"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

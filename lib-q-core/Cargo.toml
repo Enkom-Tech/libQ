@@ -1,0 +1,40 @@
+[package]
+name = "lib-q-core"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Core types and traits for lib-Q post-quantum cryptography library"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "security", "core"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+# Core cryptographic dependencies
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+rand = "0.9.2"
+rand_core = "0.9.3"
+
+# Zeroize for secure memory clearing
+zeroize = { version = "1.8.1", features = ["derive"] }
+
+# Serde for serialization (optional)
+serde = { version = "1.0.219", optional = true, features = ["derive"] }
+
+[features]
+default = ["std"]
+std = []
+alloc = []
+no_std = []
+
+# Serialization features
+serde = ["dep:serde"]
+
+[lib]
+name = "lib_q_core"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,17 +1,21 @@
-//! Hash Functions for lib-Q
+//! lib-Q HASH - Post-quantum Hash Functions
 //!
-//! This module provides SHA-3 family hash functions.
+//! This crate provides implementations of post-quantum hash functions.
 
-use crate::error::{Error, Result};
+// Re-export core types for public use
+pub use lib_q_core::{Hash, Result};
 
-/// Trait for hash functions
-pub trait Hash {
-    /// Hash data
-    fn hash(&self, data: &[u8]) -> Result<Vec<u8>>;
+/// SHAKE256 implementation
+#[cfg(feature = "shake256")]
+pub mod shake256;
 
-    /// Get the output size in bytes
-    fn output_size(&self) -> usize;
-}
+/// SHAKE128 implementation
+#[cfg(feature = "shake128")]
+pub mod shake128;
+
+/// cSHAKE256 implementation
+#[cfg(feature = "cshake256")]
+pub mod cshake256;
 
 /// Hash algorithm types
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,13 +50,13 @@ impl HashAlgorithm {
     pub fn validate_input(&self, data: &[u8]) -> Result<()> {
         // Check for empty input
         if data.is_empty() {
-            return Err(Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(lib_q_core::Error::InvalidMessageSize { max: 0, actual: 0 });
         }
 
         // Check for maximum input size (1GB to prevent DoS)
         const MAX_INPUT_SIZE: usize = 1024 * 1024 * 1024; // 1GB
         if data.len() > MAX_INPUT_SIZE {
-            return Err(Error::InvalidMessageSize {
+            return Err(lib_q_core::Error::InvalidMessageSize {
                 max: MAX_INPUT_SIZE,
                 actual: data.len(),
             });
@@ -125,6 +129,38 @@ impl Hash for CShake256Hash {
     }
 }
 
+/// Get available hash algorithms
+pub fn available_algorithms() -> Vec<&'static str> {
+    let mut algorithms = Vec::new();
+    
+    #[cfg(feature = "shake256")]
+    algorithms.push("shake256");
+    
+    #[cfg(feature = "shake128")]
+    algorithms.push("shake128");
+    
+    #[cfg(feature = "cshake256")]
+    algorithms.push("cshake256");
+    
+    algorithms
+}
+
+/// Create a hash instance by algorithm name
+pub fn create_hash(algorithm: &str) -> Result<Box<dyn Hash>> {
+    match algorithm {
+        #[cfg(feature = "shake256")]
+        "shake256" => Ok(Box::new(Shake256Hash)),
+        
+        #[cfg(feature = "shake128")]
+        "shake128" => Ok(Box::new(Shake128Hash)),
+        
+        #[cfg(feature = "cshake256")]
+        "cshake256" => Ok(Box::new(CShake256Hash)),
+        
+        _ => Err(lib_q_core::Error::InvalidAlgorithm { algorithm: algorithm.to_string() }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,5 +215,20 @@ mod tests {
             .hash(&data)
             .expect("cSHAKE256 hash should succeed");
         assert_eq!(result.len(), 32);
+    }
+
+    #[test]
+    fn test_available_algorithms() {
+        let algorithms = available_algorithms();
+        assert!(!algorithms.is_empty());
+    }
+
+    #[test]
+    fn test_create_hash() {
+        // Test with a valid algorithm if any features are enabled
+        if !available_algorithms().is_empty() {
+            let algorithm = available_algorithms()[0];
+            assert!(create_hash(algorithm).is_ok());
+        }
     }
 }

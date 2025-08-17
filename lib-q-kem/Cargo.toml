@@ -1,0 +1,28 @@
+[package]
+name = "lib-q-kem"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Post-quantum Key Encapsulation Mechanisms for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "kem", "key-encapsulation"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+kyber = []
+mceliece = []
+hqc = []
+
+[lib]
+name = "lib_q_kem"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

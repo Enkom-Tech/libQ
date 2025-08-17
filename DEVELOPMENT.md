@@ -22,7 +22,7 @@ source ~/.cargo/env
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 # Clone repository
-git clone https://github.com/lib-q/lib-q.git
+git clone https://github.com/Enkom-Tech/libQ.git
 cd lib-q
 
 # Install pre-commit hooks
@@ -344,9 +344,9 @@ For security issues:
 ## Support
 
 - **Documentation**: [docs.rs/lib-q](https://docs.rs/lib-q)
-- **Issues**: [GitHub Issues](https://github.com/lib-q/lib-q/issues)
+- **Issues**: [GitHub Issues](https://github.com/Enkom-Tech/libQ/issues)
 - **Security**: security@lib-q.org
-- **Discussions**: [GitHub Discussions](https://github.com/lib-q/lib-q/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/Enkom-Tech/libQ/discussions)
 
 ## License
 

@@ -15,6 +15,72 @@ lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensurin
 - **Familiar API**: libsodium-style interface for easy migration
 - **Zero dependencies**: Self-contained implementations
 - **Three security tiers**: Ultra-secure, balanced, and performance-optimized options
+- **Modular design**: Use only what you need with individual crates and npm packages
+
+## Package Structure
+
+lib-Q is organized as a Rust workspace with individual crates and npm packages:
+
+### Rust Crates (crates.io)
+
+- **`lib-q`** - Complete library (re-exports everything)
+- **`lib-q-core`** - Core types and traits
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (Kyber, McEliece, HQC)
+- **`lib-q-sig`** - Digital Signatures (Dilithium, Falcon, SPHINCS+)
+- **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
+- **`lib-q-aead`** - Authenticated Encryption
+- **`lib-q-utils`** - Utility functions
+- **`lib-q-zkp`** - Zero-Knowledge Proofs
+
+### NPM Packages (npmjs.com)
+
+- **`@lib-q/core`** - Complete library for Node.js
+- **`@lib-q/kem`** - KEM-only package
+- **`@lib-q/sig`** - Signature-only package
+- **`@lib-q/hash`** - Hash-only package
+- **`@lib-q/utils`** - Utilities-only package
+
+## Installation
+
+### Rust (Complete Library)
+```bash
+cargo add lib-q
+```
+
+### Rust (Individual Crates)
+```bash
+# For KEM operations only
+cargo add lib-q-kem
+
+# For signatures only
+cargo add lib-q-sig
+
+# For hash functions only
+cargo add lib-q-hash
+
+# For utilities only
+cargo add lib-q-utils
+```
+
+### Node.js (Complete Library)
+```bash
+npm install @lib-q/core
+```
+
+### Node.js (Individual Packages)
+```bash
+# For KEM operations only
+npm install @lib-q/kem
+
+# For signatures only
+npm install @lib-q/sig
+
+# For hash functions only
+npm install @lib-q/hash
+
+# For utilities only
+npm install @lib-q/utils
+```
 
 ## Supported Algorithms
 
@@ -48,18 +114,14 @@ lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensurin
 
 ```
 lib-Q/
-├── src/
-│   ├── kem/           # Key Encapsulation Mechanisms
-│   ├── sig/           # Digital Signatures
-│   ├── hash/          # Hash Functions
-│   ├── aead/          # Authenticated Encryption
-│   ├── zkp/           # Zero-Knowledge Proofs
-│   ├── utils/         # Utilities and helpers
-│   └── wasm/          # WASM bindings
-├── tests/             # Comprehensive test suite
-├── benches/           # Performance benchmarks
-├── docs/              # Documentation
-└── examples/          # Usage examples
+├── lib-q-core/      # Core types and traits
+├── lib-q-kem/       # Key Encapsulation Mechanisms
+├── lib-q-sig/       # Digital Signatures
+├── lib-q-hash/      # Hash Functions
+├── lib-q-aead/      # Authenticated Encryption
+├── lib-q-utils/     # Utilities and helpers
+├── lib-q-zkp/       # Zero-Knowledge Proofs
+└── lib-q/           # Main crate (re-exports everything)
 ```
 
 ## Security Model

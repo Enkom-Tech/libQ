@@ -1,0 +1,26 @@
+[package]
+name = "lib-q-zkp"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+zkp = []
+
+[lib]
+name = "lib_q_zkp"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

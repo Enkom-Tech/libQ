@@ -1,0 +1,28 @@
+[package]
+name = "lib-q-hash"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Post-quantum Hash Functions for lib-Q"
+license = "Apache-2.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["cryptography", "post-quantum", "hash", "shake"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+shake256 = []
+shake128 = []
+cshake256 = []
+
+[lib]
+name = "lib_q_hash"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,0 +1,26 @@
+[package]
+name = "lib-q-utils"
+version = "0.0.1"
+edition = "2021"
+authors = ["lib-Q Contributors"]
+description = "Utility functions for lib-Q post-quantum cryptography library"
+license = "Apache-2.0"
+repository = "https://github.com/enkom-tech/libQ"
+keywords = ["cryptography", "post-quantum", "utilities", "helpers"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+
+[features]
+default = []
+
+[lib]
+name = "lib_q_utils"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

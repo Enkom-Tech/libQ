@@ -1,11 +1,24 @@
+# Workspace configuration - uncomment when workspace members are created
+[workspace]
+members = [
+    "lib-q-core",
+    "lib-q-kem",
+    "lib-q-sig", 
+    "lib-q-hash",
+    "lib-q-aead",
+    "lib-q-utils",
+    "lib-q-zkp",
+    "."
+]
+
 [package]
 name = "lib-q"
 version = "0.0.1"
 edition = "2021"
 authors = ["lib-Q Contributors"]
-description = "Post-quantum cryptography library with libsodium-equivalent API"
+description = "Post-quantum cryptography library with libsodium-equivalent API (complete package)"
 license = "Apache-2.0"
-repository = "https://github.com/lib-q/lib-q"
+repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
 readme = "README.md"
@@ -15,29 +28,23 @@ wasm-opt = false
 
 [lib]
 name = "libq"
+path = "lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Core cryptographic dependencies
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
-
-rand = "0.9.2"
-rand_core = "0.9.3"
-
-# Zeroize for secure memory clearing
-zeroize = { version = "1.8.1", features = ["derive"] }
-
-# Serde for serialization (optional)
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
+# Core dependencies
+lib-q-core = { path = "lib-q-core" }
+lib-q-kem = { path = "lib-q-kem" }
+lib-q-sig = { path = "lib-q-sig" }
+lib-q-hash = { path = "lib-q-hash" }
+lib-q-aead = { path = "lib-q-aead" }
+lib-q-utils = { path = "lib-q-utils" }
+lib-q-zkp = { path = "lib-q-zkp" }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2.100", optional = true }
 js-sys = { version = "0.3.77", optional = true }
 web-sys = { version = "0.3.77", optional = true, features = ["console"] }
-
-# ZKP dependencies (optional) - temporarily disabled due to compatibility issues
-# winterfell = { git = "https://github.com/Nexlab-One/winterfell", branch = "main", optional = true } # Main branch has issued due to aux.rs file causing issue on windows
-# zkp-stark = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
 # Testing
@@ -54,34 +61,23 @@ std = []
 alloc = []
 no_std = []
 
-# Algorithm features
-kyber = []
-dilithium = []
-falcon = []
-sphincs = []
-mceliece = []
-hqc = []
-
-# ZKP features - temporarily disabled due to compatibility issues
-zkp = []
-# stark = ["dep:zkp-stark"]  # Temporarily disabled
-# winterfell = ["dep:winterfell"]  # Temporarily disabled
-openzkp = []
-
-# Serialization features
-serde = ["dep:serde"]
-
 # WASM features
 wasm = ["wasm-bindgen", "js-sys", "web-sys"]
 
-# Performance features
-simd = []
-avx2 = []
-avx512 = []
+# Re-export features from individual crates
+kyber = ["lib-q-kem/kyber"]
+dilithium = ["lib-q-sig/dilithium"]
+falcon = ["lib-q-sig/falcon"]
+sphincs = ["lib-q-sig/sphincs"]
+mceliece = ["lib-q-kem/mceliece"]
+hqc = ["lib-q-kem/hqc"]
+shake256 = ["lib-q-hash/shake256"]
+shake128 = ["lib-q-hash/shake128"]
+cshake256 = ["lib-q-hash/cshake256"]
+zkp = ["lib-q-zkp/zkp"]
 
 # Convenience features
-# all-zkp = ["stark"]  # Temporarily disabled
-all-algorithms = ["kyber", "dilithium", "falcon", "sphincs", "mceliece", "hqc"]
+all-algorithms = ["kyber", "dilithium", "falcon", "sphincs", "mceliece", "hqc", "shake256", "shake128", "cshake256"]
 
 [profile.release]
 opt-level = 3
@@ -98,17 +94,6 @@ debug = true
 opt-level = 3
 lto = true
 codegen-units = 1
-
-# Workspace configuration - uncomment when workspace members are created
-# [workspace]
-# members = [
-#     ".",
-#     "lib-q-kem",
-#     "lib-q-sig", 
-#     "lib-q-hash",
-#     "lib-q-aead",
-#     "lib-q-utils"
-# ]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -5,28 +5,22 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// Core modules
-pub mod aead;
-pub mod error;
-pub mod hash;
-pub mod kem;
-pub mod sig;
-pub mod utils;
-pub mod zkp;
+// Re-export from individual crates
+pub use lib_q_core::*;
 
-// Re-exports for convenience
-pub use aead::{Aead, AeadKey, Nonce};
-pub use error::{Error, Result};
-pub use hash::{Hash, HashAlgorithm};
-pub use kem::{Kem, KemKeypair, KemPublicKey, KemSecretKey};
-pub use sig::{SigKeypair, SigPublicKey, SigSecretKey, Signature};
+// Re-export specific items to avoid conflicts
+pub use lib_q_kem::{Kem, KemKeypair, KemPublicKey, KemSecretKey, create_kem};
+pub use lib_q_sig::{Signature, SigKeypair, SigPublicKey, SigSecretKey, create_signature};
+pub use lib_q_hash::{Hash, create_hash};
+pub use lib_q_aead::{Aead, AeadKey, Nonce, create_aead};
+pub use lib_q_zkp::create_zkp;
 
 // Constants
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Initialize the library
 pub fn init() -> Result<()> {
-    Ok(())
+    lib_q_core::init()
 }
 
 /// Get library version information
@@ -176,10 +170,8 @@ pub mod wasm_api {
                 return Err(JsValue::from_str("Library not initialized"));
             }
 
-            match utils::random_bytes(length) {
-                Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
-                Err(_) => Err(JsValue::from_str("Failed to generate random bytes")),
-            }
+            // TODO: Implement using lib_q_utils
+            Err(JsValue::from_str("Random bytes not implemented yet"))
         }
 
         /// Generate a random key
@@ -188,24 +180,20 @@ pub mod wasm_api {
                 return Err(JsValue::from_str("Library not initialized"));
             }
 
-            match utils::random_key(size) {
-                Ok(key) => Ok(Uint8Array::from(&key[..])),
-                Err(_) => Err(JsValue::from_str("Failed to generate random key")),
-            }
+            // TODO: Implement using lib_q_utils
+            Err(JsValue::from_str("Random key not implemented yet"))
         }
 
         /// Convert bytes to hex string
         pub fn bytes_to_hex(&self, bytes: &Uint8Array) -> String {
-            let bytes_vec: Vec<u8> = bytes.to_vec();
-            utils::bytes_to_hex(&bytes_vec)
+            // TODO: Implement using lib_q_utils
+            "not implemented".to_string()
         }
 
         /// Convert hex string to bytes
         pub fn hex_to_bytes(&self, hex: &str) -> StdResult<Uint8Array, JsValue> {
-            match utils::hex_to_bytes(hex) {
-                Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
-                Err(_) => Err(JsValue::from_str("Failed to convert hex to bytes")),
-            }
+            // TODO: Implement using lib_q_utils
+            Err(JsValue::from_str("Hex conversion not implemented yet"))
         }
 
         /// Hash data using SHAKE256
@@ -214,15 +202,8 @@ pub mod wasm_api {
                 return Err(JsValue::from_str("Library not initialized"));
             }
 
-            let data_vec: Vec<u8> = data.to_vec();
-            let hash_impl = HashAlgorithm::Shake256.create_hash();
-            match hash_impl.hash(&data_vec) {
-                Ok(hash) => Ok(HashResultWasm::new(
-                    Uint8Array::from(&hash[..]),
-                    "SHAKE256".to_string(),
-                )),
-                Err(_) => Err(JsValue::from_str("Failed to hash data")),
-            }
+            // TODO: Implement using lib_q_hash
+            Err(JsValue::from_str("SHAKE256 not implemented yet"))
         }
 
         /// Generate KEM key pair (placeholder implementation)
@@ -240,24 +221,8 @@ pub mod wasm_api {
                 return Err(JsValue::from_str("Invalid security level"));
             }
 
-            // Placeholder implementation - will be replaced with actual algorithms
-            let public_key_size = match algorithm {
-                "kyber" => 800,
-                "mceliece" => 261120,
-                "hqc" => 2241,
-                _ => return Err(JsValue::from_str("Unsupported algorithm")),
-            };
-
-            match utils::random_bytes(public_key_size) {
-                Ok(public_key) => match utils::random_bytes(public_key_size) {
-                    Ok(secret_key) => Ok(KemKeyPairWasm::new(
-                        Uint8Array::from(&public_key[..]),
-                        Uint8Array::from(&secret_key[..]),
-                    )),
-                    Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
-                },
-                Err(_) => Err(JsValue::from_str("Failed to generate public key")),
-            }
+            // TODO: Implement using lib_q_kem
+            Err(JsValue::from_str("KEM key generation not implemented yet"))
         }
 
         /// Generate signature key pair (placeholder implementation)
@@ -275,24 +240,8 @@ pub mod wasm_api {
                 return Err(JsValue::from_str("Invalid security level"));
             }
 
-            // Placeholder implementation - will be replaced with actual algorithms
-            let public_key_size = match algorithm {
-                "dilithium" => 1312,
-                "falcon" => 897,
-                "sphincs" => 32,
-                _ => return Err(JsValue::from_str("Unsupported algorithm")),
-            };
-
-            match utils::random_bytes(public_key_size) {
-                Ok(public_key) => match utils::random_bytes(public_key_size) {
-                    Ok(secret_key) => Ok(SigKeyPairWasm::new(
-                        Uint8Array::from(&public_key[..]),
-                        Uint8Array::from(&secret_key[..]),
-                    )),
-                    Err(_) => Err(JsValue::from_str("Failed to generate secret key")),
-                },
-                Err(_) => Err(JsValue::from_str("Failed to generate public key")),
-            }
+            // TODO: Implement using lib_q_sig
+            Err(JsValue::from_str("Signature key generation not implemented yet"))
         }
 
         /// Get supported algorithms
@@ -348,24 +297,20 @@ pub mod wasm_api {
 
     #[wasm_bindgen]
     pub fn libq_random_bytes_standalone(length: usize) -> StdResult<Uint8Array, JsValue> {
-        match utils::random_bytes(length) {
-            Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
-            Err(_) => Err(JsValue::from_str("Failed to generate random bytes")),
-        }
+        // TODO: Implement using lib_q_utils
+        Err(JsValue::from_str("Random bytes not implemented yet"))
     }
 
     #[wasm_bindgen]
     pub fn libq_bytes_to_hex_standalone(bytes: &Uint8Array) -> String {
-        let bytes_vec: Vec<u8> = bytes.to_vec();
-        utils::bytes_to_hex(&bytes_vec)
+        // TODO: Implement using lib_q_utils
+        "not implemented".to_string()
     }
 
     #[wasm_bindgen]
     pub fn libq_hex_to_bytes_standalone(hex: &str) -> StdResult<Uint8Array, JsValue> {
-        match utils::hex_to_bytes(hex) {
-            Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
-            Err(_) => Err(JsValue::from_str("Failed to convert hex to bytes")),
-        }
+        // TODO: Implement using lib_q_utils
+        Err(JsValue::from_str("Hex conversion not implemented yet"))
     }
 }
 

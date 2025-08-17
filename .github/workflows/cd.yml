@@ -59,9 +59,9 @@ jobs:
             exit 1
           fi
 
-  # Publish Rust crate
-  publish-crate:
-    name: Publish Rust Crate
+  # Publish Rust crates
+  publish-crates:
+    name: Publish Rust Crates
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -81,14 +81,49 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       
-      - name: Publish to crates.io
+      - name: Publish lib-q-core to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --token $CARGO_REGISTRY_TOKEN
+        run: cargo publish -p lib-q-core --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-kem to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-kem --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-sig to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-sig --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-hash to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-hash --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-aead to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-aead --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-utils to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-utils --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish lib-q-zkp to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q-zkp --token $CARGO_REGISTRY_TOKEN
+      
+      - name: Publish main lib-q crate to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p lib-q --token $CARGO_REGISTRY_TOKEN
 
-  # Build and publish WASM package
-  publish-wasm:
-    name: Build and Publish WASM Package
+  # Build and publish WASM packages
+  publish-wasm-packages:
+    name: Build and Publish WASM Packages
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -121,61 +156,182 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-wasm-
       
-      - name: Build WASM package (nodejs target)
+      # Build main lib-q WASM package
+      - name: Build main lib-q WASM package
         run: |
-          echo "Building WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
-          echo "WASM nodejs build completed successfully"
-      
-      - name: Build WASM package (web target)
-        run: |
-          echo "Building WASM for web target..."
+          echo "Building main lib-q WASM package..."
           wasm-pack build --target web --features "wasm,all-algorithms" --verbose
-          echo "WASM web build completed successfully"
+          echo "Main lib-q WASM build completed successfully"
       
-      - name: Verify WASM artifacts
-        run: |
-          echo "Verifying WASM build artifacts..."
-          ls -la pkg/ || echo "No pkg directory found"
-          if [ -d "pkg" ]; then
-            echo "WASM package contents:"
-            ls -la pkg/
-            echo "WASM file size:"
-            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
-          fi
-      
-      - name: Prepare NPM package
+      - name: Prepare main NPM package
         run: |
           cd pkg
           npm pkg set name="@lib-q/core"
           VERSION=${GITHUB_REF#refs/tags/}
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum cryptography library for Node.js"
+          npm pkg set description="Post-quantum cryptography library for Node.js (complete package)"
           npm pkg set keywords="cryptography,post-quantum,security,wasm"
           npm pkg set author="lib-Q Contributors"
           npm pkg set license="Apache-2.0"
           npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/lib-q/lib-q.git"
-          npm pkg set homepage="https://github.com/lib-q/lib-q#readme"
-          npm pkg set bugs.url="https://github.com/lib-q/lib-q/issues"
+          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
           npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib-q.js"
-          npm pkg set types="lib-q.d.ts"
-          npm pkg set exports.import="./lib-q.js"
-          npm pkg set exports.require="./lib-q.js"
+          npm pkg set main="libq.js"
+          npm pkg set types="libq.d.ts"
+          npm pkg set exports.import="./libq.js"
+          npm pkg set exports.require="./libq.js"
       
-      - name: Publish to NPM
+      - name: Publish main NPM package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd pkg
           npm publish --access public
+      
+      # Build individual crate WASM packages
+      - name: Build lib-q-kem WASM package
+        run: |
+          echo "Building lib-q-kem WASM package..."
+          wasm-pack build lib-q-kem --target web --features "kyber" --out-dir pkg-kem --verbose
+          echo "lib-q-kem WASM build completed successfully"
+      
+      - name: Prepare lib-q-kem NPM package
+        run: |
+          cd pkg-kem
+          npm pkg set name="@lib-q/kem"
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          npm pkg set version=$VERSION
+          npm pkg set description="Post-quantum Key Encapsulation Mechanisms for Node.js"
+          npm pkg set keywords="cryptography,post-quantum,kem,key-encapsulation,wasm"
+          npm pkg set author="lib-Q Contributors"
+          npm pkg set license="Apache-2.0"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
+          npm pkg set files=["*.js","*.d.ts","*.wasm"]
+          npm pkg set main="lib_q_kem.js"
+          npm pkg set types="lib_q_kem.d.ts"
+          npm pkg set exports.import="./lib_q_kem.js"
+          npm pkg set exports.require="./lib_q_kem.js"
+      
+      - name: Publish lib-q-kem NPM package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd pkg-kem
+          npm publish --access public
+      
+      - name: Build lib-q-sig WASM package
+        run: |
+          echo "Building lib-q-sig WASM package..."
+          wasm-pack build lib-q-sig --target web --features "dilithium" --out-dir pkg-sig --verbose
+          echo "lib-q-sig WASM build completed successfully"
+      
+      - name: Prepare lib-q-sig NPM package
+        run: |
+          cd pkg-sig
+          npm pkg set name="@lib-q/sig"
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          npm pkg set version=$VERSION
+          npm pkg set description="Post-quantum Digital Signatures for Node.js"
+          npm pkg set keywords="cryptography,post-quantum,signatures,digital-signatures,wasm"
+          npm pkg set author="lib-Q Contributors"
+          npm pkg set license="Apache-2.0"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
+          npm pkg set files=["*.js","*.d.ts","*.wasm"]
+          npm pkg set main="lib_q_sig.js"
+          npm pkg set types="lib_q_sig.d.ts"
+          npm pkg set exports.import="./lib_q_sig.js"
+          npm pkg set exports.require="./lib_q_sig.js"
+      
+      - name: Publish lib-q-sig NPM package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd pkg-sig
+          npm publish --access public
+      
+      - name: Build lib-q-hash WASM package
+        run: |
+          echo "Building lib-q-hash WASM package..."
+          wasm-pack build lib-q-hash --target web --features "shake256" --out-dir pkg-hash --verbose
+          echo "lib-q-hash WASM build completed successfully"
+      
+      - name: Prepare lib-q-hash NPM package
+        run: |
+          cd pkg-hash
+          npm pkg set name="@lib-q/hash"
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          npm pkg set version=$VERSION
+          npm pkg set description="Post-quantum Hash Functions for Node.js"
+          npm pkg set keywords="cryptography,post-quantum,hash,shake,wasm"
+          npm pkg set author="lib-Q Contributors"
+          npm pkg set license="Apache-2.0"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
+          npm pkg set files=["*.js","*.d.ts","*.wasm"]
+          npm pkg set main="lib_q_hash.js"
+          npm pkg set types="lib_q_hash.d.ts"
+          npm pkg set exports.import="./lib_q_hash.js"
+          npm pkg set exports.require="./lib_q_hash.js"
+      
+      - name: Publish lib-q-hash NPM package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd pkg-hash
+          npm publish --access public
+      
+      - name: Build lib-q-utils WASM package
+        run: |
+          echo "Building lib-q-utils WASM package..."
+          wasm-pack build lib-q-utils --target web --out-dir pkg-utils --verbose
+          echo "lib-q-utils WASM build completed successfully"
+      
+      - name: Prepare lib-q-utils NPM package
+        run: |
+          cd pkg-utils
+          npm pkg set name="@lib-q/utils"
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          npm pkg set version=$VERSION
+          npm pkg set description="Utility functions for post-quantum cryptography"
+          npm pkg set keywords="cryptography,post-quantum,utilities,helpers,wasm"
+          npm pkg set author="lib-Q Contributors"
+          npm pkg set license="Apache-2.0"
+          npm pkg set repository.type="git"
+          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
+          npm pkg set files=["*.js","*.d.ts","*.wasm"]
+          npm pkg set main="lib_q_utils.js"
+          npm pkg set types="lib_q_utils.d.ts"
+          npm pkg set exports.import="./lib_q_utils.js"
+          npm pkg set exports.require="./lib_q_utils.js"
+      
+      - name: Publish lib-q-utils NPM package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd pkg-utils
+          npm publish --access public
 
   # Create GitHub release
   create-release:
     name: Create GitHub Release
-    needs: [publish-crate, publish-wasm]
+    needs: [publish-crates, publish-wasm-packages]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -231,8 +387,8 @@ jobs:
             ## Documentation
             
                          - [API Documentation](https://docs.rs/lib-q)
-            - [Security Model](https://github.com/lib-q/lib-q/blob/main/docs/security.md)
-            - [Development Guide](https://github.com/lib-q/lib-q/blob/main/CONTRIBUTING.md)
+            - [Security Model](https://github.com/Enkom-Tech/libQ/blob/main/docs/security.md)
+            - [Development Guide](https://github.com/Enkom-Tech/libQ/blob/main/CONTRIBUTING.md)
           draft: false
           prerelease: false
 
