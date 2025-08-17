@@ -5,10 +5,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod api;
 pub mod error;
 pub mod traits;
 
 // Re-exports
+pub use api::*;
 pub use error::{Error, Result};
 pub use traits::*;
 

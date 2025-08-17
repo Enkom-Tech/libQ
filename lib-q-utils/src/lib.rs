@@ -3,7 +3,7 @@
 //! This crate provides utility functions used across lib-Q.
 
 // Re-export core types for public use
-pub use lib_q_core::Result;
+pub use lib_q_core::{Result, Utils};
 
 // TODO: Add submodules when needed
 
@@ -20,15 +20,7 @@ pub use lib_q_core::Result;
 ///
 /// `true` if the slices are equal, `false` otherwise
 pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-
-    let mut result = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        result |= x ^ y;
-    }
-    result == 0
+    Utils::constant_time_compare(a, b)
 }
 
 /// Generate cryptographically secure random bytes
@@ -45,26 +37,7 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
 ///
 /// Returns an error if random number generation fails
 pub fn random_bytes(length: usize) -> Result<Vec<u8>> {
-    // Validate input
-    if length == 0 {
-        return Err(lib_q_core::Error::InvalidMessageSize { max: 0, actual: 0 });
-    }
-
-    // Check for reasonable maximum size (1MB to prevent DoS)
-    const MAX_RANDOM_SIZE: usize = 1024 * 1024; // 1MB
-    if length > MAX_RANDOM_SIZE {
-        return Err(lib_q_core::Error::InvalidMessageSize {
-            max: MAX_RANDOM_SIZE,
-            actual: length,
-        });
-    }
-
-    let mut bytes = vec![0u8; length];
-    getrandom::fill(&mut bytes).map_err(|_| lib_q_core::Error::RandomGenerationFailed {
-        operation: "random_bytes".to_string(),
-    })?;
-
-    Ok(bytes)
+    Utils::random_bytes(length)
 }
 
 /// Generate a random nonce
@@ -77,7 +50,7 @@ pub fn random_bytes(length: usize) -> Result<Vec<u8>> {
 ///
 /// A random nonce of the specified length
 pub fn random_nonce(length: usize) -> Result<Vec<u8>> {
-    random_bytes(length)
+    Utils::random_bytes(length)
 }
 
 /// Convert bytes to hex string
@@ -90,7 +63,7 @@ pub fn random_nonce(length: usize) -> Result<Vec<u8>> {
 ///
 /// A hex string representation of the bytes
 pub fn bytes_to_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
+    Utils::bytes_to_hex(bytes)
 }
 
 /// Convert hex string to bytes
@@ -107,28 +80,7 @@ pub fn bytes_to_hex(bytes: &[u8]) -> String {
 ///
 /// Returns an error if the hex string is invalid
 pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {
-    // Remove any whitespace
-    let hex = hex.trim();
-
-    // Check if the string has an even number of characters
-    if hex.len() % 2 != 0 {
-        return Err(lib_q_core::Error::InvalidMessageSize { 
-            max: 0, actual: hex.len() 
-        });
-    }
-
-    // Convert hex string to bytes
-    let mut bytes = Vec::with_capacity(hex.len() / 2);
-    for i in (0..hex.len()).step_by(2) {
-        let byte = u8::from_str_radix(&hex[i..i + 2], 16).map_err(|_| {
-            lib_q_core::Error::InvalidMessageSize {
-                max: 0, actual: i,
-            }
-        })?;
-        bytes.push(byte);
-    }
-
-    Ok(bytes)
+    Utils::hex_to_bytes(hex)
 }
 
 /// Generate a random key
@@ -141,7 +93,7 @@ pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {
 ///
 /// A random key of the specified size
 pub fn random_key(size: usize) -> Result<Vec<u8>> {
-    random_bytes(size)
+    Utils::random_bytes(size)
 }
 
 #[cfg(test)]

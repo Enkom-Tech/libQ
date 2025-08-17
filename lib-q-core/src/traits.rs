@@ -39,10 +39,22 @@ pub trait Hash {
 /// Trait for authenticated encryption
 pub trait Aead {
     /// Encrypt data
-    fn encrypt(&self, key: &AeadKey, nonce: &Nonce, plaintext: &[u8], associated_data: Option<&[u8]>) -> Result<Vec<u8>>;
+    fn encrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>>;
 
     /// Decrypt data
-    fn decrypt(&self, key: &AeadKey, nonce: &Nonce, ciphertext: &[u8], associated_data: Option<&[u8]>) -> Result<Vec<u8>>;
+    fn decrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>>;
 }
 
 // Key types
@@ -139,7 +151,27 @@ impl KemPublicKey {
     }
 }
 
+impl KemSecretKey {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
+}
+
 impl SigPublicKey {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self { data }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+impl SigSecretKey {
     pub fn new(data: Vec<u8>) -> Self {
         Self { data }
     }

@@ -3,7 +3,7 @@
 //! This crate provides implementations of post-quantum key encapsulation mechanisms.
 
 // Re-export core types for public use
-pub use lib_q_core::{Kem, KemKeypair, KemPublicKey, KemSecretKey, Result};
+pub use lib_q_core::{Algorithm, Kem, KemContext, KemKeypair, KemPublicKey, KemSecretKey, Result};
 
 /// CRYSTALS-Kyber implementation
 #[cfg(feature = "kyber")]
@@ -18,18 +18,19 @@ pub mod mceliece;
 pub mod hqc;
 
 /// Get available KEM algorithms
+#[allow(clippy::vec_init_then_push)]
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = Vec::new();
-    
+    let mut algorithms = vec![];
+
     #[cfg(feature = "kyber")]
     algorithms.push("kyber");
-    
+
     #[cfg(feature = "mceliece")]
     algorithms.push("mceliece");
-    
+
     #[cfg(feature = "hqc")]
     algorithms.push("hqc");
-    
+
     algorithms
 }
 
@@ -38,15 +39,29 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
     match algorithm {
         #[cfg(feature = "kyber")]
         "kyber" => Ok(Box::new(kyber::Kyber::new())),
-        
+
         #[cfg(feature = "mceliece")]
         "mceliece" => Ok(Box::new(mceliece::McEliece::new())),
-        
+
         #[cfg(feature = "hqc")]
         "hqc" => Ok(Box::new(hqc::Hqc::new())),
-        
-        _ => Err(lib_q_core::Error::InvalidAlgorithm { algorithm: algorithm.to_string() }),
+
+        _ => Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: algorithm.to_string(),
+        }),
     }
+}
+
+/// Create a KEM context for the specified algorithm
+pub fn create_kem_context(algorithm: Algorithm) -> Result<KemContext> {
+    // Validate that this is a KEM algorithm
+    if algorithm.category() != lib_q_core::AlgorithmCategory::Kem {
+        return Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: format!("{algorithm:?} is not a KEM algorithm"),
+        });
+    }
+
+    Ok(KemContext::new())
 }
 
 #[cfg(test)]
@@ -60,11 +75,15 @@ mod tests {
     }
 
     #[test]
-    fn test_create_kem() {
-        // Test with a valid algorithm if any features are enabled
-        if !available_algorithms().is_empty() {
-            let algorithm = available_algorithms()[0];
-            assert!(create_kem(algorithm).is_ok());
-        }
+    fn test_create_kem_context() {
+        let mut ctx = create_kem_context(Algorithm::Kyber512).unwrap();
+        // Context is created successfully
+        assert!(ctx.generate_keypair(Algorithm::Kyber512).is_ok());
+    }
+
+    #[test]
+    fn test_create_kem_context_invalid_algorithm() {
+        let result = create_kem_context(Algorithm::Dilithium2);
+        assert!(result.is_err());
     }
 }

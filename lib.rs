@@ -2,17 +2,55 @@
 //!
 //! A modern, secure cryptography library built exclusively with NIST-approved
 //! post-quantum algorithms. Written in Rust with WASM compilation support.
+//!
+//! # Features
+//!
+//! - **Unified API**: Same interface for Rust crate and WASM usage
+//! - **Type Safety**: Strong type system prevents misuse
+//! - **Memory Safety**: Automatic zeroization of sensitive data
+//! - **Constant-Time**: Operations designed to prevent timing attacks
+//! - **Post-Quantum**: NIST-approved algorithms for quantum resistance
+//!
+//! # Example Usage
+//!
+//! ```rust
+//! use libq::{KemContext, SignatureContext, HashContext, Algorithm, Utils};
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Initialize contexts
+//!     let mut kem_ctx = KemContext::new();
+//!     let mut sig_ctx = SignatureContext::new();
+//!     let mut hash_ctx = HashContext::new();
+//!
+//!     // Generate KEM keypair
+//!     let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512)?;
+//!
+//!     // Generate signature keypair
+//!     let sig_keypair = sig_ctx.generate_keypair(Algorithm::Dilithium2)?;
+//!
+//!     // Hash data
+//!     let hash = hash_ctx.hash(Algorithm::Shake256, b"Hello, World!")?;
+//!
+//!     // Generate random bytes
+//!     let random_bytes = Utils::random_bytes(32)?;
+//!
+//!     Ok(())
+//! }
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// Re-export from individual crates
+// Re-export core API - provides the unified interface (Algorithm, Context structs, Utils)
 pub use lib_q_core::*;
 
-// Re-export specific items to avoid conflicts
-pub use lib_q_kem::{Kem, KemKeypair, KemPublicKey, KemSecretKey, create_kem};
-pub use lib_q_sig::{Signature, SigKeypair, SigPublicKey, SigSecretKey, create_signature};
-pub use lib_q_hash::{Hash, create_hash};
-pub use lib_q_aead::{Aead, AeadKey, Nonce, create_aead};
+// Re-export specific items from individual crates to provide unified access
+// This creates a single entry point for the entire library, eliminating the need
+// for users to import from multiple crates. The main API is in lib_q_core::*,
+// these are additional convenience exports.
+pub use lib_q_aead::{create_aead, Aead, AeadKey, Nonce};
+pub use lib_q_hash::{create_hash, Hash};
+pub use lib_q_kem::{create_kem, Kem, KemKeypair, KemPublicKey, KemSecretKey};
+pub use lib_q_sig::{create_signature, SigKeypair, SigPublicKey, SigSecretKey, Signature};
 pub use lib_q_zkp::create_zkp;
 
 // Constants
@@ -28,9 +66,60 @@ pub fn version() -> &'static str {
     VERSION
 }
 
-// WASM API Module
+/// Get all supported algorithms
+pub fn supported_algorithms() -> Vec<Algorithm> {
+    vec![
+        // KEM algorithms
+        Algorithm::Kyber512,
+        Algorithm::Kyber768,
+        Algorithm::Kyber1024,
+        Algorithm::McEliece348864,
+        Algorithm::McEliece460896,
+        Algorithm::McEliece6688128,
+        Algorithm::McEliece6960119,
+        Algorithm::McEliece8192128,
+        Algorithm::Hqc128,
+        Algorithm::Hqc192,
+        Algorithm::Hqc256,
+        // Signature algorithms
+        Algorithm::Dilithium2,
+        Algorithm::Dilithium3,
+        Algorithm::Dilithium5,
+        Algorithm::Falcon512,
+        Algorithm::Falcon1024,
+        Algorithm::SphincsSha256128fRobust,
+        Algorithm::SphincsSha256192fRobust,
+        Algorithm::SphincsSha256256fRobust,
+        Algorithm::SphincsShake256128fRobust,
+        Algorithm::SphincsShake256192fRobust,
+        Algorithm::SphincsShake256256fRobust,
+        // Hash algorithms
+        Algorithm::Shake128,
+        Algorithm::Shake256,
+        Algorithm::CShake128,
+        Algorithm::CShake256,
+    ]
+}
+
+/// Get algorithms by category
+pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
+    supported_algorithms()
+        .into_iter()
+        .filter(|alg| alg.category() == category)
+        .collect()
+}
+
+/// Get algorithms by security level
+pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
+    supported_algorithms()
+        .into_iter()
+        .filter(|alg| alg.security_level() == level)
+        .collect()
+}
+
+// WASM API Module - Provides identical interface for WASM
 #[cfg(feature = "wasm")]
-pub mod wasm_api {
+pub mod wasm {
     use super::*;
     use js_sys::{Array, Object, Uint8Array};
     use std::result::Result as StdResult;
@@ -121,6 +210,9 @@ pub mod wasm_api {
     /// Main WASM API for lib-Q
     #[wasm_bindgen]
     pub struct LibQ {
+        kem_context: KemContext,
+        sig_context: SignatureContext,
+        hash_context: HashContext,
         initialized: bool,
     }
 
@@ -129,20 +221,16 @@ pub mod wasm_api {
         /// Create a new LibQ instance
         #[wasm_bindgen(constructor)]
         pub fn new() -> LibQ {
-            let mut libq = LibQ { initialized: false };
+            let mut libq = LibQ {
+                kem_context: KemContext::new(),
+                sig_context: SignatureContext::new(),
+                hash_context: HashContext::new(),
+                initialized: false,
+            };
             let _ = libq.init();
             libq
         }
-    }
 
-    impl Default for LibQ {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
-    #[wasm_bindgen]
-    impl LibQ {
         /// Initialize the library
         pub fn init(&mut self) -> StdResult<(), JsValue> {
             if self.initialized {
@@ -164,84 +252,110 @@ pub mod wasm_api {
             super::version().to_string()
         }
 
+        /// Generate KEM keypair
+        pub fn kem_generate_keypair(
+            &mut self,
+            algorithm: &str,
+        ) -> StdResult<KemKeyPairWasm, JsValue> {
+            if !self.initialized {
+                return Err(JsValue::from_str("Library not initialized"));
+            }
+
+            let algorithm = match algorithm {
+                "kyber512" => Algorithm::Kyber512,
+                "kyber768" => Algorithm::Kyber768,
+                "kyber1024" => Algorithm::Kyber1024,
+                _ => return Err(JsValue::from_str("Unsupported KEM algorithm")),
+            };
+
+            match self.kem_context.generate_keypair(algorithm) {
+                Ok(keypair) => {
+                    let public_key = Uint8Array::from(keypair.public_key().as_bytes());
+                    let secret_key = Uint8Array::from(keypair.secret_key().as_bytes());
+                    Ok(KemKeyPairWasm::new(public_key, secret_key))
+                }
+                Err(_) => Err(JsValue::from_str("Failed to generate KEM keypair")),
+            }
+        }
+
+        /// Generate signature keypair
+        pub fn sig_generate_keypair(
+            &mut self,
+            algorithm: &str,
+        ) -> StdResult<SigKeyPairWasm, JsValue> {
+            if !self.initialized {
+                return Err(JsValue::from_str("Library not initialized"));
+            }
+
+            let algorithm = match algorithm {
+                "dilithium2" => Algorithm::Dilithium2,
+                "dilithium3" => Algorithm::Dilithium3,
+                "dilithium5" => Algorithm::Dilithium5,
+                _ => return Err(JsValue::from_str("Unsupported signature algorithm")),
+            };
+
+            match self.sig_context.generate_keypair(algorithm) {
+                Ok(keypair) => {
+                    let public_key = Uint8Array::from(keypair.public_key().as_bytes());
+                    let secret_key = Uint8Array::from(keypair.secret_key().as_bytes());
+                    Ok(SigKeyPairWasm::new(public_key, secret_key))
+                }
+                Err(_) => Err(JsValue::from_str("Failed to generate signature keypair")),
+            }
+        }
+
+        /// Hash data
+        pub fn hash(
+            &mut self,
+            algorithm: &str,
+            data: &Uint8Array,
+        ) -> StdResult<HashResultWasm, JsValue> {
+            if !self.initialized {
+                return Err(JsValue::from_str("Library not initialized"));
+            }
+
+            let algorithm = match algorithm {
+                "shake128" => Algorithm::Shake128,
+                "shake256" => Algorithm::Shake256,
+                "cshake128" => Algorithm::CShake128,
+                "cshake256" => Algorithm::CShake256,
+                _ => return Err(JsValue::from_str("Unsupported hash algorithm")),
+            };
+
+            let data_vec: Vec<u8> = data.to_vec();
+            match self.hash_context.hash(algorithm, &data_vec) {
+                Ok(hash) => {
+                    let hash_array = Uint8Array::from(&hash[..]);
+                    Ok(HashResultWasm::new(hash_array, format!("{algorithm:?}")))
+                }
+                Err(_) => Err(JsValue::from_str("Failed to hash data")),
+            }
+        }
+
         /// Generate random bytes
         pub fn random_bytes(&self, length: usize) -> StdResult<Uint8Array, JsValue> {
             if !self.initialized {
                 return Err(JsValue::from_str("Library not initialized"));
             }
 
-            // TODO: Implement using lib_q_utils
-            Err(JsValue::from_str("Random bytes not implemented yet"))
-        }
-
-        /// Generate a random key
-        pub fn random_key(&self, size: usize) -> StdResult<Uint8Array, JsValue> {
-            if !self.initialized {
-                return Err(JsValue::from_str("Library not initialized"));
+            match Utils::random_bytes(length) {
+                Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
+                Err(_) => Err(JsValue::from_str("Failed to generate random bytes")),
             }
-
-            // TODO: Implement using lib_q_utils
-            Err(JsValue::from_str("Random key not implemented yet"))
         }
 
         /// Convert bytes to hex string
         pub fn bytes_to_hex(&self, bytes: &Uint8Array) -> String {
-            // TODO: Implement using lib_q_utils
-            "not implemented".to_string()
+            let bytes_vec: Vec<u8> = bytes.to_vec();
+            Utils::bytes_to_hex(&bytes_vec)
         }
 
         /// Convert hex string to bytes
         pub fn hex_to_bytes(&self, hex: &str) -> StdResult<Uint8Array, JsValue> {
-            // TODO: Implement using lib_q_utils
-            Err(JsValue::from_str("Hex conversion not implemented yet"))
-        }
-
-        /// Hash data using SHAKE256
-        pub fn hash_shake256(&self, data: &Uint8Array) -> StdResult<HashResultWasm, JsValue> {
-            if !self.initialized {
-                return Err(JsValue::from_str("Library not initialized"));
+            match Utils::hex_to_bytes(hex) {
+                Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
+                Err(_) => Err(JsValue::from_str("Failed to convert hex to bytes")),
             }
-
-            // TODO: Implement using lib_q_hash
-            Err(JsValue::from_str("SHAKE256 not implemented yet"))
-        }
-
-        /// Generate KEM key pair (placeholder implementation)
-        pub fn kem_generate_keypair(
-            &self,
-            algorithm: &str,
-            security_level: u32,
-        ) -> StdResult<KemKeyPairWasm, JsValue> {
-            if !self.initialized {
-                return Err(JsValue::from_str("Library not initialized"));
-            }
-
-            // Simple validation
-            if ![1, 3, 4, 5].contains(&security_level) {
-                return Err(JsValue::from_str("Invalid security level"));
-            }
-
-            // TODO: Implement using lib_q_kem
-            Err(JsValue::from_str("KEM key generation not implemented yet"))
-        }
-
-        /// Generate signature key pair (placeholder implementation)
-        pub fn sig_generate_keypair(
-            &self,
-            algorithm: &str,
-            security_level: u32,
-        ) -> StdResult<SigKeyPairWasm, JsValue> {
-            if !self.initialized {
-                return Err(JsValue::from_str("Library not initialized"));
-            }
-
-            // Simple validation
-            if ![1, 3, 4, 5].contains(&security_level) {
-                return Err(JsValue::from_str("Invalid security level"));
-            }
-
-            // TODO: Implement using lib_q_sig
-            Err(JsValue::from_str("Signature key generation not implemented yet"))
         }
 
         /// Get supported algorithms
@@ -250,23 +364,23 @@ pub mod wasm_api {
 
             // KEM algorithms
             let kem_algorithms = Array::new();
-            kem_algorithms.push(&"kyber".into());
-            kem_algorithms.push(&"mceliece".into());
-            kem_algorithms.push(&"hqc".into());
+            for alg in algorithms_by_category(AlgorithmCategory::Kem) {
+                kem_algorithms.push(&format!("{alg:?}").to_lowercase().into());
+            }
             let _ = js_sys::Reflect::set(&algorithms, &"kem".into(), &kem_algorithms);
 
             // Signature algorithms
             let sig_algorithms = Array::new();
-            sig_algorithms.push(&"dilithium".into());
-            sig_algorithms.push(&"falcon".into());
-            sig_algorithms.push(&"sphincs".into());
+            for alg in algorithms_by_category(AlgorithmCategory::Signature) {
+                sig_algorithms.push(&format!("{alg:?}").to_lowercase().into());
+            }
             let _ = js_sys::Reflect::set(&algorithms, &"signature".into(), &sig_algorithms);
 
             // Hash algorithms
             let hash_algorithms = Array::new();
-            hash_algorithms.push(&"shake256".into());
-            hash_algorithms.push(&"shake128".into());
-            hash_algorithms.push(&"cshake256".into());
+            for alg in algorithms_by_category(AlgorithmCategory::Hash) {
+                hash_algorithms.push(&format!("{alg:?}").to_lowercase().into());
+            }
             let _ = js_sys::Reflect::set(&algorithms, &"hash".into(), &hash_algorithms);
 
             // Security levels
@@ -278,6 +392,12 @@ pub mod wasm_api {
             let _ = js_sys::Reflect::set(&algorithms, &"securityLevels".into(), &security_levels);
 
             algorithms
+        }
+    }
+
+    impl Default for LibQ {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
@@ -297,20 +417,24 @@ pub mod wasm_api {
 
     #[wasm_bindgen]
     pub fn libq_random_bytes_standalone(length: usize) -> StdResult<Uint8Array, JsValue> {
-        // TODO: Implement using lib_q_utils
-        Err(JsValue::from_str("Random bytes not implemented yet"))
+        match Utils::random_bytes(length) {
+            Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
+            Err(_) => Err(JsValue::from_str("Failed to generate random bytes")),
+        }
     }
 
     #[wasm_bindgen]
     pub fn libq_bytes_to_hex_standalone(bytes: &Uint8Array) -> String {
-        // TODO: Implement using lib_q_utils
-        "not implemented".to_string()
+        let bytes_vec: Vec<u8> = bytes.to_vec();
+        Utils::bytes_to_hex(&bytes_vec)
     }
 
     #[wasm_bindgen]
     pub fn libq_hex_to_bytes_standalone(hex: &str) -> StdResult<Uint8Array, JsValue> {
-        // TODO: Implement using lib_q_utils
-        Err(JsValue::from_str("Hex conversion not implemented yet"))
+        match Utils::hex_to_bytes(hex) {
+            Ok(bytes) => Ok(Uint8Array::from(&bytes[..])),
+            Err(_) => Err(JsValue::from_str("Failed to convert hex to bytes")),
+        }
     }
 }
 
@@ -327,5 +451,74 @@ mod tests {
     fn test_version() {
         assert!(!version().is_empty());
         assert_eq!(version(), VERSION);
+    }
+
+    #[test]
+    fn test_supported_algorithms() {
+        let algorithms = supported_algorithms();
+        assert!(!algorithms.is_empty());
+
+        // Check that we have algorithms from each category
+        let kem_algs = algorithms_by_category(AlgorithmCategory::Kem);
+        let sig_algs = algorithms_by_category(AlgorithmCategory::Signature);
+        let hash_algs = algorithms_by_category(AlgorithmCategory::Hash);
+
+        assert!(!kem_algs.is_empty());
+        assert!(!sig_algs.is_empty());
+        assert!(!hash_algs.is_empty());
+    }
+
+    #[test]
+    fn test_algorithms_by_security_level() {
+        let level_1 = algorithms_by_security_level(1);
+        let level_3 = algorithms_by_security_level(3);
+        let level_4 = algorithms_by_security_level(4);
+
+        assert!(!level_1.is_empty());
+        assert!(!level_3.is_empty());
+        assert!(!level_4.is_empty());
+
+        // Verify all algorithms have the correct security level
+        for alg in level_1 {
+            assert_eq!(alg.security_level(), 1);
+        }
+        for alg in level_3 {
+            assert_eq!(alg.security_level(), 3);
+        }
+        for alg in level_4 {
+            assert_eq!(alg.security_level(), 4);
+        }
+    }
+
+    #[test]
+    fn test_unified_api() {
+        // Test that the unified API works consistently
+        let mut kem_ctx = KemContext::new();
+        let mut sig_ctx = SignatureContext::new();
+        let mut hash_ctx = HashContext::new();
+
+        // Test KEM operations
+        let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512).unwrap();
+        assert!(!kem_keypair.public_key().as_bytes().is_empty());
+        assert!(!kem_keypair.secret_key().as_bytes().is_empty());
+
+        // Test signature operations
+        let sig_keypair = sig_ctx.generate_keypair(Algorithm::Dilithium2).unwrap();
+        assert!(!sig_keypair.public_key().as_bytes().is_empty());
+        assert!(!sig_keypair.secret_key().as_bytes().is_empty());
+
+        // Test hash operations
+        let hash = hash_ctx.hash(Algorithm::Shake256, b"test").unwrap();
+        assert_eq!(hash.len(), 32);
+
+        // Test utility functions
+        let random_bytes = Utils::random_bytes(32).unwrap();
+        assert_eq!(random_bytes.len(), 32);
+
+        let hex = Utils::bytes_to_hex(&[0x01, 0x23, 0x45, 0x67]);
+        assert_eq!(hex, "01234567");
+
+        let decoded = Utils::hex_to_bytes(&hex).unwrap();
+        assert_eq!(decoded, vec![0x01, 0x23, 0x45, 0x67]);
     }
 }

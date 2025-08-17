@@ -63,8 +63,8 @@ impl ZkpProver {
     /// A zero-knowledge proof
     pub fn prove_secret_value(
         &mut self,
-        secret_value: &[u8],
-        public_statement: &[u8],
+        _secret_value: &[u8],
+        _public_statement: &[u8],
     ) -> Result<ZkpProof> {
         // TODO: Implement actual ZKP generation
         // For now, return a placeholder proof
@@ -94,7 +94,7 @@ impl ZkpVerifier {
     /// # Returns
     ///
     /// `true` if the proof is valid, `false` otherwise
-    pub fn verify(&self, proof: ZkpProof, public_statement: &[u8]) -> Result<bool> {
+    pub fn verify(&self, _proof: ZkpProof, _public_statement: &[u8]) -> Result<bool> {
         // TODO: Implement actual ZKP verification
         // For now, return true for placeholder proofs
         Ok(true)
@@ -114,12 +114,13 @@ impl Default for ZkpVerifier {
 }
 
 /// Get available ZKP algorithms
+#[allow(clippy::vec_init_then_push)]
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = Vec::new();
-    
+    let mut algorithms = vec![];
+
     #[cfg(feature = "zkp")]
     algorithms.push("stark");
-    
+
     algorithms
 }
 
@@ -128,8 +129,10 @@ pub fn create_zkp(algorithm: &str) -> Result<Box<dyn std::any::Any>> {
     match algorithm {
         #[cfg(feature = "zkp")]
         "stark" => Ok(Box::new(ZkpProver::new())),
-        
-        _ => Err(lib_q_core::Error::InvalidAlgorithm { algorithm: algorithm.to_string() }),
+
+        _ => Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: algorithm.to_string(),
+        }),
     }
 }
 
