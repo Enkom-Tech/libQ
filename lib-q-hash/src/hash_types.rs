@@ -1,8 +1,9 @@
 //! Hash wrapper types that implement the lib-q-core Hash trait
 
 use crate::{
-    CShake128, CShake256, KangarooTwelve, Keccak224, Keccak256, Keccak384, Keccak512, Sha3_224,
-    Sha3_256, Sha3_384, Sha3_512, Shake128, Shake256,
+    CShake128, CShake256, KangarooTwelve, Keccak224, Keccak256, Keccak384, Keccak512, Kmac128,
+    Kmac256, ParallelHash128, ParallelHash256, Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128,
+    Shake256, TupleHash128, TupleHash256,
 };
 use alloc::vec::Vec;
 use digest::{CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset, Update, XofReader};
@@ -59,6 +60,30 @@ pub struct Keccak384Hash(Keccak384);
 /// Wrapper for Keccak-512 that implements lib-q-core Hash trait
 #[derive(Debug, Clone)]
 pub struct Keccak512Hash(Keccak512);
+
+/// Wrapper for KMAC128 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct Kmac128Hash(Kmac128);
+
+/// Wrapper for KMAC256 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct Kmac256Hash(Kmac256);
+
+/// Wrapper for TupleHash128 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct TupleHash128Hash(TupleHash128);
+
+/// Wrapper for TupleHash256 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct TupleHash256Hash(TupleHash256);
+
+/// Wrapper for ParallelHash128 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct ParallelHash128Hash(ParallelHash128);
+
+/// Wrapper for ParallelHash256 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct ParallelHash256Hash(ParallelHash256);
 
 // Constructor implementations
 impl CShake128Hash {
@@ -440,6 +465,199 @@ impl Default for Keccak384Hash {
 }
 
 impl Default for Keccak512Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Constructor implementations for SP800-185 hash types
+impl Kmac128Hash {
+    /// Creates a new KMAC128 hash instance
+    pub fn new() -> Self {
+        Self(Kmac128::new(b"", b""))
+    }
+
+    /// Creates a new KMAC128 hash instance with key and customization
+    pub fn new_with_key_and_custom(key: &[u8], custom: &[u8]) -> Self {
+        Self(Kmac128::new(key, custom))
+    }
+}
+
+impl Kmac256Hash {
+    /// Creates a new KMAC256 hash instance
+    pub fn new() -> Self {
+        Self(Kmac256::new(b"", b""))
+    }
+
+    /// Creates a new KMAC256 hash instance with key and customization
+    pub fn new_with_key_and_custom(key: &[u8], custom: &[u8]) -> Self {
+        Self(Kmac256::new(key, custom))
+    }
+}
+
+impl TupleHash128Hash {
+    /// Creates a new TupleHash128 hash instance
+    pub fn new() -> Self {
+        Self(TupleHash128::new(b""))
+    }
+
+    /// Creates a new TupleHash128 hash instance with customization
+    pub fn new_with_custom(custom: &[u8]) -> Self {
+        Self(TupleHash128::new(custom))
+    }
+}
+
+impl TupleHash256Hash {
+    /// Creates a new TupleHash256 hash instance
+    pub fn new() -> Self {
+        Self(TupleHash256::new(b""))
+    }
+
+    /// Creates a new TupleHash256 hash instance with customization
+    pub fn new_with_custom(custom: &[u8]) -> Self {
+        Self(TupleHash256::new(custom))
+    }
+}
+
+impl ParallelHash128Hash {
+    /// Creates a new ParallelHash128 hash instance
+    pub fn new() -> Self {
+        Self(ParallelHash128::new(b"", 8192))
+    }
+
+    /// Creates a new ParallelHash128 hash instance with customization and block size
+    pub fn new_with_custom_and_block_size(custom: &[u8], block_size: usize) -> Self {
+        Self(ParallelHash128::new(custom, block_size))
+    }
+}
+
+impl ParallelHash256Hash {
+    /// Creates a new ParallelHash256 hash instance
+    pub fn new() -> Self {
+        Self(ParallelHash256::new(b"", 8192))
+    }
+
+    /// Creates a new ParallelHash256 hash instance with customization and block size
+    pub fn new_with_custom_and_block_size(custom: &[u8], block_size: usize) -> Self {
+        Self(ParallelHash256::new(custom, block_size))
+    }
+}
+
+// Hash trait implementations for SP800-185 hash types
+impl Hash for Kmac128Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        hasher.update(data);
+        let result = hasher.finalize_with_length(16);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        16
+    }
+}
+
+impl Hash for Kmac256Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        hasher.update(data);
+        let result = hasher.finalize_with_length(32);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        32
+    }
+}
+
+impl Hash for TupleHash128Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        // For TupleHash, we need to treat the data as a single tuple element
+        let tuple = alloc::vec![data];
+        hasher.update_tuple(&tuple);
+        let result = hasher.finalize_with_length(16);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        16
+    }
+}
+
+impl Hash for TupleHash256Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        // For TupleHash, we need to treat the data as a single tuple element
+        let tuple = alloc::vec![data];
+        hasher.update_tuple(&tuple);
+        let result = hasher.finalize_with_length(32);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        32
+    }
+}
+
+impl Hash for ParallelHash128Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        hasher.update(data);
+        let result = hasher.finalize_with_length(16);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        16
+    }
+}
+
+impl Hash for ParallelHash256Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        hasher.update(data);
+        let result = hasher.finalize_with_length(32);
+        Ok(result)
+    }
+
+    fn output_size(&self) -> usize {
+        32
+    }
+}
+
+// Default implementations for SP800-185 hash types
+impl Default for Kmac128Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Kmac256Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for TupleHash128Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for TupleHash256Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ParallelHash128Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for ParallelHash256Hash {
     fn default() -> Self {
         Self::new()
     }

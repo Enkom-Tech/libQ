@@ -27,7 +27,7 @@ accessed via the `Digest` trait:
 
 ```rust
 use hex_literal::hex;
-use sha3::{Digest, Sha3_256};
+use lib_q_sha3::{Digest, Sha3_256};
 
 let mut hasher = Sha3_256::new();
 hasher.update(b"abc");
@@ -46,7 +46,7 @@ these functions do not implement `Digest`, so lower-level traits have to
 be imported:
 
 ```rust
-use sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
+use lib_q_sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
 use hex_literal::hex;
 
 let mut hasher = Shake128::default();

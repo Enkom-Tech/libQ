@@ -450,6 +450,7 @@ dependencies = [
  "lib-q-k12",
  "lib-q-keccak",
  "lib-q-sha3",
+ "rayon",
  "zeroize",
 ]
 

@@ -98,6 +98,12 @@ pub fn supported_algorithms() -> Vec<Algorithm> {
         Algorithm::Shake256,
         Algorithm::CShake128,
         Algorithm::CShake256,
+        Algorithm::Kmac128,
+        Algorithm::Kmac256,
+        Algorithm::TupleHash128,
+        Algorithm::TupleHash256,
+        Algorithm::ParallelHash128,
+        Algorithm::ParallelHash256,
     ]
 }
 

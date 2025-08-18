@@ -288,7 +288,7 @@ jobs:
       - name: Build lib-q-hash WASM package
         run: |
           echo "Building lib-q-hash WASM package..."
-          wasm-pack build lib-q-hash --target web --features "shake256" --out-dir pkg-hash --verbose
+          wasm-pack build lib-q-hash --target web --features "alloc,oid" --out-dir pkg-hash --verbose
           echo "lib-q-hash WASM build completed successfully"
       
       - name: Prepare lib-q-hash NPM package
@@ -298,8 +298,8 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
           npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum Hash Functions for Node.js"
-          npm pkg set keywords="cryptography,post-quantum,hash,shake,wasm"
+          npm pkg set description="Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)"
+          npm pkg set keywords="cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm"
           npm pkg set author="lib-Q Contributors"
           npm pkg set license="Apache-2.0"
           npm pkg set repository.type="git"

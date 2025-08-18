@@ -30,8 +30,12 @@ pub use lib_q_sha3::{
 mod cshake;
 mod hash_types;
 mod internal_block_api;
+mod kmac;
+mod parallelhash;
 mod shake;
+mod tuplehash;
 mod turbo_shake;
+mod utils;
 
 // Re-export internal implementations
 pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
@@ -40,12 +44,17 @@ pub use shake::{
     Shake256 as InternalShake256, Shake256Reader as InternalShake256Reader,
 };
 pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
+// Re-export SP800-185 implementations
+pub use kmac::{Kmac128, Kmac128Reader, Kmac256, Kmac256Reader};
+pub use tuplehash::{TupleHash128, TupleHash128Reader, TupleHash256, TupleHash256Reader};
+pub use parallelhash::{ParallelHash128, ParallelHash128Reader, ParallelHash256, ParallelHash256Reader};
 
 // Re-export hash types
 pub use crate::hash_types::{
     CShake128Hash, CShake256Hash, KangarooTwelveHash, Keccak224Hash, Keccak256Hash, Keccak384Hash,
-    Keccak512Hash, Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash, Shake128Hash,
-    Shake256Hash,
+    Keccak512Hash, Kmac128Hash, Kmac256Hash, ParallelHash128Hash, ParallelHash256Hash,
+    Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash, Shake128Hash, Shake256Hash,
+    TupleHash128Hash, TupleHash256Hash,
 };
 
 // Constants for SHA-3 implementation
@@ -93,6 +102,18 @@ pub enum HashAlgorithm {
     Keccak384,
     /// Keccak-512
     Keccak512,
+    /// KMAC128
+    Kmac128,
+    /// KMAC256
+    Kmac256,
+    /// TupleHash128
+    TupleHash128,
+    /// TupleHash256
+    TupleHash256,
+    /// ParallelHash128
+    ParallelHash128,
+    /// ParallelHash256
+    ParallelHash256,
 }
 
 impl HashAlgorithm {
@@ -112,6 +133,12 @@ impl HashAlgorithm {
             HashAlgorithm::Keccak256 => 32,
             HashAlgorithm::Keccak384 => 48,
             HashAlgorithm::Keccak512 => 64,
+            HashAlgorithm::Kmac128 => 16,
+            HashAlgorithm::Kmac256 => 32,
+            HashAlgorithm::TupleHash128 => 16,
+            HashAlgorithm::TupleHash256 => 32,
+            HashAlgorithm::ParallelHash128 => 16,
+            HashAlgorithm::ParallelHash256 => 32,
         }
     }
 }
@@ -131,27 +158,38 @@ pub fn available_algorithms() -> Vec<&'static str> {
         "keccak224",
         "keccak256",
         "keccak384",
-        "keccak512"
+        "keccak512",
+        "kmac128",
+        "kmac256",
+        "tuplehash128",
+        "tuplehash256",
+        "parallelhash128",
+        "parallelhash256"
     ]
 }
 
 /// Create a hash instance by algorithm name
 pub fn create_hash(algorithm: &str) -> Result<Box<dyn Hash>> {
     match algorithm {
-        // Note: These are temporarily commented out until the subcrates are properly integrated
-        // "sha3-224" => Ok(Box::new(Sha3_224Hash::new())),
-        // "sha3-256" => Ok(Box::new(Sha3_256Hash::new())),
-        // "sha3-384" => Ok(Box::new(Sha3_384Hash::new())),
-        // "sha3-512" => Ok(Box::new(Sha3_512Hash::new())),
-        // "shake128" => Ok(Box::new(Shake128Hash::new())),
-        // "shake256" => Ok(Box::new(Shake256Hash::new())),
+        "sha3-224" => Ok(Box::new(Sha3_224Hash::new())),
+        "sha3-256" => Ok(Box::new(Sha3_256Hash::new())),
+        "sha3-384" => Ok(Box::new(Sha3_384Hash::new())),
+        "sha3-512" => Ok(Box::new(Sha3_512Hash::new())),
+        "shake128" => Ok(Box::new(Shake128Hash::new())),
+        "shake256" => Ok(Box::new(Shake256Hash::new())),
         "cshake128" => Ok(Box::new(CShake128Hash::new())),
         "cshake256" => Ok(Box::new(CShake256Hash::new())),
-        // "kangarootwelve" => Ok(Box::new(KangarooTwelveHash::new())),
-        // "keccak224" => Ok(Box::new(Keccak224Hash::new())),
-        // "keccak256" => Ok(Box::new(Keccak256Hash::new())),
-        // "keccak384" => Ok(Box::new(Keccak384Hash::new())),
-        // "keccak512" => Ok(Box::new(Keccak512Hash::new())),
+        "kmac128" => Ok(Box::new(Kmac128Hash::new())),
+        "kmac256" => Ok(Box::new(Kmac256Hash::new())),
+        "tuplehash128" => Ok(Box::new(TupleHash128Hash::new())),
+        "tuplehash256" => Ok(Box::new(TupleHash256Hash::new())),
+        "parallelhash128" => Ok(Box::new(ParallelHash128Hash::new())),
+        "parallelhash256" => Ok(Box::new(ParallelHash256Hash::new())),
+        "kangarootwelve" => Ok(Box::new(KangarooTwelveHash::new())),
+        "keccak224" => Ok(Box::new(Keccak224Hash::new())),
+        "keccak256" => Ok(Box::new(Keccak256Hash::new())),
+        "keccak384" => Ok(Box::new(Keccak384Hash::new())),
+        "keccak512" => Ok(Box::new(Keccak512Hash::new())),
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
             algorithm: algorithm.to_string(),
         }),
@@ -178,19 +216,18 @@ mod tests {
     fn test_available_algorithms() {
         let algorithms = available_algorithms();
         assert!(!algorithms.is_empty());
-        // Note: These tests are temporarily commented out until the subcrates are properly integrated
-        // assert!(algorithms.contains(&"sha3-224"));
-        // assert!(algorithms.contains(&"sha3-256"));
-        // assert!(algorithms.contains(&"sha3-384"));
-        // assert!(algorithms.contains(&"sha3-512"));
-        // assert!(algorithms.contains(&"shake128"));
-        // assert!(algorithms.contains(&"shake256"));
+        assert!(algorithms.contains(&"sha3-224"));
+        assert!(algorithms.contains(&"sha3-256"));
+        assert!(algorithms.contains(&"sha3-384"));
+        assert!(algorithms.contains(&"sha3-512"));
+        assert!(algorithms.contains(&"shake128"));
+        assert!(algorithms.contains(&"shake256"));
         assert!(algorithms.contains(&"cshake256"));
-        // assert!(algorithms.contains(&"kangarootwelve"));
-        // assert!(algorithms.contains(&"keccak224"));
-        // assert!(algorithms.contains(&"keccak256"));
-        // assert!(algorithms.contains(&"keccak384"));
-        // assert!(algorithms.contains(&"keccak512"));
+        assert!(algorithms.contains(&"kangarootwelve"));
+        assert!(algorithms.contains(&"keccak224"));
+        assert!(algorithms.contains(&"keccak256"));
+        assert!(algorithms.contains(&"keccak384"));
+        assert!(algorithms.contains(&"keccak512"));
     }
 
     #[test]

@@ -236,3 +236,39 @@ impl CollisionResistance for CShake256 {
     // https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf#[{"num":68,"gen":0},{"name":"XYZ"},108,440,null]
     type CollisionResistance = U32;
 }
+
+impl SerializableState for CShake128 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake128Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}
+
+impl SerializableState for CShake256 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake256Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}

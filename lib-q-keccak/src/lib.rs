@@ -10,7 +10,7 @@
 //! // Test vectors are from KeccakCodePackage
 //! let mut data = [0u64; 25];
 //!
-//! keccak::f1600(&mut data);
+//! lib_q_keccak::f1600(&mut data);
 //! assert_eq!(data, [
 //!     0xF1258F7940E1DDE7, 0x84D5CCF933C0478A, 0xD598261EA65AA9EE, 0xBD1547306F80494D,
 //!     0x8B284E056253D057, 0xFF97A42D7F8E6FD4, 0x90FEE5A0A44647C4, 0x8C5BDA0CD6192E76,
@@ -21,7 +21,7 @@
 //!     0xEAF1FF7B5CECA249,
 //! ]);
 //!
-//! keccak::f1600(&mut data);
+//! lib_q_keccak::f1600(&mut data);
 //! assert_eq!(data, [
 //!     0x2D5C954DF96ECB3C, 0x6A332CD07057B56D, 0x093D8D1270D76B6C, 0x8A20D9B25569D094,
 //!     0x4F9C4F99E5E7F156, 0xF957B9A2DA65FB38, 0x85773DAE1275AF0D, 0xFAF4F247C3D810F7,

@@ -5,6 +5,7 @@
 
 use crate::{error::Result, traits::*};
 use core::marker::PhantomData;
+use rand::RngCore;
 
 /// Algorithm identifiers for cryptographic operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,6 +45,12 @@ pub enum Algorithm {
     Sha3_256,
     Sha3_384,
     Sha3_512,
+    Kmac128,
+    Kmac256,
+    TupleHash128,
+    TupleHash256,
+    ParallelHash128,
+    ParallelHash256,
 }
 
 impl Algorithm {
@@ -88,7 +95,13 @@ impl Algorithm {
             | Algorithm::Sha3_224
             | Algorithm::Sha3_256
             | Algorithm::Sha3_384
-            | Algorithm::Sha3_512 => 0,
+            | Algorithm::Sha3_512
+            | Algorithm::Kmac128
+            | Algorithm::Kmac256
+            | Algorithm::TupleHash128
+            | Algorithm::TupleHash256
+            | Algorithm::ParallelHash128
+            | Algorithm::ParallelHash256 => 0,
         }
     }
 
@@ -126,7 +139,13 @@ impl Algorithm {
             | Algorithm::Sha3_224
             | Algorithm::Sha3_256
             | Algorithm::Sha3_384
-            | Algorithm::Sha3_512 => AlgorithmCategory::Hash,
+            | Algorithm::Sha3_512
+            | Algorithm::Kmac128
+            | Algorithm::Kmac256
+            | Algorithm::TupleHash128
+            | Algorithm::TupleHash256
+            | Algorithm::ParallelHash128
+            | Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
         }
     }
 }
@@ -443,8 +462,10 @@ impl Utils {
             });
         }
 
-        // TODO: Implement actual random generation
-        Ok(vec![0u8; length])
+        let mut bytes = vec![0u8; length];
+        let mut rng = rand::rng();
+        rng.fill_bytes(&mut bytes);
+        Ok(bytes)
     }
 
     /// Convert bytes to hex string
