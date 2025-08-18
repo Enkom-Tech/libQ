@@ -13,8 +13,7 @@ use digest::{
     typenum::{IsLessOrEqual, True, U0, U200},
     HashMarker, Output,
 };
-// Re-export cSHAKE cores for external use
-#[allow(unused_imports)]
+
 pub use crate::cshake::{CShake128Core, CShake256Core};
 
 /// Core Sha3 fixed output hasher state.
@@ -77,14 +76,7 @@ where
     fn update_blocks(&mut self, blocks: &[Block<Self>]) {
         for block in blocks {
             xor_block(&mut self.state, block);
-            #[cfg(feature = "simd")]
-            {
-                lib_q_keccak::p1600_optimized(&mut self.state, OptimizationLevel::best_available());
-            }
-            #[cfg(not(feature = "simd"))]
-            {
-                lib_q_keccak::p1600(&mut self.state, ROUNDS);
-            }
+            lib_q_keccak::p1600(&mut self.state, ROUNDS);
         }
     }
 }
@@ -104,14 +96,7 @@ where
         block[n - 1] |= 0x80;
 
         xor_block(&mut self.state, &block);
-        #[cfg(feature = "simd")]
-        {
-            lib_q_keccak::p1600_optimized(&mut self.state, OptimizationLevel::best_available());
-        }
-        #[cfg(not(feature = "simd"))]
-        {
-            lib_q_keccak::p1600(&mut self.state, ROUNDS);
-        }
+        lib_q_keccak::p1600(&mut self.state, ROUNDS);
 
         for (o, s) in out.chunks_mut(8).zip(self.state.iter()) {
             o.copy_from_slice(&s.to_le_bytes()[..o.len()]);
@@ -135,14 +120,7 @@ where
         block[n - 1] |= 0x80;
 
         xor_block(&mut self.state, &block);
-        #[cfg(feature = "simd")]
-        {
-            lib_q_keccak::p1600_optimized(&mut self.state, OptimizationLevel::best_available());
-        }
-        #[cfg(not(feature = "simd"))]
-        {
-            lib_q_keccak::p1600(&mut self.state, ROUNDS);
-        }
+        lib_q_keccak::p1600(&mut self.state, ROUNDS);
 
         Sha3ReaderCore::new(&self.state)
     }
@@ -294,14 +272,7 @@ where
         for (src, dst) in self.state.iter().zip(block.chunks_mut(8)) {
             dst.copy_from_slice(&src.to_le_bytes()[..dst.len()]);
         }
-        #[cfg(feature = "simd")]
-        {
-            lib_q_keccak::p1600_optimized(&mut self.state, OptimizationLevel::best_available());
-        }
-        #[cfg(not(feature = "simd"))]
-        {
-            lib_q_keccak::p1600(&mut self.state, ROUNDS);
-        }
+        lib_q_keccak::p1600(&mut self.state, ROUNDS);
         block
     }
 }

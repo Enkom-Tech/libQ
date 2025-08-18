@@ -623,21 +623,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-keccak
         with:
-          working-directory: lib-q-sponge/keccak
-          features: "asm"
-          rust-version: "stable"
-          run-benchmarks: "false"
-          run-simd: "false"
-
-  # Test Keccak with nightly features
-  test-keccak-nightly:
-    name: Test Keccak (Nightly)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-keccak
-        with:
-          working-directory: lib-q-sponge/keccak
+          working-directory: lib-q-keccak
           features: "asm,simd"
           rust-version: "nightly"
           run-benchmarks: "true"
@@ -651,7 +637,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-sha3
         with:
-          working-directory: lib-q-hash
+          working-directory: lib-q-sha3
           features: "alloc,oid"
           rust-version: "stable"
           test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
@@ -664,7 +650,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-k12
         with:
-          working-directory: lib-q-hash
+          working-directory: lib-q-k12
           features: "alloc,oid"
           rust-version: "stable"
           run-benchmarks: "false"
@@ -677,7 +663,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-k12
         with:
-          working-directory: lib-q-hash
+          working-directory: lib-q-k12
           features: "alloc,oid"
           rust-version: "nightly"
           run-benchmarks: "true"
@@ -690,7 +676,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-ascon
         with:
-          working-directory: lib-q-sponge/ascon
+          working-directory: lib-q-ascon
           features: ""
           rust-version: "stable"
           run-benchmarks: "false"
@@ -703,7 +689,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/test-ascon
         with:
-          working-directory: lib-q-sponge/ascon
+          working-directory: lib-q-ascon
           features: ""
           rust-version: "nightly"
           run-benchmarks: "true"

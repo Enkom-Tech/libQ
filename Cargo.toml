@@ -2,6 +2,10 @@
 [workspace]
 members = [
     "lib-q-core",
+    "lib-q-keccak",
+    "lib-q-ascon",
+    "lib-q-k12",
+    "lib-q-sha3",
     "lib-q-kem",
     "lib-q-sig", 
     "lib-q-hash",

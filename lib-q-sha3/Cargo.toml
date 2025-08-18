@@ -18,12 +18,12 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 digest = "0.11.0-rc.0"
-lib-q-keccak = { version = "0.0.1", path = "../../lib-q-keccak" }
+lib-q-keccak = { version = "0.0.1", path = "../lib-q-keccak" }
 
 [dev-dependencies]
 digest = { version = "0.11.0-rc.0", features = ["dev"] }
 hex-literal = "1"
-base16ct = { version = "0.2", features = ["alloc"] }
+base16ct = { version = "0.2.0", features = ["alloc"] }
 
 [features]
 default = ["alloc", "oid"]

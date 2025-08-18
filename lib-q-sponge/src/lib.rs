@@ -7,7 +7,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 
 // Re-export keccak functions
-pub use keccak::*;
+pub use lib_q_keccak::*;
 
 // Re-export ascon functions
-pub use ascon::*;
+pub use lib_q_ascon::*;

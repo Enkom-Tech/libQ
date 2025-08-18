@@ -24,15 +24,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "862ed96ca487e809f1c8e5a8447f6ee2cf102f846893800b20cebdf541fc6bbd"
 
 [[package]]
-name = "ascon"
-version = "0.5.0-pre"
-dependencies = [
- "criterion",
- "rand 0.9.2",
- "zeroize",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -387,33 +378,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "k12"
-version = "0.4.0-pre"
-dependencies = [
- "digest",
- "hex-literal",
- "sha3 0.11.0-rc.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "keccak"
-version = "0.2.0-pre.0"
-dependencies = [
- "cpufeatures",
- "nix",
- "num_cpus",
-]
-
-[[package]]
-name = "keccak"
-version = "0.2.0-pre.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7cdd4f0dc5807b9a2b25dd48a3f58e862606fe7bd47f41ecde36e97422d7e90"
-dependencies = [
- "cpufeatures",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,6 +411,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-ascon"
+version = "0.0.1"
+dependencies = [
+ "criterion",
+ "rand 0.9.2",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-core"
 version = "0.0.1"
 dependencies = [
@@ -473,11 +446,29 @@ dependencies = [
  "digest",
  "getrandom 0.3.3",
  "hex-literal",
- "k12",
- "keccak 0.2.0-pre.0",
  "lib-q-core",
- "sha3 0.11.0-rc.0",
+ "lib-q-k12",
+ "lib-q-keccak",
+ "lib-q-sha3",
  "zeroize",
+]
+
+[[package]]
+name = "lib-q-k12"
+version = "0.0.1"
+dependencies = [
+ "digest",
+ "hex-literal",
+ "lib-q-sha3",
+]
+
+[[package]]
+name = "lib-q-keccak"
+version = "0.0.1"
+dependencies = [
+ "cpufeatures",
+ "nix",
+ "num_cpus",
 ]
 
 [[package]]
@@ -485,6 +476,16 @@ name = "lib-q-kem"
 version = "0.0.1"
 dependencies = [
  "lib-q-core",
+]
+
+[[package]]
+name = "lib-q-sha3"
+version = "0.0.1"
+dependencies = [
+ "base16ct",
+ "digest",
+ "hex-literal",
+ "lib-q-keccak",
 ]
 
 [[package]]
@@ -498,8 +499,9 @@ dependencies = [
 name = "lib-q-sponge"
 version = "0.0.1"
 dependencies = [
- "ascon",
- "keccak 0.2.0-pre.0",
+ "lib-q-ascon",
+ "lib-q-keccak",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -873,26 +875,6 @@ dependencies = [
  "memchr",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "sha3"
-version = "0.11.0-rc.0"
-dependencies = [
- "base16ct",
- "digest",
- "hex-literal",
- "keccak 0.2.0-pre.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sha3"
-version = "0.11.0-rc.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e6a92fd180fd205defdc0b78288ce847c7309d329fd6647a814567e67db50e"
-dependencies = [
- "digest",
- "keccak 0.2.0-pre.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

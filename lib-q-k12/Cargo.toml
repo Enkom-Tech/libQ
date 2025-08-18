@@ -1,0 +1,29 @@
+[package]
+name = "lib-q-k12"
+version = "0.0.1"
+description = "Pure Rust implementation of the KangarooTwelve hash function for lib-Q"
+authors = ["RustCrypto Developers", "Diggory Hardy <github1@dhardy.name>", "Enkom Tech"]
+license = "Apache-2.0"
+readme = "README.md"
+edition = "2021"
+rust-version = "1.81"
+documentation = "https://docs.rs/lib-q-k12"
+repository = "https://github.com/Enkom-Tech/libQ"
+keywords = ["crypto", "hash", "digest", "lib-q"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+digest = "0.11.0-rc.0"
+lib-q-sha3 = { version = "0.0.1", path = "../lib-q-sha3", default-features = false }
+
+[dev-dependencies]
+digest = { version = "0.11.0-rc.0", features = ["alloc", "dev"] }
+hex-literal = "1.0.0"
+
+[features]
+default = ["alloc"]
+alloc = ["digest/alloc"]
+zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
+
+[package.metadata.docs.rs]
+all-features = true

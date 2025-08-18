@@ -6,12 +6,13 @@ authors = ["lib-Q Contributors"]
 description = "Sponge functions for lib-Q"
 license = "Apache-2.0"
 repository = "https://github.com/Enkom-Tech/libQ"
-keywords = ["cryptography", "sponge", "keccak", "ascon"]
+keywords = ["cryptography", "sponge", "keccak", "ascon", "lib-q"]
 categories = ["cryptography"]
 
 [dependencies]
-keccak = { path = "keccak" }
-ascon = { path = "ascon" }
+lib-q-keccak = { version = "0.0.1", path = "../lib-q-keccak" }
+lib-q-ascon = { version = "0.0.1", path = "../lib-q-ascon" }
+wasm-bindgen = { version = "0.2.100", optional = true }
 
 [lib]
 name = "lib_q_sponge"
@@ -19,7 +20,8 @@ path = "src/lib.rs"
 
 [features]
 default = []
-asm = ["keccak/asm"]
+asm = ["lib-q-keccak/asm"]
+wasm = ["wasm-bindgen"]
 
 [[test]]
 name = "integration_keccak"

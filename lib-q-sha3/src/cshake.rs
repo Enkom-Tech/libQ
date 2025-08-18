@@ -1,6 +1,6 @@
 use crate::{
-    internal_block_api::{xor_block, Sha3ReaderCore},
-    CSHAKE_PAD, DEFAULT_ROUND_COUNT as ROUNDS, PLEN, SHAKE_PAD,
+    block_api::xor_block, Sha3ReaderCore, CSHAKE_PAD, DEFAULT_ROUND_COUNT as ROUNDS, PLEN,
+    SHAKE_PAD,
 };
 use core::fmt;
 use digest::{
@@ -74,29 +74,22 @@ macro_rules! impl_cshake {
             }
         }
 
-        impl BlockSizeUser for $name {
-            type BlockSize = $rate;
-        }
-
         impl BufferKindUser for $name {
             type BufferKind = Eager;
         }
 
         impl HashMarker for $name {}
 
+        impl BlockSizeUser for $name {
+            type BlockSize = $rate;
+        }
+
         impl UpdateCore for $name {
             #[inline]
             fn update_blocks(&mut self, blocks: &[Block<Self>]) {
                 for block in blocks {
                     xor_block(&mut self.state, block);
-                    #[cfg(feature = "simd")]
-                    {
-                        lib_q_keccak::p1600_optimized(&mut self.state, lib_q_keccak::OptimizationLevel::best_available());
-                    }
-                    #[cfg(not(feature = "simd"))]
-                    {
-                        lib_q_keccak::p1600(&mut self.state, ROUNDS);
-                    }
+                    lib_q_keccak::p1600(&mut self.state, ROUNDS);
                 }
             }
         }
@@ -118,14 +111,7 @@ macro_rules! impl_cshake {
                 block[n - 1] |= 0x80;
 
                 xor_block(&mut self.state, &block);
-                #[cfg(feature = "simd")]
-                {
-                    lib_q_keccak::p1600_optimized(&mut self.state, lib_q_keccak::OptimizationLevel::best_available());
-                }
-                #[cfg(not(feature = "simd"))]
-                {
-                    lib_q_keccak::p1600(&mut self.state, ROUNDS);
-                }
+                lib_q_keccak::p1600(&mut self.state, ROUNDS);
 
                 Sha3ReaderCore::new(&self.state)
             }
