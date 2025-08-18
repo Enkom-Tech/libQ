@@ -16,12 +16,12 @@ lib-Q HPKE Architecture
 │   └── Use Case: Maximum security, performance secondary
 ├── Tier 2: Balanced (Hybrid Post-Quantum)
 │   ├── KEM: CRYSTALS-Kyber (Level 3)
-│   ├── AEAD: AES-256-GCM
-│   └── Use Case: Strong security with good performance
-└── Tier 3: Performance (Post-Quantum + Optimized Classical)
+│   ├── AEAD: Xoodyak (~3+ cycles/byte, multipurpose)
+│   └── Use Case: Balanced security and performance
+└── Tier 3: Performance (Post-Quantum + Optimized)
     ├── KEM: CRYSTALS-Kyber (Level 1)
-    ├── AEAD: ChaCha20-Poly1305
-    └── Use Case: Maximum performance, strong security
+    ├── AEAD: SNEIK (~2.9-17 cycles/byte, ultra-lightweight)
+    └── Use Case: Maximum performance on constrained systems
 ```
 
 ### Core Components
@@ -242,7 +242,7 @@ impl Shake256Aead {
 
 ### Design Philosophy
 
-Tier 2 provides strong security with good performance by combining post-quantum KEM with quantum-resistant classical AEAD. This tier is suitable for most applications requiring strong security.
+Tier 2 provides balanced security and performance using Xoodyak AEAD. Xoodyak offers ~3+ cycles/byte performance on 32-bit MCUs with multipurpose capabilities including AEAD, hashing, and MAC. This tier is suitable for applications requiring good performance on lightweight and IoT devices.
 
 ### Implementation
 
@@ -250,7 +250,7 @@ Tier 2 provides strong security with good performance by combining post-quantum 
 /// Balanced HPKE implementation
 pub struct BalancedHpke {
     kem: Kyber3,
-    aead: Aes256Gcm,
+    aead: XoodyakAead,
 }
 
 impl BalancedHpke {
@@ -258,7 +258,7 @@ impl BalancedHpke {
     pub fn new() -> Self {
         Self {
             kem: Kyber3::new(),
-            aead: Aes256Gcm::new(),
+            aead: XoodyakAead::new(),
         }
     }
     
@@ -278,7 +278,7 @@ impl BalancedHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with AES-256-GCM
+        // 4. Encrypt with Xoodyak
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -306,7 +306,7 @@ impl BalancedHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with AES-256-GCM
+        // 3. Decrypt with Xoodyak
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
@@ -335,7 +335,7 @@ impl BalancedHpke {
 
 ### Design Philosophy
 
-Tier 3 provides maximum performance while maintaining strong security by combining post-quantum KEM with optimized classical AEAD. This tier is suitable for high-performance applications.
+Tier 3 provides maximum performance on constrained systems using SNEIK AEAD. SNEIK offers ~2.9 to 17 cycles/byte performance (varies by mode & rounds) with very small RAM usage (~64 bytes). This tier is optimized for ultra-lightweight applications on 8/16/32-bit MCUs and microcontrollers.
 
 ### Implementation
 
@@ -343,7 +343,7 @@ Tier 3 provides maximum performance while maintaining strong security by combini
 /// Performance HPKE implementation
 pub struct PerformanceHpke {
     kem: Kyber1,
-    aead: ChaCha20Poly1305,
+    aead: SneikAead,
 }
 
 impl PerformanceHpke {
@@ -351,7 +351,7 @@ impl PerformanceHpke {
     pub fn new() -> Self {
         Self {
             kem: Kyber1::new(),
-            aead: ChaCha20Poly1305::new(),
+            aead: SneikAead::new(),
         }
     }
     
@@ -371,7 +371,7 @@ impl PerformanceHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with ChaCha20-Poly1305
+        // 4. Encrypt with SNEIK
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -399,7 +399,7 @@ impl PerformanceHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with ChaCha20-Poly1305
+        // 3. Decrypt with SNEIK
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
