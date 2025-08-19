@@ -1,0 +1,121 @@
+{
+  "algorithm": "KangarooTwelve-KT128",
+  "source": "XKCP (eXtended Keccak Code Package) - Official Implementation",
+  "version": "1.0",
+  "description": "KT128 test vectors using TurboSHAKE128",
+  "vectors": [
+    {
+      "count": 0,
+      "description": "KT128 empty input, 32-byte output",
+      "message": "",
+      "customization": "",
+      "output_length": 32,
+      "expected": "1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e5"
+    },
+    {
+      "count": 1,
+      "description": "KT128 empty input, 64-byte output",
+      "message": "",
+      "customization": "",
+      "output_length": 64,
+      "expected": "1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e54269c056b8c82e48276038b6d292966cc07a3d4645272e31ff38508139eb0a71"
+    },
+    {
+      "count": 2,
+      "description": "KT128 empty input, 10032-byte output (last 32 bytes)",
+      "message": "",
+      "customization": "",
+      "output_length": 10032,
+      "expected_suffix": "e8dc563642f7228c84684c898405d3a834799158c079b12880277a1d28e2ff6d"
+    },
+    {
+      "count": 3,
+      "description": "KT128 pattern 0x00 to 0xFA for 17^0 bytes (1 byte)",
+      "message_pattern": "range_mod_251",
+      "message_length": 1,
+      "customization": "",
+      "output_length": 32,
+      "expected": "2bda92450e8b147f8a7cb629e784a058efca7cf7d8218e02d345dfaa65244a1f"
+    },
+    {
+      "count": 4,
+      "description": "KT128 pattern 0x00 to 0xFA for 17^1 bytes (17 bytes)",
+      "message_pattern": "range_mod_251",
+      "message_length": 17,
+      "customization": "",
+      "output_length": 32,
+      "expected": "6bf75fa2239198db4772e36478f8e19b0f371205f6a9a93a273f51df37122888"
+    },
+    {
+      "count": 5,
+      "description": "KT128 pattern 0x00 to 0xFA for 17^2 bytes (289 bytes)",
+      "message_pattern": "range_mod_251",
+      "message_length": 289,
+      "customization": "",
+      "output_length": 32,
+      "expected": "0c315ebcdedbf61426de7dcf8fb725d1e74675d7f5327a5067f367b108ecb67c"
+    },
+    {
+      "count": 6,
+      "description": "KT128 pattern 0x00 to 0xFA for 17^3 bytes (4913 bytes)",
+      "message_pattern": "range_mod_251",
+      "message_length": 4913,
+      "customization": "",
+      "output_length": 32,
+      "expected": "cb552e2ec77d9910701d578b457ddf772c12e322e4ee7fe417f92c758f0d59d0"
+    },
+    {
+      "count": 7,
+      "description": "KT128 pattern 0x00 to 0xFA for 17^4 bytes (83521 bytes)",
+      "message_pattern": "range_mod_251",
+      "message_length": 83521,
+      "customization": "",
+      "output_length": 32,
+      "expected": "8701045e22205345ff4dda05555cbb5c3af1a771c2b89baef37db43d9998b9fe"
+    },
+    {
+      "count": 8,
+      "description": "KT128 0xFF bytes (0 bytes), pattern 0x00 to 0xFA for 41^0 bytes (1 byte)",
+      "message": "",
+      "customization_pattern": "range_mod_251",
+      "customization_length": 1,
+      "output_length": 32,
+      "expected": "fab658db63e94a246188bf7af69a133045f46ee984c56e3c3328caaf1aa1a583"
+    },
+    {
+      "count": 9,
+      "description": "KT128 0xFF bytes (1 byte), pattern 0x00 to 0xFA for 41^1 bytes (41 bytes)",
+      "message": "FF",
+      "customization_pattern": "range_mod_251",
+      "customization_length": 41,
+      "output_length": 32,
+      "expected": "d848c5068ced736f4462159b9867fd4c20b808acc3d5bc48e0b06ba0a3762ec4"
+    },
+    {
+      "count": 10,
+      "description": "KT128 0xFF bytes (3 bytes), pattern 0x00 to 0xFA for 41^2 bytes (1681 bytes)",
+      "message": "FFFFFF",
+      "customization_pattern": "range_mod_251",
+      "customization_length": 1681,
+      "output_length": 32,
+      "expected": "c389e5009ae57120854c2e8c64670ac01358cf4c1baf89447a724234dc7ced74"
+    },
+    {
+      "count": 11,
+      "description": "KT128 0xFF bytes (7 bytes), pattern 0x00 to 0xFA for 41^3 bytes (68921 bytes)",
+      "message": "FFFFFFFFFFFFFF",
+      "customization_pattern": "range_mod_251",
+      "customization_length": 68921,
+      "output_length": 32,
+      "expected": "75d2f86a2e644566726b4fbcfc5657b9dbcf070c7b0dca06450ab291d7443bcf"
+    }
+  ],
+  "checksums": {
+    "kt128_mode0_nosqueeze": "614d7af8d5ccd0e102537d215e3905ed",
+    "kt128_mode1_nosqueeze": "609c95becedccd5843f24ddf15f391db",
+    "kt128_mode2_nosqueeze": "cb8d23f4bdfc2a5a27b16afa653a76be",
+    "kt128_mode0_squeeze": "5aacd72d467a4fa6f3c2a8e610028dc5",
+    "kt128_mode1_squeeze": "609c95becedccd5843f24ddf15f391db",
+    "kt128_mode2_squeeze": "5aacd72d467a4fa6f3c2a8e610028dc5"
+  }
+}

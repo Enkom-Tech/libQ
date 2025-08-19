@@ -184,10 +184,10 @@ fn test_hash_algorithm_timing_relationships() {
     const ITERATIONS: usize = 1000;
 
     // Test SHA3 variants
-    let mut sha3_224_time = Duration::ZERO;
-    let mut sha3_256_time = Duration::ZERO;
-    let mut sha3_384_time = Duration::ZERO;
-    let mut sha3_512_time = Duration::ZERO;
+    let sha3_224_time;
+    let sha3_256_time;
+    let sha3_384_time;
+    let sha3_512_time;
 
     // Measure SHA3-224
     let start = Instant::now();
