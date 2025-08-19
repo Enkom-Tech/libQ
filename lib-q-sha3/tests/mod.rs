@@ -75,5 +75,8 @@ new_test!(
 
 // Additional test modules
 mod basic_functionality;
+mod constant_time;
 mod cshake;
+mod performance;
+mod security;
 mod turboshake;

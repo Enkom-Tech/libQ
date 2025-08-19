@@ -105,6 +105,15 @@ runs:
         cargo test test_sha3_implementations --features "${{ inputs.features }}"
         echo "SHA3 implementation tests completed"
     
+    - name: Constant-time operation verification
+      shell: bash
+      run: |
+        echo "Verifying constant-time operations..."
+        cd ${{ inputs.working-directory }}
+        # Run specific tests that verify constant-time behavior
+        cargo test --test constant_time --features "${{ inputs.features }}"
+        echo "Constant-time verification completed"
+    
     - name: Test Keccak implementations
       shell: bash
       run: |
