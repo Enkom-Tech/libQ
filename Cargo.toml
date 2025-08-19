@@ -7,6 +7,7 @@ members = [
     "lib-q-k12",
     "lib-q-sha3",
     "lib-q-kem",
+    "lib-q-ml-kem",
     "lib-q-sig", 
     "lib-q-hash",
     "lib-q-aead",
@@ -20,8 +21,8 @@ members = [
 [package]
 name = "lib-q"
 version = "0.0.1"
-edition = "2021"
-authors = ["lib-Q Contributors"]
+edition = "2024"
+authors = ["Enkom Tech", "Nexlab-One"]
 description = "Post-quantum cryptography library with libsodium-equivalent API (complete package)"
 license = "Apache-2.0"
 repository = "https://github.com/Enkom-Tech/libQ"
@@ -39,7 +40,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Core dependencies
-lib-q-core = { path = "lib-q-core" }
+lib-q-core = { path = "lib-q-core", features = ["rand"] }
 lib-q-kem = { path = "lib-q-kem" }
 lib-q-sig = { path = "lib-q-sig" }
 lib-q-hash = { path = "lib-q-hash" }
@@ -71,7 +72,7 @@ no_std = []
 wasm = ["wasm-bindgen", "js-sys", "web-sys"]
 
 # Re-export features from individual crates
-kyber = ["lib-q-kem/kyber"]
+ml-kem = ["lib-q-kem/ml-kem"]
 dilithium = ["lib-q-sig/dilithium"]
 falcon = ["lib-q-sig/falcon"]
 sphincs = ["lib-q-sig/sphincs"]
@@ -80,7 +81,7 @@ hqc = ["lib-q-kem/hqc"]
 zkp = ["lib-q-zkp/zkp"]
 
 # Convenience features
-all-algorithms = ["kyber", "dilithium", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
+all-algorithms = ["ml-kem", "dilithium", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
 
 [profile.release]
 opt-level = 3

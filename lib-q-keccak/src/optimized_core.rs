@@ -404,7 +404,7 @@ pub mod parallel {
         states: &[Vec<u64>],
         level: OptimizationLevel,
     ) -> Result<Vec<Vec<u64>>, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::multithreading::{process_keccak_states_global, ThreadingConfig};
+        use crate::multithreading::{ThreadingConfig, process_keccak_states_global};
 
         // Use global thread pool if available, otherwise create a temporary one
         if let Ok(results) = process_keccak_states_global(states, level) {

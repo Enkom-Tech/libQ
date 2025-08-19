@@ -115,10 +115,10 @@ impl Default for ZkpVerifier {
 
 /// Get available ZKP algorithms
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = Vec::new();
-
-    #[cfg(feature = "stark")]
-    algorithms.push("stark");
+    let algorithms = vec![
+        #[cfg(feature = "stark")]
+        "stark",
+    ];
 
     algorithms
 }

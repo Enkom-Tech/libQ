@@ -37,21 +37,21 @@ lib-Q Memory Model
 ### Key Sizes by Algorithm and Security Level
 
 ```rust
-// CRYSTALS-Kyber Key Sizes
-pub const KYBER1_PUBLIC_KEY_SIZE: usize = 800;
-pub const KYBER1_SECRET_KEY_SIZE: usize = 1632;
-pub const KYBER1_CIPHERTEXT_SIZE: usize = 768;
-pub const KYBER1_SHARED_SECRET_SIZE: usize = 32;
+// CRYSTALS-ML-Kem Key Sizes
+pub const MLKEM1_PUBLIC_KEY_SIZE: usize = 800;
+pub const MLKEM1_SECRET_KEY_SIZE: usize = 1632;
+pub const MLKEM1_CIPHERTEXT_SIZE: usize = 768;
+pub const MLKEM1_SHARED_SECRET_SIZE: usize = 32;
 
-pub const KYBER3_PUBLIC_KEY_SIZE: usize = 1184;
-pub const KYBER3_SECRET_KEY_SIZE: usize = 2400;
-pub const KYBER3_CIPHERTEXT_SIZE: usize = 1088;
-pub const KYBER3_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM3_PUBLIC_KEY_SIZE: usize = 1184;
+pub const MLKEM3_SECRET_KEY_SIZE: usize = 2400;
+pub const MLKEM3_CIPHERTEXT_SIZE: usize = 1088;
+pub const MLKEM3_SHARED_SECRET_SIZE: usize = 32;
 
-pub const KYBER5_PUBLIC_KEY_SIZE: usize = 1568;
-pub const KYBER5_SECRET_KEY_SIZE: usize = 3168;
-pub const KYBER5_CIPHERTEXT_SIZE: usize = 1568;
-pub const KYBER5_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM5_PUBLIC_KEY_SIZE: usize = 1568;
+pub const MLKEM5_SECRET_KEY_SIZE: usize = 3168;
+pub const MLKEM5_CIPHERTEXT_SIZE: usize = 1568;
+pub const MLKEM5_SHARED_SECRET_SIZE: usize = 32;
 
 // CRYSTALS-Dilithium Signature Sizes
 pub const DILITHIUM1_PUBLIC_KEY_SIZE: usize = 1312;
@@ -106,12 +106,12 @@ use zeroize::Zeroize;
 
 /// Public key for key exchange (stack-allocated)
 #[derive(Clone, Debug)]
-pub struct PublicKey([u8; KYBER5_PUBLIC_KEY_SIZE]);
+pub struct PublicKey([u8; MLKEM5_PUBLIC_KEY_SIZE]);
 
 /// Secret key for key exchange (stack-allocated, zeroized on drop)
 #[derive(Zeroize)]
 #[zeroize(drop)]
-pub struct SecretKey([u8; KYBER5_SECRET_KEY_SIZE]);
+pub struct SecretKey([u8; MLKEM5_SECRET_KEY_SIZE]);
 
 /// Digital signature (stack-allocated)
 #[derive(Clone, Debug)]
@@ -120,7 +120,7 @@ pub struct Signature([u8; DILITHIUM5_SIGNATURE_SIZE]);
 /// Shared secret (stack-allocated, zeroized on drop)
 #[derive(Zeroize)]
 #[zeroize(drop)]
-pub struct SharedSecret([u8; KYBER5_SHARED_SECRET_SIZE]);
+pub struct SharedSecret([u8; MLKEM5_SHARED_SECRET_SIZE]);
 
 /// Encryption key (stack-allocated, zeroized on drop)
 #[derive(Zeroize)]
@@ -129,7 +129,7 @@ pub struct EncryptionKey([u8; 32]);
 
 /// Encapsulated key (stack-allocated)
 #[derive(Clone, Debug)]
-pub struct EncapsulatedKey([u8; KYBER5_CIPHERTEXT_SIZE]);
+pub struct EncapsulatedKey([u8; MLKEM5_CIPHERTEXT_SIZE]);
 
 /// Ciphertext (stack-allocated)
 #[derive(Clone, Debug)]
@@ -155,12 +155,12 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Secret key with automatic zeroization
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecretKey([u8; KYBER5_SECRET_KEY_SIZE]);
+pub struct SecretKey([u8; MLKEM5_SECRET_KEY_SIZE]);
 
 impl SecretKey {
     /// Create a new secret key
     pub fn new() -> Self {
-        let mut key = [0u8; KYBER5_SECRET_KEY_SIZE];
+        let mut key = [0u8; MLKEM5_SECRET_KEY_SIZE];
         getrandom::getrandom(&mut key).expect("Failed to generate random key");
         Self(key)
     }
@@ -223,11 +223,11 @@ pub fn secure_clear(buffer: &mut [u8]) {
 
 ## Algorithm-Specific Memory Layouts
 
-### CRYSTALS-Kyber Memory Layout
+### CRYSTALS-ML-Kem Memory Layout
 
 ```rust
-/// Kyber-specific memory structures
-pub struct KyberMemory {
+/// ML-Kem-specific memory structures
+pub struct MlKemMemory {
     /// Polynomial coefficients (stack-allocated)
     pub polynomials: [[u16; 256]; 3], // 3 polynomials, 256 coefficients each
     /// Random bytes buffer
@@ -238,8 +238,8 @@ pub struct KyberMemory {
     pub temp_buffer: [u8; 1024],
 }
 
-impl KyberMemory {
-    /// Create new Kyber memory layout
+impl MlKemMemory {
+    /// Create new ML-Kem memory layout
     pub fn new() -> Self {
         Self {
             polynomials: [[0u16; 256]; 3],
@@ -516,7 +516,7 @@ mod tests {
         let key_data = key.as_ref().to_vec();
         
         // Verify key is not all zeros
-        assert_ne!(key_data, vec![0u8; KYBER5_SECRET_KEY_SIZE]);
+        assert_ne!(key_data, vec![0u8; MLKEM5_SECRET_KEY_SIZE]);
         
         // Drop key and verify it's zeroized
         drop(key);
@@ -631,12 +631,12 @@ pub extern "C" fn libq_keygen_embedded(
         std::ptr::copy_nonoverlapping(
             pk.as_ref().as_ptr(),
             public_key,
-            KYBER1_PUBLIC_KEY_SIZE,
+            MLKEM1_PUBLIC_KEY_SIZE,
         );
         std::ptr::copy_nonoverlapping(
             sk.as_ref().as_ptr(),
             secret_key,
-            KYBER1_SECRET_KEY_SIZE,
+            MLKEM1_SECRET_KEY_SIZE,
         );
     }
     

@@ -1,17 +1,17 @@
 use crate::{
-    internal_block_api::{xor_block, Sha3ReaderCore},
     CSHAKE_PAD, DEFAULT_ROUND_COUNT as ROUNDS, PLEN, SHAKE_PAD,
+    internal_block_api::{Sha3ReaderCore, xor_block},
 };
 use core::fmt;
 use digest::{
+    CollisionResistance, CustomizedInit, HashMarker, Reset,
     block_api::{
         AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
         UpdateCore,
     },
-    consts::{U136, U16, U168, U32, U400},
+    consts::{U16, U32, U136, U168, U400},
     crypto_common::hazmat::{DeserializeStateError, SerializableState, SerializedState},
     typenum::Unsigned,
-    CollisionResistance, CustomizedInit, HashMarker, Reset,
 };
 
 macro_rules! impl_cshake {

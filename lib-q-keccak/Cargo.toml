@@ -13,8 +13,8 @@ repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["crypto", "sponge", "keccak", "keccak-f", "keccak-p", "lib-q"]
 categories = ["cryptography", "no-std"]
 readme = "README.md"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.89"
 
 [features]
 asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)

@@ -1,7 +1,7 @@
 [package]
 name = "lib-q-sig"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 authors = ["lib-Q Contributors"]
 description = "Post-quantum Digital Signatures for lib-Q"
 license = "Apache-2.0"

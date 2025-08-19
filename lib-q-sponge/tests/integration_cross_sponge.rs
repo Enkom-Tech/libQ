@@ -1,6 +1,6 @@
 //! Integration tests for cross-sponge functionality in lib-q-sponge
 
-use lib_q_sponge::{detection, f1600, p1600_optimized, OptimizationLevel, State};
+use lib_q_sponge::{OptimizationLevel, State, detection, f1600, p1600_optimized};
 
 #[test]
 fn test_cross_sponge_availability() {

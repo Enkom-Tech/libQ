@@ -65,20 +65,20 @@ impl BinaryFormat for PublicKey {
     }
     
     fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() != KYBER5_PUBLIC_KEY_SIZE {
+        if bytes.len() != MLKEM5_PUBLIC_KEY_SIZE {
             return Err(Error::InvalidKeySize {
-                expected: KYBER5_PUBLIC_KEY_SIZE,
+                expected: MLKEM5_PUBLIC_KEY_SIZE,
                 actual: bytes.len(),
             });
         }
         
-        let mut key = [0u8; KYBER5_PUBLIC_KEY_SIZE];
+        let mut key = [0u8; MLKEM5_PUBLIC_KEY_SIZE];
         key.copy_from_slice(bytes);
         Ok(PublicKey(key))
     }
     
     fn size(&self) -> usize {
-        KYBER5_PUBLIC_KEY_SIZE
+        MLKEM5_PUBLIC_KEY_SIZE
     }
 }
 
@@ -211,7 +211,7 @@ impl PublicKey {
     /// Convert to JSON format
     pub fn to_json(&self) -> JsonPublicKey {
         JsonPublicKey {
-            algorithm: "kyber5".to_string(),
+            algorithm: "mlkem5".to_string(),
             security_level: 5,
             key_data: self.encode(TextFormat::Base64),
             created_at: Some(chrono::Utc::now().to_rfc3339()),
@@ -220,7 +220,7 @@ impl PublicKey {
     
     /// Convert from JSON format
     pub fn from_json(json: &JsonPublicKey) -> Result<Self> {
-        if json.algorithm != "kyber5" {
+        if json.algorithm != "mlkem5" {
             return Err(Error::InvalidAlgorithm {
                 algorithm: json.algorithm.clone(),
             });
@@ -232,7 +232,7 @@ impl PublicKey {
     /// Convert to CBOR format
     pub fn to_cbor(&self) -> CborPublicKey {
         CborPublicKey {
-            algorithm: 1, // Kyber algorithm ID
+            algorithm: 1, // ML-Kem algorithm ID
             security_level: 5,
             key_data: self.to_bytes(),
             created_at: Some(chrono::Utc::now().timestamp()),
@@ -335,9 +335,9 @@ pub mod openssl {
     /// OpenSSL-style key generation
     pub fn evp_pkey_keygen(algorithm: &str) -> Result<(PublicKey, SecretKey)> {
         match algorithm {
-            "kyber1" => simple::keygen(1),
-            "kyber3" => simple::keygen(3),
-            "kyber5" => simple::keygen(5),
+            "mlkem1" => simple::keygen(1),
+            "mlkem3" => simple::keygen(3),
+            "mlkem5" => simple::keygen(5),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),
@@ -350,9 +350,9 @@ pub mod openssl {
         algorithm: &str,
     ) -> Result<HpkeContext> {
         let tier = match algorithm {
-            "kyber1" => SecurityTier::Performance,
-            "kyber3" => SecurityTier::Balanced,
-            "kyber5" => SecurityTier::Ultra,
+            "mlkem1" => SecurityTier::Performance,
+            "mlkem3" => SecurityTier::Balanced,
+            "mlkem5" => SecurityTier::Ultra,
             _ => return Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),
@@ -410,14 +410,14 @@ pub extern "C" fn libq_exchange(
     shared_secret: *mut u8,
 ) -> i32 {
     let my_sk = match SecretKey::from_bytes(unsafe {
-        std::slice::from_raw_parts(my_secret, KYBER5_SECRET_KEY_SIZE)
+        std::slice::from_raw_parts(my_secret, MLKEM5_SECRET_KEY_SIZE)
     }) {
         Ok(key) => key,
         Err(_) => return -1,
     };
     
     let their_pk = match PublicKey::from_bytes(unsafe {
-        std::slice::from_raw_parts(their_public, KYBER5_PUBLIC_KEY_SIZE)
+        std::slice::from_raw_parts(their_public, MLKEM5_PUBLIC_KEY_SIZE)
     }) {
         Ok(key) => key,
         Err(_) => return -1,
@@ -453,7 +453,7 @@ pub mod tls {
     pub const TLS_CIPHER_SUITE: u16 = 0x1301; // TLS_AES_256_GCM_SHA384
     
     /// TLS key exchange for lib-Q
-    pub const TLS_KEY_EXCHANGE: u16 = 0x0016; // TLS_KEM_KYBER
+    pub const TLS_KEY_EXCHANGE: u16 = 0x0016; // TLS_KEM_MLKEM
     
     /// TLS signature algorithm for lib-Q
     pub const TLS_SIGNATURE_ALGORITHM: u16 = 0x0808; // TLS_SIG_DILITHIUM
@@ -518,7 +518,7 @@ pub mod ssh {
     use super::*;
     
     /// SSH key format for lib-Q
-    pub const SSH_KEY_TYPE: &str = "ssh-lib-q-kyber5";
+    pub const SSH_KEY_TYPE: &str = "ssh-lib-q-mlkem5";
     
     /// SSH public key
     pub struct SshPublicKey {

@@ -388,7 +388,7 @@ pub fn derive_keys(shared_secret: &SharedSecret, contexts: &[&[u8]]) -> Result<V
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let (pk, sk) = kem::keygen(KemAlgorithm::Kyber5)?;
+/// let (pk, sk) = kem::keygen(KemAlgorithm::MlKem5)?;
 /// ```
 pub fn keygen(algorithm: KemAlgorithm) -> Result<(KemPublicKey, KemSecretKey)>;
 
@@ -407,7 +407,7 @@ pub fn keygen(algorithm: KemAlgorithm) -> Result<(KemPublicKey, KemSecretKey)>;
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let (shared, enc) = kem::encaps(KemAlgorithm::Kyber5, &pk)?;
+/// let (shared, enc) = kem::encaps(KemAlgorithm::MlKem5, &pk)?;
 /// ```
 pub fn encaps(algorithm: KemAlgorithm, public_key: &KemPublicKey) -> Result<(SharedSecret, EncapsulatedKey)>;
 
@@ -427,7 +427,7 @@ pub fn encaps(algorithm: KemAlgorithm, public_key: &KemPublicKey) -> Result<(Sha
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let shared = kem::decaps(KemAlgorithm::Kyber5, &sk, &enc)?;
+/// let shared = kem::decaps(KemAlgorithm::MlKem5, &sk, &enc)?;
 /// ```
 pub fn decaps(algorithm: KemAlgorithm, secret_key: &KemSecretKey, encapsulated_key: &EncapsulatedKey) -> Result<SharedSecret>;
 ```
@@ -502,9 +502,9 @@ pub fn verify(algorithm: SigAlgorithm, public_key: &SigPublicKey, message: &[u8]
 ```rust
 /// Supported KEM algorithms
 pub enum KemAlgorithm {
-    Kyber1,
-    Kyber3,
-    Kyber5,
+    MlKem1,
+    MlKem3,
+    MlKem5,
     McEliece1,
     McEliece3,
     McEliece4,
@@ -539,20 +539,20 @@ pub enum SecurityTier {
 
 ```rust
 // KEM key sizes (in bytes)
-pub const KYBER1_PUBLIC_KEY_SIZE: usize = 800;
-pub const KYBER1_SECRET_KEY_SIZE: usize = 1632;
-pub const KYBER1_CIPHERTEXT_SIZE: usize = 768;
-pub const KYBER1_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM1_PUBLIC_KEY_SIZE: usize = 800;
+pub const MLKEM1_SECRET_KEY_SIZE: usize = 1632;
+pub const MLKEM1_CIPHERTEXT_SIZE: usize = 768;
+pub const MLKEM1_SHARED_SECRET_SIZE: usize = 32;
 
-pub const KYBER3_PUBLIC_KEY_SIZE: usize = 1184;
-pub const KYBER3_SECRET_KEY_SIZE: usize = 2400;
-pub const KYBER3_CIPHERTEXT_SIZE: usize = 1088;
-pub const KYBER3_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM3_PUBLIC_KEY_SIZE: usize = 1184;
+pub const MLKEM3_SECRET_KEY_SIZE: usize = 2400;
+pub const MLKEM3_CIPHERTEXT_SIZE: usize = 1088;
+pub const MLKEM3_SHARED_SECRET_SIZE: usize = 32;
 
-pub const KYBER5_PUBLIC_KEY_SIZE: usize = 1568;
-pub const KYBER5_SECRET_KEY_SIZE: usize = 3168;
-pub const KYBER5_CIPHERTEXT_SIZE: usize = 1568;
-pub const KYBER5_SHARED_SECRET_SIZE: usize = 32;
+pub const MLKEM5_PUBLIC_KEY_SIZE: usize = 1568;
+pub const MLKEM5_SECRET_KEY_SIZE: usize = 3168;
+pub const MLKEM5_CIPHERTEXT_SIZE: usize = 1568;
+pub const MLKEM5_SHARED_SECRET_SIZE: usize = 32;
 
 // Signature key sizes (in bytes)
 pub const DILITHIUM1_PUBLIC_KEY_SIZE: usize = 1952;
@@ -572,7 +572,7 @@ pub const MAX_PUBLIC_KEY_SIZE: usize = 3936;  // Largest Dilithium5 public key
 pub const MAX_SECRET_KEY_SIZE: usize = 6096;  // Largest Dilithium5 secret key
 pub const MAX_SIGNATURE_SIZE: usize = 6590;   // Largest Dilithium5 signature
 pub const MAX_SHARED_SECRET_SIZE: usize = 32; // All KEMs use 32 bytes
-pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest Kyber5 ciphertext
+pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest MlKem5 ciphertext
 pub const MAX_MESSAGE_SIZE: usize = 65536;    // 64KB max message size
 ```
 
@@ -860,9 +860,9 @@ fn main() -> lib-q::Result<()> {
     lib-q::init()?;
     
     // Use specific KEM algorithm
-    let (pk, sk) = kem::keygen(KemAlgorithm::Kyber5)?;
-    let (shared, enc) = kem::encaps(KemAlgorithm::Kyber5, &pk)?;
-    let recovered = kem::decaps(KemAlgorithm::Kyber5, &sk, &enc)?;
+    let (pk, sk) = kem::keygen(KemAlgorithm::MlKem5)?;
+    let (shared, enc) = kem::encaps(KemAlgorithm::MlKem5, &pk)?;
+    let recovered = kem::decaps(KemAlgorithm::MlKem5, &sk, &enc)?;
     
     assert_eq!(shared.as_ref(), recovered.as_ref());
     

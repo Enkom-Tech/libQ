@@ -1,8 +1,8 @@
 use core::iter;
 use hex_literal::hex;
 use lib_q_k12::{
-    digest::{ExtendableOutput, Update},
     KangarooTwelve,
+    digest::{ExtendableOutput, Update},
 };
 
 fn digest_and_box(data: &[u8], n: usize) -> Box<[u8]> {

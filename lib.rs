@@ -23,7 +23,7 @@
 //!     let mut hash_ctx = HashContext::new();
 //!
 //!     // Generate KEM keypair
-//!     let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512)?;
+//!     let kem_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
 //!
 //!     // Generate signature keypair
 //!     let sig_keypair = sig_ctx.generate_keypair(Algorithm::Dilithium2)?;
@@ -47,10 +47,11 @@ pub use lib_q_core::*;
 // This creates a single entry point for the entire library, eliminating the need
 // for users to import from multiple crates. The main API is in lib_q_core::*,
 // these are additional convenience exports.
-pub use lib_q_aead::{create_aead, Aead, AeadKey, Nonce};
-pub use lib_q_hash::{create_hash, Hash};
-pub use lib_q_kem::{create_kem, Kem, KemKeypair, KemPublicKey, KemSecretKey};
-pub use lib_q_sig::{create_signature, SigKeypair, SigPublicKey, SigSecretKey, Signature};
+pub use lib_q_aead::{Aead, AeadKey, Nonce, create_aead};
+pub use lib_q_core::{Kem, KemKeypair, KemPublicKey, KemSecretKey};
+pub use lib_q_hash::{Hash, create_hash};
+pub use lib_q_kem::create_kem;
+pub use lib_q_sig::{SigKeypair, SigPublicKey, SigSecretKey, Signature, create_signature};
 pub use lib_q_zkp::create_zkp;
 
 // Constants
@@ -70,9 +71,9 @@ pub fn version() -> &'static str {
 pub fn supported_algorithms() -> Vec<Algorithm> {
     vec![
         // KEM algorithms
-        Algorithm::Kyber512,
-        Algorithm::Kyber768,
-        Algorithm::Kyber1024,
+        Algorithm::MlKem512,
+        Algorithm::MlKem768,
+        Algorithm::MlKem1024,
         Algorithm::McEliece348864,
         Algorithm::McEliece460896,
         Algorithm::McEliece6688128,
@@ -268,9 +269,9 @@ pub mod wasm {
             }
 
             let algorithm = match algorithm {
-                "kyber512" => Algorithm::Kyber512,
-                "kyber768" => Algorithm::Kyber768,
-                "kyber1024" => Algorithm::Kyber1024,
+                "mlkem512" => Algorithm::MlKem512,
+                "mlkem768" => Algorithm::MlKem768,
+                "mlkem1024" => Algorithm::MlKem1024,
                 _ => return Err(JsValue::from_str("Unsupported KEM algorithm")),
             };
 
@@ -504,7 +505,7 @@ mod tests {
         let mut hash_ctx = HashContext::new();
 
         // Test KEM operations
-        let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512).unwrap();
+        let kem_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
         assert!(!kem_keypair.public_key().as_bytes().is_empty());
         assert!(!kem_keypair.secret_key().as_bytes().is_empty());
 

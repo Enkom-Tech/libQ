@@ -3,7 +3,7 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_ascon::State;
 use rand::Rng;
 

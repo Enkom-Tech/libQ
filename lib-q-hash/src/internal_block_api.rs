@@ -1,17 +1,17 @@
 use crate::{DEFAULT_ROUND_COUNT, PLEN};
 use core::{fmt, marker::PhantomData};
 use digest::{
+    HashMarker, Output,
     array::ArraySize,
     block_api::{
         AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
         FixedOutputCore, OutputSizeUser, Reset, UpdateCore, XofReaderCore,
     },
     crypto_common::{
-        hazmat::{DeserializeStateError, SerializableState, SerializedState},
         BlockSizes,
+        hazmat::{DeserializeStateError, SerializableState, SerializedState},
     },
     typenum::{IsLessOrEqual, True, U0, U200},
-    HashMarker, Output,
 };
 // Re-export cSHAKE cores for external use
 #[allow(unused_imports)]

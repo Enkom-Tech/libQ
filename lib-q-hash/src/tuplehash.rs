@@ -9,10 +9,10 @@ use crate::{
 use alloc::{vec, vec::Vec};
 use core::fmt;
 use digest::{
-    block_api::{AlgorithmName, Block, BlockSizeUser, BufferKindUser, Eager, UpdateCore},
-    consts::{U136, U16, U168, U32, U400},
-    crypto_common::hazmat::{DeserializeStateError, SerializableState, SerializedState},
     CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader,
+    block_api::{AlgorithmName, Block, BlockSizeUser, BufferKindUser, Eager, UpdateCore},
+    consts::{U16, U32, U136, U168, U400},
+    crypto_common::hazmat::{DeserializeStateError, SerializableState, SerializedState},
 };
 
 /// TupleHash128 implementation

@@ -1,11 +1,11 @@
 use core::fmt;
 use digest::{
+    ExtendableOutputReset, HashMarker, Reset, Update, XofReader,
     block_api::{
         AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
         UpdateCore, XofReaderCore,
     },
     consts::{U128, U168},
-    ExtendableOutputReset, HashMarker, Reset, Update, XofReader,
 };
 use lib_q_sha3::{TurboShake128, TurboShake128Reader};
 

@@ -7,8 +7,8 @@
 
 #[cfg(feature = "multithreading")]
 use keccak::{
-    init_global_thread_pool, p1600_multithreaded, process_keccak_states_global, CryptoThreadPool,
-    ThreadingConfig,
+    CryptoThreadPool, ThreadingConfig, init_global_thread_pool, p1600_multithreaded,
+    process_keccak_states_global,
 };
 
 #[cfg(feature = "multithreading")]

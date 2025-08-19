@@ -1,12 +1,12 @@
 use crate::internal_block_api::{Sha3HasherCore, Sha3ReaderCore};
 use core::fmt;
 use digest::{
+    CollisionResistance, ExtendableOutput, ExtendableOutputReset, HashMarker, Update, XofReader,
     block_api::{
         AlgorithmName, BlockSizeUser, ExtendableOutputCore, Reset, UpdateCore, XofReaderCore,
     },
     block_buffer::{EagerBuffer, ReadBuffer},
     consts::{U0, U136, U168},
-    CollisionResistance, ExtendableOutput, ExtendableOutputReset, HashMarker, Update, XofReader,
 };
 
 use crate::{DEFAULT_ROUND_COUNT, SHAKE_PAD};

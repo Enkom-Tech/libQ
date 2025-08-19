@@ -12,8 +12,9 @@ use core::arch::x86_64::{
 // AVX-512 specific imports
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 use core::arch::x86_64::{
-    __m512i, _mm512_and_si512, _mm512_extract_epi64, _mm512_or_si512, _mm512_set1_epi64,
-    _mm512_set_epi64, _mm512_setzero_si512, _mm512_slli_epi64, _mm512_srli_epi64, _mm512_xor_si512,
+    __m512i, _mm512_and_si512, _mm512_extract_epi64, _mm512_or_si512, _mm512_set_epi64,
+    _mm512_set1_epi64, _mm512_setzero_si512, _mm512_slli_epi64, _mm512_srli_epi64,
+    _mm512_xor_si512,
 };
 
 #[cfg(any(

@@ -46,8 +46,10 @@ pub use shake::{
 pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
 // Re-export SP800-185 implementations
 pub use kmac::{Kmac128, Kmac128Reader, Kmac256, Kmac256Reader};
+pub use parallelhash::{
+    ParallelHash128, ParallelHash128Reader, ParallelHash256, ParallelHash256Reader,
+};
 pub use tuplehash::{TupleHash128, TupleHash128Reader, TupleHash256, TupleHash256Reader};
-pub use parallelhash::{ParallelHash128, ParallelHash128Reader, ParallelHash256, ParallelHash256Reader};
 
 // Re-export hash types
 pub use crate::hash_types::{

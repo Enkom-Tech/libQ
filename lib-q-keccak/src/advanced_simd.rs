@@ -6,7 +6,7 @@
 #[cfg(feature = "simd")]
 use core::simd::{u64x2, u64x4, u64x8};
 
-use crate::{keccak_p, LaneSize, PLEN};
+use crate::{LaneSize, PLEN, keccak_p};
 
 /// Advanced SIMD lane size trait for parallel processing
 #[cfg(feature = "simd")]

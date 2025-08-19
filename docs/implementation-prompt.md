@@ -51,13 +51,13 @@ You are implementing actual cryptographic algorithms for the lib-Q post-quantum 
 6. Add performance benchmarks
 7. Document security considerations
 
-### Phase 2: Kyber512 (Key Encapsulation)
-**File**: `lib-q-kem/src/kyber.rs`
+### Phase 2: MlKem512 (Key Encapsulation)
+**File**: `lib-q-kem/src/ml_kem.rs`
 **Priority**: High - Primary KEM for most use cases
 **Dependencies**: SHAKE256 (Phase 1)
 
 #### Requirements
-1. **Implement CRYSTALS-Kyber Level 1 according to NIST PQC specification**
+1. **Implement CRYSTALS-ML-Kem Level 1 according to NIST PQC specification**
    - Polynomial operations in R_q
    - NTT (Number Theoretic Transform) for efficiency
    - Proper sampling (binomial distribution)
@@ -70,7 +70,7 @@ You are implementing actual cryptographic algorithms for the lib-Q post-quantum 
    - Memory-safe key storage with zeroization
 
 3. **Testing Requirements**
-   - NIST KATs for Kyber512
+   - NIST KATs for MlKem512
    - Round-trip tests (keygen → encapsulate → decapsulate)
    - Performance benchmarks
    - Constant-time verification
@@ -118,14 +118,14 @@ use zeroize::Zeroize;
 
 #[derive(Zeroize)]
 #[zeroize(drop)]
-pub struct KyberSecretKey {
-    s: [u8; KYBER_SECRET_KEY_SIZE],
-    t: [u8; KYBER_PUBLIC_KEY_SIZE],
+pub struct MlKemSecretKey {
+    s: [u8; MLKEM_SECRET_KEY_SIZE],
+    t: [u8; MLKEM_PUBLIC_KEY_SIZE],
     rho: [u8; 32],
     h: [u8; 32],
 }
 
-impl Drop for KyberSecretKey {
+impl Drop for MlKemSecretKey {
     fn drop(&mut self) {
         self.zeroize();
     }
@@ -135,16 +135,16 @@ impl Drop for KyberSecretKey {
 ### Error Handling
 ```rust
 // Example: Secure error handling
-pub fn kyber_encapsulate(
-    public_key: &KyberPublicKey,
+pub fn mlkem_encapsulate(
+    public_key: &MlKemPublicKey,
     shared_secret: &mut [u8],
     ciphertext: &mut [u8],
 ) -> Result<(), Error> {
     // Validate input sizes
-    if shared_secret.len() != KYBER_SHARED_SECRET_SIZE {
+    if shared_secret.len() != MLKEM_SHARED_SECRET_SIZE {
         return Err(Error::InvalidSharedSecretSize);
     }
-    if ciphertext.len() != KYBER_CIPHERTEXT_SIZE {
+    if ciphertext.len() != MLKEM_CIPHERTEXT_SIZE {
         return Err(Error::InvalidCiphertextSize);
     }
     
@@ -160,11 +160,11 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_kyber512_kat() {
+    fn test_mlkem512_kat() {
         // Known Answer Tests from NIST
         let test_vectors = load_kat_vectors();
         for vector in test_vectors {
-            let kem = Kyber::new();
+            let kem = ML-Kem::new();
             let (pk, sk) = kem.generate_keypair().unwrap();
             
             // Test encapsulation
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_constant_time_operations() {
         // Verify constant-time behavior
-        let kem = Kyber::new();
+        let kem = ML-Kem::new();
         let (pk, sk) = kem.generate_keypair().unwrap();
         
         // Test with different inputs but same timing
@@ -243,7 +243,7 @@ cargo doc --no-deps --open
    - Must be implemented first
    - All quality gates must pass
 
-2. **Kyber512** (`lib-q-kem/src/kyber.rs`)
+2. **MlKem512** (`lib-q-kem/src/ml_kem.rs`)
    - Primary KEM algorithm
    - Depends on SHAKE256
    - All quality gates must pass
@@ -287,7 +287,7 @@ cargo doc --no-deps --open
 ## Resources
 
 - NIST FIPS 202 (SHAKE256): https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-- NIST PQC Kyber: https://pq-crystals.org/kyber/
+- NIST PQC ML-Kem: https://pq-crystals.org/ml_kem/
 - NIST PQC Dilithium: https://pq-crystals.org/dilithium/
 - Rust Cryptography Guidelines: https://github.com/rust-lang/rfcs/blob/master/text/0235-unsafe-code-guidelines.md
 

@@ -5,8 +5,8 @@
 //! parallel processing, and advanced optimizations.
 
 use lib_q_keccak::{
-    detection, fast_loop_absorb_optimized, get_global_config, p1600_optimized, set_global_config,
-    FeatureConfig, OptimizationLevel,
+    FeatureConfig, OptimizationLevel, detection, fast_loop_absorb_optimized, get_global_config,
+    p1600_optimized, set_global_config,
 };
 
 #[cfg(feature = "simd")]

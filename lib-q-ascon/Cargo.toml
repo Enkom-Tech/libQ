@@ -15,8 +15,8 @@ repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["Ascon", "crypto", "permutation", "lib-q"]
 categories = ["cryptography", "no-std"]
 readme = "README.md"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.89"
 
 [dependencies]
 zeroize = { version = "1.8.1", default-features = false, optional=true }

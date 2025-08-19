@@ -40,7 +40,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Constant-time verification
 
 ### Key Encapsulation Mechanisms (KEMs)
-- [ ] CRYSTALS-Kyber (Level 1, 3, 5)
+- [ ] CRYSTALS-ML-Kem (Level 1, 3, 5)
   - [ ] Core implementation
   - [ ] Key generation
   - [ ] Encapsulation/Decapsulation
@@ -84,7 +84,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] PQ-HPKE implementation (Tier 1: Pure post-quantum)
 - [ ] Hybrid HPKE implementation (Tier 2: PQ KEM + classical symmetric)
 - [ ] Performance HPKE implementation (Tier 3: PQ KEM + optimized classical)
-- [ ] HPKE with CRYSTALS-Kyber KEM
+- [ ] HPKE with CRYSTALS-ML-Kem KEM
 - [ ] HPKE with Classic McEliece KEM
 - [ ] HPKE with HQC KEM
 - [ ] HPKE performance benchmarking

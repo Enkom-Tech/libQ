@@ -1,8 +1,8 @@
 //! Integration tests for Keccak re-exports from lib-q-sponge
 
 use lib_q_sponge::{
-    detection, f1600, f200, f400, f800, fast_loop_absorb_optimized, p1600, p1600_optimized,
-    OptimizationLevel,
+    OptimizationLevel, detection, f200, f400, f800, f1600, fast_loop_absorb_optimized, p1600,
+    p1600_optimized,
 };
 
 #[test]

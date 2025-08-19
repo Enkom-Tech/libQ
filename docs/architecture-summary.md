@@ -24,7 +24,7 @@ lib-Q Complete Architecture
 │   ├── High-Level Functions
 │   └── Problem-Solving Interfaces
 ├── Algorithm Layer
-│   ├── KEMs (Kyber, McEliece, HQC)
+│   ├── KEMs (ML-Kem, McEliece, HQC)
 │   ├── Signatures (Dilithium, Falcon, SPHINCS+)
 │   ├── Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
 │   └── AEAD Constructions
@@ -89,9 +89,9 @@ Direct access to specific algorithms and security levels:
 
 ```rust
 // KEM Operations
-let (pk, sk) = kem::keygen(KemAlgorithm::Kyber5)?;
-let (shared, enc) = kem::encaps(KemAlgorithm::Kyber5, &pk)?;
-let shared = kem::decaps(KemAlgorithm::Kyber5, &sk, &enc)?;
+let (pk, sk) = kem::keygen(KemAlgorithm::MlKem5)?;
+let (shared, enc) = kem::encaps(KemAlgorithm::MlKem5, &pk)?;
+let shared = kem::decaps(KemAlgorithm::MlKem5, &sk, &enc)?;
 
 // Signature Operations
 let (pk, sk) = sig::keygen(SigAlgorithm::Dilithium5)?;
@@ -105,10 +105,10 @@ Direct access to cryptographic primitives:
 
 ```rust
 // Direct algorithm access
-let kyber = Kyber::new(SecurityLevel::Level5);
-let (pk, sk) = kyber.generate_keypair()?;
-let (shared, enc) = kyber.encapsulate(&pk)?;
-let recovered = kyber.decapsulate(&sk, &enc)?;
+let ml_kem = ML-Kem::new(SecurityLevel::Level5);
+let (pk, sk) = ml_kem.generate_keypair()?;
+let (shared, enc) = ml_kem.encapsulate(&pk)?;
+let recovered = ml_kem.decapsulate(&sk, &enc)?;
 ```
 
 ## Security Architecture
@@ -124,19 +124,19 @@ let recovered = kyber.decapsulate(&sk, &enc)?;
 ### Security Tiers
 
 1. **Ultra-Secure (Tier 1)**: Pure post-quantum with maximum security
-   - KEMs: CRYSTALS-Kyber, Classic McEliece, HQC
+   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
    - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
    - Symmetric: SHAKE256-based constructions
    - HPKE: Pure post-quantum HPKE
 
 2. **Balanced (Tier 2)**: Hybrid post-quantum with good performance
-   - KEMs: CRYSTALS-Kyber, Classic McEliece, HQC
+   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
    - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
    - Symmetric: Post-quantum KEM + quantum-resistant classical
    - HPKE: Hybrid HPKE (PQ KEM + AES-256-GCM)
 
 3. **Performance (Tier 3)**: Post-quantum + optimized classical
-   - KEMs: CRYSTALS-Kyber, Classic McEliece, HQC
+   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
    - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
    - Symmetric: Post-quantum KEM + optimized classical
    - HPKE: Performance HPKE (PQ KEM + ChaCha20-Poly1305)
@@ -166,7 +166,7 @@ pub const MAX_PUBLIC_KEY_SIZE: usize = 3936;  // Largest Dilithium5 public key
 pub const MAX_SECRET_KEY_SIZE: usize = 6096;  // Largest Dilithium5 secret key
 pub const MAX_SIGNATURE_SIZE: usize = 6590;   // Largest Dilithium5 signature
 pub const MAX_SHARED_SECRET_SIZE: usize = 32; // All KEMs use 32 bytes
-pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest Kyber5 ciphertext
+pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest MlKem5 ciphertext
 pub const MAX_MESSAGE_SIZE: usize = 65536;    // 64KB max message size
 
 // Stack-allocated types
@@ -190,17 +190,17 @@ pub struct Plaintext([u8; MAX_MESSAGE_SIZE]);
 ### Three-Tier HPKE System
 
 1. **Ultra-Secure HPKE**: Pure post-quantum with SHAKE256-based AEAD
-   - KEM: CRYSTALS-Kyber (Level 5)
+   - KEM: CRYSTALS-ML-Kem (Level 5)
    - AEAD: SHAKE256-based construction
    - Use Case: Maximum security, performance secondary
 
 2. **Balanced HPKE**: Hybrid post-quantum with classical symmetric
-   - KEM: CRYSTALS-Kyber (Level 3)
+   - KEM: CRYSTALS-ML-Kem (Level 3)
    - AEAD: AES-256-GCM
    - Use Case: Strong security with good performance
 
 3. **Performance HPKE**: Post-quantum + optimized classical
-   - KEM: CRYSTALS-Kyber (Level 1)
+   - KEM: CRYSTALS-ML-Kem (Level 1)
    - AEAD: ChaCha20-Poly1305
    - Use Case: Maximum performance, strong security
 
@@ -256,7 +256,7 @@ let public_key_b64 = base64::encode(public_key_bytes);
 // JSON serialization
 let key_json = serde_json::json!({
     "type": "public_key",
-    "algorithm": "kyber5",
+    "algorithm": "mlkem5",
     "data": base64::encode(public_key_bytes)
 });
 

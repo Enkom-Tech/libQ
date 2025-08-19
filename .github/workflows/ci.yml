@@ -121,9 +121,19 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             features: "std,all-algorithms"
           - target: x86_64-unknown-linux-gnu
+            features: "std,ml-kem,rand"
+          - target: x86_64-unknown-linux-gnu
+            features: "no_std,getrandom"
+          - target: x86_64-unknown-linux-gnu
             features: "std,wasm"
           - target: x86_64-unknown-linux-gnu
             features: "std,zkp"
+          - target: x86_64-unknown-linux-gnu
+            package: "lib-q-kem"
+            features: "ml-kem"
+          - target: x86_64-unknown-linux-gnu
+            package: "lib-q-ml-kem"
+            features: "std"
     
     steps:
       - uses: actions/checkout@v5
@@ -159,10 +169,20 @@ jobs:
             ${{ runner.os }}-cargo-
       
       - name: Run tests
-        run: cargo test --features "${{ matrix.features }}" --verbose
+        run: |
+          if [ -n "${{ matrix.package }}" ]; then
+            cargo test -p ${{ matrix.package }} --features "${{ matrix.features }}" --verbose
+          else
+            cargo test --features "${{ matrix.features }}" --verbose
+          fi
       
       - name: Run tests with release optimizations
-        run: cargo test --features "${{ matrix.features }}" --release --verbose
+        run: |
+          if [ -n "${{ matrix.package }}" ]; then
+            cargo test -p ${{ matrix.package }} --features "${{ matrix.features }}" --release --verbose
+          else
+            cargo test --features "${{ matrix.features }}" --release --verbose
+          fi
 
   # WASM compilation and testing
   wasm:
@@ -208,17 +228,51 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-wasm-
       
-      - name: Build WASM (web target)
+      # Build main lib-q workspace WASM (web target)
+      - name: Build main lib-q WASM (web target)
         run: |
-          echo "Building WASM for web target..."
-          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
-          echo "WASM web build completed successfully"
+          echo "Building main lib-q WASM for web target..."
+          wasm-pack build --target web --features "wasm,all-algorithms,ml-kem" --verbose
+          echo "Main lib-q WASM web build completed successfully"
       
-      - name: Build WASM (nodejs target)
+      # Build main lib-q workspace WASM (nodejs target)
+      - name: Build main lib-q WASM (nodejs target)
         run: |
-          echo "Building WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
-          echo "WASM nodejs build completed successfully"
+          echo "Building main lib-q WASM for nodejs target..."
+          wasm-pack build --target nodejs --features "wasm,all-algorithms,ml-kem" --verbose
+          echo "Main lib-q WASM nodejs build completed successfully"
+      
+      # Build lib-q-kem WASM (web target)
+      - name: Build lib-q-kem WASM (web target)
+        run: |
+          echo "Building lib-q-kem WASM for web target..."
+          cd lib-q-kem
+          wasm-pack build --target web --features "wasm,ml-kem" --verbose
+          echo "lib-q-kem WASM web build completed successfully"
+      
+      # Build lib-q-kem WASM (nodejs target)
+      - name: Build lib-q-kem WASM (nodejs target)
+        run: |
+          echo "Building lib-q-kem WASM for nodejs target..."
+          cd lib-q-kem
+          wasm-pack build --target nodejs --features "wasm,ml-kem" --verbose
+          echo "lib-q-kem WASM nodejs build completed successfully"
+      
+      # Build lib-q-core WASM (web target)
+      - name: Build lib-q-core WASM (web target)
+        run: |
+          echo "Building lib-q-core WASM for web target..."
+          cd lib-q-core
+          wasm-pack build --target web --features "wasm,ml-kem,rand" --verbose
+          echo "lib-q-core WASM web build completed successfully"
+      
+      # Build lib-q-core WASM (nodejs target)
+      - name: Build lib-q-core WASM (nodejs target)
+        run: |
+          echo "Building lib-q-core WASM for nodejs target..."
+          cd lib-q-core
+          wasm-pack build --target nodejs --features "wasm,ml-kem,rand" --verbose
+          echo "lib-q-core WASM nodejs build completed successfully"
       
       - name: Verify WASM artifacts
         run: |
@@ -719,5 +773,46 @@ jobs:
           features: "asm"
           rust-version: "nightly"
           run-benchmarks: "true"
+
+  # Test ML-KEM implementation
+  test-ml-kem:
+    name: Test ML-KEM Implementation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Test ML-KEM crate standalone
+        run: |
+          cd lib-q-ml-kem
+          cargo test --verbose
+      
+      - name: Test ML-KEM integration with lib-q-core
+        run: |
+          cd lib-q-core
+          cargo test --features "ml-kem,rand" --verbose
+      
+      - name: Test no_std compatibility
+        run: |
+          cd lib-q-core
+          cargo build --no-default-features --features "getrandom"
+      
+      - name: Test ML-KEM with lib-q-kem
+        run: |
+          cd lib-q-kem
+          cargo test --features "ml-kem" --verbose
 
 

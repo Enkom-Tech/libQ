@@ -21,16 +21,14 @@ pub mod sphincs;
 
 /// Get available signature algorithms
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = Vec::new();
-
-    #[cfg(feature = "dilithium")]
-    algorithms.push("dilithium");
-
-    #[cfg(feature = "falcon")]
-    algorithms.push("falcon");
-
-    #[cfg(feature = "sphincs")]
-    algorithms.push("sphincs");
+    let algorithms = vec![
+        #[cfg(feature = "dilithium")]
+        "dilithium",
+        #[cfg(feature = "falcon")]
+        "falcon",
+        #[cfg(feature = "sphincs")]
+        "sphincs",
+    ];
 
     algorithms
 }
@@ -85,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_create_signature_context_invalid_algorithm() {
-        let result = create_signature_context(Algorithm::Kyber512);
+        let result = create_signature_context(Algorithm::MlKem512);
         assert!(result.is_err());
     }
 }

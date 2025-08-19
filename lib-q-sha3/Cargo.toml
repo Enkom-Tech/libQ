@@ -9,8 +9,8 @@ the accelerated variant TurboSHAKE for lib-Q
 authors = ["RustCrypto Developers", "Enkom Tech"]
 license = "Apache-2.0"
 readme = "README.md"
-edition = "2021"
-rust-version = "1.81"
+edition = "2024"
+rust-version = "1.89"
 documentation = "https://docs.rs/lib-q-sha3"
 repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]

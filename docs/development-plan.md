@@ -129,29 +129,29 @@ impl CShake256 {
 #### 2. Key Encapsulation Mechanisms (KEMs)
 **Priority**: High (Core post-quantum primitive)
 
-**CRYSTALS-Kyber Implementation**:
+**CRYSTALS-ML-Kem Implementation**:
 ```rust
-pub struct Kyber {
+pub struct ML-Kem {
     security_level: u32,
 }
 
-impl Kem for Kyber {
+impl Kem for ML-Kem {
     fn generate_keypair(&self) -> Result<KemKeypair> {
-        // Implementation for Kyber key generation
+        // Implementation for ML-Kem key generation
         // - Use SHAKE256 for randomness
         // - Generate polynomial matrices
         // - Create public and secret keys
     }
     
     fn encapsulate(&self, public_key: &KemPublicKey) -> Result<(Vec<u8>, Vec<u8>)> {
-        // Implementation for Kyber encapsulation
+        // Implementation for ML-Kem encapsulation
         // - Generate random coins
         // - Create shared secret
         // - Generate ciphertext
     }
     
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>> {
-        // Implementation for Kyber decapsulation
+        // Implementation for ML-Kem decapsulation
         // - Decode ciphertext
         // - Reconstruct shared secret
         // - Verify consistency
@@ -454,7 +454,7 @@ pub mod zkp {
 ## Performance Requirements
 
 ### Algorithm Performance
-- Kyber: < 1ms for key generation, < 0.5ms for encapsulation/decapsulation
+- ML-Kem: < 1ms for key generation, < 0.5ms for encapsulation/decapsulation
 - Dilithium: < 2ms for key generation, < 1ms for signing/verification
 - SHAKE256: < 0.1ms for 1KB data
 - HPKE: < 2ms for encryption/decryption

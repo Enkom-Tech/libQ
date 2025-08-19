@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
-use crate::{keccak_p, OptimizationLevel};
+use crate::{OptimizationLevel, keccak_p};
 
 /// Thread-safe configuration for multi-threading operations
 #[derive(Debug, Clone)]

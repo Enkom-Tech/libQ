@@ -214,7 +214,7 @@ pub fn f1600(state: &mut [u64; PLEN]) {
 #[cfg(feature = "simd")]
 /// SIMD implementations for Keccak-f1600 sponge function
 pub mod simd {
-    use crate::{keccak_p, LaneSize, PLEN};
+    use crate::{LaneSize, PLEN, keccak_p};
     pub use core::simd::{u64x2, u64x4, u64x8};
 
     macro_rules! impl_lanesize_simd_u64xn {
@@ -307,7 +307,7 @@ pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{keccak_p, LaneSize, PLEN};
+    use crate::{LaneSize, PLEN, keccak_p};
 
     fn keccak_f<L: LaneSize>(state_first: [L; PLEN], state_second: [L; PLEN]) {
         let mut state = [L::default(); PLEN];
@@ -513,7 +513,7 @@ mod tests {
 }
 
 // Re-export optimized functions
-pub use crate::optimized_core::{fast_loop_absorb_optimized, p1600_optimized, OptimizationLevel};
+pub use crate::optimized_core::{OptimizationLevel, fast_loop_absorb_optimized, p1600_optimized};
 
 #[cfg(feature = "simd")]
 pub use crate::optimized_core::parallel;
@@ -524,12 +524,12 @@ pub use crate::optimized_core::parallel::p1600_multithreaded;
 // Re-export feature configuration
 pub use crate::features::detection;
 pub use crate::features::{
-    get_global_config, reset_global_config, set_global_config, FeatureConfig, FeatureReport,
+    FeatureConfig, FeatureReport, get_global_config, reset_global_config, set_global_config,
 };
 
 // Re-export multi-threading functionality
 #[cfg(all(feature = "multithreading", feature = "std"))]
 pub use crate::multithreading::{
-    get_global_thread_pool, init_global_thread_pool, process_keccak_states_global,
-    CryptoThreadPool, ThreadingConfig,
+    CryptoThreadPool, ThreadingConfig, get_global_thread_pool, init_global_thread_pool,
+    process_keccak_states_global,
 };

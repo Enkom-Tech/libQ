@@ -2,65 +2,113 @@
 //!
 //! This crate provides implementations of post-quantum key encapsulation mechanisms.
 
-// Re-export core types for public use
-pub use lib_q_core::{Algorithm, Kem, KemContext, KemKeypair, KemPublicKey, KemSecretKey, Result};
+use lib_q_core::{Algorithm, Error, Kem};
 
-/// CRYSTALS-Kyber implementation
-#[cfg(feature = "kyber")]
-pub mod kyber;
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
 
-/// Classic McEliece implementation
-#[cfg(feature = "mceliece")]
-pub mod mceliece;
+#[cfg(feature = "ml-kem")]
+pub mod ml_kem;
 
-/// HQC implementation
-#[cfg(feature = "hqc")]
-pub mod hqc;
-
-/// Get available KEM algorithms
-pub fn available_algorithms() -> Vec<&'static str> {
+/// Get a list of available KEM algorithms
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub fn available_algorithms() -> Vec<Algorithm> {
+    #[allow(unused_mut)]
     let mut algorithms = Vec::new();
-
-    #[cfg(feature = "kyber")]
-    algorithms.push("kyber");
-
-    #[cfg(feature = "mceliece")]
-    algorithms.push("mceliece");
-
-    #[cfg(feature = "hqc")]
-    algorithms.push("hqc");
-
+    #[cfg(feature = "ml-kem")]
+    {
+        algorithms.push(Algorithm::MlKem512);
+        algorithms.push(Algorithm::MlKem768);
+        algorithms.push(Algorithm::MlKem1024);
+    }
     algorithms
 }
 
-/// Create a KEM instance by algorithm name
-pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
+/// Create a KEM instance for the specified algorithm
+pub fn create_kem(algorithm: Algorithm) -> Result<Box<dyn Kem>, Error> {
     match algorithm {
-        #[cfg(feature = "kyber")]
-        "kyber" => Ok(Box::new(kyber::Kyber::new())),
-
-        #[cfg(feature = "mceliece")]
-        "mceliece" => Ok(Box::new(mceliece::McEliece::new())),
-
-        #[cfg(feature = "hqc")]
-        "hqc" => Ok(Box::new(hqc::Hqc::new())),
-
-        _ => Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: algorithm.to_string(),
+        #[cfg(feature = "ml-kem")]
+        Algorithm::MlKem512 => Ok(Box::new(ml_kem::MlKem512Impl::default())),
+        #[cfg(feature = "ml-kem")]
+        Algorithm::MlKem768 => Ok(Box::new(ml_kem::MlKem768Impl::default())),
+        #[cfg(feature = "ml-kem")]
+        Algorithm::MlKem1024 => Ok(Box::new(ml_kem::MlKem1024Impl::default())),
+        _ => Err(Error::InvalidAlgorithm {
+            algorithm: format!("{:?}", algorithm),
         }),
     }
 }
 
-/// Create a KEM context for the specified algorithm
-pub fn create_kem_context(algorithm: Algorithm) -> Result<KemContext> {
-    // Validate that this is a KEM algorithm
-    if algorithm.category() != lib_q_core::AlgorithmCategory::Kem {
-        return Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: format!("{algorithm:?} is not a KEM algorithm"),
-        });
+/// WASM-friendly wrapper for KEM operations
+#[cfg(feature = "wasm")]
+pub mod wasm {
+    use super::*;
+    use lib_q_core::{KemKeypair, KemPublicKey, KemSecretKey};
+    #[allow(unused_imports)]
+    use wasm_bindgen::{JsError, prelude::*};
+
+    /// Generate a keypair for the specified algorithm (WASM)
+    #[wasm_bindgen]
+    pub fn generate_keypair(algorithm: Algorithm) -> Result<KemKeypair, JsError> {
+        let kem = create_kem(algorithm).map_err(|e| JsError::new(&e.to_string()))?;
+        kem.generate_keypair()
+            .map_err(|e| JsError::new(&e.to_string()))
     }
 
-    Ok(KemContext::new())
+    /// Encapsulate a shared secret (WASM)
+    #[wasm_bindgen]
+    pub fn encapsulate(
+        algorithm: Algorithm,
+        public_key: &KemPublicKey,
+    ) -> Result<EncapsulationResult, JsError> {
+        let kem = create_kem(algorithm).map_err(|e| JsError::new(&e.to_string()))?;
+        let (ciphertext, shared_secret) = kem
+            .encapsulate(public_key)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(EncapsulationResult::new(ciphertext, shared_secret))
+    }
+
+    /// Decapsulate a shared secret (WASM)
+    #[wasm_bindgen]
+    pub fn decapsulate(
+        algorithm: Algorithm,
+        secret_key: &KemSecretKey,
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>, JsError> {
+        let kem = create_kem(algorithm).map_err(|e| JsError::new(&e.to_string()))?;
+        kem.decapsulate(secret_key, ciphertext)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// Result of encapsulation operation for WASM
+    #[wasm_bindgen]
+    pub struct EncapsulationResult {
+        #[wasm_bindgen(skip)]
+        ciphertext: Vec<u8>,
+        #[wasm_bindgen(skip)]
+        shared_secret: Vec<u8>,
+    }
+
+    #[wasm_bindgen]
+    impl EncapsulationResult {
+        #[wasm_bindgen(constructor)]
+        pub fn new(ciphertext: Vec<u8>, shared_secret: Vec<u8>) -> Self {
+            Self {
+                ciphertext,
+                shared_secret,
+            }
+        }
+
+        #[wasm_bindgen(getter)]
+        pub fn ciphertext(&self) -> Vec<u8> {
+            self.ciphertext.clone()
+        }
+
+        #[wasm_bindgen(getter)]
+        pub fn shared_secret(&self) -> Vec<u8> {
+            self.shared_secret.clone()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -70,22 +118,40 @@ mod tests {
     #[test]
     fn test_available_algorithms() {
         let algorithms = available_algorithms();
-        // Note: This test may pass or fail depending on which features are enabled
-        // If no KEM features are enabled, algorithms will be empty
-        // This is expected behavior when no KEM implementations are compiled
-        println!("Available KEM algorithms: {:?}", algorithms);
+        assert!(
+            !algorithms.is_empty(),
+            "Should have at least one algorithm available"
+        );
+        for algorithm in algorithms {
+            let kem = create_kem(algorithm);
+            assert!(
+                kem.is_ok(),
+                "Should be able to create KEM for {:?}",
+                algorithm
+            );
+        }
     }
 
     #[test]
-    fn test_create_kem_context() {
-        let mut ctx = create_kem_context(Algorithm::Kyber512).unwrap();
-        // Context is created successfully
-        assert!(ctx.generate_keypair(Algorithm::Kyber512).is_ok());
+    fn test_create_kem_instances() {
+        let algorithms = available_algorithms();
+        for algorithm in algorithms {
+            let kem = create_kem(algorithm).unwrap();
+            let keypair = kem.generate_keypair();
+            assert!(
+                keypair.is_ok(),
+                "Should be able to generate keypair for {:?}",
+                algorithm
+            );
+        }
     }
 
     #[test]
-    fn test_create_kem_context_invalid_algorithm() {
-        let result = create_kem_context(Algorithm::Dilithium2);
-        assert!(result.is_err());
+    fn test_unsupported_algorithm() {
+        let result = create_kem(Algorithm::Dilithium2);
+        assert!(
+            result.is_err(),
+            "Should return error for unsupported algorithm"
+        );
     }
 }

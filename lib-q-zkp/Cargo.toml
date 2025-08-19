@@ -1,7 +1,7 @@
 [package]
 name = "lib-q-zkp"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 authors = ["lib-Q Contributors"]
 description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
 license = "Apache-2.0"
@@ -16,6 +16,7 @@ lib-q-core = { path = "../lib-q-core" }
 [features]
 default = []
 zkp = []
+stark = []
 
 [lib]
 name = "lib_q_zkp"

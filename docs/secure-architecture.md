@@ -43,9 +43,9 @@ The unified API provides a consistent interface for all cryptographic operations
 ```rust
 // Algorithm enumeration with security levels
 pub enum Algorithm {
-    Kyber512,      // Level 1 (128-bit security)
-    Kyber768,      // Level 3 (192-bit security)
-    Kyber1024,     // Level 4 (256-bit security)
+    MlKem512,      // Level 1 (128-bit security)
+    MlKem768,      // Level 3 (192-bit security)
+    MlKem1024,     // Level 4 (256-bit security)
     Dilithium2,    // Level 1
     Dilithium3,    // Level 3
     Dilithium5,    // Level 4
@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut hash_ctx = HashContext::new();
 
     // Generate KEM keypair
-    let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512)?;
+    let kem_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
 
     // Generate signature keypair
     let sig_keypair = sig_ctx.generate_keypair(Algorithm::Dilithium2)?;
@@ -137,7 +137,7 @@ const libq = new LibQ();
 await libq.init();
 
 // Generate KEM keypair (same algorithm names)
-const kemKeypair = await libq.kem_generate_keypair("kyber512");
+const kemKeypair = await libq.kem_generate_keypair("mlkem512");
 
 // Generate signature keypair
 const sigKeypair = await libq.sig_generate_keypair("dilithium2");
@@ -175,9 +175,9 @@ impl KemContext {
 impl Algorithm {
     pub fn security_level(&self) -> u32 {
         match self {
-            Algorithm::Kyber512 => 1,      // 128-bit security
-            Algorithm::Kyber768 => 3,      // 192-bit security
-            Algorithm::Kyber1024 => 4,     // 256-bit security
+            Algorithm::MlKem512 => 1,      // 128-bit security
+            Algorithm::MlKem768 => 3,      // 192-bit security
+            Algorithm::MlKem1024 => 4,     // 256-bit security
             // ... more mappings
         }
     }
@@ -259,7 +259,7 @@ fn test_unified_api() {
     let mut hash_ctx = HashContext::new();
 
     // Test KEM operations
-    let kem_keypair = kem_ctx.generate_keypair(Algorithm::Kyber512).unwrap();
+    let kem_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
     assert!(!kem_keypair.public_key().as_bytes().is_empty());
     assert!(!kem_keypair.secret_key().as_bytes().is_empty());
 

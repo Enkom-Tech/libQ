@@ -31,7 +31,7 @@ lib-Q is built on the principle that **all classical cryptography is broken**. O
 lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
+- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
 - **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
 - **Symmetric**: SHAKE256-based constructions
 - **HPKE**: Pure post-quantum HPKE (PQ KEM + SHAKE256 AEAD)
@@ -39,7 +39,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Use Case**: Maximum security, performance secondary
 
 #### Tier 2: Balanced (Hybrid Post-Quantum)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
+- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
 - **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
 - **Symmetric**: Post-quantum KEM + quantum-resistant classical (AES-256, ChaCha20)
 - **HPKE**: Hybrid HPKE (PQ KEM + AES-256-GCM)
@@ -47,7 +47,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Use Case**: Strong security with good performance
 
 #### Tier 3: Performance (Post-Quantum + Optimized Classical)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
+- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
 - **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
 - **Symmetric**: Post-quantum KEM + optimized classical (ChaCha20-Poly1305)
 - **HPKE**: Performance HPKE (PQ KEM + ChaCha20-Poly1305)
@@ -100,7 +100,7 @@ We use only SHA-3 family hash functions, which are quantum-resistant:
 We only use algorithms that have been standardized or are in the final round of NIST's Post-Quantum Cryptography standardization process:
 
 #### Standardized Algorithms
-- **CRYSTALS-Kyber**: NIST PQC Standard (2022)
+- **CRYSTALS-ML-Kem**: NIST PQC Standard (2022)
 - **CRYSTALS-Dilithium**: NIST PQC Standard (2022)
 - **Falcon**: NIST PQC Standard (2022)
 - **SPHINCS+**: NIST PQC Standard (2022)
