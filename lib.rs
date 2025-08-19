@@ -69,59 +69,17 @@ pub fn version() -> &'static str {
 
 /// Get all supported algorithms
 pub fn supported_algorithms() -> Vec<Algorithm> {
-    vec![
-        // KEM algorithms
-        Algorithm::MlKem512,
-        Algorithm::MlKem768,
-        Algorithm::MlKem1024,
-        Algorithm::McEliece348864,
-        Algorithm::McEliece460896,
-        Algorithm::McEliece6688128,
-        Algorithm::McEliece6960119,
-        Algorithm::McEliece8192128,
-        Algorithm::Hqc128,
-        Algorithm::Hqc192,
-        Algorithm::Hqc256,
-        // Signature algorithms
-        Algorithm::Dilithium2,
-        Algorithm::Dilithium3,
-        Algorithm::Dilithium5,
-        Algorithm::Falcon512,
-        Algorithm::Falcon1024,
-        Algorithm::SphincsSha256128fRobust,
-        Algorithm::SphincsSha256192fRobust,
-        Algorithm::SphincsSha256256fRobust,
-        Algorithm::SphincsShake256128fRobust,
-        Algorithm::SphincsShake256192fRobust,
-        Algorithm::SphincsShake256256fRobust,
-        // Hash algorithms
-        Algorithm::Shake128,
-        Algorithm::Shake256,
-        Algorithm::CShake128,
-        Algorithm::CShake256,
-        Algorithm::Kmac128,
-        Algorithm::Kmac256,
-        Algorithm::TupleHash128,
-        Algorithm::TupleHash256,
-        Algorithm::ParallelHash128,
-        Algorithm::ParallelHash256,
-    ]
+    lib_q_core::algorithm_registry::supported_algorithms()
 }
 
 /// Get algorithms by category
 pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
-    supported_algorithms()
-        .into_iter()
-        .filter(|alg| alg.category() == category)
-        .collect()
+    lib_q_core::algorithm_registry::algorithms_by_category(category)
 }
 
 /// Get algorithms by security level
 pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
-    supported_algorithms()
-        .into_iter()
-        .filter(|alg| alg.security_level() == level)
-        .collect()
+    lib_q_core::algorithm_registry::algorithms_by_security_level(level)
 }
 
 // WASM API Module - Provides identical interface for WASM

@@ -117,6 +117,12 @@ pub enum Error {
 
     /// Invalid key format
     InvalidKeyFormat,
+
+    /// Unsupported algorithm
+    #[cfg(feature = "alloc")]
+    UnsupportedAlgorithm { algorithm: String },
+    #[cfg(not(feature = "alloc"))]
+    UnsupportedAlgorithm { algorithm: &'static str },
 }
 
 impl fmt::Display for Error {
@@ -194,6 +200,9 @@ impl fmt::Display for Error {
             Error::InvalidKeyFormat => {
                 write!(f, "Invalid key format")
             }
+            Error::UnsupportedAlgorithm { algorithm } => {
+                write!(f, "Unsupported algorithm: {algorithm}")
+            }
         }
     }
 }
@@ -235,6 +244,7 @@ impl Error {
             Error::UnsupportedOperation { .. } => "UnsupportedOperation".to_string(),
             Error::InvalidState { .. } => "InvalidState".to_string(),
             Error::InvalidKeyFormat => "InvalidKeyFormat".to_string(),
+            Error::UnsupportedAlgorithm { .. } => "UnsupportedAlgorithm".to_string(),
         }
     }
 }

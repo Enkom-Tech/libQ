@@ -5,7 +5,8 @@
 // Re-export core types for public use
 pub use lib_q_core::{Result, Utils};
 
-// TODO: Add submodules when needed
+// Security validation module
+pub mod security_validation;
 
 /// Constant-time comparison of two byte slices
 ///

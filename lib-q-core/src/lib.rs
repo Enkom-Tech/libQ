@@ -5,11 +5,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod algorithm_registry;
 pub mod api;
 pub mod error;
 pub mod traits;
+pub mod wasm_common;
 
 // Re-exports
+pub use algorithm_registry::*;
 pub use api::*;
 pub use error::{Error, Result};
 pub use traits::*;

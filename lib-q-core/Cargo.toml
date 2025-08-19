@@ -31,6 +31,9 @@ serde = { version = "1.0.219", optional = true, features = ["derive"], default-f
 wasm-bindgen = { version = "0.2.100", optional = true, features = ["serde-serialize"] }
 js-sys = { version = "0.3.77", optional = true }
 
+# Lazy static for global registry
+lazy_static = "1.5.0"
+
 [features]
 default = ["std"]
 std = ["getrandom", "alloc", "rand"]
