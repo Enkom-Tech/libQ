@@ -21,6 +21,10 @@ default = []
 name = "lib_q_utils"
 path = "src/lib.rs"
 
+[[bin]]
+name = "security-validator"
+path = "src/bin/security-validator.rs"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

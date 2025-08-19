@@ -147,5 +147,5 @@ runs:
         echo "Verifying constant-time operations..."
         cd ${{ inputs.working-directory }}
         # Run specific tests that verify constant-time behavior
-        cargo test --test constant_time --no-default-features
+        cargo test --test constant_time
         echo "Constant-time verification completed"

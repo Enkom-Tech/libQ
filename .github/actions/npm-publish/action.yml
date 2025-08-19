@@ -1,0 +1,85 @@
+name: NPM Publish
+description: Reusable action for publishing NPM packages
+inputs:
+  package-name:
+    description: NPM package name
+    required: true
+  package-description:
+    description: Package description
+    required: true
+  package-keywords:
+    description: Comma-separated package keywords
+    required: true
+  working-directory:
+    description: Working directory containing the package
+    default: "pkg"
+    required: false
+  token:
+    description: NPM token
+    required: true
+  version:
+    description: Package version
+    required: true
+  dry-run:
+    description: Whether to do a dry run
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Prepare NPM package
+      shell: bash
+      run: |
+        echo "Preparing NPM package..."
+        cd ${{ inputs.working-directory }}
+        
+        # Set package metadata
+        npm pkg set name="${{ inputs.package-name }}"
+        npm pkg set version="${{ inputs.version }}"
+        npm pkg set description="${{ inputs.package-description }}"
+        npm pkg set keywords="${{ inputs.package-keywords }}"
+        npm pkg set author="lib-Q Contributors"
+        npm pkg set license="Apache-2.0"
+        npm pkg set repository.type="git"
+        npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
+        npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
+        npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
+        npm pkg set files=["*.js","*.d.ts","*.wasm"]
+        
+        # Set main entry points
+        npm pkg set main="$(ls *.js | head -1)"
+        npm pkg set types="$(ls *.d.ts | head -1)"
+        
+        # Set exports
+        MAIN_JS=$(ls *.js | head -1)
+        npm pkg set exports.import="./$MAIN_JS"
+        npm pkg set exports.require="./$MAIN_JS"
+        
+        echo "NPM package prepared successfully"
+    
+    - name: Publish NPM package
+      shell: bash
+      run: |
+        echo "Publishing NPM package..."
+        cd ${{ inputs.working-directory }}
+        
+        if [ -z "${{ inputs.token }}" ]; then
+          echo "Warning: NPM_TOKEN not set, skipping NPM publication"
+          exit 0
+        fi
+        
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          echo "Dry run mode - would publish ${{ inputs.package-name }}"
+          npm publish --access public --dry-run
+        else
+          npm publish --access public
+        fi
+        
+        echo "Successfully published ${{ inputs.package-name }}"

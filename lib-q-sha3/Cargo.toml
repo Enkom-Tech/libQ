@@ -6,7 +6,7 @@ Pure Rust implementation of SHA-3, a family of Keccak-based hash functions
 including the SHAKE family of eXtendable-Output Functions (XOFs), as well as
 the accelerated variant TurboSHAKE for lib-Q
 """
-authors = ["RustCrypto Developers", "Enkom Tech"]
+authors = ["Enkom Tech", "Nexlab-One"]
 license = "Apache-2.0"
 readme = "README.md"
 edition = "2024"

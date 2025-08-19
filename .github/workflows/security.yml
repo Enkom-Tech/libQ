@@ -14,58 +14,84 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Cryptographic algorithm validation
-  crypto-validation:
-    name: Cryptographic Validation
+  # Core security validation - runs first
+  core-security:
+    name: Core Security Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Generate cache key
+        id: cache-key
+        run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
       
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run core security validation
+        uses: ./.github/actions/rust-build
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          run-security-audit: "true"
+          run-format-check: "false"
+          run-clippy: "false"
+          run-tests: "false"
       
       - name: Validate NIST compliance
         run: |
-          echo "Checking for NIST-approved algorithms only..."
-          # Check that no classical algorithms are imported
-          if grep -r "use.*aes\|use.*sha256\|use.*rsa\|use.*ecdsa" src/; then
-            echo "ERROR: Classical cryptographic algorithms detected!"
-            exit 1
-          fi
-          
-          # Check that only SHA-3 family is used
-          if grep -r "use.*sha[0-9]" src/ | grep -v "shake\|cshake"; then
-            echo "ERROR: Non-SHA-3 hash functions detected!"
-            exit 1
-          fi
-          
-          echo "NIST compliance validation passed"
-      
-      - name: Run cryptographic tests
-        run: |
-          echo "Running available cryptographic tests..."
-          cargo test --features "all-algorithms" --test constant_time
-          echo "Cryptographic tests completed successfully"
+          echo "🔒 Running NIST compliance validation..."
+          cargo run --bin security-validator --features "std" -- validate-nist
+          echo "✅ NIST compliance validation passed"
 
-  # Constant-time verification
-  constant-time:
-    name: Constant-Time Verification
+  # Cryptographic algorithm validation - parallel with core security
+  crypto-validation:
+    name: Cryptographic Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Run cryptographic tests
+        run: |
+          echo "🔐 Running cryptographic validation tests..."
+          cargo test --features "all-algorithms" --test constant_time
+          echo "✅ Cryptographic tests completed successfully"
+      
+      - name: Validate KEM algorithms
+        run: |
+          echo "🔑 Validating KEM algorithms..."
+          # Check that only NIST-approved KEMs are implemented
+          echo "✅ KEM algorithm validation completed"
+      
+      - name: Validate signature algorithms
+        run: |
+          echo "✍️  Validating signature algorithms..."
+          # Check that only NIST-approved signatures are implemented
+          echo "✅ Signature algorithm validation completed"
+      
+      - name: Validate hash functions
+        run: |
+          echo "📊 Validating hash functions..."
+          # Check that only SHA-3 family is used
+          echo "✅ Hash function validation completed"
+      
+      - name: Validate ZKP systems
+        run: |
+          echo "🔍 Validating ZKP systems..."
+          # Check that only post-quantum secure ZKPs are used
+          echo "✅ ZKP system validation completed"
+
+  # Constant-time verification - critical for crypto
+  constant-time:
+    name: Constant-Time Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       
       - name: Install valgrind
@@ -73,211 +99,107 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y valgrind
       
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
       - name: Install cargo-valgrind
         run: cargo install cargo-valgrind
       
+      - name: Run constant-time validation
+        uses: ./.github/actions/rust-build
+        with:
+          run-security-audit: "false"
+          run-format-check: "false"
+          run-clippy: "true"
+          run-tests: "true"
+          features: "all-algorithms"
+      
       - name: Run constant-time tests
         run: |
-          # Test that cryptographic operations are constant-time
+          echo "⏱️  Testing constant-time operations..."
           cargo test --features "all-algorithms" --test constant_time
-          echo "Constant-time tests completed successfully"
+          echo "✅ Constant-time tests completed successfully"
       
       - name: Check for timing side-channels
         run: |
-          # Static analysis for timing vulnerabilities
-          cargo clippy --features "all-algorithms" -- -D warnings -A clippy::all
-          
-          # Check for branching on secret data
-          if grep -r "if.*secret\|match.*secret" src/; then
-            echo "WARNING: Potential branching on secret data detected"
-            # This is a warning, not an error, as some branching might be necessary
-          fi
+          echo "🔍 Running timing vulnerability analysis..."
+          cargo run --bin security-validator --features "std" -- validate-timing
 
-  # Memory safety and zeroization
+  # Memory safety validation - parallel with constant-time
   memory-safety:
     name: Memory Safety Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run memory safety validation
+        uses: ./.github/actions/rust-build
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          run-security-audit: "false"
+          run-format-check: "false"
+          run-clippy: "true"
+          run-tests: "false"
       
-      - name: Check memory zeroization
+      - name: Check memory safety
         run: |
-          # Check for proper use of zeroize crate
-          if ! grep -r "use.*zeroize" src/; then
-            echo "WARNING: zeroize crate not used for sensitive data"
-          else
-            echo "✅ zeroize crate usage verified"
-          fi
-      
-      - name: Run memory safety checks
-        run: |
-          # Check for unsafe code usage
-          UNSAFE_COUNT=$(grep -r "unsafe" src/ | wc -l)
-          echo "Found $UNSAFE_COUNT unsafe blocks"
-          if [ $UNSAFE_COUNT -gt 0 ]; then
-            echo "Reviewing unsafe code usage:"
-            grep -r "unsafe" src/
-          else
-            echo "✅ No unsafe code blocks found"
-          fi
+          echo "🧠 Running memory safety validation..."
+          cargo run --bin security-validator --features "std" -- validate-memory
 
-  # Dependency security audit
+  # Dependency security audit - parallel execution
   dependency-audit:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      
-      - name: Install cargo-outdated
-        run: cargo install cargo-outdated
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run dependency security audit
+        uses: ./.github/actions/rust-build
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Security audit
-        run: cargo audit --deny warnings
+          run-security-audit: "true"
+          run-format-check: "false"
+          run-clippy: "false"
+          run-tests: "false"
       
       - name: Check for known vulnerabilities
         run: |
+          echo "🔍 Checking for known vulnerabilities..."
           # Check for specific cryptographic vulnerabilities
           cargo audit --deny warnings --ignore RUSTSEC-2023-0001
           
           # Check for outdated dependencies
           cargo outdated --exit-code 1
+          echo "✅ Dependency security audit completed"
       
       - name: Validate dependency sources
         run: |
+          echo "🔗 Validating dependency sources..."
           # Ensure all dependencies come from trusted sources
-          echo "Validating dependency sources..."
-          # This would check that all dependencies are from crates.io or trusted git repos
           cargo tree --format "{p} {f}" | grep -v "crates.io" | grep -v "github.com" || true
+          echo "✅ Dependency source validation completed"
 
-  # Post-quantum algorithm validation
-  pq-validation:
-    name: Post-Quantum Algorithm Validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Validate KEM algorithms
-        run: |
-          echo "Validating KEM algorithms..."
-          # Check that only NIST-approved KEMs are implemented
-          echo "✅ KEM algorithm validation completed"
-      
-      - name: Validate signature algorithms
-        run: |
-          echo "Validating signature algorithms..."
-          # Check that only NIST-approved signatures are implemented
-          echo "✅ Signature algorithm validation completed"
-      
-      - name: Validate hash functions
-        run: |
-          echo "Validating hash functions..."
-          # Check that only SHA-3 family is used
-          echo "✅ Hash function validation completed"
-      
-      - name: Validate ZKP systems
-        run: |
-          echo "Validating ZKP systems..."
-          # Check that only post-quantum secure ZKPs are used
-          echo "✅ ZKP system validation completed"
-
-  # WASM security validation
+  # WASM security validation - runs after core security
   wasm-security:
     name: WASM Security Validation
+    needs: core-security
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
         with:
-          version: latest
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-            pkg
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-
-      
-      - name: Build WASM (nodejs target)
-        run: |
-          echo "Building WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
-          echo "WASM nodejs build completed successfully"
-      
-      - name: Build WASM (web target)
-        run: |
-          echo "Building WASM for web target..."
-          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
-          echo "WASM web build completed successfully"
+          features: "wasm,all-algorithms"
+          targets: "web,nodejs"
       
       - name: Validate WASM security
         run: |
-          echo "Validating WASM build artifacts..."
+          echo "🌐 Validating WASM build artifacts..."
           ls -la pkg/ || echo "No pkg directory found"
           if [ -d "pkg" ]; then
             echo "WASM package contents:"
@@ -286,13 +208,13 @@ jobs:
             ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
             
             # Validate that WASM exports are secure
-            echo "WASM security validation passed"
+            echo "✅ WASM security validation passed"
           fi
 
-  # Security report generation
+  # Security report generation - runs after all other jobs
   security-report:
     name: Generate Security Report
-    needs: [crypto-validation, constant-time, memory-safety, dependency-audit, pq-validation, wasm-security]
+    needs: [core-security, crypto-validation, constant-time, memory-safety, dependency-audit, wasm-security]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -300,22 +222,92 @@ jobs:
       
       - name: Generate security summary
         run: |
-          echo "# Security Validation Report" > security-report.md
+          echo "# 🔒 Security Validation Report" > security-report.md
           echo "Generated: $(date)" >> security-report.md
           echo "" >> security-report.md
-          echo "## Summary" >> security-report.md
-          echo "- NIST compliance: ✅" >> security-report.md
-          echo "- Constant-time operations: ✅" >> security-report.md
-          echo "- Memory safety: ✅" >> security-report.md
-          echo "- Dependency security: ✅" >> security-report.md
-          echo "- Post-quantum validation: ✅" >> security-report.md
-          echo "- WASM security: ✅" >> security-report.md
+          echo "## 📊 Summary" >> security-report.md
+          echo "- NIST compliance: ${{ needs.core-security.result }}" >> security-report.md
+          echo "- Cryptographic validation: ${{ needs.crypto-validation.result }}" >> security-report.md
+          echo "- Constant-time operations: ${{ needs.constant-time.result }}" >> security-report.md
+          echo "- Memory safety: ${{ needs.memory-safety.result }}" >> security-report.md
+          echo "- Dependency security: ${{ needs.dependency-audit.result }}" >> security-report.md
+          echo "- WASM security: ${{ needs.wasm-security.result }}" >> security-report.md
           echo "" >> security-report.md
-          echo "## Details" >> security-report.md
-          echo "All security validations passed successfully." >> security-report.md
+          
+          # Determine overall security status
+          if [[ "${{ needs.core-security.result }}" == "success" ]] && \
+             [[ "${{ needs.crypto-validation.result }}" == "success" ]] && \
+             [[ "${{ needs.constant-time.result }}" == "success" ]] && \
+             [[ "${{ needs.memory-safety.result }}" == "success" ]] && \
+             [[ "${{ needs.dependency-audit.result }}" == "success" ]]; then
+            echo "## ✅ Overall Security Status: PASSED" >> security-report.md
+            echo "All critical security validations passed successfully." >> security-report.md
+          else
+            echo "## ❌ Overall Security Status: FAILED" >> security-report.md
+            echo "Critical security validations failed. Please review the issues above." >> security-report.md
+          fi
+          
+          echo "" >> security-report.md
+          echo "## 🔍 Details" >> security-report.md
+          echo "This report covers:" >> security-report.md
+          echo "- NIST post-quantum algorithm compliance" >> security-report.md
+          echo "- Constant-time operation verification" >> security-report.md
+          echo "- Memory safety and zeroization checks" >> security-report.md
+          echo "- Dependency vulnerability scanning" >> security-report.md
+          echo "- WASM build artifact validation" >> security-report.md
+          echo "" >> security-report.md
+          echo "## 📋 Next Steps" >> security-report.md
+          if [[ "${{ needs.core-security.result }}" == "success" ]] && \
+             [[ "${{ needs.crypto-validation.result }}" == "success" ]] && \
+             [[ "${{ needs.constant-time.result }}" == "success" ]] && \
+             [[ "${{ needs.memory-safety.result }}" == "success" ]] && \
+             [[ "${{ needs.dependency-audit.result }}" == "success" ]]; then
+            echo "✅ Security validation passed. Code is ready for deployment." >> security-report.md
+          else
+            echo "❌ Security issues detected. Please address before deployment." >> security-report.md
+          fi
       
       - name: Upload security report
         uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: security-report.md
+      
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security-report.md', 'utf8');
+            
+            // Determine if security validation passed
+            const criticalJobs = [
+              'core-security',
+              'crypto-validation', 
+              'constant-time',
+              'memory-safety',
+              'dependency-audit'
+            ];
+            
+            let securityPassed = true;
+            for (const job of criticalJobs) {
+              if (job.result !== 'success') {
+                securityPassed = false;
+                break;
+              }
+            }
+            
+            let commentBody = report;
+            if (securityPassed) {
+              commentBody += '\n\n---\n\n✅ **Security validation passed!** This code meets all security requirements.';
+            } else {
+              commentBody += '\n\n---\n\n❌ **Security validation failed!** Please address security issues before merging.';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });

@@ -420,8 +420,8 @@ impl AlgorithmRegistry {
             metadata.enabled = enabled;
             Ok(())
         } else {
-            Err(crate::Error::UnsupportedAlgorithm { 
-                algorithm: format!("{:?}", algorithm) 
+            Err(crate::Error::UnsupportedAlgorithm {
+                algorithm: format!("{:?}", algorithm),
             })
         }
     }

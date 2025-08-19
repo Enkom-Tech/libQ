@@ -1,73 +1,147 @@
-# [RustCrypto]: Ascon permutation
+# lib-q-ascon
 
-[![crate][crate-image]][crate-link]
-[![Docs][docs-image]][docs-link]
-[![Build Status][build-image]][build-link]
-![Apache2/MIT licensed][license-image]
-![Rust Version][rustc-image]
-[![Project Chat][chat-image]][chat-link]
+A Rust implementation of the Ascon permutation, providing the core cryptographic primitive for the Ascon family of algorithms.
 
-Pure Rust implementation of the permutation of [Ascon], a family of
-authenticated encryption and hashing algorithms designed to be lightweight and
-easy to implement.
+## Overview
 
-[Documentation][docs-link]
+Ascon is a lightweight authenticated encryption and hashing algorithm family designed for resource-constrained environments. This crate implements the core Ascon permutation that serves as the foundation for:
 
-## About
+- Ascon-128 (AEAD)
+- Ascon-Hash
+- Ascon-XOF
+- Ascon-HashA
 
-Ascon is a family of lightweight algorithms built on a core permutation
-algorithm. These algorithms include:
+## Features
 
-- [x] [`ascon-aead`]: Authenticated Encryption with Associated Data
-- [x] [`ascon-hash`]: Hash functions and extendible-output functions (XOF)
-- [ ] Pseudo-random functions (PRF) and message authentication codes (MAC)
+- **Core Permutation**: 320-bit state permutation with configurable rounds (6, 8, 12)
+- **Constant-Time**: All operations are constant-time to prevent timing attacks
+- **Zero-Copy**: Efficient state manipulation without unnecessary allocations
+- **no_std Support**: Works in embedded and constrained environments
+- **Zeroization**: Secure memory clearing when the `zeroize` feature is enabled
+- **Comprehensive Testing**: KAT tests, constant-time verification, security validation
 
-Ascon has been selected as [new standard for lightweight cryptography] in the
-[NIST Lightweight Cryptography] competition, and has also been selected as the
-primary choice for lightweight authenticated encryption in the final
-portfolio of the [CAESAR competition].
+## Usage
 
-## Minimum Supported Rust Version
+### Basic Permutation
 
-This crate requires **Rust 1.81** at a minimum.
+```rust
+use lib_q_ascon::State;
 
-We may change the MSRV in the future, but it will be accompanied by a minor
-version bump.
+// Create a new state
+let mut state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+
+// Apply permutation with different round counts
+state.permute_6();   // 6 rounds
+state.permute_8();   // 8 rounds  
+state.permute_12();  // 12 rounds
+
+// Or use configurable rounds
+state.permute_n(10); // 10 rounds
+```
+
+### State Conversion
+
+```rust
+use lib_q_ascon::State;
+
+// Create a state first
+let mut state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+
+// Convert to/from bytes
+let bytes = state.as_bytes();
+let new_state = State::try_from(bytes.as_slice()).unwrap();
+
+// Access individual words
+let word0 = state[0];
+state[1] = 0xdeadbeef;
+```
+
+### Features
+
+Enable the `zeroize` feature for secure memory clearing:
+
+```toml
+[dependencies]
+lib-q-ascon = { version = "0.0.1", features = ["zeroize"] }
+```
+
+## API Reference
+
+### State
+
+The core `State` struct represents a 320-bit Ascon state as five 64-bit words.
+
+#### Methods
+
+- `new(x0, x1, x2, x3, x4)` - Create a new state
+- `permute_6()` - Apply 6-round permutation
+- `permute_8()` - Apply 8-round permutation  
+- `permute_12()` - Apply 12-round permutation
+- `permute_n(rounds)` - Apply configurable rounds (1-12)
+- `as_bytes()` - Convert to 40-byte array
+- `try_from(bytes)` - Create from byte slice
+
+#### Indexing
+
+States support indexing for direct word access:
+
+```rust
+use lib_q_ascon::State;
+
+let mut state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+let word = state[0];     // Get word 0
+state[1] = 0xdeadbeef;   // Set word 1
+```
+
+## Testing
+
+The crate includes comprehensive test coverage:
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test categories
+cargo test --test kats_tests          # Known answer tests
+cargo test --test constant_time       # Constant-time verification
+cargo test --test security            # Security properties
+cargo test --test performance         # Performance regression
+```
+
+### Test Categories
+
+- **KAT Tests**: Validate against known test vectors
+- **Constant-Time Tests**: Verify side-channel resistance
+- **Security Tests**: Check cryptographic properties
+- **Performance Tests**: Detect performance regressions
+
+## Security Considerations
+
+- All operations are constant-time
+- Input validation prevents invalid round counts
+- Bounds checking on all array accesses
+- Optional zeroization for secure memory clearing
+- Comprehensive avalanche effect testing
+
+## Performance
+
+The implementation is optimized for performance while maintaining security:
+
+- Efficient bit manipulation
+- Minimal memory allocations
+- Optimized round function
+- Configurable loop unrolling
 
 ## License
 
-Licensed under either of:
+Licensed under either of
 
-- [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
-- [MIT license](http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 
 at your option.
 
-### Contribution
+## References
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
-
-[//]: # (badges)
-
-[crate-image]: https://img.shields.io/crates/v/ascon
-[crate-link]: https://crates.io/crates/ascon
-[docs-image]: https://docs.rs/ascon/badge.svg
-[docs-link]: https://docs.rs/ascon/
-[build-image]: https://github.com/RustCrypto/sponges/actions/workflows/ascon.yml/badge.svg
-[build-link]: https://github.com/RustCrypto/sponges/actions/workflows/ascon.yml
-[license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[rustc-image]: https://img.shields.io/badge/rustc-1.60+-blue.svg
-[chat-image]: https://img.shields.io/badge/zulip-join_chat-blue.svg
-[chat-link]: https://rustcrypto.zulipchat.com/#narrow/stream/369879-sponges
-
-[//]: # (links)
-
-[`ascon-aead`]: https://github.com/RustCrypto/AEADs/tree/master/ascon-aead
-[`ascon-hash`]: https://github.com/RustCrypto/hashes/tree/master/ascon-hash
-[RustCrypto]: https://github.com/rustcrypto
-[Ascon]: https://ascon.iaik.tugraz.at/
-[New standard for lightweight cryptography]: https://www.nist.gov/news-events/news/2023/02/nist-selects-lightweight-cryptography-algorithms-protect-small-devices
-[NIST Lightweight Cryptography]: https://csrc.nist.gov/projects/lightweight-cryptography/finalists
-[CAESAR competition]: https://competitions.cr.yp.to/caesar-submissions.html
+- [Ascon Specification](https://ascon.iaik.tugraz.at/)
+- [NIST Lightweight Cryptography](https://www.nist.gov/programs-projects/lightweight-cryptography)
+- [Ascon v1.2](https://ascon.iaik.tugraz.at/files/asconv12-nist.pdf)

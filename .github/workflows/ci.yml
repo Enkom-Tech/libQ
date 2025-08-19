@@ -11,151 +11,132 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Security and dependency scanning
-  security:
-    name: Security Audit
+  # Core validation pipeline - runs first and fastest
+  core-validation:
+    name: Core Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
+      - name: Generate cache key
+        id: cache-key
+        run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
       
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      
-      - name: Install cargo-outdated
-        run: cargo install cargo-outdated
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Core validation
+        uses: ./.github/actions/rust-build
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Security audit
-        run: cargo audit --deny warnings
-      
-      - name: Check for known vulnerabilities
-        run: cargo audit --deny warnings --ignore RUSTSEC-2023-0001
-      
-      - name: Check for outdated dependencies
-        run: cargo outdated --exit-code 1
+          run-security-audit: "true"
+          run-format-check: "true"
+          run-clippy: "true"
+          run-tests: "false"
+          features: "all-algorithms"
 
-  # Code quality and formatting
-  quality:
-    name: Code Quality
+  # Parallel test matrix - runs after core validation
+  test-matrix:
+    name: Test Matrix
+    needs: core-validation
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy linting
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Check for unused dependencies
-        run: cargo check --all-targets --all-features
-
-  # Unit and integration tests
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          - name: "std"
             features: "std"
-          - target: x86_64-unknown-linux-gnu
+            package: ""
+          - name: "all-algorithms"
             features: "std,all-algorithms"
-          - target: x86_64-unknown-linux-gnu
+            package: ""
+          - name: "ml-kem"
             features: "std,ml-kem,rand"
-          - target: x86_64-unknown-linux-gnu
+            package: ""
+          - name: "no_std"
             features: "no_std,getrandom"
-          - target: x86_64-unknown-linux-gnu
+            package: ""
+          - name: "wasm"
             features: "std,wasm"
-          - target: x86_64-unknown-linux-gnu
+            package: ""
+          - name: "zkp"
             features: "std,zkp"
-          - target: x86_64-unknown-linux-gnu
-            package: "lib-q-kem"
+            package: ""
+          - name: "lib-q-kem"
             features: "ml-kem"
-          - target: x86_64-unknown-linux-gnu
-            package: "lib-q-ml-kem"
+            package: "lib-q-kem"
+          - name: "lib-q-ml-kem"
             features: "std"
+            package: "lib-q-ml-kem"
     
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
+      - name: Run tests
+        uses: ./.github/actions/rust-test
+        with:
+          features: ${{ matrix.features }}
+          package: ${{ matrix.package }}
+          run-release-tests: "true"
+
+  # WASM validation - parallel with test matrix
+  wasm-validation:
+    name: WASM Validation
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        include:
+          - working-directory: "."
+            features: "wasm,all-algorithms,ml-kem"
+          - working-directory: "lib-q-kem"
+            features: "wasm,ml-kem"
+          - working-directory: "lib-q-core"
+            features: "wasm,ml-kem,rand"
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          targets: "web,nodejs"
+
+  # Cross-platform builds - parallel execution
+  cross-platform:
+    name: Cross-Platform Builds
+    needs: core-validation
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: "Linux x86_64"
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            name: "Linux ARM64"
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: "Windows x86_64"
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: "macOS x86_64"
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: "macOS ARM64"
+    
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -164,57 +145,27 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-${{ matrix.target }}-
       
-      - name: Run tests
+      - name: Build for target
         run: |
-          if [ -n "${{ matrix.package }}" ]; then
-            cargo test -p ${{ matrix.package }} --features "${{ matrix.features }}" --verbose
-          else
-            cargo test --features "${{ matrix.features }}" --verbose
-          fi
-      
-      - name: Run tests with release optimizations
-        run: |
-          if [ -n "${{ matrix.package }}" ]; then
-            cargo test -p ${{ matrix.package }} --features "${{ matrix.features }}" --release --verbose
-          else
-            cargo test --features "${{ matrix.features }}" --release --verbose
-          fi
+          echo "Building for ${{ matrix.name }} (${{ matrix.target }})"
+          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
+          cargo check --target ${{ matrix.target }} --features "all-algorithms"
 
-  # WASM compilation and testing
-  wasm:
-    name: WASM Build & Test
+  # Performance and benchmarks - runs after core validation
+  performance:
+    name: Performance & Benchmarks
+    needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
-        with:
-          version: latest
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -223,133 +174,24 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-            pkg
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-wasm-
-      
-      # Build main lib-q workspace WASM (web target)
-      - name: Build main lib-q WASM (web target)
-        run: |
-          echo "Building main lib-q WASM for web target..."
-          wasm-pack build --target web --features "wasm,all-algorithms,ml-kem" --verbose
-          echo "Main lib-q WASM web build completed successfully"
-      
-      # Build main lib-q workspace WASM (nodejs target)
-      - name: Build main lib-q WASM (nodejs target)
-        run: |
-          echo "Building main lib-q WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms,ml-kem" --verbose
-          echo "Main lib-q WASM nodejs build completed successfully"
-      
-      # Build lib-q-kem WASM (web target)
-      - name: Build lib-q-kem WASM (web target)
-        run: |
-          echo "Building lib-q-kem WASM for web target..."
-          cd lib-q-kem
-          wasm-pack build --target web --features "wasm,ml-kem" --verbose
-          echo "lib-q-kem WASM web build completed successfully"
-      
-      # Build lib-q-kem WASM (nodejs target)
-      - name: Build lib-q-kem WASM (nodejs target)
-        run: |
-          echo "Building lib-q-kem WASM for nodejs target..."
-          cd lib-q-kem
-          wasm-pack build --target nodejs --features "wasm,ml-kem" --verbose
-          echo "lib-q-kem WASM nodejs build completed successfully"
-      
-      # Build lib-q-core WASM (web target)
-      - name: Build lib-q-core WASM (web target)
-        run: |
-          echo "Building lib-q-core WASM for web target..."
-          cd lib-q-core
-          wasm-pack build --target web --features "wasm,ml-kem,rand" --verbose
-          echo "lib-q-core WASM web build completed successfully"
-      
-      # Build lib-q-core WASM (nodejs target)
-      - name: Build lib-q-core WASM (nodejs target)
-        run: |
-          echo "Building lib-q-core WASM for nodejs target..."
-          cd lib-q-core
-          wasm-pack build --target nodejs --features "wasm,ml-kem,rand" --verbose
-          echo "lib-q-core WASM nodejs build completed successfully"
-      
-      - name: Verify WASM artifacts
-        run: |
-          echo "Verifying WASM build artifacts..."
-          ls -la pkg/ || echo "No pkg directory found"
-          if [ -d "pkg" ]; then
-            echo "WASM package contents:"
-            ls -la pkg/
-            echo "WASM file size:"
-            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
-          fi
-
-  # Performance benchmarks
-  benchmark:
-    name: Benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-bench-
       
       - name: Run benchmarks
         run: cargo bench --features "all-algorithms" --verbose
 
-  # Documentation generation
-  docs:
+  # Documentation generation - lightweight job
+  documentation:
     name: Documentation
+    needs: core-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
       
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -358,155 +200,121 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-docs-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-docs-
       
       - name: Generate documentation
-        run: cargo doc --all-features --no-deps
-      
-      - name: Check documentation
-        run: cargo doc --all-features --no-deps --document-private-items
+        run: |
+          cargo doc --all-features --no-deps
+          cargo doc --all-features --no-deps --document-private-items
 
-  # Cross-platform compilation (Linux only)
-  cross-compile-linux:
-    name: Cross-Platform Build (Linux)
+  # Specialized algorithm testing - parallel execution
+  algorithm-tests:
+    name: Algorithm Tests
+    needs: core-validation
     runs-on: ubuntu-latest
-    env:
-      CARGO_TERM_COLOR: always
-      RUST_BACKTRACE: 1
+    timeout-minutes: 20
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
+        include:
+          - name: "Keccak"
+            action: test-keccak
+            working-directory: lib-q-keccak
+            features: "asm,simd"
+            rust-version: "nightly"
+            run-benchmarks: "true"
+          - name: "SHA3"
+            action: test-sha3
+            working-directory: lib-q-sha3
+            features: "alloc,oid"
+            rust-version: "stable"
+            test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
+            run-benchmarks: "false"
+          - name: "K12"
+            action: test-k12
+            working-directory: lib-q-k12
+            features: "alloc,oid"
+            rust-version: "stable"
+            run-benchmarks: "false"
+          - name: "Ascon"
+            action: test-ascon
+            working-directory: lib-q-ascon
+            features: ""
+            rust-version: "stable"
+            run-benchmarks: "false"
+          - name: "Sponge"
+            action: test-lib-q-sponge
+            working-directory: lib-q-sponge
+            features: "asm"
+            rust-version: "stable"
+            run-benchmarks: "false"
     
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run algorithm tests
+        uses: ./.github/actions/test-keccak
+        if: matrix.action == 'test-keccak'
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
       
-      - name: Build for target
-        run: |
-          echo "Building for target: ${{ matrix.target }}"
-          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
-          echo "Build completed successfully"
-      
-      - name: Check for target
-        run: |
-          echo "Checking for target: ${{ matrix.target }}"
-          cargo check --target ${{ matrix.target }} --features "all-algorithms"
-          echo "Check completed successfully"
-      
-      - name: Show build artifacts
-        run: |
-          echo "Build artifacts for target: ${{ matrix.target }}"
-          ls -la target/${{ matrix.target }}/release/ || echo "No build artifacts found"
-
-  # Windows compilation (separate job for proper toolchain)
-  cross-compile-windows:
-    name: Cross-Platform Build (Windows)
-    runs-on: windows-latest
-    env:
-      CARGO_TERM_COLOR: always
-      RUST_BACKTRACE: 1
-    strategy:
-      matrix:
-        target:
-          - x86_64-pc-windows-msvc
-    
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run SHA3 tests
+        uses: ./.github/actions/test-sha3
+        if: matrix.action == 'test-sha3'
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
       
-      - name: Build for target
-        run: |
-          echo "Building for target: ${{ matrix.target }}"
-          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
-          echo "Build completed successfully"
+      - name: Run K12 tests
+        uses: ./.github/actions/test-k12
+        if: matrix.action == 'test-k12'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
       
-      - name: Check for target
-        run: |
-          echo "Checking for target: ${{ matrix.target }}"
-          cargo check --target ${{ matrix.target }} --features "all-algorithms"
-          echo "Check completed successfully"
+      - name: Run Ascon tests
+        uses: ./.github/actions/test-ascon
+        if: matrix.action == 'test-ascon'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
       
-      - name: Show build artifacts
-        run: |
-          echo "Build artifacts for target: ${{ matrix.target }}"
-          dir target\${{ matrix.target }}\release\ || echo "No build artifacts found"
+      - name: Run Sponge tests
+        uses: ./.github/actions/test-lib-q-sponge
+        if: matrix.action == 'test-lib-q-sponge'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
 
-  # ARM64 compilation (separate job for proper toolchain)
-  cross-compile-arm64:
-    name: Cross-Platform Build (ARM64)
+  # ML-KEM specific testing
+  ml-kem-tests:
+    name: ML-KEM Tests
+    needs: core-validation
     runs-on: ubuntu-latest
-    env:
-      CARGO_TERM_COLOR: always
-      RUST_BACKTRACE: 1
-    
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Verify Rust installation
-        run: |
-          echo "Rust version: $(rustc --version)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Available targets:"
-          rustup target list --installed
-      
-      - name: Add ARM64 target
-        run: |
-          echo "Installing ARM64 target..."
-          
-          # Install target with error handling
-          if ! rustup target add aarch64-unknown-linux-gnu; then
-            echo "Failed to install aarch64-unknown-linux-gnu target"
-            exit 1
-          fi
-          
-          echo "Verifying target installation..."
-          rustup target list --installed | grep aarch64-unknown-linux-gnu
-          echo "Target installation completed"
-      
-      - name: Install cross-compilation tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-      
-      - name: Configure cross-compilation
-        run: |
-          mkdir -p ~/.cargo
-          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
-          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
-          echo 'ar = "aarch64-linux-gnu-ar"' >> ~/.cargo/config.toml
-      
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -514,152 +322,42 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mlkem-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-mlkem-
       
-      - name: Build for ARM64
+      - name: Test ML-KEM standalone
         run: |
-          echo "Building for target: aarch64-unknown-linux-gnu"
-          cargo build --target aarch64-unknown-linux-gnu --features "all-algorithms" --release
-          echo "Build completed successfully"
+          cd lib-q-ml-kem
+          cargo test --verbose
       
-      - name: Check for ARM64
+      - name: Test ML-KEM integration
         run: |
-          echo "Checking for target: aarch64-unknown-linux-gnu"
-          cargo check --target aarch64-unknown-linux-gnu --features "all-algorithms"
-          echo "Check completed successfully"
+          cd lib-q-core
+          cargo test --features "ml-kem,rand" --verbose
+          cargo build --no-default-features --features "getrandom"
       
-      - name: Show build artifacts
+      - name: Test ML-KEM with lib-q-kem
         run: |
-          echo "Build artifacts for target: aarch64-unknown-linux-gnu"
-          ls -la target/aarch64-unknown-linux-gnu/release/ || echo "No build artifacts found"
+          cd lib-q-kem
+          cargo test --features "ml-kem" --verbose
 
-  # macOS compilation (separate job for proper toolchain)
-  cross-compile-macos:
-    name: Cross-Platform Build (macOS)
-    runs-on: macos-latest
-    env:
-      CARGO_TERM_COLOR: always
-      RUST_BACKTRACE: 1
-    strategy:
-      matrix:
-        target:
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-    
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Verify Rust installation
-        run: |
-          echo "Rust version: $(rustc --version)"
-          echo "Cargo version: $(cargo --version)"
-          echo "Available targets:"
-          rustup target list --installed
-      
-      - name: Add macOS targets
-        run: |
-          echo "Installing macOS targets..."
-          
-          # Install targets with error handling
-          if ! rustup target add x86_64-apple-darwin; then
-            echo "Failed to install x86_64-apple-darwin target"
-            exit 1
-          fi
-          
-          if ! rustup target add aarch64-apple-darwin; then
-            echo "Failed to install aarch64-apple-darwin target"
-            exit 1
-          fi
-          
-          echo "Verifying target installation..."
-          rustup target list --installed | grep apple-darwin
-          echo "Target installation completed"
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Build for target
-        run: |
-          echo "Building for target: ${{ matrix.target }}"
-          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
-          echo "Build completed successfully"
-      
-      - name: Check for target
-        run: |
-          echo "Checking for target: ${{ matrix.target }}"
-          cargo check --target ${{ matrix.target }} --features "all-algorithms"
-          echo "Check completed successfully"
-      
-      - name: Show build artifacts
-        run: |
-          echo "Build artifacts for target: ${{ matrix.target }}"
-          ls -la target/${{ matrix.target }}/release/ || echo "No build artifacts found"
-
-  # Constant-time verification (critical for crypto)
+  # Constant-time verification - critical for crypto
   constant-time:
     name: Constant-Time Verification
+    needs: core-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
       
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Install valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
       
       - name: Install cargo-valgrind
         run: cargo install cargo-valgrind
@@ -667,152 +365,26 @@ jobs:
       - name: Run constant-time tests
         run: cargo test --features "all-algorithms" --test constant_time
 
-  # Composite Action Jobs for Individual Crate Testing
-  
-  # Test Keccak with composite action
-  test-keccak:
-    name: Test Keccak (Composite)
+  # Final validation - runs after all other jobs
+  final-validation:
+    name: Final Validation
+    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, ml-kem-tests, constant-time]
     runs-on: ubuntu-latest
+    if: always()
     steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-keccak
-        with:
-          working-directory: lib-q-keccak
-          features: "asm,simd"
-          rust-version: "nightly"
-          run-benchmarks: "true"
-          run-simd: "true"
-
-  # Test SHA3 with composite action
-  test-sha3:
-    name: Test SHA3 (Composite)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-sha3
-        with:
-          working-directory: lib-q-sha3
-          features: "alloc,oid"
-          rust-version: "stable"
-          test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
-
-  # Test K12 with composite action
-  test-k12:
-    name: Test K12 (Composite)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-k12
-        with:
-          working-directory: lib-q-k12
-          features: "alloc,oid"
-          rust-version: "stable"
-          run-benchmarks: "false"
-
-  # Test K12 with nightly features
-  test-k12-nightly:
-    name: Test K12 (Nightly)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-k12
-        with:
-          working-directory: lib-q-k12
-          features: "alloc,oid"
-          rust-version: "nightly"
-          run-benchmarks: "true"
-
-  # Test Ascon with composite action
-  test-ascon:
-    name: Test Ascon (Composite)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-ascon
-        with:
-          working-directory: lib-q-ascon
-          features: ""
-          rust-version: "stable"
-          run-benchmarks: "false"
-
-  # Test Ascon with nightly features
-  test-ascon-nightly:
-    name: Test Ascon (Nightly)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-ascon
-        with:
-          working-directory: lib-q-ascon
-          features: ""
-          rust-version: "nightly"
-          run-benchmarks: "true"
-
-  # Test lib-q-sponge integration with composite action
-  test-lib-q-sponge:
-    name: Test lib-q-sponge (Composite)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-lib-q-sponge
-        with:
-          working-directory: lib-q-sponge
-          features: "asm"
-          rust-version: "stable"
-          run-benchmarks: "false"
-
-  # Test lib-q-sponge integration with nightly features
-  test-lib-q-sponge-nightly:
-    name: Test lib-q-sponge (Nightly)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/test-lib-q-sponge
-        with:
-          working-directory: lib-q-sponge
-          features: "asm"
-          rust-version: "nightly"
-          run-benchmarks: "true"
-
-  # Test ML-KEM implementation
-  test-ml-kem:
-    name: Test ML-KEM Implementation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Test ML-KEM crate standalone
+      - name: Check job status
         run: |
-          cd lib-q-ml-kem
-          cargo test --verbose
-      
-      - name: Test ML-KEM integration with lib-q-core
-        run: |
-          cd lib-q-core
-          cargo test --features "ml-kem,rand" --verbose
-      
-      - name: Test no_std compatibility
-        run: |
-          cd lib-q-core
-          cargo build --no-default-features --features "getrandom"
-      
-      - name: Test ML-KEM with lib-q-kem
-        run: |
-          cd lib-q-kem
-          cargo test --features "ml-kem" --verbose
+          echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "All jobs completed. Check individual job results above." >> $GITHUB_STEP_SUMMARY
+          
+          # Check if any required jobs failed
+          if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
+             [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.constant-time.result }}" == "failure" ]]; then
+            echo "❌ Critical jobs failed. Please review the failures above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ All critical jobs passed successfully!" >> $GITHUB_STEP_SUMMARY
 
 

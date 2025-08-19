@@ -1,0 +1,93 @@
+name: WASM Build
+description: Reusable WASM build action with multiple targets and package support
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for building
+    default: ""
+    required: false
+  targets:
+    description: Comma-separated list of targets (web,nodejs)
+    default: "web,nodejs"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  verify-artifacts:
+    description: Whether to verify build artifacts
+    default: "true"
+    required: false
+  cache-pkg:
+    description: Whether to cache pkg directory
+    default: "true"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@v1.75.0
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Install wasm-pack
+      uses: jetli/wasm-pack-action@v0.4.0
+      with:
+        version: latest
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+          ${{ inputs.cache-pkg == 'true' && 'pkg' || '' }}
+        key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-wasm-
+    
+    - name: Build WASM for web target
+      if: contains(inputs.targets, 'web')
+      shell: bash
+      run: |
+        echo "Building WASM for web target..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.features }}" ]; then
+          wasm-pack build --target web --features "${{ inputs.features }}" --verbose
+        else
+          wasm-pack build --target web --verbose
+        fi
+        echo "WASM web build completed successfully"
+    
+    - name: Build WASM for nodejs target
+      if: contains(inputs.targets, 'nodejs')
+      shell: bash
+      run: |
+        echo "Building WASM for nodejs target..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.features }}" ]; then
+          wasm-pack build --target nodejs --features "${{ inputs.features }}" --verbose
+        else
+          wasm-pack build --target nodejs --verbose
+        fi
+        echo "WASM nodejs build completed successfully"
+    
+    - name: Verify WASM artifacts
+      if: inputs.verify-artifacts == 'true'
+      shell: bash
+      run: |
+        echo "Verifying WASM build artifacts..."
+        cd ${{ inputs.working-directory }}
+        ls -la pkg/ || echo "No pkg directory found"
+        if [ -d "pkg" ]; then
+          echo "WASM package contents:"
+          ls -la pkg/
+          echo "WASM file size:"
+          ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+        fi

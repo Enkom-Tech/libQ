@@ -1,13 +1,11 @@
 // Copyright 2021-2022 Sebastian Ramacher
-// SPDX-License-Identifier: Apache-2.0 OR MIT
+// Copyright 2025 Enkom Tech
+// Copyright 2025 Nexlab-One
+// SPDX-License-Identifier: Apache-2.0
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
-#![doc(
-    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
-)]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
@@ -262,9 +260,16 @@ impl AsRef<[u64]> for State {
 }
 
 #[cfg(feature = "zeroize")]
+impl Zeroize for State {
+    fn zeroize(&mut self) {
+        self.x.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
 impl Drop for State {
     fn drop(&mut self) {
-        self.x.zeroize();
+        self.zeroize();
     }
 }
 

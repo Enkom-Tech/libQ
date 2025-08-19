@@ -10,490 +10,153 @@ env:
 
 jobs:
   # Pre-release validation
-  validate:
+  pre-release-validation:
     name: Pre-Release Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+      cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Security audit
-        run: cargo audit --deny warnings
-      
-      - name: Run all tests
-        run: cargo test --all-features --release
-      
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy linting
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Validate version
+      - name: Extract version
+        id: extract-version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+      
+      - name: Generate cache key
+        id: cache-key
+        run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+      
+      - name: Validate version consistency
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
           CARGO_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
           if [ "$VERSION" != "$CARGO_VERSION" ]; then
-            echo "Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
+            echo "❌ Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
             exit 1
           fi
+          echo "✅ Version consistency validated: $VERSION"
+      
+      - name: Run comprehensive validation
+        uses: ./.github/actions/rust-build
+        with:
+          run-security-audit: "true"
+          run-format-check: "true"
+          run-clippy: "true"
+          run-tests: "true"
+          features: "all-algorithms"
+      
+      - name: Run release tests
+        run: cargo test --all-features --release
 
-  # Publish Rust crates
-  publish-crates:
+  # Parallel publishing jobs - run after validation
+  publish-rust-crates:
     name: Publish Rust Crates
-    needs: validate
+    needs: pre-release-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-core"
+          - package: "lib-q-keccak"
+          - package: "lib-q-ascon"
+          - package: "lib-q-sha3"
+          - package: "lib-q-k12"
+          - package: "lib-q-kem"
+          - package: "lib-q-ml-kem"
+          - package: "lib-q-sig"
+          - package: "lib-q-hash"
+          - package: "lib-q-aead"
+          - package: "lib-q-utils"
+          - package: "lib-q-zkp"
+          - package: "lib-q-sponge"
+          - package: "lib-q"
 
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Publish lib-q-core to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-core --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-keccak to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-keccak --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-ascon to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-ascon --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-sha3 to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-sha3 --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-k12 to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-k12 --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-kem to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-kem --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-ml-kem to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-ml-kem --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-sig to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-sig --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-hash to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-hash --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-aead to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-aead --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-utils to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-utils --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-zkp to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-zkp --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish lib-q-sponge to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q-sponge --token $CARGO_REGISTRY_TOKEN
-      
-      - name: Publish main lib-q crate to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-            echo "Warning: CARGO_REGISTRY_TOKEN not set, skipping crate publication"
-            exit 0
-          fi
-          cargo publish -p lib-q --token $CARGO_REGISTRY_TOKEN
+          package: ${{ matrix.package }}
+          token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # Build and publish WASM packages
   publish-wasm-packages:
-    name: Build and Publish WASM Packages
-    needs: validate
+    name: Publish WASM Packages
+    needs: pre-release-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - working-directory: "."
+            package-name: "@lib-q/core"
+            package-description: "Post-quantum cryptography library for Node.js (complete package)"
+            package-keywords: "cryptography,post-quantum,security,wasm"
+            features: "wasm,all-algorithms,ml-kem"
+          - working-directory: "lib-q-ml-kem"
+            package-name: "@lib-q/ml-kem"
+            package-description: "NIST ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) for Node.js"
+            package-keywords: "cryptography,post-quantum,ml-kem,key-encapsulation,nist,wasm"
+            features: "wasm"
+          - working-directory: "lib-q-kem"
+            package-name: "@lib-q/kem"
+            package-description: "Post-quantum Key Encapsulation Mechanisms for Node.js"
+            package-keywords: "cryptography,post-quantum,kem,key-encapsulation,wasm"
+            features: "wasm,ml-kem"
+          - working-directory: "lib-q-sig"
+            package-name: "@lib-q/sig"
+            package-description: "Post-quantum Digital Signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,signatures,digital-signatures,wasm"
+            features: "dilithium"
+            out-dir: "pkg-sig"
+          - working-directory: "lib-q-hash"
+            package-name: "@lib-q/hash"
+            package-description: "Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)"
+            package-keywords: "cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm"
+            features: "alloc,oid"
+            out-dir: "pkg-hash"
+          - working-directory: "lib-q-utils"
+            package-name: "@lib-q/utils"
+            package-description: "Utility functions for post-quantum cryptography"
+            package-keywords: "cryptography,post-quantum,utilities,helpers,wasm"
+            features: ""
+            out-dir: "pkg-utils"
+
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
         with:
-          version: latest
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          targets: "web"
       
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
         with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-            pkg
-            node_modules
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-
-      
-      # Build main lib-q WASM package
-      - name: Build main lib-q WASM package
-        run: |
-          echo "Building main lib-q WASM package..."
-          wasm-pack build --target web --features "wasm,all-algorithms,ml-kem" --verbose
-          echo "Main lib-q WASM build completed successfully"
-      
-      - name: Prepare main NPM package
-        run: |
-          cd pkg
-          npm pkg set name="@lib-q/core"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum cryptography library for Node.js (complete package)"
-          npm pkg set keywords="cryptography,post-quantum,security,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="libq.js"
-          npm pkg set types="libq.d.ts"
-          npm pkg set exports.import="./libq.js"
-          npm pkg set exports.require="./libq.js"
-      
-      - name: Publish main NPM package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-            exit 0
-          fi
-          cd pkg
-          npm publish --access public
-      
-      # Build individual crate WASM packages
-      - name: Build lib-q-ml-kem WASM package
-        run: |
-          echo "Building lib-q-ml-kem WASM package..."
-          cd lib-q-ml-kem
-          wasm-pack build --target web --features "wasm" --verbose
-          echo "lib-q-ml-kem WASM build completed successfully"
-      
-      - name: Prepare lib-q-ml-kem NPM package
-        run: |
-          cd lib-q-ml-kem/pkg
-          npm pkg set name="@lib-q/ml-kem"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="NIST ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) for Node.js"
-          npm pkg set keywords="cryptography,post-quantum,ml-kem,key-encapsulation,nist,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib_q_ml_kem.js"
-          npm pkg set types="lib_q_ml_kem.d.ts"
-          npm pkg set exports.import="./lib_q_ml_kem.js"
-          npm pkg set exports.require="./lib_q_ml_kem.js"
-      
-      - name: Publish lib-q-ml-kem NPM package
-        env:
-           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-           if [ -z "$NODE_AUTH_TOKEN" ]; then
-             echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-             exit 0
-           fi
-           cd lib-q-ml-kem/pkg
-           npm publish --access public
-      
-      - name: Build lib-q-kem WASM package
-        run: |
-          echo "Building lib-q-kem WASM package..."
-          cd lib-q-kem
-          wasm-pack build --target web --features "wasm,ml-kem" --verbose
-          echo "lib-q-kem WASM build completed successfully"
-      
-      - name: Prepare lib-q-kem NPM package
-        run: |
-          cd lib-q-kem/pkg
-          npm pkg set name="@lib-q/kem"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum Key Encapsulation Mechanisms for Node.js"
-          npm pkg set keywords="cryptography,post-quantum,kem,key-encapsulation,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib_q_kem.js"
-          npm pkg set types="lib_q_kem.d.ts"
-          npm pkg set exports.import="./lib_q_kem.js"
-          npm pkg set exports.require="./lib_q_kem.js"
-      
-      - name: Publish lib-q-kem NPM package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-            exit 0
-          fi
-          cd lib-q-kem/pkg
-          npm publish --access public
-      
-      - name: Build lib-q-sig WASM package
-        run: |
-          echo "Building lib-q-sig WASM package..."
-          wasm-pack build lib-q-sig --target web --features "dilithium" --out-dir pkg-sig --verbose
-          echo "lib-q-sig WASM build completed successfully"
-      
-      - name: Prepare lib-q-sig NPM package
-        run: |
-          cd pkg-sig
-          npm pkg set name="@lib-q/sig"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum Digital Signatures for Node.js"
-          npm pkg set keywords="cryptography,post-quantum,signatures,digital-signatures,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib_q_sig.js"
-          npm pkg set types="lib_q_sig.d.ts"
-          npm pkg set exports.import="./lib_q_sig.js"
-          npm pkg set exports.require="./lib_q_sig.js"
-      
-      - name: Publish lib-q-sig NPM package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-            exit 0
-          fi
-          cd pkg-sig
-          npm publish --access public
-      
-      - name: Build lib-q-hash WASM package
-        run: |
-          echo "Building lib-q-hash WASM package..."
-          wasm-pack build lib-q-hash --target web --features "alloc,oid" --out-dir pkg-hash --verbose
-          echo "lib-q-hash WASM build completed successfully"
-      
-      - name: Prepare lib-q-hash NPM package
-        run: |
-          cd pkg-hash
-          npm pkg set name="@lib-q/hash"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)"
-          npm pkg set keywords="cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib_q_hash.js"
-          npm pkg set types="lib_q_hash.d.ts"
-          npm pkg set exports.import="./lib_q_hash.js"
-          npm pkg set exports.require="./lib_q_hash.js"
-      
-      - name: Publish lib-q-hash NPM package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-            exit 0
-          fi
-          cd pkg-hash
-          npm publish --access public
-      
-      - name: Build lib-q-utils WASM package
-        run: |
-          echo "Building lib-q-utils WASM package..."
-          wasm-pack build lib-q-utils --target web --out-dir pkg-utils --verbose
-          echo "lib-q-utils WASM build completed successfully"
-      
-      - name: Prepare lib-q-utils NPM package
-        run: |
-          cd pkg-utils
-          npm pkg set name="@lib-q/utils"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Utility functions for post-quantum cryptography"
-          npm pkg set keywords="cryptography,post-quantum,utilities,helpers,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/Enkom-Tech/libQ.git"
-          npm pkg set homepage="https://github.com/Enkom-Tech/libQ#readme"
-          npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib_q_utils.js"
-          npm pkg set types="lib_q_utils.d.ts"
-          npm pkg set exports.import="./lib_q_utils.js"
-          npm pkg set exports.require="./lib_q_utils.js"
-      
-      - name: Publish lib-q-utils NPM package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "Warning: NPM_TOKEN not set, skipping NPM publication"
-            exit 0
-          fi
-          cd pkg-utils
-          npm publish --access public
+          package-name: ${{ matrix.package-name }}
+          package-description: ${{ matrix.package-description }}
+          package-keywords: ${{ matrix.package-keywords }}
+          working-directory: ${{ matrix.out-dir || 'pkg' }}
+          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.pre-release-validation.outputs.version }}
 
-  # Create GitHub release
-  create-release:
-    name: Create GitHub Release
-    needs: [publish-crates, publish-wasm-packages]
+  # Post-release tasks - run after publishing
+  post-release:
+    name: Post-Release Tasks
+    needs: [publish-rust-crates, publish-wasm-packages]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
@@ -502,8 +165,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           
           if [ -n "$PREVIOUS_TAG" ]; then
@@ -516,7 +178,7 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
-      - name: Create Release
+      - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -530,15 +192,15 @@ jobs:
             
             ## Installation
             
-                         ### Rust
-             ```bash
-             cargo add lib-q
-             ```
-             
-             ### Node.js
-             ```bash
-             npm install @lib-q/core
-             ```
+            ### Rust
+            ```bash
+            cargo add lib-q
+            ```
+            
+            ### Node.js
+            ```bash
+            npm install @lib-q/core
+            ```
             
             ## Security
             
@@ -547,38 +209,75 @@ jobs:
             
             ## Documentation
             
-                         - [API Documentation](https://docs.rs/lib-q)
+            - [API Documentation](https://docs.rs/lib-q)
             - [Security Model](https://github.com/Enkom-Tech/libQ/blob/main/docs/security.md)
             - [Development Guide](https://github.com/Enkom-Tech/libQ/blob/main/CONTRIBUTING.md)
           draft: false
           prerelease: false
 
-  # Security verification post-release
+  # Security verification - runs after release
   security-verification:
     name: Post-Release Security Verification
-    needs: create-release
+    needs: [pre-release-validation, post-release]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Verify published crate
+      - name: Verify published Rust crate
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
+          echo "Verifying Rust crate version $VERSION..."
           cargo install --version $VERSION lib-q
+          echo "✅ Rust crate verification successful"
       
-      - name: Verify WASM package
+      - name: Verify published WASM package
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
+          echo "Verifying WASM package version $VERSION..."
           npm install @lib-q/core@$VERSION
-          node -e "const libq = require('@lib-q/core'); console.log('WASM package loaded successfully');"
+          node -e "const libq = require('@lib-q/core'); console.log('✅ WASM package loaded successfully');"
       
       - name: Run security tests
         run: |
-          echo "Running available security tests..."
+          echo "Running security validation tests..."
           cargo test --features "all-algorithms" --test constant_time
-          echo "Security tests completed successfully"
+          echo "✅ Security tests completed successfully"
+
+  # Final CD summary
+  cd-summary:
+    name: CD Summary
+    needs: [pre-release-validation, publish-rust-crates, publish-wasm-packages, post-release, security-verification]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate CD summary
+        run: |
+          echo "## 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.pre-release-validation.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
+          echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-crates.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for critical failures
+          if [[ "${{ needs.pre-release-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.security-verification.result }}" == "failure" ]]; then
+            echo "❌ **Critical pipeline failures detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the failed jobs above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ **Release ${{ needs.pre-release-validation.outputs.version }} deployed successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Packages:" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust: [lib-q@${{ needs.pre-release-validation.outputs.version }}](https://crates.io/crates/lib-q)" >> $GITHUB_STEP_SUMMARY
+          echo "- NPM: [@lib-q/core@${{ needs.pre-release-validation.outputs.version }}](https://www.npmjs.com/package/@lib-q/core)" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub: [Release ${{ github.ref }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref }})" >> $GITHUB_STEP_SUMMARY
