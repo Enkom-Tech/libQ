@@ -4,7 +4,7 @@ A modern cryptography library built exclusively with NIST-approved post-quantum 
 
 ## Mission
 
-lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensuring quantum resistance while maintaining familiar, easy-to-use interfaces.
+lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quantum resistance while maintaining intuitive, easy-to-use interfaces for developers.
 
 ## Key Features
 
@@ -12,7 +12,7 @@ lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensurin
 - **NIST-approved**: All algorithms are NIST PQC standardized
 - **Memory safe**: Built in Rust with zero-cost abstractions
 - **Cross-platform**: Native Rust + WASM compilation
-- **Familiar API**: libsodium-style interface for easy migration
+- **Intuitive API**: Clean, consistent interface designed for modern development
 - **Zero dependencies**: Self-contained implementations
 - **Three security tiers**: Ultra-secure, balanced, and performance-optimized options
 - **Modular design**: Use only what you need with individual crates and npm packages
