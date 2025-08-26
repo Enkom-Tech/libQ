@@ -76,9 +76,9 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         "sphincs" => Ok(Box::new(sphincs::Sphincs::new())),
 
         _ => {
-            return Err(lib_q_core::Error::InvalidAlgorithm {
+            Err(lib_q_core::Error::InvalidAlgorithm {
                 algorithm: "Unknown algorithm",
-            });
+            })
         }
     }
 }
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_available_algorithms() {
-        let algorithms = available_algorithms();
+        let _algorithms = available_algorithms();
         // No features are enabled by default, so algorithms will be empty
         // assert!(!algorithms.is_empty()); // TODO: Enable features to test
     }

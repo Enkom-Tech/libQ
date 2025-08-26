@@ -27,7 +27,8 @@
 //! ```
 //!
 //! ### Without std (external randomness)
-//! ```rust
+//! ```rust,ignore
+//! use lib_q_core::Signature;
 //! use lib_q_sig::ml_dsa::MlDsa;
 //! use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 //!
@@ -351,6 +352,7 @@ impl Signature for MlDsa {
     }
 
     #[cfg(feature = "alloc")]
+    #[allow(unused_variables)]
     fn sign(&self, secret_key: &lib_q_core::SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
         #[cfg(feature = "std")]
         {
