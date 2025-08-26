@@ -36,8 +36,10 @@ criterion = "0.7.0"
 # [target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
 # pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
 
-[target.'cfg(hax)'.dependencies]
-core-models = { path = "../reference/libcrux-main/fstar-helpers/core-models" }
+# Optional: Uncomment if you need hax formal verification with core-models
+# Note: This requires the reference directory to not be excluded in the main Cargo.toml
+# [target.'cfg(hax)'.dependencies]
+# core-models = { path = "../reference/libcrux-main/fstar-helpers/core-models" }
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87"]
