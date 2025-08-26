@@ -1,11 +1,8 @@
 //! Core HPKE implementation logic
 
-
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-
-
 
 use crate::crypto_provider::HpkeCryptoProvider;
 use crate::error::HpkeError;
@@ -148,9 +145,9 @@ pub fn export(
 ) -> Result<Vec<u8>, HpkeError> {
     // Use KDF to derive exported key material
     // This is a placeholder
-    Err(HpkeError::CryptoError(
-        String::from("Key export not yet implemented"),
-    ))
+    Err(HpkeError::CryptoError(String::from(
+        "Key export not yet implemented",
+    )))
 }
 
 /// Compute nonce from base nonce and sequence number

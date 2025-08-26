@@ -1,6 +1,5 @@
 //! Crypto provider trait and implementations for HPKE
 
-
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
