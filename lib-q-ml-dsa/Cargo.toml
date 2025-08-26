@@ -32,8 +32,9 @@ serde = { version = "1.0.219", features = ["derive"] }
 criterion = "0.7.0"
 
 # This doesn't build on intel macos.
-[target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
-pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
+# Temporarily disabled due to unmaintained paste crate dependency (RUSTSEC-2024-0436)
+# [target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
+# pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
 
 [target.'cfg(hax)'.dependencies]
 core-models = { path = "../reference/libcrux-main/fstar-helpers/core-models" }
