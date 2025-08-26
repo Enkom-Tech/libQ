@@ -43,6 +43,7 @@ runs:
       run: |
         echo "Running security audit for Ascon..."
         cd ${{ inputs.working-directory }}
+        cargo install cargo-audit --locked
         cargo audit --deny warnings
         echo "Security audit completed successfully"
     

@@ -110,22 +110,25 @@ runs:
         cargo run --bin security-validator --features "std" -- validate-memory
         echo "✅ Memory safety validation completed"
     
-    - name: Dependency security audit
+          - name: Dependency security audit
       if: inputs.run-dependency-audit == 'true'
       shell: bash
       run: |
         echo "🔍 Running dependency security audit..."
         cd ${{ inputs.working-directory }}
-        
+
+        # Install cargo-audit
+        cargo install cargo-audit --locked
+
         # Check for known vulnerabilities
         cargo audit --deny warnings --ignore RUSTSEC-2023-0001
-        
+
         # Check for outdated dependencies
         cargo outdated --exit-code 1
-        
+
         # Validate dependency sources
         cargo tree --format "{p} {f}" | grep -v "crates.io" | grep -v "github.com" || true
-        
+
         echo "✅ Dependency security audit completed"
     
     - name: WASM security validation

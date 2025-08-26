@@ -176,9 +176,12 @@ jobs:
       - name: Check for known vulnerabilities
         run: |
           echo "🔍 Checking for known vulnerabilities..."
+          # Install cargo-audit
+          cargo install cargo-audit --locked
+
           # Check for specific cryptographic vulnerabilities
           cargo audit --deny warnings --ignore RUSTSEC-2023-0001
-          
+
           # Check for outdated dependencies
           cargo outdated --exit-code 1
           echo "✅ Dependency security audit completed"
