@@ -3,13 +3,14 @@
 //! These tests verify security-critical properties including memory safety,
 //! input validation, error handling, and side-channel resistance.
 
-use lib_q_ascon::State;
 use std::panic;
+
+use lib_q_ascon::State;
 
 /// Test that invalid round counts are properly handled
 #[test]
 fn test_invalid_round_count() {
-    let mut state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut state = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     // Test that permute_n panics with invalid round count in debug mode
     #[cfg(debug_assertions)]
@@ -35,19 +36,19 @@ fn test_invalid_round_count() {
 #[test]
 fn test_state_index_bounds() {
     let state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Valid indices should work
-    assert_eq!(state[0], 0x1234567890abcdef);
-    assert_eq!(state[1], 0xfedcba0987654321);
-    assert_eq!(state[2], 0xdeadbeefcafebabe);
-    assert_eq!(state[3], 0xbebafecaefbeadde);
-    assert_eq!(state[4], 0x0123456789abcdef);
+    assert_eq!(state[0], 0x1234567890ABCDEF);
+    assert_eq!(state[1], 0xFEDCBA0987654321);
+    assert_eq!(state[2], 0xDEADBEEFCAFEBABE);
+    assert_eq!(state[3], 0xBEBAFECAEFBEADDE);
+    assert_eq!(state[4], 0x0123456789ABCDEF);
 
     // Invalid indices should panic
     let result = panic::catch_unwind(|| {
@@ -82,11 +83,11 @@ fn test_try_from_invalid_length() {
 #[test]
 fn test_state_conversion_integrity() {
     let original_state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Convert to bytes and back
@@ -105,11 +106,11 @@ fn test_state_conversion_integrity() {
 #[test]
 fn test_permutation_determinism() {
     let input_state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Apply permutation multiple times
@@ -131,11 +132,11 @@ fn test_permutation_determinism() {
 #[test]
 fn test_avalanche_effect() {
     let base_state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Create states with single bit differences
@@ -185,11 +186,11 @@ fn test_zeroization() {
     use zeroize::Zeroize;
 
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Verify state has non-zero values
@@ -214,11 +215,11 @@ fn test_zeroization() {
 #[test]
 fn test_state_cloning() {
     let original_state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     let cloned_state = original_state.clone();
@@ -232,7 +233,7 @@ fn test_state_cloning() {
 
     // Verify they are independent (modifying one doesn't affect the other)
     let mut modified_original = original_state.clone();
-    modified_original[0] = 0xdeadbeefdeadbeef;
+    modified_original[0] = 0xDEADBEEFDEADBEEF;
 
     assert_ne!(modified_original[0], cloned_state[0]);
     assert_eq!(original_state[0], cloned_state[0]);
@@ -244,17 +245,17 @@ fn test_state_mutation() {
     let mut state = State::new(0, 0, 0, 0, 0);
 
     // Test individual word mutation
-    state[0] = 0x1234567890abcdef;
-    state[1] = 0xfedcba0987654321;
-    state[2] = 0xdeadbeefcafebabe;
-    state[3] = 0xbebafecaefbeadde;
-    state[4] = 0x0123456789abcdef;
+    state[0] = 0x1234567890ABCDEF;
+    state[1] = 0xFEDCBA0987654321;
+    state[2] = 0xDEADBEEFCAFEBABE;
+    state[3] = 0xBEBAFECAEFBEADDE;
+    state[4] = 0x0123456789ABCDEF;
 
-    assert_eq!(state[0], 0x1234567890abcdef);
-    assert_eq!(state[1], 0xfedcba0987654321);
-    assert_eq!(state[2], 0xdeadbeefcafebabe);
-    assert_eq!(state[3], 0xbebafecaefbeadde);
-    assert_eq!(state[4], 0x0123456789abcdef);
+    assert_eq!(state[0], 0x1234567890ABCDEF);
+    assert_eq!(state[1], 0xFEDCBA0987654321);
+    assert_eq!(state[2], 0xDEADBEEFCAFEBABE);
+    assert_eq!(state[3], 0xBEBAFECAEFBEADDE);
+    assert_eq!(state[4], 0x0123456789ABCDEF);
 }
 
 /// Test that permutation doesn't produce all-zero output from non-zero input
@@ -266,11 +267,11 @@ fn test_no_zero_output() {
         State::new(0, 0, 1, 0, 0),
         State::new(0, 0, 0, 1, 0),
         State::new(0, 0, 0, 0, 1),
-        State::new(0x1234567890abcdef, 0, 0, 0, 0),
-        State::new(0, 0x1234567890abcdef, 0, 0, 0),
-        State::new(0, 0, 0x1234567890abcdef, 0, 0),
-        State::new(0, 0, 0, 0x1234567890abcdef, 0),
-        State::new(0, 0, 0, 0, 0x1234567890abcdef),
+        State::new(0x1234567890ABCDEF, 0, 0, 0, 0),
+        State::new(0, 0x1234567890ABCDEF, 0, 0, 0),
+        State::new(0, 0, 0x1234567890ABCDEF, 0, 0),
+        State::new(0, 0, 0, 0x1234567890ABCDEF, 0),
+        State::new(0, 0, 0, 0, 0x1234567890ABCDEF),
     ];
 
     for (i, mut state) in test_states.into_iter().enumerate() {
@@ -291,11 +292,11 @@ fn test_no_zero_output() {
 #[test]
 fn test_round_distinctness() {
     let base_state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     let mut state_6 = base_state.clone();
@@ -339,31 +340,31 @@ fn test_permutation_uniqueness() {
 fn test_state_creation_edge_cases() {
     // Test with maximum values
     let max_state = State::new(
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
     );
 
-    assert_eq!(max_state[0], 0xffffffffffffffff);
-    assert_eq!(max_state[1], 0xffffffffffffffff);
-    assert_eq!(max_state[2], 0xffffffffffffffff);
-    assert_eq!(max_state[3], 0xffffffffffffffff);
-    assert_eq!(max_state[4], 0xffffffffffffffff);
+    assert_eq!(max_state[0], 0xFFFFFFFFFFFFFFFF);
+    assert_eq!(max_state[1], 0xFFFFFFFFFFFFFFFF);
+    assert_eq!(max_state[2], 0xFFFFFFFFFFFFFFFF);
+    assert_eq!(max_state[3], 0xFFFFFFFFFFFFFFFF);
+    assert_eq!(max_state[4], 0xFFFFFFFFFFFFFFFF);
 
     // Test with alternating bit patterns
     let alt_state = State::new(
-        0xaaaaaaaaaaaaaaaa,
+        0xAAAAAAAAAAAAAAAA,
         0x5555555555555555,
-        0xaaaaaaaaaaaaaaaa,
+        0xAAAAAAAAAAAAAAAA,
         0x5555555555555555,
-        0xaaaaaaaaaaaaaaaa,
+        0xAAAAAAAAAAAAAAAA,
     );
 
-    assert_eq!(alt_state[0], 0xaaaaaaaaaaaaaaaa);
+    assert_eq!(alt_state[0], 0xAAAAAAAAAAAAAAAA);
     assert_eq!(alt_state[1], 0x5555555555555555);
-    assert_eq!(alt_state[2], 0xaaaaaaaaaaaaaaaa);
+    assert_eq!(alt_state[2], 0xAAAAAAAAAAAAAAAA);
     assert_eq!(alt_state[3], 0x5555555555555555);
-    assert_eq!(alt_state[4], 0xaaaaaaaaaaaaaaaa);
+    assert_eq!(alt_state[4], 0xAAAAAAAAAAAAAAAA);
 }

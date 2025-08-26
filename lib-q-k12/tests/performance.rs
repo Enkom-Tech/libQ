@@ -7,11 +7,17 @@
 //! These tests monitor performance characteristics and detect regressions
 //! in the KangarooTwelve implementation.
 
-use lib_q_k12::{
-    KangarooTwelve,
-    digest::{ExtendableOutput, Reset, Update},
+use std::time::{
+    Duration,
+    Instant,
 };
-use std::time::{Duration, Instant};
+
+use lib_q_k12::KangarooTwelve;
+use lib_q_k12::digest::{
+    ExtendableOutput,
+    Reset,
+    Update,
+};
 
 /// Performance baseline for small hash (1KB input, 32-byte output)
 const BASELINE_SMALL_HASH_NS: u64 = 500000; // 500 microseconds baseline (more realistic for K12)

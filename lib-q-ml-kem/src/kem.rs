@@ -1,18 +1,42 @@
 use core::marker::PhantomData;
+
 use hybrid_array::typenum::U32;
-use rand_core::{CryptoRng, RngCore};
-
-use crate::crypto::{G, H, J, rand};
-use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
-use crate::pke::{DecryptionKey, EncryptionKey};
-use crate::util::B32;
-use crate::{Encoded, EncodedSizeUser};
-
+use rand_core::{
+    CryptoRng,
+    RngCore,
+};
 #[cfg(feature = "zeroize")]
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{
+    Zeroize,
+    ZeroizeOnDrop,
+};
 
+use crate::crypto::{
+    G,
+    H,
+    J,
+    rand,
+};
+use crate::param::{
+    DecapsulationKeySize,
+    EncapsulationKeySize,
+    EncodedCiphertext,
+    KemParams,
+};
+use crate::pke::{
+    DecryptionKey,
+    EncryptionKey,
+};
+use crate::util::B32;
 // Re-export traits from our own implementation
-pub use crate::{Decapsulate, Encapsulate};
+pub use crate::{
+    Decapsulate,
+    Encapsulate,
+};
+use crate::{
+    Encoded,
+    EncodedSizeUser,
+};
 
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
@@ -107,7 +131,7 @@ where
             .iter()
             .zip(encapsulated_key.iter())
             .map(|(&x, &y)| constant_time_eq(x, y))
-            .fold(0xff, |x, y| x & y);
+            .fold(0xFF, |x, y| x & y);
         Ok(Kp
             .iter()
             .zip(Kbar.iter())
@@ -255,7 +279,13 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Decapsulate, Encapsulate, MlKem512Params, MlKem768Params, MlKem1024Params};
+    use crate::{
+        Decapsulate,
+        Encapsulate,
+        MlKem512Params,
+        MlKem768Params,
+        MlKem1024Params,
+    };
 
     fn round_trip_test<P>()
     where

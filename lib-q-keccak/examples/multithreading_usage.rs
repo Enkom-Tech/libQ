@@ -6,13 +6,16 @@
 //! Run with: cargo run --example multithreading_usage --features multithreading
 
 #[cfg(feature = "multithreading")]
-use keccak::{
-    CryptoThreadPool, ThreadingConfig, init_global_thread_pool, p1600_multithreaded,
-    process_keccak_states_global,
-};
+use std::time::Instant;
 
 #[cfg(feature = "multithreading")]
-use std::time::Instant;
+use keccak::{
+    CryptoThreadPool,
+    ThreadingConfig,
+    init_global_thread_pool,
+    p1600_multithreaded,
+    process_keccak_states_global,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     #[cfg(feature = "multithreading")]

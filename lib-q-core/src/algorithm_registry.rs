@@ -3,8 +3,17 @@
 //! This module provides a centralized registry of all supported algorithms,
 //! eliminating the need for manual enumeration and providing better maintainability.
 
-use crate::{Algorithm, AlgorithmCategory, Result};
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap as HashMap;
+#[cfg(feature = "std")]
+#[allow(clippy::disallowed_types)]
 use std::collections::HashMap;
+
+use crate::{
+    Algorithm,
+    AlgorithmCategory,
+    Result,
+};
 
 /// Algorithm metadata
 #[derive(Debug, Clone)]
@@ -19,6 +28,7 @@ pub struct AlgorithmMetadata {
 
 /// Central registry of all algorithms
 pub struct AlgorithmRegistry {
+    #[allow(clippy::disallowed_types)]
     algorithms: HashMap<Algorithm, AlgorithmMetadata>,
 }
 
@@ -26,6 +36,7 @@ impl AlgorithmRegistry {
     /// Create a new algorithm registry
     pub fn new() -> Self {
         let mut registry = Self {
+            #[allow(clippy::disallowed_types)]
             algorithms: HashMap::new(),
         };
         registry.register_all();
@@ -138,29 +149,29 @@ impl AlgorithmRegistry {
 
         // Signature algorithms
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Dilithium2,
+            algorithm: Algorithm::MlDsa44,
             category: AlgorithmCategory::Signature,
             security_level: 1,
-            name: "Dilithium2",
-            description: "CRYSTALS-Dilithium Level 1 (128-bit security)",
+            name: "MlDsa44",
+            description: "ML-DSA Level 1 (128-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Dilithium3,
+            algorithm: Algorithm::MlDsa65,
             category: AlgorithmCategory::Signature,
             security_level: 3,
-            name: "Dilithium3",
-            description: "CRYSTALS-Dilithium Level 3 (192-bit security)",
+            name: "MlDsa65",
+            description: "ML-DSA Level 3 (192-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Dilithium5,
+            algorithm: Algorithm::MlDsa87,
             category: AlgorithmCategory::Signature,
             security_level: 4,
-            name: "Dilithium5",
-            description: "CRYSTALS-Dilithium Level 4 (256-bit security)",
+            name: "MlDsa87",
+            description: "ML-DSA Level 4 (256-bit security)",
             enabled: true,
         });
 
@@ -234,6 +245,34 @@ impl AlgorithmRegistry {
             security_level: 4,
             name: "SPHINCS+-SHAKE256-256f-Robust",
             description: "SPHINCS+ SHAKE256 Level 4 (256-bit security)",
+            enabled: true,
+        });
+
+        // ML-DSA algorithms
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::MlDsa44,
+            category: AlgorithmCategory::Signature,
+            security_level: 1,
+            name: "ML-DSA-44",
+            description: "CRYSTALS-ML-DSA Level 1 (128-bit security)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::MlDsa65,
+            category: AlgorithmCategory::Signature,
+            security_level: 3,
+            name: "ML-DSA-65",
+            description: "CRYSTALS-ML-DSA Level 3 (192-bit security)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::MlDsa87,
+            category: AlgorithmCategory::Signature,
+            security_level: 4,
+            name: "ML-DSA-87",
+            description: "CRYSTALS-ML-DSA Level 4 (256-bit security)",
             enabled: true,
         });
 
@@ -371,34 +410,78 @@ impl AlgorithmRegistry {
 
     /// Register an algorithm
     fn register(&mut self, metadata: AlgorithmMetadata) {
-        self.algorithms.insert(metadata.algorithm.clone(), metadata);
+        self.algorithms.insert(metadata.algorithm, metadata);
     }
 
     /// Get all supported algorithms
+    #[cfg(feature = "alloc")]
     pub fn supported_algorithms(&self) -> Vec<Algorithm> {
         self.algorithms
             .values()
             .filter(|meta| meta.enabled)
-            .map(|meta| meta.algorithm.clone())
+            .map(|meta| meta.algorithm)
             .collect()
     }
 
+    #[cfg(not(feature = "alloc"))]
+    pub fn supported_algorithms(&self) -> &'static [Algorithm] {
+        // In no_std mode, return a static slice of enabled algorithms
+        static ALGORITHMS: &[Algorithm] = &[
+            Algorithm::MlKem512,
+            Algorithm::MlKem768,
+            Algorithm::MlKem1024,
+            Algorithm::MlDsa44,
+            Algorithm::MlDsa65,
+            Algorithm::MlDsa87,
+        ];
+        ALGORITHMS
+    }
+
     /// Get algorithms by category
+    #[cfg(feature = "alloc")]
     pub fn algorithms_by_category(&self, category: AlgorithmCategory) -> Vec<Algorithm> {
         self.algorithms
             .values()
             .filter(|meta| meta.enabled && meta.category == category)
-            .map(|meta| meta.algorithm.clone())
+            .map(|meta| meta.algorithm)
             .collect()
     }
 
+    #[cfg(not(feature = "alloc"))]
+    pub fn algorithms_by_category(&self, category: AlgorithmCategory) -> &'static [Algorithm] {
+        // In no_std mode, return a static slice based on category
+        match category {
+            AlgorithmCategory::Kem => &[
+                Algorithm::MlKem512,
+                Algorithm::MlKem768,
+                Algorithm::MlKem1024,
+            ],
+            AlgorithmCategory::Signature => {
+                &[Algorithm::MlDsa44, Algorithm::MlDsa65, Algorithm::MlDsa87]
+            }
+            AlgorithmCategory::Hash => &[],
+        }
+    }
+
     /// Get algorithms by security level
+    #[cfg(feature = "alloc")]
     pub fn algorithms_by_security_level(&self, level: u32) -> Vec<Algorithm> {
         self.algorithms
             .values()
             .filter(|meta| meta.enabled && meta.security_level == level)
-            .map(|meta| meta.algorithm.clone())
+            .map(|meta| meta.algorithm)
             .collect()
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    pub fn algorithms_by_security_level(&self, level: u32) -> &'static [Algorithm] {
+        // In no_std mode, return a static slice based on security level
+        match level {
+            1 => &[Algorithm::MlKem512, Algorithm::MlDsa44],
+            3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
+            4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87],
+            _ => &[],
+        }
     }
 
     /// Get algorithm metadata
@@ -420,9 +503,18 @@ impl AlgorithmRegistry {
             metadata.enabled = enabled;
             Ok(())
         } else {
-            Err(crate::Error::UnsupportedAlgorithm {
-                algorithm: format!("{:?}", algorithm),
-            })
+            #[cfg(feature = "alloc")]
+            {
+                Err(crate::Error::UnsupportedAlgorithm {
+                    algorithm: "unsupported algorithm".to_string(),
+                })
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                Err(crate::Error::UnsupportedAlgorithm {
+                    algorithm: "unsupported algorithm",
+                })
+            }
         }
     }
 }
@@ -444,17 +536,35 @@ pub fn registry() -> &'static AlgorithmRegistry {
 }
 
 /// Get all supported algorithms
+#[cfg(feature = "alloc")]
 pub fn supported_algorithms() -> Vec<Algorithm> {
     registry().supported_algorithms()
 }
 
+#[cfg(not(feature = "alloc"))]
+pub fn supported_algorithms() -> &'static [Algorithm] {
+    registry().supported_algorithms()
+}
+
 /// Get algorithms by category
+#[cfg(feature = "alloc")]
 pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
     registry().algorithms_by_category(category)
 }
 
+#[cfg(not(feature = "alloc"))]
+pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorithm] {
+    registry().algorithms_by_category(category)
+}
+
 /// Get algorithms by security level
+#[cfg(feature = "alloc")]
 pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
+    registry().algorithms_by_security_level(level)
+}
+
+#[cfg(not(feature = "alloc"))]
+pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
     registry().algorithms_by_security_level(level)
 }
 

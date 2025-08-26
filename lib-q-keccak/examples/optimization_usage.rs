@@ -4,13 +4,17 @@
 //! available in the keccak crate, including x86 SIMD optimizations,
 //! parallel processing, and advanced optimizations.
 
-use lib_q_keccak::{
-    FeatureConfig, OptimizationLevel, detection, fast_loop_absorb_optimized, get_global_config,
-    p1600_optimized, set_global_config,
-};
-
 #[cfg(feature = "simd")]
 use lib_q_keccak::parallel;
+use lib_q_keccak::{
+    FeatureConfig,
+    OptimizationLevel,
+    detection,
+    fast_loop_absorb_optimized,
+    get_global_config,
+    p1600_optimized,
+    set_global_config,
+};
 
 fn main() {
     println!("=== Keccak High-Impact Optimization Example ===\n");
@@ -28,7 +32,7 @@ fn main() {
     // 2. Basic Usage with Automatic Optimization
     println!("2. Basic Usage with Automatic Optimization:");
     let mut state = [0u64; 25];
-    state[0] = 0x1234567890abcdef;
+    state[0] = 0x1234567890ABCDEF;
 
     // Use the best available optimization automatically
     let best_level = OptimizationLevel::best_available();
@@ -99,7 +103,7 @@ fn main() {
 
         // Initialize states with different values
         for (i, state) in states.iter_mut().enumerate() {
-            state[0] = 0x1234567890abcdef + i as u64;
+            state[0] = 0x1234567890ABCDEF + i as u64;
         }
 
         // Process in parallel
@@ -206,7 +210,7 @@ mod tests {
     #[test]
     fn test_optimization_levels() {
         let mut state = [0u64; 25];
-        state[0] = 0x1234567890abcdef;
+        state[0] = 0x1234567890ABCDEF;
 
         for level in [
             OptimizationLevel::Reference,
@@ -239,7 +243,7 @@ mod tests {
 
         // Initialize states
         for (i, state) in states.iter_mut().enumerate() {
-            state[0] = 0x1234567890abcdef + i as u64;
+            state[0] = 0x1234567890ABCDEF + i as u64;
         }
 
         // Process in parallel
@@ -247,7 +251,7 @@ mod tests {
 
         // Verify all states changed
         for (i, state) in states.iter().enumerate() {
-            assert_ne!(state[0], 0x1234567890abcdef + i as u64);
+            assert_ne!(state[0], 0x1234567890ABCDEF + i as u64);
         }
     }
 }

@@ -1,22 +1,21 @@
 [package]
 name = "lib-q-kem"
-version = "0.0.1"
-edition = "2024"
-authors = ["lib-Q Contributors"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 description = "Post-quantum Key Encapsulation Mechanisms for lib-Q"
-license = "Apache-2.0"
-repository = "https://github.com/Enkom-Tech/libQ"
-homepage = "https://github.com/Enkom-Tech/libQ"
-documentation = "https://docs.rs/lib-q-kem"
 keywords = ["cryptography", "post-quantum", "kem", "ml-kem", "nist"]
 categories = ["cryptography", "wasm"]
-readme = "README.md"
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.1" }
+lib-q-core = { path = "../lib-q-core" }
 
 # RustCrypto ML-KEM implementation (FIPS 203 standard)
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.1", optional = true, default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = false }
 
 # Rand dependencies for the ml-kem feature
 rand = { version = "0.9.2", optional = true }
@@ -32,17 +31,17 @@ rand = "0.9.2"
 default = []
 # Enable ml-kem (FIPS 203 standard) with modern dependencies
 ml-kem = [
-	"dep:lib-q-ml-kem",
-	"rand",
-	"rand_core",
-	"lib-q-core/std",
+    "dep:lib-q-ml-kem",
+    "rand",
+    "rand_core",
+    "lib-q-core/std",
 ]
 
 # Enable WASM support
 wasm = [
-	"wasm-bindgen",
-	"ml-kem",
-	"lib-q-core/wasm",
+    "wasm-bindgen",
+    "ml-kem",
+    "lib-q-core/wasm",
 ]
 
 mceliece = []
@@ -56,6 +55,13 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

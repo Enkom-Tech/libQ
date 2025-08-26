@@ -130,7 +130,7 @@ pub fn create_zkp(algorithm: &str) -> Result<Box<dyn std::any::Any>> {
         "stark" => Ok(Box::new(ZkpProver::new())),
 
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: algorithm.to_string(),
+            algorithm: "Unknown ZKP algorithm",
         }),
     }
 }

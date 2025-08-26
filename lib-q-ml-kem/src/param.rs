@@ -11,20 +11,48 @@
 //! that the size of an encoded vector is `K` times the size of an encoded polynomial.
 
 use core::fmt::Debug;
-use core::ops::{Add, Div, Mul, Rem, Sub};
-
-use hybrid_array::{
-    Array,
-    typenum::{
-        Const, ToUInt, U0, U2, U3, U4, U6, U8, U12, U16, U32, U64, U384,
-        operator_aliases::{Gcf, Prod, Quot, Sum},
-        type_operators::Gcd,
-    },
+use core::ops::{
+    Add,
+    Div,
+    Mul,
+    Rem,
+    Sub,
 };
 
-use crate::algebra::{FieldElement, NttVector};
+use hybrid_array::Array;
+use hybrid_array::typenum::operator_aliases::{
+    Gcf,
+    Prod,
+    Quot,
+    Sum,
+};
+use hybrid_array::typenum::type_operators::Gcd;
+use hybrid_array::typenum::{
+    Const,
+    ToUInt,
+    U0,
+    U2,
+    U3,
+    U4,
+    U6,
+    U8,
+    U12,
+    U16,
+    U32,
+    U64,
+    U384,
+};
+
+use crate::algebra::{
+    FieldElement,
+    NttVector,
+};
 use crate::encode::Encode;
-use crate::util::{B32, Flatten, Unflatten};
+use crate::util::{
+    B32,
+    Flatten,
+    Unflatten,
+};
 
 /// An array length with other useful properties
 pub trait ArraySize: hybrid_array::ArraySize + PartialEq + Debug {}

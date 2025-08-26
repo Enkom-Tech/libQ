@@ -22,7 +22,8 @@
 //!
 //! ```
 //! # use lib_q_ml_kem::*;
-//! # use lib_q_ml_kem::{Decapsulate, Encapsulate};
+//! # use lib_q_ml_kem::{Encapsulate, Decapsulate};
+//! # use rand::prelude::*;
 //! let mut rng = rand::rng();
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair
@@ -66,13 +67,19 @@ pub mod kem;
 mod param;
 
 use core::fmt::Debug;
-use hybrid_array::{
-    Array,
-    typenum::{U2, U3, U4, U5, U10, U11, Unsigned},
-};
-use rand_core::CryptoRng;
 
 pub use hybrid_array as array;
+use hybrid_array::Array;
+use hybrid_array::typenum::{
+    U2,
+    U3,
+    U4,
+    U5,
+    U10,
+    U11,
+    Unsigned,
+};
+use rand_core::CryptoRng;
 
 /// A value that can be encapsulated to. Often, this will just be a public key. However, it can
 /// also be a bundle of public keys, or it can include a sender's private key for authenticated
@@ -107,10 +114,12 @@ pub trait Decapsulate<EK, SS> {
     fn decapsulate(&self, encapsulated_key: &EK) -> Result<SS, Self::Error>;
 }
 
+pub use param::{
+    ArraySize,
+    ParameterSet,
+};
 #[cfg(feature = "deterministic")]
 pub use util::B32;
-
-pub use param::{ArraySize, ParameterSet};
 
 /// An object that knows what size it is
 pub trait EncodedSizeUser {

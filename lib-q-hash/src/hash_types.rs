@@ -1,13 +1,41 @@
 //! Hash wrapper types that implement the lib-q-core Hash trait
 
-use crate::{
-    CShake128, CShake256, KangarooTwelve, Keccak224, Keccak256, Keccak384, Keccak512, Kmac128,
-    Kmac256, ParallelHash128, ParallelHash256, Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128,
-    Shake256, TupleHash128, TupleHash256,
-};
 use alloc::vec::Vec;
-use digest::{CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset, Update, XofReader};
-use lib_q_core::{Hash, Result};
+
+use digest::{
+    CustomizedInit,
+    Digest,
+    ExtendableOutput,
+    ExtendableOutputReset,
+    Update,
+    XofReader,
+};
+use lib_q_core::{
+    Hash,
+    Result,
+};
+
+use crate::{
+    CShake128,
+    CShake256,
+    KangarooTwelve,
+    Keccak224,
+    Keccak256,
+    Keccak384,
+    Keccak512,
+    Kmac128,
+    Kmac256,
+    ParallelHash128,
+    ParallelHash256,
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+    Shake128,
+    Shake256,
+    TupleHash128,
+    TupleHash256,
+};
 
 /// Wrapper for cSHAKE128 that implements lib-q-core Hash trait
 #[derive(Debug, Clone)]

@@ -3,7 +3,12 @@
 //! This crate provides implementations of post-quantum authenticated encryption.
 
 // Re-export core types for public use
-pub use lib_q_core::{Aead, AeadKey, Nonce, Result};
+pub use lib_q_core::{
+    Aead,
+    AeadKey,
+    Nonce,
+    Result,
+};
 
 /// KEM-based AEAD construction
 // pub mod kem_aead; // TODO: Implement
@@ -14,10 +19,10 @@ pub fn available_algorithms() -> Vec<&'static str> {
 }
 
 /// Create an AEAD instance by algorithm name
-pub fn create_aead(algorithm: &str) -> Result<Box<dyn Aead>> {
+pub fn create_aead(_algorithm: &str) -> Result<Box<dyn Aead>> {
     // "kem-aead" => Ok(Box::new(kem_aead::KemAead::new())), // TODO: Implement
     Err(lib_q_core::Error::InvalidAlgorithm {
-        algorithm: algorithm.to_string(),
+        algorithm: "Unknown AEAD algorithm",
     })
 }
 

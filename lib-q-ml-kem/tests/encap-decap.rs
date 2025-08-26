@@ -1,10 +1,11 @@
 #![cfg(feature = "deterministic")]
 
-use ml_kem::*;
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use ::kem::Decapsulate;
 use hybrid_array::Array;
-use std::{fs::read_to_string, path::PathBuf};
+use ml_kem::*;
 
 #[test]
 fn acvp_encap_decap() {
@@ -66,7 +67,10 @@ fn verify_decap<K: KemCore>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
 }
 
 mod acvp {
-    use serde::{Deserialize, Serialize};
+    use serde::{
+        Deserialize,
+        Serialize,
+    };
 
     #[derive(Deserialize, Serialize)]
     pub struct TestVectorFile {

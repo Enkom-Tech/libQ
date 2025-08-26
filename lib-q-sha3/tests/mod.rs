@@ -1,4 +1,7 @@
-use digest::dev::{fixed_reset_test, xof_reset_test};
+use digest::dev::{
+    fixed_reset_test,
+    xof_reset_test,
+};
 use digest::new_test;
 
 // Known Answer Tests (KAT) using official test vectors

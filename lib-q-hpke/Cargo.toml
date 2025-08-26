@@ -1,0 +1,57 @@
+[package]
+name = "lib-q-hpke"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "HPKE implementation for lib-q"
+keywords = ["cryptography", "post-quantum", "hpke", "kem"]
+categories = ["cryptography"]
+publish = false
+
+[lib]
+name = "lib_q_hpke"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
+
+# Post-quantum dependencies only
+rand_core = { version = "0.9", default-features = false }
+rand_chacha = { version = "0.9", default-features = false }
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+
+# Post-quantum hash functions for HKDF
+lib-q-hash = { path = "../lib-q-hash", optional = true }
+
+# Post-quantum AEADs
+lib-q-ascon = { path = "../lib-q-ascon", optional = true }
+
+[features]
+default = ["alloc", "ml-kem", "ascon", "hash"]
+std = ["alloc", "lib-q-core/std", "rand_core/std"]
+alloc = ["lib-q-core/alloc"]
+
+# Post-quantum algorithm support
+ml-kem = ["dep:lib-q-ml-kem"]
+ml-dsa = ["dep:lib-q-ml-dsa"]
+hash = ["dep:lib-q-hash"]
+ascon = ["dep:lib-q-ascon"]
+
+# Testing
+hpke-test = ["std"]
+
+[dev-dependencies]
+rand = "0.9"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)', 'cfg(docsrs)'] }

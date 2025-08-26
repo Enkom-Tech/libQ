@@ -7,11 +7,17 @@
 //! These tests verify that KangarooTwelve operations execute in constant time
 //! to prevent timing-based side-channel attacks.
 
-use lib_q_k12::{
-    KangarooTwelve,
-    digest::{ExtendableOutput, Reset, Update},
+use std::time::{
+    Duration,
+    Instant,
 };
-use std::time::{Duration, Instant};
+
+use lib_q_k12::KangarooTwelve;
+use lib_q_k12::digest::{
+    ExtendableOutput,
+    Reset,
+    Update,
+};
 
 const ITERATIONS: usize = 1000;
 

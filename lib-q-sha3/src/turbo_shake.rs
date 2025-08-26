@@ -1,12 +1,36 @@
-use crate::{Sha3HasherCore, Sha3ReaderCore};
 use core::fmt;
+
+use digest::block_api::{
+    AlgorithmName,
+    BlockSizeUser,
+    ExtendableOutputCore,
+    Reset,
+    UpdateCore,
+    XofReaderCore,
+};
+use digest::block_buffer::{
+    EagerBuffer,
+    ReadBuffer,
+};
+use digest::consts::{
+    U0,
+    U16,
+    U32,
+    U136,
+    U168,
+};
 use digest::{
-    CollisionResistance, ExtendableOutput, ExtendableOutputReset, HashMarker, Update, XofReader,
-    block_api::{
-        AlgorithmName, BlockSizeUser, ExtendableOutputCore, Reset, UpdateCore, XofReaderCore,
-    },
-    block_buffer::{EagerBuffer, ReadBuffer},
-    consts::{U0, U16, U32, U136, U168},
+    CollisionResistance,
+    ExtendableOutput,
+    ExtendableOutputReset,
+    HashMarker,
+    Update,
+    XofReader,
+};
+
+use crate::{
+    Sha3HasherCore,
+    Sha3ReaderCore,
 };
 
 const TURBO_SHAKE_ROUND_COUNT: usize = 12;

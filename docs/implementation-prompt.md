@@ -75,13 +75,13 @@ You are implementing actual cryptographic algorithms for the lib-Q post-quantum 
    - Performance benchmarks
    - Constant-time verification
 
-### Phase 3: Dilithium2 (Digital Signatures)
-**File**: `lib-q-sig/src/dilithium.rs`
+### Phase 3: ML-DSA (Digital Signatures)
+**File**: `lib-q-sig/src/ml_dsa.rs`
 **Priority**: High - Primary signature scheme
 **Dependencies**: SHAKE256 (Phase 1)
 
 #### Requirements
-1. **Implement CRYSTALS-Dilithium Level 2 according to NIST PQC specification**
+1. **Implement CRYSTALS-ML-DSA according to NIST FIPS 204 specification**
    - Polynomial operations in R_q
    - Rejection sampling for security
    - Proper challenge generation
@@ -248,7 +248,7 @@ cargo doc --no-deps --open
    - Depends on SHAKE256
    - All quality gates must pass
 
-3. **Dilithium2** (`lib-q-sig/src/dilithium.rs`)
+3. **ML-DSA** (`lib-q-sig/src/ml_dsa.rs`)
    - Primary signature algorithm
    - Depends on SHAKE256
    - All quality gates must pass
@@ -288,7 +288,7 @@ cargo doc --no-deps --open
 
 - NIST FIPS 202 (SHAKE256): https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
 - NIST PQC ML-Kem: https://pq-crystals.org/ml_kem/
-- NIST PQC Dilithium: https://pq-crystals.org/dilithium/
+- NIST FIPS 204 (ML-DSA): https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf
 - Rust Cryptography Guidelines: https://github.com/rust-lang/rfcs/blob/master/text/0235-unsafe-code-guidelines.md
 
 Remember: This is production cryptography code. Every line must be written with security in mind. When in doubt, prioritize security over performance or convenience.

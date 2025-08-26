@@ -7,11 +7,14 @@
 //! These tests verify that KangarooTwelve maintains essential cryptographic
 //! security properties and handles edge cases correctly.
 
-use lib_q_k12::{
-    KangarooTwelve,
-    digest::{ExtendableOutput, Reset, Update},
-};
 use std::collections::HashSet;
+
+use lib_q_k12::KangarooTwelve;
+use lib_q_k12::digest::{
+    ExtendableOutput,
+    Reset,
+    Update,
+};
 
 /// Test that identical inputs always produce identical outputs (determinism)
 #[test]

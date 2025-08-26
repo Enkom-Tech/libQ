@@ -3,11 +3,18 @@
 //! These tests validate the KangarooTwelve implementation against known test vectors
 //! loaded from external JSON files, following cryptographic testing best practices.
 
-use lib_q_k12::{
-    KangarooTwelve, KangarooTwelve256,
-    digest::{ExtendableOutput, Update},
+use lib_q_k12::digest::{
+    ExtendableOutput,
+    Update,
 };
-use serde::{Deserialize, Serialize};
+use lib_q_k12::{
+    KangarooTwelve,
+    KangarooTwelve256,
+};
+use serde::{
+    Deserialize,
+    Serialize,
+};
 
 /// KangarooTwelve test vector from JSON file
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -257,8 +264,8 @@ fn test_kt128_pattern_message_vectors() {
     let test_vectors = load_kt128_test_vectors();
 
     for vector in &test_vectors.vectors {
-        if vector.description.contains("pattern 0x00 to 0xFA")
-            && !vector.description.contains("0xFF bytes")
+        if vector.description.contains("pattern 0x00 to 0xFA") &&
+            !vector.description.contains("0xFF bytes")
         {
             vector.run_test_kt128();
         }
@@ -270,8 +277,8 @@ fn test_kt256_pattern_message_vectors() {
     let test_vectors = load_kt256_test_vectors();
 
     for vector in &test_vectors.vectors {
-        if vector.description.contains("pattern 0x00 to 0xFA")
-            && !vector.description.contains("0xFF bytes")
+        if vector.description.contains("pattern 0x00 to 0xFA") &&
+            !vector.description.contains("0xFF bytes")
         {
             vector.run_test_kt256();
         }

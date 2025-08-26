@@ -1,13 +1,32 @@
 use core::fmt;
-use digest::{
-    ExtendableOutputReset, HashMarker, Reset, Update, XofReader,
-    block_api::{
-        Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore, UpdateCore,
-        XofReaderCore,
-    },
-    consts::{U128, U168},
+
+use digest::block_api::{
+    Block,
+    BlockSizeUser,
+    Buffer,
+    BufferKindUser,
+    Eager,
+    ExtendableOutputCore,
+    UpdateCore,
+    XofReaderCore,
 };
-use lib_q_sha3::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
+use digest::consts::{
+    U128,
+    U168,
+};
+use digest::{
+    ExtendableOutputReset,
+    HashMarker,
+    Reset,
+    Update,
+    XofReader,
+};
+use lib_q_sha3::{
+    TurboShake128,
+    TurboShake128Reader,
+    TurboShake256,
+    TurboShake256Reader,
+};
 
 const CHUNK_SIZE: usize = 8192;
 const CHAINING_VALUE_SIZE: usize = 32;
@@ -208,7 +227,7 @@ impl ExtendableOutputCore for KangarooTwelveCore<'_> {
         // Pad final node calculation
         self.final_tshk
             .update(length_encode(self.chain_length, &mut lenbuf));
-        self.final_tshk.update(&[0xff, 0xff]);
+        self.final_tshk.update(&[0xFF, 0xFF]);
 
         KangarooTwelveReaderCore {
             reader: self.final_tshk.finalize_xof_reset(),
@@ -260,7 +279,7 @@ impl ExtendableOutputCore for KangarooTwelve256Core<'_> {
         // Pad final node calculation
         self.final_tshk
             .update(length_encode(self.chain_length, &mut lenbuf));
-        self.final_tshk.update(&[0xff, 0xff]);
+        self.final_tshk.update(&[0xFF, 0xFF]);
 
         KangarooTwelve256ReaderCore {
             reader: self.final_tshk.finalize_xof_reset(),

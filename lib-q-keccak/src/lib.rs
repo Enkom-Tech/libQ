@@ -11,26 +11,68 @@
 //! let mut data = [0u64; 25];
 //!
 //! lib_q_keccak::f1600(&mut data);
-//! assert_eq!(data, [
-//!     0xF1258F7940E1DDE7, 0x84D5CCF933C0478A, 0xD598261EA65AA9EE, 0xBD1547306F80494D,
-//!     0x8B284E056253D057, 0xFF97A42D7F8E6FD4, 0x90FEE5A0A44647C4, 0x8C5BDA0CD6192E76,
-//!     0xAD30A6F71B19059C, 0x30935AB7D08FFC64, 0xEB5AA93F2317D635, 0xA9A6E6260D712103,
-//!     0x81A57C16DBCF555F, 0x43B831CD0347C826, 0x01F22F1A11A5569F, 0x05E5635A21D9AE61,
-//!     0x64BEFEF28CC970F2, 0x613670957BC46611, 0xB87C5A554FD00ECB, 0x8C3EE88A1CCF32C8,
-//!     0x940C7922AE3A2614, 0x1841F924A2C509E4, 0x16F53526E70465C2, 0x75F644E97F30A13B,
-//!     0xEAF1FF7B5CECA249,
-//! ]);
+//! assert_eq!(
+//!     data,
+//!     [
+//!         0xF1258F7940E1DDE7,
+//!         0x84D5CCF933C0478A,
+//!         0xD598261EA65AA9EE,
+//!         0xBD1547306F80494D,
+//!         0x8B284E056253D057,
+//!         0xFF97A42D7F8E6FD4,
+//!         0x90FEE5A0A44647C4,
+//!         0x8C5BDA0CD6192E76,
+//!         0xAD30A6F71B19059C,
+//!         0x30935AB7D08FFC64,
+//!         0xEB5AA93F2317D635,
+//!         0xA9A6E6260D712103,
+//!         0x81A57C16DBCF555F,
+//!         0x43B831CD0347C826,
+//!         0x01F22F1A11A5569F,
+//!         0x05E5635A21D9AE61,
+//!         0x64BEFEF28CC970F2,
+//!         0x613670957BC46611,
+//!         0xB87C5A554FD00ECB,
+//!         0x8C3EE88A1CCF32C8,
+//!         0x940C7922AE3A2614,
+//!         0x1841F924A2C509E4,
+//!         0x16F53526E70465C2,
+//!         0x75F644E97F30A13B,
+//!         0xEAF1FF7B5CECA249,
+//!     ]
+//! );
 //!
 //! lib_q_keccak::f1600(&mut data);
-//! assert_eq!(data, [
-//!     0x2D5C954DF96ECB3C, 0x6A332CD07057B56D, 0x093D8D1270D76B6C, 0x8A20D9B25569D094,
-//!     0x4F9C4F99E5E7F156, 0xF957B9A2DA65FB38, 0x85773DAE1275AF0D, 0xFAF4F247C3D810F7,
-//!     0x1F1B9EE6F79A8759, 0xE4FECC0FEE98B425, 0x68CE61B6B9CE68A1, 0xDEEA66C4BA8F974F,
-//!     0x33C43D836EAFB1F5, 0xE00654042719DBD9, 0x7CF8A9F009831265, 0xFD5449A6BF174743,
-//!     0x97DDAD33D8994B40, 0x48EAD5FC5D0BE774, 0xE3B8C8EE55B7B03C, 0x91A0226E649E42E9,
-//!     0x900E3129E7BADD7B, 0x202A9EC5FAA3CCE8, 0x5B3402464E1C3DB6, 0x609F4E62A44C1059,
-//!     0x20D06CD26A8FBF5C,
-//! ]);
+//! assert_eq!(
+//!     data,
+//!     [
+//!         0x2D5C954DF96ECB3C,
+//!         0x6A332CD07057B56D,
+//!         0x093D8D1270D76B6C,
+//!         0x8A20D9B25569D094,
+//!         0x4F9C4F99E5E7F156,
+//!         0xF957B9A2DA65FB38,
+//!         0x85773DAE1275AF0D,
+//!         0xFAF4F247C3D810F7,
+//!         0x1F1B9EE6F79A8759,
+//!         0xE4FECC0FEE98B425,
+//!         0x68CE61B6B9CE68A1,
+//!         0xDEEA66C4BA8F974F,
+//!         0x33C43D836EAFB1F5,
+//!         0xE00654042719DBD9,
+//!         0x7CF8A9F009831265,
+//!         0xFD5449A6BF174743,
+//!         0x97DDAD33D8994B40,
+//!         0x48EAD5FC5D0BE774,
+//!         0xE3B8C8EE55B7B03C,
+//!         0x91A0226E649E42E9,
+//!         0x900E3129E7BADD7B,
+//!         0x202A9EC5FAA3CCE8,
+//!         0x5B3402464E1C3DB6,
+//!         0x609F4E62A44C1059,
+//!         0x20D06CD26A8FBF5C,
+//!     ]
+//! );
 //! ```
 //!
 //! [1]: https://docs.rs/sha3
@@ -53,10 +95,14 @@
     unused_qualifications
 )]
 
-use core::{
-    fmt::Debug,
-    mem::size_of,
-    ops::{BitAnd, BitAndAssign, BitXor, BitXorAssign, Not},
+use core::fmt::Debug;
+use core::mem::size_of;
+use core::ops::{
+    BitAnd,
+    BitAndAssign,
+    BitXor,
+    BitXorAssign,
+    Not,
 };
 
 #[rustfmt::skip]
@@ -93,24 +139,24 @@ const PI: [usize; 24] = [
 const RC: [u64; 24] = [
     0x0000000000000001,
     0x0000000000008082,
-    0x800000000000808a,
+    0x800000000000808A,
     0x8000000080008000,
-    0x000000000000808b,
+    0x000000000000808B,
     0x0000000080000001,
     0x8000000080008081,
     0x8000000000008009,
-    0x000000000000008a,
+    0x000000000000008A,
     0x0000000000000088,
     0x0000000080008009,
-    0x000000008000000a,
-    0x000000008000808b,
-    0x800000000000008b,
+    0x000000008000000A,
+    0x000000008000808B,
+    0x800000000000008B,
     0x8000000000008089,
     0x8000000000008003,
     0x8000000000008002,
     0x8000000000000080,
-    0x000000000000800a,
-    0x800000008000000a,
+    0x000000000000800A,
+    0x800000008000000A,
     0x8000000080008081,
     0x8000000000008080,
     0x0000000080000001,
@@ -214,8 +260,17 @@ pub fn f1600(state: &mut [u64; PLEN]) {
 #[cfg(feature = "simd")]
 /// SIMD implementations for Keccak-f1600 sponge function
 pub mod simd {
-    use crate::{LaneSize, PLEN, keccak_p};
-    pub use core::simd::{u64x2, u64x4, u64x8};
+    pub use core::simd::{
+        u64x2,
+        u64x4,
+        u64x8,
+    };
+
+    use crate::{
+        LaneSize,
+        PLEN,
+        keccak_p,
+    };
 
     macro_rules! impl_lanesize_simd_u64xn {
         ($type:ty) => {
@@ -307,7 +362,11 @@ pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{LaneSize, PLEN, keccak_p};
+    use crate::{
+        LaneSize,
+        PLEN,
+        keccak_p,
+    };
 
     fn keccak_f<L: LaneSize>(state_first: [L; PLEN], state_second: [L; PLEN]) {
         let mut state = [L::default(); PLEN];
@@ -437,8 +496,13 @@ mod tests {
 
     #[cfg(feature = "simd")]
     mod simd {
+        use core::simd::{
+            u64x2,
+            u64x4,
+            u64x8,
+        };
+
         use super::keccak_f;
-        use core::simd::{u64x2, u64x4, u64x8};
 
         macro_rules! impl_keccak_f1600xn {
             ($name:ident, $type:ty) => {
@@ -513,23 +577,30 @@ mod tests {
 }
 
 // Re-export optimized functions
-pub use crate::optimized_core::{OptimizationLevel, fast_loop_absorb_optimized, p1600_optimized};
-
-#[cfg(feature = "simd")]
-pub use crate::optimized_core::parallel;
-
-#[cfg(all(feature = "multithreading", feature = "std"))]
-pub use crate::optimized_core::parallel::p1600_multithreaded;
-
 // Re-export feature configuration
-pub use crate::features::detection;
 pub use crate::features::{
-    FeatureConfig, FeatureReport, get_global_config, reset_global_config, set_global_config,
+    FeatureConfig,
+    FeatureReport,
+    detection,
+    get_global_config,
+    reset_global_config,
+    set_global_config,
 };
-
 // Re-export multi-threading functionality
 #[cfg(all(feature = "multithreading", feature = "std"))]
 pub use crate::multithreading::{
-    CryptoThreadPool, ThreadingConfig, get_global_thread_pool, init_global_thread_pool,
+    CryptoThreadPool,
+    ThreadingConfig,
+    get_global_thread_pool,
+    init_global_thread_pool,
     process_keccak_states_global,
+};
+#[cfg(feature = "simd")]
+pub use crate::optimized_core::parallel;
+#[cfg(all(feature = "multithreading", feature = "std"))]
+pub use crate::optimized_core::parallel::p1600_multithreaded;
+pub use crate::optimized_core::{
+    OptimizationLevel,
+    fast_loop_absorb_optimized,
+    p1600_optimized,
 };

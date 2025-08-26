@@ -2,7 +2,11 @@
 //!
 //! TODO: Implement actual SPHINCS+ functionality
 
-use lib_q_core::{Result, SigKeypair, Signature};
+use lib_q_core::{
+    Result,
+    SigKeypair,
+    Signature,
+};
 
 /// SPHINCS+ signature implementation
 pub struct Sphincs;

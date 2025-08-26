@@ -2,14 +2,27 @@
 //!
 //! This crate provides implementations of post-quantum digital signature schemes.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unsafe_code)]
+#![deny(unused_qualifications)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 // Re-export core types for public use
 pub use lib_q_core::{
-    Algorithm, Result, SigKeypair, SigPublicKey, SigSecretKey, Signature, SignatureContext,
+    Algorithm,
+    Result,
+    SigKeypair,
+    SigPublicKey,
+    SigSecretKey,
+    Signature,
+    SignatureContext,
 };
 
-/// CRYSTALS-Dilithium implementation
-#[cfg(feature = "dilithium")]
-pub mod dilithium;
+/// CRYSTALS-ML-DSA implementation
+#[cfg(feature = "ml-dsa")]
+pub mod ml_dsa;
 
 /// Falcon implementation
 #[cfg(feature = "falcon")]
@@ -20,24 +33,41 @@ pub mod falcon;
 pub mod sphincs;
 
 /// Get available signature algorithms
+#[cfg(feature = "std")]
 pub fn available_algorithms() -> Vec<&'static str> {
-    let algorithms = vec![
-        #[cfg(feature = "dilithium")]
-        "dilithium",
+    vec![
+        #[cfg(feature = "ml-dsa")]
+        "ml-dsa",
         #[cfg(feature = "falcon")]
         "falcon",
         #[cfg(feature = "sphincs")]
         "sphincs",
-    ];
+    ]
+}
 
-    algorithms
+/// Get available signature algorithms (no_std version)
+#[cfg(not(feature = "std"))]
+pub fn available_algorithms() -> &'static [&'static str] {
+    &[
+        #[cfg(feature = "ml-dsa")]
+        "ml-dsa",
+        #[cfg(feature = "falcon")]
+        "falcon",
+        #[cfg(feature = "sphincs")]
+        "sphincs",
+    ]
 }
 
 /// Create a signature instance by algorithm name
+#[cfg(feature = "std")]
 pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
     match algorithm {
-        #[cfg(feature = "dilithium")]
-        "dilithium" => Ok(Box::new(dilithium::Dilithium::new())),
+        #[cfg(feature = "ml-dsa")]
+        "ml-dsa" | "mldsa65" => Ok(Box::new(ml_dsa::MlDsa::ml_dsa_65())),
+        #[cfg(feature = "ml-dsa")]
+        "mldsa44" => Ok(Box::new(ml_dsa::MlDsa::ml_dsa_44())),
+        #[cfg(feature = "ml-dsa")]
+        "mldsa87" => Ok(Box::new(ml_dsa::MlDsa::ml_dsa_87())),
 
         #[cfg(feature = "falcon")]
         "falcon" => Ok(Box::new(falcon::Falcon::new())),
@@ -45,9 +75,11 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         #[cfg(feature = "sphincs")]
         "sphincs" => Ok(Box::new(sphincs::Sphincs::new())),
 
-        _ => Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: algorithm.to_string(),
-        }),
+        _ => {
+            return Err(lib_q_core::Error::InvalidAlgorithm {
+                algorithm: "Unknown algorithm",
+            });
+        }
     }
 }
 
@@ -56,7 +88,7 @@ pub fn create_signature_context(algorithm: Algorithm) -> Result<SignatureContext
     // Validate that this is a signature algorithm
     if algorithm.category() != lib_q_core::AlgorithmCategory::Signature {
         return Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: format!("{algorithm:?} is not a signature algorithm"),
+            algorithm: "Algorithm is not a signature algorithm",
         });
     }
 
@@ -76,9 +108,26 @@ mod tests {
 
     #[test]
     fn test_create_signature_context() {
-        let mut ctx = create_signature_context(Algorithm::Dilithium2).unwrap();
-        // Context is created successfully
-        assert!(ctx.generate_keypair(Algorithm::Dilithium2).is_ok());
+        // Test that context creation works for valid signature algorithms
+        let result = create_signature_context(Algorithm::MlDsa65);
+        assert!(
+            result.is_ok(),
+            "Context creation should succeed for valid signature algorithm"
+        );
+
+        // The context itself doesn't have providers - those are set up by the main lib-q crate
+        // This test just verifies the basic context creation and structure
+        let mut ctx = result.unwrap();
+
+        // Without a provider, keypair generation should return NotImplemented
+        let keypair_result = ctx.generate_keypair(Algorithm::MlDsa65);
+        assert!(
+            keypair_result.is_err(),
+            "Keypair generation should fail without provider"
+        );
+        if let Err(err) = keypair_result {
+            assert!(matches!(err, lib_q_core::Error::NotImplemented { .. }));
+        }
     }
 
     #[test]

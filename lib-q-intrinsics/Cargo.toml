@@ -1,0 +1,40 @@
+[package]
+name = "lib-q-intrinsics"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "SIMD intrinsics for lib-Q cryptographic operations"
+keywords = ["cryptography", "intrinsics", "simd", "avx2", "neon"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+lib-q-platform = { path = "../lib-q-platform" }
+
+[features]
+default = []
+simd128 = []
+simd256 = []
+simd512 = []
+
+[lib]
+name = "lib_q_intrinsics"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(simd512)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

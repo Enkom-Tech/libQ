@@ -7,7 +7,10 @@ use core::fmt;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{string::String, vec::Vec};
+use alloc::{
+    string::String,
+    vec::Vec,
+};
 
 /// The error type for lib-Q operations
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,9 +38,6 @@ pub enum Error {
     InvalidHashSize { expected: usize, actual: usize },
 
     /// Invalid algorithm
-    #[cfg(feature = "alloc")]
-    InvalidAlgorithm { algorithm: String },
-    #[cfg(not(feature = "alloc"))]
     InvalidAlgorithm { algorithm: &'static str },
 
     /// Invalid security level
@@ -78,6 +78,12 @@ pub enum Error {
     RandomGenerationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     RandomGenerationFailed { operation: &'static str },
+
+    /// Signing failed
+    #[cfg(feature = "alloc")]
+    SigningFailed { operation: String },
+    #[cfg(not(feature = "alloc"))]
+    SigningFailed { operation: &'static str },
 
     /// Memory allocation failed
     #[cfg(feature = "alloc")]
@@ -182,6 +188,9 @@ impl fmt::Display for Error {
             Error::RandomGenerationFailed { operation } => {
                 write!(f, "Random generation failed: {operation}")
             }
+            Error::SigningFailed { operation } => {
+                write!(f, "Signing failed: {operation}")
+            }
             Error::MemoryAllocationFailed { operation } => {
                 write!(f, "Memory allocation failed: {operation}")
             }
@@ -238,6 +247,7 @@ impl Error {
             Error::DecryptionFailed { .. } => "DecryptionFailed".to_string(),
             Error::KeyGenerationFailed { .. } => "KeyGenerationFailed".to_string(),
             Error::RandomGenerationFailed { .. } => "RandomGenerationFailed".to_string(),
+            Error::SigningFailed { .. } => "SigningFailed".to_string(),
             Error::MemoryAllocationFailed { .. } => "MemoryAllocationFailed".to_string(),
             Error::InternalError { .. } => "InternalError".to_string(),
             Error::NotImplemented { .. } => "NotImplemented".to_string(),

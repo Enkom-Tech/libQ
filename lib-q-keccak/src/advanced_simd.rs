@@ -3,10 +3,19 @@
 //! This module provides parallel processing and advanced SIMD optimizations
 //! that require nightly Rust features like `portable_simd`.
 
+use core::mem::size_of;
 #[cfg(feature = "simd")]
-use core::simd::{u64x2, u64x4, u64x8};
+use core::simd::{
+    u64x2,
+    u64x4,
+    u64x8,
+};
 
-use crate::{LaneSize, PLEN, keccak_p};
+use crate::{
+    LaneSize,
+    PLEN,
+    keccak_p,
+};
 
 /// Advanced SIMD lane size trait for parallel processing
 #[cfg(feature = "simd")]
@@ -28,7 +37,7 @@ impl AdvancedLaneSize for u64x2 {
     fn fast_parallel_absorb(state: &mut [Self; PLEN], data: &[u8]) -> usize {
         // Optimized absorption for u64x2 parallel processing
         let mut offset = 0;
-        let lane_size = core::mem::size_of::<u64x2>();
+        let lane_size = size_of::<u64x2>();
 
         while offset + lane_size <= data.len() {
             // Process 2 lanes in parallel
@@ -77,7 +86,7 @@ impl AdvancedLaneSize for u64x4 {
     fn fast_parallel_absorb(state: &mut [Self; PLEN], data: &[u8]) -> usize {
         // Optimized absorption for u64x4 parallel processing
         let mut offset = 0;
-        let lane_size = core::mem::size_of::<u64x4>();
+        let lane_size = size_of::<u64x4>();
 
         while offset + lane_size <= data.len() {
             // Process 4 lanes in parallel
@@ -146,7 +155,7 @@ impl AdvancedLaneSize for u64x8 {
     fn fast_parallel_absorb(state: &mut [Self; PLEN], data: &[u8]) -> usize {
         // Optimized absorption for u64x8 parallel processing
         let mut offset = 0;
-        let lane_size = core::mem::size_of::<u64x8>();
+        let lane_size = size_of::<u64x8>();
 
         while offset + lane_size <= data.len() {
             // Process 8 lanes in parallel
@@ -255,6 +264,7 @@ pub mod parallel {
         let mut simd_states = [u64x2::splat(0); 25];
 
         // Convert to SIMD format
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             simd_states[i] = u64x2::from_array([states[0][i], states[1][i]]);
         }
@@ -263,6 +273,7 @@ pub mod parallel {
         u64x2::parallel_keccak_p(&mut simd_states, 24);
 
         // Convert back
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             let result = simd_states[i].to_array();
             states[0][i] = result[0];
@@ -275,6 +286,7 @@ pub mod parallel {
         let mut simd_states = [u64x4::splat(0); 25];
 
         // Convert to SIMD format
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             simd_states[i] =
                 u64x4::from_array([states[0][i], states[1][i], states[2][i], states[3][i]]);
@@ -284,6 +296,7 @@ pub mod parallel {
         u64x4::parallel_keccak_p(&mut simd_states, 24);
 
         // Convert back
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             let result = simd_states[i].to_array();
             states[0][i] = result[0];
@@ -298,6 +311,7 @@ pub mod parallel {
         let mut simd_states = [u64x8::splat(0); 25];
 
         // Convert to SIMD format
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             simd_states[i] = u64x8::from_array([
                 states[0][i],
@@ -315,6 +329,7 @@ pub mod parallel {
         u64x8::parallel_keccak_p(&mut simd_states, 24);
 
         // Convert back
+        #[allow(clippy::needless_range_loop)]
         for i in 0..25 {
             let result = simd_states[i].to_array();
             for j in 0..8 {
@@ -398,15 +413,15 @@ mod tests {
         let mut states = [[0u64; 25], [0u64; 25]];
 
         // Initialize with test data
-        states[0][0] = 0x1234567890abcdef;
-        states[1][0] = 0xfedcba0987654321;
+        states[0][0] = 0x1234567890ABCDEF;
+        states[1][0] = 0xFEDCBA0987654321;
 
         // Test parallel processing
         parallel::p1600_parallel_2x(&mut states);
 
         // Verify both states changed
-        assert_ne!(states[0][0], 0x1234567890abcdef);
-        assert_ne!(states[1][0], 0xfedcba0987654321);
+        assert_ne!(states[0][0], 0x1234567890ABCDEF);
+        assert_ne!(states[1][0], 0xFEDCBA0987654321);
     }
 
     #[test]

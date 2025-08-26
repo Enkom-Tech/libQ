@@ -133,7 +133,26 @@ lib-Q/
 
 ## Development Status
 
-**Planning Phase** - Architecture and algorithm selection complete
+**Active Development** - Core cryptographic algorithms implemented and integrated
+
+### Implemented Features
+- ✅ **ML-DSA** (44, 65, 87) - Complete with provider pattern integration
+- ✅ **Core Architecture** - Provider pattern with clean separation of interfaces
+- ✅ **Hash Functions** - SHA3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash
+- ✅ **WASM Support** - Basic WASM bindings for web environments
+- ✅ **Memory Safety** - Zero unsafe code, automatic memory management
+- ✅ **Error Handling** - Consistent error types and fail-fast behavior
+
+### In Progress
+- 🔄 **AEAD** - Authenticated Encryption (next priority)
+- 🔄 **HPKE** - Hybrid Public Key Encryption (prerequisite for AEAD)
+- 🔄 **ML-KEM** - Provider pattern integration
+- 🔄 **Performance Optimization** - Benchmarks and SIMD optimizations
+
+### Planned
+- 📋 **Additional KEMs** - McEliece, HQC post-AEAD completion
+- 📋 **Additional Signatures** - Falcon, SPHINCS+ post-AEAD completion
+- 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
 
 ## Documentation
 
@@ -155,4 +174,22 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## Security Notice
 
-This library is in development. Do not use in production until a stable release is available.
+⚠️ **This library is in active development with implemented cryptographic algorithms.**
+
+**Current Status:**
+- Core cryptographic primitives (ML-DSA, hashes) are implemented and tested
+- Provider pattern architecture is in place with proper error handling
+- No known security vulnerabilities in implemented algorithms
+- **NOT READY FOR PRODUCTION USE** until:
+  - Security audit completion
+  - Comprehensive testing (fuzzing, side-channel analysis)
+  - Performance optimization and validation
+  - AEAD implementation for authenticated encryption
+
+**Use only for:**
+- Research and development
+- Algorithm evaluation
+- Educational purposes
+- Non-production prototyping
+
+For production use, wait for version 1.0.0 and security audit completion.

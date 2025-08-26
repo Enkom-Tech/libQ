@@ -3,22 +3,55 @@
 //! This module provides ParallelHash128 and ParallelHash256 implementations as specified in SP800-185.
 //! ParallelHash is designed for efficient hashing of very long strings using parallel processing.
 
-use crate::{
-    cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader},
-    shake::{Shake128, Shake256},
-    utils::{left_encode, right_encode},
-};
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt;
-use digest::{
-    CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader,
-    block_api::{AlgorithmName, Block, BlockSizeUser, BufferKindUser, Eager, UpdateCore},
-    consts::{U16, U32, U136, U168, U400},
-    crypto_common::hazmat::{DeserializeStateError, SerializableState, SerializedState},
-};
 
+use digest::block_api::{
+    AlgorithmName,
+    Block,
+    BlockSizeUser,
+    BufferKindUser,
+    Eager,
+    UpdateCore,
+};
+use digest::consts::{
+    U16,
+    U32,
+    U136,
+    U168,
+    U400,
+};
+use digest::crypto_common::hazmat::{
+    DeserializeStateError,
+    SerializableState,
+    SerializedState,
+};
+use digest::{
+    CollisionResistance,
+    ExtendableOutput,
+    HashMarker,
+    Reset,
+    Update,
+    XofReader,
+};
 #[cfg(feature = "parallelhash")]
 use rayon::prelude::*;
+
+use crate::cshake::{
+    CShake128,
+    CShake128Reader,
+    CShake256,
+    CShake256Reader,
+};
+use crate::shake::{
+    Shake128,
+    Shake256,
+};
+use crate::utils::{
+    left_encode,
+    right_encode,
+};
 
 /// ParallelHash128 implementation
 #[derive(Clone)]

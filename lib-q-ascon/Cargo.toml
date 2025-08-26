@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-ascon"
-version = "0.0.1"
+version.workspace = true
 description = "Pure Rust implementation of the Ascon permutation for lib-Q"
 authors = [
     "Sebastian Ramacher <sebastian.ramacher@ait.ac.at>",
@@ -8,14 +8,14 @@ authors = [
     "Nexlab-One",
     "Enkom Tech"
 ]
-license = "Apache-2.0"
+license.workspace = true
 documentation = "https://docs.rs/lib-q-ascon"
 homepage = "https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sponge/ascon"
-repository = "https://github.com/Enkom-Tech/libQ"
+repository.workspace = true
 keywords = ["Ascon", "crypto", "permutation", "lib-q"]
 categories = ["cryptography", "no-std"]
-readme = "README.md"
-edition = "2024"
+readme.workspace = true
+edition.workspace = true
 rust-version = "1.89"
 
 [dependencies]
@@ -29,8 +29,19 @@ rand = "0.9.2"
 no_unroll = [] # Do not unroll loops for binary size reduction
 nightly = [] # Enable nightly-only features like benchmarking
 
+[lib]
+name = "lib_q_ascon"
+path = "src/lib.rs"
+
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
 
 [[bench]]
 name = "ascon"

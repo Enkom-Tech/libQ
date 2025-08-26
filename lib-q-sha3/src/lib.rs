@@ -8,23 +8,63 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
-pub use digest::{self, CollisionResistance, CustomizedInit, Digest};
+pub use digest::{
+    self,
+    CollisionResistance,
+    CustomizedInit,
+    Digest,
+};
 
 /// Block-level types
 pub mod block_api;
 mod cshake;
 mod turbo_shake;
 
-pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
-pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
+use block_api::{
+    Sha3HasherCore,
+    Sha3ReaderCore,
+};
+pub use cshake::{
+    CShake128,
+    CShake128Reader,
+    CShake256,
+    CShake256Reader,
+};
+use digest::consts::{
+    U0,
+    U16,
+    U28,
+    U32,
+    U48,
+    U64,
+    U72,
+    U104,
+    U136,
+    U144,
+    U168,
+    U200,
+};
+pub use turbo_shake::{
+    TurboShake128,
+    TurboShake128Reader,
+    TurboShake256,
+    TurboShake256Reader,
+};
 
-use block_api::{Sha3HasherCore, Sha3ReaderCore};
-use digest::consts::{U0, U16, U28, U32, U48, U64, U72, U104, U136, U144, U168, U200};
+/// SHA3-256 hash function
+///
+/// This function computes the SHA3-256 hash of the input data.
+#[inline(always)]
+pub fn sha256(data: &[u8]) -> [u8; 32] {
+    let mut hasher = Sha3_256::new();
+    hasher.update(data);
+    hasher.finalize().into()
+}
 
 // Paddings
 const KECCAK_PAD: u8 = 0x01;
 const SHA3_PAD: u8 = 0x06;
-const SHAKE_PAD: u8 = 0x1f;
+const SHAKE_PAD: u8 = 0x1F;
 const CSHAKE_PAD: u8 = 0x04;
 
 const PLEN: usize = 25;

@@ -8,12 +8,17 @@
 //! - Performance characteristics
 //! - Both KT128 and KT256 variants
 
-use hex_literal::hex;
-use lib_q_k12::{
-    KangarooTwelve, KangarooTwelve256,
-    digest::{ExtendableOutput, Update},
-};
 use std::time::Instant;
+
+use hex_literal::hex;
+use lib_q_k12::digest::{
+    ExtendableOutput,
+    Update,
+};
+use lib_q_k12::{
+    KangarooTwelve,
+    KangarooTwelve256,
+};
 
 // ============================================================================
 // BASIC FUNCTIONALITY TESTS

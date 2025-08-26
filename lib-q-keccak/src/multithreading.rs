@@ -9,13 +9,32 @@
 
 #![cfg_attr(not(feature = "std"), no_implicit_prelude)]
 
-use alloc::{boxed::Box, string::String, vec::Vec};
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+extern crate alloc;
+extern crate std;
+
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use alloc::{
+    format,
+    vec,
+};
+use core::sync::atomic::{
+    AtomicBool,
+    AtomicUsize,
+    Ordering,
+};
+use std::sync::{
+    Arc,
+    OnceLock,
+    RwLock,
+};
 use std::thread;
 use std::time::Duration;
 
-use crate::{OptimizationLevel, keccak_p};
+use crate::{
+    OptimizationLevel,
+    keccak_p,
+};
 
 /// Thread-safe configuration for multi-threading operations
 #[derive(Debug, Clone)]
@@ -130,7 +149,7 @@ struct CryptoWorker {
     /// Thread-safe work distribution
     work_dist: Arc<WorkDistribution>,
     /// Thread-safe result storage
-    results: Arc<RwLock<Vec<Vec<u64>>>>,
+    results: Arc<RwLock<Vec<[u64; 25]>>>,
     /// Configuration
     config: ThreadingConfig,
 }
@@ -139,7 +158,7 @@ impl CryptoWorker {
     fn new(
         id: usize,
         work_dist: Arc<WorkDistribution>,
-        results: Arc<RwLock<Vec<Vec<u64>>>>,
+        results: Arc<RwLock<Vec<[u64; 25]>>>,
         config: ThreadingConfig,
     ) -> Self {
         Self {
@@ -151,7 +170,7 @@ impl CryptoWorker {
     }
 
     /// Process Keccak permutations in parallel
-    fn process_keccak_parallel(&self, states: &[Vec<u64>], level: OptimizationLevel) {
+    fn process_keccak_parallel(&self, states: &[[u64; 25]], level: OptimizationLevel) {
         let chunk_size = self
             .config
             .max_work_per_thread
@@ -162,14 +181,9 @@ impl CryptoWorker {
 
             for i in start..end {
                 if i < states.len() {
-                    let mut state = states[i].clone();
-                    // Convert Vec<u64> to [u64; 25] for keccak_p
-                    if state.len() == 25 {
-                        let mut state_array = [0u64; 25];
-                        state_array.copy_from_slice(&state);
-                        self.apply_keccak_optimization(&mut state_array, level);
-                        local_results.push(state_array.to_vec());
-                    }
+                    let mut state = states[i];
+                    self.apply_keccak_optimization(&mut state, level);
+                    local_results.push(state);
                 }
             }
 
@@ -257,9 +271,9 @@ impl CryptoThreadPool {
     /// Process multiple Keccak states using multiple threads
     pub fn process_keccak_states(
         &self,
-        states: &[Vec<u64>],
+        states: &[[u64; 25]],
         level: OptimizationLevel,
-    ) -> Result<Vec<Vec<u64>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<[u64; 25]>, Box<dyn std::error::Error + Send + Sync>> {
         // Check if multi-threading is beneficial
         if states.len() < self.config.min_work_size || self.config.num_threads <= 1 {
             return self.process_sequential(states, level);
@@ -267,7 +281,7 @@ impl CryptoThreadPool {
 
         // Create thread-safe work distribution
         let work_dist = Arc::new(WorkDistribution::new(states.len()));
-        let results = Arc::new(RwLock::new(vec![vec![0u64; 25]; states.len()]));
+        let results = Arc::new(RwLock::new(vec![[0u64; 25]; states.len()]));
         let shutdown = Arc::clone(&self.shutdown);
 
         // Spawn worker threads
@@ -322,13 +336,13 @@ impl CryptoThreadPool {
     /// Process states sequentially (fallback)
     fn process_sequential(
         &self,
-        states: &[Vec<u64>],
+        states: &[[u64; 25]],
         level: OptimizationLevel,
-    ) -> Result<Vec<Vec<u64>>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Vec<[u64; 25]>, Box<dyn std::error::Error + Send + Sync>> {
         let mut results = Vec::with_capacity(states.len());
 
         for state in states {
-            let mut result_state = state.clone();
+            let mut result_state = *state;
             match level {
                 OptimizationLevel::Reference => {
                     keccak_p(&mut result_state, 24);
@@ -388,26 +402,26 @@ impl CryptoThreadPool {
 }
 
 /// Global thread pool instance
-static mut GLOBAL_THREAD_POOL: Option<Arc<CryptoThreadPool>> = None;
+static GLOBAL_THREAD_POOL: OnceLock<Arc<CryptoThreadPool>> = OnceLock::new();
 static THREAD_POOL_INIT: std::sync::Once = std::sync::Once::new();
 
 /// Initialize the global thread pool
 pub fn init_global_thread_pool(config: ThreadingConfig) {
-    THREAD_POOL_INIT.call_once(|| unsafe {
-        GLOBAL_THREAD_POOL = Some(Arc::new(CryptoThreadPool::new(config)));
+    THREAD_POOL_INIT.call_once(|| {
+        let _ = GLOBAL_THREAD_POOL.set(Arc::new(CryptoThreadPool::new(config)));
     });
 }
 
 /// Get the global thread pool instance
 pub fn get_global_thread_pool() -> Option<Arc<CryptoThreadPool>> {
-    unsafe { GLOBAL_THREAD_POOL.clone() }
+    GLOBAL_THREAD_POOL.get().cloned()
 }
 
 /// Process Keccak states using the global thread pool
 pub fn process_keccak_states_global(
-    states: &[Vec<u64>],
+    states: &[[u64; 25]],
     level: OptimizationLevel,
-) -> Result<Vec<Vec<u64>>, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Vec<[u64; 25]>, Box<dyn std::error::Error + Send + Sync>> {
     if let Some(pool) = get_global_thread_pool() {
         pool.process_keccak_states(states, level)
     } else {
@@ -465,7 +479,7 @@ mod tests {
         let config = ThreadingConfig::security_optimized();
         let pool = CryptoThreadPool::new(config);
 
-        let states = vec![vec![0u64; 25], vec![1u64; 25], vec![2u64; 25]];
+        let states = vec![[0u64; 25], [1u64; 25], [2u64; 25]];
 
         let results = pool
             .process_keccak_states(&states, OptimizationLevel::Reference)
@@ -486,7 +500,7 @@ mod tests {
         let pool = get_global_thread_pool();
         assert!(pool.is_some());
 
-        let states = vec![vec![0u64; 25]; 10];
+        let states = vec![[0u64; 25]; 10];
         let results = process_keccak_states_global(&states, OptimizationLevel::Reference).unwrap();
         assert_eq!(results.len(), states.len());
     }

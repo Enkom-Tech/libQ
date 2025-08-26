@@ -1,14 +1,14 @@
 [package]
 name = "lib-q-zkp"
-version = "0.0.1"
-edition = "2024"
-authors = ["lib-Q Contributors"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
-license = "Apache-2.0"
-repository = "https://github.com/Enkom-Tech/libQ"
+license.workspace = true
+repository.workspace = true
 keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
 categories = ["cryptography"]
-readme = "README.md"
+readme.workspace = true
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
@@ -25,3 +25,10 @@ path = "src/lib.rs"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

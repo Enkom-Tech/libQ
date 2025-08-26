@@ -1,29 +1,29 @@
 [package]
 name = "lib-q-hash"
-version = "0.0.1"
-edition = "2024"
-authors = ["Nexlab-One", "Enkom Tech"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Post-quantum Hash Functions for lib-Q"
-license = "Apache-2.0"
-repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["cryptography", "post-quantum", "hash", "shake"]
 categories = ["cryptography"]
-readme = "README.md"
+readme.workspace = true
 
 [dependencies]
-lib-q-core = { version = "0.0.1", path = "../lib-q-core" }
+lib-q-core = { path = "../lib-q-core" }
 zeroize = "1.8.1"
 getrandom = { version = "0.3.3", features = ["std"] }
 digest = "0.11.0-rc.0"
-lib-q-keccak = { version = "0.0.1", path = "../lib-q-keccak" }
-lib-q-k12 = { version = "0.0.1", path = "../lib-q-k12" }
-lib-q-sha3 = { version = "0.0.1", path = "../lib-q-sha3" }
+lib-q-keccak = { path = "../lib-q-keccak" }
+lib-q-k12 = { path = "../lib-q-k12" }
+lib-q-sha3 = { path = "../lib-q-sha3" }
 rayon = { version = "1.11.0", optional = true }
 
 [dev-dependencies]
 digest = { version = "0.11.0-rc.0", features = ["dev"] }
 hex-literal = "1"
-base16ct = { version = "0.2.0", features = ["alloc"] }
+base16ct = { version = "0.3.0", features = ["alloc"] }
 
 [features]
 default = ["alloc", "oid"]
@@ -45,3 +45,14 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

@@ -8,9 +8,13 @@ members = [
     "lib-q-sha3",
     "lib-q-kem",
     "lib-q-ml-kem",
-    "lib-q-sig", 
+    "lib-q-ml-dsa",
+    "lib-q-platform",
+    "lib-q-intrinsics",
+    "lib-q-sig",
     "lib-q-hash",
     "lib-q-aead",
+    "lib-q-hpke",
     "lib-q-utils",
     "lib-q-zkp",
     "lib-q-sponge",
@@ -18,17 +22,41 @@ members = [
     "."
 ]
 
+# Workspace package defaults for inherited properties
+[workspace.package]
+authors = ["Enkom Tech", "Nexlab-One"]
+license = "Apache-2.0"
+homepage = "https://github.com/Enkom-Tech/libQ"
+edition = "2024"
+repository = "https://github.com/Enkom-Tech/libQ"
+readme = "README.md"
+version = "0.0.2"
+
+# Workspace dependencies for inherited properties
+[workspace.dependencies]
+hax-lib = "0.3.2"
+
 [package]
 name = "lib-q"
-version = "0.0.1"
-edition = "2024"
-authors = ["Enkom Tech", "Nexlab-One"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
 description = "Post-quantum cryptography library with libsodium-equivalent API (complete package)"
-license = "Apache-2.0"
-repository = "https://github.com/Enkom-Tech/libQ"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
-readme = "README.md"
+exclude = [
+    "/tests",
+    "/examples",
+    "/benches",
+    "/docs",
+    "/scripts",
+    "/*.py",
+    "/reference",
+    "/target",
+]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
@@ -42,9 +70,11 @@ crate-type = ["cdylib", "rlib"]
 # Core dependencies
 lib-q-core = { path = "lib-q-core", features = ["rand"] }
 lib-q-kem = { path = "lib-q-kem" }
-lib-q-sig = { path = "lib-q-sig" }
+lib-q-ml-dsa = { path = "lib-q-ml-dsa" }
+lib-q-sig = { path = "lib-q-sig", features = ["std", "ml-dsa"] }
 lib-q-hash = { path = "lib-q-hash" }
 lib-q-aead = { path = "lib-q-aead" }
+lib-q-hpke = { path = "lib-q-hpke", optional = true }
 lib-q-utils = { path = "lib-q-utils" }
 lib-q-zkp = { path = "lib-q-zkp" }
 
@@ -64,45 +94,90 @@ wasm-bindgen-test = "0.3.50"
 
 [features]
 default = ["std"]
-std = []
+std = ["alloc"]
 alloc = []
 no_std = []
-
-# WASM features
+# WASM API
 wasm = ["wasm-bindgen", "js-sys", "web-sys"]
+# Random number generation
+rand = []
+# Logging support
+log = []
+# Experimental APIs
+experimental = []
+# Testing support
+tests = []
 
+# Algorithm implementations
 # Re-export features from individual crates
-ml-kem = ["lib-q-kem/ml-kem"]
-dilithium = ["lib-q-sig/dilithium"]
+ml-kem = ["lib-q-kem/ml-kem", "lib-q-core/ml-kem"]
+ml-dsa = ["lib-q-sig/ml-dsa"]
+mldsa44 = ["lib-q-ml-dsa/mldsa44"]
+mldsa65 = ["lib-q-ml-dsa/mldsa65"]
+mldsa87 = ["lib-q-ml-dsa/mldsa87"]
+
 falcon = ["lib-q-sig/falcon"]
 sphincs = ["lib-q-sig/sphincs"]
 mceliece = ["lib-q-kem/mceliece"]
 hqc = ["lib-q-kem/hqc"]
+hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
 zkp = ["lib-q-zkp/zkp"]
 
+# Security features
+# Enable memory zeroization for hash functions and their dependencies
+zeroize = ["lib-q-hash/zeroize"]
+
+# SIMD features
+simd128 = ["lib-q-ml-dsa/simd128"]
+simd256 = ["lib-q-ml-dsa/simd256"]
+
+# Security features
+# Comprehensive security hardening with zeroization and all algorithms
+security-hardened = ["zeroize", "all-algorithms"]
+
 # Convenience features
-all-algorithms = ["ml-kem", "dilithium", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
+
+# Development and testing features
+dev = ["experimental", "tests"]
+full = ["std", "wasm", "rand", "log", "all-algorithms"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+debug = false
 
 [profile.dev]
 opt-level = 0
 debug = true
+lto = false
 
 [profile.bench]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
+debug = false
+
+# Security-focused release profile
+[profile.release-security]
+inherits = "release"
+# Additional security hardening options can be added here
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
-
-
-
 

@@ -3,17 +3,50 @@
 //! This module provides KMAC128 and KMAC256 implementations as specified in SP800-185.
 //! KMAC is a PRF and keyed hash function based on cSHAKE.
 
-use crate::{
-    cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader},
-    utils::{bytepad, encode_string, left_encode, right_encode},
-};
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt;
+
+use digest::block_api::{
+    AlgorithmName,
+    Block,
+    BlockSizeUser,
+    BufferKindUser,
+    Eager,
+    UpdateCore,
+};
+use digest::consts::{
+    U16,
+    U32,
+    U136,
+    U168,
+    U400,
+};
+use digest::crypto_common::hazmat::{
+    DeserializeStateError,
+    SerializableState,
+    SerializedState,
+};
 use digest::{
-    CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader,
-    block_api::{AlgorithmName, Block, BlockSizeUser, BufferKindUser, Eager, UpdateCore},
-    consts::{U16, U32, U136, U168, U400},
-    crypto_common::hazmat::{DeserializeStateError, SerializableState, SerializedState},
+    CollisionResistance,
+    ExtendableOutput,
+    HashMarker,
+    Reset,
+    Update,
+    XofReader,
+};
+
+use crate::cshake::{
+    CShake128,
+    CShake128Reader,
+    CShake256,
+    CShake256Reader,
+};
+use crate::utils::{
+    bytepad,
+    encode_string,
+    left_encode,
+    right_encode,
 };
 
 /// KMAC128 implementation

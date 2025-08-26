@@ -14,11 +14,31 @@ pub use digest;
 pub mod block_api;
 
 use core::fmt;
+
+use digest::block_api::{
+    AlgorithmName,
+    BlockSizeUser,
+    ExtendableOutputCore,
+    UpdateCore,
+    XofReaderCore,
+};
+use digest::block_buffer::{
+    BlockBuffer,
+    Eager,
+    ReadBuffer,
+};
+use digest::consts::{
+    U16,
+    U128,
+    U168,
+};
 use digest::{
-    CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader,
-    block_api::{AlgorithmName, BlockSizeUser, ExtendableOutputCore, UpdateCore, XofReaderCore},
-    block_buffer::{BlockBuffer, Eager, ReadBuffer},
-    consts::{U16, U128, U168},
+    CollisionResistance,
+    ExtendableOutput,
+    HashMarker,
+    Reset,
+    Update,
+    XofReader,
 };
 
 /// `KangarooTwelve` hasher (KT128 variant).

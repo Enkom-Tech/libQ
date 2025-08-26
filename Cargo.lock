@@ -36,6 +36,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
 
 [[package]]
+name = "base16ct"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b59d472eab27ade8d770dcb11da7201c11234bef9f82ce7aa517be028d462b"
+
+[[package]]
 name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -90,6 +96,8 @@ version = "1.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ee0f8803222ba5a7e2777dd72ca451868909b1ac410621b676adf07280e9b5f"
 dependencies = [
+ "jobserver",
+ "libc",
  "shlex",
 ]
 
@@ -162,6 +170,15 @@ name = "const-oid"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dabb6555f92fb9ee4140454eb5dcd14c7960e1225c6d1a6cc361f032947713e"
+
+[[package]]
+name = "core-models"
+version = "0.0.3"
+dependencies = [
+ "hax-lib",
+ "pastey",
+ "rand 0.9.2",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -260,6 +277,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dunce"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -323,6 +346,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glob"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+
+[[package]]
 name = "half"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -330,6 +359,43 @@ checksum = "459196ed295495a68f7d7fe1d84f6c4b7ff0e21fe3017b2f283c6fac3ad803c9"
 dependencies = [
  "cfg-if",
  "crunchy",
+]
+
+[[package]]
+name = "hax-lib"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6b593135257620169c44108facfc774a48336238af6783d630a8b77b7913de"
+dependencies = [
+ "hax-lib-macros",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "hax-lib-macros"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f50d2b609faca4ebb2522d96d36372cf5f879247e713c28134d7205f1ad427"
+dependencies = [
+ "hax-lib-macros-types",
+ "proc-macro-error2",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "hax-lib-macros-types"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fd4c5887d0a4d4c907a05c29d83d317363b0f9f29df90cc5c716c2ef8909132"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -378,6 +444,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "jobserver"
+version = "0.1.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9afb3de4395d6b3e67a780b6de64b51c978ecf11cb9a462c66be7d4ca9039d33"
+dependencies = [
+ "getrandom 0.3.3",
+ "libc",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -395,14 +471,16 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lib-q"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "criterion",
  "js-sys",
  "lib-q-aead",
  "lib-q-core",
  "lib-q-hash",
+ "lib-q-hpke",
  "lib-q-kem",
+ "lib-q-ml-dsa",
  "lib-q-sig",
  "lib-q-utils",
  "lib-q-zkp",
@@ -415,14 +493,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-aead"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-core",
 ]
 
 [[package]]
 name = "lib-q-ascon"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "criterion",
  "rand 0.9.2",
@@ -431,12 +509,13 @@ dependencies = [
 
 [[package]]
 name = "lib-q-core"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "getrandom 0.3.3",
  "js-sys",
  "lazy_static",
  "lib-q-ml-kem",
+ "lib-q-sha3",
  "rand 0.9.2",
  "rand_core 0.9.3",
  "serde",
@@ -446,18 +525,19 @@ dependencies = [
 
 [[package]]
 name = "lib-q-examples"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-core",
  "lib-q-hash",
  "lib-q-kem",
+ "lib-q-sig",
 ]
 
 [[package]]
 name = "lib-q-hash"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
- "base16ct",
+ "base16ct 0.3.0",
  "digest",
  "getrandom 0.3.3",
  "hex-literal",
@@ -470,17 +550,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-hpke"
+version = "0.0.2"
+dependencies = [
+ "lib-q-ascon",
+ "lib-q-core",
+ "lib-q-hash",
+ "lib-q-ml-dsa",
+ "lib-q-ml-kem",
+ "rand 0.9.2",
+ "rand_chacha",
+ "rand_core 0.9.3",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-intrinsics"
+version = "0.0.2"
+dependencies = [
+ "lib-q-platform",
+]
+
+[[package]]
 name = "lib-q-k12"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "digest",
+ "hex",
  "hex-literal",
  "lib-q-sha3",
+ "rand 0.9.2",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "lib-q-keccak"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "cpufeatures",
  "nix",
@@ -489,7 +595,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-kem"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-core",
  "lib-q-ml-kem",
@@ -499,8 +605,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-ml-dsa"
+version = "0.0.2"
+dependencies = [
+ "core-models",
+ "criterion",
+ "hax-lib",
+ "hex",
+ "lib-q-intrinsics",
+ "lib-q-keccak",
+ "lib-q-platform",
+ "lib-q-sha3",
+ "pqcrypto-mldsa",
+ "rand 0.9.2",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lib-q-ml-kem"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "criterion",
  "crypto-common",
@@ -519,10 +643,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib-q-sha3"
-version = "0.0.1"
+name = "lib-q-platform"
+version = "0.0.2"
 dependencies = [
- "base16ct",
+ "lib-q-core",
+]
+
+[[package]]
+name = "lib-q-sha3"
+version = "0.0.2"
+dependencies = [
+ "base16ct 0.2.0",
  "digest",
  "hex-literal",
  "lib-q-keccak",
@@ -530,14 +661,15 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sig"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-core",
+ "lib-q-ml-dsa",
 ]
 
 [[package]]
 name = "lib-q-sponge"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-ascon",
  "lib-q-keccak",
@@ -546,7 +678,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-utils"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "getrandom 0.3.3",
  "lib-q-core",
@@ -554,7 +686,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-zkp"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "lib-q-core",
 ]
@@ -667,6 +799,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pastey"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35fb2e5f958ec131621fdd531e9fc186ed768cbe395337403ae56c17a74c68ec"
+
+[[package]]
 name = "plotters"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -701,6 +845,60 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "pqcrypto-internals"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4a326caf27cbf2ac291ca7fd56300497ba9e76a8cc6a7d95b7a18b57f22b61d"
+dependencies = [
+ "cc",
+ "dunce",
+ "getrandom 0.3.3",
+ "libc",
+]
+
+[[package]]
+name = "pqcrypto-mldsa"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9f812cd126a2582599478a434fea75937b4b05d234c64a49e0cea129e130528"
+dependencies = [
+ "cc",
+ "glob",
+ "libc",
+ "paste",
+ "pqcrypto-internals",
+ "pqcrypto-traits",
+]
+
+[[package]]
+name = "pqcrypto-traits"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94e851c7654eed9e68d7d27164c454961a616cf8c203d500607ef22c737b51bb"
+
+[[package]]
+name = "proc-macro-error-attr2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+]
+
+[[package]]
+name = "proc-macro-error2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
+dependencies = [
+ "proc-macro-error-attr2",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -937,9 +1135,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.142"
+version = "1.0.143"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
+checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
 dependencies = [
  "itoa",
  "memchr",
@@ -1004,6 +1202,17 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+
+[[package]]
+name = "uuid"
+version = "1.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f33196643e165781c20a5ead5582283a7dacbb87855d867fbc2df3f81eddc1be"
+dependencies = [
+ "getrandom 0.3.3",
+ "js-sys",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "wait-timeout"

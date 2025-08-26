@@ -2,8 +2,15 @@
 //!
 //! This example demonstrates the usage of SHA-3 hash functions.
 
-use lib_q_core::{Algorithm, Hash, HashContext};
-use lib_q_hash::{CShake128Hash, CShake256Hash};
+use lib_q_core::{
+    Algorithm,
+    Hash,
+    HashContext,
+};
+use lib_q_hash::{
+    CShake128Hash,
+    CShake256Hash,
+};
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()

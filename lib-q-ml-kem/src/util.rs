@@ -1,12 +1,23 @@
 use core::mem::ManuallyDrop;
-use core::ops::{Div, Mul, Rem};
+use core::ops::{
+    Div,
+    Mul,
+    Rem,
+};
 use core::ptr;
+
+use hybrid_array::typenum::operator_aliases::{
+    Prod,
+    Quot,
+};
+use hybrid_array::typenum::{
+    U0,
+    U32,
+    Unsigned,
+};
 use hybrid_array::{
-    Array, ArraySize,
-    typenum::{
-        U0, U32, Unsigned,
-        operator_aliases::{Prod, Quot},
-    },
+    Array,
+    ArraySize,
 };
 
 /// A 32-byte array, defined here for brevity because it is used several times
@@ -114,8 +125,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use hybrid_array::typenum::consts::*;
+
+    use super::*;
 
     #[test]
     fn flatten() {

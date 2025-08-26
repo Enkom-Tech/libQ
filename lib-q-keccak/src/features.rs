@@ -90,22 +90,22 @@ impl FeatureConfig {
 
     /// Check if parallel processing is available and enabled
     pub fn parallel_available(&self) -> bool {
-        self.enable_parallel
-            && cfg!(feature = "simd")
-            && self.optimization_level != OptimizationLevel::Reference
+        self.enable_parallel &&
+            cfg!(feature = "simd") &&
+            self.optimization_level != OptimizationLevel::Reference
     }
 
     /// Check if advanced SIMD features are available and enabled
     pub fn advanced_simd_available(&self) -> bool {
-        self.enable_advanced_simd
-            && cfg!(feature = "simd")
-            && self.optimization_level != OptimizationLevel::Reference
+        self.enable_advanced_simd &&
+            cfg!(feature = "simd") &&
+            self.optimization_level != OptimizationLevel::Reference
     }
 
     /// Check if platform-specific optimizations are available and enabled
     pub fn platform_optimizations_available(&self) -> bool {
-        self.enable_platform_optimizations
-            && self.optimization_level != OptimizationLevel::Reference
+        self.enable_platform_optimizations &&
+            self.optimization_level != OptimizationLevel::Reference
     }
 
     /// Get the effective optimization level based on current configuration
@@ -125,9 +125,9 @@ impl FeatureConfig {
     pub fn description(&self) -> &'static str {
         let _level = self.effective_optimization_level();
 
-        if self.parallel_available()
-            && self.advanced_simd_available()
-            && self.platform_optimizations_available()
+        if self.parallel_available() &&
+            self.advanced_simd_available() &&
+            self.platform_optimizations_available()
         {
             "maximum optimization with all features"
         } else if self.parallel_available() && self.platform_optimizations_available() {

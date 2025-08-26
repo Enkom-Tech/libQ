@@ -1,7 +1,14 @@
 //! Integration tests for Keccak re-exports from lib-q-sponge
 
 use lib_q_sponge::{
-    OptimizationLevel, detection, f200, f400, f800, f1600, fast_loop_absorb_optimized, p1600,
+    OptimizationLevel,
+    detection,
+    f200,
+    f400,
+    f800,
+    f1600,
+    fast_loop_absorb_optimized,
+    p1600,
     p1600_optimized,
 };
 
@@ -11,15 +18,15 @@ fn test_keccak_f1600_permutation() {
     let mut state = [0u64; 25];
 
     // Initialize with some test data
-    state[0] = 0x1234567890abcdef;
-    state[1] = 0xfedcba0987654321;
+    state[0] = 0x1234567890ABCDEF;
+    state[1] = 0xFEDCBA0987654321;
 
     // Apply permutation
     f1600(&mut state);
 
     // Verify that the state has changed (permutation was applied)
-    assert_ne!(state[0], 0x1234567890abcdef);
-    assert_ne!(state[1], 0xfedcba0987654321);
+    assert_ne!(state[0], 0x1234567890ABCDEF);
+    assert_ne!(state[1], 0xFEDCBA0987654321);
 
     // Verify that the state is not all zeros (permutation produced meaningful output)
     let all_zeros = state.iter().all(|&x| x == 0);
@@ -86,13 +93,13 @@ fn test_keccak_p1600_reduced_rounds() {
     let mut state = [0u64; 25];
 
     // Initialize with test data
-    state[0] = 0xdeadbeefcafebabe;
+    state[0] = 0xDEADBEEFCAFEBABE;
 
     // Apply permutation with reduced rounds
     p1600(&mut state, 12);
 
     // Verify permutation was applied
-    assert_ne!(state[0], 0xdeadbeefcafebabe);
+    assert_ne!(state[0], 0xDEADBEEFCAFEBABE);
 }
 
 #[test]
@@ -102,8 +109,8 @@ fn test_keccak_consistency() {
     let mut state2 = [0u64; 25];
 
     // Initialize both states identically
-    state1[0] = 0x1234567890abcdef;
-    state2[0] = 0x1234567890abcdef;
+    state1[0] = 0x1234567890ABCDEF;
+    state2[0] = 0x1234567890ABCDEF;
 
     // Apply the same permutation to both
     f1600(&mut state1);
@@ -136,8 +143,8 @@ fn test_keccak_avalanche_effect() {
     let mut state2 = [0u64; 25];
 
     // Initialize states with minimal difference
-    state1[0] = 0x1234567890abcdef;
-    state2[0] = 0x1234567890abcdee; // Only 1 bit different
+    state1[0] = 0x1234567890ABCDEF;
+    state2[0] = 0x1234567890ABCDEE; // Only 1 bit different
 
     // Apply permutation to both
     f1600(&mut state1);
@@ -184,8 +191,8 @@ fn test_optimized_permutation_consistency() {
     let mut state_opt = [0u64; 25];
 
     // Initialize with test data
-    state_ref[0] = 0x1234567890abcdef;
-    state_opt[0] = 0x1234567890abcdef;
+    state_ref[0] = 0x1234567890ABCDEF;
+    state_opt[0] = 0x1234567890ABCDEF;
 
     // Apply reference permutation
     p1600(&mut state_ref, 24);
@@ -203,7 +210,7 @@ fn test_optimized_permutation_consistency() {
 #[test]
 fn test_optimized_permutation_all_levels() {
     // Test all available optimization levels
-    let test_data = 0x1234567890abcdefu64;
+    let test_data = 0x1234567890ABCDEFu64;
 
     for level in [
         OptimizationLevel::Reference,

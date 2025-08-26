@@ -46,9 +46,9 @@ pub enum Algorithm {
     MlKem512,      // Level 1 (128-bit security)
     MlKem768,      // Level 3 (192-bit security)
     MlKem1024,     // Level 4 (256-bit security)
-    Dilithium2,    // Level 1
-    Dilithium3,    // Level 3
-    Dilithium5,    // Level 4
+    MlDsa44,       // Level 1
+    MlDsa65,       // Level 3
+    MlDsa87,       // Level 4
     // ... more algorithms
 }
 
@@ -140,7 +140,7 @@ await libq.init();
 const kemKeypair = await libq.kem_generate_keypair("mlkem512");
 
 // Generate signature keypair
-const sigKeypair = await libq.sig_generate_keypair("dilithium2");
+const sigKeypair = await libq.sig_generate_keypair("mldsa65");
 
 // Hash data
 const hashResult = await libq.hash("shake256", new Uint8Array([1, 2, 3, 4]));

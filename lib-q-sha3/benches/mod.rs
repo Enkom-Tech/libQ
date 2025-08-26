@@ -2,7 +2,14 @@
 extern crate test;
 
 use digest::bench_update;
-use lib_q_sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128, Shake256};
+use lib_q_sha3::{
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+    Shake128,
+    Shake256,
+};
 use test::Bencher;
 
 bench_update!(

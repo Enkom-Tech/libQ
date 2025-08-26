@@ -3,7 +3,10 @@
 //! This crate provides utility functions used across lib-Q.
 
 // Re-export core types for public use
-pub use lib_q_core::{Result, Utils};
+pub use lib_q_core::{
+    Result,
+    Utils,
+};
 
 // Security validation module
 pub mod security_validation;
@@ -130,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_bytes_to_hex() {
-        let bytes = vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
+        let bytes = vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
         let hex = bytes_to_hex(&bytes);
         assert_eq!(hex, "0123456789abcdef");
     }
@@ -139,7 +142,7 @@ mod tests {
     fn test_hex_to_bytes() {
         let hex = "0123456789abcdef";
         let bytes = hex_to_bytes(hex).expect("Should convert hex to bytes");
-        assert_eq!(bytes, vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
+        assert_eq!(bytes, vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF]);
     }
 
     #[test]
@@ -150,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_hex_roundtrip() {
-        let original = vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
+        let original = vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
         let hex = bytes_to_hex(&original);
         let converted = hex_to_bytes(&hex).expect("Should convert back to bytes");
         assert_eq!(original, converted);

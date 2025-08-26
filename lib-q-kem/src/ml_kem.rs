@@ -1,9 +1,28 @@
-use lib_q_core::{Error, Kem, KemKeypair, KemPublicKey, KemSecretKey, SecurityLevel};
+use lib_q_core::{
+    Error,
+    Kem,
+    KemKeypair,
+    KemPublicKey,
+    KemSecretKey,
+    SecurityLevel,
+};
 use lib_q_ml_kem::{
-    Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MLKEM512_CIPHERTEXT_SIZE,
-    MLKEM512_PUBLIC_KEY_SIZE, MLKEM512_SECRET_KEY_SIZE, MLKEM768_CIPHERTEXT_SIZE,
-    MLKEM768_PUBLIC_KEY_SIZE, MLKEM768_SECRET_KEY_SIZE, MLKEM1024_CIPHERTEXT_SIZE,
-    MLKEM1024_PUBLIC_KEY_SIZE, MLKEM1024_SECRET_KEY_SIZE, MlKem512, MlKem768, MlKem1024,
+    Decapsulate,
+    Encapsulate,
+    EncodedSizeUser,
+    KemCore,
+    MLKEM512_CIPHERTEXT_SIZE,
+    MLKEM512_PUBLIC_KEY_SIZE,
+    MLKEM512_SECRET_KEY_SIZE,
+    MLKEM768_CIPHERTEXT_SIZE,
+    MLKEM768_PUBLIC_KEY_SIZE,
+    MLKEM768_SECRET_KEY_SIZE,
+    MLKEM1024_CIPHERTEXT_SIZE,
+    MLKEM1024_PUBLIC_KEY_SIZE,
+    MLKEM1024_SECRET_KEY_SIZE,
+    MlKem512,
+    MlKem768,
+    MlKem1024,
 };
 
 /// Secure helper function to create Array from slice with runtime validation
@@ -356,8 +375,9 @@ impl Kem for MlKem1024Impl {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use lib_q_ml_kem::MLKEM_SHARED_KEY_SIZE;
+
+    use super::*;
 
     #[test]
     fn test_mlkem512_creation() {

@@ -1,14 +1,29 @@
-use hybrid_array::typenum::{U1, Unsigned};
-
-use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
-use crate::compress::Compress;
-use crate::crypto::{G, PRF};
-use crate::encode::Encode;
-use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
-use crate::util::B32;
-
+use hybrid_array::typenum::{
+    U1,
+    Unsigned,
+};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
+
+use crate::algebra::{
+    NttMatrix,
+    NttVector,
+    Polynomial,
+    PolynomialVector,
+};
+use crate::compress::Compress;
+use crate::crypto::{
+    G,
+    PRF,
+};
+use crate::encode::Encode;
+use crate::param::{
+    EncodedCiphertext,
+    EncodedDecryptionKey,
+    EncodedEncryptionKey,
+    PkeParams,
+};
+use crate::util::B32;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
@@ -149,7 +164,11 @@ where
 mod test {
     use super::*;
     use crate::crypto::rand;
-    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
+    use crate::{
+        MlKem512Params,
+        MlKem768Params,
+        MlKem1024Params,
+    };
 
     fn round_trip_test<P>()
     where

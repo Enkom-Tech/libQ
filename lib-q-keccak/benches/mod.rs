@@ -41,7 +41,14 @@ fn b_p1600_16(b: &mut test::Bencher) {
 
 #[cfg(all(test, feature = "nightly", feature = "simd"))]
 mod simd {
-    use lib_q_keccak::simd::{f1600x2, f1600x4, f1600x8, u64x2, u64x4, u64x8};
+    use lib_q_keccak::simd::{
+        f1600x2,
+        f1600x4,
+        f1600x8,
+        u64x2,
+        u64x4,
+        u64x8,
+    };
 
     impl_bench!(b_f1600x2, f1600x2, u64x2::splat(0));
     impl_bench!(b_f1600x4, f1600x4, u64x4::splat(0));

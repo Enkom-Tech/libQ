@@ -84,7 +84,6 @@ impl HashResultWasm {
 /// Utility functions for WASM conversions
 #[cfg(feature = "wasm")]
 pub mod conversions {
-    use super::*;
     use js_sys::Uint8Array;
 
     /// Convert Rust Vec<u8> to WASM Uint8Array
@@ -105,7 +104,6 @@ pub mod conversions {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_wasm_common_structure() {

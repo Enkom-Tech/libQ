@@ -2,7 +2,11 @@
 //!
 //! TODO: Implement actual Falcon functionality
 
-use lib_q_core::{Result, SigKeypair, Signature};
+use lib_q_core::{
+    Result,
+    SigKeypair,
+    Signature,
+};
 
 /// Falcon signature implementation
 pub struct Falcon;

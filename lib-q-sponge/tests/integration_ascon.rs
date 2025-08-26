@@ -5,15 +5,15 @@ use lib_q_sponge::State;
 #[test]
 fn test_ascon_permutation_12() {
     // Test that the Ascon permutation with 12 rounds is accessible and functional
-    let mut state = State::new(0x1234567890abcdef, 0xfedcba0987654321, 0, 0, 0);
+    let mut state = State::new(0x1234567890ABCDEF, 0xFEDCBA0987654321, 0, 0, 0);
 
     // Apply permutation
     state.permute_12();
 
     // Verify that the state has changed (permutation was applied)
     let bytes = state.as_bytes();
-    assert_ne!(bytes[0..8], 0x1234567890abcdefu64.to_le_bytes());
-    assert_ne!(bytes[8..16], 0xfedcba0987654321u64.to_le_bytes());
+    assert_ne!(bytes[0..8], 0x1234567890ABCDEFu64.to_le_bytes());
+    assert_ne!(bytes[8..16], 0xFEDCBA0987654321u64.to_le_bytes());
 
     // Verify that the state is not all zeros (permutation produced meaningful output)
     let all_zeros = bytes.iter().all(|&x| x == 0);
@@ -23,35 +23,35 @@ fn test_ascon_permutation_12() {
 #[test]
 fn test_ascon_permute_8() {
     // Test that the Ascon permutation with 8 rounds is accessible and functional
-    let mut state = State::new(0xdeadbeefcafebabe, 0xbebafecaefbeadde, 0, 0, 0);
+    let mut state = State::new(0xDEADBEEFCAFEBABE, 0xBEBAFECAEFBEADDE, 0, 0, 0);
 
     // Apply permutation
     state.permute_8();
 
     // Verify that the state has changed
     let bytes = state.as_bytes();
-    assert_ne!(bytes[0..8], 0xdeadbeefcafebabeu64.to_le_bytes());
-    assert_ne!(bytes[8..16], 0xbebafecaefbeaddeu64.to_le_bytes());
+    assert_ne!(bytes[0..8], 0xDEADBEEFCAFEBABEu64.to_le_bytes());
+    assert_ne!(bytes[8..16], 0xBEBAFECAEFBEADDEu64.to_le_bytes());
 }
 
 #[test]
 fn test_ascon_permute_6() {
     // Test that the Ascon permutation with 6 rounds is accessible and functional
-    let mut state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut state = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     // Apply permutation
     state.permute_6();
 
     // Verify that the state has changed
     let bytes = state.as_bytes();
-    assert_ne!(bytes[0..8], 0x1234567890abcdefu64.to_le_bytes());
+    assert_ne!(bytes[0..8], 0x1234567890ABCDEFu64.to_le_bytes());
 }
 
 #[test]
 fn test_ascon_consistency() {
     // Test that the same input produces the same output
-    let mut state1 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut state2 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut state1 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut state2 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     // Apply the same permutation to both
     state1.permute_12();
@@ -84,8 +84,8 @@ fn test_ascon_zero_input() {
 #[test]
 fn test_ascon_avalanche_effect() {
     // Test that small changes in input produce large changes in output
-    let mut state1 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut state2 = State::new(0x1234567890abcdee, 0, 0, 0, 0); // Only 1 bit different
+    let mut state1 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut state2 = State::new(0x1234567890ABCDEE, 0, 0, 0, 0); // Only 1 bit different
 
     // Apply permutation to both
     state1.permute_12();
@@ -114,9 +114,9 @@ fn test_ascon_avalanche_effect() {
 #[test]
 fn test_ascon_round_differences() {
     // Test that different round counts produce different outputs
-    let mut state_6 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut state_8 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut state_12 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut state_6 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut state_8 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut state_12 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     // Apply different permutations
     state_6.permute_6();
@@ -145,11 +145,11 @@ fn test_ascon_round_differences() {
 fn test_ascon_full_state() {
     // Test permutation with all state words initialized
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     // Apply permutation
@@ -157,9 +157,9 @@ fn test_ascon_full_state() {
 
     // Verify all state words changed
     let bytes = state.as_bytes();
-    assert_ne!(bytes[0..8], 0x1234567890abcdefu64.to_le_bytes());
-    assert_ne!(bytes[8..16], 0xfedcba0987654321u64.to_le_bytes());
-    assert_ne!(bytes[16..24], 0xdeadbeefcafebabeu64.to_le_bytes());
-    assert_ne!(bytes[24..32], 0xbebafecaefbeaddeu64.to_le_bytes());
-    assert_ne!(bytes[32..40], 0x0123456789abcdefu64.to_le_bytes());
+    assert_ne!(bytes[0..8], 0x1234567890ABCDEFu64.to_le_bytes());
+    assert_ne!(bytes[8..16], 0xFEDCBA0987654321u64.to_le_bytes());
+    assert_ne!(bytes[16..24], 0xDEADBEEFCAFEBABEu64.to_le_bytes());
+    assert_ne!(bytes[24..32], 0xBEBAFECAEFBEADDEu64.to_le_bytes());
+    assert_ne!(bytes[32..40], 0x0123456789ABCDEFu64.to_le_bytes());
 }

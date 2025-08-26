@@ -1,17 +1,16 @@
 [package]
 name = "lib-q-ml-kem"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
 description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-version = "0.0.1"
-edition = "2024"
 rust-version = "1.89"
-license = "Apache-2.0"
-readme = "README.md"
-homepage = "https://github.com/Enkom-Tech/libQ"
-repository = "https://github.com/Enkom-Tech/libQ"
-documentation = "https://docs.rs/lib-q-ml-kem"
 categories = ["cryptography", "no-std", "wasm"]
 keywords = ["crypto", "ml-kem", "lattice", "post-quantum", "nist"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]

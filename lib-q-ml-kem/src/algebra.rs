@@ -1,14 +1,29 @@
-use core::ops::{Add, Mul, Sub};
-use hybrid_array::{Array, typenum::U256};
+use core::ops::{
+    Add,
+    Mul,
+    Sub,
+};
+
+use hybrid_array::Array;
+use hybrid_array::typenum::U256;
 use lib_q_sha3::digest::XofReader;
-
-use crate::crypto::{PRF, PrfOutput, XOF};
-use crate::encode::Encode;
-use crate::param::{ArraySize, CbdSamplingSize};
-use crate::util::{B32, Truncate};
-
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
+
+use crate::crypto::{
+    PRF,
+    PrfOutput,
+    XOF,
+};
+use crate::encode::Encode;
+use crate::param::{
+    ArraySize,
+    CbdSamplingSize,
+};
+use crate::util::{
+    B32,
+    Truncate,
+};
 
 pub type Integer = u16;
 
@@ -242,7 +257,7 @@ impl<'a> FieldElementReader<'a> {
             let b = &self.data[self.start..end];
             self.start = end;
 
-            let d1 = Integer::from(b[0]) + ((Integer::from(b[1]) & 0xf) << 8);
+            let d1 = Integer::from(b[0]) + ((Integer::from(b[1]) & 0xF) << 8);
             let d2 = (Integer::from(b[1]) >> 4) + ((Integer::from(b[2]) as Integer) << 4);
 
             if d1 < FieldElement::Q {
@@ -284,13 +299,13 @@ const ZETA_POW_BITREV: [FieldElement; 128] = {
     const ZETA: u64 = 17;
     #[allow(clippy::integer_division_remainder_used)]
     const fn bitrev7(x: usize) -> usize {
-        ((x >> 6) % 2)
-            | (((x >> 5) % 2) << 1)
-            | (((x >> 4) % 2) << 2)
-            | (((x >> 3) % 2) << 3)
-            | (((x >> 2) % 2) << 4)
-            | (((x >> 1) % 2) << 5)
-            | ((x % 2) << 6)
+        ((x >> 6) % 2) |
+            (((x >> 5) % 2) << 1) |
+            (((x >> 4) % 2) << 2) |
+            (((x >> 3) % 2) << 3) |
+            (((x >> 2) % 2) << 4) |
+            (((x >> 1) % 2) << 5) |
+            ((x % 2) << 6)
     }
 
     // Compute the powers of zeta
@@ -504,9 +519,14 @@ impl<K: ArraySize> NttMatrix<K> {
 
 #[cfg(test)]
 mod test {
+    use hybrid_array::typenum::{
+        U2,
+        U3,
+        U8,
+    };
+
     use super::*;
     use crate::util::Flatten;
-    use hybrid_array::typenum::{U2, U3, U8};
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {

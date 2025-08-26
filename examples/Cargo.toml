@@ -1,15 +1,16 @@
 [package]
 name = "lib-q-examples"
-version = "0.0.1"
-edition = "2024"
-authors = ["lib-Q Contributors"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 description = "Examples for lib-Q post-quantum cryptography library"
-license = "Apache-2.0"
+license.workspace = true
 
 [dependencies]
 lib-q-hash = { path = "../lib-q-hash" }
 lib-q-core = { path = "../lib-q-core" }
 lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
+lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
 
 [[example]]
 name = "hash_example"

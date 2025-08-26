@@ -3,9 +3,19 @@
 //! These tests verify that SHA3 operations are constant-time to prevent
 //! timing-based side-channel attacks.
 
+use std::time::{
+    Duration,
+    Instant,
+};
+
 use digest::Digest;
-use lib_q_sha3::{Keccak256, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
-use std::time::{Duration, Instant};
+use lib_q_sha3::{
+    Keccak256,
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+};
 
 /// Test that SHA3-224 operations take constant time regardless of input
 #[test]
@@ -23,9 +33,9 @@ fn test_sha3_224_constant_time() {
         b"abcdefghi",   // Nine bytes
         b"abcdefghij",  // Ten bytes
         &[0u8; 50],     // 50 zero bytes
-        &[0xffu8; 50],  // 50 ones bytes
+        &[0xFFu8; 50],  // 50 ones bytes
         &[0u8; 100],    // 100 zero bytes
-        &[0xffu8; 100], // 100 ones bytes
+        &[0xFFu8; 100], // 100 ones bytes
     ];
 
     let mut timings = Vec::new();
@@ -81,9 +91,9 @@ fn test_sha3_256_constant_time() {
         b"abcdefghi",
         b"abcdefghij",
         &[0u8; 50],
-        &[0xffu8; 50],
+        &[0xFFu8; 50],
         &[0u8; 100],
-        &[0xffu8; 100],
+        &[0xFFu8; 100],
     ];
 
     let mut timings = Vec::new();
@@ -137,9 +147,9 @@ fn test_keccak_256_constant_time() {
         b"abcdefghi",
         b"abcdefghij",
         &[0u8; 50],
-        &[0xffu8; 50],
+        &[0xFFu8; 50],
         &[0u8; 100],
-        &[0xffu8; 100],
+        &[0xFFu8; 100],
     ];
 
     let mut timings = Vec::new();

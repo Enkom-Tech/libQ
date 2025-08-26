@@ -2,8 +2,11 @@
 //!
 //! This crate provides implementations of post-quantum key encapsulation mechanisms.
 
-use lib_q_core::{Algorithm, Error, Kem};
-
+use lib_q_core::{
+    Algorithm,
+    Error,
+    Kem,
+};
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -34,7 +37,7 @@ pub fn create_kem(algorithm: Algorithm) -> Result<Box<dyn Kem>, Error> {
         #[cfg(feature = "ml-kem")]
         Algorithm::MlKem1024 => Ok(Box::new(ml_kem::MlKem1024Impl::default())),
         _ => Err(Error::InvalidAlgorithm {
-            algorithm: format!("{:?}", algorithm),
+            algorithm: "Unknown KEM algorithm",
         }),
     }
 }
@@ -42,10 +45,18 @@ pub fn create_kem(algorithm: Algorithm) -> Result<Box<dyn Kem>, Error> {
 /// WASM-friendly wrapper for KEM operations
 #[cfg(feature = "wasm")]
 pub mod wasm {
-    use super::*;
-    use lib_q_core::{KemKeypair, KemPublicKey, KemSecretKey};
+    use lib_q_core::{
+        KemKeypair,
+        KemPublicKey,
+        KemSecretKey,
+    };
     #[allow(unused_imports)]
-    use wasm_bindgen::{JsError, prelude::*};
+    use wasm_bindgen::{
+        JsError,
+        prelude::*,
+    };
+
+    use super::*;
 
     /// Generate a keypair for the specified algorithm (WASM)
     #[wasm_bindgen]
@@ -148,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_unsupported_algorithm() {
-        let result = create_kem(Algorithm::Dilithium2);
+        let result = create_kem(Algorithm::MlDsa65);
         assert!(
             result.is_err(),
             "Should return error for unsupported algorithm"

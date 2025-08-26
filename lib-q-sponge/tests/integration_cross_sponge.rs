@@ -1,12 +1,18 @@
 //! Integration tests for cross-sponge functionality in lib-q-sponge
 
-use lib_q_sponge::{OptimizationLevel, State, detection, f1600, p1600_optimized};
+use lib_q_sponge::{
+    OptimizationLevel,
+    State,
+    detection,
+    f1600,
+    p1600_optimized,
+};
 
 #[test]
 fn test_cross_sponge_availability() {
     // Test that both Keccak and Ascon functions are available in the same crate
     let mut keccak_state = [0u64; 25];
-    let mut ascon_state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut ascon_state = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     // Both should be accessible
     f1600(&mut keccak_state);
@@ -29,8 +35,8 @@ fn test_sponge_consistency_across_imports() {
     let mut state1 = [0u64; 25];
     let mut state2 = [0u64; 25];
 
-    state1[0] = 0x1234567890abcdef;
-    state2[0] = 0x1234567890abcdef;
+    state1[0] = 0x1234567890ABCDEF;
+    state2[0] = 0x1234567890ABCDEF;
 
     f1600(&mut state1);
     f1600(&mut state2);
@@ -38,8 +44,8 @@ fn test_sponge_consistency_across_imports() {
     assert_eq!(state1, state2, "Keccak should be consistent");
 
     // Test Ascon consistency
-    let mut ascon1 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut ascon2 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut ascon1 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut ascon2 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
 
     ascon1.permute_12();
     ascon2.permute_12();
@@ -60,8 +66,8 @@ fn test_sponge_avalanche_comparison() {
     let mut keccak1 = [0u64; 25];
     let mut keccak2 = [0u64; 25];
 
-    keccak1[0] = 0x1234567890abcdef;
-    keccak2[0] = 0x1234567890abcdee; // 1 bit different
+    keccak1[0] = 0x1234567890ABCDEF;
+    keccak2[0] = 0x1234567890ABCDEE; // 1 bit different
 
     f1600(&mut keccak1);
     f1600(&mut keccak2);
@@ -73,8 +79,8 @@ fn test_sponge_avalanche_comparison() {
         .sum::<u32>();
 
     // Ascon avalanche test
-    let mut ascon1 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut ascon2 = State::new(0x1234567890abcdee, 0, 0, 0, 0); // 1 bit different
+    let mut ascon1 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut ascon2 = State::new(0x1234567890ABCDEE, 0, 0, 0, 0); // 1 bit different
 
     ascon1.permute_12();
     ascon2.permute_12();
@@ -143,8 +149,8 @@ fn test_sponge_deterministic_behavior() {
     let mut keccak1 = [0u64; 25];
     let mut keccak2 = [0u64; 25];
 
-    keccak1[0] = 0xdeadbeefcafebabe;
-    keccak2[0] = 0xdeadbeefcafebabe;
+    keccak1[0] = 0xDEADBEEFCAFEBABE;
+    keccak2[0] = 0xDEADBEEFCAFEBABE;
 
     f1600(&mut keccak1);
     f1600(&mut keccak2);
@@ -152,8 +158,8 @@ fn test_sponge_deterministic_behavior() {
     assert_eq!(keccak1, keccak2, "Keccak should be deterministic");
 
     // Ascon deterministic test
-    let mut ascon1 = State::new(0xdeadbeefcafebabe, 0, 0, 0, 0);
-    let mut ascon2 = State::new(0xdeadbeefcafebabe, 0, 0, 0, 0);
+    let mut ascon1 = State::new(0xDEADBEEFCAFEBABE, 0, 0, 0, 0);
+    let mut ascon2 = State::new(0xDEADBEEFCAFEBABE, 0, 0, 0, 0);
 
     ascon1.permute_12();
     ascon2.permute_12();
@@ -173,12 +179,12 @@ fn test_sponge_state_independence() {
     // Create multiple instances of each sponge with different initial values
     let mut keccak1 = [0u64; 25];
     let mut keccak2 = [0u64; 25];
-    let mut ascon1 = State::new(0x1234567890abcdef, 0, 0, 0, 0);
-    let mut ascon2 = State::new(0xfedcba0987654321, 0, 0, 0, 0);
+    let mut ascon1 = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
+    let mut ascon2 = State::new(0xFEDCBA0987654321, 0, 0, 0, 0);
 
     // Initialize Keccak states with different values
-    keccak1[0] = 0x1234567890abcdef;
-    keccak2[0] = 0xfedcba0987654321;
+    keccak1[0] = 0x1234567890ABCDEF;
+    keccak2[0] = 0xFEDCBA0987654321;
 
     // Apply permutations
     f1600(&mut keccak1);
@@ -218,11 +224,11 @@ fn test_optimization_integration() {
 
     // Test Keccak with optimizations
     let mut keccak_state = [0u64; 25];
-    keccak_state[0] = 0x1234567890abcdef;
+    keccak_state[0] = 0x1234567890ABCDEF;
     p1600_optimized(&mut keccak_state, best_level);
 
     // Test Ascon (no optimizations available, but should still work)
-    let mut ascon_state = State::new(0x1234567890abcdef, 0, 0, 0, 0);
+    let mut ascon_state = State::new(0x1234567890ABCDEF, 0, 0, 0, 0);
     ascon_state.permute_12();
 
     // Both should produce non-zero output

@@ -2,9 +2,19 @@
 //!
 //! These tests verify performance characteristics and detect regressions.
 
+use std::time::{
+    Duration,
+    Instant,
+};
+
 use digest::Digest;
-use lib_q_sha3::{Keccak256, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
-use std::time::{Duration, Instant};
+use lib_q_sha3::{
+    Keccak256,
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+};
 
 /// Performance baseline for SHA3-256 operations
 const BASELINE_SHA3_256_NS: u64 = 100000; // 100 microseconds baseline (more realistic)
@@ -275,8 +285,8 @@ fn test_performance_consistency() {
             };
             diff.as_nanos() as f64 * diff.as_nanos() as f64
         })
-        .sum::<f64>()
-        / run_times.len() as f64;
+        .sum::<f64>() /
+        run_times.len() as f64;
     let std_dev = variance.sqrt();
 
     // Coefficient of variation should be less than 30%

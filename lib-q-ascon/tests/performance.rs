@@ -3,22 +3,26 @@
 //! These tests verify that Ascon operations maintain consistent performance
 //! characteristics and detect performance regressions.
 
+use std::time::{
+    Duration,
+    Instant,
+};
+
 use lib_q_ascon::State;
-use std::time::{Duration, Instant};
 
 /// Performance baseline for 12-round permutation
-const BASELINE_12_ROUND_NS: u64 = 2000; // 2 microseconds baseline (more realistic)
+const BASELINE_12_ROUND_NS: u64 = 200; // 200 nanoseconds baseline (matches actual performance)
 const PERFORMANCE_TOLERANCE: f64 = 10.0; // Allow 10x performance variation
 
 /// Test that 12-round permutation performance is within acceptable bounds
 #[test]
 fn test_12_round_performance() {
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 1000;
@@ -59,11 +63,11 @@ fn test_12_round_performance() {
 #[test]
 fn test_8_round_performance() {
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 1000;
@@ -109,11 +113,11 @@ fn test_8_round_performance() {
 #[test]
 fn test_6_round_performance() {
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 1000;
@@ -151,11 +155,11 @@ fn test_6_round_performance() {
 #[test]
 fn test_state_conversion_performance() {
     let state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 10000;
@@ -187,9 +191,9 @@ fn test_state_conversion_performance() {
 #[test]
 fn test_try_from_performance() {
     let bytes = [
-        0x12u8, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32,
-        0x10, 0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe, 0xbe, 0xba, 0xfe, 0xca, 0xef, 0xbe,
-        0xad, 0xde, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x12u8, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32,
+        0x10, 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE, 0xBE, 0xBA, 0xFE, 0xCA, 0xEF, 0xBE,
+        0xAD, 0xDE, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
     ];
 
     const ITERATIONS: usize = 10000;
@@ -221,11 +225,11 @@ fn test_try_from_performance() {
 #[test]
 fn test_performance_consistency() {
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 1000;
@@ -259,8 +263,8 @@ fn test_performance_consistency() {
             };
             diff.as_nanos() as f64 * diff.as_nanos() as f64
         })
-        .sum::<f64>()
-        / RUNS as f64;
+        .sum::<f64>() /
+        RUNS as f64;
     let std_dev = variance.sqrt();
 
     // Coefficient of variation should be reasonable (less than 20%)
@@ -276,11 +280,11 @@ fn test_performance_consistency() {
 #[test]
 fn test_round_scaling_performance() {
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 1000;
@@ -351,11 +355,11 @@ fn test_memory_allocation_performance() {
     let start = Instant::now();
     for _ in 0..ITERATIONS {
         let _state = State::new(
-            0x1234567890abcdef,
-            0xfedcba0987654321,
-            0xdeadbeefcafebabe,
-            0xbebafecaefbeadde,
-            0x0123456789abcdef,
+            0x1234567890ABCDEF,
+            0xFEDCBA0987654321,
+            0xDEADBEEFCAFEBABE,
+            0xBEBAFECAEFBEADDE,
+            0x0123456789ABCDEF,
         );
         std::hint::black_box(_state);
     }
@@ -375,11 +379,11 @@ fn test_memory_allocation_performance() {
 #[test]
 fn test_cloning_performance() {
     let state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     const ITERATIONS: usize = 10000;

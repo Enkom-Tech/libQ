@@ -2,7 +2,8 @@
 //!
 //! This module provides encoding and padding functions required by KMAC, TupleHash, and ParallelHash.
 
-use alloc::{vec, vec::Vec};
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// Left encode function
 ///

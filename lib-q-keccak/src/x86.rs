@@ -5,18 +5,30 @@
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 use core::arch::x86_64::{
-    __m256i, _mm256_and_si256, _mm256_or_si256, _mm256_set_epi64x, _mm256_setzero_si256,
-    _mm256_slli_epi64, _mm256_srli_epi64, _mm256_xor_si256,
+    __m256i,
+    _mm256_and_si256,
+    _mm256_or_si256,
+    _mm256_set_epi64x,
+    _mm256_set1_epi64x,
+    _mm256_setzero_si256,
+    _mm256_slli_epi64,
+    _mm256_srli_epi64,
+    _mm256_xor_si256,
 };
-
 // AVX-512 specific imports
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 use core::arch::x86_64::{
-    __m512i, _mm512_and_si512, _mm512_extract_epi64, _mm512_or_si512, _mm512_set_epi64,
-    _mm512_set1_epi64, _mm512_setzero_si512, _mm512_slli_epi64, _mm512_srli_epi64,
+    __m512i,
+    _mm512_and_si512,
+    _mm512_extract_epi64,
+    _mm512_or_si512,
+    _mm512_set_epi64,
+    _mm512_set1_epi64,
+    _mm512_setzero_si512,
+    _mm512_slli_epi64,
+    _mm512_srli_epi64,
     _mm512_xor_si512,
 };
-
 #[cfg(any(
     all(target_arch = "x86_64", target_feature = "avx2"),
     all(target_arch = "x86_64", target_feature = "avx512f")
@@ -26,6 +38,11 @@ use core::mem::size_of;
 // AVX2 optimized Keccak-p[1600] permutation
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
 pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
+    // Rho rotation constants for Keccak-p[1600]
+    const RHO_OFFSETS: [u32; 25] = [
+        0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43, 25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56,
+        14,
+    ];
     // Load state into AVX2 registers
     let mut lanes = [
         _mm256_set_epi64x(
@@ -71,24 +88,24 @@ pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
     const RC: [u64; 24] = [
         0x0000000000000001,
         0x0000000000008082,
-        0x800000000000808a,
+        0x800000000000808A,
         0x8000000080008000,
-        0x000000000000808b,
+        0x000000000000808B,
         0x0000000080000001,
         0x8000000080008081,
         0x8000000000008009,
-        0x000000000000008a,
+        0x000000000000008A,
         0x0000000000000088,
         0x0000000080008009,
-        0x000000008000000a,
-        0x000000008000808b,
-        0x800000000000008b,
+        0x000000008000000A,
+        0x000000008000808B,
+        0x800000000000008B,
         0x8000000000008089,
         0x8000000000008003,
         0x8000000000008002,
         0x8000000000000080,
-        0x000000000000800a,
-        0x800000008000000a,
+        0x000000000000800A,
+        0x800000008000000A,
         0x8000000080008081,
         0x8000000000008080,
         0x0000000080000001,
@@ -122,8 +139,32 @@ pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
             }
         }
 
-        // Rho and Pi steps (simplified for AVX2)
-        // Note: Full implementation would require more complex bit manipulation
+        // Rho and Pi steps
+        // Apply rotation constants and permutation
+        let mut rotated = [_mm256_setzero_si256(); 25];
+        for y in 0..5 {
+            for x in 0..5 {
+                let index = x + y * 5;
+                let rotation = RHO_OFFSETS[index];
+                if rotation == 0 {
+                    rotated[index] = lanes[index];
+                } else {
+                    rotated[index] = _mm256_or_si256(
+                        _mm256_slli_epi64(lanes[index], rotation),
+                        _mm256_srli_epi64(lanes[index], 64 - rotation),
+                    );
+                }
+            }
+        }
+
+        // Pi step: rearrange lanes according to permutation
+        for y in 0..5 {
+            for x in 0..5 {
+                let src_index = x + y * 5;
+                let dst_index = (y + 2 * x) % 5 + y * 5;
+                lanes[dst_index] = rotated[src_index];
+            }
+        }
 
         // Chi step
         for y in 0..5 {
@@ -200,24 +241,24 @@ pub unsafe fn p1600_avx512(state: &mut [u64; 25]) {
     const RC: [u64; 24] = [
         0x0000000000000001,
         0x0000000000008082,
-        0x800000000000808a,
+        0x800000000000808A,
         0x8000000080008000,
-        0x000000000000808b,
+        0x000000000000808B,
         0x0000000080000001,
         0x8000000080008081,
         0x8000000000008009,
-        0x000000000000008a,
+        0x000000000000008A,
         0x0000000000000088,
         0x0000000080008009,
-        0x000000008000000a,
-        0x000000008000808b,
-        0x800000000000008b,
+        0x000000008000000A,
+        0x000000008000808B,
+        0x800000000000008B,
         0x8000000000008089,
         0x8000000000008003,
         0x8000000000008002,
         0x8000000000000080,
-        0x000000000000800a,
-        0x800000008000000a,
+        0x000000000000800A,
+        0x800000008000000A,
         0x8000000080008081,
         0x8000000000008080,
         0x0000000080000001,
@@ -412,8 +453,8 @@ mod tests {
         let mut state2 = [0u64; 25];
 
         // Initialize with test data
-        state1[0] = 0x1234567890abcdef;
-        state2[0] = 0x1234567890abcdef;
+        state1[0] = 0x1234567890ABCDEF;
+        state2[0] = 0x1234567890ABCDEF;
 
         // Test both implementations
         unsafe { p1600_avx2(&mut state1) };

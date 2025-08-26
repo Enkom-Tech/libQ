@@ -3,7 +3,11 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{
+    Criterion,
+    criterion_group,
+    criterion_main,
+};
 use lib_q_ascon::State;
 use rand::Rng;
 
@@ -52,22 +56,22 @@ fn criterion_bench_state_operations(c: &mut Criterion) {
     group.bench_function("state creation", |b| {
         b.iter(|| {
             State::new(
-                0x1234567890abcdef,
-                0xfedcba0987654321,
-                0xdeadbeefcafebabe,
-                0xbebafecaefbeadde,
-                0x0123456789abcdef,
+                0x1234567890ABCDEF,
+                0xFEDCBA0987654321,
+                0xDEADBEEFCAFEBABE,
+                0xBEBAFECAEFBEADDE,
+                0x0123456789ABCDEF,
             );
         })
     });
 
     group.bench_function("as_bytes", |b| {
         let state = State::new(
-            0x1234567890abcdef,
-            0xfedcba0987654321,
-            0xdeadbeefcafebabe,
-            0xbebafecaefbeadde,
-            0x0123456789abcdef,
+            0x1234567890ABCDEF,
+            0xFEDCBA0987654321,
+            0xDEADBEEFCAFEBABE,
+            0xBEBAFECAEFBEADDE,
+            0x0123456789ABCDEF,
         );
         b.iter(|| {
             state.as_bytes();
@@ -82,11 +86,11 @@ fn criterion_bench_throughput(c: &mut Criterion) {
 
     // Test throughput for different round counts
     let mut state = State::new(
-        0x1234567890abcdef,
-        0xfedcba0987654321,
-        0xdeadbeefcafebabe,
-        0xbebafecaefbeadde,
-        0x0123456789abcdef,
+        0x1234567890ABCDEF,
+        0xFEDCBA0987654321,
+        0xDEADBEEFCAFEBABE,
+        0xBEBAFECAEFBEADDE,
+        0x0123456789ABCDEF,
     );
 
     group.throughput(criterion::Throughput::Elements(1));

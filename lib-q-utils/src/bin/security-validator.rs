@@ -3,8 +3,12 @@
 //! This binary provides command-line tools for security validation
 //! that can be used in CI/CD workflows.
 
-use lib_q_utils::security_validation::{SecurityValidator, print_report};
 use std::env;
+
+use lib_q_utils::security_validation::{
+    SecurityValidator,
+    print_report,
+};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

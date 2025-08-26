@@ -3,6 +3,7 @@
 //! This module provides shared security validation functions that can be used
 //! across different parts of the codebase to ensure consistent security checks.
 
+#[allow(clippy::disallowed_types)]
 use std::collections::HashMap;
 
 /// Security validation result
@@ -16,6 +17,7 @@ pub enum SecurityValidationResult {
 /// Security validation report
 #[derive(Debug, Clone)]
 pub struct SecurityValidationReport {
+    #[allow(clippy::disallowed_types)]
     pub results: HashMap<String, SecurityValidationResult>,
     pub summary: SecurityValidationSummary,
 }
@@ -27,6 +29,12 @@ pub struct SecurityValidationSummary {
     pub passed: usize,
     pub failed: usize,
     pub warnings: usize,
+}
+
+impl Default for SecurityValidationSummary {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecurityValidationSummary {
@@ -87,6 +95,7 @@ impl SecurityValidator {
     /// Run all security validations
     pub fn validate(&self) -> SecurityValidationReport {
         let mut report = SecurityValidationReport {
+            #[allow(clippy::disallowed_types)]
             results: HashMap::new(),
             summary: SecurityValidationSummary::new(),
         };

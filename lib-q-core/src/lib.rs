@@ -4,6 +4,11 @@
 //! used across all lib-Q crates.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![deny(unsafe_code)]
+#![deny(unused_qualifications)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 pub mod algorithm_registry;
 pub mod api;
@@ -14,7 +19,10 @@ pub mod wasm_common;
 // Re-exports
 pub use algorithm_registry::*;
 pub use api::*;
-pub use error::{Error, Result};
+pub use error::{
+    Error,
+    Result,
+};
 pub use traits::*;
 
 // Constants

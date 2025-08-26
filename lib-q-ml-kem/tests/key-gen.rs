@@ -1,9 +1,10 @@
 #![cfg(feature = "deterministic")]
 
-use ml_kem::*;
+use std::fs::read_to_string;
+use std::path::PathBuf;
 
 use hybrid_array::Array;
-use std::{fs::read_to_string, path::PathBuf};
+use ml_kem::*;
 
 #[test]
 fn acvp_key_gen() {
@@ -46,7 +47,10 @@ fn verify<K: KemCore>(tc: &acvp::TestCase) {
 }
 
 mod acvp {
-    use serde::{Deserialize, Serialize};
+    use serde::{
+        Deserialize,
+        Serialize,
+    };
 
     #[derive(Deserialize, Serialize)]
     pub struct TestVectorFile {

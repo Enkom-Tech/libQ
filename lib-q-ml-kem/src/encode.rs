@@ -1,12 +1,23 @@
-use hybrid_array::{
-    Array,
-    typenum::{U256, Unsigned},
+use hybrid_array::Array;
+use hybrid_array::typenum::{
+    U256,
+    Unsigned,
 };
 
 use crate::algebra::{
-    FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
+    FieldElement,
+    Integer,
+    NttPolynomial,
+    NttVector,
+    Polynomial,
+    PolynomialVector,
 };
-use crate::param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize};
+use crate::param::{
+    ArraySize,
+    EncodedPolynomial,
+    EncodingSize,
+    VectorEncodingSize,
+};
 use crate::util::Truncate;
 
 type DecodedValue = Array<FieldElement, U256>;
@@ -143,14 +154,26 @@ where
 
 #[cfg(test)]
 pub(crate) mod test {
-    use super::*;
     use core::fmt::Debug;
     use core::ops::Rem;
+
+    use hybrid_array::typenum::marker_traits::Zero;
+    use hybrid_array::typenum::operator_aliases::Mod;
     use hybrid_array::typenum::{
-        U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, marker_traits::Zero, operator_aliases::Mod,
+        U1,
+        U2,
+        U3,
+        U4,
+        U5,
+        U6,
+        U8,
+        U10,
+        U11,
+        U12,
     };
     use rand::Rng;
 
+    use super::*;
     use crate::param::EncodedPolynomialVector;
 
     // A helper trait to construct larger arrays by repeating smaller ones
@@ -205,7 +228,7 @@ pub(crate) mod test {
     fn byte_codec() {
         // The 1-bit can only represent decoded values equal to 0 or 1.
         let decoded: DecodedValue = Array::<_, U2>([FieldElement(0), FieldElement(1)]).repeat();
-        let encoded: EncodedPolynomial<U1> = Array([0xaa; 32]);
+        let encoded: EncodedPolynomial<U1> = Array([0xAA; 32]);
         byte_codec_test::<U1>(&decoded, &encoded);
 
         // For other codec widths, we use a standard sequence
@@ -225,19 +248,19 @@ pub(crate) mod test {
         byte_codec_test::<U4>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U5> =
-            Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
+            Array::<_, U5>([0x20, 0x88, 0x41, 0x8A, 0x39]).repeat();
         byte_codec_test::<U5>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U6> =
-            Array::<_, U6>([0x40, 0x20, 0x0c, 0x44, 0x61, 0x1c]).repeat();
+            Array::<_, U6>([0x40, 0x20, 0x0C, 0x44, 0x61, 0x1C]).repeat();
         byte_codec_test::<U6>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U10> =
-            Array::<_, U10>([0x00, 0x04, 0x20, 0xc0, 0x00, 0x04, 0x14, 0x60, 0xc0, 0x01]).repeat();
+            Array::<_, U10>([0x00, 0x04, 0x20, 0xC0, 0x00, 0x04, 0x14, 0x60, 0xC0, 0x01]).repeat();
         byte_codec_test::<U10>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U11> = Array::<_, U11>([
-            0x00, 0x08, 0x80, 0x00, 0x06, 0x40, 0x80, 0x02, 0x18, 0xe0, 0x00,
+            0x00, 0x08, 0x80, 0x00, 0x06, 0x40, 0x80, 0x02, 0x18, 0xE0, 0x00,
         ])
         .repeat();
         byte_codec_test::<U11>(&decoded, &encoded);
@@ -253,8 +276,8 @@ pub(crate) mod test {
     #[test]
     fn byte_codec_12_mod() {
         // DecodeBytes_12 is required to reduce mod q
-        let encoded: EncodedPolynomial<U12> = Array([0xff; 384]);
-        let decoded: DecodedValue = Array([FieldElement(0xfff % FieldElement::Q); 256]);
+        let encoded: EncodedPolynomial<U12> = Array([0xFF; 384]);
+        let decoded: DecodedValue = Array([FieldElement(0xFFF % FieldElement::Q); 256]);
 
         let actual_decoded = byte_decode::<U12>(&encoded);
         assert_eq!(actual_decoded, decoded);
@@ -291,17 +314,17 @@ pub(crate) mod test {
         // The required vector sizes are 2, 3, and 4.
         let decoded: PolynomialVector<U2> = PolynomialVector(Array([poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U2> =
-            Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
+            Array::<_, U5>([0x20, 0x88, 0x41, 0x8A, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U2>>(&decoded, &encoded);
 
         let decoded: PolynomialVector<U3> = PolynomialVector(Array([poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U3> =
-            Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
+            Array::<_, U5>([0x20, 0x88, 0x41, 0x8A, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U3>>(&decoded, &encoded);
 
         let decoded: PolynomialVector<U4> = PolynomialVector(Array([poly, poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U4> =
-            Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
+            Array::<_, U5>([0x20, 0x88, 0x41, 0x8A, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U4>>(&decoded, &encoded);
     }
 }

@@ -4,7 +4,13 @@
 //! input validation, error handling, and cryptographic properties.
 
 use digest::Digest;
-use lib_q_sha3::{Keccak256, Sha3_224, Sha3_256, Sha3_384, Sha3_512};
+use lib_q_sha3::{
+    Keccak256,
+    Sha3_224,
+    Sha3_256,
+    Sha3_384,
+    Sha3_512,
+};
 
 /// Test that hash operations are deterministic
 #[test]
@@ -22,9 +28,9 @@ fn test_hash_determinism() {
         b"abcdefghi",
         b"abcdefghij",
         &[0u8; 100],
-        &[0xffu8; 100],
+        &[0xFFu8; 100],
         &[0u8; 1000],
-        &[0xffu8; 1000],
+        &[0xFFu8; 1000],
     ];
 
     for input in &test_inputs {

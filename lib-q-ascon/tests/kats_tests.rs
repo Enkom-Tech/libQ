@@ -54,89 +54,89 @@ fn get_permutation_test_vectors() -> Vec<PermutationTestVector> {
                 0x0000000000000000,
             ],
             [
-                0x78ea7ae5cfebb108,
-                0x9b9bfb8513b560f7,
-                0x6937f83e03d11a50,
-                0x3fe53f36f2c1178c,
-                0x045d648e4def12c9,
+                0x78EA7AE5CFEBB108,
+                0x9B9BFB8513B560F7,
+                0x6937F83E03D11A50,
+                0x3FE53F36F2C1178C,
+                0x045D648E4DEF12C9,
             ], // 12 rounds
             [
-                0x1418f8af721aa830,
-                0xa5425f1f8cb31388,
-                0xa01ef761bf8e1652,
-                0xf01fdabf8c8a82b4,
-                0x0168260badf76a06,
+                0x1418F8AF721AA830,
+                0xA5425F1F8CB31388,
+                0xA01EF761BF8E1652,
+                0xF01FDABF8C8A82B4,
+                0x0168260BADF76A06,
             ], // 8 rounds
             [
-                0x160c84f20faad4f1,
-                0x21495b1b0ae33eef,
-                0xe0377d04e23a914b,
-                0x2b23481598ffa8ea,
-                0x649af379ba83cd30,
+                0x160C84F20FAAD4F1,
+                0x21495B1B0AE33EEF,
+                0xE0377D04E23A914B,
+                0x2B23481598FFA8EA,
+                0x649AF379BA83CD30,
             ], // 6 rounds
         ),
         // Test Vector 1: All ones input
         PermutationTestVector::new(
             1,
             [
-                0xffffffffffffffff,
-                0xffffffffffffffff,
-                0xffffffffffffffff,
-                0xffffffffffffffff,
-                0xffffffffffffffff,
+                0xFFFFFFFFFFFFFFFF,
+                0xFFFFFFFFFFFFFFFF,
+                0xFFFFFFFFFFFFFFFF,
+                0xFFFFFFFFFFFFFFFF,
+                0xFFFFFFFFFFFFFFFF,
             ],
             [
-                0xd41d05295e134833,
-                0x1cab2f56f80b9cf8,
-                0x11d0a2227d75cef3,
-                0xfc9a13721d19d0b4,
-                0x31cc91248b3cd722,
+                0xD41D05295E134833,
+                0x1CAB2F56F80B9CF8,
+                0x11D0A2227D75CEF3,
+                0xFC9A13721D19D0B4,
+                0x31CC91248B3CD722,
             ], // 12 rounds
             [
-                0xc232c60fa1d25434,
-                0x78db1afd592a0dac,
-                0x1ec0102de75fb7d9,
-                0x7dda2eaf79e8e257,
-                0x02d5a344eaead5d9,
+                0xC232C60FA1D25434,
+                0x78DB1AFD592A0DAC,
+                0x1EC0102DE75FB7D9,
+                0x7DDA2EAF79E8E257,
+                0x02D5A344EAEAD5D9,
             ], // 8 rounds
             [
-                0x907003131b28ecfb,
-                0x1676b68ab79738f8,
-                0xa42c876002e79cb7,
-                0x13a87732e898243e,
-                0x35c773698c6490de,
+                0x907003131B28ECFB,
+                0x1676B68AB79738F8,
+                0xA42C876002E79CB7,
+                0x13A87732E898243E,
+                0x35C773698C6490DE,
             ], // 6 rounds
         ),
         // Test Vector 2: Mixed pattern
         PermutationTestVector::new(
             2,
             [
-                0x1234567890abcdef,
-                0xfedcba0987654321,
-                0xdeadbeefcafebabe,
-                0xbebafecaefbeadde,
-                0x0123456789abcdef,
+                0x1234567890ABCDEF,
+                0xFEDCBA0987654321,
+                0xDEADBEEFCAFEBABE,
+                0xBEBAFECAEFBEADDE,
+                0x0123456789ABCDEF,
             ],
             [
-                0x15d6fefcaf3807c8,
-                0xe4162879ae9564bb,
-                0xaeaff1f475396135,
-                0xed312fa45fdde142,
-                0xf04faaf52156e331,
+                0x15D6FEFCAF3807C8,
+                0xE4162879AE9564BB,
+                0xAEAFF1F475396135,
+                0xED312FA45FDDE142,
+                0xF04FAAF52156E331,
             ], // 12 rounds
             [
-                0x0e9ea1132c4e0471,
-                0xcc3db854b4722e4b,
-                0x274ecca0dbae3ef5,
-                0x59083f91a9a67177,
-                0x44a27da5a782f44b,
+                0x0E9EA1132C4E0471,
+                0xCC3DB854B4722E4B,
+                0x274ECCA0DBAE3EF5,
+                0x59083F91A9A67177,
+                0x44A27DA5A782F44B,
             ], // 8 rounds
             [
-                0x841d56ed7f44fbd6,
-                0x2fa3eef95846356c,
-                0x4e583013cfe2c2d1,
-                0x82b3b776bbd8832b,
-                0xd03e76dc7cadfba5,
+                0x841D56ED7F44FBD6,
+                0x2FA3EEF95846356C,
+                0x4E583013CFE2C2D1,
+                0x82B3B776BBD8832B,
+                0xD03E76DC7CADFBA5,
             ], // 6 rounds
         ),
         // Test Vector 3: Single bit set
@@ -150,57 +150,57 @@ fn get_permutation_test_vectors() -> Vec<PermutationTestVector> {
                 0x0000000000000000,
             ],
             [
-                0x669bf83531f930ab,
-                0x19d3b4801b895387,
-                0xc29a4d251a8fe948,
-                0x344f68b335d2682c,
-                0x54e0c3ef895c25b2,
+                0x669BF83531F930AB,
+                0x19D3B4801B895387,
+                0xC29A4D251A8FE948,
+                0x344F68B335D2682C,
+                0x54E0C3EF895C25B2,
             ], // 12 rounds
             [
-                0xc77d16fb0863bae7,
-                0xd5c56c81415eb605,
-                0x1493faec3fa38406,
-                0x507f702337052e46,
-                0x50e7236b7190ece9,
+                0xC77D16FB0863BAE7,
+                0xD5C56C81415EB605,
+                0x1493FAEC3FA38406,
+                0x507F702337052E46,
+                0x50E7236B7190ECE9,
             ], // 8 rounds
             [
-                0x21d6f5506c67d2c9,
-                0x707de62aa682cd13,
-                0x868433b19118b57e,
-                0x9bc29343b9259d3e,
-                0x44b2dc1feab033d2,
+                0x21D6F5506C67D2C9,
+                0x707DE62AA682CD13,
+                0x868433B19118B57E,
+                0x9BC29343B9259D3E,
+                0x44B2DC1FEAB033D2,
             ], // 6 rounds
         ),
         // Test Vector 4: Alternating pattern
         PermutationTestVector::new(
             4,
             [
-                0xaaaaaaaaaaaaaaaa,
+                0xAAAAAAAAAAAAAAAA,
                 0x5555555555555555,
-                0xaaaaaaaaaaaaaaaa,
+                0xAAAAAAAAAAAAAAAA,
                 0x5555555555555555,
-                0xaaaaaaaaaaaaaaaa,
+                0xAAAAAAAAAAAAAAAA,
             ],
             [
-                0x63459abee7c79872,
-                0xbb9a0d84652033c3,
-                0x6b8856482244f553,
-                0x1ac20478d8205450,
-                0x4e2d409916355f85,
+                0x63459ABEE7C79872,
+                0xBB9A0D84652033C3,
+                0x6B8856482244F553,
+                0x1AC20478D8205450,
+                0x4E2D409916355F85,
             ], // 12 rounds
             [
-                0x5c6703b9f458e2ab,
-                0x1ec29576d75cc210,
-                0xb3468a805ac0b38a,
-                0x944b665b59efb33d,
-                0x3c4a6634a5938c9a,
+                0x5C6703B9F458E2AB,
+                0x1EC29576D75CC210,
+                0xB3468A805AC0B38A,
+                0x944B665B59EFB33D,
+                0x3C4A6634A5938C9A,
             ], // 8 rounds
             [
-                0xb987fe30475ad735,
-                0xdd7d6181e695e346,
-                0x82fed47c7893a441,
-                0x67e9e9e6074a6909,
-                0xc933569345a8c41c,
+                0xB987FE30475AD735,
+                0xDD7D6181E695E346,
+                0x82FED47C7893A441,
+                0x67E9E9E6074A6909,
+                0xC933569345A8C41C,
             ], // 6 rounds
         ),
     ]
@@ -396,21 +396,21 @@ fn test_permute_n_consistency() {
 fn test_ascon_specification_vectors() {
     // Test vector from Ascon specification section 2.2
     let mut state = State::new(
-        0x0123456789abcdef,
-        0xef0123456789abcd,
-        0xcdef0123456789ab,
-        0xabcdef0123456789,
-        0x89abcdef01234567,
+        0x0123456789ABCDEF,
+        0xEF0123456789ABCD,
+        0xCDEF0123456789AB,
+        0xABCDEF0123456789,
+        0x89ABCDEF01234567,
     );
 
     state.permute_12();
 
     // These are the expected values from running the reference implementation
-    assert_eq!(state[0], 0x206416dfc624bb14);
-    assert_eq!(state[1], 0x1b0c47a601058aab);
-    assert_eq!(state[2], 0x8934cfc93814cddd);
-    assert_eq!(state[3], 0xa9738d287a748e4b);
-    assert_eq!(state[4], 0xddd934f058afc7e1);
+    assert_eq!(state[0], 0x206416DFC624BB14);
+    assert_eq!(state[1], 0x1B0C47A601058AAB);
+    assert_eq!(state[2], 0x8934CFC93814CDDD);
+    assert_eq!(state[3], 0xA9738D287A748E4B);
+    assert_eq!(state[4], 0xDDD934F058AFC7E1);
 }
 
 /// Test edge cases for the permutation
@@ -437,11 +437,11 @@ fn test_ascon_edge_cases() {
 
     // Test all ones
     let mut state_ones = State::new(
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
-        0xffffffffffffffff,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF,
     );
     state_ones.permute_12();
 
@@ -454,7 +454,7 @@ fn test_ascon_edge_cases() {
         state_ones[4],
     ]
     .iter()
-    .all(|&x| x == 0xffffffffffffffff);
+    .all(|&x| x == 0xFFFFFFFFFFFFFFFF);
     assert!(
         !all_ones,
         "Permutation of all-ones state should not produce all ones"

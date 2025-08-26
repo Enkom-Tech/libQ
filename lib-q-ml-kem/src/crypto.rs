@@ -1,13 +1,27 @@
 #![allow(dead_code)]
 
-use hybrid_array::{Array, ArraySize};
+use hybrid_array::{
+    Array,
+    ArraySize,
+};
+use lib_q_sha3::digest::{
+    ExtendableOutput,
+    Update,
+    XofReader,
+};
 use lib_q_sha3::{
-    Digest, Sha3_256, Sha3_512, Shake128, Shake256,
-    digest::{ExtendableOutput, Update, XofReader},
+    Digest,
+    Sha3_256,
+    Sha3_512,
+    Shake128,
+    Shake256,
 };
 use rand_core::CryptoRng;
 
-use crate::param::{CbdSamplingSize, EncodedPolynomial};
+use crate::param::{
+    CbdSamplingSize,
+    EncodedPolynomial,
+};
 use crate::util::B32;
 
 pub fn rand<L: ArraySize, R: CryptoRng + ?Sized>(rng: &mut R) -> Array<u8, L> {
@@ -135,9 +149,13 @@ pub fn XOF(rho: &B32, i: u8, j: u8) -> impl XofReader {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use hex_literal::hex;
-    use hybrid_array::typenum::{U2, U3};
+    use hybrid_array::typenum::{
+        U2,
+        U3,
+    };
+
+    use super::*;
 
     #[test]
     fn g() {
