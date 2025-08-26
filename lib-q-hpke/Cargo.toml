@@ -9,7 +9,8 @@ readme.workspace = true
 description = "HPKE implementation for lib-q"
 keywords = ["cryptography", "post-quantum", "hpke", "kem"]
 categories = ["cryptography"]
-publish = false
+# Temporarily disabled publishing to avoid CI issues
+# publish = false
 
 [lib]
 name = "lib_q_hpke"
