@@ -73,9 +73,9 @@ pub(crate) fn vector_times_ring_element<SIMDUnit: Operations>(
     vector: &mut [PolynomialRingElement<SIMDUnit>],
     ring_element: &PolynomialRingElement<SIMDUnit>,
 ) {
-    for i in 0..vector.len() {
-        ntt_multiply_montgomery(&mut vector[i], ring_element);
-        invert_ntt_montgomery(&mut vector[i]);
+    for element in vector {
+        ntt_multiply_montgomery(element, ring_element);
+        invert_ntt_montgomery(element);
     }
 }
 

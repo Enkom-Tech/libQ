@@ -33,6 +33,7 @@ pub(crate) mod shake256 {
             [u8; BLOCK_SIZE],
             [u8; BLOCK_SIZE],
         );
+        #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
             input1: &[u8],
@@ -377,6 +378,7 @@ pub(crate) mod portable {
         }
 
         #[inline(always)]
+        #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
             input1: &[u8],
@@ -444,7 +446,7 @@ pub(crate) mod simd256 {
     fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake128x4 {
         let mut state = x4::incremental::init();
         x4::incremental::shake128_absorb_final(&mut state, input0, input1, input2, input3);
-        Shake128x4 { state: state }
+        Shake128x4 { state }
     }
 
     #[inline(always)]
@@ -590,7 +592,7 @@ pub(crate) mod simd256 {
     fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake256x4 {
         let mut state = x4::incremental::init();
         x4::incremental::shake256_absorb_final(&mut state, input0, input1, input2, input3);
-        Shake256x4 { state: state }
+        Shake256x4 { state }
     }
 
     #[inline(always)]
@@ -642,6 +644,7 @@ pub(crate) mod simd256 {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn shake256_x4<const OUT_LEN: usize>(
         input0: &[u8],
         input1: &[u8],
@@ -686,6 +689,7 @@ pub(crate) mod simd256 {
         }
 
         #[inline(always)]
+        #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
             input1: &[u8],
@@ -721,9 +725,9 @@ pub(crate) mod neon {
     /// Init the state and absorb 4 blocks in parallel.
     fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake128x4 {
         let mut state = [x2::incremental::init(), x2::incremental::init()];
-        x2::incremental::shake128_absorb_final(&mut state[0], &input0, &input1);
-        x2::incremental::shake128_absorb_final(&mut state[1], &input2, &input3);
-        Shake128x4 { state: state }
+        x2::incremental::shake128_absorb_final(&mut state[0], input0, input1);
+        x2::incremental::shake128_absorb_final(&mut state[1], input2, input3);
+        Shake128x4 { state }
     }
 
     fn squeeze_first_five_blocks(
@@ -791,9 +795,9 @@ pub(crate) mod neon {
 
     fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake256x4 {
         let mut state = [x2::incremental::init(), x2::incremental::init()];
-        x2::incremental::shake256_absorb_final(&mut state[0], &input0, &input1);
-        x2::incremental::shake256_absorb_final(&mut state[1], &input2, &input3);
-        Shake256x4 { state: state }
+        x2::incremental::shake256_absorb_final(&mut state[0], input0, input1);
+        x2::incremental::shake256_absorb_final(&mut state[1], input2, input3);
+        Shake256x4 { state }
     }
 
     fn squeeze_first_block_x4(
@@ -832,6 +836,7 @@ pub(crate) mod neon {
         (out0, out1, out2, out3)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn shake256_x4<const OUT_LEN: usize>(
         input0: &[u8],
         input1: &[u8],
@@ -873,6 +878,7 @@ pub(crate) mod neon {
             squeeze_next_block_x4(self)
         }
 
+        #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
             input1: &[u8],

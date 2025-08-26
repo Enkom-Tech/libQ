@@ -15,11 +15,7 @@ pub(crate) fn vector_infinity_norm_exceeds<SIMDUnit: Operations>(
     vector: &[PolynomialRingElement<SIMDUnit>],
     bound: i32,
 ) -> bool {
-    let mut result = false;
-    for i in 0..vector.len() {
-        result = result || vector[i].infinity_norm_exceeds(bound);
-    }
-    result
+    vector.iter().any(|elem| elem.infinity_norm_exceeds(bound))
 }
 
 #[inline(always)]

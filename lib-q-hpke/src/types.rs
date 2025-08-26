@@ -1,10 +1,7 @@
 //! HPKE-specific types and algorithms
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::String,
-    vec::Vec,
-};
+use alloc::vec::Vec;
 
 /// HPKE Modes (RFC 9180 Section 5.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

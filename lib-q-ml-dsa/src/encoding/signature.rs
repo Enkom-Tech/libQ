@@ -7,6 +7,7 @@ use crate::{
 };
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     commitment_hash: &[u8],
     signer_response: &[PolynomialRingElement<SIMDUnit>],
@@ -24,9 +25,9 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     signature[offset..offset + commitment_hash_size].copy_from_slice(commitment_hash);
     offset += commitment_hash_size;
 
-    for i in 0..columns_in_a {
+    for elem in signer_response.iter().take(columns_in_a) {
         encoding::gamma1::serialize::<SIMDUnit>(
-            &signer_response[i],
+            elem,
             &mut signature[offset..offset + gamma1_ring_element_size],
             gamma1_exponent,
         );
@@ -53,6 +54,7 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
 }
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     columns_in_a: usize,
     rows_in_a: usize,
@@ -110,8 +112,12 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
         previous_true_hints_seen = current_true_hints_seen;
     }
 
-    for j in previous_true_hints_seen..max_ones_in_hint {
-        if hint_serialized[j] != 0 {
+    for &value in hint_serialized
+        .iter()
+        .take(max_ones_in_hint)
+        .skip(previous_true_hints_seen)
+    {
+        if value != 0 {
             // ensures padding indices are zero
             return Err(VerificationError::MalformedHintError);
         }

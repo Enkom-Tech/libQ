@@ -25,6 +25,7 @@ macro_rules! impl_struct {
             }
 
             /// A reference to the raw byte array.
+            #[allow(clippy::should_implement_trait)]
             pub fn as_ref(&self) -> &[u8; SIZE] {
                 &self.value
             }

@@ -66,6 +66,7 @@ pub fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32
         r#"Spec.Utils.eq_repeati0 (sz 0) (Spec.MLDSA.Math.rejection_sample_eta_2_inner $randomness) Seq.empty"#
     );
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..randomness.len() {
         hax_lib::loop_invariant!(|i: usize| {
             fstar!(
@@ -139,6 +140,7 @@ pub fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32
         r#"Spec.Utils.eq_repeati0 (sz 0) (Spec.MLDSA.Math.rejection_sample_eta_4_inner $randomness) Seq.empty"#
     );
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..randomness.len() {
         hax_lib::loop_invariant!(|i: usize| {
             fstar!(

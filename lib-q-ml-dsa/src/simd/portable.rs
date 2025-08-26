@@ -138,13 +138,14 @@ impl Operations for Coefficients {
         ntt::ntt(simd_units)
     }
 
+    #[allow(unused_variables)]
     fn invert_ntt_montgomery(simd_units: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
         invntt::invert_ntt_montgomery(simd_units)
     }
 
     fn reduce(simd_units: &mut [Self; SIMD_UNITS_IN_RING_ELEMENT]) {
-        for i in 0..simd_units.len() {
-            shift_left_then_reduce::<0>(&mut simd_units[i]);
+        for unit in simd_units.iter_mut() {
+            shift_left_then_reduce::<0>(unit);
         }
     }
 }

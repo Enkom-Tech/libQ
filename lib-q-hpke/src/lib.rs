@@ -13,35 +13,7 @@
 //!
 //! ## Architecture
 //!
-//! This crate adapts the hpke-rs library to work with lib-q's provider pattern:
-//!
-//! ```rust
-//! use lib_q::{
-//!     Algorithm,
-//!     create_hpke_context,
-//! };
-//!
-//! // Create HPKE context with provider
-//! let mut hpke_ctx = create_hpke_context();
-//!
-//! // Generate keypair
-//! let keypair = hpke_ctx.generate_keypair(Algorithm::MlKem512)?;
-//!
-//! // Encrypt a message
-//! let (encapsulated_key, ciphertext) = hpke_ctx.seal(
-//!     &keypair.public_key,
-//!     b"additional data",
-//!     b"secret message",
-//! )?;
-//!
-//! // Decrypt the message
-//! let plaintext = hpke_ctx.open(
-//!     &encapsulated_key,
-//!     &keypair.secret_key,
-//!     b"additional data",
-//!     &ciphertext,
-//! )?;
-//! ```
+//! lib-q-hpke is a library that provides a HPKE implementation for lib-q.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code, unused_must_use, unstable_features)]
@@ -59,20 +31,13 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
     boxed::Box,
-    string::{
-        String,
-        ToString,
-    },
     vec,
     vec::Vec,
 };
 
 pub use error::*;
 use lib_q_core::{
-    Algorithm,
-    Error,
     KemContext,
-    KemKeypair,
     KemPublicKey,
     KemSecretKey,
     Result,
@@ -87,9 +52,6 @@ mod hpke_core;
 mod types;
 
 use crypto_provider::PostQuantumProvider;
-#[cfg(feature = "std")]
-use rand_chacha::ChaCha20Rng;
-
 // Future backends (commented out until implemented)
 // #[cfg(feature = "libcrux")]
 // mod libcrux_provider;
@@ -102,6 +64,7 @@ use rand_chacha::ChaCha20Rng;
 // pub use libcrux_provider::LibcruxHpkeProvider;
 
 /// HPKE Context that integrates with lib-q's provider pattern
+#[cfg(feature = "std")]
 pub struct HpkeContext {
     kem_ctx: KemContext,
 }
@@ -113,6 +76,7 @@ fn create_kem_context() -> KemContext {
     KemContext::new()
 }
 
+#[cfg(feature = "std")]
 impl HpkeContext {
     /// Create a new HPKE context with default provider
     #[cfg(feature = "std")]
@@ -197,6 +161,7 @@ impl HpkeContext {
 }
 
 /// Context for HPKE sender operations
+#[cfg(feature = "std")]
 pub struct HpkeSenderContext {
     shared_secret: Vec<u8>,
     exporter_secret: Vec<u8>,
@@ -205,6 +170,7 @@ pub struct HpkeSenderContext {
     sequence_number: u32,
 }
 
+#[cfg(feature = "std")]
 impl HpkeSenderContext {
     /// Encrypt a message
     pub fn seal(&mut self, aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
@@ -227,6 +193,7 @@ impl HpkeSenderContext {
 }
 
 /// Context for HPKE receiver operations
+#[cfg(feature = "std")]
 pub struct HpkeReceiverContext {
     shared_secret: Vec<u8>,
     exporter_secret: Vec<u8>,
@@ -235,6 +202,7 @@ pub struct HpkeReceiverContext {
     sequence_number: u32,
 }
 
+#[cfg(feature = "std")]
 impl HpkeReceiverContext {
     /// Decrypt a message
     pub fn open(&mut self, aad: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>> {
@@ -263,6 +231,7 @@ pub fn create_hpke_context() -> HpkeContext {
 }
 
 /// Convenience function to create HPKE context with specific provider
+#[cfg(feature = "std")]
 pub fn create_hpke_context_with_provider(
     provider: Box<dyn lib_q_core::CryptoProvider>,
 ) -> HpkeContext {

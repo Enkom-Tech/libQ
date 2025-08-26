@@ -602,7 +602,6 @@ unsafe fn ntt_at_layer_5_to_3(re: &mut AVX2RingElement) {
         round::<STEP, STEP_BY>(re, 14, 4010497);
         round::<STEP, STEP_BY>(re, 15, 280005);
     }
-    ()
 }
 
 #[allow(unsafe_code)]

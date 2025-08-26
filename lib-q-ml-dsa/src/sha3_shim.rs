@@ -319,10 +319,9 @@ pub mod avx2 {
             ];
 
             // Initialize states with SHAKE256 domain separator and absorb inputs
-            for (_i, (state, input)) in states
+            for (state, input) in states
                 .iter_mut()
                 .zip([input0, input1, input2, input3].iter())
-                .enumerate()
             {
                 // Initialize Keccak state for SHAKE256 (domain separator 0x06)
                 state[0] = 0x06;
@@ -361,7 +360,7 @@ pub mod avx2 {
                 }
 
                 // Apply SHAKE256 padding: 0x1F << (input.len() % 8) * 8
-                if input.len() > 0 {
+                if !input.is_empty() {
                     let padding_lane = input.len() / 8;
                     // Ensure we don't access beyond the 25-lane Keccak state
                     if padding_lane < 25 {
@@ -627,7 +626,7 @@ pub mod neon {
             ];
 
             // Initialize states with SHAKE256 domain separator and absorb inputs
-            for (_i, (state, input)) in states.iter_mut().zip([input0, input1].iter()).enumerate() {
+            for (state, input) in states.iter_mut().zip([input0, input1].iter()) {
                 // Initialize Keccak state for SHAKE256 (domain separator 0x06)
                 state[0] = 0x06;
 
@@ -665,7 +664,7 @@ pub mod neon {
                 }
 
                 // Apply SHAKE256 padding: 0x1F << (input.len() % 8) * 8
-                if input.len() > 0 {
+                if !input.is_empty() {
                     let padding_lane = input.len() / 8;
                     // Ensure we don't access beyond the 25-lane Keccak state
                     if padding_lane < 25 {

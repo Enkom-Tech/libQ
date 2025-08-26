@@ -12,6 +12,7 @@ use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     eta: Eta,
     error_ring_element_size: usize,
@@ -39,10 +40,10 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaX
         .copy_from_slice(&verification_key_hash);
     offset += BYTES_FOR_VERIFICATION_KEY_HASH;
 
-    for i in 0..s1_2.len() {
+    for elem in s1_2.iter() {
         encoding::error::serialize::<SIMDUnit>(
             eta,
-            &s1_2[i],
+            elem,
             &mut signing_key_serialized[offset..offset + error_ring_element_size],
         );
         offset += error_ring_element_size;

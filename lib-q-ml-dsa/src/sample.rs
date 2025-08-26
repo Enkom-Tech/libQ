@@ -65,6 +65,7 @@ pub(crate) fn add_domain_separator(slice: &[u8], indices: (u8, u8)) -> [u8; 34] 
 /// provided index in `indices[i]`.
 /// `rand_stack` is a working buffer that holds initial Shake output.
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sample_up_to_four_ring_elements_flat<
     SIMDUnit: Operations,
     Shake128: shake128::XofX4,

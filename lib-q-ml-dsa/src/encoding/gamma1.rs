@@ -17,7 +17,6 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
             );
         }
     }
-    ()
 }
 
 #[inline(always)]
@@ -33,7 +32,6 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
             gamma1_exponent,
         );
     }
-    ()
 }
 
 #[cfg(test)]

@@ -12,12 +12,14 @@ use std::io::Error as IoError;
 use rand_core::{
     CryptoRng,
     RngCore,
+    SeedableRng,
 };
 
 use crate::error::HpkeError;
 use crate::types::*;
 
 /// Crypto provider trait for HPKE operations
+#[allow(unused_variables)]
 pub trait HpkeCryptoProvider {
     /// The PRNG type
     #[cfg(feature = "std")]

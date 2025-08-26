@@ -21,6 +21,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     // This is used in `make_hint` and for tests
+    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn to_i32_array(&self) -> [i32; 256] {
         let mut result = [0i32; 256];
 
