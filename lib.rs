@@ -414,16 +414,19 @@ pub fn create_hpke_context() -> HpkeContext {
 }
 
 /// Get all supported algorithms
+#[cfg(feature = "std")]
 pub fn supported_algorithms() -> Vec<Algorithm> {
     algorithm_registry::supported_algorithms()
 }
 
 /// Get algorithms by category
+#[cfg(feature = "std")]
 pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
     algorithm_registry::algorithms_by_category(category)
 }
 
 /// Get algorithms by security level
+#[cfg(feature = "std")]
 pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
     algorithm_registry::algorithms_by_security_level(level)
 }
