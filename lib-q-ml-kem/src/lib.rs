@@ -10,6 +10,7 @@
 #![deny(missing_docs)] // Require all public interfaces to be documented
 #![warn(clippy::pedantic)] // Be pedantic by default
 #![warn(clippy::integer_division_remainder_used)] // Be judicious about using `/` and `%`
+// Doctests enabled with proper trait imports
 
 //! # Usage
 //!
@@ -20,10 +21,10 @@
 //! algorithm standardized by NIST that is designed to be resistant to attacks using quantum
 //! computers.
 //!
-//! ```
-//! # use lib_q_ml_kem::*;
-//! # use lib_q_ml_kem::{Encapsulate, Decapsulate};
-//! # use rand::prelude::*;
+//! ```rust
+//! use lib_q_ml_kem::{MlKem768, KemCore, Encapsulate, Decapsulate};
+//! use rand::prelude::*;
+//!
 //! let mut rng = rand::rng();
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair

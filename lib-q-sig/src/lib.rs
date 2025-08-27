@@ -75,11 +75,9 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         #[cfg(feature = "sphincs")]
         "sphincs" => Ok(Box::new(sphincs::Sphincs::new())),
 
-        _ => {
-            Err(lib_q_core::Error::InvalidAlgorithm {
-                algorithm: "Unknown algorithm",
-            })
-        }
+        _ => Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: "Unknown algorithm",
+        }),
     }
 }
 

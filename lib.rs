@@ -13,32 +13,32 @@
 //!
 //! # Example Usage
 //!
-//! ```rust,ignore
+//! ```rust
 //! use libq::{
 //!     Algorithm,
-//!     SignatureContext,
+//!     HashContext,
 //!     Utils,
-//!     create_signature_context,
 //!     create_hash_context,
 //! };
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Initialize contexts with providers
-//!     let mut sig_ctx = create_signature_context();
+//!     // Initialize hash context
 //!     let mut hash_ctx = create_hash_context();
-//!
-//!     // Generate signature keypair (ML-DSA is implemented)
-//!     let sig_keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65)?;
 //!
 //!     // Hash data (multiple hash algorithms available)
 //!     let hash = hash_ctx.hash(Algorithm::Shake256, b"Hello, World!")?;
+//!     println!("Hash: {}", Utils::bytes_to_hex(&hash));
 //!
 //!     // Generate random bytes
 //!     let random_bytes = Utils::random_bytes(32)?;
+//!     println!("Random bytes: {}", Utils::bytes_to_hex(&random_bytes));
 //!
-//!     // KEM operations (ML-KEM integration coming soon)
-//!     // let mut kem_ctx = create_kem_context();
-//!     // let kem_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+//!     // Note: Signature and KEM operations require feature flags:
+//!     // - For ML-DSA signatures: enable 'ml-dsa' feature
+//!     // - For ML-KEM key exchange: enable 'ml-kem' feature
+//!     // Example with features enabled:
+//!     // let mut sig_ctx = create_signature_context();
+//!     // let sig_keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65)?;
 //!
 //!     Ok(())
 //! }
@@ -108,6 +108,13 @@ pub struct LibQCryptoProvider;
 impl LibQCryptoProvider {
     pub fn new() -> Self {
         Self
+    }
+}
+
+#[cfg(feature = "std")]
+impl Default for LibQCryptoProvider {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -230,6 +237,7 @@ impl SignatureOperations for RealSignatureImpl {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_87();
                 ml_dsa.generate_keypair()
             }
+            #[cfg(not(feature = "ml-dsa"))]
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(Error::NotImplemented {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
@@ -264,6 +272,7 @@ impl SignatureOperations for RealSignatureImpl {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_87();
                 ml_dsa.sign(_secret_key, _message)
             }
+            #[cfg(not(feature = "ml-dsa"))]
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(Error::NotImplemented {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
@@ -298,6 +307,7 @@ impl SignatureOperations for RealSignatureImpl {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_87();
                 ml_dsa.verify(_public_key, _message, _signature)
             }
+            #[cfg(not(feature = "ml-dsa"))]
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(Error::NotImplemented {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
