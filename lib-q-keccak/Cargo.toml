@@ -37,6 +37,7 @@ nix = "0.30.1"
 [lib]
 name = "lib_q_keccak"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

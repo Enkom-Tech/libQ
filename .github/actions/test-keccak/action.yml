@@ -51,7 +51,7 @@ runs:
       run: |
         echo "Running security audit for Keccak..."
         cargo install cargo-audit --locked
-        cargo audit --deny warnings lib-q-keccak
+        cargo audit --deny warnings
         echo "Security audit completed successfully"
     
     - name: Check formatting

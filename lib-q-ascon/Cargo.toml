@@ -32,6 +32,7 @@ nightly = [] # Enable nightly-only features like benchmarking
 [lib]
 name = "lib_q_ascon"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

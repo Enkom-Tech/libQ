@@ -35,6 +35,7 @@ asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
 [lib]
 name = "lib_q_sha3"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

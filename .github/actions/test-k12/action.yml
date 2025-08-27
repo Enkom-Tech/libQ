@@ -47,7 +47,7 @@ runs:
       run: |
         echo "Running security audit for K12..."
         cargo install cargo-audit --locked
-        cargo audit --deny warnings lib-q-hash
+        cargo audit --deny warnings
         echo "Security audit completed successfully"
     
     - name: Check formatting

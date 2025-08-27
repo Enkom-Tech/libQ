@@ -46,11 +46,8 @@ runs:
       shell: bash
       run: |
         echo "Running security audit for lib-q-sponge..."
-        cd ${{ inputs.working-directory }}
-        # Run cargo audit from the workspace root to handle workspace properly
         cargo install cargo-audit --locked
-        cd ..
-        cargo audit --deny warnings lib-q-sponge
+        cargo audit --deny warnings
         echo "Security audit completed successfully"
     
     - name: Check formatting

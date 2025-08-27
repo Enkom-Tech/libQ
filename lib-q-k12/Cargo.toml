@@ -32,6 +32,7 @@ zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
 [lib]
 name = "lib_q_k12"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

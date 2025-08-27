@@ -61,6 +61,7 @@ wasm = ["wasm-bindgen", "js-sys", "serde"]
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

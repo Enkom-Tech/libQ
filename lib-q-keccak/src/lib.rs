@@ -108,10 +108,10 @@ use core::ops::{
 #[rustfmt::skip]
 mod unroll;
 
-#[cfg(all(target_arch = "aarch64", feature = "asm"))]
+#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
 mod armv8;
 
-#[cfg(all(target_arch = "aarch64", feature = "asm"))]
+#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
 cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
 
 #[cfg(all(target_arch = "x86_64", feature = "asm"))]
@@ -238,7 +238,7 @@ impl_keccak!(p800, f800, u32);
 impl_keccak!(p1600, f1600, u64);
 
 /// Keccak-p[1600, rc] permutation.
-#[cfg(all(target_arch = "aarch64", feature = "asm"))]
+#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     if armv8_sha3_intrinsics::get() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, round_count) }
@@ -248,7 +248,7 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
 }
 
 /// Keccak-f[1600] permutation.
-#[cfg(all(target_arch = "aarch64", feature = "asm"))]
+#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
 pub fn f1600(state: &mut [u64; PLEN]) {
     if armv8_sha3_intrinsics::get() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, 24) }
