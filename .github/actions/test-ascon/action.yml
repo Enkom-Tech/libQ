@@ -46,9 +46,8 @@ runs:
       shell: bash
       run: |
         echo "Running security audit for Ascon..."
-        cd ${{ inputs.working-directory }}
         cargo install cargo-audit --locked
-        cargo audit --deny warnings
+        cargo audit --deny warnings lib-q-ascon
         echo "Security audit completed successfully"
     
     - name: Check formatting

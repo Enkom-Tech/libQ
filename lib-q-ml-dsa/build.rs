@@ -7,11 +7,6 @@ fn main() {
         println!("cargo:rustc-cfg=feature=\"simd128\"");
     }
 
-    // Set target architecture flags
-    if cfg!(target_arch = "aarch64") {
-        println!("cargo:rustc-cfg=target_arch=\"aarch64\"");
-    }
-
     // Add check-cfg for eurydice to suppress warnings
     println!("cargo:rustc-check-cfg=cfg(eurydice)");
 

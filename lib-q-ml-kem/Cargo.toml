@@ -17,6 +17,7 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 
 [features]
 default = []
+std = [] # Compatibility feature for CI/testing (no-op since package is already std-compatible)
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 wasm = ["wasm-bindgen", "js-sys"]

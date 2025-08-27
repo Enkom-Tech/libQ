@@ -50,9 +50,8 @@ runs:
       shell: bash
       run: |
         echo "Running security audit for Keccak..."
-        cd ${{ inputs.working-directory }}
         cargo install cargo-audit --locked
-        cargo audit --deny warnings
+        cargo audit --deny warnings lib-q-keccak
         echo "Security audit completed successfully"
     
     - name: Check formatting

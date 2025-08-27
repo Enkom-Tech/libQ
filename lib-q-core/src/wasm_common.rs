@@ -24,10 +24,11 @@ pub struct WasmKeyPairImpl {
 }
 
 #[cfg(feature = "wasm")]
+#[wasm_bindgen]
 impl WasmKeyPairImpl {
     #[wasm_bindgen(constructor)]
-    pub fn new(public_key: Uint8Array, secret_key: Uint8Array) -> Self {
-        Self {
+    pub fn new(public_key: Uint8Array, secret_key: Uint8Array) -> WasmKeyPairImpl {
+        WasmKeyPairImpl {
             public_key,
             secret_key,
         }
@@ -64,10 +65,11 @@ pub struct HashResultWasm {
 }
 
 #[cfg(feature = "wasm")]
+#[wasm_bindgen]
 impl HashResultWasm {
     #[wasm_bindgen(constructor)]
-    pub fn new(hash: Uint8Array, algorithm: String) -> Self {
-        Self { hash, algorithm }
+    pub fn new(hash: Uint8Array, algorithm: String) -> HashResultWasm {
+        HashResultWasm { hash, algorithm }
     }
 
     #[wasm_bindgen(getter)]

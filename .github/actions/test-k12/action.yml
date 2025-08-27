@@ -46,9 +46,8 @@ runs:
       shell: bash
       run: |
         echo "Running security audit for K12..."
-        cd ${{ inputs.working-directory }}
         cargo install cargo-audit --locked
-        cargo audit --deny warnings
+        cargo audit --deny warnings lib-q-hash
         echo "Security audit completed successfully"
     
     - name: Check formatting
