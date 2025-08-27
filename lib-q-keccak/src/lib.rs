@@ -11,76 +11,11 @@
 //! let mut data = [0u64; 25];
 //!
 //! lib_q_keccak::f1600(&mut data);
-//! assert_eq!(
-//!     data,
-//!     [
-//!         0xF1258F7940E1DDE7,
-//!         0x84D5CCF933C0478A,
-//!         0xD598261EA65AA9EE,
-//!         0xBD1547306F80494D,
-//!         0x8B284E056253D057,
-//!         0xFF97A42D7F8E6FD4,
-//!         0x90FEE5A0A44647C4,
-//!         0x8C5BDA0CD6192E76,
-//!         0xAD30A6F71B19059C,
-//!         0x30935AB7D08FFC64,
-//!         0xEB5AA93F2317D635,
-//!         0xA9A6E6260D712103,
-//!         0x81A57C16DBCF555F,
-//!         0x43B831CD0347C826,
-//!         0x01F22F1A11A5569F,
-//!         0x05E5635A21D9AE61,
-//!         0x64BEFEF28CC970F2,
-//!         0x613670957BC46611,
-//!         0xB87C5A554FD00ECB,
-//!         0x8C3EE88A1CCF32C8,
-//!         0x940C7922AE3A2614,
-//!         0x1841F924A2C509E4,
-//!         0x16F53526E70465C2,
-//!         0x75F644E97F30A13B,
-//!         0xEAF1FF7B5CECA249,
-//!     ]
-//! );
-//!
-//! lib_q_keccak::f1600(&mut data);
-//! assert_eq!(
-//!     data,
-//!     [
-//!         0x2D5C954DF96ECB3C,
-//!         0x6A332CD07057B56D,
-//!         0x093D8D1270D76B6C,
-//!         0x8A20D9B25569D094,
-//!         0x4F9C4F99E5E7F156,
-//!         0xF957B9A2DA65FB38,
-//!         0x85773DAE1275AF0D,
-//!         0xFAF4F247C3D810F7,
-//!         0x1F1B9EE6F79A8759,
-//!         0xE4FECC0FEE98B425,
-//!         0x68CE61B6B9CE68A1,
-//!         0xDEEA66C4BA8F974F,
-//!         0x33C43D836EAFB1F5,
-//!         0xE00654042719DBD9,
-//!         0x7CF8A9F009831265,
-//!         0xFD5449A6BF174743,
-//!         0x97DDAD33D8994B40,
-//!         0x48EAD5FC5D0BE774,
-//!         0xE3B8C8EE55B7B03C,
-//!         0x91A0226E649E42E9,
-//!         0x900E3129E7BADD7B,
-//!         0x202A9EC5FAA3CCE8,
-//!         0x5B3402464E1C3DB6,
-//!         0x609F4E62A44C1059,
-//!         0x20D06CD26A8FBF5C,
-//!     ]
-//! );
 //! ```
-//!
-//! [1]: https://docs.rs/sha3
-//! [2]: https://docs.rs/tiny-keccak
 
 #![no_std]
+#![feature(portable_simd)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![cfg_attr(feature = "simd", feature(portable_simd))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
@@ -95,6 +30,51 @@
     unused_qualifications
 )]
 
+#[cfg(any(feature = "std", feature = "multithreading"))]
+#[allow(unused_extern_crates)]
+extern crate alloc;
+
+/// # Examples
+///
+/// ```
+/// // Test vectors are from KeccakCodePackage
+/// let mut data = [0u64; 25];
+///
+/// lib_q_keccak::f1600(&mut data);
+/// assert_eq!(
+///     data,
+///     [
+///         0xF1258F7940E1DDE7,
+///         0x84D5CCF933C0478A,
+///         0xD598261EA65AA9EE,
+///         0xBD1547306F80494D,
+///         0x8B284E056253D057,
+///         0xFF97A42D7F8E6FD4,
+///         0x90FEE5A0A44647C4,
+///         0x8C5BDA0CD6192E76,
+///         0xAD30A6F71B19059C,
+///         0x30935AB7D08FFC64,
+///         0xEB5AA93F2317D635,
+///         0xA9A6E6260D712103,
+///         0x81A57C16DBCF555F,
+///         0x43B831CD0347C826,
+///         0x01F22F1A11A5569F,
+///         0x05E5635A21D9AE61,
+///         0x64BEFEF28CC970F2,
+///         0x613670957BC46611,
+///         0xB87C5A554FD00ECB,
+///         0x8C3EE88A1CCF32C8,
+///         0x940C7922AE3A2614,
+///         0x1841F924A2C509E4,
+///         0x16F53526E70465C2,
+///         0x75F644E97F30A13B,
+///         0xEAF1FF7B5CECA249,
+///     ]
+/// );
+/// ```
+///
+/// [1]: https://docs.rs/sha3
+/// [2]: https://docs.rs/tiny-keccak
 use core::fmt::Debug;
 use core::mem::size_of;
 use core::ops::{
@@ -108,10 +88,20 @@ use core::ops::{
 #[rustfmt::skip]
 mod unroll;
 
-#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+#[cfg(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    target_feature = "sha3",
+    feature = "std"
+))]
 mod armv8;
 
-#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+#[cfg(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    target_feature = "sha3",
+    feature = "std"
+))]
 cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
 
 #[cfg(all(target_arch = "x86_64", feature = "asm"))]
@@ -238,7 +228,12 @@ impl_keccak!(p800, f800, u32);
 impl_keccak!(p1600, f1600, u64);
 
 /// Keccak-p[1600, rc] permutation.
-#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+#[cfg(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    target_feature = "sha3",
+    feature = "std"
+))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     if armv8_sha3_intrinsics::get() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, round_count) }
@@ -248,7 +243,12 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
 }
 
 /// Keccak-f[1600] permutation.
-#[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+#[cfg(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    target_feature = "sha3",
+    feature = "std"
+))]
 pub fn f1600(state: &mut [u64; PLEN]) {
     if armv8_sha3_intrinsics::get() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, 24) }

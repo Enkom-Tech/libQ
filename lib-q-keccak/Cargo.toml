@@ -17,22 +17,23 @@ edition.workspace = true
 rust-version = "1.89"
 
 [features]
+default = ["std"]
 asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)
 no_unroll = [] # Do no unroll loops for binary size reduction
 simd = []      # Use core::simd (nightly-only)
 nightly = []   # Enable nightly-only features like benchmarking
 advanced-simd = ["simd"]  # Enable advanced SIMD features (requires nightly)
-std = []       # Enable std support (required for multi-threading)
+std = ["cpufeatures", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
 multithreading = ["std"]  # Enable multi-threading support (requires std)
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-cpufeatures = "0.2.17"
+cpufeatures = { version = "0.2.17", optional = true }
 
 [dependencies]
-num_cpus = "1.17.0"
+num_cpus = { version = "1.17.0", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-nix = "0.30.1"
+nix = { version = "0.30.1", optional = true }
 
 [lib]
 name = "lib_q_keccak"

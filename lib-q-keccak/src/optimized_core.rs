@@ -6,7 +6,7 @@
 
 #![cfg_attr(not(feature = "std"), no_implicit_prelude)]
 
-extern crate core;
+// Core types are available by default in 2021 edition
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -46,13 +46,23 @@ impl OptimizationLevel {
         {
             Self::Advanced
         }
-        #[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+        #[cfg(all(
+            target_arch = "aarch64",
+            feature = "asm",
+            target_feature = "sha3",
+            feature = "std"
+        ))]
         {
             Self::Basic
         }
         #[cfg(not(any(
             all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
-            all(target_arch = "aarch64", feature = "asm", target_feature = "sha3")
+            all(
+                target_arch = "aarch64",
+                feature = "asm",
+                target_feature = "sha3",
+                feature = "std"
+            )
         )))]
         {
             Self::Reference
@@ -66,14 +76,24 @@ impl OptimizationLevel {
             Self::Basic => {
                 #[cfg(any(
                     all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
-                    all(target_arch = "aarch64", feature = "asm", target_feature = "sha3")
+                    all(
+                        target_arch = "aarch64",
+                        feature = "asm",
+                        target_feature = "sha3",
+                        feature = "std"
+                    )
                 ))]
                 {
                     true
                 }
                 #[cfg(not(any(
                     all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
-                    all(target_arch = "aarch64", feature = "asm", target_feature = "sha3")
+                    all(
+                        target_arch = "aarch64",
+                        feature = "asm",
+                        target_feature = "sha3",
+                        feature = "std"
+                    )
                 )))]
                 {
                     false
@@ -117,7 +137,12 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
             keccak_p(state, 24);
         }
         OptimizationLevel::Basic => {
-            #[cfg(all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"))]
+            #[cfg(all(
+                target_arch = "aarch64",
+                feature = "asm",
+                target_feature = "sha3",
+                feature = "std"
+            ))]
             {
                 unsafe { crate::armv8::p1600(state) };
             }
@@ -126,7 +151,12 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
                 unsafe { crate::x86::p1600_avx2(state) };
             }
             #[cfg(not(any(
-                all(target_arch = "aarch64", feature = "asm", target_feature = "sha3"),
+                all(
+                    target_arch = "aarch64",
+                    feature = "asm",
+                    target_feature = "sha3",
+                    feature = "std"
+                ),
                 all(target_arch = "x86_64", feature = "asm", target_feature = "avx2")
             )))]
             {
