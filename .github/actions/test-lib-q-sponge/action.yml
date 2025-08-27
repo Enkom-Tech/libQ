@@ -17,6 +17,10 @@ inputs:
     description: Whether to run benchmarks (requires nightly)
     default: "false"
     required: false
+  test-algorithms:
+    description: Specific algorithms to test (not used by sponge tests)
+    default: ""
+    required: false
 
 runs:
   using: composite
@@ -43,8 +47,10 @@ runs:
       run: |
         echo "Running security audit for lib-q-sponge..."
         cd ${{ inputs.working-directory }}
+        # Run cargo audit from the workspace root to handle workspace properly
         cargo install cargo-audit --locked
-        cargo audit --deny warnings
+        cd ..
+        cargo audit --deny warnings lib-q-sponge
         echo "Security audit completed successfully"
     
     - name: Check formatting

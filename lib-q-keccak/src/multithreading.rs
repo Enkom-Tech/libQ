@@ -206,7 +206,7 @@ impl CryptoWorker {
                 keccak_p(state, 24);
             }
             OptimizationLevel::Basic => {
-                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
                 unsafe {
                     crate::x86::p1600_avx2(state);
                 }
@@ -216,7 +216,7 @@ impl CryptoWorker {
                 }
             }
             OptimizationLevel::Advanced => {
-                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
                 unsafe {
                     crate::x86::p1600_avx2(state);
                 }
@@ -226,12 +226,13 @@ impl CryptoWorker {
                 }
             }
             OptimizationLevel::Maximum => {
-                #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
                 unsafe {
                     crate::x86::p1600_avx512(state);
                 }
                 #[cfg(all(
                     target_arch = "x86_64",
+                    feature = "asm",
                     target_feature = "avx2",
                     not(target_feature = "avx512f")
                 ))]
@@ -348,7 +349,7 @@ impl CryptoThreadPool {
                     keccak_p(&mut result_state, 24);
                 }
                 OptimizationLevel::Basic => {
-                    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                    #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
                     unsafe {
                         crate::x86::p1600_avx2(&mut result_state);
                     }
@@ -358,7 +359,7 @@ impl CryptoThreadPool {
                     }
                 }
                 OptimizationLevel::Advanced => {
-                    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                    #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
                     unsafe {
                         crate::x86::p1600_avx2(&mut result_state);
                     }
@@ -368,12 +369,17 @@ impl CryptoThreadPool {
                     }
                 }
                 OptimizationLevel::Maximum => {
-                    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+                    #[cfg(all(
+                        target_arch = "x86_64",
+                        feature = "asm",
+                        target_feature = "avx512f"
+                    ))]
                     unsafe {
                         crate::x86::p1600_avx512(&mut result_state);
                     }
                     #[cfg(all(
                         target_arch = "x86_64",
+                        feature = "asm",
                         target_feature = "avx2",
                         not(target_feature = "avx512f")
                     ))]

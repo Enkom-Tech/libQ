@@ -13,7 +13,7 @@ categories = ["cryptography", "wasm"]
 
 [dependencies]
 # Core cryptographic dependencies - no_std compatible
-getrandom = { version = "0.3.3", features = ["wasm_js"], optional = true }
+getrandom = { version = "0.3.3", features = ["wasm_js"], optional = true, default-features = false }
 rand_core = { version = "0.9.3", default-features = false, features = ["os_rng"] }
 rand = { version = "0.9.2", default-features = false, features = ["thread_rng"], optional = true }
 
@@ -40,7 +40,9 @@ lazy_static = "1.5.0"
 default = ["std"]
 std = ["getrandom", "alloc", "rand"]
 alloc = []
-no_std = ["getrandom"]
+no_std = []
+# Random number generation - requires platform-specific configuration for no_std
+# In no_std environments, applications must provide custom entropy sources
 getrandom = ["dep:getrandom"]
 rand = ["dep:rand"]
 

@@ -17,6 +17,10 @@ inputs:
     description: Whether to run benchmarks (requires nightly)
     default: "false"
     required: false
+  test-algorithms:
+    description: Specific algorithms to test
+    default: ""
+    required: false
 
 runs:
   using: composite

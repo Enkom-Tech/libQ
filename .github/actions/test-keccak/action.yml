@@ -21,6 +21,10 @@ inputs:
     description: Whether to run SIMD tests (requires nightly)
     default: "false"
     required: false
+  test-algorithms:
+    description: Specific algorithms to test
+    default: ""
+    required: false
 
 runs:
   using: composite

@@ -230,6 +230,7 @@ jobs:
             features: "asm,simd"
             rust-version: "nightly"
             run-benchmarks: "true"
+            test-algorithms: ""
           - name: "SHA3"
             action: test-sha3
             working-directory: lib-q-sha3
@@ -243,18 +244,21 @@ jobs:
             features: "alloc,oid"
             rust-version: "stable"
             run-benchmarks: "false"
+            test-algorithms: ""
           - name: "Ascon"
             action: test-ascon
             working-directory: lib-q-ascon
             features: ""
             rust-version: "stable"
             run-benchmarks: "false"
+            test-algorithms: ""
           - name: "Sponge"
             action: test-lib-q-sponge
             working-directory: lib-q-sponge
             features: "asm"
             rust-version: "stable"
             run-benchmarks: "false"
+            test-algorithms: ""
     
     steps:
       - uses: actions/checkout@v5
@@ -373,7 +377,13 @@ jobs:
         run: cargo install cargo-valgrind
       
       - name: Run constant-time tests
-        run: cargo test --features "all-algorithms" --test constant_time
+        run: |
+          echo "Running constant-time tests for lib-q-sha3..."
+          cargo test --test constant_time -p lib-q-sha3
+          echo "Running constant-time tests for lib-q-ascon..."
+          cargo test --test constant_time -p lib-q-ascon
+          echo "Running constant-time tests for lib-q-k12..."
+          cargo test --test constant_time -p lib-q-k12
 
   # Final validation - runs after all other jobs
   final-validation:

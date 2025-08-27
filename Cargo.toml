@@ -123,6 +123,11 @@ hqc = ["lib-q-kem/hqc"]
 hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
 zkp = ["lib-q-zkp/zkp"]
 
+# Random number generation features
+# Note: getrandom requires std in this configuration
+# For no_std environments, applications must provide custom entropy sources
+getrandom = ["std", "lib-q-core/getrandom"]
+
 # Security features
 # Enable memory zeroization for hash functions and their dependencies
 zeroize = ["lib-q-hash/zeroize"]

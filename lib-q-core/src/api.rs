@@ -12,6 +12,7 @@ use crate::traits::*;
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
+    boxed::Box,
     string::String,
     vec::Vec,
 };
@@ -29,6 +30,7 @@ use lib_q_sha3::{
     Shake256,
 };
 #[cfg(any(feature = "getrandom", feature = "rand"))]
+#[allow(unused_imports)]
 use rand_core::RngCore;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -37,6 +39,7 @@ use wasm_bindgen::prelude::*;
 // This allows implementations to be provided by higher-level crates
 
 /// Key Encapsulation Mechanism operations
+#[cfg(feature = "alloc")]
 pub trait KemOperations {
     fn generate_keypair(
         &self,
@@ -58,6 +61,7 @@ pub trait KemOperations {
 }
 
 /// Digital Signature operations
+#[cfg(feature = "alloc")]
 pub trait SignatureOperations {
     fn generate_keypair(
         &self,
@@ -81,14 +85,18 @@ pub trait SignatureOperations {
 }
 
 /// Hash operations
+#[cfg(feature = "alloc")]
 pub trait HashOperations {
     fn hash(&self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>>;
 }
 
 /// Cryptographic provider that supplies implementations
 pub trait CryptoProvider: Send + Sync {
+    #[cfg(feature = "alloc")]
     fn kem(&self) -> Option<&dyn KemOperations>;
+    #[cfg(feature = "alloc")]
     fn signature(&self) -> Option<&dyn SignatureOperations>;
+    #[cfg(feature = "alloc")]
     fn hash(&self) -> Option<&dyn HashOperations>;
 }
 
@@ -316,6 +324,7 @@ impl<T> Default for Context<T> {
 }
 
 /// KEM context for key encapsulation operations
+#[cfg(feature = "alloc")]
 pub struct KemContext {
     inner: Context<Self>,
     provider: Option<Box<dyn CryptoProvider>>,
@@ -356,11 +365,11 @@ impl KemOperations for DefaultKemImpl {
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 // In real implementation, would call lib-q-kem
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real KEM implementations in lib-q-kem".to_string(),
+                    feature: String::from("Real KEM implementations in lib-q-kem"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -374,11 +383,11 @@ impl KemOperations for DefaultKemImpl {
         match algorithm {
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real KEM implementations in lib-q-kem".to_string(),
+                    feature: String::from("Real KEM implementations in lib-q-kem"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -392,11 +401,11 @@ impl KemOperations for DefaultKemImpl {
         match algorithm {
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real KEM implementations in lib-q-kem".to_string(),
+                    feature: String::from("Real KEM implementations in lib-q-kem"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -415,11 +424,11 @@ impl SignatureOperations for DefaultSignatureImpl {
         match algorithm {
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real signature implementations in lib-q-sig".to_string(),
+                    feature: String::from("Real signature implementations in lib-q-sig"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -434,11 +443,11 @@ impl SignatureOperations for DefaultSignatureImpl {
         match algorithm {
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real signature implementations in lib-q-sig".to_string(),
+                    feature: String::from("Real signature implementations in lib-q-sig"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -453,11 +462,11 @@ impl SignatureOperations for DefaultSignatureImpl {
         match algorithm {
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
                 Err(crate::error::Error::NotImplemented {
-                    feature: "Real signature implementations in lib-q-sig".to_string(),
+                    feature: String::from("Real signature implementations in lib-q-sig"),
                 })
             }
             _ => Err(crate::error::Error::NotImplemented {
-                feature: "Algorithm not supported".to_string(),
+                feature: String::from("Algorithm not supported"),
             }),
         }
     }
@@ -470,11 +479,12 @@ struct DefaultHashImpl;
 impl HashOperations for DefaultHashImpl {
     fn hash(&self, _algorithm: Algorithm, _data: &[u8]) -> Result<Vec<u8>> {
         Err(crate::error::Error::NotImplemented {
-            feature: "Real hash implementations in lib-q-hash".to_string(),
+            feature: String::from("Real hash implementations in lib-q-hash"),
         })
     }
 }
 
+#[cfg(feature = "alloc")]
 impl KemContext {
     /// Create a new KEM context with no provider (returns errors for all operations)
     pub fn new() -> Self {
@@ -523,7 +533,7 @@ impl KemContext {
         match self.provider.as_ref().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.generate_keypair(algorithm, None),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "KEM operations - no provider configured".to_string(),
+                feature: String::from("KEM operations - no provider configured"),
             }),
         }
     }
@@ -546,7 +556,7 @@ impl KemContext {
         match self.provider.as_ref().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.encapsulate(algorithm, public_key, None),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "KEM operations - no provider configured".to_string(),
+                feature: String::from("KEM operations - no provider configured"),
             }),
         }
     }
@@ -570,12 +580,13 @@ impl KemContext {
         match self.provider.as_ref().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.decapsulate(algorithm, secret_key, ciphertext),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "KEM operations - no provider configured".to_string(),
+                feature: String::from("KEM operations - no provider configured"),
             }),
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl Default for KemContext {
     fn default() -> Self {
         Self::new()
@@ -583,11 +594,13 @@ impl Default for KemContext {
 }
 
 /// Signature context for digital signature operations
+#[cfg(feature = "alloc")]
 pub struct SignatureContext {
     inner: Context<Self>,
     provider: Option<Box<dyn CryptoProvider>>,
 }
 
+#[cfg(feature = "alloc")]
 impl SignatureContext {
     /// Create a new signature context with no provider (returns errors for all operations)
     pub fn new() -> Self {
@@ -636,7 +649,7 @@ impl SignatureContext {
         match self.provider.as_ref().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.generate_keypair(algorithm, None),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "Signature operations - no provider configured".to_string(),
+                feature: String::from("Signature operations - no provider configured"),
             }),
         }
     }
@@ -660,7 +673,7 @@ impl SignatureContext {
         match self.provider.as_ref().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.sign(algorithm, secret_key, message, None),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "Signature operations - no provider configured".to_string(),
+                feature: String::from("Signature operations - no provider configured"),
             }),
         }
     }
@@ -685,12 +698,13 @@ impl SignatureContext {
         match self.provider.as_ref().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.verify(algorithm, public_key, message, signature),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "Signature operations - no provider configured".to_string(),
+                feature: String::from("Signature operations - no provider configured"),
             }),
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl Default for SignatureContext {
     fn default() -> Self {
         Self::new()
@@ -698,11 +712,13 @@ impl Default for SignatureContext {
 }
 
 /// Hash context for hash operations
+#[cfg(feature = "alloc")]
 pub struct HashContext {
     inner: Context<Self>,
     provider: Option<Box<dyn CryptoProvider>>,
 }
 
+#[cfg(feature = "alloc")]
 impl HashContext {
     /// Create a new hash context with no provider (returns errors for all operations)
     pub fn new() -> Self {
@@ -752,12 +768,13 @@ impl HashContext {
         match self.provider.as_ref().and_then(|p| p.hash()) {
             Some(hash_ops) => hash_ops.hash(algorithm, data),
             None => Err(crate::error::Error::NotImplemented {
-                feature: "Hash operations - no provider configured".to_string(),
+                feature: String::from("Hash operations - no provider configured"),
             }),
         }
     }
 }
 
+#[cfg(feature = "alloc")]
 impl Default for HashContext {
     fn default() -> Self {
         Self::new()
