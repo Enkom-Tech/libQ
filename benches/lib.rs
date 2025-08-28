@@ -16,7 +16,7 @@ use libq::{
 };
 
 fn bench_key_generation(c: &mut Criterion) {
-    let group = c.benchmark_group("key_generation");
+    let mut group = c.benchmark_group("key_generation");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -46,7 +46,7 @@ fn bench_key_generation(c: &mut Criterion) {
 }
 
 fn bench_signing(c: &mut Criterion) {
-    let group = c.benchmark_group("signing");
+    let mut group = c.benchmark_group("signing");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -68,7 +68,7 @@ fn bench_signing(c: &mut Criterion) {
 }
 
 fn bench_verification(c: &mut Criterion) {
-    let group = c.benchmark_group("verification");
+    let mut group = c.benchmark_group("verification");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -93,7 +93,7 @@ fn bench_verification(c: &mut Criterion) {
 }
 
 fn bench_encapsulation(c: &mut Criterion) {
-    let group = c.benchmark_group("encapsulation");
+    let mut group = c.benchmark_group("encapsulation");
 
     #[cfg(feature = "ml-kem")]
     {
@@ -117,7 +117,7 @@ fn bench_encapsulation(c: &mut Criterion) {
 }
 
 fn bench_decapsulation(c: &mut Criterion) {
-    let group = c.benchmark_group("decapsulation");
+    let mut group = c.benchmark_group("decapsulation");
 
     #[cfg(feature = "ml-kem")]
     {
