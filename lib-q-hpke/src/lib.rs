@@ -26,7 +26,9 @@
 )]
 
 #[cfg(not(feature = "alloc"))]
-compile_error!("lib-q-hpke requires the 'alloc' feature to be enabled. This crate cannot function without alloc support.");
+compile_error!(
+    "lib-q-hpke requires the 'alloc' feature to be enabled. This crate cannot function without alloc support."
+);
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
