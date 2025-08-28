@@ -1,7 +1,10 @@
 //! Crypto provider trait and implementations for HPKE
 
+#[cfg(feature = "alloc")]
 use alloc::string::String;
+#[cfg(feature = "alloc")]
 use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 #[cfg(feature = "std")]
 use std::io::Error as IoError;
@@ -12,7 +15,6 @@ use std::io::Error as IoError;
 use rand_core::{
     CryptoRng,
     RngCore,
-    SeedableRng,
 };
 
 use crate::error::HpkeError;

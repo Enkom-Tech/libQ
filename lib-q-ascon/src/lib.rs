@@ -3,11 +3,18 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+
+// Panic handler for no_std environments
+#[cfg(not(feature = "std"))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
 
 use core::mem::size_of;
 

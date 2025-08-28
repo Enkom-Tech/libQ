@@ -16,6 +16,7 @@ categories = ["cryptography"]
 name = "lib_q_hpke"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
+required-features = ["alloc"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", default-features = false }

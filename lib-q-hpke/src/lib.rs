@@ -25,23 +25,13 @@
     unused_qualifications
 )]
 
+#[cfg(not(feature = "alloc"))]
+compile_error!("lib-q-hpke requires the 'alloc' feature to be enabled. This crate cannot function without alloc support.");
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec,
-    vec::Vec,
-};
-
 pub use error::*;
-use lib_q_core::{
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-    Result,
-};
 // Re-export HPKE types that users need
 pub use types::*;
 
@@ -50,8 +40,6 @@ mod crypto_provider;
 mod error;
 mod hpke_core;
 mod types;
-
-use crypto_provider::PostQuantumProvider;
 // Future backends (commented out until implemented)
 // #[cfg(feature = "libcrux")]
 // mod libcrux_provider;

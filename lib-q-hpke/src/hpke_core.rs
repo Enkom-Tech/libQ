@@ -1,7 +1,10 @@
 //! Core HPKE implementation logic
 
+#[cfg(feature = "alloc")]
 use alloc::string::String;
+#[cfg(feature = "alloc")]
 use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 use crate::crypto_provider::HpkeCryptoProvider;
