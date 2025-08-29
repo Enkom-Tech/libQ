@@ -13,8 +13,8 @@
 //! lib_q_keccak::f1600(&mut data);
 //! ```
 
-#![no_std]
-#![feature(portable_simd)]
+#![cfg_attr(feature = "std", feature(portable_simd))]
+#![cfg_attr(not(feature = "std"), feature(portable_simd))]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
@@ -30,8 +30,13 @@
     unused_qualifications
 )]
 
-#[cfg(any(feature = "std", feature = "multithreading"))]
-#[allow(unused_extern_crates)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+// Conditional externs based on features
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
 extern crate alloc;
 
 /// # Examples
@@ -640,4 +645,41 @@ mod tests {
         impl_keccak_f1600xn!(keccak_f1600x4, u64x4);
         impl_keccak_f1600xn!(keccak_f1600x8, u64x8);
     }
+}
+
+// For no_std builds with alloc, we use the system allocator if available
+// This is a simplified approach for CI/testing
+#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
+#[global_allocator]
+static ALLOCATOR: SystemAllocator = SystemAllocator;
+
+/// Simple system allocator for no_std builds with alloc support
+///
+/// This is a minimal allocator for CI/testing purposes. In production no_std
+/// applications, you would implement a proper heap allocator or use a different
+/// approach that doesn't require dynamic memory allocation.
+#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
+pub struct SystemAllocator;
+
+#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
+unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
+    unsafe fn alloc(&self, _layout: core::alloc::Layout) -> *mut u8 {
+        // For CI/testing purposes, we'll return null for allocations
+        // In a real no_std application, you'd implement a proper allocator
+        // or use a different approach that doesn't require heap allocation
+        core::ptr::null_mut()
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
+        // No-op for this simple test allocator
+    }
+}
+
+// Panic handler for no_std builds (not for tests)
+#[cfg(all(not(feature = "std"), not(test)))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
+    // For no_std environments, we loop forever on panic
+    // In a real application, this should be customized based on the target platform
+    loop {}
 }

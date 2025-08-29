@@ -9,8 +9,15 @@
 
 #![cfg_attr(not(feature = "std"), no_implicit_prelude)]
 
-extern crate alloc;
+// Core is always available
+extern crate core;
+
+// Std and alloc are required for multithreading
+#[cfg(feature = "std")]
 extern crate std;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;

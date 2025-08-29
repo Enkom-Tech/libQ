@@ -7,6 +7,10 @@
 #![cfg_attr(not(feature = "std"), no_implicit_prelude)]
 
 // Core types are available by default in 2021 edition
+// Core is always available
+extern crate core;
+
+// Std is conditionally available
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -286,6 +290,13 @@ fn fast_loop_absorb_reference(state: &mut [u64; 25], data: &[u8]) -> usize {
 /// operations, similar to XKCP's times2, times4, times8 implementations.
 #[cfg(feature = "simd")]
 pub mod parallel {
+    // Core is always available
+    extern crate core;
+
+    // Alloc is conditionally available
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    extern crate alloc;
+
     use core::cmp::Ord;
     use core::unreachable;
 

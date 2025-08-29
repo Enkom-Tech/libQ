@@ -18,54 +18,62 @@
 //! 1. **Parallel State Processing**: SIMD vectors process multiple Keccak states simultaneously
 //! 2. **Secure SIMD Configuration**: Configurable SIMD width with security constraints
 //! 3. **Platform-Specific Optimizations**: AVX2/AVX512 optimizations for x86_64
-//! 4. **Fallback Mechanisms**: Graceful degradation when SIMD is unavailable
-//!
-//! ## Performance Characteristics
-//!
-//! - **u64x2 (AVX2)**: 2-way parallel processing, optimal for cache performance
-//! - **u64x4 (AVX2)**: 4-way parallel processing, balanced performance/security
-//! - **u64x8 (AVX512)**: 8-way parallel processing, maximum throughput
-//!
-//! ## Usage Examples
-//!
-//! ```rust
-//! use lib_q_keccak::{
-//!     AdvancedLaneSize,
-//!     SimdConfig,
-//! };
-//!
-//! // Security-optimized configuration
-//! let config = SimdConfig::security_optimized();
-//!
-//! // Example: Process states using SIMD parallel functions
-//! // Note: SIMD types require nightly Rust and portable_simd feature
-//! # #[cfg(all(feature = "simd", nightly))]
-//! # {
-//! # use core::simd::u64x4;
-//! # let mut states = [u64x4::splat(0); 25];
-//! # u64x4::parallel_keccak_p_secure(&mut states, 24, &config).unwrap();
-//! # }
-//!
-//! // Use the high-level parallel functions instead:
-//! let mut states = [[0u64; 25]; 4];
-//! // Process 4 states in parallel (available when SIMD feature is enabled)
-//! ```
-//!
-//! ## XKCP Compliance
-//!
-//! This implementation follows XKCP reference patterns for:
-//! - Keccak-p permutation parallelization
-//! - SIMD state layout and processing order
-//! - Round constant application
-//! - Theta, Rho, Pi, Chi, Iota step implementations
-//!
-//! ## Security Features
-//!
-//! - **Input sanitization**: Prevents side-channel attacks via input patterns
-//! - **Bounds validation**: Prevents buffer overflows and underflows
-//! - **Constant-time operations**: No timing variations based on data
-//! - **Secure state handling**: Proper initialization and cleanup
-//! - **Platform validation**: Ensures SIMD features are available before use
+
+// Core is always available
+extern crate core;
+
+// Alloc is conditionally available
+#[cfg(any(feature = "std", feature = "alloc"))]
+extern crate alloc;
+
+/// 4. **Fallback Mechanisms**: Graceful degradation when SIMD is unavailable
+///
+/// ## Performance Characteristics
+///
+/// - **u64x2 (AVX2)**: 2-way parallel processing, optimal for cache performance
+/// - **u64x4 (AVX2)**: 4-way parallel processing, balanced performance/security
+/// - **u64x8 (AVX512)**: 8-way parallel processing, maximum throughput
+///
+/// ## Usage Examples
+///
+/// ```rust
+/// use lib_q_keccak::{
+///     AdvancedLaneSize,
+///     SimdConfig,
+/// };
+///
+/// // Security-optimized configuration
+/// let config = SimdConfig::security_optimized();
+///
+/// // Example: Process states using SIMD parallel functions
+/// // Note: SIMD types require nightly Rust and portable_simd feature
+/// # #[cfg(all(feature = "simd", nightly))]
+/// # {
+/// # use core::simd::u64x4;
+/// # let mut states = [u64x4::splat(0); 25];
+/// # u64x4::parallel_keccak_p_secure(&mut states, 24, &config).unwrap();
+/// # }
+///
+/// // Use the high-level parallel functions instead:
+/// let mut states = [[0u64; 25]; 4];
+/// // Process 4 states in parallel (available when SIMD feature is enabled)
+/// ```
+///
+/// ## XKCP Compliance
+///
+/// This implementation follows XKCP reference patterns for:
+/// - Keccak-p permutation parallelization
+/// - SIMD state layout and processing order
+/// - Round constant application
+/// - Theta, Rho, Pi, Chi, Iota step implementations
+///
+/// ## Security Features
+///
+/// - **Input sanitization**: Prevents side-channel attacks via input patterns
+/// - **Bounds validation**: Prevents buffer overflows and underflows
+/// - **Constant-time operations**: No timing variations based on data
+/// - **Secure state handling**: Proper initialization and cleanup
+/// - **Platform validation**: Ensures SIMD features are available before use
 
 #[cfg(feature = "simd")]
 use alloc::vec::Vec;
@@ -151,7 +159,9 @@ impl SimdSecurityValidator {
     pub fn sanitize_input(data: &[u8]) -> Vec<u8> {
         // Ensure input data doesn't contain patterns that could aid side-channel attacks
         // This is a simplified version - real implementation would be more sophisticated
-        data.to_vec()
+        let mut result = Vec::with_capacity(data.len());
+        result.extend_from_slice(data);
+        result
     }
 }
 
@@ -213,7 +223,9 @@ pub trait AdvancedLaneSize: LaneSize {
         let sanitized_data = if config.side_channel_protection {
             SimdSecurityValidator::sanitize_input(data)
         } else {
-            data.to_vec()
+            let mut result = Vec::with_capacity(data.len());
+            result.extend_from_slice(data);
+            result
         };
 
         Ok(Self::fast_parallel_absorb(state, &sanitized_data))
@@ -295,28 +307,28 @@ impl AdvancedLaneSize for u64x2 {
 
             // Secure byte-to-u64 conversion with bounds checking
             let value = if data_slice.len() >= lane_size {
-                // Convert bytes to u64 values for SIMD processing
+            // Convert bytes to u64 values for SIMD processing
                 u64x2::from_array([
-                    u64::from_le_bytes([
-                        data_slice[0],
-                        data_slice[1],
-                        data_slice[2],
-                        data_slice[3],
-                        data_slice[4],
-                        data_slice[5],
-                        data_slice[6],
-                        data_slice[7],
-                    ]),
-                    u64::from_le_bytes([
-                        data_slice[8],
-                        data_slice[9],
-                        data_slice[10],
-                        data_slice[11],
-                        data_slice[12],
-                        data_slice[13],
-                        data_slice[14],
-                        data_slice[15],
-                    ]),
+                u64::from_le_bytes([
+                    data_slice[0],
+                    data_slice[1],
+                    data_slice[2],
+                    data_slice[3],
+                    data_slice[4],
+                    data_slice[5],
+                    data_slice[6],
+                    data_slice[7],
+                ]),
+                u64::from_le_bytes([
+                    data_slice[8],
+                    data_slice[9],
+                    data_slice[10],
+                    data_slice[11],
+                    data_slice[12],
+                    data_slice[13],
+                    data_slice[14],
+                    data_slice[15],
+                ]),
                 ])
             } else {
                 // This should never happen due to bounds check, but handle gracefully
