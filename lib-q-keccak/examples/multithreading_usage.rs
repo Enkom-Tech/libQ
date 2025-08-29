@@ -11,8 +11,8 @@ use std::time::Instant;
 #[cfg(feature = "multithreading")]
 use lib_q_keccak::{
     CryptoThreadPool,
-    ThreadingConfig,
     OptimizationLevel,
+    ThreadingConfig,
     init_global_thread_pool,
     p1600_multithreaded,
     process_keccak_states_global,

@@ -583,6 +583,13 @@ mod tests {
 
 // Re-export optimized functions
 // Re-export feature configuration
+#[cfg(feature = "simd")]
+pub use crate::advanced_simd::{
+    AdvancedLaneSize,
+    SimdConfig,
+    SimdSecurityValidator,
+    parallel as simd_parallel,
+};
 pub use crate::features::{
     FeatureConfig,
     FeatureReport,
@@ -600,13 +607,6 @@ pub use crate::multithreading::{
     get_global_thread_pool,
     init_global_thread_pool,
     process_keccak_states_global,
-};
-#[cfg(feature = "simd")]
-pub use crate::advanced_simd::{
-    AdvancedLaneSize,
-    SimdConfig,
-    SimdSecurityValidator,
-    parallel as simd_parallel,
 };
 #[cfg(feature = "simd")]
 pub use crate::optimized_core::parallel;

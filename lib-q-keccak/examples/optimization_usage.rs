@@ -259,7 +259,10 @@ mod tests {
         keccak_p(&mut test_state, 24);
 
         // Verify keccak_p works
-        assert_ne!(test_state[0], original_test_value, "keccak_p should modify the state");
+        assert_ne!(
+            test_state[0], original_test_value,
+            "keccak_p should modify the state"
+        );
 
         // Now test the parallel function
         parallel::p1600_parallel(&mut states, OptimizationLevel::Basic);

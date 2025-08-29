@@ -29,7 +29,10 @@
 //! ## Usage Examples
 //!
 //! ```rust
-//! use lib_q_keccak::{SimdConfig, AdvancedLaneSize};
+//! use lib_q_keccak::{
+//!     AdvancedLaneSize,
+//!     SimdConfig,
+//! };
 //!
 //! // Security-optimized configuration
 //! let config = SimdConfig::security_optimized();
@@ -64,6 +67,8 @@
 //! - **Secure state handling**: Proper initialization and cleanup
 //! - **Platform validation**: Ensures SIMD features are available before use
 
+#[cfg(feature = "simd")]
+use alloc::vec::Vec;
 use core::mem::size_of;
 #[cfg(feature = "simd")]
 use core::simd::{
@@ -71,9 +76,6 @@ use core::simd::{
     u64x4,
     u64x8,
 };
-
-#[cfg(feature = "simd")]
-use alloc::vec::Vec;
 
 use crate::{
     LaneSize,
@@ -119,7 +121,7 @@ impl SimdConfig {
     /// Create a performance-optimized configuration
     pub fn performance_optimized() -> Self {
         Self {
-            max_width: 8, // Maximum SIMD width for performance
+            max_width: 8,        // Maximum SIMD width for performance
             bounds_check: false, // Disable bounds checking for speed
             cache_optimized: true,
             side_channel_protection: false, // Trade security for performance
@@ -237,7 +239,8 @@ impl AdvancedLaneSize for u64x2 {
         }
 
         // Process each round with SIMD parallelization
-        let round_constants = &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
+        let round_constants =
+            &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
 
         for &rc in round_constants {
             // Theta step - XOR reduction across lanes
@@ -295,12 +298,24 @@ impl AdvancedLaneSize for u64x2 {
                 // Convert bytes to u64 values for SIMD processing
                 u64x2::from_array([
                     u64::from_le_bytes([
-                        data_slice[0], data_slice[1], data_slice[2], data_slice[3],
-                        data_slice[4], data_slice[5], data_slice[6], data_slice[7],
+                        data_slice[0],
+                        data_slice[1],
+                        data_slice[2],
+                        data_slice[3],
+                        data_slice[4],
+                        data_slice[5],
+                        data_slice[6],
+                        data_slice[7],
                     ]),
                     u64::from_le_bytes([
-                        data_slice[8], data_slice[9], data_slice[10], data_slice[11],
-                        data_slice[12], data_slice[13], data_slice[14], data_slice[15],
+                        data_slice[8],
+                        data_slice[9],
+                        data_slice[10],
+                        data_slice[11],
+                        data_slice[12],
+                        data_slice[13],
+                        data_slice[14],
+                        data_slice[15],
                     ]),
                 ])
             } else {
@@ -333,7 +348,8 @@ impl AdvancedLaneSize for u64x4 {
         }
 
         // Following XKCP AVX2 patterns for 4-way parallel processing
-        let round_constants = &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
+        let round_constants =
+            &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
 
         for &rc in round_constants {
             // Theta step - XOR reduction across 4 parallel lanes
@@ -424,7 +440,8 @@ impl AdvancedLaneSize for u64x8 {
         }
 
         // Following XKCP AVX512 patterns for 8-way parallel processing
-        let round_constants = &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
+        let round_constants =
+            &crate::RC[(Self::KECCAK_F_ROUND_COUNT - round_count)..Self::KECCAK_F_ROUND_COUNT];
 
         for &rc in round_constants {
             // Theta step - XOR reduction across 8 parallel lanes
