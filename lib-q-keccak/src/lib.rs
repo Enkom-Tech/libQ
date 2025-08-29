@@ -29,7 +29,6 @@
     unused_lifetimes,
     unused_qualifications
 )]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 // Conditional externs based on features

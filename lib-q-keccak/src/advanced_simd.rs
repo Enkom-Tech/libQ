@@ -307,28 +307,28 @@ impl AdvancedLaneSize for u64x2 {
 
             // Secure byte-to-u64 conversion with bounds checking
             let value = if data_slice.len() >= lane_size {
-            // Convert bytes to u64 values for SIMD processing
+                // Convert bytes to u64 values for SIMD processing
                 u64x2::from_array([
-                u64::from_le_bytes([
-                    data_slice[0],
-                    data_slice[1],
-                    data_slice[2],
-                    data_slice[3],
-                    data_slice[4],
-                    data_slice[5],
-                    data_slice[6],
-                    data_slice[7],
-                ]),
-                u64::from_le_bytes([
-                    data_slice[8],
-                    data_slice[9],
-                    data_slice[10],
-                    data_slice[11],
-                    data_slice[12],
-                    data_slice[13],
-                    data_slice[14],
-                    data_slice[15],
-                ]),
+                    u64::from_le_bytes([
+                        data_slice[0],
+                        data_slice[1],
+                        data_slice[2],
+                        data_slice[3],
+                        data_slice[4],
+                        data_slice[5],
+                        data_slice[6],
+                        data_slice[7],
+                    ]),
+                    u64::from_le_bytes([
+                        data_slice[8],
+                        data_slice[9],
+                        data_slice[10],
+                        data_slice[11],
+                        data_slice[12],
+                        data_slice[13],
+                        data_slice[14],
+                        data_slice[15],
+                    ]),
                 ])
             } else {
                 // This should never happen due to bounds check, but handle gracefully
