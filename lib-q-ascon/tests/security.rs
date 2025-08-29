@@ -316,6 +316,7 @@ fn test_round_distinctness() {
 /// Test that permutation is invertible (not bijective, but produces unique outputs)
 #[test]
 fn test_permutation_uniqueness() {
+    #[allow(clippy::disallowed_types)]
     let mut seen_outputs = std::collections::HashSet::new();
     let mut state = State::new(0, 0, 0, 0, 0);
 

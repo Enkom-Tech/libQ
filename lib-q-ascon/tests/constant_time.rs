@@ -67,11 +67,7 @@ fn test_permutation_constant_time() {
     let tolerance = avg_time * 50 / 100; // 50% tolerance for real-world timing variations
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
 
         assert!(
             diff <= tolerance,
@@ -228,11 +224,7 @@ fn test_state_conversion_constant_time() {
     );
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
 
         // Only warn about timing variations, don't fail the test
         // Constant-time behavior is important but exact timing can vary in test environments
@@ -302,11 +294,7 @@ fn test_try_from_constant_time() {
     let tolerance = avg_time * 100 / 100; // 100% tolerance for real-world conditions
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
 
         assert!(
             diff <= tolerance,

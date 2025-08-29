@@ -88,11 +88,14 @@ use core::ops::{
 #[rustfmt::skip]
 mod unroll;
 
+// ARM64 optimizations are disabled by default to prevent cross-compilation linking issues
+// Enable with --features arm64_sha3 only when building natively on ARM64 hardware
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
-    feature = "std"
+    feature = "std",
+    feature = "arm64_sha3" // Require explicit opt-in to avoid cross-compilation issues
 ))]
 mod armv8;
 
@@ -100,7 +103,8 @@ mod armv8;
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
-    feature = "std"
+    feature = "std",
+    feature = "arm64_sha3" // Require explicit opt-in to avoid cross-compilation issues
 ))]
 cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
 

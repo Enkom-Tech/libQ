@@ -256,11 +256,7 @@ fn test_performance_consistency() {
     let variance = run_times
         .iter()
         .map(|&t| {
-            let diff = if t > avg_time {
-                t - avg_time
-            } else {
-                avg_time - t
-            };
+            let diff = t.abs_diff(avg_time);
             diff.as_nanos() as f64 * diff.as_nanos() as f64
         })
         .sum::<f64>() /
