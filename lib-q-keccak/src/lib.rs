@@ -91,7 +91,7 @@ mod unroll;
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    target_feature = "sha3",
+    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std"
 ))]
 mod armv8;
@@ -99,7 +99,7 @@ mod armv8;
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    target_feature = "sha3",
+    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std"
 ))]
 cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
@@ -224,14 +224,19 @@ impl_keccak!(p200, f200, u8);
 impl_keccak!(p400, f400, u16);
 impl_keccak!(p800, f800, u32);
 
-#[cfg(not(all(target_arch = "aarch64", feature = "asm")))]
+#[cfg(not(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    not(target_os = "windows"),
+    feature = "std"
+)))]
 impl_keccak!(p1600, f1600, u64);
 
 /// Keccak-p[1600, rc] permutation.
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    target_feature = "sha3",
+    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std"
 ))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
@@ -246,7 +251,7 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    target_feature = "sha3",
+    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std"
 ))]
 pub fn f1600(state: &mut [u64; PLEN]) {
@@ -589,6 +594,7 @@ pub use crate::features::{
 // Re-export multi-threading functionality
 #[cfg(all(feature = "multithreading", feature = "std"))]
 pub use crate::multithreading::{
+    AffinityStrategy,
     CryptoThreadPool,
     ThreadingConfig,
     get_global_thread_pool,
@@ -596,8 +602,15 @@ pub use crate::multithreading::{
     process_keccak_states_global,
 };
 #[cfg(feature = "simd")]
+pub use crate::advanced_simd::{
+    AdvancedLaneSize,
+    SimdConfig,
+    SimdSecurityValidator,
+    parallel as simd_parallel,
+};
+#[cfg(feature = "simd")]
 pub use crate::optimized_core::parallel;
-#[cfg(all(feature = "multithreading", feature = "std"))]
+#[cfg(all(feature = "multithreading", feature = "std", feature = "simd"))]
 pub use crate::optimized_core::parallel::p1600_multithreaded;
 pub use crate::optimized_core::{
     OptimizationLevel,

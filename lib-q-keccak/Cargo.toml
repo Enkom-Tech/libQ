@@ -24,7 +24,8 @@ simd = []      # Use core::simd (nightly-only)
 nightly = []   # Enable nightly-only features like benchmarking
 advanced-simd = ["simd"]  # Enable advanced SIMD features (requires nightly)
 std = ["cpufeatures", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
-multithreading = ["std"]  # Enable multi-threading support (requires std)
+multithreading = ["std", "thread-affinity", "simd"]  # Enable multi-threading support with thread affinity
+thread-affinity = ["dep:core_affinity"]  # Enable thread affinity support
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 cpufeatures = { version = "0.2.17", optional = true }
@@ -33,7 +34,11 @@ cpufeatures = { version = "0.2.17", optional = true }
 num_cpus = { version = "1.17.0", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-nix = { version = "0.30.1", optional = true }
+nix = { version = "0.30.1", optional = true, features = ["sched", "process"] }
+
+# Thread affinity support - cross-platform
+[target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
+core_affinity = { version = "0.8.3", optional = true }
 
 [lib]
 name = "lib_q_keccak"

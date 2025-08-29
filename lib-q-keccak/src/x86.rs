@@ -443,7 +443,6 @@ pub fn has_avx512f() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::p1600;
 
     #[test]

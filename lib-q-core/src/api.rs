@@ -785,6 +785,9 @@ impl Default for HashContext {
 #[cfg(feature = "wasm")]
 pub mod wasm_api {
     use super::*;
+    use wasm_bindgen::JsValue;
+    use serde_wasm_bindgen;
+    use serde_json;
 
     /// WASM-compatible KEM context
     #[cfg_attr(feature = "wasm", wasm_bindgen)]
@@ -798,6 +801,76 @@ pub mod wasm_api {
         pub fn new() -> Self {
             Self {
                 inner: KemContext::new(),
+            }
+        }
+
+        /// Generate a keypair for the specified algorithm
+        #[cfg_attr(feature = "wasm", wasm_bindgen)]
+        pub fn generate_keypair(&mut self, algorithm: &str) -> std::result::Result<JsValue, JsValue> {
+            let algorithm = match algorithm {
+                "MlKem512" => Algorithm::MlKem512,
+                "MlKem768" => Algorithm::MlKem768,
+                "MlKem1024" => Algorithm::MlKem1024,
+                _ => return Err(JsValue::from_str("Unsupported algorithm")),
+            };
+
+            match self.inner.generate_keypair(algorithm) {
+                Ok(keypair) => {
+                    let result = serde_json::json!({
+                        "public_key": keypair.public_key.data,
+                        "secret_key": keypair.secret_key.data
+                    });
+                    Ok(serde_wasm_bindgen::to_value(&result)
+                        .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))?)
+                },
+                Err(e) => Err(JsValue::from_str(&format!("Key generation failed: {:?}", e))),
+            }
+        }
+
+        /// Encapsulate a shared secret using the given public key
+        #[cfg_attr(feature = "wasm", wasm_bindgen)]
+        pub fn encapsulate(&self, algorithm: &str, public_key_data: &[u8]) -> std::result::Result<JsValue, JsValue> {
+            let algorithm = match algorithm {
+                "MlKem512" => Algorithm::MlKem512,
+                "MlKem768" => Algorithm::MlKem768,
+                "MlKem1024" => Algorithm::MlKem1024,
+                _ => return Err(JsValue::from_str("Unsupported algorithm")),
+            };
+
+            let public_key = KemPublicKey {
+                data: public_key_data.to_vec(),
+            };
+
+            match self.inner.encapsulate(algorithm, &public_key) {
+                Ok((ciphertext, shared_secret)) => {
+                    let result = serde_json::json!({
+                        "ciphertext": ciphertext,
+                        "shared_secret": shared_secret
+                    });
+                    Ok(serde_wasm_bindgen::to_value(&result)
+                        .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))?)
+                },
+                Err(e) => Err(JsValue::from_str(&format!("Encapsulation failed: {:?}", e))),
+            }
+        }
+
+        /// Decapsulate a shared secret using the given secret key and ciphertext
+        #[cfg_attr(feature = "wasm", wasm_bindgen)]
+        pub fn decapsulate(&self, algorithm: &str, secret_key_data: &[u8], ciphertext: &[u8]) -> std::result::Result<Vec<u8>, JsValue> {
+            let algorithm = match algorithm {
+                "MlKem512" => Algorithm::MlKem512,
+                "MlKem768" => Algorithm::MlKem768,
+                "MlKem1024" => Algorithm::MlKem1024,
+                _ => return Err(JsValue::from_str("Unsupported algorithm")),
+            };
+
+            let secret_key = KemSecretKey {
+                data: secret_key_data.to_vec(),
+            };
+
+            match self.inner.decapsulate(algorithm, &secret_key, ciphertext) {
+                Ok(shared_secret) => Ok(shared_secret),
+                Err(e) => Err(JsValue::from_str(&format!("Decapsulation failed: {:?}", e))),
             }
         }
     }

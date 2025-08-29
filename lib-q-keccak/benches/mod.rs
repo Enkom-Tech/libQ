@@ -1,9 +1,10 @@
 #![cfg_attr(all(test, feature = "nightly"), feature(test))]
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
-extern crate lib_q_keccak;
 #[cfg(all(test, feature = "nightly"))]
 extern crate test;
+
+use lib_q_keccak::*;
 
 #[cfg(all(test, feature = "nightly"))]
 macro_rules! impl_bench {
@@ -16,12 +17,6 @@ macro_rules! impl_bench {
     };
 }
 
-#[cfg(all(test, feature = "nightly"))]
-impl_bench!(b_f200, f200, 0u8);
-#[cfg(all(test, feature = "nightly"))]
-impl_bench!(b_f400, f400, 0u16);
-#[cfg(all(test, feature = "nightly"))]
-impl_bench!(b_f800, f800, 0u32);
 #[cfg(all(test, feature = "nightly"))]
 impl_bench!(b_f1600, f1600, 0u64);
 
@@ -41,16 +36,27 @@ fn b_p1600_16(b: &mut test::Bencher) {
 
 #[cfg(all(test, feature = "nightly", feature = "simd"))]
 mod simd {
-    use lib_q_keccak::simd::{
-        f1600x2,
-        f1600x4,
-        f1600x8,
-        u64x2,
-        u64x4,
-        u64x8,
+    use lib_q_keccak::simd_parallel::{
+        p1600_parallel_2x,
+        p1600_parallel_4x,
+        p1600_parallel_8x,
     };
 
-    impl_bench!(b_f1600x2, f1600x2, u64x2::splat(0));
-    impl_bench!(b_f1600x4, f1600x4, u64x4::splat(0));
-    impl_bench!(b_f1600x8, f1600x8, u64x8::splat(0));
+    #[bench]
+    fn b_p1600_parallel_2x(b: &mut test::Bencher) {
+        let mut data = [[0u64; 25]; 2];
+        b.iter(|| p1600_parallel_2x(&mut data));
+    }
+
+    #[bench]
+    fn b_p1600_parallel_4x(b: &mut test::Bencher) {
+        let mut data = [[0u64; 25]; 4];
+        b.iter(|| p1600_parallel_4x(&mut data));
+    }
+
+    #[bench]
+    fn b_p1600_parallel_8x(b: &mut test::Bencher) {
+        let mut data = [[0u64; 25]; 8];
+        b.iter(|| p1600_parallel_8x(&mut data));
+    }
 }

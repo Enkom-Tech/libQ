@@ -32,6 +32,8 @@ serde = { version = "1.0.219", optional = true, features = ["derive"], default-f
 # WASM bindings
 wasm-bindgen = { version = "0.2.100", optional = true, features = ["serde-serialize"] }
 js-sys = { version = "0.3.77", optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
+serde_json = { version = "1.0.143", optional = true }
 
 # Lazy static for global registry
 lazy_static = "1.5.0"
@@ -56,7 +58,7 @@ hash = ["dep:lib-q-sha3"]
 serde = ["dep:serde"]
 
 # WASM support
-wasm = ["wasm-bindgen", "js-sys", "serde"]
+wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json"]
 
 [lib]
 name = "lib_q_core"
@@ -66,6 +68,10 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+# Enable bulk memory operations to fix wasm-validator errors
+wasm-opt = ["-O", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

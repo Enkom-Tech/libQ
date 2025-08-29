@@ -9,9 +9,10 @@
 use std::time::Instant;
 
 #[cfg(feature = "multithreading")]
-use keccak::{
+use lib_q_keccak::{
     CryptoThreadPool,
     ThreadingConfig,
+    OptimizationLevel,
     init_global_thread_pool,
     p1600_multithreaded,
     process_keccak_states_global,
@@ -63,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("3. Small Workload Processing (Sequential Fallback)");
         println!("==================================================");
 
-        let small_states = vec![vec![0u64; 25]; 10]; // Small workload
+        let small_states: Vec<[u64; 25]> = vec![[0u64; 25]; 10]; // Small workload
         let start = Instant::now();
 
         let results = process_keccak_states_global(&small_states, OptimizationLevel::Reference)?;
@@ -81,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("4. Large Workload Processing (Multi-threaded)");
         println!("=============================================");
 
-        let large_states = vec![vec![0u64; 25]; 10000]; // Large workload
+        let large_states: Vec<[u64; 25]> = vec![[0u64; 25]; 10000]; // Large workload
         let start = Instant::now();
 
         let results = process_keccak_states_global(&large_states, OptimizationLevel::Maximum)?;
@@ -101,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         // Security-optimized pool
         let security_pool = CryptoThreadPool::new(ThreadingConfig::security_optimized());
-        let security_states = vec![vec![0u64; 25]; 1000];
+        let security_states: Vec<[u64; 25]> = vec![[0u64; 25]; 1000];
         let start = Instant::now();
 
         let _security_results =
@@ -116,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
         // Performance-optimized pool
         let performance_pool = CryptoThreadPool::new(ThreadingConfig::performance_optimized());
-        let performance_states = vec![vec![0u64; 25]; 1000];
+        let performance_states: Vec<[u64; 25]> = vec![[0u64; 25]; 1000];
         let start = Instant::now();
 
         let _performance_results = performance_pool
@@ -134,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("6. Direct Multi-threading Function Usage");
         println!("========================================");
 
-        let direct_states = vec![vec![0u64; 25]; 5000];
+        let direct_states: Vec<[u64; 25]> = vec![[0u64; 25]; 5000];
         let start = Instant::now();
 
         let direct_results = p1600_multithreaded(&direct_states, OptimizationLevel::Advanced)?;
@@ -152,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("7. Performance Comparison");
         println!("=========================");
 
-        let test_states = vec![vec![0u64; 25]; 5000];
+        let test_states: Vec<[u64; 25]> = vec![[0u64; 25]; 5000];
 
         // Sequential processing
         let start = Instant::now();
@@ -189,10 +190,11 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             max_work_per_thread: 1000,
             timeout: std::time::Duration::from_secs(5),
             enable_affinity: false,
+            affinity_strategy: lib_q_keccak::AffinityStrategy::Disabled,
         };
 
         let fallback_pool = CryptoThreadPool::new(invalid_config);
-        let fallback_states = vec![vec![0u64; 25]; 100];
+        let fallback_states: Vec<[u64; 25]> = vec![[0u64; 25]; 100];
         let start = Instant::now();
 
         match fallback_pool.process_keccak_states(&fallback_states, OptimizationLevel::Reference) {
@@ -260,7 +262,7 @@ mod tests {
         let config = ThreadingConfig::balanced();
         let pool = CryptoThreadPool::new(config);
 
-        let states = vec![vec![0u64; 25]; 10];
+        let states: Vec<[u64; 25]> = vec![[0u64; 25]; 10];
         let results = pool.process_keccak_states(&states, OptimizationLevel::Reference);
         assert!(results.is_ok());
     }

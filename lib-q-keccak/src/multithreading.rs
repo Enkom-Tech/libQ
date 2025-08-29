@@ -36,6 +36,77 @@ use crate::{
     keccak_p,
 };
 
+/// Cross-platform thread affinity implementation
+/// Sets thread affinity to a specific CPU core for optimal cache performance
+#[cfg(feature = "thread-affinity")]
+fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
+    use std::sync::OnceLock;
+
+    // Early return if affinity is disabled
+    if matches!(strategy, AffinityStrategy::Disabled) {
+        return;
+    }
+
+    // Cache the number of available CPUs to avoid repeated system calls
+    static CPU_COUNT: OnceLock<usize> = OnceLock::new();
+
+    let cpu_count = CPU_COUNT.get_or_init(|| {
+        core_affinity::get_core_ids()
+            .map(|ids| ids.len())
+            .unwrap_or_else(|| num_cpus::get())
+    });
+
+    if *cpu_count == 0 {
+        return; // No CPUs available, skip affinity setting
+    }
+
+    // Calculate target CPU based on strategy
+    let target_cpu = match strategy {
+        AffinityStrategy::Disabled => return,
+        AffinityStrategy::Spread => {
+            // Distribute threads across all available cores
+            thread_id % *cpu_count
+        }
+        AffinityStrategy::Compact => {
+            // Group threads on fewer cores for better cache sharing
+            let active_cores = (*cpu_count + 1) / 2; // Use roughly half the cores
+            thread_id % active_cores
+        }
+        AffinityStrategy::Custom => {
+            // For now, fall back to spread strategy
+            thread_id % *cpu_count
+        }
+    };
+
+    // Get the core ID for the target CPU
+    if let Some(core_ids) = core_affinity::get_core_ids() {
+        if let Some(core_id) = core_ids.get(target_cpu) {
+            // Attempt to set thread affinity - ignore errors gracefully
+            // This is a performance optimization, so we don't fail on errors
+            let _ = core_affinity::set_for_current(*core_id);
+        }
+    }
+}
+
+/// Fallback implementation for systems without thread affinity support
+#[cfg(not(feature = "thread-affinity"))]
+fn set_thread_affinity(_thread_id: usize, _strategy: AffinityStrategy) {
+    // No-op implementation for systems without thread affinity support
+}
+
+/// Thread affinity strategy for optimizing cache performance
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AffinityStrategy {
+    /// Disable thread affinity completely
+    Disabled,
+    /// Spread threads across all available CPU cores
+    Spread,
+    /// Group threads on fewer cores for better cache sharing
+    Compact,
+    /// Custom affinity pattern (future extension)
+    Custom,
+}
+
 /// Thread-safe configuration for multi-threading operations
 #[derive(Debug, Clone)]
 pub struct ThreadingConfig {
@@ -49,6 +120,8 @@ pub struct ThreadingConfig {
     pub timeout: Duration,
     /// Enable thread affinity for better cache performance
     pub enable_affinity: bool,
+    /// Thread affinity strategy
+    pub affinity_strategy: AffinityStrategy,
 }
 
 impl Default for ThreadingConfig {
@@ -59,6 +132,7 @@ impl Default for ThreadingConfig {
             max_work_per_thread: 64 * 1024, // 64KB per thread
             timeout: Duration::from_secs(30),
             enable_affinity: true,
+            affinity_strategy: AffinityStrategy::Spread,
         }
     }
 }
@@ -72,6 +146,7 @@ impl ThreadingConfig {
             max_work_per_thread: usize::MAX,
             timeout: Duration::from_secs(5),
             enable_affinity: false,
+            affinity_strategy: AffinityStrategy::Disabled,
         }
     }
 
@@ -83,6 +158,7 @@ impl ThreadingConfig {
             max_work_per_thread: 32 * 1024, // Smaller chunks for better load balancing
             timeout: Duration::from_secs(60),
             enable_affinity: true,
+            affinity_strategy: AffinityStrategy::Spread,
         }
     }
 
@@ -94,6 +170,7 @@ impl ThreadingConfig {
             max_work_per_thread: 128 * 1024,        // Larger chunks
             timeout: Duration::from_secs(30),
             enable_affinity: true,
+            affinity_strategy: AffinityStrategy::Compact,
         }
     }
 }
@@ -297,20 +374,9 @@ impl CryptoThreadPool {
 
             let states_clone = states.to_vec();
             let handle = thread::spawn(move || {
-                // Set thread affinity if enabled
+                // Set thread affinity for optimal cache performance
                 if worker.config.enable_affinity {
-                    #[cfg(target_os = "linux")]
-                    {
-                        use std::os::linux::thread::AffinityExt;
-                        if let Ok(mut set) = nix::sched::CpuSet::new() {
-                            if set.set(thread_id % num_cpus::get()).is_ok() {
-                                let _ = nix::sched::sched_setaffinity(
-                                    nix::unistd::Pid::from_raw(0),
-                                    &set,
-                                );
-                            }
-                        }
-                    }
+                    set_thread_affinity(thread_id, worker.config.affinity_strategy);
                 }
 
                 worker.process_keccak_parallel(&states_clone, level);
@@ -448,6 +514,8 @@ mod tests {
         assert!(config.num_threads > 0);
         assert!(config.min_work_size > 0);
         assert!(config.max_work_per_thread > 0);
+        assert_eq!(config.affinity_strategy, AffinityStrategy::Spread);
+        assert!(config.enable_affinity);
     }
 
     #[test]
@@ -455,6 +523,8 @@ mod tests {
         let config = ThreadingConfig::security_optimized();
         assert_eq!(config.num_threads, 1);
         assert_eq!(config.min_work_size, usize::MAX);
+        assert_eq!(config.affinity_strategy, AffinityStrategy::Disabled);
+        assert!(!config.enable_affinity);
     }
 
     #[test]
@@ -462,6 +532,17 @@ mod tests {
         let config = ThreadingConfig::performance_optimized();
         assert!(config.num_threads > 0);
         assert!(config.min_work_size < usize::MAX);
+        assert_eq!(config.affinity_strategy, AffinityStrategy::Spread);
+        assert!(config.enable_affinity);
+    }
+
+    #[test]
+    fn test_threading_config_balanced() {
+        let config = ThreadingConfig::balanced();
+        assert!(config.num_threads > 0);
+        assert!(config.min_work_size > 0);
+        assert_eq!(config.affinity_strategy, AffinityStrategy::Compact);
+        assert!(config.enable_affinity);
     }
 
     #[test]
