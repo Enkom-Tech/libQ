@@ -54,6 +54,13 @@ crate-type = ["cdylib", "rlib"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+# Panic configuration for no_std builds
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
 # Cross-compilation configuration
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"

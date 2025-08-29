@@ -3,7 +3,7 @@
 //! This module provides optimized implementations using AVX2 and AVX-512
 //! instruction sets, based on the XKCP reference implementation.
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
 use core::arch::x86_64::{
     __m256i,
     _mm256_and_si256,
@@ -16,7 +16,7 @@ use core::arch::x86_64::{
     _mm256_xor_si256,
 };
 // AVX-512 specific imports
-#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
 use core::arch::x86_64::{
     __m512i,
     _mm512_and_si512,
@@ -30,13 +30,13 @@ use core::arch::x86_64::{
     _mm512_xor_si512,
 };
 #[cfg(any(
-    all(target_arch = "x86_64", target_feature = "avx2"),
-    all(target_arch = "x86_64", target_feature = "avx512f")
+    all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)),
+    all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile))
 ))]
 use core::mem::size_of;
 
 // AVX2 optimized Keccak-p[1600] permutation
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
 pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
     // Rho rotation constants for Keccak-p[1600]
     const RHO_OFFSETS: [u32; 25] = [
@@ -200,7 +200,7 @@ pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
 }
 
 // AVX-512 optimized Keccak-p[1600] permutation
-#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
 pub unsafe fn p1600_avx512(state: &mut [u64; 25]) {
     // Load state into AVX-512 registers for maximum parallelism
     let mut lanes = [
@@ -334,7 +334,7 @@ pub unsafe fn p1600_avx512(state: &mut [u64; 25]) {
 }
 
 // Fast loop absorb function for optimized absorption
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
 pub unsafe fn fast_loop_absorb_avx2(
     state: &mut [u64; 25],
     lane_count: usize,
@@ -370,7 +370,7 @@ pub unsafe fn fast_loop_absorb_avx2(
 }
 
 // AVX-512 optimized fast loop absorption
-#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
 pub unsafe fn fast_loop_absorb_avx512(
     state: &mut [u64; 25],
     lane_count: usize,
@@ -419,11 +419,11 @@ pub unsafe fn fast_loop_absorb_avx512(
 // Feature detection - simplified for no_std compatibility
 #[allow(dead_code)]
 pub fn has_avx2() -> bool {
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
     {
         true
     }
-    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
     {
         false
     }
@@ -431,11 +431,11 @@ pub fn has_avx2() -> bool {
 
 #[allow(dead_code)]
 pub fn has_avx512f() -> bool {
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
     {
         true
     }
-    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx512f")))]
+    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile))))]
     {
         false
     }
@@ -447,7 +447,7 @@ mod tests {
     use crate::p1600;
 
     #[test]
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
     fn test_avx2_consistency() {
         let mut state1 = [0u64; 25];
         let mut state2 = [0u64; 25];

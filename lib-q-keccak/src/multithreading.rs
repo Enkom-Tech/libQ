@@ -347,27 +347,50 @@ impl CryptoWorker {
                 keccak_p(state, 24);
             }
             OptimizationLevel::Basic => {
-                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                ))]
                 unsafe {
                     crate::x86::p1600_avx2(state);
                 }
-                #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                #[cfg(not(all(
+                    target_arch = "x86_64",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                )))]
                 {
                     keccak_p(state, 24);
                 }
             }
             OptimizationLevel::Advanced => {
-                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                ))]
                 unsafe {
                     crate::x86::p1600_avx2(state);
                 }
-                #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                #[cfg(not(all(
+                    target_arch = "x86_64",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                )))]
                 {
                     keccak_p(state, 24);
                 }
             }
             OptimizationLevel::Maximum => {
-                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx512f",
+                    not(cross_compile)
+                ))]
                 unsafe {
                     crate::x86::p1600_avx512(state);
                 }
@@ -510,21 +533,39 @@ impl CryptoThreadPool {
                     keccak_p(&mut result_state, 24);
                 }
                 OptimizationLevel::Basic => {
-                    #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+                    #[cfg(all(
+                        target_arch = "x86_64",
+                        feature = "asm",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    ))]
                     unsafe {
                         crate::x86::p1600_avx2(&mut result_state);
                     }
-                    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                    #[cfg(not(all(
+                        target_arch = "x86_64",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    )))]
                     {
                         keccak_p(&mut result_state, 24);
                     }
                 }
                 OptimizationLevel::Advanced => {
-                    #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+                    #[cfg(all(
+                        target_arch = "x86_64",
+                        feature = "asm",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    ))]
                     unsafe {
                         crate::x86::p1600_avx2(&mut result_state);
                     }
-                    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                    #[cfg(not(all(
+                        target_arch = "x86_64",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    )))]
                     {
                         keccak_p(&mut result_state, 24);
                     }

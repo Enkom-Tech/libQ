@@ -38,11 +38,21 @@ pub enum OptimizationLevel {
 impl OptimizationLevel {
     /// Returns the best available optimization level for the current platform
     pub fn best_available() -> Self {
-        #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
+        #[cfg(all(
+            target_arch = "x86_64",
+            feature = "asm",
+            target_feature = "avx512f",
+            not(cross_compile)
+        ))]
         {
             Self::Maximum
         }
-        #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+        #[cfg(all(
+            target_arch = "x86_64",
+            feature = "asm",
+            target_feature = "avx2",
+            not(cross_compile)
+        ))]
         {
             Self::Advanced
         }
@@ -58,7 +68,12 @@ impl OptimizationLevel {
             Self::Basic
         }
         #[cfg(not(any(
-            all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
+            all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ),
             all(
                 target_arch = "aarch64",
                 feature = "asm",
@@ -79,7 +94,12 @@ impl OptimizationLevel {
             Self::Reference => true,
             Self::Basic => {
                 #[cfg(any(
-                    all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
+                    all(
+                        target_arch = "x86_64",
+                        feature = "asm",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    ),
                     all(
                         target_arch = "aarch64",
                         feature = "asm",
@@ -93,7 +113,12 @@ impl OptimizationLevel {
                     true
                 }
                 #[cfg(not(any(
-                    all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"),
+                    all(
+                        target_arch = "x86_64",
+                        feature = "asm",
+                        target_feature = "avx2",
+                        not(cross_compile)
+                    ),
                     all(
                         target_arch = "aarch64",
                         feature = "asm",
@@ -108,17 +133,32 @@ impl OptimizationLevel {
                 }
             }
             Self::Advanced => {
-                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                ))]
                 {
                     true
                 }
-                #[cfg(not(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2")))]
+                #[cfg(not(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                )))]
                 {
                     false
                 }
             }
             Self::Maximum => {
-                #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx512f",
+                    not(cross_compile)
+                ))]
                 {
                     true
                 }
@@ -154,7 +194,12 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
             {
                 unsafe { crate::armv8::p1600(state) };
             }
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::p1600_avx2(state) };
             }
@@ -165,28 +210,48 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
                     target_feature = "sha3",
                     feature = "std"
                 ),
-                all(target_arch = "x86_64", feature = "asm", target_feature = "avx2")
+                all(
+                    target_arch = "x86_64",
+                    feature = "asm",
+                    target_feature = "avx2",
+                    not(cross_compile)
+                )
             )))]
             {
                 keccak_p(state, 24);
             }
         }
         OptimizationLevel::Advanced => {
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::p1600_avx2(state) };
             }
-            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
                 keccak_p(state, 24);
             }
         }
         OptimizationLevel::Maximum => {
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx512f",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::p1600_avx512(state) };
             }
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::p1600_avx2(state) };
             }
@@ -213,31 +278,51 @@ pub fn fast_loop_absorb_optimized(
     match level {
         OptimizationLevel::Reference => fast_loop_absorb_reference(state, data),
         OptimizationLevel::Basic => {
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::fast_loop_absorb_avx2(state, 1, data) }
             }
-            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
                 fast_loop_absorb_reference(state, data)
             }
         }
         OptimizationLevel::Advanced => {
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) }
             }
-            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+            #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
                 fast_loop_absorb_reference(state, data)
             }
         }
         OptimizationLevel::Maximum => {
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx512f"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx512f",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::fast_loop_absorb_avx2(state, 8, data) }
             }
-            #[cfg(all(target_arch = "x86_64", feature = "asm", target_feature = "avx2"))]
+            #[cfg(all(
+                target_arch = "x86_64",
+                feature = "asm",
+                target_feature = "avx2",
+                not(cross_compile)
+            ))]
             {
                 unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) }
             }
@@ -508,7 +593,11 @@ pub mod parallel {
                         unsafe {
                             crate::x86::p1600_avx2(&mut result_state);
                         }
-                        #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                        #[cfg(not(all(
+                            target_arch = "x86_64",
+                            target_feature = "avx2",
+                            not(cross_compile)
+                        )))]
                         {
                             keccak_p(&mut result_state, 24);
                         }
@@ -522,7 +611,11 @@ pub mod parallel {
                         unsafe {
                             crate::x86::p1600_avx2(&mut result_state);
                         }
-                        #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2")))]
+                        #[cfg(not(all(
+                            target_arch = "x86_64",
+                            target_feature = "avx2",
+                            not(cross_compile)
+                        )))]
                         {
                             keccak_p(&mut result_state, 24);
                         }
