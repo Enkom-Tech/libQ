@@ -53,7 +53,7 @@ fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
     let cpu_count = CPU_COUNT.get_or_init(|| {
         core_affinity::get_core_ids()
             .map(|ids| ids.len())
-            .unwrap_or_else(|| num_cpus::get())
+            .unwrap_or_else(num_cpus::get)
     });
 
     if *cpu_count == 0 {
@@ -69,7 +69,7 @@ fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
         }
         AffinityStrategy::Compact => {
             // Group threads on fewer cores for better cache sharing
-            let active_cores = (*cpu_count + 1) / 2; // Use roughly half the cores
+            let active_cores = cpu_count.div_ceil(2); // Use roughly half the cores
             thread_id % active_cores
         }
         AffinityStrategy::Custom => {
@@ -79,12 +79,12 @@ fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
     };
 
     // Get the core ID for the target CPU
-    if let Some(core_ids) = core_affinity::get_core_ids() {
-        if let Some(core_id) = core_ids.get(target_cpu) {
-            // Attempt to set thread affinity - ignore errors gracefully
-            // This is a performance optimization, so we don't fail on errors
-            let _ = core_affinity::set_for_current(*core_id);
-        }
+    if let Some(core_ids) = core_affinity::get_core_ids() &&
+        let Some(core_id) = core_ids.get(target_cpu)
+    {
+        // Attempt to set thread affinity - ignore errors gracefully
+        // This is a performance optimization, so we don't fail on errors
+        let _ = core_affinity::set_for_current(*core_id);
     }
 }
 
@@ -165,14 +165,23 @@ impl ThreadingConfig {
     /// Create a balanced configuration
     pub fn balanced() -> Self {
         Self {
-            num_threads: (num_cpus::get() + 1) / 2, // Half the cores
-            min_work_size: 2048,                    // Higher threshold for better efficiency
-            max_work_per_thread: 128 * 1024,        // Larger chunks
+            num_threads: num_cpus::get().div_ceil(2), // Half the cores
+            min_work_size: 2048,                      // Higher threshold for better efficiency
+            max_work_per_thread: 128 * 1024,          // Larger chunks
             timeout: Duration::from_secs(30),
             enable_affinity: true,
             affinity_strategy: AffinityStrategy::Compact,
         }
     }
+}
+
+/// Worker statistics for monitoring and debugging
+#[derive(Debug, Clone)]
+pub struct WorkerStats {
+    /// Unique worker thread identifier
+    pub worker_id: usize,
+    /// Number of work items processed by this worker
+    pub work_items_processed: usize,
 }
 
 /// Thread-safe work distribution for cryptographic operations
@@ -184,6 +193,8 @@ struct WorkDistribution {
     current_position: AtomicUsize,
     /// Work completion status
     completed: AtomicBool,
+    /// Number of items completed
+    completed_count: AtomicUsize,
 }
 
 impl WorkDistribution {
@@ -192,6 +203,7 @@ impl WorkDistribution {
             total_items,
             current_position: AtomicUsize::new(0),
             completed: AtomicBool::new(false),
+            completed_count: AtomicUsize::new(0),
         }
     }
 
@@ -210,6 +222,16 @@ impl WorkDistribution {
     /// Mark work as completed
     fn mark_completed(&self) {
         self.completed.store(true, Ordering::Release);
+    }
+
+    /// Increment the completed work count
+    fn increment_completed(&self, count: usize) {
+        self.completed_count.fetch_add(count, Ordering::AcqRel);
+    }
+
+    /// Check if all work has been completed
+    fn is_all_work_completed(&self) -> bool {
+        self.completed_count.load(Ordering::Acquire) >= self.total_items
     }
 
     /// Check if all work is completed
@@ -232,6 +254,19 @@ struct CryptoWorker {
 }
 
 impl CryptoWorker {
+    /// Get worker statistics for monitoring and debugging
+    pub fn get_stats(&self) -> WorkerStats {
+        WorkerStats {
+            worker_id: self.id,
+            work_items_processed: self.work_dist.completed_count.load(Ordering::Acquire),
+        }
+    }
+
+    /// Get worker identifier for thread management and monitoring
+    pub fn get_worker_id(&self) -> usize {
+        self.id
+    }
+
     fn new(
         id: usize,
         work_dist: Arc<WorkDistribution>,
@@ -256,6 +291,8 @@ impl CryptoWorker {
         while let Some((start, end)) = self.work_dist.get_next_chunk(chunk_size) {
             let mut local_results = Vec::new();
 
+            // Worker ID available via get_worker_id() for monitoring
+
             for i in start..end {
                 if i < states.len() {
                     let mut state = states[i];
@@ -264,16 +301,28 @@ impl CryptoWorker {
                 }
             }
 
-            // Store results thread-safely
+            // Store results thread-safely with bounds checking
             if let Ok(mut results_guard) = self.results.write() {
-                for (i, result) in local_results.into_iter().enumerate() {
+                let results_len = results_guard.len();
+                let mut valid_results = 0;
+
+                for (i, result) in local_results.iter().enumerate() {
                     let global_index = start + i;
-                    if global_index < results_guard.len() {
-                        results_guard[global_index] = result;
+                    if global_index < results_len && global_index < states.len() {
+                        results_guard[global_index] = *result;
+                        valid_results += 1;
                     }
+                }
+
+                // Increment completed count only for valid results
+                if valid_results > 0 {
+                    self.work_dist.increment_completed(valid_results);
                 }
             }
         }
+
+        // Worker completion statistics available via get_stats()
+        // Use worker.get_stats() for monitoring in production code
     }
 
     /// Apply Keccak optimization based on level
@@ -385,12 +434,43 @@ impl CryptoThreadPool {
             handles.push(handle);
         }
 
-        // Wait for all threads to complete with timeout
+        // Wait for all threads to complete
         for handle in handles {
             if let Err(e) = handle.join() {
                 shutdown.store(true, Ordering::Release);
                 return Err(format!("Thread join error: {:?}", e).into());
             }
+        }
+
+        // Mark work as completed
+        work_dist.mark_completed();
+
+        // Robust completion verification with timeout protection
+        let max_retries = 100; // Prevent infinite waiting
+        let mut retries = 0;
+
+        while !work_dist.is_all_work_completed() && retries < max_retries {
+            // Brief yield to allow threads to complete
+            thread::yield_now();
+            retries += 1;
+
+            // Check for completion every few iterations to reduce overhead
+            if retries % 10 == 0 {
+                let completed = work_dist.completed_count.load(Ordering::Acquire);
+                if completed >= work_dist.total_items {
+                    break;
+                }
+            }
+        }
+
+        // Final verification
+        if !work_dist.is_all_work_completed() {
+            let completed = work_dist.completed_count.load(Ordering::Acquire);
+            return Err(format!(
+                "Incomplete processing after timeout: {} of {} items completed",
+                completed, work_dist.total_items
+            )
+            .into());
         }
 
         // Extract results
@@ -562,6 +642,26 @@ mod tests {
     }
 
     #[test]
+    fn test_worker_id_and_stats() {
+        let work_dist = Arc::new(WorkDistribution::new(10));
+        let results = Arc::new(RwLock::new(vec![[0u64; 25]; 10]));
+        let config = ThreadingConfig::default();
+
+        // Create worker with specific ID
+        let worker = CryptoWorker::new(42, Arc::clone(&work_dist), Arc::clone(&results), config);
+
+        // Test worker ID retrieval
+        assert_eq!(worker.get_worker_id(), 42);
+
+        // Test initial stats
+        let stats = worker.get_stats();
+        assert_eq!(stats.worker_id, 42);
+        assert_eq!(stats.work_items_processed, 0);
+
+        // Worker ID and stats are properly accessible for monitoring
+    }
+
+    #[test]
     fn test_sequential_processing() {
         let config = ThreadingConfig::security_optimized();
         let pool = CryptoThreadPool::new(config);
@@ -570,7 +670,7 @@ mod tests {
 
         let results = pool
             .process_keccak_states(&states, OptimizationLevel::Reference)
-            .unwrap();
+            .expect("Failed to process Keccak states in thread pool");
         assert_eq!(results.len(), states.len());
 
         // Verify that states were modified
@@ -588,7 +688,8 @@ mod tests {
         assert!(pool.is_some());
 
         let states = vec![[0u64; 25]; 10];
-        let results = process_keccak_states_global(&states, OptimizationLevel::Reference).unwrap();
+        let results = process_keccak_states_global(&states, OptimizationLevel::Reference)
+            .expect("Failed to process Keccak states with global thread pool");
         assert_eq!(results.len(), states.len());
     }
 }

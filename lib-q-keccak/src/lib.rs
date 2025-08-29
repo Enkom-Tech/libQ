@@ -228,11 +228,22 @@ impl_keccak!(p200, f200, u8);
 impl_keccak!(p400, f400, u16);
 impl_keccak!(p800, f800, u32);
 
+// Use ARM64-optimized implementations when available, otherwise fallback to generic
+#[cfg(all(
+    target_arch = "aarch64",
+    feature = "asm",
+    not(target_os = "windows"),
+    feature = "std",
+    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
+))]
+impl_keccak!(p1600, f1600, u64);
+
 #[cfg(not(all(
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"),
-    feature = "std"
+    feature = "std",
+    feature = "arm64_sha3" // Use generic implementation when ARM64 optimizations are disabled
 )))]
 impl_keccak!(p1600, f1600, u64);
 
@@ -241,7 +252,8 @@ impl_keccak!(p1600, f1600, u64);
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
-    feature = "std"
+    feature = "std",
+    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
 ))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     if armv8_sha3_intrinsics::get() {
@@ -256,7 +268,8 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
-    feature = "std"
+    feature = "std",
+    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
 ))]
 pub fn f1600(state: &mut [u64; PLEN]) {
     if armv8_sha3_intrinsics::get() {
@@ -368,6 +381,44 @@ pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
         state[0] ^= L::truncate_rc(rc);
     }
 }
+
+// Re-export optimized functions
+// Re-export feature configuration
+#[cfg(feature = "simd")]
+pub use crate::advanced_simd::{
+    AdvancedLaneSize,
+    SimdConfig,
+    SimdSecurityValidator,
+    parallel as simd_parallel,
+};
+pub use crate::features::{
+    FeatureConfig,
+    FeatureReport,
+    detection,
+    get_global_config,
+    reset_global_config,
+    set_global_config,
+};
+// Re-export multi-threading functionality
+#[cfg(all(feature = "multithreading", feature = "std"))]
+pub use crate::multithreading::{
+    AffinityStrategy,
+    CryptoThreadPool,
+    ThreadingConfig,
+    WorkerStats,
+    get_global_thread_pool,
+    init_global_thread_pool,
+    process_keccak_states_global,
+};
+#[cfg(feature = "simd")]
+pub use crate::optimized_core::parallel;
+#[cfg(all(feature = "multithreading", feature = "std", feature = "simd"))]
+pub use crate::optimized_core::parallel::p1600_multithreaded;
+pub use crate::optimized_core::{
+    OptimizationLevel,
+    fast_loop_absorb_optimized,
+    p1600_optimized,
+};
 
 #[cfg(test)]
 mod tests {
@@ -584,40 +635,3 @@ mod tests {
         impl_keccak_f1600xn!(keccak_f1600x8, u64x8);
     }
 }
-
-// Re-export optimized functions
-// Re-export feature configuration
-#[cfg(feature = "simd")]
-pub use crate::advanced_simd::{
-    AdvancedLaneSize,
-    SimdConfig,
-    SimdSecurityValidator,
-    parallel as simd_parallel,
-};
-pub use crate::features::{
-    FeatureConfig,
-    FeatureReport,
-    detection,
-    get_global_config,
-    reset_global_config,
-    set_global_config,
-};
-// Re-export multi-threading functionality
-#[cfg(all(feature = "multithreading", feature = "std"))]
-pub use crate::multithreading::{
-    AffinityStrategy,
-    CryptoThreadPool,
-    ThreadingConfig,
-    get_global_thread_pool,
-    init_global_thread_pool,
-    process_keccak_states_global,
-};
-#[cfg(feature = "simd")]
-pub use crate::optimized_core::parallel;
-#[cfg(all(feature = "multithreading", feature = "std", feature = "simd"))]
-pub use crate::optimized_core::parallel::p1600_multithreaded;
-pub use crate::optimized_core::{
-    OptimizationLevel,
-    fast_loop_absorb_optimized,
-    p1600_optimized,
-};

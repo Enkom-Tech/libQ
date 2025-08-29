@@ -81,6 +81,7 @@ impl OptimizationLevel {
                     all(
                         target_arch = "aarch64",
                         feature = "asm",
+                        feature = "arm64_sha3",
                         target_feature = "sha3",
                         feature = "std"
                     )
@@ -93,6 +94,7 @@ impl OptimizationLevel {
                     all(
                         target_arch = "aarch64",
                         feature = "asm",
+                        feature = "arm64_sha3",
                         target_feature = "sha3",
                         feature = "std"
                     )
@@ -580,13 +582,14 @@ mod tests {
         let mut states = [[0u64; 25], [0u64; 25], [0u64; 25], [0u64; 25]];
 
         // Initialize with test data - use values that will definitely change during permutation
-        for i in 0..states.len() {
-            states[i][0] = 0x1234567890ABCDEF + i as u64;
-            states[i][1] = 0xFEDCBA0987654321 + i as u64;
+        for (i, state) in states.iter_mut().enumerate() {
+            state[0] = 0x1234567890ABCDEF + i as u64;
+            state[1] = 0xFEDCBA0987654321 + i as u64;
         }
 
         // Store original state for comparison (manual copy since Clone might not be available in no_std)
         let mut original_states = [[0u64; 25], [0u64; 25], [0u64; 25], [0u64; 25]];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..states.len() {
             for j in 0..25 {
                 original_states[i][j] = states[i][j];

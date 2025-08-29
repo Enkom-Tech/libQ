@@ -298,7 +298,7 @@ mod tests {
     #[test]
     fn test_feature_detection() {
         let report = detection::detect_available_features();
-        assert!(report.summary().len() > 0);
+        assert!(!report.summary().is_empty());
 
         let recommended = report.recommended_optimization_level();
         assert!(recommended.is_available());
