@@ -12,9 +12,11 @@ use std::io::Error as IoError;
 // Temporarily unused until ML-KEM integration is finalized
 // #[cfg(feature = "ml-kem")]
 // use lib_q_ml_kem::KemCore;
+#[allow(unused_imports)]
 use rand_core::{
     CryptoRng,
     RngCore,
+    SeedableRng,
 };
 
 use crate::error::HpkeError;

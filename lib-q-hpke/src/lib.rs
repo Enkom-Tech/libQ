@@ -42,6 +42,17 @@ mod crypto_provider;
 mod error;
 mod hpke_core;
 mod types;
+
+// Imports used in conditionally compiled code
+#[allow(unused_imports)]
+use crypto_provider::PostQuantumProvider;
+#[allow(unused_imports)]
+use lib_q_core::{
+    KemContext,
+    KemPublicKey,
+    KemSecretKey,
+    Result,
+};
 // Future backends (commented out until implemented)
 // #[cfg(feature = "libcrux")]
 // mod libcrux_provider;
