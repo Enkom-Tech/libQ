@@ -49,6 +49,7 @@ impl OptimizationLevel {
         #[cfg(all(
             target_arch = "aarch64",
             feature = "asm",
+            feature = "arm64_sha3",
             target_feature = "sha3",
             feature = "std"
         ))]
@@ -60,6 +61,7 @@ impl OptimizationLevel {
             all(
                 target_arch = "aarch64",
                 feature = "asm",
+                feature = "arm64_sha3",
                 target_feature = "sha3",
                 feature = "std"
             )

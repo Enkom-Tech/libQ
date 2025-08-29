@@ -188,7 +188,11 @@ pub mod detection {
             avx2: cfg!(all(target_arch = "x86_64", target_feature = "avx2")),
             avx512f: cfg!(all(target_arch = "x86_64", target_feature = "avx512f")),
             aarch64: cfg!(target_arch = "aarch64"),
-            sha3_intrinsics: cfg!(all(target_arch = "aarch64", target_feature = "sha3")),
+            sha3_intrinsics: cfg!(all(
+                target_arch = "aarch64",
+                feature = "arm64_sha3",
+                target_feature = "sha3"
+            )),
             simd_support: cfg!(feature = "simd"),
             nightly_features: cfg!(feature = "nightly"),
         }

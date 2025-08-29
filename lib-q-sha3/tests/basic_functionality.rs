@@ -72,7 +72,7 @@ fn keccak_256_full_basic_functionality() {
 
     assert_eq!(result, result2);
     // Keccak256Full produces variable length output, not fixed 32 bytes
-    assert!(result.len() > 0);
+    assert!(!result.is_empty());
 }
 
 #[test]

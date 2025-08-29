@@ -59,11 +59,7 @@ fn test_sha3_224_constant_time() {
     let tolerance = avg_time * 200 / 100; // 200% tolerance
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
         assert!(
             diff <= tolerance,
             "SHA3-224 timing varies too much for input {}: {} vs {} (tolerance: {})",
@@ -115,11 +111,7 @@ fn test_sha3_256_constant_time() {
     let tolerance = avg_time * 200 / 100; // 200% tolerance
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
         assert!(
             diff <= tolerance,
             "SHA3-256 timing varies too much for input {}: {} vs {} (tolerance: {})",
@@ -171,11 +163,7 @@ fn test_keccak_256_constant_time() {
     let tolerance = avg_time * 200 / 100; // 200% tolerance
 
     for (i, timing) in timings.iter().enumerate() {
-        let diff = if *timing > avg_time {
-            *timing - avg_time
-        } else {
-            avg_time - *timing
-        };
+        let diff = (*timing).abs_diff(avg_time);
         assert!(
             diff <= tolerance,
             "Keccak256 timing varies too much for input {}: {} vs {} (tolerance: {})",
@@ -194,10 +182,6 @@ fn test_hash_algorithm_timing_relationships() {
     const ITERATIONS: usize = 1000;
 
     // Test SHA3 variants
-    let sha3_224_time;
-    let sha3_256_time;
-    let sha3_384_time;
-    let sha3_512_time;
 
     // Measure SHA3-224
     let start = Instant::now();
@@ -207,7 +191,7 @@ fn test_hash_algorithm_timing_relationships() {
         let _result = hasher.finalize();
         let _ = std::hint::black_box(_result);
     }
-    sha3_224_time = start.elapsed();
+    let sha3_224_time = start.elapsed();
 
     // Measure SHA3-256
     let start = Instant::now();
@@ -217,7 +201,7 @@ fn test_hash_algorithm_timing_relationships() {
         let _result = hasher.finalize();
         let _ = std::hint::black_box(_result);
     }
-    sha3_256_time = start.elapsed();
+    let sha3_256_time = start.elapsed();
 
     // Measure SHA3-384
     let start = Instant::now();
@@ -227,7 +211,7 @@ fn test_hash_algorithm_timing_relationships() {
         let _result = hasher.finalize();
         let _ = std::hint::black_box(_result);
     }
-    sha3_384_time = start.elapsed();
+    let sha3_384_time = start.elapsed();
 
     // Measure SHA3-512
     let start = Instant::now();
@@ -237,7 +221,7 @@ fn test_hash_algorithm_timing_relationships() {
         let _result = hasher.finalize();
         let _ = std::hint::black_box(_result);
     }
-    sha3_512_time = start.elapsed();
+    let sha3_512_time = start.elapsed();
 
     // Verify that timing relationships are reasonable
     // SHA3-512 should be similar to SHA3-256
