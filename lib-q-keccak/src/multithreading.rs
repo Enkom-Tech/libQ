@@ -7,20 +7,15 @@
 //!
 //! Note: This module requires the `std` feature to be enabled.
 
-#![cfg_attr(not(feature = "std"), no_implicit_prelude)]
+// In Rust 2024, extern crate is not idiomatic
+// Core, std, and alloc types are available by default through the prelude
 
-// Core is always available
-extern crate core;
-
-// Std and alloc are required for multithreading
-#[cfg(feature = "std")]
-extern crate std;
-
-#[cfg(any(feature = "std", feature = "alloc"))]
-extern crate alloc;
-
+// Use std types when available, alloc types as fallback
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::boxed::Box;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::{
     format,
     vec,
@@ -30,6 +25,8 @@ use core::sync::atomic::{
     AtomicUsize,
     Ordering,
 };
+#[cfg(feature = "std")]
+use std::boxed::Box;
 use std::sync::{
     Arc,
     OnceLock,
@@ -37,6 +34,13 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Duration;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+#[cfg(feature = "std")]
+use std::{
+    format,
+    vec,
+};
 
 use crate::{
     OptimizationLevel,

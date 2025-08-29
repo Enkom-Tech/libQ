@@ -4,17 +4,13 @@
 //! and security considerations. All optimizations are optional and fall back to
 //! secure reference implementations when not available.
 
-#![cfg_attr(not(feature = "std"), no_implicit_prelude)]
-
-// Core types are available by default in 2021 edition
-// Core is always available
-extern crate core;
-
+// In Rust 2024, extern crate is not idiomatic except in very specific cases
+// Core types are available by default, no extern crate needed
 // Std is conditionally available
 #[cfg(feature = "std")]
 extern crate std;
 
-use core::mem::size_of;
+// Core types are available by default in Rust 2024
 #[cfg(test)]
 use core::{
     assert_eq,
@@ -290,15 +286,8 @@ fn fast_loop_absorb_reference(state: &mut [u64; 25], data: &[u8]) -> usize {
 /// operations, similar to XKCP's times2, times4, times8 implementations.
 #[cfg(feature = "simd")]
 pub mod parallel {
-    // Core is always available
-    extern crate core;
-
-    // Alloc is conditionally available
-    #[cfg(any(feature = "std", feature = "alloc"))]
-    extern crate alloc;
-
-    use core::cmp::Ord;
-    use core::unreachable;
+    // In Rust 2024, extern crate is not idiomatic
+    // Core types are available by default
 
     use super::*;
     use crate::advanced_simd;
@@ -470,8 +459,32 @@ pub mod parallel {
     pub fn p1600_multithreaded(
         states: &[[u64; 25]],
         level: OptimizationLevel,
+    ) -> Result<Vec<[u64; 25]>, Box<dyn std::error::Error + Send + Sync>> {
+        use crate::multithreading::process_keccak_states_global;
+
+        // Use global thread pool if available, otherwise create a temporary one
+        if let Ok(results) = process_keccak_states_global(states, level) {
+            Ok(results)
+        } else {
+            // Fallback to sequential processing
+            let mut results = Vec::with_capacity(states.len());
+            for state in states {
+                let mut state_copy = *state;
+                keccak_p(&mut state_copy, 24);
+                results.push(state_copy);
+            }
+            Ok(results)
+        }
+    }
+
+    /// providing significant performance improvements for large workloads.
+    #[cfg(all(feature = "multithreading", not(feature = "std"), feature = "alloc"))]
+    pub fn p1600_multithreaded(
+        states: &[[u64; 25]],
+        level: OptimizationLevel,
     ) -> Result<alloc::vec::Vec<[u64; 25]>, alloc::boxed::Box<dyn core::error::Error + Send + Sync>>
     {
+        extern crate alloc;
         use crate::multithreading::process_keccak_states_global;
 
         // Use global thread pool if available, otherwise create a temporary one

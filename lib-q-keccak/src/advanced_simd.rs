@@ -20,7 +20,6 @@
 //! 3. **Platform-Specific Optimizations**: AVX2/AVX512 optimizations for x86_64
 
 // Core is always available
-extern crate core;
 
 // Alloc is conditionally available
 #[cfg(any(feature = "std", feature = "alloc"))]
@@ -74,7 +73,6 @@ extern crate alloc;
 /// - **Constant-time operations**: No timing variations based on data
 /// - **Secure state handling**: Proper initialization and cleanup
 /// - **Platform validation**: Ensures SIMD features are available before use
-
 #[cfg(feature = "simd")]
 use alloc::vec::Vec;
 use core::mem::size_of;

@@ -35,9 +35,6 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(any(feature = "std", feature = "alloc"))]
-extern crate alloc;
-
 /// # Examples
 ///
 /// ```
