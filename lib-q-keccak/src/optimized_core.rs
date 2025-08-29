@@ -51,7 +51,8 @@ impl OptimizationLevel {
             feature = "asm",
             feature = "arm64_sha3",
             target_feature = "sha3",
-            feature = "std"
+            feature = "std",
+            not(cross_compile)
         ))]
         {
             Self::Basic
@@ -63,7 +64,8 @@ impl OptimizationLevel {
                 feature = "asm",
                 feature = "arm64_sha3",
                 target_feature = "sha3",
-                feature = "std"
+                feature = "std",
+                not(cross_compile)
             )
         )))]
         {
@@ -83,7 +85,8 @@ impl OptimizationLevel {
                         feature = "asm",
                         feature = "arm64_sha3",
                         target_feature = "sha3",
-                        feature = "std"
+                        feature = "std",
+                        not(cross_compile)
                     )
                 ))]
                 {
@@ -96,7 +99,8 @@ impl OptimizationLevel {
                         feature = "asm",
                         feature = "arm64_sha3",
                         target_feature = "sha3",
-                        feature = "std"
+                        feature = "std",
+                        not(cross_compile)
                     )
                 )))]
                 {

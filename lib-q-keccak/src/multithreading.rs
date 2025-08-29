@@ -234,7 +234,8 @@ impl WorkDistribution {
         self.completed_count.load(Ordering::Acquire) >= self.total_items
     }
 
-    /// Check if all work is completed
+    /// Check if all work is completed (primarily for testing/monitoring)
+    #[allow(dead_code)] // Used in tests and available for monitoring
     fn is_completed(&self) -> bool {
         self.completed.load(Ordering::Acquire)
     }
@@ -244,6 +245,7 @@ impl WorkDistribution {
 #[derive(Debug)]
 struct CryptoWorker {
     /// Worker thread ID
+    #[allow(dead_code)] // Used in tests and available for monitoring
     id: usize,
     /// Thread-safe work distribution
     work_dist: Arc<WorkDistribution>,
@@ -255,6 +257,7 @@ struct CryptoWorker {
 
 impl CryptoWorker {
     /// Get worker statistics for monitoring and debugging
+    #[allow(dead_code)] // Used in tests and available for production monitoring
     pub fn get_stats(&self) -> WorkerStats {
         WorkerStats {
             worker_id: self.id,
@@ -263,6 +266,7 @@ impl CryptoWorker {
     }
 
     /// Get worker identifier for thread management and monitoring
+    #[allow(dead_code)] // Used in tests and available for production monitoring
     pub fn get_worker_id(&self) -> usize {
         self.id
     }

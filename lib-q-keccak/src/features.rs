@@ -191,7 +191,8 @@ pub mod detection {
             sha3_intrinsics: cfg!(all(
                 target_arch = "aarch64",
                 feature = "arm64_sha3",
-                target_feature = "sha3"
+                target_feature = "sha3",
+                not(cross_compile)
             )),
             simd_support: cfg!(feature = "simd"),
             nightly_features: cfg!(feature = "nightly"),

@@ -234,17 +234,21 @@ impl_keccak!(p800, f800, u32);
     feature = "asm",
     not(target_os = "windows"),
     feature = "std",
-    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
+    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
+    not(cross_compile) // Disable during cross-compilation
 ))]
 impl_keccak!(p1600, f1600, u64);
 
-#[cfg(not(all(
-    target_arch = "aarch64",
-    feature = "asm",
-    not(target_os = "windows"),
-    feature = "std",
-    feature = "arm64_sha3" // Use generic implementation when ARM64 optimizations are disabled
-)))]
+#[cfg(any(
+    not(all(
+        target_arch = "aarch64",
+        feature = "asm",
+        not(target_os = "windows"),
+        feature = "std",
+        feature = "arm64_sha3"
+    )),
+    cross_compile // Use generic implementation during cross-compilation
+))]
 impl_keccak!(p1600, f1600, u64);
 
 /// Keccak-p[1600, rc] permutation.
@@ -253,7 +257,8 @@ impl_keccak!(p1600, f1600, u64);
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std",
-    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
+    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
+    not(cross_compile) // Disable during cross-compilation
 ))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     if armv8_sha3_intrinsics::get() {
@@ -269,7 +274,8 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     feature = "asm",
     not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
     feature = "std",
-    feature = "arm64_sha3" // Require explicit opt-in for ARM64 optimizations
+    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
+    not(cross_compile) // Disable during cross-compilation
 ))]
 pub fn f1600(state: &mut [u64; PLEN]) {
     if armv8_sha3_intrinsics::get() {

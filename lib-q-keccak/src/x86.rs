@@ -443,6 +443,7 @@ pub fn has_avx512f() -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)] // Used in conditionally compiled AVX2 test
     use crate::p1600;
 
     #[test]
