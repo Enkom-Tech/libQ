@@ -704,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "std", feature = "simd"))]
     fn test_fast_loop_absorb() {
         let mut state = [0u64; 25];
         let data = b"Hello, World! This is a test message for advanced SIMD processing.";

@@ -450,6 +450,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn keccak_f200() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-200-IntermediateValues.txt
@@ -466,6 +467,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn keccak_f400() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-400-IntermediateValues.txt
@@ -484,6 +486,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn keccak_f800() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-800-IntermediateValues.txt
@@ -504,6 +507,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn keccak_f1600() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt

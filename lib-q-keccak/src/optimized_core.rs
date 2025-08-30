@@ -662,6 +662,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_optimization_level_availability() {
         // Reference should always be available
         assert!(OptimizationLevel::Reference.is_available());
@@ -689,6 +690,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_fast_loop_absorb_optimized() {
         let mut state = [0u64; 25];
         let data = b"Hello, World! This is a test message for optimized absorption.";

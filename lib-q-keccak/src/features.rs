@@ -270,6 +270,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_feature_config_default() {
         let config = FeatureConfig::default();
         assert!(config.optimization_level.is_available());
@@ -279,6 +280,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_feature_config_security_optimized() {
         let config = FeatureConfig::security_optimized();
         assert_eq!(config.optimization_level, OptimizationLevel::Reference);
@@ -288,6 +290,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_feature_config_performance_optimized() {
         let config = FeatureConfig::performance_optimized();
         assert_eq!(config.optimization_level, OptimizationLevel::Maximum);
@@ -297,6 +300,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_feature_detection() {
         let report = detection::detect_available_features();
         assert!(!report.summary().is_empty());
@@ -306,6 +310,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_global_config() {
         let config = FeatureConfig::security_optimized();
         set_global_config(config.clone());
