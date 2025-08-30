@@ -4,6 +4,11 @@
 
 //! Security property tests for KangarooTwelve
 //!
+//! These tests use HashSet for collision detection and output validation,
+//! which is acceptable in test code for security verification purposes.
+
+#![allow(clippy::disallowed_types)]
+//!
 //! These tests verify that KangarooTwelve maintains essential cryptographic
 //! security properties and handles edge cases correctly.
 
@@ -56,9 +61,9 @@ fn test_collision_resistance() {
         b"abcd".as_slice(),
         b"The quick brown fox jumps over the lazy dog".as_slice(),
         b"The quick brown fox jumps over the lazy dog.".as_slice(),
-        &vec![0x00u8; 100],
-        &vec![0x01u8; 100],
-        &vec![0xFFu8; 100],
+        &[0x00u8; 100],
+        &[0x01u8; 100],
+        &[0xFFu8; 100],
     ];
 
     for input in &test_inputs {
@@ -83,8 +88,8 @@ fn test_customization_separation() {
         b"custom1".as_slice(),
         b"custom2".as_slice(),
         b"a_very_long_customization_string_that_exceeds_normal_length".as_slice(),
-        &vec![0x00u8; 50],
-        &vec![0x01u8; 50],
+        &[0x00u8; 50],
+        &[0x01u8; 50],
     ];
 
     let mut results = HashSet::new();
@@ -129,7 +134,7 @@ fn test_avalanche_effect() {
             // Should have significant bit differences (avalanche effect)
             // Expect roughly half the bits to be different (around 256 ± tolerance)
             assert!(
-                diff_bits >= 200 && diff_bits <= 312,
+                (200..=312).contains(&diff_bits),
                 "Insufficient avalanche effect: only {} bits differ for bit flip at byte {} bit {}",
                 diff_bits,
                 byte_pos,
@@ -142,7 +147,7 @@ fn test_avalanche_effect() {
 /// Test that outputs appear uniformly distributed
 #[test]
 fn test_output_distribution() {
-    let mut bit_counts = vec![0u32; 8]; // Count for each bit position
+    let mut bit_counts = [0u32; 8]; // Count for each bit position
     let num_samples = 256;
 
     for i in 0..num_samples {
@@ -165,7 +170,7 @@ fn test_output_distribution() {
 
     for (bit_pos, &count) in bit_counts.iter().enumerate() {
         assert!(
-            count >= expected - tolerance && count <= expected + tolerance,
+            (expected - tolerance..=expected + tolerance).contains(&count),
             "Bit {} distribution skewed: {} out of {} (expected ~{})",
             bit_pos,
             count,

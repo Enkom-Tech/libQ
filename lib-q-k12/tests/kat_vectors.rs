@@ -3,6 +3,8 @@
 //! These tests validate the KangarooTwelve implementation against known test vectors
 //! loaded from external JSON files, following cryptographic testing best practices.
 
+#![allow(clippy::disallowed_types)]
+
 use lib_q_k12::digest::{
     ExtendableOutput,
     Update,
