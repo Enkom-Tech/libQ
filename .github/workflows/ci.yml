@@ -154,8 +154,39 @@ jobs:
           echo "Installing cross-compiler toolchain for ${{ matrix.name }}"
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.cross-compiler-packages }}
-          # Verify installation
-          ${{ matrix.cross-compiler-packages }} --version
+
+          # Install additional dependencies for cross-compilation
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          elif [[ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]]; then
+            sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross
+          fi
+
+          # Verify installation - check different possible command names
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            echo "Verifying aarch64-linux-gnu-gcc installation..."
+            if command -v aarch64-linux-gnu-gcc &> /dev/null; then
+              aarch64-linux-gnu-gcc --version
+              echo "✅ aarch64-linux-gnu-gcc found and working"
+            else
+              echo "❌ aarch64-linux-gnu-gcc not found in PATH"
+              echo "Available gcc commands:"
+              ls -la /usr/bin/*aarch64* 2>/dev/null || echo "No aarch64 commands found"
+              exit 1
+            fi
+          elif [[ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]]; then
+            echo "Verifying arm-linux-gnueabihf-gcc installation..."
+            if command -v arm-linux-gnueabihf-gcc &> /dev/null; then
+              arm-linux-gnueabihf-gcc --version
+              echo "✅ arm-linux-gnueabihf-gcc found and working"
+            else
+              echo "❌ arm-linux-gnueabihf-gcc not found in PATH"
+              echo "Available gcc commands:"
+              ls -la /usr/bin/*arm* 2>/dev/null || echo "No arm commands found"
+              exit 1
+            fi
+          fi
+          echo "✅ Cross-compiler toolchain verified"
 
       - name: Add target
         run: rustup target add ${{ matrix.target }}

@@ -58,7 +58,10 @@ hash = ["dep:lib-q-sha3"]
 serde = ["dep:serde"]
 
 # WASM support
-wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json"]
+wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom"]
+
+# WASM-specific getrandom configuration
+wasm_getrandom = ["getrandom/wasm_js"]
 
 [lib]
 name = "lib_q_core"

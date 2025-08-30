@@ -398,7 +398,8 @@ impl CryptoWorker {
                     target_arch = "x86_64",
                     feature = "asm",
                     target_feature = "avx2",
-                    not(target_feature = "avx512f")
+                    not(target_feature = "avx512f"),
+                    not(cross_compile)
                 ))]
                 unsafe {
                     crate::x86::p1600_avx2(state);
@@ -583,7 +584,8 @@ impl CryptoThreadPool {
                         target_arch = "x86_64",
                         feature = "asm",
                         target_feature = "avx2",
-                        not(target_feature = "avx512f")
+                        not(target_feature = "avx512f"),
+                        not(cross_compile)
                     ))]
                     unsafe {
                         crate::x86::p1600_avx2(&mut result_state);
