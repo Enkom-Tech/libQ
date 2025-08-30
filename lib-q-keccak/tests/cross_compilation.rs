@@ -51,13 +51,13 @@ mod tests {
             0xEAF1FF7B5CECA249,
         ];
 
-        let original_state = state1.clone();
+        let original_state = state1;
 
         // Apply Keccak-p[1600] permutation
         f1600(&mut state1);
 
         // Test that the same operation produces consistent results
-        let mut state2 = original_state.clone();
+        let mut state2 = original_state;
         f1600(&mut state2);
 
         assert_eq!(
@@ -72,9 +72,9 @@ mod tests {
         );
 
         // Test that multiple rounds produce consistent results
-        let mut state3 = original_state.clone();
+        let mut state3 = original_state;
         keccak_p(&mut state3, 12);
-        let mut state4 = original_state.clone();
+        let mut state4 = original_state;
         keccak_p(&mut state4, 12);
 
         assert_eq!(
@@ -112,11 +112,11 @@ mod tests {
     #[test]
     fn test_keccak_p_rounds_consistency() {
         let state = [0u64; 25];
-        let original_state = state.clone();
+        let original_state = state;
 
         // Test various round counts
         for rounds in [1, 4, 12, 24] {
-            let mut test_state = original_state.clone();
+            let mut test_state = original_state;
             keccak_p(&mut test_state, rounds);
 
             // Ensure state is modified for non-zero rounds
@@ -170,10 +170,7 @@ mod tests {
 
         // Verify state is valid after operation
         for &lane in &state {
-            assert!(
-                lane != 0 || true,
-                "State lanes should be properly initialized"
-            );
+            assert!(lane != 0, "State lanes should be properly initialized");
         }
     }
 
@@ -181,10 +178,8 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_feature_combinations() {
-        use std::vec::Vec;
-
         let mut state = [0u64; 25];
-        let original = state.clone();
+        let original = state;
 
         // Test basic functionality works regardless of features
         f1600(&mut state);
@@ -193,8 +188,8 @@ mod tests {
         // Test vector operations if available
         #[cfg(feature = "alloc")]
         {
-            let mut states = Vec::new();
-            states.push([0u64; 25]);
+            #[allow(clippy::useless_vec)]
+            let states = vec![[0u64; 25]];
             // Vector operations should work if alloc is available
             assert!(!states.is_empty(), "Vector operations should be available");
         }
