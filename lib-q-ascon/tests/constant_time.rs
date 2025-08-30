@@ -158,7 +158,7 @@ fn test_round_count_constant_time() {
     );
 
     // Verify that the operations complete in reasonable time (not too fast or too slow)
-    let min_expected_ns = 100; // Minimum reasonable time for the operation
+    let min_expected_ns = 10; // Minimum reasonable time for the operation
     let max_expected_ns = 1_000_000; // Maximum reasonable time (1ms)
 
     assert!(

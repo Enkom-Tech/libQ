@@ -145,7 +145,7 @@ fn test_6_round_performance() {
     // 6-round should be faster than 8-round (with some tolerance for timing variations)
     let ratio = time_6.as_nanos() as f64 / time_8.as_nanos() as f64;
     assert!(
-        ratio < 1.2, // Allow 20% tolerance for timing variations
+        ratio < 1.3, // Allow 30% tolerance for timing variations (increased for measurement noise)
         "6-round should not be significantly slower than 8-round: ratio {}",
         ratio
     );

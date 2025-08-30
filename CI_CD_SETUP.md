@@ -29,7 +29,11 @@ This document describes the refactored CI/CD pipeline implementation for lib-Q, 
 #### CI Pipeline (`.github/workflows/ci.yml`)
 - **Core Validation**: Fast initial validation (15 min timeout)
 - **Parallel Test Matrix**: Multiple test configurations running simultaneously
-- **Cross-Platform Builds**: Optimized multi-platform compilation
+- **Cross-Platform Builds**: Multi-platform compilation with enhanced security
+  - Automatic toolchain installation for ARM targets (gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf)
+  - Workspace-level linker configuration with architecture validation
+  - Binary integrity verification for cross-compiled outputs
+  - Proper feature gating for architecture-specific optimizations during cross-compilation
 - **Performance Benchmarks**: New dedicated performance benchmarking action
 - **Algorithm-Specific Testing**: Specialized testing for cryptographic algorithms
 - **Final Validation**: Comprehensive status reporting
@@ -109,7 +113,15 @@ This document describes the refactored CI/CD pipeline implementation for lib-Q, 
 - **NIST-approved post-quantum algorithms only** with validation
 - **SHA-3 family hash functions only** with compliance checking
 - **Constant-time operation validation** with automated testing
+- **Cross-compilation security** with architecture validation
 - **New**: Memory safety verification with zeroization checks
+
+#### Cross-Compilation Security Architecture
+- **Linker Configuration**: Workspace-level `.cargo/config.toml` with secure linker settings
+- **Toolchain Validation**: Automated installation and verification of cross-compilers
+- **Architecture Integrity**: Binary verification to prevent architecture mismatches
+- **Feature Gating**: Architecture-specific optimizations disabled during cross-compilation
+- **Binary Validation**: Automated testing ensures functional equivalence across architectures
 
 ### Improved Memory Safety
 - **Automated memory zeroization checks** with detailed reporting

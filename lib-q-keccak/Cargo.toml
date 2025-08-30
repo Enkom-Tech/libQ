@@ -54,31 +54,6 @@ crate-type = ["cdylib", "rlib"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-# Panic configuration for no_std builds
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-
-# Cross-compilation configuration
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
-# Disable problematic features during cross-compilation
-rustflags = ["--cfg", "cross_compile"]
-
-[target.aarch64-unknown-linux-musl]
-linker = "aarch64-linux-musl-gcc"
-rustflags = ["--cfg", "cross_compile"]
-
-# Additional cross-compilation targets
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
-rustflags = ["--cfg", "cross_compile"]
-
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["--cfg", "cross_compile"]
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

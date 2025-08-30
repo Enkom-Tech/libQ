@@ -109,37 +109,57 @@ jobs:
     name: Cross-Platform Builds
     needs: core-validation
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             name: "Linux x86_64"
+            install-cross-compiler: false
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             name: "Linux ARM64"
+            install-cross-compiler: true
+            cross-compiler-packages: "gcc-aarch64-linux-gnu"
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            name: "Linux ARMv7"
+            install-cross-compiler: true
+            cross-compiler-packages: "gcc-arm-linux-gnueabihf"
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             name: "Windows x86_64"
+            install-cross-compiler: false
           - os: macos-latest
             target: x86_64-apple-darwin
             name: "macOS x86_64"
+            install-cross-compiler: false
           - os: macos-latest
             target: aarch64-apple-darwin
             name: "macOS ARM64"
-    
+            install-cross-compiler: false
+
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      
+
+      - name: Install cross-compiler toolchains (Ubuntu)
+        if: matrix.install-cross-compiler && runner.os == 'Linux'
+        run: |
+          echo "Installing cross-compiler toolchain for ${{ matrix.name }}"
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.cross-compiler-packages }}
+          # Verify installation
+          ${{ matrix.cross-compiler-packages }} --version
+
       - name: Add target
         run: rustup target add ${{ matrix.target }}
-      
+
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
@@ -150,12 +170,37 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-
-      
+
       - name: Build for target
         run: |
           echo "Building for ${{ matrix.name }} (${{ matrix.target }})"
+          # Build with security-focused flags
+          RUSTFLAGS="-C target-cpu=generic -C opt-level=3 -C overflow-checks=on" \
           cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
-          cargo check --target ${{ matrix.target }} --features "all-algorithms"
+
+      - name: Verify cross-compilation integrity
+        if: matrix.install-cross-compiler
+        run: |
+          echo "Verifying cross-compilation integrity for ${{ matrix.name }}"
+          # Check that the binary was compiled for the correct architecture
+          if [[ "${{ matrix.target }}" == aarch64-* ]]; then
+            file target/${{ matrix.target }}/release/liblib_q_keccak.so | grep -q "ARM aarch64" || (echo "Architecture mismatch detected!" && exit 1)
+          elif [[ "${{ matrix.target }}" == armv7-* ]]; then
+            file target/${{ matrix.target }}/release/liblib_q_keccak.so | grep -q "ARM" || (echo "Architecture mismatch detected!" && exit 1)
+          fi
+          echo "✅ Cross-compilation integrity verified"
+
+      - name: Run cross-compilation tests
+        if: matrix.install-cross-compiler && matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          echo "Running cross-compilation validation tests for ${{ matrix.name }}"
+          cd lib-q-keccak
+          # Run the cross-compilation test script
+          chmod +x cross_compile_test.sh
+          ./cross_compile_test.sh
+          # Run the new cross-compilation unit tests
+          cargo test --target ${{ matrix.target }} --features std cross_compilation --release --verbose
+          echo "✅ Cross-compilation tests passed"
 
   # Performance and benchmarks - runs after core validation
   performance:

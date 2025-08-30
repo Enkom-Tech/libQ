@@ -60,7 +60,7 @@ test_native_build() {
 test_arm64_cross_compilation() {
     echo "Testing ARM64 cross-compilation..."
 
-    # Test basic cross-compilation
+    # Test basic cross-compilation with workspace configuration
     if cargo build --release --target aarch64-unknown-linux-gnu; then
         print_status "ARM64 cross-compilation successful"
     else
@@ -68,7 +68,7 @@ test_arm64_cross_compilation() {
         return 1
     fi
 
-    # Test with specific features
+    # Test with specific features - should work with workspace linker config
     if cargo build --release --target aarch64-unknown-linux-gnu --features std; then
         print_status "ARM64 cross-compilation with std features successful"
     else
@@ -81,6 +81,13 @@ test_arm64_cross_compilation() {
     else
         print_error "ARM64 cross-compilation with multithreading failed"
         return 1
+    fi
+
+    # Test ARM64 SHA3 feature explicitly disabled during cross-compilation
+    if cargo build --release --target aarch64-unknown-linux-gnu --features std,multithreading,arm64_sha3; then
+        print_warning "ARM64 SHA3 feature enabled during cross-compilation - this may cause issues"
+    else
+        print_status "ARM64 SHA3 feature properly disabled during cross-compilation"
     fi
 
     return 0
