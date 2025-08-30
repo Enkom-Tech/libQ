@@ -11,7 +11,7 @@
 extern crate std;
 
 // Core types are available by default in Rust 2024
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 use core::{
     assert_eq,
     assert_ne,

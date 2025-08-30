@@ -267,18 +267,12 @@ impl FeatureReport {
 
 #[cfg(test)]
 mod tests {
-    use super::detection;
-    use crate::{
-        FeatureConfig,
-        OptimizationLevel,
-        get_global_config,
-        reset_global_config,
-        set_global_config,
-    };
 
     #[test]
     #[cfg(feature = "std")]
     fn test_feature_config_default() {
+        use crate::FeatureConfig;
+
         let config = FeatureConfig::default();
         assert!(config.optimization_level.is_available());
         assert!(config.enable_parallel);
@@ -289,6 +283,11 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_feature_config_security_optimized() {
+        use crate::{
+            FeatureConfig,
+            OptimizationLevel,
+        };
+
         let config = FeatureConfig::security_optimized();
         assert_eq!(config.optimization_level, OptimizationLevel::Reference);
         assert!(!config.enable_parallel);
@@ -299,6 +298,11 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_feature_config_performance_optimized() {
+        use crate::{
+            FeatureConfig,
+            OptimizationLevel,
+        };
+
         let config = FeatureConfig::performance_optimized();
         assert_eq!(config.optimization_level, OptimizationLevel::Maximum);
         assert!(config.enable_parallel);
@@ -309,6 +313,8 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_feature_detection() {
+        use super::detection;
+
         let report = detection::detect_available_features();
         assert!(!report.summary().is_empty());
 
@@ -319,6 +325,14 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn test_global_config() {
+        use crate::{
+            FeatureConfig,
+            OptimizationLevel,
+            get_global_config,
+            reset_global_config,
+            set_global_config,
+        };
+
         let config = FeatureConfig::security_optimized();
         set_global_config(config.clone());
 

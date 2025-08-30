@@ -569,15 +569,15 @@ mod tests {
         keccak_f::<u64>(state_first, state_second);
     }
 
-    #[cfg(feature = "simd")]
-    mod simd {
+    #[cfg(all(test, feature = "simd"))]
+    mod test_simd {
         use core::simd::{
             u64x2,
             u64x4,
             u64x8,
         };
 
-        use super::keccak_f;
+        use crate::tests::keccak_f;
 
         macro_rules! impl_keccak_f1600xn {
             ($name:ident, $type:ty) => {
