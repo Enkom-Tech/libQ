@@ -67,21 +67,33 @@ fn test_permutation_constant_time() {
     let mean_nanos = total_nanos / timings.len() as u128;
 
     // Calculate coefficient of variation (CV) to assess timing stability
-    let variance: f64 = timings.iter()
+    let variance: f64 = timings
+        .iter()
         .map(|d| {
             let diff = d.as_nanos() as f64 - mean_nanos as f64;
             diff * diff
         })
-        .sum::<f64>() / timings.len() as f64;
+        .sum::<f64>() /
+        timings.len() as f64;
 
     let std_dev = variance.sqrt();
-    let cv = if mean_nanos > 0 { (std_dev / mean_nanos as f64) * 100.0 } else { 0.0 };
+    let cv = if mean_nanos > 0 {
+        (std_dev / mean_nanos as f64) * 100.0
+    } else {
+        0.0
+    };
 
     // Skip test on systems with high timing variability (>20% coefficient of variation)
     // This indicates the system has too much noise for reliable constant-time testing
     if cv > 20.0 {
-        println!("Skipping constant-time test due to high system timing variability (CV: {:.2}%)", cv);
-        println!("System timing statistics: mean={}ns, std_dev={:.2}ns", mean_nanos, std_dev);
+        println!(
+            "Skipping constant-time test due to high system timing variability (CV: {:.2}%)",
+            cv
+        );
+        println!(
+            "System timing statistics: mean={}ns, std_dev={:.2}ns",
+            mean_nanos, std_dev
+        );
         return; // Skip the test rather than failing
     }
 
