@@ -1,0 +1,51 @@
+[package]
+name = "lib-q-sha3"
+version.workspace = true
+description = """
+Pure Rust implementation of SHA-3, a family of Keccak-based hash functions
+including the SHAKE family of eXtendable-Output Functions (XOFs), as well as
+the accelerated variant TurboSHAKE for lib-Q
+"""
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+documentation = "https://docs.rs/lib-q-sha3"
+repository.workspace = true
+keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+digest = "0.11.0-rc.0"
+lib-q-keccak = { path = "../lib-q-keccak" }
+
+[dev-dependencies]
+digest = { version = "0.11.0-rc.0", features = ["dev"] }
+hex-literal = "1"
+base16ct = { version = "0.2.0", features = ["alloc"] }
+
+[features]
+default = ["alloc", "oid"]
+alloc = ["digest/alloc"]
+oid = ["digest/oid"] # Enable OID support.
+zeroize = ["digest/zeroize"]
+asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
+
+[lib]
+name = "lib_q_sha3"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

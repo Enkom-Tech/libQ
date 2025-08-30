@@ -45,7 +45,7 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 cargo install wasm-pack cargo-audit cargo-tarpaulin
 
 # Clone and setup
-git clone https://github.com/lib-q/lib-q.git
+git clone https://github.com/Enkom-Tech/libQ.git
 cd lib-q
 cargo build
 ```

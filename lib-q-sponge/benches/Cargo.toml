@@ -1,0 +1,29 @@
+[package]
+name = "benches"
+version = "0.0.0"
+description = "Criteration benchmarks of the sponges crates"
+authors = [
+    "Sebastian Ramacher <sebastian.ramacher@ait.ac.at>",
+    "RustCrypto Developers",
+]
+edition.workspace = true
+rust-version = "1.89"
+publish = false
+
+[workspace]
+
+[dev-dependencies]
+ascon = { path = "../ascon" }
+lib-q-sponge = { path = ".." }
+criterion = { version = "0.7.0", features = ["html_reports"] }
+rand = { version = "0.9.2", default-features = false, features = [
+    "std_rng",
+] }
+
+[features]
+no_unroll = ["ascon/no_unroll"]
+
+[[bench]]
+name = "cross_sponge_benchmarks"
+path = "src/cross_sponge_benchmarks.rs"
+harness = false

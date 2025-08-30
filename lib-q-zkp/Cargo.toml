@@ -1,0 +1,34 @@
+[package]
+name = "lib-q-zkp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+
+[features]
+default = []
+zkp = []
+stark = []
+
+[lib]
+name = "lib_q_zkp"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

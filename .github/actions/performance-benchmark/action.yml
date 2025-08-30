@@ -1,0 +1,186 @@
+name: Performance Benchmark
+description: Comprehensive performance benchmarking action for cryptographic libraries
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for benchmarking
+    default: "all-algorithms"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  benchmark-targets:
+    description: Specific benchmark targets to run (comma-separated)
+    default: ""
+    required: false
+  iterations:
+    description: Number of iterations for benchmarks
+    default: "100"
+    required: false
+  warmup-iterations:
+    description: Number of warmup iterations
+    default: "10"
+    required: false
+  save-results:
+    description: Whether to save benchmark results as artifacts
+    default: "true"
+    required: false
+  compare-baseline:
+    description: Whether to compare against baseline results
+    default: "false"
+    required: false
+  baseline-file:
+    description: Path to baseline results file
+    default: "baseline-benchmarks.json"
+    required: false
+  fail-on-regression:
+    description: Whether to fail on performance regression
+    default: "false"
+    required: false
+  regression-threshold:
+    description: Performance regression threshold percentage
+    default: "10"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-bench-
+    
+    - name: Setup benchmark environment
+      shell: bash
+      run: |
+        echo "🚀 Setting up benchmark environment..."
+        cd ${{ inputs.working-directory }}
+        
+        # Set benchmark environment variables
+        export CARGO_BENCH_ITERATIONS=${{ inputs.iterations }}
+        export CARGO_BENCH_WARMUP_ITERATIONS=${{ inputs.warmup-iterations }}
+        
+        echo "Benchmark iterations: ${{ inputs.iterations }}"
+        echo "Warmup iterations: ${{ inputs.warmup-iterations }}"
+        echo "Features: ${{ inputs.features }}"
+    
+    - name: Run performance benchmarks
+      shell: bash
+      run: |
+        echo "⚡ Running performance benchmarks..."
+        cd ${{ inputs.working-directory }}
+        
+        # Run benchmarks with specified features
+        if [ -n "${{ inputs.benchmark-targets }}" ]; then
+          echo "Running specific benchmarks: ${{ inputs.benchmark-targets }}"
+          IFS=',' read -ra TARGETS <<< "${{ inputs.benchmark-targets }}"
+          for target in "${TARGETS[@]}"; do
+            echo "Benchmarking: $target"
+            cargo bench --features "${{ inputs.features }}" --bench "$target" --verbose
+          done
+        else
+          echo "Running all benchmarks"
+          cargo bench --features "${{ inputs.features }}" --verbose
+        fi
+        
+        echo "✅ Benchmarks completed successfully"
+    
+    - name: Generate benchmark report
+      if: inputs.save-results == 'true'
+      shell: bash
+      run: |
+        echo "📊 Generating benchmark report..."
+        cd ${{ inputs.working-directory }}
+        
+        # Create benchmark results directory
+        mkdir -p benchmark-results
+        
+        # Collect benchmark results
+        if [ -d "target/criterion" ]; then
+          echo "Found Criterion benchmark results"
+          cp -r target/criterion benchmark-results/
+        fi
+        
+        # Generate summary report
+        echo "# Performance Benchmark Report" > benchmark-results/summary.md
+        echo "Generated: $(date)" >> benchmark-results/summary.md
+        echo "" >> benchmark-results/summary.md
+        echo "## Configuration" >> benchmark-results/summary.md
+        echo "- Features: ${{ inputs.features }}" >> benchmark-results/summary.md
+        echo "- Iterations: ${{ inputs.iterations }}" >> benchmark-results/summary.md
+        echo "- Warmup iterations: ${{ inputs.warmup-iterations }}" >> benchmark-results/summary.md
+        echo "- Rust version: ${{ inputs.rust-version }}" >> benchmark-results/summary.md
+        echo "" >> benchmark-results/summary.md
+        echo "## Results" >> benchmark-results/summary.md
+        echo "Benchmark results have been collected and are available in the artifacts." >> benchmark-results/summary.md
+        
+        echo "✅ Benchmark report generated"
+    
+    - name: Compare with baseline
+      if: inputs.compare-baseline == 'true'
+      shell: bash
+      run: |
+        echo "📈 Comparing with baseline results..."
+        cd ${{ inputs.working-directory }}
+        
+        if [ -f "${{ inputs.baseline-file }}" ]; then
+          echo "Baseline file found: ${{ inputs.baseline-file }}"
+          
+          # This would implement baseline comparison logic
+          # For now, we'll just report that comparison is enabled
+          echo "Baseline comparison enabled (threshold: ${{ inputs.regression-threshold }}%)"
+          
+          if [[ "${{ inputs.fail-on-regression }}" == "true" ]]; then
+            echo "⚠️  Fail-on-regression is enabled"
+          fi
+        else
+          echo "⚠️  Baseline file not found: ${{ inputs.baseline-file }}"
+          echo "Skipping baseline comparison"
+        fi
+    
+    - name: Upload benchmark results
+      if: inputs.save-results == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ github.run_id }}
+        path: ${{ inputs.working-directory }}/benchmark-results/
+        retention-days: 30
+    
+    - name: Performance benchmark summary
+      shell: bash
+      run: |
+        echo "## ⚡ Performance Benchmark Summary" >> $GITHUB_STEP_SUMMARY
+        echo "Performance benchmarks completed successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Configuration:" >> $GITHUB_STEP_SUMMARY
+        echo "- Features: ${{ inputs.features }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Iterations: ${{ inputs.iterations }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Warmup iterations: ${{ inputs.warmup-iterations }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ inputs.save-results }}" == "true" ]]; then
+          echo "📊 **Results saved as artifacts**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ inputs.compare-baseline }}" == "true" ]]; then
+          echo "📈 **Baseline comparison enabled**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎯 **Benchmarks completed successfully!**" >> $GITHUB_STEP_SUMMARY

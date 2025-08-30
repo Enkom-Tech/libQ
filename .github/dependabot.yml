@@ -8,16 +8,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "lib-q/security-team"
-    assignees:
-      - "lib-q/maintainers"
     commit-message:
       prefix: "deps"
       include: "scope"
     labels:
       - "dependencies"
       - "rust"
+      - "security"
     ignore:
       # Ignore major version updates for critical dependencies
       - dependency-name: "getrandom"
@@ -37,16 +34,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "lib-q/security-team"
-    assignees:
-      - "lib-q/maintainers"
     commit-message:
       prefix: "ci"
       include: "scope"
     labels:
       - "dependencies"
       - "github-actions"
+      - "automation"
 
   # NPM dependencies (for WASM tooling)
   - package-ecosystem: "npm"
@@ -56,16 +50,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "lib-q/security-team"
-    assignees:
-      - "lib-q/maintainers"
     commit-message:
       prefix: "deps"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
+      - "wasm"
     ignore:
       # Ignore major version updates for critical tooling
       - dependency-name: "wasm-pack"

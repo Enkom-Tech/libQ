@@ -1,43 +1,87 @@
+# Workspace configuration - uncomment when workspace members are created
+[workspace]
+members = [
+    "lib-q-core",
+    "lib-q-keccak",
+    "lib-q-ascon",
+    "lib-q-k12",
+    "lib-q-sha3",
+    "lib-q-kem",
+    "lib-q-ml-kem",
+    "lib-q-ml-dsa",
+    "lib-q-platform",
+    "lib-q-intrinsics",
+    "lib-q-sig",
+    "lib-q-hash",
+    "lib-q-aead",
+    "lib-q-hpke",
+    "lib-q-utils",
+    "lib-q-zkp",
+    "lib-q-sponge",
+    "examples",
+    "."
+]
+
+# Workspace package defaults for inherited properties
+[workspace.package]
+authors = ["Enkom Tech", "Nexlab-One"]
+license = "Apache-2.0"
+homepage = "https://github.com/Enkom-Tech/libQ"
+edition = "2024"
+repository = "https://github.com/Enkom-Tech/libQ"
+readme = "README.md"
+version = "0.0.2"
+
+# Workspace dependencies for inherited properties
+[workspace.dependencies]
+hax-lib = "0.3.2"
+
 [package]
 name = "lib-q"
-version = "0.0.1"
-edition = "2021"
-authors = ["lib-Q Contributors"]
-description = "Post-quantum cryptography library with libsodium-equivalent API"
-license = "Apache-2.0"
-repository = "https://github.com/lib-q/lib-q"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Post-quantum cryptography library with libsodium-equivalent API (complete package)"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
-readme = "README.md"
+exclude = [
+    "/tests",
+    "/examples",
+    "/benches",
+    "/docs",
+    "/scripts",
+    "/*.py",
+    "/reference",
+    "/target",
+]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
 
 [lib]
 name = "libq"
+path = "lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Core cryptographic dependencies
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
-
-rand = "0.9.2"
-rand_core = "0.9.3"
-
-# Zeroize for secure memory clearing
-zeroize = { version = "1.8.1", features = ["derive"] }
-
-# Serde for serialization (optional)
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
+# Core dependencies
+lib-q-core = { path = "lib-q-core", features = ["rand"] }
+lib-q-kem = { path = "lib-q-kem" }
+lib-q-ml-dsa = { path = "lib-q-ml-dsa" }
+lib-q-sig = { path = "lib-q-sig", features = ["std", "ml-dsa"] }
+lib-q-hash = { path = "lib-q-hash" }
+lib-q-aead = { path = "lib-q-aead" }
+lib-q-hpke = { path = "lib-q-hpke", optional = true }
+lib-q-utils = { path = "lib-q-utils" }
+lib-q-zkp = { path = "lib-q-zkp" }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2.100", optional = true }
 js-sys = { version = "0.3.77", optional = true }
 web-sys = { version = "0.3.77", optional = true, features = ["console"] }
-
-# ZKP dependencies (optional) - temporarily disabled due to compatibility issues
-# winterfell = { git = "https://github.com/Nexlab-One/winterfell", branch = "main", optional = true } # Main branch has issued due to aux.rs file causing issue on windows
-# zkp-stark = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
 # Testing
@@ -50,70 +94,96 @@ wasm-bindgen-test = "0.3.50"
 
 [features]
 default = ["std"]
-std = []
+std = ["alloc"]
 alloc = []
 no_std = []
-
-# Algorithm features
-kyber = []
-dilithium = []
-falcon = []
-sphincs = []
-mceliece = []
-hqc = []
-
-# ZKP features - temporarily disabled due to compatibility issues
-zkp = []
-# stark = ["dep:zkp-stark"]  # Temporarily disabled
-# winterfell = ["dep:winterfell"]  # Temporarily disabled
-openzkp = []
-
-# Serialization features
-serde = ["dep:serde"]
-
-# WASM features
+# WASM API
 wasm = ["wasm-bindgen", "js-sys", "web-sys"]
+# Random number generation
+rand = []
+# Logging support
+log = []
+# Experimental APIs
+experimental = []
+# Testing support
+tests = []
 
-# Performance features
-simd = []
-avx2 = []
-avx512 = []
+# Algorithm implementations
+# Re-export features from individual crates
+ml-kem = ["lib-q-kem/ml-kem", "lib-q-core/ml-kem"]
+ml-dsa = ["lib-q-sig/ml-dsa"]
+mldsa44 = ["lib-q-ml-dsa/mldsa44"]
+mldsa65 = ["lib-q-ml-dsa/mldsa65"]
+mldsa87 = ["lib-q-ml-dsa/mldsa87"]
+
+falcon = ["lib-q-sig/falcon"]
+sphincs = ["lib-q-sig/sphincs"]
+mceliece = ["lib-q-kem/mceliece"]
+hqc = ["lib-q-kem/hqc"]
+hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
+zkp = ["lib-q-zkp/zkp"]
+
+# Random number generation features
+# Note: getrandom requires std in this configuration
+# For no_std environments, applications must provide custom entropy sources
+getrandom = ["std", "lib-q-core/getrandom"]
+
+# Security features
+# Enable memory zeroization for hash functions and their dependencies
+zeroize = ["lib-q-hash/zeroize"]
+
+# SIMD features
+simd128 = ["lib-q-ml-dsa/simd128"]
+simd256 = ["lib-q-ml-dsa/simd256"]
+
+# Security features
+# Comprehensive security hardening with zeroization and all algorithms
+security-hardened = ["zeroize", "all-algorithms"]
 
 # Convenience features
-# all-zkp = ["stark"]  # Temporarily disabled
-all-algorithms = ["kyber", "dilithium", "falcon", "sphincs", "mceliece", "hqc"]
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
+
+# Development and testing features
+dev = ["experimental", "tests"]
+full = ["std", "wasm", "rand", "log", "all-algorithms"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }
 
 [profile.release]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+debug = false
 
 [profile.dev]
 opt-level = 0
 debug = true
+lto = false
+panic = "abort"
 
 [profile.bench]
 opt-level = 3
-lto = true
+lto = "fat"
 codegen-units = 1
+debug = false
 
-# Workspace configuration - uncomment when workspace members are created
-# [workspace]
-# members = [
-#     ".",
-#     "lib-q-kem",
-#     "lib-q-sig", 
-#     "lib-q-hash",
-#     "lib-q-aead",
-#     "lib-q-utils"
-# ]
+# Security-focused release profile
+[profile.release-security]
+inherits = "release"
+# Additional security hardening options can be added here
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
-
-
-
 

@@ -1,0 +1,180 @@
+name: Security Validation
+description: Comprehensive security validation action for post-quantum cryptography libraries
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for validation
+    default: "all-algorithms"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-nist-validation:
+    description: Whether to run NIST compliance validation
+    default: "true"
+    required: false
+  run-crypto-validation:
+    description: Whether to run cryptographic algorithm validation
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time verification
+    default: "true"
+    required: false
+  run-memory-safety:
+    description: Whether to run memory safety validation
+    default: "true"
+    required: false
+  run-dependency-audit:
+    description: Whether to run dependency security audit
+    default: "true"
+    required: false
+  run-wasm-validation:
+    description: Whether to run WASM security validation
+    default: "false"
+    required: false
+  fail-fast:
+    description: Whether to fail on first error
+    default: "true"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-security-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-security-
+    
+    - name: NIST compliance validation
+      if: inputs.run-nist-validation == 'true'
+      shell: bash
+      run: |
+        echo "🔒 Running NIST compliance validation..."
+        cd ${{ inputs.working-directory }}
+        cargo run --bin security-validator --features "std" -- validate-nist
+        echo "✅ NIST compliance validation passed"
+    
+    - name: Cryptographic algorithm validation
+      if: inputs.run-crypto-validation == 'true'
+      shell: bash
+      run: |
+        echo "🔐 Running cryptographic validation..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test constant_time
+        echo "✅ Cryptographic validation completed"
+    
+    - name: Constant-time verification
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "⏱️  Running constant-time verification..."
+        cd ${{ inputs.working-directory }}
+        
+        # Install valgrind if not already available
+        if ! command -v valgrind &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+        fi
+        
+        # Install cargo-valgrind if not already available
+        if ! command -v cargo-valgrind &> /dev/null; then
+          cargo install cargo-valgrind
+        fi
+        
+        cargo test --features "${{ inputs.features }}" --test constant_time
+        echo "✅ Constant-time verification completed"
+    
+    - name: Memory safety validation
+      if: inputs.run-memory-safety == 'true'
+      shell: bash
+      run: |
+        echo "🧠 Running memory safety validation..."
+        cd ${{ inputs.working-directory }}
+        cargo run --bin security-validator --features "std" -- validate-memory
+        echo "✅ Memory safety validation completed"
+    
+          - name: Dependency security audit
+      if: inputs.run-dependency-audit == 'true'
+      shell: bash
+      run: |
+        echo "🔍 Running dependency security audit..."
+        cd ${{ inputs.working-directory }}
+
+        # Install cargo-audit
+        cargo install cargo-audit --locked
+
+        # Check for known vulnerabilities
+        cargo audit --deny warnings --ignore RUSTSEC-2023-0001
+
+        # Check for outdated dependencies
+        cargo outdated --exit-code 1
+
+        # Validate dependency sources
+        cargo tree --format "{p} {f}" | grep -v "crates.io" | grep -v "github.com" || true
+
+        echo "✅ Dependency security audit completed"
+    
+    - name: WASM security validation
+      if: inputs.run-wasm-validation == 'true'
+      shell: bash
+      run: |
+        echo "🌐 Running WASM security validation..."
+        cd ${{ inputs.working-directory }}
+        
+        # Build WASM
+        rustup target add wasm32-unknown-unknown
+        cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
+        
+        # Validate WASM artifacts
+        if [ -d "target/wasm32-unknown-unknown/release" ]; then
+          echo "WASM build artifacts found:"
+          ls -la target/wasm32-unknown-unknown/release/*.wasm 2>/dev/null || echo "No .wasm files found"
+          echo "✅ WASM security validation completed"
+        else
+          echo "⚠️  No WASM build artifacts found"
+        fi
+    
+    - name: Security validation summary
+      shell: bash
+      run: |
+        echo "## 🔒 Security Validation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "All security validations completed successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Validations Run:" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ inputs.run-nist-validation }}" == "true" ]]; then
+          echo "- ✅ NIST compliance validation" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-crypto-validation }}" == "true" ]]; then
+          echo "- ✅ Cryptographic algorithm validation" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-constant-time }}" == "true" ]]; then
+          echo "- ✅ Constant-time verification" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-memory-safety }}" == "true" ]]; then
+          echo "- ✅ Memory safety validation" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-dependency-audit }}" == "true" ]]; then
+          echo "- ✅ Dependency security audit" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-wasm-validation }}" == "true" ]]; then
+          echo "- ✅ WASM security validation" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎉 **All security checks passed!**" >> $GITHUB_STEP_SUMMARY

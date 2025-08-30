@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-utils"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Utility functions for lib-Q post-quantum cryptography library"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "post-quantum", "utilities", "helpers"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", features = ["rand"] }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
+
+[features]
+default = []
+
+[lib]
+name = "lib_q_utils"
+path = "src/lib.rs"
+
+[[bin]]
+name = "security-validator"
+path = "src/bin/security-validator.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

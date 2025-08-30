@@ -1,0 +1,49 @@
+[package]
+name = "lib-q-sponge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Sponge functions for lib-Q"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "sponge", "keccak", "ascon", "lib-q"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-keccak = { path = "../lib-q-keccak" }
+lib-q-ascon = { path = "../lib-q-ascon" }
+wasm-bindgen = { version = "0.2.100", optional = true }
+
+[lib]
+name = "lib_q_sponge"
+path = "src/lib.rs"
+
+[features]
+default = ["asm"]
+asm = ["lib-q-keccak/asm"]
+wasm = ["wasm-bindgen"]
+
+[[test]]
+name = "integration_keccak"
+path = "tests/integration_keccak.rs"
+
+[[test]]
+name = "integration_ascon"
+path = "tests/integration_ascon.rs"
+
+[[test]]
+name = "integration_cross_sponge"
+path = "tests/integration_cross_sponge.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

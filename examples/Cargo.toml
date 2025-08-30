@@ -1,0 +1,17 @@
+[package]
+name = "lib-q-examples"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Examples for lib-Q post-quantum cryptography library"
+license.workspace = true
+
+[dependencies]
+lib-q-hash = { path = "../lib-q-hash" }
+lib-q-core = { path = "../lib-q-core" }
+lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
+lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
+
+[[example]]
+name = "hash_example"
+path = "hash_example.rs"

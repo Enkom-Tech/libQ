@@ -33,7 +33,7 @@ A clear and concise description of what actually happened.
 
 **Environment:**
  - OS: [e.g. Ubuntu 22.04, Windows 11, macOS 13]
- - Rust version: [e.g. 1.70.0]
+ - Rust version: [e.g. 1.89.0]
  - lib-Q version: [e.g. 0.1.0]
  - Target: [e.g. x86_64-unknown-linux-gnu, wasm32-unknown-unknown]
  - Features: [e.g. "all-algorithms", "wasm"]

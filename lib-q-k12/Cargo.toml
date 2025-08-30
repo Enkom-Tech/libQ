@@ -1,0 +1,46 @@
+[package]
+name = "lib-q-k12"
+version.workspace = true
+description = "Pure Rust implementation of the KangarooTwelve hash function for lib-Q"
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+documentation = "https://docs.rs/lib-q-k12"
+repository.workspace = true
+keywords = ["crypto", "hash", "digest", "lib-q"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+digest = "0.11.0-rc.0"
+lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
+
+[dev-dependencies]
+digest = { version = "0.11.0-rc.0", features = ["alloc", "dev"] }
+hex-literal = "1.0.0"
+rand = "0.9.2"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+hex = "0.4.3"
+
+[features]
+default = ["alloc"]
+alloc = ["digest/alloc"]
+zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
+
+[lib]
+name = "lib_q_k12"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

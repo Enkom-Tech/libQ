@@ -5,178 +5,165 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: write
+  id-token: write
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   # Pre-release validation
-  validate:
+  pre-release-validation:
     name: Pre-Release Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+      cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Security audit
-        run: cargo audit --deny warnings
-      
-      - name: Run all tests
-        run: cargo test --all-features --release
-      
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy linting
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Validate version
+      - name: Extract version
+        id: extract-version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+      
+      - name: Generate cache key
+        id: cache-key
+        run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+      
+      - name: Validate version consistency
+        run: |
+          VERSION=${{ steps.extract-version.outputs.version }}
           CARGO_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
           if [ "$VERSION" != "$CARGO_VERSION" ]; then
-            echo "Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
+            echo "❌ Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
             exit 1
           fi
+          echo "✅ Version consistency validated: $VERSION"
+      
+      - name: Run comprehensive validation
+        uses: ./.github/actions/rust-build
+        with:
+          run-security-audit: "true"
+          run-format-check: "true"
+          run-clippy: "true"
+          run-tests: "true"
+          features: "all-algorithms"
+      
+      - name: Run release tests
+        run: cargo test --all-features --release
 
-  # Publish Rust crate
-  publish-crate:
-    name: Publish Rust Crate
-    needs: validate
+  # Parallel publishing jobs - run after validation
+  publish-rust-crates:
+    name: Publish Rust Crates
+    needs: pre-release-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-core"
+          - package: "lib-q-keccak"
+          - package: "lib-q-ascon"
+          - package: "lib-q-sha3"
+          - package: "lib-q-k12"
+          - package: "lib-q-kem"
+          - package: "lib-q-ml-kem"
+          - package: "lib-q-sig"
+          - package: "lib-q-hash"
+          - package: "lib-q-aead"
+          - package: "lib-q-utils"
+          - package: "lib-q-zkp"
+          - package: "lib-q-sponge"
+          - package: "lib-q"
+
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --token $CARGO_REGISTRY_TOKEN
+          package: ${{ matrix.package }}
+          token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # Build and publish WASM package
-  publish-wasm:
-    name: Build and Publish WASM Package
-    needs: validate
+  publish-wasm-packages:
+    name: Publish WASM Packages
+    needs: pre-release-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - working-directory: "."
+            package-name: "@lib-q/core"
+            package-description: "Post-quantum cryptography library for Node.js (complete package)"
+            package-keywords: "cryptography,post-quantum,security,wasm"
+            features: "wasm,all-algorithms,ml-kem"
+          - working-directory: "lib-q-ml-kem"
+            package-name: "@lib-q/ml-kem"
+            package-description: "NIST ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) for Node.js"
+            package-keywords: "cryptography,post-quantum,ml-kem,key-encapsulation,nist,wasm"
+            features: "wasm"
+          - working-directory: "lib-q-kem"
+            package-name: "@lib-q/kem"
+            package-description: "Post-quantum Key Encapsulation Mechanisms for Node.js"
+            package-keywords: "cryptography,post-quantum,kem,key-encapsulation,wasm"
+            features: "wasm,ml-kem"
+          - working-directory: "lib-q-sig"
+            package-name: "@lib-q/sig"
+            package-description: "Post-quantum Digital Signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,signatures,digital-signatures,wasm"
+            features: "dilithium"
+            out-dir: "pkg-sig"
+          - working-directory: "lib-q-hash"
+            package-name: "@lib-q/hash"
+            package-description: "Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)"
+            package-keywords: "cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm"
+            features: "alloc,oid"
+            out-dir: "pkg-hash"
+          - working-directory: "lib-q-utils"
+            package-name: "@lib-q/utils"
+            package-description: "Utility functions for post-quantum cryptography"
+            package-keywords: "cryptography,post-quantum,utilities,helpers,wasm"
+            features: ""
+            out-dir: "pkg-utils"
+
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
         with:
-          version: latest
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          targets: "web"
       
-      - name: Install Node.js
-        uses: actions/setup-node@v4
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
         with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-            pkg
-            node_modules
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-
-      
-      - name: Build WASM package (nodejs target)
-        run: |
-          echo "Building WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
-          echo "WASM nodejs build completed successfully"
-      
-      - name: Build WASM package (web target)
-        run: |
-          echo "Building WASM for web target..."
-          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
-          echo "WASM web build completed successfully"
-      
-      - name: Verify WASM artifacts
-        run: |
-          echo "Verifying WASM build artifacts..."
-          ls -la pkg/ || echo "No pkg directory found"
-          if [ -d "pkg" ]; then
-            echo "WASM package contents:"
-            ls -la pkg/
-            echo "WASM file size:"
-            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
-          fi
-      
-      - name: Prepare NPM package
-        run: |
-          cd pkg
-          npm pkg set name="@lib-q/core"
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
-          npm pkg set version=$VERSION
-          npm pkg set description="Post-quantum cryptography library for Node.js"
-          npm pkg set keywords="cryptography,post-quantum,security,wasm"
-          npm pkg set author="lib-Q Contributors"
-          npm pkg set license="Apache-2.0"
-          npm pkg set repository.type="git"
-          npm pkg set repository.url="https://github.com/lib-q/lib-q.git"
-          npm pkg set homepage="https://github.com/lib-q/lib-q#readme"
-          npm pkg set bugs.url="https://github.com/lib-q/lib-q/issues"
-          npm pkg set files=["*.js","*.d.ts","*.wasm"]
-          npm pkg set main="lib-q.js"
-          npm pkg set types="lib-q.d.ts"
-          npm pkg set exports.import="./lib-q.js"
-          npm pkg set exports.require="./lib-q.js"
-      
-      - name: Publish to NPM
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          cd pkg
-          npm publish --access public
+          package-name: ${{ matrix.package-name }}
+          package-description: ${{ matrix.package-description }}
+          package-keywords: ${{ matrix.package-keywords }}
+          working-directory: ${{ matrix.out-dir || 'pkg' }}
+          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.pre-release-validation.outputs.version }}
 
-  # Create GitHub release
-  create-release:
-    name: Create GitHub Release
-    needs: [publish-crate, publish-wasm]
+  # Post-release tasks - run after publishing
+  post-release:
+    name: Post-Release Tasks
+    needs: [pre-release-validation, publish-rust-crates, publish-wasm-packages]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
         with:
@@ -185,8 +172,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           
           if [ -n "$PREVIOUS_TAG" ]; then
@@ -199,7 +185,7 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
-      - name: Create Release
+      - name: Create GitHub Release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -213,15 +199,15 @@ jobs:
             
             ## Installation
             
-                         ### Rust
-             ```bash
-             cargo add lib-q
-             ```
-             
-             ### Node.js
-             ```bash
-             npm install @lib-q/core
-             ```
+            ### Rust
+            ```bash
+            cargo add lib-q
+            ```
+            
+            ### Node.js
+            ```bash
+            npm install @lib-q/core
+            ```
             
             ## Security
             
@@ -230,38 +216,77 @@ jobs:
             
             ## Documentation
             
-                         - [API Documentation](https://docs.rs/lib-q)
-            - [Security Model](https://github.com/lib-q/lib-q/blob/main/docs/security.md)
-            - [Development Guide](https://github.com/lib-q/lib-q/blob/main/CONTRIBUTING.md)
+            - [API Documentation](https://docs.rs/lib-q)
+            - [Security Model](https://github.com/Enkom-Tech/libQ/blob/main/docs/security.md)
+            - [Development Guide](https://github.com/Enkom-Tech/libQ/blob/main/CONTRIBUTING.md)
           draft: false
           prerelease: false
 
-  # Security verification post-release
+  # Security verification - runs after release
   security-verification:
     name: Post-Release Security Verification
-    needs: create-release
+    needs: [pre-release-validation, post-release]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
       
-      - name: Verify published crate
+      - name: Verify published Rust crate
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
+          echo "Verifying Rust crate version $VERSION..."
           cargo install --version $VERSION lib-q
+          echo "✅ Rust crate verification successful"
       
-      - name: Verify WASM package
+      - name: Verify published WASM package
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          VERSION=${{ needs.pre-release-validation.outputs.version }}
+          echo "Verifying WASM package version $VERSION..."
           npm install @lib-q/core@$VERSION
-          node -e "const libq = require('@lib-q/core'); console.log('WASM package loaded successfully');"
+          node -e "const libq = require('@lib-q/core'); console.log('✅ WASM package loaded successfully');"
       
       - name: Run security tests
         run: |
-          echo "Running available security tests..."
+          echo "Running security validation tests..."
           cargo test --features "all-algorithms" --test constant_time
-          echo "Security tests completed successfully"
+          echo "✅ Security tests completed successfully"
+
+  # Final CD summary
+  cd-summary:
+    name: CD Summary
+    needs: [pre-release-validation, publish-rust-crates, publish-wasm-packages, post-release, security-verification]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate CD summary
+        run: |
+          echo "## 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.pre-release-validation.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
+          echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-crates.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for critical failures
+          if [[ "${{ needs.pre-release-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.security-verification.result }}" == "failure" ]]; then
+            echo "❌ **Critical pipeline failures detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the failed jobs above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ **Release ${{ needs.pre-release-validation.outputs.version }} deployed successfully!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Packages:" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust: [lib-q@${{ needs.pre-release-validation.outputs.version }}](https://crates.io/crates/lib-q)" >> $GITHUB_STEP_SUMMARY
+          echo "- NPM: [@lib-q/core@${{ needs.pre-release-validation.outputs.version }}](https://www.npmjs.com/package/@lib-q/core)" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub: [Release ${{ github.ref }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref }})" >> $GITHUB_STEP_SUMMARY

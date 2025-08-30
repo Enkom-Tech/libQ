@@ -1,0 +1,38 @@
+[package]
+name = "lib-q-sig"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Post-quantum Digital Signatures for lib-Q"
+keywords = ["cryptography", "post-quantum", "signatures", "digital-signatures"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core" }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
+
+[features]
+default = ["alloc", "ml-dsa"]
+ml-dsa = ["lib-q-ml-dsa"]
+falcon = []
+sphincs = []
+std = ["alloc"]
+alloc = []
+
+[lib]
+name = "lib_q_sig"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

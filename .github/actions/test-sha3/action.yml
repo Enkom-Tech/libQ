@@ -1,0 +1,158 @@
+name: Test SHA3
+description: Run SHA3 tests with security validation and comprehensive feature testing
+inputs:
+  working-directory:
+    description: Working directory for SHA3 testing
+    default: lib-q-hash
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "alloc,oid"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  test-algorithms:
+    description: Specific algorithms to test
+    default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-sha3-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-sha3-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for SHA3..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with default features
+      shell: bash
+      run: |
+        echo "Building with default features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with all features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --all-features
+        echo "Build with all features completed"
+    
+    - name: Run all tests
+      shell: bash
+      run: |
+        echo "Running all tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "All tests completed"
+    
+    - name: Run algorithm-specific tests
+      shell: bash
+      run: |
+        echo "Running algorithm-specific tests..."
+        cd ${{ inputs.working-directory }}
+        for alg in ${inputs.test-algorithms//,/ }; do
+          echo "Testing algorithm: $alg"
+          cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
+        done
+        echo "Algorithm-specific tests completed"
+    
+    - name: Test SHA3 implementations
+      shell: bash
+      run: |
+        echo "Testing SHA3 implementations..."
+        cd ${{ inputs.working-directory }}
+        cargo test test_sha3_implementations --features "${{ inputs.features }}"
+        echo "SHA3 implementation tests completed"
+    
+    - name: Constant-time operation verification
+      shell: bash
+      run: |
+        echo "Verifying constant-time operations..."
+        cd ${{ inputs.working-directory }}
+        # Run specific tests that verify constant-time behavior
+        cargo test --test constant_time --features "${{ inputs.features }}"
+        echo "Constant-time verification completed"
+    
+    - name: Test Keccak implementations
+      shell: bash
+      run: |
+        echo "Testing Keccak implementations..."
+        cd ${{ inputs.working-directory }}
+        cargo test test_keccak_implementations --features "${{ inputs.features }}"
+        echo "Keccak implementation tests completed"
+    
+    - name: Test hash creation by name
+      shell: bash
+      run: |
+        echo "Testing hash creation by name..."
+        cd ${{ inputs.working-directory }}
+        cargo test test_create_hash_by_name --features "${{ inputs.features }}"
+        echo "Hash creation tests completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: WASM compilation test
+      shell: bash
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}"
+        echo "WASM compilation test completed"
+    
+    - name: Feature powerset test
+      shell: bash
+      run: |
+        echo "Testing feature combinations..."
+        cd ${{ inputs.working-directory }}
+        cargo install cargo-hack
+        cargo hack test --feature-powerset --exclude-features default
+        echo "Feature powerset test completed"

@@ -1,8 +1,109 @@
+# Cross-compilation configuration for lib-Q
+# This file configures the proper linkers for cross-compilation targets
+# to ensure secure and correct builds for cryptography libraries
+
+[build]
+# Global build configuration for cryptography security
+rustflags = [
+    # Enable all warnings and treat them as errors for security
+    "-W", "warnings",
+    # Enable overflow checks in debug builds
+    "-C", "overflow-checks=on",
+    # Use LLVM optimizations for better code generation
+    "-C", "opt-level=3",
+    # Enable control flow integrity where supported
+    "-C", "control-flow-guard=checks",
+]
+
+# ARM64 Linux target configuration
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+# Disable features that require native compilation during cross-compilation
+rustflags = [
+    "--cfg", "cross_compile",
+    # Ensure no host architecture leaks into cross-compiled binaries
+    "-C", "target-feature=-aes,-sha3",
+    # Use soft-float for better compatibility
+    "-C", "target-feature=+neon",
+]
+
+# ARM64 Linux MUSL target configuration
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+rustflags = [
+    "--cfg", "cross_compile",
+    # Static linking for MUSL targets
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-static",
+]
+
+# ARMv7 Linux target configuration
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+rustflags = [
+    "--cfg", "cross_compile",
+    # ARMv7 specific features
+    "-C", "target-feature=+vfp3,+d16",
+]
+
+# ARMv7 Linux MUSL target configuration
+[target.armv7-unknown-linux-musleabihf]
+linker = "arm-linux-musleabihf-gcc"
+rustflags = [
+    "--cfg", "cross_compile",
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-static",
+]
+
+# x86_64 Linux target configuration (for consistency)
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "--cfg", "cross_compile",
+    # Enable AVX2 for x86_64 when available
+    "-C", "target-feature=+avx2,+sse4.1",
+]
+
+# Security-focused build configuration
+[profile.release]
+# Enable Link Time Optimization for better security and performance
+lto = true
+# Enable codegen units for better optimization
+codegen-units = 1
+# Enable panic abort for smaller binaries and deterministic behavior
+panic = "abort"
+# Strip debug symbols for security
+strip = true
+# Enable overflow checks in release for security
+overflow-checks = true
+
+[profile.release.build-override]
+# Ensure dependencies also use secure build settings
+opt-level = 3
+overflow-checks = true
+
+# Development profile with security checks
+[profile.dev]
+# Keep overflow checks enabled for security during development
+overflow-checks = true
+# Enable debug assertions
+debug-assertions = true
+
+# Benchmarking profile
+[profile.bench]
+# Use release optimizations for benchmarks
+inherits = "release"
+# Enable debug info for profiling
+debug = true
+
+# WebAssembly-specific configuration
 [target.wasm32-unknown-unknown]
-rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+# Configure getrandom for WebAssembly builds
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+]
 
-[target.wasm32-unknown-emscripten]
-rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
-
-[env]
-CARGO_CFG_GETRANDOM_BACKEND = "wasm_js"
+[target.wasm32-wasi]
+# Configure getrandom for WebAssembly WASI builds
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+]

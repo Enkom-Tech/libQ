@@ -11,17 +11,17 @@ lib-Q implements a three-tier Hybrid Public Key Encryption (HPKE) system that pr
 ```
 lib-Q HPKE Architecture
 ├── Tier 1: Ultra-Secure (Pure Post-Quantum)
-│   ├── KEM: CRYSTALS-Kyber (Level 5)
+│   ├── KEM: CRYSTALS-ML-Kem (Level 5)
 │   ├── AEAD: SHAKE256-based construction
 │   └── Use Case: Maximum security, performance secondary
 ├── Tier 2: Balanced (Hybrid Post-Quantum)
-│   ├── KEM: CRYSTALS-Kyber (Level 3)
-│   ├── AEAD: AES-256-GCM
-│   └── Use Case: Strong security with good performance
-└── Tier 3: Performance (Post-Quantum + Optimized Classical)
-    ├── KEM: CRYSTALS-Kyber (Level 1)
-    ├── AEAD: ChaCha20-Poly1305
-    └── Use Case: Maximum performance, strong security
+│   ├── KEM: CRYSTALS-ML-Kem (Level 3)
+│   ├── AEAD: Xoodyak (~3+ cycles/byte, multipurpose)
+│   └── Use Case: Balanced security and performance
+└── Tier 3: Performance (Post-Quantum + Optimized)
+    ├── KEM: CRYSTALS-ML-Kem (Level 1)
+    ├── AEAD: SNEIK (~2.9-17 cycles/byte, ultra-lightweight)
+    └── Use Case: Maximum performance on constrained systems
 ```
 
 ### Core Components
@@ -71,7 +71,7 @@ Tier 1 provides maximum security by using only post-quantum algorithms throughou
 ```rust
 /// Ultra-secure HPKE implementation
 pub struct UltraHpke {
-    kem: Kyber5,
+    kem: MlKem5,
     aead: Shake256Aead,
 }
 
@@ -79,7 +79,7 @@ impl UltraHpke {
     /// Create a new ultra-secure HPKE instance
     pub fn new() -> Self {
         Self {
-            kem: Kyber5::new(),
+            kem: MlKem5::new(),
             aead: Shake256Aead::new(),
         }
     }
@@ -242,23 +242,23 @@ impl Shake256Aead {
 
 ### Design Philosophy
 
-Tier 2 provides strong security with good performance by combining post-quantum KEM with quantum-resistant classical AEAD. This tier is suitable for most applications requiring strong security.
+Tier 2 provides balanced security and performance using Xoodyak AEAD. Xoodyak offers ~3+ cycles/byte performance on 32-bit MCUs with multipurpose capabilities including AEAD, hashing, and MAC. This tier is suitable for applications requiring good performance on lightweight and IoT devices.
 
 ### Implementation
 
 ```rust
 /// Balanced HPKE implementation
 pub struct BalancedHpke {
-    kem: Kyber3,
-    aead: Aes256Gcm,
+    kem: MlKem3,
+    aead: XoodyakAead,
 }
 
 impl BalancedHpke {
     /// Create a new balanced HPKE instance
     pub fn new() -> Self {
         Self {
-            kem: Kyber3::new(),
-            aead: Aes256Gcm::new(),
+            kem: MlKem3::new(),
+            aead: XoodyakAead::new(),
         }
     }
     
@@ -278,7 +278,7 @@ impl BalancedHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with AES-256-GCM
+        // 4. Encrypt with Xoodyak
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -306,7 +306,7 @@ impl BalancedHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with AES-256-GCM
+        // 3. Decrypt with Xoodyak
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
@@ -335,23 +335,23 @@ impl BalancedHpke {
 
 ### Design Philosophy
 
-Tier 3 provides maximum performance while maintaining strong security by combining post-quantum KEM with optimized classical AEAD. This tier is suitable for high-performance applications.
+Tier 3 provides maximum performance on constrained systems using SNEIK AEAD. SNEIK offers ~2.9 to 17 cycles/byte performance (varies by mode & rounds) with very small RAM usage (~64 bytes). This tier is optimized for ultra-lightweight applications on 8/16/32-bit MCUs and microcontrollers.
 
 ### Implementation
 
 ```rust
 /// Performance HPKE implementation
 pub struct PerformanceHpke {
-    kem: Kyber1,
-    aead: ChaCha20Poly1305,
+    kem: MlKem1,
+    aead: SneikAead,
 }
 
 impl PerformanceHpke {
     /// Create a new performance HPKE instance
     pub fn new() -> Self {
         Self {
-            kem: Kyber1::new(),
-            aead: ChaCha20Poly1305::new(),
+            kem: MlKem1::new(),
+            aead: SneikAead::new(),
         }
     }
     
@@ -371,7 +371,7 @@ impl PerformanceHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with ChaCha20-Poly1305
+        // 4. Encrypt with SNEIK
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -399,7 +399,7 @@ impl PerformanceHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with ChaCha20-Poly1305
+        // 3. Decrypt with SNEIK
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
@@ -538,7 +538,7 @@ pub mod hpke {
 
 ### Post-Quantum Security
 
-- **KEM Security**: All tiers use post-quantum KEMs (CRYSTALS-Kyber)
+- **KEM Security**: All tiers use post-quantum KEMs (CRYSTALS-ML-Kem)
 - **Key Derivation**: SHAKE256 for all key derivation operations
 - **Domain Separation**: Different derivation strings for each tier
 - **Nonce Generation**: Cryptographically secure nonce generation
@@ -569,7 +569,7 @@ mod tests {
     #[test]
     fn test_ultra_hpke_encryption_decryption() {
         let hpke = UltraHpke::new();
-        let (pk, sk) = Kyber5::new().generate_keypair().unwrap();
+        let (pk, sk) = MlKem5::new().generate_keypair().unwrap();
         let message = b"Hello, Post-Quantum World!";
         let ad = b"associated data";
         
@@ -582,7 +582,7 @@ mod tests {
     #[test]
     fn test_balanced_hpke_encryption_decryption() {
         let hpke = BalancedHpke::new();
-        let (pk, sk) = Kyber3::new().generate_keypair().unwrap();
+        let (pk, sk) = MlKem3::new().generate_keypair().unwrap();
         let message = b"Hello, Balanced World!";
         let ad = b"associated data";
         
@@ -595,7 +595,7 @@ mod tests {
     #[test]
     fn test_performance_hpke_encryption_decryption() {
         let hpke = PerformanceHpke::new();
-        let (pk, sk) = Kyber1::new().generate_keypair().unwrap();
+        let (pk, sk) = MlKem1::new().generate_keypair().unwrap();
         let message = b"Hello, Performance World!";
         let ad = b"associated data";
         
@@ -618,9 +618,9 @@ fn test_hpke_tier_interoperability() {
     // Test all tiers
     for tier in &[SecurityTier::Ultra, SecurityTier::Balanced, SecurityTier::Performance] {
         let (pk, sk) = match tier {
-            SecurityTier::Ultra => Kyber5::new().generate_keypair().unwrap(),
-            SecurityTier::Balanced => Kyber3::new().generate_keypair().unwrap(),
-            SecurityTier::Performance => Kyber1::new().generate_keypair().unwrap(),
+            SecurityTier::Ultra => MlKem5::new().generate_keypair().unwrap(),
+            SecurityTier::Balanced => MlKem3::new().generate_keypair().unwrap(),
+            SecurityTier::Performance => MlKem1::new().generate_keypair().unwrap(),
         };
         
         let ciphertext = hpke::encrypt(&pk, message, Some(ad), *tier).unwrap();

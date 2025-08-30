@@ -1,0 +1,88 @@
+[package]
+name = "lib-q-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Core types and traits for lib-Q post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "security", "core", "nist"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+# Core cryptographic dependencies - no_std compatible
+getrandom = { version = "0.3.3", optional = true, default-features = false }
+rand_core = { version = "0.9.3", default-features = false, features = ["os_rng"] }
+rand = { version = "0.9.2", default-features = false, features = ["thread_rng"], optional = true }
+
+# ML-KEM implementation
+lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = false }
+
+# SHA-3 hash implementations
+lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
+
+# Zeroize for secure memory clearing
+zeroize = { version = "1.8.1", features = ["derive"], default-features = false }
+
+# Serde for serialization (optional)
+serde = { version = "1.0.219", optional = true, features = ["derive"], default-features = false }
+
+# WASM bindings
+wasm-bindgen = { version = "0.2.100", optional = true, features = ["serde-serialize"] }
+js-sys = { version = "0.3.77", optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
+serde_json = { version = "1.0.143", optional = true }
+
+# Lazy static for global registry
+lazy_static = "1.5.0"
+
+[features]
+default = ["std"]
+std = ["getrandom", "alloc", "rand"]
+alloc = []
+no_std = []
+# Random number generation - requires platform-specific configuration for no_std
+# In no_std environments, applications must provide custom entropy sources
+getrandom = ["dep:getrandom"]
+rand = ["dep:rand"]
+
+# ML-KEM support
+ml-kem = ["dep:lib-q-ml-kem"]
+
+# Hash support
+hash = ["dep:lib-q-sha3"]
+
+# Serialization features
+serde = ["dep:serde"]
+
+# WASM support
+wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom"]
+
+# WASM-specific getrandom configuration
+wasm_getrandom = ["getrandom/wasm_js"]
+
+[lib]
+name = "lib_q_core"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+# Enable bulk memory operations to fix wasm-validator errors
+wasm-opt = ["-O", "--enable-bulk-memory"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

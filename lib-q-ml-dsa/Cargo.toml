@@ -1,0 +1,78 @@
+[package]
+name = "lib-q-ml-dsa"
+version.workspace = true
+description = "LibQ ML-DSA implementation"
+
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme.workspace = true
+publish = false
+
+[lib]
+bench = false # so libtest doesn't eat the arguments to criterion
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3" }
+lib-q-intrinsics = { path = "../lib-q-intrinsics" }
+lib-q-platform = { path = "../lib-q-platform" }
+lib-q-keccak = { path = "../lib-q-keccak", features = ["simd"] }
+hax-lib.workspace = true
+hex = { version = "0.4.3" }
+
+[dev-dependencies]
+rand = { version = "0.9.2" }
+hex = { version = "0.4.3", features = ["serde"] }
+serde_json = { version = "1.0.143" }
+serde = { version = "1.0.219", features = ["derive"] }
+criterion = "0.7.0"
+
+# This doesn't build on intel macos.
+# Temporarily disabled due to unmaintained paste crate dependency (RUSTSEC-2024-0436)
+# [target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
+# pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
+
+# Optional: Uncomment if you need hax formal verification with core-models
+# Note: This requires the reference directory to not be excluded in the main Cargo.toml
+# [target.'cfg(hax)'.dependencies]
+# core-models = { path = "../reference/libcrux-main/fstar-helpers/core-models" }
+
+[features]
+default = ["std", "mldsa44", "mldsa65", "mldsa87"]
+simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]
+simd256 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd256"]
+acvp = []                                                        # expose internal API for ACVP testing
+test-utils = []                                                  # exposing internal functions for testing
+
+# Features for the different key sizes of ML-DSA
+mldsa44 = []
+mldsa65 = []
+mldsa87 = []
+
+# std support
+std = []
+
+[[bench]]
+name = "manual44"
+harness = false
+
+[[bench]]
+name = "manual65"
+harness = false
+
+[[bench]]
+name = "manual87"
+harness = false
+
+[[bench]]
+name = "ml-dsa"
+harness = false
+
+
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)'] }

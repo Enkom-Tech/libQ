@@ -1,0 +1,104 @@
+name: Rust Test
+description: Reusable Rust test action with matrix support and comprehensive testing
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for testing
+    default: ""
+    required: false
+  package:
+    description: Specific package to test (optional)
+    default: ""
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-release-tests:
+    description: Whether to run release tests
+    default: "true"
+    required: false
+  run-coverage:
+    description: Whether to run coverage tests
+    default: "false"
+    required: false
+  coverage-threshold:
+    description: Minimum coverage threshold percentage
+    default: "95"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rust-
+    
+    - name: Install cargo-tarpaulin (if coverage enabled)
+      if: inputs.run-coverage == 'true'
+      shell: bash
+      run: cargo install cargo-tarpaulin
+    
+    - name: Run tests
+      shell: bash
+      run: |
+        echo "Running tests..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.package }}" ]; then
+          cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --verbose
+        else
+          cargo test --features "${{ inputs.features }}" --verbose
+        fi
+        echo "Tests completed"
+    
+    - name: Run release tests
+      if: inputs.run-release-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running release tests..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.package }}" ]; then
+          cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --release --verbose
+        else
+          cargo test --features "${{ inputs.features }}" --release --verbose
+        fi
+        echo "Release tests completed"
+    
+    - name: Generate coverage report
+      if: inputs.run-coverage == 'true'
+      shell: bash
+      run: |
+        echo "Generating coverage report..."
+        cd ${{ inputs.working-directory }}
+        cargo tarpaulin --features "${{ inputs.features }}" --out Html --output-dir coverage
+        echo "Coverage report generated"
+    
+    - name: Check coverage threshold
+      if: inputs.run-coverage == 'true'
+      shell: bash
+      run: |
+        echo "Checking coverage threshold..."
+        cd ${{ inputs.working-directory }}
+        COVERAGE=$(cargo tarpaulin --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        echo "Coverage: $COVERAGE%"
+        if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
+          echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"
+          exit 1
+        fi
+        echo "Coverage threshold check passed"

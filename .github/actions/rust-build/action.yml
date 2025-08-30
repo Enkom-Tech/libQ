@@ -1,0 +1,170 @@
+name: Rust Build
+description: Reusable Rust build action with security validation and quality checks
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for building
+    default: ""
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-security-audit:
+    description: Whether to run security audit
+    default: "true"
+    required: false
+  run-format-check:
+    description: Whether to run format check
+    default: "true"
+    required: false
+  run-clippy:
+    description: Whether to run clippy linting
+    default: "true"
+    required: false
+  run-tests:
+    description: Whether to run tests
+    default: "true"
+    required: false
+  run-wasm-check:
+    description: Whether to run WASM compilation check
+    default: "false"
+    required: false
+  run-cross-compilation:
+    description: Whether to run cross-compilation tests
+    default: "false"
+    required: false
+  target:
+    description: Cross-compilation target (if enabled)
+    default: "aarch64-unknown-linux-gnu"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rust-
+    
+    - name: Security audit
+      if: inputs.run-security-audit == 'true'
+      shell: bash
+      run: |
+        echo "Running security audit..."
+        cd ${{ inputs.working-directory }}
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      if: inputs.run-format-check == 'true'
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      if: inputs.run-clippy == 'true'
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo clippy --all-targets --features "${{ inputs.features }}" -- -D warnings
+        else
+          cargo clippy --all-targets -- -D warnings
+        fi
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features
+        echo "Build completed"
+    
+    - name: Build with features
+      if: inputs.features != ''
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with all features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --all-features
+        echo "Build with all features completed"
+    
+    - name: Run tests
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running tests..."
+        cd ${{ inputs.working-directory }}
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo test --features "${{ inputs.features }}"
+        else
+          cargo test
+        fi
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running tests with all features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --all-features
+        echo "Tests with all features completed"
+    
+    - name: WASM compilation check
+      if: inputs.run-wasm-check == 'true'
+      shell: bash
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}"
+        else
+          cargo check --target wasm32-unknown-unknown
+        fi
+        echo "WASM compilation check completed"
+    
+    - name: Cross-compilation test
+      if: inputs.run-cross-compilation == 'true'
+      shell: bash
+      run: |
+        echo "Testing cross-compilation to ${{ inputs.target }}..."
+        cd ${{ inputs.working-directory }}
+        rustup target add ${{ inputs.target }}
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo check --target ${{ inputs.target }} --features "${{ inputs.features }}"
+        else
+          cargo check --target ${{ inputs.target }}
+        fi
+        echo "Cross-compilation test completed"

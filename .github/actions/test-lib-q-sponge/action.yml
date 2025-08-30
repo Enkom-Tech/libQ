@@ -1,0 +1,150 @@
+name: Test lib-q-sponge
+description: Run lib-q-sponge integration tests and re-export validation
+inputs:
+  working-directory:
+    description: Working directory for lib-q-sponge crate
+    default: lib-q-sponge
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "asm"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks (requires nightly)
+    default: "false"
+    required: false
+  test-algorithms:
+    description: Specific algorithms to test (not used by sponge tests)
+    default: ""
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-lib-q-sponge-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-lib-q-sponge-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for lib-q-sponge..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --features "${{ inputs.features }}" -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Integration test - Keccak re-exports
+      shell: bash
+      run: |
+        echo "Testing Keccak re-exports..."
+        cd ${{ inputs.working-directory }}
+        cargo test --test integration_keccak --features "${{ inputs.features }}"
+        echo "Keccak re-export tests completed"
+    
+    - name: Integration test - Ascon re-exports
+      shell: bash
+      run: |
+        echo "Testing Ascon re-exports..."
+        cd ${{ inputs.working-directory }}
+        cargo test --test integration_ascon --features "${{ inputs.features }}"
+        echo "Ascon re-export tests completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: WASM compilation test
+      shell: bash
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}"
+        echo "WASM compilation test completed"
+    
+    - name: Documentation generation
+      shell: bash
+      run: |
+        echo "Generating documentation..."
+        cd ${{ inputs.working-directory }}
+        cargo doc --features "${{ inputs.features }}" --no-deps
+        echo "Documentation generation completed"
+    
+    - name: Run benchmarks (nightly only)
+      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "Benchmarks completed"

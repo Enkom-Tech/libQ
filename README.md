@@ -4,7 +4,7 @@ A modern cryptography library built exclusively with NIST-approved post-quantum 
 
 ## Mission
 
-lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensuring quantum resistance while maintaining familiar, easy-to-use interfaces.
+lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quantum resistance while maintaining intuitive, easy-to-use interfaces for developers.
 
 ## Key Features
 
@@ -12,14 +12,80 @@ lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensurin
 - **NIST-approved**: All algorithms are NIST PQC standardized
 - **Memory safe**: Built in Rust with zero-cost abstractions
 - **Cross-platform**: Native Rust + WASM compilation
-- **Familiar API**: libsodium-style interface for easy migration
+- **Intuitive API**: Clean, consistent interface designed for modern development
 - **Zero dependencies**: Self-contained implementations
 - **Three security tiers**: Ultra-secure, balanced, and performance-optimized options
+- **Modular design**: Use only what you need with individual crates and npm packages
+
+## Package Structure
+
+lib-Q is organized as a Rust workspace with individual crates and npm packages:
+
+### Rust Crates (crates.io)
+
+- **`lib-q`** - Complete library (re-exports everything)
+- **`lib-q-core`** - Core types and traits
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-Kem, McEliece, HQC)
+- **`lib-q-sig`** - Digital Signatures (Dilithium, Falcon, SPHINCS+)
+- **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
+- **`lib-q-aead`** - Authenticated Encryption
+- **`lib-q-utils`** - Utility functions
+- **`lib-q-zkp`** - Zero-Knowledge Proofs
+
+### NPM Packages (npmjs.com)
+
+- **`@lib-q/core`** - Complete library for Node.js
+- **`@lib-q/kem`** - KEM-only package
+- **`@lib-q/sig`** - Signature-only package
+- **`@lib-q/hash`** - Hash-only package
+- **`@lib-q/utils`** - Utilities-only package
+
+## Installation
+
+### Rust (Complete Library)
+```bash
+cargo add lib-q
+```
+
+### Rust (Individual Crates)
+```bash
+# For KEM operations only
+cargo add lib-q-kem
+
+# For signatures only
+cargo add lib-q-sig
+
+# For hash functions only
+cargo add lib-q-hash
+
+# For utilities only
+cargo add lib-q-utils
+```
+
+### Node.js (Complete Library)
+```bash
+npm install @lib-q/core
+```
+
+### Node.js (Individual Packages)
+```bash
+# For KEM operations only
+npm install @lib-q/kem
+
+# For signatures only
+npm install @lib-q/sig
+
+# For hash functions only
+npm install @lib-q/hash
+
+# For utilities only
+npm install @lib-q/utils
+```
 
 ## Supported Algorithms
 
 ### Key Encapsulation Mechanisms (KEMs)
-- **CRYSTALS-Kyber** (Level 1, 3, 5)
+- **CRYSTALS-ML-Kem** (Level 1, 3, 5)
 - **Classic McEliece** (Level 1, 3, 4, 5)
 - **HQC** (Level 1, 3, 4, 5)
 
@@ -48,18 +114,14 @@ lib-Q provides a libsodium-equivalent API for post-quantum cryptography, ensurin
 
 ```
 lib-Q/
-├── src/
-│   ├── kem/           # Key Encapsulation Mechanisms
-│   ├── sig/           # Digital Signatures
-│   ├── hash/          # Hash Functions
-│   ├── aead/          # Authenticated Encryption
-│   ├── zkp/           # Zero-Knowledge Proofs
-│   ├── utils/         # Utilities and helpers
-│   └── wasm/          # WASM bindings
-├── tests/             # Comprehensive test suite
-├── benches/           # Performance benchmarks
-├── docs/              # Documentation
-└── examples/          # Usage examples
+├── lib-q-core/      # Core types and traits
+├── lib-q-kem/       # Key Encapsulation Mechanisms
+├── lib-q-sig/       # Digital Signatures
+├── lib-q-hash/      # Hash Functions
+├── lib-q-aead/      # Authenticated Encryption
+├── lib-q-utils/     # Utilities and helpers
+├── lib-q-zkp/       # Zero-Knowledge Proofs
+└── lib-q/           # Main crate (re-exports everything)
 ```
 
 ## Security Model
@@ -71,7 +133,26 @@ lib-Q/
 
 ## Development Status
 
-**Planning Phase** - Architecture and algorithm selection complete
+**Active Development** - Core cryptographic algorithms implemented and integrated
+
+### Implemented Features
+- ✅ **ML-DSA** (44, 65, 87) - Complete with provider pattern integration
+- ✅ **Core Architecture** - Provider pattern with clean separation of interfaces
+- ✅ **Hash Functions** - SHA3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash
+- ✅ **WASM Support** - Basic WASM bindings for web environments
+- ✅ **Memory Safety** - Zero unsafe code, automatic memory management
+- ✅ **Error Handling** - Consistent error types and fail-fast behavior
+
+### In Progress
+- 🔄 **AEAD** - Authenticated Encryption (next priority)
+- 🔄 **HPKE** - Hybrid Public Key Encryption (prerequisite for AEAD)
+- 🔄 **ML-KEM** - Provider pattern integration
+- 🔄 **Performance Optimization** - Benchmarks and SIMD optimizations
+
+### Planned
+- 📋 **Additional KEMs** - McEliece, HQC post-AEAD completion
+- 📋 **Additional Signatures** - Falcon, SPHINCS+ post-AEAD completion
+- 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
 
 ## Documentation
 
@@ -93,4 +174,22 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 
 ## Security Notice
 
-This library is in development. Do not use in production until a stable release is available.
+⚠️ **This library is in active development with implemented cryptographic algorithms.**
+
+**Current Status:**
+- Core cryptographic primitives (ML-DSA, hashes) are implemented and tested
+- Provider pattern architecture is in place with proper error handling
+- No known security vulnerabilities in implemented algorithms
+- **NOT READY FOR PRODUCTION USE** until:
+  - Security audit completion
+  - Comprehensive testing (fuzzing, side-channel analysis)
+  - Performance optimization and validation
+  - AEAD implementation for authenticated encryption
+
+**Use only for:**
+- Research and development
+- Algorithm evaluation
+- Educational purposes
+- Non-production prototyping
+
+For production use, wait for version 1.0.0 and security audit completion.

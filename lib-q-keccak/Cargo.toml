@@ -1,0 +1,67 @@
+[package]
+name = "lib-q-keccak"
+version.workspace = true
+description = """
+Pure Rust implementation of the Keccak sponge function including the keccak-f
+and keccak-p variants for lib-Q
+"""
+authors.workspace = true
+license.workspace = true
+documentation = "https://docs.rs/lib-q-keccak"
+homepage = "https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sponge/keccak"
+repository.workspace = true
+keywords = ["crypto", "sponge", "keccak", "keccak-f", "keccak-p", "lib-q"]
+categories = ["cryptography", "no-std"]
+readme.workspace = true
+edition.workspace = true
+rust-version = "1.89"
+
+[features]
+default = ["std", "asm"]
+asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)
+no_unroll = [] # Do no unroll loops for binary size reduction
+simd = ["alloc"]      # Use core::simd (nightly-only) - requires alloc
+nightly = []   # Enable nightly-only features like benchmarking
+advanced-simd = ["simd"]  # Enable advanced SIMD features (requires nightly)
+arm64_sha3 = [] # Enable ARM64 SHA3 hardware acceleration (requires native ARM64 build)
+alloc = ["spin"]     # Enable alloc support for no_std environments
+std = ["alloc", "cpufeatures", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
+multithreading = ["std", "thread-affinity", "simd"]  # Enable multi-threading support with thread affinity
+thread-affinity = ["dep:core_affinity"]  # Enable thread affinity support
+
+[target.'cfg(all(target_arch = "aarch64", not(target_os = "macos")))'.dependencies]
+cpufeatures = { version = "0.2.17", optional = true }
+
+[dependencies]
+num_cpus = { version = "1.17.0", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = { version = "0.30.1", optional = true, features = ["sched", "process"] }
+
+# Thread affinity support - cross-platform
+[target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
+core_affinity = { version = "0.8.3", optional = true }
+
+# Global allocator for no_std builds - using a simpler approach
+spin = { version = "0.9.8", optional = true }
+
+[lib]
+name = "lib_q_keccak"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+    'cfg(cross_compile)',
+] }

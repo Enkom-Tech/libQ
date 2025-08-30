@@ -1,0 +1,56 @@
+name: Crate Publish
+description: Reusable action for publishing Rust crates to crates.io
+inputs:
+  package:
+    description: Package name to publish
+    required: true
+  token:
+    description: Cargo registry token
+    required: true
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  dry-run:
+    description: Whether to do a dry run (don't actually publish)
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    - name: Publish crate
+      shell: bash
+      run: |
+        echo "Publishing ${{ inputs.package }}..."
+        cd ${{ inputs.working-directory }}
+        
+        if [ -z "${{ inputs.token }}" ]; then
+          echo "Warning: Token not set, skipping publication"
+          exit 0
+        fi
+        
+        if [ "${{ inputs.dry-run }}" = "true" ]; then
+          echo "Dry run mode - would publish ${{ inputs.package }}"
+          cargo publish -p ${{ inputs.package }} --token ${{ inputs.token }} --dry-run
+        else
+          cargo publish -p ${{ inputs.package }} --token ${{ inputs.token }}
+        fi
+        
+        echo "Successfully published ${{ inputs.package }}"
