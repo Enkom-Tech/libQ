@@ -157,9 +157,9 @@ fn test_output_distribution() {
         let result = hasher.finalize_boxed(1);
 
         // Count bits in the single output byte
-        for bit_pos in 0..8 {
+        for (bit_pos, count) in bit_counts.iter_mut().enumerate() {
             if (result[0] >> bit_pos) & 1 == 1 {
-                bit_counts[bit_pos] += 1;
+                *count += 1;
             }
         }
     }

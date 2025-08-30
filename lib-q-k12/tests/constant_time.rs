@@ -62,11 +62,7 @@ fn test_hash_constant_time() {
     let tolerance = avg_time * 50 / 100; // 50% tolerance for real-world timing variations
 
     for (i, time) in times.iter().enumerate() {
-        let diff = if *time > avg_time {
-            *time - avg_time
-        } else {
-            avg_time - *time
-        };
+        let diff = (*time).abs_diff(avg_time);
 
         assert!(
             diff <= tolerance,
@@ -89,7 +85,7 @@ fn test_customization_constant_time() {
         b"".as_slice(),
         b"short".as_slice(),
         b"medium_length_customization".as_slice(),
-        &vec![0xAAu8; 100],
+        &[0xAAu8; 100],
     ];
 
     let mut times = Vec::new();
@@ -119,11 +115,7 @@ fn test_customization_constant_time() {
     let tolerance = avg_time * 60 / 100; // 60% tolerance for customization processing
 
     for (i, time) in times.iter().enumerate() {
-        let diff = if *time > avg_time {
-            *time - avg_time
-        } else {
-            avg_time - *time
-        };
+        let diff = (*time).abs_diff(avg_time);
 
         assert!(
             diff <= tolerance,
@@ -295,11 +287,7 @@ fn test_reset_constant_time() {
     }
 
     for (i, time) in times.iter().enumerate() {
-        let diff = if *time > avg_time {
-            *time - avg_time
-        } else {
-            avg_time - *time
-        };
+        let diff = (*time).abs_diff(avg_time);
 
         assert!(
             diff <= tolerance,
