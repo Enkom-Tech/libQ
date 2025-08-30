@@ -3,6 +3,8 @@
 //! These tests verify that Ascon operations maintain consistent performance
 //! characteristics and detect performance regressions.
 
+#![allow(clippy::clone_on_copy)]
+
 use std::time::{
     Duration,
     Instant,

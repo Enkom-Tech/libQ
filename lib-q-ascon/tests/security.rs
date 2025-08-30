@@ -3,6 +3,8 @@
 //! These tests verify security-critical properties including memory safety,
 //! input validation, error handling, and side-channel resistance.
 
+#![allow(clippy::clone_on_copy)]
+
 use std::panic;
 
 use lib_q_ascon::State;
@@ -16,8 +18,8 @@ fn test_invalid_round_count() {
     #[cfg(debug_assertions)]
     {
         let result = panic::catch_unwind(|| {
-            let mut test_state = state.clone();
-            test_state.permute_n(13); // Invalid: > 12
+            let mut test_state = state;
+            let _ = test_state.permute_n(13); // Invalid: > 12
         });
         assert!(
             result.is_err(),
@@ -114,9 +116,9 @@ fn test_permutation_determinism() {
     );
 
     // Apply permutation multiple times
-    let mut state1 = input_state.clone();
-    let mut state2 = input_state.clone();
-    let mut state3 = input_state.clone();
+    let mut state1 = input_state;
+    let mut state2 = state1;
+    let mut state3 = state1;
 
     state1.permute_12();
     state2.permute_12();
