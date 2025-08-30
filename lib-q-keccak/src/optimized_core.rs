@@ -321,7 +321,8 @@ pub fn fast_loop_absorb_optimized(
                 target_arch = "x86_64",
                 feature = "asm",
                 target_feature = "avx2",
-                not(cross_compile)
+                not(cross_compile),
+                not(target_feature = "avx512f")
             ))]
             {
                 unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) }
