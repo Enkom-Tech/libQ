@@ -417,13 +417,7 @@ fn test_performance_consistency() {
     let avg_time = run_times.iter().sum::<Duration>() / run_times.len() as u32;
     let max_deviation = run_times
         .iter()
-        .map(|&time| {
-            if time > avg_time {
-                time - avg_time
-            } else {
-                avg_time - time
-            }
-        })
+        .map(|&time| time.abs_diff(avg_time))
         .max()
         .unwrap();
 
