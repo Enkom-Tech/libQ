@@ -647,6 +647,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_threading_config_defaults() {
         let config = ThreadingConfig::default();
         assert!(config.num_threads > 0);
@@ -657,6 +658,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_threading_config_security_optimized() {
         let config = ThreadingConfig::security_optimized();
         assert_eq!(config.num_threads, 1);
@@ -666,6 +668,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_threading_config_performance_optimized() {
         let config = ThreadingConfig::performance_optimized();
         assert!(config.num_threads > 0);
@@ -675,6 +678,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_threading_config_balanced() {
         let config = ThreadingConfig::balanced();
         assert!(config.num_threads > 0);
@@ -684,6 +688,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_work_distribution() {
         let work_dist = WorkDistribution::new(100);
         assert!(!work_dist.is_completed());
@@ -700,6 +705,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_worker_id_and_stats() {
         let work_dist = Arc::new(WorkDistribution::new(10));
         let results = Arc::new(RwLock::new(vec![[0u64; 25]; 10]));
@@ -720,6 +726,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_sequential_processing() {
         let config = ThreadingConfig::security_optimized();
         let pool = CryptoThreadPool::new(config);
@@ -738,6 +745,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_global_thread_pool() {
         let config = ThreadingConfig::balanced();
         init_global_thread_pool(config);

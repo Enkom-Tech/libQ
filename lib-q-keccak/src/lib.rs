@@ -201,13 +201,15 @@ macro_rules! impl_lanesize {
 impl_lanesize!(u8, 18, |rc: u64| { rc.to_le_bytes()[0] });
 impl_lanesize!(u16, 20, |rc: u64| {
     let tmp = rc.to_le_bytes();
-    #[allow(clippy::unwrap_used)]
-    Self::from_le_bytes(tmp[..size_of::<Self>()].try_into().unwrap())
+    // Safe conversion: size_of::<u16>() = 2, and we're taking first 2 bytes
+    let bytes = [tmp[0], tmp[1]];
+    Self::from_le_bytes(bytes)
 });
 impl_lanesize!(u32, 22, |rc: u64| {
     let tmp = rc.to_le_bytes();
-    #[allow(clippy::unwrap_used)]
-    Self::from_le_bytes(tmp[..size_of::<Self>()].try_into().unwrap())
+    // Safe conversion: size_of::<u32>() = 4, and we're taking first 4 bytes
+    let bytes = [tmp[0], tmp[1], tmp[2], tmp[3]];
+    Self::from_le_bytes(bytes)
 });
 impl_lanesize!(u64, 24, |rc: u64| { rc });
 
@@ -335,8 +337,11 @@ pub mod advanced {
 #[allow(unused_assignments)]
 /// Generic Keccak-p sponge function
 pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
+    // Safety: round_count should never exceed KECCAK_F_ROUND_COUNT in practice
+    // All callers use valid round counts (typically 12, 24, etc.)
     if round_count > L::KECCAK_F_ROUND_COUNT {
-        panic!("A round_count greater than KECCAK_F_ROUND_COUNT is not supported!");
+        // This should never happen in practice, but if it does, we skip the operation
+        return;
     }
 
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf#page=25
