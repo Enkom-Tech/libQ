@@ -285,11 +285,11 @@ pub fn fast_loop_absorb_optimized(
                 not(cross_compile)
             ))]
             {
-                unsafe { crate::x86::fast_loop_absorb_avx2(state, 1, data) }
+                return unsafe { crate::x86::fast_loop_absorb_avx2(state, 1, data) };
             }
             #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
-                fast_loop_absorb_reference(state, data)
+                return fast_loop_absorb_reference(state, data);
             }
         }
         OptimizationLevel::Advanced => {
@@ -300,11 +300,11 @@ pub fn fast_loop_absorb_optimized(
                 not(cross_compile)
             ))]
             {
-                unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) }
+                return unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) };
             }
             #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
-                fast_loop_absorb_reference(state, data)
+                return fast_loop_absorb_reference(state, data);
             }
         }
         OptimizationLevel::Maximum => {
@@ -315,7 +315,7 @@ pub fn fast_loop_absorb_optimized(
                 not(cross_compile)
             ))]
             {
-                unsafe { crate::x86::fast_loop_absorb_avx2(state, 8, data) }
+                return unsafe { crate::x86::fast_loop_absorb_avx2(state, 8, data) };
             }
             #[cfg(all(
                 target_arch = "x86_64",
@@ -325,14 +325,14 @@ pub fn fast_loop_absorb_optimized(
                 not(target_feature = "avx512f")
             ))]
             {
-                unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) }
+                return unsafe { crate::x86::fast_loop_absorb_avx2(state, 4, data) };
             }
             #[cfg(not(all(
                 target_arch = "x86_64",
                 any(target_feature = "avx2", target_feature = "avx512f")
             )))]
             {
-                fast_loop_absorb_reference(state, data)
+                return fast_loop_absorb_reference(state, data);
             }
         }
     }
