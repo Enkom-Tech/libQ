@@ -180,6 +180,7 @@ impl State {
     /// Perform a given number (up to 12) of permutations
     ///
     /// Returns an error if `rounds` is larger than 12.
+    #[allow(clippy::result_unit_err)]
     pub fn permute_n(&mut self, rounds: usize) -> Result<(), ()> {
         if rounds > 12 {
             return Err(());

@@ -284,9 +284,16 @@ jobs:
           # Run the cross-compilation test script
           chmod +x cross_compile_test.sh
           ./cross_compile_test.sh
-          # Run the new cross-compilation unit tests
-          cargo test --target ${{ matrix.target }} --features std cross_compilation --release --verbose
-          echo "✅ Cross-compilation tests passed"
+          echo "✅ Cross-compilation build validation passed"
+
+      - name: Build cross-compilation tests (without execution)
+        if: matrix.install-cross-compiler && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
+        run: |
+          echo "Building cross-compilation tests for ${{ matrix.name }} (execution skipped)"
+          # Build tests for cross-compilation target to ensure they compile correctly
+          # We skip execution since we can't run ARM binaries on x86_64 hosts
+          cargo test --target ${{ matrix.target }} --features std cross_compilation --release --no-run
+          echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
   # Performance and benchmarks - runs after core validation
   performance:
