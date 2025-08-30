@@ -267,7 +267,14 @@ impl FeatureReport {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::detection;
+    use crate::{
+        FeatureConfig,
+        OptimizationLevel,
+        get_global_config,
+        reset_global_config,
+        set_global_config,
+    };
 
     #[test]
     #[cfg(feature = "std")]

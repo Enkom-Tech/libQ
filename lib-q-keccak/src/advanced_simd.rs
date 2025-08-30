@@ -687,7 +687,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "std", feature = "simd"))]
     fn test_parallel_2x_consistency() {
         let mut states = [[0u64; 25], [0u64; 25]];
 

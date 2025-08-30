@@ -1,3 +1,5 @@
+#![cfg(feature = "std")]
+
 //! Cross-compilation validation tests
 //!
 //! This module provides comprehensive tests to ensure that cross-compilation
@@ -21,6 +23,7 @@ mod tests {
 
     /// Test that basic Keccak operations work identically across architectures
     #[test]
+    #[cfg(feature = "std")]
     fn test_keccak_consistency_across_architectures() {
         // Test vector from Keccak reference implementation
         let mut state1 = [
@@ -85,6 +88,7 @@ mod tests {
 
     /// Test that cross-compilation flags are properly applied
     #[test]
+    #[cfg(feature = "std")]
     fn test_cross_compilation_flags() {
         // This test verifies that the cross_compile cfg flag is working
         // During cross-compilation, this should be true and optimizations disabled
@@ -110,6 +114,7 @@ mod tests {
 
     /// Test Keccak-p with various round counts for consistency
     #[test]
+    #[cfg(feature = "std")]
     fn test_keccak_p_rounds_consistency() {
         let state = [0u64; 25];
         let original_state = state;
@@ -137,10 +142,16 @@ mod tests {
 
     /// Test that SIMD features are properly disabled during cross-compilation
     #[test]
+    #[cfg(feature = "std")]
     fn test_simd_features_disabled_cross_compile() {
         // During cross-compilation, SIMD features should be disabled
         // This test ensures the feature gating works correctly
-        #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
+        #[cfg(all(
+            feature = "std",
+            target_arch = "x86_64",
+            target_feature = "avx2",
+            not(cross_compile)
+        ))]
         {
             // AVX2 should only be available during native x86_64 compilation
             // This code path should only be reached on native builds
@@ -150,7 +161,12 @@ mod tests {
             );
         }
 
-        #[cfg(all(target_arch = "aarch64", feature = "arm64_sha3", not(cross_compile)))]
+        #[cfg(all(
+            feature = "std",
+            target_arch = "aarch64",
+            feature = "arm64_sha3",
+            not(cross_compile)
+        ))]
         {
             // ARM64 SHA3 should only be available during native ARM64 compilation
             assert!(
@@ -162,6 +178,7 @@ mod tests {
 
     /// Test memory safety and bounds checking
     #[test]
+    #[cfg(feature = "std")]
     fn test_memory_safety_cross_compile() {
         let mut state = [0u64; 25];
 

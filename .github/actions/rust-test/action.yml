@@ -60,10 +60,21 @@ runs:
       run: |
         echo "Running tests..."
         cd ${{ inputs.working-directory }}
-        if [ -n "${{ inputs.package }}" ]; then
-          cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --verbose
+
+        # Check if we're running no_std tests and adjust accordingly
+        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
+          echo "Running no_std tests - excluding std-dependent test files"
+          if [ -n "${{ inputs.package }}" ]; then
+            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --verbose
+          else
+            cargo test --features "${{ inputs.features }}" --lib --verbose
+          fi
         else
-          cargo test --features "${{ inputs.features }}" --verbose
+          if [ -n "${{ inputs.package }}" ]; then
+            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --verbose
+          else
+            cargo test --features "${{ inputs.features }}" --verbose
+          fi
         fi
         echo "Tests completed"
     
@@ -73,24 +84,35 @@ runs:
       run: |
         echo "Running release tests..."
         cd ${{ inputs.working-directory }}
-        if [ -n "${{ inputs.package }}" ]; then
-          cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --release --verbose
+
+        # Check if we're running no_std tests and adjust accordingly
+        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
+          echo "Running no_std release tests - excluding std-dependent test files"
+          if [ -n "${{ inputs.package }}" ]; then
+            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --release --verbose
+          else
+            cargo test --features "${{ inputs.features }}" --lib --release --verbose
+          fi
         else
-          cargo test --features "${{ inputs.features }}" --release --verbose
+          if [ -n "${{ inputs.package }}" ]; then
+            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --release --verbose
+          else
+            cargo test --features "${{ inputs.features }}" --release --verbose
+          fi
         fi
         echo "Release tests completed"
     
     - name: Generate coverage report
-      if: inputs.run-coverage == 'true'
+      if: inputs.run-coverage == 'true' && inputs.features != 'no_std*'
       shell: bash
       run: |
         echo "Generating coverage report..."
         cd ${{ inputs.working-directory }}
         cargo tarpaulin --features "${{ inputs.features }}" --out Html --output-dir coverage
         echo "Coverage report generated"
-    
+
     - name: Check coverage threshold
-      if: inputs.run-coverage == 'true'
+      if: inputs.run-coverage == 'true' && inputs.features != 'no_std*'
       shell: bash
       run: |
         echo "Checking coverage threshold..."
