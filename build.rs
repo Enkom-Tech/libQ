@@ -3,6 +3,8 @@ use std::env;
 fn main() {
     #[allow(clippy::disallowed_methods)]
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    #[allow(clippy::disallowed_methods)]
+    let _target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
 
     // SIMD detection
     let disable_simd128 = read_env("LIBQ_DISABLE_SIMD128");
@@ -28,11 +30,14 @@ fn main() {
         println!("cargo:rustc-cfg=feature=\"simd256\"");
     }
 
+    // Note: WebAssembly getrandom configuration is handled in .cargo/config.toml
+
     // Set configuration flags for build-time detection
     println!("cargo::rustc-check-cfg=cfg(eurydice)");
     println!("cargo::rustc-check-cfg=cfg(simd128)");
     println!("cargo::rustc-check-cfg=cfg(simd256)");
     println!("cargo::rustc-check-cfg=cfg(hax)");
+    println!("cargo::rustc-check-cfg=cfg(getrandom_backend)");
 }
 
 fn read_env(key: &str) -> bool {

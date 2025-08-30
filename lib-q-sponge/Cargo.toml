@@ -19,7 +19,7 @@ name = "lib_q_sponge"
 path = "src/lib.rs"
 
 [features]
-default = []
+default = ["asm"]
 asm = ["lib-q-keccak/asm"]
 wasm = ["wasm-bindgen"]
 

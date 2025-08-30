@@ -63,11 +63,6 @@ rustflags = [
     "-C", "target-feature=+avx2,+sse4.1",
 ]
 
-# WASM target configuration
-[target.wasm32-unknown-unknown]
-# Use wasm-pack for WASM builds
-runner = "wasm-pack"
-
 # Security-focused build configuration
 [profile.release]
 # Enable Link Time Optimization for better security and performance
@@ -99,3 +94,16 @@ debug-assertions = true
 inherits = "release"
 # Enable debug info for profiling
 debug = true
+
+# WebAssembly-specific configuration
+[target.wasm32-unknown-unknown]
+# Configure getrandom for WebAssembly builds
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+]
+
+[target.wasm32-wasi]
+# Configure getrandom for WebAssembly WASI builds
+rustflags = [
+    "--cfg", "getrandom_backend=\"wasm_js\"",
+]

@@ -17,7 +17,7 @@ edition.workspace = true
 rust-version = "1.89"
 
 [features]
-default = ["std"]
+default = ["std", "asm"]
 asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)
 no_unroll = [] # Do no unroll loops for binary size reduction
 simd = ["alloc"]      # Use core::simd (nightly-only) - requires alloc
