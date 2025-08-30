@@ -77,7 +77,6 @@ extern crate std;
 /// [1]: https://docs.rs/sha3
 /// [2]: https://docs.rs/tiny-keccak
 use core::fmt::Debug;
-use core::mem::size_of;
 use core::ops::{
     BitAnd,
     BitAndAssign,
