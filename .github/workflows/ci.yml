@@ -222,11 +222,45 @@ jobs:
         if: matrix.install-cross-compiler && runner.os != 'Windows'
         run: |
           echo "Verifying cross-compilation integrity for ${{ matrix.name }} on Unix-like system"
+
+          # Debug: List all files in the target directory
+          echo "Files in target/${{ matrix.target }}/release/:"
+          ls -la target/${{ matrix.target }}/release/ || echo "Directory not found"
+
+          # Check if the expected library file exists (main workspace library)
+          if [[ ! -f "target/${{ matrix.target }}/release/liblibq.so" ]]; then
+            echo "❌ Expected library file not found: target/${{ matrix.target }}/release/liblibq.so"
+            echo "Available files:"
+            ls -la target/${{ matrix.target }}/release/ 2>/dev/null || echo "No files found"
+            echo "This suggests the cross-compilation may not have produced the expected output."
+            exit 1
+          fi
+
+          # Debug: Show file command output
+          echo "File command output:"
+          file target/${{ matrix.target }}/release/liblibq.so || echo "File command failed"
+
           # Check that the binary was compiled for the correct architecture
           if [[ "${{ matrix.target }}" == aarch64-* ]]; then
-            file target/${{ matrix.target }}/release/liblib_q_keccak.so | grep -q "ARM aarch64" || (echo "Architecture mismatch detected!" && exit 1)
+            echo "Checking for ARM aarch64 architecture..."
+            if file target/${{ matrix.target }}/release/liblibq.so | grep -q "ARM aarch64"; then
+              echo "✅ ARM aarch64 architecture confirmed"
+            else
+              echo "❌ ARM aarch64 architecture NOT found"
+              echo "File command output was:"
+              file target/${{ matrix.target }}/release/liblibq.so || echo "File command failed"
+              exit 1
+            fi
           elif [[ "${{ matrix.target }}" == armv7-* ]]; then
-            file target/${{ matrix.target }}/release/liblib_q_keccak.so | grep -q "ARM" || (echo "Architecture mismatch detected!" && exit 1)
+            echo "Checking for ARM architecture..."
+            if file target/${{ matrix.target }}/release/liblibq.so | grep -q "ARM"; then
+              echo "✅ ARM architecture confirmed"
+            else
+              echo "❌ ARM architecture NOT found"
+              echo "File command output was:"
+              file target/${{ matrix.target }}/release/liblibq.so || echo "File command failed"
+              exit 1
+            fi
           fi
           echo "✅ Cross-compilation integrity verified"
 

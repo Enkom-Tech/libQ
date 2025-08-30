@@ -303,7 +303,7 @@ fn test_permute_n_consistency() {
             tv.input[4],
         );
 
-        state_n6.permute_n(6);
+        state_n6.permute_n(6).expect("6 rounds should be valid");
         state_6.permute_6();
 
         assert_eq!(
@@ -335,7 +335,7 @@ fn test_permute_n_consistency() {
             tv.input[4],
         );
 
-        state_n8.permute_n(8);
+        state_n8.permute_n(8).expect("8 rounds should be valid");
         state_8.permute_8();
 
         assert_eq!(
@@ -367,7 +367,7 @@ fn test_permute_n_consistency() {
             tv.input[4],
         );
 
-        state_n12.permute_n(12);
+        state_n12.permute_n(12).expect("12 rounds should be valid");
         state_12.permute_12();
 
         assert_eq!(

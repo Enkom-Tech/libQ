@@ -39,7 +39,7 @@ const fn round_constant(round: u64) -> u64 {
 /// The state of Ascon's permutation.
 ///
 /// The permutation operates on a state of 320 bits represented as 5 64 bit words.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct State {
     x: [u64; 5],
 }
@@ -179,14 +179,17 @@ impl State {
 
     /// Perform a given number (up to 12) of permutations
     ///
-    /// Panics (in debug mode) if `rounds` is larger than 12.
-    pub fn permute_n(&mut self, rounds: usize) {
-        debug_assert!(rounds <= 12);
+    /// Returns an error if `rounds` is larger than 12.
+    pub fn permute_n(&mut self, rounds: usize) -> Result<(), ()> {
+        if rounds > 12 {
+            return Err(());
+        }
 
         let start = 12 - rounds;
         self.x = (start..12).fold(self.x, |x, round_index| {
             round(x, round_constant(round_index as u64))
         });
+        Ok(())
     }
 
     /// Convert state to bytes.
@@ -245,7 +248,11 @@ impl TryFrom<&[u8]> for State {
             .chunks_exact(core::mem::size_of::<u64>())
             .zip(state.x.iter_mut())
         {
-            *dst = u64::from_be_bytes(src.try_into().unwrap());
+            // Safe conversion: chunks_exact ensures 8-byte chunks
+            let bytes = [
+                src[0], src[1], src[2], src[3], src[4], src[5], src[6], src[7],
+            ];
+            *dst = u64::from_be_bytes(bytes);
         }
         Ok(state)
     }
@@ -258,7 +265,9 @@ impl From<&[u8; size_of::<u64>() * 5]> for State {
             .chunks_exact(core::mem::size_of::<u64>())
             .zip(state.x.iter_mut())
         {
-            *dst = u64::from_be_bytes(src.try_into().unwrap());
+            // Safe conversion since we know the array size and chunk size
+            let bytes: [u8; 8] = src.try_into().expect("chunk size should be 8 bytes");
+            *dst = u64::from_be_bytes(bytes);
         }
         state
     }
@@ -403,18 +412,18 @@ mod tests {
             0xABCDEF0123456789,
             0x89ABCDEF01234567,
         );
-        let mut state2 = state.clone();
+        let mut state2 = state;
 
         state.permute_6();
-        state2.permute_n(6);
+        state2.permute_n(6).expect("6 rounds should be valid");
         assert_eq!(state.x, state2.x);
 
         state.permute_8();
-        state2.permute_n(8);
+        state2.permute_n(8).expect("8 rounds should be valid");
         assert_eq!(state.x, state2.x);
 
         state.permute_12();
-        state2.permute_n(12);
+        state2.permute_n(12).expect("12 rounds should be valid");
         assert_eq!(state.x, state2.x);
     }
 

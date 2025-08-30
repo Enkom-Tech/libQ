@@ -26,10 +26,10 @@ fn test_invalid_round_count() {
     }
 
     // Test that valid round counts work
-    state.permute_n(1);
-    state.permute_n(6);
-    state.permute_n(8);
-    state.permute_n(12);
+    state.permute_n(1).expect("1 round should be valid");
+    state.permute_n(6).expect("6 rounds should be valid");
+    state.permute_n(8).expect("8 rounds should be valid");
+    state.permute_n(12).expect("12 rounds should be valid");
 }
 
 /// Test that state indexing is bounds-checked
