@@ -433,12 +433,14 @@ pub use crate::optimized_core::{
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "std")]
     use crate::{
         LaneSize,
         PLEN,
         keccak_p,
     };
 
+    #[cfg(feature = "std")]
     fn keccak_f<L: LaneSize>(state_first: [L; PLEN], state_second: [L; PLEN]) {
         let mut state = [L::default(); PLEN];
 

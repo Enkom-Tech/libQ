@@ -447,7 +447,12 @@ mod tests {
     use crate::p1600;
 
     #[test]
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
+    #[cfg(all(
+        target_arch = "x86_64",
+        target_feature = "avx2",
+        not(cross_compile),
+        feature = "std"
+    ))]
     fn test_avx2_consistency() {
         let mut state1 = [0u64; 25];
         let mut state2 = [0u64; 25];

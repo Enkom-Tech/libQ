@@ -659,6 +659,7 @@ pub mod parallel {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "std")]
     use super::*;
 
     #[test]
@@ -673,6 +674,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_p1600_optimized_consistency() {
         let mut state1 = [0u64; 25];
         let mut state2 = [0u64; 25];
