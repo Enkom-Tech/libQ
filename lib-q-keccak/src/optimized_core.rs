@@ -289,7 +289,7 @@ pub fn fast_loop_absorb_optimized(
             }
             #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
-                return fast_loop_absorb_reference(state, data);
+                fast_loop_absorb_reference(state, data)
             }
         }
         OptimizationLevel::Advanced => {
@@ -304,7 +304,7 @@ pub fn fast_loop_absorb_optimized(
             }
             #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
             {
-                return fast_loop_absorb_reference(state, data);
+                fast_loop_absorb_reference(state, data)
             }
         }
         OptimizationLevel::Maximum => {
@@ -329,10 +329,12 @@ pub fn fast_loop_absorb_optimized(
             }
             #[cfg(not(all(
                 target_arch = "x86_64",
-                any(target_feature = "avx2", target_feature = "avx512f")
+                feature = "asm",
+                any(target_feature = "avx2", target_feature = "avx512f"),
+                not(cross_compile)
             )))]
             {
-                return fast_loop_absorb_reference(state, data);
+                fast_loop_absorb_reference(state, data)
             }
         }
     }
