@@ -677,7 +677,8 @@ unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
 
 // Provide panic handler for no_std builds
 // This is required when building without std, even with panic="abort" in Cargo.toml
-#[cfg(not(feature = "std"))]
+// We exclude tests because the test framework depends on std which provides its own panic handler
+#[cfg(all(not(feature = "std"), not(test)))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // With panic="abort", this function should never be called
