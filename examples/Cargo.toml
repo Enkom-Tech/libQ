@@ -11,7 +11,13 @@ lib-q-hash = { path = "../lib-q-hash" }
 lib-q-core = { path = "../lib-q-core" }
 lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
 lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
+lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
 
 [[example]]
 name = "hash_example"
 path = "hash_example.rs"
+
+[[example]]
+name = "keccak_no_std_test"
+path = "keccak_no_std_test.rs"
+required-features = []

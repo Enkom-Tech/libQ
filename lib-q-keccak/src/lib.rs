@@ -433,14 +433,12 @@ pub use crate::optimized_core::{
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "std")]
     use crate::{
         LaneSize,
         PLEN,
         keccak_p,
     };
 
-    #[cfg(feature = "std")]
     fn keccak_f<L: LaneSize>(state_first: [L; PLEN], state_second: [L; PLEN]) {
         let mut state = [L::default(); PLEN];
 
@@ -452,7 +450,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn keccak_f200() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-200-IntermediateValues.txt
@@ -469,7 +466,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn keccak_f400() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-400-IntermediateValues.txt
@@ -488,7 +484,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn keccak_f800() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-800-IntermediateValues.txt
@@ -509,7 +504,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "std")]
     fn keccak_f1600() {
         // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt
@@ -571,7 +565,7 @@ mod tests {
         keccak_f::<u64>(state_first, state_second);
     }
 
-    #[cfg(all(test, feature = "simd", feature = "std"))]
+    #[cfg(all(test, feature = "simd"))]
     mod test_simd {
         use core::simd::{
             u64x2,
@@ -681,7 +675,7 @@ unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
     }
 }
 
-// Panic handler for no_std builds (not for tests)
+// Panic handler for no_std builds (not during testing)
 #[cfg(all(not(feature = "std"), not(test)))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
