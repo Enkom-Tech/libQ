@@ -13,7 +13,7 @@ readme.workspace = true
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 zeroize = "1.8.1"
-getrandom = { version = "0.3.3", features = ["std"] }
+getrandom = { version = "0.3.3", default-features = false }
 digest = "0.11.0-rc.0"
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-k12 = { path = "../lib-q-k12" }
@@ -36,6 +36,9 @@ nightly = ["lib-q-keccak/nightly"] # Enable nightly Rust features
 advanced-simd = ["lib-q-keccak/advanced-simd"] # Enable advanced SIMD features
 multithreading = ["lib-q-keccak/multithreading"] # Enable multi-threading support
 parallelhash = ["rayon"] # Enable parallel processing for ParallelHash
+
+# WASM-specific configuration
+wasm_js = ["getrandom/wasm_js"] # Enable WASM JS backend for getrandom
 
 [lib]
 name = "lib_q_hash"
