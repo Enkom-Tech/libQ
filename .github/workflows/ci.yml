@@ -378,7 +378,7 @@ jobs:
             run-benchmarks: "false"
           - name: "K12"
             action: test-k12
-            working-directory: lib-q-k12
+            working-directory: lib-q-hash
             features: "alloc,oid"
             rust-version: "stable"
             run-benchmarks: "false"
