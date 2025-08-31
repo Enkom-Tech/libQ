@@ -9,14 +9,21 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-// Provide panic handler for no_std builds
-// This is required when building without std, even with panic="abort" in Cargo.toml
-// We exclude tests because the test framework depends on std which provides its own panic handler
-#[cfg(all(not(feature = "std"), not(test)))]
+// Provide panic handler for pure no_std builds only
+// This ensures we don't conflict with the test framework or std builds
+//
+// Conditions for inclusion:
+// - std feature is disabled (not(feature = "std"))
+// - Not in test mode (not(test))
+// - Not in doctest mode (not(doctest))
+// - Not building documentation (not(docsrs))
+#[cfg(all(not(feature = "std"), not(test), not(doctest), not(docsrs)))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
-    // With panic="abort", this function should never be called
-    // We provide it only to satisfy the compiler requirements
+    // With panic="abort" (configured in workspace Cargo.toml),
+    // this function should never be called in practice.
+    // We provide it only to satisfy the compiler's requirements
+    // for no_std builds that don't have std's panic handler available.
     loop {
         // Infinite loop is safe and satisfies the ! return type
         // In practice, panic="abort" means this will never execute
