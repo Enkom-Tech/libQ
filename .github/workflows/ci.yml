@@ -54,7 +54,7 @@ jobs:
             package: ""
           - name: "no_std"
             features: "no_std,getrandom"
-            package: ""
+            package: "lib-q-core"
           - name: "wasm"
             features: "std,wasm"
             package: ""
@@ -67,6 +67,12 @@ jobs:
           - name: "lib-q-ml-kem"
             features: "std"
             package: "lib-q-ml-kem"
+          - name: "lib-q-ascon no_std"
+            features: "no_std"
+            package: "lib-q-ascon"
+          - name: "lib-q-keccak no_std"
+            features: "alloc"
+            package: "lib-q-keccak"
     
     steps:
       - uses: actions/checkout@v5
