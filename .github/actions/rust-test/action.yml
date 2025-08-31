@@ -67,7 +67,9 @@ runs:
           if [ -n "${{ inputs.package }}" ]; then
             cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --verbose
           else
-            cargo test --features "${{ inputs.features }}" --lib --verbose
+            # For no_std workspace tests, we need to be more careful about dependencies
+            # Use --no-default-features to ensure clean no_std build
+            cargo test --no-default-features --features "${{ inputs.features }}" --lib --verbose
           fi
         else
           if [ -n "${{ inputs.package }}" ]; then
@@ -91,7 +93,9 @@ runs:
           if [ -n "${{ inputs.package }}" ]; then
             cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --release --verbose
           else
-            cargo test --features "${{ inputs.features }}" --lib --release --verbose
+            # For no_std workspace tests, we need to be more careful about dependencies
+            # Use --no-default-features to ensure clean no_std build
+            cargo test --no-default-features --features "${{ inputs.features }}" --lib --release --verbose
           fi
         else
           if [ -n "${{ inputs.package }}" ]; then
@@ -108,7 +112,11 @@ runs:
       run: |
         echo "Generating coverage report..."
         cd ${{ inputs.working-directory }}
-        cargo tarpaulin --features "${{ inputs.features }}" --out Html --output-dir coverage
+        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
+          cargo tarpaulin --no-default-features --features "${{ inputs.features }}" --out Html --output-dir coverage
+        else
+          cargo tarpaulin --features "${{ inputs.features }}" --out Html --output-dir coverage
+        fi
         echo "Coverage report generated"
 
     - name: Check coverage threshold
@@ -117,7 +125,11 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        COVERAGE=$(cargo tarpaulin --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
+          COVERAGE=$(cargo tarpaulin --no-default-features --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        else
+          COVERAGE=$(cargo tarpaulin --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        fi
         echo "Coverage: $COVERAGE%"
         if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
           echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"
