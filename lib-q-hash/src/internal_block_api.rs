@@ -32,6 +32,8 @@ use digest::{
     HashMarker,
     Output,
 };
+#[cfg(feature = "simd")]
+use lib_q_keccak::OptimizationLevel;
 
 // Re-export cSHAKE cores for external use
 #[allow(unused_imports)]

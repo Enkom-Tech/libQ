@@ -30,13 +30,14 @@ use digest::{
     Reset,
 };
 
+#[cfg(not(feature = "simd"))]
+use crate::DEFAULT_ROUND_COUNT as ROUNDS;
 use crate::internal_block_api::{
     Sha3ReaderCore,
     xor_block,
 };
 use crate::{
     CSHAKE_PAD,
-    DEFAULT_ROUND_COUNT as ROUNDS,
     PLEN,
     SHAKE_PAD,
 };
