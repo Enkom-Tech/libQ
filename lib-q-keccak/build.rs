@@ -1,11 +1,16 @@
-/// Build script for lib-q-keccak
-///
-/// This build script ensures proper conditional compilation for no_std environments.
-/// It provides additional configuration options beyond what Cargo features can handle.
-use std::env;
+#![allow(clippy::disallowed_methods)]
+// Allow use of std::env::var for reading Cargo-set environment variables
+// This is safe because we only read variables set by Cargo itself
 
+//! Build script for lib-q-keccak
+//!
+//! This build script ensures proper conditional compilation for no_std environments.
+//! It provides additional configuration options beyond what Cargo features can handle.
+
+use std::env;
 fn main() {
     // Get build configuration from environment
+    // These are Cargo-set environment variables and are safe to read
     let target = env::var("TARGET").unwrap_or_default();
     let profile = env::var("PROFILE").unwrap_or_default();
 
