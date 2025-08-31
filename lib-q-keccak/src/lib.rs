@@ -571,7 +571,7 @@ mod tests {
         keccak_f::<u64>(state_first, state_second);
     }
 
-    #[cfg(all(test, feature = "simd"))]
+    #[cfg(all(test, feature = "simd", feature = "std"))]
     mod test_simd {
         use core::simd::{
             u64x2,
