@@ -173,15 +173,20 @@ debug = true
 lto = false
 panic = "abort"
 
+[profile.release-security]
+inherits = "release"
+panic = "abort"
+
+[profile.dev-security]
+inherits = "dev"
+panic = "abort"
+
 [profile.bench]
 opt-level = 3
 lto = "fat"
 codegen-units = 1
 debug = false
 
-# Security-focused release profile
-[profile.release-security]
-inherits = "release"
 # Additional security hardening options can be added here
 
 [package.metadata.docs.rs]
