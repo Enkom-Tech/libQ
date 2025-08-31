@@ -9,12 +9,8 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-// Panic handler for no_std environments
-#[cfg(not(feature = "std"))]
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
+// Note: No panic handler needed - this crate always uses std by default
+// The workspace panic="abort" configuration handles panics appropriately
 
 use core::mem::size_of;
 

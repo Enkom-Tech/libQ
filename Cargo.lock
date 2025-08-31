@@ -508,6 +508,7 @@ dependencies = [
 name = "lib-q-examples"
 version = "0.0.2"
 dependencies = [
+ "lib-q",
  "lib-q-core",
  "lib-q-hash",
  "lib-q-keccak",

@@ -675,11 +675,12 @@ unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
     }
 }
 
-// Panic handler for no_std builds (not during testing)
-#[cfg(all(not(feature = "std"), not(test)))]
+// Provide panic handler for no_std builds
+// This is required when building without std, even with panic="abort" in Cargo.toml
+#[cfg(not(feature = "std"))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
-    // For no_std environments, we loop forever on panic
-    // In a real application, this should be customized based on the target platform
-    loop {}
+    // With panic="abort", this function should never be called
+    // We provide it only to satisfy the compiler requirements
+    unsafe { core::hint::unreachable_unchecked() }
 }

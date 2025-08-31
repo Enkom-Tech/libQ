@@ -705,8 +705,11 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "std", feature = "simd"))]
     fn test_parallel_processing() {
+        use super::parallel;
+        use super::OptimizationLevel;
+
         let mut states = [[0u64; 25], [0u64; 25], [0u64; 25], [0u64; 25]];
 
         // Initialize with test data - use values that will definitely change during permutation
