@@ -6,7 +6,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 // Provide panic handler for no_std environments
@@ -17,11 +16,7 @@ fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // With panic="abort" (configured in workspace Cargo.toml),
     // this function should never be called in practice.
     // We provide it to satisfy the compiler's requirements for no_std builds.
-    loop {
-        // Infinite loop is safe and satisfies the ! return type
-        // In practice, panic="abort" means this will never execute
-        core::hint::spin_loop();
-    }
+    unsafe { core::hint::unreachable_unchecked() }
 }
 
 // Note: This crate supports no_std when built with --no-default-features

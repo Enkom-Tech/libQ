@@ -253,11 +253,11 @@ impl FeatureReport {
 
     /// Get the recommended optimization level based on available features
     pub fn recommended_optimization_level(&self) -> OptimizationLevel {
-        if self.avx512f {
+        if self.avx512f && OptimizationLevel::Maximum.is_available() {
             OptimizationLevel::Maximum
-        } else if self.avx2 {
+        } else if self.avx2 && OptimizationLevel::Advanced.is_available() {
             OptimizationLevel::Advanced
-        } else if self.sha3_intrinsics {
+        } else if self.sha3_intrinsics && OptimizationLevel::Basic.is_available() {
             OptimizationLevel::Basic
         } else {
             OptimizationLevel::Reference

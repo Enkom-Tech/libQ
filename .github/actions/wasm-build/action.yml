@@ -59,7 +59,7 @@ runs:
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          wasm-pack build --target web --features "${{ inputs.features }}" --verbose
+          wasm-pack build --target web -- --features "${{ inputs.features }}" --verbose
         else
           wasm-pack build --target web --verbose
         fi
@@ -72,7 +72,7 @@ runs:
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          wasm-pack build --target nodejs --features "${{ inputs.features }}" --verbose
+          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --verbose
         else
           wasm-pack build --target nodejs --verbose
         fi

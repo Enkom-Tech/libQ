@@ -65,7 +65,7 @@ runs:
         if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
           echo "Running no_std compilation check - cannot run tests in no_std mode"
           echo "Test framework requires std, so we only check compilation"
-          if [ -n "${{ inputs.package }}" ]; then
+          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             echo "Testing specific package: ${{ inputs.package }}"
             # Check that the specific package compiles in no_std mode
             cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --verbose
@@ -75,7 +75,7 @@ runs:
             cargo check --no-default-features --features "${{ inputs.features }}" --verbose
           fi
         else
-          if [ -n "${{ inputs.package }}" ]; then
+          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --verbose
           else
             cargo test --features "${{ inputs.features }}" --verbose
@@ -94,7 +94,7 @@ runs:
         if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
           echo "Running no_std release compilation check - cannot run tests in no_std mode"
           echo "Test framework requires std, so we only check compilation"
-          if [ -n "${{ inputs.package }}" ]; then
+          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             echo "Testing specific package in release: ${{ inputs.package }}"
             # Check that the specific package compiles in no_std mode for release
             cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --release --verbose
@@ -104,7 +104,7 @@ runs:
             cargo check --no-default-features --features "${{ inputs.features }}" --release --verbose
           fi
         else
-          if [ -n "${{ inputs.package }}" ]; then
+          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --release --verbose
           else
             cargo test --features "${{ inputs.features }}" --release --verbose
