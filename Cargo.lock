@@ -457,6 +457,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-hash",
  "lib-q-hpke",
+ "lib-q-keccak",
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-sig",

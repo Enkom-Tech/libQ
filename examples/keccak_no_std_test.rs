@@ -5,8 +5,8 @@
 //!
 //! Run with: cargo run --example keccak_no_std_test --no-default-features
 
-// Import the keccak library
-use lib_q_keccak::{
+// Import the keccak library (re-exported from lib-q root)
+use libq::{
     f200,
     f400,
     f800,

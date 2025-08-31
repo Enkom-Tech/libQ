@@ -76,6 +76,13 @@ pub use lib_q_hash::{
 // HPKE support (post-quantum only)
 #[cfg(feature = "hpke")]
 pub use lib_q_hpke::*;
+// Keccak permutation functions (low-level primitives)
+pub use lib_q_keccak::{
+    f200,
+    f400,
+    f800,
+    f1600,
+};
 pub use lib_q_kem::create_kem;
 pub use lib_q_ml_dsa::types::*;
 #[cfg(feature = "std")]
