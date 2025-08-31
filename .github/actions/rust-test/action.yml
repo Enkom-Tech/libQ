@@ -63,13 +63,14 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          echo "Running no_std tests - excluding std-dependent test files"
+          echo "Running no_std compilation check - cannot run tests in no_std mode"
+          echo "Test framework requires std, so we only check compilation"
           if [ -n "${{ inputs.package }}" ]; then
-            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --verbose
+            # Check that the package compiles in no_std mode
+            cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --verbose
           else
-            # For no_std workspace tests, we need to be more careful about dependencies
-            # Use --no-default-features to ensure clean no_std build
-            cargo test --no-default-features --features "${{ inputs.features }}" --lib --verbose
+            # For workspace no_std check, just verify compilation
+            cargo check --no-default-features --features "${{ inputs.features }}" --verbose
           fi
         else
           if [ -n "${{ inputs.package }}" ]; then
@@ -89,13 +90,14 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          echo "Running no_std release tests - excluding std-dependent test files"
+          echo "Running no_std release compilation check - cannot run tests in no_std mode"
+          echo "Test framework requires std, so we only check compilation"
           if [ -n "${{ inputs.package }}" ]; then
-            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --lib --release --verbose
+            # Check that the package compiles in no_std mode for release
+            cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --release --verbose
           else
-            # For no_std workspace tests, we need to be more careful about dependencies
-            # Use --no-default-features to ensure clean no_std build
-            cargo test --no-default-features --features "${{ inputs.features }}" --lib --release --verbose
+            # For workspace no_std check, just verify compilation for release
+            cargo check --no-default-features --features "${{ inputs.features }}" --release --verbose
           fi
         else
           if [ -n "${{ inputs.package }}" ]; then
