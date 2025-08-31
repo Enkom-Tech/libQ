@@ -28,6 +28,7 @@ rand = "0.9.2"
 [features]
 default = ["std"]
 std = [] # Enable std library support
+no_std = [] # Explicit no_std feature flag for clarity
 no_unroll = [] # Do not unroll loops for binary size reduction
 nightly = [] # Enable nightly-only features like benchmarking
 

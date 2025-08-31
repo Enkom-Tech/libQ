@@ -9,8 +9,23 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-// Note: No panic handler needed - this crate always uses std by default
+// Provide panic handler for no_std builds
+// This is required when building without std, even with panic="abort" in Cargo.toml
+#[cfg(not(feature = "std"))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
+    // With panic="abort", this function should never be called
+    // We provide it only to satisfy the compiler requirements
+    loop {
+        // Infinite loop is safe and satisfies the ! return type
+        // In practice, panic="abort" means this will never execute
+        core::hint::spin_loop();
+    }
+}
+
+// Note: This crate supports no_std when built with --no-default-features
 // The workspace panic="abort" configuration handles panics appropriately
+// For no_std builds, use: cargo build --no-default-features
 
 use core::mem::size_of;
 

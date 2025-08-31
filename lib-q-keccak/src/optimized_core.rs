@@ -707,8 +707,10 @@ mod tests {
     #[test]
     #[cfg(all(feature = "std", feature = "simd"))]
     fn test_parallel_processing() {
-        use super::parallel;
-        use super::OptimizationLevel;
+        use super::{
+            OptimizationLevel,
+            parallel,
+        };
 
         let mut states = [[0u64; 25], [0u64; 25], [0u64; 25], [0u64; 25]];
 

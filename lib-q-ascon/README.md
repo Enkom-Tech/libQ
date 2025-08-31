@@ -65,6 +65,27 @@ Enable the `zeroize` feature for secure memory clearing:
 lib-q-ascon = { version = "0.0.1", features = ["zeroize"] }
 ```
 
+### no_std Usage
+
+For embedded and constrained environments, the crate supports no_std builds:
+
+```toml
+[dependencies]
+lib-q-ascon = { version = "0.0.1", default-features = false }
+```
+
+Or build without default features:
+
+```bash
+cargo build --no-default-features
+```
+
+The no_std build provides the same API but works without the standard library, making it suitable for:
+- Embedded systems
+- WebAssembly targets
+- Real-time operating systems
+- Memory-constrained environments
+
 ## API Reference
 
 ### State
