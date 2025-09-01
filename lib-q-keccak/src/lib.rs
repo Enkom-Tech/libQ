@@ -675,9 +675,9 @@ unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
     }
 }
 
-// Provide panic handler only when explicitly requested for pure no_std builds
-// This avoids conflicts by requiring explicit opt-in via feature flag
-#[cfg(feature = "no_std_panic_handler")]
+// Include panic handler only when build script determines it's safe
+// This is controlled by the build script to avoid cfg evaluation issues in CI
+#[cfg(panic_handler_enabled)]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // With panic="abort" (configured in workspace Cargo.toml),
