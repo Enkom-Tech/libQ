@@ -37,8 +37,8 @@ fn main() {
         // Check if the no_std_panic_handler feature is explicitly enabled
         let panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
 
-        // Combine test detection methods
-        let in_test_mode = is_test || is_test_profile || has_test_deps;
+        // Combine test detection methods (not used in simplified logic)
+        let _in_test_mode = is_test || is_test_profile || has_test_deps;
 
         // Enable panic handler for no_std builds, with some exceptions
         // 1. std is disabled (no_std build) OR panic handler is explicitly requested

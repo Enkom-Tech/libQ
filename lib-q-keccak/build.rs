@@ -43,9 +43,7 @@ fn main() {
         // Enable panic handler for no_std builds, with some exceptions
         // 1. std is disabled (no_std build) OR panic handler is explicitly requested
         // 2. Not in doctest mode (doctests use std)
-        let should_enable = (!std_enabled || panic_handler_requested) && !is_doctest;
-
-        should_enable
+        (!std_enabled || panic_handler_requested) && !is_doctest
     };
 
     if should_enable_panic_handler {
