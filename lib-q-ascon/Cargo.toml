@@ -31,6 +31,7 @@ std = [] # Enable std library support
 no_std = [] # Explicit no_std feature flag for clarity
 no_unroll = [] # Do not unroll loops for binary size reduction
 nightly = [] # Enable nightly-only features like benchmarking
+no_std_panic_handler = [] # Enable panic handler for pure no_std builds only
 
 [lib]
 name = "lib_q_ascon"

@@ -18,9 +18,6 @@ fn main() {
     println!("cargo:rustc-check-cfg=cfg(target_arch, values(\"x86_64\", \"aarch64\", \"arm\"))");
     println!("cargo:rustc-check-cfg=cfg(target_os, values(\"linux\", \"windows\", \"macos\"))");
     println!("cargo:rustc-check-cfg=cfg(build_profile, values(\"debug\", \"release\"))");
-    println!("cargo:rustc-check-cfg=cfg(test)");
-    println!("cargo:rustc-check-cfg=cfg(doctest)");
-    println!("cargo:rustc-check-cfg=cfg(docsrs)");
 
     // Set build profile configuration
     println!("cargo:rustc-cfg=build_profile=\"{}\"", profile);

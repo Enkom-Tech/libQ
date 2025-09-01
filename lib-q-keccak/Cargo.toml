@@ -28,6 +28,7 @@ alloc = ["spin"]     # Enable alloc support for no_std environments
 std = ["alloc", "cpufeatures", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
 multithreading = ["std", "thread-affinity", "simd"]  # Enable multi-threading support with thread affinity
 thread-affinity = ["dep:core_affinity"]  # Enable thread affinity support
+no_std_panic_handler = []  # Enable panic handler for pure no_std builds only
 
 [target.'cfg(all(target_arch = "aarch64", not(target_os = "macos")))'.dependencies]
 cpufeatures = { version = "0.2.17", optional = true }

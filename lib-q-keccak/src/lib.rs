@@ -675,15 +675,9 @@ unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
     }
 }
 
-// Provide panic handler for pure no_std environments only
-// This uses a more conservative approach to avoid CI conflicts
-#[cfg(all(
-    not(feature = "std"),           // Only when std feature is disabled
-    not(feature = "asm"),           // Exclude when default features are enabled
-    not(test),                      // Exclude test compilation
-    not(doctest),                   // Exclude doctest compilation
-    not(docsrs)                     // Exclude docs.rs documentation builds
-))]
+// Provide panic handler only when explicitly requested for pure no_std builds
+// This avoids conflicts by requiring explicit opt-in via feature flag
+#[cfg(feature = "no_std_panic_handler")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // With panic="abort" (configured in workspace Cargo.toml),
