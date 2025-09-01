@@ -45,8 +45,6 @@ fn main() {
         // 2. Not in doctest mode (doctests use std)
         let should_enable = (!std_enabled || panic_handler_requested) && !is_doctest;
 
-
-
         should_enable
     };
 

@@ -40,12 +40,10 @@ fn main() {
         // Combine test detection methods
         let in_test_mode = is_test || is_test_profile || has_test_deps;
 
-        // Enable panic handler only if:
-        // 1. std is disabled (no_std build)
-        // 2. Not in test mode
-        // 3. Not in doctest mode
-        // 4. Panic handler is explicitly requested (safest approach - only enable when explicitly asked)
-        !std_enabled && !in_test_mode && !is_doctest && panic_handler_requested
+        // Enable panic handler for no_std builds, with some exceptions
+        // 1. std is disabled (no_std build) OR panic handler is explicitly requested
+        // 2. Not in doctest mode (doctests use std)
+        (!std_enabled || panic_handler_requested) && !is_doctest
     };
 
     if should_enable_panic_handler {
