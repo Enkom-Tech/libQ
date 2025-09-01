@@ -62,9 +62,9 @@ runs:
         cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
-        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          echo "Running no_std compilation check - cannot run tests in no_std mode"
-          echo "Test framework requires std, so we only check compilation"
+        if [[ "${{ inputs.features }}" == *"no_std"* || "${{ inputs.package }}" == *"lib-q-keccak"* || "${{ inputs.package }}" == *"lib-q-ascon"* ]]; then
+          echo "Running no_std or no_std-compatible compilation check"
+          echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             echo "Testing specific package: ${{ inputs.package }}"
             # Check that the specific package compiles in no_std mode
@@ -91,9 +91,9 @@ runs:
         cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
-        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          echo "Running no_std release compilation check - cannot run tests in no_std mode"
-          echo "Test framework requires std, so we only check compilation"
+        if [[ "${{ inputs.features }}" == *"no_std"* || "${{ inputs.package }}" == *"lib-q-keccak"* || "${{ inputs.package }}" == *"lib-q-ascon"* ]]; then
+          echo "Running no_std or no_std-compatible release compilation check"
+          echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
             echo "Testing specific package in release: ${{ inputs.package }}"
             # Check that the specific package compiles in no_std mode for release
