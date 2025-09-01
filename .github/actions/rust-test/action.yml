@@ -62,23 +62,25 @@ runs:
         cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
-        if [[ "${{ inputs.features }}" == *"no_std"* || "${{ inputs.package }}" == *"lib-q-keccak"* || "${{ inputs.package }}" == *"lib-q-ascon"* ]]; then
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
-          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
-            echo "Testing specific package: ${{ inputs.package }}"
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            echo "Testing specific package: $PACKAGE"
             # Check that the specific package compiles in no_std mode
-            cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --verbose
+            cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --verbose
           else
             echo "Testing workspace with no_std features"
             # For workspace no_std check, just verify compilation
-            cargo check --no-default-features --features "${{ inputs.features }}" --verbose
+            cargo check --no-default-features --features "$FEATURES" --verbose
           fi
         else
-          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
-            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --verbose
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            cargo test -p $PACKAGE --features "$FEATURES" --verbose
           else
-            cargo test --features "${{ inputs.features }}" --verbose
+            cargo test --features "$FEATURES" --verbose
           fi
         fi
         echo "Tests completed"
@@ -91,23 +93,25 @@ runs:
         cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
-        if [[ "${{ inputs.features }}" == *"no_std"* || "${{ inputs.package }}" == *"lib-q-keccak"* || "${{ inputs.package }}" == *"lib-q-ascon"* ]]; then
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
-          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
-            echo "Testing specific package in release: ${{ inputs.package }}"
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            echo "Testing specific package in release: $PACKAGE"
             # Check that the specific package compiles in no_std mode for release
-            cargo check -p ${{ inputs.package }} --no-default-features --features "${{ inputs.features }}" --release --verbose
+            cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --release --verbose
           else
             echo "Testing workspace with no_std features in release"
             # For workspace no_std check, just verify compilation for release
-            cargo check --no-default-features --features "${{ inputs.features }}" --release --verbose
+            cargo check --no-default-features --features "$FEATURES" --release --verbose
           fi
         else
-          if [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
-            cargo test -p ${{ inputs.package }} --features "${{ inputs.features }}" --release --verbose
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            cargo test -p $PACKAGE --features "$FEATURES" --release --verbose
           else
-            cargo test --features "${{ inputs.features }}" --release --verbose
+            cargo test --features "$FEATURES" --release --verbose
           fi
         fi
         echo "Release tests completed"
@@ -118,10 +122,10 @@ runs:
       run: |
         echo "Generating coverage report..."
         cd ${{ inputs.working-directory }}
-        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          cargo tarpaulin --no-default-features --features "${{ inputs.features }}" --out Html --output-dir coverage
+        if [[ "$FEATURES" == *"no_std"* ]]; then
+          cargo tarpaulin --no-default-features --features "$FEATURES" --out Html --output-dir coverage
         else
-          cargo tarpaulin --features "${{ inputs.features }}" --out Html --output-dir coverage
+          cargo tarpaulin --features "$FEATURES" --out Html --output-dir coverage
         fi
         echo "Coverage report generated"
 
@@ -131,10 +135,10 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        if [[ "${{ inputs.features }}" == *"no_std"* ]]; then
-          COVERAGE=$(cargo tarpaulin --no-default-features --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        if [[ "$FEATURES" == *"no_std"* ]]; then
+          COVERAGE=$(cargo tarpaulin --no-default-features --features "$FEATURES" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
         else
-          COVERAGE=$(cargo tarpaulin --features "${{ inputs.features }}" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+          COVERAGE=$(cargo tarpaulin --features "$FEATURES" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
         fi
         echo "Coverage: $COVERAGE%"
         if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
