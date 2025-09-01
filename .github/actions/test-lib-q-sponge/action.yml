@@ -73,8 +73,8 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-sponge" ]]; then
-          echo "Building lib-q-sponge with alloc feature"
-          cargo build --no-default-features --features "alloc"
+          echo "Building lib-q-sponge with dependency features for no_std"
+          cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
         else
           cargo build --no-default-features
         fi
@@ -98,7 +98,7 @@ runs:
           echo "Skipping tests for lib-q-sponge (depends on no_std packages)"
           echo "Cannot run tests for packages that depend on no_std crates"
           # Run check instead of test to verify compilation
-          cargo check --no-default-features --features "alloc"
+          cargo check --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
         else
           cargo test --no-default-features
         fi

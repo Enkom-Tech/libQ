@@ -109,13 +109,16 @@ runs:
             echo "Building $pkg with no default features..."
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
-        elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-ascon" ]]; then
-          echo "Building no_std package $WORKING_DIR with panic handler feature"
-          # For no_std packages, we need to add the panic handler feature
+        elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-ascon" || "$WORKING_DIR" == "lib-q-sponge" ]]; then
+          echo "Building no_std package $WORKING_DIR with appropriate features"
+          # For no_std packages, we need to add the appropriate features
           if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
             cargo build --no-default-features --features "alloc,no_std_panic_handler"
-          else
+          elif [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
             cargo build --no-default-features --features "no_std,no_std_panic_handler"
+          else
+            # lib-q-sponge depends on no_std packages, so we need to enable features on dependencies
+            cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
           fi
         else
           echo "Using default build for $WORKING_DIR"
@@ -177,7 +180,7 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         WORKING_DIR="${{ inputs.working-directory }}"
-        if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* ]]; then
+        if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* || "$WORKING_DIR" == *"lib-q-sponge"* ]]; then
           echo "Running no_std-compatible compilation check with all features"
           echo "Cannot run tests for no_std-compatible packages"
           # Check that the package compiles correctly with all features
