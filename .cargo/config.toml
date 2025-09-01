@@ -2,6 +2,10 @@
 # This file configures the proper linkers for cross-compilation targets
 # to ensure secure and correct builds for cryptography libraries
 
+# Unstable features for no_std builds
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+
 [build]
 # Global build configuration for cryptography security
 rustflags = [

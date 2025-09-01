@@ -69,8 +69,13 @@ runs:
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package: $PACKAGE"
-            # Check that the specific package compiles in no_std mode
-            cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --verbose
+            # Check that the specific package compiles in no_std mode with rebuild-std
+            if [[ "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
+              echo "Using build-std for no_std package $PACKAGE"
+              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Zbuild-std=core,compiler_builtins,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --verbose
+            else
+              cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --verbose
+            fi
           else
             echo "Testing workspace with no_std features"
             # For workspace no_std check, just verify compilation
@@ -100,8 +105,13 @@ runs:
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package in release: $PACKAGE"
-            # Check that the specific package compiles in no_std mode for release
-            cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --release --verbose
+            # Check that the specific package compiles in no_std mode for release with rebuild-std
+            if [[ "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
+              echo "Using build-std for no_std package $PACKAGE in release mode"
+              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Zbuild-std=core,compiler_builtins,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --release --verbose
+            else
+              cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --release --verbose
+            fi
           else
             echo "Testing workspace with no_std features in release"
             # For workspace no_std check, just verify compilation for release

@@ -109,15 +109,15 @@ runs:
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
         elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-ascon" || "$WORKING_DIR" == "lib-q-sponge" ]]; then
-          echo "Building no_std package $WORKING_DIR with appropriate panic strategy"
-          # For no_std packages, we need to use panic=abort and appropriate features
+          echo "Building no_std package $WORKING_DIR with rebuild-std and panic=abort"
+          # For no_std packages, we need to rebuild std with panic=abort to avoid unwinding issues
           if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "alloc"
+            RUSTFLAGS="-C panic=abort" cargo build -Zbuild-std=core,compiler_builtins,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "alloc"
           elif [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "no_std"
+            RUSTFLAGS="-C panic=abort" cargo build -Zbuild-std=core,compiler_builtins --target x86_64-unknown-linux-gnu --no-default-features --features "no_std"
           else
             # lib-q-sponge depends on no_std packages, so we need to enable features on dependencies
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
+            RUSTFLAGS="-C panic=abort" cargo build -Zbuild-std=core,compiler_builtins,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
           fi
         else
           cargo build --no-default-features
