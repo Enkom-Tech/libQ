@@ -8,14 +8,19 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
 
-// Provide panic handler for no_std environments
-// This handler works in all no_std contexts
-#[cfg(not(feature = "std"))]
+// Provide panic handler for pure no_std environments only
+// This uses a more conservative approach to avoid CI conflicts
+#[cfg(all(
+    not(feature = "std"),           // Only when std feature is disabled
+    not(test),                      // Exclude test compilation
+    not(doctest),                   // Exclude doctest compilation
+    not(docsrs)                     // Exclude docs.rs documentation builds
+))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     // With panic="abort" (configured in workspace Cargo.toml),
     // this function should never be called in practice.
-    // We provide it to satisfy the compiler's requirements for no_std builds.
+    // We provide it to satisfy the compiler's requirements for pure no_std builds.
     unsafe { core::hint::unreachable_unchecked() }
 }
 
