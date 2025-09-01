@@ -92,7 +92,9 @@ runs:
         echo "Running algorithm-specific tests..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.test-algorithms }}" ] && [ "${{ inputs.test-algorithms }}" != "" ]; then
-          for alg in ${{ inputs.test-algorithms//,/ }}; do
+          # Split comma-separated algorithms and test each one
+          IFS=',' read -ra ALGORITHMS <<< "${{ inputs.test-algorithms }}"
+          for alg in "${ALGORITHMS[@]}"; do
             echo "Testing algorithm: $alg"
             cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
           done
