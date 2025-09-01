@@ -91,10 +91,14 @@ runs:
       run: |
         echo "Running algorithm-specific tests..."
         cd ${{ inputs.working-directory }}
-        for alg in ${inputs.test-algorithms//,/ }; do
-          echo "Testing algorithm: $alg"
-          cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
-        done
+        if [ -n "${{ inputs.test-algorithms }}" ] && [ "${{ inputs.test-algorithms }}" != "" ]; then
+          for alg in ${{ inputs.test-algorithms//,/ }}; do
+            echo "Testing algorithm: $alg"
+            cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
+          done
+        else
+          echo "No specific algorithms to test"
+        fi
         echo "Algorithm-specific tests completed"
     
     - name: Test SHA3 implementations
