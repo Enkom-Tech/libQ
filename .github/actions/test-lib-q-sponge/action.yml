@@ -71,7 +71,13 @@ runs:
       run: |
         echo "Building with no default features..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features
+        WORKING_DIR="${{ inputs.working-directory }}"
+        if [[ "$WORKING_DIR" == "lib-q-sponge" ]]; then
+          echo "Building lib-q-sponge with alloc feature"
+          cargo build --no-default-features --features "alloc"
+        else
+          cargo build --no-default-features
+        fi
         echo "Build completed"
     
     - name: Build with all features
