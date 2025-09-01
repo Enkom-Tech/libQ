@@ -36,9 +36,8 @@ fn main() {
         // 1. std is disabled (no_std build)
         // 2. Not in test mode
         // 3. Not in doctest mode
-        // 4. Not building docs
-        // 5. Panic handler is explicitly requested (for CI no_std tests)
-        !std_enabled && !is_test && !is_doctest && !is_docsrs && panic_handler_requested
+        // 4. Either not building docs OR panic handler is explicitly requested
+        !std_enabled && !is_test && !is_doctest && (!is_docsrs || panic_handler_requested)
     };
 
     if should_enable_panic_handler {
