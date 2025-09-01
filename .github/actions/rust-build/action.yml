@@ -124,7 +124,7 @@ runs:
       shell: bash
       run: |
         echo "Running tests..."
-@        cd ${{ inputs.working-directory }}
+        cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
         if [[ "${{ inputs.features }}" == *"no_std"* || "${{ inputs.working-directory }}" == *"lib-q-keccak"* || "${{ inputs.working-directory }}" == *"lib-q-ascon"* ]]; then
