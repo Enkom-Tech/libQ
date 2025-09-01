@@ -100,7 +100,6 @@ runs:
         echo "Building with no default features..."
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
-        echo "Working directory: $WORKING_DIR"
         if [[ "$WORKING_DIR" == "." ]]; then
           echo "Building workspace with no default features - skipping problematic packages"
           # For workspace builds, we need to handle packages that require special features
@@ -110,8 +109,8 @@ runs:
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
         elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-ascon" || "$WORKING_DIR" == "lib-q-sponge" ]]; then
-          echo "Building no_std package $WORKING_DIR with appropriate features"
-          # For no_std packages, we need to add the appropriate features
+          echo "Building no_std package $WORKING_DIR with appropriate panic strategy"
+          # For no_std packages, we need to use panic=abort and appropriate features
           if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
             RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "alloc"
           elif [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
@@ -121,7 +120,6 @@ runs:
             RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
           fi
         else
-          echo "Using default build for $WORKING_DIR"
           cargo build --no-default-features
         fi
         echo "Build completed"
@@ -180,7 +178,11 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         WORKING_DIR="${{ inputs.working-directory }}"
+<<<<<<< HEAD
         if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* || "$WORKING_DIR" == *"lib-q-sponge"* ]]; then
+=======
+        if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* ]]; then
+>>>>>>> b38c1e6 (Fix GitHub Actions variable expansion issues in rust-test and rust-build actions)
           echo "Running no_std-compatible compilation check with all features"
           echo "Cannot run tests for no_std-compatible packages"
           # Check that the package compiles correctly with all features
