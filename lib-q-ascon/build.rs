@@ -21,23 +21,31 @@ fn main() {
         let std_enabled = env::var("CARGO_FEATURE_STD").is_ok();
 
         // Check if we're in test mode
+        // CARGO_CFG_TEST is set when building test binaries, but may not be set during lib compilation
         let is_test = env::var("CARGO_CFG_TEST").is_ok();
+
+        // Also check for other test-related environment variables
+        let is_test_profile = env::var("PROFILE").unwrap_or_default() == "test";
+
+        // Check if we're building with test dependencies (common test libraries)
+        let has_test_deps =
+            env::var("CARGO_FEATURE_TEST").is_ok() || env::var("CARGO_FEATURE_PROC_MACRO").is_ok();
 
         // Check if we're in doctest mode
         let is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
 
-        // Check if we're building docs
-        let is_docsrs = env::var("DOCS_RS").is_ok();
-
         // Check if the no_std_panic_handler feature is explicitly enabled
         let panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
+
+        // Combine test detection methods
+        let in_test_mode = is_test || is_test_profile || has_test_deps;
 
         // Enable panic handler only if:
         // 1. std is disabled (no_std build)
         // 2. Not in test mode
         // 3. Not in doctest mode
-        // 4. Either not building docs OR panic handler is explicitly requested
-        !std_enabled && !is_test && !is_doctest && (!is_docsrs || panic_handler_requested)
+        // 4. Panic handler is explicitly requested (safest approach - only enable when explicitly asked)
+        !std_enabled && !in_test_mode && !is_doctest && panic_handler_requested
     };
 
     if should_enable_panic_handler {
