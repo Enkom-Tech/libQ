@@ -172,7 +172,7 @@ debug = false
 opt-level = 0
 debug = true
 lto = false
-panic = "abort"
+panic = "unwind"
 
 [profile.release-security]
 inherits = "release"
@@ -180,7 +180,7 @@ panic = "abort"
 
 [profile.dev-security]
 inherits = "dev"
-panic = "abort"
+panic = "unwind"
 
 [profile.bench]
 opt-level = 3
