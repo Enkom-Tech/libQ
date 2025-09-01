@@ -108,6 +108,14 @@ runs:
             echo "Building $pkg with no default features..."
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
+        elif [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* ]]; then
+          echo "Building no_std package $WORKING_DIR with panic handler feature"
+          # For no_std packages, we need to add the panic handler feature
+          if [[ "$WORKING_DIR" == *"lib-q-keccak"* ]]; then
+            cargo build --no-default-features --features "alloc,no_std_panic_handler"
+          else
+            cargo build --no-default-features --features "no_std,no_std_panic_handler"
+          fi
         else
           cargo build --no-default-features
         fi
