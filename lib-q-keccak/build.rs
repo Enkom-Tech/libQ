@@ -34,16 +34,17 @@ fn main() {
         // Check if we're in doctest mode
         let is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
 
-        // Check if the no_std_panic_handler feature is explicitly enabled
-        let panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
+        // Check if the no_std_panic_handler feature is explicitly enabled (not used in simplified logic)
+        let _panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
 
         // Combine test detection methods (not used in simplified logic)
         let _in_test_mode = is_test || is_test_profile || has_test_deps;
 
-        // Enable panic handler for no_std builds, with some exceptions
-        // 1. std is disabled (no_std build) OR panic handler is explicitly requested
+        // Enable panic handler ONLY for pure no_std builds
+        // 1. std must be disabled (pure no_std build)
         // 2. Not in doctest mode (doctests use std)
-        (!std_enabled || panic_handler_requested) && !is_doctest
+        // Note: We never enable panic handler when std is available, even if explicitly requested
+        !std_enabled && !is_doctest
     };
 
     if should_enable_panic_handler {

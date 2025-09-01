@@ -77,8 +77,8 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-          echo "Building lib-q-ascon with panic handler feature"
-          RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "no_std,no_std_panic_handler"
+          echo "Building lib-q-ascon with no_std feature"
+          cargo build --no-default-features --features "no_std" -Z build-std=core
         else
           cargo build --no-default-features
         fi
@@ -106,7 +106,7 @@ runs:
           echo "Skipping tests for lib-q-ascon (no_std package)"
           echo "Cannot run tests for no_std-compatible packages"
           # Run check instead of test to verify compilation
-          RUSTFLAGS="-C panic=abort" cargo check --no-default-features --features "no_std,no_std_panic_handler"
+          cargo check --no-default-features --features "no_std" -Z build-std=core
         else
           cargo test --no-default-features
         fi

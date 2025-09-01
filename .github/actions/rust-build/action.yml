@@ -113,12 +113,12 @@ runs:
           echo "Building no_std package $WORKING_DIR with appropriate features"
           # For no_std packages, we need to add the appropriate features
           if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "alloc,no_std_panic_handler"
+            cargo build --no-default-features --features "alloc" -Z build-std=core,alloc
           elif [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "no_std,no_std_panic_handler"
+            cargo build --no-default-features --features "no_std" -Z build-std=core
           else
             # lib-q-sponge depends on no_std packages, so we need to enable features on dependencies
-            RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
+            cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std" -Z build-std=core,alloc
           fi
         else
           echo "Using default build for $WORKING_DIR"
