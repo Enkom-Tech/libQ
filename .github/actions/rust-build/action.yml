@@ -178,11 +178,7 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         WORKING_DIR="${{ inputs.working-directory }}"
-<<<<<<< HEAD
         if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* || "$WORKING_DIR" == *"lib-q-sponge"* ]]; then
-=======
-        if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* ]]; then
->>>>>>> b38c1e6 (Fix GitHub Actions variable expansion issues in rust-test and rust-build actions)
           echo "Running no_std-compatible compilation check with all features"
           echo "Cannot run tests for no_std-compatible packages"
           # Check that the package compiles correctly with all features
