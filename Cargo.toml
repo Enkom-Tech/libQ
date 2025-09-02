@@ -182,6 +182,10 @@ panic = "abort"
 inherits = "dev"
 panic = "unwind"
 
+[profile.test]
+inherits = "dev"
+panic = "unwind"
+
 [profile.bench]
 opt-level = 3
 lto = "fat"

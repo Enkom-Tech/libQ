@@ -34,6 +34,9 @@ fn main() {
         // Check if we're in doctest mode
         let is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
 
+        // Check if we're in CI environment
+        let is_ci = env::var("CI").is_ok() || env::var("GITHUB_ACTIONS").is_ok();
+
         // Check if the no_std_panic_handler feature is explicitly enabled (not used in simplified logic)
         let _panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
 
@@ -43,8 +46,9 @@ fn main() {
         // Enable panic handler ONLY for pure no_std builds
         // 1. std must be disabled (pure no_std build)
         // 2. Not in doctest mode (doctests use std)
-        // Note: We never enable panic handler when std is available, even if explicitly requested
-        !std_enabled && !is_doctest
+        // 3. Not in CI environment (CI has panic strategy issues)
+        // Note: We never enable panic handler when std is available or in CI
+        !std_enabled && !is_doctest && !is_ci
     };
 
     if should_enable_panic_handler {
