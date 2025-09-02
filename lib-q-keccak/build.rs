@@ -20,6 +20,9 @@ fn main() {
         // Check if std feature is disabled
         let std_enabled = env::var("CARGO_FEATURE_STD").is_ok();
 
+        // Check if alloc feature is enabled (problematic for panic strategy)
+        let alloc_enabled = env::var("CARGO_FEATURE_ALLOC").is_ok();
+
         // Check if we're in test mode
         // CARGO_CFG_TEST is set when building test binaries, but may not be set during lib compilation
         let is_test = env::var("CARGO_CFG_TEST").is_ok();
@@ -37,18 +40,46 @@ fn main() {
         // Check if we're in CI environment
         let is_ci = env::var("CI").is_ok() || env::var("GITHUB_ACTIONS").is_ok();
 
+        // Additional CI detection for various CI systems
+        let is_ci_additional = env::var("BUILD_NUMBER").is_ok()  // Jenkins, TeamCity
+            || env::var("TRAVIS").is_ok()  // Travis CI
+            || env::var("CIRCLECI").is_ok()  // CircleCI
+            || env::var("GITLAB_CI").is_ok()  // GitLab CI
+            || env::var("AZURE_HTTP_USER_AGENT").is_ok(); // Azure Pipelines
+
+        let is_ci_combined = is_ci || is_ci_additional;
+
         // Check if the no_std_panic_handler feature is explicitly enabled (not used in simplified logic)
         let _panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
 
         // Combine test detection methods (not used in simplified logic)
         let _in_test_mode = is_test || is_test_profile || has_test_deps;
 
-        // Enable panic handler ONLY for pure no_std builds
+        // Optional debug output (uncomment for debugging)
+        // println!("cargo:warning=Build script debug:");
+        // println!("cargo:warning=std_enabled: {}", std_enabled);
+        // println!("cargo:warning=alloc_enabled: {}", alloc_enabled);
+        // println!("cargo:warning=is_ci_combined: {}", is_ci_combined);
+        // println!("cargo:warning=should_enable_panic_handler: {}", result);
+
+        // Enable panic handler for no_std builds (including with alloc feature)
         // 1. std must be disabled (pure no_std build)
         // 2. Not in doctest mode (doctests use std)
-        // 3. Not in CI environment (CI has panic strategy issues)
-        // Note: We never enable panic handler when std is available or in CI
-        !std_enabled && !is_doctest && !is_ci
+        // Note: We enable panic handler for all no_std builds, but handle CI differently
+        let is_no_std_build = !std_enabled && !is_doctest;
+
+        // For CI environments, we need to be more careful about panic strategy
+        let result = if is_ci_combined {
+            // In CI, only enable panic handler for builds without alloc feature
+            // The alloc feature causes panic strategy conflicts in CI
+            is_no_std_build && !alloc_enabled
+        } else {
+            // For local builds, enable panic handler for all no_std builds
+            is_no_std_build
+        };
+
+        println!("cargo:warning=should_enable_panic_handler: {}", result);
+        result
     };
 
     if should_enable_panic_handler {

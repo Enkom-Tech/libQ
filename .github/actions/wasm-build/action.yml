@@ -34,6 +34,7 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy
+        targets: wasm32-unknown-unknown, wasm32-wasi
     
     - name: Install wasm-pack
       uses: jetli/wasm-pack-action@v0.4.0
@@ -59,7 +60,11 @@ runs:
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          wasm-pack build --target web -- --features "${{ inputs.features }}" --verbose
+          # Pre-build with cargo to ensure proper feature resolution
+          echo "Pre-building with cargo for feature resolution..."
+          cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
+          echo "Building with wasm-pack..."
+          wasm-pack build --target web -- --features "${{ inputs.features }}" --release --verbose
         else
           wasm-pack build --target web --verbose
         fi
@@ -72,7 +77,11 @@ runs:
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --verbose
+          # Pre-build with cargo to ensure proper feature resolution
+          echo "Pre-building with cargo for feature resolution..."
+          cargo build --target wasm32-wasi --features "${{ inputs.features }}" --release
+          echo "Building with wasm-pack..."
+          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --release --verbose
         else
           wasm-pack build --target nodejs --verbose
         fi
