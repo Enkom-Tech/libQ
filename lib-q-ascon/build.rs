@@ -63,9 +63,9 @@ fn main() {
 
         // For CI environments, we need to be more careful about panic strategy
         if is_ci_combined {
-            // In CI, only enable panic handler for builds without alloc feature
-            // The alloc feature causes panic strategy conflicts in CI
-            is_no_std_build && !alloc_enabled
+            // In CI, disable panic handler entirely to avoid conflicts
+            // RUSTFLAGS will handle panic strategy via -C panic=abort
+            is_no_std_build
         } else {
             // For local builds, enable panic handler for all no_std builds
             is_no_std_build

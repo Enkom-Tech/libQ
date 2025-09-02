@@ -72,7 +72,7 @@ fn main() {
         let result = if is_ci_combined {
             // In CI, only enable panic handler for builds without alloc feature
             // The alloc feature causes panic strategy conflicts in CI
-            is_no_std_build && !alloc_enabled
+            is_no_std_build
         } else {
             // For local builds, enable panic handler for all no_std builds
             is_no_std_build
