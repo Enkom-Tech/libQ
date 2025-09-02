@@ -21,7 +21,7 @@ fn main() {
         let std_enabled = env::var("CARGO_FEATURE_STD").is_ok();
 
         // Check if alloc feature is enabled (problematic for panic strategy)
-        let alloc_enabled = env::var("CARGO_FEATURE_ALLOC").is_ok();
+        let _alloc_enabled = env::var("CARGO_FEATURE_ALLOC").is_ok();
 
         // Check if we're in test mode
         // CARGO_CFG_TEST is set when building test binaries, but may not be set during lib compilation
