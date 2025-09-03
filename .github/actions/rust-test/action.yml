@@ -71,11 +71,11 @@ runs:
             echo "Testing specific package: $PACKAGE"
             # Check that the specific package compiles in no_std mode
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
-              echo "Using build-std for no_std package $PACKAGE"
-              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --verbose
+              echo "Building no_std package $PACKAGE with explicit panic handler"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             elif [[ "$PACKAGE" == *"lib-q-ascon"* ]]; then
-              echo "Using build-std for no_std package $PACKAGE"
-              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Z build-std=core --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --verbose
+              echo "Building no_std package $PACKAGE with explicit panic handler"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
               cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --verbose
             fi
@@ -110,11 +110,11 @@ runs:
             echo "Testing specific package in release: $PACKAGE"
             # Check that the specific package compiles in no_std mode for release
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
-              echo "Using build-std for no_std package $PACKAGE in release mode"
-              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --release --verbose
+              echo "Building no_std package $PACKAGE with explicit panic handler in release mode"
+              cargo check -p $PACKAGE --profile release --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             elif [[ "$PACKAGE" == *"lib-q-ascon"* ]]; then
-              echo "Using build-std for no_std package $PACKAGE in release mode" 
-              RUSTFLAGS="-C panic=abort" cargo check -p $PACKAGE -Z build-std=core --target x86_64-unknown-linux-gnu --no-default-features --features "$FEATURES" --release --verbose
+              echo "Building no_std package $PACKAGE with explicit panic handler in release mode"
+              cargo check -p $PACKAGE --profile release --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
               cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --release --verbose
             fi

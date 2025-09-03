@@ -61,7 +61,7 @@ serde = ["dep:serde"]
 wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom"]
 
 # WASM-specific getrandom configuration
-wasm_getrandom = ["getrandom/wasm_js"]
+wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
 
 [lib]
 name = "lib_q_core"
