@@ -4,6 +4,7 @@
 #[cfg(all(test, feature = "nightly"))]
 extern crate test;
 
+#[cfg(all(test, feature = "nightly"))]
 use lib_q_keccak::*;
 
 #[cfg(all(test, feature = "nightly"))]

@@ -87,22 +87,19 @@ fn main() {
             out_dir.contains("test") ||
             env::var("CARGO_PKG_NAME").unwrap_or_default() == "lib-q-keccak";
 
+        // Optional debug output (uncomment for troubleshooting)
+        // println!("cargo:warning=std_enabled: {}", std_enabled);
+        // println!("cargo:warning=in_test_mode: {}", in_test_mode);
+
         // Enable panic handler for legitimate no_std builds, but be conservative about tests
-        let result = if !std_enabled {
+        if !std_enabled {
             // For no_std builds: only enable panic handler when explicitly requested
             // This prevents conflicts with test harness which always uses std
             env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok()
         } else {
             // For std builds, never enable custom panic handler
             false
-        };
-
-        // Optional debug output (uncomment for troubleshooting)
-        // println!("cargo:warning=std_enabled: {}", std_enabled);
-        // println!("cargo:warning=in_test_mode: {}", in_test_mode);
-        // println!("cargo:warning=should_enable_panic_handler: {}", result);
-
-        result
+        }
     };
 
     if should_enable_panic_handler {
