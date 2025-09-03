@@ -52,29 +52,28 @@ fn main() {
         // Check if the no_std_panic_handler feature is explicitly enabled (not used in simplified logic)
         let _panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
 
-        // Combine test detection methods (not used in simplified logic)
-        let _in_test_mode = is_test || is_test_profile || has_test_deps;
+        // Combine test detection methods
+        let in_test_mode = is_test || is_test_profile || has_test_deps;
 
         // Optional debug output (uncomment for debugging)
         // println!("cargo:warning=Build script debug:");
         // println!("cargo:warning=std_enabled: {}", std_enabled);
-        // println!("cargo:warning=alloc_enabled: {}", alloc_enabled);
+        // println!("cargo:warning=in_test_mode: {}", in_test_mode);
         // println!("cargo:warning=is_ci_combined: {}", is_ci_combined);
         // println!("cargo:warning=should_enable_panic_handler: {}", result);
 
-        // Enable panic handler for no_std builds (including with alloc feature)
+        // Enable panic handler for no_std builds ONLY
         // 1. std must be disabled (pure no_std build)
         // 2. Not in doctest mode (doctests use std)
-        // Note: We enable panic handler for all no_std builds, but handle CI differently
-        let is_no_std_build = !std_enabled && !is_doctest;
+        // 3. Not in test mode (tests use std and provide their own panic handler)
+        let is_no_std_build = !std_enabled && !is_doctest && !in_test_mode;
 
         // For CI environments, we need to be more careful about panic strategy
         let result = if is_ci_combined {
-            // In CI, only enable panic handler for builds without alloc feature
-            // The alloc feature causes panic strategy conflicts in CI
+            // In CI, only enable panic handler for pure no_std builds without test mode
             is_no_std_build
         } else {
-            // For local builds, enable panic handler for all no_std builds
+            // For local builds, enable panic handler for pure no_std builds without test mode
             is_no_std_build
         };
 
