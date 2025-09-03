@@ -27,33 +27,38 @@ fn main() {
         let is_test = env::var("CARGO_CFG_TEST").is_ok();
         let is_test_profile = env::var("PROFILE").unwrap_or_default() == "test";
         let is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
-        
+
         // Check for test-related Cargo commands and environment variables
-        let has_test_deps = env::var("CARGO_FEATURE_TEST").is_ok() 
-            || env::var("CARGO_FEATURE_PROC_MACRO").is_ok();
-        
+        let has_test_deps =
+            env::var("CARGO_FEATURE_TEST").is_ok() || env::var("CARGO_FEATURE_PROC_MACRO").is_ok();
+
         // Detect when building for tests by checking command line arguments
         let cargo_args: Vec<String> = env::args().collect();
-        let is_cargo_test = cargo_args.iter().any(|arg| 
-            arg.contains("test") || 
-            arg.contains("--test") || 
-            arg.contains("lib test") ||
-            arg.contains("bin test")
-        );
+        let is_cargo_test = cargo_args.iter().any(|arg| {
+            arg.contains("test") ||
+                arg.contains("--test") ||
+                arg.contains("lib test") ||
+                arg.contains("bin test")
+        });
 
         // Check for testing environment indicators
-        let is_testing_env = env::var("RUST_TEST_NOCAPTURE").is_ok() 
-            || env::var("RUST_TEST_THREADS").is_ok()
-            || env::var("CARGO_TARGET_DIR").unwrap_or_default().contains("test");
+        let is_testing_env = env::var("RUST_TEST_NOCAPTURE").is_ok() ||
+            env::var("RUST_TEST_THREADS").is_ok() ||
+            env::var("CARGO_TARGET_DIR")
+                .unwrap_or_default()
+                .contains("test");
 
         // Check the Cargo primary package to see if it's in test mode
         let cargo_primary_package = env::var("CARGO_PRIMARY_PACKAGE").is_ok();
-        let is_building_tests = cargo_primary_package && (
-            env::var("CARGO_CRATE_NAME").unwrap_or_default().contains("test") ||
-            env::var("CARGO_BIN_NAME").unwrap_or_default().contains("test")
-        );
+        let is_building_tests = cargo_primary_package &&
+            (env::var("CARGO_CRATE_NAME")
+                .unwrap_or_default()
+                .contains("test") ||
+                env::var("CARGO_BIN_NAME")
+                    .unwrap_or_default()
+                    .contains("test"));
 
-        // CI environment detection  
+        // CI environment detection
         let is_ci = env::var("CI").is_ok() || env::var("GITHUB_ACTIONS").is_ok();
         let is_ci_additional = env::var("BUILD_NUMBER").is_ok()  // Jenkins, TeamCity
             || env::var("TRAVIS").is_ok()  // Travis CI
@@ -63,23 +68,24 @@ fn main() {
         let _is_ci_combined = is_ci || is_ci_additional;
 
         // Comprehensive test mode detection
-        let in_test_mode = is_test 
-            || is_test_profile 
-            || is_doctest 
-            || has_test_deps 
-            || is_cargo_test 
-            || is_testing_env
-            || is_building_tests;
+        let in_test_mode = is_test ||
+            is_test_profile ||
+            is_doctest ||
+            has_test_deps ||
+            is_cargo_test ||
+            is_testing_env ||
+            is_building_tests;
 
         // Clean up unused variables - keeping the comprehensive detection for future use
         let _is_pure_no_std_build = !std_enabled && !in_test_mode;
 
-        // Detect if we're building for tests by checking the target directory or build context  
+        // Detect if we're building for tests by checking the target directory or build context
         // This is a more reliable approach than trying to detect cargo test command
         let target_dir = env::var("CARGO_TARGET_DIR").unwrap_or_default();
         let out_dir = env::var("OUT_DIR").unwrap_or_default();
-        let _is_test_build = target_dir.contains("test") || out_dir.contains("test") || 
-                           env::var("CARGO_PKG_NAME").unwrap_or_default() == "lib-q-keccak";
+        let _is_test_build = target_dir.contains("test") ||
+            out_dir.contains("test") ||
+            env::var("CARGO_PKG_NAME").unwrap_or_default() == "lib-q-keccak";
 
         // Enable panic handler for legitimate no_std builds, but be conservative about tests
         let result = if !std_enabled {
@@ -95,7 +101,7 @@ fn main() {
         // println!("cargo:warning=std_enabled: {}", std_enabled);
         // println!("cargo:warning=in_test_mode: {}", in_test_mode);
         // println!("cargo:warning=should_enable_panic_handler: {}", result);
-        
+
         result
     };
 
