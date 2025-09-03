@@ -64,7 +64,7 @@ runs:
           echo "Pre-building with cargo for feature resolution..."
           cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
           echo "Building with wasm-pack..."
-          wasm-pack build --target web -- --features "${{ inputs.features }}" --release --verbose
+          wasm-pack build --target web -- --features "${{ inputs.features }}" --verbose
         else
           wasm-pack build --target web --verbose
         fi
@@ -81,7 +81,7 @@ runs:
           echo "Pre-building with cargo for feature resolution..."
           cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
           echo "Building with wasm-pack..."
-          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --release --verbose
+          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --verbose
         else
           wasm-pack build --target nodejs --verbose
         fi
