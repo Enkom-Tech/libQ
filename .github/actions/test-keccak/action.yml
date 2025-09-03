@@ -11,7 +11,7 @@ inputs:
     required: false
   rust-version:
     description: Rust toolchain version to use
-    default: "stable"
+    default: "nightly"
     required: false
   run-benchmarks:
     description: Whether to run benchmarks (requires nightly)
@@ -77,8 +77,8 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-          echo "Building lib-q-keccak with alloc feature"
-          cargo build --no-default-features --features "alloc"
+          echo "Building lib-q-keccak with build-std approach for no_std compatibility"
+          RUSTFLAGS="-C panic=abort" cargo build -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "alloc"
         else
           cargo build --no-default-features
         fi

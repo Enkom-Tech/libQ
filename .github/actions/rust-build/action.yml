@@ -109,17 +109,18 @@ runs:
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
         elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-ascon" || "$WORKING_DIR" == "lib-q-sponge" ]]; then
+          echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
           echo "Building no_std package $WORKING_DIR with build-std for panic compatibility"
           # For no_std packages, we need to rebuild core library to avoid unwinding issues
           # Use build-std to ensure consistent panic strategy across all components
           if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-            echo "Building lib-q-keccak with rebuild-std approach"
-            RUSTFLAGS="-C panic=abort" cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "alloc"
+            echo "EXECUTING: Building lib-q-keccak with rebuild-std approach"
+            RUSTFLAGS="-C panic=abort" cargo build -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "alloc"
           elif [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-            echo "Building lib-q-ascon with rebuild-std approach"  
-            RUSTFLAGS="-C panic=abort" cargo +nightly build -Z build-std=core --target x86_64-unknown-linux-gnu --no-default-features --features "no_std"
+            echo "EXECUTING: Building lib-q-ascon with rebuild-std approach"  
+            RUSTFLAGS="-C panic=abort" cargo build -Z build-std=core --target x86_64-unknown-linux-gnu --no-default-features --features "no_std"
           else
-            echo "Building lib-q-sponge with standard approach"
+            echo "EXECUTING: Building lib-q-sponge with standard approach"
             # lib-q-sponge might not need build-std if it depends on properly built packages
             RUSTFLAGS="-C panic=abort" cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
           fi
