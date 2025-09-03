@@ -77,8 +77,10 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-          echo "Building lib-q-ascon with build-std approach for no_std compatibility"
-          RUSTFLAGS="-C panic=abort" cargo build -Z build-std=core --target x86_64-unknown-linux-gnu --no-default-features --features "no_std"
+          echo "Building lib-q-ascon with explicit no_std panic handler for CI compatibility"
+          # Use explicit panic handler feature for proper no_std builds
+          # This provides the required panic handler while avoiding test conflicts
+          cargo build --profile dev-no-std --no-default-features --features "no_std,no_std_panic_handler"
         else
           cargo build --no-default-features
         fi
@@ -103,9 +105,10 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-ascon" ]]; then
-          echo "Running tests for lib-q-ascon (no_std package) with test profile"
-          # Use test profile to allow panic=unwind for tests
-          cargo test --profile test --no-default-features --features "no_std"
+          echo "Running tests for lib-q-ascon - using std for test harness compatibility"
+          # For no_std crates, we run tests with std enabled because the test harness requires std
+          # The no_std compatibility is verified by the build step above
+          cargo test --features "std"
         else
           cargo test --no-default-features
         fi

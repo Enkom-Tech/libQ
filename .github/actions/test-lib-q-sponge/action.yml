@@ -74,7 +74,7 @@ runs:
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-sponge" ]]; then
           echo "Building lib-q-sponge with dependency features for no_std"
-          cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
+          cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-keccak/no_std_panic_handler,lib-q-ascon/no_std,lib-q-ascon/no_std_panic_handler"
         else
           cargo build --no-default-features
         fi
@@ -95,9 +95,9 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-sponge" ]]; then
-          echo "Running tests for lib-q-sponge (depends on no_std packages) with test profile"
-          # Use test profile to allow panic=unwind for tests
-          cargo test --profile test --no-default-features --features "lib-q-keccak/alloc,lib-q-ascon/no_std"
+          echo "Running tests for lib-q-sponge (depends on no_std packages) with std for test harness"
+          # Use std for test harness compatibility while testing no_std packages as dependencies
+          cargo test --no-default-features --features "lib-q-keccak/alloc,lib-q-keccak/std,lib-q-ascon/no_std"
         else
           cargo test --no-default-features
         fi

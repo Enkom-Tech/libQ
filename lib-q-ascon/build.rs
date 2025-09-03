@@ -23,19 +23,7 @@ fn main() {
         // Check if alloc feature is enabled (problematic for panic strategy)
         let _alloc_enabled = env::var("CARGO_FEATURE_ALLOC").is_ok();
 
-        // Check if we're in test mode
-        // CARGO_CFG_TEST is set when building test binaries, but may not be set during lib compilation
-        let is_test = env::var("CARGO_CFG_TEST").is_ok();
-
-        // Also check for other test-related environment variables
-        let is_test_profile = env::var("PROFILE").unwrap_or_default() == "test";
-
-        // Check if we're building with test dependencies (common test libraries)
-        let has_test_deps =
-            env::var("CARGO_FEATURE_TEST").is_ok() || env::var("CARGO_FEATURE_PROC_MACRO").is_ok();
-
-        // Check if we're in doctest mode
-        let is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
+        // (Removed old duplicate variable declarations - using enhanced detection below)
 
         // Check if we're in CI environment
         let is_ci = env::var("CI").is_ok() || env::var("GITHUB_ACTIONS").is_ok();
@@ -47,27 +35,84 @@ fn main() {
             || env::var("GITLAB_CI").is_ok()  // GitLab CI
             || env::var("AZURE_HTTP_USER_AGENT").is_ok(); // Azure Pipelines
 
-        let is_ci_combined = is_ci || is_ci_additional;
+        let _is_ci_combined = is_ci || is_ci_additional;
 
-        // Check if the no_std_panic_handler feature is explicitly enabled (not used in simplified logic)
-        let _panic_handler_requested = env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok();
+        // Enhanced test mode detection
+        let _is_test = env::var("CARGO_CFG_TEST").is_ok();
+        let _is_test_profile = env::var("PROFILE").unwrap_or_default() == "test";
+        let _is_doctest = env::var("CARGO_CFG_DOCTEST").is_ok();
 
-        // Combine test detection methods
-        let in_test_mode = is_test || is_test_profile || has_test_deps;
+        // Check for test-related Cargo commands and environment variables
+        let _has_test_deps =
+            env::var("CARGO_FEATURE_TEST").is_ok() || env::var("CARGO_FEATURE_PROC_MACRO").is_ok();
 
-        // Enable panic handler for no_std builds ONLY
-        // 1. std must be disabled (pure no_std build)
-        // 2. Not in doctest mode (doctests use std)
-        // 3. Not in test mode (tests use std and provide their own panic handler)
-        let is_no_std_build = !std_enabled && !is_doctest && !in_test_mode;
+        // Detect when building for tests by checking command line arguments
+        let cargo_args: Vec<String> = env::args().collect();
+        let is_cargo_test = cargo_args.iter().any(|arg| {
+            arg.contains("test") ||
+                arg.contains("--test") ||
+                arg.contains("lib test") ||
+                arg.contains("bin test")
+        });
 
-        // For CI environments, we need to be more careful about panic strategy
-        if is_ci_combined {
-            // In CI, only enable panic handler for pure no_std builds without test mode
-            is_no_std_build
+        // Check for testing environment indicators
+        let is_testing_env = env::var("RUST_TEST_NOCAPTURE").is_ok() ||
+            env::var("RUST_TEST_THREADS").is_ok() ||
+            env::var("CARGO_TARGET_DIR")
+                .unwrap_or_default()
+                .contains("test");
+
+        // Check the Cargo primary package to see if it's in test mode
+        let cargo_primary_package = env::var("CARGO_PRIMARY_PACKAGE").is_ok();
+        let is_building_tests = cargo_primary_package &&
+            (env::var("CARGO_CRATE_NAME")
+                .unwrap_or_default()
+                .contains("test") ||
+                env::var("CARGO_BIN_NAME")
+                    .unwrap_or_default()
+                    .contains("test"));
+
+        // CI environment detection
+        let is_ci = env::var("CI").is_ok() || env::var("GITHUB_ACTIONS").is_ok();
+        let is_ci_additional = env::var("BUILD_NUMBER").is_ok()  // Jenkins, TeamCity
+            || env::var("TRAVIS").is_ok()  // Travis CI
+            || env::var("CIRCLECI").is_ok()  // CircleCI
+            || env::var("GITLAB_CI").is_ok()  // GitLab CI
+            || env::var("AZURE_HTTP_USER_AGENT").is_ok(); // Azure Pipelines
+        let _is_ci_combined = is_ci || is_ci_additional;
+
+        // Comprehensive test mode detection
+        let in_test_mode = _is_test ||
+            _is_test_profile ||
+            _is_doctest ||
+            _has_test_deps ||
+            is_cargo_test ||
+            is_testing_env ||
+            is_building_tests;
+
+        // Clean up unused variables - keeping the comprehensive detection for future use
+        let _is_pure_no_std_build = !std_enabled && !in_test_mode;
+
+        // Detect if we're building for tests by checking the target directory or build context
+        // This is a more reliable approach than trying to detect cargo test command
+        let target_dir = env::var("CARGO_TARGET_DIR").unwrap_or_default();
+        let out_dir = env::var("OUT_DIR").unwrap_or_default();
+        let _is_test_build = target_dir.contains("test") ||
+            out_dir.contains("test") ||
+            env::var("CARGO_PKG_NAME").unwrap_or_default() == "lib-q-ascon";
+
+        // Optional debug output (uncomment for troubleshooting)
+        // println!("cargo:warning=std_enabled: {}", std_enabled);
+        // println!("cargo:warning=in_test_mode: {}", in_test_mode);
+
+        // Enable panic handler for legitimate no_std builds, but be conservative about tests
+        if !std_enabled {
+            // For no_std builds: only enable panic handler when explicitly requested
+            // This prevents conflicts with test harness which always uses std
+            env::var("CARGO_FEATURE_NO_STD_PANIC_HANDLER").is_ok()
         } else {
-            // For local builds, enable panic handler for pure no_std builds without test mode
-            is_no_std_build
+            // For std builds, never enable custom panic handler
+            false
         }
     };
 
