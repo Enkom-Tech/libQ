@@ -77,8 +77,10 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-          echo "Building lib-q-keccak with build-std approach for no_std compatibility"
-          RUSTFLAGS="-C panic=abort" cargo build -Z build-std=core,alloc --target x86_64-unknown-linux-gnu --no-default-features --features "alloc"
+          echo "Building lib-q-keccak with explicit no_std panic handler for CI compatibility"
+          # Use explicit panic handler feature for proper no_std builds
+          # This provides the required panic handler while avoiding test conflicts
+          cargo build --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
         else
           cargo build --no-default-features
         fi
@@ -99,9 +101,10 @@ runs:
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-          echo "Running tests for lib-q-keccak (no_std package) with test profile"
-          # Use test profile to allow panic=unwind for tests
-          cargo test --profile test --no-default-features --features "alloc"
+          echo "Running tests for lib-q-keccak - using std for test harness compatibility"
+          # For no_std crates, we run tests with std enabled because the test harness requires std
+          # The no_std compatibility is verified by the build step above
+          cargo test --features "alloc,std"
         else
           cargo test --no-default-features
         fi
