@@ -134,6 +134,9 @@ runs:
     - name: WASM security validation
       if: inputs.run-wasm-validation == 'true'
       shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
       run: |
         echo "🌐 Running WASM security validation..."
         cd ${{ inputs.working-directory }}

@@ -56,6 +56,9 @@ runs:
     - name: Build WASM for web target
       if: contains(inputs.targets, 'web')
       shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
       run: |
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
@@ -73,6 +76,9 @@ runs:
     - name: Build WASM for nodejs target
       if: contains(inputs.targets, 'nodejs')
       shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
       run: |
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
