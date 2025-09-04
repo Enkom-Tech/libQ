@@ -268,6 +268,7 @@ fn test_performance_consistency() {
     // Coefficient of variation should be reasonable
     // Use more lenient threshold in CI environments due to shared resources
     let cv = std_dev / avg_time.as_nanos() as f64;
+    #[allow(clippy::disallowed_methods)]
     let threshold = if std::env::var("CI").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
         0.3 // 30% for CI environments
     } else {
