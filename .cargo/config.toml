@@ -98,6 +98,7 @@ debug = true
 # WebAssembly-specific configuration
 [target.wasm32-unknown-unknown]
 # Configure getrandom for WebAssembly builds
+# Both feature flags AND this configuration are required for getrandom WASM support
 rustflags = [
     "--cfg", "getrandom_backend=\"wasm_js\"",
 ]
