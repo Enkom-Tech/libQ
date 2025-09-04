@@ -12,10 +12,12 @@ readme.workspace = true
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", features = ["rand"] }
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
+getrandom = { version = "0.3.3", default-features = false, optional = true }
 
 [features]
-default = []
+default = ["getrandom"]
+getrandom = ["dep:getrandom"]
+wasm_js = ["getrandom", "getrandom/wasm_js"]
 
 [lib]
 name = "lib_q_utils"
