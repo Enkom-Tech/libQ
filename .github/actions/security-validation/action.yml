@@ -134,14 +134,16 @@ runs:
     - name: WASM security validation
       if: inputs.run-wasm-validation == 'true'
       shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
       run: |
         echo "🌐 Running WASM security validation..."
         cd ${{ inputs.working-directory }}
         
         # Check WASM compilation (avoid dev-dependencies that don't support WASM)
         rustup target add wasm32-unknown-unknown
-        # Use cargo configuration to ensure getrandom WASM backend is properly configured
-        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
         
         # Validate WASM compilation success
         echo "✅ WASM compilation check completed successfully"
