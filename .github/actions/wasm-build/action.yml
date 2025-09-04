@@ -63,9 +63,9 @@ runs:
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          # Pre-build with cargo to ensure proper feature resolution
-          echo "Pre-building with cargo for feature resolution..."
-          cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
+          # Pre-check with cargo to ensure proper feature resolution (avoid dev-dependencies)
+          echo "Pre-checking with cargo for feature resolution..."
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
           wasm-pack build --target web -- --features "${{ inputs.features }}" --verbose
         else
@@ -83,9 +83,9 @@ runs:
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
         if [ -n "${{ inputs.features }}" ]; then
-          # Pre-build with cargo to ensure proper feature resolution
-          echo "Pre-building with cargo for feature resolution..."
-          cargo build --target wasm32-unknown-unknown --features "${{ inputs.features }}" --release
+          # Pre-check with cargo to ensure proper feature resolution (avoid dev-dependencies)
+          echo "Pre-checking with cargo for feature resolution..."
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
           wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --verbose
         else
