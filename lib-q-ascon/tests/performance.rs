@@ -265,7 +265,7 @@ fn test_performance_consistency() {
         RUNS as f64;
     let std_dev = variance.sqrt();
 
-    // Coefficient of variation should be reasonable 
+    // Coefficient of variation should be reasonable
     // Use more lenient threshold in CI environments due to shared resources
     let cv = std_dev / avg_time.as_nanos() as f64;
     let threshold = if std::env::var("CI").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
@@ -273,11 +273,12 @@ fn test_performance_consistency() {
     } else {
         0.2 // 20% for local development
     };
-    
+
     assert!(
         cv < threshold,
         "Performance too inconsistent: coefficient of variation {} (threshold: {})",
-        cv, threshold
+        cv,
+        threshold
     );
 }
 
