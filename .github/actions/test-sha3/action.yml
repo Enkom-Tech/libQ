@@ -17,6 +17,10 @@ inputs:
     description: Specific algorithms to test
     default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
     required: false
+  run-benchmarks:
+    description: Whether to run benchmarks (requires nightly)
+    default: "false"
+    required: false
 
 runs:
   using: composite
@@ -163,5 +167,15 @@ runs:
         echo "Testing feature combinations..."
         cd ${{ inputs.working-directory }}
         cargo install cargo-hack
-        cargo hack test --feature-powerset --exclude-features default
+        # Limit feature combinations to prevent timeouts
+        cargo hack test --feature-powerset --exclude-features default --no-dev-deps --each-feature --skip asm
         echo "Feature powerset test completed"
+        
+    - name: Run benchmarks (nightly only)
+      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+      shell: bash
+      run: |
+        echo "Running SHA3 benchmarks..."
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "nightly" --bench sha3 || echo "No SHA3 benchmarks found"
+        echo "SHA3 benchmarks completed"

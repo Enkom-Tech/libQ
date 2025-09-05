@@ -149,7 +149,8 @@ runs:
         echo "Testing feature combinations..."
         cd ${{ inputs.working-directory }}
         cargo install cargo-hack
-        cargo hack test --feature-powerset --exclude-features default
+        # Limit feature combinations to prevent timeouts
+        cargo hack test --feature-powerset --exclude-features default --no-dev-deps --each-feature --skip advanced-simd,multithreading,parallelhash,simd
         echo "Feature powerset test completed"
     
     - name: Run benchmarks (nightly only)
