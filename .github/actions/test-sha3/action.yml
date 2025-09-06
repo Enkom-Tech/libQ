@@ -168,7 +168,7 @@ runs:
         cd ${{ inputs.working-directory }}
         cargo install cargo-hack
         # Limit feature combinations to prevent timeouts
-        cargo hack test --feature-powerset --exclude-features default --no-dev-deps --each-feature --skip asm
+        cargo hack test --feature-powerset --exclude-features default --each-feature --skip asm
         echo "Feature powerset test completed"
         
     - name: Run benchmarks (nightly only)
