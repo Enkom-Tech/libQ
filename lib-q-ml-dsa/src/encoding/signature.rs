@@ -42,9 +42,9 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     //
     // Instead, we have to mutate signature[offset + ..] directly.
     for i in 0..rows_in_a {
-        // for (j, hint) in self.hint[i].into_iter().enumerate() {
-        for j in 0..hint[i].len() {
-            if hint[i][j] == 1 {
+        // Use enumerate to avoid the Clippy needless_range_loop warning
+        for (j, &value) in hint[i].iter().enumerate() {
+            if value == 1 {
                 signature[offset + true_hints_seen] = j as u8;
                 true_hints_seen += 1;
             }
