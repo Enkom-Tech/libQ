@@ -388,10 +388,10 @@ jobs:
           - name: "K12"
             action: test-k12
             working-directory: lib-q-hash
-            features: "alloc,oid"
+            features: "alloc,oid,getrandom"
             rust-version: "stable"
             run-benchmarks: "false"
-            test-algorithms: ""
+            test-algorithms: "k12"
           - name: "Ascon"
             action: test-ascon
             working-directory: lib-q-ascon

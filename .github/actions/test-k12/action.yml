@@ -134,8 +134,8 @@ runs:
     - name: WASM compilation test
       shell: bash
       env:
-        # Ensure getrandom WASM backend is properly configured
-        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
+        # Ensure getrandom WASM backend is properly configured with panic=abort
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
       run: |
         echo "Testing WASM compilation..."
         cd ${{ inputs.working-directory }}
@@ -150,7 +150,8 @@ runs:
         cd ${{ inputs.working-directory }}
         cargo install cargo-hack
         # Limit feature combinations to prevent timeouts
-        cargo hack test --feature-powerset --exclude-features default --each-feature --skip advanced-simd,multithreading,parallelhash,simd
+        # Note: --feature-powerset and --each-feature cannot be used together
+        cargo hack test --feature-powerset --exclude-features default --skip advanced-simd,multithreading,parallelhash,simd
         echo "Feature powerset test completed"
     
     - name: Run benchmarks (nightly only)

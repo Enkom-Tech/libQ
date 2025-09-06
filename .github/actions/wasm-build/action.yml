@@ -58,7 +58,7 @@ runs:
       shell: bash
       env:
         # Ensure getrandom WASM backend is properly configured
-        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
       run: |
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
@@ -78,7 +78,7 @@ runs:
       shell: bash
       env:
         # Ensure getrandom WASM backend is properly configured
-        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
       run: |
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
