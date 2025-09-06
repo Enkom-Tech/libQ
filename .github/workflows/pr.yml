@@ -58,12 +58,12 @@ jobs:
       - name: Validate classical crypto compliance
         run: |
           echo "🔐 Running classical crypto validation..."
-          cargo run --bin security-validator --features "std" -- validate-classical
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-classical
       
       - name: Validate SHA-3 compliance
         run: |
           echo "📊 Running SHA-3 compliance validation..."
-          cargo run --bin security-validator --features "std" -- validate-sha3
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-sha3
 
   # Test coverage analysis - runs after core validation
   test-coverage:

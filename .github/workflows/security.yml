@@ -39,7 +39,7 @@ jobs:
       - name: Validate NIST compliance
         run: |
           echo "🔒 Running NIST compliance validation..."
-          cargo run --bin security-validator --features "std" -- validate-nist
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-nist
           echo "✅ NIST compliance validation passed"
 
   # Cryptographic algorithm validation - parallel with core security
@@ -124,7 +124,7 @@ jobs:
       - name: Check for timing side-channels
         run: |
           echo "🔍 Running timing vulnerability analysis..."
-          cargo run --bin security-validator --features "std" -- validate-timing
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-timing
 
   # Memory safety validation - parallel with constant-time
   memory-safety:
@@ -150,7 +150,7 @@ jobs:
       - name: Check memory safety
         run: |
           echo "🧠 Running memory safety validation..."
-          cargo run --bin security-validator --features "std" -- validate-memory
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-memory
 
   # Dependency security audit - parallel execution
   dependency-audit:
