@@ -152,7 +152,13 @@ runs:
         # Add features
         if [[ "$FEATURES" == *"no_std"* ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
-        else
+        elif [[ "$PACKAGE" == "lib-q-core" ]]; then
+          # lib-q-core needs std,rand features for proper coverage
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
+        elif [[ "$PACKAGE" == "lib-q" ]]; then
+          # lib-q needs all-algorithms feature
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
+        elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
         
@@ -183,7 +189,13 @@ runs:
         # Add features
         if [[ "$FEATURES" == *"no_std"* ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
-        else
+        elif [[ "$PACKAGE" == "lib-q-core" ]]; then
+          # lib-q-core needs std,rand features for proper coverage
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
+        elif [[ "$PACKAGE" == "lib-q" ]]; then
+          # lib-q needs all-algorithms feature
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
+        elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
         

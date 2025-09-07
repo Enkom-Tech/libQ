@@ -75,6 +75,13 @@ fi
 # Add package filter if specified
 if [[ -n "$CRATE" ]]; then
   CMD="$CMD --packages $CRATE"
+  
+  # Add crate-specific features if needed
+  if [[ "$CRATE" == "lib-q-core" ]]; then
+    CMD="$CMD --features std,rand"
+  elif [[ "$CRATE" == "lib-q" ]]; then
+    CMD="$CMD --features all-algorithms"
+  fi
 fi
 
 # Add common flags

@@ -1,0 +1,25 @@
+# Tarpaulin configuration for lib-q-core
+
+# Target specific packages
+packages = ["lib-q-core"]
+
+# Include only source files in coverage
+include-files = ["src/lib.rs", "src/*.rs"]
+
+# Exclude files that shouldn't be part of coverage
+exclude-files = [
+    "../reference/*",
+    "../lib-q-*/src/*.rs",  # Exclude other lib-q crates
+]
+
+# Fail if coverage is below threshold (tarpaulin doesn't support this as a config option yet)
+# fail-under = 80.0
+
+# Enable specific features needed for proper coverage
+features = "std,rand"
+
+# Ignore test functions in coverage
+ignore-tests = true
+
+# Ignore panics in coverage
+ignore-panics = true
