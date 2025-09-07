@@ -21,13 +21,13 @@ use alloc::{
 #[cfg(feature = "hash")]
 use lib_q_sha3::{
     Digest,
-    ExtendableOutput,
     Sha3_224,
     Sha3_256,
     Sha3_384,
     Sha3_512,
     Shake128,
     Shake256,
+    digest::ExtendableOutput,
 };
 #[cfg(any(feature = "getrandom", feature = "rand"))]
 #[allow(unused_imports)]
