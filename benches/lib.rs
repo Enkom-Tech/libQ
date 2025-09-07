@@ -1,6 +1,10 @@
 #[allow(unused_imports)]
 use std::hint::black_box;
 
+// This comment explains the unusual situation with criterion benchmarks:
+// The `mut` keyword is required for the benchmark groups because criterion's
+// `bench_function` method requires a mutable reference, even though the linter
+// doesn't detect this requirement. We suppress the warnings with #[allow(unused_mut)].
 use criterion::{
     Criterion,
     criterion_group,
@@ -16,7 +20,8 @@ use libq::{
 };
 
 fn bench_key_generation(c: &mut Criterion) {
-    let group = c.benchmark_group("key_generation");
+    #[allow(unused_mut)]
+    let mut group = c.benchmark_group("key_generation");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -46,7 +51,8 @@ fn bench_key_generation(c: &mut Criterion) {
 }
 
 fn bench_signing(c: &mut Criterion) {
-    let group = c.benchmark_group("signing");
+    #[allow(unused_mut)]
+    let mut group = c.benchmark_group("signing");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -68,7 +74,8 @@ fn bench_signing(c: &mut Criterion) {
 }
 
 fn bench_verification(c: &mut Criterion) {
-    let group = c.benchmark_group("verification");
+    #[allow(unused_mut)]
+    let mut group = c.benchmark_group("verification");
 
     #[cfg(feature = "ml-dsa")]
     {
@@ -93,7 +100,8 @@ fn bench_verification(c: &mut Criterion) {
 }
 
 fn bench_encapsulation(c: &mut Criterion) {
-    let group = c.benchmark_group("encapsulation");
+    #[allow(unused_mut)]
+    let mut group = c.benchmark_group("encapsulation");
 
     #[cfg(feature = "ml-kem")]
     {
@@ -117,7 +125,8 @@ fn bench_encapsulation(c: &mut Criterion) {
 }
 
 fn bench_decapsulation(c: &mut Criterion) {
-    let group = c.benchmark_group("decapsulation");
+    #[allow(unused_mut)]
+    let mut group = c.benchmark_group("decapsulation");
 
     #[cfg(feature = "ml-kem")]
     {
