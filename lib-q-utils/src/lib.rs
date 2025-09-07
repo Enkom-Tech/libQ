@@ -2,6 +2,11 @@
 //!
 //! This crate provides utility functions used across lib-Q.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "std")]
+extern crate std;
+
 // Re-export core types for public use
 pub use lib_q_core::{
     Result,

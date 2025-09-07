@@ -66,6 +66,8 @@ jobs:
           cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-sha3
 
   # Test coverage analysis - runs after core validation
+  # This is a focused coverage check for PRs
+  # For full coverage analysis, see coverage.yml workflow
   test-coverage:
     name: Test Coverage
     needs: core-validation
@@ -74,12 +76,52 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
+      # Determine which package to test based on PR changes
+      - name: Determine affected packages
+        id: affected-packages
+        run: |
+          # Fetch the base branch to ensure we can diff against it
+          git fetch origin ${{ github.base_ref }}
+          
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          
+          # Define all lib-q crates
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-ascon lib-q-hash lib-q-sha3 lib-q-k12"
+          CRYPTO_CRATES="lib-q-sponge lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke"
+          UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
+          ALL_CRATES="$CORE_CRATES $CRYPTO_CRATES $UTIL_CRATES"
+          
+          # Check which critical packages were modified
+          AFFECTED=""
+          for crate in $ALL_CRATES; do
+            if echo "$CHANGED_FILES" | grep -q "^$crate/"; then
+              AFFECTED="$crate"
+              break
+            fi
+          done
+          
+          # If no specific crate was modified, check if root files were changed
+          if [ -z "$AFFECTED" ]; then
+            if echo "$CHANGED_FILES" | grep -q "^lib\.rs\|^Cargo\.toml\|^Cargo\.lock"; then
+              # Root files changed, test the main lib-q crate
+              AFFECTED="lib-q"
+            else
+              # Default to lib-q-core if no specific package is identified
+              AFFECTED="lib-q-core"
+            fi
+          fi
+          
+          echo "package=$AFFECTED" >> $GITHUB_OUTPUT
+          echo "Testing package: $AFFECTED"
+      
       - name: Run coverage tests
         uses: ./.github/actions/rust-test
         with:
           features: "all-algorithms"
           run-coverage: "true"
-          coverage-threshold: "1"
+          coverage-threshold: "80"
+          package: ${{ steps.affected-packages.outputs.package }}
       
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

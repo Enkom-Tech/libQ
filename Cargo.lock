@@ -656,6 +656,8 @@ version = "0.0.2"
 dependencies = [
  "lib-q-ascon",
  "lib-q-keccak",
+ "proptest",
+ "quickcheck",
  "wasm-bindgen",
 ]
 

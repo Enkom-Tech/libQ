@@ -1,0 +1,150 @@
+# Comprehensive Test Coverage Workflow
+# 
+# This workflow runs a full coverage analysis on the main branch and generates
+# coverage reports and badges. It complements the PR workflow which does a more
+# targeted coverage check.
+#
+# For PR validation coverage, see the test-coverage job in pr.yml
+
+name: Test Coverage
+
+on:
+  # Run on main branch pushes for badge updates
+  push:
+    branches: [main]
+  # Run on pull requests to catch coverage regressions early
+  pull_request:
+    branches: [main]
+    paths:
+      # Only run full coverage on PRs that modify these critical paths
+      - 'lib-q-sponge/**'
+      - 'lib-q-keccak/**'
+      - 'lib-q-ascon/**'
+      - 'lib-q-core/**'
+      - '.github/workflows/coverage.yml'
+  # Schedule a weekly coverage report for monitoring
+  schedule:
+    - cron: '0 0 * * 0'  # Run at midnight on Sundays
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  COVERAGE_THRESHOLD: "80"
+
+jobs:
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Install tarpaulin
+        run: |
+          cargo install cargo-tarpaulin
+          
+      # First run coverage for individual critical crates
+      - name: Run coverage for core cryptographic crates
+        run: |
+          # Create directory for combined reports
+          mkdir -p combined-coverage
+          
+          # Define critical cryptographic crates
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-ascon lib-q-hash lib-q-sha3 lib-q-k12"
+          CRYPTO_CRATES="lib-q-sponge lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke"
+          UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
+          
+          # Run coverage for core cryptographic components
+          echo "Running coverage for core cryptographic components with ${{ matrix.rust }}"
+          for crate in $CORE_CRATES; do
+            if [ -d "../$crate" ]; then
+              echo "Running coverage for $crate"
+              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/core/$crate"
+            fi
+          done
+          
+          # Run coverage for cryptographic algorithm implementations
+          echo "Running coverage for cryptographic algorithm implementations with ${{ matrix.rust }}"
+          for crate in $CRYPTO_CRATES; do
+            if [ -d "../$crate" ]; then
+              echo "Running coverage for $crate"
+              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/crypto/$crate"
+            fi
+          done
+          
+          # Run coverage for utility crates
+          echo "Running coverage for utility crates with ${{ matrix.rust }}"
+          for crate in $UTIL_CRATES; do
+            if [ -d "../$crate" ]; then
+              echo "Running coverage for $crate"
+              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold 70 --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/utils/$crate"
+            fi
+          done
+      
+      # Then run coverage for the entire workspace to get overall metrics
+      - name: Run coverage for entire workspace
+        run: |
+          bash scripts/run-coverage.sh --no-reference --threshold 60 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
+          
+          # Copy to combined directory
+          cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"
+          
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: combined-coverage/
+          
+      - name: Extract coverage percentage
+        id: extract-coverage
+        run: |
+          # Extract the coverage percentage from the full workspace run
+          if [[ -f "coverage-full/tarpaulin-report.html" ]]; then
+            COVERAGE=$(grep -o '[0-9]\+\.[0-9]\+%' "coverage-full/tarpaulin-report.html" | head -1 | tr -d '%')
+            echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+            
+            # Determine color based on threshold
+            if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+              echo "color=red" >> $GITHUB_OUTPUT
+            elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+              echo "color=yellow" >> $GITHUB_OUTPUT
+            else
+              echo "color=green" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "percentage=0" >> $GITHUB_OUTPUT
+            echo "color=red" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Generate badge
+        uses: emibcn/badge-action@v1
+        with:
+          label: 'coverage'
+          status: '${{ steps.extract-coverage.outputs.percentage }}%'
+          color: '${{ steps.extract-coverage.outputs.color }}'
+          path: '.github/badges/coverage.svg'

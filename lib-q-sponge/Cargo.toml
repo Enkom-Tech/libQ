@@ -14,6 +14,10 @@ lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-ascon = { path = "../lib-q-ascon" }
 wasm-bindgen = { version = "0.2.100", optional = true }
 
+[dev-dependencies]
+proptest = "1.7.0"
+quickcheck = "1.0.3"
+
 [lib]
 name = "lib_q_sponge"
 path = "src/lib.rs"
@@ -22,6 +26,8 @@ path = "src/lib.rs"
 default = ["asm"]
 asm = ["lib-q-keccak/asm"]
 wasm = ["wasm-bindgen"]
+simd = []
+multithreading = []
 
 [[test]]
 name = "integration_keccak"

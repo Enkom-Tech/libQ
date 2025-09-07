@@ -99,7 +99,9 @@ std = ["alloc"]
 alloc = []
 no_std = []
 # WASM API
-wasm = ["wasm-bindgen", "js-sys", "web-sys", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom"]
+wasm = ["wasm-bindgen", "js-sys", "web-sys", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
+# WebAssembly JavaScript integration
+wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
 # Random number generation
 rand = []
 # Logging support

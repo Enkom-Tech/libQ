@@ -138,11 +138,29 @@ runs:
       run: |
         echo "Generating coverage report..."
         cd ${{ inputs.working-directory }}
-        if [[ "$FEATURES" == *"no_std"* ]]; then
-          cargo tarpaulin --no-default-features --features "$FEATURES" --out Html --output-dir coverage
-        else
-          cargo tarpaulin --features "$FEATURES" --out Html --output-dir coverage
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build tarpaulin command with appropriate options
+        TARPAULIN_CMD="cargo tarpaulin --out Html --output-dir coverage"
+        
+        # Add package filter if specified
+        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --packages $PACKAGE"
         fi
+        
+        # Add features
+        if [[ "$FEATURES" == *"no_std"* ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
+        else
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
+        fi
+        
+        # Exclude reference implementations
+        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
+        
+        echo "Running: $TARPAULIN_CMD"
+        eval "$TARPAULIN_CMD"
         echo "Coverage report generated"
 
     - name: Check coverage threshold
@@ -151,11 +169,32 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        if [[ "$FEATURES" == *"no_std"* ]]; then
-          COVERAGE=$(cargo tarpaulin --no-default-features --features "$FEATURES" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
-        else
-          COVERAGE=$(cargo tarpaulin --features "$FEATURES" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build tarpaulin command with appropriate options
+        TARPAULIN_CMD="cargo tarpaulin --out Xml"
+        
+        # Add package filter if specified
+        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --packages $PACKAGE"
         fi
+        
+        # Add features
+        if [[ "$FEATURES" == *"no_std"* ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
+        else
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
+        fi
+        
+        # Exclude reference implementations
+        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
+        
+        # Run tarpaulin and extract coverage percentage
+        echo "Running: $TARPAULIN_CMD"
+        COVERAGE_OUTPUT=$(eval "$TARPAULIN_CMD")
+        COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 | tr -d '%')
+        
         echo "Coverage: $COVERAGE%"
         if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
           echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"

@@ -3,13 +3,23 @@
 //! This binary provides command-line tools for security validation
 //! that can be used in CI/CD workflows.
 
+// Provide a no_std fallback main for environments without std support
+#[cfg(not(feature = "std"))]
+fn main() {
+    // Empty implementation for no_std environments
+}
+
+#[cfg(feature = "std")]
 use std::env;
 
+#[cfg(feature = "std")]
 use lib_q_utils::security_validation::{
     SecurityValidator,
     print_report,
 };
 
+// Main entry point for the security validator binary
+#[cfg(feature = "std")]
 fn main() {
     let args: Vec<String> = env::args().collect();
 
