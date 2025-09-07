@@ -9,6 +9,10 @@ inputs:
     description: Features to enable for building
     default: ""
     required: false
+  package:
+    description: Specific package to build/test
+    default: ""
+    required: false
   rust-version:
     description: Rust toolchain version to use
     default: "stable"
@@ -87,11 +91,27 @@ runs:
       run: |
         echo "Running Clippy linting..."
         cd ${{ inputs.working-directory }}
-        if [ -n "${{ inputs.features }}" ]; then
-          cargo clippy --all-targets --features "${{ inputs.features }}" -- -D warnings
-        else
-          cargo clippy --all-targets -- -D warnings
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build the clippy command
+        CLIPPY_CMD="cargo clippy --all-targets"
+        
+        # Add package if specified
+        if [ -n "$PACKAGE" ]; then
+          CLIPPY_CMD="$CLIPPY_CMD -p $PACKAGE"
         fi
+        
+        # Add features if specified
+        if [ -n "$FEATURES" ]; then
+          CLIPPY_CMD="$CLIPPY_CMD --features \"$FEATURES\""
+        fi
+        
+        # Add warning flags
+        CLIPPY_CMD="$CLIPPY_CMD -- -D warnings"
+        
+        echo "Running: $CLIPPY_CMD"
+        eval "$CLIPPY_CMD"
         echo "Clippy linting completed"
     
     - name: Build with no default features
@@ -139,7 +159,22 @@ runs:
       run: |
         echo "Building with features: ${{ inputs.features }}"
         cd ${{ inputs.working-directory }}
-        cargo build --features "${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build the command
+        BUILD_CMD="cargo build"
+        
+        # Add package if specified
+        if [ -n "$PACKAGE" ]; then
+          BUILD_CMD="$BUILD_CMD -p $PACKAGE"
+        fi
+        
+        # Add features
+        BUILD_CMD="$BUILD_CMD --features \"$FEATURES\""
+        
+        echo "Running: $BUILD_CMD"
+        eval "$BUILD_CMD"
         echo "Build with features completed"
     
     - name: Build with all features
@@ -159,22 +194,46 @@ runs:
 
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
         WORKING_DIR="${{ inputs.working-directory }}"
+        
         if [[ "$FEATURES" == *"no_std"* || "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
-          # Check that the package compiles correctly
-          if [ -n "$FEATURES" ]; then
-            cargo check --no-default-features --features "$FEATURES" --verbose
-          else
-            cargo check --no-default-features --verbose
+          
+          # Build the check command
+          CHECK_CMD="cargo check --no-default-features"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            CHECK_CMD="$CHECK_CMD -p $PACKAGE"
           fi
+          
+          # Add features if specified
+          if [ -n "$FEATURES" ]; then
+            CHECK_CMD="$CHECK_CMD --features \"$FEATURES\""
+          fi
+          
+          CHECK_CMD="$CHECK_CMD --verbose"
+          
+          echo "Running: $CHECK_CMD"
+          eval "$CHECK_CMD"
         else
-          if [ -n "$FEATURES" ]; then
-            cargo test --features "$FEATURES"
-          else
-            cargo test
+          # Build the test command
+          TEST_CMD="cargo test"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            TEST_CMD="$TEST_CMD -p $PACKAGE"
           fi
+          
+          # Add features if specified
+          if [ -n "$FEATURES" ]; then
+            TEST_CMD="$TEST_CMD --features \"$FEATURES\""
+          fi
+          
+          echo "Running: $TEST_CMD"
+          eval "$TEST_CMD"
         fi
         echo "Tests completed"
     
@@ -186,14 +245,34 @@ runs:
         cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
+        PACKAGE="${{ inputs.package }}"
         WORKING_DIR="${{ inputs.working-directory }}"
+        
         if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-ascon"* || "$WORKING_DIR" == *"lib-q-sponge"* ]]; then
           echo "Running no_std-compatible compilation check with all features"
           echo "Cannot run tests for no_std-compatible packages"
-          # Check that the package compiles correctly with all features
-          cargo check --all-features --verbose
+          
+          # Build the check command
+          CHECK_CMD="cargo check --all-features --verbose"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            CHECK_CMD="$CHECK_CMD -p $PACKAGE"
+          fi
+          
+          echo "Running: $CHECK_CMD"
+          eval "$CHECK_CMD"
         else
-          cargo test --all-features
+          # Build the test command
+          TEST_CMD="cargo test --all-features"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            TEST_CMD="$TEST_CMD -p $PACKAGE"
+          fi
+          
+          echo "Running: $TEST_CMD"
+          eval "$TEST_CMD"
         fi
         echo "Tests with all features completed"
     

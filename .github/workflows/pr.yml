@@ -35,6 +35,7 @@ jobs:
           run-clippy: "true"
           run-tests: "false"
           features: "all-algorithms"
+          package: "lib-q"
       
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
@@ -118,7 +119,7 @@ jobs:
       - name: Run coverage tests
         uses: ./.github/actions/rust-test
         with:
-          features: "all-algorithms"
+          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || '' }}
           run-coverage: "true"
           coverage-threshold: "80"
           package: ${{ steps.affected-packages.outputs.package }}
@@ -155,7 +156,7 @@ jobs:
             ${{ runner.os }}-perf-
       
       - name: Run benchmarks
-        run: cargo bench --features "all-algorithms" --verbose
+        run: cargo bench --features "all-algorithms" --package lib-q --verbose
       
       - name: Check for performance regressions
         run: |
@@ -207,7 +208,7 @@ jobs:
       - name: Check README examples
         run: |
           # Verify that README examples compile
-          cargo check --examples --features "all-algorithms"
+          cargo check --examples --package lib-q --features "all-algorithms"
           echo "✅ README examples compile successfully"
 
   # PR summary and reporting - runs after all other jobs
