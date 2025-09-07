@@ -121,7 +121,7 @@ runs:
         echo "Verifying constant-time operations..."
         cd ${{ inputs.working-directory }}
         # Run specific tests that verify constant-time behavior
-        cargo test --test constant_time --features "${{ inputs.features }}"
+        cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-sha3
         echo "Constant-time verification completed"
     
     - name: Test Keccak implementations

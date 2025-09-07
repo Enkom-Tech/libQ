@@ -41,11 +41,12 @@ fn test_feature_config_compatibility_optimized() {
 
 #[test]
 fn test_parallel_available() {
-    let mut config = FeatureConfig::default();
-
     // Test when enabled
-    config.enable_parallel = true;
-    config.optimization_level = OptimizationLevel::Advanced;
+    let config = FeatureConfig {
+        enable_parallel: true,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
 
     // Check if it's consistent with the configuration
     assert_eq!(
@@ -54,22 +55,30 @@ fn test_parallel_available() {
     );
 
     // Test when disabled by optimization level
-    config.optimization_level = OptimizationLevel::Reference;
-    assert!(!config.parallel_available());
+    let config_ref = FeatureConfig {
+        enable_parallel: true,
+        optimization_level: OptimizationLevel::Reference,
+        ..Default::default()
+    };
+    assert!(!config_ref.parallel_available());
 
     // Test when explicitly disabled
-    config.enable_parallel = false;
-    config.optimization_level = OptimizationLevel::Advanced;
-    assert!(!config.parallel_available());
+    let config_disabled = FeatureConfig {
+        enable_parallel: false,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
+    assert!(!config_disabled.parallel_available());
 }
 
 #[test]
 fn test_advanced_simd_available() {
-    let mut config = FeatureConfig::default();
-
     // Test when enabled
-    config.enable_advanced_simd = true;
-    config.optimization_level = OptimizationLevel::Advanced;
+    let config = FeatureConfig {
+        enable_advanced_simd: true,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
 
     // Check if it's consistent with the configuration
     assert_eq!(
@@ -78,103 +87,151 @@ fn test_advanced_simd_available() {
     );
 
     // Test when disabled by optimization level
-    config.optimization_level = OptimizationLevel::Reference;
-    assert!(!config.advanced_simd_available());
+    let config_ref = FeatureConfig {
+        enable_advanced_simd: true,
+        optimization_level: OptimizationLevel::Reference,
+        ..Default::default()
+    };
+    assert!(!config_ref.advanced_simd_available());
 
     // Test when explicitly disabled
-    config.enable_advanced_simd = false;
-    config.optimization_level = OptimizationLevel::Advanced;
-    assert!(!config.advanced_simd_available());
+    let config_disabled = FeatureConfig {
+        enable_advanced_simd: false,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
+    assert!(!config_disabled.advanced_simd_available());
 }
 
 #[test]
 fn test_platform_optimizations_available() {
-    let mut config = FeatureConfig::default();
-
     // Test when enabled
-    config.enable_platform_optimizations = true;
-    config.optimization_level = OptimizationLevel::Advanced;
+    let config = FeatureConfig {
+        enable_platform_optimizations: true,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
     assert!(config.platform_optimizations_available());
 
     // Test when disabled by optimization level
-    config.optimization_level = OptimizationLevel::Reference;
-    assert!(!config.platform_optimizations_available());
+    let config_ref = FeatureConfig {
+        enable_platform_optimizations: true,
+        optimization_level: OptimizationLevel::Reference,
+        ..Default::default()
+    };
+    assert!(!config_ref.platform_optimizations_available());
 
     // Test when explicitly disabled
-    config.enable_platform_optimizations = false;
-    config.optimization_level = OptimizationLevel::Advanced;
-    assert!(!config.platform_optimizations_available());
+    let config_disabled = FeatureConfig {
+        enable_platform_optimizations: false,
+        optimization_level: OptimizationLevel::Advanced,
+        ..Default::default()
+    };
+    assert!(!config_disabled.platform_optimizations_available());
 }
 
 #[test]
 fn test_effective_optimization_level() {
-    let mut config = FeatureConfig::default();
-
     // Test normal case
-    config.optimization_level = OptimizationLevel::Advanced;
-    config.enable_platform_optimizations = true;
-    config.enable_advanced_simd = true;
+    let config = FeatureConfig {
+        optimization_level: OptimizationLevel::Advanced,
+        enable_platform_optimizations: true,
+        enable_advanced_simd: true,
+        ..Default::default()
+    };
     assert_eq!(
         config.effective_optimization_level(),
         OptimizationLevel::Advanced
     );
 
     // Test when platform optimizations are disabled
-    config.enable_platform_optimizations = false;
+    let config_no_platform = FeatureConfig {
+        optimization_level: OptimizationLevel::Advanced,
+        enable_platform_optimizations: false,
+        enable_advanced_simd: true,
+        ..Default::default()
+    };
     assert_eq!(
-        config.effective_optimization_level(),
+        config_no_platform.effective_optimization_level(),
         OptimizationLevel::Reference
     );
 
     // Test when advanced SIMD is disabled but max optimization is selected
-    config.enable_platform_optimizations = true;
-    config.enable_advanced_simd = false;
-    config.optimization_level = OptimizationLevel::Maximum;
+    let config_no_simd = FeatureConfig {
+        optimization_level: OptimizationLevel::Maximum,
+        enable_platform_optimizations: true,
+        enable_advanced_simd: false,
+        ..Default::default()
+    };
     assert_eq!(
-        config.effective_optimization_level(),
+        config_no_simd.effective_optimization_level(),
         OptimizationLevel::Advanced
     );
 
     // Ensure other cases work as expected
-    config.optimization_level = OptimizationLevel::Basic;
+    let config_basic = FeatureConfig {
+        optimization_level: OptimizationLevel::Basic,
+        enable_platform_optimizations: true,
+        enable_advanced_simd: true,
+        ..Default::default()
+    };
     assert_eq!(
-        config.effective_optimization_level(),
+        config_basic.effective_optimization_level(),
         OptimizationLevel::Basic
     );
 }
 
 #[test]
 fn test_description() {
-    let mut config = FeatureConfig::default();
-
     // Test all features enabled
-    config.enable_platform_optimizations = true;
-    config.enable_parallel = true;
-    config.enable_advanced_simd = true;
+    let config = FeatureConfig {
+        enable_platform_optimizations: true,
+        enable_parallel: true,
+        enable_advanced_simd: true,
+        optimization_level: OptimizationLevel::Maximum,
+    };
 
     // Check description is consistent with availability
     let description = config.description();
     assert!(!description.is_empty());
 
     // Test with just platform optimizations
-    config.enable_parallel = false;
-    config.enable_advanced_simd = false;
+    let config_platform_only = FeatureConfig {
+        enable_platform_optimizations: true,
+        enable_parallel: false,
+        enable_advanced_simd: false,
+        optimization_level: OptimizationLevel::Basic,
+    };
     assert_eq!(
-        config.description(),
+        config_platform_only.description(),
         "basic optimization with platform features"
     );
 
     // Test with no optimizations
-    config.enable_platform_optimizations = false;
-    assert_eq!(config.description(), "reference implementation");
+    let config_no_optimizations = FeatureConfig {
+        enable_platform_optimizations: false,
+        enable_parallel: false,
+        enable_advanced_simd: false,
+        optimization_level: OptimizationLevel::Reference,
+    };
+    assert_eq!(
+        config_no_optimizations.description(),
+        "reference implementation"
+    );
 
     // Test with platform and parallel
-    config.enable_platform_optimizations = true;
-    config.enable_parallel = true;
-    config.enable_advanced_simd = false;
+    let config_platform_parallel = FeatureConfig {
+        enable_platform_optimizations: true,
+        enable_parallel: true,
+        enable_advanced_simd: false,
+        optimization_level: OptimizationLevel::Advanced,
+    };
 
     // The exact string may depend on runtime detection
-    assert!(config.description().contains("parallel") || config.description().contains("platform"));
+    assert!(
+        config_platform_parallel.description().contains("parallel") ||
+            config_platform_parallel.description().contains("platform")
+    );
 }
 
 #[test]
