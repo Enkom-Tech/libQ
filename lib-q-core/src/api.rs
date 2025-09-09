@@ -894,18 +894,7 @@ pub mod wasm_api {
     }
 }
 
-/// Senior Developer Summary: Clean Architecture Implementation
-///
-/// This implementation demonstrates proper senior-level cryptography development practices:
-///
-/// 1. **Provider Pattern**: Clean dependency injection without circular dependencies
-/// 2. **Fail Fast**: Clear errors instead of dummy/placeholder data
-/// 3. **Security-First**: No silent failures or insecure defaults
-/// 4. **Clean Architecture**: Separation of interfaces from implementations
-/// 5. **Proper Error Handling**: Specific error types for different failure modes
-/// 6. **Feature Gates**: Optional dependencies with clear security implications
-///
-/// The core API now provides a clean interface that:
+/// The core API provides a clean interface that:
 /// - Defines cryptographic operation traits (KemOperations, SignatureOperations, etc.)
 /// - Uses dependency injection via CryptoProvider trait
 /// - Returns clear NotImplemented errors when providers are not configured
@@ -913,147 +902,7 @@ pub mod wasm_api {
 /// - Provides proper validation and error handling
 ///
 /// Real implementations are provided by the main lib-q crate through LibQCryptoProvider.
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_provider_architecture() {
-        #[cfg(feature = "std")]
-        {
-            // Test that default provider is properly configured
-            let mut ctx = KemContext::with_default_provider();
-
-            // Should return NotImplemented error, not dummy data
-            let result = ctx.generate_keypair(Algorithm::MlKem512);
-            assert!(result.is_err());
-
-            if let Err(crate::error::Error::NotImplemented { feature }) = result {
-                assert!(feature.contains("Real KEM implementations"));
-            } else {
-                panic!("Expected NotImplemented error, got different error type");
-            }
-        }
-
-        // Test that context without provider returns clear error
-        let mut ctx = KemContext::new();
-        let result = ctx.generate_keypair(Algorithm::MlKem512);
-        assert!(result.is_err());
-
-        if let Err(crate::error::Error::NotImplemented { feature }) = result {
-            assert!(feature.contains("no provider configured"));
-        } else {
-            panic!("Expected NotImplemented error, got different error type");
-        }
-    }
-
-    #[test]
-    fn test_algorithm_security_levels() {
-        assert_eq!(Algorithm::MlKem512.security_level(), 1);
-        assert_eq!(Algorithm::MlKem768.security_level(), 3);
-        assert_eq!(Algorithm::MlKem1024.security_level(), 4);
-        assert_eq!(Algorithm::MlDsa44.security_level(), 1);
-        assert_eq!(Algorithm::MlDsa65.security_level(), 3);
-        assert_eq!(Algorithm::MlDsa87.security_level(), 4);
-    }
-
-    #[test]
-    fn test_algorithm_categories() {
-        assert_eq!(Algorithm::MlKem512.category(), AlgorithmCategory::Kem);
-        assert_eq!(Algorithm::MlDsa44.category(), AlgorithmCategory::Signature);
-        assert_eq!(Algorithm::Shake256.category(), AlgorithmCategory::Hash);
-    }
-
-    #[test]
-    fn test_kem_context() {
-        let mut ctx = KemContext::new();
-        // Without a provider, should return NotImplemented error
-        let result = ctx.generate_keypair(Algorithm::MlKem512);
-        assert!(result.is_err());
-        if let Err(crate::error::Error::NotImplemented { feature }) = result {
-            assert!(feature.contains("no provider configured"));
-        } else {
-            panic!("Expected NotImplemented error");
-        }
-    }
-
-    #[test]
-    fn test_signature_context() {
-        let mut ctx = SignatureContext::new();
-        // Without a provider, should return NotImplemented error
-        let result = ctx.generate_keypair(Algorithm::MlDsa65);
-        assert!(result.is_err());
-        if let Err(crate::error::Error::NotImplemented { feature }) = result {
-            assert!(feature.contains("no provider configured"));
-        } else {
-            panic!("Expected NotImplemented error");
-        }
-    }
-
-    #[test]
-    fn test_hash_context() {
-        let mut ctx = HashContext::new();
-        // Without a provider, should return NotImplemented error
-        let result = ctx.hash(Algorithm::Shake256, b"test");
-        assert!(result.is_err());
-        if let Err(crate::error::Error::NotImplemented { feature }) = result {
-            assert!(feature.contains("no provider configured"));
-        } else {
-            panic!("Expected NotImplemented error");
-        }
-    }
-
-    #[test]
-    fn test_utils() {
-        #[cfg(feature = "getrandom")]
-        {
-            let bytes = Utils::random_bytes(32).unwrap();
-            assert_eq!(bytes.len(), 32);
-        }
-
-        #[cfg(feature = "alloc")]
-        {
-            let hex = Utils::bytes_to_hex(&[0x01, 0x23, 0x45, 0x67]);
-            assert_eq!(hex, "01234567");
-
-            let decoded = Utils::hex_to_bytes(&hex).unwrap();
-            assert_eq!(decoded, vec![0x01, 0x23, 0x45, 0x67]);
-        }
-    }
-
-    #[test]
-    fn test_random_bytes_generation() {
-        // Test that random_bytes generates different values
-        let bytes1 = Utils::random_bytes(32).expect("Should generate random bytes");
-        let bytes2 = Utils::random_bytes(32).expect("Should generate random bytes");
-
-        assert_eq!(bytes1.len(), 32);
-        assert_eq!(bytes2.len(), 32);
-
-        // Verify that we get different bytes on subsequent calls
-        // (This test has a very small probability of failure, but it's acceptable for testing)
-        assert_ne!(
-            bytes1, bytes2,
-            "Random bytes should be different on subsequent calls"
-        );
-
-        // Test that all bytes are not zero (very unlikely with proper RNG)
-        let all_zero1 = bytes1.iter().all(|&b| b == 0);
-        let all_zero2 = bytes2.iter().all(|&b| b == 0);
-
-        assert!(!all_zero1, "Random bytes should not all be zero");
-        assert!(!all_zero2, "Random bytes should not all be zero");
-    }
-
-    #[test]
-    fn test_constant_time_compare() {
-        assert!(Utils::constant_time_compare(b"hello", b"hello"));
-        assert!(!Utils::constant_time_compare(b"hello", b"world"));
-        assert!(!Utils::constant_time_compare(b"hello", b"hell"));
-    }
-}
-
+///
 /// Utility functions that work consistently across platforms
 pub struct Utils;
 
@@ -1224,5 +1073,145 @@ impl Utils {
             result |= x ^ y;
         }
         result == 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_provider_architecture() {
+        #[cfg(feature = "std")]
+        {
+            // Test that default provider is properly configured
+            let mut ctx = KemContext::with_default_provider();
+
+            // Should return NotImplemented error, not dummy data
+            let result = ctx.generate_keypair(Algorithm::MlKem512);
+            assert!(result.is_err());
+
+            if let Err(crate::error::Error::NotImplemented { feature }) = result {
+                assert!(feature.contains("Real KEM implementations"));
+            } else {
+                panic!("Expected NotImplemented error, got different error type");
+            }
+        }
+
+        // Test that context without provider returns clear error
+        let mut ctx = KemContext::new();
+        let result = ctx.generate_keypair(Algorithm::MlKem512);
+        assert!(result.is_err());
+
+        if let Err(crate::error::Error::NotImplemented { feature }) = result {
+            assert!(feature.contains("no provider configured"));
+        } else {
+            panic!("Expected NotImplemented error, got different error type");
+        }
+    }
+
+    #[test]
+    fn test_algorithm_security_levels() {
+        assert_eq!(Algorithm::MlKem512.security_level(), 1);
+        assert_eq!(Algorithm::MlKem768.security_level(), 3);
+        assert_eq!(Algorithm::MlKem1024.security_level(), 4);
+        assert_eq!(Algorithm::MlDsa44.security_level(), 1);
+        assert_eq!(Algorithm::MlDsa65.security_level(), 3);
+        assert_eq!(Algorithm::MlDsa87.security_level(), 4);
+    }
+
+    #[test]
+    fn test_algorithm_categories() {
+        assert_eq!(Algorithm::MlKem512.category(), AlgorithmCategory::Kem);
+        assert_eq!(Algorithm::MlDsa44.category(), AlgorithmCategory::Signature);
+        assert_eq!(Algorithm::Shake256.category(), AlgorithmCategory::Hash);
+    }
+
+    #[test]
+    fn test_kem_context() {
+        let mut ctx = KemContext::new();
+        // Without a provider, should return NotImplemented error
+        let result = ctx.generate_keypair(Algorithm::MlKem512);
+        assert!(result.is_err());
+        if let Err(crate::error::Error::NotImplemented { feature }) = result {
+            assert!(feature.contains("no provider configured"));
+        } else {
+            panic!("Expected NotImplemented error");
+        }
+    }
+
+    #[test]
+    fn test_signature_context() {
+        let mut ctx = SignatureContext::new();
+        // Without a provider, should return NotImplemented error
+        let result = ctx.generate_keypair(Algorithm::MlDsa65);
+        assert!(result.is_err());
+        if let Err(crate::error::Error::NotImplemented { feature }) = result {
+            assert!(feature.contains("no provider configured"));
+        } else {
+            panic!("Expected NotImplemented error");
+        }
+    }
+
+    #[test]
+    fn test_hash_context() {
+        let mut ctx = HashContext::new();
+        // Without a provider, should return NotImplemented error
+        let result = ctx.hash(Algorithm::Shake256, b"test");
+        assert!(result.is_err());
+        if let Err(crate::error::Error::NotImplemented { feature }) = result {
+            assert!(feature.contains("no provider configured"));
+        } else {
+            panic!("Expected NotImplemented error");
+        }
+    }
+
+    #[test]
+    fn test_utils() {
+        #[cfg(feature = "getrandom")]
+        {
+            let bytes = Utils::random_bytes(32).unwrap();
+            assert_eq!(bytes.len(), 32);
+        }
+
+        #[cfg(feature = "alloc")]
+        {
+            let hex = Utils::bytes_to_hex(&[0x01, 0x23, 0x45, 0x67]);
+            assert_eq!(hex, "01234567");
+
+            let decoded = Utils::hex_to_bytes(&hex).unwrap();
+            assert_eq!(decoded, vec![0x01, 0x23, 0x45, 0x67]);
+        }
+    }
+
+    #[test]
+    fn test_random_bytes_generation() {
+        // Test that random_bytes generates different values
+        let bytes1 = Utils::random_bytes(32).expect("Should generate random bytes");
+        let bytes2 = Utils::random_bytes(32).expect("Should generate random bytes");
+
+        assert_eq!(bytes1.len(), 32);
+        assert_eq!(bytes2.len(), 32);
+
+        // Verify that we get different bytes on subsequent calls
+        // (This test has a very small probability of failure, but it's acceptable for testing)
+        assert_ne!(
+            bytes1, bytes2,
+            "Random bytes should be different on subsequent calls"
+        );
+
+        // Test that all bytes are not zero (very unlikely with proper RNG)
+        let all_zero1 = bytes1.iter().all(|&b| b == 0);
+        let all_zero2 = bytes2.iter().all(|&b| b == 0);
+
+        assert!(!all_zero1, "Random bytes should not all be zero");
+        assert!(!all_zero2, "Random bytes should not all be zero");
+    }
+
+    #[test]
+    fn test_constant_time_compare() {
+        assert!(Utils::constant_time_compare(b"hello", b"hello"));
+        assert!(!Utils::constant_time_compare(b"hello", b"world"));
+        assert!(!Utils::constant_time_compare(b"hello", b"hell"));
     }
 }

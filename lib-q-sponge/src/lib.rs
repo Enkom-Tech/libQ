@@ -317,8 +317,8 @@ mod tests {
         assert_eq!(state[0], 0x030201); // Little-endian
 
         // Rest of the state should be zeros
-        for i in 1..25 {
-            assert_eq!(state[i], 0);
+        for (i, &value) in state.iter().enumerate().skip(1) {
+            assert_eq!(value, 0, "State[{}] should be zero", i);
         }
     }
 

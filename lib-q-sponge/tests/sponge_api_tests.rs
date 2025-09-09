@@ -132,7 +132,7 @@ fn test_sponge_ascon_state_conversions() {
         0x8899AABBCCDDEEFF,
         0xFFFFFFFF00000000,
     ];
-    let state2 = State::try_from(slice).unwrap();
+    let state2 = State::from(slice);
     assert_eq!(state2[0], state[0]);
 
     // Test From for u64 array
