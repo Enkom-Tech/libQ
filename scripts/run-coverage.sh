@@ -76,6 +76,11 @@ fi
 if [[ -n "$CRATE" ]]; then
   CMD="$CMD --packages $CRATE"
   
+  # Use crate-specific tarpaulin config if it exists
+  if [[ -f "$CRATE/.tarpaulin.toml" ]]; then
+    CMD="$CMD --config $CRATE/.tarpaulin.toml"
+  fi
+  
   # Add crate-specific features if needed
   if [[ "$CRATE" == "lib-q-core" ]]; then
     CMD="$CMD --features std,rand"
@@ -96,6 +101,11 @@ fi
 # Exclude reference implementations if requested
 if [[ "$NO_REFERENCE" == true ]]; then
   CMD="$CMD --exclude-files 'reference/*'"
+fi
+
+# For lib-q-core, exclude all other crates to focus coverage calculation
+if [[ "$CRATE" == "lib-q-core" ]]; then
+  CMD="$CMD --exclude-files 'lib-q-ascon/*' --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-sponge/*' --exclude-files 'benches/*' --exclude-files 'examples/*' --exclude-files 'tests/*' --exclude-files 'target/*'"
 fi
 
 # Add output format
