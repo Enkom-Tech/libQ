@@ -169,6 +169,7 @@ docs/build/
 # Test artifacts
 test-results/
 test-output/
+cobertura.xml
 
 # Profiling data
 *.prof

@@ -266,35 +266,42 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const summary = fs.readFileSync('pr-summary.md', 'utf8');
-            
-            // Determine if we should approve or request changes
-            const criticalJobs = [
-              context.payload.repository.owner.login + '/' + context.payload.repository.name + '/actions/runs/' + process.env.GITHUB_RUN_ID + '/jobs',
-              'core-validation',
-              'security-validation',
-              'test-coverage'
-            ];
-            
-            let shouldApprove = true;
-            for (const job of criticalJobs) {
-              if (job.result !== 'success') {
-                shouldApprove = false;
-                break;
+            try {
+              const fs = require('fs');
+              const summary = fs.readFileSync('pr-summary.md', 'utf8');
+              
+              // Determine if we should approve or request changes
+              const criticalJobs = [
+                'core-validation',
+                'security-validation',
+                'test-coverage'
+              ];
+              
+              let shouldApprove = true;
+              for (const job of criticalJobs) {
+                if (job.result !== 'success') {
+                  shouldApprove = false;
+                  break;
+                }
               }
+              
+              let commentBody = summary;
+              if (shouldApprove) {
+                commentBody += '\n\n---\n\n✅ **Automated validation passed!** This PR is ready for review.';
+              } else {
+                commentBody += '\n\n---\n\n❌ **Automated validation failed!** Please address the issues above before merging.';
+              }
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+              
+              console.log('✅ PR summary posted successfully');
+            } catch (error) {
+              console.error('❌ Failed to post PR summary:', error.message);
+              console.log('📋 PR summary is available as an artifact');
+              // Don't fail the workflow if commenting fails
             }
-            
-            let commentBody = summary;
-            if (shouldApprove) {
-              commentBody += '\n\n---\n\n✅ **Automated validation passed!** This PR is ready for review.';
-            } else {
-              commentBody += '\n\n---\n\n❌ **Automated validation failed!** Please address the issues above before merging.';
-            }
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody
-            });
