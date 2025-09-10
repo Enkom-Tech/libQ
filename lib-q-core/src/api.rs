@@ -117,13 +117,14 @@ pub enum Algorithm {
     Hqc128,
     Hqc192,
     Hqc256,
+    Dawn,
+    Rcpkc,
 
     // Signature algorithms
     MlDsa44,
     MlDsa65,
     MlDsa87,
-    Falcon512,
-    Falcon1024,
+    FnDsa,
     SphincsSha256128fRobust,
     SphincsSha256192fRobust,
     SphincsSha256256fRobust,
@@ -146,6 +147,9 @@ pub enum Algorithm {
     TupleHash256,
     ParallelHash128,
     ParallelHash256,
+
+    // AEAD algorithms
+    Saturnin,
 }
 
 impl Algorithm {
@@ -156,8 +160,9 @@ impl Algorithm {
             Algorithm::MlKem512 => 1,
             Algorithm::McEliece348864 => 1,
             Algorithm::Hqc128 => 1,
+            Algorithm::Dawn => 1,
             Algorithm::MlDsa44 => 1,
-            Algorithm::Falcon512 => 1,
+            Algorithm::FnDsa => 1,
             Algorithm::SphincsSha256128fRobust => 1,
             Algorithm::SphincsShake256128fRobust => 1,
 
@@ -166,7 +171,6 @@ impl Algorithm {
             Algorithm::McEliece460896 => 3,
             Algorithm::Hqc192 => 3,
             Algorithm::MlDsa65 => 3,
-            Algorithm::Falcon1024 => 3,
             Algorithm::SphincsSha256192fRobust => 3,
             Algorithm::SphincsShake256192fRobust => 3,
 
@@ -175,6 +179,7 @@ impl Algorithm {
             Algorithm::McEliece6688128 => 4,
             Algorithm::McEliece6960119 => 4,
             Algorithm::Hqc256 => 4,
+            Algorithm::Rcpkc => 4,
             Algorithm::MlDsa87 => 4,
             Algorithm::SphincsSha256256fRobust => 4,
             Algorithm::SphincsShake256256fRobust => 4,
@@ -197,6 +202,9 @@ impl Algorithm {
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
             Algorithm::ParallelHash256 => 0,
+
+            // AEAD algorithms
+            Algorithm::Saturnin => 1,
         }
     }
 
@@ -213,13 +221,14 @@ impl Algorithm {
             Algorithm::McEliece8192128 |
             Algorithm::Hqc128 |
             Algorithm::Hqc192 |
-            Algorithm::Hqc256 => AlgorithmCategory::Kem,
+            Algorithm::Hqc256 |
+            Algorithm::Dawn |
+            Algorithm::Rcpkc => AlgorithmCategory::Kem,
 
             Algorithm::MlDsa44 |
             Algorithm::MlDsa65 |
             Algorithm::MlDsa87 |
-            Algorithm::Falcon512 |
-            Algorithm::Falcon1024 |
+            Algorithm::FnDsa |
             Algorithm::SphincsSha256128fRobust |
             Algorithm::SphincsSha256192fRobust |
             Algorithm::SphincsSha256256fRobust |
@@ -241,6 +250,9 @@ impl Algorithm {
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
             Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
+
+            // AEAD algorithms
+            Algorithm::Saturnin => AlgorithmCategory::Aead,
         }
     }
 }
@@ -253,6 +265,7 @@ pub enum AlgorithmCategory {
     Kem,
     Signature,
     Hash,
+    Aead,
 }
 
 /// Security levels for cryptographic algorithms

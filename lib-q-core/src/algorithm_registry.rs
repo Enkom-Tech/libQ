@@ -147,6 +147,24 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Dawn,
+            category: AlgorithmCategory::Kem,
+            security_level: 1,
+            name: "DAWN",
+            description: "DAWN - NTRU-based encryption with double encoding for smaller/faster ciphertexts",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Rcpkc,
+            category: AlgorithmCategory::Kem,
+            security_level: 4,
+            name: "RCPKC",
+            description: "RCPKC - Randomized Concatenated Public Key Cryptography for enhanced security",
+            enabled: true,
+        });
+
         // Signature algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::MlDsa44,
@@ -176,20 +194,11 @@ impl AlgorithmRegistry {
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Falcon512,
+            algorithm: Algorithm::FnDsa,
             category: AlgorithmCategory::Signature,
             security_level: 1,
-            name: "Falcon-512",
-            description: "Falcon Level 1 (128-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Falcon1024,
-            category: AlgorithmCategory::Signature,
-            security_level: 3,
-            name: "Falcon-1024",
-            description: "Falcon Level 3 (192-bit security)",
+            name: "FN-DSA",
+            description: "FN-DSA (FIPS 206) - Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm",
             enabled: true,
         });
 
@@ -404,6 +413,16 @@ impl AlgorithmRegistry {
             security_level: 0,
             name: "ParallelHash256",
             description: "ParallelHash256 parallel hashing",
+            enabled: true,
+        });
+
+        // AEAD algorithms
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Saturnin,
+            category: AlgorithmCategory::Aead,
+            security_level: 1,
+            name: "Saturnin",
+            description: "Saturnin - Lightweight post-quantum symmetric algorithm suite for IoT and constrained devices",
             enabled: true,
         });
     }

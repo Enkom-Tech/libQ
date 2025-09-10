@@ -1,10 +1,10 @@
-# lib-Q API Design Specification
+# lib-Q API Design
 
 ## Design Philosophy
 
-lib-Q provides an API that makes post-quantum cryptography simple and secure to use. The API follows these principles:
+lib-Q provides an API that makes post-quantum cryptography simple and secure to use:
 
-1. **Simple functions for common problems**: Instead of low-level primitives, expose functions that solve real cryptographic problems
+1. **Simple functions for common problems**: High-level functions that solve real cryptographic problems
 2. **Zero dynamic allocations**: All operations use stack-allocated buffers for constrained environments
 3. **Consistent naming**: Predictable function names across all operations
 4. **Secure by default**: All functions use secure parameters and prevent common mistakes
@@ -12,14 +12,12 @@ lib-Q provides an API that makes post-quantum cryptography simple and secure to 
 
 ## API Architecture
 
-### Core API Structure
-
 ```
 lib-Q API Layers
 ├── Simple API     # High-level, problem-solving functions
-├── Algorithm API                      # Algorithm-specific operations
-├── Core API                          # Low-level cryptographic primitives
-└── Platform API                      # Platform-specific optimizations
+├── Algorithm API  # Algorithm-specific operations
+├── Core API       # Low-level cryptographic primitives
+└── Platform API   # Platform-specific optimizations
 ```
 
 ### Memory Management Strategy
@@ -36,7 +34,7 @@ pub struct Ciphertext([u8; MAX_CIPHERTEXT_SIZE]);
 pub struct Plaintext([u8; MAX_PLAINTEXT_SIZE]);
 ```
 
-## Simple API (High-Level)
+## Simple API
 
 ### Key Exchange
 
@@ -369,7 +367,7 @@ pub fn derive_key(shared_secret: &SharedSecret, context: &[u8]) -> Result<Encryp
 pub fn derive_keys(shared_secret: &SharedSecret, contexts: &[&[u8]]) -> Result<Vec<EncryptionKey>>;
 ```
 
-## Algorithm API (Mid-Level)
+## Algorithm API
 
 ### KEM Operations
 
@@ -495,7 +493,7 @@ pub fn sign(algorithm: SigAlgorithm, secret_key: &SigSecretKey, message: &[u8]) 
 pub fn verify(algorithm: SigAlgorithm, public_key: &SigPublicKey, message: &[u8], signature: &Signature) -> Result<bool>;
 ```
 
-## Core API (Low-Level)
+## Core API
 
 ### Algorithm Enums
 
@@ -520,8 +518,8 @@ pub enum SigAlgorithm {
     Dilithium1,
     Dilithium3,
     Dilithium5,
-    Falcon1,
-    Falcon5,
+    FnDsa1,
+    FnDsa5,
     Sphincs1,
     Sphincs3,
     Sphincs5,
@@ -877,27 +875,3 @@ fn main() -> lib-q::Result<()> {
     Ok(())
 }
 ```
-
-## Performance Considerations
-
-### Memory Usage
-
-- **Stack allocation**: All operations use stack-allocated buffers
-- **Fixed sizes**: No dynamic memory allocation during cryptographic operations
-- **Memory zeroing**: Automatic zeroing of sensitive data
-- **WASM optimization**: Minimal memory footprint for web applications
-
-### Performance Targets
-
-- **Key generation**: < 1ms for Level 1, < 5ms for Level 5
-- **Encapsulation/Decapsulation**: < 0.5ms for Level 1, < 2ms for Level 5
-- **Signing**: < 1ms for Level 1, < 5ms for Level 5
-- **Verification**: < 0.5ms for Level 1, < 2ms for Level 5
-- **HPKE**: < 2ms for encryption/decryption
-
-### Optimization Strategies
-
-- **Constant-time operations**: All cryptographic operations are constant-time
-- **SIMD optimization**: Platform-specific optimizations where available
-- **WASM optimization**: Optimized for web performance
-- **Memory layout**: Optimized memory layout for cache efficiency

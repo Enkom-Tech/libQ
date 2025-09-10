@@ -1,6 +1,6 @@
 # Test Coverage Requirements
 
-As a NIST-approved quantum-resistant cryptographic library, libQ maintains strict test coverage requirements:
+lib-Q maintains strict test coverage requirements as a NIST-approved quantum-resistant cryptographic library:
 
 - **80% line coverage** for all core cryptographic functionality
 - **95% line coverage** for security-critical code paths
@@ -8,8 +8,6 @@ As a NIST-approved quantum-resistant cryptographic library, libQ maintains stric
 - **Comprehensive test vectors** for all cryptographic algorithms
 
 ## Running Coverage Tests
-
-The project includes scripts to help you run coverage tests locally:
 
 ### Windows
 

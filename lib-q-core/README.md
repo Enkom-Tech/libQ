@@ -92,7 +92,7 @@ let random_bytes = Utils::random_bytes(32); // Returns error
 
 ### Digital Signatures
 - ML-DSA (Dilithium): ML-DSA-44, ML-DSA-65, ML-DSA-87
-- Falcon: Falcon-512, Falcon-1024
+- FN-DSA: FN-DSA-1, FN-DSA-5
 - SPHINCS+: Multiple variants with SHA-256 and SHAKE-256
 
 ### Hash Functions

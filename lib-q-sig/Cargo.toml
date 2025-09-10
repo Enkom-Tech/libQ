@@ -17,8 +17,8 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 [features]
 default = ["alloc", "ml-dsa"]
 ml-dsa = ["lib-q-ml-dsa"]
-falcon = []
 sphincs = []
+fn-dsa = []
 std = ["alloc"]
 alloc = []
 

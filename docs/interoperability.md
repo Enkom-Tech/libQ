@@ -2,7 +2,7 @@
 
 ## Overview
 
-lib-Q provides comprehensive interoperability with existing cryptographic libraries and networking protocols, enabling seamless integration into existing systems while maintaining post-quantum security. The architecture supports multiple formats, protocols, and integration patterns.
+lib-Q provides comprehensive interoperability with existing cryptographic libraries and networking protocols, enabling seamless integration into existing systems while maintaining post-quantum security.
 
 ## Interoperability Strategy
 
@@ -11,7 +11,7 @@ lib-Q provides comprehensive interoperability with existing cryptographic librar
 1. **Format Compatibility**: Support multiple serialization and encoding formats
 2. **Protocol Integration**: Compatible with existing networking protocols
 3. **Library Interop**: Easy integration with libsodium, OpenSSL, and other libraries
-4. **Backward Compatibility**: Gradual migration path from classical to post-quantum
+4. **Post-Quantum Only**: All cryptographic operations use post-quantum algorithms
 5. **Standards Compliance**: Follow established cryptographic standards and RFCs
 
 ### Interoperability Layers
@@ -46,15 +46,8 @@ lib-Q Interoperability Stack
 ```rust
 /// Binary format traits for lib-Q types
 pub trait BinaryFormat {
-    /// Serialize to raw bytes
     fn to_bytes(&self) -> Vec<u8>;
-    
-    /// Deserialize from raw bytes
-    fn from_bytes(bytes: &[u8]) -> Result<Self>
-    where
-        Self: Sized;
-    
-    /// Get the size in bytes
+    fn from_bytes(bytes: &[u8]) -> Result<Self> where Self: Sized;
     fn size(&self) -> usize;
 }
 
@@ -81,30 +74,6 @@ impl BinaryFormat for PublicKey {
         MLKEM5_PUBLIC_KEY_SIZE
     }
 }
-
-/// Binary serialization for signatures
-impl BinaryFormat for Signature {
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
-    }
-    
-    fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() != DILITHIUM5_SIGNATURE_SIZE {
-            return Err(Error::InvalidSignatureSize {
-                expected: DILITHIUM5_SIGNATURE_SIZE,
-                actual: bytes.len(),
-            });
-        }
-        
-        let mut sig = [0u8; DILITHIUM5_SIGNATURE_SIZE];
-        sig.copy_from_slice(bytes);
-        Ok(Signature(sig))
-    }
-    
-    fn size(&self) -> usize {
-        DILITHIUM5_SIGNATURE_SIZE
-    }
-}
 ```
 
 ### Text Formats
@@ -112,25 +81,16 @@ impl BinaryFormat for Signature {
 ```rust
 /// Text encoding formats
 pub enum TextFormat {
-    /// Base64 encoding (RFC 4648)
-    Base64,
-    /// Base64 URL-safe encoding (RFC 4648)
-    Base64Url,
-    /// Hexadecimal encoding
-    Hex,
-    /// PEM format (RFC 7468)
-    Pem,
+    Base64,     // RFC 4648
+    Base64Url,  // RFC 4648
+    Hex,        // Hexadecimal encoding
+    Pem,        // RFC 7468
 }
 
 /// Text encoding trait
 pub trait TextEncoding {
-    /// Encode to text format
     fn encode(&self, format: TextFormat) -> String;
-    
-    /// Decode from text format
-    fn decode(text: &str, format: TextFormat) -> Result<Self>
-    where
-        Self: Sized;
+    fn decode(text: &str, format: TextFormat) -> Result<Self> where Self: Sized;
 }
 
 /// Base64 encoding implementation
@@ -161,7 +121,6 @@ impl TextEncoding for PublicKey {
             )?,
             TextFormat::Hex => hex::decode(text)?,
             TextFormat::Pem => {
-                // Extract base64 content from PEM
                 let content = text
                     .lines()
                     .filter(|line| !line.starts_with("-----"))
@@ -183,32 +142,23 @@ use serde::{Deserialize, Serialize};
 /// JSON serialization for lib-Q types
 #[derive(Serialize, Deserialize)]
 pub struct JsonPublicKey {
-    /// Algorithm identifier
     pub algorithm: String,
-    /// Security level
     pub security_level: u32,
-    /// Key data (base64 encoded)
     pub key_data: String,
-    /// Creation timestamp
     pub created_at: Option<String>,
 }
 
 /// CBOR serialization for lib-Q types
 #[derive(Serialize, Deserialize)]
 pub struct CborPublicKey {
-    /// Algorithm identifier
     pub algorithm: u32,
-    /// Security level
     pub security_level: u32,
-    /// Key data (raw bytes)
     pub key_data: Vec<u8>,
-    /// Creation timestamp
     pub created_at: Option<u64>,
 }
 
 /// Structured format serialization
 impl PublicKey {
-    /// Convert to JSON format
     pub fn to_json(&self) -> JsonPublicKey {
         JsonPublicKey {
             algorithm: "mlkem5".to_string(),
@@ -218,7 +168,6 @@ impl PublicKey {
         }
     }
     
-    /// Convert from JSON format
     pub fn from_json(json: &JsonPublicKey) -> Result<Self> {
         if json.algorithm != "mlkem5" {
             return Err(Error::InvalidAlgorithm {
@@ -229,7 +178,6 @@ impl PublicKey {
         Self::decode(&json.key_data, TextFormat::Base64)
     }
     
-    /// Convert to CBOR format
     pub fn to_cbor(&self) -> CborPublicKey {
         CborPublicKey {
             algorithm: 1, // ML-Kem algorithm ID
@@ -239,7 +187,6 @@ impl PublicKey {
         }
     }
     
-    /// Convert from CBOR format
     pub fn from_cbor(cbor: &CborPublicKey) -> Result<Self> {
         if cbor.algorithm != 1 {
             return Err(Error::InvalidAlgorithm {
@@ -263,7 +210,7 @@ pub mod sodium {
     
     /// libsodium-style key generation
     pub fn crypto_kx_keypair() -> (PublicKey, SecretKey) {
-        simple::keygen(1).expect("Key generation failed")
+        simple::keygen(3).expect("Key generation failed") // Use balanced security level
     }
     
     /// libsodium-style key exchange
@@ -285,7 +232,6 @@ pub mod sodium {
         recipient_pk: &PublicKey,
         sender_sk: &SecretKey,
     ) -> Result<Vec<u8>> {
-        // Use HPKE instead of box
         let ciphertext = simple::hpke_encrypt(
             recipient_pk,
             message,
@@ -338,6 +284,8 @@ pub mod openssl {
             "mlkem1" => simple::keygen(1),
             "mlkem3" => simple::keygen(3),
             "mlkem5" => simple::keygen(5),
+            "dawn" => simple::keygen(3), // DAWN KEM for performance
+            "rcpkc" => simple::keygen(5), // RCPKC for maximum security
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),
@@ -353,21 +301,14 @@ pub mod openssl {
             "mlkem1" => SecurityTier::Performance,
             "mlkem3" => SecurityTier::Balanced,
             "mlkem5" => SecurityTier::Ultra,
+            "dawn" => SecurityTier::Performance,
+            "rcpkc" => SecurityTier::Hybrid,
             _ => return Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),
         };
         
         hpke::create_context(recipient_pk, tier)
-    }
-    
-    /// OpenSSL-style decryption
-    pub fn evp_open_init(
-        recipient_sk: &SecretKey,
-        algorithm: &str,
-    ) -> Result<HpkeContext> {
-        // Similar to seal_init but for decryption
-        unimplemented!("OpenSSL-style decryption context")
     }
 }
 ```
@@ -463,11 +404,8 @@ pub mod tls {
     
     /// TLS handshake message for lib-Q
     pub struct Lib-QTlsHandshake {
-        /// Supported algorithms
         pub algorithms: Vec<u16>,
-        /// Public key
         pub public_key: PublicKey,
-        /// Signature
         pub signature: Signature,
     }
     
@@ -491,7 +429,6 @@ pub mod tls {
         handshake: &Lib-QTlsHandshake,
         peer_public_key: &PublicKey,
     ) -> Result<SharedSecret> {
-        // Verify signature
         let is_valid = simple::verify(
             peer_public_key,
             &handshake.public_key.to_bytes(),
@@ -504,7 +441,6 @@ pub mod tls {
             });
         }
         
-        // Perform key exchange
         simple::exchange(secret_key, &handshake.public_key)
     }
 }
@@ -522,21 +458,15 @@ pub mod ssh {
     
     /// SSH public key
     pub struct SshPublicKey {
-        /// Key type
         pub key_type: String,
-        /// Public key data
         pub public_key: PublicKey,
-        /// Comment
         pub comment: String,
     }
     
     /// SSH private key
     pub struct SshPrivateKey {
-        /// Key type
         pub key_type: String,
-        /// Secret key data
         pub secret_key: SecretKey,
-        /// Comment
         pub comment: String,
     }
     
@@ -604,9 +534,7 @@ pub mod wireguard {
     
     /// WireGuard key pair
     pub struct WireGuardKeyPair {
-        /// Private key
         pub private_key: SecretKey,
-        /// Public key
         pub public_key: PublicKey,
     }
     
@@ -622,13 +550,9 @@ pub mod wireguard {
     
     /// WireGuard handshake
     pub struct WireGuardHandshake {
-        /// Initiator's ephemeral public key
         pub initiator_ephemeral: PublicKey,
-        /// Responder's ephemeral public key
         pub responder_ephemeral: PublicKey,
-        /// Encrypted static key
         pub encrypted_static: Vec<u8>,
-        /// Encrypted timestamp
         pub encrypted_timestamp: Vec<u8>,
     }
     
@@ -637,19 +561,15 @@ pub mod wireguard {
         initiator_static: &SecretKey,
         responder_static: &PublicKey,
     ) -> Result<WireGuardHandshake> {
-        // Generate ephemeral keys
         let (init_ephemeral_pk, init_ephemeral_sk) = simple::keygen(3)?;
         let (resp_ephemeral_pk, resp_ephemeral_sk) = simple::keygen(3)?;
         
-        // Perform key exchange
         let shared1 = simple::exchange(&init_ephemeral_sk, &resp_ephemeral_pk)?;
         let shared2 = simple::exchange(&init_ephemeral_sk, responder_static)?;
         
-        // Derive encryption keys
         let key1 = simple::derive_key(&shared1, b"wireguard-key1")?;
         let key2 = simple::derive_key(&shared2, b"wireguard-key2")?;
         
-        // Encrypt static key and timestamp
         let encrypted_static = simple::encrypt(&key1, initiator_static.as_ref(), None)?;
         let timestamp = chrono::Utc::now().timestamp().to_le_bytes();
         let encrypted_timestamp = simple::encrypt(&key2, &timestamp, None)?;
@@ -664,100 +584,48 @@ pub mod wireguard {
 }
 ```
 
-## Migration Paths
+## Post-Quantum Integration
 
-### From libsodium
+### libQ Integration Guidelines
 
-```rust
-/// Migration utilities from libsodium
-pub mod migration {
-    use super::*;
-    
-    /// Convert libsodium key to lib-Q key
-    pub fn sodium_to_libq_key(sodium_key: &[u8]) -> Result<PublicKey> {
-        // libsodium keys are typically 32 bytes for X25519
-        // lib-Q keys are larger, so we need to handle the conversion
-        if sodium_key.len() == 32 {
-            // Convert X25519 key to lib-Q key
-            // This would require a conversion function
-            unimplemented!("X25519 to lib-Q key conversion")
-        } else {
-            Err(Error::InvalidKeySize {
-                expected: 32,
-                actual: sodium_key.len(),
-            })
-        }
-    }
-    
-    /// Convert lib-Q key to libsodium key
-    pub fn libq_to_sodium_key(libq_key: &PublicKey) -> Result<Vec<u8>> {
-        // Convert lib-Q key to libsodium-compatible format
-        // This might involve key derivation or format conversion
-        unimplemented!("lib-Q to libsodium key conversion")
-    }
-    
-    /// Migration helper for applications
-    pub struct MigrationHelper {
-        /// Original libsodium keys
-        pub sodium_keys: Vec<Vec<u8>>,
-        /// New lib-Q keys
-        pub libq_keys: Vec<PublicKey>,
-    }
-    
-    impl MigrationHelper {
-        /// Create migration helper
-        pub fn new() -> Self {
-            Self {
-                sodium_keys: Vec::new(),
-                libq_keys: Vec::new(),
-            }
-        }
-        
-        /// Add libsodium key for migration
-        pub fn add_sodium_key(&mut self, key: Vec<u8>) {
-            self.sodium_keys.push(key);
-        }
-        
-        /// Migrate all keys to lib-Q
-        pub fn migrate_keys(&mut self) -> Result<()> {
-            for sodium_key in &self.sodium_keys {
-                let libq_key = sodium_to_libq_key(sodium_key)?;
-                self.libq_keys.push(libq_key);
-            }
-            Ok(())
-        }
-    }
-}
-```
+libQ is designed as a post-quantum only cryptographic library. When integrating with existing systems:
 
-### From OpenSSL
+1. **Generate New Keys**: Always generate new post-quantum keys rather than converting classical keys
+2. **Use Post-Quantum Algorithms**: All cryptographic operations use post-quantum algorithms
+3. **Maintain Security**: Ensure all integrations maintain post-quantum security guarantees
+4. **Follow Standards**: Use established post-quantum cryptographic standards
+
+### Integration Examples
 
 ```rust
-/// Migration utilities from OpenSSL
-pub mod openssl_migration {
+/// Post-quantum integration utilities
+pub mod integration {
     use super::*;
     
-    /// Convert OpenSSL key to lib-Q key
-    pub fn openssl_to_libq_key(openssl_key: &[u8], key_type: &str) -> Result<PublicKey> {
-        match key_type {
-            "RSA" => {
-                // Convert RSA key to lib-Q key
-                unimplemented!("RSA to lib-Q key conversion")
-            }
-            "EC" => {
-                // Convert EC key to lib-Q key
-                unimplemented!("EC to lib-Q key conversion")
-            }
-            _ => Err(Error::InvalidAlgorithm {
-                algorithm: key_type.to_string(),
-            }),
+    /// Generate post-quantum key pair for new systems
+    pub fn generate_pq_keypair(security_level: u32) -> Result<(PublicKey, SecretKey)> {
+        match security_level {
+            1 => simple::keygen(1), // Performance tier
+            3 => simple::keygen(3), // Balanced tier  
+            5 => simple::keygen(5), // Ultra-secure tier
+            _ => Err(Error::InvalidSecurityLevel { level: security_level }),
         }
     }
     
-    /// Convert lib-Q key to OpenSSL key
-    pub fn libq_to_openssl_key(libq_key: &PublicKey) -> Result<Vec<u8>> {
-        // Convert lib-Q key to OpenSSL-compatible format
-        unimplemented!("lib-Q to OpenSSL key conversion")
+    /// Validate post-quantum key
+    pub fn validate_pq_key(key: &PublicKey) -> Result<bool> {
+        // Validate that key is properly formatted and secure
+        Ok(key.size() > 0)
+    }
+    
+    /// Get recommended security level for use case
+    pub fn get_recommended_security_level(use_case: &str) -> u32 {
+        match use_case {
+            "iot" | "embedded" => 1,      // Performance tier
+            "general" | "web" => 3,       // Balanced tier
+            "critical" | "government" => 5, // Ultra-secure tier
+            _ => 3, // Default to balanced
+        }
     }
 }
 ```
@@ -773,9 +641,8 @@ mod tests {
     
     #[test]
     fn test_libsodium_compatibility() {
-        // Test libsodium-style API
         let (pk, sk) = sodium::crypto_kx_keypair();
-        let message = b"Hello, libsodium!";
+        let message = b"Hello, post-quantum libsodium!";
         
         let ciphertext = sodium::crypto_box_easy(
             message,
@@ -796,7 +663,7 @@ mod tests {
     
     #[test]
     fn test_format_roundtrip() {
-        let (pk, sk) = simple::keygen(1).unwrap();
+        let (pk, sk) = simple::keygen(3).unwrap(); // Use balanced security level
         
         // Test binary format
         let bytes = pk.to_bytes();
@@ -824,7 +691,18 @@ mod tests {
         assert_eq!(public_key.public_key.as_ref(), decoded_key.public_key.as_ref());
         assert_eq!(public_key.comment, decoded_key.comment);
     }
+    
+    #[test]
+    fn test_post_quantum_integration() {
+        // Test post-quantum key generation
+        let (pk, sk) = integration::generate_pq_keypair(3).unwrap();
+        assert!(integration::validate_pq_key(&pk).unwrap());
+        
+        // Test security level recommendations
+        assert_eq!(integration::get_recommended_security_level("iot"), 1);
+        assert_eq!(integration::get_recommended_security_level("general"), 3);
+        assert_eq!(integration::get_recommended_security_level("critical"), 5);
+        assert_eq!(integration::get_recommended_security_level("unknown"), 3);
+    }
 }
 ```
-
-This interoperability architecture ensures that lib-Q can seamlessly integrate with existing systems while providing post-quantum security. The comprehensive format support, library compatibility layers, and networking protocol integration make it easy to adopt lib-Q in existing applications.

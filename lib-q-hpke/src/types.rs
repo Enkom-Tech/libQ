@@ -306,14 +306,19 @@ pub type ExportedKey = Vec<u8>;
 #[derive(Debug)]
 pub struct HpkeSenderContext {
     /// Shared secret from KEM
+    #[allow(dead_code)]
     pub(crate) shared_secret: Vec<u8>,
     /// Secret for key export
+    #[allow(dead_code)]
     pub(crate) exporter_secret: Vec<u8>,
     /// AEAD encryption key
+    #[allow(dead_code)]
     pub(crate) key: Vec<u8>,
     /// Base nonce for AEAD
+    #[allow(dead_code)]
     pub(crate) nonce: Vec<u8>,
     /// Sequence number for nonce derivation
+    #[allow(dead_code)]
     pub(crate) sequence_number: u32,
 }
 
@@ -339,14 +344,19 @@ impl HpkeSenderContext {
 #[derive(Debug)]
 pub struct HpkeReceiverContext {
     /// Shared secret from KEM
+    #[allow(dead_code)]
     pub(crate) shared_secret: Vec<u8>,
     /// Secret for key export
+    #[allow(dead_code)]
     pub(crate) exporter_secret: Vec<u8>,
     /// AEAD decryption key
+    #[allow(dead_code)]
     pub(crate) key: Vec<u8>,
     /// Base nonce for AEAD
+    #[allow(dead_code)]
     pub(crate) nonce: Vec<u8>,
     /// Sequence number for nonce derivation
+    #[allow(dead_code)]
     pub(crate) sequence_number: u32,
 }
 

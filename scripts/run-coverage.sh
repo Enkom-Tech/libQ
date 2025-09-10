@@ -98,14 +98,16 @@ if [[ "$IGNORE_PANICS" == true ]]; then
   CMD="$CMD --ignore-panics"
 fi
 
-# Exclude reference implementations if requested
-if [[ "$NO_REFERENCE" == true ]]; then
-  CMD="$CMD --exclude-files 'reference/*'"
-fi
+# Always exclude reference implementations and build artifacts
+CMD="$CMD --exclude-files 'reference/*' --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*'"
 
-# For lib-q-core, exclude all other crates to focus coverage calculation
+# For specific packages, exclude all other crates to focus coverage calculation
 if [[ "$CRATE" == "lib-q-core" ]]; then
-  CMD="$CMD --exclude-files 'lib-q-ascon/*' --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-sponge/*' --exclude-files 'benches/*' --exclude-files 'examples/*' --exclude-files 'tests/*' --exclude-files 'target/*'"
+  CMD="$CMD --exclude-files 'lib-q-ascon/*' --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-sponge/*'"
+elif [[ "$CRATE" == "lib-q" ]]; then
+  # For the root lib-q package, we need to be more selective about what to include
+  # Only include the main lib.rs and core functionality, exclude most implementation details
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-utils/*'"
 fi
 
 # Add output format

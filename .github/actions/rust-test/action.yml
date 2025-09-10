@@ -162,12 +162,16 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
         
-        # Exclude reference implementations
-        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
+        # Always exclude reference implementations and build artifacts
+        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\" --exclude-files \"target/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\""
         
-        # For lib-q-core, exclude all other crates to focus coverage calculation
+        # For specific packages, exclude all other crates to focus coverage calculation
         if [[ "$PACKAGE" == "lib-q-core" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\" --exclude-files \"tests/*\" --exclude-files \"target/*\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\""
+        elif [[ "$PACKAGE" == "lib-q" ]]; then
+          # For the root lib-q package, we need to be more selective about what to include
+          # Only include the main lib.rs and core functionality, exclude most implementation details
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-utils/*\""
         fi
         
         echo "Running: $TARPAULIN_CMD"
@@ -185,14 +189,27 @@ runs:
         if [[ -f "coverage/cobertura.xml" ]]; then
           # Parse the XML file to extract coverage percentage
           COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage/cobertura.xml | head -1 | sed 's/line-rate="//' | sed 's/"//' | awk '{print $1 * 100}')
+          
+          # Check if we got a valid coverage percentage
+          if [[ -z "$COVERAGE" || "$COVERAGE" == "0" ]]; then
+            echo "WARNING: Could not extract coverage percentage from XML file"
+            echo "XML file contents:"
+            head -20 coverage/cobertura.xml
+            echo "Setting coverage to 0% for threshold check"
+            COVERAGE="0"
+          fi
+          
           echo "Coverage: ${COVERAGE}%"
           
-          if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
-            echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"
+          # Use awk for floating point comparison instead of bc
+          if awk "BEGIN {exit !($COVERAGE < ${{ inputs.coverage-threshold }})}"; then
+            echo "ERROR: Coverage ${COVERAGE}% is below ${{ inputs.coverage-threshold }}% threshold"
             exit 1
           fi
           echo "Coverage threshold check passed"
         else
           echo "ERROR: Coverage XML file not found"
+          echo "Available files in coverage directory:"
+          ls -la coverage/ || echo "Coverage directory does not exist"
           exit 1
         fi

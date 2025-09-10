@@ -15,6 +15,7 @@ lib-q-core = { path = "../lib-q-core" }
 
 [features]
 default = []
+saturnin = []
 
 [lib]
 name = "lib_q_aead"

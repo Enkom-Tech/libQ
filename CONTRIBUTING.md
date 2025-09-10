@@ -6,8 +6,8 @@ Thank you for your interest in contributing to lib-Q! This document outlines the
 
 lib-Q is a cryptography library, which means security is paramount. All contributions must follow these principles:
 
-### 1. **Zero Classical Crypto**
-- **NEVER** use classical cryptographic algorithms (RSA, ECC, AES, SHA-256, etc.)
+### 1. **Post-Quantum Only**
+- **NEVER** use classical cryptographic algorithms (RSA, ECC, AES, SHA-256, ChaCha20, Poly1305 etc.)
 - **ONLY** use NIST-approved post-quantum algorithms
 - **ONLY** use SHA-3 family hash functions (SHAKE256, SHAKE128, cSHAKE256)
 - **ONLY** use post-quantum secure ZKP systems (zk-STARKs, not classical SNARKs)
@@ -81,6 +81,7 @@ cargo build
 
 ### Review Checklist
 - [ ] No classical cryptographic algorithms used
+- [ ] Only NIST-approved post-quantum algorithms used
 - [ ] Only SHA-3 family hash functions used (SHAKE256, SHAKE128, cSHAKE256)
 - [ ] Only post-quantum secure ZKP systems used (zk-STARKs)
 - [ ] All operations are constant-time
@@ -184,6 +185,7 @@ Brief description of changes
 
 ## Security Considerations
 - [ ] No classical crypto used
+- [ ] Only NIST-approved post-quantum algorithms used
 - [ ] Constant-time operations verified
 - [ ] Memory safety ensured
 - [ ] Input validation complete
@@ -212,6 +214,7 @@ We follow [Semantic Versioning](https://semver.org/):
 - **Security issues**: Email security@lib-q.org (private)
 - **General questions**: Open an issue on GitHub
 - **Development questions**: Join our Discord/Matrix
+- **AI-Generated Wiki**: [https://deepwiki.com/Enkom-Tech/libQ](https://deepwiki.com/Enkom-Tech/libQ)
 
 ## Roadmap Contributions
 

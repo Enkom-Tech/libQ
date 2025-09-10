@@ -1,8 +1,6 @@
-# Security Model & Implementation Guidelines
+# Security Model
 
-## Security Philosophy
-
-lib-Q is built on the principle that **all classical cryptography is broken**. Our threat model assumes:
+lib-Q is built on the principle that all classical cryptography is broken. Our threat model assumes:
 
 1. **Quantum computers exist** and can break classical algorithms
 2. **Adversaries have unlimited computational power** (both classical and quantum)
@@ -31,28 +29,36 @@ lib-Q is built on the principle that **all classical cryptography is broken**. O
 lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
-- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: SHAKE256-based constructions
-- **HPKE**: Pure post-quantum HPKE (PQ KEM + SHAKE256 AEAD)
+- **KEMs**: ML-KEM, Classic McEliece, HQC, DAWN
+- **Signatures**: ML-DSA, FN-DSA, SLH-DSA
+- **Symmetric**: SHAKE256-based constructions, Saturnin
+- **HPKE**: Pure post-quantum HPKE with Saturnin AEAD
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum security, performance secondary
 
 #### Tier 2: Balanced (Hybrid Post-Quantum)
-- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: Post-quantum KEM + quantum-resistant classical (AES-256, ChaCha20)
-- **HPKE**: Hybrid HPKE (PQ KEM + AES-256-GCM)
+- **KEMs**: ML-KEM, Classic McEliece, HQC, DAWN
+- **Signatures**: ML-DSA, FN-DSA, SLH-DSA
+- **Symmetric**: Post-quantum KEM + Saturnin AEAD
+- **HPKE**: Hybrid HPKE (PQ KEM + Saturnin)
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Strong security with good performance
 
-#### Tier 3: Performance (Post-Quantum + Optimized Classical)
-- **KEMs**: CRYSTALS-ML-Kem, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: Post-quantum KEM + optimized classical (ChaCha20-Poly1305)
-- **HPKE**: Performance HPKE (PQ KEM + ChaCha20-Poly1305)
+#### Tier 3: Performance (Post-Quantum + Optimized)
+- **KEMs**: ML-KEM, DAWN, HQC
+- **Signatures**: ML-DSA, FN-DSA
+- **Symmetric**: Post-quantum KEM + Saturnin AEAD (optimized modes)
+- **HPKE**: Performance HPKE (PQ KEM + Saturnin)
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum performance, strong security
+
+#### Tier 4: Hybrid Security (RCPKC)
+- **KEMs**: RCPKC (multiple algorithm combination)
+- **Signatures**: RCPKC signature schemes
+- **Symmetric**: Multiple symmetric algorithms for defense in depth
+- **HPKE**: RCPKC-based HPKE with algorithm diversity
+- **Hash**: SHAKE256, SHAKE128, cSHAKE256
+- **Use Case**: Maximum security through algorithm diversity
 
 ### Zero-Knowledge Proofs (ZKPs)
 All tiers support post-quantum zero-knowledge proofs:
@@ -80,7 +86,7 @@ We use only SHA-3 family hash functions, which are quantum-resistant:
 
 1. **SHAKE256** (Primary)
    - Variable output length
-   - Used for hash-based signatures (SPHINCS+)
+   - Used for hash-based signatures (SLH-DSA)
    - 256-bit security level
    - NIST standardized
 
@@ -100,14 +106,34 @@ We use only SHA-3 family hash functions, which are quantum-resistant:
 We only use algorithms that have been standardized or are in the final round of NIST's Post-Quantum Cryptography standardization process:
 
 #### Standardized Algorithms
-- **CRYSTALS-ML-Kem**: NIST PQC Standard (2022)
-- **CRYSTALS-Dilithium**: NIST PQC Standard (2022)
-- **Falcon**: NIST PQC Standard (2022)
-- **SPHINCS+**: NIST PQC Standard (2022)
+- **ML-KEM**: NIST PQC Standard (FIPS 203)
+- **ML-DSA**: NIST PQC Standard (FIPS 204)
+- **FN-DSA**: NIST PQC Standard (FIPS 206)
+- **SLH-DSA**: NIST PQC Standard (FIPS 205)
+
+#### NIST FIPS Standards
+- **FIPS 206 / FN-DSA**: Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm
+  - Official NIST designation for FALCON algorithm
+  - Compact signature sizes for bandwidth-constrained applications
+  - Suitable for root and intermediate certificates in PKI systems
 
 #### Final Round Candidates
 - **Classic McEliece**: Final round candidate, strong security
 - **HQC**: Final round candidate, good performance
+
+#### Emerging Post-Quantum Algorithms
+- **Saturnin**: Lightweight symmetric algorithm suite with 256-bit block cipher
+  - Designed for IoT and constrained devices
+  - Provides authenticated encryption and hashing modes
+  - Superior post-quantum security compared to classical alternatives
+- **DAWN**: NTRU-based encryption with double encoding
+  - Smaller and faster than Kyber/ML-KEM
+  - Reduced ciphertext sizes for efficient transmission
+  - Alternative KEM for performance-critical applications
+- **RCPKC**: Randomized Concatenated Public Key Cryptography
+  - Hybrid approach combining multiple public key algorithms
+  - Enhanced security through algorithm diversity
+  - Suitable for high-security applications requiring defense in depth
 
 ### Forbidden Classical Algorithms
 The following classical algorithms are explicitly forbidden in lib-Q:

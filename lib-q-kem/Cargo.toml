@@ -47,6 +47,8 @@ wasm = [
 
 mceliece = []
 hqc = []
+dawn = []
+rcpkc = []
 
 [lib]
 name = "lib_q_kem"

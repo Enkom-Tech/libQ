@@ -1,40 +1,42 @@
-# Hybrid Public Key Encryption (HPKE) Architecture
+# HPKE Architecture
 
-## Overview
+lib-Q implements a four-tier Hybrid Public Key Encryption (HPKE) system that provides post-quantum security with different performance characteristics. HPKE combines post-quantum key encapsulation mechanisms (KEMs) with symmetric encryption to provide secure, authenticated encryption.
 
-lib-Q implements a three-tier Hybrid Public Key Encryption (HPKE) system that provides post-quantum security with different performance characteristics. HPKE combines post-quantum key encapsulation mechanisms (KEMs) with symmetric encryption to provide secure, authenticated encryption.
-
-## Architecture Design
-
-### Three-Tier System
+## Four-Tier System
 
 ```
 lib-Q HPKE Architecture
 ├── Tier 1: Ultra-Secure (Pure Post-Quantum)
-│   ├── KEM: CRYSTALS-ML-Kem (Level 5)
+│   ├── KEM: ML-KEM (Level 5)
 │   ├── AEAD: SHAKE256-based construction
 │   └── Use Case: Maximum security, performance secondary
-├── Tier 2: Balanced (Hybrid Post-Quantum)
-│   ├── KEM: CRYSTALS-ML-Kem (Level 3)
-│   ├── AEAD: Xoodyak (~3+ cycles/byte, multipurpose)
+├── Tier 2: Balanced (Post-Quantum)
+│   ├── KEM: ML-KEM (Level 3)
+│   ├── AEAD: Saturnin (post-quantum symmetric)
 │   └── Use Case: Balanced security and performance
-└── Tier 3: Performance (Post-Quantum + Optimized)
-    ├── KEM: CRYSTALS-ML-Kem (Level 1)
-    ├── AEAD: SNEIK (~2.9-17 cycles/byte, ultra-lightweight)
-    └── Use Case: Maximum performance on constrained systems
+├── Tier 3: Performance (Post-Quantum + Optimized)
+│   ├── KEM: ML-KEM (Level 1) / DAWN
+│   ├── AEAD: Saturnin (optimized modes)
+│   └── Use Case: Maximum performance on constrained systems
+└── Tier 4: Hybrid Security (RCPKC)
+    ├── KEM: RCPKC (multiple algorithm combination)
+    ├── AEAD: Multiple post-quantum algorithms
+    └── Use Case: Maximum security through algorithm diversity
 ```
 
-### Core Components
+## Core Components
 
 ```rust
 /// HPKE security tiers
 pub enum SecurityTier {
     /// Ultra-secure: Pure post-quantum with maximum security
     Ultra,
-    /// Balanced: Hybrid post-quantum with good performance
+    /// Balanced: Post-quantum with good performance
     Balanced,
-    /// Performance: Post-quantum + optimized classical
+    /// Performance: Post-quantum + optimized
     Performance,
+    /// Hybrid: RCPKC-based with algorithm diversity
+    Hybrid,
 }
 
 /// HPKE context for stateful operations
@@ -61,8 +63,6 @@ pub struct HpkeCiphertext {
 ```
 
 ## Tier 1: Ultra-Secure HPKE
-
-### Design Philosophy
 
 Tier 1 provides maximum security by using only post-quantum algorithms throughout the entire encryption chain. This eliminates any reliance on classical cryptographic assumptions.
 
@@ -153,96 +153,9 @@ impl UltraHpke {
 }
 ```
 
-### SHAKE256-based AEAD
-
-```rust
-/// SHAKE256-based authenticated encryption
-pub struct Shake256Aead {
-    // Implementation details for SHAKE256-based AEAD
-}
-
-impl Shake256Aead {
-    /// Encrypt with SHAKE256-based AEAD
-    pub fn encrypt(
-        &self,
-        key: &EncryptionKey,
-        plaintext: &[u8],
-        associated_data: &[u8],
-    ) -> Result<(Vec<u8>, [u8; 16])> {
-        // 1. Generate nonce using SHAKE256
-        let nonce = self.generate_nonce(key)?;
-        
-        // 2. Encrypt using SHAKE256 in counter mode
-        let ciphertext = self.encrypt_shake256(key, &nonce, plaintext)?;
-        
-        // 3. Generate authentication tag using SHAKE256
-        let tag = self.generate_tag(key, &nonce, &ciphertext, associated_data)?;
-        
-        Ok((ciphertext, tag))
-    }
-    
-    /// Decrypt with SHAKE256-based AEAD
-    pub fn decrypt(
-        &self,
-        key: &EncryptionKey,
-        ciphertext: &[u8],
-        tag: &[u8; 16],
-        associated_data: &[u8],
-    ) -> Result<Vec<u8>> {
-        // 1. Generate nonce using SHAKE256
-        let nonce = self.generate_nonce(key)?;
-        
-        // 2. Verify authentication tag
-        let expected_tag = self.generate_tag(key, &nonce, ciphertext, associated_data)?;
-        if !constant_time_compare(tag, &expected_tag) {
-            return Err(Error::VerificationFailed {
-                operation: "HPKE tag verification".to_string(),
-            });
-        }
-        
-        // 3. Decrypt using SHAKE256 in counter mode
-        let plaintext = self.decrypt_shake256(key, &nonce, ciphertext)?;
-        
-        Ok(plaintext)
-    }
-    
-    /// Generate nonce for encryption
-    fn generate_nonce(&self, key: &EncryptionKey) -> Result<[u8; 12]> {
-        let mut nonce = [0u8; 12];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Nonce");
-        hasher.update(key.as_ref());
-        hasher.update(&random_bytes(16)?);
-        hasher.finalize(&mut nonce);
-        Ok(nonce)
-    }
-    
-    /// Generate authentication tag
-    fn generate_tag(
-        &self,
-        key: &EncryptionKey,
-        nonce: &[u8; 12],
-        ciphertext: &[u8],
-        associated_data: &[u8],
-    ) -> Result<[u8; 16]> {
-        let mut tag = [0u8; 16];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Tag");
-        hasher.update(key.as_ref());
-        hasher.update(nonce);
-        hasher.update(ciphertext);
-        hasher.update(associated_data);
-        hasher.finalize(&mut tag);
-        Ok(tag)
-    }
-}
-```
-
 ## Tier 2: Balanced HPKE
 
-### Design Philosophy
-
-Tier 2 provides balanced security and performance using Xoodyak AEAD. Xoodyak offers ~3+ cycles/byte performance on 32-bit MCUs with multipurpose capabilities including AEAD, hashing, and MAC. This tier is suitable for applications requiring good performance on lightweight and IoT devices.
+Tier 2 provides balanced security and performance using Saturnin AEAD. Saturnin is a post-quantum symmetric algorithm suite designed for IoT and constrained devices, providing authenticated encryption and hashing modes with superior post-quantum security compared to classical alternatives.
 
 ### Implementation
 
@@ -250,7 +163,7 @@ Tier 2 provides balanced security and performance using Xoodyak AEAD. Xoodyak of
 /// Balanced HPKE implementation
 pub struct BalancedHpke {
     kem: MlKem3,
-    aead: XoodyakAead,
+    aead: SaturninAead,
 }
 
 impl BalancedHpke {
@@ -258,7 +171,7 @@ impl BalancedHpke {
     pub fn new() -> Self {
         Self {
             kem: MlKem3::new(),
-            aead: XoodyakAead::new(),
+            aead: SaturninAead::new(),
         }
     }
     
@@ -278,7 +191,7 @@ impl BalancedHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with Xoodyak
+        // 4. Encrypt with Saturnin
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -306,7 +219,7 @@ impl BalancedHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with Xoodyak
+        // 3. Decrypt with Saturnin
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
@@ -333,9 +246,7 @@ impl BalancedHpke {
 
 ## Tier 3: Performance HPKE
 
-### Design Philosophy
-
-Tier 3 provides maximum performance on constrained systems using SNEIK AEAD. SNEIK offers ~2.9 to 17 cycles/byte performance (varies by mode & rounds) with very small RAM usage (~64 bytes). This tier is optimized for ultra-lightweight applications on 8/16/32-bit MCUs and microcontrollers.
+Tier 3 provides maximum performance on constrained systems using optimized Saturnin AEAD modes. This tier is optimized for ultra-lightweight applications on 8/16/32-bit MCUs and microcontrollers while maintaining post-quantum security.
 
 ### Implementation
 
@@ -343,7 +254,7 @@ Tier 3 provides maximum performance on constrained systems using SNEIK AEAD. SNE
 /// Performance HPKE implementation
 pub struct PerformanceHpke {
     kem: MlKem1,
-    aead: SneikAead,
+    aead: SaturninAead,
 }
 
 impl PerformanceHpke {
@@ -351,7 +262,7 @@ impl PerformanceHpke {
     pub fn new() -> Self {
         Self {
             kem: MlKem1::new(),
-            aead: SneikAead::new(),
+            aead: SaturninAead::new(),
         }
     }
     
@@ -371,7 +282,7 @@ impl PerformanceHpke {
         // 3. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
         
-        // 4. Encrypt with SNEIK
+        // 4. Encrypt with Saturnin
         let (ciphertext, tag) = self.aead.encrypt(
             &encryption_key,
             plaintext,
@@ -399,7 +310,7 @@ impl PerformanceHpke {
         // 2. Derive encryption key using SHAKE256
         let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
         
-        // 3. Decrypt with SNEIK
+        // 3. Decrypt with Saturnin
         let plaintext = self.aead.decrypt(
             &encryption_key,
             &ciphertext.ciphertext,
@@ -424,6 +335,97 @@ impl PerformanceHpke {
 }
 ```
 
+## Tier 4: Hybrid Security HPKE
+
+Tier 4 provides maximum security through algorithm diversity using RCPKC (Randomized Concatenated Public Key Cryptography). This tier combines multiple post-quantum algorithms to provide defense in depth against algorithm-specific attacks.
+
+### Implementation
+
+```rust
+/// Hybrid security HPKE implementation
+pub struct HybridHpke {
+    kem: RcpkcKem,
+    aead: RcpkcAead,
+}
+
+impl HybridHpke {
+    /// Create a new hybrid security HPKE instance
+    pub fn new() -> Self {
+        Self {
+            kem: RcpkcKem::new(),
+            aead: RcpkcAead::new(),
+        }
+    }
+    
+    /// Seal (encrypt) a message for a recipient
+    pub fn seal(
+        &self,
+        recipient_pk: &PublicKey,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<HpkeCiphertext> {
+        // 1. Generate ephemeral key pair using multiple algorithms
+        let (ephemeral_sk, ephemeral_pk) = self.kem.generate_keypair()?;
+        
+        // 2. Encapsulate shared secret with recipient's public key
+        let (shared_secret, encapsulated_key) = self.kem.encapsulate(recipient_pk)?;
+        
+        // 3. Derive encryption key using SHAKE256
+        let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
+        
+        // 4. Encrypt with multiple post-quantum algorithms
+        let (ciphertext, tag) = self.aead.encrypt(
+            &encryption_key,
+            plaintext,
+            associated_data.unwrap_or(&[]),
+        )?;
+        
+        // 5. Return encapsulated key + ciphertext + tag
+        Ok(HpkeCiphertext {
+            encapsulated_key,
+            ciphertext,
+            tag,
+        })
+    }
+    
+    /// Open (decrypt) a message using recipient's secret key
+    pub fn open(
+        &self,
+        recipient_sk: &SecretKey,
+        ciphertext: &HpkeCiphertext,
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        // 1. Decapsulate shared secret using recipient's secret key
+        let shared_secret = self.kem.decapsulate(recipient_sk, &ciphertext.encapsulated_key)?;
+        
+        // 2. Derive encryption key using SHAKE256
+        let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
+        
+        // 3. Decrypt with multiple post-quantum algorithms
+        let plaintext = self.aead.decrypt(
+            &encryption_key,
+            &ciphertext.ciphertext,
+            &ciphertext.tag,
+            associated_data.unwrap_or(&[]),
+        )?;
+        
+        Ok(plaintext)
+    }
+    
+    /// Derive encryption key from shared secret
+    fn derive_key(&self, shared_secret: &SharedSecret, encapsulated_key: &EncapsulatedKey) -> Result<EncryptionKey> {
+        // Use SHAKE256 for key derivation
+        let mut key = [0u8; 32];
+        let mut hasher = Shake256::new();
+        hasher.update(b"lib-Q-HPKE-Hybrid-v1");
+        hasher.update(shared_secret.as_ref());
+        hasher.update(encapsulated_key.as_ref());
+        hasher.finalize(&mut key);
+        Ok(EncryptionKey(key))
+    }
+}
+```
+
 ## Unified HPKE Interface
 
 ### Factory Pattern
@@ -439,6 +441,7 @@ impl HpkeFactory {
             SecurityTier::Ultra => Box::new(UltraHpke::new()),
             SecurityTier::Balanced => Box::new(BalancedHpke::new()),
             SecurityTier::Performance => Box::new(PerformanceHpke::new()),
+            SecurityTier::Hybrid => Box::new(HybridHpke::new()),
         }
     }
 }
@@ -521,32 +524,34 @@ pub mod hpke {
 | Tier | KEM Security | AEAD Performance | Overall Security | Use Case |
 |------|-------------|------------------|------------------|----------|
 | Ultra | Level 5 (256-bit) | SHAKE256 (slow) | Maximum | Critical systems |
-| Balanced | Level 3 (192-bit) | AES-256-GCM (fast) | High | General purpose |
-| Performance | Level 1 (128-bit) | ChaCha20-Poly1305 (fastest) | Strong | High throughput |
+| Balanced | Level 3 (192-bit) | Saturnin (fast) | High | General purpose |
+| Performance | Level 1 (128-bit) | Saturnin (optimized) | Strong | High throughput |
+| Hybrid | Multiple algorithms | Multiple algorithms | Maximum | Defense in depth |
 
 ### Benchmark Targets
 
-| Operation | Ultra | Balanced | Performance |
-|-----------|-------|----------|-------------|
-| Key Generation | < 50ms | < 15ms | < 5ms |
-| Encryption | < 15ms | < 5ms | < 2ms |
-| Decryption | < 15ms | < 5ms | < 2ms |
-| Key Size | ~1.5KB | ~1.2KB | ~0.8KB |
-| Ciphertext Overhead | ~1.5KB | ~1.2KB | ~0.8KB |
+| Operation | Ultra | Balanced | Performance | Hybrid |
+|-----------|-------|----------|-------------|--------|
+| Key Generation | < 50ms | < 15ms | < 5ms | < 100ms |
+| Encryption | < 15ms | < 5ms | < 2ms | < 20ms |
+| Decryption | < 15ms | < 5ms | < 2ms | < 20ms |
+| Key Size | ~1.5KB | ~1.2KB | ~0.8KB | ~3KB |
+| Ciphertext Overhead | ~1.5KB | ~1.2KB | ~0.8KB | ~2KB |
 
 ## Security Considerations
 
 ### Post-Quantum Security
 
-- **KEM Security**: All tiers use post-quantum KEMs (CRYSTALS-ML-Kem)
+- **KEM Security**: All tiers use post-quantum KEMs (ML-KEM)
 - **Key Derivation**: SHAKE256 for all key derivation operations
 - **Domain Separation**: Different derivation strings for each tier
 - **Nonce Generation**: Cryptographically secure nonce generation
 
-### Classical Security
+### Post-Quantum Security
 
-- **Tier 2**: AES-256-GCM provides 256-bit classical security
-- **Tier 3**: ChaCha20-Poly1305 provides 256-bit classical security
+- **Tier 2**: Saturnin provides strong post-quantum security
+- **Tier 3**: Saturnin provides strong post-quantum security
+- **Tier 4**: RCPKC provides maximum post-quantum security through algorithm diversity
 - **Authentication**: All tiers provide strong authentication
 - **Confidentiality**: All tiers provide strong confidentiality
 
@@ -556,80 +561,6 @@ pub mod hpke {
 - **Memory safety**: Secure memory management for sensitive data
 - **Input validation**: Comprehensive validation of all inputs
 - **Error handling**: Secure error handling without information leakage
-
-## Testing Strategy
-
-### Unit Testing
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_ultra_hpke_encryption_decryption() {
-        let hpke = UltraHpke::new();
-        let (pk, sk) = MlKem5::new().generate_keypair().unwrap();
-        let message = b"Hello, Post-Quantum World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-    
-    #[test]
-    fn test_balanced_hpke_encryption_decryption() {
-        let hpke = BalancedHpke::new();
-        let (pk, sk) = MlKem3::new().generate_keypair().unwrap();
-        let message = b"Hello, Balanced World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-    
-    #[test]
-    fn test_performance_hpke_encryption_decryption() {
-        let hpke = PerformanceHpke::new();
-        let (pk, sk) = MlKem1::new().generate_keypair().unwrap();
-        let message = b"Hello, Performance World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-}
-```
-
-### Integration Testing
-
-```rust
-#[test]
-fn test_hpke_tier_interoperability() {
-    let message = b"Test message";
-    let ad = b"Test associated data";
-    
-    // Test all tiers
-    for tier in &[SecurityTier::Ultra, SecurityTier::Balanced, SecurityTier::Performance] {
-        let (pk, sk) = match tier {
-            SecurityTier::Ultra => MlKem5::new().generate_keypair().unwrap(),
-            SecurityTier::Balanced => MlKem3::new().generate_keypair().unwrap(),
-            SecurityTier::Performance => MlKem1::new().generate_keypair().unwrap(),
-        };
-        
-        let ciphertext = hpke::encrypt(&pk, message, Some(ad), *tier).unwrap();
-        let decrypted = hpke::decrypt(&sk, &ciphertext, Some(ad), *tier).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-}
-```
 
 ## Usage Examples
 
@@ -667,6 +598,11 @@ fn encrypt_general_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCip
     // Use balanced tier for general data
     hpke::encrypt(recipient_pk, data, None, SecurityTier::Balanced)
 }
+
+fn encrypt_maximum_security_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCiphertext> {
+    // Use hybrid tier for maximum security through algorithm diversity
+    hpke::encrypt(recipient_pk, data, None, SecurityTier::Hybrid)
+}
 ```
 
 ### Stateful HPKE Context
@@ -683,5 +619,3 @@ for (i, message) in messages.iter().enumerate() {
     // Send ciphertext...
 }
 ```
-
-This HPKE architecture provides a complete, three-tier system for post-quantum public key encryption that balances security and performance for different use cases.

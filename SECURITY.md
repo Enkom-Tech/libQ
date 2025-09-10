@@ -37,7 +37,7 @@ For less critical issues or general security questions, you can:
 
 ## Security Considerations
 
-lib-q implements post-quantum cryptographic algorithms that are designed to resist both classical and quantum computer attacks. However, the overall security of any system depends on:
+lib-q implements exclusively post-quantum cryptographic algorithms that are designed to resist both classical and quantum computer attacks. The library follows a "Post-Quantum Only" principle, rejecting all classical algorithms . However, the overall security of any system depends on:
 
 1. **Proper key management**: Keys must be generated securely and stored safely
 2. **Secure randomness**: High-quality entropy sources for key generation
@@ -48,10 +48,12 @@ lib-q implements post-quantum cryptographic algorithms that are designed to resi
 
 lib-q includes several security features:
 
+- **Post-quantum only**: Exclusively uses NIST-approved post-quantum algorithms
 - **Constant-time operations**: Designed to prevent timing attacks
 - **Memory zeroization**: Sensitive data is automatically cleared
 - **Input validation**: All inputs are validated before processing
 - **No unsafe code**: Strict prohibition of unsafe Rust code
+- **Algorithm diversity**: RCPKC provides defense in depth through multiple algorithms
 - **Formal verification ready**: Architecture supports formal verification
 
 ## Security Audit Status

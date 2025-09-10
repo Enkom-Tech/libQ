@@ -16,6 +16,7 @@ use crate::{
 };
 
 /// Setup sender context
+#[allow(dead_code)]
 pub fn setup_sender<C: HpkeCryptoProvider>(
     _kem_ctx: &mut lib_q_core::KemContext,
     _recipient_pk: &lib_q_core::KemPublicKey,
@@ -45,6 +46,7 @@ pub fn setup_sender<C: HpkeCryptoProvider>(
 }
 
 /// Setup receiver context
+#[allow(dead_code)]
 pub fn setup_receiver<C: HpkeCryptoProvider>(
     _kem_ctx: &mut lib_q_core::KemContext,
     _encapsulated_key: &[u8],
@@ -75,6 +77,7 @@ pub fn setup_receiver<C: HpkeCryptoProvider>(
 }
 
 /// Single-shot encryption
+#[allow(dead_code)]
 pub fn seal<C: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
@@ -95,6 +98,7 @@ pub fn seal<C: HpkeCryptoProvider>(
 }
 
 /// Single-shot decryption
+#[allow(dead_code)]
 pub fn open<C: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
@@ -111,6 +115,7 @@ pub fn open<C: HpkeCryptoProvider>(
 }
 
 /// Seal (encrypt) a message
+#[allow(dead_code)]
 pub fn seal_message<C: HpkeCryptoProvider>(
     key: &[u8],
     base_nonce: &[u8],
@@ -126,6 +131,7 @@ pub fn seal_message<C: HpkeCryptoProvider>(
 }
 
 /// Open (decrypt) a message
+#[allow(dead_code)]
 pub fn open_message<C: HpkeCryptoProvider>(
     key: &[u8],
     base_nonce: &[u8],
@@ -141,6 +147,7 @@ pub fn open_message<C: HpkeCryptoProvider>(
 }
 
 /// Export key material
+#[allow(dead_code)]
 pub fn export(
     _exporter_secret: &[u8],
     _exporter_context: &[u8],
@@ -154,6 +161,7 @@ pub fn export(
 }
 
 /// Compute nonce from base nonce and sequence number
+#[allow(dead_code)]
 fn compute_nonce(base_nonce: &[u8], sequence_number: u32) -> Vec<u8> {
     let seq_bytes = sequence_number.to_be_bytes();
     let mut nonce = base_nonce.to_vec();
@@ -170,6 +178,7 @@ fn compute_nonce(base_nonce: &[u8], sequence_number: u32) -> Vec<u8> {
 }
 
 /// Key schedule implementation (RFC 9180 Section 5.1)
+#[allow(dead_code)]
 pub fn key_schedule<C: HpkeCryptoProvider>(
     shared_secret: &[u8],
     info: &[u8],
@@ -204,6 +213,7 @@ pub fn key_schedule<C: HpkeCryptoProvider>(
 }
 
 /// Labeled extract function (RFC 9180 Section 4.1)
+#[allow(dead_code)]
 pub fn labeled_extract<C: HpkeCryptoProvider>(
     kdf: HpkeKdf,
     salt: &[u8],
@@ -221,6 +231,7 @@ pub fn labeled_extract<C: HpkeCryptoProvider>(
 }
 
 /// Labeled expand function (RFC 9180 Section 4.1)
+#[allow(dead_code)]
 pub fn labeled_expand<C: HpkeCryptoProvider>(
     kdf: HpkeKdf,
     prk: &[u8],

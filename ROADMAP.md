@@ -32,20 +32,30 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 ## Phase 1: Core Algorithms
 
 ### Hash Functions
-- [ ] SHAKE256 implementation
-- [ ] SHAKE128 implementation
-- [ ] cSHAKE256 implementation
-- [ ] Hash-based signature support
+- [x] SHAKE256 implementation
+- [x] SHAKE128 implementation
+- [x] cSHAKE256 implementation
+- [x] Hash-based signature support
 - [ ] Performance optimizations
 - [ ] Constant-time verification
 
 ### Key Encapsulation Mechanisms (KEMs)
-- [ ] CRYSTALS-ML-Kem (Level 1, 3, 5)
+- [x] ML-KEM (FIPS 203, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
+  - [ ] Performance optimization
+  - [ ] Security audit
+- [ ] DAWN (NTRU-based)
   - [ ] Core implementation
   - [ ] Key generation
   - [ ] Encapsulation/Decapsulation
   - [ ] Performance optimization
-  - [ ] Security audit
+- [ ] RCPKC (Randomized Concatenated Public Key Cryptography)
+  - [ ] Core implementation
+  - [ ] Multi-algorithm integration
+  - [ ] Key generation
+  - [ ] Encapsulation/Decapsulation
 - [ ] Classic McEliece (Level 1, 3, 4, 5)
   - [ ] Core implementation
   - [ ] Key generation
@@ -57,16 +67,17 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [ ] Encapsulation/Decapsulation
 
 ### Digital Signatures
-- [ ] CRYSTALS-Dilithium (Level 1, 3, 5)
+- [x] ML-DSA (FIPS 204, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [ ] Performance optimization
+- [ ] FN-DSA (FIPS 206)
   - [ ] Core implementation
   - [ ] Key generation
   - [ ] Signing/Verification
   - [ ] Performance optimization
-- [ ] Falcon (Level 1, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
-- [ ] SPHINCS+ (Level 1, 3, 5)
+- [ ] SLH-DSA (FIPS 205, Level 1, 3, 5)
   - [ ] Core implementation
   - [ ] Key generation
   - [ ] Signing/Verification
@@ -74,44 +85,37 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 ## Phase 2: High-Level APIs
 
 ### Authenticated Encryption
+- [ ] Saturnin AEAD implementation
+  - [ ] Core implementation
+  - [ ] Key generation
+  - [ ] Encryption/Decryption
+  - [ ] Performance optimization
 - [ ] Post-quantum AEAD construction
 - [ ] KEM-based encryption
-- [ ] Hybrid classical/post-quantum encryption
 - [ ] Streaming encryption support
 - [ ] Nonce management
 
 ### Hybrid Public Key Encryption (HPKE)
-- [ ] PQ-HPKE implementation (Tier 1: Pure post-quantum)
-- [ ] Hybrid HPKE implementation (Tier 2: PQ KEM + classical symmetric)
-- [ ] Performance HPKE implementation (Tier 3: PQ KEM + optimized classical)
-- [ ] HPKE with CRYSTALS-ML-Kem KEM
-- [ ] HPKE with Classic McEliece KEM
-- [ ] HPKE with HQC KEM
+- [ ] Tier 1: Ultra-Secure HPKE (Pure post-quantum with SHAKE256-based AEAD)
+- [ ] Tier 2: Balanced HPKE (Post-quantum KEM + Saturnin AEAD)
+- [ ] Tier 3: Performance HPKE (Post-quantum KEM + optimized Saturnin)
+- [ ] Tier 4: Hybrid Security HPKE (RCPKC with algorithm diversity)
 - [ ] HPKE performance benchmarking
 - [ ] HPKE constant-time verification
 
 ### Key Exchange
 - [ ] Post-quantum key exchange protocols
-- [ ] Hybrid key exchange
 - [ ] Forward secrecy guarantees
 - [ ] Session key derivation
-- [ ] Key confirmation
-
-### Sealed Boxes
-- [ ] Anonymous encryption
-- [ ] Public key encryption
-- [ ] Deterministic encryption
-- [ ] Metadata protection
 
 ## Phase 3: Platform Support
 
 ### WASM Support
-- [ ] Full WASM compilation
+- [x] Basic WASM compilation
 - [ ] Browser compatibility
 - [ ] Node.js compatibility
 - [ ] Performance optimization
 - [ ] Memory management
-- [ ] Threading support
 
 ### Cross-Platform
 - [ ] ARM optimization (NEON)
@@ -123,38 +127,27 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 ### Language Bindings
 - [ ] JavaScript/TypeScript
 - [ ] Python
-- [ ] Go
 - [ ] C/C++
-- [ ] Java
-- [ ] .NET
 
 ## Phase 4: Advanced Features
 
 ### Advanced Cryptography
-- [ ] Threshold signatures
-- [ ] Multi-party computation
 - [ ] Zero-knowledge proofs (zk-STARKs)
   - [ ] Core STARK implementation
   - [ ] Proof generation and verification
   - [ ] WASM compatibility
-  - [ ] Privacy-preserving computation
   - [ ] Integration with post-quantum crypto
-- [ ] Homomorphic encryption
-- [ ] Attribute-based encryption
 
 ### Performance Optimization
 - [ ] SIMD optimizations
 - [ ] Parallel processing
 - [ ] Hardware acceleration
 - [ ] Memory pooling
-- [ ] Cache optimization
 
 ### Security Enhancements
 - [ ] Formal verification
 - [ ] Side-channel resistance
-- [ ] Fault injection resistance
 - [ ] Quantum-resistant randomness
-- [ ] Post-quantum PRNG
 
 ## Phase 5: Ecosystem
 
@@ -163,20 +156,16 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Migration guides
 - [ ] Security best practices
 - [ ] Performance guides
-- [ ] Tutorial series
 
 ### Tools & Utilities
 - [ ] Command-line tools
 - [ ] Key management utilities
 - [ ] Performance benchmarking tools
 - [ ] Security analysis tools
-- [ ] Migration assistance tools
 
 ### Integration
 - [ ] TLS/SSL integration
 - [ ] SSH integration
-- [ ] PGP/GPG compatibility
-- [ ] Blockchain integration
 - [ ] IoT protocols
 
 ## Phase 6: Production Ready
@@ -186,12 +175,10 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Formal verification completion
 - [ ] Side-channel analysis
 - [ ] Penetration testing
-- [ ] Compliance certification
 
 ### Performance Validation
 - [ ] Performance benchmarking
 - [ ] Memory usage analysis
-- [ ] Power consumption analysis
 - [ ] Scalability testing
 - [ ] Stress testing
 
@@ -200,7 +187,6 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Long-term support (LTS)
 - [ ] Security update process
 - [ ] Vulnerability disclosure
-- [ ] Community support
 
 ## Ongoing Development
 
@@ -215,15 +201,13 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] New post-quantum algorithms
 - [ ] Advanced cryptographic protocols
 - [ ] Quantum-resistant protocols
-- [ ] Post-quantum blockchain
-- [ ] Quantum internet protocols
 
 ## Success Metrics
 
 ### Security
-- [ ] Zero classical crypto usage
+- [x] Zero classical crypto usage
 - [ ] 100% constant-time operations
-- [ ] Zero memory safety issues
+- [x] Zero memory safety issues
 - [ ] Comprehensive security audit
 - [ ] Formal verification completion
 
@@ -234,41 +218,3 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Fast key generation
 - [ ] Efficient encryption/decryption
 
-### Adoption
-- [ ] libsodium migration path
-- [ ] Industry adoption
-- [ ] Academic recognition
-- [ ] Community contributions
-- [ ] Security community acceptance
-
-## Risk Mitigation
-
-### Technical Risks
-- **Algorithm changes**: Monitor NIST progress closely
-- **Performance issues**: Continuous optimization
-- **Security vulnerabilities**: Regular audits
-- **Platform compatibility**: Extensive testing
-
-### Project Risks
-- **Resource constraints**: Community involvement
-- **Timeline delays**: Agile development
-- **Scope creep**: Clear priorities
-- **Quality issues**: Comprehensive testing
-
-## Community Involvement
-
-### Open Source
-- [ ] Open development process
-- [ ] Community code reviews
-- [ ] Public security discussions
-- [ ] Transparent decision making
-- [ ] Regular community updates
-
-### Collaboration
-- [ ] Academic partnerships
-- [ ] Industry collaboration
-- [ ] Standards body participation
-- [ ] Research community engagement
-- [ ] Open source ecosystem integration
-
-This roadmap is a living document that will be updated based on NIST progress, community feedback, and technical developments. Priorities may shift based on emerging threats and opportunities.

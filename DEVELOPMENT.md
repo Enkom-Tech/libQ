@@ -125,7 +125,7 @@ Every change must pass security review:
 
 ### Cryptographic Requirements
 
-- **NO classical algorithms**: RSA, ECC, AES, SHA-256, etc.
+- **NO classical algorithms**: RSA, ECC, AES, SHA-256, ChaCha20, Poly1305, etc.
 - **ONLY NIST-approved post-quantum algorithms**
 - **ONLY SHA-3 family hash functions** (SHAKE256, SHAKE128, cSHAKE256)
 - **Constant-time operations** for all cryptographic functions
@@ -162,6 +162,8 @@ fn encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
 
 // ❌ Bad: Classical crypto
 use sha2::Sha256;  // Not allowed!
+use aes::Aes256;   // Not allowed!
+use chacha20::ChaCha20;  // Not allowed!
 
 // ❌ Bad: Timing attack vulnerable
 fn verify_signature(sig: &[u8], expected: &[u8]) -> bool {
@@ -337,7 +339,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 For security issues:
 
 1. **DO NOT** create public issues
-2. **Email** security@lib-q.org
+2. **Email** github@enkom.dev
 3. **Use** the security report template
 4. **Follow** responsible disclosure
 
@@ -345,7 +347,7 @@ For security issues:
 
 - **Documentation**: [docs.rs/lib-q](https://docs.rs/lib-q)
 - **Issues**: [GitHub Issues](https://github.com/Enkom-Tech/libQ/issues)
-- **Security**: security@lib-q.org
+- **Security**: github@enkom.dev
 - **Discussions**: [GitHub Discussions](https://github.com/Enkom-Tech/libQ/discussions)
 
 ## License

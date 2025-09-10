@@ -1,35 +1,31 @@
-# lib-Q Architecture Summary
+# lib-Q Architecture
 
-## Executive Summary
+lib-Q is a post-quantum cryptography library that replaces classical cryptographic libraries with quantum-resistant alternatives. The architecture emphasizes simplicity, security, and performance while providing a complete post-quantum cryptographic ecosystem.
 
-lib-Q is a comprehensive post-quantum cryptography library designed to replace classical cryptographic libraries with quantum-resistant alternatives. The architecture follows libhydrogen's principles of simplicity, security, and performance while providing a complete post-quantum cryptographic ecosystem.
-
-## Complete Architecture Overview
-
-### Core Design Principles
+## Design Principles
 
 1. **Post-Quantum Only**: No classical cryptographic algorithms
-2. **libhydrogen-Inspired**: Simple, high-level API for common cryptographic problems
+2. **Simple API**: High-level functions for common cryptographic problems
 3. **Zero Dynamic Allocations**: Stack-only operations for constrained environments
 4. **Memory Safe**: Rust's ownership model with secure memory management
 5. **Cross-Platform**: Native Rust + WASM compilation support
 6. **Interoperable**: Compatible with existing libraries and protocols
 
-### Architecture Stack
+## Architecture Stack
 
 ```
-lib-Q Complete Architecture
+lib-Q Architecture
 ├── Application Layer
-│   ├── Simple API (libhydrogen-style)
+│   ├── Simple API
 │   ├── High-Level Functions
 │   └── Problem-Solving Interfaces
 ├── Algorithm Layer
-│   ├── KEMs (ML-Kem, McEliece, HQC)
-│   ├── Signatures (Dilithium, Falcon, SPHINCS+)
+│   ├── KEMs (ML-KEM, McEliece, HQC, DAWN, RCPKC)
+│   ├── Signatures (ML-DSA, FN-DSA, SLH-DSA)
 │   ├── Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
-│   └── AEAD Constructions
+│   └── AEAD Constructions (Saturnin, SHAKE256-based)
 ├── Protocol Layer
-│   ├── HPKE (3-tier system)
+│   ├── HPKE (4-tier system)
 │   ├── Key Exchange Protocols
 │   ├── TLS/SSH/WireGuard Integration
 │   └── Custom Protocol Support
@@ -40,21 +36,17 @@ lib-Q Complete Architecture
 │   └── Constrained Environment Support
 ├── Interoperability Layer
 │   ├── Format Support (Binary, Text, Structured)
-│   ├── Library Compatibility (libsodium, OpenSSL)
-│   ├── Protocol Integration
-│   └── Migration Paths
+│   └── Protocol Integration
 └── Platform Layer
     ├── Native Rust
     ├── WASM Compilation
-    ├── C Bindings
     └── Platform-Specific Optimizations
 ```
 
-## API Architecture
+## API Design
 
-### Simple API (High-Level)
-
-The libhydrogen-inspired simple API provides easy-to-use functions for common cryptographic problems:
+### Simple API
+High-level functions for common cryptographic problems:
 
 ```rust
 // Key Exchange
@@ -83,9 +75,8 @@ let key = simple::derive_key(&shared_secret, b"encryption")?;
 let keys = simple::derive_keys(&shared_secret, &[b"encryption", b"auth", b"metadata"])?;
 ```
 
-### Algorithm API (Mid-Level)
-
-Direct access to specific algorithms and security levels:
+### Algorithm API
+Direct access to specific algorithms:
 
 ```rust
 // KEM Operations
@@ -119,47 +110,48 @@ let recovered = ml_kem.decapsulate(&sk, &enc)?;
 - **Constant-Time Operations**: All operations are side-channel resistant
 - **Memory Safety**: Rust's ownership model with secure memory management
 - **Input Validation**: Comprehensive validation of all inputs
-- **Secure Random Number Generation**: Platform-specific secure RNG
 
 ### Security Tiers
 
 1. **Ultra-Secure (Tier 1)**: Pure post-quantum with maximum security
-   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
-   - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
-   - Symmetric: SHAKE256-based constructions
-   - HPKE: Pure post-quantum HPKE
+   - KEMs: ML-KEM, Classic McEliece, HQC, DAWN
+   - Signatures: ML-DSA, FN-DSA, SLH-DSA
+   - Symmetric: SHAKE256-based constructions, Saturnin
+   - HPKE: Pure post-quantum HPKE with Saturnin AEAD
 
-2. **Balanced (Tier 2)**: Hybrid post-quantum with good performance
-   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
-   - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
-   - Symmetric: Post-quantum KEM + quantum-resistant classical
-   - HPKE: Hybrid HPKE (PQ KEM + AES-256-GCM)
+2. **Balanced (Tier 2)**: Post-quantum with good performance
+   - KEMs: ML-KEM, Classic McEliece, HQC, DAWN
+   - Signatures: ML-DSA, FN-DSA, SLH-DSA
+   - Symmetric: Post-quantum KEM + Saturnin AEAD
+   - HPKE: Hybrid HPKE (PQ KEM + Saturnin)
 
-3. **Performance (Tier 3)**: Post-quantum + optimized classical
-   - KEMs: CRYSTALS-ML-Kem, Classic McEliece, HQC
-   - Signatures: CRYSTALS-Dilithium, Falcon, SPHINCS+
-   - Symmetric: Post-quantum KEM + optimized classical
-   - HPKE: Performance HPKE (PQ KEM + ChaCha20-Poly1305)
+3. **Performance (Tier 3)**: Post-quantum + optimized
+   - KEMs: ML-KEM, DAWN, HQC
+   - Signatures: ML-DSA, FN-DSA
+   - Symmetric: Post-quantum KEM + Saturnin AEAD (optimized modes)
+   - HPKE: Performance HPKE (PQ KEM + Saturnin)
+
+4. **Hybrid Security (Tier 4)**: RCPKC-based defense in depth
+   - KEMs: RCPKC (multiple algorithm combination)
+   - Signatures: RCPKC signature schemes
+   - Symmetric: Multiple post-quantum algorithms
+   - HPKE: RCPKC-based HPKE with algorithm diversity
 
 ### Forbidden Algorithms
-
-The following classical algorithms are explicitly forbidden:
 - **KEMs**: RSA, ECC, DH, ECDH
 - **Signatures**: RSA-PSS, ECDSA, Ed25519, Ed448
 - **Hash Functions**: SHA-1, SHA-256, SHA-512, MD5
-- **Symmetric Ciphers**: AES-128, ChaCha20, Poly1305 (when used alone)
+- **Symmetric Ciphers**: AES-128, ChaCha20, Poly1305, Ascon, Xoodyak, Sparkle
 
 ## Memory Architecture
 
 ### Zero Dynamic Allocation Model
-
 - **Stack-Only Operations**: All cryptographic operations use stack-allocated buffers
 - **Fixed-Size Types**: All cryptographic types have fixed, known sizes
 - **Secure Memory Zeroing**: Automatic zeroing of sensitive data
 - **Memory Safety**: Rust's ownership model prevents memory errors
 
-### Fixed-Size Type Definitions
-
+### Fixed-Size Types
 ```rust
 // Maximum sizes for all algorithms
 pub const MAX_PUBLIC_KEY_SIZE: usize = 3936;  // Largest Dilithium5 public key
@@ -187,33 +179,39 @@ pub struct Plaintext([u8; MAX_MESSAGE_SIZE]);
 
 ## HPKE Architecture
 
-### Three-Tier HPKE System
+### Four-Tier System
 
 1. **Ultra-Secure HPKE**: Pure post-quantum with SHAKE256-based AEAD
-   - KEM: CRYSTALS-ML-Kem (Level 5)
+   - KEM: ML-KEM (Level 5)
    - AEAD: SHAKE256-based construction
    - Use Case: Maximum security, performance secondary
 
-2. **Balanced HPKE**: Hybrid post-quantum with classical symmetric
-   - KEM: CRYSTALS-ML-Kem (Level 3)
-   - AEAD: AES-256-GCM
+2. **Balanced HPKE**: Post-quantum with Saturnin AEAD
+   - KEM: ML-KEM (Level 3)
+   - AEAD: Saturnin
    - Use Case: Strong security with good performance
 
-3. **Performance HPKE**: Post-quantum + optimized classical
-   - KEM: CRYSTALS-ML-Kem (Level 1)
-   - AEAD: ChaCha20-Poly1305
+3. **Performance HPKE**: Post-quantum + optimized Saturnin
+   - KEM: ML-KEM (Level 1) / DAWN
+   - AEAD: Saturnin (optimized modes)
    - Use Case: Maximum performance, strong security
+
+4. **Hybrid Security HPKE**: RCPKC-based with algorithm diversity
+   - KEM: RCPKC (multiple algorithm combination)
+   - AEAD: Multiple post-quantum algorithms
+   - Use Case: Maximum security through algorithm diversity
 
 ### HPKE Implementation
 
+### HPKE API
 ```rust
 pub enum SecurityTier {
-    UltraSecure,  // Pure post-quantum
-    Balanced,     // Hybrid PQ + classical
-    Performance,  // PQ + optimized classical
+    UltraSecure,  // Pure post-quantum with SHAKE256-based AEAD
+    Balanced,     // Post-quantum with Saturnin AEAD
+    Performance,  // Post-quantum with optimized Saturnin
+    Hybrid,       // RCPKC-based with algorithm diversity
 }
 
-// High-level HPKE API
 pub fn hpke_encrypt(
     recipient_public: &PublicKey,
     message: &[u8],
@@ -228,21 +226,18 @@ pub fn hpke_decrypt(
 ) -> Result<Plaintext>;
 ```
 
-## Interoperability Architecture
+## Interoperability
 
 ### Format Support
-
 - **Binary Format**: Raw byte arrays for maximum efficiency
 - **Text Format**: Base64 and Hex encoding for human-readable data
 - **Structured Format**: JSON and CBOR for complex data structures
 - **PEM Format**: Traditional PEM encoding for compatibility
 
 ### Library Compatibility
-
 - **libsodium Compatibility**: API compatibility layer for easy migration
 - **OpenSSL Compatibility**: Format compatibility and algorithm mapping
 - **Protocol Integration**: TLS, SSH, WireGuard integration
-- **Migration Paths**: Gradual migration strategies
 
 ### Serialization Examples
 
@@ -273,16 +268,17 @@ let pem_key = format!(
 
 - **Key Generation**: < 1ms for Level 1, < 5ms for Level 5
 - **Encapsulation/Decapsulation**: < 0.5ms for Level 1, < 2ms for Level 5
-- **Signing**: < 1ms for Level 1, < 5ms for Level 5
+- **Signing**: < 1ms for Level 1, < 5ms for Level 5 (FN-DSA: < 0.5ms for compact signatures)
 - **Verification**: < 0.5ms for Level 1, < 2ms for Level 5
-- **HPKE**: < 2ms for encryption/decryption
+- **HPKE**: < 2ms for encryption/decryption (Saturnin AEAD: < 1ms for balanced tier)
+- **DAWN KEM**: < 0.3ms for encapsulation (smaller ciphertext sizes)
+- **RCPKC**: < 5ms for hybrid operations (multiple algorithm overhead)
 
 ### Memory Requirements
-
-- **Stack Usage**: < 16KB for all operations
+- **Stack Usage**: < 16KB for all operations (Saturnin: < 8KB, RCPKC: < 20KB)
 - **Heap Usage**: Zero dynamic allocations
-- **WASM Size**: < 500KB total
-- **Runtime Memory**: < 1MB
+- **WASM Size**: < 500KB total (with new algorithms: < 600KB)
+- **Runtime Memory**: < 1MB (FN-DSA: compact signatures reduce memory usage)
 
 ### Optimization Strategies
 
@@ -290,112 +286,25 @@ let pem_key = format!(
 - **SIMD Optimization**: Platform-specific optimizations where available
 - **WASM Optimization**: Optimized for web performance
 - **Memory Layout**: Optimized memory layout for cache efficiency
+- **Saturnin Optimization**: Bitsliced implementation for constrained devices
+- **FN-DSA Optimization**: Fast Fourier Transform optimizations for compact signatures
+- **DAWN Optimization**: Double encoding optimizations for smaller ciphertexts
+- **RCPKC Optimization**: Parallel algorithm execution for hybrid security
 
-## Platform Architecture
+## Platform Support
 
 ### Native Rust
-
 - **Target Platforms**: x86_64, ARM64, ARM32
 - **Optimizations**: SIMD, platform-specific optimizations
 - **Memory Model**: Stack-only operations with secure memory management
 - **Error Handling**: Comprehensive error handling with detailed error types
+- **Algorithm Support**: All post-quantum algorithms (Saturnin, FN-DSA, DAWN, RCPKC)
 
 ### WASM Compilation
-
 - **Target**: Web browsers and Node.js
 - **Optimizations**: Size optimization, performance optimization
 - **Memory Model**: WASM-specific memory management
 - **JavaScript Bindings**: Idiomatic JavaScript API
+- **Algorithm Support**: Full post-quantum algorithm suite with WASM optimizations
 
-### C Bindings
 
-- **Target**: C/C++ applications
-- **API Design**: C-style API with Rust safety
-- **Memory Management**: Manual memory management with safety checks
-- **Error Handling**: C-style error codes with detailed error information
-
-## Migration Architecture
-
-### From libsodium
-
-- **API Compatibility**: Direct API mapping where possible
-- **Gradual Migration**: Step-by-step migration strategy
-- **Performance Comparison**: Tools for performance comparison
-- **Security Analysis**: Tools for security validation
-
-### From OpenSSL
-
-- **Algorithm Mapping**: Direct algorithm mapping
-- **API Translation**: API translation layer
-- **Performance Benchmarks**: Performance comparison tools
-- **Security Validation**: Security validation tools
-
-### From Other Libraries
-
-- **Interoperability Testing**: Comprehensive interoperability testing
-- **Format Compatibility**: Support for multiple data formats
-- **Protocol Integration**: Integration with existing protocols
-- **Migration Documentation**: Detailed migration guides
-
-## Completeness and Quality Assessment
-
-### Architecture Completeness
-
-The lib-Q architecture is comprehensive and covers all major aspects of a modern cryptography library:
-
-- **API Design**: Complete API design with multiple abstraction levels
-- **Security Model**: Comprehensive security model with clear threat analysis
-- **Memory Architecture**: Complete memory management strategy
-- **HPKE Architecture**: Full HPKE implementation with multiple tiers
-- **Interoperability**: Comprehensive interoperability strategy
-- **Performance**: Detailed performance requirements and optimization strategies
-- **Platform Support**: Complete platform support strategy
-
-### Architecture Quality
-
-The architecture demonstrates high quality in several areas:
-
-- **Consistency**: Consistent design principles across all components
-- **Completeness**: All major components are well-defined
-- **Practicality**: Architecture is practical and implementable
-- **Security**: Security-first design with comprehensive threat modeling
-- **Performance**: Performance considerations throughout the design
-- **Interoperability**: Strong focus on interoperability and migration
-
-### Areas for Improvement
-
-While the architecture is comprehensive, there are some areas that could be enhanced:
-
-- **Testing Strategy**: More detailed testing strategy could be included
-- **Deployment Strategy**: Deployment and distribution strategy could be expanded
-- **Community Strategy**: Community building and contribution strategy could be detailed
-- **Documentation Strategy**: Documentation and education strategy could be expanded
-
-## Next Steps
-
-### Implementation Phase
-
-With the architecture complete, the next phase is implementation:
-
-1. **Core Algorithms**: Implement hash functions, KEMs, and signatures
-2. **High-Level APIs**: Implement simple API and HPKE
-3. **Platform Support**: Implement WASM and C bindings
-4. **Testing**: Comprehensive testing suite
-5. **Documentation**: Complete API documentation and examples
-
-### Development Timeline
-
-- **Phase 1**: Core algorithm implementations
-- **Phase 2**: High-level APIs and HPKE
-- **Phase 3**: Platform support and testing
-- **Phase 4**: Documentation and community building
-
-### Success Criteria
-
-- **Security**: Zero classical crypto usage, comprehensive security audit
-- **Performance**: Meet all performance targets across platforms
-- **Interoperability**: Full compatibility with existing libraries and protocols
-- **Adoption**: Successful migration from existing cryptographic libraries
-- **Community**: Active community with contributions and feedback
-
-The lib-Q architecture provides a solid foundation for building a comprehensive, secure, and performant post-quantum cryptography library that can replace classical cryptographic libraries while maintaining compatibility and ease of use.

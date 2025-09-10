@@ -10,6 +10,8 @@
 //! - **Memory Safety**: Automatic zeroization of sensitive data
 //! - **Constant-Time**: Operations designed to prevent timing attacks
 //! - **Post-Quantum**: NIST-approved algorithms for quantum resistance
+//! - **Four-Tier Security**: Ultra-Secure, Balanced, Performance, and Hybrid security tiers
+//! - **Algorithm Diversity**: Support for ML-KEM, ML-DSA, FN-DSA, Saturnin, DAWN, and RCPKC
 //!
 //! # Example Usage
 //!
@@ -33,9 +35,13 @@
 //!     let random_bytes = Utils::random_bytes(32)?;
 //!     println!("Random bytes: {}", Utils::bytes_to_hex(&random_bytes));
 //!
-//!     // Note: Signature and KEM operations require feature flags:
+//!     // Note: Algorithm operations require feature flags:
 //!     // - For ML-DSA signatures: enable 'ml-dsa' feature
 //!     // - For ML-KEM key exchange: enable 'ml-kem' feature
+//!     // - For FN-DSA signatures: enable 'fn-dsa' feature
+//!     // - For Saturnin AEAD: enable 'saturnin' feature
+//!     // - For DAWN KEM: enable 'dawn' feature
+//!     // - For RCPKC: enable 'rcpkc' feature
 //!     // Example with features enabled:
 //!     // let mut sig_ctx = create_signature_context();
 //!     // let sig_keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65)?;
@@ -163,6 +169,24 @@ impl KemOperations for RealKemImpl {
                     feature: "ML-KEM support requires 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "dawn")]
+            Algorithm::Dawn => {
+                let kem = create_kem(algorithm)?;
+                kem.generate_keypair()
+            }
+            #[cfg(not(feature = "dawn"))]
+            Algorithm::Dawn => Err(Error::NotImplemented {
+                feature: "DAWN support requires 'dawn' feature flag".to_string(),
+            }),
+            #[cfg(feature = "rcpkc")]
+            Algorithm::Rcpkc => {
+                let kem = create_kem(algorithm)?;
+                kem.generate_keypair()
+            }
+            #[cfg(not(feature = "rcpkc"))]
+            Algorithm::Rcpkc => Err(Error::NotImplemented {
+                feature: "RCPKC support requires 'rcpkc' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -187,6 +211,24 @@ impl KemOperations for RealKemImpl {
                     feature: "ML-KEM support requires 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "dawn")]
+            Algorithm::Dawn => {
+                let kem = create_kem(algorithm)?;
+                kem.encapsulate(_public_key)
+            }
+            #[cfg(not(feature = "dawn"))]
+            Algorithm::Dawn => Err(Error::NotImplemented {
+                feature: "DAWN support requires 'dawn' feature flag".to_string(),
+            }),
+            #[cfg(feature = "rcpkc")]
+            Algorithm::Rcpkc => {
+                let kem = create_kem(algorithm)?;
+                kem.encapsulate(_public_key)
+            }
+            #[cfg(not(feature = "rcpkc"))]
+            Algorithm::Rcpkc => Err(Error::NotImplemented {
+                feature: "RCPKC support requires 'rcpkc' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -211,6 +253,24 @@ impl KemOperations for RealKemImpl {
                     feature: "ML-KEM support requires 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "dawn")]
+            Algorithm::Dawn => {
+                let kem = create_kem(algorithm)?;
+                kem.decapsulate(_secret_key, _ciphertext)
+            }
+            #[cfg(not(feature = "dawn"))]
+            Algorithm::Dawn => Err(Error::NotImplemented {
+                feature: "DAWN support requires 'dawn' feature flag".to_string(),
+            }),
+            #[cfg(feature = "rcpkc")]
+            Algorithm::Rcpkc => {
+                let kem = create_kem(algorithm)?;
+                kem.decapsulate(_secret_key, _ciphertext)
+            }
+            #[cfg(not(feature = "rcpkc"))]
+            Algorithm::Rcpkc => Err(Error::NotImplemented {
+                feature: "RCPKC support requires 'rcpkc' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -250,6 +310,15 @@ impl SignatureOperations for RealSignatureImpl {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa => {
+                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                fn_dsa.generate_keypair()
+            }
+            #[cfg(not(feature = "fn-dsa"))]
+            Algorithm::FnDsa => Err(Error::NotImplemented {
+                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -285,6 +354,15 @@ impl SignatureOperations for RealSignatureImpl {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa => {
+                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                fn_dsa.sign(_secret_key, _message)
+            }
+            #[cfg(not(feature = "fn-dsa"))]
+            Algorithm::FnDsa => Err(Error::NotImplemented {
+                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -320,6 +398,15 @@ impl SignatureOperations for RealSignatureImpl {
                     feature: "ML-DSA support requires 'ml-dsa' feature flag".to_string(),
                 })
             }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa => {
+                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                fn_dsa.verify(_public_key, _message, _signature)
+            }
+            #[cfg(not(feature = "fn-dsa"))]
+            Algorithm::FnDsa => Err(Error::NotImplemented {
+                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+            }),
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -592,6 +679,8 @@ pub mod wasm {
                 "mlkem512" => Algorithm::MlKem512,
                 "mlkem768" => Algorithm::MlKem768,
                 "mlkem1024" => Algorithm::MlKem1024,
+                "dawn" => Algorithm::Dawn,
+                "rcpkc" => Algorithm::Rcpkc,
                 _ => return Err(JsValue::from_str("Unsupported KEM algorithm")),
             };
 
@@ -629,6 +718,7 @@ pub mod wasm {
                 "mldsa44" => Algorithm::MlDsa44,
                 "mldsa65" => Algorithm::MlDsa65,
                 "mldsa87" => Algorithm::MlDsa87,
+                "fndsa" => Algorithm::FnDsa,
                 _ => return Err(JsValue::from_str("Unsupported signature algorithm")),
             };
 

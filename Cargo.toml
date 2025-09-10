@@ -34,7 +34,7 @@ version = "0.0.2"
 
 # Workspace dependencies for inherited properties
 [workspace.dependencies]
-hax-lib = "0.3.2"
+hax-lib = "0.3.4"
 
 [package]
 name = "lib-q"
@@ -44,7 +44,7 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
-description = "Post-quantum cryptography library with libsodium-equivalent API (complete package)"
+description = "Post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
 exclude = [
@@ -80,9 +80,9 @@ lib-q-zkp = { path = "lib-q-zkp" }
 lib-q-keccak = { path = "lib-q-keccak" }
 
 # WASM-specific dependencies
-wasm-bindgen = { version = "0.2.100", optional = true }
-js-sys = { version = "0.3.77", optional = true }
-web-sys = { version = "0.3.77", optional = true, features = ["console"] }
+wasm-bindgen = { version = "0.2.101", optional = true }
+js-sys = { version = "0.3.78", optional = true }
+web-sys = { version = "0.3.78", optional = true, features = ["console"] }
 
 [dev-dependencies]
 # Testing
@@ -91,7 +91,7 @@ proptest = "1.7.0"
 quickcheck = "1.0.3"
 
 # WASM testing
-wasm-bindgen-test = "0.3.50"
+wasm-bindgen-test = "0.3.51"
 
 [features]
 default = ["std"]
@@ -119,10 +119,18 @@ mldsa44 = ["lib-q-ml-dsa/mldsa44"]
 mldsa65 = ["lib-q-ml-dsa/mldsa65"]
 mldsa87 = ["lib-q-ml-dsa/mldsa87"]
 
-falcon = ["lib-q-sig/falcon"]
+# NIST PQC Standards
 sphincs = ["lib-q-sig/sphincs"]
 mceliece = ["lib-q-kem/mceliece"]
 hqc = ["lib-q-kem/hqc"]
+fn-dsa = ["lib-q-sig/fn-dsa"]
+
+# New Post-Quantum Algorithms
+saturnin = ["lib-q-aead/saturnin"]
+dawn = ["lib-q-kem/dawn"]
+rcpkc = ["lib-q-kem/rcpkc"]
+
+# Protocol implementations
 hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
 zkp = ["lib-q-zkp/zkp"]
 
@@ -145,7 +153,7 @@ simd256 = ["lib-q-ml-dsa/simd256"]
 security-hardened = ["zeroize", "all-algorithms"]
 
 # Convenience features
-all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "falcon", "sphincs", "mceliece", "hqc", "zkp"]
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "sphincs", "mceliece", "hqc", "fn-dsa", "saturnin", "dawn", "rcpkc", "zkp"]
 
 # Development and testing features
 dev = ["experimental", "tests"]

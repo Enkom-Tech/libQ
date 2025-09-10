@@ -13,6 +13,14 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "ml-kem")]
 pub mod ml_kem;
 
+/// DAWN KEM implementation
+#[cfg(feature = "dawn")]
+pub mod dawn;
+
+/// RCPKC KEM implementation
+#[cfg(feature = "rcpkc")]
+pub mod rcpkc;
+
 /// Get a list of available KEM algorithms
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub fn available_algorithms() -> Vec<Algorithm> {
@@ -23,6 +31,14 @@ pub fn available_algorithms() -> Vec<Algorithm> {
         algorithms.push(Algorithm::MlKem512);
         algorithms.push(Algorithm::MlKem768);
         algorithms.push(Algorithm::MlKem1024);
+    }
+    #[cfg(feature = "dawn")]
+    {
+        algorithms.push(Algorithm::Dawn);
+    }
+    #[cfg(feature = "rcpkc")]
+    {
+        algorithms.push(Algorithm::Rcpkc);
     }
     algorithms
 }
@@ -36,6 +52,10 @@ pub fn create_kem(algorithm: Algorithm) -> Result<Box<dyn Kem>, Error> {
         Algorithm::MlKem768 => Ok(Box::new(ml_kem::MlKem768Impl::default())),
         #[cfg(feature = "ml-kem")]
         Algorithm::MlKem1024 => Ok(Box::new(ml_kem::MlKem1024Impl::default())),
+        #[cfg(feature = "dawn")]
+        Algorithm::Dawn => Ok(Box::new(dawn::DawnImpl::default())),
+        #[cfg(feature = "rcpkc")]
+        Algorithm::Rcpkc => Ok(Box::new(rcpkc::RcpkcImpl::default())),
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown KEM algorithm",
         }),

@@ -24,9 +24,9 @@ pub use lib_q_core::{
 #[cfg(feature = "ml-dsa")]
 pub mod ml_dsa;
 
-/// Falcon implementation
-#[cfg(feature = "falcon")]
-pub mod falcon;
+/// FN-DSA implementation
+#[cfg(feature = "fn-dsa")]
+pub mod fn_dsa;
 
 /// SPHINCS+ implementation
 #[cfg(feature = "sphincs")]
@@ -38,8 +38,8 @@ pub fn available_algorithms() -> Vec<&'static str> {
     vec![
         #[cfg(feature = "ml-dsa")]
         "ml-dsa",
-        #[cfg(feature = "falcon")]
-        "falcon",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa",
         #[cfg(feature = "sphincs")]
         "sphincs",
     ]
@@ -51,8 +51,8 @@ pub fn available_algorithms() -> &'static [&'static str] {
     &[
         #[cfg(feature = "ml-dsa")]
         "ml-dsa",
-        #[cfg(feature = "falcon")]
-        "falcon",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa",
         #[cfg(feature = "sphincs")]
         "sphincs",
     ]
@@ -69,8 +69,8 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         #[cfg(feature = "ml-dsa")]
         "mldsa87" => Ok(Box::new(ml_dsa::MlDsa::ml_dsa_87())),
 
-        #[cfg(feature = "falcon")]
-        "falcon" => Ok(Box::new(falcon::Falcon::new())),
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa" => Ok(Box::new(fn_dsa::FnDsa::new())),
 
         #[cfg(feature = "sphincs")]
         "sphincs" => Ok(Box::new(sphincs::Sphincs::new())),

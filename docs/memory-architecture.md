@@ -1,12 +1,8 @@
-# Memory Architecture & Management
+# Memory Architecture
 
-## Design Philosophy
+lib-Q implements a zero dynamic allocation memory model, making it suitable for constrained environments such as microcontrollers, embedded systems, and high-performance applications. All cryptographic operations use stack-allocated buffers with fixed sizes.
 
-lib-Q implements a **zero dynamic allocation** memory model inspired by libhydrogen, making it suitable for constrained environments such as microcontrollers, embedded systems, and high-performance applications. All cryptographic operations use stack-allocated buffers with fixed sizes.
-
-## Memory Management Strategy
-
-### Core Principles
+## Core Principles
 
 1. **Zero Dynamic Allocations**: No `Vec<T>`, `Box<T>`, or heap allocations during cryptographic operations
 2. **Stack-Only Operations**: All buffers are stack-allocated with compile-time known sizes
@@ -14,7 +10,7 @@ lib-Q implements a **zero dynamic allocation** memory model inspired by libhydro
 4. **Secure Memory Zeroing**: Automatic zeroing of sensitive memory on drop
 5. **Bounded Operations**: All operations have maximum size limits
 
-### Memory Layout
+## Memory Layout
 
 ```
 lib-Q Memory Model
@@ -66,14 +62,14 @@ pub const DILITHIUM5_PUBLIC_KEY_SIZE: usize = 2592;
 pub const DILITHIUM5_SECRET_KEY_SIZE: usize = 4864;
 pub const DILITHIUM5_SIGNATURE_SIZE: usize = 4595;
 
-// Falcon Signature Sizes
-pub const FALCON1_PUBLIC_KEY_SIZE: usize = 897;
-pub const FALCON1_SECRET_KEY_SIZE: usize = 2305;
-pub const FALCON1_SIGNATURE_SIZE: usize = 690;
+// FN-DSA (FIPS 206) Signature Sizes
+pub const FN_DSA_LEVEL1_PUBLIC_KEY_SIZE: usize = 897;
+pub const FN_DSA_LEVEL1_SECRET_KEY_SIZE: usize = 2305;
+pub const FN_DSA_LEVEL1_SIGNATURE_SIZE: usize = 690;
 
-pub const FALCON5_PUBLIC_KEY_SIZE: usize = 1793;
-pub const FALCON5_SECRET_KEY_SIZE: usize = 4609;
-pub const FALCON5_SIGNATURE_SIZE: usize = 1380;
+pub const FN_DSA_LEVEL5_PUBLIC_KEY_SIZE: usize = 1793;
+pub const FN_DSA_LEVEL5_SECRET_KEY_SIZE: usize = 4609;
+pub const FN_DSA_LEVEL5_SIGNATURE_SIZE: usize = 1380;
 
 // SPHINCS+ Signature Sizes
 pub const SPHINCS1_PUBLIC_KEY_SIZE: usize = 32;
@@ -217,88 +213,6 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
 pub fn secure_clear(buffer: &mut [u8]) {
     for byte in buffer.iter_mut() {
         *byte = 0;
-    }
-}
-```
-
-## Algorithm-Specific Memory Layouts
-
-### CRYSTALS-ML-Kem Memory Layout
-
-```rust
-/// ML-Kem-specific memory structures
-pub struct MlKemMemory {
-    /// Polynomial coefficients (stack-allocated)
-    pub polynomials: [[u16; 256]; 3], // 3 polynomials, 256 coefficients each
-    /// Random bytes buffer
-    pub random_buffer: [u8; 32],
-    /// Hash state buffer
-    pub hash_buffer: [u8; 64],
-    /// Temporary computation buffer
-    pub temp_buffer: [u8; 1024],
-}
-
-impl MlKemMemory {
-    /// Create new ML-Kem memory layout
-    pub fn new() -> Self {
-        Self {
-            polynomials: [[0u16; 256]; 3],
-            random_buffer: [0u8; 32],
-            hash_buffer: [0u8; 64],
-            temp_buffer: [0u8; 1024],
-        }
-    }
-    
-    /// Clear all sensitive memory
-    pub fn clear(&mut self) {
-        for poly in &mut self.polynomials {
-            for coeff in poly.iter_mut() {
-                *coeff = 0;
-            }
-        }
-        secure_clear(&mut self.random_buffer);
-        secure_clear(&mut self.hash_buffer);
-        secure_clear(&mut self.temp_buffer);
-    }
-}
-```
-
-### CRYSTALS-Dilithium Memory Layout
-
-```rust
-/// Dilithium-specific memory structures
-pub struct DilithiumMemory {
-    /// Polynomial coefficients
-    pub polynomials: [[i32; 256]; 6], // 6 polynomials, 256 coefficients each
-    /// Random bytes buffer
-    pub random_buffer: [u8; 64],
-    /// Hash state buffer
-    pub hash_buffer: [u8; 128],
-    /// Temporary computation buffer
-    pub temp_buffer: [u8; 2048],
-}
-
-impl DilithiumMemory {
-    /// Create new Dilithium memory layout
-    pub fn new() -> Self {
-        Self {
-            polynomials: [[0i32; 256]; 6],
-            random_buffer: [0u8; 64],
-            hash_buffer: [0u8; 128],
-            temp_buffer: [0u8; 2048],
-        }
-    }
-    
-    /// Clear all sensitive memory
-    pub fn clear(&mut self) {
-        for poly in &mut self.polynomials {
-            for coeff in poly.iter_mut() {
-                *coeff = 0;
-            }
-        }
-        secure_clear(&mut self.random_buffer);
-        secure_clear(&mut self.hash_buffer);
-        secure_clear(&mut self.temp_buffer);
     }
 }
 ```
@@ -501,90 +415,6 @@ impl WasmMemory {
 }
 ```
 
-## Memory Testing
-
-### Memory Safety Tests
-
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_secret_key_zeroization() {
-        let mut key = SecretKey::new();
-        let key_data = key.as_ref().to_vec();
-        
-        // Verify key is not all zeros
-        assert_ne!(key_data, vec![0u8; MLKEM5_SECRET_KEY_SIZE]);
-        
-        // Drop key and verify it's zeroized
-        drop(key);
-        // Note: In a real test, we'd need to use a custom allocator to verify zeroization
-    }
-    
-    #[test]
-    fn test_buffer_overflow_protection() {
-        let mut buffer = CryptoBuffer::<1024>::new();
-        
-        // Write data up to capacity
-        let data = vec![0x42u8; 1024];
-        assert!(buffer.write(&data).is_ok());
-        
-        // Try to write beyond capacity
-        let extra_data = vec![0x43u8; 1];
-        assert!(buffer.write(&extra_data).is_err());
-    }
-    
-    #[test]
-    fn test_memory_pool_allocation() {
-        let mut pool = MemoryPool::new();
-        
-        // Allocate multiple buffers
-        let buf1 = pool.get_buffer();
-        let buf2 = pool.get_buffer();
-        let buf3 = pool.get_buffer();
-        let buf4 = pool.get_buffer();
-        
-        // Verify all buffers are different
-        assert_ne!(buf1.as_ptr(), buf2.as_ptr());
-        assert_ne!(buf2.as_ptr(), buf3.as_ptr());
-        assert_ne!(buf3.as_ptr(), buf4.as_ptr());
-        
-        // Fifth allocation should reuse first buffer
-        let buf5 = pool.get_buffer();
-        assert_eq!(buf1.as_ptr(), buf5.as_ptr());
-    }
-}
-```
-
-### Memory Usage Benchmarks
-
-```rust
-#[cfg(test)]
-mod benchmarks {
-    use super::*;
-    use std::time::Instant;
-    
-    #[test]
-    fn benchmark_memory_usage() {
-        let start = Instant::now();
-        
-        // Perform cryptographic operations
-        let (pk, sk) = simple::keygen(1).unwrap();
-        let shared = simple::exchange(&sk, &pk).unwrap();
-        let signature = simple::sign(&sk, b"test message").unwrap();
-        let ciphertext = simple::encrypt(&shared, b"test message", None).unwrap();
-        
-        let duration = start.elapsed();
-        
-        // Verify no heap allocations occurred
-        // This would require custom allocator tracking in a real benchmark
-        println!("Operation completed in {:?} with zero heap allocations", duration);
-    }
-}
-```
-
 ## Usage Examples
 
 ### Memory-Efficient Operations
@@ -643,5 +473,3 @@ pub extern "C" fn libq_keygen_embedded(
     0 // Success
 }
 ```
-
-This memory architecture ensures that lib-Q can operate in the most constrained environments while maintaining security and performance. The zero dynamic allocation model makes it suitable for microcontrollers, embedded systems, and high-performance applications where predictable memory usage is critical.

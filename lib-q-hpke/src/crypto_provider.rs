@@ -23,7 +23,7 @@ use crate::error::HpkeError;
 use crate::types::*;
 
 /// Crypto provider trait for HPKE operations
-#[allow(unused_variables)]
+#[allow(unused_variables, dead_code)]
 pub trait HpkeCryptoProvider {
     /// The PRNG type
     #[cfg(feature = "std")]
@@ -112,6 +112,7 @@ impl HpkeTestRng for rand_chacha::ChaCha20Rng {
 }
 
 /// Post-quantum crypto provider implementation
+#[allow(dead_code)]
 pub struct PostQuantumProvider;
 
 impl HpkeCryptoProvider for PostQuantumProvider {
