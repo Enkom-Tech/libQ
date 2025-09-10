@@ -142,7 +142,7 @@ runs:
         FEATURES="${{ inputs.features }}"
         
         # Build tarpaulin command with appropriate options
-        TARPAULIN_CMD="cargo tarpaulin --out Html --output-dir coverage"
+        TARPAULIN_CMD="cargo tarpaulin --out Html,Xml --output-dir coverage"
         
         # Add package filter if specified
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
@@ -180,46 +180,19 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        PACKAGE="${{ inputs.package }}"
-        FEATURES="${{ inputs.features }}"
         
-        # Build tarpaulin command with appropriate options
-        TARPAULIN_CMD="cargo tarpaulin --out Xml"
-        
-        # Add package filter if specified
-        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --packages $PACKAGE"
-        fi
-        
-        # Add features
-        if [[ "$FEATURES" == *"no_std"* ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
-        elif [[ "$PACKAGE" == "lib-q-core" ]]; then
-          # lib-q-core needs std,rand features for proper coverage
-          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
-        elif [[ "$PACKAGE" == "lib-q" ]]; then
-          # lib-q needs all-algorithms feature
-          TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
-        elif [[ -n "$FEATURES" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
-        fi
-        
-        # Exclude reference implementations
-        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
-        
-        # For lib-q-core, exclude all other crates to focus coverage calculation
-        if [[ "$PACKAGE" == "lib-q-core" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\" --exclude-files \"tests/*\" --exclude-files \"target/*\""
-        fi
-        
-        # Run tarpaulin and extract coverage percentage
-        echo "Running: $TARPAULIN_CMD"
-        COVERAGE_OUTPUT=$(eval "$TARPAULIN_CMD")
-        COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -o '[0-9]\+\.[0-9]\+%' | head -1 | tr -d '%')
-        
-        echo "Coverage: $COVERAGE%"
-        if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
-          echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"
+        # Extract coverage percentage from the XML file generated in the previous step
+        if [[ -f "coverage/cobertura.xml" ]]; then
+          # Parse the XML file to extract coverage percentage
+          COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage/cobertura.xml | head -1 | sed 's/line-rate="//' | sed 's/"//' | awk '{print $1 * 100}')
+          echo "Coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < ${{ inputs.coverage-threshold }}" | bc -l) )); then
+            echo "ERROR: Coverage below ${{ inputs.coverage-threshold }}% threshold"
+            exit 1
+          fi
+          echo "Coverage threshold check passed"
+        else
+          echo "ERROR: Coverage XML file not found"
           exit 1
         fi
-        echo "Coverage threshold check passed"
