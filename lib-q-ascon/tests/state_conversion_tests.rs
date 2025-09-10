@@ -253,20 +253,22 @@ fn test_state_permute_n() {
         assert!(state.permute_n(13).is_err());
         assert!(state.permute_n(20).is_err());
     }
-    
+
     // In debug mode, we expect a panic for invalid round counts
     #[cfg(debug_assertions)]
     {
         // Test that invalid round counts cause panics in debug mode
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            state.permute_n(13)
-        }));
-        assert!(result.is_err(), "Expected panic for 13 rounds in debug mode");
-        
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            state.permute_n(20)
-        }));
-        assert!(result.is_err(), "Expected panic for 20 rounds in debug mode");
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| state.permute_n(13)));
+        assert!(
+            result.is_err(),
+            "Expected panic for 13 rounds in debug mode"
+        );
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| state.permute_n(20)));
+        assert!(
+            result.is_err(),
+            "Expected panic for 20 rounds in debug mode"
+        );
     }
 
     // Test that permute_n with n=1 is equivalent to permute_1
