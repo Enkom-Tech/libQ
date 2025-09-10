@@ -165,6 +165,11 @@ runs:
         # Exclude reference implementations
         TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
         
+        # For lib-q-core, exclude all other crates to focus coverage calculation
+        if [[ "$PACKAGE" == "lib-q-core" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\" --exclude-files \"tests/*\" --exclude-files \"target/*\""
+        fi
+        
         echo "Running: $TARPAULIN_CMD"
         eval "$TARPAULIN_CMD"
         echo "Coverage report generated"
@@ -201,6 +206,11 @@ runs:
         
         # Exclude reference implementations
         TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"reference/*\""
+        
+        # For lib-q-core, exclude all other crates to focus coverage calculation
+        if [[ "$PACKAGE" == "lib-q-core" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\" --exclude-files \"tests/*\" --exclude-files \"target/*\""
+        fi
         
         # Run tarpaulin and extract coverage percentage
         echo "Running: $TARPAULIN_CMD"
