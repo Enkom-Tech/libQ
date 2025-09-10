@@ -25,10 +25,10 @@ lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
 - **`lib-q`** - Complete library (re-exports everything)
 - **`lib-q-core`** - Core types and traits
-- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-Kem, McEliece, HQC)
-- **`lib-q-sig`** - Digital Signatures (Dilithium, Falcon, SPHINCS+)
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-Kem, McEliece, HQC, DAWN)
+- **`lib-q-sig`** - Digital Signatures (Dilithium, Falcon, SPHINCS+, FIPS 206 / FN-DSA)
 - **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
-- **`lib-q-aead`** - Authenticated Encryption
+- **`lib-q-aead`** - Authenticated Encryption (Saturnin)
 - **`lib-q-utils`** - Utility functions
 - **`lib-q-zkp`** - Zero-Knowledge Proofs
 
