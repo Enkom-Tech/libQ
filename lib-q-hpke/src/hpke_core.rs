@@ -126,8 +126,8 @@ pub fn seal_message<C: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    // Use Ascon-128 as the AEAD (placeholder until full integration)
-    C::aead_seal(HpkeAead::Ascon128, key, &nonce, aad, plaintext)
+    // Use Saturnin-256 as the AEAD (placeholder until full integration)
+    C::aead_seal(HpkeAead::Saturnin256, key, &nonce, aad, plaintext)
 }
 
 /// Open (decrypt) a message
@@ -142,8 +142,8 @@ pub fn open_message<C: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    // Use Ascon-128 as the AEAD (placeholder until full integration)
-    C::aead_open(HpkeAead::Ascon128, key, &nonce, aad, ciphertext)
+    // Use Saturnin-256 as the AEAD (placeholder until full integration)
+    C::aead_open(HpkeAead::Saturnin256, key, &nonce, aad, ciphertext)
 }
 
 /// Export key material

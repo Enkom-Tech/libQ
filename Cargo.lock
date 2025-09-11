@@ -475,6 +475,7 @@ name = "lib-q-aead"
 version = "0.0.2"
 dependencies = [
  "lib-q-core",
+ "lib-q-saturnin",
 ]
 
 [[package]]
@@ -536,11 +537,12 @@ dependencies = [
 name = "lib-q-hpke"
 version = "0.0.2"
 dependencies = [
- "lib-q-ascon",
+ "lib-q-aead",
  "lib-q-core",
  "lib-q-hash",
  "lib-q-ml-dsa",
  "lib-q-ml-kem",
+ "lib-q-saturnin",
  "rand 0.9.2",
  "rand_chacha",
  "rand_core 0.9.3",
@@ -630,6 +632,14 @@ name = "lib-q-platform"
 version = "0.0.2"
 dependencies = [
  "lib-q-core",
+]
+
+[[package]]
+name = "lib-q-saturnin"
+version = "0.0.2"
+dependencies = [
+ "lib-q-core",
+ "zeroize",
 ]
 
 [[package]]

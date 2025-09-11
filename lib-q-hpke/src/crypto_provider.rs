@@ -1,17 +1,23 @@
 //! Crypto provider trait and implementations for HPKE
 
 #[cfg(feature = "alloc")]
-use alloc::string::String;
-#[cfg(feature = "alloc")]
-use alloc::vec;
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
+use alloc::{
+    format,
+    string::String,
+    vec,
+    vec::Vec,
+};
 #[cfg(feature = "std")]
 use std::io::Error as IoError;
 
 // Temporarily unused until ML-KEM integration is finalized
 // #[cfg(feature = "ml-kem")]
 // use lib_q_ml_kem::KemCore;
+#[cfg(feature = "saturnin")]
+use lib_q_saturnin::{
+    Aead,
+    SaturninAead,
+};
 #[allow(unused_imports)]
 use rand_core::{
     CryptoRng,
@@ -21,6 +27,67 @@ use rand_core::{
 
 use crate::error::HpkeError;
 use crate::types::*;
+
+/// Security validation utilities for HPKE operations
+mod security {
+    use super::*;
+
+    /// Validate key length for the given AEAD algorithm
+    #[allow(dead_code)] // Used in feature-gated code
+    pub fn validate_aead_key_length(aead: HpkeAead, key: &[u8]) -> Result<(), HpkeError> {
+        let expected_len = aead.key_len();
+        if key.len() != expected_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid key length for {:?}: expected {} bytes, got {} bytes",
+                aead,
+                expected_len,
+                key.len()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validate nonce length for the given AEAD algorithm
+    #[allow(dead_code)] // Used in feature-gated code
+    pub fn validate_aead_nonce_length(aead: HpkeAead, nonce: &[u8]) -> Result<(), HpkeError> {
+        let expected_len = aead.nonce_len();
+        if nonce.len() != expected_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid nonce length for {:?}: expected {} bytes, got {} bytes",
+                aead,
+                expected_len,
+                nonce.len()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validate ciphertext length for decryption
+    #[allow(dead_code)] // Used in feature-gated code
+    pub fn validate_ciphertext_length(aead: HpkeAead, ciphertext: &[u8]) -> Result<(), HpkeError> {
+        let min_len = aead.tag_len();
+        if ciphertext.len() < min_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Ciphertext too short for {:?}: minimum {} bytes required, got {} bytes",
+                aead,
+                min_len,
+                ciphertext.len()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validate that key material is not all zeros (security check)
+    #[allow(dead_code)] // Used in feature-gated code
+    pub fn validate_key_not_zero(key: &[u8]) -> Result<(), HpkeError> {
+        if key.iter().all(|&b| b == 0) {
+            return Err(HpkeError::CryptoError(String::from(
+                "Key material cannot be all zeros",
+            )));
+        }
+        Ok(())
+    }
+}
 
 /// Crypto provider trait for HPKE operations
 #[allow(unused_variables, dead_code)]
@@ -142,7 +209,7 @@ impl HpkeCryptoProvider for PostQuantumProvider {
     fn supports_aead(alg: HpkeAead) -> bool {
         matches!(
             alg,
-            HpkeAead::Ascon128 | HpkeAead::Ascon128a | HpkeAead::Export
+            HpkeAead::Saturnin256 | HpkeAead::Shake256 | HpkeAead::Export
         )
     }
 
@@ -254,19 +321,47 @@ impl HpkeCryptoProvider for PostQuantumProvider {
 
     fn aead_seal(
         aead: HpkeAead,
-        _key: &[u8],
-        _nonce: &[u8],
-        _aad: &[u8],
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
         plaintext: &[u8],
     ) -> Result<Vec<u8>, HpkeError> {
         match aead {
-            HpkeAead::Ascon128 | HpkeAead::Ascon128a => {
-                // TODO: Integrate with lib-q-ascon when available
-                // For now, return placeholder ciphertext
-                let tag_len = aead.tag_len();
-                let mut ciphertext = plaintext.to_vec();
-                ciphertext.extend(vec![0u8; tag_len]); // Placeholder authentication tag
-                Ok(ciphertext)
+            HpkeAead::Saturnin256 => {
+                // Security validations
+                security::validate_aead_key_length(aead, key)?;
+                security::validate_aead_nonce_length(aead, nonce)?;
+                security::validate_key_not_zero(key)?;
+
+                #[cfg(feature = "saturnin")]
+                {
+                    use lib_q_core::{
+                        AeadKey,
+                        Nonce,
+                    };
+
+                    let aead_key = AeadKey::new(key.to_vec());
+                    let aead_nonce = Nonce::new(nonce.to_vec());
+                    let saturnin = SaturninAead::new();
+
+                    saturnin
+                        .encrypt(&aead_key, &aead_nonce, plaintext, Some(aad))
+                        .map_err(|e| {
+                            HpkeError::CryptoError(format!("Saturnin encryption failed: {:?}", e))
+                        })
+                }
+                #[cfg(not(feature = "saturnin"))]
+                {
+                    Err(HpkeError::CryptoError(String::from(
+                        "Saturnin feature not enabled",
+                    )))
+                }
+            }
+            HpkeAead::Shake256 => {
+                // TODO: Implement SHAKE256-based AEAD construction
+                Err(HpkeError::CryptoError(String::from(
+                    "SHAKE256 AEAD not yet implemented",
+                )))
             }
             HpkeAead::Export => {
                 // Export-only mode returns empty ciphertext
@@ -277,21 +372,48 @@ impl HpkeCryptoProvider for PostQuantumProvider {
 
     fn aead_open(
         aead: HpkeAead,
-        _key: &[u8],
-        _nonce: &[u8],
-        _aad: &[u8],
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, HpkeError> {
         match aead {
-            HpkeAead::Ascon128 | HpkeAead::Ascon128a => {
-                // TODO: Integrate with lib-q-ascon when available
-                // For now, return placeholder plaintext
-                let tag_len = aead.tag_len();
-                if ciphertext.len() < tag_len {
-                    return Err(HpkeError::CryptoError(String::from("Ciphertext too short")));
+            HpkeAead::Saturnin256 => {
+                // Security validations
+                security::validate_aead_key_length(aead, key)?;
+                security::validate_aead_nonce_length(aead, nonce)?;
+                security::validate_ciphertext_length(aead, ciphertext)?;
+                security::validate_key_not_zero(key)?;
+
+                #[cfg(feature = "saturnin")]
+                {
+                    use lib_q_core::{
+                        AeadKey,
+                        Nonce,
+                    };
+
+                    let aead_key = AeadKey::new(key.to_vec());
+                    let aead_nonce = Nonce::new(nonce.to_vec());
+                    let saturnin = SaturninAead::new();
+
+                    saturnin
+                        .decrypt(&aead_key, &aead_nonce, ciphertext, Some(aad))
+                        .map_err(|e| {
+                            HpkeError::CryptoError(format!("Saturnin decryption failed: {:?}", e))
+                        })
                 }
-                let plaintext_len = ciphertext.len() - tag_len;
-                Ok(ciphertext[..plaintext_len].to_vec())
+                #[cfg(not(feature = "saturnin"))]
+                {
+                    Err(HpkeError::CryptoError(String::from(
+                        "Saturnin feature not enabled",
+                    )))
+                }
+            }
+            HpkeAead::Shake256 => {
+                // TODO: Implement SHAKE256-based AEAD construction
+                Err(HpkeError::CryptoError(String::from(
+                    "SHAKE256 AEAD not yet implemented",
+                )))
             }
             HpkeAead::Export => {
                 // Export-only mode returns empty plaintext

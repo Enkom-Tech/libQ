@@ -12,10 +12,11 @@ readme.workspace = true
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
+lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 
 [features]
 default = []
-saturnin = []
+saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
 
 [lib]
 name = "lib_q_aead"

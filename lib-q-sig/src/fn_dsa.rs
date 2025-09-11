@@ -15,9 +15,9 @@ use lib_q_core::{
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-#[cfg(feature = "alloc")]
 use alloc::string::ToString;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 /// FN-DSA signature implementation
 pub struct FnDsa {

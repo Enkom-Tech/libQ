@@ -43,6 +43,10 @@ mod error;
 mod hpke_core;
 mod types;
 
+// Security tests module
+#[cfg(test)]
+mod security_tests;
+
 // Imports used in conditionally compiled code
 #[allow(unused_imports)]
 use crypto_provider::PostQuantumProvider;

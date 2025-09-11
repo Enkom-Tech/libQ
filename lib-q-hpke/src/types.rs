@@ -1,9 +1,9 @@
-//! HPKE-specific types and algorithms
+//! HPKE type definitions and algorithm specifications
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-/// HPKE Modes (RFC 9180 Section 5.1)
+/// HPKE modes as defined in RFC 9180 Section 5.1
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum HpkeMode {
@@ -35,52 +35,47 @@ impl HpkeMode {
     }
 }
 
-/// HPKE Key Encapsulation Mechanisms (Post-Quantum Only)
+/// Post-quantum key encapsulation mechanisms
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeKem {
-    /// ML-KEM-512 (Kyber-512)
+    /// ML-KEM-512
     MlKem512,
-    /// ML-KEM-768 (Kyber-768)
+    /// ML-KEM-768
     MlKem768,
-    /// ML-KEM-1024 (Kyber-1024)
+    /// ML-KEM-1024
     MlKem1024,
-    // X-Wing KEM (draft) - future feature
-    // XWing,
 }
 
 impl HpkeKem {
-    /// Get algorithm identifier (RFC 9180 Section 7.1)
+    /// Algorithm identifier per RFC 9180 Section 7.1
     pub fn algorithm_id(self) -> u16 {
         match self {
             Self::MlKem512 => 0x0022,
             Self::MlKem768 => 0x0023,
             Self::MlKem1024 => 0x0024,
-            // Future: XWing => 0x0025, // draft
         }
     }
 
-    /// Get the length of the KEM shared secret
+    /// Shared secret length in bytes
     pub fn shared_secret_len(self) -> usize {
         match self {
             Self::MlKem512 => 32,
             Self::MlKem768 => 32,
             Self::MlKem1024 => 32,
-            // Future: XWing => 32,
         }
     }
 
-    /// Get the length of encapsulated keys
+    /// Encapsulated key length in bytes
     pub fn enc_len(self) -> usize {
         match self {
             Self::MlKem512 => 768,
             Self::MlKem768 => 1088,
             Self::MlKem1024 => 1568,
-            // Future: XWing => 64, // draft
         }
     }
 }
 
-/// HPKE Key Derivation Functions (Post-Quantum)
+/// Post-quantum key derivation functions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeKdf {
     /// HKDF-SHAKE128
@@ -94,100 +89,84 @@ pub enum HpkeKdf {
 }
 
 impl HpkeKdf {
-    /// Get algorithm identifier (Post-quantum extensions)
+    /// Algorithm identifier for post-quantum extensions
     pub fn algorithm_id(self) -> u16 {
         match self {
-            Self::HkdfShake128 => 0x0004, // Post-quantum extension
-            Self::HkdfShake256 => 0x0005, // Post-quantum extension
-            Self::HkdfSha3_256 => 0x0006, // Post-quantum extension
-            Self::HkdfSha3_512 => 0x0007, // Post-quantum extension
+            Self::HkdfShake128 => 0x0004,
+            Self::HkdfShake256 => 0x0005,
+            Self::HkdfSha3_256 => 0x0006,
+            Self::HkdfSha3_512 => 0x0007,
         }
     }
 
-    /// Get the digest length
+    /// Digest output length in bytes
     pub fn digest_len(self) -> usize {
         match self {
-            Self::HkdfShake128 => 32, // Default output length
-            Self::HkdfShake256 => 64, // Default output length
+            Self::HkdfShake128 => 32,
+            Self::HkdfShake256 => 64,
             Self::HkdfSha3_256 => 32,
             Self::HkdfSha3_512 => 64,
         }
     }
 }
 
-/// HPKE Authenticated Encryption with Associated Data (Post-Quantum Only)
+/// Post-quantum authenticated encryption with associated data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeAead {
-    /// Ascon-128
-    Ascon128,
-    /// Ascon-128a
-    Ascon128a,
-    // Future AEADs
-    // Ascon80pq, // Ascon-80pq
-    // Xoodyak,   // Xoodyak
-    // Sparkle,   // Sparkle
-    /// Export-only (no encryption)
+    /// Saturnin-256
+    Saturnin256,
+    /// SHAKE256-based construction
+    Shake256,
+    /// Export-only mode
     Export,
 }
 
 impl HpkeAead {
-    /// Get algorithm identifier (Post-quantum extensions)
+    /// Algorithm identifier for post-quantum extensions
     pub fn algorithm_id(self) -> u16 {
         match self {
-            Self::Ascon128 => 0x0004,  // Post-quantum extension
-            Self::Ascon128a => 0x0005, // Post-quantum extension
-            // Future: Ascon80pq => 0x0006,     // Post-quantum extension
-            // Future: Xoodyak => 0x0007,       // Post-quantum extension
-            // Future: Sparkle => 0x0008,       // Post-quantum extension
+            Self::Saturnin256 => 0x0004,
+            Self::Shake256 => 0x0005,
             Self::Export => 0xFFFF,
         }
     }
 
-    /// Get the key length
+    /// Key length in bytes
     pub fn key_len(self) -> usize {
         match self {
-            Self::Ascon128 => 16,
-            Self::Ascon128a => 16,
-            // Future: Ascon80pq => 20,         // Ascon-80pq uses 160-bit key
-            // Future: Xoodyak => 16,
-            // Future: Sparkle => 16,
+            Self::Saturnin256 => 32,
+            Self::Shake256 => 32,
             Self::Export => 0,
         }
     }
 
-    /// Get the nonce length
+    /// Nonce length in bytes
     pub fn nonce_len(self) -> usize {
         match self {
-            Self::Ascon128 => 16,
-            Self::Ascon128a => 16,
-            // Future: Ascon80pq => 16,
-            // Future: Xoodyak => 16,
-            // Future: Sparkle => 16,
+            Self::Saturnin256 => 16,
+            Self::Shake256 => 16,
             Self::Export => 0,
         }
     }
 
-    /// Get the tag length
+    /// Authentication tag length in bytes
     pub fn tag_len(self) -> usize {
         match self {
-            Self::Ascon128 => 16,
-            Self::Ascon128a => 16,
-            // Future: Ascon80pq => 16,
-            // Future: Xoodyak => 16,
-            // Future: Sparkle => 16,
+            Self::Saturnin256 => 16,
+            Self::Shake256 => 16,
             Self::Export => 0,
         }
     }
 }
 
-/// HPKE cipher suite combining KEM, KDF, and AEAD
+/// HPKE cipher suite specification
 #[derive(Debug, Clone)]
 pub struct HpkeCipherSuite {
-    /// Key Encapsulation Mechanism algorithm
+    /// Key encapsulation mechanism
     pub kem: HpkeKem,
-    /// Key Derivation Function algorithm
+    /// Key derivation function
     pub kdf: HpkeKdf,
-    /// Authenticated Encryption with Associated Data algorithm
+    /// Authenticated encryption algorithm
     pub aead: HpkeAead,
 }
 
@@ -197,7 +176,7 @@ impl HpkeCipherSuite {
         Self { kem, kdf, aead }
     }
 
-    /// Get the cipher suite identifier
+    /// Cipher suite identifier as byte vector
     pub fn identifier(&self) -> Vec<u8> {
         let mut id = Vec::new();
         id.extend_from_slice(&self.kem.algorithm_id().to_be_bytes());
@@ -249,7 +228,7 @@ impl HpkePrivateKey {
 }
 
 impl HpkePrivateKey {
-    /// Convert to owned bytes (secure: clones to avoid moving sensitive data)
+    /// Convert to owned bytes
     pub fn to_bytes(&self) -> Vec<u8> {
         self.value.clone()
     }
@@ -257,17 +236,16 @@ impl HpkePrivateKey {
 
 impl Drop for HpkePrivateKey {
     fn drop(&mut self) {
-        // Zeroize the private key when dropped
         self.value.iter_mut().for_each(|b| *b = 0);
     }
 }
 
-/// HPKE key pair containing public and private keys
+/// HPKE key pair
 #[derive(Clone)]
 pub struct HpkeKeyPair {
-    /// Public key for key encapsulation
+    /// Public key
     pub public_key: HpkePublicKey,
-    /// Private key for key decapsulation (sensitive data)
+    /// Private key
     pub private_key: HpkePrivateKey,
 }
 
@@ -296,28 +274,28 @@ impl HpkeKeyPair {
     }
 }
 
-/// Encapsulated key (KEM ciphertext)
+/// Encapsulated key
 pub type EncapsulatedKey = Vec<u8>;
 
 /// Exported key material
 pub type ExportedKey = Vec<u8>;
 
-/// HPKE sender context for multi-message encryption
+/// HPKE sender context
 #[derive(Debug)]
 pub struct HpkeSenderContext {
     /// Shared secret from KEM
     #[allow(dead_code)]
     pub(crate) shared_secret: Vec<u8>,
-    /// Secret for key export
+    /// Exporter secret
     #[allow(dead_code)]
     pub(crate) exporter_secret: Vec<u8>,
     /// AEAD encryption key
     #[allow(dead_code)]
     pub(crate) key: Vec<u8>,
-    /// Base nonce for AEAD
+    /// Base nonce
     #[allow(dead_code)]
     pub(crate) nonce: Vec<u8>,
-    /// Sequence number for nonce derivation
+    /// Sequence number
     #[allow(dead_code)]
     pub(crate) sequence_number: u32,
 }
@@ -340,22 +318,22 @@ impl HpkeSenderContext {
     }
 }
 
-/// HPKE receiver context for multi-message decryption
+/// HPKE receiver context
 #[derive(Debug)]
 pub struct HpkeReceiverContext {
     /// Shared secret from KEM
     #[allow(dead_code)]
     pub(crate) shared_secret: Vec<u8>,
-    /// Secret for key export
+    /// Exporter secret
     #[allow(dead_code)]
     pub(crate) exporter_secret: Vec<u8>,
     /// AEAD decryption key
     #[allow(dead_code)]
     pub(crate) key: Vec<u8>,
-    /// Base nonce for AEAD
+    /// Base nonce
     #[allow(dead_code)]
     pub(crate) nonce: Vec<u8>,
-    /// Sequence number for nonce derivation
+    /// Sequence number
     #[allow(dead_code)]
     pub(crate) sequence_number: u32,
 }
