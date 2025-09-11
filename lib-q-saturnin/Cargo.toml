@@ -17,12 +17,13 @@ lib-q-core = { path = "../lib-q-core" }
 zeroize = { version = "1.8.1", features = ["zeroize_derive"], optional = true }
 
 [features]
-default = ["aead"]
+default = ["aead", "block-cipher", "hash", "stream", "alloc"]
 std = ["alloc"]
 alloc = ["lib-q-core/alloc"]
 
 # Algorithm modes
 aead = []
+aead-short = []
 block-cipher = []
 hash = []
 stream = []
@@ -37,6 +38,21 @@ path = "src/lib.rs"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "kat_tests"
+path = "tests/kat_tests.rs"
+required-features = ["alloc"]
+
+[[bench]]
+name = "saturnin_benches"
+harness = false
+required-features = ["alloc"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

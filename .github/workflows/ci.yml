@@ -406,6 +406,13 @@ jobs:
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: ""
+          - name: "Saturnin"
+            action: test-saturnin
+            working-directory: lib-q-saturnin
+            features: "aead,aead-short,block-cipher,hash,stream,alloc"
+            rust-version: "stable"
+            run-benchmarks: "false"
+            test-algorithms: "aead,aead-short,block-cipher,hash,stream"
     
     steps:
       - uses: actions/checkout@v5
@@ -453,6 +460,16 @@ jobs:
       - name: Run Sponge tests
         uses: ./.github/actions/test-lib-q-sponge
         if: matrix.action == 'test-lib-q-sponge'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run Saturnin tests
+        uses: ./.github/actions/test-saturnin
+        if: matrix.action == 'test-saturnin'
         with:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}

@@ -81,6 +81,7 @@ runs:
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+        cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-saturnin || echo "⚠️  constant_time test not available for lib-q-saturnin"
         echo "✅ Cryptographic validation completed"
     
     - name: Constant-time verification
@@ -105,6 +106,7 @@ runs:
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+        cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-saturnin || echo "⚠️  constant_time test not available for lib-q-saturnin"
         echo "✅ Constant-time verification completed"
     
     - name: Memory safety validation
