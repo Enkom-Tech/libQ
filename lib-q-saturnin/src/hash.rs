@@ -63,7 +63,7 @@ impl SaturninHash {
     }
 
     /// Get the output size in bytes (256 bits = 32 bytes)
-    pub const fn output_size() -> usize {
+    pub const fn output_size(&self) -> usize {
         32
     }
 
@@ -80,6 +80,10 @@ impl SaturninHash {
     /// # Returns
     /// 32-byte hash output
     pub fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        // Pre-allocate cores to avoid repeated allocation overhead
+        let core_d1 = SaturninBs32Core::new(16, 7)?;
+        let core_d2 = SaturninBs32Core::new(16, 8)?;
+
         let mut r = [0u8; 32];
         let mut u = 0;
         let len = data.len();
@@ -87,32 +91,56 @@ impl SaturninHash {
         loop {
             let mut t = [0u8; 32];
             let mut m = [0u8; 32];
-            let mut domain = 7; // SATURNIN_HASH_D1
             let clen = len - u;
 
             if clen >= 32 {
+                // Optimized copy for full blocks
                 t[0..32].copy_from_slice(&data[u..u + 32]);
                 u += 32;
+
+                // Use pre-allocated core for domain 7
+                m.copy_from_slice(&t);
+                core_d1.encrypt_block(&r, &mut m)?;
             } else {
+                // Handle final block with padding
                 t[0..clen].copy_from_slice(&data[u..u + clen]);
                 t[clen] = 0x80;
                 // t[clen + 1..32] is already zero
-                domain = 8; // SATURNIN_HASH_D2
+
+                // Use pre-allocated core for domain 8
+                m.copy_from_slice(&t);
+                core_d2.encrypt_block(&r, &mut m)?;
             }
 
-            m.copy_from_slice(&t);
+            // Optimized XOR operation - process 8 bytes at a time
+            for chunk in (0..32).step_by(8) {
+                let m_chunk = u64::from_le_bytes([
+                    m[chunk],
+                    m[chunk + 1],
+                    m[chunk + 2],
+                    m[chunk + 3],
+                    m[chunk + 4],
+                    m[chunk + 5],
+                    m[chunk + 6],
+                    m[chunk + 7],
+                ]);
+                let t_chunk = u64::from_le_bytes([
+                    t[chunk],
+                    t[chunk + 1],
+                    t[chunk + 2],
+                    t[chunk + 3],
+                    t[chunk + 4],
+                    t[chunk + 5],
+                    t[chunk + 6],
+                    t[chunk + 7],
+                ]);
 
-            // Encrypt m with r as key using bs32 implementation (matches KAT)
-            // Use the appropriate domain for this phase
-            let temp_core = SaturninBs32Core::new(16, domain)?;
-            temp_core.encrypt_block(&r, &mut m)?;
-
-            // XOR m with t to get new r
-            for v in 0..32 {
-                r[v] = m[v] ^ t[v];
+                let result = m_chunk ^ t_chunk;
+                let result_bytes = result.to_le_bytes();
+                r[chunk..chunk + 8].copy_from_slice(&result_bytes);
             }
 
-            if domain == 8 {
+            if clen < 32 {
                 break;
             }
         }
@@ -129,7 +157,7 @@ impl Hash for SaturninHash {
 
     /// Get the output size in bytes
     fn output_size(&self) -> usize {
-        Self::output_size()
+        32
     }
 }
 
@@ -149,7 +177,6 @@ mod tests {
     #[test]
     fn test_hash_creation() {
         let hash = SaturninHash::new();
-        assert_eq!(SaturninHash::output_size(), 32);
         assert_eq!(hash.output_size(), 32);
 
         // Test that the core is properly initialized

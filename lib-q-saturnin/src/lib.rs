@@ -156,6 +156,16 @@ pub use lib_q_core::{
 pub mod bs32_core;
 pub mod core;
 
+// Performance optimizations
+#[cfg(feature = "assembly")]
+pub mod assembly;
+#[cfg(feature = "lookup-tables")]
+pub mod lookup_tables;
+#[cfg(feature = "parallel")]
+pub mod parallel;
+#[cfg(feature = "simd")]
+pub mod simd;
+
 // Algorithm implementations
 #[cfg(feature = "aead")]
 pub mod aead;

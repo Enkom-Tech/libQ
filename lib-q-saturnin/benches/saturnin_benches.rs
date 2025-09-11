@@ -575,6 +575,46 @@ mod hash_throughput_benches {
     }
 }
 
+// Performance comparison benchmarks
+#[cfg(all(feature = "aead", feature = "hash"))]
+mod performance_comparison {
+    use lib_q_saturnin::{
+        SaturninAead,
+        SaturninHash,
+    };
+
+    use super::*;
+
+    #[bench]
+    fn aead_vs_hash_performance(b: &mut Bencher) {
+        let aead = SaturninAead::new();
+        let hash = SaturninHash::new();
+        let key = generate_test_key();
+        let nonce = generate_test_nonce();
+        let data = generate_test_data(MEDIUM_DATA);
+
+        b.iter(|| {
+            // Test AEAD performance
+            let _ciphertext = aead.encrypt(&key, &nonce, &data, Some(&data)).unwrap();
+
+            // Test Hash performance
+            let _hash_output = hash.hash(&data).unwrap();
+        });
+    }
+
+    #[bench]
+    fn large_data_throughput(b: &mut Bencher) {
+        let aead = SaturninAead::new();
+        let key = generate_test_key();
+        let nonce = generate_test_nonce();
+        let data = generate_test_data(TEN_MB);
+
+        b.iter(|| {
+            let _ciphertext = aead.encrypt(&key, &nonce, &data, None).unwrap();
+        });
+    }
+}
+
 // Main function for benchmark harness
 fn main() {
     // This is required for the benchmark harness

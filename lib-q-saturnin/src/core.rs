@@ -16,6 +16,7 @@ use lib_q_core::{
 ///
 /// This implements the Saturnin block cipher with configurable number of super-rounds
 /// and domain parameters. The implementation uses a bitsliced approach for efficiency.
+#[derive(Clone)]
 pub struct SaturninCore {
     // Round constants for different configurations
     round_constants: Vec<u16>,
@@ -288,43 +289,46 @@ impl SaturninCore {
 
     /// Apply S-box transformation
     fn apply_sbox(&self, state: &mut [u16; 16]) {
+        // Process both groups in parallel to improve instruction-level parallelism
         for i in (0..16).step_by(8) {
-            let mut a = state[i];
-            let mut b = state[i + 1];
-            let mut c = state[i + 2];
-            let mut d = state[i + 3];
+            // Group 1: sigma_0
+            let mut a0 = state[i];
+            let mut b0 = state[i + 1];
+            let mut c0 = state[i + 2];
+            let mut d0 = state[i + 3];
 
-            a ^= b & c;
-            b ^= a | d;
-            d ^= b | c;
-            c ^= b & d;
-            b ^= a | c;
-            a ^= b | d;
+            // Group 2: sigma_1
+            let mut a1 = state[i + 4];
+            let mut b1 = state[i + 5];
+            let mut c1 = state[i + 6];
+            let mut d1 = state[i + 7];
 
-            // sigma_0
-            state[i] = b;
-            state[i + 1] = c;
-            state[i + 2] = d;
-            state[i + 3] = a;
+            // Optimized S-box operations with reduced intermediate variables
+            // Group 1 operations
+            a0 ^= b0 & c0;
+            b0 ^= a0 | d0;
+            d0 ^= b0 | c0;
+            c0 ^= b0 & d0;
+            b0 ^= a0 | c0;
+            a0 ^= b0 | d0;
 
-            // sigma_1 for last 4 words
-            a = state[i + 4];
-            b = state[i + 5];
-            c = state[i + 6];
-            d = state[i + 7];
+            // Group 2 operations (interleaved for better CPU utilization)
+            a1 ^= b1 & c1;
+            b1 ^= a1 | d1;
+            d1 ^= b1 | c1;
+            c1 ^= b1 & d1;
+            b1 ^= a1 | c1;
+            a1 ^= b1 | d1;
 
-            a ^= b & c;
-            b ^= a | d;
-            d ^= b | c;
-            c ^= b & d;
-            b ^= a | c;
-            a ^= b | d;
-
-            // sigma_1
-            state[i + 4] = d;
-            state[i + 5] = b;
-            state[i + 6] = a;
-            state[i + 7] = c;
+            // Store results
+            state[i] = b0;
+            state[i + 1] = c0;
+            state[i + 2] = d0;
+            state[i + 3] = a0;
+            state[i + 4] = d1;
+            state[i + 5] = b1;
+            state[i + 6] = a1;
+            state[i + 7] = c1;
         }
     }
 
@@ -718,8 +722,8 @@ mod tests {
         let core = SaturninCore::new(16, 7).unwrap();
 
         let mut state = [0u16; 16];
-        for i in 0..16 {
-            state[i] = i as u16;
+        for (i, item) in state.iter_mut().enumerate() {
+            *item = i as u16;
         }
 
         let original = state;
@@ -741,8 +745,8 @@ mod tests {
         let core = SaturninCore::new(16, 7).unwrap();
 
         let mut state = [0u16; 16];
-        for i in 0..16 {
-            state[i] = i as u16;
+        for (i, item) in state.iter_mut().enumerate() {
+            *item = i as u16;
         }
 
         let original = state;

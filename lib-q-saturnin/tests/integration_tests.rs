@@ -6,7 +6,6 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use lib_q_core::{
     AeadKey,
-    Hash,
     Nonce,
     Result,
 };

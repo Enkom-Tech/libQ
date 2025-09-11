@@ -116,39 +116,65 @@ impl SaturninAead {
         Ok(r)
     }
 
-    /// Apply cascade construction to data
+    /// Apply cascade construction to data (optimized)
     fn cascade(&self, r: &mut [u8; 32], d1: u8, d2: u8, data: &[u8]) -> Result<()> {
+        // Pre-allocate cores to avoid repeated allocation overhead
+        let core_d1 = SaturninCore::new(10, d1)?;
+        let core_d2 = SaturninCore::new(10, d2)?;
+
         let mut offset = 0;
 
         loop {
             let mut t = [0u8; 32];
             let mut m = [0u8; 32];
-            let mut domain = d1;
             let remaining = data.len() - offset;
 
             if remaining >= 32 {
                 t.copy_from_slice(&data[offset..offset + 32]);
                 offset += 32;
+
+                // Use pre-allocated core for d1
+                m.copy_from_slice(&t);
+                core_d1.encrypt_block(r, &mut m)?;
             } else {
                 t[0..remaining].copy_from_slice(&data[offset..]);
                 t[remaining] = 0x80;
                 // Remaining bytes are already zero
-                domain = d2;
+
+                // Use pre-allocated core for d2
+                m.copy_from_slice(&t);
+                core_d2.encrypt_block(r, &mut m)?;
             }
 
-            // Copy t to m
-            m.copy_from_slice(&t);
+            // Optimized XOR operation - process 8 bytes at a time
+            for chunk in (0..32).step_by(8) {
+                let m_chunk = u64::from_le_bytes([
+                    m[chunk],
+                    m[chunk + 1],
+                    m[chunk + 2],
+                    m[chunk + 3],
+                    m[chunk + 4],
+                    m[chunk + 5],
+                    m[chunk + 6],
+                    m[chunk + 7],
+                ]);
+                let t_chunk = u64::from_le_bytes([
+                    t[chunk],
+                    t[chunk + 1],
+                    t[chunk + 2],
+                    t[chunk + 3],
+                    t[chunk + 4],
+                    t[chunk + 5],
+                    t[chunk + 6],
+                    t[chunk + 7],
+                ]);
 
-            // Encrypt m with r as key
-            let core = SaturninCore::new(10, domain)?;
-            core.encrypt_block(r, &mut m)?;
-
-            // XOR m with t and update r
-            for i in 0..32 {
-                r[i] = m[i] ^ t[i];
+                let result = m_chunk ^ t_chunk;
+                let result_bytes = result.to_le_bytes();
+                r[chunk..chunk + 8].copy_from_slice(&result_bytes);
             }
 
-            if domain == d2 {
+            if remaining < 32 {
                 break;
             }
         }
@@ -156,15 +182,18 @@ impl SaturninAead {
         Ok(())
     }
 
-    /// CTR encryption/decryption
+    /// CTR encryption/decryption (optimized)
     fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
+        // Pre-allocate core to avoid repeated allocation overhead
+        let core = SaturninCore::new(10, 1)?; // CTR uses domain 1
+
         let mut counter = 1u32; // Counter starts at 1
         let mut offset = 0;
 
         while offset < data.len() {
             let mut keystream = [0u8; 32];
 
-            // Build counter block
+            // Build counter block efficiently
             keystream[0..16].copy_from_slice(nonce);
             keystream[16] = 0x80;
             // Bytes 17-27 are zero
@@ -174,14 +203,46 @@ impl SaturninAead {
             keystream[31] = counter as u8;
 
             // Encrypt to get keystream
-            let core = SaturninCore::new(10, 1)?; // CTR uses domain 1
             core.encrypt_block(key, &mut keystream)?;
 
-            // XOR with data
+            // Optimized XOR with data - process 8 bytes at a time
             let remaining = data.len() - offset;
             let block_len = remaining.min(32);
-            for i in 0..block_len {
-                data[offset + i] ^= keystream[i];
+
+            for chunk in (0..block_len).step_by(8) {
+                let chunk_end = (chunk + 8).min(block_len);
+                if chunk_end - chunk == 8 {
+                    // Full 8-byte chunk
+                    let data_chunk = u64::from_le_bytes([
+                        data[offset + chunk],
+                        data[offset + chunk + 1],
+                        data[offset + chunk + 2],
+                        data[offset + chunk + 3],
+                        data[offset + chunk + 4],
+                        data[offset + chunk + 5],
+                        data[offset + chunk + 6],
+                        data[offset + chunk + 7],
+                    ]);
+                    let keystream_chunk = u64::from_le_bytes([
+                        keystream[chunk],
+                        keystream[chunk + 1],
+                        keystream[chunk + 2],
+                        keystream[chunk + 3],
+                        keystream[chunk + 4],
+                        keystream[chunk + 5],
+                        keystream[chunk + 6],
+                        keystream[chunk + 7],
+                    ]);
+
+                    let result = data_chunk ^ keystream_chunk;
+                    let result_bytes = result.to_le_bytes();
+                    data[offset + chunk..offset + chunk + 8].copy_from_slice(&result_bytes);
+                } else {
+                    // Partial chunk - fallback to byte-wise XOR
+                    for i in chunk..chunk_end {
+                        data[offset + i] ^= keystream[i];
+                    }
+                }
             }
 
             offset += block_len;

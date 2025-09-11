@@ -28,6 +28,12 @@ block-cipher = []
 hash = []
 stream = []
 
+# Performance optimizations
+simd = []
+lookup-tables = []
+parallel = []
+assembly = []
+
 # Security features
 zeroize = ["dep:zeroize"]
 
