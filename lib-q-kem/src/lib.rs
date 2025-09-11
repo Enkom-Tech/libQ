@@ -15,11 +15,10 @@ pub mod ml_kem;
 
 /// DAWN KEM implementation
 #[cfg(feature = "dawn")]
-pub mod dawn;
-
+pub use lib_q_dawn::DawnKem as DawnImpl;
 /// RCPKC KEM implementation
 #[cfg(feature = "rcpkc")]
-pub mod rcpkc;
+pub use lib_q_rcpkc::RcpkcKem as RcpkcImpl;
 
 /// Get a list of available KEM algorithms
 #[cfg_attr(feature = "wasm", wasm_bindgen)]

@@ -506,6 +506,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-dawn"
+version = "0.0.2"
+dependencies = [
+ "lib-q-core",
+ "rand 0.9.2",
+ "rand_core 0.9.3",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "lib-q-examples"
 version = "0.0.2"
 dependencies = [
@@ -585,7 +595,9 @@ name = "lib-q-kem"
 version = "0.0.2"
 dependencies = [
  "lib-q-core",
+ "lib-q-dawn",
  "lib-q-ml-kem",
+ "lib-q-rcpkc",
  "rand 0.9.2",
  "rand_core 0.9.3",
  "wasm-bindgen",
@@ -632,6 +644,16 @@ name = "lib-q-platform"
 version = "0.0.2"
 dependencies = [
  "lib-q-core",
+]
+
+[[package]]
+name = "lib-q-rcpkc"
+version = "0.0.2"
+dependencies = [
+ "lib-q-core",
+ "rand 0.9.2",
+ "rand_core 0.9.3",
+ "wasm-bindgen",
 ]
 
 [[package]]
