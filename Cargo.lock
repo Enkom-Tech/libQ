@@ -454,6 +454,7 @@ dependencies = [
  "criterion",
  "js-sys",
  "lib-q-aead",
+ "lib-q-ascon",
  "lib-q-core",
  "lib-q-hash",
  "lib-q-hpke",
@@ -680,17 +681,6 @@ version = "0.0.2"
 dependencies = [
  "lib-q-core",
  "lib-q-ml-dsa",
-]
-
-[[package]]
-name = "lib-q-sponge"
-version = "0.0.2"
-dependencies = [
- "lib-q-ascon",
- "lib-q-keccak",
- "proptest",
- "quickcheck",
- "wasm-bindgen",
 ]
 
 [[package]]

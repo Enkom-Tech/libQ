@@ -68,6 +68,12 @@ pub use lib_q_aead::{
     Nonce,
     create_aead,
 };
+// Ascon permutation functions (low-level primitives, optional)
+#[cfg(feature = "ascon")]
+pub use lib_q_ascon::{
+    State,
+    pad,
+};
 pub use lib_q_core::{
     Kem,
     KemKeypair,
