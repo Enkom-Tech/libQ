@@ -73,49 +73,49 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
-        // McEliece algorithms
+        // CB-KEM algorithms
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::McEliece348864,
+            algorithm: Algorithm::CbKem348864,
             category: AlgorithmCategory::Kem,
             security_level: 1,
-            name: "Classic McEliece 348864",
-            description: "Classic McEliece Level 1 (128-bit security)",
+            name: "CB-KEM 348864",
+            description: "CB-KEM Level 1 (128-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::McEliece460896,
+            algorithm: Algorithm::CbKem460896,
             category: AlgorithmCategory::Kem,
             security_level: 3,
-            name: "Classic McEliece 460896",
-            description: "Classic McEliece Level 3 (192-bit security)",
+            name: "CB-KEM 460896",
+            description: "CB-KEM Level 3 (192-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::McEliece6688128,
+            algorithm: Algorithm::CbKem6688128,
             category: AlgorithmCategory::Kem,
             security_level: 4,
-            name: "Classic McEliece 6688128",
-            description: "Classic McEliece Level 4 (256-bit security)",
+            name: "CB-KEM 6688128",
+            description: "CB-KEM Level 4 (256-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::McEliece6960119,
+            algorithm: Algorithm::CbKem6960119,
             category: AlgorithmCategory::Kem,
             security_level: 4,
-            name: "Classic McEliece 6960119",
-            description: "Classic McEliece Level 4 (256-bit security)",
+            name: "CB-KEM 6960119",
+            description: "CB-KEM Level 4 (256-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::McEliece8192128,
+            algorithm: Algorithm::CbKem8192128,
             category: AlgorithmCategory::Kem,
             security_level: 5,
-            name: "Classic McEliece 8192128",
-            description: "Classic McEliece Level 5 (256-bit security, higher performance)",
+            name: "CB-KEM 8192128",
+            description: "CB-KEM Level 5 (256-bit security, higher performance)",
             enabled: true,
         });
 
@@ -202,58 +202,76 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
-        // SPHINCS+ algorithms
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsSha256128fRobust,
+            algorithm: Algorithm::FnDsa512,
             category: AlgorithmCategory::Signature,
             security_level: 1,
-            name: "SPHINCS+-SHA256-128f-Robust",
-            description: "SPHINCS+ SHA256 Level 1 (128-bit security)",
+            name: "FN-DSA-512",
+            description: "FN-DSA Level 1 (128-bit security) - n=512",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsSha256192fRobust,
+            algorithm: Algorithm::FnDsa1024,
             category: AlgorithmCategory::Signature,
-            security_level: 3,
-            name: "SPHINCS+-SHA256-192f-Robust",
-            description: "SPHINCS+ SHA256 Level 3 (192-bit security)",
+            security_level: 5,
+            name: "FN-DSA-1024",
+            description: "FN-DSA Level 5 (256-bit security) - n=1024",
             enabled: true,
         });
 
+        // SLH-DSA algorithms
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsSha256256fRobust,
-            category: AlgorithmCategory::Signature,
-            security_level: 4,
-            name: "SPHINCS+-SHA256-256f-Robust",
-            description: "SPHINCS+ SHA256 Level 4 (256-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsShake256128fRobust,
+            algorithm: Algorithm::SlhDsaSha256128fRobust,
             category: AlgorithmCategory::Signature,
             security_level: 1,
-            name: "SPHINCS+-SHAKE256-128f-Robust",
-            description: "SPHINCS+ SHAKE256 Level 1 (128-bit security)",
+            name: "SLH-DSA-SHA256-128f-Robust",
+            description: "SLH-DSA SHA256 Level 1 (128-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsShake256192fRobust,
+            algorithm: Algorithm::SlhDsaSha256192fRobust,
             category: AlgorithmCategory::Signature,
             security_level: 3,
-            name: "SPHINCS+-SHAKE256-192f-Robust",
-            description: "SPHINCS+ SHAKE256 Level 3 (192-bit security)",
+            name: "SLH-DSA-SHA256-192f-Robust",
+            description: "SLH-DSA SHA256 Level 3 (192-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SphincsShake256256fRobust,
+            algorithm: Algorithm::SlhDsaSha256256fRobust,
             category: AlgorithmCategory::Signature,
             security_level: 4,
-            name: "SPHINCS+-SHAKE256-256f-Robust",
-            description: "SPHINCS+ SHAKE256 Level 4 (256-bit security)",
+            name: "SLH-DSA-SHA256-256f-Robust",
+            description: "SLH-DSA SHA256 Level 4 (256-bit security)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::SlhDsaShake256128fRobust,
+            category: AlgorithmCategory::Signature,
+            security_level: 1,
+            name: "SLH-DSA-SHAKE256-128f-Robust",
+            description: "SLH-DSA SHAKE256 Level 1 (128-bit security)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::SlhDsaShake256192fRobust,
+            category: AlgorithmCategory::Signature,
+            security_level: 3,
+            name: "SLH-DSA-SHAKE256-192f-Robust",
+            description: "SLH-DSA SHAKE256 Level 3 (192-bit security)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::SlhDsaShake256256fRobust,
+            category: AlgorithmCategory::Signature,
+            security_level: 4,
+            name: "SLH-DSA-SHAKE256-256f-Robust",
+            description: "SLH-DSA SHAKE256 Level 4 (256-bit security)",
             enabled: true,
         });
 
@@ -416,6 +434,72 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        // Keccak algorithms
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Keccak224,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "Keccak-224",
+            description: "Keccak-224 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Keccak256,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "Keccak-256",
+            description: "Keccak-256 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Keccak384,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "Keccak-384",
+            description: "Keccak-384 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Keccak512,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "Keccak-512",
+            description: "Keccak-512 hash function",
+            enabled: true,
+        });
+
+        // KangarooTwelve algorithm
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::KangarooTwelve,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "KangarooTwelve",
+            description: "KangarooTwelve hash function (KT128 variant)",
+            enabled: true,
+        });
+
+        // TurboSHAKE algorithms
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::TurboShake128,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "TurboSHAKE128",
+            description: "TurboSHAKE128 extendable-output function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::TurboShake256,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "TurboSHAKE256",
+            description: "TurboSHAKE256 extendable-output function",
+            enabled: true,
+        });
+
         // AEAD algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::Saturnin,
@@ -452,6 +536,9 @@ impl AlgorithmRegistry {
             Algorithm::MlDsa44,
             Algorithm::MlDsa65,
             Algorithm::MlDsa87,
+            Algorithm::FnDsa,
+            Algorithm::FnDsa512,
+            Algorithm::FnDsa1024,
         ];
         ALGORITHMS
     }
@@ -475,9 +562,14 @@ impl AlgorithmRegistry {
                 Algorithm::MlKem768,
                 Algorithm::MlKem1024,
             ],
-            AlgorithmCategory::Signature => {
-                &[Algorithm::MlDsa44, Algorithm::MlDsa65, Algorithm::MlDsa87]
-            }
+            AlgorithmCategory::Signature => &[
+                Algorithm::MlDsa44,
+                Algorithm::MlDsa65,
+                Algorithm::MlDsa87,
+                Algorithm::FnDsa,
+                Algorithm::FnDsa512,
+                Algorithm::FnDsa1024,
+            ],
             AlgorithmCategory::Hash => &[],
         }
     }
@@ -496,9 +588,15 @@ impl AlgorithmRegistry {
     pub fn algorithms_by_security_level(&self, level: u32) -> &'static [Algorithm] {
         // In no_std mode, return a static slice based on security level
         match level {
-            1 => &[Algorithm::MlKem512, Algorithm::MlDsa44],
+            1 => &[
+                Algorithm::MlKem512,
+                Algorithm::MlDsa44,
+                Algorithm::FnDsa,
+                Algorithm::FnDsa512,
+            ],
             3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
             4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87],
+            5 => &[Algorithm::FnDsa1024],
             _ => &[],
         }
     }

@@ -28,9 +28,9 @@ pub mod ml_dsa;
 #[cfg(feature = "fn-dsa")]
 pub mod fn_dsa;
 
-/// SPHINCS+ implementation
-#[cfg(feature = "sphincs")]
-pub mod sphincs;
+/// SLH-DSA implementation
+#[cfg(feature = "slh-dsa")]
+pub mod slh_dsa;
 
 /// Get available signature algorithms
 #[cfg(feature = "std")]
@@ -40,8 +40,12 @@ pub fn available_algorithms() -> Vec<&'static str> {
         "ml-dsa",
         #[cfg(feature = "fn-dsa")]
         "fn-dsa",
-        #[cfg(feature = "sphincs")]
-        "sphincs",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-512",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-1024",
+        #[cfg(feature = "slh-dsa")]
+        "slh-dsa",
     ]
 }
 
@@ -53,8 +57,12 @@ pub fn available_algorithms() -> &'static [&'static str] {
         "ml-dsa",
         #[cfg(feature = "fn-dsa")]
         "fn-dsa",
-        #[cfg(feature = "sphincs")]
-        "sphincs",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-512",
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-1024",
+        #[cfg(feature = "slh-dsa")]
+        "slh-dsa",
     ]
 }
 
@@ -70,10 +78,14 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         "mldsa87" => Ok(Box::new(ml_dsa::MlDsa::ml_dsa_87())),
 
         #[cfg(feature = "fn-dsa")]
-        "fn-dsa" => Ok(Box::new(fn_dsa::FnDsa::new())),
+        "fn-dsa" => Ok(Box::new(fn_dsa::FnDsa::level1())),
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-512" => Ok(Box::new(fn_dsa::FnDsa512::new())),
+        #[cfg(feature = "fn-dsa")]
+        "fn-dsa-1024" => Ok(Box::new(fn_dsa::FnDsa1024::new())),
 
-        #[cfg(feature = "sphincs")]
-        "sphincs" => Ok(Box::new(sphincs::Sphincs::new())),
+        #[cfg(feature = "slh-dsa")]
+        "slh-dsa" => Ok(Box::new(slh_dsa::SlhDsa::new())),
 
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
             algorithm: "Unknown algorithm",

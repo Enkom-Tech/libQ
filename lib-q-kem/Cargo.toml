@@ -51,7 +51,7 @@ wasm = [
     "lib-q-core/wasm",
 ]
 
-mceliece = []
+cb-kem = []
 hqc = []
 dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
 rcpkc = ["dep:lib-q-rcpkc", "lib-q-rcpkc/std"]

@@ -383,7 +383,7 @@ jobs:
             working-directory: lib-q-sha3
             features: "alloc,oid"
             rust-version: "stable"
-            test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
+            test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512,turboshake128,turboshake256"
             run-benchmarks: "false"
           - name: "K12"
             action: test-k12
@@ -391,18 +391,11 @@ jobs:
             features: "alloc,oid,getrandom"
             rust-version: "stable"
             run-benchmarks: "false"
-            test-algorithms: "k12"
+            test-algorithms: "kangarootwelve"
           - name: "Ascon"
             action: test-ascon
             working-directory: lib-q-ascon
             features: ""
-            rust-version: "stable"
-            run-benchmarks: "false"
-            test-algorithms: ""
-          - name: "Sponge"
-            action: test-lib-q-sponge
-            working-directory: lib-q-sponge
-            features: "asm"
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: ""
@@ -413,6 +406,15 @@ jobs:
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: "aead,aead-short,block-cipher,hash,stream"
+          - name: "FN-DSA"
+            action: test-fn-dsa
+            working-directory: lib-q-fn-dsa
+            features: "std,rand"
+            rust-version: "stable"
+            run-benchmarks: "true"
+            run-security-tests: "true"
+            run-constant-time: "true"
+            test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
     
     steps:
       - uses: actions/checkout@v5
@@ -457,15 +459,6 @@ jobs:
           run-benchmarks: ${{ matrix.run-benchmarks }}
           test-algorithms: ${{ matrix.test-algorithms }}
       
-      - name: Run Sponge tests
-        uses: ./.github/actions/test-lib-q-sponge
-        if: matrix.action == 'test-lib-q-sponge'
-        with:
-          working-directory: ${{ matrix.working-directory }}
-          features: ${{ matrix.features }}
-          rust-version: ${{ matrix.rust-version }}
-          run-benchmarks: ${{ matrix.run-benchmarks }}
-          test-algorithms: ${{ matrix.test-algorithms }}
       
       - name: Run Saturnin tests
         uses: ./.github/actions/test-saturnin
@@ -475,6 +468,18 @@ jobs:
           features: ${{ matrix.features }}
           rust-version: ${{ matrix.rust-version }}
           run-benchmarks: ${{ matrix.run-benchmarks }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run FN-DSA tests
+        uses: ./.github/actions/test-fn-dsa
+        if: matrix.action == 'test-fn-dsa'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
 
   # ML-KEM specific testing
@@ -551,10 +556,48 @@ jobs:
           echo "Running constant-time tests for lib-q-k12..."
           cargo test --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
 
+  # Integration tests - runs after algorithm tests
+  integration-tests:
+    name: Integration Tests
+    needs: [algorithm-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-integration-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-integration-
+      
+      - name: Run hash integration tests
+        run: |
+          echo "Running hash algorithm integration tests..."
+          cargo test --test hash_integration_tests --features "all-algorithms" --verbose
+          echo "✅ Hash integration tests completed successfully"
+      
+      - name: Run unified API tests
+        run: |
+          echo "Running unified API tests..."
+          cargo test --package lib-q --features "all-algorithms" --verbose
+          echo "✅ Unified API tests completed successfully"
+
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, ml-kem-tests, constant-time]
+    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -566,7 +609,8 @@ jobs:
           # Check if any required jobs failed
           if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
-             [[ "${{ needs.constant-time.result }}" == "failure" ]]; then
+             [[ "${{ needs.constant-time.result }}" == "failure" ]] || \
+             [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
             echo "❌ Critical jobs failed. Please review the failures above." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi

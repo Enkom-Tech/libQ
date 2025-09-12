@@ -9,7 +9,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **Parallel Test Matrix**: Multiple test configurations running simultaneously
 - **Cross-Platform Builds**: Multi-platform compilation
 - **Performance Benchmarks**: Dedicated performance benchmarking
-- **Algorithm-Specific Testing**: Specialized testing for cryptographic algorithms
+- **Algorithm-Specific Testing**: Specialized testing for cryptographic algorithms (ML-DSA, FN-DSA, SHA3, Keccak, K12, Saturnin, Ascon)
 
 ### CD Pipeline (`.github/workflows/cd.yml`)
 - **Pre-Release Validation**: Version consistency checking
@@ -51,6 +51,77 @@ This document describes the CI/CD pipeline configuration for lib-Q.
     compare-baseline: "false"
 ```
 
+### Algorithm-Specific Test Actions
+
+#### Keccak Test Action (`.github/actions/test-keccak/`)
+```yaml
+- uses: ./.github/actions/test-keccak
+  with:
+    working-directory: "lib-q-keccak"
+    features: "alloc"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    test-algorithms: "keccak-256,keccak-512"
+```
+
+#### SHA3 Test Action (`.github/actions/test-sha3/`)
+```yaml
+- uses: ./.github/actions/test-sha3
+  with:
+    working-directory: "lib-q-sha3"
+    features: "std"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    test-algorithms: "sha3-256,sha3-512,shake128,shake256"
+```
+
+#### K12 Test Action (`.github/actions/test-k12/`)
+```yaml
+- uses: ./.github/actions/test-k12
+  with:
+    working-directory: "lib-q-hash"
+    features: "std"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    test-algorithms: "kangaroo-twelve"
+```
+
+#### Ascon Test Action (`.github/actions/test-ascon/`)
+```yaml
+- uses: ./.github/actions/test-ascon
+  with:
+    working-directory: "lib-q-ascon"
+    features: "aead,aead-short,block-cipher,hash,stream,alloc"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    test-algorithms: "aead,aead-short,block-cipher,hash,stream"
+```
+
+
+#### Saturnin Test Action (`.github/actions/test-saturnin/`)
+```yaml
+- uses: ./.github/actions/test-saturnin
+  with:
+    working-directory: "lib-q-saturnin"
+    features: "aead,aead-short,block-cipher,hash,stream,alloc"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    test-algorithms: "aead,aead-short,block-cipher,hash,stream"
+```
+
+#### FN-DSA Test Action (`.github/actions/test-fn-dsa/`)
+```yaml
+- uses: ./.github/actions/test-fn-dsa
+  with:
+    working-directory: "lib-q-fn-dsa"
+    features: "std,rand"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
+```
+
 ## Configuration
 
 ### Required Secrets
@@ -65,9 +136,79 @@ NPM_TOKEN: "npm publish token"
 - **Development tools**: cargo-audit, cargo-tarpaulin, wasm-pack
 
 ## Publishing Targets
-- **Rust crate**: `crates.io` (lib-q)
-- **NPM package**: `@lib-q/core`
+
+### Rust Crates (crates.io)
+- **`lib-q`** - Complete library (re-exports everything)
+- **`lib-q-core`** - Core types and traits
+- **`lib-q-keccak`** - Keccak hash functions
+- **`lib-q-ascon`** - Ascon authenticated encryption
+- **`lib-q-sha3`** - SHA-3 family hash functions
+- **`lib-q-k12`** - KangarooTwelve hash function
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC)
+- **`lib-q-ml-kem`** - ML-KEM specific implementation
+- **`lib-q-sig`** - Digital Signatures (ML-DSA, FN-DSA, SLH-DSA)
+- **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
+- **`lib-q-aead`** - Authenticated Encryption
+- **`lib-q-utils`** - Utility functions
+- **`lib-q-zkp`** - Zero-Knowledge Proofs
+- **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
+
+### NPM Packages (npmjs.com)
+- **`@lib-q/core`** - Complete library for Node.js
+- **`@lib-q/ml-kem`** - ML-KEM only package
+- **`@lib-q/kem`** - KEM-only package
+- **`@lib-q/sig`** - Signature-only package
+- **`@lib-q/hash`** - Hash-only package
+- **`@lib-q/utils`** - Utilities-only package
+- **`@lib-q/fn-dsa`** - FN-DSA signature-only package
+
+### Additional Publishing
 - **GitHub release** with automated changelog generation
+
+## Implemented Algorithms
+
+### Hash Functions
+- **Keccak** (FIPS 202) - SHA-3 family hash functions
+- **SHA-3** (FIPS 202) - SHA3-256, SHA3-512, SHAKE128, SHAKE256
+- **KangarooTwelve** - Fast hash function based on Keccak
+
+### Digital Signatures
+- **ML-DSA** (FIPS 204) - Module-Lattice Digital Signature Algorithm
+- **FN-DSA** (FIPS 206) - Falcon-based Digital Signature Algorithm
+- **SLH-DSA** (FIPS 205) - Stateless Hash-based Digital Signature Algorithm
+
+### Key Encapsulation Mechanisms (KEMs)
+- **ML-KEM** (FIPS 203) - Module-Lattice Key Encapsulation Mechanism
+- **CB-KEM** - Code-based post-quantum KEM
+- **HQC** - Hamming Quasi-Cyclic KEM
+
+### Authenticated Encryption
+- **Ascon** - Lightweight authenticated encryption
+- **Saturnin** - Post-quantum symmetric algorithm suite
+
+### Additional Components
+- **HPKE** - Hybrid Public Key Encryption
+- **Zero-Knowledge Proofs** - zk-STARKs implementation
+- **Platform Intrinsics** - SIMD optimizations for x86_64 and ARM64
+- **Core Types** - Common types and traits for all algorithms
+
+## Algorithm Implementation Status
+
+| Algorithm | Implementation | Testing | CI/CD | Publishing |
+|-----------|---------------|---------|-------|------------|
+| Keccak | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| SHA-3 | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| K12 | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| Ascon | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| Saturnin | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| ML-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| FN-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| ML-KEM | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| CB-KEM | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| HQC | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| SLH-DSA | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| HPKE | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| ZKP | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
 
 ## Performance
 - **Pipeline execution time**: ~25-35 minutes

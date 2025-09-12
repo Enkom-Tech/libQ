@@ -71,18 +71,18 @@ pub const FN_DSA_LEVEL5_PUBLIC_KEY_SIZE: usize = 1793;
 pub const FN_DSA_LEVEL5_SECRET_KEY_SIZE: usize = 4609;
 pub const FN_DSA_LEVEL5_SIGNATURE_SIZE: usize = 1380;
 
-// SPHINCS+ Signature Sizes
-pub const SPHINCS1_PUBLIC_KEY_SIZE: usize = 32;
-pub const SPHINCS1_SECRET_KEY_SIZE: usize = 64;
-pub const SPHINCS1_SIGNATURE_SIZE: usize = 8080;
+// SLH-DSA Signature Sizes
+pub const SLHDSA1_PUBLIC_KEY_SIZE: usize = 32;
+pub const SLHDSA1_SECRET_KEY_SIZE: usize = 64;
+pub const SLHDSA1_SIGNATURE_SIZE: usize = 8080;
 
-pub const SPHINCS3_PUBLIC_KEY_SIZE: usize = 48;
-pub const SPHINCS3_SECRET_KEY_SIZE: usize = 96;
-pub const SPHINCS3_SIGNATURE_SIZE: usize = 16588;
+pub const SLHDSA3_PUBLIC_KEY_SIZE: usize = 48;
+pub const SLHDSA3_SECRET_KEY_SIZE: usize = 96;
+pub const SLHDSA3_SIGNATURE_SIZE: usize = 16588;
 
-pub const SPHINCS5_PUBLIC_KEY_SIZE: usize = 64;
-pub const SPHINCS5_SECRET_KEY_SIZE: usize = 128;
-pub const SPHINCS5_SIGNATURE_SIZE: usize = 29792;
+pub const SLHDSA5_PUBLIC_KEY_SIZE: usize = 64;
+pub const SLHDSA5_SECRET_KEY_SIZE: usize = 128;
+pub const SLHDSA5_SIGNATURE_SIZE: usize = 29792;
 
 // Maximum sizes for variable-length operations
 pub const MAX_MESSAGE_SIZE: usize = 65536; // 64KB

@@ -15,7 +15,7 @@ inputs:
     required: false
   test-algorithms:
     description: Specific algorithms to test
-    default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512"
+    default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512,turboshake128,turboshake256"
     required: false
   run-benchmarks:
     description: Whether to run benchmarks (requires nightly)

@@ -29,7 +29,7 @@ lib-Q is built on the principle that all classical cryptography is broken. Our t
 lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
-- **KEMs**: ML-KEM, Classic McEliece, HQC, DAWN
+- **KEMs**: ML-KEM, CB-KEM, HQC, DAWN
 - **Signatures**: ML-DSA, FN-DSA, SLH-DSA
 - **Symmetric**: SHAKE256-based constructions, Saturnin
 - **HPKE**: Pure post-quantum HPKE with Saturnin AEAD
@@ -37,7 +37,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Use Case**: Maximum security, performance secondary
 
 #### Tier 2: Balanced (Hybrid Post-Quantum)
-- **KEMs**: ML-KEM, Classic McEliece, HQC, DAWN
+- **KEMs**: ML-KEM, CB-KEM, HQC, DAWN
 - **Signatures**: ML-DSA, FN-DSA, SLH-DSA
 - **Symmetric**: Post-quantum KEM + Saturnin AEAD
 - **HPKE**: Hybrid HPKE (PQ KEM + Saturnin)
@@ -118,7 +118,7 @@ We only use algorithms that have been standardized or are in the final round of 
   - Suitable for root and intermediate certificates in PKI systems
 
 #### Final Round Candidates
-- **Classic McEliece**: Final round candidate, strong security
+- **CB-KEM**: Final round candidate, strong security
 - **HQC**: Final round candidate, good performance
 
 #### Emerging Post-Quantum Algorithms

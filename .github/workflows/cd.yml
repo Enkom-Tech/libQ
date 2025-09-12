@@ -84,7 +84,7 @@ jobs:
           - package: "lib-q-aead"
           - package: "lib-q-utils"
           - package: "lib-q-zkp"
-          - package: "lib-q-sponge"
+          - package: "lib-q-fn-dsa"
           - package: "lib-q"
 
     steps:
@@ -137,6 +137,12 @@ jobs:
             package-keywords: "cryptography,post-quantum,utilities,helpers,wasm"
             features: ""
             out-dir: "pkg-utils"
+          - working-directory: "lib-q-fn-dsa"
+            package-name: "@lib-q/fn-dsa"
+            package-description: "FN-DSA (FIPS 206) post-quantum digital signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist"
+            features: "wasm,std,rand"
+            out-dir: "pkg"
 
     steps:
       - uses: actions/checkout@v5

@@ -109,11 +109,11 @@ pub enum Algorithm {
     MlKem512,
     MlKem768,
     MlKem1024,
-    McEliece348864,
-    McEliece460896,
-    McEliece6688128,
-    McEliece6960119,
-    McEliece8192128,
+    CbKem348864,
+    CbKem460896,
+    CbKem6688128,
+    CbKem6960119,
+    CbKem8192128,
     Hqc128,
     Hqc192,
     Hqc256,
@@ -125,12 +125,14 @@ pub enum Algorithm {
     MlDsa65,
     MlDsa87,
     FnDsa,
-    SphincsSha256128fRobust,
-    SphincsSha256192fRobust,
-    SphincsSha256256fRobust,
-    SphincsShake256128fRobust,
-    SphincsShake256192fRobust,
-    SphincsShake256256fRobust,
+    FnDsa512,
+    FnDsa1024,
+    SlhDsaSha256128fRobust,
+    SlhDsaSha256192fRobust,
+    SlhDsaSha256256fRobust,
+    SlhDsaShake256128fRobust,
+    SlhDsaShake256192fRobust,
+    SlhDsaShake256256fRobust,
 
     // Hash algorithms
     Shake128,
@@ -141,6 +143,13 @@ pub enum Algorithm {
     Sha3_256,
     Sha3_384,
     Sha3_512,
+    Keccak224,
+    Keccak256,
+    Keccak384,
+    Keccak512,
+    KangarooTwelve,
+    TurboShake128,
+    TurboShake256,
     Kmac128,
     Kmac256,
     TupleHash128,
@@ -158,34 +167,38 @@ impl Algorithm {
         match self {
             // Level 1 (128-bit security)
             Algorithm::MlKem512 => 1,
-            Algorithm::McEliece348864 => 1,
+            Algorithm::CbKem348864 => 1,
             Algorithm::Hqc128 => 1,
             Algorithm::Dawn => 1,
             Algorithm::MlDsa44 => 1,
             Algorithm::FnDsa => 1,
-            Algorithm::SphincsSha256128fRobust => 1,
-            Algorithm::SphincsShake256128fRobust => 1,
+            Algorithm::FnDsa512 => 1,
+            Algorithm::SlhDsaSha256128fRobust => 1,
+            Algorithm::SlhDsaShake256128fRobust => 1,
 
             // Level 3 (192-bit security)
             Algorithm::MlKem768 => 3,
-            Algorithm::McEliece460896 => 3,
+            Algorithm::CbKem460896 => 3,
             Algorithm::Hqc192 => 3,
             Algorithm::MlDsa65 => 3,
-            Algorithm::SphincsSha256192fRobust => 3,
-            Algorithm::SphincsShake256192fRobust => 3,
+            Algorithm::SlhDsaSha256192fRobust => 3,
+            Algorithm::SlhDsaShake256192fRobust => 3,
 
             // Level 4 (256-bit security)
             Algorithm::MlKem1024 => 4,
-            Algorithm::McEliece6688128 => 4,
-            Algorithm::McEliece6960119 => 4,
+            Algorithm::CbKem6688128 => 4,
+            Algorithm::CbKem6960119 => 4,
             Algorithm::Hqc256 => 4,
             Algorithm::Rcpkc => 4,
             Algorithm::MlDsa87 => 4,
-            Algorithm::SphincsSha256256fRobust => 4,
-            Algorithm::SphincsShake256256fRobust => 4,
+            Algorithm::SlhDsaSha256256fRobust => 4,
+            Algorithm::SlhDsaShake256256fRobust => 4,
+
+            // Level 5 (256-bit security)
+            Algorithm::FnDsa1024 => 5,
 
             // Level 5 (256-bit security, higher performance)
-            Algorithm::McEliece8192128 => 5,
+            Algorithm::CbKem8192128 => 5,
 
             // Hash algorithms don't have security levels
             Algorithm::Shake128 |
@@ -196,6 +209,13 @@ impl Algorithm {
             Algorithm::Sha3_256 |
             Algorithm::Sha3_384 |
             Algorithm::Sha3_512 |
+            Algorithm::Keccak224 |
+            Algorithm::Keccak256 |
+            Algorithm::Keccak384 |
+            Algorithm::Keccak512 |
+            Algorithm::KangarooTwelve |
+            Algorithm::TurboShake128 |
+            Algorithm::TurboShake256 |
             Algorithm::Kmac128 |
             Algorithm::Kmac256 |
             Algorithm::TupleHash128 |
@@ -214,11 +234,11 @@ impl Algorithm {
             Algorithm::MlKem512 |
             Algorithm::MlKem768 |
             Algorithm::MlKem1024 |
-            Algorithm::McEliece348864 |
-            Algorithm::McEliece460896 |
-            Algorithm::McEliece6688128 |
-            Algorithm::McEliece6960119 |
-            Algorithm::McEliece8192128 |
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 |
             Algorithm::Hqc128 |
             Algorithm::Hqc192 |
             Algorithm::Hqc256 |
@@ -229,12 +249,14 @@ impl Algorithm {
             Algorithm::MlDsa65 |
             Algorithm::MlDsa87 |
             Algorithm::FnDsa |
-            Algorithm::SphincsSha256128fRobust |
-            Algorithm::SphincsSha256192fRobust |
-            Algorithm::SphincsSha256256fRobust |
-            Algorithm::SphincsShake256128fRobust |
-            Algorithm::SphincsShake256192fRobust |
-            Algorithm::SphincsShake256256fRobust => AlgorithmCategory::Signature,
+            Algorithm::FnDsa512 |
+            Algorithm::FnDsa1024 |
+            Algorithm::SlhDsaSha256128fRobust |
+            Algorithm::SlhDsaSha256192fRobust |
+            Algorithm::SlhDsaSha256256fRobust |
+            Algorithm::SlhDsaShake256128fRobust |
+            Algorithm::SlhDsaShake256192fRobust |
+            Algorithm::SlhDsaShake256256fRobust => AlgorithmCategory::Signature,
 
             Algorithm::Shake128 |
             Algorithm::Shake256 |
@@ -244,6 +266,13 @@ impl Algorithm {
             Algorithm::Sha3_256 |
             Algorithm::Sha3_384 |
             Algorithm::Sha3_512 |
+            Algorithm::Keccak224 |
+            Algorithm::Keccak256 |
+            Algorithm::Keccak384 |
+            Algorithm::Keccak512 |
+            Algorithm::KangarooTwelve |
+            Algorithm::TurboShake128 |
+            Algorithm::TurboShake256 |
             Algorithm::Kmac128 |
             Algorithm::Kmac256 |
             Algorithm::TupleHash128 |

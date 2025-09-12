@@ -90,7 +90,7 @@ jobs:
           
           # Define all lib-q crates
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-ascon lib-q-hash lib-q-sha3 lib-q-k12"
-          CRYPTO_CRATES="lib-q-sponge lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           ALL_CRATES="$CORE_CRATES $CRYPTO_CRATES $UTIL_CRATES"
           

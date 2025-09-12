@@ -1,0 +1,104 @@
+[package]
+name = "lib-q-fn-dsa"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "FN-DSA (FIPS 206) post-quantum digital signature implementation"
+keywords = ["cryptography", "post-quantum", "fn-dsa", "falcon", "signature"]
+categories = ["cryptography"]
+
+[lib]
+name = "lib_q_fn_dsa"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core libQ types
+lib-q-core = { path = "../lib-q-core" }
+
+# FN-DSA implementation (the actual algorithm)
+fn-dsa = { path = "fn-dsa" }
+
+# Standard library features
+rand_core = "0.9.3"
+rand = { version = "0.9.2", optional = true }
+zeroize = { version = "1.8.1", features = ["zeroize_derive"], optional = true }
+
+# WASM support
+getrandom = { version = "0.3.3", optional = true }
+wasm-bindgen = { version = "0.2.101", optional = true }
+js-sys = { version = "0.3.78", optional = true }
+web-sys = { version = "0.3.78", optional = true, features = ["console"] }
+
+[features]
+default = ["std", "alloc", "rand"]
+std = ["alloc", "rand"]
+alloc = []
+no_std = []
+
+# Security features
+zeroize = ["dep:zeroize"]
+rand = ["dep:rand"]
+
+# WASM support
+wasm = ["getrandom/wasm_js", "wasm-bindgen", "js-sys", "web-sys"]
+
+[dev-dependencies]
+# Testing
+criterion = "0.7.0"
+proptest = "1.7.0"
+quickcheck = "1.0.3"
+
+# Test utilities
+hex = "0.4.3"
+rand = "0.9.2"
+
+[[example]]
+name = "fn_dsa_demo"
+path = "examples/fn_dsa_demo.rs"
+
+[[example]]
+name = "wasm_example"
+path = "examples/wasm_example.rs"
+
+[[example]]
+name = "no_std_example"
+path = "examples/no_std_example.rs"
+required-features = ["alloc"]
+
+[[bench]]
+name = "fn_dsa_bench"
+harness = false
+path = "benches/fn_dsa_bench.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+
+[profile.dev]
+opt-level = 0
+debug = true
+lto = false
+panic = "unwind"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

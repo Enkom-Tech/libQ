@@ -1,35 +1,35 @@
-//! Classic McEliece implementation
+//! CB-KEM implementation
 //!
-//! TODO: Implement actual McEliece functionality
+//! TODO: Implement actual Classic McEliece functionality
 
 use lib_q_core::{Kem, KemKeypair, Result};
 
-/// Classic McEliece KEM implementation
-pub struct McEliece;
+/// CB-KEM implementation
+pub struct CbKem;
 
-impl McEliece {
-    /// Create a new McEliece instance
+impl CbKem {
+    /// Create a new CB-KEM instance
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for McEliece {
+impl Default for CbKem {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Kem for McEliece {
+impl Kem for CbKem {
     fn generate_keypair(&self) -> Result<KemKeypair> {
-        // TODO: Implement actual McEliece key generation
+        // TODO: Implement actual CB-KEM key generation
         let public_key = vec![0u8; 261120];
         let secret_key = vec![0u8; 261120];
         Ok(KemKeypair::new(public_key, secret_key))
     }
 
     fn encapsulate(&self, _public_key: &lib_q_core::KemPublicKey) -> Result<(Vec<u8>, Vec<u8>)> {
-        // TODO: Implement actual McEliece encapsulation
+        // TODO: Implement actual CB-KEM encapsulation
         let shared_secret = vec![0u8; 32];
         let ciphertext = vec![0u8; 261120];
         Ok((shared_secret, ciphertext))
@@ -40,7 +40,7 @@ impl Kem for McEliece {
         _secret_key: &lib_q_core::KemSecretKey,
         _ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
-        // TODO: Implement actual McEliece decapsulation
+        // TODO: Implement actual CB-KEM decapsulation
         Ok(vec![0u8; 32])
     }
 }

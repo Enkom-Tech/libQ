@@ -503,10 +503,10 @@ pub enum KemAlgorithm {
     MlKem1,
     MlKem3,
     MlKem5,
-    McEliece1,
-    McEliece3,
-    McEliece4,
-    McEliece5,
+    CbKem1,
+    CbKem3,
+    CbKem4,
+    CbKem5,
     Hqc1,
     Hqc3,
     Hqc4,
@@ -520,9 +520,9 @@ pub enum SigAlgorithm {
     Dilithium5,
     FnDsa1,
     FnDsa5,
-    Sphincs1,
-    Sphincs3,
-    Sphincs5,
+    SlhDsa1,
+    SlhDsa3,
+    SlhDsa5,
 }
 
 /// Security tiers for HPKE

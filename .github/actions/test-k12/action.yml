@@ -19,7 +19,7 @@ inputs:
     required: false
   test-algorithms:
     description: Specific algorithms to test
-    default: ""
+    default: "kangarootwelve"
     required: false
 
 runs:

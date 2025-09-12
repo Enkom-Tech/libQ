@@ -20,7 +20,7 @@ lib-Q Architecture
 │   ├── High-Level Functions
 │   └── Problem-Solving Interfaces
 ├── Algorithm Layer
-│   ├── KEMs (ML-KEM, McEliece, HQC, DAWN, RCPKC)
+│   ├── KEMs (ML-KEM, CB-KEM, HQC, DAWN, RCPKC)
 │   ├── Signatures (ML-DSA, FN-DSA, SLH-DSA)
 │   ├── Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
 │   └── AEAD Constructions (Saturnin, SHAKE256-based)
@@ -114,13 +114,13 @@ let recovered = ml_kem.decapsulate(&sk, &enc)?;
 ### Security Tiers
 
 1. **Ultra-Secure (Tier 1)**: Pure post-quantum with maximum security
-   - KEMs: ML-KEM, Classic McEliece, HQC, DAWN
+   - KEMs: ML-KEM, CB-KEM, HQC, DAWN
    - Signatures: ML-DSA, FN-DSA, SLH-DSA
    - Symmetric: SHAKE256-based constructions, Saturnin
    - HPKE: Pure post-quantum HPKE with Saturnin AEAD
 
 2. **Balanced (Tier 2)**: Post-quantum with good performance
-   - KEMs: ML-KEM, Classic McEliece, HQC, DAWN
+   - KEMs: ML-KEM, CB-KEM, HQC, DAWN
    - Signatures: ML-DSA, FN-DSA, SLH-DSA
    - Symmetric: Post-quantum KEM + Saturnin AEAD
    - HPKE: Hybrid HPKE (PQ KEM + Saturnin)

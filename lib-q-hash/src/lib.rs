@@ -120,6 +120,8 @@ pub use crate::hash_types::{
     Shake256Hash,
     TupleHash128Hash,
     TupleHash256Hash,
+    TurboShake128Hash,
+    TurboShake256Hash,
 };
 
 // Constants for SHA-3 implementation
@@ -167,6 +169,10 @@ pub enum HashAlgorithm {
     Keccak384,
     /// Keccak-512
     Keccak512,
+    /// TurboShake128
+    TurboShake128,
+    /// TurboShake256
+    TurboShake256,
     /// KMAC128
     Kmac128,
     /// KMAC256
@@ -198,6 +204,8 @@ impl HashAlgorithm {
             HashAlgorithm::Keccak256 => 32,
             HashAlgorithm::Keccak384 => 48,
             HashAlgorithm::Keccak512 => 64,
+            HashAlgorithm::TurboShake128 => 16,
+            HashAlgorithm::TurboShake256 => 32,
             HashAlgorithm::Kmac128 => 16,
             HashAlgorithm::Kmac256 => 32,
             HashAlgorithm::TupleHash128 => 16,
@@ -224,6 +232,8 @@ pub fn available_algorithms() -> Vec<&'static str> {
         "keccak256",
         "keccak384",
         "keccak512",
+        "turboshake128",
+        "turboshake256",
         "kmac128",
         "kmac256",
         "tuplehash128",
@@ -255,6 +265,8 @@ pub fn create_hash(algorithm: &str) -> Result<Box<dyn Hash>> {
         "keccak256" => Ok(Box::new(Keccak256Hash::new())),
         "keccak384" => Ok(Box::new(Keccak384Hash::new())),
         "keccak512" => Ok(Box::new(Keccak512Hash::new())),
+        "turboshake128" => Ok(Box::new(TurboShake128Hash::new())),
+        "turboshake256" => Ok(Box::new(TurboShake256Hash::new())),
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
             algorithm: "Unknown hash algorithm",
         }),

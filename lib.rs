@@ -318,13 +318,25 @@ impl SignatureOperations for RealSignatureImpl {
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa => {
-                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                let fn_dsa = create_signature("fn-dsa")?;
+                fn_dsa.generate_keypair()
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa512 => {
+                let fn_dsa = create_signature("fn-dsa-512")?;
+                fn_dsa.generate_keypair()
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa1024 => {
+                let fn_dsa = create_signature("fn-dsa-1024")?;
                 fn_dsa.generate_keypair()
             }
             #[cfg(not(feature = "fn-dsa"))]
-            Algorithm::FnDsa => Err(Error::NotImplemented {
-                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
-            }),
+            Algorithm::FnDsa | Algorithm::FnDsa512 | Algorithm::FnDsa1024 => {
+                Err(Error::NotImplemented {
+                    feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+                })
+            }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -362,13 +374,25 @@ impl SignatureOperations for RealSignatureImpl {
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa => {
-                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                let fn_dsa = create_signature("fn-dsa")?;
+                fn_dsa.sign(_secret_key, _message)
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa512 => {
+                let fn_dsa = create_signature("fn-dsa-512")?;
+                fn_dsa.sign(_secret_key, _message)
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa1024 => {
+                let fn_dsa = create_signature("fn-dsa-1024")?;
                 fn_dsa.sign(_secret_key, _message)
             }
             #[cfg(not(feature = "fn-dsa"))]
-            Algorithm::FnDsa => Err(Error::NotImplemented {
-                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
-            }),
+            Algorithm::FnDsa | Algorithm::FnDsa512 | Algorithm::FnDsa1024 => {
+                Err(Error::NotImplemented {
+                    feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+                })
+            }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -406,13 +430,25 @@ impl SignatureOperations for RealSignatureImpl {
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa => {
-                let fn_dsa = lib_q_sig::fn_dsa::FnDsa::new();
+                let fn_dsa = create_signature("fn-dsa")?;
+                fn_dsa.verify(_public_key, _message, _signature)
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa512 => {
+                let fn_dsa = create_signature("fn-dsa-512")?;
+                fn_dsa.verify(_public_key, _message, _signature)
+            }
+            #[cfg(feature = "fn-dsa")]
+            Algorithm::FnDsa1024 => {
+                let fn_dsa = create_signature("fn-dsa-1024")?;
                 fn_dsa.verify(_public_key, _message, _signature)
             }
             #[cfg(not(feature = "fn-dsa"))]
-            Algorithm::FnDsa => Err(Error::NotImplemented {
-                feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
-            }),
+            Algorithm::FnDsa | Algorithm::FnDsa512 | Algorithm::FnDsa1024 => {
+                Err(Error::NotImplemented {
+                    feature: "FN-DSA support requires 'fn-dsa' feature flag".to_string(),
+                })
+            }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported",
             }),
@@ -482,6 +518,34 @@ impl HashOperations for RealHashImpl {
             }
             Algorithm::ParallelHash256 => {
                 let hasher = lib_q_hash::ParallelHash256Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::Keccak224 => {
+                let hasher = lib_q_hash::Keccak224Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::Keccak256 => {
+                let hasher = lib_q_hash::Keccak256Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::Keccak384 => {
+                let hasher = lib_q_hash::Keccak384Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::Keccak512 => {
+                let hasher = lib_q_hash::Keccak512Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::KangarooTwelve => {
+                let hasher = lib_q_hash::KangarooTwelveHash::new();
+                hasher.hash(data)
+            }
+            Algorithm::TurboShake128 => {
+                let hasher = lib_q_hash::TurboShake128Hash::new();
+                hasher.hash(data)
+            }
+            Algorithm::TurboShake256 => {
+                let hasher = lib_q_hash::TurboShake256Hash::new();
                 hasher.hash(data)
             }
             _ => Err(Error::InvalidAlgorithm {

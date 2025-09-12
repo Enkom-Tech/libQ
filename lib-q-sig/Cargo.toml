@@ -13,12 +13,13 @@ categories = ["cryptography"]
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
+lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 
 [features]
 default = ["alloc", "ml-dsa"]
 ml-dsa = ["lib-q-ml-dsa"]
-sphincs = []
-fn-dsa = []
+slh-dsa = []
+fn-dsa = ["lib-q-fn-dsa"]
 std = ["alloc"]
 alloc = []
 

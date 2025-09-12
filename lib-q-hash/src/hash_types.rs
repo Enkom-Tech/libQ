@@ -35,6 +35,8 @@ use crate::{
     Shake256,
     TupleHash128,
     TupleHash256,
+    TurboShake128,
+    TurboShake256,
 };
 
 /// Wrapper for cSHAKE128 that implements lib-q-core Hash trait
@@ -112,6 +114,14 @@ pub struct ParallelHash128Hash(ParallelHash128);
 /// Wrapper for ParallelHash256 that implements lib-q-core Hash trait
 #[derive(Debug, Clone)]
 pub struct ParallelHash256Hash(ParallelHash256);
+
+/// Wrapper for TurboShake128 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct TurboShake128Hash(TurboShake128<0x1F>);
+
+/// Wrapper for TurboShake256 that implements lib-q-core Hash trait
+#[derive(Debug, Clone)]
+pub struct TurboShake256Hash(TurboShake256<0x1F>);
 
 // Constructor implementations
 impl CShake128Hash {
@@ -235,6 +245,20 @@ impl Keccak512Hash {
     /// Creates a new Keccak-512 hash instance
     pub fn new() -> Self {
         Self(Keccak512::default())
+    }
+}
+
+impl TurboShake128Hash {
+    /// Creates a new TurboShake128 hash instance
+    pub fn new() -> Self {
+        Self(TurboShake128::<0x1F>::default())
+    }
+}
+
+impl TurboShake256Hash {
+    /// Creates a new TurboShake256 hash instance
+    pub fn new() -> Self {
+        Self(TurboShake256::<0x1F>::default())
     }
 }
 
@@ -654,6 +678,34 @@ impl Hash for ParallelHash256Hash {
     }
 }
 
+impl Hash for TurboShake128Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        Update::update(&mut hasher, data);
+        let mut output = [0u8; 16]; // Default output size for TurboShake128
+        hasher.finalize_xof_reset_into(&mut output);
+        Ok(output.to_vec())
+    }
+
+    fn output_size(&self) -> usize {
+        16
+    }
+}
+
+impl Hash for TurboShake256Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        Update::update(&mut hasher, data);
+        let mut output = [0u8; 32]; // Default output size for TurboShake256
+        hasher.finalize_xof_reset_into(&mut output);
+        Ok(output.to_vec())
+    }
+
+    fn output_size(&self) -> usize {
+        32
+    }
+}
+
 // Default implementations for SP800-185 hash types
 impl Default for Kmac128Hash {
     fn default() -> Self {
@@ -686,6 +738,18 @@ impl Default for ParallelHash128Hash {
 }
 
 impl Default for ParallelHash256Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for TurboShake128Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for TurboShake256Hash {
     fn default() -> Self {
         Self::new()
     }

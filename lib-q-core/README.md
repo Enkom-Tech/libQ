@@ -87,13 +87,13 @@ let random_bytes = Utils::random_bytes(32); // Returns error
 
 ### Key Encapsulation Mechanisms (KEMs)
 - ML-KEM (FIPS 203): ML-KEM-512, ML-KEM-768, ML-KEM-1024
-- Classic McEliece: Multiple parameter sets
+- CB-KEM: Multiple parameter sets
 - HQC: HQC-128, HQC-192, HQC-256
 
 ### Digital Signatures
 - ML-DSA (Dilithium): ML-DSA-44, ML-DSA-65, ML-DSA-87
 - FN-DSA: FN-DSA-1, FN-DSA-5
-- SPHINCS+: Multiple variants with SHA-256 and SHAKE-256
+- SLH-DSA: Multiple variants with SHA-256 and SHAKE-256
 
 ### Hash Functions
 - SHA-3 family: SHA3-224, SHA3-256, SHA3-384, SHA3-512

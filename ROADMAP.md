@@ -56,7 +56,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [ ] Multi-algorithm integration
   - [ ] Key generation
   - [ ] Encapsulation/Decapsulation
-- [ ] Classic McEliece (Level 1, 3, 4, 5)
+- [ ] CB-KEM (Level 1, 3, 4, 5)
   - [ ] Core implementation
   - [ ] Key generation
   - [ ] Encapsulation/Decapsulation

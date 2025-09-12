@@ -1,6 +1,6 @@
-//! SPHINCS+ implementation
+//! SLH-DSA implementation
 //!
-//! TODO: Implement actual SPHINCS+ functionality
+//! TODO: Implement actual SLH-DSA functionality
 
 use lib_q_core::{
     Result,
@@ -8,32 +8,32 @@ use lib_q_core::{
     Signature,
 };
 
-/// SPHINCS+ signature implementation
-pub struct Sphincs;
+/// SLH-DSA signature implementation
+pub struct SlhDsa;
 
-impl Sphincs {
-    /// Create a new SPHINCS+ instance
+impl SlhDsa {
+    /// Create a new SLH-DSA instance
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for Sphincs {
+impl Default for SlhDsa {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Signature for Sphincs {
+impl Signature for SlhDsa {
     fn generate_keypair(&self) -> Result<SigKeypair> {
-        // TODO: Implement actual SPHINCS+ key generation
+        // TODO: Implement actual SLH-DSA key generation
         let public_key = vec![0u8; 8080];
         let secret_key = vec![0u8; 8080];
         Ok(SigKeypair::new(public_key, secret_key))
     }
 
     fn sign(&self, _secret_key: &lib_q_core::SigSecretKey, _message: &[u8]) -> Result<Vec<u8>> {
-        // TODO: Implement actual SPHINCS+ signing
+        // TODO: Implement actual SLH-DSA signing
         Ok(vec![0u8; 8080])
     }
 
@@ -43,7 +43,7 @@ impl Signature for Sphincs {
         _message: &[u8],
         _signature: &[u8],
     ) -> Result<bool> {
-        // TODO: Implement actual SPHINCS+ verification
+        // TODO: Implement actual SLH-DSA verification
         Ok(true)
     }
 }

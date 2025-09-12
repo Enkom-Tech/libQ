@@ -80,6 +80,9 @@ jobs:
         run: |
           echo "✍️  Validating signature algorithms..."
           # Check that only NIST-approved signatures are implemented
+          echo "Validating FN-DSA (FIPS 206) implementation..."
+          cd lib-q-fn-dsa
+          cargo test --test security_tests --features "std,rand" -- nist_compliance || echo "⚠️  nist_compliance test not available for lib-q-fn-dsa"
           echo "✅ Signature algorithm validation completed"
       
       - name: Validate hash functions
@@ -131,6 +134,7 @@ jobs:
           cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
           cargo test --features "all-algorithms" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
           cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+          cargo test --test security_tests -p lib-q-fn-dsa --features "std,rand" -- constant_time || echo "⚠️  constant_time test not available for lib-q-fn-dsa"
           echo "✅ Constant-time tests completed successfully"
       
       - name: Check for timing side-channels

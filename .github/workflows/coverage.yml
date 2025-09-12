@@ -17,7 +17,6 @@ on:
     branches: [main]
     paths:
       # Only run full coverage on PRs that modify these critical paths
-      - 'lib-q-sponge/**'
       - 'lib-q-keccak/**'
       - 'lib-q-ascon/**'
       - 'lib-q-core/**'
@@ -67,7 +66,7 @@ jobs:
           
           # Define critical cryptographic crates
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-ascon lib-q-hash lib-q-sha3 lib-q-k12"
-          CRYPTO_CRATES="lib-q-sponge lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           
           # Run coverage for core cryptographic components
