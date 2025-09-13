@@ -1,0 +1,402 @@
+//! Standalone tests for the new modular architecture
+//! These tests run independently of the existing lib.rs code
+
+use lib_q_hpke::error::*;
+use lib_q_hpke::providers::*;
+use lib_q_hpke::security::*;
+use lib_q_hpke::types::*;
+use lib_q_hpke::{
+    aead_err,
+    kdf_err,
+    kem_err,
+    protocol_err,
+    security_err,
+};
+
+#[test]
+fn test_security_policy_creation() {
+    let policy = SecurityPolicy::default();
+    assert!(policy.require_constant_time);
+    assert!(policy.validate_key_material);
+    assert!(policy.enforce_zero_key_rejection);
+}
+
+#[test]
+fn test_security_policy_strict() {
+    let policy = SecurityPolicy::strict();
+    assert!(policy.require_constant_time);
+    assert_eq!(policy.max_key_size, 32);
+    assert_eq!(policy.max_nonce_size, 16);
+}
+
+#[test]
+fn test_security_policy_permissive() {
+    let policy = SecurityPolicy::permissive();
+    assert!(!policy.require_constant_time);
+    assert_eq!(policy.max_key_size, 128);
+    assert_eq!(policy.max_nonce_size, 64);
+}
+
+#[test]
+fn test_cryptographic_validator() {
+    let validator = CryptographicValidator::with_default_policy();
+
+    // Test key validation
+    let key = vec![1u8; 32];
+    assert!(
+        validator
+            .validate_aead_key(HpkeAead::Saturnin256, &key)
+            .is_ok()
+    );
+
+    // Test nonce validation
+    let nonce = vec![1u8; 16];
+    assert!(
+        validator
+            .validate_aead_nonce(HpkeAead::Saturnin256, &nonce)
+            .is_ok()
+    );
+}
+
+#[test]
+fn test_constant_time_operations() {
+    let a = b"hello";
+    let b = b"hello";
+    let c = b"world";
+
+    assert!(constant_time_eq(a, b));
+    assert!(!constant_time_eq(a, c));
+
+    assert_eq!(constant_time_select(1, 0xFF, 0x00), 0xFF);
+    assert_eq!(constant_time_select(0, 0xFF, 0x00), 0x00);
+}
+
+#[test]
+fn test_secure_memory() {
+    let key = SecureKey::new(vec![1u8, 2u8, 3u8, 4u8]);
+    assert_eq!(key.as_slice(), &[1u8, 2u8, 3u8, 4u8]);
+    assert_eq!(key.len(), 4);
+    assert!(!key.is_empty());
+
+    let nonce = SecureNonce::new(vec![5u8, 6u8, 7u8, 8u8]);
+    assert_eq!(nonce.as_slice(), &[5u8, 6u8, 7u8, 8u8]);
+    assert_eq!(nonce.len(), 4);
+    assert!(!nonce.is_empty());
+
+    let mut buffer = SecureBuffer::new();
+    buffer.push(1);
+    buffer.push(2);
+    assert_eq!(buffer.len(), 2);
+    assert_eq!(buffer.as_slice(), &[1u8, 2u8]);
+}
+
+#[test]
+fn test_prng() {
+    let mut rng = SimpleRng::new();
+
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes).unwrap();
+
+    // Check that we got some non-zero bytes
+    assert!(bytes.iter().any(|&b| b != 0));
+
+    let val1 = rng.next_u32().unwrap();
+    let val2 = rng.next_u32().unwrap();
+
+    // Very unlikely to be equal
+    assert_ne!(val1, val2);
+}
+
+#[test]
+fn test_enhanced_error_types() {
+    let kem_error =
+        HpkeError::kem_error(HpkeKem::MlKem512, KemOperation::KeyGeneration, "Test error");
+
+    match kem_error {
+        HpkeError::KemError {
+            algorithm,
+            operation,
+            cause,
+        } => {
+            assert_eq!(algorithm, HpkeKem::MlKem512);
+            assert_eq!(operation, KemOperation::KeyGeneration);
+            assert_eq!(cause, "Test error");
+        }
+        _ => panic!("Expected KemError"),
+    }
+
+    let security_error = HpkeError::security_error(SecurityValidation::KeyLength, "Test error");
+
+    match security_error {
+        HpkeError::SecurityError { validation, cause } => {
+            assert_eq!(validation, SecurityValidation::KeyLength);
+            assert_eq!(cause, "Test error");
+        }
+        _ => panic!("Expected SecurityError"),
+    }
+}
+
+#[test]
+fn test_provider_traits() {
+    let provider = PostQuantumProvider::new();
+
+    assert_eq!(provider.name(), "PostQuantumProvider");
+
+    let algorithms = provider.supported_algorithms();
+
+    // With default features enabled, we should have algorithm support
+    // The exact algorithms depend on which features are enabled
+    #[cfg(all(feature = "ml-kem", feature = "hash", feature = "saturnin"))]
+    {
+        // All algorithms should be supported with default features
+        assert!(
+            !algorithms.kems.is_empty(),
+            "KEM algorithms should be supported with ml-kem feature"
+        );
+        assert!(
+            !algorithms.kdfs.is_empty(),
+            "KDF algorithms should be supported with hash feature"
+        );
+        assert!(
+            !algorithms.aeads.is_empty(),
+            "AEAD algorithms should be supported with saturnin feature"
+        );
+
+        // Verify specific algorithms are present
+        assert!(algorithms.kems.contains(&HpkeKem::MlKem512));
+        assert!(algorithms.kems.contains(&HpkeKem::MlKem768));
+        assert!(algorithms.kems.contains(&HpkeKem::MlKem1024));
+
+        assert!(algorithms.kdfs.contains(&HpkeKdf::HkdfShake128));
+        assert!(algorithms.kdfs.contains(&HpkeKdf::HkdfShake256));
+        assert!(algorithms.kdfs.contains(&HpkeKdf::HkdfSha3_256));
+        assert!(algorithms.kdfs.contains(&HpkeKdf::HkdfSha3_512));
+
+        assert!(algorithms.aeads.contains(&HpkeAead::Saturnin256));
+        assert!(algorithms.aeads.contains(&HpkeAead::Shake256));
+        assert!(algorithms.aeads.contains(&HpkeAead::Export));
+    }
+
+    #[cfg(not(all(feature = "ml-kem", feature = "hash", feature = "saturnin")))]
+    {
+        // Without features, algorithms should be empty
+        assert!(algorithms.kems.is_empty());
+        assert!(algorithms.kdfs.is_empty());
+        assert!(algorithms.aeads.is_empty());
+    }
+}
+
+#[test]
+fn test_supported_algorithms() {
+    let algorithms = SupportedAlgorithms::new(
+        vec![HpkeKem::MlKem512, HpkeKem::MlKem768],
+        vec![HpkeKdf::HkdfShake256],
+        vec![HpkeAead::Saturnin256],
+    );
+
+    assert!(algorithms.supports_kem(HpkeKem::MlKem512));
+    assert!(algorithms.supports_kem(HpkeKem::MlKem768));
+    assert!(!algorithms.supports_kem(HpkeKem::MlKem1024));
+
+    assert!(algorithms.supports_kdf(HpkeKdf::HkdfShake256));
+    assert!(!algorithms.supports_kdf(HpkeKdf::HkdfShake128));
+
+    assert!(algorithms.supports_aead(HpkeAead::Saturnin256));
+    assert!(!algorithms.supports_aead(HpkeAead::Shake256));
+}
+
+#[test]
+fn test_error_macros() {
+    let kem_error = kem_err!(HpkeKem::MlKem512, KemOperation::KeyGeneration, "Test");
+    assert!(matches!(kem_error, HpkeError::KemError { .. }));
+
+    let kdf_error = kdf_err!(HpkeKdf::HkdfShake256, KdfOperation::Extract, "Test");
+    assert!(matches!(kdf_error, HpkeError::KdfError { .. }));
+
+    let aead_error = aead_err!(HpkeAead::Saturnin256, AeadOperation::Seal, "Test");
+    assert!(matches!(aead_error, HpkeError::AeadError { .. }));
+
+    let security_error = security_err!(SecurityValidation::KeyLength, "Test");
+    assert!(matches!(security_error, HpkeError::SecurityError { .. }));
+
+    let protocol_error = protocol_err!(ProtocolStage::KeySchedule, "Test");
+    assert!(matches!(protocol_error, HpkeError::ProtocolError { .. }));
+}
+
+#[test]
+fn test_key_validation() {
+    // Test KEM key validation
+    let kem_key = vec![1u8; 800]; // ML-KEM-512 public key length
+    assert!(validate_kem_key(HpkeKem::MlKem512, &kem_key, false).is_ok());
+
+    // Test AEAD key validation
+    let aead_key = vec![1u8; 32];
+    assert!(validate_aead_key(HpkeAead::Saturnin256, &aead_key).is_ok());
+
+    // Test AEAD nonce validation
+    let nonce = vec![1u8; 16];
+    assert!(validate_aead_nonce(HpkeAead::Saturnin256, &nonce).is_ok());
+
+    // Test ciphertext validation
+    let ciphertext = vec![1u8; 100];
+    assert!(validate_ciphertext(&ciphertext).is_ok());
+}
+
+#[test]
+fn test_security_policy_validation() {
+    let policy = SecurityPolicy::strict();
+
+    // Test valid key
+    let key = vec![1u8; 32];
+    assert!(policy.validate_key(&key, 32).is_ok());
+
+    // Test invalid key length
+    let invalid_key = vec![1u8; 16];
+    assert!(policy.validate_key(&invalid_key, 32).is_err());
+
+    // Test zero key rejection
+    let zero_key = vec![0u8; 32];
+    assert!(policy.validate_key(&zero_key, 32).is_err());
+
+    // Test key too large
+    let large_key = vec![1u8; 64];
+    assert!(policy.validate_key(&large_key, 32).is_err());
+}
+
+#[test]
+fn test_constant_time_utilities() {
+    // Test constant time equality
+    let a = [1u8, 2u8, 3u8, 4u8];
+    let b = [1u8, 2u8, 3u8, 4u8];
+    let c = [1u8, 2u8, 3u8, 5u8];
+
+    assert!(constant_time_eq(&a, &b));
+    assert!(!constant_time_eq(&a, &c));
+
+    // Test constant time selection
+    assert_eq!(constant_time_select(1, 0xFF, 0x00), 0xFF);
+    assert_eq!(constant_time_select(0, 0xFF, 0x00), 0x00);
+
+    // Test constant time copy
+    let mut dst = [0u8; 4];
+    let src = [1u8, 2u8, 3u8, 4u8];
+    constant_time_copy(1, &mut dst, &src);
+    assert_eq!(dst, src);
+
+    constant_time_copy(0, &mut dst, &[5u8, 6u8, 7u8, 8u8]);
+    assert_eq!(dst, src); // Should be unchanged
+}
+
+#[test]
+fn test_secure_memory_operations() {
+    // Test SecureKey
+    let mut key = SecureKey::new(vec![1u8, 2u8, 3u8, 4u8]);
+    assert_eq!(key.len(), 4);
+    assert!(!key.is_empty());
+
+    key.resize(6, 0);
+    assert_eq!(key.len(), 6);
+    assert_eq!(key.as_slice(), &[1u8, 2u8, 3u8, 4u8, 0u8, 0u8]);
+
+    key.extend_from_slice(&[5u8, 6u8]);
+    assert_eq!(key.len(), 8);
+    assert_eq!(key.as_slice(), &[1u8, 2u8, 3u8, 4u8, 0u8, 0u8, 5u8, 6u8]);
+
+    // Test SecureNonce
+    let nonce = SecureNonce::new(vec![7u8, 8u8, 9u8, 10u8]);
+    assert_eq!(nonce.len(), 4);
+    assert_eq!(nonce.as_slice(), &[7u8, 8u8, 9u8, 10u8]);
+
+    // Test SecureBuffer
+    let mut buffer = SecureBuffer::new();
+    assert!(buffer.is_empty());
+
+    buffer.push(11);
+    buffer.push(12);
+    assert_eq!(buffer.len(), 2);
+    assert_eq!(buffer.as_slice(), &[11u8, 12u8]);
+
+    buffer.extend_from_slice(&[13u8, 14u8]);
+    assert_eq!(buffer.as_slice(), &[11u8, 12u8, 13u8, 14u8]);
+
+    buffer.clear();
+    assert!(buffer.is_empty());
+}
+
+#[test]
+fn test_prng_operations() {
+    let mut rng = SimpleRng::new();
+
+    // Test fill_bytes
+    let mut bytes1 = [0u8; 16];
+    let mut bytes2 = [0u8; 16];
+
+    rng.fill_bytes(&mut bytes1).unwrap();
+    rng.fill_bytes(&mut bytes2).unwrap();
+
+    // Should be different
+    assert_ne!(bytes1, bytes2);
+
+    // Test next_u32
+    let val1 = rng.next_u32().unwrap();
+    let val2 = rng.next_u32().unwrap();
+    assert_ne!(val1, val2);
+
+    // Test next_u64
+    let val3 = rng.next_u64().unwrap();
+    let val4 = rng.next_u64().unwrap();
+    assert_ne!(val3, val4);
+
+    // Test deterministic behavior with seed
+    let mut rng1 = SimpleRng::from_seed(42);
+    let mut rng2 = SimpleRng::from_seed(42);
+
+    let val1 = rng1.next_u32().unwrap();
+    let val2 = rng2.next_u32().unwrap();
+    assert_eq!(val1, val2);
+}
+
+#[test]
+fn test_error_display() {
+    let error = HpkeError::kem_error(
+        HpkeKem::MlKem512,
+        KemOperation::KeyGeneration,
+        "Test error message",
+    );
+
+    let display = format!("{}", error);
+    assert!(display.contains("KEM error"));
+    assert!(display.contains("MlKem512"));
+    assert!(display.contains("KeyGeneration"));
+    assert!(display.contains("Test error message"));
+}
+
+#[test]
+fn test_algorithm_support() {
+    let algorithms = SupportedAlgorithms::new(
+        vec![HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024],
+        vec![
+            HpkeKdf::HkdfShake128,
+            HpkeKdf::HkdfShake256,
+            HpkeKdf::HkdfSha3_256,
+            HpkeKdf::HkdfSha3_512,
+        ],
+        vec![HpkeAead::Saturnin256, HpkeAead::Shake256],
+    );
+
+    // Test KEM support
+    assert!(algorithms.supports_kem(HpkeKem::MlKem512));
+    assert!(algorithms.supports_kem(HpkeKem::MlKem768));
+    assert!(algorithms.supports_kem(HpkeKem::MlKem1024));
+
+    // Test KDF support
+    assert!(algorithms.supports_kdf(HpkeKdf::HkdfShake128));
+    assert!(algorithms.supports_kdf(HpkeKdf::HkdfShake256));
+    assert!(algorithms.supports_kdf(HpkeKdf::HkdfSha3_256));
+    assert!(algorithms.supports_kdf(HpkeKdf::HkdfSha3_512));
+
+    // Test AEAD support
+    assert!(algorithms.supports_aead(HpkeAead::Saturnin256));
+    assert!(algorithms.supports_aead(HpkeAead::Shake256));
+    assert!(!algorithms.supports_aead(HpkeAead::Export));
+}

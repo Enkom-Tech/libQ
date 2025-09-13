@@ -20,37 +20,49 @@ required-features = ["alloc"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", default-features = false }
+lib-q-kem = { path = "../lib-q-kem", default-features = false }
+lib-q-hash = { path = "../lib-q-hash", default-features = false }
+lib-q-aead = { path = "../lib-q-aead", default-features = false, features = ["saturnin", "shake256"] }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 
 # Post-quantum dependencies only
 rand_core = { version = "0.9.3", default-features = false }
-rand_chacha = { version = "0.9.0", default-features = false }
 zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
-
-# Post-quantum hash functions for HKDF
-lib-q-hash = { path = "../lib-q-hash", optional = true }
+getrandom = { version = "0.3.3", default-features = false, optional = true }
 
 # Post-quantum AEADs
-lib-q-aead = { path = "../lib-q-aead", optional = true }
 lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 
 [features]
-default = ["alloc", "ml-kem", "saturnin", "hash"]
-std = ["alloc", "lib-q-core/std", "rand_core/std"]
+default = ["alloc", "ml-kem", "saturnin", "hash", "secure-rng"]
+std = ["alloc", "lib-q-core/std", "rand_core/std", "getrandom/std"]
 alloc = ["lib-q-core/alloc"]
+secure-rng = ["getrandom", "getrandom/std"]
 
 # Post-quantum algorithm support
-ml-kem = ["dep:lib-q-ml-kem"]
+ml-kem = ["dep:lib-q-ml-kem", "lib-q-kem/ml-kem"]
 ml-dsa = ["dep:lib-q-ml-dsa"]
-hash = ["dep:lib-q-hash"]
+hash = ["lib-q-hash/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
+
+# WebAssembly support
+wasm = ["getrandom/wasm_js"]
 
 # Testing
 hpke-test = ["std"]
 
+[[example]]
+name = "basic_usage"
+required-features = ["std"]
+
+[[example]]
+name = "advanced_usage"
+required-features = ["std"]
+
 [dev-dependencies]
 rand = "0.9.2"
+lib-q = { path = "..", features = ["ml-kem"] }
 
 [package.metadata.docs.rs]
 all-features = true

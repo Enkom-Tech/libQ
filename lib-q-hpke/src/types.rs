@@ -73,6 +73,24 @@ impl HpkeKem {
             Self::MlKem1024 => 1568,
         }
     }
+
+    /// Public key length in bytes
+    pub fn public_key_len(self) -> usize {
+        match self {
+            Self::MlKem512 => 800,
+            Self::MlKem768 => 1184,
+            Self::MlKem1024 => 1568,
+        }
+    }
+
+    /// Secret key length in bytes
+    pub fn secret_key_len(self) -> usize {
+        match self {
+            Self::MlKem512 => 1632,
+            Self::MlKem768 => 2400,
+            Self::MlKem1024 => 3168,
+        }
+    }
 }
 
 /// Post-quantum key derivation functions
@@ -104,6 +122,16 @@ impl HpkeKdf {
         match self {
             Self::HkdfShake128 => 32,
             Self::HkdfShake256 => 64,
+            Self::HkdfSha3_256 => 32,
+            Self::HkdfSha3_512 => 64,
+        }
+    }
+
+    /// Extract output length in bytes
+    pub fn extract_len(self) -> usize {
+        match self {
+            Self::HkdfShake128 => 16,
+            Self::HkdfShake256 => 32,
             Self::HkdfSha3_256 => 32,
             Self::HkdfSha3_512 => 64,
         }
@@ -280,24 +308,39 @@ pub type EncapsulatedKey = Vec<u8>;
 /// Exported key material
 pub type ExportedKey = Vec<u8>;
 
-/// HPKE sender context
+/// HPKE context state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HpkeContextState {
+    /// Context is active and can be used for encryption/decryption
+    Active,
+    /// Context has reached maximum sequence number and needs rekeying
+    NeedsRekey,
+    /// Context has been closed and cannot be used
+    Closed,
+}
+
+/// HPKE sender context (no_std version)
+///
+/// This is the core context structure that can be used in no_std environments.
+/// The std version in lib.rs wraps this structure with additional functionality.
 #[derive(Debug)]
 pub struct HpkeSenderContext {
     /// Shared secret from KEM
-    #[allow(dead_code)]
-    pub(crate) shared_secret: Vec<u8>,
+    pub shared_secret: Vec<u8>,
     /// Exporter secret
-    #[allow(dead_code)]
-    pub(crate) exporter_secret: Vec<u8>,
+    pub exporter_secret: Vec<u8>,
     /// AEAD encryption key
-    #[allow(dead_code)]
-    pub(crate) key: Vec<u8>,
+    pub key: Vec<u8>,
     /// Base nonce
-    #[allow(dead_code)]
-    pub(crate) nonce: Vec<u8>,
+    pub nonce: Vec<u8>,
+    /// Encapsulated key to be sent to receiver
+    pub encapsulated_key: Vec<u8>,
     /// Sequence number
-    #[allow(dead_code)]
-    pub(crate) sequence_number: u32,
+    pub sequence_number: u32,
+    /// Maximum sequence number before context must be rekeyed
+    pub max_sequence_number: u32,
+    /// Context state
+    pub state: HpkeContextState,
 }
 
 impl HpkeSenderContext {
@@ -307,35 +350,68 @@ impl HpkeSenderContext {
         exporter_secret: Vec<u8>,
         key: Vec<u8>,
         nonce: Vec<u8>,
+        encapsulated_key: Vec<u8>,
     ) -> Self {
         Self {
             shared_secret,
             exporter_secret,
             key,
             nonce,
+            encapsulated_key,
             sequence_number: 0,
+            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
+            state: HpkeContextState::Active,
         }
+    }
+
+    /// Check if the context can be used for encryption
+    pub fn can_encrypt(&self) -> bool {
+        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+    }
+
+    /// Increment sequence number with overflow protection
+    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
+        if self.sequence_number >= self.max_sequence_number {
+            self.state = HpkeContextState::NeedsRekey;
+            return Err(crate::error::HpkeError::CryptoError(
+                "Sequence number overflow: context needs rekeying".into(),
+            ));
+        }
+        self.sequence_number = self.sequence_number.wrapping_add(1);
+        Ok(())
+    }
+
+    /// Close the context
+    pub fn close(&mut self) {
+        self.state = HpkeContextState::Closed;
+    }
+
+    /// Get the encapsulated key to send to the receiver
+    pub fn encapsulated_key(&self) -> &[u8] {
+        &self.encapsulated_key
     }
 }
 
-/// HPKE receiver context
+/// HPKE receiver context (no_std version)
+///
+/// This is the core context structure that can be used in no_std environments.
+/// The std version in lib.rs wraps this structure with additional functionality.
 #[derive(Debug)]
 pub struct HpkeReceiverContext {
     /// Shared secret from KEM
-    #[allow(dead_code)]
-    pub(crate) shared_secret: Vec<u8>,
+    pub shared_secret: Vec<u8>,
     /// Exporter secret
-    #[allow(dead_code)]
-    pub(crate) exporter_secret: Vec<u8>,
+    pub exporter_secret: Vec<u8>,
     /// AEAD decryption key
-    #[allow(dead_code)]
-    pub(crate) key: Vec<u8>,
+    pub key: Vec<u8>,
     /// Base nonce
-    #[allow(dead_code)]
-    pub(crate) nonce: Vec<u8>,
+    pub nonce: Vec<u8>,
     /// Sequence number
-    #[allow(dead_code)]
-    pub(crate) sequence_number: u32,
+    pub sequence_number: u32,
+    /// Maximum sequence number before context must be rekeyed
+    pub max_sequence_number: u32,
+    /// Context state
+    pub state: HpkeContextState,
 }
 
 impl HpkeReceiverContext {
@@ -352,6 +428,30 @@ impl HpkeReceiverContext {
             key,
             nonce,
             sequence_number: 0,
+            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
+            state: HpkeContextState::Active,
         }
+    }
+
+    /// Check if the context can be used for decryption
+    pub fn can_decrypt(&self) -> bool {
+        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+    }
+
+    /// Increment sequence number with overflow protection
+    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
+        if self.sequence_number >= self.max_sequence_number {
+            self.state = HpkeContextState::NeedsRekey;
+            return Err(crate::error::HpkeError::CryptoError(
+                "Sequence number overflow: context needs rekeying".into(),
+            ));
+        }
+        self.sequence_number = self.sequence_number.wrapping_add(1);
+        Ok(())
+    }
+
+    /// Close the context
+    pub fn close(&mut self) {
+        self.state = HpkeContextState::Closed;
     }
 }

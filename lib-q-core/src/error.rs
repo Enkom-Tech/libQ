@@ -129,6 +129,12 @@ pub enum Error {
     UnsupportedAlgorithm { algorithm: String },
     #[cfg(not(feature = "alloc"))]
     UnsupportedAlgorithm { algorithm: &'static str },
+
+    /// Authentication failed
+    #[cfg(feature = "alloc")]
+    AuthenticationFailed { operation: String },
+    #[cfg(not(feature = "alloc"))]
+    AuthenticationFailed { operation: &'static str },
 }
 
 impl fmt::Display for Error {
@@ -212,6 +218,9 @@ impl fmt::Display for Error {
             Error::UnsupportedAlgorithm { algorithm } => {
                 write!(f, "Unsupported algorithm: {algorithm}")
             }
+            Error::AuthenticationFailed { operation } => {
+                write!(f, "Authentication failed: {operation}")
+            }
         }
     }
 }
@@ -255,6 +264,7 @@ impl Error {
             Error::InvalidState { .. } => "InvalidState".to_string(),
             Error::InvalidKeyFormat => "InvalidKeyFormat".to_string(),
             Error::UnsupportedAlgorithm { .. } => "UnsupportedAlgorithm".to_string(),
+            Error::AuthenticationFailed { .. } => "AuthenticationFailed".to_string(),
         }
     }
 }

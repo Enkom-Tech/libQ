@@ -90,6 +90,27 @@ pub trait HashOperations {
     fn hash(&self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>>;
 }
 
+/// AEAD operations
+#[cfg(feature = "alloc")]
+pub trait AeadOperations {
+    fn encrypt(
+        &self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>>;
+    fn decrypt(
+        &self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>>;
+}
+
 /// Cryptographic provider that supplies implementations
 pub trait CryptoProvider: Send + Sync {
     #[cfg(feature = "alloc")]
@@ -98,6 +119,8 @@ pub trait CryptoProvider: Send + Sync {
     fn signature(&self) -> Option<&dyn SignatureOperations>;
     #[cfg(feature = "alloc")]
     fn hash(&self) -> Option<&dyn HashOperations>;
+    #[cfg(feature = "alloc")]
+    fn aead(&self) -> Option<&dyn AeadOperations>;
 }
 
 /// Algorithm identifiers for cryptographic operations
@@ -159,6 +182,8 @@ pub enum Algorithm {
 
     // AEAD algorithms
     Saturnin,
+    Shake256Aead,
+    KemAead,
 }
 
 impl Algorithm {
@@ -225,6 +250,8 @@ impl Algorithm {
 
             // AEAD algorithms
             Algorithm::Saturnin => 1,
+            Algorithm::Shake256Aead => 1,
+            Algorithm::KemAead => 4,
         }
     }
 
@@ -281,7 +308,9 @@ impl Algorithm {
             Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
 
             // AEAD algorithms
-            Algorithm::Saturnin => AlgorithmCategory::Aead,
+            Algorithm::Saturnin | Algorithm::Shake256Aead | Algorithm::KemAead => {
+                AlgorithmCategory::Aead
+            }
         }
     }
 }
@@ -388,6 +417,10 @@ impl CryptoProvider for DefaultCryptoProvider {
 
     fn hash(&self) -> Option<&dyn HashOperations> {
         Some(&DefaultHashImpl)
+    }
+
+    fn aead(&self) -> Option<&dyn AeadOperations> {
+        Some(&DefaultAeadImpl)
     }
 }
 
@@ -522,6 +555,38 @@ impl HashOperations for DefaultHashImpl {
     fn hash(&self, _algorithm: Algorithm, _data: &[u8]) -> Result<Vec<u8>> {
         Err(crate::error::Error::NotImplemented {
             feature: String::from("Real hash implementations in lib-q-hash"),
+        })
+    }
+}
+
+#[cfg(feature = "std")]
+struct DefaultAeadImpl;
+
+#[cfg(feature = "std")]
+impl AeadOperations for DefaultAeadImpl {
+    fn encrypt(
+        &self,
+        _algorithm: Algorithm,
+        _key: &AeadKey,
+        _nonce: &Nonce,
+        _plaintext: &[u8],
+        _associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        Err(crate::error::Error::NotImplemented {
+            feature: String::from("Real AEAD implementations in lib-q-aead"),
+        })
+    }
+
+    fn decrypt(
+        &self,
+        _algorithm: Algorithm,
+        _key: &AeadKey,
+        _nonce: &Nonce,
+        _ciphertext: &[u8],
+        _associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        Err(crate::error::Error::NotImplemented {
+            feature: String::from("Real AEAD implementations in lib-q-aead"),
         })
     }
 }
@@ -818,6 +883,109 @@ impl HashContext {
 
 #[cfg(feature = "alloc")]
 impl Default for HashContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// AEAD context for authenticated encryption operations
+#[cfg(feature = "alloc")]
+pub struct AeadContext {
+    inner: Context<Self>,
+    provider: Option<Box<dyn CryptoProvider>>,
+}
+
+#[cfg(feature = "alloc")]
+impl AeadContext {
+    /// Create a new AEAD context with no provider (returns errors for all operations)
+    pub fn new() -> Self {
+        Self {
+            inner: Context::new(),
+            provider: None,
+        }
+    }
+
+    /// Create a new AEAD context with the default provider
+    #[cfg(feature = "std")]
+    pub fn with_default_provider() -> Self {
+        Self {
+            inner: Context::new(),
+            provider: Some(Box::new(DefaultCryptoProvider)),
+        }
+    }
+
+    /// Create a new AEAD context with a cryptographic provider
+    pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
+        Self {
+            inner: Context::new(),
+            provider: Some(provider),
+        }
+    }
+
+    /// Set the cryptographic provider
+    pub fn set_provider(&mut self, provider: Box<dyn CryptoProvider>) {
+        self.provider = Some(provider);
+    }
+
+    /// Encrypt data using the specified algorithm
+    #[cfg(feature = "alloc")]
+    pub fn encrypt(
+        &mut self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        if !self.inner.is_initialized() {
+            self.inner.init()?;
+        }
+
+        // Validate algorithm category
+        if algorithm.category() != AlgorithmCategory::Aead {
+            return Err(crate::error::Error::InvalidAlgorithm {
+                algorithm: "Algorithm is not an AEAD algorithm",
+            });
+        }
+
+        // Use provider if available, otherwise return a clear error
+        match self.provider.as_ref().and_then(|p| p.aead()) {
+            Some(aead_ops) => aead_ops.encrypt(algorithm, key, nonce, plaintext, associated_data),
+            None => Err(crate::error::Error::NotImplemented {
+                feature: String::from("AEAD operations - no provider configured"),
+            }),
+        }
+    }
+
+    /// Decrypt data using the specified algorithm
+    #[cfg(feature = "alloc")]
+    pub fn decrypt(
+        &self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        if !self.inner.is_initialized() {
+            return Err(crate::error::Error::InvalidState {
+                operation: String::from("decrypt"),
+                reason: String::from("Context not initialized"),
+            });
+        }
+
+        // Use provider if available, otherwise return a clear error
+        match self.provider.as_ref().and_then(|p| p.aead()) {
+            Some(aead_ops) => aead_ops.decrypt(algorithm, key, nonce, ciphertext, associated_data),
+            None => Err(crate::error::Error::NotImplemented {
+                feature: String::from("AEAD operations - no provider configured"),
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl Default for AeadContext {
     fn default() -> Self {
         Self::new()
     }

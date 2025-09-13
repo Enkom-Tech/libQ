@@ -32,6 +32,42 @@ pub trait Kem {
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>>;
     #[cfg(not(feature = "alloc"))]
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<&'static [u8]>;
+
+    /// Derive public key from secret key
+    #[cfg(feature = "alloc")]
+    fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey>;
+    #[cfg(not(feature = "alloc"))]
+    fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey>;
+
+    /// Authenticated encapsulation (RFC 9180 AuthEncap)
+    #[cfg(feature = "alloc")]
+    fn auth_encapsulate(
+        &self,
+        sender_sk: &KemSecretKey,
+        recipient_pk: &KemPublicKey,
+    ) -> Result<(Vec<u8>, Vec<u8>)>;
+    #[cfg(not(feature = "alloc"))]
+    fn auth_encapsulate(
+        &self,
+        sender_sk: &KemSecretKey,
+        recipient_pk: &KemPublicKey,
+    ) -> Result<(&'static [u8], &'static [u8])>;
+
+    /// Authenticated decapsulation (RFC 9180 AuthDecap)
+    #[cfg(feature = "alloc")]
+    fn auth_decapsulate(
+        &self,
+        recipient_sk: &KemSecretKey,
+        ciphertext: &[u8],
+        sender_pk: &KemPublicKey,
+    ) -> Result<Vec<u8>>;
+    #[cfg(not(feature = "alloc"))]
+    fn auth_decapsulate(
+        &self,
+        recipient_sk: &KemSecretKey,
+        ciphertext: &[u8],
+        sender_pk: &KemPublicKey,
+    ) -> Result<&'static [u8]>;
 }
 
 /// Trait for digital signatures

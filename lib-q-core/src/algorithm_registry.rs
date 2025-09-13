@@ -509,6 +509,24 @@ impl AlgorithmRegistry {
             description: "Saturnin - Lightweight post-quantum symmetric algorithm suite for IoT and constrained devices",
             enabled: true,
         });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Shake256Aead,
+            category: AlgorithmCategory::Aead,
+            security_level: 1,
+            name: "SHAKE256-AEAD",
+            description: "SHAKE256-based AEAD construction using post-quantum hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::KemAead,
+            category: AlgorithmCategory::Aead,
+            security_level: 4,
+            name: "KEM-AEAD",
+            description: "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
+            enabled: true,
+        });
     }
 
     /// Register an algorithm
@@ -571,6 +589,11 @@ impl AlgorithmRegistry {
                 Algorithm::FnDsa1024,
             ],
             AlgorithmCategory::Hash => &[],
+            AlgorithmCategory::Aead => &[
+                Algorithm::Saturnin,
+                Algorithm::Shake256Aead,
+                Algorithm::KemAead,
+            ],
         }
     }
 
@@ -593,9 +616,11 @@ impl AlgorithmRegistry {
                 Algorithm::MlDsa44,
                 Algorithm::FnDsa,
                 Algorithm::FnDsa512,
+                Algorithm::Saturnin,
+                Algorithm::Shake256Aead,
             ],
             3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
-            4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87],
+            4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87, Algorithm::KemAead],
             5 => &[Algorithm::FnDsa1024],
             _ => &[],
         }
