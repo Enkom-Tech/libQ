@@ -104,8 +104,8 @@ pub(crate) fn zint_mod_small_signed(
 pub(crate) fn zint_add_mul_small(d: &mut [u32], dstride: usize, a: &[u32], s: u32) {
     let mut cc = 0u32;
     let mut j = 0;
-    for i in 0..a.len() {
-        let z = (s as u64) * (a[i] as u64) + (d[j] as u64) + (cc as u64);
+    for a_item in a {
+        let z = (s as u64) * (*a_item as u64) + (d[j] as u64) + (cc as u64);
         d[j] = (z as u32) & 0x7FFFFFFF;
         j += dstride;
         cc = (z >> 31) as u32;
@@ -151,8 +151,8 @@ pub(crate) fn zint_norm_zero(x: &mut [u32], xstride: usize, m: &[u32]) {
     let mut cc = 0;
     let mk = tbmask(r);
     j = 0;
-    for i in 0..m.len() {
-        let xw = x[j].wrapping_sub(m[i] & mk).wrapping_sub(cc);
+    for m_item in m {
+        let xw = x[j].wrapping_sub(*m_item & mk).wrapping_sub(cc);
         x[j] = xw & 0x7FFFFFFF;
         j += xstride;
         cc = xw >> 31;
@@ -595,8 +595,8 @@ pub(crate) fn zint_bezout(
     // b contains GCD(x,y), provided that x and y were indeed odd.
     // Result is correct if the GCD is 1.
     let mut r = b[0] ^ 1;
-    for i in 1..b.len() {
-        r |= b[i];
+    for b_item in b.iter().skip(1) {
+        r |= *b_item;
     }
 
     r |= (x[0] & y[0] & 1) ^ 1;

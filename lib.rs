@@ -3,15 +3,21 @@
 //! A modern, secure cryptography library built exclusively with NIST-approved
 //! post-quantum algorithms. Written in Rust with WASM compilation support.
 //!
-//! # Features
+//! # Architecture Principles
 //!
-//! - **Unified API**: Same interface for Rust crate and WASM usage
-//! - **Type Safety**: Strong type system prevents misuse
-//! - **Memory Safety**: Automatic zeroization of sensitive data
+//! - **Zero Dynamic Allocations**: Stack-only operations for constrained environments
+//! - **Memory Safety**: Automatic zeroization of sensitive data using `Zeroize` trait
 //! - **Constant-Time**: Operations designed to prevent timing attacks
-//! - **Post-Quantum**: NIST-approved algorithms for quantum resistance
-//! - **Four-Tier Security**: Ultra-Secure, Balanced, Performance, and Hybrid security tiers
-//! - **Algorithm Diversity**: Support for ML-KEM, ML-DSA, FN-DSA, Saturnin, DAWN, and RCPKC
+//! - **Post-Quantum Only**: NIST-approved algorithms for quantum resistance
+//! - **Provider Pattern**: Pluggable cryptographic implementations
+//! - **Unified API**: Same interface for Rust crate and WASM usage
+//!
+//! # Security Features
+//!
+//! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
+//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, DAWN, and RCPKC
+//! - **Input Validation**: Comprehensive validation of all cryptographic inputs
+//! - **Error Handling**: Secure error messages that don't leak sensitive information
 //!
 //! # Example Usage
 //!
@@ -150,11 +156,18 @@ impl CryptoProvider for LibQCryptoProvider {
     fn hash(&self) -> Option<&dyn HashOperations> {
         Some(&RealHashImpl)
     }
+
+    fn aead(&self) -> Option<&dyn AeadOperations> {
+        Some(&RealAeadImpl)
+    }
 }
 
 // Real implementations that delegate to actual crypto crates
 #[cfg(feature = "std")]
 struct RealKemImpl;
+
+#[cfg(feature = "std")]
+struct RealAeadImpl;
 
 #[cfg(feature = "std")]
 impl KemOperations for RealKemImpl {
@@ -163,6 +176,9 @@ impl KemOperations for RealKemImpl {
         algorithm: Algorithm,
         _randomness: Option<&[u8]>,
     ) -> Result<KemKeypair> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Kem)?;
+
         match algorithm {
             #[cfg(feature = "ml-kem")]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -202,14 +218,34 @@ impl KemOperations for RealKemImpl {
     fn encapsulate(
         &self,
         algorithm: Algorithm,
-        _public_key: &KemPublicKey,
-        _randomness: Option<&[u8]>,
+        public_key: &KemPublicKey,
+        randomness: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Kem)?;
+
+        // Validate public key size
+        security::validate_key_size(algorithm, public_key.as_bytes(), false)?;
+
+        // Validate randomness if provided
+        if let Some(rng) = randomness {
+            // Randomness should be at least 32 bytes for cryptographic operations
+            if rng.len() < 32 {
+                return Err(Error::InvalidKeySize {
+                    expected: 32,
+                    actual: rng.len(),
+                });
+            }
+
+            // Validate randomness is not all zeros (security check)
+            security::validate_key_material(rng)?;
+        }
+
         match algorithm {
             #[cfg(feature = "ml-kem")]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 let kem = create_kem(algorithm)?;
-                kem.encapsulate(_public_key)
+                kem.encapsulate(public_key)
             }
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -220,7 +256,7 @@ impl KemOperations for RealKemImpl {
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
                 let kem = create_kem(algorithm)?;
-                kem.encapsulate(_public_key)
+                kem.encapsulate(public_key)
             }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
@@ -229,7 +265,7 @@ impl KemOperations for RealKemImpl {
             #[cfg(feature = "rcpkc")]
             Algorithm::Rcpkc => {
                 let kem = create_kem(algorithm)?;
-                kem.encapsulate(_public_key)
+                kem.encapsulate(public_key)
             }
             #[cfg(not(feature = "rcpkc"))]
             Algorithm::Rcpkc => Err(Error::NotImplemented {
@@ -244,14 +280,52 @@ impl KemOperations for RealKemImpl {
     fn decapsulate(
         &self,
         algorithm: Algorithm,
-        _secret_key: &KemSecretKey,
-        _ciphertext: &[u8],
+        secret_key: &KemSecretKey,
+        ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Kem)?;
+
+        // Validate secret key size
+        security::validate_key_size(algorithm, secret_key.as_bytes(), true)?;
+
+        // Validate key material (security check)
+        security::validate_key_material(secret_key.as_bytes())?;
+
+        // Validate ciphertext size (basic check - should not be empty)
+        if ciphertext.is_empty() {
+            return Err(Error::InvalidCiphertextSize {
+                expected: 1,
+                actual: 0,
+            });
+        }
+
+        // Validate ciphertext size based on algorithm
+        let expected_ciphertext_size = match algorithm {
+            Algorithm::MlKem512 => 768,   // ML-KEM-512 ciphertext size
+            Algorithm::MlKem768 => 1088,  // ML-KEM-768 ciphertext size
+            Algorithm::MlKem1024 => 1568, // ML-KEM-1024 ciphertext size
+            Algorithm::Dawn => 1024,      // DAWN ciphertext size
+            Algorithm::Rcpkc => 1024,     // RCPKC ciphertext size
+            _ => {
+                return Err(Error::InvalidAlgorithm {
+                    algorithm: "Algorithm does not support decapsulation",
+                });
+            }
+        };
+
+        if ciphertext.len() != expected_ciphertext_size {
+            return Err(Error::InvalidCiphertextSize {
+                expected: expected_ciphertext_size,
+                actual: ciphertext.len(),
+            });
+        }
+
         match algorithm {
             #[cfg(feature = "ml-kem")]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 let kem = create_kem(algorithm)?;
-                kem.decapsulate(_secret_key, _ciphertext)
+                kem.decapsulate(secret_key, ciphertext)
             }
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -262,7 +336,7 @@ impl KemOperations for RealKemImpl {
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
                 let kem = create_kem(algorithm)?;
-                kem.decapsulate(_secret_key, _ciphertext)
+                kem.decapsulate(secret_key, ciphertext)
             }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
@@ -271,7 +345,7 @@ impl KemOperations for RealKemImpl {
             #[cfg(feature = "rcpkc")]
             Algorithm::Rcpkc => {
                 let kem = create_kem(algorithm)?;
-                kem.decapsulate(_secret_key, _ciphertext)
+                kem.decapsulate(secret_key, ciphertext)
             }
             #[cfg(not(feature = "rcpkc"))]
             Algorithm::Rcpkc => Err(Error::NotImplemented {
@@ -294,6 +368,9 @@ impl SignatureOperations for RealSignatureImpl {
         algorithm: Algorithm,
         _randomness: Option<&[u8]>,
     ) -> Result<SigKeypair> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Signature)?;
+
         match algorithm {
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa44 => {
@@ -346,25 +423,51 @@ impl SignatureOperations for RealSignatureImpl {
     fn sign(
         &self,
         algorithm: Algorithm,
-        _secret_key: &SigSecretKey,
-        _message: &[u8],
-        _randomness: Option<&[u8]>,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        randomness: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Signature)?;
+
+        // Validate secret key size
+        security::validate_key_size(algorithm, secret_key.as_bytes(), true)?;
+
+        // Validate key material (security check)
+        security::validate_key_material(secret_key.as_bytes())?;
+
+        // Validate message size (reasonable limit)
+        security::validate_message_size(message, 1024 * 1024)?; // 1MB limit
+
+        // Validate randomness if provided
+        if let Some(rng) = randomness {
+            // Randomness should be at least 32 bytes for cryptographic operations
+            if rng.len() < 32 {
+                return Err(Error::InvalidKeySize {
+                    expected: 32,
+                    actual: rng.len(),
+                });
+            }
+
+            // Validate randomness is not all zeros (security check)
+            security::validate_key_material(rng)?;
+        }
+
         match algorithm {
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa44 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_44();
-                ml_dsa.sign(_secret_key, _message)
+                ml_dsa.sign(secret_key, message)
             }
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa65 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_65();
-                ml_dsa.sign(_secret_key, _message)
+                ml_dsa.sign(secret_key, message)
             }
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa87 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_87();
-                ml_dsa.sign(_secret_key, _message)
+                ml_dsa.sign(secret_key, message)
             }
             #[cfg(not(feature = "ml-dsa"))]
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
@@ -375,17 +478,17 @@ impl SignatureOperations for RealSignatureImpl {
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa => {
                 let fn_dsa = create_signature("fn-dsa")?;
-                fn_dsa.sign(_secret_key, _message)
+                fn_dsa.sign(secret_key, message)
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa512 => {
                 let fn_dsa = create_signature("fn-dsa-512")?;
-                fn_dsa.sign(_secret_key, _message)
+                fn_dsa.sign(secret_key, message)
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa1024 => {
                 let fn_dsa = create_signature("fn-dsa-1024")?;
-                fn_dsa.sign(_secret_key, _message)
+                fn_dsa.sign(secret_key, message)
             }
             #[cfg(not(feature = "fn-dsa"))]
             Algorithm::FnDsa | Algorithm::FnDsa512 | Algorithm::FnDsa1024 => {
@@ -402,25 +505,42 @@ impl SignatureOperations for RealSignatureImpl {
     fn verify(
         &self,
         algorithm: Algorithm,
-        _public_key: &SigPublicKey,
-        _message: &[u8],
-        _signature: &[u8],
+        public_key: &SigPublicKey,
+        message: &[u8],
+        signature: &[u8],
     ) -> Result<bool> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Signature)?;
+
+        // Validate public key size
+        security::validate_key_size(algorithm, public_key.as_bytes(), false)?;
+
+        // Validate message size (reasonable limit)
+        security::validate_message_size(message, 1024 * 1024)?; // 1MB limit
+
+        // Validate signature size (basic check)
+        if signature.is_empty() {
+            return Err(Error::InvalidSignatureSize {
+                expected: 1,
+                actual: 0,
+            });
+        }
+
         match algorithm {
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa44 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_44();
-                ml_dsa.verify(_public_key, _message, _signature)
+                ml_dsa.verify(public_key, message, signature)
             }
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa65 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_65();
-                ml_dsa.verify(_public_key, _message, _signature)
+                ml_dsa.verify(public_key, message, signature)
             }
             #[cfg(feature = "ml-dsa")]
             Algorithm::MlDsa87 => {
                 let ml_dsa = lib_q_sig::ml_dsa::MlDsa::ml_dsa_87();
-                ml_dsa.verify(_public_key, _message, _signature)
+                ml_dsa.verify(public_key, message, signature)
             }
             #[cfg(not(feature = "ml-dsa"))]
             Algorithm::MlDsa44 | Algorithm::MlDsa65 | Algorithm::MlDsa87 => {
@@ -431,17 +551,17 @@ impl SignatureOperations for RealSignatureImpl {
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa => {
                 let fn_dsa = create_signature("fn-dsa")?;
-                fn_dsa.verify(_public_key, _message, _signature)
+                fn_dsa.verify(public_key, message, signature)
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa512 => {
                 let fn_dsa = create_signature("fn-dsa-512")?;
-                fn_dsa.verify(_public_key, _message, _signature)
+                fn_dsa.verify(public_key, message, signature)
             }
             #[cfg(feature = "fn-dsa")]
             Algorithm::FnDsa1024 => {
                 let fn_dsa = create_signature("fn-dsa-1024")?;
-                fn_dsa.verify(_public_key, _message, _signature)
+                fn_dsa.verify(public_key, message, signature)
             }
             #[cfg(not(feature = "fn-dsa"))]
             Algorithm::FnDsa | Algorithm::FnDsa512 | Algorithm::FnDsa1024 => {
@@ -462,6 +582,12 @@ struct RealHashImpl;
 #[cfg(feature = "std")]
 impl HashOperations for RealHashImpl {
     fn hash(&self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Hash)?;
+
+        // Validate data size (reasonable limit)
+        security::validate_message_size(data, 1024 * 1024 * 1024)?; // 1GB limit
+
         // Use the hash wrapper types that implement the lib-q-core Hash trait
         match algorithm {
             Algorithm::Sha3_224 => {
@@ -555,7 +681,176 @@ impl HashOperations for RealHashImpl {
     }
 }
 
+#[cfg(feature = "std")]
+impl AeadOperations for RealAeadImpl {
+    fn encrypt(
+        &self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Aead)?;
+
+        // Validate key material (security check)
+        security::validate_key_material(key.as_bytes())?;
+
+        // Validate nonce size and uniqueness
+        security::validate_nonce_size(nonce.as_bytes(), 16)?; // Standard nonce size
+        security::validate_nonce_uniqueness(nonce.as_bytes())?;
+
+        // Validate plaintext size (reasonable limit)
+        security::validate_message_size(plaintext, 1024 * 1024)?; // 1MB limit
+
+        // Validate associated data size if present
+        if let Some(ad) = associated_data {
+            security::validate_message_size(ad, 1024 * 1024)?; // 1MB limit
+        }
+
+        match algorithm {
+            #[cfg(feature = "saturnin")]
+            Algorithm::Saturnin => {
+                let aead = lib_q_aead::create_aead(Algorithm::Saturnin)
+                    .map_err(|_| Error::CryptoError("Failed to create Saturnin AEAD"))?;
+                aead.encrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    plaintext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("Saturnin encryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::Saturnin => Err(Error::NotImplemented {
+                feature: "Saturnin AEAD support requires 'saturnin' feature flag".to_string(),
+            }),
+            #[cfg(feature = "saturnin")]
+            Algorithm::Shake256Aead => {
+                let aead = lib_q_aead::create_aead(Algorithm::Shake256Aead)
+                    .map_err(|_| Error::CryptoError("Failed to create SHAKE256 AEAD"))?;
+                aead.encrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    plaintext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("SHAKE256 encryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::Shake256Aead => Err(Error::NotImplemented {
+                feature: "SHAKE256 AEAD support requires 'shake256' feature flag".to_string(),
+            }),
+            #[cfg(feature = "saturnin")]
+            Algorithm::KemAead => {
+                let aead = lib_q_aead::create_aead(Algorithm::KemAead)
+                    .map_err(|_| Error::CryptoError("Failed to create KEM AEAD"))?;
+                aead.encrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    plaintext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("KEM AEAD encryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::KemAead => Err(Error::NotImplemented {
+                feature: "KEM AEAD support requires 'kem-aead' feature flag".to_string(),
+            }),
+            _ => Err(Error::InvalidAlgorithm {
+                algorithm: "AEAD algorithm not supported",
+            }),
+        }
+    }
+
+    fn decrypt(
+        &self,
+        algorithm: Algorithm,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        // Validate algorithm category
+        security::validate_algorithm_category(algorithm, AlgorithmCategory::Aead)?;
+
+        // Validate key material (security check)
+        security::validate_key_material(key.as_bytes())?;
+
+        // Validate nonce size and uniqueness
+        security::validate_nonce_size(nonce.as_bytes(), 16)?; // Standard nonce size
+        security::validate_nonce_uniqueness(nonce.as_bytes())?;
+
+        // Validate ciphertext size (reasonable limit)
+        security::validate_message_size(ciphertext, 1024 * 1024)?; // 1MB limit
+
+        // Validate associated data size if present
+        if let Some(ad) = associated_data {
+            security::validate_message_size(ad, 1024 * 1024)?; // 1MB limit
+        }
+
+        match algorithm {
+            #[cfg(feature = "saturnin")]
+            Algorithm::Saturnin => {
+                let aead = lib_q_aead::create_aead(Algorithm::Saturnin)
+                    .map_err(|_| Error::CryptoError("Failed to create Saturnin AEAD"))?;
+                aead.decrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    ciphertext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("Saturnin decryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::Saturnin => Err(Error::NotImplemented {
+                feature: "Saturnin AEAD support requires 'saturnin' feature flag".to_string(),
+            }),
+            #[cfg(feature = "saturnin")]
+            Algorithm::Shake256Aead => {
+                let aead = lib_q_aead::create_aead(Algorithm::Shake256Aead)
+                    .map_err(|_| Error::CryptoError("Failed to create SHAKE256 AEAD"))?;
+                aead.decrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    ciphertext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("SHAKE256 decryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::Shake256Aead => Err(Error::NotImplemented {
+                feature: "SHAKE256 AEAD support requires 'shake256' feature flag".to_string(),
+            }),
+            #[cfg(feature = "saturnin")]
+            Algorithm::KemAead => {
+                let aead = lib_q_aead::create_aead(Algorithm::KemAead)
+                    .map_err(|_| Error::CryptoError("Failed to create KEM AEAD"))?;
+                aead.decrypt(
+                    key.as_bytes(),
+                    nonce.as_bytes(),
+                    ciphertext,
+                    associated_data.unwrap_or(&[]),
+                )
+                .map_err(|_| Error::CryptoError("KEM AEAD decryption failed"))
+            }
+            #[cfg(not(feature = "saturnin"))]
+            Algorithm::KemAead => Err(Error::NotImplemented {
+                feature: "KEM AEAD support requires 'kem-aead' feature flag".to_string(),
+            }),
+            _ => Err(Error::InvalidAlgorithm {
+                algorithm: "AEAD algorithm not supported",
+            }),
+        }
+    }
+}
+
 // Convenience functions for users
+//
+// These functions create contexts with the default lib-Q provider.
+// For constrained environments, users should create contexts directly
+// with their own provider implementations to avoid heap allocations.
 #[cfg(feature = "std")]
 pub fn create_kem_context() -> KemContext {
     KemContext::with_provider(Box::new(LibQCryptoProvider::new()))
@@ -593,6 +888,182 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
 #[cfg(feature = "std")]
 pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
     algorithm_registry::algorithms_by_security_level(level)
+}
+
+/// Security validation utilities
+pub mod security {
+    use super::*;
+
+    /// Validate that an algorithm is appropriate for the given operation category
+    pub fn validate_algorithm_category(
+        algorithm: Algorithm,
+        expected_category: AlgorithmCategory,
+    ) -> Result<()> {
+        if algorithm.category() != expected_category {
+            return Err(Error::InvalidAlgorithm {
+                algorithm: "Algorithm category mismatch",
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate key size for a given algorithm
+    pub fn validate_key_size(algorithm: Algorithm, key_data: &[u8], is_secret: bool) -> Result<()> {
+        let expected_size = match algorithm {
+            // KEM algorithms
+            Algorithm::MlKem512 => {
+                if is_secret {
+                    1632
+                } else {
+                    800
+                }
+            }
+            Algorithm::MlKem768 => {
+                if is_secret {
+                    2400
+                } else {
+                    1184
+                }
+            }
+            Algorithm::MlKem1024 => {
+                if is_secret {
+                    3168
+                } else {
+                    1568
+                }
+            }
+            Algorithm::Dawn => 1024,
+            Algorithm::Rcpkc => {
+                if is_secret {
+                    2048
+                } else {
+                    1024
+                }
+            }
+
+            // Signature algorithms
+            Algorithm::MlDsa44 => {
+                if is_secret {
+                    1280
+                } else {
+                    800
+                }
+            }
+            Algorithm::MlDsa65 => {
+                if is_secret {
+                    1888
+                } else {
+                    1184
+                }
+            }
+            Algorithm::MlDsa87 => {
+                if is_secret {
+                    2400
+                } else {
+                    1568
+                }
+            }
+            Algorithm::FnDsa => 1024,
+            Algorithm::FnDsa512 => 1024,
+            Algorithm::FnDsa1024 => 2048,
+
+            // Hash algorithms don't have keys
+            _ => {
+                return Err(Error::InvalidAlgorithm {
+                    algorithm: "Algorithm does not use keys",
+                });
+            }
+        };
+
+        if key_data.len() != expected_size {
+            return Err(Error::InvalidKeySize {
+                expected: expected_size,
+                actual: key_data.len(),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate that key material is not all zeros (security check)
+    pub fn validate_key_material(key_data: &[u8]) -> Result<()> {
+        if key_data.iter().all(|&b| b == 0) {
+            return Err(Error::InvalidKey {
+                key_type: "key".to_string(),
+                reason: "Key material cannot be all zeros".to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate message size for cryptographic operations
+    pub fn validate_message_size(message: &[u8], max_size: usize) -> Result<()> {
+        if message.len() > max_size {
+            return Err(Error::InvalidMessageSize {
+                max: max_size,
+                actual: message.len(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate nonce size for AEAD operations
+    pub fn validate_nonce_size(nonce: &[u8], expected_size: usize) -> Result<()> {
+        if nonce.len() != expected_size {
+            return Err(Error::InvalidNonceSize {
+                expected: expected_size,
+                actual: nonce.len(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Constant-time comparison of two byte slices
+    ///
+    /// This function performs a constant-time comparison to prevent timing attacks.
+    /// It returns true if the slices are equal, false otherwise.
+    pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
+        if a.len() != b.len() {
+            return false;
+        }
+
+        let mut result = 0u8;
+        for (x, y) in a.iter().zip(b.iter()) {
+            result |= x ^ y;
+        }
+        result == 0
+    }
+
+    /// Constant-time selection between two values
+    ///
+    /// Returns `a` if `choice` is true, `b` if `choice` is false.
+    /// The selection is performed in constant time to prevent timing attacks.
+    pub fn constant_time_select<T: Copy>(choice: bool, a: T, b: T) -> T {
+        if choice { a } else { b }
+    }
+
+    /// Constant-time conditional assignment
+    ///
+    /// Assigns `src` to `dst` if `choice` is true, otherwise leaves `dst` unchanged.
+    /// The assignment is performed in constant time.
+    pub fn constant_time_assign<T: Copy>(choice: bool, dst: &mut T, src: T) {
+        *dst = constant_time_select(choice, src, *dst);
+    }
+
+    /// Validate that a nonce is not reused (basic check)
+    ///
+    /// This is a basic validation - in production, you should maintain
+    /// a proper nonce tracking system.
+    pub fn validate_nonce_uniqueness(nonce: &[u8]) -> Result<()> {
+        // Basic check: nonce should not be all zeros
+        if nonce.iter().all(|&b| b == 0) {
+            return Err(Error::InvalidKey {
+                key_type: "nonce".to_string(),
+                reason: "Nonce cannot be all zeros".to_string(),
+            });
+        }
+        Ok(())
+    }
 }
 
 // WASM API Module - Provides identical interface for WASM

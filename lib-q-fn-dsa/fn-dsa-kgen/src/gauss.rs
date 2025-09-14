@@ -34,7 +34,7 @@ const GTAB_10: [u16; 24] = [
 // for a given degree n = 2^logn (with 1 <= logn <= 10). This function
 // ensures that the returned polynomial has odd parity.
 pub(crate) fn sample_f<T: PRNG>(logn: u32, rng: &mut T, f: &mut [i8]) {
-    assert!(1 <= logn && logn <= 10);
+    assert!((1..=10).contains(&logn));
     let n = 1 << logn;
     assert!(f.len() == n);
     let (tab, zz) = match logn {
@@ -52,15 +52,15 @@ pub(crate) fn sample_f<T: PRNG>(logn: u32, rng: &mut T, f: &mut [i8]) {
             for _ in 0..zz {
                 let y = rng.next_u16() as u32;
                 v -= kmax;
-                for k in 0..tab.len() {
-                    v += (((tab[k] as u32).wrapping_sub(y)) >> 31) as i32;
+                for tab_item in tab {
+                    v += (((*tab_item as u32).wrapping_sub(y)) >> 31) as i32;
                 }
             }
             // For reduced/test degrees 2^6 or less, the value may be outside
             // of [-127, +127], which we do not want. This cannot happen for
             // degrees 2^7 and more, in particular for the "normal" degrees
             // 512 and 1024.
-            if v < -127 || v > 127 {
+            if !(-127..=127).contains(&v) {
                 continue;
             }
             f[i] = v as i8;

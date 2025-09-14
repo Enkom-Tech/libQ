@@ -22,7 +22,7 @@ required-features = ["alloc"]
 lib-q-core = { path = "../lib-q-core", default-features = false }
 lib-q-kem = { path = "../lib-q-kem", default-features = false }
 lib-q-hash = { path = "../lib-q-hash", default-features = false }
-lib-q-aead = { path = "../lib-q-aead", default-features = false, features = ["saturnin", "shake256"] }
+lib-q-aead = { path = "../lib-q-aead", default-features = false, features = ["alloc", "saturnin", "shake256"] }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 
@@ -35,8 +35,8 @@ getrandom = { version = "0.3.3", default-features = false, optional = true }
 lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 
 [features]
-default = ["alloc", "ml-kem", "saturnin", "hash", "secure-rng"]
-std = ["alloc", "lib-q-core/std", "rand_core/std", "getrandom/std"]
+default = ["alloc", "ml-kem", "saturnin", "shake256", "hash", "secure-rng"]
+std = ["alloc", "lib-q-core/std", "lib-q-aead/std", "rand_core/std", "getrandom/std"]
 alloc = ["lib-q-core/alloc"]
 secure-rng = ["getrandom", "getrandom/std"]
 
@@ -45,6 +45,7 @@ ml-kem = ["dep:lib-q-ml-kem", "lib-q-kem/ml-kem"]
 ml-dsa = ["dep:lib-q-ml-dsa"]
 hash = ["lib-q-hash/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
+shake256 = ["lib-q-aead/shake256"]
 
 # WebAssembly support
 wasm = ["getrandom/wasm_js"]

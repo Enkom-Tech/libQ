@@ -1,121 +1,159 @@
 # lib-q-hpke
 
-Post-quantum Hybrid Public Key Encryption (HPKE) implementation compliant with RFC 9180.
+RFC 9180 compliant Hybrid Public Key Encryption implementation using post-quantum cryptographic primitives.
 
 ## Overview
 
-This crate provides a complete HPKE implementation using exclusively post-quantum cryptographic algorithms. It integrates with lib-q's provider pattern architecture for modular algorithm support and is designed to be algorithm-agnostic, allowing easy integration of new cryptographic primitives.
+lib-q-hpke provides a secure, efficient implementation of HPKE (Hybrid Public Key Encryption) using NIST-approved post-quantum algorithms. The implementation follows a provider pattern that integrates with the lib-q ecosystem for algorithm-agnostic cryptographic operations.
 
 ## Supported Algorithms
 
-**Key Encapsulation**: ML-KEM-512, ML-KEM-768, ML-KEM-1024  
-**Authenticated Encryption**: Saturnin-256  
-**Key Derivation**: HKDF-SHAKE128, HKDF-SHAKE256, HKDF-SHA3-256, HKDF-SHA3-512
+### Key Encapsulation Mechanisms (KEM)
+- ML-KEM-512 (Level 1 security)
+- ML-KEM-768 (Level 3 security)
+- ML-KEM-1024 (Level 5 security)
 
-## Features
+### Key Derivation Functions (KDF)
+- HKDF-SHAKE128
+- HKDF-SHAKE256
+- HKDF-SHA3-256
+- HKDF-SHA3-512
 
-- `ml-kem`: ML-KEM key encapsulation algorithms
-- `saturnin`: Saturnin authenticated encryption  
-- `hash`: Post-quantum hash functions
-- `std`: Standard library support
-- `alloc`: Heap allocation support
+### Authenticated Encryption (AEAD)
+- Saturnin-256
+- SHAKE256-based AEAD
+- Export-only mode
 
-## Usage
-
-### Basic Encryption
+## Quick Start
 
 ```rust
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::HpkeContext;
+use libq::LibQCryptoProvider;
 
-let mut hpke_ctx = HpkeContext::new();
-let message = b"Hello, HPKE!";
-
-// Encrypt
-let (encapsulated_key, ciphertext) = hpke_ctx.seal(
-    &recipient_pk,
-    b"application-info",
-    b"additional-data", 
-    message
-)?;
-
-// Decrypt
-let decrypted = hpke_ctx.open(
-    &encapsulated_key,
-    &recipient_sk,
-    b"application-info",
-    b"additional-data",
-    &ciphertext
-)?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create HPKE context
+    let provider = Box::new(LibQCryptoProvider::new());
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
+    
+    // Generate key pair
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
+    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
+    
+    // Encrypt message
+    let message = b"Hello, HPKE!";
+    let (encapsulated_key, ciphertext) = hpke_ctx.seal(
+        &recipient_pk,
+        b"application-info",
+        b"additional-data",
+        message,
+    )?;
+    
+    // Decrypt message
+    let decrypted = hpke_ctx.open(
+        &encapsulated_key,
+        &recipient_sk,
+        b"application-info",
+        b"additional-data",
+        &ciphertext,
+    )?;
+    
+    assert_eq!(decrypted, message);
+    Ok(())
+}
 ```
 
-### Context-based Operations
+## HPKE Modes
+
+### Base Mode
+Standard HPKE without additional authentication.
 
 ```rust
-// Setup sender context for multiple messages
 let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"session-info")?;
-
-// Encrypt multiple messages
-let ciphertext1 = sender_ctx.seal(b"aad1", msg1)?;
-let ciphertext2 = sender_ctx.seal(b"aad2", msg2)?;
-
-// Export key material
-let exported_key = sender_ctx.export(b"key-context", 32)?;
+let ciphertext = sender_ctx.seal(b"aad", message)?;
 ```
 
-### Custom Cipher Suites
+### PSK Mode
+Pre-shared key authentication.
 
 ```rust
-use lib_q_hpke::{HpkeKem, HpkeKdf, HpkeAead, HpkeCipherSuite};
-
-let suite = HpkeCipherSuite::new(
-    HpkeKem::MlKem768,
-    HpkeKdf::HkdfSha3_256,
-    HpkeAead::Saturnin256
-);
+let psk = b"shared-secret-key";
+let psk_id = b"psk-identifier";
+let mut sender_ctx = hpke_ctx.setup_sender_psk(
+    &recipient_pk,
+    b"session-info",
+    psk,
+    psk_id,
+)?;
 ```
 
-## Architecture
-
-### Comprehensive Algorithm-Agnostic Design
-
-The HPKE implementation is designed to be comprehensively algorithm-agnostic through the provider pattern:
-
-- **KEM Provider**: Abstracts key encapsulation mechanisms using `lib-q-kem` (currently ML-KEM variants)
-- **KDF Provider**: Abstracts key derivation functions using `lib-q-hash` (HKDF variants)
-- **AEAD Provider**: Abstracts authenticated encryption using `lib-q-aead` (currently Saturnin-256)
-- **Crypto Provider**: Combines all providers for complete HPKE operations
-
-This comprehensive design allows easy integration of new post-quantum algorithms without modifying the core HPKE protocol implementation.
-
-### Provider Integration
-
-The implementation uses lib-q abstractions for all cryptographic primitives, ensuring compatibility with the broader lib-q ecosystem:
-
-- **KEM Operations**: Uses `lib-q-kem::create_kem()` for algorithm-agnostic KEM operations
-- **Hash Operations**: Uses `lib-q-hash::create_hash()` for algorithm-agnostic hash functions
-- **AEAD Operations**: Uses `lib-q-aead::create_aead()` for algorithm-agnostic authenticated encryption
+### Auth Mode
+Sender authentication using asymmetric keys.
 
 ```rust
-use lib_q_kem::create_kem;
-use lib_q_hash::create_hash;
-use lib_q_aead::create_aead;
-use lib_q_core::Algorithm;
-
-// Create cryptographic instances algorithm-agnostically
-let kem_impl = create_kem(Algorithm::MlKem512)?;
-let hash_impl = create_hash("shake256")?;
-let aead_impl = create_aead("saturnin")?;
-
-// Use the instances for cryptographic operations
-let keypair = kem_impl.generate_keypair()?;
-let hash_output = hash_impl.hash(b"data")?;
-let ciphertext = aead_impl.encrypt(&key, &nonce, b"plaintext", Some(b"aad"))?;
+let mut sender_ctx = hpke_ctx.setup_sender_auth(
+    &recipient_pk,
+    b"session-info",
+    &sender_sk,
+    &sender_pk,
+)?;
 ```
 
-## Security
+### AuthPSK Mode
+Combined PSK and sender authentication.
 
-This implementation uses only post-quantum algorithms, providing resistance against both classical and quantum attacks. All operations follow constant-time principles where possible.
+```rust
+let mut sender_ctx = hpke_ctx.setup_sender_auth_psk(
+    &recipient_pk,
+    b"session-info",
+    psk,
+    psk_id,
+    &sender_sk,
+    &sender_pk,
+)?;
+```
+
+## Documentation
+
+- [Architecture Overview](docs/hpke-architecture.md) - High-level architecture and design
+- [API Reference](docs/API_REFERENCE.md) - Complete API documentation
+- [Security Considerations](docs/SECURITY_CONSIDERATIONS.md) - Security analysis and best practices
+- [Architecture Details](docs/ARCHITECTURE.md) - Detailed implementation architecture
+
+## Testing
+
+The implementation includes comprehensive test coverage:
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test suites
+cargo test --test psk_mode_comprehensive_tests
+cargo test --test authpsk_mode_comprehensive_tests
+cargo test --test security_validation_comprehensive_tests
+```
+
+## Performance
+
+Performance characteristics for different security levels:
+
+| Algorithm | Security Level | Key Size | Ciphertext Size | Performance |
+|-----------|---------------|----------|-----------------|-------------|
+| ML-KEM-512 | Level 1 (128-bit) | 800 bytes | 768 bytes | Fast |
+| ML-KEM-768 | Level 3 (192-bit) | 1184 bytes | 1088 bytes | Balanced |
+| ML-KEM-1024 | Level 5 (256-bit) | 1568 bytes | 1568 bytes | Secure |
+
+## Dependencies
+
+- `lib-q-core` - Core cryptographic types and interfaces
+- `lib-q-kem` - Key encapsulation mechanism implementations
+- `lib-q-hash` - Hash function implementations
+- `lib-q-aead` - Authenticated encryption implementations
+- `libq` - Unified lib-q provider
 
 ## License
 
-See the main [lib-q license](../LICENSE).
+This project is licensed under the same terms as the lib-q project.

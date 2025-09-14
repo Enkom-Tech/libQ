@@ -4,7 +4,7 @@
 use core::arch::x86_64::*;
 use core::mem::transmute;
 
-use crate::flr::FLR;
+use crate::flr::Flr;
 
 // ========================================================================
 // Floating-point polynomials (AVX2 specialization)
@@ -16,13 +16,13 @@ use crate::flr::FLR;
 
 // Complex multiplication.
 #[inline(always)]
-pub(crate) fn flc_mul(x_re: FLR, x_im: FLR, y_re: FLR, y_im: FLR) -> (FLR, FLR) {
+pub(crate) fn flc_mul(x_re: Flr, x_im: Flr, y_re: Flr, y_im: Flr) -> (Flr, Flr) {
     (x_re * y_re - x_im * y_im, x_re * y_im + x_im * y_re)
 }
 
 // Convert a polynomial from normal representation to FFT.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn FFT(logn: u32, f: &mut [FLR]) {
+pub(crate) unsafe fn FFT(logn: u32, f: &mut [Flr]) {
     unsafe {
         // First iteration of the FFT algorithm would compute
         // f[j] + i*f[j + n/2] for all j < n/2; since this is exactly our
@@ -34,7 +34,7 @@ pub(crate) unsafe fn FFT(logn: u32, f: &mut [FLR]) {
         let n = 1usize << logn;
         let hn = n >> 1;
         let mut t = hn;
-        let fp = transmute::<*mut FLR, *mut f64>(f.as_mut_ptr());
+        let fp = transmute::<*mut Flr, *mut f64>(f.as_mut_ptr());
         for lm in 1..logn {
             let m = 1 << lm;
             let hm = m >> 1;
@@ -42,7 +42,7 @@ pub(crate) unsafe fn FFT(logn: u32, f: &mut [FLR]) {
             let mut j0 = 0;
             for i in 0..hm {
                 if ht >= 4 {
-                    let s_re = _mm256_set1_pd(GM[((m + i) << 1) + 0].to_f64());
+                    let s_re = _mm256_set1_pd(GM[(m + i) << 1].to_f64());
                     let s_im = _mm256_set1_pd(GM[((m + i) << 1) + 1].to_f64());
                     let f1_re = fp.wrapping_add(j0);
                     let f1_im = fp.wrapping_add(j0 + hn);
@@ -63,7 +63,7 @@ pub(crate) unsafe fn FFT(logn: u32, f: &mut [FLR]) {
                         _mm256_storeu_pd(f2_im.wrapping_add(j << 2), _mm256_sub_pd(x_im, z_im));
                     }
                 } else {
-                    let s_re = GM[((m + i) << 1) + 0];
+                    let s_re = GM[(m + i) << 1];
                     let s_im = GM[((m + i) << 1) + 1];
                     for j in 0..ht {
                         let j1 = j0 + j;
@@ -88,7 +88,7 @@ pub(crate) unsafe fn FFT(logn: u32, f: &mut [FLR]) {
 
 // Convert a polynomial from FFT representation to normal.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn iFFT(logn: u32, f: &mut [FLR]) {
+pub(crate) unsafe fn iFFT(logn: u32, f: &mut [Flr]) {
     unsafe {
         // This is the reverse of FFT. We use the fact that if
         // w = exp(i*k*pi/N), then 1/w is the conjugate of w; thus, we can
@@ -103,14 +103,14 @@ pub(crate) unsafe fn iFFT(logn: u32, f: &mut [FLR]) {
         let n = 1usize << logn;
         let hn = n >> 1;
         let mut t = 1;
-        let fp = transmute::<*mut FLR, *mut f64>(f.as_mut_ptr());
+        let fp = transmute::<*mut Flr, *mut f64>(f.as_mut_ptr());
         for lm in 1..logn {
             let hm = 1 << (logn - lm);
             let dt = t << 1;
             let mut j0 = 0;
             for i in 0..(hm >> 1) {
                 if t >= 4 {
-                    let s_re = _mm256_set1_pd(GM[((hm + i) << 1) + 0].to_f64());
+                    let s_re = _mm256_set1_pd(GM[(hm + i) << 1].to_f64());
                     let s_im = _mm256_set1_pd(-GM[((hm + i) << 1) + 1].to_f64());
                     let f1_re = fp.wrapping_add(j0);
                     let f1_im = fp.wrapping_add(j0 + hn);
@@ -133,7 +133,7 @@ pub(crate) unsafe fn iFFT(logn: u32, f: &mut [FLR]) {
                         _mm256_storeu_pd(f2_im.wrapping_add(j << 2), z_im);
                     }
                 } else {
-                    let s_re = GM[((hm + i) << 1) + 0];
+                    let s_re = GM[(hm + i) << 1];
                     let s_im = -GM[((hm + i) << 1) + 1];
                     for j in 0..t {
                         let j1 = j0 + j;
@@ -159,25 +159,25 @@ pub(crate) unsafe fn iFFT(logn: u32, f: &mut [FLR]) {
         // We have logn-1 delayed halvings to perform, i.e. we must divide
         // all returned values by n/2.
         if logn >= 2 {
-            let d = _mm256_set1_pd(FLR::INV_POW2[(logn + 126) as usize]);
+            let d = _mm256_set1_pd(Flr::INV_POW2[(logn + 126) as usize]);
             for j in 0..(1usize << (logn - 2)) {
                 let y = _mm256_loadu_pd(fp.wrapping_add(j << 2));
                 let y = _mm256_mul_pd(y, d);
                 _mm256_storeu_pd(fp.wrapping_add(j << 2), y);
             }
         } else {
-            FLR::slice_div2e(&mut f[..n], logn - 1);
+            Flr::slice_div2e(&mut f[..n], logn - 1);
         }
     }
 }
 
 // Set polynomial d from polynomial f with small coefficients.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
+pub(crate) unsafe fn poly_set_small(logn: u32, d: &mut [Flr], f: &[i8]) {
     unsafe {
         if logn >= 4 {
             let fp = transmute::<*const i8, *const __m128i>(f.as_ptr());
-            let dp = transmute::<*mut FLR, *mut f64>(d.as_mut_ptr());
+            let dp = transmute::<*mut Flr, *mut f64>(d.as_mut_ptr());
             for i in 0..(1usize << (logn - 4)) {
                 let x0 = _mm_loadu_si128(fp.wrapping_add(i));
                 let x1 = _mm_shuffle_epi32(x0, 0x55);
@@ -187,14 +187,14 @@ pub(crate) unsafe fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
                 let y1 = _mm256_cvtepi32_pd(_mm_cvtepi8_epi32(x1));
                 let y2 = _mm256_cvtepi32_pd(_mm_cvtepi8_epi32(x2));
                 let y3 = _mm256_cvtepi32_pd(_mm_cvtepi8_epi32(x3));
-                _mm256_storeu_pd(dp.wrapping_add((i << 4) + 0), y0);
+                _mm256_storeu_pd(dp.wrapping_add(i << 4), y0);
                 _mm256_storeu_pd(dp.wrapping_add((i << 4) + 4), y1);
                 _mm256_storeu_pd(dp.wrapping_add((i << 4) + 8), y2);
                 _mm256_storeu_pd(dp.wrapping_add((i << 4) + 12), y3);
             }
         } else {
             for i in 0..(1usize << logn) {
-                d[i] = FLR::from_i32(f[i] as i32);
+                d[i] = Flr::from_i32(f[i] as i32);
             }
         }
     }
@@ -202,11 +202,11 @@ pub(crate) unsafe fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
 
 // Add polynomial b to polynomial a.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_add(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) unsafe fn poly_add(logn: u32, a: &mut [Flr], b: &[Flr]) {
     unsafe {
         if logn >= 2 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
-            let bp = transmute::<*const FLR, *const f64>(b.as_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
+            let bp = transmute::<*const Flr, *const f64>(b.as_ptr());
             for i in 0..(1usize << (logn - 2)) {
                 let ya = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 let yb = _mm256_loadu_pd(bp.wrapping_add(i << 2));
@@ -222,11 +222,11 @@ pub(crate) unsafe fn poly_add(logn: u32, a: &mut [FLR], b: &[FLR]) {
 
 // Subtract polynomial b from polynomial a.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_sub(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) unsafe fn poly_sub(logn: u32, a: &mut [Flr], b: &[Flr]) {
     unsafe {
         if logn >= 2 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
-            let bp = transmute::<*const FLR, *const f64>(b.as_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
+            let bp = transmute::<*const Flr, *const f64>(b.as_ptr());
             for i in 0..(1usize << (logn - 2)) {
                 let ya = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 let yb = _mm256_loadu_pd(bp.wrapping_add(i << 2));
@@ -242,20 +242,20 @@ pub(crate) unsafe fn poly_sub(logn: u32, a: &mut [FLR], b: &[FLR]) {
 
 // Negate polynomial a.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_neg(logn: u32, a: &mut [FLR]) {
+pub(crate) unsafe fn poly_neg(logn: u32, a: &mut [Flr]) {
     unsafe {
         if logn >= 2 {
             // We can do negation by simply flipping the high bit of each
             // value, because we do not care about NaNs.
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
             let ym = _mm256_set1_pd(-0.0);
             for i in 0..(1usize << (logn - 2)) {
                 let ya = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 _mm256_storeu_pd(ap.wrapping_add(i << 2), _mm256_xor_pd(ya, ym));
             }
         } else {
-            for i in 0..(1usize << logn) {
-                a[i] = -a[i];
+            for a_item in a.iter_mut().take(1usize << logn) {
+                *a_item = -*a_item;
             }
         }
     }
@@ -264,12 +264,12 @@ pub(crate) unsafe fn poly_neg(logn: u32, a: &mut [FLR]) {
 // Multiply polynomial a with polynomial b. The polynomials must be in
 // FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_mul_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) unsafe fn poly_mul_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         if logn >= 3 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
-            let bp = transmute::<*const FLR, *const f64>(b.as_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
+            let bp = transmute::<*const Flr, *const f64>(b.as_ptr());
             for i in 0..(1usize << (logn - 3)) {
                 let a_re = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 let a_im = _mm256_loadu_pd(ap.wrapping_add((i << 2) + hn));
@@ -293,12 +293,12 @@ pub(crate) unsafe fn poly_mul_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // Multiply polynomial a with the adjoint of polynomial b. The polynomials
 // must be in FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_muladj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) unsafe fn poly_muladj_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         if logn >= 3 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
-            let bp = transmute::<*const FLR, *const f64>(b.as_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
+            let bp = transmute::<*const Flr, *const f64>(b.as_ptr());
             for i in 0..(1usize << (logn - 3)) {
                 let a_re = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 let a_im = _mm256_loadu_pd(ap.wrapping_add((i << 2) + hn));
@@ -323,11 +323,11 @@ pub(crate) unsafe fn poly_muladj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // FFT representation. Since the result is a self-adjoint polynomial,
 // coefficients n/2 to n-1 are set to zero.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_mulownadj_fft(logn: u32, a: &mut [FLR]) {
+pub(crate) unsafe fn poly_mulownadj_fft(logn: u32, a: &mut [Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         if logn >= 3 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
             let zero = _mm256_set1_pd(0.0);
             for i in 0..(1usize << (logn - 3)) {
                 let a_re = _mm256_loadu_pd(ap.wrapping_add(i << 2));
@@ -339,7 +339,7 @@ pub(crate) unsafe fn poly_mulownadj_fft(logn: u32, a: &mut [FLR]) {
         } else {
             for i in 0..hn {
                 a[i] = a[i].square() + a[i + hn].square();
-                a[i + hn] = FLR::ZERO;
+                a[i + hn] = Flr::ZERO;
             }
         }
     }
@@ -347,18 +347,18 @@ pub(crate) unsafe fn poly_mulownadj_fft(logn: u32, a: &mut [FLR]) {
 
 // Multiply polynomial a with a real constant x.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_mulconst(logn: u32, a: &mut [FLR], x: FLR) {
+pub(crate) unsafe fn poly_mulconst(logn: u32, a: &mut [Flr], x: Flr) {
     unsafe {
         if logn >= 2 {
-            let ap = transmute::<*mut FLR, *mut f64>(a.as_mut_ptr());
+            let ap = transmute::<*mut Flr, *mut f64>(a.as_mut_ptr());
             let ym = _mm256_set1_pd(x.to_f64());
             for i in 0..(1usize << (logn - 2)) {
                 let ya = _mm256_loadu_pd(ap.wrapping_add(i << 2));
                 _mm256_storeu_pd(ap.wrapping_add(i << 2), _mm256_mul_pd(ya, ym));
             }
         } else {
-            for i in 0..(1usize << logn) {
-                a[i] *= x;
+            for a_item in a.iter_mut().take(1usize << logn) {
+                *a_item *= x;
             }
         }
     }
@@ -374,13 +374,13 @@ pub(crate) unsafe fn poly_mulconst(logn: u32, a: &mut [FLR], x: FLR) {
 // coefficients. g00 is unmodified. All polynomials are in FFT
 // representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [FLR]) {
+pub(crate) unsafe fn poly_LDL_fft(logn: u32, g00: &[Flr], g01: &mut [Flr], g11: &mut [Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         if logn >= 3 {
-            let g00p = transmute::<*const FLR, *const f64>(g00.as_ptr());
-            let g01p = transmute::<*mut FLR, *mut f64>(g01.as_mut_ptr());
-            let g11p = transmute::<*mut FLR, *mut f64>(g11.as_mut_ptr());
+            let g00p = transmute::<*const Flr, *const f64>(g00.as_ptr());
+            let g01p = transmute::<*mut Flr, *mut f64>(g01.as_mut_ptr());
+            let g11p = transmute::<*mut Flr, *mut f64>(g11.as_mut_ptr());
             let one = _mm256_set1_pd(1.0);
             let mzero = _mm256_set1_pd(-0.0);
             for i in 0..(1usize << (logn - 3)) {
@@ -406,7 +406,7 @@ pub(crate) unsafe fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: 
                 let g00_re = g00[i];
                 let (g01_re, g01_im) = (g01[i], g01[i + hn]);
                 let g11_re = g11[i];
-                let inv_g00_re = FLR::ONE / g00_re;
+                let inv_g00_re = Flr::ONE / g00_re;
                 let (mu_re, mu_im) = (g01_re * inv_g00_re, g01_im * inv_g00_re);
                 let zo_re = mu_re * g01_re + mu_im * g01_im;
                 g11[i] = g11_re - zo_re;
@@ -421,17 +421,17 @@ pub(crate) unsafe fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: 
 // polynomials f0 and f1 (modulo X^(n/2)+1) are such that
 // f = f0(x^2) + x*f1(x^2). All polynomials are in FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR]) {
+pub(crate) unsafe fn poly_split_fft(logn: u32, f0: &mut [Flr], f1: &mut [Flr], f: &[Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
 
         if logn >= 3 {
             let n = 1usize << logn;
-            let f0p = transmute::<*mut FLR, *mut f64>(f0.as_mut_ptr());
-            let f1p = transmute::<*mut FLR, *mut f64>(f1.as_mut_ptr());
-            let fp = transmute::<*const FLR, *const f64>(f.as_ptr());
-            let gp = transmute::<*const FLR, *const f64>((&GM[..]).as_ptr());
+            let f0p = transmute::<*mut Flr, *mut f64>(f0.as_mut_ptr());
+            let f1p = transmute::<*mut Flr, *mut f64>(f1.as_mut_ptr());
+            let fp = transmute::<*const Flr, *const f64>(f.as_ptr());
+            let gp = transmute::<*const Flr, *const f64>(GM[..].as_ptr());
             let yh = _mm256_set1_pd(0.5);
             let sv = _mm256_set_pd(-0.0, 0.0, -0.0, 0.0);
             for i in 0..(1usize << (logn - 3)) {
@@ -467,7 +467,7 @@ pub(crate) unsafe fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f
             f1[0] = f[hn];
 
             for i in 0..qn {
-                let (a_re, a_im) = (f[(i << 1) + 0], f[(i << 1) + 0 + hn]);
+                let (a_re, a_im) = (f[i << 1], f[(i << 1) + hn]);
                 let (b_re, b_im) = (f[(i << 1) + 1], f[(i << 1) + 1 + hn]);
 
                 let (t_re, t_im) = (a_re + b_re, a_im + b_im);
@@ -475,12 +475,7 @@ pub(crate) unsafe fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f
                 f0[i + qn] = t_im.half();
 
                 let (t_re, t_im) = (a_re - b_re, a_im - b_im);
-                let (u_re, u_im) = flc_mul(
-                    t_re,
-                    t_im,
-                    GM[((i + hn) << 1) + 0],
-                    -GM[((i + hn) << 1) + 1],
-                );
+                let (u_re, u_im) = flc_mul(t_re, t_im, GM[(i + hn) << 1], -GM[((i + hn) << 1) + 1]);
                 f1[i] = u_re.half();
                 f1[i + qn] = u_im.half();
             }
@@ -492,17 +487,17 @@ pub(crate) unsafe fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f
 // is self-adjoint (i.e. all its FFT coefficients are real). On output,
 // f0 is self-adjoint, but f1 is not necessarily self-adjoint.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR]) {
+pub(crate) unsafe fn poly_split_selfadj_fft(logn: u32, f0: &mut [Flr], f1: &mut [Flr], f: &[Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
 
         if logn >= 3 {
             let n = 1usize << logn;
-            let f0p = transmute::<*mut FLR, *mut f64>(f0.as_mut_ptr());
-            let f1p = transmute::<*mut FLR, *mut f64>(f1.as_mut_ptr());
-            let fp = transmute::<*const FLR, *const f64>(f.as_ptr());
-            let gp = transmute::<*const FLR, *const f64>((&GM[..]).as_ptr());
+            let f0p = transmute::<*mut Flr, *mut f64>(f0.as_mut_ptr());
+            let f1p = transmute::<*mut Flr, *mut f64>(f1.as_mut_ptr());
+            let fp = transmute::<*const Flr, *const f64>(f.as_ptr());
+            let gp = transmute::<*const Flr, *const f64>(GM[..].as_ptr());
             let yh = _mm256_set1_pd(0.5);
             let sv = _mm256_set_pd(-0.0, 0.0, -0.0, 0.0);
             let zero = _mm256_set1_pd(0.0);
@@ -533,18 +528,18 @@ pub(crate) unsafe fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut 
         } else {
             // If logn = 1 then the loop is entirely skipped.
             f0[0] = f[0];
-            f1[0] = FLR::ZERO;
+            f1[0] = Flr::ZERO;
 
             for i in 0..qn {
-                let a_re = f[(i << 1) + 0];
+                let a_re = f[i << 1];
                 let b_re = f[(i << 1) + 1];
 
                 let t_re = a_re + b_re;
                 f0[i] = t_re.half();
-                f0[i + qn] = FLR::ZERO;
+                f0[i + qn] = Flr::ZERO;
 
                 let t_re = (a_re - b_re).half();
-                f1[i] = t_re * GM[((i + hn) << 1) + 0];
+                f1[i] = t_re * GM[(i + hn) << 1];
                 f1[i + qn] = t_re * -GM[((i + hn) << 1) + 1];
             }
         }
@@ -555,17 +550,17 @@ pub(crate) unsafe fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut 
 // and f1 (modulo X^(n/2)+1), compute f = f0(x^2) + x*f1(x^2). All
 // polynomials are in FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[FLR]) {
+pub(crate) unsafe fn poly_merge_fft(logn: u32, f: &mut [Flr], f0: &[Flr], f1: &[Flr]) {
     unsafe {
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
 
         if logn >= 4 {
             let n = 1usize << logn;
-            let fp = transmute::<*mut FLR, *mut f64>(f.as_mut_ptr());
-            let f0p = transmute::<*const FLR, *const f64>(f0.as_ptr());
-            let f1p = transmute::<*const FLR, *const f64>(f1.as_ptr());
-            let gp = transmute::<*const FLR, *const f64>((&GM[..]).as_ptr());
+            let fp = transmute::<*mut Flr, *mut f64>(f.as_mut_ptr());
+            let f0p = transmute::<*const Flr, *const f64>(f0.as_ptr());
+            let f1p = transmute::<*const Flr, *const f64>(f1.as_ptr());
+            let gp = transmute::<*const Flr, *const f64>(GM[..].as_ptr());
             for i in 0..(1usize << (logn - 4)) {
                 let a_re = _mm256_loadu_pd(f0p.wrapping_add(i << 2));
                 let a_im = _mm256_loadu_pd(f0p.wrapping_add((i << 2) + qn));
@@ -618,11 +613,11 @@ pub(crate) unsafe fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[
                 let (b_re, b_im) = flc_mul(
                     f1[i],
                     f1[i + qn],
-                    GM[((i + hn) << 1) + 0],
+                    GM[(i + hn) << 1],
                     GM[((i + hn) << 1) + 1],
                 );
-                f[(i << 1) + 0] = a_re + b_re;
-                f[(i << 1) + 0 + hn] = a_im + b_im;
+                f[i << 1] = a_re + b_re;
+                f[(i << 1) + hn] = a_im + b_im;
                 f[(i << 1) + 1] = a_re - b_re;
                 f[(i << 1) + 1 + hn] = a_im - b_im;
             }
@@ -637,12 +632,12 @@ use crate::poly::GM;
 mod tests {
 
     use super::*;
-    use crate::flr::FLR;
+    use crate::flr::Flr;
     use crate::tests::SHAKE256x4;
 
-    fn rand_poly(rng: &mut SHAKE256x4, f: &mut [FLR]) {
+    fn rand_poly(rng: &mut SHAKE256x4, f: &mut [Flr]) {
         for i in 0..f.len() {
-            f[i] = FLR::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
+            f[i] = Flr::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
         }
     }
 
@@ -650,7 +645,7 @@ mod tests {
         let n = 1usize << logn;
         let hn = n >> 1;
         let mut rng = SHAKE256x4::new(&[logn as u8]);
-        let mut tmp = [FLR::ZERO; 5 * 1024];
+        let mut tmp = [Flr::ZERO; 5 * 1024];
         let (f, tmp) = tmp.split_at_mut(n);
         let (g, tmp) = tmp.split_at_mut(n);
         let (h, tmp) = tmp.split_at_mut(n);
@@ -672,7 +667,7 @@ mod tests {
             if ctr < 5 {
                 rand_poly(&mut rng, g);
                 for i in 0..n {
-                    h[i] = FLR::ZERO;
+                    h[i] = Flr::ZERO;
                 }
                 for i in 0..n {
                     for j in 0..n {

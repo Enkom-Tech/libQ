@@ -13,10 +13,24 @@ categories = ["cryptography", "wasm"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
+lib-q-sha3 = { path = "../lib-q-sha3" }
+lib-q-k12 = { path = "../lib-q-k12" }
+
+# Digest trait for hashing
+digest = "0.11.0-rc.0"
 
 # Rand dependencies for key generation
 rand = { version = "0.9.2", optional = true }
-rand_core = { version = "0.9.3", optional = true }
+rand_core = "0.9.3"
+
+# Secure random number generation (no_std and WASM compatible)
+getrandom = { version = "0.3.3", optional = true, default-features = false }
+
+# Secure memory clearing
+zeroize = { version = "1.8.1", features = ["derive"], default-features = false }
+
+# Constant-time operations for side-channel resistance
+subtle = { version = "2.6.1", default-features = false }
 
 # WASM bindings
 wasm-bindgen = { version = "0.2.101", optional = true }
@@ -25,15 +39,19 @@ wasm-bindgen = { version = "0.2.101", optional = true }
 rand = "0.9.2"
 
 [features]
-default = ["alloc", "std"]
-std = ["alloc"]
+default = ["alloc", "std", "getrandom"]
+std = ["alloc", "getrandom"]
 alloc = []
+
+# Random number generation
+getrandom = ["dep:getrandom"]
 
 # Enable WASM support
 wasm = [
     "wasm-bindgen",
     "std",
     "lib-q-core/wasm",
+    "getrandom",
 ]
 
 [lib]

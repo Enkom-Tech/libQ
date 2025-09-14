@@ -50,7 +50,6 @@ wasm = ["getrandom/wasm_js", "wasm-bindgen", "js-sys", "web-sys"]
 # Testing
 criterion = "0.7.0"
 proptest = "1.7.0"
-quickcheck = "1.0.3"
 
 # Test utilities
 hex = "0.4.3"

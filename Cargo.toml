@@ -92,7 +92,6 @@ web-sys = { version = "0.3.78", optional = true, features = ["console"] }
 # Testing
 criterion = "0.7.0"
 proptest = "1.7.0"
-quickcheck = "1.0.3"
 
 # WASM testing
 wasm-bindgen-test = "0.3.51"

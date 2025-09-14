@@ -23,6 +23,9 @@ lib-q-dawn = { path = "../lib-q-dawn", optional = true, default-features = false
 # RCPKC KEM implementation
 lib-q-rcpkc = { path = "../lib-q-rcpkc", optional = true, default-features = false }
 
+# SHA3 for authentication proofs
+lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
+
 # Rand dependencies for the ml-kem feature
 rand = { version = "0.9.2", optional = true }
 rand_core = { version = "0.9.3", optional = true }
@@ -39,6 +42,7 @@ std = [] # Compatibility feature for CI/testing
 # Enable ml-kem (FIPS 203 standard) with modern dependencies
 ml-kem = [
     "dep:lib-q-ml-kem",
+    "dep:lib-q-sha3",
     "rand",
     "rand_core",
     "lib-q-core/std",

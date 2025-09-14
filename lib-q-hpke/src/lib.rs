@@ -179,16 +179,6 @@ use lib_q_core::{
 };
 #[allow(unused_imports)]
 use providers::post_quantum::PostQuantumProvider;
-// Future backends (commented out until implemented)
-// #[cfg(feature = "libcrux")]
-// mod libcrux_provider;
-
-// #[cfg(feature = "rustcrypto")]
-// mod rustcrypto_provider;
-
-// Future provider re-exports
-// #[cfg(feature = "libcrux")]
-// pub use libcrux_provider::LibcruxHpkeProvider;
 
 /// HPKE Context that integrates with lib-q's provider pattern
 ///
@@ -588,11 +578,10 @@ impl HpkeSenderContext {
             plaintext,
             &provider,
         )
-        .map_err(|e| lib_q_core::Error::from(e))?;
+        .map_err(lib_q_core::Error::from)?;
 
         // Increment sequence number with overflow protection
-        self.increment_sequence()
-            .map_err(|e| lib_q_core::Error::from(e))?;
+        self.increment_sequence().map_err(lib_q_core::Error::from)?;
 
         Ok(ciphertext)
     }
@@ -630,11 +619,10 @@ impl HpkeReceiverContext {
             ciphertext,
             &provider,
         )
-        .map_err(|e| lib_q_core::Error::from(e))?;
+        .map_err(lib_q_core::Error::from)?;
 
         // Increment sequence number with overflow protection
-        self.increment_sequence()
-            .map_err(|e| lib_q_core::Error::from(e))?;
+        self.increment_sequence().map_err(lib_q_core::Error::from)?;
 
         Ok(plaintext)
     }

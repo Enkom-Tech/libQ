@@ -1,5 +1,6 @@
 //! Cryptographic random number generation utilities
 
+#[cfg(feature = "alloc")]
 use crate::error::HpkeError;
 
 /// Trait for cryptographic random number generation
@@ -235,6 +236,12 @@ impl CryptoRng for KmacRng {
 /// Simple PRNG implementation for testing
 pub struct SimpleRng {
     counter: u64,
+}
+
+impl Default for SimpleRng {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SimpleRng {

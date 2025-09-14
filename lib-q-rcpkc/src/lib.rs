@@ -64,6 +64,39 @@ impl Kem for RcpkcKem {
             feature: "RCPKC decapsulation not yet implemented".to_string(),
         })
     }
+
+    /// Derive public key from secret key
+    fn derive_public_key(&self, _secret_key: &KemSecretKey) -> Result<KemPublicKey> {
+        // TODO: Implement RCPKC public key derivation
+        Err(Error::NotImplemented {
+            feature: "RCPKC public key derivation not yet implemented".to_string(),
+        })
+    }
+
+    /// Authenticated encapsulation
+    fn auth_encapsulate(
+        &self,
+        _secret_key: &KemSecretKey,
+        _public_key: &KemPublicKey,
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        // TODO: Implement RCPKC authenticated encapsulation
+        Err(Error::NotImplemented {
+            feature: "RCPKC authenticated encapsulation not yet implemented".to_string(),
+        })
+    }
+
+    /// Authenticated decapsulation
+    fn auth_decapsulate(
+        &self,
+        _secret_key: &KemSecretKey,
+        _ciphertext: &[u8],
+        _public_key: &KemPublicKey,
+    ) -> Result<Vec<u8>> {
+        // TODO: Implement RCPKC authenticated decapsulation
+        Err(Error::NotImplemented {
+            feature: "RCPKC authenticated decapsulation not yet implemented".to_string(),
+        })
+    }
 }
 
 /// RCPKC signature implementation

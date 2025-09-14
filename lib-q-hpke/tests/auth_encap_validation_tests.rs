@@ -9,14 +9,10 @@ use lib_q_core::{
     Algorithm,
     KemContext,
 };
-use lib_q_hpke::providers::{
-    KemProvider,
-    post_quantum::PostQuantumProvider,
-};
+use lib_q_hpke::HpkeKem;
+use lib_q_hpke::providers::KemProvider;
+use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::security::CryptoRng;
-use lib_q_hpke::{
-    HpkeKem,
-};
 use libq::LibQCryptoProvider;
 
 /// Test that AuthEncap/AuthDecap provides proper sender authentication
@@ -106,7 +102,10 @@ fn test_auth_decap_fails_with_wrong_sender() {
     );
 
     // This should fail because the authentication won't match
-    assert!(auth_decap_result.is_err(), "AuthDecap should fail with wrong sender public key");
+    assert!(
+        auth_decap_result.is_err(),
+        "AuthDecap should fail with wrong sender public key"
+    );
 }
 
 /// Test that AuthEncap/AuthDecap works with different ML-KEM variants
@@ -197,8 +196,8 @@ fn test_derive_public_key() {
 
     // Test that we can derive the public key from the secret key
     // This is used internally by auth_encapsulate
-    let kem_impl = lib_q_kem::create_kem(Algorithm::MlKem512)
-        .expect("Should be able to create KEM instance");
+    let kem_impl =
+        lib_q_kem::create_kem(Algorithm::MlKem512).expect("Should be able to create KEM instance");
 
     let derived_public_key = kem_impl
         .derive_public_key(&lib_q_core::KemSecretKey::new(
@@ -242,8 +241,8 @@ fn test_authentication_cryptographic_proof() {
         .expect("AuthEncap should succeed");
 
     // Perform standard encapsulation for comparison
-    let kem_impl = lib_q_kem::create_kem(Algorithm::MlKem512)
-        .expect("Should be able to create KEM instance");
+    let kem_impl =
+        lib_q_kem::create_kem(Algorithm::MlKem512).expect("Should be able to create KEM instance");
 
     let (standard_encapsulated_key, standard_shared_secret) = kem_impl
         .encapsulate(&lib_q_core::KemPublicKey::new(
@@ -284,9 +283,25 @@ fn test_authentication_cryptographic_proof() {
 struct TestRng;
 
 impl CryptoRng for TestRng {
-    fn fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), lib_q_hpke::error::HpkeError> {
+    fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), lib_q_hpke::error::HpkeError> {
         // For testing, we don't need actual randomness
         // The ML-KEM implementation will use its own RNG
+        // Fill with deterministic pattern for reproducible tests
+        for (i, byte) in dest.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_add(0x42);
+        }
         Ok(())
+    }
+
+    fn next_u32(&mut self) -> Result<u32, lib_q_hpke::error::HpkeError> {
+        let mut bytes = [0u8; 4];
+        self.fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn next_u64(&mut self) -> Result<u64, lib_q_hpke::error::HpkeError> {
+        let mut bytes = [0u8; 8];
+        self.fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 }

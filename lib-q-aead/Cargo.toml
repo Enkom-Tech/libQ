@@ -13,10 +13,19 @@ readme.workspace = true
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
+lib-q-hash = { path = "../lib-q-hash", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
+getrandom = { version = "0.3.3", default-features = false, optional = true }
+rand_core = { version = "0.9.3", default-features = false, optional = true }
+once_cell = "1.21.3"
 
 [features]
-default = []
+default = ["alloc", "std", "shake256"]
+std = ["lib-q-core/std"]
+alloc = ["lib-q-core/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
+shake256 = ["dep:lib-q-sha3", "lib-q-sha3/alloc", "dep:getrandom", "getrandom/std", "dep:rand_core", "rand_core/std"]
+kem-aead = ["shake256"]  # KEM AEAD uses the same dependencies as SHAKE256
 
 [lib]
 name = "lib_q_aead"
@@ -26,9 +35,34 @@ path = "src/lib.rs"
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+required-features = ["shake256", "std"]
+
+[[example]]
+name = "security_features"
+path = "examples/security_features.rs"
+required-features = ["shake256", "std"]
+
+[[example]]
+name = "performance_benchmarks"
+path = "examples/performance_benchmarks.rs"
+required-features = ["shake256", "std"]
+
+[[example]]
+name = "no_std_example"
+path = "examples/no_std_example.rs"
+required-features = ["shake256"]
+
+[dev-dependencies]
+criterion = { version = "0.7.0", features = ["html_reports"] }
+hex = "0.4.3"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
     'cfg(eurydice)',
     'cfg(doc_cfg)',
+    'cfg(std)',
 ] }

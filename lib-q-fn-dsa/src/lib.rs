@@ -93,10 +93,7 @@ pub use lib_q_core::{
     Signature,
 };
 // Import RNG traits and implementations
-use rand_core::{
-    CryptoRng,
-    RngCore,
-};
+use rand_core::CryptoRng;
 
 /// Custom RNG implementation for different environments
 #[cfg(not(feature = "rand"))]
@@ -150,7 +147,7 @@ impl RngCore for CustomRng {
 impl CryptoRng for CustomRng {}
 
 /// Get an appropriate RNG for the current environment
-fn get_rng() -> impl CryptoRng + RngCore {
+fn get_rng() -> impl CryptoRng {
     #[cfg(feature = "rand")]
     {
         rand::rng()
@@ -228,13 +225,11 @@ impl Signature for FnDsa512 {
         // Generate keypair using the underlying FN-DSA implementation
         let mut kg = KeyPairGeneratorStandard::default();
         let mut sign_key = {
-            let mut v = Vec::with_capacity(sign_key_size(self.logn()));
-            v.resize(sign_key_size(self.logn()), 0u8);
+            let v = vec![0; sign_key_size(self.logn())];
             v
         };
         let mut vrfy_key = {
-            let mut v = Vec::with_capacity(vrfy_key_size(self.logn()));
-            v.resize(vrfy_key_size(self.logn()), 0u8);
+            let v = vec![0; vrfy_key_size(self.logn())];
             v
         };
 
@@ -257,8 +252,7 @@ impl Signature for FnDsa512 {
 
         // Create signature buffer
         let mut signature = {
-            let mut v = Vec::with_capacity(signature_size(self.logn()));
-            v.resize(signature_size(self.logn()), 0u8);
+            let v = vec![0; signature_size(self.logn())];
             v
         };
 
@@ -337,13 +331,11 @@ impl Signature for FnDsa1024 {
         // Generate keypair using the underlying FN-DSA implementation
         let mut kg = KeyPairGeneratorStandard::default();
         let mut sign_key = {
-            let mut v = Vec::with_capacity(sign_key_size(self.logn()));
-            v.resize(sign_key_size(self.logn()), 0u8);
+            let v = vec![0; sign_key_size(self.logn())];
             v
         };
         let mut vrfy_key = {
-            let mut v = Vec::with_capacity(vrfy_key_size(self.logn()));
-            v.resize(vrfy_key_size(self.logn()), 0u8);
+            let v = vec![0; vrfy_key_size(self.logn())];
             v
         };
 
@@ -366,8 +358,7 @@ impl Signature for FnDsa1024 {
 
         // Create signature buffer
         let mut signature = {
-            let mut v = Vec::with_capacity(signature_size(self.logn()));
-            v.resize(signature_size(self.logn()), 0u8);
+            let v = vec![0; signature_size(self.logn())];
             v
         };
 
@@ -454,13 +445,11 @@ impl Signature for FnDsa {
         // Generate keypair using the underlying FN-DSA implementation
         let mut kg = KeyPairGeneratorStandard::default();
         let mut sign_key = {
-            let mut v = Vec::with_capacity(sign_key_size(self.logn()));
-            v.resize(sign_key_size(self.logn()), 0u8);
+            let v = vec![0; sign_key_size(self.logn())];
             v
         };
         let mut vrfy_key = {
-            let mut v = Vec::with_capacity(vrfy_key_size(self.logn()));
-            v.resize(vrfy_key_size(self.logn()), 0u8);
+            let v = vec![0; vrfy_key_size(self.logn())];
             v
         };
 
@@ -483,8 +472,7 @@ impl Signature for FnDsa {
 
         // Create signature buffer
         let mut signature = {
-            let mut v = Vec::with_capacity(signature_size(self.logn()));
-            v.resize(signature_size(self.logn()), 0u8);
+            let v = vec![0; signature_size(self.logn())];
             v
         };
 

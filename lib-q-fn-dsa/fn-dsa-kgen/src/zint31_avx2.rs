@@ -79,8 +79,8 @@ pub(crate) unsafe fn zint_mod_small_signed_x8(
         let yz = zint_mod_small_unsigned_x8(d, dlen, dstride, yp, yp0i, yR2);
         let yl = _mm256_loadu_si256(d.wrapping_add((dlen - 1) * (dstride >> 3)));
         let ym = _mm256_sub_epi32(_mm256_setzero_si256(), _mm256_srli_epi32(yl, 30));
-        let yz = mp_sub_x8(yz, _mm256_and_si256(yRx, ym), yp);
-        yz
+
+        mp_sub_x8(yz, _mm256_and_si256(yRx, ym), yp)
     }
 }
 
@@ -100,8 +100,8 @@ pub(crate) unsafe fn zint_add_mul_small_x8(
         let yw32 = _mm256_set1_epi64x(0xFFFFFFFF);
         let ym31 = _mm256_set1_epi32(0x7FFFFFFF);
         let mut dp = d;
-        for i in 0..a.len() {
-            let ya = _mm256_set1_epi64x(a[i] as i64);
+        for a_item in a.iter() {
+            let ya = _mm256_set1_epi64x(*a_item as i64);
             let z0 = _mm256_mul_epu32(ya, ys0);
             let z1 = _mm256_mul_epu32(ya, ys1);
             let yd = _mm256_loadu_si256(dp);
@@ -168,9 +168,9 @@ pub(crate) unsafe fn zint_norm_zero_x8(xp: *mut __m256i, xstride: usize, m: &[u3
         let mut ycc = _mm256_setzero_si256();
         let ym = _mm256_srai_epi32(yr, 31);
         let y31 = _mm256_set1_epi32(0x7FFFFFFF);
-        for j in 0..m.len() {
+        for m_item in m.iter() {
             let yx = _mm256_loadu_si256(xp);
-            let y = _mm256_sub_epi32(_mm256_sub_epi32(yx, ycc), _mm256_set1_epi32(m[j] as i32));
+            let y = _mm256_sub_epi32(_mm256_sub_epi32(yx, ycc), _mm256_set1_epi32(*m_item as i32));
             ycc = _mm256_srli_epi32(y, 31);
             let yx = _mm256_or_si256(
                 _mm256_andnot_si256(ym, yx),

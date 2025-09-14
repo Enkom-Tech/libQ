@@ -307,7 +307,7 @@ impl PerformanceComparator {
                     baseline.avg_execution_time_ns() / 1000.0,
                     current.avg_execution_time_ns() / 1000.0
                 ));
-                report.push_str("\n");
+                report.push('\n');
             }
         }
 

@@ -14,68 +14,25 @@ use crate::error::HpkeError;
 /// No-std timing implementation using cycle counters
 #[cfg(not(feature = "std"))]
 mod no_std_timing {
-    /// Get current timestamp using CPU cycle counter
-    /// This provides high-resolution timing without std dependencies
+    use core::sync::atomic::{
+        AtomicU64,
+        Ordering,
+    };
+
+    /// Get current timestamp using a simple counter
+    /// This provides basic timing without unsafe code
     pub fn get_timestamp() -> u64 {
-        #[cfg(target_arch = "x86_64")]
-        {
-            use core::arch::x86_64::{
-                _rdtsc,
-                _rdtscp,
-            };
-            unsafe {
-                // Use RDTSCP for more accurate timing (serializing instruction)
-                _rdtscp(&mut 0)
-            }
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        {
-            use core::arch::aarch64::{
-                _mrs,
-                CNTVCT_EL0,
-            };
-            unsafe {
-                // Use ARM64 virtual counter
-                _mrs(CNTVCT_EL0)
-            }
-        }
-
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-        {
-            // Fallback: use a simple counter that increments
-            // This is not accurate but provides some timing capability
-            static mut COUNTER: u64 = 0;
-            unsafe {
-                COUNTER = COUNTER.wrapping_add(1);
-                COUNTER
-            }
-        }
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Convert cycles to nanoseconds (approximate)
     /// This is a rough approximation - in practice, you'd want to calibrate
     /// this value for the specific CPU being used
     pub fn cycles_to_nanoseconds(cycles: u64) -> u64 {
-        #[cfg(target_arch = "x86_64")]
-        {
-            // Assume ~3GHz CPU (3 billion cycles per second)
-            // This is a rough approximation and should be calibrated for accuracy
-            cycles / 3
-        }
-
-        #[cfg(target_arch = "aarch64")]
-        {
-            // ARM64 virtual counter typically runs at 1MHz
-            // Convert to nanoseconds (multiply by 1000)
-            cycles * 1000
-        }
-
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-        {
-            // Fallback: assume 1 cycle = 1 nanosecond
-            cycles
-        }
+        // Simple approximation: assume 1 cycle = 1 nanosecond
+        // This is not accurate but provides basic timing capability
+        cycles
     }
 }
 

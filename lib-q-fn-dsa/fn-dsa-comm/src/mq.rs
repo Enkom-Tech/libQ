@@ -42,8 +42,8 @@ pub fn mqpoly_small_is_invertible(logn: u32, f: &[i8], tmp: &mut [u16]) -> bool 
     mqpoly_small_to_int(logn, f, tmp);
     mqpoly_int_to_NTT(logn, tmp);
     let mut r = 0xFFFFFFFF;
-    for i in 0..n {
-        r &= (tmp[i] as u32).wrapping_sub(Q);
+    for tmp_item in tmp.iter().take(n) {
+        r &= (*tmp_item as u32).wrapping_sub(Q);
     }
     (r >> 16) != 0
 }
@@ -206,22 +206,22 @@ pub fn mqpoly_int_to_small(logn: u32, d: &[u16], f: &mut [i8]) -> bool {
 /// Given a polynomial in external representation, convert it to internal
 /// representation (in-place).
 pub fn mqpoly_ext_to_int(logn: u32, a: &mut [u16]) {
-    for i in 0..(1usize << logn) {
+    for a_item in a.iter_mut().take(1usize << logn) {
         // Internal representation is the same as external, except that
         // zero is represented by q instead of 0.
-        let x = a[i] as u32;
-        a[i] = (x + (Q & (x.wrapping_sub(1) >> 16))) as u16;
+        let x = *a_item as u32;
+        *a_item = (x + (Q & (x.wrapping_sub(1) >> 16))) as u16;
     }
 }
 
 /// Given a polynomial in internal representation, convert it to external
 /// representation (in-place).
 pub fn mqpoly_int_to_ext(logn: u32, a: &mut [u16]) {
-    for i in 0..(1usize << logn) {
+    for a_item in a.iter_mut().take(1usize << logn) {
         // External representation is the same as internal, except that
         // zero is represented by 0 instead of q.
-        let x = (a[i] as u32).wrapping_sub(Q);
-        a[i] = x.wrapping_add(Q & (x >> 16)) as u16;
+        let x = (*a_item as u32).wrapping_sub(Q);
+        *a_item = x.wrapping_add(Q & (x >> 16)) as u16;
     }
 }
 
@@ -317,8 +317,8 @@ pub fn mqpoly_sub_int(logn: u32, a: &mut [u16], b: &[u16]) {
 pub fn mqpoly_sqnorm(logn: u32, a: &[u16]) -> u32 {
     let mut s = 0u32;
     let mut sat = 0;
-    for i in 0..(1usize << logn) {
-        let x = a[i] as u32;
+    for a_item in a.iter().take(1usize << logn) {
+        let x = *a_item as u32;
         let m = ((Q - 1) >> 1).wrapping_sub(x) >> 16;
         let y = x.wrapping_sub(m & Q) as i32;
         s = s.wrapping_add((y * y) as u32);
@@ -333,8 +333,8 @@ pub fn mqpoly_sqnorm(logn: u32, a: &[u16]) -> u32 {
 /// guaranteed if `logn <= 10` and all coefficients are in `[-2047,+2047]`).
 pub fn signed_poly_sqnorm(logn: u32, a: &[i16]) -> u32 {
     let mut s = 0;
-    for i in 0..(1usize << logn) {
-        let x = a[i] as i32;
+    for a_item in a.iter().take(1usize << logn) {
+        let x = *a_item as i32;
         s += (x * x) as u32;
     }
     s

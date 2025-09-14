@@ -8,8 +8,8 @@ use core::arch::x86_64::*;
 use core::mem::transmute;
 
 use super::fxp::{
-    FXC,
-    FXR,
+    Fxc,
+    Fxr,
     GM_TAB,
 };
 
@@ -18,7 +18,7 @@ use super::fxp::{
 // ========================================================================
 
 // ------------------------------------------------------------------------
-// Parallel operations on FXR values (x4).
+// Parallel operations on Fxr values (x4).
 
 #[target_feature(enable = "avx2")]
 #[inline]
@@ -119,7 +119,7 @@ pub(crate) unsafe fn fxr_div_x4(yn: __m256i, yd: __m256i) -> __m256i {
 }
 
 // ------------------------------------------------------------------------
-// Parallel operations on FXC values (x4).
+// Parallel operations on Fxc values (x4).
 
 #[target_feature(enable = "avx2")]
 #[inline]
@@ -165,7 +165,7 @@ unsafe fn FFT4(
         let yt1_im = _mm256_permute2x128_si256(yv0_im, yv1_im, 0x31);
 
         // yg0 <- gm0:gm0:gm1:gm1
-        let gp: *const __m256i = transmute((&GM_TAB).as_ptr());
+        let gp: *const __m256i = transmute(GM_TAB.as_ptr());
         let yg0 = _mm256_loadu_si256(gp.wrapping_add(k >> 1));
         let yg0_re = _mm256_shuffle_epi32(yg0, 0x44);
         let yg0_im = _mm256_shuffle_epi32(yg0, 0xEE);
@@ -191,13 +191,13 @@ unsafe fn FFT4(
 
         // yg1 <- gm4:gm5:gm6:gm7
         let yg1_re = _mm256_setr_epi64x(
-            GM_TAB[(k << 1) + 0].re.0 as i64,
+            GM_TAB[k << 1].re.0 as i64,
             GM_TAB[(k << 1) + 1].re.0 as i64,
             GM_TAB[(k << 1) + 2].re.0 as i64,
             GM_TAB[(k << 1) + 3].re.0 as i64,
         );
         let yg1_im = _mm256_setr_epi64x(
-            GM_TAB[(k << 1) + 0].im.0 as i64,
+            GM_TAB[k << 1].im.0 as i64,
             GM_TAB[(k << 1) + 1].im.0 as i64,
             GM_TAB[(k << 1) + 2].im.0 as i64,
             GM_TAB[(k << 1) + 3].im.0 as i64,
@@ -226,7 +226,7 @@ unsafe fn FFT4(
 
 // Convert a (real) vector to its FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_FFT(logn: u32, f: &mut [FXR]) {
+pub(crate) unsafe fn vect_FFT(logn: u32, f: &mut [Fxr]) {
     unsafe {
         if logn >= 4 {
             let fp: *mut __m256i = transmute(f.as_mut_ptr());
@@ -268,9 +268,9 @@ pub(crate) unsafe fn vect_FFT(logn: u32, f: &mut [FXR]) {
             let m = hn << 1;
             let hm = m >> 1;
             for i in 0..(hm >> 1) {
-                let j0_re = (i << 1) + 0;
+                let j0_re = i << 1;
                 let j1_re = (i << 1) + 1;
-                let j0_im = (i << 1) + 0 + hn;
+                let j0_im = (i << 1) + hn;
                 let j1_im = (i << 1) + 1 + hn;
                 let ya0_re = _mm256_loadu_si256(fp.wrapping_add(j0_re));
                 let ya1_re = _mm256_loadu_si256(fp.wrapping_add(j1_re));
@@ -293,11 +293,11 @@ pub(crate) unsafe fn vect_FFT(logn: u32, f: &mut [FXR]) {
                 for i in 0..(m >> 1) {
                     let s = GM_TAB[m + i];
                     for j in j0..(j0 + ht) {
-                        let x = FXC {
+                        let x = Fxc {
                             re: f[j],
                             im: f[j + hn],
                         };
-                        let y = FXC {
+                        let y = Fxc {
                             re: f[j + ht],
                             im: f[j + ht + hn],
                         };
@@ -341,13 +341,13 @@ unsafe fn iFFT4(
 
         // yg1 <- gm4:gm6:gm5:gm7
         let yg1_re = _mm256_setr_epi64x(
-            GM_TAB[(k << 1) + 0].re.0 as i64,
+            GM_TAB[k << 1].re.0 as i64,
             GM_TAB[(k << 1) + 2].re.0 as i64,
             GM_TAB[(k << 1) + 1].re.0 as i64,
             GM_TAB[(k << 1) + 3].re.0 as i64,
         );
         let yg1_im = _mm256_setr_epi64x(
-            GM_TAB[(k << 1) + 0].im.0 as i64,
+            GM_TAB[k << 1].im.0 as i64,
             GM_TAB[(k << 1) + 2].im.0 as i64,
             GM_TAB[(k << 1) + 1].im.0 as i64,
             GM_TAB[(k << 1) + 3].im.0 as i64,
@@ -373,7 +373,7 @@ unsafe fn iFFT4(
         let yt1_im = _mm256_permute2x128_si256(yv0_im, yv1_im, 0x31);
 
         // yg0 <- gm0:gm1:gm0:gm1
-        let gp: *const __m256i = transmute((&GM_TAB).as_ptr());
+        let gp: *const __m256i = transmute(GM_TAB.as_ptr());
         let yg0 = _mm256_loadu_si256(gp.wrapping_add(k >> 1));
         let yg0_re = _mm256_permute4x64_epi64(yg0, 0x88);
         let yg0_im = _mm256_permute4x64_epi64(yg0, 0xDD);
@@ -433,7 +433,7 @@ unsafe fn iFFT4(
 // vector. In particular, this is a smaller range than signed 32-bit integers
 // in general, and it avoids the troublesome values such as -2^31.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_iFFT(logn: u32, f: &mut [FXR]) {
+pub(crate) unsafe fn vect_iFFT(logn: u32, f: &mut [Fxr]) {
     unsafe {
         if logn >= 4 {
             let fp: *mut __m256i = transmute(f.as_mut_ptr());
@@ -441,9 +441,9 @@ pub(crate) unsafe fn vect_iFFT(logn: u32, f: &mut [FXR]) {
             let m1 = hn << 1;
             let hm1 = m1 >> 1;
             for i in 0..(hm1 >> 1) {
-                let j0_re = (i << 1) + 0;
+                let j0_re = i << 1;
                 let j1_re = (i << 1) + 1;
-                let j0_im = (i << 1) + 0 + hn;
+                let j0_im = (i << 1) + hn;
                 let j1_im = (i << 1) + 1 + hn;
                 let ya0_re = _mm256_loadu_si256(fp.wrapping_add(j0_re));
                 let ya1_re = _mm256_loadu_si256(fp.wrapping_add(j1_re));
@@ -500,11 +500,11 @@ pub(crate) unsafe fn vect_iFFT(logn: u32, f: &mut [FXR]) {
                 for i in 0..(m >> 1) {
                     let s = GM_TAB[m + i].conj();
                     for j in j0..(j0 + ht) {
-                        let x = FXC {
+                        let x = Fxc {
                             re: f[j],
                             im: f[j + hn],
                         };
-                        let y = FXC {
+                        let y = Fxc {
                             re: f[j + ht],
                             im: f[j + ht + hn],
                         };
@@ -525,7 +525,7 @@ pub(crate) unsafe fn vect_iFFT(logn: u32, f: &mut [FXR]) {
 
 // Set vector d to the value of polynomial f.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_to_fxr(logn: u32, d: &mut [FXR], f: &[i8]) {
+pub(crate) unsafe fn vect_to_fxr(logn: u32, d: &mut [Fxr], f: &[i8]) {
     unsafe {
         if logn >= 4 {
             let fp: *const __m128i = transmute(f.as_ptr());
@@ -540,14 +540,14 @@ pub(crate) unsafe fn vect_to_fxr(logn: u32, d: &mut [FXR], f: &[i8]) {
                 let ya1 = _mm256_slli_epi64(ya1, 32);
                 let ya2 = _mm256_slli_epi64(ya2, 32);
                 let ya3 = _mm256_slli_epi64(ya3, 32);
-                _mm256_storeu_si256(dp.wrapping_add((i << 2) + 0), ya0);
+                _mm256_storeu_si256(dp.wrapping_add(i << 2), ya0);
                 _mm256_storeu_si256(dp.wrapping_add((i << 2) + 1), ya1);
                 _mm256_storeu_si256(dp.wrapping_add((i << 2) + 2), ya2);
                 _mm256_storeu_si256(dp.wrapping_add((i << 2) + 3), ya3);
             }
         } else {
             for i in 0..(1usize << logn) {
-                d[i] = FXR::from_i32(f[i] as i32);
+                d[i] = Fxr::from_i32(f[i] as i32);
             }
         }
     }
@@ -555,7 +555,7 @@ pub(crate) unsafe fn vect_to_fxr(logn: u32, d: &mut [FXR], f: &[i8]) {
 
 // Add vector b to vector a. This works in both real and FFT representations.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_add(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) unsafe fn vect_add(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     unsafe {
         if logn >= 2 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -577,7 +577,7 @@ pub(crate) unsafe fn vect_add(logn: u32, a: &mut [FXR], b: &[FXR]) {
 // Multiply vector a by constant c. This works in both real and FFT
 // representations.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_mul_realconst(logn: u32, a: &mut [FXR], c: FXR) {
+pub(crate) unsafe fn vect_mul_realconst(logn: u32, a: &mut [Fxr], c: Fxr) {
     unsafe {
         if logn >= 2 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -588,8 +588,8 @@ pub(crate) unsafe fn vect_mul_realconst(logn: u32, a: &mut [FXR], c: FXR) {
                 _mm256_storeu_si256(ap.wrapping_add(i), yd);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                a[i] *= c;
+            for a_item in a.iter_mut().take(1usize << logn) {
+                *a_item *= c;
             }
         }
     }
@@ -597,7 +597,7 @@ pub(crate) unsafe fn vect_mul_realconst(logn: u32, a: &mut [FXR], c: FXR) {
 
 // Multiply vector a by 2^e. Exponent e should be in the [0,30] range.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_mul2e(logn: u32, a: &mut [FXR], e: u32) {
+pub(crate) unsafe fn vect_mul2e(logn: u32, a: &mut [Fxr], e: u32) {
     unsafe {
         if logn >= 2 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -608,8 +608,8 @@ pub(crate) unsafe fn vect_mul2e(logn: u32, a: &mut [FXR], e: u32) {
                 _mm256_storeu_si256(ap.wrapping_add(i), yd);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                a[i].set_mul2e(e);
+            for a_item in a.iter_mut().take(1usize << logn) {
+                a_item.set_mul2e(e);
             }
         }
     }
@@ -618,7 +618,7 @@ pub(crate) unsafe fn vect_mul2e(logn: u32, a: &mut [FXR], e: u32) {
 // Multiply vector a by vector b. The vectors must be in FFT representation,
 // and the result is in FFT representation.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_mul_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) unsafe fn vect_mul_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     unsafe {
         if logn >= 3 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -636,11 +636,11 @@ pub(crate) unsafe fn vect_mul_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
         } else {
             let hn = 1usize << (logn - 1);
             for i in 0..hn {
-                let x = FXC {
+                let x = Fxc {
                     re: a[i],
                     im: a[i + hn],
                 };
-                let y = FXC {
+                let y = Fxc {
                     re: b[i],
                     im: b[i + hn],
                 };
@@ -654,7 +654,7 @@ pub(crate) unsafe fn vect_mul_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 
 // Convert a vector into its Hermitian adjoint (in FFT representation).
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_adj_fft(logn: u32, a: &mut [FXR]) {
+pub(crate) unsafe fn vect_adj_fft(logn: u32, a: &mut [Fxr]) {
     unsafe {
         if logn >= 3 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -665,8 +665,8 @@ pub(crate) unsafe fn vect_adj_fft(logn: u32, a: &mut [FXR]) {
                 _mm256_storeu_si256(ap.wrapping_add(i), yd_im);
             }
         } else {
-            for i in (1usize << (logn - 1))..(1usize << logn) {
-                a[i].set_neg();
+            for a_item in a.iter_mut().take(1usize << logn).skip(1usize << (logn - 1)) {
+                a_item.set_neg();
             }
         }
     }
@@ -677,7 +677,7 @@ pub(crate) unsafe fn vect_adj_fft(logn: u32, a: &mut [FXR]) {
 // contains only real numbers, the second half of b contains only zeros and
 // thus is not accessed (the slice may be half length).
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_mul_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) unsafe fn vect_mul_selfadj_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     unsafe {
         if logn >= 3 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -708,7 +708,7 @@ pub(crate) unsafe fn vect_mul_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 // contains only real numbers, the second half of b contains only zeros and
 // thus is not accessed (the slice may be half length).
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_div_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) unsafe fn vect_div_selfadj_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     unsafe {
         if logn >= 3 {
             let ap: *mut __m256i = transmute(a.as_mut_ptr());
@@ -741,7 +741,7 @@ pub(crate) unsafe fn vect_div_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 // Since d is self-adjoint, it is half-size (only the low half is set, the
 // high half is implicitly zero).
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_norm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR]) {
+pub(crate) unsafe fn vect_norm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
     unsafe {
         if logn >= 3 {
             let dp: *mut __m256i = transmute(d.as_mut_ptr());
@@ -773,14 +773,14 @@ pub(crate) unsafe fn vect_norm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR
 // representation. Since d is self-adjoint, it is half-size (only the
 // low half is set, the high half is implicitly zero).
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn vect_invnorm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR], e: u32) {
+pub(crate) unsafe fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr], e: u32) {
     unsafe {
         if logn >= 3 {
             let dp: *mut __m256i = transmute(d.as_mut_ptr());
             let ap: *const __m256i = transmute(a.as_ptr());
             let bp: *const __m256i = transmute(b.as_ptr());
             let hn = 1usize << (logn - 3);
-            let r = FXR::from_i32(1i32 << e);
+            let r = Fxr::from_i32(1i32 << e);
             let yfe = _mm256_set1_epi64x(r.0 as i64);
             for i in 0..hn {
                 let ya_re = _mm256_loadu_si256(ap.wrapping_add(i));
@@ -797,7 +797,7 @@ pub(crate) unsafe fn vect_invnorm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[
             }
         } else {
             let hn = 1usize << (logn - 1);
-            let r = FXR::from_i32(1i32 << e);
+            let r = Fxr::from_i32(1i32 << e);
             for i in 0..hn {
                 let z1 = a[i].sqr() + a[i + hn].sqr();
                 let z2 = b[i].sqr() + b[i + hn].sqr();
@@ -818,7 +818,7 @@ mod tests {
 
     use super::*;
 
-    fn rndvect(logn: u32, f: &mut [FXR], seed: u64) {
+    fn rndvect(logn: u32, f: &mut [Fxr], seed: u64) {
         let mut sh = Sha256::new();
         let mut buf = [0u8; 32];
         for i in 0..(1usize << logn) {
@@ -827,14 +827,14 @@ mod tests {
                 sh.update((i as u64).to_le_bytes());
                 buf[..].copy_from_slice(&sh.finalize_reset());
             }
-            f[i] = FXR::from_i32((buf[i & 31] as i8) as i32);
+            f[i] = Fxr::from_i32((buf[i & 31] as i8) as i32);
         }
     }
 
-    fn mulvect(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR]) {
+    fn mulvect(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
         let n = 1usize << logn;
         for i in 0..n {
-            d[i] = FXR::ZERO;
+            d[i] = Fxr::ZERO;
         }
         for i in 0..n {
             for j in 0..n {
@@ -853,10 +853,10 @@ mod tests {
     fn test_FFT() {
         if fn_dsa_comm::has_avx2() {
             unsafe {
-                let mut a = [FXR::ZERO; 1024];
-                let mut b = [FXR::ZERO; 1024];
-                let mut c = [FXR::ZERO; 1024];
-                let mut d = [FXR::ZERO; 1024];
+                let mut a = [Fxr::ZERO; 1024];
+                let mut b = [Fxr::ZERO; 1024];
+                let mut c = [Fxr::ZERO; 1024];
+                let mut d = [Fxr::ZERO; 1024];
                 for logn in 1u32..10u32 {
                     let n = 1usize << logn;
                     for i in 0u32..10u32 {
@@ -897,24 +897,24 @@ mod tests {
                 let mut sh = Sha256::new();
                 let mut buf = [0u8; 32];
                 for i in 0..1000u32 {
-                    let mut f = [FXR::ZERO; 4];
-                    let mut g = [FXR::ZERO; 4];
+                    let mut f = [Fxr::ZERO; 4];
+                    let mut g = [Fxr::ZERO; 4];
                     sh.update((2 * i + 0).to_le_bytes());
                     buf[..].copy_from_slice(&sh.finalize_reset());
                     for j in 0..4 {
-                        f[j] = FXR(u64::from_le_bytes(
+                        f[j] = Fxr(u64::from_le_bytes(
                             *<&[u8; 8]>::try_from(&buf[8 * j..8 * j + 8]).unwrap(),
                         ));
                     }
                     sh.update((2 * i + 1).to_le_bytes());
                     buf[..].copy_from_slice(&sh.finalize_reset());
                     for j in 0..4 {
-                        g[j] = FXR(u64::from_le_bytes(
+                        g[j] = Fxr(u64::from_le_bytes(
                             *<&[u8; 8]>::try_from(&buf[8 * j..8 * j + 8]).unwrap(),
                         ));
                     }
 
-                    let mut h = [FXR::ZERO; 4];
+                    let mut h = [Fxr::ZERO; 4];
                     let fp: *const __m256i = transmute((&f).as_ptr());
                     let gp: *const __m256i = transmute((&g).as_ptr());
                     let hp: *mut __m256i = transmute((&mut h).as_mut_ptr());

@@ -18,6 +18,13 @@ use core::mem::transmute;
 
 /// Check whether the provided polynomial with small coefficient is
 /// invertible modulo `X^n+1` and modulo q.
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `f` must have length at least `1 << logn`
+/// - `tmp` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_small_is_invertible(logn: u32, f: &[i8], tmp: &mut [u16]) -> bool {
     unsafe {
@@ -33,13 +40,13 @@ pub unsafe fn mqpoly_small_is_invertible(logn: u32, f: &[i8], tmp: &mut [u16]) -
                 yr = _mm256_and_si256(yr, _mm256_sub_epi16(y, qq));
             }
             let r = _mm256_movemask_epi8(yr) as u32;
-            return (r & 0xAAAAAAAA) == 0xAAAAAAAA;
+            (r & 0xAAAAAAAA) == 0xAAAAAAAA
         } else {
             let mut r = 0xFFFFFFFF;
-            for i in 0..n {
-                r &= (tmp[i] as u32).wrapping_sub(Q);
+            for tmp_item in tmp.iter().take(n) {
+                r &= (*tmp_item as u32).wrapping_sub(Q);
             }
-            return (r >> 16) != 0;
+            (r >> 16) != 0
         }
     }
 }
@@ -48,6 +55,13 @@ pub unsafe fn mqpoly_small_is_invertible(logn: u32, f: &[i8], tmp: &mut [u16]) -
 ///
 /// This function assumes that `f` is invertible. Output is in external
 /// representation (coefficients are in `[0,q-1]`).
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `f`, `g` must have length at least `1 << logn`
+/// - `h`, `tmp` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_div_small(logn: u32, f: &[i8], g: &[i8], h: &mut [u16], tmp: &mut [u16]) {
     unsafe {
@@ -91,6 +105,13 @@ const R2: u32 = 5664;
 /// (external representation).
 ///
 /// The source values are assumed to be in the `[-q/2,+q/2]` range.
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `v` must have length at least `1 << logn`
+/// - `d` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_signed_to_ext(logn: u32, v: &[i16], d: &mut [u16]) {
     unsafe {
@@ -300,6 +321,12 @@ unsafe fn mq_div_x16(x: __m256i, y: __m256i) -> __m256i {
 /// representation.
 ///
 /// Converted polynomial is written into `d`.
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `f` must have length at least `1 << logn`
+/// - `d` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_small_to_int(logn: u32, f: &[i8], d: &mut [u16]) {
     unsafe {
@@ -316,7 +343,7 @@ pub unsafe fn mqpoly_small_to_int(logn: u32, f: &[i8], d: &mut [u16]) {
                 let x1 = _mm_add_epi16(x1, _mm_and_si128(_mm_srai_epi16(x1, 15), qq));
                 let x0 = _mm_sub_epi16(qq, x0);
                 let x1 = _mm_sub_epi16(qq, x1);
-                _mm_storeu_si128(dp.wrapping_add((i << 1) + 0), x0);
+                _mm_storeu_si128(dp.wrapping_add(i << 1), x0);
                 _mm_storeu_si128(dp.wrapping_add((i << 1) + 1), x1);
             }
         } else {
@@ -336,6 +363,12 @@ pub unsafe fn mqpoly_small_to_int(logn: u32, f: &[i8], d: &mut [u16]) {
 /// then the function succeeds and returns `true`. Otherwise, the
 /// function fails and returns `false`; values obtained for out-of-range
 /// coefficients are unspecified.
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `d` must have length at least `1 << logn`
+/// - `f` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_int_to_small(logn: u32, d: &[u16], f: &mut [i8]) -> bool {
     unsafe {
@@ -361,7 +394,7 @@ pub unsafe fn mqpoly_int_to_small(logn: u32, d: &[u16], f: &mut [i8]) -> bool {
                 _mm_storeu_si128(fp.wrapping_add(i), _mm256_castsi256_si128(y));
             }
             let ov = _mm256_movemask_epi8(ov) as u32;
-            return (ov & 0xAAAAAAAA) == 0;
+            (ov & 0xAAAAAAAA) == 0
         } else {
             let mut ov = 0;
             for i in 0..(1usize << logn) {
@@ -369,13 +402,18 @@ pub unsafe fn mqpoly_int_to_small(logn: u32, d: &[u16], f: &mut [i8]) -> bool {
                 ov |= x >> 8;
                 f[i] = x.wrapping_sub(128) as i8;
             }
-            return ov == 0;
+            ov == 0
         }
     }
 }
 
 /// Given a polynomial in external representation, convert it to internal
 /// representation (in-place).
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_ext_to_int(logn: u32, a: &mut [u16]) {
     unsafe {
@@ -393,9 +431,9 @@ pub unsafe fn mqpoly_ext_to_int(logn: u32, a: &mut [u16]) {
                 _mm256_storeu_si256(ap.wrapping_add(i), y);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                let x = a[i] as u32;
-                a[i] = (x + (Q & (x.wrapping_sub(1) >> 16))) as u16;
+            for a_item in a.iter_mut().take(1usize << logn) {
+                let x = *a_item as u32;
+                *a_item = (x + (Q & (x.wrapping_sub(1) >> 16))) as u16;
             }
         }
     }
@@ -403,6 +441,11 @@ pub unsafe fn mqpoly_ext_to_int(logn: u32, a: &mut [u16]) {
 
 /// Given a polynomial in internal representation, convert it to external
 /// representation (in-place).
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_int_to_ext(logn: u32, a: &mut [u16]) {
     unsafe {
@@ -417,9 +460,9 @@ pub unsafe fn mqpoly_int_to_ext(logn: u32, a: &mut [u16]) {
                 _mm256_storeu_si256(ap.wrapping_add(i), y);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                let x = (a[i] as u32).wrapping_sub(Q);
-                a[i] = x.wrapping_add(Q & (x >> 16)) as u16;
+            for a_item in a.iter_mut().take(1usize << logn) {
+                let x = (*a_item as u32).wrapping_sub(Q);
+                *a_item = x.wrapping_add(Q & (x >> 16)) as u16;
             }
         }
     }
@@ -440,7 +483,7 @@ unsafe fn NTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         // t = 16, m = 2
         let yt1 = _mm256_permute2x128_si256(ya0, ya1, 0x20);
         let yt2 = _mm256_permute2x128_si256(ya0, ya1, 0x31);
-        let g1_0 = GM[(k << 1) + 0] as i16;
+        let g1_0 = GM[k << 1] as i16;
         let g1_1 = GM[(k << 1) + 1] as i16;
         let yg1 = _mm256_setr_epi16(
             g1_0, g1_0, g1_0, g1_0, g1_0, g1_0, g1_0, g1_0, g1_1, g1_1, g1_1, g1_1, g1_1, g1_1,
@@ -457,7 +500,7 @@ unsafe fn NTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         let yt1 = _mm256_unpacklo_epi64(ya0, ya1);
         let yt2 = _mm256_unpackhi_epi64(ya0, ya1);
         let yg2 = _mm256_setr_epi64x(
-            GM[(k << 2) + 0] as i64,
+            GM[k << 2] as i64,
             GM[(k << 2) + 1] as i64,
             GM[(k << 2) + 2] as i64,
             GM[(k << 2) + 3] as i64,
@@ -476,7 +519,7 @@ unsafe fn NTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         let yt4 = _mm256_shuffle_epi32(ya1, 0xD8);
         let yt1 = _mm256_unpacklo_epi32(yt3, yt4);
         let yt2 = _mm256_unpackhi_epi32(yt3, yt4);
-        let gp: *const __m128i = transmute((&GM).as_ptr());
+        let gp: *const __m128i = transmute(GM.as_ptr());
         let yg3 = _mm256_cvtepi16_epi32(_mm_loadu_si128(gp.wrapping_add(k)));
         let yg3 = _mm256_or_si256(yg3, _mm256_slli_epi32(yg3, 16));
         let yt2 = mq_mmul_x16(yt2, yg3);
@@ -495,7 +538,7 @@ unsafe fn NTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         let yt4 = _mm256_shuffle_epi8(ya1, ysk);
         let yt1 = _mm256_unpacklo_epi16(yt3, yt4);
         let yt2 = _mm256_unpackhi_epi16(yt3, yt4);
-        let gp: *const __m256i = transmute((&GM).as_ptr());
+        let gp: *const __m256i = transmute(GM.as_ptr());
         let yt2 = mq_mmul_x16(yt2, _mm256_loadu_si256(gp.wrapping_add(k)));
         let ya0 = mq_add_x16(yt1, yt2);
         let ya1 = mq_sub_x16(yt1, yt2);
@@ -511,6 +554,11 @@ unsafe fn NTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
 }
 
 /// Convert a polynomial from internal representation to NTT (in-place).
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_int_to_NTT(logn: u32, a: &mut [u16]) {
     unsafe {
@@ -542,10 +590,10 @@ pub unsafe fn mqpoly_int_to_NTT(logn: u32, a: &mut [u16]) {
             }
             let m = n >> 5;
             for i in 0..m {
-                let ya0 = _mm256_loadu_si256(ap.wrapping_add((i << 1) + 0));
+                let ya0 = _mm256_loadu_si256(ap.wrapping_add(i << 1));
                 let ya1 = _mm256_loadu_si256(ap.wrapping_add((i << 1) + 1));
                 let (ya0, ya1) = NTT32(ya0, ya1, i + m);
-                _mm256_storeu_si256(ap.wrapping_add((i << 1) + 0), ya0);
+                _mm256_storeu_si256(ap.wrapping_add(i << 1), ya0);
                 _mm256_storeu_si256(ap.wrapping_add((i << 1) + 1), ya1);
             }
         } else {
@@ -597,7 +645,7 @@ unsafe fn iNTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         let yt1 = _mm256_unpacklo_epi64(yt3, yt4);
         let yt2 = _mm256_unpackhi_epi64(yt3, yt4);
         let ya0 = mq_half_x16(mq_add_x16(yt1, yt2));
-        let igp: *const __m256i = transmute((&iGM).as_ptr());
+        let igp: *const __m256i = transmute(iGM.as_ptr());
         let ya1 = mq_mmul_x16(
             mq_sub_x16(yt1, yt2),
             _mm256_loadu_si256(igp.wrapping_add(k)),
@@ -608,7 +656,7 @@ unsafe fn iNTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
 
         let yt1 = _mm256_blend_epi16(ya0, _mm256_slli_epi32(ya1, 16), 0xAA);
         let yt2 = _mm256_blend_epi16(_mm256_srli_epi32(ya0, 16), ya1, 0xAA);
-        let igp: *const __m128i = transmute((&iGM).as_ptr());
+        let igp: *const __m128i = transmute(iGM.as_ptr());
         let yig3 = _mm256_cvtepi16_epi32(_mm_loadu_si128(igp.wrapping_add(k)));
         let yig3 = _mm256_or_si256(yig3, _mm256_slli_epi32(yig3, 16));
         let ya0 = mq_half_x16(mq_add_x16(yt1, yt2));
@@ -620,7 +668,7 @@ unsafe fn iNTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
         let yt1 = _mm256_blend_epi16(ya0, _mm256_slli_epi64(ya1, 32), 0xCC);
         let yt2 = _mm256_blend_epi16(_mm256_srli_epi64(ya0, 32), ya1, 0xCC);
         let yig2 = _mm256_setr_epi64x(
-            iGM[(k << 2) + 0] as i64,
+            iGM[k << 2] as i64,
             iGM[(k << 2) + 1] as i64,
             iGM[(k << 2) + 2] as i64,
             iGM[(k << 2) + 3] as i64,
@@ -635,7 +683,7 @@ unsafe fn iNTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
 
         let yt1 = _mm256_unpacklo_epi64(ya0, ya1);
         let yt2 = _mm256_unpackhi_epi64(ya0, ya1);
-        let ig1_0 = iGM[(k << 1) + 0] as i16;
+        let ig1_0 = iGM[k << 1] as i16;
         let ig1_1 = iGM[(k << 1) + 1] as i16;
         let yig1 = _mm256_setr_epi16(
             ig1_0, ig1_0, ig1_0, ig1_0, ig1_0, ig1_0, ig1_0, ig1_0, ig1_1, ig1_1, ig1_1, ig1_1,
@@ -661,6 +709,11 @@ unsafe fn iNTT32(ya0: __m256i, ya1: __m256i, k: usize) -> (__m256i, __m256i) {
 }
 
 /// Convert a polynomial from NTT to internal representation (in-place).
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_NTT_to_int(logn: u32, a: &mut [u16]) {
     unsafe {
@@ -672,10 +725,10 @@ pub unsafe fn mqpoly_NTT_to_int(logn: u32, a: &mut [u16]) {
             let n = 1usize << logn;
             let m = n >> 5;
             for i in 0..m {
-                let ya0 = _mm256_loadu_si256(ap.wrapping_add((i << 1) + 0));
+                let ya0 = _mm256_loadu_si256(ap.wrapping_add(i << 1));
                 let ya1 = _mm256_loadu_si256(ap.wrapping_add((i << 1) + 1));
                 let (ya0, ya1) = iNTT32(ya0, ya1, i + m);
-                _mm256_storeu_si256(ap.wrapping_add((i << 1) + 0), ya0);
+                _mm256_storeu_si256(ap.wrapping_add(i << 1), ya0);
                 _mm256_storeu_si256(ap.wrapping_add((i << 1) + 1), ya1);
             }
             let mut t = 2;
@@ -726,6 +779,11 @@ pub unsafe fn mqpoly_NTT_to_int(logn: u32, a: &mut [u16]) {
 
 /// Multiply polynomial `a` by polynomial `b`; both must be in NTT
 /// representation.
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a`, `b` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_mul_ntt(logn: u32, a: &mut [u16], b: &[u16]) {
     unsafe {
@@ -753,6 +811,11 @@ pub unsafe fn mqpoly_mul_ntt(logn: u32, a: &mut [u16], b: &[u16]) {
 /// If `b` is invertible (none of its NTT coefficients are zero), then
 /// this returns `true`; otherwise, this returns false and the impacted
 /// result coefficients are set to the internal representation of zero.
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a`, `b` must have length at least `1 << logn`
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_div_ntt(logn: u32, a: &mut [u16], b: &[u16]) -> bool {
     unsafe {
@@ -769,7 +832,7 @@ pub unsafe fn mqpoly_div_ntt(logn: u32, a: &mut [u16], b: &[u16]) -> bool {
                 ov = _mm256_and_si256(ov, _mm256_sub_epi16(yb, qq));
             }
             let r = _mm256_movemask_epi8(ov) as u32;
-            return (r & 0xAAAAAAAA) == 0xAAAAAAAA;
+            (r & 0xAAAAAAAA) == 0xAAAAAAAA
         } else {
             let mut r = 0xFFFFFFFF;
             for i in 0..(1usize << logn) {
@@ -777,13 +840,20 @@ pub unsafe fn mqpoly_div_ntt(logn: u32, a: &mut [u16], b: &[u16]) -> bool {
                 r &= x.wrapping_sub(Q);
                 a[i] = mq_div(a[i] as u32, x) as u16;
             }
-            return (r >> 16) != 0;
+            (r >> 16) != 0
         }
     }
 }
 
 /// Subtract polynomial `b` from polynomial `a`; both must be in internal
 /// representation, or both must be in NTT representation.
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` and `b` must have length at least `1 << logn`
+/// - `a` and `b` must be properly aligned for AVX2 operations
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_sub_int(logn: u32, a: &mut [u16], b: &[u16]) {
     unsafe {
@@ -809,6 +879,13 @@ pub unsafe fn mqpoly_sub_int(logn: u32, a: &mut [u16], b: &[u16]) {
 ///
 /// The polynomial must be in external representation. If the squared norm
 /// exceeds `2^31-1` then `2^32-1` is returned.
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - `a` must be properly aligned for AVX2 operations
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn mqpoly_sqnorm(logn: u32, a: &[u16]) -> u32 {
     unsafe {
@@ -849,18 +926,18 @@ pub unsafe fn mqpoly_sqnorm(logn: u32, a: &[u16]) -> u32 {
             let xs = _mm_add_epi32(_mm256_castsi256_si128(ys), _mm256_extracti128_si256(ys, 1));
             let r = _mm_cvtsi128_si32(xs) as u32;
             let sat = ((_mm256_movemask_epi8(ysat) as u32) & 0x88888888) | (r & 0x80000000);
-            return r | ((((sat | sat.wrapping_neg()) as i32) >> 31) as u32);
+            r | ((((sat | sat.wrapping_neg()) as i32) >> 31) as u32)
         } else {
             let mut s = 0u32;
             let mut sat = 0;
-            for i in 0..(1usize << logn) {
-                let x = a[i] as u32;
+            for a_item in a.iter().take(1usize << logn) {
+                let x = *a_item as u32;
                 let m = ((Q - 1) >> 1).wrapping_sub(x) >> 16;
                 let y = x.wrapping_sub(m & Q) as i32;
                 s = s.wrapping_add((y * y) as u32);
                 sat |= s;
             }
-            return s | (sat >> 31).wrapping_neg();
+            s | (sat >> 31).wrapping_neg()
         }
     }
 }
@@ -869,6 +946,13 @@ pub unsafe fn mqpoly_sqnorm(logn: u32, a: &[u16]) -> u32 {
 ///
 /// This function assumes that the squared norm fits on 32 bits (this is
 /// guaranteed if `logn <= 10` and all coefficients are in `[-2047,+2047]`).
+///
+/// # Safety
+///
+/// - `logn` must be a valid logarithm value (typically 2-10)
+/// - `a` must have length at least `1 << logn`
+/// - `a` must be properly aligned for AVX2 operations
+/// - This function requires AVX2 support
 #[target_feature(enable = "avx2")]
 pub unsafe fn signed_poly_sqnorm(logn: u32, a: &[i16]) -> u32 {
     unsafe {
@@ -886,14 +970,14 @@ pub unsafe fn signed_poly_sqnorm(logn: u32, a: &[i16]) -> u32 {
             ys = _mm256_add_epi32(ys, _mm256_srli_epi64(ys, 32));
             ys = _mm256_add_epi32(ys, _mm256_bsrli_epi128(ys, 8));
             let xs = _mm_add_epi32(_mm256_castsi256_si128(ys), _mm256_extracti128_si256(ys, 1));
-            return _mm_cvtsi128_si32(xs) as u32;
+            _mm_cvtsi128_si32(xs) as u32
         } else {
             let mut s = 0;
-            for i in 0..(1usize << logn) {
-                let x = a[i] as i32;
+            for a_item in a.iter().take(1usize << logn) {
+                let x = *a_item as i32;
                 s += (x * x) as u32;
             }
-            return s;
+            s
         }
     }
 }

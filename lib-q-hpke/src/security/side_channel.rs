@@ -239,6 +239,7 @@ impl SideChannelProtection {
         result == 1
     }
 
+    /// Protected boolean OR operation with timing attack resistance
     pub fn secure_boolean_or(&self, a: bool, b: bool) -> bool {
         if !self.timing_protection {
             return a || b;
@@ -251,6 +252,7 @@ impl SideChannelProtection {
         result == 1
     }
 
+    /// Protected boolean XOR operation with timing attack resistance
     pub fn secure_boolean_xor(&self, a: bool, b: bool) -> bool {
         if !self.timing_protection {
             return a ^ b;
@@ -323,48 +325,59 @@ pub fn secure_key_compare(a: &[u8], b: &[u8]) -> bool {
     get_side_channel_protection().secure_key_compare(a, b)
 }
 
+/// Convenience function for secure key selection with alloc feature
 #[cfg(feature = "alloc")]
 pub fn secure_key_select(choice: u8, a: &[u8], b: &[u8]) -> Vec<u8> {
     get_side_channel_protection().secure_key_select(choice, a, b)
 }
 
+/// Convenience function for secure key selection without alloc feature
 #[cfg(not(feature = "alloc"))]
 pub fn secure_key_select(choice: u8, a: &[u8], b: &[u8]) -> &[u8] {
     get_side_channel_protection().secure_key_select(choice, a, b)
 }
 
+/// Convenience function for secure memory copy
 pub fn secure_memory_copy(choice: u8, dst: &mut [u8], src: &[u8]) {
     get_side_channel_protection().secure_memory_copy(choice, dst, src);
 }
 
+/// Convenience function for secure memory zeroing
 pub fn secure_memory_zero(choice: u8, data: &mut [u8]) {
     get_side_channel_protection().secure_memory_zero(choice, data);
 }
 
+/// Convenience function for secure memory swap
 pub fn secure_memory_swap(choice: u8, a: &mut [u8], b: &mut [u8]) {
     get_side_channel_protection().secure_memory_swap(choice, a, b);
 }
 
+/// Convenience function for secure string comparison
 pub fn secure_string_compare(a: &str, b: &str) -> bool {
     get_side_channel_protection().secure_string_compare(a, b)
 }
 
+/// Convenience function for secure integer comparison
 pub fn secure_integer_compare(a: u64, b: u64) -> bool {
     get_side_channel_protection().secure_integer_compare(a, b)
 }
 
+/// Convenience function for secure integer selection
 pub fn secure_integer_select(choice: u8, a: u64, b: u64) -> u64 {
     get_side_channel_protection().secure_integer_select(choice, a, b)
 }
 
+/// Convenience function for secure boolean AND operation
 pub fn secure_boolean_and(a: bool, b: bool) -> bool {
     get_side_channel_protection().secure_boolean_and(a, b)
 }
 
+/// Convenience function for secure boolean OR operation
 pub fn secure_boolean_or(a: bool, b: bool) -> bool {
     get_side_channel_protection().secure_boolean_or(a, b)
 }
 
+/// Convenience function for secure boolean XOR operation
 pub fn secure_boolean_xor(a: bool, b: bool) -> bool {
     get_side_channel_protection().secure_boolean_xor(a, b)
 }

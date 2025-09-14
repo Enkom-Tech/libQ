@@ -153,9 +153,9 @@ pub(crate) fn poly_mp_set_small(logn: u32, f: &[i8], p: u32, d: &mut [u32]) {
 // value overwrites the source. The source is assumed to use signed
 // representation.
 pub(crate) fn poly_mp_set(logn: u32, f: &mut [u32], p: u32) {
-    for i in 0..(1usize << logn) {
-        let x = f[i];
-        f[i] = mp_set((x | ((x & 0x40000000) << 1)) as i32, p);
+    for f_item in f.iter_mut().take(1usize << logn) {
+        let x = *f_item;
+        *f_item = mp_set((x | ((x & 0x40000000) << 1)) as i32, p);
     }
 }
 
@@ -163,8 +163,8 @@ pub(crate) fn poly_mp_set(logn: u32, f: &mut [u32], p: u32) {
 // per coefficient. Note: the returned 32-bit values are NOT truncated to
 // 31 bits; they are full-size signed 32-bit values, cast to u32 type.
 pub(crate) fn poly_mp_norm(logn: u32, f: &mut [u32], p: u32) {
-    for i in 0..(1usize << logn) {
-        f[i] = mp_norm(f[i], p) as u32;
+    for f_item in f.iter_mut().take(1usize << logn) {
+        *f_item = mp_norm(*f_item, p) as u32;
     }
 }
 
@@ -224,12 +224,12 @@ pub(crate) const fn divrem31(x: u32) -> (u32, u32) {
 //
 // This function is constant-time with regard to both the coefficient
 // contents and the scaling factor sc.
-pub(crate) fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u32, d: &mut [FXR]) {
+pub(crate) fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u32, d: &mut [Fxr]) {
     let n = 1usize << logn;
 
     if flen == 0 {
-        for i in 0..n {
-            d[i] = FXR::ZERO;
+        for d_item in d.iter_mut().take(n) {
+            *d_item = Fxr::ZERO;
         }
         return;
     }
@@ -280,7 +280,7 @@ pub(crate) fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u32, d: &
         w2 |= (w2 & 0x40000000) << 1;
         let xl = (w0 >> (scl - 1)) | (w1 << (32 - scl));
         let xh = (w1 >> scl) | (w2 << (31 - scl));
-        d[i] = FXR::from_u64_scaled32((xl as u64) | ((xh as u64) << 32));
+        d[i] = Fxr::from_u64_scaled32((xl as u64) | ((xh as u64) << 32));
     }
 }
 
@@ -549,9 +549,9 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
         for _ in 0..(sc >> 5) {
             scv = mp_mmul(scv, R2, p, p0i);
         }
-        for j in 0..n {
-            let x = mp_set(k[j] as i32, p);
-            k[j] = mp_mmul(scv, x, p, p0i);
+        for k_item in k.iter_mut().take(n) {
+            let x = mp_set(*k_item as i32, p);
+            *k_item = mp_mmul(scv, x, p, p0i);
         }
         mp_NTT(logn, k, gm, p, p0i);
 
@@ -571,15 +571,15 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
         //    NTT(X)[2*j + 1] = -NTT(X)[2*j + 0]
         // Note: the values in gm[] are in Montgomery representation.
         for j in 0..n {
-            t1[j] = mp_set(f[(j << 1) + 0] as i32, p);
+            t1[j] = mp_set(f[j << 1] as i32, p);
             t2[j] = mp_set(f[(j << 1) + 1] as i32, p);
         }
         mp_NTT(logn, t1, gm, p, p0i);
         mp_NTT(logn, t2, gm, p, p0i);
         for j in 0..hn {
-            let xe0 = t1[(j << 1) + 0];
+            let xe0 = t1[j << 1];
             let xe1 = t1[(j << 1) + 1];
-            let xo0 = t2[(j << 1) + 0];
+            let xo0 = t2[j << 1];
             let xo1 = t2[(j << 1) + 1];
             let xv0 = gm[j + hn];
             let xv1 = p - xv0; // values in gm[] are non-zero
@@ -589,24 +589,24 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
             let xo1 = mp_mmul(xo1, xo1, p, p0i);
             let xf0 = mp_sub(xe0, mp_mmul(xo0, xv0, p, p0i), p);
             let xf1 = mp_sub(xe1, mp_mmul(xo1, xv1, p, p0i), p);
-            let xkf0 = mp_mmul(mp_mmul(xf0, k[(j << 1) + 0], p, p0i), R3, p, p0i);
+            let xkf0 = mp_mmul(mp_mmul(xf0, k[j << 1], p, p0i), R3, p, p0i);
             let xkf1 = mp_mmul(mp_mmul(xf1, k[(j << 1) + 1], p, p0i), R3, p, p0i);
-            Fu[(j << 1) + 0] = mp_sub(Fu[(j << 1) + 0], xkf0, p);
+            Fu[j << 1] = mp_sub(Fu[j << 1], xkf0, p);
             Fu[(j << 1) + 1] = mp_sub(Fu[(j << 1) + 1], xkf1, p);
         }
 
         // Same treatment for G and gt.
         for j in 0..n {
-            t1[j] = mp_set(g[(j << 1) + 0] as i32, p);
-            t2[j] = mp_set(g[(j << 1) + 1] as i32, p);
+            t1[j] = mp_set(g[j << 1] as i32, p);
+            t2[j] = mp_set(g[j << (1 + 1)] as i32, p);
         }
         mp_NTT(logn, t1, gm, p, p0i);
         mp_NTT(logn, t2, gm, p, p0i);
         for j in 0..hn {
-            let xe0 = t1[(j << 1) + 0];
-            let xe1 = t1[(j << 1) + 1];
-            let xo0 = t2[(j << 1) + 0];
-            let xo1 = t2[(j << 1) + 1];
+            let xe0 = t1[j << 1];
+            let xe1 = t1[j << (1 + 1)];
+            let xo0 = t2[j << 1];
+            let xo1 = t2[j << (1 + 1)];
             let xv0 = gm[j + hn];
             let xv1 = p - xv0; // values in gm[] are non-zero
             let xe0 = mp_mmul(xe0, xe0, p, p0i);
@@ -615,10 +615,10 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
             let xo1 = mp_mmul(xo1, xo1, p, p0i);
             let xg0 = mp_sub(xe0, mp_mmul(xo0, xv0, p, p0i), p);
             let xg1 = mp_sub(xe1, mp_mmul(xo1, xv1, p, p0i), p);
-            let xkg0 = mp_mmul(mp_mmul(xg0, k[(j << 1) + 0], p, p0i), R3, p, p0i);
-            let xkg1 = mp_mmul(mp_mmul(xg1, k[(j << 1) + 1], p, p0i), R3, p, p0i);
-            Gu[(j << 1) + 0] = mp_sub(Gu[(j << 1) + 0], xkg0, p);
-            Gu[(j << 1) + 1] = mp_sub(Gu[(j << 1) + 1], xkg1, p);
+            let xkg0 = mp_mmul(mp_mmul(xg0, k[j << 1], p, p0i), R3, p, p0i);
+            let xkg1 = mp_mmul(mp_mmul(xg1, k[j << (1 + 1)], p, p0i), R3, p, p0i);
+            Gu[j << 1] = mp_sub(Gu[j << 1], xkg0, p);
+            Gu[j << (1 + 1)] = mp_sub(Gu[j << (1 + 1)], xkg1, p);
         }
 
         // Convert back F and G to RNS.
@@ -634,8 +634,8 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
             for _ in 0..(sc >> 5) {
                 scv = mp_mmul(scv, 1, p, p0i);
             }
-            for j in 0..n {
-                k[j] = mp_norm(mp_mmul(scv, k[j], p, p0i), p) as u32;
+            for k_item in k.iter_mut().take(n) {
+                *k_item = mp_norm(mp_mmul(scv, *k_item, p, p0i), p) as u32;
             }
         }
     }

@@ -332,10 +332,10 @@ unsafe fn NTT8(ya: __m256i, gm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) ->
         let yt1 = _mm256_permute2x128_si256(ya0, ya1, 0x20);
         let yt2 = _mm256_permute2x128_si256(ya0, ya1, 0x31);
         let yg1 = _mm256_setr_epi32(
-            gm[(k << 1) + 0] as i32,
-            gm[(k << 1) + 0] as i32,
-            gm[(k << 1) + 0] as i32,
-            gm[(k << 1) + 0] as i32,
+            gm[k << 1] as i32,
+            gm[k << 1] as i32,
+            gm[k << 1] as i32,
+            gm[k << 1] as i32,
             gm[(k << 1) + 1] as i32,
             gm[(k << 1) + 1] as i32,
             gm[(k << 1) + 1] as i32,
@@ -354,8 +354,8 @@ unsafe fn NTT8(ya: __m256i, gm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) ->
         let yt1 = _mm256_unpacklo_epi64(ya0, ya1);
         let yt2 = _mm256_unpackhi_epi64(ya0, ya1);
         let yg2 = _mm256_setr_epi32(
-            gm[(k << 2) + 0] as i32,
-            gm[(k << 2) + 0] as i32,
+            gm[k << 2] as i32,
+            gm[k << 2] as i32,
             gm[(k << 2) + 1] as i32,
             gm[(k << 2) + 1] as i32,
             gm[(k << 2) + 2] as i32,
@@ -369,8 +369,8 @@ unsafe fn NTT8(ya: __m256i, gm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) ->
 
         // ya0 = a0:--:a2:--:a4:--:a6:--
         // ya1 = a1:--:a3:--:a5:--:a7:--
-        let ya = _mm256_blend_epi32(ya0, _mm256_slli_epi64(ya1, 32), 0xAA);
-        ya
+
+        _mm256_blend_epi32(ya0, _mm256_slli_epi64(ya1, 32), 0xAA)
     }
 }
 
@@ -454,8 +454,8 @@ unsafe fn iNTT8(ya: __m256i, igm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) 
         let yt1 = ya;
         let yt2 = _mm256_srli_epi64(ya, 32);
         let yg2 = _mm256_setr_epi32(
-            igm[(k << 2) + 0] as i32,
-            igm[(k << 2) + 0] as i32,
+            igm[k << 2] as i32,
+            igm[k << 2] as i32,
             igm[(k << 2) + 1] as i32,
             igm[(k << 2) + 1] as i32,
             igm[(k << 2) + 2] as i32,
@@ -471,10 +471,10 @@ unsafe fn iNTT8(ya: __m256i, igm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) 
         let yt1 = _mm256_unpacklo_epi64(ya0, ya1);
         let yt2 = _mm256_unpackhi_epi64(ya0, ya1);
         let yg1 = _mm256_setr_epi32(
-            igm[(k << 1) + 0] as i32,
-            igm[(k << 1) + 0] as i32,
-            igm[(k << 1) + 0] as i32,
-            igm[(k << 1) + 0] as i32,
+            igm[k << 1] as i32,
+            igm[k << 1] as i32,
+            igm[k << 1] as i32,
+            igm[k << 1] as i32,
             igm[(k << 1) + 1] as i32,
             igm[(k << 1) + 1] as i32,
             igm[(k << 1) + 1] as i32,
@@ -497,8 +497,8 @@ unsafe fn iNTT8(ya: __m256i, igm: &[u32], k: usize, yp: __m256i, yp0i: __m256i) 
         let yt2 = _mm256_permute2x128_si256(ya0, ya1, 0x31);
         // yt1 <- a0:a2:a1:a3:a4:a6:a5:a7
         let yt1 = _mm256_blend_epi32(yt1, _mm256_slli_epi64(yt2, 32), 0xAA);
-        let ya = _mm256_shuffle_epi32(yt1, 0xD8);
-        ya
+
+        _mm256_shuffle_epi32(yt1, 0xD8)
     }
 }
 
@@ -593,7 +593,7 @@ pub(crate) unsafe fn poly_mp_set_small(logn: u32, f: &[i8], p: u32, d: &mut [u32
                 let y1 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(xf, 8));
                 let yd0 = mp_set_x8(y0, yp);
                 let yd1 = mp_set_x8(y1, yp);
-                _mm256_storeu_si256(dp.wrapping_add((i << 1) + 0), yd0);
+                _mm256_storeu_si256(dp.wrapping_add(i << 1), yd0);
                 _mm256_storeu_si256(dp.wrapping_add((i << 1) + 1), yd1);
             }
         } else {
@@ -620,9 +620,9 @@ pub(crate) unsafe fn poly_mp_set(logn: u32, f: &mut [u32], p: u32) {
                 _mm256_storeu_si256(fp.wrapping_add(i), yf);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                let x = f[i];
-                f[i] = mp_set((x | ((x & 0x40000000) << 1)) as i32, p);
+            for f_item in f.iter_mut().take(1usize << logn) {
+                let x = *f_item;
+                *f_item = mp_set((x | ((x & 0x40000000) << 1)) as i32, p);
             }
         }
     }
@@ -644,8 +644,8 @@ pub(crate) unsafe fn poly_mp_norm(logn: u32, f: &mut [u32], p: u32) {
                 _mm256_storeu_si256(fp.wrapping_add(i), yf);
             }
         } else {
-            for i in 0..(1usize << logn) {
-                f[i] = mp_norm(f[i], p) as u32;
+            for f_item in f.iter_mut().take(1usize << logn) {
+                *f_item = mp_norm(*f_item, p) as u32;
             }
         }
     }
@@ -709,12 +709,12 @@ pub(crate) const fn divrem31(x: u32) -> (u32, u32) {
 // This function is constant-time with regard to both the coefficient
 // contents and the scaling factor sc.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u32, d: &mut [FXR]) {
+pub(crate) unsafe fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u32, d: &mut [Fxr]) {
     let n = 1usize << logn;
 
     if flen == 0 {
-        for i in 0..n {
-            d[i] = FXR::ZERO;
+        for d_item in d.iter_mut().take(n) {
+            *d_item = Fxr::ZERO;
         }
         return;
     }
@@ -765,7 +765,7 @@ pub(crate) unsafe fn poly_big_to_fixed(logn: u32, f: &[u32], flen: usize, sc: u3
         w2 |= (w2 & 0x40000000) << 1;
         let xl = (w0 >> (scl - 1)) | (w1 << (32 - scl));
         let xh = (w1 >> scl) | (w2 << (31 - scl));
-        d[i] = FXR::from_u64_scaled32((xl as u64) | ((xh as u64) << 32));
+        d[i] = Fxr::from_u64_scaled32((xl as u64) | ((xh as u64) << 32));
     }
 }
 
@@ -809,7 +809,7 @@ pub(crate) unsafe fn poly_sub_scaled(
                     // Next word, shifted.
                     let (f0, f1);
                     if i < flen {
-                        f0 = f[(i << 1) + 0];
+                        f0 = f[i << 1];
                         f1 = f[(i << 1) + 1];
                     } else {
                         f0 = signf0;
@@ -820,13 +820,13 @@ pub(crate) unsafe fn poly_sub_scaled(
                     t0 = f0 >> (31 - scl);
                     t1 = f1 >> (31 - scl);
 
-                    let F0 = F[Foff + (i << 1) + 0];
+                    let F0 = F[Foff + (i << 1)];
                     let F1 = F[Foff + (i << 1) + 1];
                     let z0 =
                         (F0 as i64) + cc0 - (fs0 as i64) * (k0 as i64) + (fs1 as i64) * (k1 as i64);
                     let z1 =
                         (F1 as i64) + cc1 - (fs0 as i64) * (k1 as i64) - (fs1 as i64) * (k0 as i64);
-                    F[Foff + (i << 1) + 0] = (z0 as u32) & 0x7FFFFFFF;
+                    F[Foff + (i << 1)] = (z0 as u32) & 0x7FFFFFFF;
                     F[Foff + (i << 1) + 1] = (z1 as u32) & 0x7FFFFFFF;
                     cc0 = z0 >> 31;
                     cc1 = z1 >> 31;
@@ -862,12 +862,11 @@ pub(crate) unsafe fn poly_sub_scaled(
                 let y31lo = _mm256_set1_epi64x(0x7FFFFFFF);
                 for i in 0..Flen {
                     // Next word, shifted.
-                    let xf;
-                    if i < flen {
-                        xf = _mm_loadu_si128(fp.wrapping_add(i));
+                    let xf = if i < flen {
+                        _mm_loadu_si128(fp.wrapping_add(i))
                     } else {
-                        xf = xsignf;
-                    }
+                        xsignf
+                    };
                     let xfs = _mm_or_si128(xt, _mm_and_si128(_mm_sll_epi32(xf, xscl), x31));
                     xt = _mm_srl_epi32(xf, xnscl);
 
@@ -952,12 +951,11 @@ pub(crate) unsafe fn poly_sub_scaled(
                 let y31lo = _mm256_set1_epi64x(0x7FFFFFFF);
                 for i in 0..Flen {
                     // Next word, shifted.
-                    let yf;
-                    if i < flen {
-                        yf = _mm256_loadu_si256(fp.wrapping_add(i));
+                    let yf = if i < flen {
+                        _mm256_loadu_si256(fp.wrapping_add(i))
                     } else {
-                        yf = ysignf;
-                    }
+                        ysignf
+                    };
                     let yfs =
                         _mm256_or_si256(yt, _mm256_and_si256(_mm256_sll_epi32(yf, xscl), y31));
                     yt = _mm256_srl_epi32(yf, xnscl);
@@ -1232,9 +1230,9 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
             for _ in 0..(sc >> 5) {
                 scv = mp_mmul(scv, R2, p, p0i);
             }
-            for j in 0..n {
-                let x = mp_set(k[j] as i32, p);
-                k[j] = mp_mmul(scv, x, p, p0i);
+            for k_item in k.iter_mut().take(n) {
+                let x = mp_set(*k_item as i32, p);
+                *k_item = mp_mmul(scv, x, p, p0i);
             }
             mp_NTT(logn, k, gm, p, p0i);
 
@@ -1254,15 +1252,15 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
             //    NTT(X)[2*j + 1] = -NTT(X)[2*j + 0]
             // Note: the values in gm[] are in Montgomery representation.
             for j in 0..n {
-                t1[j] = mp_set(f[(j << 1) + 0] as i32, p);
+                t1[j] = mp_set(f[j << 1] as i32, p);
                 t2[j] = mp_set(f[(j << 1) + 1] as i32, p);
             }
             mp_NTT(logn, t1, gm, p, p0i);
             mp_NTT(logn, t2, gm, p, p0i);
             for j in 0..hn {
-                let xe0 = t1[(j << 1) + 0];
+                let xe0 = t1[j << 1];
                 let xe1 = t1[(j << 1) + 1];
-                let xo0 = t2[(j << 1) + 0];
+                let xo0 = t2[j << 1];
                 let xo1 = t2[(j << 1) + 1];
                 let xv0 = gm[j + hn];
                 let xv1 = p - xv0; // values in gm[] are non-zero
@@ -1272,23 +1270,23 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
                 let xo1 = mp_mmul(xo1, xo1, p, p0i);
                 let xf0 = mp_sub(xe0, mp_mmul(xo0, xv0, p, p0i), p);
                 let xf1 = mp_sub(xe1, mp_mmul(xo1, xv1, p, p0i), p);
-                let xkf0 = mp_mmul(mp_mmul(xf0, k[(j << 1) + 0], p, p0i), R3, p, p0i);
+                let xkf0 = mp_mmul(mp_mmul(xf0, k[j << 1], p, p0i), R3, p, p0i);
                 let xkf1 = mp_mmul(mp_mmul(xf1, k[(j << 1) + 1], p, p0i), R3, p, p0i);
-                Fu[(j << 1) + 0] = mp_sub(Fu[(j << 1) + 0], xkf0, p);
+                Fu[j << 1] = mp_sub(Fu[j << 1], xkf0, p);
                 Fu[(j << 1) + 1] = mp_sub(Fu[(j << 1) + 1], xkf1, p);
             }
 
             // Same treatment for G and gt.
             for j in 0..n {
-                t1[j] = mp_set(g[(j << 1) + 0] as i32, p);
+                t1[j] = mp_set(g[j << 1] as i32, p);
                 t2[j] = mp_set(g[(j << 1) + 1] as i32, p);
             }
             mp_NTT(logn, t1, gm, p, p0i);
             mp_NTT(logn, t2, gm, p, p0i);
             for j in 0..hn {
-                let xe0 = t1[(j << 1) + 0];
+                let xe0 = t1[j << 1];
                 let xe1 = t1[(j << 1) + 1];
-                let xo0 = t2[(j << 1) + 0];
+                let xo0 = t2[j << 1];
                 let xo1 = t2[(j << 1) + 1];
                 let xv0 = gm[j + hn];
                 let xv1 = p - xv0; // values in gm[] are non-zero
@@ -1298,9 +1296,9 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
                 let xo1 = mp_mmul(xo1, xo1, p, p0i);
                 let xg0 = mp_sub(xe0, mp_mmul(xo0, xv0, p, p0i), p);
                 let xg1 = mp_sub(xe1, mp_mmul(xo1, xv1, p, p0i), p);
-                let xkg0 = mp_mmul(mp_mmul(xg0, k[(j << 1) + 0], p, p0i), R3, p, p0i);
+                let xkg0 = mp_mmul(mp_mmul(xg0, k[j << 1], p, p0i), R3, p, p0i);
                 let xkg1 = mp_mmul(mp_mmul(xg1, k[(j << 1) + 1], p, p0i), R3, p, p0i);
-                Gu[(j << 1) + 0] = mp_sub(Gu[(j << 1) + 0], xkg0, p);
+                Gu[j << 1] = mp_sub(Gu[j << 1], xkg0, p);
                 Gu[(j << 1) + 1] = mp_sub(Gu[(j << 1) + 1], xkg1, p);
             }
 
@@ -1317,8 +1315,8 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
                 for _ in 0..(sc >> 5) {
                     scv = mp_mmul(scv, 1, p, p0i);
                 }
-                for j in 0..n {
-                    k[j] = mp_norm(mp_mmul(scv, k[j], p, p0i), p) as u32;
+                for k_item in k.iter_mut().take(n) {
+                    *k_item = mp_norm(mp_mmul(scv, *k_item, p, p0i), p) as u32;
                 }
             }
         }

@@ -1,43 +1,224 @@
 //! lib-Q AEAD - Post-quantum Authenticated Encryption
 //!
-//! This crate provides implementations of post-quantum authenticated encryption.
+//! This crate provides a flexible, algorithm-agnostic implementation of post-quantum
+//! authenticated encryption with associated data (AEAD). It supports dynamic algorithm
+//! registration and follows libQ's architectural principles.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc_error_handler))]
+// Note: We need unsafe code for global registry initialization
+#![deny(unused_qualifications)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
+use alloc::{
+    boxed::Box,
+    vec::Vec,
+};
 
 // Re-export core types for public use
 pub use lib_q_core::{
     Aead,
     AeadKey,
+    Algorithm,
+    AlgorithmCategory,
     Nonce,
     Result,
 };
-// Re-export algorithm implementations
+
+// Internal modules
+mod metadata;
+mod plugin;
+mod registry;
+pub mod security;
+
+// Re-export public API
+pub use metadata::{
+    AeadMetadata,
+    AeadWithMetadata,
+    PerformanceTier,
+};
+pub use plugin::{
+    AeadPlugin,
+    PluginRegistry,
+};
+pub use registry::AeadRegistry;
+// Re-export security sub-modules for testing
+pub use security::constant_time;
+// Re-export security API
+pub use security::{
+    SecurityConfig,
+    SecurityContext,
+    get_security_config,
+    set_security_config,
+};
+pub use security::{
+    memory,
+    nonce,
+    side_channel,
+    stack_buffer,
+    timing,
+    validation,
+};
+
+// Macro is exported at crate root via #[macro_export] in plugin.rs
+
+// Algorithm implementations
+#[cfg(feature = "kem-aead")]
+mod kem_aead_impl;
 #[cfg(feature = "saturnin")]
-pub use lib_q_saturnin::SaturninAead;
+mod saturnin_impl;
+#[cfg(feature = "shake256")]
+mod shake256_impl;
 
-/// KEM-based AEAD construction
-// pub mod kem_aead; // TODO: Implement
-/// Get available AEAD algorithms
-#[allow(clippy::vec_init_then_push)] // Can't use vec![] due to feature-gated content
-pub fn available_algorithms() -> Vec<&'static str> {
-    #[allow(unused_mut)] // mut is needed for algorithms.push() in feature-gated code
-    let mut algorithms = Vec::new();
+// Re-export implementations
+#[cfg(feature = "kem-aead")]
+pub use kem_aead_impl::KemAead;
+#[cfg(feature = "saturnin")]
+pub use saturnin_impl::SaturninAead;
+#[cfg(feature = "shake256")]
+pub use shake256_impl::Shake256Aead;
 
+/// Global AEAD registry instance
+///
+/// This uses thread-safe initialization when compiled with std features,
+/// and single-threaded initialization for no_std environments.
+/// The key insight is that when the HPKE crate is compiled with std features,
+/// it expects thread-safe statics, so we need to provide them.
+#[cfg(feature = "std")]
+static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::new(|| {
+    let registry = AeadRegistry::new();
+
+    // Register built-in algorithms
     #[cfg(feature = "saturnin")]
-    algorithms.push("saturnin");
+    let _ = registry.register_algorithm(Algorithm::Saturnin, || {
+        Ok(Box::new(SaturninAead::new()) as Box<dyn AeadWithMetadata>)
+    });
 
-    // algorithms.push("kem-aead"); // TODO: Implement
-    algorithms
+    #[cfg(feature = "shake256")]
+    let _ = registry.register_algorithm(Algorithm::Shake256Aead, || {
+        Ok(Box::new(Shake256Aead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "kem-aead")]
+    let _ = registry.register_algorithm(Algorithm::KemAead, || {
+        Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    registry
+});
+
+/// Global AEAD registry instance for no_std environments
+///
+/// This uses thread-safe initialization for WASM and other targets that require Sync.
+/// For true no_std environments without threading, this is still safe.
+#[cfg(not(feature = "std"))]
+static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::new(|| {
+    let registry = AeadRegistry::new();
+
+    // Register built-in algorithms
+    #[cfg(feature = "saturnin")]
+    let _ = registry.register_algorithm(Algorithm::Saturnin, || {
+        Ok(Box::new(SaturninAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "shake256")]
+    let _ = registry.register_algorithm(Algorithm::Shake256Aead, || {
+        Ok(Box::new(Shake256Aead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "kem-aead")]
+    let _ = registry.register_algorithm(Algorithm::KemAead, || {
+        Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    registry
+});
+
+/// Get the global AEAD registry
+pub fn registry() -> &'static AeadRegistry {
+    &REGISTRY
 }
 
-/// Create an AEAD instance by algorithm name
-pub fn create_aead(algorithm: &str) -> Result<Box<dyn Aead>> {
-    match algorithm {
-        #[cfg(feature = "saturnin")]
-        "saturnin" => Ok(Box::new(SaturninAead::new())),
-        // "kem-aead" => Ok(Box::new(kem_aead::KemAead::new())), // TODO: Implement
-        _ => Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: "Unknown AEAD algorithm",
-        }),
+/// Get available AEAD algorithms
+pub fn available_algorithms() -> Vec<Algorithm> {
+    registry().available_algorithms()
+}
+
+/// Create an AEAD instance by algorithm
+pub fn create_aead(algorithm: Algorithm) -> Result<Box<dyn AeadWithMetadata>> {
+    // Validate algorithm category
+    if algorithm.category() != AlgorithmCategory::Aead {
+        return Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: "Algorithm is not an AEAD algorithm",
+        });
     }
+
+    registry().create_aead(algorithm)
+}
+
+/// Check if an algorithm is available
+pub fn is_algorithm_available(algorithm: Algorithm) -> bool {
+    algorithm.category() == AlgorithmCategory::Aead && registry().is_available(algorithm)
+}
+
+/// Get algorithm metadata
+pub fn get_algorithm_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
+    if algorithm.category() != AlgorithmCategory::Aead {
+        return None;
+    }
+    registry().get_metadata(algorithm)
+}
+
+/// Register a custom AEAD algorithm
+#[cfg(feature = "std")]
+pub fn register_algorithm<F>(_algorithm: Algorithm, _constructor: F) -> Result<()>
+where
+    F: Fn() -> Result<Box<dyn AeadWithMetadata>> + Send + Sync + 'static,
+{
+    // For std, we need to modify the registry, but it's immutable
+    // This is a limitation of the current design
+    Err(lib_q_core::Error::NotImplemented {
+        feature: "Dynamic algorithm registration requires mutable registry".to_string(),
+    })
+}
+
+/// Register a custom AEAD algorithm for no_std - using safe approach
+#[cfg(not(feature = "std"))]
+pub fn register_algorithm<F>(algorithm: Algorithm, constructor: F) -> Result<()>
+where
+    F: Fn() -> Result<Box<dyn AeadWithMetadata>> + Send + Sync + 'static,
+{
+    if algorithm.category() != AlgorithmCategory::Aead {
+        return Err(lib_q_core::Error::InvalidAlgorithm {
+            algorithm: "Algorithm is not an AEAD algorithm",
+        });
+    }
+
+    // Use the registry's safe registration method
+    // Note: This will only work if the registry hasn't been initialized yet
+    // In a real implementation, you might want to use a different approach
+    // such as a global mutex or atomic operations
+    registry().register_algorithm(algorithm, constructor)
+}
+
+/// Register a plugin
+#[cfg(feature = "std")]
+pub fn register_plugin(_plugin: Box<dyn AeadPlugin>) -> Result<()> {
+    // For std, we need to modify the registry, but it's immutable
+    // This is a limitation of the current design
+    Err(lib_q_core::Error::NotImplemented {
+        feature: "Dynamic plugin registration requires mutable registry".to_string(),
+    })
+}
+
+/// Register a plugin for no_std - using safe approach
+#[cfg(not(feature = "std"))]
+pub fn register_plugin(plugin: Box<dyn AeadPlugin>) -> Result<()> {
+    // Use the registry's safe registration method
+    registry().register_plugin(plugin)
 }
 
 #[cfg(test)]
@@ -46,21 +227,64 @@ mod tests {
 
     #[test]
     fn test_available_algorithms() {
-        let _algorithms = available_algorithms();
-        // Should include saturnin if feature is enabled
-        #[cfg(feature = "saturnin")]
-        assert!(_algorithms.contains(&"saturnin"));
+        let algorithms = available_algorithms();
+        assert!(!algorithms.is_empty());
+
+        // All returned algorithms should be AEAD algorithms
+        for algorithm in algorithms {
+            assert_eq!(algorithm.category(), AlgorithmCategory::Aead);
+        }
     }
 
     #[test]
     fn test_create_aead() {
-        #[cfg(feature = "saturnin")]
-        {
-            let aead = create_aead("saturnin");
-            assert!(aead.is_ok());
+        let algorithms = available_algorithms();
+
+        for algorithm in algorithms {
+            let aead = create_aead(algorithm);
+            assert!(aead.is_ok(), "Failed to create AEAD for {:?}", algorithm);
+        }
+    }
+
+    #[test]
+    fn test_invalid_algorithm() {
+        // Try to create AEAD with non-AEAD algorithm
+        let result = create_aead(Algorithm::MlKem512);
+        assert!(result.is_err());
+
+        if let Err(lib_q_core::Error::InvalidAlgorithm { algorithm }) = result {
+            assert!(algorithm.contains("not an AEAD algorithm"));
+        } else {
+            panic!("Expected InvalidAlgorithm error");
+        }
+    }
+
+    #[test]
+    fn test_algorithm_availability() {
+        let algorithms = available_algorithms();
+
+        for algorithm in algorithms {
+            assert!(is_algorithm_available(algorithm));
         }
 
-        let invalid = create_aead("invalid");
-        assert!(invalid.is_err());
+        // Non-AEAD algorithms should not be available
+        assert!(!is_algorithm_available(Algorithm::MlKem512));
+    }
+
+    #[test]
+    fn test_algorithm_metadata() {
+        let algorithms = available_algorithms();
+
+        for algorithm in algorithms {
+            let metadata = get_algorithm_metadata(algorithm);
+            assert!(metadata.is_some(), "No metadata for {:?}", algorithm);
+
+            if let Some(meta) = metadata {
+                assert_eq!(meta.algorithm, algorithm);
+                assert!(meta.key_size > 0);
+                assert!(meta.nonce_size > 0);
+                assert!(meta.tag_size > 0);
+            }
+        }
     }
 }

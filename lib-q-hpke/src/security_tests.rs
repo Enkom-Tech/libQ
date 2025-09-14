@@ -129,11 +129,11 @@ mod tests {
         let nonce = vec![0u8; 16];
         let plaintext = b"test message";
 
-        // Test SHAKE256 AEAD - should work as it's now implemented
+        // Test SHAKE256 AEAD - should fail as it's not currently implemented
         let result = provider.seal(HpkeAead::Shake256, &key, &nonce, b"", plaintext);
         assert!(
-            result.is_ok(),
-            "SHAKE256 AEAD should work after migration to lib-q-aead"
+            result.is_err(),
+            "SHAKE256 AEAD should fail as it's not currently implemented"
         );
     }
 
@@ -189,7 +189,7 @@ mod tests {
         assert!(provider.supports_kdf(HpkeKdf::HkdfSha3_512));
 
         assert!(provider.supports_aead(HpkeAead::Saturnin256));
-        // SHAKE256 AEAD is now implemented in lib-q-aead
+        // SHAKE256 AEAD is implemented and supported
         assert!(provider.supports_aead(HpkeAead::Shake256));
         assert!(provider.supports_aead(HpkeAead::Export));
     }

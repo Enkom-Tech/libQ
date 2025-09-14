@@ -9,8 +9,8 @@ pub fn trim_i8_encode(f: &[i8], nbits: u32, d: &mut [u8]) -> usize {
     let mut acc = 0;
     let mut acc_len = 0;
     let mask = (1u32 << nbits) - 1;
-    for i in 0..f.len() {
-        acc = (acc << nbits) | (((f[i] as u8) as u32) & mask);
+    for f_item in f {
+        acc = (acc << nbits) | (((*f_item as u8) as u32) & mask);
         acc_len += nbits;
         while acc_len >= 8 {
             acc_len -= 8;
@@ -50,8 +50,8 @@ pub fn trim_i8_decode(d: &[u8], f: &mut [i8], nbits: u32) -> Option<usize> {
     let mut acc_len = 0;
     let mask1 = (1 << nbits) - 1;
     let mask2 = 1 << (nbits - 1);
-    for i in 0..needed {
-        acc = (acc << 8) | (d[i] as u32);
+    for d_item in d.iter().take(needed) {
+        acc = (acc << 8) | (*d_item as u32);
         acc_len += 8;
         while acc_len >= nbits {
             acc_len -= nbits;
@@ -84,7 +84,7 @@ pub fn modq_encode(h: &[u16], d: &mut [u8]) -> usize {
     assert!((h.len() & 3) == 0);
     let mut j = 0;
     for i in 0..(h.len() >> 2) {
-        let x0 = h[4 * i + 0] as u64;
+        let x0 = h[4 * i] as u64;
         let x1 = h[4 * i + 1] as u64;
         let x2 = h[4 * i + 2] as u64;
         let x3 = h[4 * i + 3] as u64;
@@ -143,7 +143,7 @@ pub fn modq_decode(d: &[u8], h: &mut [u16]) -> Option<usize> {
         ov &= h1.wrapping_sub(12289);
         ov &= h2.wrapping_sub(12289);
         ov &= h3.wrapping_sub(12289);
-        h[4 * i + 0] = h0 as u16;
+        h[4 * i] = h0 as u16;
         h[4 * i + 1] = h1 as u16;
         h[4 * i + 2] = h2 as u16;
         h[4 * i + 3] = h3 as u16;
@@ -166,11 +166,11 @@ pub fn comp_encode(s: &[i16], d: &mut [u8]) -> bool {
     let mut acc = 0;
     let mut acc_len = 0;
     let mut j = 0;
-    for i in 0..s.len() {
+    for s_item in s {
         // Invariant: acc_len <= 7 at the beginning of each iteration.
 
-        let x = s[i] as i32;
-        if x < -2047 || x > 2047 {
+        let x = *s_item as i32;
+        if !(-2047..=2047).contains(&x) {
             return false;
         }
 
@@ -214,8 +214,8 @@ pub fn comp_encode(s: &[i16], d: &mut [u8]) -> bool {
     }
 
     // Pad with zeros.
-    for k in j..d.len() {
-        d[k] = 0;
+    for d_item in d.iter_mut().skip(j) {
+        *d_item = 0;
     }
     true
 }
@@ -238,7 +238,7 @@ pub fn comp_decode(d: &[u8], v: &mut [i16]) -> bool {
     let mut i = 0;
     let mut acc = 0;
     let mut acc_len = 0;
-    for j in 0..v.len() {
+    for v_item in &mut *v {
         // Invariant: acc_len <= 7 at the beginning of each iteration.
 
         // Get next 8 bits and split them into sign bit (s) and low bits
@@ -279,17 +279,15 @@ pub fn comp_decode(d: &[u8], v: &mut [i16]) -> bool {
         // Apply the sign to get the value.
         let sw = s.wrapping_neg();
         let w = (m ^ sw).wrapping_sub(sw);
-        v[j] = w as i16;
+        *v_item = w as i16;
     }
 
     // Check that unused bits are all zero.
-    if acc_len > 0 {
-        if (acc & ((1 << acc_len) - 1)) != 0 {
-            return false;
-        }
+    if acc_len > 0 && (acc & ((1 << acc_len) - 1)) != 0 {
+        return false;
     }
-    for k in i..d.len() {
-        if d[k] != 0 {
+    for d_item in d.iter().skip(i) {
+        if *d_item != 0 {
             return false;
         }
     }

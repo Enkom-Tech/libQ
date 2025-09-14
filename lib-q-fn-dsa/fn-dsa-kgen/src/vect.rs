@@ -2,8 +2,8 @@
 #![allow(non_upper_case_globals)]
 
 use super::fxp::{
-    FXC,
-    FXR,
+    Fxc,
+    Fxr,
     GM_TAB,
 };
 
@@ -17,7 +17,7 @@ use super::fxp::{
 // the imaginary part of the complex value.
 
 // Convert a (real) vector to its FFT representation.
-pub(crate) fn vect_FFT(logn: u32, f: &mut [FXR]) {
+pub(crate) fn vect_FFT(logn: u32, f: &mut [Fxr]) {
     let hn = 1usize << (logn - 1);
     let mut t = hn;
     for lm in 1..logn {
@@ -27,11 +27,11 @@ pub(crate) fn vect_FFT(logn: u32, f: &mut [FXR]) {
         for i in 0..(m >> 1) {
             let s = GM_TAB[m + i];
             for j in j0..(j0 + ht) {
-                let x = FXC {
+                let x = Fxc {
                     re: f[j],
                     im: f[j + hn],
                 };
-                let y = FXC {
+                let y = Fxc {
                     re: f[j + ht],
                     im: f[j + ht + hn],
                 };
@@ -82,7 +82,7 @@ pub(crate) fn vect_FFT(logn: u32, f: &mut [FXR]) {
 // [-1518500250..+1518500250], regardless of the contents of the source
 // vector. In particular, this is a smaller range than signed 32-bit integers
 // in general, and it avoids the troublesome values such as -2^31.
-pub(crate) fn vect_iFFT(logn: u32, f: &mut [FXR]) {
+pub(crate) fn vect_iFFT(logn: u32, f: &mut [Fxr]) {
     let hn = 1usize << (logn - 1);
     let mut ht = 1;
     for lm in (1..logn).rev() {
@@ -92,11 +92,11 @@ pub(crate) fn vect_iFFT(logn: u32, f: &mut [FXR]) {
         for i in 0..(m >> 1) {
             let s = GM_TAB[m + i].conj();
             for j in j0..(j0 + ht) {
-                let x = FXC {
+                let x = Fxc {
                     re: f[j],
                     im: f[j + hn],
                 };
-                let y = FXC {
+                let y = Fxc {
                     re: f[j + ht],
                     im: f[j + ht + hn],
                 };
@@ -114,14 +114,14 @@ pub(crate) fn vect_iFFT(logn: u32, f: &mut [FXR]) {
 }
 
 // Set vector d to the value of polynomial f.
-pub(crate) fn vect_to_fxr(logn: u32, d: &mut [FXR], f: &[i8]) {
+pub(crate) fn vect_to_fxr(logn: u32, d: &mut [Fxr], f: &[i8]) {
     for i in 0..(1usize << logn) {
-        d[i] = FXR::from_i32(f[i] as i32);
+        d[i] = Fxr::from_i32(f[i] as i32);
     }
 }
 
 // Add vector b to vector a. This works in both real and FFT representations.
-pub(crate) fn vect_add(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) fn vect_add(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     for i in 0..(1usize << logn) {
         a[i] += b[i];
     }
@@ -129,29 +129,29 @@ pub(crate) fn vect_add(logn: u32, a: &mut [FXR], b: &[FXR]) {
 
 // Multiply vector a by constant c. This works in both real and FFT
 // representations.
-pub(crate) fn vect_mul_realconst(logn: u32, a: &mut [FXR], c: FXR) {
-    for i in 0..(1usize << logn) {
-        a[i] *= c;
+pub(crate) fn vect_mul_realconst(logn: u32, a: &mut [Fxr], c: Fxr) {
+    for a_item in a.iter_mut().take(1usize << logn) {
+        *a_item *= c;
     }
 }
 
 // Multiply vector a by 2^e. Exponent e should be in the [0,30] range.
-pub(crate) fn vect_mul2e(logn: u32, a: &mut [FXR], e: u32) {
-    for i in 0..(1usize << logn) {
-        a[i].set_mul2e(e);
+pub(crate) fn vect_mul2e(logn: u32, a: &mut [Fxr], e: u32) {
+    for a_item in a.iter_mut().take(1usize << logn) {
+        a_item.set_mul2e(e);
     }
 }
 
 // Multiply vector a by vector b. The vectors must be in FFT representation,
 // and the result is in FFT representation.
-pub(crate) fn vect_mul_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) fn vect_mul_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
-        let x = FXC {
+        let x = Fxc {
             re: a[i],
             im: a[i + hn],
         };
-        let y = FXC {
+        let y = Fxc {
             re: b[i],
             im: b[i + hn],
         };
@@ -162,9 +162,9 @@ pub(crate) fn vect_mul_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 }
 
 // Convert a vector into its Hermitian adjoint (in FFT representation).
-pub(crate) fn vect_adj_fft(logn: u32, a: &mut [FXR]) {
-    for i in (1usize << (logn - 1))..(1usize << logn) {
-        a[i].set_neg();
+pub(crate) fn vect_adj_fft(logn: u32, a: &mut [Fxr]) {
+    for a_item in a.iter_mut().take(1usize << logn).skip(1usize << (logn - 1)) {
+        a_item.set_neg();
     }
 }
 
@@ -172,7 +172,7 @@ pub(crate) fn vect_adj_fft(logn: u32, a: &mut [FXR]) {
 // representation. Since the FFT representation of a self-adjoint vector
 // contains only real numbers, the second half of b contains only zeros and
 // thus is not accessed (the slice may be half length).
-pub(crate) fn vect_mul_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) fn vect_mul_selfadj_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         let c = b[i];
@@ -185,7 +185,7 @@ pub(crate) fn vect_mul_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 // representation. Since the FFT representation of a self-adjoint vector
 // contains only real numbers, the second half of b contains only zeros and
 // thus is not accessed (the slice may be half length).
-pub(crate) fn vect_div_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
+pub(crate) fn vect_div_selfadj_fft(logn: u32, a: &mut [Fxr], b: &[Fxr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         // We do not compute 1/c separately because that would deviate from
@@ -200,7 +200,7 @@ pub(crate) fn vect_div_selfadj_fft(logn: u32, a: &mut [FXR], b: &[FXR]) {
 // Compute d = a*adj(a) + b*adj(b). Polynomials are in FFT representation.
 // Since d is self-adjoint, it is half-size (only the low half is set, the
 // high half is implicitly zero).
-pub(crate) fn vect_norm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR]) {
+pub(crate) fn vect_norm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         d[i] = a[i].sqr() + a[i + hn].sqr() + b[i].sqr() + b[i + hn].sqr();
@@ -210,9 +210,9 @@ pub(crate) fn vect_norm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR]) {
 // Compute d = (2^e)/(a*adj(a) + b*adj(b)). Polynomials are in FFT
 // representation. Since d is self-adjoint, it is half-size (only the
 // low half is set, the high half is implicitly zero).
-pub(crate) fn vect_invnorm_fft(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR], e: u32) {
+pub(crate) fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr], e: u32) {
     let hn = 1usize << (logn - 1);
-    let r = FXR::from_i32(1i32 << e);
+    let r = Fxr::from_i32(1i32 << e);
     for i in 0..hn {
         let z1 = a[i].sqr() + a[i + hn].sqr();
         let z2 = b[i].sqr() + b[i + hn].sqr();
@@ -231,13 +231,13 @@ mod tests {
     };
 
     use super::{
-        FXR,
+        Fxr,
         vect_FFT,
         vect_iFFT,
         vect_mul_fft,
     };
 
-    fn rndvect(logn: u32, f: &mut [FXR], seed: u64) {
+    fn rndvect(logn: u32, f: &mut [Fxr], seed: u64) {
         let mut sh = Sha256::new();
         let mut buf = [0u8; 32];
         for i in 0..(1usize << logn) {
@@ -246,14 +246,14 @@ mod tests {
                 sh.update((i as u64).to_le_bytes());
                 buf[..].copy_from_slice(&sh.finalize_reset());
             }
-            f[i] = FXR::from_i32((buf[i & 31] as i8) as i32);
+            f[i] = Fxr::from_i32((buf[i & 31] as i8) as i32);
         }
     }
 
-    fn mulvect(logn: u32, d: &mut [FXR], a: &[FXR], b: &[FXR]) {
+    fn mulvect(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
         let n = 1usize << logn;
         for i in 0..n {
-            d[i] = FXR::ZERO;
+            d[i] = Fxr::ZERO;
         }
         for i in 0..n {
             for j in 0..n {
@@ -270,10 +270,10 @@ mod tests {
 
     #[test]
     fn test_FFT() {
-        let mut a = [FXR::ZERO; 1024];
-        let mut b = [FXR::ZERO; 1024];
-        let mut c = [FXR::ZERO; 1024];
-        let mut d = [FXR::ZERO; 1024];
+        let mut a = [Fxr::ZERO; 1024];
+        let mut b = [Fxr::ZERO; 1024];
+        let mut c = [Fxr::ZERO; 1024];
+        let mut d = [Fxr::ZERO; 1024];
         for logn in 1u32..10u32 {
             let n = 1usize << logn;
             for i in 0u32..10u32 {

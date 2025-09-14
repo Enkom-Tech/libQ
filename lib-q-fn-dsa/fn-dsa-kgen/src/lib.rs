@@ -152,7 +152,7 @@ macro_rules! kgen_impl {
             tmp_i8: [i8; 4 * (1 << ($logn_max))],
             tmp_u16: [u16; 2 * (1 << ($logn_max))],
             tmp_u32: [u32; 6 * (1 << ($logn_max))],
-            tmp_fxr: [fxp::FXR; 5 * (1 << (($logn_max) - 1))],
+            tmp_fxr: [fxp::Fxr; 5 * (1 << (($logn_max) - 1))],
         }
 
         impl KeyPairGenerator for $typename {
@@ -164,7 +164,7 @@ macro_rules! kgen_impl {
                 vrfy_key: &mut [u8],
             ) {
                 // Enforce minimum and maximum degree.
-                assert!(logn >= ($logn_min) && logn <= ($logn_max));
+                assert!(($logn_min..=$logn_max).contains(&logn));
                 keygen_inner(
                     logn,
                     rng,
@@ -184,7 +184,7 @@ macro_rules! kgen_impl {
                     tmp_i8: [0i8; 4 * (1 << ($logn_max))],
                     tmp_u16: [0u16; 2 * (1 << ($logn_max))],
                     tmp_u32: [0u32; 6 * (1 << ($logn_max))],
-                    tmp_fxr: [fxp::FXR::ZERO; 5 * (1 << (($logn_max) - 1))],
+                    tmp_fxr: [fxp::Fxr::ZERO; 5 * (1 << (($logn_max) - 1))],
                 }
             }
         }
@@ -232,9 +232,9 @@ fn keygen_inner<T: CryptoRng + RngCore>(
     tmp_i8: &mut [i8],
     tmp_u16: &mut [u16],
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [fxp::FXR],
+    tmp_fxr: &mut [fxp::Fxr],
 ) {
-    assert!(2 <= logn && logn <= 10);
+    assert!((2..=10).contains(&logn));
     assert!(sign_key.len() == sign_key_size(logn));
     assert!(vrfy_key.len() == vrfy_key_size(logn));
 
@@ -292,7 +292,7 @@ fn keygen_inner<T: CryptoRng + RngCore>(
     assert!(j == sign_key.len());
 
     // Encode the verifying key.
-    vrfy_key[0] = 0x00 + (logn as u8);
+    vrfy_key[0] = logn as u8;
     let j = 1 + codec::modq_encode(h, &mut vrfy_key[1..]);
     assert!(j == vrfy_key.len());
 }
@@ -316,10 +316,10 @@ fn keygen_from_seed(
     G: &mut [i8],
     tmp_u16: &mut [u16],
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [fxp::FXR],
+    tmp_fxr: &mut [fxp::Fxr],
 ) {
     // Check the parameters.
-    assert!(2 <= logn && logn <= 10);
+    assert!((2..=10).contains(&logn));
     let n = 1usize << logn;
     assert!(f.len() == n);
     assert!(g.len() == n);
@@ -382,7 +382,7 @@ unsafe fn keygen_from_seed_avx2(
     G: &mut [i8],
     tmp_u16: &mut [u16],
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [fxp::FXR],
+    tmp_fxr: &mut [fxp::Fxr],
 ) {
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -394,7 +394,7 @@ unsafe fn keygen_from_seed_avx2(
         use fn_dsa_comm::mq_avx2;
 
         // Check the parameters.
-        assert!(2 <= logn && logn <= 10);
+        assert!((2..=10).contains(&logn));
         let n = 1usize << logn;
         assert!(f.len() == n);
         assert!(g.len() == n);
@@ -1146,7 +1146,7 @@ mod tests {
         let mut th = [0u8; 4 * 1024];
         let mut t16 = [0u16; 1024];
         let mut t32 = [0u32; 6 * 1024];
-        let mut tfx = [fxp::FXR::ZERO; 5 * 512];
+        let mut tfx = [fxp::Fxr::ZERO; 5 * 512];
         for i in 0..rh.len() {
             let mut seed = [0u8; 10];
             seed[..4].copy_from_slice(&b"test"[..]);
@@ -1227,7 +1227,7 @@ mod tests {
             let mut r = [0i32; 2 * 1024];
             let mut t16 = [0u16; 1024];
             let mut t32 = [0u32; 6 * 1024];
-            let mut tfx = [fxp::FXR::ZERO; 5 * 512];
+            let mut tfx = [fxp::Fxr::ZERO; 5 * 512];
             for t in 0..2 {
                 let seed = [logn as u8, t];
                 keygen_from_seed(

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The lib-q-hpke implementation follows a modular, security-first architecture designed for post-quantum cryptography. This document describes the architecture, design decisions, and implementation details.
+The lib-q-hpke implementation follows a modular, security-first architecture for post-quantum cryptography. This document describes the architecture, design decisions, and implementation details.
 
 ## Architecture Principles
 
@@ -30,17 +30,22 @@ The lib-q-hpke implementation follows a modular, security-first architecture des
 src/
 ├── lib.rs                 # Main library entry point
 ├── types.rs              # Core HPKE types and enums
-├── error.rs              # Enhanced error handling
+├── error.rs              # Error handling
 ├── hpke_core.rs          # Core HPKE protocol implementation
-├── crypto_provider.rs    # Legacy crypto provider (for compatibility)
-├── kdf.rs                # Legacy KDF implementation
+├── security_tests.rs     # Security validation tests
 ├── security/             # Security utilities and validation
 │   ├── mod.rs
 │   ├── policy.rs         # Security policy configuration
 │   ├── validation.rs     # Cryptographic validation
 │   ├── constant_time.rs  # Constant-time operations
 │   ├── memory.rs         # Secure memory management
-│   └── prng.rs           # Pseudo-random number generation
+│   ├── memory_safety.rs  # Memory safety utilities
+│   ├── side_channel_protection.rs # Side-channel attack protection
+│   ├── side_channel.rs   # Additional side-channel utilities
+│   ├── prng.rs           # Pseudo-random number generation
+│   ├── fuzzing.rs        # Fuzzing support
+│   ├── key_rotation.rs   # Key rotation management
+│   └── test_rng.rs       # Test RNG implementation
 ├── providers/            # Cryptographic provider traits
 │   ├── mod.rs
 │   ├── traits.rs         # Provider trait definitions
@@ -53,17 +58,14 @@ src/
 │   ├── mod.rs
 │   ├── traits.rs         # AEAD trait definitions
 │   ├── saturnin.rs       # Saturnin AEAD implementation
-│   └── shake256.rs       # SHAKE256 AEAD implementation
+│   ├── shake256.rs       # SHAKE256 AEAD implementation
+│   └── export.rs         # Export-only AEAD implementation
+├── kdf/                  # Key Derivation Function implementations
+│   ├── mod.rs
+│   ├── traits.rs         # KDF trait definitions
+│   └── hkdf.rs           # HKDF implementation
 ├── protocol/             # HPKE protocol implementation
-│   ├── mod.rs
-│   ├── key_schedule.rs   # Key schedule implementation
-│   ├── labeled_functions.rs # Labeled extract/expand functions
-│   └── context.rs        # HPKE context management
-├── integration/          # Integration with lib-q-core
-│   ├── mod.rs
-│   ├── error_conversion.rs # Error type conversions
-│   ├── provider_bridge.rs  # Provider bridge implementation
-│   └── type_adapters.rs    # Type conversion utilities
+│   └── mod.rs            # Protocol module (key schedule in hpke_core.rs)
 └── benchmarking/         # Performance measurement
     ├── mod.rs
     ├── metrics.rs        # Performance metrics collection
@@ -78,348 +80,158 @@ src/
 The security module provides comprehensive security utilities:
 
 #### Security Policy (`security/policy.rs`)
-```rust
-pub struct SecurityPolicy {
-    pub require_constant_time: bool,
-    pub validate_key_material: bool,
-    pub enforce_zero_key_rejection: bool,
-    pub strict_length_validation: bool,
-    pub enable_side_channel_protection: bool,
-    pub max_key_size: usize,
-    pub max_nonce_size: usize,
-    pub max_ciphertext_size: usize,
-}
-```
+- Configurable security policies for validation and enforcement
+- Support for constant-time operations and side-channel protection
+- Memory safety and zeroization policies
 
-#### Cryptographic Validator (`security/validation.rs`)
-```rust
-pub struct CryptographicValidator {
-    policy: SecurityPolicy,
-}
+#### Cryptographic Validation (`security/validation.rs`)
+- Input validation for keys, nonces, and ciphertexts
+- Side-channel resistant validation functions
+- Comprehensive parameter checking
 
-impl CryptographicValidator {
-    pub fn validate_kem_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), HpkeError>;
-    pub fn validate_aead_key(&self, aead: HpkeAead, key: &[u8]) -> Result<(), HpkeError>;
-    pub fn validate_aead_nonce(&self, aead: HpkeAead, nonce: &[u8]) -> Result<(), HpkeError>;
-}
-```
+#### Memory Safety (`security/memory_safety.rs`)
+- Secure memory management with automatic zeroization
+- Secure containers for sensitive data
+- Memory pool management for secure allocations
 
-#### Secure Memory Management (`security/memory.rs`)
-```rust
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecureKey {
-    data: Vec<u8>,
-}
+#### Side-Channel Protection (`security/side_channel_protection.rs`)
+- Constant-time operations for cryptographic primitives
+- Side-channel attack mitigation
+- Timing attack prevention
 
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecureNonce {
-    data: Vec<u8>,
-}
-
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecureBuffer {
-    data: Vec<u8>,
-}
-```
+#### Additional Security Features
+- **Fuzzing Support** (`security/fuzzing.rs`): Comprehensive fuzzing infrastructure
+- **Key Rotation** (`security/key_rotation.rs`): Key rotation management
+- **PRNG Security** (`security/prng.rs`): Secure random number generation
 
 ### 2. Provider System (`providers/`)
 
 The provider system allows pluggable cryptographic implementations with algorithm-agnostic design:
 
 #### Provider Traits (`providers/traits.rs`)
-```rust
-pub trait KemProvider {
-    type Error: Into<HpkeError>;
-    fn generate_keypair(&self, kem: HpkeKem, rng: &mut dyn CryptoRng) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    fn encapsulate(&self, kem: HpkeKem, public_key: &[u8], rng: &mut dyn CryptoRng) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    fn decapsulate(&self, kem: HpkeKem, secret_key: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, Self::Error>;
-    fn auth_encapsulate(&self, kem: HpkeKem, sender_sk: &[u8], recipient_pk: &[u8], rng: &mut dyn CryptoRng) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    fn auth_decapsulate(&self, kem: HpkeKem, encapsulated_key: &[u8], recipient_sk: &[u8], sender_pk: &[u8]) -> Result<Vec<u8>, Self::Error>;
-}
+- **HpkeCryptoProvider**: Unified trait for all cryptographic operations
+- **KEM Operations**: Key generation, encapsulation, and decapsulation
+- **KDF Operations**: Key derivation and expansion
+- **AEAD Operations**: Authenticated encryption and decryption
+- **Authentication**: Sender authentication for Auth and AuthPSK modes
 
-pub trait KdfProvider {
-    type Error: Into<HpkeError>;
-    fn extract(&self, kdf: HpkeKdf, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, Self::Error>;
-    fn expand(&self, kdf: HpkeKdf, prk: &[u8], info: &[u8], output_len: usize) -> Result<Vec<u8>, Self::Error>;
-}
+#### Post-Quantum Provider (`providers/post_quantum.rs`)
+- Implements all provider traits using lib-q abstractions
+- Integrates with `lib-q-kem`, `lib-q-hash`, and `lib-q-aead`
+- Provides algorithm-agnostic cryptographic operations
+- Supports all HPKE modes (Base, PSK, Auth, AuthPSK)
 
-pub trait AeadProvider {
-    type Error: Into<HpkeError>;
-    fn seal(&self, aead: HpkeAead, key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, Self::Error>;
-    fn open(&self, aead: HpkeAead, key: &[u8], nonce: &[u8], aad: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, Self::Error>;
-}
-```
-
-### 3. Enhanced Error Handling (`error.rs`)
+### 3. Error Handling (`error.rs`)
 
 The error system provides structured, context-rich error information:
 
-```rust
-pub enum HpkeError {
-    KemError { algorithm: HpkeKem, operation: KemOperation, cause: String },
-    KdfError { algorithm: HpkeKdf, operation: KdfOperation, cause: String },
-    AeadError { algorithm: HpkeAead, operation: AeadOperation, cause: String },
-    SecurityError { validation: SecurityValidation, cause: String },
-    ProtocolError { stage: ProtocolStage, cause: String },
-    // ... more error variants
-}
-```
+- **CryptoError**: General cryptographic operation errors
+- **InvalidInput**: Input validation errors with parameter details
+- **InconsistentPsk**: PSK parameter consistency errors
+- **NotImplemented**: Unimplemented functionality errors
+- **ContextError**: HPKE context state errors
+- **ExportError**: Key export operation errors
+
+The error system includes comprehensive error context and supports conversion to/from lib-q-core error types.
 
 ### 4. Performance Benchmarking (`benchmarking/`)
 
-The benchmarking system provides comprehensive performance measurement:
+The benchmarking system provides performance measurement capabilities:
 
-#### Performance Metrics (`benchmarking/metrics.rs`)
-```rust
-pub struct PerformanceMetrics {
-    pub operation: OperationType,
-    pub algorithm: AlgorithmType,
-    pub execution_time_ns: u64,
-    pub memory_usage_bytes: usize,
-    pub iterations: u32,
-    pub success_rate: f64,
-    pub metadata: HashMap<String, String>,
-}
-```
+- **Performance Metrics**: Collection of execution time, memory usage, and success rates
+- **Performance Profiler**: Function-level performance profiling
+- **Performance Reporter**: Reporting and analysis of benchmark results
 
-#### Performance Profiler (`benchmarking/profiler.rs`)
-```rust
-pub struct PerformanceProfiler {
-    start_time: Option<Instant>,
-    start_memory: Option<usize>,
-    operation: Option<OperationType>,
-    algorithm: Option<AlgorithmType>,
-}
-
-impl PerformanceProfiler {
-    pub fn profile_function<F, R>(&mut self, operation: OperationType, algorithm: AlgorithmType, iterations: u32, func: F) -> Result<(R, PerformanceMetrics), HpkeError>;
-}
-```
-
-## Comprehensive Algorithm-Agnostic Implementation
+## Algorithm-Agnostic Implementation
 
 ### lib-q Integration
 
-The HPKE implementation uses lib-q abstractions for all cryptographic primitives, ensuring comprehensive algorithm-agnostic design:
+The HPKE implementation uses lib-q abstractions for all cryptographic primitives:
 
 #### KEM Operations
-```rust
-impl PostQuantumProvider {
-    fn create_kem_instance(kem: HpkeKem) -> Result<Box<dyn CoreKem>, HpkeError> {
-        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
-        create_kem(algorithm).map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM instance: {}", e)))
-    }
-    
-    fn hpke_kem_to_algorithm(kem: HpkeKem) -> Result<Algorithm, HpkeError> {
-        match kem {
-            HpkeKem::MlKem512 => Ok(Algorithm::MlKem512),
-            HpkeKem::MlKem768 => Ok(Algorithm::MlKem768),
-            HpkeKem::MlKem1024 => Ok(Algorithm::MlKem1024),
-        }
-    }
-}
-```
+- Uses `lib-q-kem` for algorithm-agnostic KEM operations
+- Supports ML-KEM-512, ML-KEM-768, and ML-KEM-1024
+- Integrates with `KemContext` and `KemPublicKey`/`KemSecretKey` types
 
 #### KDF Operations
-```rust
-impl PostQuantumProvider {
-    fn create_hash_instance(kdf: HpkeKdf) -> Result<Box<dyn CoreHash>, HpkeError> {
-        let algorithm_name = match kdf {
-            HpkeKdf::HkdfShake128 => "shake128",
-            HpkeKdf::HkdfShake256 => "shake256",
-            HpkeKdf::HkdfSha3_256 => "sha3-256",
-            HpkeKdf::HkdfSha3_512 => "sha3-512",
-        };
-        create_hash(algorithm_name).map_err(|e| HpkeError::CryptoError(format!("Failed to create hash instance: {}", e)))
-    }
-}
-```
+- Uses `lib-q-hash` for hash function operations
+- Supports HKDF-SHAKE128, HKDF-SHAKE256, HKDF-SHA3-256, and HKDF-SHA3-512
+- Implements labeled extract and expand functions per RFC 9180
 
 #### AEAD Operations
-```rust
-impl PostQuantumProvider {
-    fn create_aead_instance(aead: HpkeAead) -> Result<Box<dyn CoreAead>, HpkeError> {
-        let algorithm_name = match aead {
-            HpkeAead::Saturnin256 => "saturnin",
-            HpkeAead::Shake256 => "shake256",
-            HpkeAead::Export => return Err(HpkeError::not_implemented("Export-only AEAD")),
-        };
-        create_aead(algorithm_name).map_err(|e| HpkeError::CryptoError(format!("Failed to create AEAD instance: {}", e)))
-    }
-}
-```
+- Uses `lib-q-aead` for authenticated encryption
+- Supports Saturnin-256 and SHAKE256-based AEAD
+- Includes export-only mode for key derivation
 
-### Benefits of Comprehensive Algorithm-Agnostic Design
+### Benefits of Algorithm-Agnostic Design
 
 1. **Extensibility**: Easy integration of new algorithms through lib-q abstractions
-   - New KEM algorithms via `lib-q-kem::create_kem()`
-   - New hash functions via `lib-q-hash::create_hash()`
-   - New AEAD algorithms via `lib-q-aead::create_aead()`
-
 2. **Maintainability**: Core HPKE logic is independent of specific algorithms
-   - Provider pattern isolates algorithm-specific code
-   - Consistent interfaces across all cryptographic primitives
-
 3. **Consistency**: Uses the same interfaces as other lib-q components
-   - Unified API across the entire lib-q ecosystem
-   - Seamless integration with other lib-q crates
-
 4. **Testing**: Comprehensive algorithm-agnostic tests verify compatibility
-   - Cross-algorithm compatibility testing
-   - Provider integration testing
-   - Security property verification across all primitives
 
 ### Provider Implementation
 
-The `PostQuantumProvider` implements all provider traits using the lib-q-kem abstraction:
+The `PostQuantumProvider` implements all provider traits using lib-q abstractions:
 
-```rust
-impl KemProvider for PostQuantumProvider {
-    fn generate_keypair(&self, kem: HpkeKem, rng: &mut dyn CryptoRng) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
-        let keypair = kem_impl.generate_keypair()
-            .map_err(|e| HpkeError::CryptoError(format!("KEM key generation failed: {}", e)))?;
-        Ok((keypair.public_key().as_bytes().to_vec(), keypair.secret_key().as_bytes().to_vec()))
-    }
-    
-    fn encapsulate(&self, kem: HpkeKem, public_key: &[u8], rng: &mut dyn CryptoRng) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
-        let pk = KemPublicKey::new(public_key.to_vec());
-        let (encapsulated_key, shared_secret) = kem_impl.encapsulate(&pk)
-            .map_err(|e| HpkeError::CryptoError(format!("Encapsulation failed: {}", e)))?;
-        Ok((encapsulated_key, shared_secret))
-    }
-    
-    // ... other trait methods
-}
-```
+- **KEM Operations**: Uses `lib-q-kem::create_kem()` for algorithm-agnostic KEM operations
+- **Hash Operations**: Uses `lib-q-hash::create_hash()` for hash function operations
+- **AEAD Operations**: Uses `lib-q-aead::create_aead()` for authenticated encryption
+- **Error Handling**: Converts between HPKE and lib-q error types
 
 ## Integration with lib-q-core
 
-The integration layer provides seamless integration with the existing lib-q ecosystem:
+The HPKE implementation integrates with the lib-q ecosystem through the provider pattern:
 
-### Error Conversion (`integration/error_conversion.rs`)
-- Converts between `HpkeError` and `lib_q_core::Error`
-- Maintains error context and information
+### Provider Integration
+- Uses `lib-q-core` types (`KemContext`, `KemPublicKey`, `KemSecretKey`)
+- Leverages `lib-q-kem` for algorithm-agnostic KEM operations
+- Integrates with `lib-q-hash` for hash function operations
+- Uses `lib-q-aead` for authenticated encryption operations
 
-### Provider Bridge (`integration/provider_bridge.rs`)
-- Bridges new provider system with lib-q crypto crates
-- Provides fallback implementations for missing features
-
-### Type Adapters (`integration/type_adapters.rs`)
-- Converts between lib-q-core types and HPKE types
-- Provides algorithm mapping utilities
+### Algorithm Mapping
+- Maps HPKE algorithm identifiers to lib-q algorithm types
+- Provides consistent interfaces across all cryptographic primitives
+- Maintains compatibility with existing lib-q ecosystem
 
 ## Security Considerations
 
 ### 1. Constant-Time Operations
 All cryptographic operations use constant-time implementations to prevent timing attacks:
 
-```rust
-pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut result = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        result |= x ^ y;
-    }
-    result == 0
-}
-```
+- **Constant-time comparison**: Side-channel resistant equality checks
+- **Constant-time selection**: Secure conditional operations
+- **Constant-time copying**: Secure memory operations
 
 ### 2. Memory Safety
 Sensitive data is automatically zeroized using the `Zeroize` trait:
 
-```rust
-#[derive(Zeroize, ZeroizeOnDrop)]
-pub struct SecureKey {
-    data: Vec<u8>,
-}
-```
+- **Secure containers**: Automatic zeroization on drop
+- **Memory pools**: Secure memory allocation and deallocation
+- **Buffer management**: Secure buffer handling with automatic cleanup
 
 ### 3. Input Validation
-Comprehensive input validation with configurable security policies:
+Comprehensive input validation with side-channel resistant checks:
 
-```rust
-pub fn validate_key(&self, key: &[u8], expected_len: usize) -> Result<(), HpkeError> {
-    if self.strict_length_validation && key.len() != expected_len {
-        return Err(HpkeError::security_error(
-            SecurityValidation::KeyLength,
-            format!("Expected key length {}, got {}", expected_len, key.len()),
-        ));
-    }
-    // ... more validation
-}
-```
+- **Key validation**: Side-channel resistant key parameter validation
+- **Nonce validation**: Secure nonce parameter checking
+- **Ciphertext validation**: Secure ciphertext parameter validation
+- **PSK validation**: Pre-shared key parameter consistency checks
+
+### 4. Additional Security Features
+- **Fuzzing support**: Comprehensive fuzzing infrastructure for security testing
+- **Key rotation**: Secure key rotation management
+- **PRNG security**: Cryptographically secure random number generation
 
 ## Performance Optimization
 
-### 1. Benchmarking Infrastructure
-Built-in performance measurement and reporting:
+The implementation includes performance measurement capabilities through the benchmarking module:
 
-```rust
-let mut profiler = PerformanceProfiler::new();
-let (result, metrics) = profiler.profile_function(
-    OperationType::KemKeyGeneration,
-    AlgorithmType::MlKem512,
-    100,
-    || kem.generate_keypair(),
-)?;
-```
+- **Built-in Profiling**: Performance measurement for cryptographic operations
+- **Memory Efficiency**: Optimized memory usage with secure containers
+- **Algorithm Selection**: Support for different security/performance trade-offs
 
-### 2. Memory Efficiency
-Optimized memory usage with secure containers and efficient data structures.
+## API Documentation
 
-### 3. Algorithm Selection
-Support for different security/performance trade-offs through configurable cipher suites.
+For comprehensive API reference and usage examples, see [API_REFERENCE.md](API_REFERENCE.md).
 
-## Testing Strategy
-
-### 1. Unit Tests
-- Individual component testing
-- Security validation testing
-- Error handling testing
-
-### 2. Integration Tests
-- End-to-end functionality testing
-- Provider integration testing
-- Performance benchmarking testing
-
-### 3. Property Tests
-- Cryptographic property verification
-- Security property validation
-
-### 4. Test Vectors
-- RFC compliance testing
-- Edge case testing
-
-### 5. Algorithm-Agnostic Testing
-- Cross-algorithm compatibility testing
-- Provider integration testing
-- Algorithm-agnostic functionality verification
-
-## Future Enhancements
-
-### 1. Algorithm Extensions
-- Additional post-quantum algorithms
-- Hybrid classical/post-quantum modes
-
-### 2. Performance Optimizations
-- SIMD optimizations
-- Hardware acceleration support
-
-### 3. Security Enhancements
-- Side-channel resistance improvements
-- Formal verification integration
-
-### 4. Documentation
-- API documentation
-- Usage examples
-- Security guidelines
-
-## Conclusion
-
-The lib-q-hpke architecture provides a robust, secure, and performant foundation for post-quantum HPKE operations. The modular design allows for easy extension and maintenance, while the security-first approach ensures protection against various attack vectors.
-
-The integration layer ensures compatibility with the existing lib-q ecosystem, while the new architecture provides enhanced security, performance measurement, and maintainability features.

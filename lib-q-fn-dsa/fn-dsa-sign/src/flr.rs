@@ -19,7 +19,7 @@ use zeroize::DefaultIsZeroes;
 // Floating-point operations
 // ========================================================================
 
-// The FLR type represents an IEEE-754:2008 'binary64' value, or more
+// The Flr type represents an IEEE-754:2008 'binary64' value, or more
 // specifically a subset of such values.
 //
 //    A value is conceptually the packing of three binary field in a
@@ -44,9 +44,9 @@ use zeroize::DefaultIsZeroes;
 //    There are nominally two zeros, a positive zero and a negative
 //    zero, depending on the sign bit.
 //
-//    FLR values are meant for in-memory use only; the packing into a
+//    Flr values are meant for in-memory use only; the packing into a
 //    64-bit word and then conversion to bytes is meant only for test
-//    purposes. Nevertheless, each FLR instance should strive to use
+//    purposes. Nevertheless, each Flr instance should strive to use
 //    relatively little RAM, for better performance.
 //
 //    All implemented operations should follow the strict IEEE-754 rules,
@@ -91,266 +91,266 @@ mod backend;
 #[path = "flr_emu.rs"]
 mod backend;
 
-pub(crate) use backend::FLR;
+pub(crate) use backend::Flr;
 
-impl Default for FLR {
+impl Default for Flr {
     fn default() -> Self {
-        FLR::ZERO
+        Flr::ZERO
     }
 }
 
-impl DefaultIsZeroes for FLR {}
+impl DefaultIsZeroes for Flr {}
 
-impl Add<FLR> for FLR {
-    type Output = FLR;
+impl Add<Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn add(self, other: FLR) -> FLR {
+    fn add(self, other: Flr) -> Flr {
         let mut r = self;
         r.set_add(other);
         r
     }
 }
 
-impl Add<&FLR> for FLR {
-    type Output = FLR;
+impl Add<&Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn add(self, other: &FLR) -> FLR {
+    fn add(self, other: &Flr) -> Flr {
         let mut r = self;
         r.set_add(*other);
         r
     }
 }
 
-impl Add<FLR> for &FLR {
-    type Output = FLR;
+impl Add<Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn add(self, other: FLR) -> FLR {
+    fn add(self, other: Flr) -> Flr {
         let mut r = *self;
         r.set_add(other);
         r
     }
 }
 
-impl Add<&FLR> for &FLR {
-    type Output = FLR;
+impl Add<&Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn add(self, other: &FLR) -> FLR {
+    fn add(self, other: &Flr) -> Flr {
         let mut r = *self;
         r.set_add(*other);
         r
     }
 }
 
-impl AddAssign<FLR> for FLR {
+impl AddAssign<Flr> for Flr {
     #[inline(always)]
-    fn add_assign(&mut self, other: FLR) {
+    fn add_assign(&mut self, other: Flr) {
         self.set_add(other);
     }
 }
 
-impl AddAssign<&FLR> for FLR {
+impl AddAssign<&Flr> for Flr {
     #[inline(always)]
-    fn add_assign(&mut self, other: &FLR) {
+    fn add_assign(&mut self, other: &Flr) {
         self.set_add(*other);
     }
 }
 
-impl Div<FLR> for FLR {
-    type Output = FLR;
+impl Div<Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn div(self, other: FLR) -> FLR {
+    fn div(self, other: Flr) -> Flr {
         let mut r = self;
         r.set_div(other);
         r
     }
 }
 
-impl Div<&FLR> for FLR {
-    type Output = FLR;
+impl Div<&Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn div(self, other: &FLR) -> FLR {
+    fn div(self, other: &Flr) -> Flr {
         let mut r = self;
         r.set_div(*other);
         r
     }
 }
 
-impl Div<FLR> for &FLR {
-    type Output = FLR;
+impl Div<Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn div(self, other: FLR) -> FLR {
+    fn div(self, other: Flr) -> Flr {
         let mut r = *self;
         r.set_div(other);
         r
     }
 }
 
-impl Div<&FLR> for &FLR {
-    type Output = FLR;
+impl Div<&Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn div(self, other: &FLR) -> FLR {
+    fn div(self, other: &Flr) -> Flr {
         let mut r = *self;
         r.set_div(*other);
         r
     }
 }
 
-impl DivAssign<FLR> for FLR {
+impl DivAssign<Flr> for Flr {
     #[inline(always)]
-    fn div_assign(&mut self, other: FLR) {
+    fn div_assign(&mut self, other: Flr) {
         self.set_div(other);
     }
 }
 
-impl DivAssign<&FLR> for FLR {
+impl DivAssign<&Flr> for Flr {
     #[inline(always)]
-    fn div_assign(&mut self, other: &FLR) {
+    fn div_assign(&mut self, other: &Flr) {
         self.set_div(*other);
     }
 }
 
-impl Mul<FLR> for FLR {
-    type Output = FLR;
+impl Mul<Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn mul(self, other: FLR) -> FLR {
+    fn mul(self, other: Flr) -> Flr {
         let mut r = self;
         r.set_mul(other);
         r
     }
 }
 
-impl Mul<&FLR> for FLR {
-    type Output = FLR;
+impl Mul<&Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn mul(self, other: &FLR) -> FLR {
+    fn mul(self, other: &Flr) -> Flr {
         let mut r = self;
         r.set_mul(*other);
         r
     }
 }
 
-impl Mul<FLR> for &FLR {
-    type Output = FLR;
+impl Mul<Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn mul(self, other: FLR) -> FLR {
+    fn mul(self, other: Flr) -> Flr {
         let mut r = *self;
         r.set_mul(other);
         r
     }
 }
 
-impl Mul<&FLR> for &FLR {
-    type Output = FLR;
+impl Mul<&Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn mul(self, other: &FLR) -> FLR {
+    fn mul(self, other: &Flr) -> Flr {
         let mut r = *self;
         r.set_mul(*other);
         r
     }
 }
 
-impl MulAssign<FLR> for FLR {
+impl MulAssign<Flr> for Flr {
     #[inline(always)]
-    fn mul_assign(&mut self, other: FLR) {
+    fn mul_assign(&mut self, other: Flr) {
         self.set_mul(other);
     }
 }
 
-impl MulAssign<&FLR> for FLR {
+impl MulAssign<&Flr> for Flr {
     #[inline(always)]
-    fn mul_assign(&mut self, other: &FLR) {
+    fn mul_assign(&mut self, other: &Flr) {
         self.set_mul(*other);
     }
 }
 
-impl Neg for FLR {
-    type Output = FLR;
+impl Neg for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn neg(self) -> FLR {
+    fn neg(self) -> Flr {
         let mut r = self;
         r.set_neg();
         r
     }
 }
 
-impl Neg for &FLR {
-    type Output = FLR;
+impl Neg for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn neg(self) -> FLR {
+    fn neg(self) -> Flr {
         let mut r = *self;
         r.set_neg();
         r
     }
 }
 
-impl Sub<FLR> for FLR {
-    type Output = FLR;
+impl Sub<Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn sub(self, other: FLR) -> FLR {
+    fn sub(self, other: Flr) -> Flr {
         let mut r = self;
         r.set_sub(other);
         r
     }
 }
 
-impl Sub<&FLR> for FLR {
-    type Output = FLR;
+impl Sub<&Flr> for Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn sub(self, other: &FLR) -> FLR {
+    fn sub(self, other: &Flr) -> Flr {
         let mut r = self;
         r.set_sub(*other);
         r
     }
 }
 
-impl Sub<FLR> for &FLR {
-    type Output = FLR;
+impl Sub<Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn sub(self, other: FLR) -> FLR {
+    fn sub(self, other: Flr) -> Flr {
         let mut r = *self;
         r.set_sub(other);
         r
     }
 }
 
-impl Sub<&FLR> for &FLR {
-    type Output = FLR;
+impl Sub<&Flr> for &Flr {
+    type Output = Flr;
 
     #[inline(always)]
-    fn sub(self, other: &FLR) -> FLR {
+    fn sub(self, other: &Flr) -> Flr {
         let mut r = *self;
         r.set_sub(*other);
         r
     }
 }
 
-impl SubAssign<FLR> for FLR {
+impl SubAssign<Flr> for Flr {
     #[inline(always)]
-    fn sub_assign(&mut self, other: FLR) {
+    fn sub_assign(&mut self, other: Flr) {
         self.set_sub(other);
     }
 }
 
-impl SubAssign<&FLR> for FLR {
+impl SubAssign<&Flr> for Flr {
     #[inline(always)]
-    fn sub_assign(&mut self, other: &FLR) {
+    fn sub_assign(&mut self, other: &Flr) {
         self.set_sub(*other);
     }
 }
@@ -371,7 +371,7 @@ mod tests {
         x
     }
 
-    fn rand_fp(rng: &mut SHAKE256x4) -> FLR {
+    fn rand_fp(rng: &mut SHAKE256x4) -> Flr {
         // For tests, we randomize sign, mantissa and exponent, but we
         // force the exponent to be in [-80,+80] so that we do not get
         // overflows or underflows. We thus force the _encoded_ exponent
@@ -379,18 +379,18 @@ mod tests {
         let m = rand_u64(rng);
         let e = (((m >> 52) & 0x7FF) % 161) + 943;
         let m = (m & 0x800FFFFFFFFFFFFF) | (e << 52);
-        FLR::decode(&m.to_le_bytes()).unwrap()
+        Flr::decode(&m.to_le_bytes()).unwrap()
     }
 
     #[test]
     fn test_spec() {
         let mut sh = SHAKE256::new();
-        sh.inject(&FLR::ZERO.encode());
-        sh.inject(&(-FLR::ZERO).encode());
-        sh.inject(&FLR::ZERO.half().encode());
-        sh.inject(&FLR::ZERO.double().encode());
-        let zero = FLR::ZERO;
-        let nzero = -FLR::ZERO;
+        sh.inject(&Flr::ZERO.encode());
+        sh.inject(&(-Flr::ZERO).encode());
+        sh.inject(&Flr::ZERO.half().encode());
+        sh.inject(&Flr::ZERO.double().encode());
+        let zero = Flr::ZERO;
+        let nzero = -Flr::ZERO;
         sh.inject(&(zero + zero).encode());
         sh.inject(&(zero + nzero).encode());
         sh.inject(&(nzero + zero).encode());
@@ -402,10 +402,10 @@ mod tests {
 
         for e in -60..=60 {
             for i in -5..=5 {
-                let a = FLR::from_i64((1i64 << 53) + i);
+                let a = Flr::from_i64((1i64 << 53) + i);
                 sh.inject(&a.encode());
                 for j in -5..=5 {
-                    let b = FLR::scaled((1i64 << 53) + j, e);
+                    let b = Flr::scaled((1i64 << 53) + j, e);
                     sh.inject(&b.encode());
                     sh.inject(&(a + b).encode());
                     let a = a.neg();
@@ -422,17 +422,17 @@ mod tests {
         for ctr in 1..=65536 {
             let j = (rand_u64(&mut rng) as i64) >> (ctr & 63);
             assert!(j != -9223372036854775808);
-            let a = FLR::from_i64(j);
+            let a = Flr::from_i64(j);
             sh.inject(&a.encode());
 
             let sc = ((rng.next_u16() as i32) & 0xFF) - 128;
-            sh.inject(&FLR::scaled(j, sc).encode());
+            sh.inject(&Flr::scaled(j, sc).encode());
 
             let j = rand_u64(&mut rng) as i64;
-            let a = FLR::scaled(j, -8);
+            let a = Flr::scaled(j, -8);
             sh.inject(&a.rint().to_le_bytes());
 
-            let a = FLR::scaled(j, -52);
+            let a = Flr::scaled(j, -52);
             sh.inject(&a.trunc().to_le_bytes());
             sh.inject(&a.floor().to_le_bytes());
 
@@ -501,7 +501,7 @@ mod tests_arch {
         unsafe { core::mem::transmute(x) }
     }
 
-    fn eqf(x: FLR, v: f64) -> bool {
+    fn eqf(x: Flr, v: f64) -> bool {
         x.encode() == v.to_le_bytes()
     }
 
@@ -513,7 +513,7 @@ mod tests_arch {
         x
     }
 
-    fn rand_fp(rng: &mut SHAKE256x4) -> FLR {
+    fn rand_fp(rng: &mut SHAKE256x4) -> Flr {
         // For tests, we randomize sign, mantissa and exponent, but we
         // force the exponent to be in [-80,+80] so that we do not get
         // overflows or underflows. We thus force the _encoded_ exponent
@@ -521,17 +521,17 @@ mod tests_arch {
         let m = rand_u64(rng);
         let e = (((m >> 52) & 0x7FF) % 161) + 943;
         let m = (m & 0x800FFFFFFFFFFFFF) | (e << 52);
-        FLR::decode(&m.to_le_bytes()).unwrap()
+        Flr::decode(&m.to_le_bytes()).unwrap()
     }
 
     #[test]
     fn test_spec() {
-        assert!(eqf(FLR::ZERO, 0.0));
-        assert!(eqf(-FLR::ZERO, -0.0));
-        assert!(eqf(FLR::ZERO.half(), 0.0));
-        assert!(eqf(FLR::ZERO.double(), 0.0));
-        let zero = FLR::ZERO;
-        let nzero = -FLR::ZERO;
+        assert!(eqf(Flr::ZERO, 0.0));
+        assert!(eqf(-Flr::ZERO, -0.0));
+        assert!(eqf(Flr::ZERO.half(), 0.0));
+        assert!(eqf(Flr::ZERO.double(), 0.0));
+        let zero = Flr::ZERO;
+        let nzero = -Flr::ZERO;
         assert!(eqf(zero + zero, 0.0 + 0.0));
         assert!(eqf(zero + nzero, 0.0 + (-0.0)));
         assert!(eqf(nzero + zero, (-0.0) + 0.0));
@@ -543,11 +543,11 @@ mod tests_arch {
 
         for e in -60..=60 {
             for i in -5..=5 {
-                let a = FLR::from_i64((1i64 << 53) + i);
+                let a = Flr::from_i64((1i64 << 53) + i);
                 let ax = 9007199254740992.0 + (i as f64);
                 assert!(eqf(a, ax));
                 for j in -5..=5 {
-                    let b = FLR::scaled((1i64 << 53) + j, e);
+                    let b = Flr::scaled((1i64 << 53) + j, e);
                     let bx = libm::ldexp(9007199254740992.0 + (j as f64), e);
                     assert!(eqf(b, bx));
                     assert!(eqf(a + b, ax + bx));
@@ -565,19 +565,19 @@ mod tests_arch {
         for ctr in 1..=65536 {
             let j = (rand_u64(&mut rng) as i64) >> (ctr & 63);
             assert!(j != -9223372036854775808);
-            let a = FLR::from_i64(j);
+            let a = Flr::from_i64(j);
             let ax = j as f64;
             assert!(eqf(a, ax));
 
             let sc = ((rng.next_u16() as i32) & 0xFF) - 128;
-            assert!(eqf(FLR::scaled(j, sc), libm::ldexp(j as f64, sc)));
+            assert!(eqf(Flr::scaled(j, sc), libm::ldexp(j as f64, sc)));
 
             let j = rand_u64(&mut rng) as i64;
-            let a = FLR::scaled(j, -8);
+            let a = Flr::scaled(j, -8);
             let ax = libm::ldexp(j as f64, -8);
             assert!(a.rint() == (libm::rint(ax) as i64));
 
-            let a = FLR::scaled(j, -52);
+            let a = Flr::scaled(j, -52);
             let ax = libm::ldexp(j as f64, -52);
             assert!(a.trunc() == (libm::trunc(ax) as i64));
             assert!(a.floor() == (libm::floor(ax) as i64));

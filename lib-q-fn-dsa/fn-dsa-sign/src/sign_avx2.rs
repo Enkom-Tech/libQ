@@ -27,7 +27,7 @@ pub(crate) unsafe fn decode_avx2_inner(
     src: &[u8],
 ) -> Option<u32> {
     unsafe {
-        if src.len() < 1 {
+        if src.is_empty() {
             return None;
         }
         let head = src[0];
@@ -97,7 +97,7 @@ pub(crate) unsafe fn decode_avx2_inner(
         // Convert back h to external representation and encode it.
         mq_avx2::mqpoly_NTT_to_int(logn, w0);
         mq_avx2::mqpoly_int_to_ext(logn, w0);
-        vk[0] = 0x00 + (logn as u8);
+        vk[0] = logn as u8;
         let j = 1 + codec::modq_encode(&w0[..n], &mut vk[1..]);
         assert!(j == vk.len());
         let mut sh = shake::SHAKE256::new();
@@ -126,7 +126,7 @@ pub(crate) unsafe fn compute_basis_avx2_inner(
     g: &[i8],
     F: &[i8],
     G: &[i8],
-    basis: &mut [flr::FLR],
+    basis: &mut [flr::Flr],
 ) {
     unsafe {
         let n = 1usize << logn;
@@ -165,10 +165,10 @@ pub(crate) unsafe fn sign_avx2_inner<T: CryptoRng + RngCore, P: PRNG>(
     id: &HashIdentifier,
     hv: &[u8],
     sig: &mut [u8],
-    #[cfg(not(feature = "small_context"))] basis: &[flr::FLR],
+    #[cfg(not(feature = "small_context"))] basis: &[flr::Flr],
     tmp_i16: &mut [i16],
     tmp_u16: &mut [u16],
-    tmp_flr: &mut [flr::FLR],
+    tmp_flr: &mut [flr::Flr],
 ) {
     unsafe {
         let n = 1usize << logn;
@@ -314,7 +314,7 @@ pub(crate) unsafe fn sign_avx2_inner<T: CryptoRng + RngCore, P: PRNG>(
                 // (t1 is not actually set; subsequent computations take into
                 // account that it is conceptually zero)
                 for i in 0..n {
-                    t0[i] = flr::FLR::from_i32(hm[i] as i32);
+                    t0[i] = flr::Flr::from_i32(hm[i] as i32);
                 }
 
                 // Apply the lattice basis to obtain the real target vector

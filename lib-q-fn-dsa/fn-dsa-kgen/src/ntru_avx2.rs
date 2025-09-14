@@ -22,7 +22,7 @@ use super::zint31_avx2::*;
 // rejected.
 // tmp min size: 2.5*n
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn check_ortho_norm(logn: u32, f: &[i8], g: &[i8], tmp: &mut [FXR]) -> bool {
+pub(crate) unsafe fn check_ortho_norm(logn: u32, f: &[i8], g: &[i8], tmp: &mut [Fxr]) -> bool {
     unsafe {
         assert!(logn >= 2);
         let n = 1usize << logn;
@@ -35,17 +35,17 @@ pub(crate) unsafe fn check_ortho_norm(logn: u32, f: &[i8], g: &[i8], tmp: &mut [
         vect_invnorm_fft(logn, rt3, fx, gx, 0);
         vect_adj_fft(logn, fx);
         vect_adj_fft(logn, gx);
-        vect_mul_realconst(logn, fx, FXR::from_i32(Q as i32));
-        vect_mul_realconst(logn, gx, FXR::from_i32(Q as i32));
+        vect_mul_realconst(logn, fx, Fxr::from_i32(Q as i32));
+        vect_mul_realconst(logn, gx, Fxr::from_i32(Q as i32));
         vect_mul_selfadj_fft(logn, fx, rt3);
         vect_mul_selfadj_fft(logn, gx, rt3);
         vect_iFFT(logn, fx);
         vect_iFFT(logn, gx);
-        let mut sn = FXR::ZERO;
+        let mut sn = Fxr::ZERO;
         for i in 0..n {
             sn += fx[i].sqr() + gx[i].sqr();
         }
-        sn < FXR::from_u64_scaled32(72251709809335)
+        sn < Fxr::from_u64_scaled32(72251709809335)
     }
 }
 
@@ -93,10 +93,10 @@ pub(crate) unsafe fn solve_NTRU(
     F: &mut [i8],
     G: &mut [i8],
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [FXR],
+    tmp_fxr: &mut [Fxr],
 ) -> bool {
     unsafe {
-        assert!(1 <= logn && logn <= 10);
+        assert!((1..=10).contains(&logn));
         let n = 1usize << logn;
         assert!(f.len() == n && g.len() == n);
         assert!(F.len() == n && G.len() == n);
@@ -115,9 +115,9 @@ pub(crate) unsafe fn solve_NTRU(
 
         // Solution is in the first 2*n slots of tmp_u32.
         // We must check that all coefficients are in [-127,+127].
-        for i in 0..(2 * n) {
-            let z = tmp_u32[i] as i32;
-            if z < -127 || z > 127 {
+        for tmp_item in tmp_u32.iter().take(2 * n) {
+            let z = *tmp_item as i32;
+            if !(-127..=127).contains(&z) {
                 return false;
             }
         }
@@ -128,7 +128,7 @@ pub(crate) unsafe fn solve_NTRU(
             G[i] = (tmp_u32[i + n] as i32) as i8;
         }
 
-        return true;
+        true
     }
 }
 
@@ -181,7 +181,7 @@ unsafe fn solve_NTRU_deepest(logn: u32, f: &[i8], g: &[i8], tmp: &mut [u32]) -> 
             return false;
         }
 
-        return true;
+        true
     }
 }
 
@@ -193,7 +193,7 @@ unsafe fn solve_NTRU_intermediate(
     g: &[i8],
     depth: u32,
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [FXR],
+    tmp_fxr: &mut [Fxr],
 ) -> bool {
     unsafe {
         let logn = logn_top - depth;
@@ -254,10 +254,10 @@ unsafe fn solve_NTRU_intermediate(
             let (_, work) = work.split_at_mut(2 * slen * n); // ft and gt
             let (Fd, work) = work.split_at_mut(tlen * hn);
             let (Gd, _) = work.split_at_mut(tlen * hn);
-            for i in 0..llen {
-                let p = PRIMES[i].p;
-                let p0i = PRIMES[i].p0i;
-                let R2 = PRIMES[i].R2;
+            for (i, prime) in PRIMES.iter().enumerate().take(llen) {
+                let p = prime.p;
+                let p0i = prime.p0i;
+                let R2 = prime.R2;
                 let Rx = mp_Rx31(tlen as u32, p, p0i, R2);
                 let kt = i * n + hn;
                 if logn >= 4 {
@@ -406,15 +406,15 @@ unsafe fn solve_NTRU_intermediate(
                         }
                     } else {
                         for j in 0..hn {
-                            let fa = fx[2 * j + 0];
+                            let fa = fx[2 * j];
                             let fb = fx[2 * j + 1];
-                            let ga = gx[2 * j + 0];
+                            let ga = gx[2 * j];
                             let gb = gx[2 * j + 1];
                             let mFp = mp_mmul(Ft[kt + hn + j], R2, p, p0i);
                             let mGp = mp_mmul(Gt[kt + hn + j], R2, p, p0i);
-                            Ft[kt + 2 * j + 0] = mp_mmul(gb, mFp, p, p0i);
+                            Ft[kt + 2 * j] = mp_mmul(gb, mFp, p, p0i);
                             Ft[kt + 2 * j + 1] = mp_mmul(ga, mFp, p, p0i);
-                            Gt[kt + 2 * j + 0] = mp_mmul(fb, mGp, p, p0i);
+                            Gt[kt + 2 * j] = mp_mmul(fb, mGp, p, p0i);
                             Gt[kt + 2 * j + 1] = mp_mmul(fa, mGp, p, p0i);
                         }
                     }
@@ -517,7 +517,7 @@ unsafe fn solve_NTRU_intermediate(
             let (_, work) = tmp_u32.split_at_mut(2 * n * llen);
             let (ft, gt) = work.split_at_mut(n * slen_adj);
 
-            // FXR values: share space with u32 space for memory efficiency
+            // Fxr values: share space with u32 space for memory efficiency
             //   rt3   n (shares space after gt)
             //   rt4   n (shares space after rt3)
             //   rt1   n/2 (shares space after rt4)
@@ -556,7 +556,7 @@ unsafe fn solve_NTRU_intermediate(
                 );
                 let yd = _mm256_set1_epi64x(rt1[i].0 as i64);
                 let yr = fxr_div_x4(yn, yd);
-                let rr: [FXR; 4] = transmute(yr);
+                let rr: [Fxr; 4] = transmute(yr);
                 rt3[i] = rr[0];
                 rt3[i + hn] = rr[1];
                 rt4[i] = rr[2];
@@ -577,12 +577,12 @@ unsafe fn solve_NTRU_intermediate(
         //   k     n
         //   t2    3*n
         //
-        //   rt3   n (FXR)
-        //   rt4   n (FXR)
-        //   rt1   n (FXR)
-        //   rt2   n (FXR)
+        //   rt3   n (Fxr)
+        //   rt4   n (Fxr)
+        //   rt1   n (Fxr)
+        //   rt2   n (Fxr)
         //
-        // Memory optimization: merge FXR space with u32 space for efficiency
+        // Memory optimization: merge Fxr space with u32 space for efficiency
         //   rt3 starts right after gt (shared space)
         //   k,t2 can share the same space as rt1,rt2 (shared space)
         {
@@ -799,7 +799,7 @@ unsafe fn solve_NTRU_intermediate(
             }
         }
 
-        return true;
+        true
     }
 }
 
@@ -810,7 +810,7 @@ unsafe fn solve_NTRU_depth0(
     f: &[i8],
     g: &[i8],
     tmp_u32: &mut [u32],
-    tmp_fxr: &mut [FXR],
+    tmp_fxr: &mut [Fxr],
 ) -> bool {
     unsafe {
         let n = 1usize << logn;
@@ -854,15 +854,15 @@ unsafe fn solve_NTRU_depth0(
 
             // Build the unreduced (F,G) into ft and gt
             for i in 0..hn {
-                let fa = ft[(i << 1) + 0];
+                let fa = ft[i << 1];
                 let fb = ft[(i << 1) + 1];
-                let ga = gt[(i << 1) + 0];
+                let ga = gt[i << 1];
                 let gb = gt[(i << 1) + 1];
                 let mFd = mp_mmul(Fd[i], R2, p, p0i);
                 let mGd = mp_mmul(Gd[i], R2, p, p0i);
-                ft[(i << 1) + 0] = mp_mmul(gb, mFd, p, p0i);
+                ft[i << 1] = mp_mmul(gb, mFd, p, p0i);
                 ft[(i << 1) + 1] = mp_mmul(ga, mFd, p, p0i);
-                gt[(i << 1) + 0] = mp_mmul(fb, mGd, p, p0i);
+                gt[i << 1] = mp_mmul(fb, mGd, p, p0i);
                 gt[(i << 1) + 1] = mp_mmul(fa, mGd, p, p0i);
             }
         }
@@ -938,7 +938,7 @@ unsafe fn solve_NTRU_depth0(
             // rt2 <- f*adj(f) + g*adj(g) (FFT, self-adjoint, scaled)
             for i in 0..n {
                 let x = ((t2[i] as i32) as i64) << 22;
-                rt3[i] = FXR::from_u64_scaled32(x as u64);
+                rt3[i] = Fxr::from_u64_scaled32(x as u64);
             }
             vect_FFT(logn, rt3);
             rt2.copy_from_slice(&rt3[..hn]);
@@ -946,7 +946,7 @@ unsafe fn solve_NTRU_depth0(
             // rt3 <- F*adj(f) + G*adj(g) (FFT, scaled)
             for i in 0..n {
                 let x = ((t1[i] as i32) as i64) << 22;
-                rt3[i] = FXR::from_u64_scaled32(x as u64);
+                rt3[i] = Fxr::from_u64_scaled32(x as u64);
             }
             vect_FFT(logn, rt3);
 
@@ -1008,7 +1008,7 @@ unsafe fn solve_NTRU_depth0(
             poly_mp_norm(logn, Gp, p);
         }
 
-        return true;
+        true
     }
 }
 
@@ -1059,10 +1059,10 @@ unsafe fn make_fg_step(logn_top: u32, depth: u32, work: &mut [u32]) {
         {
             let (fs, gs) = fgs.split_at_mut(n * slen);
             let (igm, _) = data.split_at_mut(n);
-            for i in 0..slen {
-                let p = PRIMES[i].p;
-                let p0i = PRIMES[i].p0i;
-                let R2 = PRIMES[i].R2;
+            for (i, prime) in PRIMES.iter().enumerate().take(slen) {
+                let p = prime.p;
+                let p0i = prime.p0i;
+                let R2 = prime.R2;
                 let ks = i * n;
                 let kd = i * hn;
                 for j in 0..hn {
@@ -1093,10 +1093,10 @@ unsafe fn make_fg_step(logn_top: u32, depth: u32, work: &mut [u32]) {
             let (fs, gs) = fgs.split_at_mut(n * slen);
             let (gm, data) = data.split_at_mut(n);
             let (t2, _) = data.split_at_mut(n);
-            for i in slen..tlen {
-                let p = PRIMES[i].p;
-                let p0i = PRIMES[i].p0i;
-                let R2 = PRIMES[i].R2;
+            for (i, prime) in PRIMES.iter().enumerate().take(tlen).skip(slen) {
+                let p = prime.p;
+                let p0i = prime.p0i;
+                let R2 = prime.R2;
                 let Rx = mp_Rx31(slen as u32, p, p0i, R2);
                 mp_mkgm(logn, PRIMES[i].g, p, p0i, gm);
                 let kd = i * hn;
@@ -1216,8 +1216,8 @@ unsafe fn make_fg_deepest(logn: u32, f: &[i8], g: &[i8], mut work: &mut [u32]) -
         // that all its NTT coefficients are non-zero.
         let n = 1usize << logn;
         let mut b = 0;
-        for i in 0..n {
-            b |= work[i].wrapping_sub(1);
+        for work_item in work.iter().take(n) {
+            b |= work_item.wrapping_sub(1);
         }
         let r = (b >> 31) == 0;
 

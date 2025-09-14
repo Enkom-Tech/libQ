@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use super::flr::FLR;
+use super::flr::Flr;
 
 // ========================================================================
 // Floating-point polynomials
@@ -13,7 +13,7 @@ use super::flr::FLR;
 //
 //   - The "normal representation" of f = \sum_{i=0}^{n-1} f_i*X^i is
 //     the sequence (f_0, f_1, f_2, ... f_{n-1}) as a slice of size n.
-//     Elements are FLR instances.
+//     Elements are Flr instances.
 //
 //   - The "FFT representation" consists of n/2 complex numbers; the
 //     first n/2 elements are the real parts, and for i = 0 to n/2-1,
@@ -31,15 +31,15 @@ use super::flr::FLR;
 // Complex multiplication.
 #[allow(dead_code)]
 #[inline(always)]
-pub(crate) fn flc_mul(x_re: FLR, x_im: FLR, y_re: FLR, y_im: FLR) -> (FLR, FLR) {
+pub(crate) fn flc_mul(x_re: Flr, x_im: Flr, y_re: Flr, y_im: Flr) -> (Flr, Flr) {
     (x_re * y_re - x_im * y_im, x_re * y_im + x_im * y_re)
 }
 
 /* unused
 // Complex division.
 #[inline(always)]
-fn flc_div(x_re: FLR, x_im: FLR, y_re: FLR, y_im: FLR) -> (FLR, FLR) {
-    let m = FLR::ONE / (y_re.square() + y_im.square());
+fn flc_div(x_re: Flr, x_im: Flr, y_re: Flr, y_im: Flr) -> (Flr, Flr) {
+    let m = Flr::ONE / (y_re.square() + y_im.square());
     let b_re = m * y_re;
     let b_im = m * -y_im;
     flc_mul(x_re, x_im, b_re, b_im)
@@ -47,7 +47,7 @@ fn flc_div(x_re: FLR, x_im: FLR, y_re: FLR, y_im: FLR) -> (FLR, FLR) {
 */
 
 // Convert a polynomial from normal representation to FFT.
-pub(crate) fn FFT(logn: u32, f: &mut [FLR]) {
+pub(crate) fn FFT(logn: u32, f: &mut [Flr]) {
     // First iteration of the FFT algorithm would compute
     // f[j] + i*f[j + n/2] for all j < n/2; since this is exactly our
     // storage format for complex numbers in the FFT representation,
@@ -67,7 +67,7 @@ pub(crate) fn FFT(logn: u32, f: &mut [FLR]) {
         let hn = n >> 1;
         let mut t = hn;
         let ff: *mut f64 = transmute(f.as_mut_ptr());
-        let ggm: *const f64 = transmute((&GM).as_ptr());
+        let ggm: *const f64 = transmute(GM.as_ptr());
         for lm in 1..(logn - 1) {
             let m = 1 << lm;
             let hm = m >> 1;
@@ -157,7 +157,7 @@ pub(crate) fn FFT(logn: u32, f: &mut [FLR]) {
         }
 
         if logn >= 2 {
-            let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+            let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
             for i in 0..(hn >> 1) {
                 let s = vld1q_f64(ggm.wrapping_add(n + (i << 1)));
                 let xy_re = vld1q_f64(ff.wrapping_add(i << 1));
@@ -218,7 +218,7 @@ pub(crate) fn FFT(logn: u32, f: &mut [FLR]) {
 }
 
 // Convert a polynomial from FFT representation to normal.
-pub(crate) fn iFFT(logn: u32, f: &mut [FLR]) {
+pub(crate) fn iFFT(logn: u32, f: &mut [Flr]) {
     // This is the reverse of FFT. We use the fact that if
     // w = exp(i*k*pi/N), then 1/w is the conjugate of w; thus, we can
     // get inverses from the table GM[] itself by simply negating the
@@ -240,7 +240,7 @@ pub(crate) fn iFFT(logn: u32, f: &mut [FLR]) {
         let n = 1usize << logn;
         let hn = n >> 1;
         let ff: *mut f64 = transmute(f.as_mut_ptr());
-        let ggm: *const f64 = transmute((&GM).as_ptr());
+        let ggm: *const f64 = transmute(GM.as_ptr());
         if logn >= 2 {
             let cz = _mm_castsi128_pd(_mm_setr_epi32(0, 0, 0, -0x80000000));
             for i in 0..(hn >> 1) {
@@ -295,15 +295,15 @@ pub(crate) fn iFFT(logn: u32, f: &mut [FLR]) {
         if logn >= 2 {
             // INV_POW2[i] = 1/(2^(i + 1))
             const INV_POW2: [f64; 9] = [
-                0.50000000000000000000000000000000000000000,
-                0.25000000000000000000000000000000000000000,
-                0.12500000000000000000000000000000000000000,
-                0.062500000000000000000000000000000000000000,
-                0.031250000000000000000000000000000000000000,
-                0.015625000000000000000000000000000000000000,
-                0.0078125000000000000000000000000000000000000,
-                0.0039062500000000000000000000000000000000000,
-                0.0019531250000000000000000000000000000000000,
+                0.5,
+                0.25,
+                0.125,
+                0.062_5,
+                0.031_25,
+                0.015_625,
+                0.007_812_5,
+                0.003_906_25,
+                0.001_953_125,
             ];
             let e = _mm_set1_pd(INV_POW2[(logn - 2) as usize]);
             for i in 0..hn {
@@ -325,7 +325,7 @@ pub(crate) fn iFFT(logn: u32, f: &mut [FLR]) {
         let ff: *mut f64 = transmute(f.as_mut_ptr());
         let ggm: *const f64 = transmute((&GM).as_ptr());
         if logn >= 2 {
-            let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+            let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
             for i in 0..(hn >> 1) {
                 let s = vld1q_f64(ggm.wrapping_add(n + (i << 1)));
                 let sc = vreinterpretq_f64_u64(veorq_u64(cz, vreinterpretq_u64_f64(s)));
@@ -436,12 +436,12 @@ pub(crate) fn iFFT(logn: u32, f: &mut [FLR]) {
 
         // We have logn-1 delayed halvings to perform, i.e. we must divide
         // all returned values by n/2.
-        FLR::slice_div2e(&mut f[..n], logn - 1);
+        Flr::slice_div2e(&mut f[..n], logn - 1);
     }
 }
 
 // Set polynomial d from polynomial f with small coefficients.
-pub(crate) fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
+pub(crate) fn poly_set_small(logn: u32, d: &mut [Flr], f: &[i8]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -454,7 +454,7 @@ pub(crate) fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
         let dd: *mut f64 = transmute(d.as_mut_ptr());
         for i in 0..(1usize << (logn - 2)) {
             let x = _mm_setr_epi32(
-                f[(i << 2) + 0] as i32,
+                f[i << 2] as i32,
                 f[(i << 2) + 1] as i32,
                 f[(i << 2) + 2] as i32,
                 f[(i << 2) + 3] as i32,
@@ -508,13 +508,13 @@ pub(crate) fn poly_set_small(logn: u32, d: &mut [FLR], f: &[i8]) {
     )))]
     {
         for i in 0..(1usize << logn) {
-            d[i] = FLR::from_i32(f[i] as i32);
+            d[i] = Flr::from_i32(f[i] as i32);
         }
     }
 }
 
 // Add polynomial b to polynomial a.
-pub(crate) fn poly_add(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_add(logn: u32, a: &mut [Flr], b: &[Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -571,7 +571,7 @@ pub(crate) fn poly_add(logn: u32, a: &mut [FLR], b: &[FLR]) {
 }
 
 // Subtract polynomial b from polynomial a.
-pub(crate) fn poly_sub(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_sub(logn: u32, a: &mut [Flr], b: &[Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -628,7 +628,7 @@ pub(crate) fn poly_sub(logn: u32, a: &mut [FLR], b: &[FLR]) {
 }
 
 // Negate polynomial a.
-pub(crate) fn poly_neg(logn: u32, a: &mut [FLR]) {
+pub(crate) fn poly_neg(logn: u32, a: &mut [Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -638,7 +638,7 @@ pub(crate) fn poly_neg(logn: u32, a: &mut [FLR]) {
         use core::mem::transmute;
 
         let aa: *mut f64 = transmute(a.as_mut_ptr());
-        let xnz: __m128d = transmute([FLR::NZERO, FLR::NZERO]);
+        let xnz: __m128d = transmute([Flr::NZERO, Flr::NZERO]);
         if logn >= 1 {
             for i in 0..(1usize << (logn - 1)) {
                 let xa = _mm_loadu_pd(aa.wrapping_add(i << 1));
@@ -682,7 +682,7 @@ pub(crate) fn poly_neg(logn: u32, a: &mut [FLR]) {
 /* unused
 // Replace polynomial a with its Hermitian adjoint adj(a). The polynomial
 // must be in FFT representation.
-pub(crate) fn poly_adj_fft(logn: u32, a: &mut [FLR]) {
+pub(crate) fn poly_adj_fft(logn: u32, a: &mut [Flr]) {
     let n = 1usize << logn;
     for i in (n >> 1)..n {
         a[i] = -a[i];
@@ -692,7 +692,7 @@ pub(crate) fn poly_adj_fft(logn: u32, a: &mut [FLR]) {
 
 // Multiply polynomial a with polynomial b. The polynomials must be in
 // FFT representation.
-pub(crate) fn poly_mul_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_mul_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -747,7 +747,7 @@ pub(crate) fn poly_mul_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
                 vst1q_f64(aa.wrapping_add((i << 1) + hn), xci);
             }
         } else {
-            let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+            let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
             let xa = vld1q_f64(aa);
             let xb = vld1q_f64(bb);
             let xcr = vmulq_f64(xa, xb);
@@ -775,7 +775,7 @@ pub(crate) fn poly_mul_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 
 // Multiply polynomial a with the adjoint of polynomial b. The polynomials
 // must be in FFT representation.
-pub(crate) fn poly_muladj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_muladj_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -830,7 +830,7 @@ pub(crate) fn poly_muladj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
                 vst1q_f64(aa.wrapping_add((i << 1) + hn), xci);
             }
         } else {
-            let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+            let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
             let xa = vld1q_f64(aa);
             let xb = vld1q_f64(bb);
             let xcr = vmulq_f64(xa, xb);
@@ -859,7 +859,7 @@ pub(crate) fn poly_muladj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // Multiply polynomial a with its own adjoint. The polynomial must be in
 // FFT representation. Since the result is a self-adjoint polynomial,
 // coefficients n/2 to n-1 are set to zero.
-pub(crate) fn poly_mulownadj_fft(logn: u32, a: &mut [FLR]) {
+pub(crate) fn poly_mulownadj_fft(logn: u32, a: &mut [Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -921,13 +921,13 @@ pub(crate) fn poly_mulownadj_fft(logn: u32, a: &mut [FLR]) {
         let hn = 1usize << (logn - 1);
         for i in 0..hn {
             a[i] = a[i].square() + a[i + hn].square();
-            a[i + hn] = FLR::ZERO;
+            a[i + hn] = Flr::ZERO;
         }
     }
 }
 
 // Multiply polynomial a with a real constant x.
-pub(crate) fn poly_mulconst(logn: u32, a: &mut [FLR], x: FLR) {
+pub(crate) fn poly_mulconst(logn: u32, a: &mut [Flr], x: Flr) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -984,7 +984,7 @@ pub(crate) fn poly_mulconst(logn: u32, a: &mut [FLR], x: FLR) {
 /* unused
 // Divide polynomial a by polynomial b. The polynomials MUST be in FFT
 // representation.
-pub(crate) fn poly_div_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_div_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         let (re, im) = flc_div(a[i], a[i + hn], b[i], b[i + hn]);
@@ -1000,13 +1000,13 @@ pub(crate) fn poly_div_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // first n/2 coefficients are set; the other n/2 coefficients are
 // implicitly zero, but need not exist in the destination slice.
 pub(crate) fn poly_invnorm2_fft(logn: u32,
-    d: &mut [FLR], f: &[FLR], g: &[FLR])
+    d: &mut [Flr], f: &[Flr], g: &[Flr])
 {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         let nf = f[i].square() + f[i + hn].square();
         let ng = g[i].square() + g[i + hn].square();
-        d[i] = FLR::ONE / (nf + ng);
+        d[i] = Flr::ONE / (nf + ng);
     }
 }
 */
@@ -1015,7 +1015,7 @@ pub(crate) fn poly_invnorm2_fft(logn: u32,
 // Given polynomial F, G, f and g, set d to F*adj(f) + G*adj(g). All
 // polynomials are in FFT representation.
 pub(crate) fn poly_add_muladj_fft(logn: u32,
-    d: &mut [FLR], F: &[FLR], G: &[FLR], f: &[FLR], g: &[FLR])
+    d: &mut [Flr], F: &[Flr], G: &[Flr], f: &[Flr], g: &[Flr])
 {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
@@ -1031,7 +1031,7 @@ pub(crate) fn poly_add_muladj_fft(logn: u32,
 // Multiply polynomial a by polynomial b, where b is self-adjoint. Only
 // the first n/2 coefficients of b are accessed. All polynomials are in
 // FFT representation.
-pub(crate) fn poly_mul_selfadj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_mul_selfadj_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
         a[i] *= b[i];
@@ -1044,10 +1044,10 @@ pub(crate) fn poly_mul_selfadj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // Divide polynomial a by polynomial b, where b is self-adjoint. Only
 // the first n/2 coefficients of b are accessed. All polynomials are in
 // FFT representation.
-pub(crate) fn poly_div_selfadj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
+pub(crate) fn poly_div_selfadj_fft(logn: u32, a: &mut [Flr], b: &[Flr]) {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
-        let x = FLR::ONE / b[i];
+        let x = Flr::ONE / b[i];
         a[i] *= x;
         a[i + hn] *= x;
     }
@@ -1063,7 +1063,7 @@ pub(crate) fn poly_div_selfadj_fft(logn: u32, a: &mut [FLR], b: &[FLR]) {
 // respectively. Like g11, d11 is self-adjoint and uses only n/2
 // coefficients. g00 is unmodified. All polynomials are in FFT
 // representation.
-pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [FLR]) {
+pub(crate) fn poly_LDL_fft(logn: u32, g00: &[Flr], g01: &mut [Flr], g11: &mut [Flr]) {
     #[cfg(target_feature = "sse2")]
     unsafe {
         #[cfg(target_arch = "x86")]
@@ -1073,8 +1073,8 @@ pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [F
         use core::mem::transmute;
 
         let hn = 1usize << (logn - 1);
-        let one: __m128d = transmute([FLR::ONE, FLR::ONE]);
-        let nz: __m128d = transmute([FLR::NZERO, FLR::NZERO]);
+        let one: __m128d = transmute([Flr::ONE, Flr::ONE]);
+        let nz: __m128d = transmute([Flr::NZERO, Flr::NZERO]);
         let gg00: *const f64 = transmute(g00.as_ptr());
         let gg01: *mut f64 = transmute(g01.as_mut_ptr());
         let gg11: *mut f64 = transmute(g11.as_mut_ptr());
@@ -1117,7 +1117,7 @@ pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [F
         let gg01: *mut f64 = transmute(g01.as_mut_ptr());
         let gg11: *mut f64 = transmute(g11.as_mut_ptr());
         if logn >= 2 {
-            let one: float64x2_t = transmute([FLR::ONE, FLR::ONE]);
+            let one: float64x2_t = transmute([Flr::ONE, Flr::ONE]);
             for i in 0..(1usize << (logn - 2)) {
                 let g00_re = vld1q_f64(gg00.wrapping_add(i << 1));
                 let g01_re = vld1q_f64(gg01.wrapping_add(i << 1));
@@ -1132,7 +1132,7 @@ pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [F
                 vst1q_f64(gg01.wrapping_add((i << 1) + hn), vnegq_f64(mu_im));
             }
         } else {
-            let one: float64x1_t = transmute(FLR::ONE);
+            let one: float64x1_t = transmute(Flr::ONE);
             let g00_re = vld1_f64(gg00);
             let g01_re = vld1_f64(gg01);
             let g01_im = vld1_f64(gg01.wrapping_add(1));
@@ -1159,7 +1159,7 @@ pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [F
             let g00_re = g00[i];
             let (g01_re, g01_im) = (g01[i], g01[i + hn]);
             let g11_re = g11[i];
-            let inv_g00_re = FLR::ONE / g00_re;
+            let inv_g00_re = Flr::ONE / g00_re;
             let (mu_re, mu_im) = (g01_re * inv_g00_re, g01_im * inv_g00_re);
             let zo_re = mu_re * g01_re + mu_im * g01_im;
             g11[i] = g11_re - zo_re;
@@ -1174,7 +1174,7 @@ pub(crate) fn poly_LDL_fft(logn: u32, g00: &[FLR], g01: &mut [FLR], g11: &mut [F
 // l10 and d11 are written into separate output buffers instead of
 // overwriting the provided g01 and g11.
 pub(crate) fn poly_LDLmv_fft(logn: u32,
-    d11: &mut [FLR], l10: &mut [FLR], g00: &[FLR], g01: &[FLR], g11: &[FLR])
+    d11: &mut [Flr], l10: &mut [Flr], g00: &[Flr], g01: &[Flr], g11: &[Flr])
 {
     let hn = 1usize << (logn - 1);
     for i in 0..hn {
@@ -1194,7 +1194,7 @@ pub(crate) fn poly_LDLmv_fft(logn: u32,
 // Split operation on a polynomial: for input polynomial f, half-size
 // polynomials f0 and f1 (modulo X^(n/2)+1) are such that
 // f = f0(x^2) + x*f1(x^2). All polynomials are in FFT representation.
-pub(crate) fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR]) {
+pub(crate) fn poly_split_fft(logn: u32, f0: &mut [Flr], f1: &mut [Flr], f: &[Flr]) {
     // If logn = 1 then the loop is entirely skipped.
     if logn == 1 {
         f0[0] = f[0];
@@ -1213,14 +1213,14 @@ pub(crate) fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
         let h: __m128d = transmute([
-            FLR::scaled(4503599627370496, -53),
-            FLR::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
         ]);
         let ff: *const f64 = transmute(f.as_ptr());
         let ff0: *mut f64 = transmute(f0.as_mut_ptr());
         let ff1: *mut f64 = transmute(f1.as_mut_ptr());
-        let ggm: *const f64 = transmute((&GM).as_ptr());
-        let cz: __m128d = transmute([FLR::ZERO, FLR::NZERO]);
+        let ggm: *const f64 = transmute(GM.as_ptr());
+        let cz: __m128d = transmute([Flr::ZERO, Flr::NZERO]);
         for i in 0..qn {
             let ab_re = _mm_loadu_pd(ff.wrapping_add(i << 1));
             let ab_im = _mm_loadu_pd(ff.wrapping_add((i << 1) + hn));
@@ -1250,14 +1250,14 @@ pub(crate) fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
         let h: float64x2_t = transmute([
-            FLR::scaled(4503599627370496, -53),
-            FLR::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
         ]);
         let ff: *const f64 = transmute(f.as_ptr());
         let ff0: *mut f64 = transmute(f0.as_mut_ptr());
         let ff1: *mut f64 = transmute(f1.as_mut_ptr());
         let ggm: *const f64 = transmute((&GM).as_ptr());
-        let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+        let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
         for i in 0..qn {
             let ab_re = vld1q_f64(ff.wrapping_add(i << 1));
             let ab_im = vld1q_f64(ff.wrapping_add((i << 1) + hn));
@@ -1311,11 +1311,11 @@ pub(crate) fn poly_split_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR
 // Specialized version of poly_split_fft() when the source polynomial
 // is self-adjoint (i.e. all its FFT coefficients are real). On output,
 // f0 is self-adjoint, but f1 is not necessarily self-adjoint.
-pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], f: &[FLR]) {
+pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [Flr], f1: &mut [Flr], f: &[Flr]) {
     // If logn = 1 then the loop is entirely skipped.
     if logn == 1 {
         f0[0] = f[0];
-        f1[0] = FLR::ZERO;
+        f1[0] = Flr::ZERO;
         return;
     }
 
@@ -1330,13 +1330,13 @@ pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], 
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
         let h: __m128d = transmute([
-            FLR::scaled(4503599627370496, -53),
-            FLR::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
         ]);
         let ff: *const f64 = transmute(f.as_ptr());
         let ff0: *mut f64 = transmute(f0.as_mut_ptr());
         let ff1: *mut f64 = transmute(f1.as_mut_ptr());
-        let ggm: *const f64 = transmute((&GM).as_ptr());
+        let ggm: *const f64 = transmute(GM.as_ptr());
         for i in 0..qn {
             let ab_re = _mm_loadu_pd(ff.wrapping_add(i << 1));
             let t = _mm_shuffle_pd(ab_re, ab_re, 1);
@@ -1359,8 +1359,8 @@ pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], 
         let hn = 1usize << (logn - 1);
         let qn = hn >> 1;
         let h: float64x2_t = transmute([
-            FLR::scaled(4503599627370496, -53),
-            FLR::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
+            Flr::scaled(4503599627370496, -53),
         ]);
         let ff: *const f64 = transmute(f.as_ptr());
         let ff0: *mut f64 = transmute(f0.as_mut_ptr());
@@ -1395,7 +1395,7 @@ pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], 
 
             let t_re = a_re + b_re;
             f0[i] = t_re.half();
-            f0[i + qn] = FLR::ZERO;
+            f0[i + qn] = Flr::ZERO;
 
             let t_re = (a_re - b_re).half();
             f1[i] = t_re * GM[((i + hn) << 1) + 0];
@@ -1407,7 +1407,7 @@ pub(crate) fn poly_split_selfadj_fft(logn: u32, f0: &mut [FLR], f1: &mut [FLR], 
 // Merge operation on a polynomial: for input half-size polynomials f0
 // and f1 (modulo X^(n/2)+1), compute f = f0(x^2) + x*f1(x^2). All
 // polynomials are in FFT representation.
-pub(crate) fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[FLR]) {
+pub(crate) fn poly_merge_fft(logn: u32, f: &mut [Flr], f0: &[Flr], f1: &[Flr]) {
     // If logn = 1 then the loop is entirely skipped.
     if logn == 1 {
         f[0] = f0[0];
@@ -1428,8 +1428,8 @@ pub(crate) fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[FLR]) {
         let ff: *mut f64 = transmute(f.as_mut_ptr());
         let ff0: *const f64 = transmute(f0.as_ptr());
         let ff1: *const f64 = transmute(f1.as_ptr());
-        let ggm: *const f64 = transmute((&GM).as_ptr());
-        let cz: __m128d = transmute([FLR::ZERO, FLR::NZERO]);
+        let ggm: *const f64 = transmute(GM.as_ptr());
+        let cz: __m128d = transmute([Flr::ZERO, Flr::NZERO]);
         for i in 0..qn {
             let a_re = _mm_load_sd(ff0.wrapping_add(i));
             let a_im = _mm_load_sd(ff0.wrapping_add(i + qn));
@@ -1462,7 +1462,7 @@ pub(crate) fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[FLR]) {
         let ff0: *const f64 = transmute(f0.as_ptr());
         let ff1: *const f64 = transmute(f1.as_ptr());
         let ggm: *const f64 = transmute((&GM).as_ptr());
-        let cz: uint64x2_t = transmute([FLR::ZERO, FLR::NZERO]);
+        let cz: uint64x2_t = transmute([Flr::ZERO, Flr::NZERO]);
         for i in 0..qn {
             let a_re = vld1_f64(ff0.wrapping_add(i));
             let a_im = vld1_f64(ff0.wrapping_add(i + qn));
@@ -1520,20 +1520,20 @@ pub(crate) fn poly_merge_fft(logn: u32, f: &mut [FLR], f0: &[FLR], f1: &[FLR]) {
 // obtained from Sage, which employs sufficient precision to get an exact
 // rounding. Specifically, we round x = cos(j*pi/1024) by looking for the
 // integer n such that abs(x)*2^n is in [2^52, 2^53[, and make the value
-// as round(x*2^n)/2^n (with FLR::scaled()).
-// A test makes sure that the generated FLR constants have exactly the
+// as round(x*2^n)/2^n (with Flr::scaled()).
+// A test makes sure that the generated Flr constants have exactly the
 // expected values.
 //
 // GM[0] and GM[1] (corresponding to k = 0) are unused and left to zero.
 
-const fn mkflr(x: i64, sc: i32) -> FLR {
-    FLR::scaled(x, sc)
+const fn mkflr(x: i64, sc: i32) -> Flr {
+    Flr::scaled(x, sc)
 }
-pub(crate) const GM: [FLR; 2048] = [
-    FLR::ZERO,
-    FLR::ZERO,
-    FLR::NZERO,
-    FLR::ONE,
+pub(crate) const GM: [Flr; 2048] = [
+    Flr::ZERO,
+    Flr::ZERO,
+    Flr::NZERO,
+    Flr::ONE,
     mkflr(6369051672525773, -53),
     mkflr(6369051672525773, -53),
     mkflr(-6369051672525773, -53),
@@ -3586,12 +3586,12 @@ mod tests {
     use fn_dsa_comm::shake::SHAKE256;
 
     use super::*;
-    use crate::flr::FLR;
+    use crate::flr::Flr;
     use crate::tests::SHAKE256x4;
 
-    fn rand_poly(rng: &mut SHAKE256x4, f: &mut [FLR]) {
+    fn rand_poly(rng: &mut SHAKE256x4, f: &mut [Flr]) {
         for i in 0..f.len() {
-            f[i] = FLR::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
+            f[i] = Flr::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
         }
     }
 
@@ -3599,7 +3599,7 @@ mod tests {
         let n = 1usize << logn;
         let hn = n >> 1;
         let mut rng = SHAKE256x4::new(&[logn as u8]);
-        let mut tmp = [FLR::ZERO; 5 * 1024];
+        let mut tmp = [Flr::ZERO; 5 * 1024];
         let (f, tmp) = tmp.split_at_mut(n);
         let (g, tmp) = tmp.split_at_mut(n);
         let (h, tmp) = tmp.split_at_mut(n);
@@ -3619,7 +3619,7 @@ mod tests {
             if ctr < 5 {
                 rand_poly(&mut rng, g);
                 for i in 0..n {
-                    h[i] = FLR::ZERO;
+                    h[i] = Flr::ZERO;
                 }
                 for i in 0..n {
                     for j in 0..n {

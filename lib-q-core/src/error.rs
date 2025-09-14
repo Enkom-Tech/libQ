@@ -34,6 +34,12 @@ pub enum Error {
     /// Invalid plaintext size
     InvalidPlaintextSize { expected: usize, actual: usize },
 
+    /// Invalid associated data size
+    InvalidAssociatedDataSize { max: usize, actual: usize },
+
+    /// Invalid tag size
+    InvalidTagSize { expected: usize, actual: usize },
+
     /// Invalid hash size
     InvalidHashSize { expected: usize, actual: usize },
 
@@ -121,8 +127,47 @@ pub enum Error {
         reason: &'static str,
     },
 
+    /// Plugin dependency error
+    #[cfg(feature = "alloc")]
+    PluginDependencyError {
+        plugin: String,
+        dependency: String,
+        required_version: String,
+        available_version: Option<String>,
+    },
+    #[cfg(not(feature = "alloc"))]
+    PluginDependencyError {
+        plugin: &'static str,
+        dependency: &'static str,
+        required_version: &'static str,
+        available_version: Option<&'static str>,
+    },
+
+    /// Plugin version incompatibility
+    #[cfg(feature = "alloc")]
+    PluginVersionIncompatible {
+        plugin: String,
+        required_version: String,
+        available_version: String,
+    },
+    #[cfg(not(feature = "alloc"))]
+    PluginVersionIncompatible {
+        plugin: &'static str,
+        required_version: &'static str,
+        available_version: &'static str,
+    },
+
     /// Invalid key format
     InvalidKeyFormat,
+
+    /// Invalid key with specific reason
+    #[cfg(feature = "alloc")]
+    InvalidKey { key_type: String, reason: String },
+    #[cfg(not(feature = "alloc"))]
+    InvalidKey {
+        key_type: &'static str,
+        reason: &'static str,
+    },
 
     /// Unsupported algorithm
     #[cfg(feature = "alloc")]
@@ -166,6 +211,15 @@ impl fmt::Display for Error {
                     f,
                     "Invalid plaintext size: expected {expected}, got {actual}"
                 )
+            }
+            Error::InvalidAssociatedDataSize { max, actual } => {
+                write!(
+                    f,
+                    "Invalid associated data size: maximum {max}, got {actual}"
+                )
+            }
+            Error::InvalidTagSize { expected, actual } => {
+                write!(f, "Invalid tag size: expected {expected}, got {actual}")
             }
             Error::InvalidHashSize { expected, actual } => {
                 write!(f, "Invalid hash size: expected {expected}, got {actual}")
@@ -212,8 +266,74 @@ impl fmt::Display for Error {
             Error::InvalidState { operation, reason } => {
                 write!(f, "Invalid state in {operation}: {reason}")
             }
+            #[cfg(feature = "alloc")]
+            Error::PluginDependencyError {
+                plugin,
+                dependency,
+                required_version,
+                available_version,
+            } => {
+                if let Some(available) = available_version {
+                    write!(
+                        f,
+                        "Plugin '{plugin}' requires dependency '{dependency}' version {required_version}, but version {available} is available"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Plugin '{plugin}' requires dependency '{dependency}' version {required_version}, but it is not available"
+                    )
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            Error::PluginDependencyError {
+                plugin,
+                dependency,
+                required_version,
+                available_version,
+            } => {
+                if let Some(available) = available_version {
+                    write!(
+                        f,
+                        "Plugin '{}' requires dependency '{}' version {}, but version {} is available",
+                        plugin, dependency, required_version, available
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Plugin '{}' requires dependency '{}' version {}, but it is not available",
+                        plugin, dependency, required_version
+                    )
+                }
+            }
+            #[cfg(feature = "alloc")]
+            Error::PluginVersionIncompatible {
+                plugin,
+                required_version,
+                available_version,
+            } => {
+                write!(
+                    f,
+                    "Plugin '{plugin}' version {available_version} is incompatible with required version {required_version}"
+                )
+            }
+            #[cfg(not(feature = "alloc"))]
+            Error::PluginVersionIncompatible {
+                plugin,
+                required_version,
+                available_version,
+            } => {
+                write!(
+                    f,
+                    "Plugin '{}' version {} is incompatible with required version {}",
+                    plugin, available_version, required_version
+                )
+            }
             Error::InvalidKeyFormat => {
                 write!(f, "Invalid key format")
+            }
+            Error::InvalidKey { key_type, reason } => {
+                write!(f, "Invalid {key_type}: {reason}")
             }
             Error::UnsupportedAlgorithm { algorithm } => {
                 write!(f, "Unsupported algorithm: {algorithm}")
@@ -262,7 +382,12 @@ impl Error {
             Error::NotImplemented { .. } => "NotImplemented".to_string(),
             Error::UnsupportedOperation { .. } => "UnsupportedOperation".to_string(),
             Error::InvalidState { .. } => "InvalidState".to_string(),
+            Error::InvalidAssociatedDataSize { .. } => "InvalidAssociatedDataSize".to_string(),
+            Error::InvalidTagSize { .. } => "InvalidTagSize".to_string(),
+            Error::PluginDependencyError { .. } => "PluginDependencyError".to_string(),
+            Error::PluginVersionIncompatible { .. } => "PluginVersionIncompatible".to_string(),
             Error::InvalidKeyFormat => "InvalidKeyFormat".to_string(),
+            Error::InvalidKey { .. } => "InvalidKey".to_string(),
             Error::UnsupportedAlgorithm { .. } => "UnsupportedAlgorithm".to_string(),
             Error::AuthenticationFailed { .. } => "AuthenticationFailed".to_string(),
         }
@@ -299,6 +424,32 @@ mod tests {
             actual: 16,
         };
         assert_eq!(error.to_string(), "Invalid key size: expected 32, got 16");
+    }
+
+    #[test]
+    fn test_invalid_key_error_display() {
+        #[cfg(feature = "alloc")]
+        {
+            let error = Error::InvalidKey {
+                key_type: "public key".to_string(),
+                reason: "cannot be used for encapsulation".to_string(),
+            };
+            assert_eq!(
+                error.to_string(),
+                "Invalid public key: cannot be used for encapsulation"
+            );
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            let error = Error::InvalidKey {
+                key_type: "public key",
+                reason: "cannot be used for encapsulation",
+            };
+            assert_eq!(
+                error.to_string(),
+                "Invalid public key: cannot be used for encapsulation"
+            );
+        }
     }
 
     #[test]

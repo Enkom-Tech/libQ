@@ -165,11 +165,11 @@ macro_rules! sign_key_impl {
             hashed_vrfy_key: [u8; 64],
             tmp_i16: [i16; 1 << ($logn_max)],
             tmp_u16: [u16; 2 << ($logn_max)],
-            tmp_flr: [flr::FLR; 9 << ($logn_max)],
+            tmp_flr: [flr::Flr; 9 << ($logn_max)],
 
             // Basis B = [[g, -f], [G, -F]], in FFT format.
             #[cfg(not(feature = "small_context"))]
-            basis: [flr::FLR; 4 << ($logn_max)],
+            basis: [flr::Flr; 4 << ($logn_max)],
 
             logn: u32,
 
@@ -255,10 +255,10 @@ macro_rules! sign_key_impl {
                 let hashed_vrfy_key = [0u8; 64];
                 let tmp_i16 = [0i16; 1 << ($logn_max)];
                 let tmp_u16 = [0u16; 2 << ($logn_max)];
-                let tmp_flr = [flr::FLR::ZERO; 9 << ($logn_max)];
+                let tmp_flr = [flr::Flr::ZERO; 9 << ($logn_max)];
 
                 #[cfg(not(feature = "small_context"))]
-                let basis = [flr::FLR::ZERO; 4 << ($logn_max)];
+                let basis = [flr::Flr::ZERO; 4 << ($logn_max)];
 
                 let mut sk = Self {
                     f,
@@ -425,7 +425,7 @@ fn decode_inner(
     tmp_u16: &mut [u16],
     src: &[u8],
 ) -> Option<u32> {
-    if src.len() < 1 {
+    if src.is_empty() {
         return None;
     }
     let head = src[0];
@@ -495,7 +495,7 @@ fn decode_inner(
     // Convert back h to external representation and encode it.
     mq::mqpoly_NTT_to_int(logn, w0);
     mq::mqpoly_int_to_ext(logn, w0);
-    vk[0] = 0x00 + (logn as u8);
+    vk[0] = logn as u8;
     let j = 1 + codec::modq_encode(&w0[..n], &mut vk[1..]);
     assert!(j == vk.len());
     let mut sh = shake::SHAKE256::new();
@@ -514,7 +514,7 @@ fn decode_inner(
     Some(logn)
 }
 
-fn compute_basis_inner(logn: u32, f: &[i8], g: &[i8], F: &[i8], G: &[i8], basis: &mut [flr::FLR]) {
+fn compute_basis_inner(logn: u32, f: &[i8], g: &[i8], F: &[i8], G: &[i8], basis: &mut [flr::Flr]) {
     let n = 1usize << logn;
 
     // Lattice basis is B = [[g, -f], [G, -F]].
@@ -536,7 +536,7 @@ fn compute_basis_inner(logn: u32, f: &[i8], g: &[i8], F: &[i8], G: &[i8], basis:
 }
 
 // 1/12289
-const INV_Q: flr::FLR = flr::FLR::scaled(6004310871091074, -66);
+const INV_Q: flr::Flr = flr::Flr::scaled(6004310871091074, -66);
 
 fn sign_inner<T: CryptoRng + RngCore, P: PRNG>(
     logn: u32,
@@ -550,10 +550,10 @@ fn sign_inner<T: CryptoRng + RngCore, P: PRNG>(
     id: &HashIdentifier,
     hv: &[u8],
     sig: &mut [u8],
-    #[cfg(not(feature = "small_context"))] basis: &[flr::FLR],
+    #[cfg(not(feature = "small_context"))] basis: &[flr::Flr],
     tmp_i16: &mut [i16],
     tmp_u16: &mut [u16],
-    tmp_flr: &mut [flr::FLR],
+    tmp_flr: &mut [flr::Flr],
 ) {
     let n = 1usize << logn;
     assert!(f.len() == n);
@@ -698,7 +698,7 @@ fn sign_inner<T: CryptoRng + RngCore, P: PRNG>(
             // (t1 is not actually set; subsequent computations take into
             // account that it is conceptually zero)
             for i in 0..n {
-                t0[i] = flr::FLR::from_i32(hm[i] as i32);
+                t0[i] = flr::Flr::from_i32(hm[i] as i32);
             }
 
             // Apply the lattice basis to obtain the real target vector
@@ -1270,7 +1270,7 @@ pub(crate) mod tests {
         // Sign a specific message with the private key.
         let mut tmp_i16 = [0i16; 2 << 9];
         let mut tmp_u16 = [0u16; 2 << 9];
-        let mut tmp_flr = [flr::FLR::ZERO; 9 << 9];
+        let mut tmp_flr = [flr::Flr::ZERO; 9 << 9];
         let mut sig = [0u8; signature_size(9)];
 
         // We are using the original Falcon rules; public key does not
@@ -1283,7 +1283,7 @@ pub(crate) mod tests {
 
         #[cfg(not(feature = "small_context"))]
         let basis = {
-            let mut basis = [flr::FLR::ZERO; 4 << 9];
+            let mut basis = [flr::Flr::ZERO; 4 << 9];
             compute_basis_inner(
                 9, &KAT_512_f, &KAT_512_g, &KAT_512_F, &KAT_512_G, &mut basis,
             );
@@ -1330,7 +1330,7 @@ pub(crate) mod tests {
         // Sign a specific message with the private key.
         let mut tmp_i16 = [0i16; 2 << 9];
         let mut tmp_u16 = [0u16; 2 << 9];
-        let mut tmp_flr = [flr::FLR::ZERO; 9 << 9];
+        let mut tmp_flr = [flr::Flr::ZERO; 9 << 9];
         let mut sig = [0u8; signature_size(9)];
 
         // We are using the original Falcon rules; public key does not
@@ -1343,7 +1343,7 @@ pub(crate) mod tests {
 
         #[cfg(not(feature = "small_context"))]
         let basis = {
-            let mut basis = [flr::FLR::ZERO; 4 << 9];
+            let mut basis = [flr::Flr::ZERO; 4 << 9];
             unsafe {
                 sign_avx2::compute_basis_avx2_inner(
                     9, &KAT_512_f, &KAT_512_g, &KAT_512_F, &KAT_512_G, &mut basis,

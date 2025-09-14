@@ -242,7 +242,7 @@ vrfy_key_impl!(VerifyingKeyWeak, 2, 8);
 //   src        encoded key
 // Returns None on error, or Some(logn) on success.
 fn decode_inner(logn_min: u32, logn_max: u32, h: &mut [u16], src: &[u8]) -> Option<u32> {
-    if src.len() == 0 {
+    if src.is_empty() {
         return None;
     }
     let head = src[0];
@@ -335,7 +335,7 @@ unsafe fn decode_avx2_inner(
 ) -> Option<u32> {
     use fn_dsa_comm::mq_avx2;
 
-    if src.len() == 0 {
+    if src.is_empty() {
         return None;
     }
     let head = src[0];
