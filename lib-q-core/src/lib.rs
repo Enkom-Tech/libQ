@@ -16,14 +16,32 @@ pub mod error;
 pub mod traits;
 pub mod wasm_common;
 
+// New modular architecture
+pub mod contexts;
+pub mod providers;
+pub mod security;
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 // Re-exports
 pub use algorithm_registry::*;
 pub use api::*;
+pub use contexts::{
+    AeadContext,
+    HashContext,
+    KemContext,
+    SignatureContext,
+};
 pub use error::{
     Error,
     Result,
 };
+// Re-export new modular components
+pub use providers::LibQCryptoProvider;
+pub use security::SecurityValidator;
 pub use traits::*;
+#[cfg(feature = "wasm")]
+pub use wasm::*;
 
 // Constants
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -36,6 +54,30 @@ pub fn init() -> Result<()> {
 /// Get library version information
 pub fn version() -> &'static str {
     VERSION
+}
+
+/// Create a new hash context
+#[cfg(feature = "alloc")]
+pub fn create_hash_context() -> HashContext {
+    HashContext::new()
+}
+
+/// Create a new KEM context
+#[cfg(feature = "alloc")]
+pub fn create_kem_context() -> KemContext {
+    KemContext::new()
+}
+
+/// Create a new signature context
+#[cfg(feature = "alloc")]
+pub fn create_signature_context() -> SignatureContext {
+    SignatureContext::new()
+}
+
+/// Create a new AEAD context
+#[cfg(feature = "alloc")]
+pub fn create_aead_context() -> AeadContext {
+    AeadContext::new()
 }
 
 #[cfg(test)]

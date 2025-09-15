@@ -116,7 +116,7 @@ tests = []
 
 # Algorithm implementations
 # Re-export features from individual crates
-ml-kem = ["lib-q-kem/ml-kem", "lib-q-core/ml-kem"]
+ml-kem = ["lib-q-kem/ml-kem"]
 ml-dsa = ["lib-q-sig/ml-dsa"]
 mldsa44 = ["lib-q-ml-dsa/mldsa44"]
 mldsa65 = ["lib-q-ml-dsa/mldsa65"]

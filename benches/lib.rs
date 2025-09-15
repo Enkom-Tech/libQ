@@ -25,24 +25,24 @@ fn bench_key_generation(c: &mut Criterion) {
 
     #[cfg(feature = "ml-dsa")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = SignatureContext::with_provider(provider);
 
         group.bench_function("ml-dsa-65", |b| {
             b.iter(|| {
-                let _keypair = context.generate_keypair(Algorithm::MlDsa65).unwrap();
+                let _keypair = context.generate_keypair(Algorithm::MlDsa65, None).unwrap();
             });
         });
     }
 
     #[cfg(feature = "ml-kem")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = KemContext::with_provider(provider);
 
         group.bench_function("ml-kem-768", |b| {
             b.iter(|| {
-                let _keypair = context.generate_keypair(Algorithm::MlKem768).unwrap();
+                let _keypair = context.generate_keypair(Algorithm::MlKem768, None).unwrap();
             });
         });
     }
@@ -56,15 +56,15 @@ fn bench_signing(c: &mut Criterion) {
 
     #[cfg(feature = "ml-dsa")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = SignatureContext::with_provider(provider);
-        let keypair = context.generate_keypair(Algorithm::MlDsa65).unwrap();
+        let keypair = context.generate_keypair(Algorithm::MlDsa65, None).unwrap();
         let message = black_box(b"Hello, world! This is a test message for benchmarking.");
 
         group.bench_function("ml-dsa-65", |b| {
             b.iter(|| {
                 let _signature = context
-                    .sign(Algorithm::MlDsa65, &keypair.secret_key, message)
+                    .sign(Algorithm::MlDsa65, &keypair.secret_key, message, None)
                     .unwrap();
             });
         });
@@ -79,12 +79,12 @@ fn bench_verification(c: &mut Criterion) {
 
     #[cfg(feature = "ml-dsa")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = SignatureContext::with_provider(provider);
-        let keypair = context.generate_keypair(Algorithm::MlDsa65).unwrap();
+        let keypair = context.generate_keypair(Algorithm::MlDsa65, None).unwrap();
         let message = black_box(b"Hello, world! This is a test message for benchmarking.");
         let signature = context
-            .sign(Algorithm::MlDsa65, &keypair.secret_key, message)
+            .sign(Algorithm::MlDsa65, &keypair.secret_key, message, None)
             .unwrap();
 
         group.bench_function("ml-dsa-65", |b| {
@@ -105,17 +105,17 @@ fn bench_encapsulation(c: &mut Criterion) {
 
     #[cfg(feature = "ml-kem")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = KemContext::with_provider(provider);
         let public_key = context
-            .generate_keypair(Algorithm::MlKem768)
+            .generate_keypair(Algorithm::MlKem768, None)
             .unwrap()
             .public_key;
 
         group.bench_function("ml-kem-768", |b| {
             b.iter(|| {
                 let _ciphertext = context
-                    .encapsulate(Algorithm::MlKem768, &public_key)
+                    .encapsulate(Algorithm::MlKem768, &public_key, None)
                     .unwrap();
             });
         });
@@ -130,11 +130,11 @@ fn bench_decapsulation(c: &mut Criterion) {
 
     #[cfg(feature = "ml-kem")]
     {
-        let provider = Box::new(LibQCryptoProvider);
+        let provider = Box::new(LibQCryptoProvider::new().unwrap());
         let mut context = KemContext::with_provider(provider);
-        let keypair = context.generate_keypair(Algorithm::MlKem768).unwrap();
+        let keypair = context.generate_keypair(Algorithm::MlKem768, None).unwrap();
         let (ciphertext, _shared_secret) = context
-            .encapsulate(Algorithm::MlKem768, &keypair.public_key)
+            .encapsulate(Algorithm::MlKem768, &keypair.public_key, None)
             .unwrap();
 
         group.bench_function("ml-kem-768", |b| {

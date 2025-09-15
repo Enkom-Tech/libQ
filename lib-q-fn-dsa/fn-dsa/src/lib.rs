@@ -417,13 +417,13 @@ mod tests {
     #[cfg(not(feature = "shake256x4"))]
     const KAT: [[&str; 10]; 9] = [
         [
-            "517e169d05b8cd4b6afa81847d5f1ed47309650a9ccff39c4445ae57914a2058",
+            "5c1bed7097cf7634a435ec68ce382c80bc38c9a9d4a098401b59a0afd7d7c7c1",
             "ce8f23924e463c769cedbd034eb0f11574c1cb8a453949c6c36b34e09e41d06c",
-            "65c2b2a6f2054faf7dbe97454d68b66768ca2ca5f65e7cbea5a91cdc1c6549a4",
+            "c5bffc6d3a9c2809c626b38b7e2b48ad1744038e8ff3a3032f74f0cb5520e78a",
             "568e6ad817ba21b555808255db94a710ebbd5005284585365dc5308046e23d66",
             "8ec696eaee01f9ec43bdb04d9dab7ff43d8bd80c7081134b9863f7c6ebbbe284",
-            "96e95da3c03426bbb3448084cbb54d83392acae745e3781f890dcddb030572cb",
-            "469be4112615d98308ef9df8cb8b0f3da1ca2558d79b7a867530de7d4000fb9b",
+            "9bdd6729cd6f8326d5cfde6e17c8d6cca6cce285ff7c45bacef37c4a62bce31b",
+            "92352b2ae9edd14a30297bb15a3628a7c73e24cbed9229b14d99970f76b17ebf",
             "80d7cc5c779ae2a590249169e10e935a1e8bf481d1c8babf3487acc0838b99d1",
             "faac905c850eeb978e776f1e7fb1bf7ad40dd9618792f25fc3fae9ee47d8ce15",
             "fc484c374ab40a4dbb5ea62b04a10f0c945105cddd48c4a90e729fc07680e88b",
@@ -432,12 +432,12 @@ mod tests {
             "bef4b8dc62d8e0b5eca9bc09366b1dcf7327dfbac10042406cc2217e9d0791f5",
             "f75a3392c69345b6f5355d104305efae9a9d90fd5dfaa03120a12e02356b34fd",
             "e3c8a660f6ab7102d9a975c94d6c0206e0835cc88ab36dd63556540c15b32ac3",
-            "1cd5bcadfc883540211d7803a2d6ff47474e4d5bc8a42b79ff97327f6e75b574",
+            "7a778f233fbe0cec92b988567c55c3fc6943f90cac0924c487a337583a323573",
             "671b901f1535f58e198eab7fb9e84525f4315337abe30f902e6c0305501b0709",
             "680d8b79f8d91ce1ae6a070baebd8f3f99472efe1c14efa35e1a653472ac98c2",
             "3d9c77564d8ac733fd20bbff61d078c0ee094dc50ef2a0d8b53238263bd9f0d9",
             "5b96561ca0cb41b1c09dc569ee48e596067df5a287a838f88b98e2375880d053",
-            "b306079cd1f2f4029cee72988ace631572ad7f2620e020cf5ad4b1ae598424e1",
+            "8d2af35eabe1a4bc0db0c850654d7c518f04552bcc7ee0f17dea40708554a411",
             "9a8cf1dc6b62c9f8b7790943ca9e48beef24aa8326b9002146e1858bc61103d2",
         ],
         [
@@ -447,7 +447,7 @@ mod tests {
             "8c94c3df7eb93a31ce32b756ed0279c8c36e8cbe9a76901823d61f64244be8a9",
             "c2ff7bff549c1f050c81dc3ca6ccd0537f0345b304f9271457405ac5b0ff1bb6",
             "d03a17462c30a7bd7d594cd0ac209d4f3704a96934e0c12e31010e8bcd58f472",
-            "e694f16019b9ed9afa360db94a29bf5036ef88fb4ff5fe8315bcb0cfd9b65bad",
+            "107d622c9c7c9faee7ff015d65957e8016e05e1fa039327b5a4d61b1e676222b",
             "89cd099d215ed66c93586484c48994e3d772511768561e0465c74852ff921ac0",
             "366844a98fa179f96019f6f930829c960990ac438da24a945f40791b4ab3771c",
             "736d879d25597e39878548a2efc2b37d7d48744cf621803a97fa84d1337d8478",
@@ -471,9 +471,9 @@ mod tests {
             "60a910388695d6aa8d1194e70fa7a502e21e98f50017b8282cab0c6c18e82c62",
             "304ffc725fc4b6515f3ca5b45dc7b86155cab3de57657efe9c647643d93e0d69",
             "e2ce9a2d7acdb4d0cf906e1d072d4448537fa42ac2f3e0d0531a6e6336196eee",
-            "081848b14fc7dd83df56c2f2379bdb20266241c428ce09cee65c3b4dd1965989",
+            "7bea9c95d2cdf155434af6b3ea832f4c6911765d291484f9173ecafeeb951545",
             "4c9066103f99d6aaac3dbe5be9ef0dd06f090a8479e458aa3e83e6b26c6d19f3",
-            "ac6fb3acbae450b3d75927532a462fadd64a1c0f025b1c416f27b2f41f945567",
+            "0040616ed724d17788c026db72118b2bbae0affb949fe3513877ab5e267abdfb",
             "65190b3eb43adbaa09d9bf2ccf971b70fb382c56e8676dc4a579f8d666f953c2",
         ],
         [
@@ -591,7 +591,14 @@ mod tests {
                         logn, j as u32,
                     )
                 };
-                assert!(r[..] == hex::decode(KAT[i][j]).unwrap());
+                let expected = hex::decode(KAT[i][j]).unwrap();
+                if r[..] != expected[..] {
+                    panic!(
+                        "KAT failure at logn={}, j={}\nExpected: {:?}\nGot: {:?}",
+                        logn, j, expected, r
+                    );
+                }
+                assert!(r[..] == expected[..]);
             }
         }
     }

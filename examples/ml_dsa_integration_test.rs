@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sig_ctx = SignatureContext::new();
 
     // Test that we can generate a keypair (this will use placeholder implementation)
-    let keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65)?;
+    let keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65, None)?;
 
     println!("✅ ML-DSA keypair generation works!");
     println!(
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test that we can sign a message (this will use placeholder implementation)
     let message = b"Hello, ML-DSA!";
-    let signature = sig_ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message)?;
+    let signature = sig_ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)?;
 
     println!("✅ ML-DSA signing works!");
     println!("Signature size: {} bytes", signature.len());

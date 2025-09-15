@@ -570,8 +570,6 @@ dependencies = [
  "getrandom",
  "js-sys",
  "lazy_static",
- "lib-q-ml-kem",
- "lib-q-sha3",
  "rand",
  "rand_core",
  "serde",

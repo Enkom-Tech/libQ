@@ -12,7 +12,6 @@ use crate::traits::*;
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
-    boxed::Box,
     string::String,
     vec::Vec,
 };
@@ -394,12 +393,10 @@ impl<T> Default for Context<T> {
     }
 }
 
-/// KEM context for key encapsulation operations
+// KEM context is now implemented in the contexts module
+// Re-export for backward compatibility
 #[cfg(feature = "alloc")]
-pub struct KemContext {
-    inner: Context<Self>,
-    provider: Option<Box<dyn CryptoProvider>>,
-}
+pub use crate::contexts::KemContext;
 
 // Example implementation of a concrete crypto provider
 #[cfg(feature = "std")]
@@ -591,405 +588,26 @@ impl AeadOperations for DefaultAeadImpl {
     }
 }
 
+// KemContext implementation is now in the contexts module
+
+// Signature context is now implemented in the contexts module
+// Re-export for backward compatibility
+// HashContext implementation is now in the contexts module
+
+// AEAD context is now implemented in the contexts module
+// Re-export for backward compatibility
 #[cfg(feature = "alloc")]
-impl KemContext {
-    /// Create a new KEM context with no provider (returns errors for all operations)
-    pub fn new() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: None,
-        }
-    }
+pub use crate::contexts::AeadContext;
+// SignatureContext implementation is now in the contexts module
 
-    /// Create a new KEM context with the default provider
-    #[cfg(feature = "std")]
-    pub fn with_default_provider() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(Box::new(DefaultCryptoProvider)),
-        }
-    }
-
-    /// Create a new KEM context with a cryptographic provider
-    pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(provider),
-        }
-    }
-
-    /// Set the cryptographic provider
-    pub fn set_provider(&mut self, provider: Box<dyn CryptoProvider>) {
-        self.provider = Some(provider);
-    }
-
-    /// Generate a keypair for the specified algorithm
-    pub fn generate_keypair(&mut self, algorithm: Algorithm) -> Result<KemKeypair> {
-        if !self.inner.is_initialized() {
-            self.inner.init()?;
-        }
-
-        // Validate algorithm category
-        if algorithm.category() != AlgorithmCategory::Kem {
-            return Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm is not a KEM algorithm",
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.kem()) {
-            Some(kem_ops) => kem_ops.generate_keypair(algorithm, None),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
-            }),
-        }
-    }
-
-    /// Encapsulate a shared secret using the given public key
-    #[cfg(feature = "alloc")]
-    pub fn encapsulate(
-        &self,
-        algorithm: Algorithm,
-        public_key: &KemPublicKey,
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
-        if !self.inner.is_initialized() {
-            return Err(crate::error::Error::InvalidState {
-                operation: String::from("encapsulate"),
-                reason: String::from("Context not initialized"),
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.kem()) {
-            Some(kem_ops) => kem_ops.encapsulate(algorithm, public_key, None),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
-            }),
-        }
-    }
-
-    /// Decapsulate a shared secret using the given secret key and ciphertext
-    #[cfg(feature = "alloc")]
-    pub fn decapsulate(
-        &self,
-        algorithm: Algorithm,
-        secret_key: &KemSecretKey,
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>> {
-        if !self.inner.is_initialized() {
-            return Err(crate::error::Error::InvalidState {
-                operation: String::from("decapsulate"),
-                reason: String::from("Context not initialized"),
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.kem()) {
-            Some(kem_ops) => kem_ops.decapsulate(algorithm, secret_key, ciphertext),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
-            }),
-        }
-    }
-}
-
+// Hash context is now implemented in the contexts module
+// Re-export for backward compatibility
 #[cfg(feature = "alloc")]
-impl Default for KemContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Signature context for digital signature operations
+pub use crate::contexts::HashContext;
 #[cfg(feature = "alloc")]
-pub struct SignatureContext {
-    inner: Context<Self>,
-    provider: Option<Box<dyn CryptoProvider>>,
-}
+pub use crate::contexts::SignatureContext;
 
-#[cfg(feature = "alloc")]
-impl SignatureContext {
-    /// Create a new signature context with no provider (returns errors for all operations)
-    pub fn new() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: None,
-        }
-    }
-
-    /// Create a new signature context with the default provider
-    #[cfg(feature = "std")]
-    pub fn with_default_provider() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(Box::new(DefaultCryptoProvider)),
-        }
-    }
-
-    /// Create a new signature context with a cryptographic provider
-    pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(provider),
-        }
-    }
-
-    /// Set the cryptographic provider
-    pub fn set_provider(&mut self, provider: Box<dyn CryptoProvider>) {
-        self.provider = Some(provider);
-    }
-
-    /// Generate a keypair for the specified algorithm
-    pub fn generate_keypair(&mut self, algorithm: Algorithm) -> Result<SigKeypair> {
-        if !self.inner.is_initialized() {
-            self.inner.init()?;
-        }
-
-        // Validate algorithm category
-        if algorithm.category() != AlgorithmCategory::Signature {
-            return Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm is not a signature algorithm",
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.signature()) {
-            Some(sig_ops) => sig_ops.generate_keypair(algorithm, None),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
-            }),
-        }
-    }
-
-    /// Sign a message using the given secret key
-    #[cfg(feature = "alloc")]
-    pub fn sign(
-        &self,
-        algorithm: Algorithm,
-        secret_key: &SigSecretKey,
-        message: &[u8],
-    ) -> Result<Vec<u8>> {
-        if !self.inner.is_initialized() {
-            return Err(crate::error::Error::InvalidState {
-                operation: String::from("sign"),
-                reason: String::from("Context not initialized"),
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.signature()) {
-            Some(sig_ops) => sig_ops.sign(algorithm, secret_key, message, None),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
-            }),
-        }
-    }
-
-    /// Verify a signature for the given message and public key
-    #[cfg(feature = "alloc")]
-    pub fn verify(
-        &self,
-        algorithm: Algorithm,
-        public_key: &SigPublicKey,
-        message: &[u8],
-        signature: &[u8],
-    ) -> Result<bool> {
-        if !self.inner.is_initialized() {
-            return Err(crate::error::Error::InvalidState {
-                operation: String::from("verify"),
-                reason: String::from("Context not initialized"),
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.signature()) {
-            Some(sig_ops) => sig_ops.verify(algorithm, public_key, message, signature),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
-            }),
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Default for SignatureContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Hash context for hash operations
-#[cfg(feature = "alloc")]
-pub struct HashContext {
-    inner: Context<Self>,
-    provider: Option<Box<dyn CryptoProvider>>,
-}
-
-#[cfg(feature = "alloc")]
-impl HashContext {
-    /// Create a new hash context with no provider (returns errors for all operations)
-    pub fn new() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: None,
-        }
-    }
-
-    /// Create a new hash context with the default provider
-    #[cfg(feature = "std")]
-    pub fn with_default_provider() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(Box::new(DefaultCryptoProvider)),
-        }
-    }
-
-    /// Create a new hash context with a cryptographic provider
-    pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(provider),
-        }
-    }
-
-    /// Set the cryptographic provider
-    pub fn set_provider(&mut self, provider: Box<dyn CryptoProvider>) {
-        self.provider = Some(provider);
-    }
-
-    /// Hash data using the specified algorithm
-    #[cfg(feature = "alloc")]
-    pub fn hash(&mut self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>> {
-        if !self.inner.is_initialized() {
-            self.inner.init()?;
-        }
-
-        // Validate algorithm category
-        if algorithm.category() != AlgorithmCategory::Hash {
-            return Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm is not a hash algorithm",
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.hash()) {
-            Some(hash_ops) => hash_ops.hash(algorithm, data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Hash operations - no provider configured"),
-            }),
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Default for HashContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// AEAD context for authenticated encryption operations
-#[cfg(feature = "alloc")]
-pub struct AeadContext {
-    inner: Context<Self>,
-    provider: Option<Box<dyn CryptoProvider>>,
-}
-
-#[cfg(feature = "alloc")]
-impl AeadContext {
-    /// Create a new AEAD context with no provider (returns errors for all operations)
-    pub fn new() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: None,
-        }
-    }
-
-    /// Create a new AEAD context with the default provider
-    #[cfg(feature = "std")]
-    pub fn with_default_provider() -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(Box::new(DefaultCryptoProvider)),
-        }
-    }
-
-    /// Create a new AEAD context with a cryptographic provider
-    pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
-        Self {
-            inner: Context::new(),
-            provider: Some(provider),
-        }
-    }
-
-    /// Set the cryptographic provider
-    pub fn set_provider(&mut self, provider: Box<dyn CryptoProvider>) {
-        self.provider = Some(provider);
-    }
-
-    /// Encrypt data using the specified algorithm
-    #[cfg(feature = "alloc")]
-    pub fn encrypt(
-        &mut self,
-        algorithm: Algorithm,
-        key: &AeadKey,
-        nonce: &Nonce,
-        plaintext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        if !self.inner.is_initialized() {
-            self.inner.init()?;
-        }
-
-        // Validate algorithm category
-        if algorithm.category() != AlgorithmCategory::Aead {
-            return Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm is not an AEAD algorithm",
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.aead()) {
-            Some(aead_ops) => aead_ops.encrypt(algorithm, key, nonce, plaintext, associated_data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("AEAD operations - no provider configured"),
-            }),
-        }
-    }
-
-    /// Decrypt data using the specified algorithm
-    #[cfg(feature = "alloc")]
-    pub fn decrypt(
-        &self,
-        algorithm: Algorithm,
-        key: &AeadKey,
-        nonce: &Nonce,
-        ciphertext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        if !self.inner.is_initialized() {
-            return Err(crate::error::Error::InvalidState {
-                operation: String::from("decrypt"),
-                reason: String::from("Context not initialized"),
-            });
-        }
-
-        // Use provider if available, otherwise return a clear error
-        match self.provider.as_ref().and_then(|p| p.aead()) {
-            Some(aead_ops) => aead_ops.decrypt(algorithm, key, nonce, ciphertext, associated_data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("AEAD operations - no provider configured"),
-            }),
-        }
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Default for AeadContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// AeadContext implementation is now in the contexts module
 
 /// WASM API for web environments
 #[cfg(feature = "wasm")]
@@ -1298,7 +916,7 @@ mod tests {
             let mut ctx = KemContext::with_default_provider();
 
             // Should return NotImplemented error, not dummy data
-            let result = ctx.generate_keypair(Algorithm::MlKem512);
+            let result = ctx.generate_keypair(Algorithm::MlKem512, None);
             assert!(result.is_err());
 
             if let Err(crate::error::Error::NotImplemented { feature }) = result {
@@ -1310,7 +928,7 @@ mod tests {
 
         // Test that context without provider returns clear error
         let mut ctx = KemContext::new();
-        let result = ctx.generate_keypair(Algorithm::MlKem512);
+        let result = ctx.generate_keypair(Algorithm::MlKem512, None);
         assert!(result.is_err());
 
         if let Err(crate::error::Error::NotImplemented { feature }) = result {
@@ -1341,7 +959,7 @@ mod tests {
     fn test_kem_context() {
         let mut ctx = KemContext::new();
         // Without a provider, should return NotImplemented error
-        let result = ctx.generate_keypair(Algorithm::MlKem512);
+        let result = ctx.generate_keypair(Algorithm::MlKem512, None);
         assert!(result.is_err());
         if let Err(crate::error::Error::NotImplemented { feature }) = result {
             assert!(feature.contains("no provider configured"));
@@ -1354,7 +972,7 @@ mod tests {
     fn test_signature_context() {
         let mut ctx = SignatureContext::new();
         // Without a provider, should return NotImplemented error
-        let result = ctx.generate_keypair(Algorithm::MlDsa65);
+        let result = ctx.generate_keypair(Algorithm::MlDsa65, None);
         assert!(result.is_err());
         if let Err(crate::error::Error::NotImplemented { feature }) = result {
             assert!(feature.contains("no provider configured"));
