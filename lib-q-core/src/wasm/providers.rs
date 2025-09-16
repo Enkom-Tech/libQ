@@ -20,7 +20,10 @@ use serde_json;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use crate::api::Algorithm;
+use crate::api::{
+    Algorithm,
+    CryptoProvider,
+};
 // use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;
@@ -48,7 +51,15 @@ impl WasmProviderManager {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmProviderManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmProviderManager {
     /// Get provider information
     pub fn get_provider_info(&self) -> String {
         #[cfg(feature = "wasm")]
@@ -83,7 +94,19 @@ impl WasmProviderManager {
 
     /// Check if an algorithm is supported
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
-        self.parse_algorithm(algorithm).is_ok()
+        // First check if it's a valid algorithm name
+        let algorithm = match self.parse_algorithm(algorithm) {
+            Ok(alg) => alg,
+            Err(_) => return false,
+        };
+
+        // Then check if the provider actually supports this algorithm
+        match algorithm.category() {
+            crate::api::AlgorithmCategory::Kem => self.provider.kem().is_some(),
+            crate::api::AlgorithmCategory::Signature => self.provider.signature().is_some(),
+            crate::api::AlgorithmCategory::Hash => self.provider.hash().is_some(),
+            crate::api::AlgorithmCategory::Aead => self.provider.aead().is_some(),
+        }
     }
 
     /// Get algorithm information
@@ -203,25 +226,37 @@ impl WasmProviderManager {
         message_size: Option<usize>,
         nonce_size: Option<usize>,
     ) -> Result<bool, JsValue> {
-        let _algorithm = self.parse_algorithm(algorithm)?;
+        let algorithm = self.parse_algorithm(algorithm)?;
 
-        // Simplified validation - in a real implementation, this would be more comprehensive
-        if let Some(size) = key_size &&
-            size == 0
-        {
-            return Err(JsValue::from_str("Invalid algorithm key: empty key"));
+        // Use security validator for comprehensive validation
+        if let Some(size) = key_size {
+            if size == 0 {
+                return Err(JsValue::from_str("Invalid algorithm key: empty key"));
+            }
+            // Validate key size against algorithm requirements
+            self.security_validator
+                .validate_key_size(algorithm, &vec![0u8; size], true)
+                .map_err(crate::wasm::error::error_to_js_value)?;
         }
 
-        if let Some(size) = message_size &&
-            size == 0
-        {
-            return Err(JsValue::from_str("Invalid message size: empty data"));
+        if let Some(size) = message_size {
+            if size == 0 {
+                return Err(JsValue::from_str("Invalid message size: empty data"));
+            }
+            // Validate message size
+            self.security_validator
+                .validate_message(&vec![0u8; size])
+                .map_err(crate::wasm::error::error_to_js_value)?;
         }
 
-        if let Some(size) = nonce_size &&
-            size == 0
-        {
-            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
+        if let Some(size) = nonce_size {
+            if size == 0 {
+                return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
+            }
+            // Validate nonce size
+            self.security_validator
+                .validate_nonce(&vec![0u8; size])
+                .map_err(crate::wasm::error::error_to_js_value)?;
         }
 
         Ok(true)
@@ -398,7 +433,6 @@ impl WasmProviderFactory {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     #[cfg(target_arch = "wasm32")]

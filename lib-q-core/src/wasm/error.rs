@@ -178,8 +178,6 @@ pub fn secure_deserialize<T: serde::de::DeserializeOwned>(value: &JsValue) -> Re
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::error::Error;
 
     #[test]
     #[cfg(target_arch = "wasm32")]

@@ -83,10 +83,7 @@ impl SecureWasmKemContext {
         randomness: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -94,25 +91,22 @@ impl SecureWasmKemContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Kem),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert randomness if provided
         let randomness_bytes = randomness.map(|rand| rand.to_vec());
 
         // Generate keypair
-        let keypair = match convert_result(
+        let keypair = convert_result(
             self.inner
                 .generate_keypair(algorithm, randomness_bytes.as_deref()),
-        ) {
-            Ok(kp) => kp,
-            Err(error) => return Err(error.into()),
-        };
+        )?;
 
         // Serialize and return
         match secure_serialize(&keypair) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -124,10 +118,7 @@ impl SecureWasmKemContext {
         randomness: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -135,7 +126,7 @@ impl SecureWasmKemContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Kem),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -149,26 +140,23 @@ impl SecureWasmKemContext {
             false,
         )) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create proper key type
         let public_key = crate::traits::KemPublicKey::new(public_key_bytes.to_vec());
 
         // Encapsulate
-        let result = match convert_result(self.inner.encapsulate(
+        let result = convert_result(self.inner.encapsulate(
             algorithm,
             &public_key,
             randomness_bytes.as_deref(),
-        )) {
-            Ok(res) => res,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&result) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -180,10 +168,7 @@ impl SecureWasmKemContext {
         ciphertext: &Uint8Array,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -191,7 +176,7 @@ impl SecureWasmKemContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Kem),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -205,26 +190,23 @@ impl SecureWasmKemContext {
             true,
         )) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create proper key type
         let secret_key = crate::traits::KemSecretKey::new(private_key_bytes.to_vec());
 
         // Decapsulate
-        let result = match convert_result(self.inner.decapsulate(
+        let result = convert_result(self.inner.decapsulate(
             algorithm,
             &secret_key,
             &ciphertext_bytes,
-        )) {
-            Ok(res) => res,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&result) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -233,7 +215,7 @@ impl SecureWasmKemContext {
         let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 }
@@ -279,10 +261,7 @@ impl SecureWasmSignatureContext {
         randomness: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -290,25 +269,22 @@ impl SecureWasmSignatureContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Signature),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert randomness if provided
         let randomness_bytes = randomness.map(|rand| rand.to_vec());
 
         // Generate keypair
-        let keypair = match convert_result(
+        let keypair = convert_result(
             self.inner
                 .generate_keypair(algorithm, randomness_bytes.as_deref()),
-        ) {
-            Ok(kp) => kp,
-            Err(error) => return Err(error.into()),
-        };
+        )?;
 
         // Serialize and return
         match secure_serialize(&keypair) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -321,10 +297,7 @@ impl SecureWasmSignatureContext {
         randomness: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -332,7 +305,7 @@ impl SecureWasmSignatureContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Signature),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -347,33 +320,30 @@ impl SecureWasmSignatureContext {
             true,
         )) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate message size
         match convert_result(self.security_validator.validate_message(&message_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create proper key type
         let secret_key = crate::traits::SigSecretKey::new(private_key_bytes.to_vec());
 
         // Sign
-        let signature = match convert_result(self.inner.sign(
+        let signature = convert_result(self.inner.sign(
             algorithm,
             &secret_key,
             &message_bytes,
             randomness_bytes.as_deref(),
-        )) {
-            Ok(sig) => sig,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&signature) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -386,10 +356,7 @@ impl SecureWasmSignatureContext {
         signature: &Uint8Array,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -397,7 +364,7 @@ impl SecureWasmSignatureContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Signature),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -412,33 +379,30 @@ impl SecureWasmSignatureContext {
             false,
         )) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate message size
         match convert_result(self.security_validator.validate_message(&message_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create proper key type
         let public_key = crate::traits::SigPublicKey::new(public_key_bytes.to_vec());
 
         // Verify
-        let is_valid = match convert_result(self.inner.verify(
+        let is_valid = convert_result(self.inner.verify(
             algorithm,
             &public_key,
             &message_bytes,
             &signature_bytes,
-        )) {
-            Ok(valid) => valid,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&is_valid) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -447,7 +411,7 @@ impl SecureWasmSignatureContext {
         let algorithms = alloc::vec!["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 }
@@ -489,10 +453,7 @@ impl SecureWasmHashContext {
     /// Hash data
     pub fn hash(&mut self, algorithm: &str, data: &Uint8Array) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -500,7 +461,7 @@ impl SecureWasmHashContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Hash),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -509,19 +470,16 @@ impl SecureWasmHashContext {
         // Validate message size
         match convert_result(self.security_validator.validate_message(&data_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Hash
-        let hash = match convert_result(self.inner.hash(algorithm, &data_bytes)) {
-            Ok(h) => h,
-            Err(error) => return Err(error.into()),
-        };
+        let hash = convert_result(self.inner.hash(algorithm, &data_bytes))?;
 
         // Serialize and return
         match secure_serialize(&hash) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -532,7 +490,7 @@ impl SecureWasmHashContext {
         ];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 }
@@ -581,10 +539,7 @@ impl SecureWasmAeadContext {
         associated_data: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -592,7 +547,7 @@ impl SecureWasmAeadContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Aead),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -607,19 +562,19 @@ impl SecureWasmAeadContext {
                 .validate_key_size(algorithm, &key_bytes, true),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate nonce
         match convert_result(self.security_validator.validate_nonce(&nonce_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate message size
         match convert_result(self.security_validator.validate_message(&plaintext_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create key and nonce objects
@@ -627,21 +582,18 @@ impl SecureWasmAeadContext {
         let aead_nonce = Nonce::new(nonce_bytes.to_vec());
 
         // Encrypt
-        let ciphertext = match convert_result(self.inner.encrypt(
+        let ciphertext = convert_result(self.inner.encrypt(
             algorithm,
             &aead_key,
             &aead_nonce,
             &plaintext_bytes,
             associated_data_bytes.as_deref(),
-        )) {
-            Ok(ct) => ct,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&ciphertext) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -655,10 +607,7 @@ impl SecureWasmAeadContext {
         associated_data: Option<Uint8Array>,
     ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = match parse_algorithm_wasm(algorithm) {
-            Ok(alg) => alg,
-            Err(error) => return Err(error.into()),
-        };
+        let algorithm = parse_algorithm_wasm(algorithm)?;
 
         // Validate algorithm category
         match convert_result(
@@ -666,7 +615,7 @@ impl SecureWasmAeadContext {
                 .validate_algorithm_category(algorithm, AlgorithmCategory::Aead),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Convert inputs
@@ -681,19 +630,19 @@ impl SecureWasmAeadContext {
                 .validate_key_size(algorithm, &key_bytes, true),
         ) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate nonce
         match convert_result(self.security_validator.validate_nonce(&nonce_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Validate message size
         match convert_result(self.security_validator.validate_message(&ciphertext_bytes)) {
             Ok(_) => {}
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         }
 
         // Create key and nonce objects
@@ -701,21 +650,18 @@ impl SecureWasmAeadContext {
         let aead_nonce = Nonce::new(nonce_bytes.to_vec());
 
         // Decrypt
-        let plaintext = match convert_result(self.inner.decrypt(
+        let plaintext = convert_result(self.inner.decrypt(
             algorithm,
             &aead_key,
             &aead_nonce,
             &ciphertext_bytes,
             associated_data_bytes.as_deref(),
-        )) {
-            Ok(pt) => pt,
-            Err(error) => return Err(error.into()),
-        };
+        ))?;
 
         // Serialize and return
         match secure_serialize(&plaintext) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 
@@ -724,7 +670,7 @@ impl SecureWasmAeadContext {
         let algorithms = alloc::vec!["saturnin", "shake256-aead", "kem-aead"];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
-            Err(error) => Err(error.into()),
+            Err(error) => Err(error),
         }
     }
 }

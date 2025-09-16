@@ -81,7 +81,15 @@ impl WasmKemContext {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmKemContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmKemContext {
     /// Generate a keypair for the specified algorithm
     ///
     /// This method provides secure key generation with:
@@ -154,7 +162,7 @@ impl WasmKemContext {
 
         // Validate public key size (simplified)
         if public_key_data.length() == 0 {
-            return Err(JsValue::from_str("Invalid KEM public key: empty key").into());
+            return Err(JsValue::from_str("Invalid KEM public key: empty key"));
         }
 
         // Convert randomness if provided
@@ -298,7 +306,15 @@ impl WasmSignatureContext {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmSignatureContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmSignatureContext {
     /// Create a new WASM Signature context with custom provider
     pub fn with_provider(provider: &WasmCryptoProvider) -> WasmSignatureContext {
         WasmSignatureContext {
@@ -489,7 +505,15 @@ impl WasmHashContext {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmHashContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmHashContext {
     /// Create a new WASM Hash context with custom provider
     pub fn with_provider(provider: &WasmCryptoProvider) -> WasmHashContext {
         WasmHashContext {
@@ -506,10 +530,15 @@ impl WasmHashContext {
             .parse_hash_algorithm(algorithm)
             .map_err(error_to_js_value)?;
 
-        // Validate data size (simplified)
-        if data.length() == 0 {
-            return Err(JsValue::from_str("Invalid message size: empty data"));
-        }
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, AlgorithmCategory::Hash)
+            .map_err(error_to_js_value)?;
+
+        // Validate data using security validator
+        self.security_validator
+            .validate_message(&data.to_vec())
+            .map_err(error_to_js_value)?;
 
         // Hash
         let hash = self
@@ -592,7 +621,15 @@ impl WasmAeadContext {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmAeadContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmAeadContext {
     /// Create a new WASM AEAD context with custom provider
     pub fn with_provider(provider: &WasmCryptoProvider) -> WasmAeadContext {
         WasmAeadContext {
@@ -616,23 +653,33 @@ impl WasmAeadContext {
             .parse_aead_algorithm(algorithm)
             .map_err(error_to_js_value)?;
 
-        // Validate key size (simplified)
-        if key.length() == 0 {
-            return Err(JsValue::from_str("Invalid AEAD key: empty key"));
-        }
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, AlgorithmCategory::Aead)
+            .map_err(error_to_js_value)?;
 
-        // Validate nonce size (simplified)
-        if nonce.length() == 0 {
-            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
-        }
+        // Validate key using security validator
+        self.security_validator
+            .validate_key_size(algorithm, &key.to_vec(), true)
+            .map_err(error_to_js_value)?;
 
-        // Validate plaintext size (simplified)
-        if plaintext.length() == 0 {
-            return Err(JsValue::from_str("Invalid message size: empty data"));
-        }
+        // Validate nonce using security validator
+        self.security_validator
+            .validate_nonce(&nonce.to_vec())
+            .map_err(error_to_js_value)?;
 
-        // Convert AAD if provided
+        // Validate plaintext using security validator
+        self.security_validator
+            .validate_message(&plaintext.to_vec())
+            .map_err(error_to_js_value)?;
+
+        // Convert AAD if provided and validate
         let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
+        if let Some(ref aad_data) = aad_bytes {
+            self.security_validator
+                .validate_message(aad_data)
+                .map_err(error_to_js_value)?;
+        }
 
         // Encrypt
         let aead_key = AeadKey::new(key.to_vec());
@@ -664,23 +711,33 @@ impl WasmAeadContext {
             .parse_aead_algorithm(algorithm)
             .map_err(error_to_js_value)?;
 
-        // Validate key size (simplified)
-        if key.length() == 0 {
-            return Err(JsValue::from_str("Invalid AEAD key: empty key"));
-        }
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, AlgorithmCategory::Aead)
+            .map_err(error_to_js_value)?;
 
-        // Validate nonce size (simplified)
-        if nonce.length() == 0 {
-            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
-        }
+        // Validate key using security validator
+        self.security_validator
+            .validate_key_size(algorithm, &key.to_vec(), true)
+            .map_err(error_to_js_value)?;
 
-        // Validate ciphertext size (simplified)
-        if ciphertext.length() == 0 {
-            return Err(JsValue::from_str("Invalid message size: empty data"));
-        }
+        // Validate nonce using security validator
+        self.security_validator
+            .validate_nonce(&nonce.to_vec())
+            .map_err(error_to_js_value)?;
 
-        // Convert AAD if provided
+        // Validate ciphertext using security validator
+        self.security_validator
+            .validate_ciphertext(algorithm, &ciphertext.to_vec())
+            .map_err(error_to_js_value)?;
+
+        // Convert AAD if provided and validate
         let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
+        if let Some(ref aad_data) = aad_bytes {
+            self.security_validator
+                .validate_message(aad_data)
+                .map_err(error_to_js_value)?;
+        }
 
         // Decrypt
         let aead_key = AeadKey::new(key.to_vec());
@@ -747,7 +804,15 @@ impl WasmCryptoProvider {
             inner: LibQCryptoProvider::new().unwrap_or_else(|_| LibQCryptoProvider::new().unwrap()),
         }
     }
+}
 
+impl Default for WasmCryptoProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl WasmCryptoProvider {
     /// Get the provider information
     pub fn info(&self) -> String {
         #[cfg(feature = "wasm")]
@@ -829,5 +894,66 @@ mod tests {
         let provider = WasmCryptoProvider::new();
         let info = provider.info();
         assert!(info.contains("lib-Q") || info == "{}");
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_wasm_kem_context_operations() {
+        let mut context = WasmKemContext::new();
+
+        // Test that operations return proper NotImplemented errors
+        let result = context.generate_keypair("ml-kem-512", None);
+        assert!(result.is_err());
+        if let Err(error) = result {
+            let error_str = error.as_string().unwrap_or_default();
+            assert!(error_str.contains("NotImplemented") || error_str.contains("WASM"));
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_wasm_signature_context_operations() {
+        let mut context = WasmSignatureContext::new();
+
+        // Test that operations return proper NotImplemented errors
+        let result = context.generate_keypair("ml-dsa-65", None);
+        assert!(result.is_err());
+        if let Err(error) = result {
+            let error_str = error.as_string().unwrap_or_default();
+            assert!(error_str.contains("NotImplemented") || error_str.contains("WASM"));
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_wasm_hash_context_operations() {
+        let mut context = WasmHashContext::new();
+
+        // Test that operations return proper NotImplemented errors
+        let data = Uint8Array::new_with_length(10);
+        let result = context.hash("sha3-256", &data);
+        assert!(result.is_err());
+        if let Err(error) = result {
+            let error_str = error.as_string().unwrap_or_default();
+            assert!(error_str.contains("NotImplemented") || error_str.contains("WASM"));
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "wasm32")]
+    fn test_wasm_aead_context_operations() {
+        let mut context = WasmAeadContext::new();
+
+        // Test that operations return proper NotImplemented errors
+        let key = Uint8Array::new_with_length(32);
+        let nonce = Uint8Array::new_with_length(16);
+        let plaintext = Uint8Array::new_with_length(10);
+
+        let result = context.encrypt("saturnin", &key, &nonce, &plaintext, None);
+        assert!(result.is_err());
+        if let Err(error) = result {
+            let error_str = error.as_string().unwrap_or_default();
+            assert!(error_str.contains("NotImplemented") || error_str.contains("WASM"));
+        }
     }
 }
