@@ -3,6 +3,12 @@
 //! This module provides the LibQKemProvider that implements KEM operations
 //! with proper security validation and algorithm routing.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
+
 use crate::api::{
     Algorithm,
     KemOperations,
@@ -19,13 +25,13 @@ use crate::traits::{
 ///
 /// This provider implements KEM operations for lib-Q, including key generation,
 /// encapsulation, and decapsulation with proper security validation.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct LibQKemProvider {
     security_validator: SecurityValidator,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl LibQKemProvider {
     /// Create a new KEM provider
     ///
@@ -43,7 +49,7 @@ impl LibQKemProvider {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl KemOperations for LibQKemProvider {
     fn generate_keypair(
         &self,
@@ -161,6 +167,7 @@ impl KemOperations for LibQKemProvider {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
 

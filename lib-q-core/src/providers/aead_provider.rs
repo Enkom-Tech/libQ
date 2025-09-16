@@ -3,6 +3,12 @@
 //! This module provides the LibQAeadProvider that implements AEAD operations
 //! with proper security validation and algorithm routing.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
+
 use crate::api::{
     AeadOperations,
     Algorithm,
@@ -18,13 +24,13 @@ use crate::traits::{
 ///
 /// This provider implements AEAD operations for lib-Q, including encryption
 /// and decryption with proper security validation.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct LibQAeadProvider {
     security_validator: SecurityValidator,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl LibQAeadProvider {
     /// Create a new AEAD provider
     ///
@@ -42,7 +48,7 @@ impl LibQAeadProvider {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl AeadOperations for LibQAeadProvider {
     fn encrypt(
         &self,
@@ -139,6 +145,7 @@ impl AeadOperations for LibQAeadProvider {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
 

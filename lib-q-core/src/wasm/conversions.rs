@@ -3,6 +3,18 @@
 //! This module provides secure conversion functions between Rust types and
 //! JavaScript-compatible types for WASM bindings.
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{
+    format,
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
+};
+
 #[cfg(feature = "wasm")]
 use js_sys::Uint8Array;
 #[cfg(feature = "wasm")]
@@ -51,7 +63,7 @@ impl WasmConversions {
             });
         }
 
-        let mut vec = vec![0u8; length];
+        let mut vec = alloc::vec![0u8; length];
         array.copy_to(&mut vec);
         Ok(vec)
     }
@@ -240,6 +252,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_error_conversion() {
         let error = crate::error::Error::NotImplemented {
             feature: "test feature".to_string(),

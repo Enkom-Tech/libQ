@@ -141,6 +141,18 @@ pub mod wasm {
     //! cryptographic functionality for web environments.
 
     // Re-export WASM components from lib-q-core
+    // Import ToString trait and String type for string conversions
+    #[cfg(not(feature = "std"))]
+    use alloc::string::{
+        String,
+        ToString,
+    };
+    #[cfg(feature = "std")]
+    use std::string::{
+        String,
+        ToString,
+    };
+
     pub use lib_q_core::wasm::*;
     use wasm_bindgen::prelude::*;
 
@@ -176,7 +188,7 @@ pub mod wasm {
     /// Get library information for WASM
     #[wasm_bindgen]
     pub fn get_library_info_wasm() -> String {
-        WasmUtils::get_library_info()
+        get_library_info()
     }
 
     /// Get security recommendations
@@ -226,19 +238,19 @@ pub mod wasm {
     /// Generate secure random bytes for WASM
     #[wasm_bindgen]
     pub fn generate_random_bytes(length: usize) -> Result<js_sys::Uint8Array, JsValue> {
-        WasmUtils::random_bytes(length).map_err(|e| JsValue::from_str(&e.to_string()))
+        random_bytes(length).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     /// Convert bytes to hexadecimal string
     #[wasm_bindgen]
     pub fn bytes_to_hex_wasm(data: &js_sys::Uint8Array) -> String {
-        WasmUtils::bytes_to_hex(data)
+        bytes_to_hex(data)
     }
 
     /// Convert hexadecimal string to bytes
     #[wasm_bindgen]
     pub fn hex_to_bytes_wasm(hex: &str) -> Result<js_sys::Uint8Array, JsValue> {
-        WasmUtils::hex_to_bytes(hex).map_err(|e| JsValue::from_str(&e.to_string()))
+        hex_to_bytes(hex).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 }
 
@@ -351,6 +363,9 @@ mod tests {
         }
 
         // Test AEAD operations
+        #[cfg(not(feature = "std"))]
+        use alloc::vec;
+
         use lib_q_core::traits::{
             AeadKey,
             Nonce,

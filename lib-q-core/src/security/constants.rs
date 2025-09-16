@@ -10,7 +10,7 @@ use crate::error::Result;
 ///
 /// This struct provides access to security-related constants used throughout
 /// the library for validation and configuration.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct SecurityConstants {
     // Maximum message size in bytes (1MB)
@@ -21,7 +21,7 @@ pub struct SecurityConstants {
     min_randomness_size: usize,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl SecurityConstants {
     /// Create a new SecurityConstants instance
     ///
@@ -35,7 +35,16 @@ impl SecurityConstants {
             min_randomness_size: 32,       // 32 bytes
         }
     }
+}
 
+#[cfg(feature = "alloc")]
+impl Default for SecurityConstants {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SecurityConstants {
     /// Get the maximum message size
     ///
     /// # Returns

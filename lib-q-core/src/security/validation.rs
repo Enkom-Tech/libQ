@@ -3,6 +3,9 @@
 //! This module provides the SecurityValidator that implements comprehensive
 //! security validation for all cryptographic operations.
 
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
+
 use super::{
     EntropyValidator,
     SecurityConstants,
@@ -19,7 +22,7 @@ use crate::error::Result;
 /// This validator provides comprehensive security validation for all cryptographic
 /// operations, including algorithm validation, key validation, timing attack prevention,
 /// and entropy validation.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct SecurityValidator {
     timing_validator: TimingValidator,
@@ -27,7 +30,7 @@ pub struct SecurityValidator {
     constants: SecurityConstants,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl SecurityValidator {
     /// Create a new security validator
     ///
@@ -313,6 +316,7 @@ impl SecurityValidator {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
 

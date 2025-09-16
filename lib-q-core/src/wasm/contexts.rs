@@ -3,6 +3,19 @@
 //! This module provides WASM-compatible wrappers for all cryptographic contexts,
 //! integrating with the new modular architecture and security validation system.
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{
+    boxed::Box,
+    format,
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
+};
+
 #[cfg(feature = "wasm")]
 use js_sys::Uint8Array;
 #[cfg(feature = "wasm")]
@@ -12,16 +25,30 @@ use serde_wasm_bindgen;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use crate::api::Algorithm;
+use crate::api::{
+    Algorithm,
+    AlgorithmCategory,
+};
 use crate::contexts::{
     AeadContext,
     HashContext,
     KemContext,
     SignatureContext,
 };
-use crate::error::Result;
+// use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;
+use crate::traits::{
+    AeadKey,
+    Nonce,
+};
+// Import secure error handling
+use crate::wasm::error::{
+    convert_result,
+    error_to_js_value,
+    parse_algorithm_wasm,
+    // secure_serialize,
+};
 
 /// WASM-compatible KEM context wrapper
 ///
@@ -36,12 +63,10 @@ pub struct WasmKemContext {
     security_validator: SecurityValidator,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmKemContext {
     /// Create a new WASM KEM context with default provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmKemContext {
+        WasmKemContext {
             inner: KemContext::with_default_provider(),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
@@ -49,10 +74,9 @@ impl WasmKemContext {
     }
 
     /// Create a new WASM KEM context with custom provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn with_provider(provider: &WasmCryptoProvider) -> Self {
-        Self {
-            inner: KemContext::with_provider(provider.inner.clone()),
+    pub fn with_provider(provider: &WasmCryptoProvider) -> WasmKemContext {
+        WasmKemContext {
+            inner: KemContext::with_provider(Box::new(provider.inner.clone())),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
@@ -65,28 +89,31 @@ impl WasmKemContext {
     /// - Security level verification
     /// - Secure random generation
     /// - Proper error handling
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn generate_keypair(
         &mut self,
         algorithm: &str,
-        randomness: Option<&Uint8Array>,
-    ) -> Result<JsValue> {
+        randomness: Option<Uint8Array>,
+    ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_kem_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_kem_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate security level
-        self.security_validator
-            .validate_algorithm_category(algorithm, algorithm.category())?;
+        convert_result(
+            self.security_validator
+                .validate_algorithm_category(algorithm, algorithm.category()),
+        )?;
 
         // Convert randomness if provided
-        let randomness_bytes = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_bytes = randomness_vec.as_deref();
 
         // Generate keypair
-        let keypair = self.inner.generate_keypair(algorithm, randomness_bytes)?;
+        let keypair = self
+            .inner
+            .generate_keypair(algorithm, randomness_bytes)
+            .map_err(error_to_js_value)?;
 
         // Return as JavaScript object
         #[cfg(feature = "wasm")]
@@ -98,17 +125,12 @@ impl WasmKemContext {
                 "security_level": 256 // Placeholder
             });
 
-            Ok(serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                crate::error::Error::NotImplemented {
-                    feature: format!("Serialization error: {:?}", e),
-                }
-            })?)
+            serde_wasm_bindgen::to_value(&result)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
@@ -119,40 +141,34 @@ impl WasmKemContext {
     /// - Algorithm verification
     /// - Security level checking
     /// - Proper error handling
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn encapsulate(
         &self,
         algorithm: &str,
         public_key_data: &Uint8Array,
-        randomness: Option<&Uint8Array>,
-    ) -> Result<JsValue> {
+        randomness: Option<Uint8Array>,
+    ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_kem_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_kem_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate public key size (simplified)
         if public_key_data.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "KEM public key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid KEM public key: empty key").into());
         }
 
         // Convert randomness if provided
-        let randomness_bytes = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_bytes = randomness_vec.as_deref();
 
-        // Create public key
-        let public_key = crate::KemPublicKey {
-            data: public_key_data.to_vec(),
-        };
+        // Create public key using proper constructor
+        let public_key = crate::traits::KemPublicKey::new(public_key_data.to_vec());
 
         // Encapsulate
-        let (ciphertext, shared_secret) =
-            self.inner
-                .encapsulate(algorithm, &public_key, randomness_bytes)?;
+        let (ciphertext, shared_secret) = self
+            .inner
+            .encapsulate(algorithm, &public_key, randomness_bytes)
+            .map_err(error_to_js_value)?;
 
         // Return as JavaScript object
         #[cfg(feature = "wasm")]
@@ -164,17 +180,12 @@ impl WasmKemContext {
                 "security_level": 256 // Placeholder
             });
 
-            Ok(serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                crate::error::Error::NotImplemented {
-                    feature: format!("Serialization error: {:?}", e),
-                }
-            })?)
+            serde_wasm_bindgen::to_value(&result)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
@@ -185,59 +196,68 @@ impl WasmKemContext {
     /// - Ciphertext verification
     /// - Algorithm checking
     /// - Proper error handling
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn decapsulate(
         &self,
         algorithm: &str,
         secret_key_data: &Uint8Array,
         ciphertext: &Uint8Array,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_kem_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_kem_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
-        // Validate secret key size (simplified)
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, AlgorithmCategory::Kem)
+            .map_err(error_to_js_value)?;
+
+        // Validate secret key size
         if secret_key_data.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "KEM secret key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid KEM secret key: empty key"));
         }
 
-        // Validate ciphertext size (simplified)
+        // Validate ciphertext size
         if ciphertext.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
-        // Create secret key
-        let secret_key = crate::KemSecretKey {
-            data: secret_key_data.to_vec(),
-        };
+        // Create secret key using proper constructor
+        let secret_key = crate::traits::KemSecretKey::new(secret_key_data.to_vec());
+
+        // Validate secret key
+        self.security_validator
+            .validate_secret_key(algorithm, secret_key.as_bytes())
+            .map_err(error_to_js_value)?;
+
+        // Validate ciphertext
+        self.security_validator
+            .validate_ciphertext(algorithm, &ciphertext.to_vec())
+            .map_err(error_to_js_value)?;
 
         // Decapsulate
         let shared_secret = self
             .inner
-            .decapsulate(algorithm, &secret_key, &ciphertext.to_vec())?;
+            .decapsulate(algorithm, &secret_key, &ciphertext.to_vec())
+            .map_err(error_to_js_value)?;
 
         Ok(shared_secret)
     }
 
     /// Get the security level of the context
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn security_level(&self) -> u32 {
         // Return the highest security level supported by the context
         256 // This would be determined by the provider
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
         self.parse_kem_algorithm(algorithm).is_ok()
     }
 
     /// Get supported algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"];
+        let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"];
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -249,17 +269,10 @@ impl WasmKemContext {
     }
 
     /// Parse KEM algorithm from string
-    fn parse_kem_algorithm(&self, algorithm: &str) -> Result<Algorithm> {
-        match algorithm {
-            "ml-kem-512" => Ok(Algorithm::MlKem512),
-            "ml-kem-768" => Ok(Algorithm::MlKem768),
-            "ml-kem-1024" => Ok(Algorithm::MlKem1024),
-            "dawn" => Ok(Algorithm::Dawn),
-            "rcpkc" => Ok(Algorithm::Rcpkc),
-            _ => Err(crate::error::Error::UnsupportedAlgorithm {
-                algorithm: algorithm.to_string(),
-            }),
-        }
+    fn parse_kem_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
+            algorithm: "Invalid algorithm name",
+        })
     }
 }
 
@@ -276,12 +289,10 @@ pub struct WasmSignatureContext {
     security_validator: SecurityValidator,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmSignatureContext {
     /// Create a new WASM Signature context with default provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmSignatureContext {
+        WasmSignatureContext {
             inner: SignatureContext::with_default_provider(),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
@@ -289,38 +300,40 @@ impl WasmSignatureContext {
     }
 
     /// Create a new WASM Signature context with custom provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn with_provider(provider: &WasmCryptoProvider) -> Self {
-        Self {
-            inner: SignatureContext::with_provider(provider.inner.clone()),
+    pub fn with_provider(provider: &WasmCryptoProvider) -> WasmSignatureContext {
+        WasmSignatureContext {
+            inner: SignatureContext::with_provider(Box::new(provider.inner.clone())),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
 
     /// Generate a keypair for the specified algorithm
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn generate_keypair(
         &mut self,
         algorithm: &str,
-        randomness: Option<&Uint8Array>,
-    ) -> Result<JsValue> {
+        randomness: Option<Uint8Array>,
+    ) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_signature_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_signature_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate security level
-        self.security_validator
-            .validate_algorithm_category(algorithm, algorithm.category())?;
+        convert_result(
+            self.security_validator
+                .validate_algorithm_category(algorithm, algorithm.category()),
+        )?;
 
         // Convert randomness if provided
-        let randomness_bytes = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_bytes = randomness_vec.as_deref();
 
         // Generate keypair
-        let keypair = self.inner.generate_keypair(algorithm, randomness_bytes)?;
+        let keypair = self
+            .inner
+            .generate_keypair(algorithm, randomness_bytes)
+            .map_err(error_to_js_value)?;
 
         // Return as JavaScript object
         #[cfg(feature = "wasm")]
@@ -332,127 +345,110 @@ impl WasmSignatureContext {
                 "security_level": 256 // Placeholder
             });
 
-            Ok(serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                crate::error::Error::NotImplemented {
-                    feature: format!("Serialization error: {:?}", e),
-                }
-            })?)
+            serde_wasm_bindgen::to_value(&result)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {:?}", e)))
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
     /// Sign a message using the given secret key
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn sign(
         &self,
         algorithm: &str,
         secret_key_data: &Uint8Array,
         message: &Uint8Array,
-        randomness: Option<&Uint8Array>,
-    ) -> Result<Vec<u8>> {
+        randomness: Option<Uint8Array>,
+    ) -> Result<Vec<u8>, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_signature_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_signature_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate secret key size (simplified)
         if secret_key_data.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "Signature secret key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid signature secret key: empty key"));
         }
 
         // Validate message size (simplified)
         if message.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
         // Convert randomness if provided
-        let randomness_bytes = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_bytes = randomness_vec.as_deref();
 
-        // Create secret key
-        let secret_key = crate::SigSecretKey {
-            data: secret_key_data.to_vec(),
-        };
+        // Create secret key using proper constructor
+        let secret_key = crate::traits::SigSecretKey::new(secret_key_data.to_vec());
 
         // Sign
-        let signature =
-            self.inner
-                .sign(algorithm, &secret_key, &message.to_vec(), randomness_bytes)?;
-
+        let signature = self
+            .inner
+            .sign(algorithm, &secret_key, &message.to_vec(), randomness_bytes)
+            .map_err(error_to_js_value)?;
         Ok(signature)
     }
 
     /// Verify a signature using the given public key
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn verify(
         &self,
         algorithm: &str,
         public_key_data: &Uint8Array,
         message: &Uint8Array,
         signature: &Uint8Array,
-    ) -> Result<bool> {
+    ) -> Result<bool, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_signature_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_signature_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate public key size (simplified)
         if public_key_data.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "Signature public key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid signature public key: empty key"));
         }
 
         // Validate message size (simplified)
         if message.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
         // Validate signature size (simplified)
         if signature.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
-        // Create public key
-        let public_key = crate::SigPublicKey {
-            data: public_key_data.to_vec(),
-        };
+        // Create public key using proper constructor
+        let public_key = crate::traits::SigPublicKey::new(public_key_data.to_vec());
 
         // Verify
-        let is_valid = self.inner.verify(
-            algorithm,
-            &public_key,
-            &message.to_vec(),
-            &signature.to_vec(),
-        )?;
-
+        let is_valid = self
+            .inner
+            .verify(
+                algorithm,
+                &public_key,
+                &message.to_vec(),
+                &signature.to_vec(),
+            )
+            .map_err(error_to_js_value)?;
         Ok(is_valid)
     }
 
     /// Get the security level of the context
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn security_level(&self) -> u32 {
         256 // This would be determined by the provider
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
         self.parse_signature_algorithm(algorithm).is_ok()
     }
 
     /// Get supported algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = vec!["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"];
+        let algorithms = alloc::vec!["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"];
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -464,16 +460,10 @@ impl WasmSignatureContext {
     }
 
     /// Parse signature algorithm from string
-    fn parse_signature_algorithm(&self, algorithm: &str) -> Result<Algorithm> {
-        match algorithm {
-            "ml-dsa-44" => Ok(Algorithm::MlDsa44),
-            "ml-dsa-65" => Ok(Algorithm::MlDsa65),
-            "ml-dsa-87" => Ok(Algorithm::MlDsa87),
-            "fn-dsa" => Ok(Algorithm::FnDsa),
-            _ => Err(crate::error::Error::UnsupportedAlgorithm {
-                algorithm: algorithm.to_string(),
-            }),
-        }
+    fn parse_signature_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
+            algorithm: "Invalid algorithm name",
+        })
     }
 }
 
@@ -490,12 +480,10 @@ pub struct WasmHashContext {
     security_validator: SecurityValidator,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmHashContext {
     /// Create a new WASM Hash context with default provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmHashContext {
+        WasmHashContext {
             inner: HashContext::with_default_provider(),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
@@ -503,68 +491,65 @@ impl WasmHashContext {
     }
 
     /// Create a new WASM Hash context with custom provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn with_provider(provider: &WasmCryptoProvider) -> Self {
-        Self {
-            inner: HashContext::with_provider(provider.inner.clone()),
+    pub fn with_provider(provider: &WasmCryptoProvider) -> WasmHashContext {
+        WasmHashContext {
+            inner: HashContext::with_provider(Box::new(provider.inner.clone())),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
 
     /// Hash data using the specified algorithm
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn hash(&self, algorithm: &str, data: &Uint8Array) -> Result<JsValue> {
+    pub fn hash(&mut self, algorithm: &str, data: &Uint8Array) -> Result<JsValue, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_hash_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_hash_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate data size (simplified)
         if data.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
         // Hash
-        let hash_result = self.inner.hash(algorithm, &data.to_vec())?;
+        let hash = self
+            .inner
+            .hash(algorithm, &data.to_vec())
+            .map_err(error_to_js_value)?;
 
         // Return as JavaScript object
         #[cfg(feature = "wasm")]
         {
             let result = serde_json::json!({
-                "hash": hash_result.hash,
+                "hash": hash,
                 "algorithm": algorithm.to_string(),
                 "security_level": 256 // Placeholder
             });
 
-            Ok(serde_wasm_bindgen::to_value(&result).map_err(|e| {
-                crate::error::Error::NotImplemented {
-                    feature: format!("Serialization error: {:?}", e),
-                }
-            })?)
+            match serde_wasm_bindgen::to_value(&result) {
+                Ok(value) => Ok(value),
+                Err(e) => Err(JsValue::from_str(&format!("Serialization error: {:?}", e))),
+            }
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
     /// Get the security level of the context
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn security_level(&self) -> u32 {
         256 // This would be determined by the provider
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
         self.parse_hash_algorithm(algorithm).is_ok()
     }
 
     /// Get supported algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = vec![
+        let algorithms = alloc::vec![
             "sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256",
         ];
         #[cfg(feature = "wasm")]
@@ -578,18 +563,10 @@ impl WasmHashContext {
     }
 
     /// Parse hash algorithm from string
-    fn parse_hash_algorithm(&self, algorithm: &str) -> Result<Algorithm> {
-        match algorithm {
-            "sha3-224" => Ok(Algorithm::Sha3_224),
-            "sha3-256" => Ok(Algorithm::Sha3_256),
-            "sha3-384" => Ok(Algorithm::Sha3_384),
-            "sha3-512" => Ok(Algorithm::Sha3_512),
-            "shake128" => Ok(Algorithm::Shake128),
-            "shake256" => Ok(Algorithm::Shake256),
-            _ => Err(crate::error::Error::UnsupportedAlgorithm {
-                algorithm: algorithm.to_string(),
-            }),
-        }
+    fn parse_hash_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
+            algorithm: "Invalid algorithm name",
+        })
     }
 }
 
@@ -606,12 +583,10 @@ pub struct WasmAeadContext {
     security_validator: SecurityValidator,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmAeadContext {
     /// Create a new WASM AEAD context with default provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmAeadContext {
+        WasmAeadContext {
             inner: AeadContext::with_default_provider(),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
@@ -619,137 +594,123 @@ impl WasmAeadContext {
     }
 
     /// Create a new WASM AEAD context with custom provider
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn with_provider(provider: &WasmCryptoProvider) -> Self {
-        Self {
-            inner: AeadContext::with_provider(provider.inner.clone()),
+    pub fn with_provider(provider: &WasmCryptoProvider) -> WasmAeadContext {
+        WasmAeadContext {
+            inner: AeadContext::with_provider(Box::new(provider.inner.clone())),
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
 
     /// Encrypt data using the specified algorithm
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn encrypt(
-        &self,
+        &mut self,
         algorithm: &str,
         key: &Uint8Array,
         nonce: &Uint8Array,
         plaintext: &Uint8Array,
-        aad: Option<&Uint8Array>,
-    ) -> Result<Vec<u8>> {
+        aad: Option<Uint8Array>,
+    ) -> Result<Vec<u8>, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_aead_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_aead_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate key size (simplified)
         if key.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "AEAD key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid AEAD key: empty key"));
         }
 
         // Validate nonce size (simplified)
         if nonce.length() == 0 {
-            return Err(crate::error::Error::InvalidNonceSize {
-                expected: 12, // Placeholder
-                actual: 0,
-            });
+            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
         }
 
         // Validate plaintext size (simplified)
         if plaintext.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
         // Convert AAD if provided
-        let aad_bytes = if let Some(aad_data) = aad {
-            Some(aad_data.to_vec())
-        } else {
-            None
-        };
+        let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
 
         // Encrypt
-        let ciphertext = self.inner.encrypt(
-            algorithm,
-            &key.to_vec(),
-            &nonce.to_vec(),
-            &plaintext.to_vec(),
-            aad_bytes.as_deref(),
-        )?;
-
+        let aead_key = AeadKey::new(key.to_vec());
+        let nonce_obj = Nonce::new(nonce.to_vec());
+        let ciphertext = self
+            .inner
+            .encrypt(
+                algorithm,
+                &aead_key,
+                &nonce_obj,
+                &plaintext.to_vec(),
+                aad_bytes.as_deref(),
+            )
+            .map_err(error_to_js_value)?;
         Ok(ciphertext)
     }
 
     /// Decrypt data using the specified algorithm
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn decrypt(
         &self,
         algorithm: &str,
         key: &Uint8Array,
         nonce: &Uint8Array,
         ciphertext: &Uint8Array,
-        aad: Option<&Uint8Array>,
-    ) -> Result<Vec<u8>> {
+        aad: Option<Uint8Array>,
+    ) -> Result<Vec<u8>, JsValue> {
         // Parse and validate algorithm
-        let algorithm = self.parse_aead_algorithm(algorithm)?;
+        let algorithm = self
+            .parse_aead_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
 
         // Validate key size (simplified)
         if key.length() == 0 {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "AEAD key".to_string(),
-                reason: "Empty key".to_string(),
-            });
+            return Err(JsValue::from_str("Invalid AEAD key: empty key"));
         }
 
         // Validate nonce size (simplified)
         if nonce.length() == 0 {
-            return Err(crate::error::Error::InvalidNonceSize {
-                expected: 12, // Placeholder
-                actual: 0,
-            });
+            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
         }
 
         // Validate ciphertext size (simplified)
         if ciphertext.length() == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
         // Convert AAD if provided
-        let aad_bytes = if let Some(aad_data) = aad {
-            Some(aad_data.to_vec())
-        } else {
-            None
-        };
+        let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
 
         // Decrypt
-        let plaintext = self.inner.decrypt(
-            algorithm,
-            &key.to_vec(),
-            &nonce.to_vec(),
-            &ciphertext.to_vec(),
-            aad_bytes.as_deref(),
-        )?;
-
+        let aead_key = AeadKey::new(key.to_vec());
+        let nonce_obj = Nonce::new(nonce.to_vec());
+        let plaintext = self
+            .inner
+            .decrypt(
+                algorithm,
+                &aead_key,
+                &nonce_obj,
+                &ciphertext.to_vec(),
+                aad_bytes.as_deref(),
+            )
+            .map_err(error_to_js_value)?;
         Ok(plaintext)
     }
 
     /// Get the security level of the context
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn security_level(&self) -> u32 {
         256 // This would be determined by the provider
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
         self.parse_aead_algorithm(algorithm).is_ok()
     }
 
     /// Get supported algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = vec!["saturnin", "shake256-aead", "kem-aead"];
+        let algorithms = alloc::vec!["saturnin", "shake256-aead", "kem-aead"];
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -761,15 +722,10 @@ impl WasmAeadContext {
     }
 
     /// Parse AEAD algorithm from string
-    fn parse_aead_algorithm(&self, algorithm: &str) -> Result<Algorithm> {
-        match algorithm {
-            "saturnin" => Ok(Algorithm::Saturnin),
-            "shake256-aead" => Ok(Algorithm::Shake256Aead),
-            "kem-aead" => Ok(Algorithm::KemAead),
-            _ => Err(crate::error::Error::UnsupportedAlgorithm {
-                algorithm: algorithm.to_string(),
-            }),
-        }
+    fn parse_aead_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
+            algorithm: "Invalid algorithm name",
+        })
     }
 }
 
@@ -784,18 +740,15 @@ pub struct WasmCryptoProvider {
     inner: LibQCryptoProvider,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmCryptoProvider {
     /// Create a new WASM CryptoProvider
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmCryptoProvider {
+        WasmCryptoProvider {
             inner: LibQCryptoProvider::new().unwrap_or_else(|_| LibQCryptoProvider::new().unwrap()),
         }
     }
 
     /// Get the provider information
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn info(&self) -> String {
         #[cfg(feature = "wasm")]
         {
@@ -819,14 +772,12 @@ impl WasmCryptoProvider {
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
+    pub fn is_algorithm_supported(&self, _algorithm: &str) -> bool {
         // This would check against the actual provider implementation
         true // Placeholder
     }
 
     /// Get supported algorithms by category
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn supported_algorithms(&self) -> String {
         #[cfg(feature = "wasm")]
         {

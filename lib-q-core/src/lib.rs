@@ -7,7 +7,7 @@
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 pub mod algorithm_registry;
@@ -17,15 +17,21 @@ pub mod traits;
 pub mod wasm_common;
 
 // New modular architecture
+#[cfg(feature = "alloc")]
 pub mod contexts;
+#[cfg(feature = "alloc")]
 pub mod providers;
+#[cfg(feature = "alloc")]
 pub mod security;
+
+// WASM bindings
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
 // Re-exports
 pub use algorithm_registry::*;
 pub use api::*;
+#[cfg(feature = "alloc")]
 pub use contexts::{
     AeadContext,
     HashContext,
@@ -37,7 +43,9 @@ pub use error::{
     Result,
 };
 // Re-export new modular components
+#[cfg(feature = "alloc")]
 pub use providers::LibQCryptoProvider;
+#[cfg(feature = "alloc")]
 pub use security::SecurityValidator;
 pub use traits::*;
 #[cfg(feature = "wasm")]
@@ -97,6 +105,9 @@ mod tests {
 
     #[test]
     fn test_no_std_compatibility() {
+        #[cfg(not(feature = "std"))]
+        use alloc::string::ToString;
+
         // Test that core functionality works in no_std mode
         let error = Error::InvalidKeySize {
             expected: 32,
@@ -105,10 +116,13 @@ mod tests {
         assert_eq!(error.to_string(), "Invalid key size: expected 32, got 16");
 
         // Test that we can create basic structures
-        let public_key = KemPublicKey::new(vec![1, 2, 3, 4]);
-        assert_eq!(public_key.as_bytes(), &[1, 2, 3, 4]);
+        #[cfg(feature = "alloc")]
+        {
+            let public_key = KemPublicKey::new(vec![1, 2, 3, 4]);
+            assert_eq!(public_key.as_bytes(), &[1, 2, 3, 4]);
 
-        let secret_key = KemSecretKey::new(vec![5, 6, 7, 8]);
-        assert_eq!(secret_key.as_bytes(), &[5, 6, 7, 8]);
+            let secret_key = KemSecretKey::new(vec![5, 6, 7, 8]);
+            assert_eq!(secret_key.as_bytes(), &[5, 6, 7, 8]);
+        }
     }
 }

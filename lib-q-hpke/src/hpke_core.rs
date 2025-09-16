@@ -926,7 +926,7 @@ fn validate_kem_context_for_algorithm(
     // Validate that the context has a provider configured and supports the required algorithm
     // This is done by attempting a test operation (which will fail gracefully if unsupported)
     // We use a minimal test to avoid side effects
-    let test_result = kem_ctx.generate_keypair(core_algorithm);
+    let test_result = kem_ctx.generate_keypair(core_algorithm, None);
     match test_result {
         Ok(_) => {
             // Algorithm is supported and provider is configured - this is good

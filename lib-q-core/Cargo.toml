@@ -60,6 +60,14 @@ wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "
 # WASM-specific getrandom configuration
 wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
 
+# Algorithm feature flags (for conditional compilation in WASM utils)
+ml-kem = []
+ml-dsa = []
+fn-dsa = []
+saturnin = []
+dawn = []
+rcpkc = []
+
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"

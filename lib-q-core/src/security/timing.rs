@@ -2,20 +2,23 @@
 //!
 //! This module provides utilities to prevent timing attacks in cryptographic operations.
 
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
+
 use crate::error::Result;
 
 /// Timing attack prevention validator
 ///
 /// This validator provides utilities to prevent timing attacks by ensuring
 /// constant-time operations where necessary.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct TimingValidator {
     // Configuration for timing attack prevention
     enable_timing_validation: bool,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl TimingValidator {
     /// Create a new timing validator
     ///
@@ -245,7 +248,7 @@ mod tests {
 
         // Test copy with false choice
         let original = dst.clone();
-        validator.constant_time_copy(false, &mut dst, &vec![9, 10, 11, 12]);
+        validator.constant_time_copy(false, &mut dst, &[9, 10, 11, 12]);
         assert_eq!(
             dst, original,
             "Should not change destination when choice is false"

@@ -5,6 +5,10 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::collections::BTreeMap as HashMap;
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 #[cfg(feature = "std")]
 #[allow(clippy::disallowed_types)]
 use std::collections::HashMap;

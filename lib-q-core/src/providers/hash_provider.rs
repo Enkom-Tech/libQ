@@ -3,6 +3,12 @@
 //! This module provides the LibQHashProvider that implements hash operations
 //! with proper security validation and algorithm routing.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
+
 use crate::api::{
     Algorithm,
     HashOperations,
@@ -14,13 +20,13 @@ use crate::security::SecurityValidator;
 ///
 /// This provider implements hash operations for lib-Q with proper security validation
 /// and algorithm routing.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct LibQHashProvider {
     security_validator: SecurityValidator,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl LibQHashProvider {
     /// Create a new hash provider
     ///
@@ -38,7 +44,7 @@ impl LibQHashProvider {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl HashOperations for LibQHashProvider {
     fn hash(&self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>> {
         // Validate algorithm category

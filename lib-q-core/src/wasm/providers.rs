@@ -3,17 +3,25 @@
 //! This module provides WASM-compatible bindings for cryptographic providers,
 //! integrating with the new modular architecture and security validation system.
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::{
+        String,
+        ToString,
+    },
+    vec::Vec,
+};
+
 #[cfg(feature = "wasm")]
-use js_sys::Uint8Array;
-#[cfg(feature = "wasm")]
+// use js_sys::Uint8Array;
 use serde_json;
-#[cfg(feature = "wasm")]
-use serde_wasm_bindgen;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 use crate::api::Algorithm;
-use crate::error::Result;
+// use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;
 
@@ -30,12 +38,10 @@ pub struct WasmProviderManager {
     security_validator: SecurityValidator,
 }
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl WasmProviderManager {
     /// Create a new WASM provider manager
-    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> WasmProviderManager {
+        WasmProviderManager {
             provider: LibQCryptoProvider::new()
                 .unwrap_or_else(|_| LibQCryptoProvider::new().unwrap()),
             security_validator: SecurityValidator::new()
@@ -44,7 +50,6 @@ impl WasmProviderManager {
     }
 
     /// Get provider information
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_provider_info(&self) -> String {
         #[cfg(feature = "wasm")]
         {
@@ -77,14 +82,12 @@ impl WasmProviderManager {
     }
 
     /// Check if an algorithm is supported
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
         self.parse_algorithm(algorithm).is_ok()
     }
 
     /// Get algorithm information
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn get_algorithm_info(&self, algorithm: &str) -> Result<JsValue> {
+    pub fn get_algorithm_info(&self, algorithm: &str) -> Result<JsValue, JsValue> {
         let algorithm = self.parse_algorithm(algorithm)?;
 
         #[cfg(feature = "wasm")]
@@ -111,22 +114,18 @@ impl WasmProviderManager {
                 }
             });
 
-            Ok(serde_wasm_bindgen::to_value(&info).map_err(|e| {
-                crate::error::Error::NotImplemented {
-                    feature: format!("Serialization error: {:?}", e),
-                }
-            })?)
+            match serde_wasm_bindgen::to_value(&info) {
+                Ok(value) => Ok(value),
+                Err(_) => Err(JsValue::from_str("Serialization error")),
+            }
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
     /// Get all supported algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_all_algorithms(&self) -> String {
         #[cfg(feature = "wasm")]
         {
@@ -145,14 +144,12 @@ impl WasmProviderManager {
     }
 
     /// Get KEM algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_kem_algorithms(&self) -> Vec<String> {
-        let mut algorithms = Vec::new();
-
-        // Always include these algorithms (they're part of the core)
-        algorithms.push("ml-kem-512".to_string());
-        algorithms.push("ml-kem-768".to_string());
-        algorithms.push("ml-kem-1024".to_string());
+        let mut algorithms = alloc::vec![
+            "ml-kem-512".to_string(),
+            "ml-kem-768".to_string(),
+            "ml-kem-1024".to_string(),
+        ];
 
         // Add optional algorithms based on features
         algorithms.push("dawn".to_string());
@@ -162,14 +159,12 @@ impl WasmProviderManager {
     }
 
     /// Get signature algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_signature_algorithms(&self) -> Vec<String> {
-        let mut algorithms = Vec::new();
-
-        // Always include these algorithms (they're part of the core)
-        algorithms.push("ml-dsa-44".to_string());
-        algorithms.push("ml-dsa-65".to_string());
-        algorithms.push("ml-dsa-87".to_string());
+        let mut algorithms = alloc::vec![
+            "ml-dsa-44".to_string(),
+            "ml-dsa-65".to_string(),
+            "ml-dsa-87".to_string(),
+        ];
 
         // Add optional algorithms based on features
         algorithms.push("fn-dsa".to_string());
@@ -178,9 +173,8 @@ impl WasmProviderManager {
     }
 
     /// Get hash algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_hash_algorithms(&self) -> Vec<String> {
-        vec![
+        alloc::vec![
             "sha3-224".to_string(),
             "sha3-256".to_string(),
             "sha3-384".to_string(),
@@ -191,59 +185,49 @@ impl WasmProviderManager {
     }
 
     /// Get AEAD algorithms
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_aead_algorithms(&self) -> Vec<String> {
-        let mut algorithms = Vec::new();
-
-        // Add optional algorithms based on features
-        algorithms.push("saturnin".to_string());
-        algorithms.push("shake256-aead".to_string());
-        algorithms.push("kem-aead".to_string());
+        let algorithms = alloc::vec![
+            "saturnin".to_string(),
+            "shake256-aead".to_string(),
+            "kem-aead".to_string(),
+        ];
 
         algorithms
     }
 
     /// Validate algorithm parameters
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn validate_algorithm_params(
         &self,
         algorithm: &str,
         key_size: Option<usize>,
         message_size: Option<usize>,
         nonce_size: Option<usize>,
-    ) -> Result<bool> {
+    ) -> Result<bool, JsValue> {
         let _algorithm = self.parse_algorithm(algorithm)?;
 
         // Simplified validation - in a real implementation, this would be more comprehensive
-        if let Some(size) = key_size {
-            if size == 0 {
-                return Err(crate::error::Error::InvalidKey {
-                    key_type: "Algorithm key".to_string(),
-                    reason: "Empty key".to_string(),
-                });
-            }
+        if let Some(size) = key_size &&
+            size == 0
+        {
+            return Err(JsValue::from_str("Invalid algorithm key: empty key"));
         }
 
-        if let Some(size) = message_size {
-            if size == 0 {
-                return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
-            }
+        if let Some(size) = message_size &&
+            size == 0
+        {
+            return Err(JsValue::from_str("Invalid message size: empty data"));
         }
 
-        if let Some(size) = nonce_size {
-            if size == 0 {
-                return Err(crate::error::Error::InvalidNonceSize {
-                    expected: 12, // Placeholder
-                    actual: 0,
-                });
-            }
+        if let Some(size) = nonce_size &&
+            size == 0
+        {
+            return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
         }
 
         Ok(true)
     }
 
     /// Get security recommendations
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_security_recommendations(&self) -> String {
         #[cfg(feature = "wasm")]
         {
@@ -284,7 +268,6 @@ impl WasmProviderManager {
     }
 
     /// Get performance benchmarks
-    #[cfg_attr(feature = "wasm", wasm_bindgen)]
     pub fn get_performance_benchmarks(&self) -> String {
         #[cfg(feature = "wasm")]
         {
@@ -317,38 +300,12 @@ impl WasmProviderManager {
     }
 
     /// Parse algorithm from string
-    fn parse_algorithm(&self, algorithm: &str) -> Result<Algorithm> {
-        match algorithm {
-            // KEM algorithms
-            "ml-kem-512" => Ok(Algorithm::MlKem512),
-            "ml-kem-768" => Ok(Algorithm::MlKem768),
-            "ml-kem-1024" => Ok(Algorithm::MlKem1024),
-            "dawn" => Ok(Algorithm::Dawn),
-            "rcpkc" => Ok(Algorithm::Rcpkc),
-
-            // Signature algorithms
-            "ml-dsa-44" => Ok(Algorithm::MlDsa44),
-            "ml-dsa-65" => Ok(Algorithm::MlDsa65),
-            "ml-dsa-87" => Ok(Algorithm::MlDsa87),
-            "fn-dsa" => Ok(Algorithm::FnDsa),
-
-            // Hash algorithms
-            "sha3-224" => Ok(Algorithm::Sha3_224),
-            "sha3-256" => Ok(Algorithm::Sha3_256),
-            "sha3-384" => Ok(Algorithm::Sha3_384),
-            "sha3-512" => Ok(Algorithm::Sha3_512),
-            "shake128" => Ok(Algorithm::Shake128),
-            "shake256" => Ok(Algorithm::Shake256),
-
-            // AEAD algorithms
-            "saturnin" => Ok(Algorithm::Saturnin),
-            "shake256-aead" => Ok(Algorithm::Shake256Aead),
-            "kem-aead" => Ok(Algorithm::KemAead),
-
-            _ => Err(crate::error::Error::UnsupportedAlgorithm {
-                algorithm: algorithm.to_string(),
-            }),
-        }
+    fn parse_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        crate::wasm::error::parse_algorithm_wasm(algorithm).map_err(|_| {
+            crate::error::Error::InvalidAlgorithm {
+                algorithm: "Invalid algorithm name",
+            }
+        })
     }
 }
 
@@ -371,14 +328,18 @@ impl WasmProviderFactory {
 
     /// Create a provider manager with specific configuration
     #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn create_provider_manager_with_config(config: &str) -> Result<WasmProviderManager> {
+    pub fn create_provider_manager_with_config(
+        config: &str,
+    ) -> Result<WasmProviderManager, JsValue> {
         #[cfg(feature = "wasm")]
         {
             // Parse configuration (simplified for now)
-            let _config: serde_json::Value =
-                serde_json::from_str(config).map_err(|e| crate::error::Error::NotImplemented {
-                    feature: format!("Configuration parsing error: {:?}", e),
-                })?;
+            let _config: serde_json::Value = match serde_json::from_str(config) {
+                Ok(config) => config,
+                Err(_) => {
+                    return Err(JsValue::from_str("Configuration parsing error"));
+                }
+            };
 
             // For now, just create a default provider manager
             // In a real implementation, this would configure the provider based on the config
@@ -386,9 +347,7 @@ impl WasmProviderFactory {
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 
@@ -417,22 +376,22 @@ impl WasmProviderFactory {
 
     /// Validate provider configuration
     #[cfg_attr(feature = "wasm", wasm_bindgen)]
-    pub fn validate_provider_config(config: &str) -> Result<bool> {
+    pub fn validate_provider_config(config: &str) -> Result<bool, JsValue> {
         #[cfg(feature = "wasm")]
         {
-            let _config: serde_json::Value =
-                serde_json::from_str(config).map_err(|e| crate::error::Error::NotImplemented {
-                    feature: format!("Configuration parsing error: {:?}", e),
-                })?;
+            let _config: serde_json::Value = match serde_json::from_str(config) {
+                Ok(config) => config,
+                Err(_) => {
+                    return Err(JsValue::from_str("Configuration parsing error"));
+                }
+            };
 
             // Basic validation - in a real implementation, this would be more comprehensive
             Ok(true)
         }
         #[cfg(not(feature = "wasm"))]
         {
-            Err(crate::error::Error::NotImplemented {
-                feature: "WASM feature not enabled".to_string(),
-            })
+            Err(JsValue::from_str("WASM feature not enabled"))
         }
     }
 }
@@ -442,6 +401,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_wasm_provider_manager_creation() {
         let manager = WasmProviderManager::new();
         let info = manager.get_provider_info();
@@ -449,12 +409,14 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_wasm_provider_factory() {
         let manager = WasmProviderFactory::create_provider_manager();
         assert!(manager.is_algorithm_supported("sha3-256"));
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_algorithm_support() {
         let manager = WasmProviderManager::new();
         assert!(manager.is_algorithm_supported("sha3-256"));
@@ -462,6 +424,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_algorithm_info() {
         let manager = WasmProviderManager::new();
         let info = manager.get_algorithm_info("sha3-256");
@@ -469,6 +432,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn test_security_recommendations() {
         let manager = WasmProviderManager::new();
         let recommendations = manager.get_security_recommendations();

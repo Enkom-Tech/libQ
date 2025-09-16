@@ -3,6 +3,7 @@
 //! This module provides the main LibQCryptoProvider that implements
 //! the CryptoProvider trait and delegates to specific operation providers.
 
+#[cfg(feature = "std")]
 use super::{
     LibQAeadProvider,
     LibQHashProvider,

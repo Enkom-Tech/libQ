@@ -138,6 +138,7 @@ pub trait Aead {
 
 // Key types
 /// KEM keypair with automatic memory zeroization
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct KemKeypair {
     #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
@@ -159,11 +160,13 @@ pub struct KemPublicKey {
 }
 
 /// KEM secret key with automatic memory zeroization
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct KemSecretKey {
     #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(feature = "alloc")]
     pub data: Vec<u8>,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(not(feature = "alloc"))]
     pub data: &'static [u8],
 }
@@ -179,24 +182,36 @@ impl Zeroize for KemSecretKey {
 impl ZeroizeOnDrop for KemSecretKey {}
 
 /// Signature keypair with automatic memory zeroization
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SigKeypair {
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub public_key: SigPublicKey,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     pub secret_key: SigSecretKey,
 }
 
 /// Signature public key
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SigPublicKey {
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(feature = "alloc")]
     pub data: Vec<u8>,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(not(feature = "alloc"))]
     pub data: &'static [u8],
 }
 
 /// Signature secret key with automatic memory zeroization
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SigSecretKey {
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(feature = "alloc")]
     pub data: Vec<u8>,
+    #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
     #[cfg(not(feature = "alloc"))]
     pub data: &'static [u8],
 }

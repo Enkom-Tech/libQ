@@ -15,6 +15,10 @@ use alloc::{
 /// The error type for lib-Q operations
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+// #[cfg_attr(
+//     feature = "wasm",
+//     derive(wasm_bindgen::FromJsValue, wasm_bindgen::IntoJsValue)
+// )]
 pub enum Error {
     /// Invalid key size
     InvalidKeySize { expected: usize, actual: usize },
@@ -348,6 +352,15 @@ impl fmt::Display for Error {
 #[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
+/// WASM error conversion
+#[cfg(feature = "wasm")]
+impl From<Error> for wasm_bindgen::JsValue {
+    fn from(error: Error) -> Self {
+        use crate::wasm::error::error_to_js_value;
+        error_to_js_value(error)
+    }
+}
+
 /// Result type for lib-Q operations
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -394,6 +407,18 @@ impl Error {
     }
 }
 
+#[cfg(feature = "wasm")]
+impl From<wasm_bindgen::JsValue> for Error {
+    fn from(_js_value: wasm_bindgen::JsValue) -> Self {
+        // Convert JsValue to a generic internal error
+        // This is used when WASM code needs to convert JsValue errors back to Error
+        Error::InternalError {
+            operation: "WASM operation".to_string(),
+            details: "WASM error conversion".to_string(),
+        }
+    }
+}
+
 /// Security levels supported by lib-Q
 pub const SECURITY_LEVELS: &[u32] = &[1, 3, 4, 5];
 
@@ -419,6 +444,9 @@ mod tests {
 
     #[test]
     fn test_error_display() {
+        #[cfg(not(feature = "std"))]
+        use alloc::string::ToString;
+
         let error = Error::InvalidKeySize {
             expected: 32,
             actual: 16,
@@ -441,6 +469,9 @@ mod tests {
         }
         #[cfg(not(feature = "alloc"))]
         {
+            #[cfg(not(feature = "std"))]
+            use alloc::string::ToString;
+
             let error = Error::InvalidKey {
                 key_type: "public key",
                 reason: "cannot be used for encapsulation",

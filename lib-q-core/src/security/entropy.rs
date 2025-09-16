@@ -3,20 +3,23 @@
 //! This module provides utilities to validate the entropy quality of cryptographic
 //! inputs such as keys and randomness.
 
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
+
 use crate::error::Result;
 
 /// Entropy validator for cryptographic inputs
 ///
 /// This validator provides utilities to validate the entropy quality of
 /// cryptographic inputs to ensure they meet security requirements.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct EntropyValidator {
     min_entropy_bits: usize,
     enable_entropy_validation: bool,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl EntropyValidator {
     /// Create a new entropy validator
     ///

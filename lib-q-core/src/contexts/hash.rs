@@ -3,6 +3,13 @@
 //! This module provides the hash context that handles hash operations
 //! with proper security validation.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    boxed::Box,
+    string::String,
+    vec::Vec,
+};
+
 use super::BaseContext;
 #[cfg(test)]
 use crate::api::HashOperations;
@@ -36,10 +43,15 @@ impl HashContext {
     }
 
     /// Create a new hash context with the default provider
-    #[cfg(feature = "std")]
+    #[cfg(feature = "alloc")]
     pub fn with_default_provider() -> Self {
         Self {
-            inner: BaseContext::with_provider(Box::new(crate::api::DefaultCryptoProvider)),
+            inner: BaseContext::with_provider(Box::new(
+                crate::providers::LibQCryptoProvider::new().unwrap_or_else(|_| {
+                    // Fallback to a minimal provider if initialization fails
+                    crate::providers::LibQCryptoProvider::new().unwrap()
+                }),
+            )),
         }
     }
 

@@ -86,6 +86,8 @@ impl HashResultWasm {
 /// Utility functions for WASM conversions
 #[cfg(feature = "wasm")]
 pub mod conversions {
+    use alloc::vec::Vec;
+
     use js_sys::Uint8Array;
 
     /// Convert Rust Vec<u8> to WASM Uint8Array
@@ -98,7 +100,7 @@ pub mod conversions {
     /// Convert WASM Uint8Array to Rust Vec<u8>
     pub fn uint8array_to_vec(array: &Uint8Array) -> Vec<u8> {
         let length = array.length() as usize;
-        let mut vec = vec![0u8; length];
+        let mut vec = alloc::vec![0u8; length];
         array.copy_to(&mut vec);
         vec
     }
@@ -111,6 +113,6 @@ mod tests {
     fn test_wasm_common_structure() {
         // Test that the module compiles correctly
         // In a real WASM environment, these would be tested with wasm-bindgen-test
-        assert!(true);
+        // This is a placeholder for WASM-specific initialization
     }
 }

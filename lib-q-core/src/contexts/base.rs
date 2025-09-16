@@ -3,6 +3,8 @@
 //! This module provides the foundational context structure that all
 //! cryptographic operation contexts inherit from.
 
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
 use core::marker::PhantomData;
 
 use crate::api::CryptoProvider;

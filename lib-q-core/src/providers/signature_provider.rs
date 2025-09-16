@@ -3,6 +3,12 @@
 //! This module provides the LibQSignatureProvider that implements signature operations
 //! with proper security validation and algorithm routing.
 
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
+
 use crate::api::{
     Algorithm,
     SignatureOperations,
@@ -19,13 +25,13 @@ use crate::traits::{
 ///
 /// This provider implements signature operations for lib-Q, including key generation,
 /// signing, and verification with proper security validation.
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct LibQSignatureProvider {
     security_validator: SecurityValidator,
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl LibQSignatureProvider {
     /// Create a new signature provider
     ///
@@ -43,7 +49,7 @@ impl LibQSignatureProvider {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 impl SignatureOperations for LibQSignatureProvider {
     fn generate_keypair(
         &self,
@@ -169,6 +175,7 @@ impl SignatureOperations for LibQSignatureProvider {
 }
 
 #[cfg(test)]
+#[cfg(feature = "alloc")]
 mod tests {
     use super::*;
 
