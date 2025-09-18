@@ -10,9 +10,9 @@ use serde_json;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 use alloc::{
     collections::BTreeMap,
     format,

@@ -3,9 +3,9 @@
 //! This module provides secure conversion functions between Rust types and
 //! JavaScript-compatible types for WASM bindings.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 use alloc::{
     format,
     string::{

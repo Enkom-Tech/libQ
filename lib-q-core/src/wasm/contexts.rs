@@ -3,9 +3,9 @@
 //! This module provides WASM-compatible wrappers for all cryptographic contexts,
 //! integrating with the new modular architecture and security validation system.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 use alloc::{
     boxed::Box,
     format,

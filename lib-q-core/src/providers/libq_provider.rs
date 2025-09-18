@@ -172,6 +172,9 @@ impl CryptoProvider for LibQCryptoProvider {
 
 // WASM-specific provider implementations
 #[cfg(not(feature = "std"))]
+use alloc::format;
+
+#[cfg(not(feature = "std"))]
 use crate::security::SecurityValidator;
 #[cfg(not(feature = "std"))]
 use crate::traits::{
@@ -270,6 +273,28 @@ impl KemOperations for WasmKemProvider {
         // Validate ciphertext
         self.security_validator
             .validate_ciphertext(algorithm, ciphertext)?;
+
+        // Return proper error indicating WASM implementation needed
+        Err(crate::error::Error::NotImplemented {
+            feature: format!(
+                "WASM KEM operations for {} - implementations are provided by the main lib-q crate",
+                algorithm
+            ),
+        })
+    }
+
+    fn derive_public_key(
+        &self,
+        algorithm: crate::api::Algorithm,
+        secret_key: &KemSecretKey,
+    ) -> Result<KemPublicKey> {
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, crate::api::AlgorithmCategory::Kem)?;
+
+        // Validate secret key
+        self.security_validator
+            .validate_secret_key(algorithm, secret_key.as_bytes())?;
 
         // Return proper error indicating WASM implementation needed
         Err(crate::error::Error::NotImplemented {

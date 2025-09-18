@@ -7,9 +7,9 @@
 //! operations in WebAssembly environments with comprehensive security validation
 //! and protection against common attack vectors.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 use alloc::boxed::Box;
 
 #[cfg(feature = "wasm")]

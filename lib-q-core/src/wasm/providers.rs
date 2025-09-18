@@ -3,9 +3,9 @@
 //! This module provides WASM-compatible bindings for cryptographic providers,
 //! integrating with the new modular architecture and security validation system.
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "wasm")]
 use alloc::{
     string::{
         String,
@@ -234,8 +234,9 @@ impl WasmProviderManager {
                 return Err(JsValue::from_str("Invalid algorithm key: empty key"));
             }
             // Validate key size against algorithm requirements
+            let test_key = (0..size).map(|_| 0u8).collect::<Vec<u8>>();
             self.security_validator
-                .validate_key_size(algorithm, &vec![0u8; size], true)
+                .validate_key_size(algorithm, &test_key, true)
                 .map_err(crate::wasm::error::error_to_js_value)?;
         }
 
@@ -244,8 +245,9 @@ impl WasmProviderManager {
                 return Err(JsValue::from_str("Invalid message size: empty data"));
             }
             // Validate message size
+            let test_message = (0..size).map(|_| 0u8).collect::<Vec<u8>>();
             self.security_validator
-                .validate_message(&vec![0u8; size])
+                .validate_message(&test_message)
                 .map_err(crate::wasm::error::error_to_js_value)?;
         }
 
@@ -254,8 +256,9 @@ impl WasmProviderManager {
                 return Err(JsValue::from_str("Invalid nonce size: empty nonce"));
             }
             // Validate nonce size
+            let test_nonce = (0..size).map(|_| 0u8).collect::<Vec<u8>>();
             self.security_validator
-                .validate_nonce(&vec![0u8; size])
+                .validate_nonce(&test_nonce)
                 .map_err(crate::wasm::error::error_to_js_value)?;
         }
 

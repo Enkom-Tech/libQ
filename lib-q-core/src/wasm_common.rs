@@ -8,6 +8,12 @@ use js_sys::Uint8Array;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+#[allow(unused_imports)]
+use alloc::string::String;
+
 /// Common trait for WASM key pairs
 #[cfg(feature = "wasm")]
 pub trait WasmKeyPair {

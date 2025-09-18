@@ -7,8 +7,12 @@ use core::fmt;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
+#[allow(unused_imports)]
 use alloc::{
-    string::String,
+    string::{
+        String,
+        ToString,
+    },
     vec::Vec,
 };
 

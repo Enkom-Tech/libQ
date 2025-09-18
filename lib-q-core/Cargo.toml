@@ -55,7 +55,7 @@ hash = []
 serde = ["dep:serde"]
 
 # WASM support
-wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom"]
+wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom", "alloc"]
 
 # WASM-specific getrandom configuration
 wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
@@ -91,3 +91,4 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(aarch64)',
     'cfg(x86_64)',
 ] }
+
