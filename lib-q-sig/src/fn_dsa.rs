@@ -13,25 +13,30 @@
 //! # Example Usage
 //!
 //! ```rust
+//! use lib_q_core::Signature;
 //! use lib_q_sig::fn_dsa::{
 //!     FnDsa,
 //!     FnDsa512,
 //!     FnDsa1024,
 //! };
 //!
-//! // Create an FN-DSA instance
-//! let fn_dsa = FnDsa512::new();
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create an FN-DSA instance
+//!     let fn_dsa = FnDsa512::new();
 //!
-//! // Generate a keypair
-//! let keypair = fn_dsa.generate_keypair()?;
+//!     // Generate a keypair
+//!     let keypair = fn_dsa.generate_keypair()?;
 //!
-//! // Sign a message
-//! let message = b"Hello, FN-DSA!";
-//! let signature = fn_dsa.sign(&keypair.secret_key, message)?;
+//!     // Sign a message
+//!     let message = b"Hello, FN-DSA!";
+//!     let signature = fn_dsa.sign(&keypair.secret_key(), message)?;
 //!
-//! // Verify the signature
-//! let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
-//! assert!(is_valid);
+//!     // Verify the signature
+//!     let is_valid =
+//!         fn_dsa.verify(&keypair.public_key(), message, &signature)?;
+//!     assert!(is_valid);
+//!     Ok(())
+//! }
 //! ```
 
 // Re-export the actual FN-DSA implementation from lib-q-fn-dsa

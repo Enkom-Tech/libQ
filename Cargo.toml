@@ -6,6 +6,7 @@ members = [
     "lib-q-ascon",
     "lib-q-k12",
     "lib-q-sha3",
+    "lib-q-sha2",
     "lib-q-kem",
     "lib-q-ml-kem",
     "lib-q-ml-dsa",
@@ -19,6 +20,7 @@ members = [
     "lib-q-utils",
     "lib-q-zkp",
     "lib-q-fn-dsa",
+    "lib-q-slh-dsa",
     "examples",
     "."
 ]
@@ -75,6 +77,7 @@ lib-q-kem = { path = "lib-q-kem" }
 lib-q-ml-dsa = { path = "lib-q-ml-dsa" }
 lib-q-sig = { path = "lib-q-sig", features = ["std", "ml-dsa", "slh-dsa"] }
 lib-q-hash = { path = "lib-q-hash" }
+lib-q-sha2 = { path = "lib-q-sha2", optional = true }
 lib-q-aead = { path = "lib-q-aead" }
 lib-q-hpke = { path = "lib-q-hpke", optional = true }
 lib-q-utils = { path = "lib-q-utils" }
@@ -118,6 +121,7 @@ tests = []
 # Re-export features from individual crates
 ml-kem = ["lib-q-kem/ml-kem"]
 ml-dsa = ["lib-q-sig/ml-dsa"]
+sha2 = ["dep:lib-q-sha2"]
 mldsa44 = ["lib-q-ml-dsa/mldsa44"]
 mldsa65 = ["lib-q-ml-dsa/mldsa65"]
 mldsa87 = ["lib-q-ml-dsa/mldsa87"]
@@ -159,7 +163,7 @@ simd256 = ["lib-q-ml-dsa/simd256"]
 security-hardened = ["zeroize", "all-algorithms"]
 
 # Convenience features
-all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "dawn", "rcpkc", "zkp", "ascon"]
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "dawn", "rcpkc", "zkp", "ascon", "sha2"]
 
 # Development and testing features
 dev = ["experimental", "tests"]

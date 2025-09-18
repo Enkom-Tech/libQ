@@ -19,7 +19,7 @@ use lib_q_hpke::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test HPKE context creation and initialization
 #[test]
@@ -28,20 +28,22 @@ fn test_hpke_context_creation() {
     let _hpke_ctx = HpkeContext::new();
 
     // Test context creation with custom provider
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let _hpke_ctx_with_provider = HpkeContext::with_provider(provider);
 }
 
 /// Test HPKE context setup with different key sizes
 #[test]
 fn test_hpke_context_setup_different_keys() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Test with ML-KEM-512
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair_512 = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("ML-KEM-512 key generation should work");
 
     let recipient_pk_512 = KemPublicKey::new(keypair_512.public_key().as_bytes().to_vec());
@@ -51,7 +53,7 @@ fn test_hpke_context_setup_different_keys() {
 
     // Test with ML-KEM-768
     let keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 key generation should work");
 
     let recipient_pk_768 = KemPublicKey::new(keypair_768.public_key().as_bytes().to_vec());
@@ -61,7 +63,7 @@ fn test_hpke_context_setup_different_keys() {
 
     // Test with ML-KEM-1024
     let keypair_1024 = kem_ctx
-        .generate_keypair(Algorithm::MlKem1024)
+        .generate_keypair(Algorithm::MlKem1024, None)
         .expect("ML-KEM-1024 key generation should work");
 
     let recipient_pk_1024 = KemPublicKey::new(keypair_1024.public_key().as_bytes().to_vec());
@@ -73,12 +75,14 @@ fn test_hpke_context_setup_different_keys() {
 /// Test HPKE context setup with different info values
 #[test]
 fn test_hpke_context_setup_different_info() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -109,12 +113,14 @@ fn test_hpke_context_setup_different_info() {
 /// Test HPKE single-shot encryption/decryption with different message sizes
 #[test]
 fn test_hpke_single_shot_different_sizes() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -174,12 +180,14 @@ fn test_hpke_single_shot_different_sizes() {
 /// Test HPKE with different AAD values
 #[test]
 fn test_hpke_different_aad() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -240,12 +248,14 @@ fn test_hpke_different_aad() {
 /// Test HPKE key export functionality
 #[test]
 fn test_hpke_key_export() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -299,7 +309,7 @@ fn test_hpke_key_export() {
 /// Test HPKE error handling scenarios
 #[test]
 fn test_hpke_error_handling() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Test with invalid key sizes
@@ -312,12 +322,14 @@ fn test_hpke_error_handling() {
     assert!(result_large.is_err(), "Should fail with key too large");
 
     // Test with mismatched keys
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair1 = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
     let keypair2 = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk1 = KemPublicKey::new(keypair1.public_key().as_bytes().to_vec());
@@ -343,12 +355,14 @@ fn test_hpke_error_handling() {
 /// Test HPKE context sequence number handling
 #[test]
 fn test_hpke_sequence_numbers() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());

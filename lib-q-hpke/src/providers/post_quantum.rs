@@ -16,12 +16,15 @@ use lib_q_core::{
     AeadKey,
     Algorithm,
     Hash as CoreHash,
-    Kem as CoreKem,
+    KemOperations,
     Nonce,
 };
-use lib_q_hash::create_hash;
 use lib_q_hash::digest::Digest;
-use lib_q_kem::create_kem;
+use lib_q_hash::{
+    HashAlgorithm,
+    create_hash,
+};
+use lib_q_kem::LibQKemProvider;
 
 use crate::error::HpkeError;
 use crate::kdf::hkdf::HkdfImpl;
@@ -53,22 +56,21 @@ impl PostQuantumProvider {
         }
     }
 
-    /// Create a KEM instance using lib-q-kem abstraction
-    fn create_kem_instance(kem: HpkeKem) -> Result<Box<dyn CoreKem>, HpkeError> {
-        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
-        create_kem(algorithm)
-            .map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM instance: {}", e)))
+    /// Create a KEM provider instance using lib-q-kem abstraction
+    fn create_kem_provider() -> Result<LibQKemProvider, HpkeError> {
+        LibQKemProvider::new()
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM provider: {}", e)))
     }
 
     /// Create hash instance using lib-q-hash abstraction
     fn create_hash_instance(kdf: HpkeKdf) -> Result<Box<dyn CoreHash>, HpkeError> {
-        let algorithm_name = match kdf {
-            HpkeKdf::HkdfShake128 => "shake128",
-            HpkeKdf::HkdfShake256 => "shake256",
-            HpkeKdf::HkdfSha3_256 => "sha3-256",
-            HpkeKdf::HkdfSha3_512 => "sha3-512",
+        let algorithm = match kdf {
+            HpkeKdf::HkdfShake128 => HashAlgorithm::Shake128,
+            HpkeKdf::HkdfShake256 => HashAlgorithm::Shake256,
+            HpkeKdf::HkdfSha3_256 => HashAlgorithm::Sha3_256,
+            HpkeKdf::HkdfSha3_512 => HashAlgorithm::Sha3_512,
         };
-        create_hash(algorithm_name)
+        create_hash(algorithm)
             .map_err(|e| HpkeError::CryptoError(format!("Failed to create hash instance: {}", e)))
     }
 
@@ -97,9 +99,10 @@ impl KemProvider for PostQuantumProvider {
         kem: HpkeKem,
         _rng: &mut dyn CryptoRng,
     ) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
-        let keypair = kem_impl
-            .generate_keypair()
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
+        let keypair = provider
+            .generate_keypair(algorithm, None)
             .map_err(|e| HpkeError::CryptoError(format!("KEM key generation failed: {}", e)))?;
         Ok((
             keypair.public_key().as_bytes().to_vec(),
@@ -113,10 +116,11 @@ impl KemProvider for PostQuantumProvider {
         public_key: &[u8],
         _rng: &mut dyn CryptoRng,
     ) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let pk = lib_q_core::KemPublicKey::new(public_key.to_vec());
-        kem_impl
-            .encapsulate(&pk)
+        provider
+            .encapsulate(algorithm, &pk, None)
             .map_err(|e| HpkeError::CryptoError(format!("KEM encapsulation failed: {}", e)))
     }
 
@@ -126,10 +130,11 @@ impl KemProvider for PostQuantumProvider {
         secret_key: &[u8],
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let sk = lib_q_core::KemSecretKey::new(secret_key.to_vec());
-        kem_impl
-            .decapsulate(&sk, ciphertext)
+        provider
+            .decapsulate(algorithm, &sk, ciphertext)
             .map_err(|e| HpkeError::CryptoError(format!("KEM decapsulation failed: {}", e)))
     }
 
@@ -149,6 +154,16 @@ impl KemProvider for PostQuantumProvider {
         }
 
         Ok(())
+    }
+
+    fn derive_public_key(&self, kem: HpkeKem, secret_key: &[u8]) -> Result<Vec<u8>, Self::Error> {
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
+        let secret_key_obj = lib_q_core::KemSecretKey::new(secret_key.to_vec());
+        let public_key_obj = provider
+            .derive_public_key(algorithm, &secret_key_obj)
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to derive public key: {}", e)))?;
+        Ok(public_key_obj.as_bytes().to_vec())
     }
 
     fn supports_kem(&self, kem: HpkeKem) -> bool {
@@ -180,8 +195,6 @@ impl KemProvider for PostQuantumProvider {
         // 3. The authentication comes from the fact that only the sender can create
         //    the correct shared secret that matches what the recipient derives
 
-        let kem_impl = Self::create_kem_instance(kem)?;
-
         // Validate sender secret key length
         let expected_sender_sk_len = kem.secret_key_len();
         if sender_sk.len() != expected_sender_sk_len {
@@ -202,13 +215,11 @@ impl KemProvider for PostQuantumProvider {
             ));
         }
 
-        // Create sender secret key object
-        let sender_sk_obj = lib_q_core::KemSecretKey::new(sender_sk.to_vec());
+        // Note: We don't need to create a secret key object since we use the raw bytes
 
         // Derive sender's public key from secret key for authentication
-        let sender_pk_obj = kem_impl.derive_public_key(&sender_sk_obj).map_err(|e| {
-            HpkeError::CryptoError(format!("Failed to derive sender public key: {}", e))
-        })?;
+        let sender_pk_bytes = self.derive_public_key(kem, sender_sk)?;
+        let sender_pk_obj = lib_q_core::KemPublicKey::new(sender_pk_bytes);
 
         // Create recipient public key object
         let recipient_pk_obj = lib_q_core::KemPublicKey::new(recipient_pk.to_vec());
@@ -218,8 +229,10 @@ impl KemProvider for PostQuantumProvider {
         // 2. Include the commitment in the encapsulated key for verification during decapsulation
 
         // First, perform regular KEM encapsulation
-        let (encapsulated_key, shared_secret) = kem_impl
-            .encapsulate(&recipient_pk_obj)
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
+        let (encapsulated_key, shared_secret) = provider
+            .encapsulate(algorithm, &recipient_pk_obj, None)
             .map_err(|e| HpkeError::CryptoError(format!("AuthEncap failed: {}", e)))?;
 
         // Create an authentication tag using the shared secret and sender's public key
@@ -251,8 +264,6 @@ impl KemProvider for PostQuantumProvider {
         recipient_sk: &[u8],
         sender_pk: &[u8],
     ) -> Result<Vec<u8>, Self::Error> {
-        let kem_impl = Self::create_kem_instance(kem)?;
-
         // AuthDecap implementation according to RFC 9180 Section 5.1.3
         // For ML-KEM, AuthDecap is implemented using regular KEM operations:
         // 1. Use the recipient's secret key to decapsulate the shared secret
@@ -326,8 +337,10 @@ impl KemProvider for PostQuantumProvider {
             encapsulated_key.split_at(encapsulated_key.len() - auth_tag_len);
 
         // Perform the decapsulation on the main encapsulated key first
-        let shared_secret = kem_impl
-            .decapsulate(&recipient_sk_obj, main_encapsulated_key)
+        let provider = Self::create_kem_provider()?;
+        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
+        let shared_secret = provider
+            .decapsulate(algorithm, &recipient_sk_obj, main_encapsulated_key)
             .map_err(|e| HpkeError::CryptoError(format!("AuthDecap failed: {}", e)))?;
 
         // Verify the authentication tag using the shared secret and sender's public key

@@ -119,28 +119,90 @@ impl SecurityConstants {
             // Signature algorithms
             Algorithm::MlDsa44 => {
                 if is_secret {
-                    1280
+                    2560 // ML-DSA-44 secret key size
                 } else {
-                    800
+                    1312 // ML-DSA-44 public key size
                 }
             }
             Algorithm::MlDsa65 => {
                 if is_secret {
-                    1888
+                    4032 // ML-DSA-65 secret key size
                 } else {
-                    1184
+                    1952 // ML-DSA-65 public key size
                 }
             }
             Algorithm::MlDsa87 => {
                 if is_secret {
-                    2400
+                    4896 // ML-DSA-87 secret key size
                 } else {
-                    1568
+                    2592 // ML-DSA-87 public key size
                 }
             }
-            Algorithm::FnDsa => 1024,
-            Algorithm::FnDsa512 => 1024,
-            Algorithm::FnDsa1024 => 2048,
+            Algorithm::FnDsa => {
+                if is_secret {
+                    1281 // FN-DSA-512 secret key size (logn=9)
+                } else {
+                    897 // FN-DSA-512 public key size (logn=9)
+                }
+            }
+            Algorithm::FnDsa512 => {
+                if is_secret {
+                    1281 // FN-DSA-512 secret key size (logn=9)
+                } else {
+                    897 // FN-DSA-512 public key size (logn=9)
+                }
+            }
+            Algorithm::FnDsa1024 => {
+                if is_secret {
+                    2561 // FN-DSA-1024 secret key size (logn=10)
+                } else {
+                    1793 // FN-DSA-1024 public key size (logn=10)
+                }
+            }
+
+            // SLH-DSA algorithms
+            Algorithm::SlhDsaSha256128fRobust => {
+                if is_secret {
+                    64 // SLH-DSA SHA256-128f secret key size (4 * N where N=16)
+                } else {
+                    32 // SLH-DSA SHA256-128f public key size (2 * N where N=16)
+                }
+            }
+            Algorithm::SlhDsaSha256192fRobust => {
+                if is_secret {
+                    96 // SLH-DSA SHA256-192f secret key size (4 * N where N=24)
+                } else {
+                    48 // SLH-DSA SHA256-192f public key size (2 * N where N=24)
+                }
+            }
+            Algorithm::SlhDsaSha256256fRobust => {
+                if is_secret {
+                    128 // SLH-DSA SHA256-256f secret key size (4 * N where N=32)
+                } else {
+                    64 // SLH-DSA SHA256-256f public key size (2 * N where N=32)
+                }
+            }
+            Algorithm::SlhDsaShake256128fRobust => {
+                if is_secret {
+                    64 // SLH-DSA SHAKE256-128f secret key size (4 * N where N=16)
+                } else {
+                    32 // SLH-DSA SHAKE256-128f public key size (2 * N where N=16)
+                }
+            }
+            Algorithm::SlhDsaShake256192fRobust => {
+                if is_secret {
+                    96 // SLH-DSA SHAKE256-192f secret key size (4 * N where N=24)
+                } else {
+                    48 // SLH-DSA SHAKE256-192f public key size (2 * N where N=24)
+                }
+            }
+            Algorithm::SlhDsaShake256256fRobust => {
+                if is_secret {
+                    128 // SLH-DSA SHAKE256-256f secret key size (4 * N where N=32)
+                } else {
+                    64 // SLH-DSA SHAKE256-256f public key size (2 * N where N=32)
+                }
+            }
 
             // Hash algorithms don't have keys
             _ => {
@@ -194,10 +256,19 @@ impl SecurityConstants {
         let expected_size = match algorithm {
             Algorithm::MlDsa44 => 2420,   // ML-DSA-44 signature size
             Algorithm::MlDsa65 => 3309,   // ML-DSA-65 signature size
-            Algorithm::MlDsa87 => 4624,   // ML-DSA-87 signature size
-            Algorithm::FnDsa => 1024,     // FN-DSA signature size
-            Algorithm::FnDsa512 => 1024,  // FN-DSA-512 signature size
-            Algorithm::FnDsa1024 => 2048, // FN-DSA-1024 signature size
+            Algorithm::MlDsa87 => 4627,   // ML-DSA-87 signature size
+            Algorithm::FnDsa => 666,      // FN-DSA-512 signature size (logn=9)
+            Algorithm::FnDsa512 => 666,   // FN-DSA-512 signature size (logn=9)
+            Algorithm::FnDsa1024 => 1280, // FN-DSA-1024 signature size (logn=10)
+
+            // SLH-DSA signature sizes (actual sizes from implementation)
+            Algorithm::SlhDsaSha256128fRobust => 17088, // SLH-DSA SHA256-128f signature size
+            Algorithm::SlhDsaSha256192fRobust => 35664, // SLH-DSA SHA256-192f signature size
+            Algorithm::SlhDsaSha256256fRobust => 49856, // SLH-DSA SHA256-256f signature size
+            Algorithm::SlhDsaShake256128fRobust => 17088, // SLH-DSA SHAKE256-128f signature size
+            Algorithm::SlhDsaShake256192fRobust => 35664, // SLH-DSA SHAKE256-192f signature size
+            Algorithm::SlhDsaShake256256fRobust => 49856, // SLH-DSA SHAKE256-256f signature size
+
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {
                     algorithm: "Algorithm does not produce signatures",
@@ -267,12 +338,12 @@ mod tests {
         let public_size = constants
             .get_expected_key_size(Algorithm::MlDsa65, false)
             .unwrap();
-        assert_eq!(public_size, 1184);
+        assert_eq!(public_size, 1952);
 
         let secret_size = constants
             .get_expected_key_size(Algorithm::MlDsa65, true)
             .unwrap();
-        assert_eq!(secret_size, 1888);
+        assert_eq!(secret_size, 4032);
 
         // Test hash algorithm (should fail)
         let result = constants.get_expected_key_size(Algorithm::Sha3_256, false);
@@ -346,7 +417,7 @@ mod tests {
             constants
                 .get_expected_signature_size(Algorithm::MlDsa87)
                 .unwrap(),
-            4624
+            4627
         );
 
         // Test FN-DSA algorithms
@@ -354,19 +425,19 @@ mod tests {
             constants
                 .get_expected_signature_size(Algorithm::FnDsa)
                 .unwrap(),
-            1024
+            666
         );
         assert_eq!(
             constants
                 .get_expected_signature_size(Algorithm::FnDsa512)
                 .unwrap(),
-            1024
+            666
         );
         assert_eq!(
             constants
                 .get_expected_signature_size(Algorithm::FnDsa1024)
                 .unwrap(),
-            2048
+            1280
         );
 
         // Test non-signature algorithm (should fail)

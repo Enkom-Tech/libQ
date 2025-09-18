@@ -3,20 +3,17 @@
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
 use alloc::format;
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+use alloc::vec::Vec;
 
 #[cfg(feature = "ml-kem")]
 use lib_q_core::{
     Algorithm,
-    Kem as LibQKem,
+    KemOperations,
 };
 #[cfg(feature = "ml-kem")]
 use lib_q_kem::{
+    LibQKemProvider,
     available_algorithms,
-    create_kem,
 };
 
 use crate::error::{
@@ -30,7 +27,7 @@ use crate::types::*;
 pub struct MlKemImpl {
     variant: HpkeKem,
     #[cfg(feature = "ml-kem")]
-    kem: Box<dyn LibQKem>,
+    provider: LibQKemProvider,
 }
 
 impl MlKemImpl {
@@ -38,21 +35,15 @@ impl MlKemImpl {
     pub fn new(variant: HpkeKem) -> Result<Self, HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
-            let algorithm = match variant {
-                HpkeKem::MlKem512 => Algorithm::MlKem512,
-                HpkeKem::MlKem768 => Algorithm::MlKem768,
-                HpkeKem::MlKem1024 => Algorithm::MlKem1024,
-            };
-
-            let kem = create_kem(algorithm).map_err(|e| {
+            let provider = LibQKemProvider::new().map_err(|e| {
                 HpkeError::kem_error(
                     variant,
                     KemOperation::KeyGeneration,
-                    format!("Failed to create KEM: {}", e),
+                    format!("Failed to create KEM provider: {}", e),
                 )
             })?;
 
-            Ok(Self { variant, kem })
+            Ok(Self { variant, provider })
         }
 
         #[cfg(not(feature = "ml-kem"))]
@@ -71,15 +62,27 @@ impl Kem for MlKemImpl {
     fn generate_keypair(&self) -> Result<(Vec<u8>, Vec<u8>), HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
-            let keypair = self.kem.generate_keypair().map_err(|e| {
-                HpkeError::kem_error(
-                    self.variant,
-                    KemOperation::KeyGeneration,
-                    format!("Key generation failed: {}", e),
-                )
-            })?;
+            let algorithm = match self.variant {
+                HpkeKem::MlKem512 => Algorithm::MlKem512,
+                HpkeKem::MlKem768 => Algorithm::MlKem768,
+                HpkeKem::MlKem1024 => Algorithm::MlKem1024,
+            };
 
-            Ok((keypair.public_key.data, keypair.secret_key.data))
+            let keypair = self
+                .provider
+                .generate_keypair(algorithm, None)
+                .map_err(|e| {
+                    HpkeError::kem_error(
+                        self.variant,
+                        KemOperation::KeyGeneration,
+                        format!("Key generation failed: {}", e),
+                    )
+                })?;
+
+            Ok((
+                keypair.public_key().as_bytes().to_vec(),
+                keypair.secret_key().as_bytes().to_vec(),
+            ))
         }
 
         #[cfg(not(feature = "ml-kem"))]
@@ -91,18 +94,23 @@ impl Kem for MlKemImpl {
     fn encapsulate(&self, public_key: &[u8]) -> Result<(Vec<u8>, Vec<u8>), HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
-            use lib_q_core::KemPublicKey;
-
-            let pk = KemPublicKey {
-                data: public_key.to_vec(),
+            let algorithm = match self.variant {
+                HpkeKem::MlKem512 => Algorithm::MlKem512,
+                HpkeKem::MlKem768 => Algorithm::MlKem768,
+                HpkeKem::MlKem1024 => Algorithm::MlKem1024,
             };
-            let (ciphertext, shared_secret) = self.kem.encapsulate(&pk).map_err(|e| {
-                HpkeError::kem_error(
-                    self.variant,
-                    KemOperation::Encapsulation,
-                    format!("Encapsulation failed: {}", e),
-                )
-            })?;
+
+            let pk = lib_q_core::KemPublicKey::new(public_key.to_vec());
+            let (ciphertext, shared_secret) = self
+                .provider
+                .encapsulate(algorithm, &pk, None)
+                .map_err(|e| {
+                    HpkeError::kem_error(
+                        self.variant,
+                        KemOperation::Encapsulation,
+                        format!("Encapsulation failed: {}", e),
+                    )
+                })?;
 
             Ok((ciphertext, shared_secret))
         }
@@ -116,18 +124,23 @@ impl Kem for MlKemImpl {
     fn decapsulate(&self, secret_key: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
-            use lib_q_core::KemSecretKey;
-
-            let sk = KemSecretKey {
-                data: secret_key.to_vec(),
+            let algorithm = match self.variant {
+                HpkeKem::MlKem512 => Algorithm::MlKem512,
+                HpkeKem::MlKem768 => Algorithm::MlKem768,
+                HpkeKem::MlKem1024 => Algorithm::MlKem1024,
             };
-            let shared_secret = self.kem.decapsulate(&sk, ciphertext).map_err(|e| {
-                HpkeError::kem_error(
-                    self.variant,
-                    KemOperation::Decapsulation,
-                    format!("Decapsulation failed: {}", e),
-                )
-            })?;
+
+            let sk = lib_q_core::KemSecretKey::new(secret_key.to_vec());
+            let shared_secret = self
+                .provider
+                .decapsulate(algorithm, &sk, ciphertext)
+                .map_err(|e| {
+                    HpkeError::kem_error(
+                        self.variant,
+                        KemOperation::Decapsulation,
+                        format!("Decapsulation failed: {}", e),
+                    )
+                })?;
 
             Ok(shared_secret)
         }

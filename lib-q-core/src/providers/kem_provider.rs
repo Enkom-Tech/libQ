@@ -164,6 +164,40 @@ impl KemOperations for LibQKemProvider {
             }),
         }
     }
+
+    fn derive_public_key(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &KemSecretKey,
+    ) -> Result<KemPublicKey> {
+        // Validate algorithm category
+        self.security_validator
+            .validate_algorithm_category(algorithm, crate::api::AlgorithmCategory::Kem)?;
+
+        // Validate secret key
+        self.security_validator
+            .validate_secret_key(algorithm, secret_key.as_bytes())?;
+
+        // Route to specific algorithm implementation
+        // Note: Actual implementations are provided by the main lib-q crate
+        match algorithm {
+            Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
+                Err(crate::error::Error::NotImplemented {
+                    feature: "ML-KEM implementations are provided by the main lib-q crate"
+                        .to_string(),
+                })
+            }
+            Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
+                feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
+            }),
+            Algorithm::Rcpkc => Err(crate::error::Error::NotImplemented {
+                feature: "RCPKC implementations are provided by the main lib-q crate".to_string(),
+            }),
+            _ => Err(crate::error::Error::InvalidAlgorithm {
+                algorithm: "Algorithm not supported for KEM operations",
+            }),
+        }
+    }
 }
 
 #[cfg(test)]

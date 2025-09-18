@@ -55,6 +55,7 @@ mod hash_types;
 mod internal_block_api;
 mod kmac;
 mod parallelhash;
+mod provider;
 mod shake;
 mod tuplehash;
 mod turbo_shake;
@@ -80,6 +81,9 @@ pub use parallelhash::{
     ParallelHash256,
     ParallelHash256Reader,
 };
+// Re-export provider
+#[cfg(feature = "alloc")]
+pub use provider::LibQHashProvider;
 pub use shake::{
     Shake128 as InternalShake128,
     Shake128Reader as InternalShake128Reader,
@@ -140,7 +144,7 @@ pub const SHAKE_PAD: u8 = 0x1F;
 /// cSHAKE padding value
 pub const CSHAKE_PAD: u8 = 0x04;
 
-/// Hash algorithm types
+/// Hash algorithm types that map to lib-q-core Algorithm enum
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HashAlgorithm {
     /// SHA-3-224
@@ -156,9 +160,9 @@ pub enum HashAlgorithm {
     /// SHAKE256
     Shake256,
     /// cSHAKE128
-    CShake128,
+    Cshake128,
     /// cSHAKE256
-    CShake256,
+    Cshake256,
     /// KangarooTwelve
     KangarooTwelve,
     /// Keccak-224
@@ -197,8 +201,8 @@ impl HashAlgorithm {
             HashAlgorithm::Sha3_512 => 64,
             HashAlgorithm::Shake128 => 16,
             HashAlgorithm::Shake256 => 32,
-            HashAlgorithm::CShake128 => 16,
-            HashAlgorithm::CShake256 => 32,
+            HashAlgorithm::Cshake128 => 16,
+            HashAlgorithm::Cshake256 => 32,
             HashAlgorithm::KangarooTwelve => 32, // Default output size
             HashAlgorithm::Keccak224 => 28,
             HashAlgorithm::Keccak256 => 32,
@@ -243,33 +247,60 @@ pub fn available_algorithms() -> Vec<&'static str> {
     ]
 }
 
-/// Create a hash instance by algorithm name
-pub fn create_hash(algorithm: &str) -> Result<Box<dyn Hash>> {
+/// Map lib-q-core Algorithm to HashAlgorithm
+pub fn algorithm_to_hash_algorithm(algorithm: Algorithm) -> Result<HashAlgorithm> {
     match algorithm {
-        "sha3-224" => Ok(Box::new(Sha3_224Hash::new())),
-        "sha3-256" => Ok(Box::new(Sha3_256Hash::new())),
-        "sha3-384" => Ok(Box::new(Sha3_384Hash::new())),
-        "sha3-512" => Ok(Box::new(Sha3_512Hash::new())),
-        "shake128" => Ok(Box::new(Shake128Hash::new())),
-        "shake256" => Ok(Box::new(Shake256Hash::new())),
-        "cshake128" => Ok(Box::new(CShake128Hash::new())),
-        "cshake256" => Ok(Box::new(CShake256Hash::new())),
-        "kmac128" => Ok(Box::new(Kmac128Hash::new())),
-        "kmac256" => Ok(Box::new(Kmac256Hash::new())),
-        "tuplehash128" => Ok(Box::new(TupleHash128Hash::new())),
-        "tuplehash256" => Ok(Box::new(TupleHash256Hash::new())),
-        "parallelhash128" => Ok(Box::new(ParallelHash128Hash::new())),
-        "parallelhash256" => Ok(Box::new(ParallelHash256Hash::new())),
-        "kangarootwelve" => Ok(Box::new(KangarooTwelveHash::new())),
-        "keccak224" => Ok(Box::new(Keccak224Hash::new())),
-        "keccak256" => Ok(Box::new(Keccak256Hash::new())),
-        "keccak384" => Ok(Box::new(Keccak384Hash::new())),
-        "keccak512" => Ok(Box::new(Keccak512Hash::new())),
-        "turboshake128" => Ok(Box::new(TurboShake128Hash::new())),
-        "turboshake256" => Ok(Box::new(TurboShake256Hash::new())),
+        Algorithm::Sha3_224 => Ok(HashAlgorithm::Sha3_224),
+        Algorithm::Sha3_256 => Ok(HashAlgorithm::Sha3_256),
+        Algorithm::Sha3_384 => Ok(HashAlgorithm::Sha3_384),
+        Algorithm::Sha3_512 => Ok(HashAlgorithm::Sha3_512),
+        Algorithm::Shake128 => Ok(HashAlgorithm::Shake128),
+        Algorithm::Shake256 => Ok(HashAlgorithm::Shake256),
+        Algorithm::CShake128 => Ok(HashAlgorithm::Cshake128),
+        Algorithm::CShake256 => Ok(HashAlgorithm::Cshake256),
+        Algorithm::KangarooTwelve => Ok(HashAlgorithm::KangarooTwelve),
+        Algorithm::Keccak224 => Ok(HashAlgorithm::Keccak224),
+        Algorithm::Keccak256 => Ok(HashAlgorithm::Keccak256),
+        Algorithm::Keccak384 => Ok(HashAlgorithm::Keccak384),
+        Algorithm::Keccak512 => Ok(HashAlgorithm::Keccak512),
+        Algorithm::TurboShake128 => Ok(HashAlgorithm::TurboShake128),
+        Algorithm::TurboShake256 => Ok(HashAlgorithm::TurboShake256),
+        Algorithm::Kmac128 => Ok(HashAlgorithm::Kmac128),
+        Algorithm::Kmac256 => Ok(HashAlgorithm::Kmac256),
+        Algorithm::TupleHash128 => Ok(HashAlgorithm::TupleHash128),
+        Algorithm::TupleHash256 => Ok(HashAlgorithm::TupleHash256),
+        Algorithm::ParallelHash128 => Ok(HashAlgorithm::ParallelHash128),
+        Algorithm::ParallelHash256 => Ok(HashAlgorithm::ParallelHash256),
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: "Unknown hash algorithm",
+            algorithm: "Algorithm is not a hash algorithm",
         }),
+    }
+}
+
+/// Create a hash instance by HashAlgorithm enum
+pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn lib_q_core::Hash>> {
+    match algorithm {
+        HashAlgorithm::Sha3_224 => Ok(Box::new(Sha3_224Hash::new())),
+        HashAlgorithm::Sha3_256 => Ok(Box::new(Sha3_256Hash::new())),
+        HashAlgorithm::Sha3_384 => Ok(Box::new(Sha3_384Hash::new())),
+        HashAlgorithm::Sha3_512 => Ok(Box::new(Sha3_512Hash::new())),
+        HashAlgorithm::Shake128 => Ok(Box::new(Shake128Hash::new())),
+        HashAlgorithm::Shake256 => Ok(Box::new(Shake256Hash::new())),
+        HashAlgorithm::Cshake128 => Ok(Box::new(CShake128Hash::new())),
+        HashAlgorithm::Cshake256 => Ok(Box::new(CShake256Hash::new())),
+        HashAlgorithm::Kmac128 => Ok(Box::new(Kmac128Hash::new())),
+        HashAlgorithm::Kmac256 => Ok(Box::new(Kmac256Hash::new())),
+        HashAlgorithm::TupleHash128 => Ok(Box::new(TupleHash128Hash::new())),
+        HashAlgorithm::TupleHash256 => Ok(Box::new(TupleHash256Hash::new())),
+        HashAlgorithm::ParallelHash128 => Ok(Box::new(ParallelHash128Hash::new())),
+        HashAlgorithm::ParallelHash256 => Ok(Box::new(ParallelHash256Hash::new())),
+        HashAlgorithm::KangarooTwelve => Ok(Box::new(KangarooTwelveHash::new())),
+        HashAlgorithm::Keccak224 => Ok(Box::new(Keccak224Hash::new())),
+        HashAlgorithm::Keccak256 => Ok(Box::new(Keccak256Hash::new())),
+        HashAlgorithm::Keccak384 => Ok(Box::new(Keccak384Hash::new())),
+        HashAlgorithm::Keccak512 => Ok(Box::new(Keccak512Hash::new())),
+        HashAlgorithm::TurboShake128 => Ok(Box::new(TurboShake128Hash::new())),
+        HashAlgorithm::TurboShake256 => Ok(Box::new(TurboShake256Hash::new())),
     }
 }
 
@@ -329,7 +360,9 @@ mod tests {
 
     #[test]
     fn test_invalid_algorithm_name() {
-        let result = create_hash("invalid-algorithm");
+        // Test that we can't create a hash with an invalid algorithm
+        // This test is now covered by the algorithm_to_hash_algorithm function
+        let result = algorithm_to_hash_algorithm(Algorithm::MlDsa65); // Not a hash algorithm
         assert!(result.is_err());
     }
 }

@@ -14,14 +14,28 @@ categories = ["cryptography"]
 lib-q-core = { path = "../lib-q-core" }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
+lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
+rand_core = { version = "0.9", optional = true }
+rand = { version = "0.9", optional = true }
+sha2 = { version = "0.11.0-rc.2", optional = true, default-features = false }
+
+# WASM support
+wasm-bindgen = { version = "0.2.100", optional = true, features = ["serde-serialize"] }
+js-sys = { version = "0.3.77", optional = true }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
+serde_json = { version = "1.0.143", optional = true }
 
 [features]
-default = ["alloc", "ml-dsa"]
+default = ["alloc", "ml-dsa", "std"]
 ml-dsa = ["lib-q-ml-dsa"]
-slh-dsa = []
+slh-dsa = ["lib-q-slh-dsa", "rand_core", "sha2"]
+slh-dsa-std = ["slh-dsa", "rand"]
+slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm_getrandom"]
 fn-dsa = ["lib-q-fn-dsa"]
 std = ["alloc"]
 alloc = []
+no_std = []
+wasm = ["wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json"]
 
 [lib]
 name = "lib_q_sig"
@@ -30,6 +44,19 @@ path = "src/lib.rs"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+criterion = { version = "0.7.0", features = ["html_reports"] }
+
+[[bench]]
+name = "signature_benchmarks"
+harness = false
+required-features = ["std"]
+
+[[bench]]
+name = "integration_benchmarks"
+harness = false
+required-features = ["std"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

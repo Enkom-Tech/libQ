@@ -485,6 +485,43 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        // SHA-2 algorithms
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha224,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-224",
+            description: "SHA-224 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha256,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-256",
+            description: "SHA-256 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha384,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-384",
+            description: "SHA-384 hash function",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha512,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-512",
+            description: "SHA-512 hash function",
+            enabled: true,
+        });
+
         // TurboSHAKE algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::TurboShake128,
@@ -592,7 +629,12 @@ impl AlgorithmRegistry {
                 Algorithm::FnDsa512,
                 Algorithm::FnDsa1024,
             ],
-            AlgorithmCategory::Hash => &[],
+            AlgorithmCategory::Hash => &[
+                Algorithm::Sha224,
+                Algorithm::Sha256,
+                Algorithm::Sha384,
+                Algorithm::Sha512,
+            ],
             AlgorithmCategory::Aead => &[
                 Algorithm::Saturnin,
                 Algorithm::Shake256Aead,

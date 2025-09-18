@@ -12,7 +12,7 @@ use lib_q_core::{
     KemSecretKey,
 };
 use lib_q_hpke::HpkeContext;
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test vector structure for HPKE operations
 #[derive(Debug, Clone)]
@@ -158,7 +158,7 @@ pub fn generate_test_vectors() -> Vec<HpkeTestVector> {
 /// Test HPKE compliance with generated test vectors
 #[test]
 fn test_hpke_rfc9180_compliance() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     let test_vectors = generate_test_vectors();
 
@@ -166,7 +166,9 @@ fn test_hpke_rfc9180_compliance() {
         println!("Testing vector: {}", test_vector.id);
 
         // Generate key pairs for this test vector
-        let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+        let mut kem_ctx = KemContext::with_provider(Box::new(
+            LibQKemProvider::new().expect("Failed to create KEM provider"),
+        ));
         let kem_algorithm = match test_vector.kem.as_str() {
             "ML-KEM-512" => Algorithm::MlKem512,
             "ML-KEM-768" => Algorithm::MlKem768,
@@ -174,12 +176,12 @@ fn test_hpke_rfc9180_compliance() {
             _ => panic!("Unsupported KEM algorithm: {}", test_vector.kem),
         };
 
-        let recipient_keypair = kem_ctx.generate_keypair(kem_algorithm).unwrap();
+        let recipient_keypair = kem_ctx.generate_keypair(kem_algorithm, None).unwrap();
         let recipient_pk = KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
         let recipient_sk = KemSecretKey::new(recipient_keypair.secret_key().as_bytes().to_vec());
 
         let sender_keypair = if test_vector.mode.contains("Auth") {
-            Some(kem_ctx.generate_keypair(kem_algorithm).unwrap())
+            Some(kem_ctx.generate_keypair(kem_algorithm, None).unwrap())
         } else {
             None
         };
@@ -352,12 +354,14 @@ fn test_hpke_rfc9180_compliance() {
 /// Test HPKE error handling with invalid inputs
 #[test]
 fn test_hpke_error_handling() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate valid key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(recipient_keypair.secret_key().as_bytes().to_vec());
 
@@ -371,7 +375,7 @@ fn test_hpke_error_handling() {
     );
 
     // Test with wrong recipient key
-    let wrong_recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let wrong_recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let wrong_recipient_sk =
         KemSecretKey::new(wrong_recipient_keypair.secret_key().as_bytes().to_vec());
 
@@ -401,12 +405,14 @@ fn test_hpke_error_handling() {
 /// Test HPKE with different message sizes
 #[test]
 fn test_hpke_message_sizes() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(recipient_keypair.secret_key().as_bytes().to_vec());
 

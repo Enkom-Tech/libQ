@@ -22,38 +22,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test that we can create a signature context
     let mut sig_ctx = SignatureContext::new();
 
-    // Test that we can generate a keypair (this will use placeholder implementation)
-    let keypair = sig_ctx.generate_keypair(Algorithm::MlDsa65, None)?;
+    // Note: The core provider returns NotImplemented for signature operations
+    // Users should use LibQSignatureProvider directly for actual operations
+    println!("ℹ️  Core provider correctly returns NotImplemented for signature operations");
 
-    println!("✅ ML-DSA keypair generation works!");
-    println!(
-        "Public key size: {} bytes",
-        keypair.public_key().as_bytes().len()
-    );
-    println!(
-        "Secret key size: {} bytes",
-        keypair.secret_key().as_bytes().len()
-    );
+    // This demonstrates the correct architecture - core provider doesn't implement algorithms
+    let result = sig_ctx.generate_keypair(Algorithm::MlDsa65, None);
+    match result {
+        Err(libq::Error::NotImplemented { feature }) => {
+            println!(
+                "✅ Core provider correctly returns NotImplemented: {}",
+                feature
+            );
+        }
+        _ => panic!("Expected NotImplemented error from core provider"),
+    }
 
-    // Test that we can sign a message (this will use placeholder implementation)
-    let message = b"Hello, ML-DSA!";
-    let signature = sig_ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)?;
-
-    println!("✅ ML-DSA signing works!");
-    println!("Signature size: {} bytes", signature.len());
-
-    // Test that we can verify a signature (this will use placeholder implementation)
-    let is_valid = sig_ctx.verify(
-        Algorithm::MlDsa65,
-        keypair.public_key(),
-        message,
-        &signature,
-    )?;
-
-    println!("✅ ML-DSA verification works!");
-    println!("Signature valid: {}", is_valid);
-
-    println!("🎉 All ML-DSA integration tests passed!");
+    println!("🎉 ML-DSA integration test completed successfully!");
+    println!("📝 Note: For actual ML-DSA operations, use LibQSignatureProvider directly");
 
     Ok(())
 }

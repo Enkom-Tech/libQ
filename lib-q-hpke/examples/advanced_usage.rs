@@ -23,7 +23,7 @@ use lib_q_hpke::{
     HpkeKdf,
     HpkeKem,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Advanced HPKE Usage Example ===");
@@ -113,9 +113,9 @@ fn test_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Test with mismatched keys (placeholder implementation note)
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair1 = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
-    let keypair2 = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new()?));
+    let keypair1 = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
+    let keypair2 = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
 
     let recipient_pk1 = KemPublicKey::new(keypair1.public_key().as_bytes().to_vec());
     let recipient_sk2 = KemSecretKey::new(keypair2.secret_key().as_bytes().to_vec());
@@ -141,8 +141,8 @@ fn test_performance() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- Performance Testing ---");
 
     let mut hpke_ctx = HpkeContext::new();
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -165,7 +165,7 @@ fn test_performance() -> Result<(), Box<dyn std::error::Error>> {
     // Test key generation performance
     let start = Instant::now();
     for _ in 0..10 {
-        let _keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+        let _keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
     }
     let duration = start.elapsed();
 
@@ -179,8 +179,8 @@ fn test_message_sizes() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- Testing Different Message Sizes ---");
 
     let mut hpke_ctx = HpkeContext::new();
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());

@@ -10,6 +10,7 @@
 //! - **Low-level API**: Functions accept randomness externally (no_std compatible)
 //! - **High-level API**: Functions generate randomness when std is available
 //! - **External randomness**: Required for key generation and signing operations
+//! - **WASM Support**: JavaScript-compatible bindings for web environments
 //!
 //! ## Usage Examples
 //!
@@ -43,6 +44,25 @@
 //! let is_valid = ml_dsa.verify(keypair.public_key(), b"Hello, ML-DSA!", &signature).unwrap();
 //! assert!(is_valid);
 //! ```
+//!
+//! ### WASM (JavaScript) Environment
+//! ```rust,ignore
+//! use lib_q_sig::ml_dsa::MlDsa;
+//! use js_sys::Uint8Array;
+//!
+//! let ml_dsa = MlDsa::ml_dsa_65();
+//!
+//! // Generate keypair with optional randomness
+//! let keypair = ml_dsa.generate_keypair_wasm(None).unwrap();
+//!
+//! // Sign message
+//! let message = Uint8Array::from(b"Hello, ML-DSA!");
+//! let signature = ml_dsa.sign_wasm(keypair.secret_key(), message, None).unwrap();
+//!
+//! // Verify signature
+//! let is_valid = ml_dsa.verify_wasm(keypair.public_key(), message, signature).unwrap();
+//! assert!(is_valid);
+//! ```
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -51,12 +71,9 @@ use alloc::{
     string::ToString,
     vec::Vec,
 };
-#[cfg(not(feature = "alloc"))]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
 
+#[cfg(feature = "wasm")]
+use js_sys::Uint8Array;
 use lib_q_core::{
     Result,
     SigKeypair,
@@ -72,6 +89,9 @@ use lib_q_ml_dsa::{
     ml_dsa_65,
     ml_dsa_87,
 };
+// WASM support
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::*;
 
 /// CRYSTALS-ML-DSA signature implementation
 ///
@@ -630,4 +650,145 @@ fn test_invalid_signature() {
         .verify(keypair.public_key(), wrong_message, &signature)
         .unwrap();
     assert!(!is_valid);
+}
+
+// WASM bindings for ML-DSA
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+impl MlDsa {
+    /// Generate a keypair for WASM (JavaScript) environment
+    ///
+    /// # Arguments
+    /// * `randomness` - Optional randomness as Uint8Array
+    ///
+    /// # Returns
+    /// * `Result<WasmMlDsaKeyPair, JsValue>` - The keypair or error
+    #[wasm_bindgen]
+    pub fn generate_keypair_wasm(
+        &self,
+        randomness: Option<Uint8Array>,
+    ) -> Result<WasmMlDsaKeyPair, JsValue> {
+        let randomness_array = if let Some(rand) = randomness {
+            let rand_vec = rand.to_vec();
+            if rand_vec.len() != KEY_GENERATION_RANDOMNESS_SIZE {
+                return Err(JsValue::from_str("Invalid randomness size"));
+            }
+            let mut array = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+            array.copy_from_slice(&rand_vec);
+            Some(array)
+        } else {
+            None
+        };
+
+        let keypair = if let Some(rand) = randomness_array {
+            self.generate_keypair_with_randomness(rand)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?
+        } else {
+            self.generate_keypair()
+                .map_err(|e| JsValue::from_str(&e.to_string()))?
+        };
+
+        Ok(WasmMlDsaKeyPair::new(
+            Uint8Array::from(keypair.public_key().as_bytes()),
+            Uint8Array::from(keypair.secret_key().as_bytes()),
+        ))
+    }
+
+    /// Sign a message in WASM (JavaScript) environment
+    ///
+    /// # Arguments
+    /// * `secret_key` - The secret key as Uint8Array
+    /// * `message` - The message to sign as Uint8Array
+    /// * `randomness` - Optional randomness as Uint8Array
+    ///
+    /// # Returns
+    /// * `Result<Uint8Array, JsValue>` - The signature or error
+    #[wasm_bindgen]
+    pub fn sign_wasm(
+        &self,
+        secret_key: Uint8Array,
+        message: Uint8Array,
+        randomness: Option<Uint8Array>,
+    ) -> Result<Uint8Array, JsValue> {
+        let secret_key = SigSecretKey::new(secret_key.to_vec());
+        let message = message.to_vec();
+        let randomness_array = if let Some(rand) = randomness {
+            let rand_vec = rand.to_vec();
+            if rand_vec.len() != SIGNING_RANDOMNESS_SIZE {
+                return Err(JsValue::from_str("Invalid randomness size"));
+            }
+            let mut array = [0u8; SIGNING_RANDOMNESS_SIZE];
+            array.copy_from_slice(&rand_vec);
+            Some(array)
+        } else {
+            None
+        };
+
+        let signature = if let Some(rand) = randomness_array {
+            self.sign_with_randomness(&secret_key, &message, rand)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?
+        } else {
+            self.sign(&secret_key, &message)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?
+        };
+
+        Ok(Uint8Array::from(signature.as_slice()))
+    }
+
+    /// Verify a signature in WASM (JavaScript) environment
+    ///
+    /// # Arguments
+    /// * `public_key` - The public key as Uint8Array
+    /// * `message` - The message as Uint8Array
+    /// * `signature` - The signature to verify as Uint8Array
+    ///
+    /// # Returns
+    /// * `Result<bool, JsValue>` - Verification result or error
+    #[wasm_bindgen]
+    pub fn verify_wasm(
+        &self,
+        public_key: Uint8Array,
+        message: Uint8Array,
+        signature: Uint8Array,
+    ) -> Result<bool, JsValue> {
+        let public_key = SigPublicKey::new(public_key.to_vec());
+        let message = message.to_vec();
+        let signature = signature.to_vec();
+
+        let is_valid = self
+            .verify(&public_key, &message, &signature)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        Ok(is_valid)
+    }
+}
+
+/// WASM-compatible ML-DSA key pair
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub struct WasmMlDsaKeyPair {
+    public_key: Uint8Array,
+    secret_key: Uint8Array,
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+impl WasmMlDsaKeyPair {
+    #[wasm_bindgen(constructor)]
+    pub fn new(public_key: Uint8Array, secret_key: Uint8Array) -> WasmMlDsaKeyPair {
+        WasmMlDsaKeyPair {
+            public_key,
+            secret_key,
+        }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn public_key(&self) -> Uint8Array {
+        self.public_key.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn secret_key(&self) -> Uint8Array {
+        self.secret_key.clone()
+    }
 }

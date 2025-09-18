@@ -20,12 +20,12 @@ use lib_q_hpke::types::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test Auth mode with context setup
 #[test]
 fn test_auth_mode_context_setup() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -38,12 +38,12 @@ fn test_auth_mode_context_setup() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Generate sender key pair for Auth mode
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     // Setup sender context with Auth mode
@@ -106,7 +106,7 @@ fn test_auth_mode_context_setup() {
 /// Test Auth mode with single-shot encryption/decryption
 #[test]
 fn test_auth_mode_single_shot() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -119,12 +119,12 @@ fn test_auth_mode_single_shot() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Generate sender key pair for Auth mode
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     // Test message
@@ -184,7 +184,7 @@ fn test_auth_mode_single_shot() {
 /// Test Auth mode with different sender key pairs
 #[test]
 fn test_auth_mode_different_senders() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -197,16 +197,16 @@ fn test_auth_mode_different_senders() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Generate two different sender key pairs
     let sender1_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender 1 key generation should work");
 
     let sender2_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender 2 key generation should work");
 
     // Test message
@@ -323,7 +323,7 @@ fn test_auth_mode_different_senders() {
 /// Test Auth mode parameter validation
 #[test]
 fn test_auth_mode_parameter_validation() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -336,11 +336,11 @@ fn test_auth_mode_parameter_validation() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let psk = b"test-psk";
@@ -405,17 +405,17 @@ fn test_auth_mode_parameter_validation() {
 /// Test Auth mode with different cipher suites
 #[test]
 fn test_auth_mode_different_cipher_suites() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let plaintext = b"Test message";
@@ -474,11 +474,11 @@ fn test_auth_mode_different_cipher_suites() {
 
     // Generate new key pairs for ML-KEM-768
     let recipient_keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 recipient key generation should work");
 
     let sender_keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 sender key generation should work");
 
     let (enc2, cipher2) = seal_with_mode(
@@ -524,7 +524,7 @@ fn test_auth_mode_different_cipher_suites() {
 /// Test Auth mode vs Base mode differences
 #[test]
 fn test_auth_mode_vs_base_mode() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -537,12 +537,12 @@ fn test_auth_mode_vs_base_mode() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Generate sender key pair for Auth mode
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     // Test message

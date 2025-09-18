@@ -97,7 +97,7 @@
 extern crate alloc;
 
 // Re-export everything from lib-q-core
-pub use lib_q_core::*;
+// Re-export the core provider as the main provider
 // Re-export specific types and functions for convenience
 pub use lib_q_core::{
     // Context types
@@ -107,8 +107,8 @@ pub use lib_q_core::{
     Error,
     HashContext,
     KemContext,
-    // Provider types
-    LibQCryptoProvider,
+    // Core provider types
+    LibQCryptoProvider as CoreLibQCryptoProvider,
     Result,
     SecurityLevel,
     // Security validation
@@ -120,13 +120,30 @@ pub use lib_q_core::{
     algorithms_by_category,
     algorithms_by_security_level,
     init,
+    supported_algorithms,
     version,
+};
+// Re-export specific items from lib-q-core to avoid conflicts
+pub use lib_q_core::{
+    LibQCryptoProvider,
+    Utils,
+    create_aead_context,
+    create_hash_context,
+    create_kem_context,
+    create_signature_context,
 };
 // Re-export from other crates for convenience
 #[cfg(feature = "ml-kem")]
-pub use lib_q_kem::*;
+pub use lib_q_kem::{
+    LibQKemProvider,
+    available_algorithms,
+};
 #[cfg(feature = "ml-dsa")]
-pub use lib_q_sig::*;
+pub use lib_q_sig::{
+    LibQSignatureProvider,
+    available_algorithms,
+    create_signature,
+};
 
 // Note: hash, aead, and utils features are handled by individual crates
 // and don't need separate feature flags in the main lib-q crate
@@ -256,6 +273,11 @@ pub mod wasm {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_core::{
+        CryptoProvider,
+        KemOperations,
+    };
+
     use super::*;
 
     #[test]
@@ -295,31 +317,34 @@ mod tests {
 
         let provider = provider.unwrap();
 
-        // Test KEM operations
+        // Test KEM operations - core provider should always return NotImplemented
         let kem_result = provider
             .kem()
             .unwrap()
             .generate_keypair(Algorithm::MlKem512, None);
+
+        // Core provider always returns NotImplemented for KEM operations
+        assert!(kem_result.is_err());
+        if let Err(Error::NotImplemented { feature }) = kem_result {
+            assert!(
+                feature.contains("ML-KEM implementations are provided by the main lib-q crate")
+            );
+        } else {
+            panic!("Expected NotImplemented error for KEM operations");
+        }
+
+        // Test that lib-q-kem provider works when used directly
         #[cfg(feature = "ml-kem")]
         {
+            let kem_provider = LibQKemProvider::new().unwrap();
+            let kem_result = kem_provider.generate_keypair(Algorithm::MlKem512, None);
             assert!(
                 kem_result.is_ok(),
-                "ML-KEM key generation should succeed with ml-kem feature"
+                "ML-KEM key generation should succeed with lib-q-kem provider"
             );
             let keypair = kem_result.unwrap();
             assert!(!keypair.public_key().as_bytes().is_empty());
             assert!(!keypair.secret_key().as_bytes().is_empty());
-        }
-        #[cfg(not(feature = "ml-kem"))]
-        {
-            assert!(kem_result.is_err());
-            if let Err(Error::NotImplemented { feature }) = kem_result {
-                assert!(
-                    feature.contains("ML-KEM implementations are provided by the main lib-q crate")
-                );
-            } else {
-                panic!("Expected NotImplemented error for KEM without feature flag");
-            }
         }
 
         // Test signature operations - ML-DSA requires feature flag

@@ -3,6 +3,14 @@
 //! This module provides a clean, secure implementation of ML-KEM that
 //! eliminates the deprecated API usage and custom authentication issues.
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
+
 use lib_q_core::{
     Error,
     Kem,
@@ -557,7 +565,7 @@ mod tests {
 
     #[test]
     fn test_secure_array_from_slice() {
-        let data = vec![1, 2, 3, 4];
+        let data = alloc::vec![1, 2, 3, 4];
         let result = secure_array_from_slice::<4>(&data);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), [1, 2, 3, 4]);

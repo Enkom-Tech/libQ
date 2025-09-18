@@ -23,7 +23,7 @@ use lib_q_hpke::types::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test comprehensive algorithm-agnostic design across all primitives
 #[test]
@@ -194,7 +194,7 @@ fn test_algorithm_combination(
     let aad = b"test-hpke-aad";
     let plaintext = b"Hello, comprehensive algorithm-agnostic HPKE!";
 
-    let kem_provider = Box::new(LibQCryptoProvider::new());
+    let kem_provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(kem_provider);
 
     let (hpke_encapsulated_key, hpke_ciphertext) = match seal_with_mode(
@@ -219,7 +219,8 @@ fn test_algorithm_combination(
         }
     };
 
-    let kem_provider_decrypt = Box::new(LibQCryptoProvider::new());
+    let kem_provider_decrypt =
+        Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx_decrypt = KemContext::with_provider(kem_provider_decrypt);
 
     let hpke_decrypted = match open_with_mode(

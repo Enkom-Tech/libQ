@@ -38,6 +38,9 @@ pub trait KemProvider {
     /// Validate a KEM key
     fn validate_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), Self::Error>;
 
+    /// Derive public key from secret key
+    fn derive_public_key(&self, kem: HpkeKem, secret_key: &[u8]) -> Result<Vec<u8>, Self::Error>;
+
     /// Check if the provider supports the given KEM algorithm
     fn supports_kem(&self, kem: HpkeKem) -> bool;
 

@@ -20,13 +20,15 @@ use lib_q_hpke::types::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test PSK mode with context setup
 #[test]
 fn test_psk_mode_context_setup() {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut kem_ctx = KemContext::with_provider(provider);
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let hpke_provider = PostQuantumProvider::new();
 
     // Create cipher suite
@@ -38,7 +40,7 @@ fn test_psk_mode_context_setup() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Create PSK and PSK ID
@@ -99,8 +101,10 @@ fn test_psk_mode_context_setup() {
 /// Test PSK mode with single-shot encryption/decryption
 #[test]
 fn test_psk_mode_single_shot() {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut kem_ctx = KemContext::with_provider(provider);
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let hpke_provider = PostQuantumProvider::new();
 
     // Create cipher suite
@@ -112,7 +116,7 @@ fn test_psk_mode_single_shot() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Create PSK and PSK ID
@@ -172,8 +176,10 @@ fn test_psk_mode_single_shot() {
 /// Test PSK mode with different PSK values
 #[test]
 fn test_psk_mode_different_psks() {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut kem_ctx = KemContext::with_provider(provider);
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let hpke_provider = PostQuantumProvider::new();
 
     // Create cipher suite
@@ -185,7 +191,7 @@ fn test_psk_mode_different_psks() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Test message
@@ -305,8 +311,10 @@ fn test_psk_mode_different_psks() {
 /// Test PSK mode parameter validation
 #[test]
 fn test_psk_mode_parameter_validation() {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut kem_ctx = KemContext::with_provider(provider);
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let hpke_provider = PostQuantumProvider::new();
 
     // Create cipher suite
@@ -318,7 +326,7 @@ fn test_psk_mode_parameter_validation() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let psk = b"test-psk";
@@ -359,7 +367,7 @@ fn test_psk_mode_parameter_validation() {
 
     // Test invalid sender keys in PSK mode
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let result = setup_sender_with_mode(
@@ -384,13 +392,15 @@ fn test_psk_mode_parameter_validation() {
 /// Test PSK mode with different cipher suites
 #[test]
 fn test_psk_mode_different_cipher_suites() {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut kem_ctx = KemContext::with_provider(provider);
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let hpke_provider = PostQuantumProvider::new();
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let psk = b"test-psk";
@@ -451,7 +461,7 @@ fn test_psk_mode_different_cipher_suites() {
 
     // Generate new key pair for ML-KEM-768
     let recipient_keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 key generation should work");
 
     let (enc2, cipher2) = seal_with_mode(

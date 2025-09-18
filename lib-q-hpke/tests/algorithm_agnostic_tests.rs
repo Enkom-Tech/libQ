@@ -17,7 +17,7 @@ use lib_q_hpke::types::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test that HPKE works with different KEM algorithms
 #[test]
@@ -164,7 +164,7 @@ fn test_hpke_mode(
     println!("  Testing {}", test_name);
 
     // Create KEM context with provider
-    let kem_provider = Box::new(LibQCryptoProvider::new());
+    let kem_provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(kem_provider);
 
     // Encrypt
@@ -205,7 +205,8 @@ fn test_hpke_mode(
     );
 
     // Decrypt
-    let kem_provider_decrypt = Box::new(LibQCryptoProvider::new());
+    let kem_provider_decrypt =
+        Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx_decrypt = KemContext::with_provider(kem_provider_decrypt);
     let decrypted = open_with_mode(
         &mut kem_ctx_decrypt,
@@ -269,7 +270,8 @@ fn test_hpke_with_different_kdf_algorithms() {
             let plaintext = b"Hello, post-quantum world!";
 
             // Test encryption/decryption
-            let kem_provider = Box::new(LibQCryptoProvider::new());
+            let kem_provider =
+                Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
             let mut kem_ctx = KemContext::with_provider(kem_provider);
             let (encapsulated_key, ciphertext) = seal_with_mode(
                 &mut kem_ctx,
@@ -288,7 +290,8 @@ fn test_hpke_with_different_kdf_algorithms() {
             )
             .expect("Failed to encrypt");
 
-            let kem_provider_decrypt = Box::new(LibQCryptoProvider::new());
+            let kem_provider_decrypt =
+                Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
             let mut kem_ctx_decrypt = KemContext::with_provider(kem_provider_decrypt);
             let decrypted = open_with_mode(
                 &mut kem_ctx_decrypt,
@@ -346,7 +349,8 @@ fn test_hpke_with_different_aead_algorithms() {
             let plaintext = b"Hello, post-quantum world!";
 
             // Test encryption/decryption
-            let kem_provider = Box::new(LibQCryptoProvider::new());
+            let kem_provider =
+                Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
             let mut kem_ctx = KemContext::with_provider(kem_provider);
             let (encapsulated_key, ciphertext) = seal_with_mode(
                 &mut kem_ctx,
@@ -365,7 +369,8 @@ fn test_hpke_with_different_aead_algorithms() {
             )
             .expect("Failed to encrypt");
 
-            let kem_provider_decrypt = Box::new(LibQCryptoProvider::new());
+            let kem_provider_decrypt =
+                Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
             let mut kem_ctx_decrypt = KemContext::with_provider(kem_provider_decrypt);
             let decrypted = open_with_mode(
                 &mut kem_ctx_decrypt,

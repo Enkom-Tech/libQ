@@ -222,6 +222,16 @@ mod tests {
                 feature: "Mock KEM operations not implemented".to_string(),
             })
         }
+
+        fn derive_public_key(
+            &self,
+            _algorithm: Algorithm,
+            _secret_key: &KemSecretKey,
+        ) -> Result<KemPublicKey> {
+            Err(crate::error::Error::NotImplemented {
+                feature: "Mock KEM operations not implemented".to_string(),
+            })
+        }
     }
 
     #[test]

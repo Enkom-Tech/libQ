@@ -1,118 +1,96 @@
-use libq::{
+//! Integration tests for lib-Q hash functionality
+//!
+//! These tests verify that the hash provider integration works correctly
+//! through the main lib-Q system.
+
+use lib_q_core::api::{
     Algorithm,
-    create_hash_context,
+    AlgorithmCategory,
 };
+use lib_q_core::contexts::HashContext;
+use lib_q_core::error::Error;
+#[cfg(feature = "alloc")]
+use lib_q_hash::LibQHashProvider;
 
+#[cfg(feature = "alloc")]
 #[test]
-fn test_new_hash_algorithms() {
-    // Test the newly added hash algorithms
-    let mut hash_ctx = create_hash_context();
-    let test_data = b"Hello, libQ!";
+fn test_hash_provider_integration() {
+    // Create a hash context
+    let mut ctx = HashContext::new();
 
-    // Test KangarooTwelve - should return NotImplemented with current architecture
-    let kt_result = hash_ctx.hash(Algorithm::KangarooTwelve, test_data);
-    assert!(
-        kt_result.is_err(),
-        "KangarooTwelve should return NotImplemented error with current architecture"
-    );
+    // Create and set the hash provider
+    let provider = LibQHashProvider::new().expect("Failed to create hash provider");
+    ctx.set_provider(Box::new(provider));
 
-    if let Err(libq::Error::NotImplemented { feature }) = kt_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for KangarooTwelve");
+    // Test SHA3-256
+    let test_data = b"Hello, lib-Q!";
+    let result = ctx.hash(Algorithm::Sha3_256, test_data);
+    assert!(result.is_ok(), "SHA3-256 should work through the provider");
+
+    if let Ok(hash) = result {
+        assert_eq!(hash.len(), 32, "SHA3-256 should produce 32-byte hash");
     }
 
-    // Test Keccak algorithms - should return NotImplemented with current architecture
-    let keccak224_result = hash_ctx.hash(Algorithm::Keccak224, test_data);
-    assert!(
-        keccak224_result.is_err(),
-        "Keccak-224 should return NotImplemented error"
-    );
+    // Test SHA3-512
+    let result = ctx.hash(Algorithm::Sha3_512, test_data);
+    assert!(result.is_ok(), "SHA3-512 should work through the provider");
 
-    if let Err(libq::Error::NotImplemented { feature }) = keccak224_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for Keccak-224");
+    if let Ok(hash) = result {
+        assert_eq!(hash.len(), 64, "SHA3-512 should produce 64-byte hash");
     }
 
-    let keccak256_result = hash_ctx.hash(Algorithm::Keccak256, test_data);
-    assert!(
-        keccak256_result.is_err(),
-        "Keccak-256 should return NotImplemented error"
-    );
+    // Test SHAKE128
+    let result = ctx.hash(Algorithm::Shake128, test_data);
+    assert!(result.is_ok(), "SHAKE128 should work through the provider");
 
-    if let Err(libq::Error::NotImplemented { feature }) = keccak256_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for Keccak-256");
+    if let Ok(hash) = result {
+        assert_eq!(hash.len(), 16, "SHAKE128 should produce 16-byte hash");
     }
 
-    let keccak384_result = hash_ctx.hash(Algorithm::Keccak384, test_data);
-    assert!(
-        keccak384_result.is_err(),
-        "Keccak-384 should return NotImplemented error"
-    );
+    // Test SHAKE256
+    let result = ctx.hash(Algorithm::Shake256, test_data);
+    assert!(result.is_ok(), "SHAKE256 should work through the provider");
 
-    if let Err(libq::Error::NotImplemented { feature }) = keccak384_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for Keccak-384");
-    }
-
-    let keccak512_result = hash_ctx.hash(Algorithm::Keccak512, test_data);
-    assert!(
-        keccak512_result.is_err(),
-        "Keccak-512 should return NotImplemented error"
-    );
-
-    if let Err(libq::Error::NotImplemented { feature }) = keccak512_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for Keccak-512");
-    }
-
-    // Test TurboShake algorithms - should return NotImplemented with current architecture
-    let turboshake128_result = hash_ctx.hash(Algorithm::TurboShake128, test_data);
-    assert!(
-        turboshake128_result.is_err(),
-        "TurboShake128 should return NotImplemented error"
-    );
-
-    if let Err(libq::Error::NotImplemented { feature }) = turboshake128_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for TurboShake128");
-    }
-
-    let turboshake256_result = hash_ctx.hash(Algorithm::TurboShake256, test_data);
-    assert!(
-        turboshake256_result.is_err(),
-        "TurboShake256 should return NotImplemented error"
-    );
-
-    if let Err(libq::Error::NotImplemented { feature }) = turboshake256_result {
-        assert!(feature.contains("Hash operations - no provider configured"));
-    } else {
-        panic!("Expected NotImplemented error for TurboShake256");
+    if let Ok(hash) = result {
+        assert_eq!(hash.len(), 32, "SHAKE256 should produce 32-byte hash");
     }
 }
 
+#[cfg(feature = "alloc")]
 #[test]
-fn test_all_hash_algorithms_available() {
-    // Test that all hash algorithms are properly registered and return appropriate errors
-    let mut hash_ctx = create_hash_context();
-    let test_data = b"Test data for algorithm availability";
+fn test_hash_provider_unsupported_algorithm() {
+    // Create a hash context
+    let mut ctx = HashContext::new();
 
-    // Test all hash algorithms to ensure they're properly integrated
-    let algorithms = [
-        Algorithm::Shake128,
-        Algorithm::Shake256,
-        Algorithm::CShake128,
-        Algorithm::CShake256,
+    // Create and set the hash provider
+    let provider = LibQHashProvider::new().expect("Failed to create hash provider");
+    ctx.set_provider(Box::new(provider));
+
+    // Test with a non-hash algorithm (should fail)
+    let test_data = b"Hello, lib-Q!";
+    let result = ctx.hash(Algorithm::MlDsa65, test_data);
+    assert!(result.is_err(), "Non-hash algorithm should fail");
+
+    if let Err(Error::InvalidAlgorithm { .. }) = result {
+        // Expected error type
+    } else {
+        panic!("Expected InvalidAlgorithm error for non-hash algorithm");
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+fn test_hash_provider_algorithm_validation() {
+    // Test that all hash algorithms are properly categorized
+    let hash_algorithms = [
         Algorithm::Sha3_224,
         Algorithm::Sha3_256,
         Algorithm::Sha3_384,
         Algorithm::Sha3_512,
+        Algorithm::Shake128,
+        Algorithm::Shake256,
+        Algorithm::CShake128,
+        Algorithm::CShake256,
         Algorithm::Keccak224,
         Algorithm::Keccak256,
         Algorithm::Keccak384,
@@ -128,26 +106,94 @@ fn test_all_hash_algorithms_available() {
         Algorithm::ParallelHash256,
     ];
 
-    for algorithm in algorithms {
-        let result = hash_ctx.hash(algorithm, test_data);
-        assert!(
-            result.is_err(),
-            "Algorithm {:?} should return NotImplemented error with current architecture",
+    for algorithm in &hash_algorithms {
+        assert_eq!(
+            algorithm.category(),
+            AlgorithmCategory::Hash,
+            "Algorithm {:?} should be categorized as Hash",
             algorithm
         );
+    }
+}
 
-        // Verify the error is NotImplemented
-        if let Err(libq::Error::NotImplemented { feature }) = result {
-            assert!(
-                feature.contains("Hash operations - no provider configured"),
-                "Algorithm {:?} should return appropriate NotImplemented error message",
-                algorithm
-            );
-        } else {
-            panic!(
-                "Algorithm {:?} should return NotImplemented error, got different error type",
-                algorithm
-            );
-        }
+#[cfg(feature = "alloc")]
+#[test]
+fn test_hash_provider_consistency() {
+    // Create a hash context
+    let mut ctx = HashContext::new();
+
+    // Create and set the hash provider
+    let provider = LibQHashProvider::new().expect("Failed to create hash provider");
+    ctx.set_provider(Box::new(provider));
+
+    // Test that the same input produces the same output
+    let test_data = b"Consistent hashing test";
+
+    let hash1 = ctx
+        .hash(Algorithm::Sha3_256, test_data)
+        .expect("First hash should work");
+    let hash2 = ctx
+        .hash(Algorithm::Sha3_256, test_data)
+        .expect("Second hash should work");
+
+    assert_eq!(hash1, hash2, "Same input should produce same hash output");
+
+    // Test that different inputs produce different outputs
+    let different_data = b"Different input data";
+    let hash3 = ctx
+        .hash(Algorithm::Sha3_256, different_data)
+        .expect("Third hash should work");
+
+    assert_ne!(
+        hash1, hash3,
+        "Different inputs should produce different hash outputs"
+    );
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+fn test_hash_provider_empty_input() {
+    // Create a hash context
+    let mut ctx = HashContext::new();
+
+    // Create and set the hash provider
+    let provider = LibQHashProvider::new().expect("Failed to create hash provider");
+    ctx.set_provider(Box::new(provider));
+
+    // Test with empty input
+    let empty_data = b"";
+    let result = ctx.hash(Algorithm::Sha3_256, empty_data);
+    assert!(result.is_ok(), "Empty input should be valid");
+
+    if let Ok(hash) = result {
+        assert_eq!(
+            hash.len(),
+            32,
+            "Empty input should still produce 32-byte hash"
+        );
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+fn test_hash_provider_large_input() {
+    // Create a hash context
+    let mut ctx = HashContext::new();
+
+    // Create and set the hash provider
+    let provider = LibQHashProvider::new().expect("Failed to create hash provider");
+    ctx.set_provider(Box::new(provider));
+
+    // Test with large input (1MB)
+    let large_data = vec![0x42u8; 1024 * 1024];
+    let result = ctx.hash(Algorithm::Sha3_256, &large_data);
+    assert!(result.is_ok(), "Large input should be valid");
+
+    if let Ok(hash) = result {
+        assert_eq!(
+            hash.len(),
+            32,
+            "Large input should still produce 32-byte hash"
+        );
     }
 }

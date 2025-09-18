@@ -7,27 +7,30 @@
 
 use lib_q_core::{
     Algorithm,
+    Kem,
     KemContext,
+    KemPublicKey,
+    KemSecretKey,
 };
 use lib_q_hpke::HpkeKem;
 use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::security::CryptoRng;
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test that AuthEncap/AuthDecap provides proper sender authentication
 #[test]
 fn test_auth_encap_auth_decap_authentication() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     // Generate sender and recipient key pairs
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Test AuthEncap/AuthDecap with proper validation
@@ -65,20 +68,20 @@ fn test_auth_encap_auth_decap_authentication() {
 /// Test that AuthDecap fails with incorrect sender public key
 #[test]
 fn test_auth_decap_fails_with_wrong_sender() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     // Generate three key pairs: sender, recipient, and wrong sender
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let wrong_sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Wrong sender key generation should work");
 
     let hpke_provider = PostQuantumProvider::new();
@@ -111,18 +114,18 @@ fn test_auth_decap_fails_with_wrong_sender() {
 /// Test that AuthEncap/AuthDecap works with different ML-KEM variants
 #[test]
 fn test_auth_encap_auth_decap_ml_kem_variants() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     let hpke_provider = PostQuantumProvider::new();
 
     // Test with ML-KEM-768
     let sender_keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair_768 = kem_ctx
-        .generate_keypair(Algorithm::MlKem768)
+        .generate_keypair(Algorithm::MlKem768, None)
         .expect("Recipient key generation should work");
 
     let (encapsulated_key_768, shared_secret_768) = hpke_provider
@@ -150,11 +153,11 @@ fn test_auth_encap_auth_decap_ml_kem_variants() {
 
     // Test with ML-KEM-1024
     let sender_keypair_1024 = kem_ctx
-        .generate_keypair(Algorithm::MlKem1024)
+        .generate_keypair(Algorithm::MlKem1024, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair_1024 = kem_ctx
-        .generate_keypair(Algorithm::MlKem1024)
+        .generate_keypair(Algorithm::MlKem1024, None)
         .expect("Recipient key generation should work");
 
     let (encapsulated_key_1024, shared_secret_1024) = hpke_provider
@@ -184,20 +187,19 @@ fn test_auth_encap_auth_decap_ml_kem_variants() {
 /// Test that derive_public_key works correctly
 #[test]
 fn test_derive_public_key() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     // Generate a key pair
     let keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Key generation should work");
 
     let hpke_provider = PostQuantumProvider::new();
 
     // Test that we can derive the public key from the secret key
     // This is used internally by auth_encapsulate
-    let kem_impl =
-        lib_q_kem::create_kem(Algorithm::MlKem512).expect("Should be able to create KEM instance");
+    let kem_impl = lib_q_kem::ml_kem::MlKem512Impl::default();
 
     let derived_public_key = kem_impl
         .derive_public_key(&lib_q_core::KemSecretKey::new(
@@ -216,16 +218,16 @@ fn test_derive_public_key() {
 /// Test that authentication provides cryptographic proof of sender identity
 #[test]
 fn test_authentication_cryptographic_proof() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     // Generate sender and recipient key pairs
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     let hpke_provider = PostQuantumProvider::new();
@@ -241,8 +243,7 @@ fn test_authentication_cryptographic_proof() {
         .expect("AuthEncap should succeed");
 
     // Perform standard encapsulation for comparison
-    let kem_impl =
-        lib_q_kem::create_kem(Algorithm::MlKem512).expect("Should be able to create KEM instance");
+    let kem_impl = lib_q_kem::ml_kem::MlKem512Impl::default();
 
     let (standard_encapsulated_key, standard_shared_secret) = kem_impl
         .encapsulate(&lib_q_core::KemPublicKey::new(

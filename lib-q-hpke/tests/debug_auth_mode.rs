@@ -18,12 +18,12 @@ use lib_q_hpke::types::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Debug Auth mode step by step
 #[test]
 fn debug_auth_mode() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
     let hpke_provider = PostQuantumProvider::new();
 
@@ -36,12 +36,12 @@ fn debug_auth_mode() {
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Generate sender key pair for Auth mode
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     println!(

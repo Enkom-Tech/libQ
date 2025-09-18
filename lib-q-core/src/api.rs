@@ -61,6 +61,11 @@ pub trait KemOperations {
         secret_key: &KemSecretKey,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>>;
+    fn derive_public_key(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &KemSecretKey,
+    ) -> Result<KemPublicKey>;
 }
 
 /// Digital Signature operations
@@ -183,6 +188,14 @@ pub enum Algorithm {
     ParallelHash128,
     ParallelHash256,
 
+    // SHA-2 algorithms
+    Sha224,
+    Sha256,
+    Sha384,
+    Sha512,
+    Sha512_224,
+    Sha512_256,
+
     // AEAD algorithms
     Saturnin,
     Shake256Aead,
@@ -249,7 +262,13 @@ impl Algorithm {
             Algorithm::TupleHash128 |
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 => 0,
+            Algorithm::ParallelHash256 |
+            Algorithm::Sha224 |
+            Algorithm::Sha256 |
+            Algorithm::Sha384 |
+            Algorithm::Sha512 |
+            Algorithm::Sha512_224 |
+            Algorithm::Sha512_256 => 0,
 
             // AEAD algorithms
             Algorithm::Saturnin => 1,
@@ -308,7 +327,13 @@ impl Algorithm {
             Algorithm::TupleHash128 |
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
+            Algorithm::ParallelHash256 |
+            Algorithm::Sha224 |
+            Algorithm::Sha256 |
+            Algorithm::Sha384 |
+            Algorithm::Sha512 |
+            Algorithm::Sha512_224 |
+            Algorithm::Sha512_256 => AlgorithmCategory::Hash,
 
             // AEAD algorithms
             Algorithm::Saturnin | Algorithm::Shake256Aead | Algorithm::KemAead => {
@@ -403,6 +428,12 @@ impl core::fmt::Display for Algorithm {
             Algorithm::Keccak256 => write!(f, "Keccak-256"),
             Algorithm::Keccak384 => write!(f, "Keccak-384"),
             Algorithm::Keccak512 => write!(f, "Keccak-512"),
+            Algorithm::Sha224 => write!(f, "SHA-224"),
+            Algorithm::Sha256 => write!(f, "SHA-256"),
+            Algorithm::Sha384 => write!(f, "SHA-384"),
+            Algorithm::Sha512 => write!(f, "SHA-512"),
+            Algorithm::Sha512_224 => write!(f, "SHA-512/224"),
+            Algorithm::Sha512_256 => write!(f, "SHA-512/256"),
 
             // AEAD algorithms
             Algorithm::Saturnin => write!(f, "Saturnin"),

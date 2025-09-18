@@ -19,7 +19,7 @@ use lib_q_hpke::{
     HpkeKem,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 use rand::{
     Rng,
     SeedableRng,
@@ -265,12 +265,12 @@ fn fuzz_hpke_context_state_transitions() {
     let mut rng = ChaCha20Rng::from_seed([7u8; 32]);
     
     for _ in 0..100 {
-        let provider = Box::new(LibQCryptoProvider::new());
+        let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
         let mut hpke_ctx = HpkeContext::with_provider(provider);
         
         // Generate valid key pair
-        let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-        let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+        let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new().expect("Failed to create KEM provider")));
+        let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
         
         let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
         let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -314,7 +314,7 @@ fn fuzz_hpke_context_state_transitions() {
 /// Fuzzing test for sequence number overflow handling
 #[test]
 fn fuzz_sequence_number_overflow() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     
     // Generate valid key pair
@@ -353,12 +353,12 @@ fn fuzz_memory_safety_large_inputs() {
     let mut rng = ChaCha20Rng::from_seed([8u8; 32]);
     
     for _ in 0..10 {
-        let provider = Box::new(LibQCryptoProvider::new());
+        let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
         let mut hpke_ctx = HpkeContext::with_provider(provider);
         
         // Generate valid key pair
-        let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-        let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+        let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new().expect("Failed to create KEM provider")));
+        let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
         
         let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
         let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());

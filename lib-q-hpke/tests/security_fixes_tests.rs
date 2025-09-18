@@ -15,7 +15,7 @@ use lib_q_hpke::{
     HpkeKdf,
     HpkeKem,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test that KangarooTwelve-based RNG is available and working
 #[test]
@@ -79,16 +79,16 @@ fn test_kangaroo_twelve_rng_availability() {
 /// Test that AuthEncap/AuthDecap implementations are properly fixed
 #[test]
 fn test_auth_encap_auth_decap_fixes() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
 
     // Generate sender and recipient key pairs
     let sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Sender key generation should work");
 
     let recipient_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512)
+        .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
     // Test AuthEncap/AuthDecap with proper validation
@@ -232,7 +232,7 @@ fn test_auth_decap_invalid_key_sizes() {
 /// Test that HPKE context creation works with secure RNG
 #[test]
 fn test_hpke_context_with_secure_rng() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let _hpke_ctx = HpkeContext::with_provider(provider);
 
     // Context creation should not panic

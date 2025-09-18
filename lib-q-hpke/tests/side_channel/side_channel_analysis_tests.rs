@@ -18,7 +18,7 @@ use lib_q_hpke::{
     HpkeKdf,
     HpkeKem,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 use std::time::{Duration, Instant};
 
 /// Test constant-time key comparison

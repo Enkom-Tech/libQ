@@ -39,6 +39,7 @@ rand = "0.9.2"
 [features]
 default = []
 std = [] # Compatibility feature for CI/testing
+alloc = [] # Enable alloc support for Vec and other collections
 # Enable ml-kem (FIPS 203 standard) with modern dependencies
 ml-kem = [
     "dep:lib-q-ml-kem",
@@ -46,6 +47,7 @@ ml-kem = [
     "rand",
     "rand_core",
     "lib-q-core/std",
+    "alloc",
 ]
 
 # Enable WASM support

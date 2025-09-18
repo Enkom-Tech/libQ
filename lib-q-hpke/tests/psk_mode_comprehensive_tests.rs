@@ -15,17 +15,19 @@ use lib_q_hpke::{
     HpkeContext,
     HpkeMode,
 };
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 /// Test PSK mode basic functionality
 #[test]
 fn test_psk_mode_basic_functionality() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -74,12 +76,14 @@ fn test_psk_mode_basic_functionality() {
 /// Test PSK mode with different PSK values
 #[test]
 fn test_psk_mode_different_psk_values() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -130,12 +134,14 @@ fn test_psk_mode_different_psk_values() {
 /// Test PSK mode authentication - wrong PSK should fail
 #[test]
 fn test_psk_mode_authentication() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -200,12 +206,14 @@ fn test_psk_mode_authentication() {
 /// Test PSK mode with different PSK IDs
 #[test]
 fn test_psk_mode_different_psk_ids() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -270,12 +278,14 @@ fn test_psk_mode_different_psk_ids() {
 /// Test PSK mode key export functionality
 #[test]
 fn test_psk_mode_key_export() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -325,12 +335,14 @@ fn test_psk_mode_key_export() {
 /// Test PSK mode with multiple messages
 #[test]
 fn test_psk_mode_multiple_messages() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
@@ -381,12 +393,14 @@ fn test_psk_mode_multiple_messages() {
 /// Test PSK mode error handling
 #[test]
 fn test_psk_mode_error_handling() {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512).unwrap();
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None).unwrap();
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 

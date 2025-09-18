@@ -15,18 +15,19 @@ use lib_q_core::{
     KemSecretKey,
 };
 use lib_q_hpke::HpkeContext;
-use libq::LibQCryptoProvider;
+use lib_q_kem::LibQKemProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Basic HPKE Usage Example ===");
 
-    // Create HPKE context
-    let mut hpke_ctx = HpkeContext::new();
+    // Create HPKE context with provider
+    let provider = Box::new(LibQKemProvider::new()?);
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
     println!("✓ Created HPKE context");
 
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQKemProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512, None)?;
     println!("✓ Generated ML-KEM-512 key pair");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -93,7 +94,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for (algorithm, name) in algorithms {
-        let keypair = kem_ctx.generate_keypair(algorithm)?;
+        let keypair = kem_ctx.generate_keypair(algorithm, None)?;
         let pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
         let sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 

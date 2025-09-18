@@ -258,9 +258,11 @@ fn test_setup_sender_with_cipher_suite() {
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 
     // Create a test key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(libq::LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        lib_q_kem::LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(lib_q_core::Algorithm::MlKem512)
+        .generate_keypair(lib_q_core::Algorithm::MlKem512, None)
         .expect("Key generation should work");
     let recipient_pk = lib_q_core::KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
 
@@ -300,9 +302,11 @@ fn test_setup_receiver_with_cipher_suite() {
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 
     // Create a test key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(libq::LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        lib_q_kem::LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
     let keypair = kem_ctx
-        .generate_keypair(lib_q_core::Algorithm::MlKem512)
+        .generate_keypair(lib_q_core::Algorithm::MlKem512, None)
         .expect("Key generation should work");
     let recipient_sk = lib_q_core::KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
