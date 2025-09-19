@@ -153,6 +153,11 @@ lib-Q/
 ### Implemented Features
 - ✅ **ML-DSA** (FIPS 204, 44, 65, 87) - Complete with provider pattern integration
 - ✅ **FN-DSA** (FIPS 206, Level 1, 5) - Complete implementation with CI/CD integration
+- ✅ **SLH-DSA** (FIPS 205, Level 1, 3, 5) - Complete implementation with all 12 parameter sets
+- ✅ **ML-KEM** (FIPS 203, Level 1, 3, 5) - Complete KEM implementation
+- ✅ **DAWN KEM** - Complete NTRU-based KEM with all parameter sets (α-512, α-1024, β-512, β-1024)
+- ✅ **Saturnin AEAD** - Complete post-quantum symmetric encryption with AEAD, block cipher, hash, and stream modes
+- ✅ **HPKE** - Complete RFC 9180 compliant Hybrid Public Key Encryption system
 - ✅ **Core Architecture** - Provider pattern with clean separation of interfaces
 - ✅ **Hash Functions** - SHA3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash
 - ✅ **WASM Support** - Basic WASM bindings for web environments
@@ -161,14 +166,10 @@ lib-Q/
 - ✅ **CI/CD Integration** - Complete testing, security validation, and publishing workflows
 
 ### In Progress
-- 🔄 **Saturnin AEAD** - Post-quantum symmetric encryption implementation
-- 🔄 **HPKE** - Four-tier Hybrid Public Key Encryption system
-- 🔄 **DAWN KEM** - NTRU-based key encapsulation mechanism
 - 🔄 **RCPKC** - Randomized Concatenated Public Key Cryptography
 
 ### Planned
 - 📋 **Additional KEMs** - CB-KEM, HQC post-core completion
-- 📋 **Additional Signatures** - SLH-DSA post-core completion
 - 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
 
 ## Documentation

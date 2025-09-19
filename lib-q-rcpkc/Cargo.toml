@@ -12,11 +12,12 @@ keywords = ["cryptography", "post-quantum", "hybrid", "rcpkc", "defense-in-depth
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core" }
+lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
+zeroize = { version = "1.8.1", default-features = false }
 
 # Rand dependencies for key generation
-rand = { version = "0.9.2", optional = true }
-rand_core = { version = "0.9.3", optional = true }
+rand = "0.9.2"
+rand_core = "0.9.3"
 
 # WASM bindings
 wasm-bindgen = { version = "0.2.101", optional = true }

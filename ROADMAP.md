@@ -46,10 +46,12 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] Encapsulation/Decapsulation
   - [ ] Performance optimization
   - [ ] Security audit
-- [ ] DAWN (NTRU-based)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
+- [x] DAWN (NTRU-based)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
+  - [x] All parameter sets (α-512, α-1024, β-512, β-1024)
+  - [x] Complete test coverage
   - [ ] Performance optimization
 - [ ] RCPKC (Randomized Concatenated Public Key Cryptography)
   - [ ] Core implementation
@@ -72,33 +74,59 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] Key generation
   - [x] Signing/Verification
   - [ ] Performance optimization
-- [ ] FN-DSA (FIPS 206)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
+- [x] FN-DSA (FIPS 206, Level 1, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [x] All parameter sets
   - [ ] Performance optimization
-- [ ] SLH-DSA (FIPS 205, Level 1, 3, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
+- [x] SLH-DSA (FIPS 205, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [x] All 12 parameter sets (SHA2-128f/s, SHA2-192f/s, SHA2-256f/s, SHAKE-128f/s, SHAKE-192f/s, SHAKE-256f/s)
+  - [x] Complete test coverage
+  - [ ] Performance optimization
 
 ## Phase 2: High-Level APIs
 
 ### Authenticated Encryption
-- [ ] Saturnin AEAD implementation
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encryption/Decryption
+- [x] Saturnin AEAD implementation
+  - [x] Core AEAD mode
+  - [x] Block cipher mode
+  - [x] Hash function mode
+  - [x] Stream cipher mode
+  - [x] Complete test coverage
   - [ ] Performance optimization
-- [ ] Post-quantum AEAD construction
-- [ ] KEM-based encryption
-- [ ] Streaming encryption support
-- [ ] Nonce management
+- [x] Post-quantum AEAD construction
+  - [x] Saturnin AEAD implementation
+  - [x] SHAKE256 AEAD implementation
+  - [x] KEM-based AEAD construction
+  - [x] HPKE AEAD integration
+- [x] KEM-based encryption
+  - [x] HPKE (RFC 9180) implementation
+  - [x] KEM-AEAD direct encryption
+  - [x] Provider pattern integration
+- [x] Streaming encryption support
+  - [x] Saturnin stream cipher
+  - [x] SHAKE256 stream mode
+  - [x] CTR mode streaming
+- [x] Nonce management
+  - [x] Secure nonce generation
+  - [x] Uniqueness checking and collision detection
+  - [x] Global nonce manager with thread safety
+  - [x] Counter-based and random nonce support
 
 ### Hybrid Public Key Encryption (HPKE)
-- [ ] Tier 1: Ultra-Secure HPKE (Pure post-quantum with SHAKE256-based AEAD)
-- [ ] Tier 2: Balanced HPKE (Post-quantum KEM + Saturnin AEAD)
-- [ ] Tier 3: Performance HPKE (Post-quantum KEM + optimized Saturnin)
+- [x] RFC 9180 compliant HPKE implementation
+  - [x] ML-KEM integration (512, 768, 1024)
+  - [x] SHAKE256 and SHA3 KDF support
+  - [x] Saturnin and SHAKE256 AEAD support
+  - [x] Complete test suite (95+ tests)
+  - [x] Provider pattern integration
+- [x] Tier 1: Ultra-Secure HPKE (Pure post-quantum with SHAKE256-based AEAD)
+- [x] Tier 2: Balanced HPKE (Post-quantum KEM + Saturnin AEAD)
+- [x] Tier 3: Performance HPKE (Post-quantum KEM + optimized Saturnin)
 - [ ] Tier 4: Hybrid Security HPKE (RCPKC with algorithm diversity)
 - [ ] HPKE performance benchmarking
 - [ ] HPKE constant-time verification
