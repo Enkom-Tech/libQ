@@ -123,15 +123,6 @@ impl KemOperations for LibQKemProvider {
                 })
             }
 
-            // RCPKC KEM algorithm
-            #[cfg(feature = "rcpkc")]
-            Algorithm::Rcpkc => {
-                // TODO: Implement RCPKC KEM when available
-                Err(Error::NotImplemented {
-                    feature: "RCPKC KEM implementation not yet available".to_string(),
-                })
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -142,10 +133,6 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
-            }),
-            #[cfg(not(feature = "rcpkc"))]
-            Algorithm::Rcpkc => Err(Error::NotImplemented {
-                feature: "RCPKC KEM implementation requires 'rcpkc' feature flag".to_string(),
             }),
 
             _ => Err(Error::InvalidAlgorithm {
@@ -201,15 +188,6 @@ impl KemOperations for LibQKemProvider {
                 })
             }
 
-            // RCPKC KEM algorithm
-            #[cfg(feature = "rcpkc")]
-            Algorithm::Rcpkc => {
-                // TODO: Implement RCPKC KEM when available
-                Err(Error::NotImplemented {
-                    feature: "RCPKC KEM implementation not yet available".to_string(),
-                })
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -220,10 +198,6 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
-            }),
-            #[cfg(not(feature = "rcpkc"))]
-            Algorithm::Rcpkc => Err(Error::NotImplemented {
-                feature: "RCPKC KEM implementation requires 'rcpkc' feature flag".to_string(),
             }),
 
             _ => Err(Error::InvalidAlgorithm {
@@ -278,15 +252,6 @@ impl KemOperations for LibQKemProvider {
                 })
             }
 
-            // RCPKC KEM algorithm
-            #[cfg(feature = "rcpkc")]
-            Algorithm::Rcpkc => {
-                // TODO: Implement RCPKC KEM when available
-                Err(Error::NotImplemented {
-                    feature: "RCPKC KEM implementation not yet available".to_string(),
-                })
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -297,10 +262,6 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
-            }),
-            #[cfg(not(feature = "rcpkc"))]
-            Algorithm::Rcpkc => Err(Error::NotImplemented {
-                feature: "RCPKC KEM implementation requires 'rcpkc' feature flag".to_string(),
             }),
 
             _ => Err(Error::InvalidAlgorithm {
@@ -350,15 +311,6 @@ impl KemOperations for LibQKemProvider {
                 })
             }
 
-            // RCPKC KEM algorithm
-            #[cfg(feature = "rcpkc")]
-            Algorithm::Rcpkc => {
-                // TODO: Implement RCPKC KEM when available
-                Err(Error::NotImplemented {
-                    feature: "RCPKC KEM implementation not yet available".to_string(),
-                })
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -369,10 +321,6 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
-            }),
-            #[cfg(not(feature = "rcpkc"))]
-            Algorithm::Rcpkc => Err(Error::NotImplemented {
-                feature: "RCPKC KEM implementation requires 'rcpkc' feature flag".to_string(),
             }),
 
             _ => Err(Error::InvalidAlgorithm {
@@ -401,7 +349,7 @@ impl CryptoProvider for LibQKemProvider {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
 
@@ -475,25 +423,6 @@ mod tests {
                 panic!("Expected NotImplemented error");
             }
         }
-
-        // Test RCPKC without feature flag
-        #[cfg(not(feature = "rcpkc"))]
-        {
-            let result = provider.generate_keypair(Algorithm::Rcpkc, None);
-            assert!(
-                result.is_err(),
-                "Should return error when feature flag is not enabled"
-            );
-
-            if let Err(Error::NotImplemented { feature }) = result {
-                assert!(
-                    feature.contains("RCPKC KEM implementation requires 'rcpkc' feature flag"),
-                    "Error should mention feature flag requirement"
-                );
-            } else {
-                panic!("Expected NotImplemented error");
-            }
-        }
     }
 
     #[test]
@@ -530,18 +459,6 @@ mod tests {
                 assert!(feature.contains("DAWN KEM implementation not yet available"));
             } else {
                 panic!("Expected NotImplemented error for DAWN");
-            }
-        }
-
-        #[cfg(feature = "rcpkc")]
-        {
-            let result = provider.generate_keypair(Algorithm::Rcpkc, None);
-            // Should return NotImplemented since RCPKC is not yet implemented
-            assert!(result.is_err());
-            if let Err(Error::NotImplemented { feature }) = result {
-                assert!(feature.contains("RCPKC KEM implementation not yet available"));
-            } else {
-                panic!("Expected NotImplemented error for RCPKC");
             }
         }
     }

@@ -176,7 +176,6 @@ impl WasmProviderManager {
 
         // Add optional algorithms based on features
         algorithms.push("dawn".to_string());
-        algorithms.push("rcpkc".to_string());
 
         algorithms
     }

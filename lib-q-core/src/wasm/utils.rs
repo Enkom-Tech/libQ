@@ -168,7 +168,6 @@ pub fn is_feature_available(feature: &str) -> bool {
         "fn-dsa" => cfg!(feature = "fn-dsa"),
         "saturnin" => cfg!(feature = "saturnin"),
         "dawn" => cfg!(feature = "dawn"),
-        "rcpkc" => cfg!(feature = "rcpkc"),
         "hash" => cfg!(feature = "hash"),
         "wasm" => true,
         _ => false,
@@ -189,7 +188,6 @@ pub fn get_supported_algorithms() -> String {
     let mut kem_algorithms = Vec::new();
     kem_algorithms.extend(&["ml-kem-512", "ml-kem-768", "ml-kem-1024"]);
     kem_algorithms.push("dawn");
-    kem_algorithms.push("rcpkc");
     algorithms.insert("kem", kem_algorithms);
 
     // Signature algorithms

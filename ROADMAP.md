@@ -53,11 +53,6 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] All parameter sets (α-512, α-1024, β-512, β-1024)
   - [x] Complete test coverage
   - [ ] Performance optimization
-- [ ] RCPKC (Randomized Concatenated Public Key Cryptography)
-  - [ ] Core implementation
-  - [ ] Multi-algorithm integration
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
 - [ ] CB-KEM (Level 1, 3, 4, 5)
   - [ ] Core implementation
   - [ ] Key generation
@@ -127,7 +122,6 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [x] Tier 1: Ultra-Secure HPKE (Pure post-quantum with SHAKE256-based AEAD)
 - [x] Tier 2: Balanced HPKE (Post-quantum KEM + Saturnin AEAD)
 - [x] Tier 3: Performance HPKE (Post-quantum KEM + optimized Saturnin)
-- [ ] Tier 4: Hybrid Security HPKE (RCPKC with algorithm diversity)
 - [ ] HPKE performance benchmarking
 - [ ] HPKE constant-time verification
 

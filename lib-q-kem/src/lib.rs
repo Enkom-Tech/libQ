@@ -16,7 +16,6 @@
 //!
 //! - **ML-KEM**: CRYSTALS-ML-KEM (Levels 1, 3, 4)
 //! - **DAWN**: DAWN KEM (Level 1) - Coming soon
-//! - **RCPKC**: RCPKC KEM (Level 4) - Coming soon
 //!
 //! ## Feature Support
 //!
@@ -108,9 +107,6 @@ pub mod ml_kem;
 /// DAWN KEM implementation
 #[cfg(feature = "dawn")]
 pub use lib_q_dawn::DawnKem as DawnImpl;
-/// RCPKC KEM implementation
-#[cfg(feature = "rcpkc")]
-pub use lib_q_rcpkc::RcpkcKem as RcpkcImpl;
 // Re-export provider
 #[cfg(feature = "alloc")]
 pub use provider::LibQKemProvider;
@@ -130,11 +126,6 @@ pub fn available_algorithms() -> Vec<&'static str> {
         algorithms.extend(["DAWN"]);
     }
 
-    #[cfg(feature = "rcpkc")]
-    {
-        algorithms.extend(["RCPKC"]);
-    }
-
     algorithms
 }
 
@@ -150,8 +141,6 @@ pub fn available_algorithms() -> &'static [&'static str] {
         "ML-KEM-1024",
         #[cfg(feature = "dawn")]
         "DAWN",
-        #[cfg(feature = "rcpkc")]
-        "RCPKC",
     ]
 }
 
@@ -168,9 +157,6 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
 
         #[cfg(feature = "dawn")]
         "dawn" | "DAWN" => Ok(Box::new(DawnImpl::default())),
-
-        #[cfg(feature = "rcpkc")]
-        "rcpkc" | "RCPKC" => Ok(Box::new(RcpkcImpl::default())),
 
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown algorithm",
@@ -276,7 +262,7 @@ pub mod wasm {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
 
@@ -284,7 +270,7 @@ mod tests {
     fn test_available_algorithms() {
         let algorithms = available_algorithms();
         // Should have algorithms if features are enabled
-        #[cfg(any(feature = "ml-kem", feature = "dawn", feature = "rcpkc"))]
+        #[cfg(any(feature = "ml-kem", feature = "dawn"))]
         assert!(
             !algorithms.is_empty(),
             "Should have at least one algorithm when features are enabled"
@@ -370,9 +356,8 @@ mod tests {
         for algorithm in algorithms {
             assert!(
                 algorithm.starts_with("ML-KEM-") ||
-                    algorithm.starts_with("DAWN") ||
-                    algorithm.starts_with("RCPKC"),
-                "Algorithm name '{}' should follow NIST naming conventions",
+                    algorithm.starts_with("DAWN"),
+                    "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm
             );
         }

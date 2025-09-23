@@ -90,7 +90,6 @@ pub fn parse_algorithm_wasm(algorithm: &str) -> Result<crate::api::Algorithm, Js
         "ml-kem-768" => Ok(crate::api::Algorithm::MlKem768),
         "ml-kem-1024" => Ok(crate::api::Algorithm::MlKem1024),
         "dawn" => Ok(crate::api::Algorithm::Dawn),
-        "rcpkc" => Ok(crate::api::Algorithm::Rcpkc),
 
         // Signature algorithms
         "ml-dsa-44" => Ok(crate::api::Algorithm::MlDsa44),

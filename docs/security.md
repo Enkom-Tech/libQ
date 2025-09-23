@@ -52,14 +52,6 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum performance, strong security
 
-#### Tier 4: Hybrid Security (RCPKC)
-- **KEMs**: RCPKC (multiple algorithm combination)
-- **Signatures**: RCPKC signature schemes
-- **Symmetric**: Multiple symmetric algorithms for defense in depth
-- **HPKE**: RCPKC-based HPKE with algorithm diversity
-- **Hash**: SHAKE256, SHAKE128, cSHAKE256
-- **Use Case**: Maximum security through algorithm diversity
-
 ### Zero-Knowledge Proofs (ZKPs)
 All tiers support post-quantum zero-knowledge proofs:
 
@@ -130,9 +122,6 @@ We only use algorithms that have been standardized or are in the final round of 
   - Smaller and faster than Kyber/ML-KEM
   - Reduced ciphertext sizes for efficient transmission
   - Alternative KEM for performance-critical applications
-- **RCPKC**: Randomized Concatenated Public Key Cryptography
-  - Hybrid approach combining multiple public key algorithms
-  - Enhanced security through algorithm diversity
   - Suitable for high-security applications requiring defense in depth
 
 ### Forbidden Classical Algorithms

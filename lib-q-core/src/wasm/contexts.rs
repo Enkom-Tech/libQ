@@ -265,7 +265,7 @@ impl WasmKemContext {
 
     /// Get supported algorithms
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"];
+        let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn"];
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -847,7 +847,7 @@ impl WasmCryptoProvider {
         #[cfg(feature = "wasm")]
         {
             let algorithms = serde_json::json!({
-                "kem": ["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"],
+                "kem": ["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn"],
                 "signature": ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"],
                 "hash": ["sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256"],
                 "aead": ["saturnin", "shake256-aead", "kem-aead"]

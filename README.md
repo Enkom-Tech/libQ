@@ -25,7 +25,7 @@ lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
 - **`lib-q`** - Complete library (re-exports everything)
 - **`lib-q-core`** - Core types and traits
-- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC, DAWN, RCPKC)
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC, DAWN)
 - **`lib-q-sig`** - Digital Signatures (ML-DSA, SLH-DSA)
 - **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
 - **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
@@ -97,7 +97,6 @@ npm install @lib-q/utils
 - **CB-KEM** (Level 1, 3, 4, 5)
 - **HQC** (Level 1, 3, 4, 5)
 - **DAWN** (NTRU-based, smaller and faster)
-- **RCPKC** (Randomized Concatenated Public Key Cryptography)
 
 ### Digital Signatures
 - **ML-DSA** (FIPS 204, Level 1, 3, 5)
@@ -116,7 +115,6 @@ npm install @lib-q/utils
 - **Tier 1: Ultra-Secure** (Pure post-quantum with SHAKE256-based AEAD)
 - **Tier 2: Balanced** (Post-quantum KEM + Saturnin AEAD)
 - **Tier 3: Performance** (Post-quantum KEM + optimized Saturnin)
-- **Tier 4: Hybrid Security** (RCPKC with algorithm diversity)
 
 ### Zero-Knowledge Proofs (ZKPs)
 - **zk-STARKs** (scalable, transparent, post-quantum secure)
@@ -166,7 +164,6 @@ lib-Q/
 - ✅ **CI/CD Integration** - Complete testing, security validation, and publishing workflows
 
 ### In Progress
-- 🔄 **RCPKC** - Randomized Concatenated Public Key Cryptography
 
 ### Planned
 - 📋 **Additional KEMs** - CB-KEM, HQC post-core completion

@@ -81,7 +81,6 @@ impl WasmConversions {
             "mlkem768" | "ml-kem-768" => Ok(Algorithm::MlKem768),
             "mlkem1024" | "ml-kem-1024" => Ok(Algorithm::MlKem1024),
             "dawn" => Ok(Algorithm::Dawn),
-            "rcpkc" => Ok(Algorithm::Rcpkc),
 
             // Signature algorithms
             "mldsa44" | "ml-dsa-44" => Ok(Algorithm::MlDsa44),
@@ -118,7 +117,6 @@ impl WasmConversions {
             Algorithm::MlKem768 => "ml-kem-768".to_string(),
             Algorithm::MlKem1024 => "ml-kem-1024".to_string(),
             Algorithm::Dawn => "dawn".to_string(),
-            Algorithm::Rcpkc => "rcpkc".to_string(),
 
             // Signature algorithms
             Algorithm::MlDsa44 => "ml-dsa-44".to_string(),

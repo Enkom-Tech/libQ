@@ -212,7 +212,7 @@ impl SecureWasmKemContext {
 
     /// Get supported algorithms
     pub fn get_supported_algorithms(&self) -> Result<JsValue, JsValue> {
-        let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn", "rcpkc"];
+        let algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024", "dawn"];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
             Err(error) => Err(error),

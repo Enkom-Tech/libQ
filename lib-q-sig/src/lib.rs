@@ -285,10 +285,10 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
 
 /// Create a signature context for the specified algorithm
 pub fn create_signature_context(algorithm: Algorithm) -> Result<SignatureContext> {
-    // Validate that this is a signature algorithm
-    if algorithm.category() != AlgorithmCategory::Signature {
+    // Validate that this algorithm supports signature operations
+    if !algorithm.supports_category(AlgorithmCategory::Signature) {
         return Err(Error::InvalidAlgorithm {
-            algorithm: "Algorithm is not a signature algorithm",
+            algorithm: "Algorithm does not support signature operations",
         });
     }
 

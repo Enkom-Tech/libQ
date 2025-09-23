@@ -77,9 +77,6 @@ impl KemOperations for LibQKemProvider {
             Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
-            Algorithm::Rcpkc => Err(crate::error::Error::NotImplemented {
-                feature: "RCPKC implementations are provided by the main lib-q crate".to_string(),
-            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -117,9 +114,6 @@ impl KemOperations for LibQKemProvider {
             Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
-            Algorithm::Rcpkc => Err(crate::error::Error::NotImplemented {
-                feature: "RCPKC implementations are provided by the main lib-q crate".to_string(),
-            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -156,9 +150,6 @@ impl KemOperations for LibQKemProvider {
             Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
-            Algorithm::Rcpkc => Err(crate::error::Error::NotImplemented {
-                feature: "RCPKC implementations are provided by the main lib-q crate".to_string(),
-            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -189,9 +180,6 @@ impl KemOperations for LibQKemProvider {
             }
             Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
-            }),
-            Algorithm::Rcpkc => Err(crate::error::Error::NotImplemented {
-                feature: "RCPKC implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",

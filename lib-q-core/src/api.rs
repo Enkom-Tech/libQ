@@ -149,7 +149,6 @@ pub enum Algorithm {
     Hqc192,
     Hqc256,
     Dawn,
-    Rcpkc,
 
     // Signature algorithms
     MlDsa44,
@@ -230,7 +229,6 @@ impl Algorithm {
             Algorithm::CbKem6688128 => 4,
             Algorithm::CbKem6960119 => 4,
             Algorithm::Hqc256 => 4,
-            Algorithm::Rcpkc => 4,
             Algorithm::MlDsa87 => 4,
             Algorithm::SlhDsaSha256256fRobust => 4,
             Algorithm::SlhDsaShake256256fRobust => 4,
@@ -291,8 +289,7 @@ impl Algorithm {
             Algorithm::Hqc128 |
             Algorithm::Hqc192 |
             Algorithm::Hqc256 |
-            Algorithm::Dawn |
-            Algorithm::Rcpkc => AlgorithmCategory::Kem,
+            Algorithm::Dawn => AlgorithmCategory::Kem,
 
             Algorithm::MlDsa44 |
             Algorithm::MlDsa65 |
@@ -338,7 +335,74 @@ impl Algorithm {
             // AEAD algorithms
             Algorithm::Saturnin | Algorithm::Shake256Aead | Algorithm::KemAead => {
                 AlgorithmCategory::Aead
-            }
+            } // Multi-category algorithms
+        }
+    }
+
+    /// Check if an algorithm supports a specific category
+    pub fn supports_category(&self, category: AlgorithmCategory) -> bool {
+        match self {
+            // Pure KEM algorithms
+            Algorithm::MlKem512 |
+            Algorithm::MlKem768 |
+            Algorithm::MlKem1024 |
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 |
+            Algorithm::Hqc128 |
+            Algorithm::Hqc192 |
+            Algorithm::Hqc256 |
+            Algorithm::Dawn => category == AlgorithmCategory::Kem,
+
+            // Pure signature algorithms
+            Algorithm::MlDsa44 |
+            Algorithm::MlDsa65 |
+            Algorithm::MlDsa87 |
+            Algorithm::FnDsa |
+            Algorithm::FnDsa512 |
+            Algorithm::FnDsa1024 |
+            Algorithm::SlhDsaSha256128fRobust |
+            Algorithm::SlhDsaSha256192fRobust |
+            Algorithm::SlhDsaSha256256fRobust |
+            Algorithm::SlhDsaShake256128fRobust |
+            Algorithm::SlhDsaShake256192fRobust |
+            Algorithm::SlhDsaShake256256fRobust => category == AlgorithmCategory::Signature,
+
+            // Pure hash algorithms
+            Algorithm::Shake128 |
+            Algorithm::Shake256 |
+            Algorithm::CShake128 |
+            Algorithm::CShake256 |
+            Algorithm::Sha3_224 |
+            Algorithm::Sha3_256 |
+            Algorithm::Sha3_384 |
+            Algorithm::Sha3_512 |
+            Algorithm::Keccak224 |
+            Algorithm::Keccak256 |
+            Algorithm::Keccak384 |
+            Algorithm::Keccak512 |
+            Algorithm::KangarooTwelve |
+            Algorithm::TurboShake128 |
+            Algorithm::TurboShake256 |
+            Algorithm::Kmac128 |
+            Algorithm::Kmac256 |
+            Algorithm::TupleHash128 |
+            Algorithm::TupleHash256 |
+            Algorithm::ParallelHash128 |
+            Algorithm::ParallelHash256 |
+            Algorithm::Sha224 |
+            Algorithm::Sha256 |
+            Algorithm::Sha384 |
+            Algorithm::Sha512 |
+            Algorithm::Sha512_224 |
+            Algorithm::Sha512_256 => category == AlgorithmCategory::Hash,
+
+            // Pure AEAD algorithms
+            Algorithm::Saturnin | Algorithm::Shake256Aead | Algorithm::KemAead => {
+                category == AlgorithmCategory::Aead
+            } // Multi-category algorithms
         }
     }
 }
@@ -399,7 +463,6 @@ impl core::fmt::Display for Algorithm {
             Algorithm::Hqc192 => write!(f, "HQC-192"),
             Algorithm::Hqc256 => write!(f, "HQC-256"),
             Algorithm::Dawn => write!(f, "DAWN"),
-            Algorithm::Rcpkc => write!(f, "RCPKC"),
 
             // Signature algorithms
             Algorithm::MlDsa44 => write!(f, "ML-DSA-44"),

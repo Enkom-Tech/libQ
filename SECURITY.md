@@ -53,7 +53,6 @@ lib-q includes several security features:
 - **Memory zeroization**: Sensitive data is automatically cleared
 - **Input validation**: All inputs are validated before processing
 - **No unsafe code**: Strict prohibition of unsafe Rust code
-- **Algorithm diversity**: RCPKC provides defense in depth through multiple algorithms
 - **Formal verification ready**: Architecture supports formal verification
 
 ## Security Audit Status

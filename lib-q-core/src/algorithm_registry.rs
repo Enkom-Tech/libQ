@@ -160,15 +160,6 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Rcpkc,
-            category: AlgorithmCategory::Kem,
-            security_level: 4,
-            name: "RCPKC",
-            description: "RCPKC - Randomized Concatenated Public Key Cryptography for enhanced security",
-            enabled: true,
-        });
-
         // Signature algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::MlDsa44,

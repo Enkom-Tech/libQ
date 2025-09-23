@@ -20,7 +20,7 @@ lib-Q Architecture
 │   ├── High-Level Functions
 │   └── Problem-Solving Interfaces
 ├── Algorithm Layer
-│   ├── KEMs (ML-KEM, CB-KEM, HQC, DAWN, RCPKC)
+│   ├── KEMs (ML-KEM, CB-KEM, HQC, DAWN)
 │   ├── Signatures (ML-DSA, FN-DSA, SLH-DSA)
 │   ├── Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
 │   └── AEAD Constructions (Saturnin, SHAKE256-based)
@@ -131,11 +131,6 @@ let recovered = ml_kem.decapsulate(&sk, &enc)?;
    - Symmetric: Post-quantum KEM + Saturnin AEAD (optimized modes)
    - HPKE: Performance HPKE (PQ KEM + Saturnin)
 
-4. **Hybrid Security (Tier 4)**: RCPKC-based defense in depth
-   - KEMs: RCPKC (multiple algorithm combination)
-   - Signatures: RCPKC signature schemes
-   - Symmetric: Multiple post-quantum algorithms
-   - HPKE: RCPKC-based HPKE with algorithm diversity
 
 ### Forbidden Algorithms
 - **KEMs**: RSA, ECC, DH, ECDH
@@ -196,10 +191,6 @@ pub struct Plaintext([u8; MAX_MESSAGE_SIZE]);
    - AEAD: Saturnin (optimized modes)
    - Use Case: Maximum performance, strong security
 
-4. **Hybrid Security HPKE**: RCPKC-based with algorithm diversity
-   - KEM: RCPKC (multiple algorithm combination)
-   - AEAD: Multiple post-quantum algorithms
-   - Use Case: Maximum security through algorithm diversity
 
 ### HPKE Implementation
 
@@ -209,7 +200,6 @@ pub enum SecurityTier {
     UltraSecure,  // Pure post-quantum with SHAKE256-based AEAD
     Balanced,     // Post-quantum with Saturnin AEAD
     Performance,  // Post-quantum with optimized Saturnin
-    Hybrid,       // RCPKC-based with algorithm diversity
 }
 
 pub fn hpke_encrypt(
@@ -272,10 +262,9 @@ let pem_key = format!(
 - **Verification**: < 0.5ms for Level 1, < 2ms for Level 5
 - **HPKE**: < 2ms for encryption/decryption (Saturnin AEAD: < 1ms for balanced tier)
 - **DAWN KEM**: < 0.3ms for encapsulation (smaller ciphertext sizes)
-- **RCPKC**: < 5ms for hybrid operations (multiple algorithm overhead)
 
 ### Memory Requirements
-- **Stack Usage**: < 16KB for all operations (Saturnin: < 8KB, RCPKC: < 20KB)
+- **Stack Usage**: < 16KB for all operations (Saturnin: < 8KB)
 - **Heap Usage**: Zero dynamic allocations
 - **WASM Size**: < 500KB total (with new algorithms: < 600KB)
 - **Runtime Memory**: < 1MB (FN-DSA: compact signatures reduce memory usage)
@@ -289,7 +278,6 @@ let pem_key = format!(
 - **Saturnin Optimization**: Bitsliced implementation for constrained devices
 - **FN-DSA Optimization**: Fast Fourier Transform optimizations for compact signatures
 - **DAWN Optimization**: Double encoding optimizations for smaller ciphertexts
-- **RCPKC Optimization**: Parallel algorithm execution for hybrid security
 
 ## Platform Support
 
@@ -298,7 +286,7 @@ let pem_key = format!(
 - **Optimizations**: SIMD, platform-specific optimizations
 - **Memory Model**: Stack-only operations with secure memory management
 - **Error Handling**: Comprehensive error handling with detailed error types
-- **Algorithm Support**: All post-quantum algorithms (Saturnin, FN-DSA, DAWN, RCPKC)
+- **Algorithm Support**: All post-quantum algorithms (Saturnin, FN-DSA, DAWN)
 
 ### WASM Compilation
 - **Target**: Web browsers and Node.js

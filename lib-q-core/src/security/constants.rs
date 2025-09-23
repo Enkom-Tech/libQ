@@ -108,13 +108,6 @@ impl SecurityConstants {
                 }
             }
             Algorithm::Dawn => 1024,
-            Algorithm::Rcpkc => {
-                if is_secret {
-                    2048
-                } else {
-                    1024
-                }
-            }
 
             // Signature algorithms
             Algorithm::MlDsa44 => {
@@ -231,7 +224,6 @@ impl SecurityConstants {
             Algorithm::MlKem768 => 1088,  // ML-KEM-768 ciphertext size
             Algorithm::MlKem1024 => 1568, // ML-KEM-1024 ciphertext size
             Algorithm::Dawn => 1024,      // DAWN ciphertext size
-            Algorithm::Rcpkc => 1024,     // RCPKC ciphertext size
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {
                     algorithm: "Algorithm does not produce ciphertext",
@@ -378,12 +370,6 @@ mod tests {
         assert_eq!(
             constants
                 .get_expected_ciphertext_size(Algorithm::Dawn)
-                .unwrap(),
-            1024
-        );
-        assert_eq!(
-            constants
-                .get_expected_ciphertext_size(Algorithm::Rcpkc)
                 .unwrap(),
             1024
         );

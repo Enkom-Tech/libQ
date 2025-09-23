@@ -20,9 +20,6 @@ lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = f
 # DAWN KEM implementation
 lib-q-dawn = { path = "../lib-q-dawn", optional = true, default-features = false }
 
-# RCPKC KEM implementation
-lib-q-rcpkc = { path = "../lib-q-rcpkc", optional = true, default-features = false }
-
 # SHA3 for authentication proofs
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
 
@@ -60,7 +57,6 @@ wasm = [
 cb-kem = []
 hqc = []
 dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
-rcpkc = ["dep:lib-q-rcpkc", "lib-q-rcpkc/std"]
 
 [lib]
 name = "lib_q_kem"

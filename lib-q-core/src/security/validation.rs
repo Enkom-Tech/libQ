@@ -58,14 +58,13 @@ impl SecurityValidator {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(())` if the algorithm category matches, or an error if it doesn't.
+    /// Returns `Ok(())` if the algorithm supports the category, or an error if it doesn't.
     pub fn validate_algorithm_category(
         &self,
         algorithm: Algorithm,
         expected_category: AlgorithmCategory,
     ) -> Result<()> {
-        let actual_category = algorithm.category();
-        if actual_category != expected_category {
+        if !algorithm.supports_category(expected_category) {
             return Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm category mismatch",
             });

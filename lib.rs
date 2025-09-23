@@ -15,7 +15,7 @@
 //! # Security Features
 //!
 //! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
-//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, DAWN, and RCPKC
+//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, and DAWN
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
 //!
@@ -50,7 +50,6 @@
 //!     // - For FN-DSA signatures: enable 'fn-dsa' feature
 //!     // - For Saturnin AEAD: enable 'saturnin' feature
 //!     // - For DAWN KEM: enable 'dawn' feature
-//!     // - For RCPKC: enable 'rcpkc' feature
 //!
 //!     Ok(())
 //! }
@@ -66,7 +65,6 @@
 //! - `fn-dsa`: Enable FN-DSA digital signature algorithm
 //! - `saturnin`: Enable Saturnin authenticated encryption
 //! - `dawn`: Enable DAWN key encapsulation mechanism
-//! - `rcpkc`: Enable RCPKC cryptographic primitives
 //! - `all-algorithms`: Enable all available algorithms
 //! - `security-hardened`: Enable comprehensive security features
 //!
