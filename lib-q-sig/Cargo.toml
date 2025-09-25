@@ -15,15 +15,15 @@ lib-q-core = { path = "../lib-q-core" }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
-rand_core = { version = "0.9", optional = true }
-rand = { version = "0.9", optional = true }
+rand_core = { version = "0.9.3", optional = true }
+rand = { version = "0.9.2", optional = true }
 sha2 = { version = "0.11.0-rc.2", optional = true, default-features = false }
 
 # WASM support
-wasm-bindgen = { version = "0.2.100", optional = true, features = ["serde-serialize"] }
-js-sys = { version = "0.3.77", optional = true }
+wasm-bindgen = { version = "0.2.104", optional = true, features = ["serde-serialize"] }
+js-sys = { version = "0.3.81", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
-serde_json = { version = "1.0.143", optional = true }
+serde_json = { version = "1.0.145", optional = true }
 
 [features]
 default = ["alloc", "ml-dsa", "std"]

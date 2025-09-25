@@ -35,7 +35,6 @@ fn main() {
         MLDSA44Signature
     );
 
-    // Temporarily disabled due to unmaintained paste crate dependency
-    // #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    // bench_group_pqclean!("44", mldsa44);
+    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+    bench_group_pqclean!("44", mldsa44);
 }
