@@ -15,7 +15,7 @@ documentation = "https://docs.rs/lib-q-sha2"
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 digest = "0.11.0-rc.2"
-cfg-if = "1.0"
+cfg-if = "1.0.3"
 cpufeatures = "0.2.17"
 zeroize = { version = "1.8.1", optional = true }
 

@@ -70,7 +70,8 @@
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
-#[cfg(feature = "alloc")]
+// Enable alloc crate when not using std or when alloc feature is enabled
+#[cfg(any(not(feature = "std"), feature = "alloc"))]
 extern crate alloc;
 
 // Core modules

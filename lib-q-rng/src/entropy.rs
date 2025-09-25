@@ -17,9 +17,7 @@
 //! platforms and use cases, including OS entropy, hardware RNGs, and
 //! deterministic sources for testing.
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(not(feature = "std"))]
 use alloc::{
     boxed::Box,
     vec::Vec,

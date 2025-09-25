@@ -12,12 +12,9 @@
 //! operations, providing detailed information about failure modes and recovery
 //! strategies.
 
-use core::fmt;
-
-#[cfg(feature = "alloc")]
-extern crate alloc;
-#[cfg(feature = "alloc")]
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
+use core::fmt;
 
 /// Result type alias for lib-q-rng operations
 pub type Result<T> = core::result::Result<T, Error>;

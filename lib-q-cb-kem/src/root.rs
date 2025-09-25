@@ -33,7 +33,6 @@ pub(crate) fn root(out: &mut [Gf; SYS_N], f: &[Gf; SYS_T + 1], l: &[Gf; SYS_N]) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::CRYPTO_PRIMITIVE;
     use crate::test_utils::TestData;
 
     #[test]
@@ -53,6 +52,7 @@ mod tests {
         assert_eq!(expected, inv);
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn test_root() {
         let mut out = [0u16; SYS_N];
@@ -69,7 +69,9 @@ mod tests {
 
         root(&mut out, &f, &l);
 
-        let mut name = format!("{}_root_out_expected", CRYPTO_PRIMITIVE);
+        #[cfg(feature = "alloc")]
+        use alloc::format;
+        let mut name = format!("{}_root_out_expected", crate::api::CRYPTO_PRIMITIVE);
         // NOTE the f-variants equals the non-f variants. We only stored the non-f variants
         name = name.replace("f_root_out", "_root_out");
         let expected = TestData::new().u16vec(&name);

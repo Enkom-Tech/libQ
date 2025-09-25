@@ -118,7 +118,9 @@ mod tests {
             let (x, y) = int32_minmax(x, y);
 
             if x > y {
-                println!(
+                // In no_std environment, we can't use println! for debugging
+                // This is a test assertion failure, so we'll panic instead
+                panic!(
                     "erroneous behaviour with inputs: x: 0x{:016X}i32 y: 0x{:016X}i32",
                     x, y
                 );

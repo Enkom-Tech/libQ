@@ -525,7 +525,4 @@ pub fn decapsulate_boxed(ciphertext: &Ciphertext, secret_key: &SecretKey) -> Sha
     SharedSecret(shared_secret_buf)
 }
 
-// Tests may use `std`
-#[cfg(test)]
-#[macro_use]
-extern crate std;
+// Tests may use `std` - no extern crate needed in Rust 2018+

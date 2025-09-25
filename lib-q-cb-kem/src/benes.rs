@@ -383,23 +383,30 @@ pub(crate) fn support_gen(s: &mut [Gf; SYS_N], c: &[u8; COND_BYTES]) {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-    use std::vec::Vec;
+    #[cfg(feature = "alloc")]
+    use alloc::vec::Vec;
+    use core::convert::TryFrom;
 
     use super::*;
-    use crate::api::CRYPTO_PRIMITIVE;
     use crate::test_utils::TestData;
 
+    #[cfg(feature = "alloc")]
     fn get(name: &str) -> Vec<u64> {
-        let fullname = format!("{}_{}", CRYPTO_PRIMITIVE, name);
+        #[cfg(feature = "alloc")]
+        use alloc::format;
+        let fullname = format!("{}_{}", crate::api::CRYPTO_PRIMITIVE, name);
         TestData::new().u64vec(&fullname)
     }
 
+    #[cfg(feature = "alloc")]
     fn get64(name: &str) -> [u64; 64] {
         <[u64; 64]>::try_from(get(name).as_slice()).unwrap()
     }
 
-    #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+    #[cfg(all(
+        feature = "alloc",
+        any(feature = "cbkem348864", feature = "cbkem348864f")
+    ))]
     #[test]
     fn test_layer() {
         let mut data = [0u64; 64];
@@ -425,7 +432,10 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+    #[cfg(all(
+        feature = "alloc",
+        any(feature = "cbkem348864", feature = "cbkem348864f")
+    ))]
     #[test]
     fn test_layer_2() {
         let mut data_arg = get64("benes_layer_data_before");
@@ -438,7 +448,10 @@ mod tests {
         assert_eq!(actual_data, expected_data);
     }
 
-    #[cfg(not(any(feature = "cbkem348864", feature = "cbkem348864f")))]
+    #[cfg(all(
+        feature = "alloc",
+        not(any(feature = "cbkem348864", feature = "cbkem348864f"))
+    ))]
     #[test]
     fn test_layer_in() {
         let data0_arg = get64("benes_layer_in_data0_before");
@@ -455,7 +468,10 @@ mod tests {
         assert_eq!(actual_data, expected_data);
     }
 
-    #[cfg(not(any(feature = "cbkem348864", feature = "cbkem348864f")))]
+    #[cfg(all(
+        feature = "alloc",
+        not(any(feature = "cbkem348864", feature = "cbkem348864f"))
+    ))]
     #[test]
     fn test_layer_ex() {
         let mut data = [[0u64; 64]; 2];
@@ -495,7 +511,10 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+    #[cfg(all(
+        feature = "alloc",
+        any(feature = "cbkem348864", feature = "cbkem348864f")
+    ))]
     #[test]
     fn test_apply_benes() {
         let t = TestData::new();
@@ -510,7 +529,10 @@ mod tests {
         assert_eq!(actual_r, expected_r);
     }
 
-    #[cfg(not(any(feature = "cbkem348864", feature = "cbkem348864f")))]
+    #[cfg(all(
+        feature = "alloc",
+        not(any(feature = "cbkem348864", feature = "cbkem348864f"))
+    ))]
     #[test]
     fn test_apply_benes() {
         let t = TestData::new();

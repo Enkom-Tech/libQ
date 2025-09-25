@@ -1,5 +1,8 @@
 #![cfg(test)]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 macro_rules! impl_parser_per_type {
     ($name:ident, $bitsize:expr, $t:ty) => {
         /// Parses a testdata file and returns a vector of $ty stored for the given `search_key`.
@@ -7,9 +10,9 @@ macro_rules! impl_parser_per_type {
         ///
         /// I started to write a zero-allocation parser, but it takes many lines of code.
         /// This design allocates, but can be comprehended much easier.
-        pub(crate) fn $name(&self, search_key: &str) -> std::vec::Vec<$t> {
-            use std::convert::TryInto;
-            use std::str;
+        pub(crate) fn $name(&self, search_key: &str) -> alloc::vec::Vec<$t> {
+            use core::convert::TryInto;
+            use core::str;
 
             let content = match str::from_utf8(self.data) {
                 Ok(v) => v,
@@ -39,7 +42,7 @@ macro_rules! impl_parser_per_type {
                 let bytes = hex::decode(value).expect("invalid hex data in value");
                 let bytes_per_element = $bitsize / 8;
                 let elements_count = bytes.len() / bytes_per_element;
-                let mut elements = std::vec::Vec::<$t>::with_capacity(elements_count);
+                let mut elements = alloc::vec::Vec::<$t>::with_capacity(elements_count);
                 for idx in 0..elements_count {
                     let element = &bytes[bytes_per_element * idx..bytes_per_element * (idx + 1)];
                     elements.push(<$t>::from_be_bytes(
@@ -64,16 +67,22 @@ impl TestData {
         TestData { data: bytes }
     }
 
+    #[cfg(feature = "alloc")]
     impl_parser_per_type!(u8vec, 8, u8);
+    #[cfg(feature = "alloc")]
     impl_parser_per_type!(u16vec, 16, u16);
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     impl_parser_per_type!(u32vec, 32, u32);
+    #[cfg(feature = "alloc")]
     impl_parser_per_type!(u64vec, 64, u64);
     //impl_parser_per_type!(i8vec, 8, i8);
-    #[cfg(any(
-        feature = "cbkem348864",
-        feature = "cbkem6960119",
-        feature = "cbkem8192128f"
+    #[cfg(all(
+        feature = "alloc",
+        any(
+            feature = "cbkem348864",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128f"
+        )
     ))]
     impl_parser_per_type!(i16vec, 16, i16);
     //impl_parser_per_type!(i32vec, 32, i32);
