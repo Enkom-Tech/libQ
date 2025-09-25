@@ -67,6 +67,9 @@ fn-dsa = []
 saturnin = []
 dawn = []
 
+# Security validation features
+relaxed_entropy_validation = []
+
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"

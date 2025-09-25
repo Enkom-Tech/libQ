@@ -13,6 +13,7 @@ lib-q-core = { path = "../lib-q-core" }
 lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
 lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
 lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
+lib-q-cb-kem = { path = "../lib-q-cb-kem" }
 
 [[example]]
 name = "hash_example"
@@ -22,3 +23,24 @@ path = "hash_example.rs"
 name = "keccak_no_std_test"
 path = "keccak_no_std_test.rs"
 required-features = []
+
+[[example]]
+name = "cb_kem_example"
+path = "cb_kem_example.rs"
+required-features = ["cb-kem"]
+
+
+[[example]]
+name = "cb_kem_simple_example"
+path = "cb_kem_simple_example.rs"
+required-features = ["cb-kem"]
+
+[[example]]
+name = "cb_kem_production_example"
+path = "cb_kem_production_example.rs"
+required-features = ["cb-kem"]
+
+[[example]]
+name = "cb_kem_testing_example"
+path = "cb_kem_testing_example.rs"
+required-features = ["cb-kem"]

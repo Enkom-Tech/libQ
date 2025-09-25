@@ -312,6 +312,27 @@ impl SecurityValidator {
     pub fn constant_time_compare(&self, a: &[u8], b: &[u8]) -> bool {
         self.timing_validator.constant_time_compare(a, b)
     }
+
+    /// Get immutable access to the entropy validator
+    ///
+    /// This method provides access to the entropy validator for configuration
+    /// and inspection purposes.
+    pub fn entropy_validator(&self) -> &EntropyValidator {
+        &self.entropy_validator
+    }
+
+    /// Get mutable access to the entropy validator
+    ///
+    /// This method provides mutable access to the entropy validator for
+    /// configuration purposes. Use with caution in production environments.
+    ///
+    /// # Security Warning
+    ///
+    /// Disabling entropy validation reduces security. Only use this for
+    /// testing scenarios with deterministic randomness.
+    pub fn entropy_validator_mut(&mut self) -> &mut EntropyValidator {
+        &mut self.entropy_validator
+    }
 }
 
 #[cfg(test)]

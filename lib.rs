@@ -97,6 +97,8 @@ extern crate alloc;
 // Re-export everything from lib-q-core
 // Re-export the core provider as the main provider
 // Re-export specific types and functions for convenience
+#[cfg(feature = "cb-kem")]
+pub use lib_q_cb_kem::LibQCbKemProvider;
 pub use lib_q_core::{
     // Context types
     AeadContext,

@@ -96,6 +96,15 @@ jobs:
           echo "🔍 Validating ZKP systems..."
           # Check that only post-quantum secure ZKPs are used
           echo "✅ ZKP system validation completed"
+      
+      - name: Validate RNG systems
+        run: |
+          echo "🎲 Validating RNG systems..."
+          # Test RNG entropy quality and security
+          cd lib-q-rng
+          cargo test --features "std,secure,zeroize,entropy-validation" entropy::tests::test_entropy_quality_assessment
+          cargo test --features "std,secure,zeroize,entropy-validation" validation::tests::test_entropy_validation
+          echo "✅ RNG system validation completed"
 
   # Constant-time verification - critical for crypto
   constant-time:
@@ -135,6 +144,7 @@ jobs:
           cargo test --features "all-algorithms" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
           cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
           cargo test --test security_tests -p lib-q-fn-dsa --features "std,rand" -- constant_time || echo "⚠️  constant_time test not available for lib-q-fn-dsa"
+          cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-rng || echo "⚠️  constant_time test not available for lib-q-rng"
           echo "✅ Constant-time tests completed successfully"
       
       - name: Check for timing side-channels

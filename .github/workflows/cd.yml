@@ -85,6 +85,7 @@ jobs:
           - package: "lib-q-utils"
           - package: "lib-q-zkp"
           - package: "lib-q-fn-dsa"
+          - package: "lib-q-cb-kem"
           - package: "lib-q"
 
     steps:

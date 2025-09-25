@@ -122,6 +122,19 @@ This document describes the CI/CD pipeline configuration for lib-Q.
     test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
 ```
 
+#### CB-KEM Test Action (`.github/actions/test-cb-kem/`)
+```yaml
+- uses: ./.github/actions/test-cb-kem
+  with:
+    working-directory: "lib-q-cb-kem"
+    features: "cbkem348864,sha3-hash"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
+```
+
 ## Configuration
 
 ### Required Secrets
@@ -152,6 +165,7 @@ NPM_TOKEN: "npm publish token"
 - **`lib-q-utils`** - Utility functions
 - **`lib-q-zkp`** - Zero-Knowledge Proofs
 - **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
+- **`lib-q-cb-kem`** - Classical McEliece KEM (Code-based post-quantum KEM)
 
 ### NPM Packages (npmjs.com)
 - **`@lib-q/core`** - Complete library for Node.js
@@ -204,7 +218,7 @@ NPM_TOKEN: "npm publish token"
 | ML-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | FN-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | ML-KEM | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
-| CB-KEM | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| CB-KEM | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | HQC | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
 | SLH-DSA | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
 | HPKE | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |

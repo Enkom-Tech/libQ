@@ -54,6 +54,25 @@ impl EntropyValidator {
             return Ok(());
         }
 
+        // Allow relaxed validation in testing environments
+        #[cfg(feature = "relaxed_entropy_validation")]
+        {
+            return self.validate_key_entropy_relaxed(key_data);
+        }
+
+        // Strict validation for production
+        #[cfg(not(feature = "relaxed_entropy_validation"))]
+        {
+            self.validate_key_entropy_strict(key_data)
+        }
+    }
+
+    /// Strict entropy validation for production environments
+    ///
+    /// This method implements comprehensive entropy validation suitable for
+    /// production cryptographic operations.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
+    fn validate_key_entropy_strict(&self, key_data: &[u8]) -> Result<()> {
         // Check minimum key length
         let min_key_length = self.min_entropy_bits / 8;
         if key_data.len() < min_key_length {
@@ -90,6 +109,41 @@ impl EntropyValidator {
         Ok(())
     }
 
+    /// Relaxed entropy validation for testing environments
+    ///
+    /// This method implements relaxed entropy validation suitable for testing
+    /// scenarios with deterministic randomness. It only performs basic checks
+    /// to prevent obviously invalid keys while allowing deterministic patterns.
+    #[cfg(feature = "relaxed_entropy_validation")]
+    fn validate_key_entropy_relaxed(&self, key_data: &[u8]) -> Result<()> {
+        // Check minimum key length (relaxed requirement)
+        let min_key_length = 16; // Reduced from 128 bits to 16 bytes for testing
+        if key_data.len() < min_key_length {
+            return Err(crate::error::Error::InvalidKeySize {
+                expected: min_key_length,
+                actual: key_data.len(),
+            });
+        }
+
+        // Only check for obviously invalid patterns (all zeros, all ones)
+        if key_data.iter().all(|&b| b == 0) {
+            return Err(crate::error::Error::InvalidKey {
+                key_type: "key".to_string(),
+                reason: "Key cannot be all zeros".to_string(),
+            });
+        }
+
+        if key_data.iter().all(|&b| b == 0xFF) {
+            return Err(crate::error::Error::InvalidKey {
+                key_type: "key".to_string(),
+                reason: "Key cannot be all ones".to_string(),
+            });
+        }
+
+        // Skip pattern detection and entropy checks for testing
+        Ok(())
+    }
+
     /// Check if data has repeated patterns
     ///
     /// # Arguments
@@ -99,6 +153,7 @@ impl EntropyValidator {
     /// # Returns
     ///
     /// Returns `true` if repeated patterns are detected, `false` otherwise.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
     fn has_repeated_pattern(&self, data: &[u8]) -> bool {
         if data.len() < 4 {
             return false;
@@ -130,6 +185,7 @@ impl EntropyValidator {
     /// # Returns
     ///
     /// Returns `true` if sequential patterns are detected, `false` otherwise.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
     fn has_sequential_pattern(&self, data: &[u8]) -> bool {
         if data.len() < 4 {
             return false;
@@ -171,13 +227,14 @@ impl EntropyValidator {
     /// # Returns
     ///
     /// Returns `true` if the data appears to have sufficient entropy, `false` otherwise.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
     fn has_sufficient_entropy(&self, data: &[u8]) -> bool {
         if data.len() < 16 {
             return false;
         }
 
         // Count unique byte values
-        let mut byte_counts = [0u8; 256];
+        let mut byte_counts = [0u32; 256];
         for &byte in data {
             byte_counts[byte as usize] += 1;
         }
@@ -185,8 +242,14 @@ impl EntropyValidator {
         // Count non-zero entries
         let unique_bytes = byte_counts.iter().filter(|&&count| count > 0).count();
 
-        // Require at least 1% unique bytes for sufficient entropy (very lenient for testing)
-        unique_bytes >= data.len() / 100
+        // For very large keys (>10KB), use a minimum number of unique bytes instead of percentage
+        if data.len() > 10240 {
+            // For large keys, require at least 64 unique byte values (1/4 of all possible byte values)
+            unique_bytes >= 64
+        } else {
+            // For smaller keys, require at least 1% unique bytes for sufficient entropy (very lenient for testing)
+            unique_bytes >= data.len() / 100
+        }
     }
 
     /// Set minimum entropy requirements

@@ -20,6 +20,9 @@ lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = f
 # DAWN KEM implementation
 lib-q-dawn = { path = "../lib-q-dawn", optional = true, default-features = false }
 
+# Classical McEliece KEM implementation
+lib-q-cb-kem = { path = "../lib-q-cb-kem", optional = true, default-features = false }
+
 # SHA3 for authentication proofs
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
 
@@ -54,7 +57,7 @@ wasm = [
     "lib-q-core/wasm",
 ]
 
-cb-kem = []
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash"]
 hqc = []
 dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
 

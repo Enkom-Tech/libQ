@@ -21,6 +21,8 @@ members = [
     "lib-q-zkp",
     "lib-q-fn-dsa",
     "lib-q-slh-dsa",
+    "lib-q-cb-kem",
+    "lib-q-rng",
     "examples",
     "."
 ]
@@ -85,19 +87,21 @@ lib-q-zkp = { path = "lib-q-zkp" }
 lib-q-keccak = { path = "lib-q-keccak" }
 lib-q-ascon = { path = "lib-q-ascon", optional = true }
 lib-q-fn-dsa = { path = "lib-q-fn-dsa", optional = true }
+lib-q-cb-kem = { path = "lib-q-cb-kem", optional = true }
+lib-q-rng = { path = "lib-q-rng", optional = true }
 
 # WASM-specific dependencies
-wasm-bindgen = { version = "0.2.103", optional = true }
-js-sys = { version = "0.3.80", optional = true }
-web-sys = { version = "0.3.80", optional = true, features = ["console"] }
+wasm-bindgen = { version = "0.2.104", optional = true }
+js-sys = { version = "0.3.81", optional = true }
+web-sys = { version = "0.3.81", optional = true, features = ["console"] }
 
 [dev-dependencies]
 # Testing
 criterion = "0.7.0"
-proptest = "1.7.0"
+proptest = "1.8.0"
 
 # WASM testing
-wasm-bindgen-test = "0.3.53"
+wasm-bindgen-test = "0.3.54"
 
 [features]
 default = ["std"]
@@ -128,7 +132,8 @@ mldsa87 = ["lib-q-ml-dsa/mldsa87"]
 
 # NIST PQC Standards
 slh-dsa = ["lib-q-sig/slh-dsa"]
-cb-kem = ["lib-q-kem/cb-kem"]
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
+relaxed_entropy_validation = ["lib-q-core/relaxed_entropy_validation"]
 hqc = ["lib-q-kem/hqc"]
 fn-dsa = ["dep:lib-q-fn-dsa", "lib-q-sig/fn-dsa"]
 

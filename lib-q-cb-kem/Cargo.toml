@@ -1,0 +1,114 @@
+[package]
+name = "lib-q-cb-kem"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Classical McEliece KEM implementation for lib-Q post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "kem", "classical-mceliece", "nist", "libq"]
+categories = ["cryptography", "wasm"]
+exclude = ["/data"]
+
+[dependencies]
+# libQ dependencies
+lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
+lib-q-rng = { path = "../lib-q-rng", optional = true }
+
+# External dependencies
+rand = { version = "0.9.2", default-features = false, optional = true }
+rand_core = { version = "0.9.3", default-features = false }
+getrandom = { version = "0.3.3", optional = true, default-features = false }
+zeroize = { version = "1.8.1", default-features = false, optional = true }
+
+# WASM bindings
+wasm-bindgen = { version = "0.2.103", optional = true, features = ["serde-serialize"] }
+js-sys = { version = "0.3.80", optional = true }
+serde = { version = "1.0.226", optional = true, features = ["derive"], default-features = false }
+serde-wasm-bindgen = { version = "0.6.5", optional = true }
+serde_json = { version = "1.0.145", optional = true }
+
+[features]
+## When adding features or changing the default features, remember to update
+## the `[package.metadata.docs.rs]` section further down as well as the docs
+## generation CI job
+# alloc := enable, if the platform supports dynamic memory allocation
+# zeroize := enable to nullify sensitive memory sections after they go out of scope
+default = ["alloc", "zeroize", "sha3-hash"]
+no-default-features = []
+alloc = []
+zeroize = ["dep:zeroize"]
+
+# Hash function selection
+sha3-hash = ["dep:lib-q-sha3"]
+
+# Standard library support
+std = []
+
+# WASM support
+wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom", "alloc"]
+
+# Random number generation features
+rand = ["dep:rand"]
+getrandom = ["dep:getrandom"]
+libq-rng = ["dep:lib-q-rng"]
+wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
+
+# Select which variant of Classical McEliece CB-KEM to compile for.
+# Only one of these features can be enabled.
+cbkem348864 = []
+cbkem348864f = []
+cbkem460896 = []
+cbkem460896f = []
+cbkem6688128 = []
+cbkem6688128f = []
+cbkem6960119 = []
+cbkem6960119f = []
+cbkem8192128 = []
+cbkem8192128f = []
+
+[lib]
+name = "lib_q_cb_kem"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bench]]
+name = "kem_api"
+harness = false
+
+[dev-dependencies]
+criterion = { version = "0.7.0", features = ["html_reports"] }
+criterion-cycles-per-byte = "0.7.0"
+hex = "0.4.3"
+
+[profile.dev]
+opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
+
+[package.metadata.docs.rs]
+## Uses the #[doc(feature(...))] functionality to clearly show in the generated documentation
+## which feature of this crate is needed for each type and function to be available.
+## This increases discoverability of features massively.
+## To use this locally, run: `RUSTDOCFLAGS="--cfg docsrs" cargo doc`.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+# Enable bulk memory operations to fix wasm-validator errors
+wasm-opt = ["-O", "--enable-bulk-memory"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }
+
+[lints.clippy]
+needless_doctest_main = "allow"

@@ -109,6 +109,43 @@ impl SecurityConstants {
             }
             Algorithm::Dawn => 1024,
 
+            // CB-KEM algorithms
+            Algorithm::CbKem348864 => {
+                if is_secret {
+                    6492 // CB-KEM-348864 secret key size
+                } else {
+                    261120 // CB-KEM-348864 public key size
+                }
+            }
+            Algorithm::CbKem460896 => {
+                if is_secret {
+                    13608 // CB-KEM-460896 secret key size
+                } else {
+                    524160 // CB-KEM-460896 public key size
+                }
+            }
+            Algorithm::CbKem6688128 => {
+                if is_secret {
+                    13932 // CB-KEM-6688128 secret key size
+                } else {
+                    1044992 // CB-KEM-6688128 public key size
+                }
+            }
+            Algorithm::CbKem6960119 => {
+                if is_secret {
+                    13948 // CB-KEM-6960119 secret key size
+                } else {
+                    1047319 // CB-KEM-6960119 public key size
+                }
+            }
+            Algorithm::CbKem8192128 => {
+                if is_secret {
+                    14120 // CB-KEM-8192128 secret key size
+                } else {
+                    1357824 // CB-KEM-8192128 public key size
+                }
+            }
+
             // Signature algorithms
             Algorithm::MlDsa44 => {
                 if is_secret {
@@ -224,6 +261,14 @@ impl SecurityConstants {
             Algorithm::MlKem768 => 1088,  // ML-KEM-768 ciphertext size
             Algorithm::MlKem1024 => 1568, // ML-KEM-1024 ciphertext size
             Algorithm::Dawn => 1024,      // DAWN ciphertext size
+
+            // CB-KEM algorithms
+            Algorithm::CbKem348864 => 96, // CB-KEM-348864 ciphertext size
+            Algorithm::CbKem460896 => 156, // CB-KEM-460896 ciphertext size
+            Algorithm::CbKem6688128 => 208, // CB-KEM-6688128 ciphertext size
+            Algorithm::CbKem6960119 => 194, // CB-KEM-6960119 ciphertext size
+            Algorithm::CbKem8192128 => 208, // CB-KEM-8192128 ciphertext size
+
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {
                     algorithm: "Algorithm does not produce ciphertext",

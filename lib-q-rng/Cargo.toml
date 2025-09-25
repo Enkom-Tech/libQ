@@ -1,0 +1,56 @@
+[package]
+name = "lib-q-rng"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Secure random number generation for libQ post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", features = ["alloc"], optional = true }
+rand_core = { version = "0.9.3", default-features = false }
+getrandom = { version = "0.3.3", optional = true, default-features = false }
+rand = { version = "0.9.2", default-features = false, optional = true }
+zeroize = { version = "1.8.1", features = ["derive"], default-features = false, optional = true }
+wasm-bindgen = { version = "0.2.103", optional = true }
+
+[features]
+default = ["std", "secure", "zeroize"]
+std = ["dep:getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
+alloc = ["dep:lib-q-core"]
+no_std = []
+
+# RNG provider features
+secure = ["dep:getrandom", "dep:rand"]
+deterministic = []
+hardware = []
+getrandom = ["dep:getrandom"]
+
+# Security features
+zeroize = ["dep:zeroize"]
+entropy-validation = []
+
+# Development features
+test-vectors = []
+
+# Platform-specific features
+wasm = ["dep:wasm-bindgen", "getrandom/wasm_js"]
+js = ["getrandom/std"]
+
+[dev-dependencies]
+criterion = "0.7.0"
+hex = "0.4.3"
+proptest = "1.8.0"
+
+[[bench]]
+name = "rng_benchmarks"
+harness = false
+
+[package.metadata.docs.rs]
+features = ["std", "secure", "zeroize", "entropy-validation"]
+rustdoc-args = ["--cfg", "docsrs"]

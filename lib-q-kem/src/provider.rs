@@ -12,6 +12,9 @@ use alloc::{
     vec::Vec,
 };
 
+// Import Classical McEliece implementations
+#[cfg(feature = "cb-kem")]
+use lib_q_cb_kem::LibQCbKemProvider;
 use lib_q_core::api::{
     Algorithm,
     CryptoProvider,

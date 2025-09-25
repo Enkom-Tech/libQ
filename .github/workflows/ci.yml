@@ -73,6 +73,15 @@ jobs:
           - name: "lib-q-keccak no_std"
             features: "alloc"
             package: "lib-q-keccak"
+          - name: "lib-q-rng"
+            features: "std,secure,zeroize"
+            package: "lib-q-rng"
+          - name: "lib-q-rng no_std"
+            features: "no_std,getrandom"
+            package: "lib-q-rng"
+          - name: "lib-q-rng wasm"
+            features: "wasm"
+            package: "lib-q-rng"
     
     steps:
       - uses: actions/checkout@v5
@@ -330,6 +339,13 @@ jobs:
       
       - name: Run benchmarks
         run: cargo bench --features "all-algorithms" --verbose
+      
+      - name: Run RNG performance benchmarks
+        run: |
+          echo "Running RNG-specific performance benchmarks..."
+          cd lib-q-rng
+          cargo bench --features "std,secure,zeroize" --verbose
+          echo "✅ RNG performance benchmarks completed"
 
   # Documentation generation - lightweight job
   documentation:
@@ -415,6 +431,25 @@ jobs:
             run-security-tests: "true"
             run-constant-time: "true"
             test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
+          - name: "RNG"
+            action: test-rng
+            working-directory: lib-q-rng
+            features: "std,secure,zeroize"
+            rust-version: "stable"
+            run-benchmarks: "true"
+            run-entropy-validation: "true"
+            run-security-tests: "true"
+            run-constant-time: "true"
+            test-algorithms: "secure,deterministic,hardware,user"
+          - name: "CB-KEM"
+            action: test-cb-kem
+            working-directory: lib-q-cb-kem
+            features: "cbkem348864,sha3-hash"
+            rust-version: "stable"
+            run-benchmarks: "true"
+            run-security-tests: "true"
+            run-constant-time: "true"
+            test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
     
     steps:
       - uses: actions/checkout@v5
@@ -473,6 +508,31 @@ jobs:
       - name: Run FN-DSA tests
         uses: ./.github/actions/test-fn-dsa
         if: matrix.action == 'test-fn-dsa'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-constant-time: ${{ matrix.run-constant-time }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run RNG tests
+        uses: ./.github/actions/test-rng
+        if: matrix.action == 'test-rng'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-entropy-validation: ${{ matrix.run-entropy-validation }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-constant-time: ${{ matrix.run-constant-time }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run CB-KEM tests
+        uses: ./.github/actions/test-cb-kem
+        if: matrix.action == 'test-cb-kem'
         with:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}

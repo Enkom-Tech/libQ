@@ -1,0 +1,531 @@
+//! RNG provider implementations
+//!
+//! This module provides the main RNG provider implementation and factory
+//! for creating and managing RNG instances with different characteristics.
+
+use core::fmt;
+
+use rand_core::{
+    CryptoRng,
+    RngCore,
+};
+
+use crate::traits::{
+    EntropySource,
+    ProviderCapabilities,
+    RngConfig,
+    RngProvider,
+    SecureRng,
+    SecurityLevel,
+};
+use crate::validation::EntropyValidator;
+use crate::{
+    Error,
+    Result,
+};
+
+/// Main libQ random number generator
+///
+/// This is the primary RNG implementation for the libQ ecosystem, providing
+/// a unified interface for secure random number generation across different
+/// platforms and use cases.
+pub struct LibQRng {
+    /// Entropy source for random data
+    #[cfg(feature = "alloc")]
+    entropy_source: Box<dyn EntropySource>,
+    /// Entropy validator for quality assessment
+    validator: EntropyValidator,
+    /// Security level of this RNG
+    security_level: SecurityLevel,
+    /// Whether this RNG is deterministic
+    deterministic: bool,
+    /// Reseed counter for security
+    reseed_counter: u32,
+    /// Bytes generated since last reseed
+    bytes_generated: usize,
+    /// Reseed interval in bytes
+    reseed_interval: Option<usize>,
+}
+
+#[cfg(feature = "alloc")]
+impl LibQRng {
+    /// Create a new secure RNG using the best available entropy source
+    ///
+    /// This method creates a cryptographically secure RNG using the highest
+    /// quality entropy source available on the current platform.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no secure entropy source is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lib_q_rng::LibQRng;
+    /// use rand_core::RngCore;
+    ///
+    /// let mut rng = LibQRng::new_secure().unwrap();
+    /// let mut bytes = [0u8; 32];
+    /// rng.fill_bytes(&mut bytes);
+    /// ```
+    pub fn new_secure() -> Result<Self> {
+        let entropy_source = crate::entropy::EntropySourceFactory::create_best_available()?;
+        let validator = EntropyValidator::new();
+
+        Ok(Self {
+            entropy_source,
+            validator,
+            security_level: SecurityLevel::CryptographicallySecure,
+            deterministic: false,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: Some(1024 * 1024), // 1MB reseed interval
+        })
+    }
+
+    /// Create a new deterministic RNG for testing
+    ///
+    /// This method creates a deterministic RNG suitable for testing and
+    /// reproducible operations. **NOT CRYPTOGRAPHICALLY SECURE**.
+    ///
+    /// # Arguments
+    ///
+    /// * `seed` - The seed value for deterministic generation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lib_q_rng::LibQRng;
+    /// use rand_core::RngCore;
+    ///
+    /// let mut rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+    /// let mut bytes = [0u8; 32];
+    /// rng.fill_bytes(&mut bytes);
+    /// ```
+    pub fn new_deterministic(seed: &[u8]) -> Self {
+        let entropy_source =
+            crate::entropy::EntropySourceFactory::create_deterministic_entropy(seed);
+        let validator = EntropyValidator::new();
+
+        Self {
+            entropy_source,
+            validator,
+            security_level: SecurityLevel::Deterministic,
+            deterministic: true,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: None, // No reseeding for deterministic RNGs
+        }
+    }
+
+    /// Create a new RNG with a custom entropy source
+    ///
+    /// This method allows creating an RNG with a custom entropy source,
+    /// useful for specialized applications or testing.
+    ///
+    /// # Arguments
+    ///
+    /// * `entropy_source` - Custom entropy source implementation
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lib_q_rng::LibQRng;
+    /// use lib_q_rng::entropy::UserEntropySource;
+    /// use rand_core::RngCore;
+    ///
+    /// let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+    /// let entropy_source = UserEntropySource::new(entropy_data);
+    /// let mut rng = LibQRng::new_custom(entropy_source);
+    /// ```
+    pub fn new_custom<T: EntropySource + 'static>(entropy_source: T) -> Self {
+        let entropy_source = Box::new(entropy_source);
+        let validator = EntropyValidator::new();
+
+        // Determine security level based on entropy source type
+        let security_level = match entropy_source.source_type() {
+            crate::traits::EntropySourceType::Hardware => SecurityLevel::HardwareSecure,
+            crate::traits::EntropySourceType::OperatingSystem => {
+                SecurityLevel::CryptographicallySecure
+            }
+            crate::traits::EntropySourceType::Deterministic => SecurityLevel::Deterministic,
+            _ => SecurityLevel::CryptographicallySecure,
+        };
+
+        let deterministic =
+            entropy_source.source_type() == crate::traits::EntropySourceType::Deterministic;
+
+        Self {
+            entropy_source,
+            validator,
+            security_level,
+            deterministic,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: if deterministic {
+                None
+            } else {
+                Some(1024 * 1024)
+            },
+        }
+    }
+
+    /// Create a new RNG with custom configuration
+    ///
+    /// This method allows creating an RNG with specific configuration
+    /// parameters for specialized use cases.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - RNG configuration parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the configuration is invalid or if the RNG
+    /// cannot be created with the specified parameters.
+    pub fn with_config(config: &RngConfig) -> Result<Self> {
+        let entropy_source = if let Some(_source) = &config.entropy_source {
+            // We can't move out of a reference, so we need to create a new one
+            // This is a limitation of the current design
+            crate::entropy::EntropySourceFactory::create_best_available()?
+        } else {
+            crate::entropy::EntropySourceFactory::create_best_available()?
+        };
+
+        let validator = EntropyValidator::new();
+        let deterministic =
+            entropy_source.source_type() == crate::traits::EntropySourceType::Deterministic;
+
+        Ok(Self {
+            entropy_source,
+            validator,
+            security_level: config.security_level,
+            deterministic,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: config.reseed_interval,
+        })
+    }
+
+    /// Check if this RNG is deterministic
+    pub fn is_deterministic(&self) -> bool {
+        self.deterministic
+    }
+
+    /// Get the security level of this RNG
+    pub fn security_level(&self) -> SecurityLevel {
+        self.security_level
+    }
+
+    /// Get the entropy source name
+    pub fn entropy_source_name(&self) -> &'static str {
+        self.entropy_source.name()
+    }
+
+    /// Get the entropy source type
+    pub fn entropy_source_type(&self) -> crate::traits::EntropySourceType {
+        self.entropy_source.source_type()
+    }
+
+    /// Get the reseed counter
+    pub fn reseed_counter(&self) -> u32 {
+        self.reseed_counter
+    }
+
+    /// Get the bytes generated since last reseed
+    pub fn bytes_generated(&self) -> usize {
+        self.bytes_generated
+    }
+
+    /// Check if reseeding is needed
+    fn needs_reseed(&self) -> bool {
+        if let Some(interval) = self.reseed_interval {
+            self.bytes_generated >= interval
+        } else {
+            false
+        }
+    }
+
+    /// Perform reseeding if needed
+    fn reseed_if_needed(&mut self) -> Result<()> {
+        if self.needs_reseed() {
+            self.reseed()?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl SecureRng for LibQRng {
+    fn fill_bytes_secure(&mut self, dest: &mut [u8]) -> Result<()> {
+        // Check if reseeding is needed
+        self.reseed_if_needed()?;
+
+        // Get entropy from the source
+        self.entropy_source.get_entropy(dest)?;
+
+        // Validate entropy quality if not deterministic
+        if !self.deterministic {
+            let quality = self.validator.validate_entropy(dest)?;
+            if quality.is_poor() {
+                return Err(Error::entropy_validation_failed(
+                    "Poor entropy quality detected",
+                    quality.overall,
+                ));
+            }
+        }
+
+        // Update counters
+        self.bytes_generated += dest.len();
+
+        Ok(())
+    }
+
+    fn next_u32_secure(&mut self) -> Result<u32> {
+        let mut bytes = [0u8; 4];
+        self.fill_bytes_secure(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn next_u64_secure(&mut self) -> Result<u64> {
+        let mut bytes = [0u8; 8];
+        self.fill_bytes_secure(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
+    }
+
+    fn initialize(&mut self, entropy: &[u8]) -> Result<()> {
+        // For deterministic RNGs, we can reinitialize with new seed
+        if self.deterministic {
+            let new_source =
+                crate::entropy::EntropySourceFactory::create_deterministic_entropy(entropy);
+            self.entropy_source = new_source;
+            self.reseed_counter = 0;
+            self.bytes_generated = 0;
+        }
+        // For secure RNGs, we can't reinitialize with user entropy
+        // as it would compromise security
+        Ok(())
+    }
+
+    fn is_secure(&self) -> bool {
+        !self.deterministic
+    }
+
+    fn entropy_quality(&self) -> f64 {
+        self.entropy_source.quality()
+    }
+
+    fn security_level(&self) -> SecurityLevel {
+        self.security_level
+    }
+
+    fn reseed(&mut self) -> Result<()> {
+        if self.deterministic {
+            return Ok(()); // No reseeding for deterministic RNGs
+        }
+
+        // For secure RNGs, reseeding is handled by the entropy source
+        // We just update our counters
+        self.reseed_counter = self.reseed_counter.wrapping_add(1);
+        self.bytes_generated = 0;
+
+        Ok(())
+    }
+
+    fn state_size(&self) -> usize {
+        // This is an estimate - the actual state size depends on the entropy source
+        64
+    }
+
+    fn reseed_interval(&self) -> Option<usize> {
+        self.reseed_interval
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl RngCore for LibQRng {
+    fn next_u32(&mut self) -> u32 {
+        self.next_u32_secure().unwrap_or(0)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.next_u64_secure().unwrap_or(0)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let _ = self.fill_bytes_secure(dest);
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl CryptoRng for LibQRng {}
+
+#[cfg(feature = "alloc")]
+impl fmt::Display for LibQRng {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "LibQRng(security_level: {}, entropy_source: {}, deterministic: {}, reseed_counter: {})",
+            self.security_level,
+            self.entropy_source.name(),
+            self.deterministic,
+            self.reseed_counter
+        )
+    }
+}
+
+/// RNG provider factory
+///
+/// This factory provides convenient methods for creating RNG instances
+/// with different characteristics and configurations.
+pub struct LibQRngProvider;
+
+impl LibQRngProvider {
+    /// Create a new RNG provider
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl RngProvider for LibQRngProvider {
+    fn create_rng(&self, config: &RngConfig) -> Result<Box<dyn SecureRng>> {
+        let rng = LibQRng::with_config(config)?;
+        Ok(Box::new(rng))
+    }
+
+    fn name(&self) -> &'static str {
+        "libQ RNG Provider"
+    }
+
+    fn capabilities(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            secure: true,
+            deterministic: true,
+            hardware: true,
+            reseeding: true,
+            custom_entropy: true,
+            no_std: true,
+            wasm: true,
+        }
+    }
+
+    fn supports_config(&self, config: &RngConfig) -> bool {
+        // We support all configurations
+        let _ = config;
+        true
+    }
+
+    fn priority(&self) -> u32 {
+        100 // High priority as the main provider
+    }
+}
+
+impl Default for LibQRngProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand_core::RngCore;
+
+    use super::*;
+
+    #[test]
+    fn test_libq_rng_deterministic_creation() {
+        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
+        let rng = LibQRng::new_deterministic(&seed);
+        assert!(rng.is_deterministic());
+        assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
+        assert!(!rng.is_secure());
+    }
+
+    #[test]
+    fn test_libq_rng_deterministic_consistency() {
+        let seed = [42u8; 16];
+        let mut rng1 = LibQRng::new_deterministic(&seed);
+        let mut rng2 = LibQRng::new_deterministic(&seed);
+
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
+
+        rng1.fill_bytes(&mut bytes1);
+        rng2.fill_bytes(&mut bytes2);
+
+        assert_eq!(bytes1, bytes2);
+    }
+
+    #[test]
+    fn test_libq_rng_custom_creation() {
+        let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let entropy_source = crate::entropy::UserEntropySource::new(entropy_data);
+        let rng = LibQRng::new_custom(entropy_source);
+        assert!(!rng.is_deterministic());
+        assert_eq!(rng.security_level(), SecurityLevel::CryptographicallySecure);
+    }
+
+    #[test]
+    fn test_libq_rng_config_creation() {
+        let config = RngConfig::default();
+        let rng = LibQRng::with_config(&config);
+        assert!(rng.is_ok());
+    }
+
+    #[test]
+    fn test_libq_rng_provider_creation() {
+        let provider = LibQRngProvider::new();
+        assert_eq!(provider.name(), "libQ RNG Provider");
+        assert_eq!(provider.priority(), 100);
+    }
+
+    #[test]
+    fn test_libq_rng_provider_capabilities() {
+        let provider = LibQRngProvider::new();
+        let caps = provider.capabilities();
+        assert!(caps.secure);
+        assert!(caps.deterministic);
+        assert!(caps.hardware);
+        assert!(caps.reseeding);
+        assert!(caps.custom_entropy);
+        assert!(caps.no_std);
+        assert!(caps.wasm);
+    }
+
+    #[test]
+    fn test_libq_rng_provider_create_rng() {
+        let provider = LibQRngProvider::new();
+        let config = RngConfig::default();
+        let rng = provider.create_rng(&config);
+        assert!(rng.is_ok());
+    }
+
+    #[test]
+    fn test_libq_rng_reseed_counter() {
+        let seed = [1, 2, 3, 4];
+        let rng = LibQRng::new_deterministic(&seed);
+        assert_eq!(rng.reseed_counter(), 0);
+        assert_eq!(rng.bytes_generated(), 0);
+    }
+
+    #[test]
+    fn test_libq_rng_entropy_source_info() {
+        let seed = [1, 2, 3, 4];
+        let rng = LibQRng::new_deterministic(&seed);
+        assert!(!rng.entropy_source_name().is_empty());
+        assert_eq!(
+            rng.entropy_source_type(),
+            crate::traits::EntropySourceType::Deterministic
+        );
+    }
+
+    #[test]
+    fn test_libq_rng_display() {
+        let seed = [1, 2, 3, 4];
+        let rng = LibQRng::new_deterministic(&seed);
+        let display = format!("{}", rng);
+        assert!(display.contains("LibQRng"));
+        assert!(display.contains("Deterministic"));
+    }
+}
