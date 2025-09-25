@@ -15,16 +15,20 @@ use alloc::{
 // Import Classical McEliece implementations
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
+#[cfg(feature = "alloc")]
 use lib_q_core::api::{
     Algorithm,
     CryptoProvider,
     KemOperations,
 };
+#[cfg(feature = "alloc")]
 use lib_q_core::error::{
     Error,
     Result,
 };
+#[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
+#[cfg(feature = "alloc")]
 use lib_q_core::traits::{
     Kem,
     KemKeypair,
@@ -117,6 +121,17 @@ impl KemOperations for LibQKemProvider {
                 kem.generate_keypair()
             }
 
+            // CB-KEM algorithms
+            #[cfg(feature = "cb-kem")]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => {
+                let cb_kem_provider = LibQCbKemProvider::new()?;
+                cb_kem_provider.generate_keypair(algorithm, randomness)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -133,6 +148,14 @@ impl KemOperations for LibQKemProvider {
                     feature: "ML-KEM implementations require 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(not(feature = "cb-kem"))]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+                feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
+            }),
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -182,6 +205,17 @@ impl KemOperations for LibQKemProvider {
                 kem.encapsulate(public_key)
             }
 
+            // CB-KEM algorithms
+            #[cfg(feature = "cb-kem")]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => {
+                let cb_kem_provider = LibQCbKemProvider::new()?;
+                cb_kem_provider.encapsulate(algorithm, public_key, randomness)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -198,6 +232,14 @@ impl KemOperations for LibQKemProvider {
                     feature: "ML-KEM implementations require 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(not(feature = "cb-kem"))]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+                feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
+            }),
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -246,6 +288,17 @@ impl KemOperations for LibQKemProvider {
                 kem.decapsulate(secret_key, ciphertext)
             }
 
+            // CB-KEM algorithms
+            #[cfg(feature = "cb-kem")]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => {
+                let cb_kem_provider = LibQCbKemProvider::new()?;
+                cb_kem_provider.decapsulate(algorithm, secret_key, ciphertext)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -262,6 +315,14 @@ impl KemOperations for LibQKemProvider {
                     feature: "ML-KEM implementations require 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(not(feature = "cb-kem"))]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+                feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
+            }),
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -305,6 +366,17 @@ impl KemOperations for LibQKemProvider {
                 kem.derive_public_key(secret_key)
             }
 
+            // CB-KEM algorithms
+            #[cfg(feature = "cb-kem")]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => {
+                let cb_kem_provider = LibQCbKemProvider::new()?;
+                cb_kem_provider.derive_public_key(algorithm, secret_key)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -321,6 +393,14 @@ impl KemOperations for LibQKemProvider {
                     feature: "ML-KEM implementations require 'ml-kem' feature flag".to_string(),
                 })
             }
+            #[cfg(not(feature = "cb-kem"))]
+            Algorithm::CbKem348864 |
+            Algorithm::CbKem460896 |
+            Algorithm::CbKem6688128 |
+            Algorithm::CbKem6960119 |
+            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+                feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
+            }),
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -387,12 +467,12 @@ mod tests {
 
     #[test]
     fn test_provider_feature_flag_handling() {
-        let provider = LibQKemProvider::new().unwrap();
+        let _provider = LibQKemProvider::new().unwrap();
 
         // Test ML-KEM without feature flag
         #[cfg(not(feature = "ml-kem"))]
         {
-            let result = provider.generate_keypair(Algorithm::MlKem512, None);
+            let result = _provider.generate_keypair(Algorithm::MlKem512, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"
@@ -411,7 +491,7 @@ mod tests {
         // Test DAWN without feature flag
         #[cfg(not(feature = "dawn"))]
         {
-            let result = provider.generate_keypair(Algorithm::Dawn, None);
+            let result = _provider.generate_keypair(Algorithm::Dawn, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"
@@ -430,12 +510,12 @@ mod tests {
 
     #[test]
     fn test_provider_algorithm_routing() {
-        let provider = LibQKemProvider::new().unwrap();
+        let _provider = LibQKemProvider::new().unwrap();
 
         // Test that algorithms are properly routed
         #[cfg(feature = "ml-kem")]
         {
-            let result = provider.generate_keypair(Algorithm::MlKem512, None);
+            let result = _provider.generate_keypair(Algorithm::MlKem512, None);
             // Should either succeed or return NotImplemented (depending on std feature)
             match result {
                 Ok(_) => {
@@ -455,7 +535,7 @@ mod tests {
 
         #[cfg(feature = "dawn")]
         {
-            let result = provider.generate_keypair(Algorithm::Dawn, None);
+            let result = _provider.generate_keypair(Algorithm::Dawn, None);
             // Should return NotImplemented since DAWN is not yet implemented
             assert!(result.is_err());
             if let Err(Error::NotImplemented { feature }) = result {

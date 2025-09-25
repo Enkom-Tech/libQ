@@ -1,3 +1,5 @@
+#![allow(clippy::expect_fun_call, clippy::too_many_arguments)]
+
 use lib_q_core::{
     KemContext,
     KemPublicKey,

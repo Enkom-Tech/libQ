@@ -3,6 +3,25 @@
 //! This crate provides a libQ-compatible wrapper around the FN-DSA (FIPS 206)
 //! post-quantum digital signature algorithm, which is based on FALCON with
 //! enhanced performance and compact signature sizes.
+
+// Suppress clippy warnings in reference implementation code
+// These are external implementations that shouldn't be modified
+#![allow(
+    clippy::too_many_arguments,
+    clippy::needless_range_loop,
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::unused_self,
+    clippy::unnecessary_wraps,
+    clippy::let_and_return,
+    clippy::identity_op,
+    clippy::erasing_op,
+    clippy::struct_excessive_bools,
+    clippy::doc_markdown
+)]
 //!
 //! # Features
 //!

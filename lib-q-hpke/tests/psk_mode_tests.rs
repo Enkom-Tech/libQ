@@ -1,6 +1,7 @@
 //! Tests for PSK mode implementation
 
 #![cfg(feature = "std")]
+#![allow(unused_variables)]
 
 use lib_q_core::{
     Algorithm,

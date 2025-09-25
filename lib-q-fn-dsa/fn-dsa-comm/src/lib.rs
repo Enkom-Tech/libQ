@@ -1,4 +1,23 @@
 #![no_std]
+// Suppress clippy warnings in reference implementation code
+#![allow(
+    clippy::too_many_arguments,
+    clippy::needless_range_loop,
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::unused_self,
+    clippy::unnecessary_wraps,
+    clippy::let_and_return,
+    clippy::identity_op,
+    clippy::erasing_op,
+    clippy::struct_excessive_bools,
+    clippy::doc_markdown,
+    clippy::needless_borrows_for_generic_args,
+    clippy::assertions_on_constants
+)]
 
 //! This crate contains utility functions which are used by FN-DSA for
 //! key pair generation, signing, and verifying. It is not meant to

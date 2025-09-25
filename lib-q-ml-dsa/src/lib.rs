@@ -1,6 +1,15 @@
 #![no_std]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
+// Allow clippy warnings in SIMD code - these are performance-critical implementations
+// where the warnings don't apply to the specific use case
+#![allow(
+    clippy::too_many_arguments,
+    clippy::needless_range_loop,
+    clippy::let_and_return,
+    clippy::identity_op,
+    clippy::erasing_op
+)]
 
 #[cfg(feature = "std")]
 extern crate std;

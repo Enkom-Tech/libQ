@@ -1,6 +1,7 @@
 //! Tests for benchmarking and performance profiling functionality
 
 #![cfg(feature = "std")]
+#![allow(clippy::absurd_extreme_comparisons, unused_comparisons)]
 
 use lib_q_hpke::benchmarking::{
     AlgorithmType,

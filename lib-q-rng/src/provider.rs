@@ -1,3 +1,7 @@
+// Allow clippy warnings in provider code
+// These are legitimate patterns for API design
+#![allow(clippy::must_use_candidate)]
+
 //! RNG provider implementations
 //!
 //! This module provides the main RNG provider implementation and factory

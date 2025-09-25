@@ -450,6 +450,24 @@ jobs:
             run-security-tests: "true"
             run-constant-time: "true"
             test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
+          - name: "SLH-DSA"
+            action: test-slh-dsa
+            working-directory: lib-q-slh-dsa
+            features: "alloc"
+            rust-version: "stable"
+            run-benchmarks: "true"
+            run-security-tests: "true"
+            run-constant-time: "true"
+            test-algorithms: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
+          - name: "HPKE"
+            action: test-hpke
+            working-directory: lib-q-hpke
+            features: "ml-kem,saturnin,shake256,hash,secure-rng"
+            rust-version: "stable"
+            run-benchmarks: "false"
+            run-security-tests: "true"
+            run-constant-time: "true"
+            test-algorithms: "ml-kem512,saturnin256,shake256"
     
     steps:
       - uses: actions/checkout@v5
@@ -533,6 +551,30 @@ jobs:
       - name: Run CB-KEM tests
         uses: ./.github/actions/test-cb-kem
         if: matrix.action == 'test-cb-kem'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-constant-time: ${{ matrix.run-constant-time }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run SLH-DSA tests
+        uses: ./.github/actions/test-slh-dsa
+        if: matrix.action == 'test-slh-dsa'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-constant-time: ${{ matrix.run-constant-time }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+      
+      - name: Run HPKE tests
+        uses: ./.github/actions/test-hpke
+        if: matrix.action == 'test-hpke'
         with:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}

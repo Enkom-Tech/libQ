@@ -4,6 +4,7 @@
 //! cryptographic authentication guarantees as required by RFC 9180.
 
 #![cfg(feature = "std")]
+#![allow(unused_imports, unused_variables)]
 
 use lib_q_core::{
     Algorithm,

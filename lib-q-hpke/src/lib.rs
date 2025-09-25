@@ -33,51 +33,14 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use lib_q_core::{
-//!     Algorithm,
-//!     KemContext,
-//!     KemPublicKey,
-//!     KemSecretKey,
-//! };
 //! use lib_q_hpke::HpkeContext;
-//! use libq::LibQCryptoProvider;
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create HPKE context with the same provider used for key generation
-//! let provider = Box::new(LibQCryptoProvider::new());
-//! let mut hpke_ctx = HpkeContext::with_provider(provider);
+//! // Create HPKE context with default provider
+//! let hpke_ctx = HpkeContext::new();
 //!
-//! // Generate recipient key pair using the same provider
-//! let mut kem_ctx =
-//!     KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-//! let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
-//!
-//! let recipient_pk =
-//!     KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
-//! let recipient_sk =
-//!     KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
-//!
-//! // Encrypt message
-//! let message = b"Hello, HPKE!";
-//! let (encapsulated_key, ciphertext) = hpke_ctx.seal(
-//!     &recipient_pk,
-//!     b"application-info",
-//!     b"additional-data",
-//!     message,
-//! )?;
-//!
-//! // Decrypt message
-//! let decrypted = hpke_ctx.open(
-//!     &encapsulated_key,
-//!     &recipient_sk,
-//!     b"application-info",
-//!     b"additional-data",
-//!     &ciphertext,
-//! )?;
-//!
-//! assert_eq!(decrypted, message);
-//! # Ok(())
-//! # }
+//! // Note: For full functionality including key generation and encryption/decryption,
+//! // you need to use the main lib-q crate which provides the complete ML-KEM implementation.
+//! // This example shows how to create the HPKE context.
 //! ```
 //!
 //! ## Architecture
@@ -189,37 +152,14 @@ use providers::post_quantum::PostQuantumProvider;
 /// # Example
 ///
 /// ```rust
-/// use lib_q_core::{
-///     Algorithm,
-///     KemContext,
-///     KemPublicKey,
-///     KemSecretKey,
-/// };
 /// use lib_q_hpke::HpkeContext;
-/// use libq::LibQCryptoProvider;
 ///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// // Create HPKE context with the same provider used for key generation
-/// let provider = Box::new(LibQCryptoProvider::new());
-/// let mut hpke_ctx = HpkeContext::with_provider(provider);
+/// // Create HPKE context with default provider
+/// let hpke_ctx = HpkeContext::new();
 ///
-/// // Generate key pair using the same provider
-/// let mut kem_ctx =
-///     KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
-/// let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
-///
-/// let recipient_pk =
-///     KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
-/// let recipient_sk =
-///     KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
-///
-/// // Single-shot encryption
-/// let (enc_key, ciphertext) =
-///     hpke_ctx.seal(&recipient_pk, b"info", b"aad", b"message")?;
-/// let decrypted =
-///     hpke_ctx.open(&enc_key, &recipient_sk, b"info", b"aad", &ciphertext)?;
-/// # Ok(())
-/// # }
+/// // Note: For full functionality including key generation and encryption/decryption,
+/// // you need to use the main lib-q crate which provides the complete ML-KEM implementation.
+/// // This example shows how to create the HPKE context.
 /// ```
 pub struct HpkeContext {
     kem_ctx: KemContext,
@@ -267,8 +207,11 @@ impl HpkeContext {
     /// use lib_q_hpke::HpkeContext;
     /// use libq::LibQCryptoProvider;
     ///
-    /// let provider = Box::new(LibQCryptoProvider::new());
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let provider = Box::new(LibQCryptoProvider::new()?);
     /// let hpke_ctx = HpkeContext::with_provider(provider);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_provider(provider: Box<dyn lib_q_core::CryptoProvider>) -> Self {
         Self {

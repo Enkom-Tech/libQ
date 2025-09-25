@@ -500,9 +500,9 @@ impl SlhDsa {
             }
             #[cfg(not(feature = "slh-dsa-std"))]
             {
-                return Err(Error::RandomGenerationFailed {
+                Err(Error::RandomGenerationFailed {
                     operation: "No randomness source available in no_std environment. Use generate_keypair_with_randomness() instead.".to_string(),
-                });
+                })
             }
         }
     }

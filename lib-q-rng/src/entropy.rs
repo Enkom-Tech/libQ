@@ -1,3 +1,16 @@
+// Allow clippy warnings in entropy source code
+// These are legitimate patterns for platform-specific implementations
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::needless_return,
+    clippy::collapsible_if,
+    clippy::match_same_arms,
+    clippy::unreadable_literal,
+    clippy::missing_errors_doc
+)]
+
 //! Entropy source implementations
 //!
 //! This module provides various entropy source implementations for different

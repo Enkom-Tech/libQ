@@ -1,3 +1,7 @@
+// Allow clippy warnings in trait definitions
+// These are legitimate patterns for API design
+#![allow(clippy::struct_excessive_bools, clippy::doc_markdown)]
+
 //! Core traits for lib-q-rng
 //!
 //! This module defines the fundamental traits that form the interface

@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✓ Setup sender context");
 
     // Encrypt multiple messages with the same context
-    let messages = vec![
+    let messages = [
         b"First message in session".as_slice(),
         b"Second message in session".as_slice(),
         b"Third message in session".as_slice(),

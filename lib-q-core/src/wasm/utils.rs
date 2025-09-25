@@ -162,6 +162,7 @@ pub fn get_library_info() -> String {
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
 pub fn is_feature_available(feature: &str) -> bool {
+    #[allow(clippy::match_like_matches_macro)]
     match feature {
         "ml-kem" => cfg!(feature = "ml-kem"),
         "ml-dsa" => cfg!(feature = "ml-dsa"),

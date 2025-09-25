@@ -4,6 +4,11 @@
 //! and can interoperate with other compliant implementations.
 
 #![cfg(feature = "std")]
+#![allow(
+    clippy::len_zero,
+    clippy::assertions_on_constants,
+    clippy::needless_borrow
+)]
 
 use lib_q_core::{
     Algorithm,

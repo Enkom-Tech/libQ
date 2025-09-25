@@ -326,7 +326,8 @@ mod tests {
     fn test_hkdf_creation() {
         let _hkdf = create_hkdf(HpkeKdf::HkdfShake256);
         // Always succeeds since it's just a struct
-        assert!(true);
+        // This assertion is intentionally left as a placeholder
+        // The test always passes since it's just creating a struct
     }
 
     #[cfg(feature = "hash")]

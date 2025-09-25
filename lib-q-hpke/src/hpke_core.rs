@@ -125,6 +125,7 @@ pub fn setup_sender<P: HpkeCryptoProvider>(
 }
 
 /// Setup sender context with full mode support
+#[allow(clippy::too_many_arguments)]
 pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
@@ -299,6 +300,7 @@ pub fn setup_receiver<P: HpkeCryptoProvider>(
 }
 
 /// Setup receiver context with full mode support
+#[allow(clippy::too_many_arguments)]
 pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
@@ -422,6 +424,7 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
 }
 
 /// Single-shot encryption for Base mode
+#[allow(clippy::too_many_arguments)]
 pub fn seal<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
@@ -450,6 +453,7 @@ pub fn seal<P: HpkeCryptoProvider>(
 }
 
 /// Single-shot encryption with full mode support
+#[allow(clippy::too_many_arguments)]
 pub fn seal_with_mode<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
@@ -587,6 +591,7 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
 }
 
 /// Single-shot decryption for Base mode
+#[allow(clippy::too_many_arguments)]
 pub fn open<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
@@ -614,6 +619,7 @@ pub fn open<P: HpkeCryptoProvider>(
 }
 
 /// Single-shot decryption with full mode support
+#[allow(clippy::too_many_arguments)]
 pub fn open_with_mode<P: HpkeCryptoProvider>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],

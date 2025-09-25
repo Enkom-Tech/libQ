@@ -4,6 +4,7 @@
 //! including proper authentication, side-channel resistance, and comprehensive input validation.
 
 #![cfg(feature = "std")]
+#![allow(unused_imports, unused_variables, clippy::useless_vec)]
 
 use std::time::{
     Duration,

@@ -25,7 +25,7 @@ mod tests {
         let provider = PostQuantumProvider::new();
         let invalid_key_16 = vec![0u8; 16]; // Too short for Saturnin256
         let invalid_key_48 = vec![0u8; 48]; // Too long for Saturnin256
-        let _valid_key = vec![0u8; 32]; // Correct length
+        let _valid_key = [0u8; 32]; // Correct length
         let nonce = vec![0u8; 16];
         let plaintext = b"test message";
 
@@ -68,7 +68,7 @@ mod tests {
         let key = vec![1u8; 32]; // Non-zero key
         let invalid_nonce_8 = vec![0u8; 8]; // Too short
         let invalid_nonce_24 = vec![0u8; 24]; // Too long
-        let _valid_nonce = vec![0u8; 16]; // Correct length
+        let _valid_nonce = [0u8; 16]; // Correct length
         let plaintext = b"test message";
 
         // Test with invalid nonce lengths

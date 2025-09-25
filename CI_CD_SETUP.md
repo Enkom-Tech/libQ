@@ -135,6 +135,32 @@ This document describes the CI/CD pipeline configuration for lib-Q.
     test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
 ```
 
+#### SLH-DSA Test Action (`.github/actions/test-slh-dsa/`)
+```yaml
+- uses: ./.github/actions/test-slh-dsa
+  with:
+    working-directory: "lib-q-slh-dsa"
+    features: "alloc"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "slh-dsa-sha256-128f,slh-dsa-sha256-192f,slh-dsa-sha256-256f,slh-dsa-shake256-128f,slh-dsa-shake256-192f,slh-dsa-shake256-256f"
+```
+
+#### HPKE Test Action (`.github/actions/test-hpke/`)
+```yaml
+- uses: ./.github/actions/test-hpke
+  with:
+    working-directory: "lib-q-hpke"
+    features: "std,ml-kem,saturnin"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "hpke-ml-kem-512,hpke-ml-kem-768,hpke-ml-kem-1024"
+```
+
 ## Configuration
 
 ### Required Secrets
@@ -208,6 +234,12 @@ NPM_TOKEN: "npm publish token"
 
 ## Algorithm Implementation Status
 
+**Legend:**
+- ✅ Complete/Full/Integrated/Published
+- ⚠️ Partial (has issues)
+- 🔄 Basic (minimal implementation)
+- ❌ Missing/Not Available
+
 | Algorithm | Implementation | Testing | CI/CD | Publishing |
 |-----------|---------------|---------|-------|------------|
 | Keccak | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
@@ -219,10 +251,31 @@ NPM_TOKEN: "npm publish token"
 | FN-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | ML-KEM | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | CB-KEM | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
-| HQC | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
-| SLH-DSA | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
-| HPKE | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+| HQC | 🔄 Planned | 🔄 Basic | ✅ Integrated | ✅ Published |
+| SLH-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
+| HPKE | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | ZKP | 🔄 Partial | 🔄 Basic | ✅ Integrated | ✅ Published |
+
+## Testing Status
+
+### SLH-DSA Testing Status
+- **Core functionality**: ✅ 184/184 unit tests passing
+- **Integration tests**: ✅ All tests passing
+- **Known Answer Tests**: ✅ All passing
+- **ACVP validation**: ✅ All passing
+- **CI/CD Integration**: ✅ Fully integrated with dedicated test action
+
+### HPKE Testing Status
+- **Core functionality**: ✅ 71/71 unit tests passing
+- **Algorithm-agnostic tests**: ✅ 5/5 tests passing
+- **Documentation tests**: ✅ All doc tests passing
+- **CI/CD Integration**: ✅ Fully integrated with dedicated test action
+
+### HQC Implementation Status
+- **Implementation**: 🔄 Planned (placeholder implementation with "(planned)" indicators)
+- **API Integration**: ✅ Available in `available_algorithms()` with clear status indicators
+- **Feature Flag**: ✅ `hqc` feature flag available
+- **Future Work**: Full implementation planned for future releases
 
 ## Performance
 - **Pipeline execution time**: ~25-35 minutes

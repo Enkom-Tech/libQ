@@ -1,6 +1,7 @@
 #![no_std]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(clippy::too_many_arguments)]
 
 //! # FN-DSA key pair generation
 //!

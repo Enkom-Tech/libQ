@@ -1,4 +1,5 @@
 #![cfg(feature = "std")]
+#![allow(clippy::unnecessary_unwrap)]
 
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::AeadProvider;

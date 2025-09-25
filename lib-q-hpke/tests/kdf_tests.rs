@@ -3,6 +3,7 @@
 //! These tests verify the HKDF implementations used in HPKE.
 
 #![cfg(feature = "std")]
+#![allow(dead_code)]
 
 use lib_q_hpke::HpkeKdf;
 use lib_q_hpke::kdf::HkdfImpl;

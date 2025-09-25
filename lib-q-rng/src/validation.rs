@@ -1,3 +1,15 @@
+// Allow clippy warnings in validation code
+// These are legitimate patterns for statistical analysis
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::unused_self,
+    clippy::unnecessary_wraps,
+    clippy::similar_names
+)]
+
 //! Entropy validation and quality assessment
 //!
 //! This module provides comprehensive entropy validation and quality assessment

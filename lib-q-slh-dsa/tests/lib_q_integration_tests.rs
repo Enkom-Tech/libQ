@@ -4,6 +4,8 @@
 //! with the lib-Q provider pattern and follows security best practices.
 //! These are algorithm-specific tests that should live in the algorithm crate.
 
+#![allow(clippy::needless_range_loop)]
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]

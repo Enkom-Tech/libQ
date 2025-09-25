@@ -57,7 +57,7 @@ impl EntropyValidator {
         // Allow relaxed validation in testing environments
         #[cfg(feature = "relaxed_entropy_validation")]
         {
-            return self.validate_key_entropy_relaxed(key_data);
+            self.validate_key_entropy_relaxed(key_data)
         }
 
         // Strict validation for production

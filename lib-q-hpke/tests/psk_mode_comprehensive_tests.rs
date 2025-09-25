@@ -4,6 +4,7 @@
 //! according to RFC 9180 Section 5.1.
 
 #![cfg(feature = "std")]
+#![allow(unused_imports, unused_variables, unused_mut, clippy::useless_vec)]
 
 use lib_q_core::{
     Algorithm,

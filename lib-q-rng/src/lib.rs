@@ -1,3 +1,17 @@
+#![allow(
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate,
+    clippy::cast_precision_loss,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::unused_self,
+    clippy::unnecessary_wraps,
+    clippy::struct_excessive_bools,
+    clippy::doc_markdown,
+    clippy::too_many_lines,
+    clippy::similar_names
+)]
+
 //! # lib-q-rng: Secure Random Number Generation for libQ
 //!
 //! This crate provides a comprehensive, secure random number generation system
@@ -8,8 +22,8 @@
 //! - **Cryptographically Secure**: Uses OS entropy sources and hardware RNGs when available
 //! - **Multiple Providers**: Support for OS, deterministic, and hardware entropy sources
 //! - **Entropy Validation**: Comprehensive entropy quality assessment and validation
-//! - **no_std Support**: Works in constrained environments without standard library
-//! - **WASM Compatible**: Full support for WebAssembly and browser environments
+//! - **`no_std` Support**: Works in constrained environments without standard library
+//! - **WASM Compatible**: Full support for `WebAssembly` and browser environments
 //! - **Zero-Copy**: Efficient memory usage with minimal allocations
 //! - **Thread-Safe**: Safe for use in multi-threaded environments
 //! - **Extensible**: Plugin architecture for custom entropy sources
@@ -141,6 +155,7 @@ pub fn new_secure_rng() -> Result<LibQRng> {
 /// rng.fill_bytes(&mut bytes);
 /// ```
 #[cfg(feature = "alloc")]
+#[must_use]
 pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
     LibQRng::new_deterministic(seed)
 }

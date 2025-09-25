@@ -1,4 +1,6 @@
 #![no_std]
+// Suppress clippy warnings in reference implementation code
+#![allow(clippy::too_many_arguments)]
 
 //! # FN-DSA signature verification
 //!

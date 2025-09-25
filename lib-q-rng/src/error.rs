@@ -1,3 +1,11 @@
+// Allow clippy warnings in error handling code
+// These are legitimate patterns for error reporting and formatting
+#![allow(
+    clippy::uninlined_format_args,
+    clippy::must_use_candidate,
+    clippy::too_many_lines
+)]
+
 //! Error types for lib-q-rng
 //!
 //! This module defines comprehensive error types for random number generation

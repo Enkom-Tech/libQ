@@ -1,6 +1,7 @@
 //! Tests to verify critical security fixes
 
 #![cfg(feature = "std")]
+#![allow(clippy::assertions_on_constants)]
 
 use lib_q_core::{
     Algorithm,

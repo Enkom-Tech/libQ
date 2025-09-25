@@ -80,7 +80,7 @@
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
-#[cfg(not(feature = "std"))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 // Re-export core types for public use
@@ -126,6 +126,27 @@ pub fn available_algorithms() -> Vec<&'static str> {
         algorithms.extend(["DAWN"]);
     }
 
+    #[cfg(feature = "cb-kem")]
+    {
+        algorithms.extend([
+            "CB-KEM-348864",
+            "CB-KEM-460896",
+            "CB-KEM-6688128",
+            "CB-KEM-6960119",
+            "CB-KEM-8192128",
+        ]);
+    }
+
+    #[cfg(feature = "hqc")]
+    {
+        // HQC algorithms are planned for future implementation
+        algorithms.extend([
+            "HQC-128 (planned)",
+            "HQC-192 (planned)",
+            "HQC-256 (planned)",
+        ]);
+    }
+
     algorithms
 }
 
@@ -141,6 +162,22 @@ pub fn available_algorithms() -> &'static [&'static str] {
         "ML-KEM-1024",
         #[cfg(feature = "dawn")]
         "DAWN",
+        #[cfg(feature = "cb-kem")]
+        "CB-KEM-348864",
+        #[cfg(feature = "cb-kem")]
+        "CB-KEM-460896",
+        #[cfg(feature = "cb-kem")]
+        "CB-KEM-6688128",
+        #[cfg(feature = "cb-kem")]
+        "CB-KEM-6960119",
+        #[cfg(feature = "cb-kem")]
+        "CB-KEM-8192128",
+        #[cfg(feature = "hqc")]
+        "HQC-128 (planned)",
+        #[cfg(feature = "hqc")]
+        "HQC-192 (planned)",
+        #[cfg(feature = "hqc")]
+        "HQC-256 (planned)",
     ]
 }
 
@@ -269,11 +306,114 @@ mod tests {
     #[test]
     fn test_available_algorithms() {
         let algorithms = available_algorithms();
-        // Should have algorithms if features are enabled
-        #[cfg(any(feature = "ml-kem", feature = "dawn"))]
+
+        // Test that we get the expected algorithms based on enabled features
+        #[cfg(feature = "ml-kem")]
+        {
+            assert!(
+                algorithms.contains(&"ML-KEM-512"),
+                "ML-KEM 512 should be available when ml-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"ML-KEM-768"),
+                "ML-KEM 768 should be available when ml-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"ML-KEM-1024"),
+                "ML-KEM 1024 should be available when ml-kem feature is enabled"
+            );
+        }
+
+        #[cfg(feature = "dawn")]
+        {
+            assert!(
+                algorithms.contains(&"DAWN"),
+                "DAWN should be available when dawn feature is enabled"
+            );
+        }
+
+        #[cfg(feature = "cb-kem")]
+        {
+            assert!(
+                algorithms.contains(&"CB-KEM-348864"),
+                "CB-KEM-348864 should be available when cb-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"CB-KEM-460896"),
+                "CB-KEM-460896 should be available when cb-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"CB-KEM-6688128"),
+                "CB-KEM-6688128 should be available when cb-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"CB-KEM-6960119"),
+                "CB-KEM-6960119 should be available when cb-kem feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"CB-KEM-8192128"),
+                "CB-KEM-8192128 should be available when cb-kem feature is enabled"
+            );
+        }
+
+        #[cfg(feature = "hqc")]
+        {
+            assert!(
+                algorithms.contains(&"HQC-128 (planned)"),
+                "HQC-128 (planned) should be available when hqc feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"HQC-192 (planned)"),
+                "HQC-192 (planned) should be available when hqc feature is enabled"
+            );
+            assert!(
+                algorithms.contains(&"HQC-256 (planned)"),
+                "HQC-256 (planned) should be available when hqc feature is enabled"
+            );
+        }
+
+        // Test that we have at least one algorithm when any features are enabled
+        #[cfg(any(
+            feature = "ml-kem",
+            feature = "dawn",
+            feature = "cb-kem",
+            feature = "hqc"
+        ))]
         assert!(
             !algorithms.is_empty(),
             "Should have at least one algorithm when features are enabled"
+        );
+
+        // Test that we have no algorithms when no features are enabled
+        #[cfg(not(any(
+            feature = "ml-kem",
+            feature = "dawn",
+            feature = "cb-kem",
+            feature = "hqc"
+        )))]
+        assert!(
+            algorithms.is_empty(),
+            "Should have no algorithms when no features are enabled"
+        );
+
+        // Test that the algorithm count matches expected count
+        let expected_count = {
+            let count = 0;
+            #[cfg(feature = "ml-kem")]
+            let count = count + 3; // ML-KEM-512, ML-KEM-768, ML-KEM-1024
+            #[cfg(feature = "dawn")]
+            let count = count + 1; // DAWN
+            #[cfg(feature = "cb-kem")]
+            let count = count + 5; // CB-KEM-348864, CB-KEM-460896, CB-KEM-6688128, CB-KEM-6960119, CB-KEM-8192128
+            #[cfg(feature = "hqc")]
+            let count = count + 3; // HQC-128 (planned), HQC-192 (planned), HQC-256 (planned)
+            count
+        };
+
+        assert_eq!(
+            algorithms.len(),
+            expected_count,
+            "Algorithm count should match expected count based on enabled features"
         );
     }
 

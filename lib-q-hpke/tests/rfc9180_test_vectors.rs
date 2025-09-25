@@ -4,6 +4,7 @@
 //! These test vectors cover various scenarios including different modes, algorithms, and edge cases.
 
 #![cfg(feature = "std")]
+#![allow(clippy::manual_map, clippy::unnecessary_unwrap)]
 
 use lib_q_core::{
     Algorithm,

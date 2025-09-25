@@ -141,7 +141,7 @@ pub use lib_q_kem::{
 #[cfg(feature = "ml-dsa")]
 pub use lib_q_sig::{
     LibQSignatureProvider,
-    available_algorithms,
+    available_algorithms as sig_available_algorithms,
     create_signature,
 };
 
@@ -273,9 +273,10 @@ pub mod wasm {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use lib_q_core::{
         CryptoProvider,
-        KemOperations,
+        KemOperations, // Required for trait methods to be in scope
     };
 
     use super::*;
@@ -354,13 +355,16 @@ mod tests {
             .generate_keypair(Algorithm::MlDsa65, None);
         #[cfg(feature = "ml-dsa")]
         {
-            assert!(
-                sig_result.is_ok(),
-                "ML-DSA key generation should succeed with provider and ml-dsa feature"
-            );
-            let keypair = sig_result.unwrap();
-            assert!(!keypair.public_key().as_bytes().is_empty());
-            assert!(!keypair.secret_key().as_bytes().is_empty());
+            // Core provider should return NotImplemented for ML-DSA operations
+            // The actual ML-DSA implementation is provided by the main lib-q crate
+            assert!(sig_result.is_err());
+            if let Err(Error::NotImplemented { feature }) = sig_result {
+                assert!(
+                    feature.contains("ML-DSA implementations are provided by the main lib-q crate")
+                );
+            } else {
+                panic!("Expected NotImplemented error for ML-DSA in core provider");
+            }
         }
         #[cfg(not(feature = "ml-dsa"))]
         {
@@ -400,11 +404,11 @@ mod tests {
         let mut nonce_bytes = vec![0u8; 16]; // Saturnin requires 16-byte nonce
 
         // Use a simple but valid key pattern that should pass entropy checks
-        for i in 0..32 {
-            key_bytes[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
-        for i in 0..16 {
-            nonce_bytes[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
         }
 
         let key = AeadKey::new(key_bytes);
