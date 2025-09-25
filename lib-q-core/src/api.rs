@@ -230,8 +230,8 @@ impl Algorithm {
             Algorithm::CbKem6960119 => 4,
             Algorithm::Hqc256 => 4,
             Algorithm::MlDsa87 => 4,
-            Algorithm::SlhDsaSha256256fRobust => 4,
-            Algorithm::SlhDsaShake256256fRobust => 4,
+            Algorithm::SlhDsaSha256256fRobust => 5,
+            Algorithm::SlhDsaShake256256fRobust => 5,
 
             // Level 5 (256-bit security)
             Algorithm::FnDsa1024 => 5,

@@ -631,7 +631,6 @@ dependencies = [
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-rng",
- "lib-q-sha2",
  "lib-q-sig",
  "lib-q-utils",
  "lib-q-zkp",
@@ -890,20 +889,6 @@ dependencies = [
 name = "lib-q-saturnin"
 version = "0.0.2"
 dependencies = [
- "lib-q-core",
- "zeroize",
-]
-
-[[package]]
-name = "lib-q-sha2"
-version = "0.0.2"
-dependencies = [
- "base16ct",
- "blobby",
- "cfg-if",
- "cpufeatures",
- "digest 0.11.0-rc.2",
- "hex-literal",
  "lib-q-core",
  "zeroize",
 ]

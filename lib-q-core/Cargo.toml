@@ -64,6 +64,7 @@ wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
 ml-kem = []
 ml-dsa = []
 fn-dsa = []
+slh-dsa = []
 saturnin = []
 dawn = []
 

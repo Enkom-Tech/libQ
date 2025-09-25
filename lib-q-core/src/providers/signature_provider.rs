@@ -80,6 +80,14 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
+            Algorithm::SlhDsaSha256128fRobust |
+            Algorithm::SlhDsaSha256192fRobust |
+            Algorithm::SlhDsaSha256256fRobust |
+            Algorithm::SlhDsaShake256128fRobust |
+            Algorithm::SlhDsaShake256192fRobust |
+            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+                feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
+            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for signature operations",
             }),
@@ -124,6 +132,14 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
+            Algorithm::SlhDsaSha256128fRobust |
+            Algorithm::SlhDsaSha256192fRobust |
+            Algorithm::SlhDsaSha256256fRobust |
+            Algorithm::SlhDsaShake256128fRobust |
+            Algorithm::SlhDsaShake256192fRobust |
+            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+                feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
+            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for signature operations",
             }),
@@ -167,6 +183,14 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
+            Algorithm::SlhDsaSha256128fRobust |
+            Algorithm::SlhDsaSha256192fRobust |
+            Algorithm::SlhDsaSha256256fRobust |
+            Algorithm::SlhDsaShake256128fRobust |
+            Algorithm::SlhDsaShake256192fRobust |
+            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+                feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
+            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for signature operations",
             }),

@@ -167,6 +167,7 @@ pub fn is_feature_available(feature: &str) -> bool {
         "ml-kem" => cfg!(feature = "ml-kem"),
         "ml-dsa" => cfg!(feature = "ml-dsa"),
         "fn-dsa" => cfg!(feature = "fn-dsa"),
+        "slh-dsa" => cfg!(feature = "slh-dsa"),
         "saturnin" => cfg!(feature = "saturnin"),
         "dawn" => cfg!(feature = "dawn"),
         "hash" => cfg!(feature = "hash"),
@@ -195,6 +196,14 @@ pub fn get_supported_algorithms() -> String {
     let mut sig_algorithms = Vec::new();
     sig_algorithms.extend(&["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"]);
     sig_algorithms.push("fn-dsa");
+    sig_algorithms.extend(&[
+        "slh-dsa-sha256-128f-robust",
+        "slh-dsa-sha256-192f-robust",
+        "slh-dsa-sha256-256f-robust",
+        "slh-dsa-shake256-128f-robust",
+        "slh-dsa-shake256-192f-robust",
+        "slh-dsa-shake256-256f-robust",
+    ]);
     algorithms.insert("signature", sig_algorithms);
 
     // Hash algorithms
