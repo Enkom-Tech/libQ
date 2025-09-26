@@ -24,7 +24,7 @@ wasm-bindgen = { version = "0.2.104", optional = true }
 default = ["std", "secure", "zeroize"]
 std = ["dep:getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
 alloc = ["dep:lib-q-core"]
-no_std = []
+no_std = ["getrandom"]
 
 # RNG provider features
 secure = ["dep:getrandom", "dep:rand"]

@@ -33,8 +33,9 @@ mod slh_dsa_no_std_tests {
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
         // Generate deterministic randomness
-        let mut randomness = [0u8; 32];
-        for i in 0..32 {
+        // Shake128f requires 48 bytes (16 * 3) for key generation
+        let mut randomness = [0u8; 48];
+        for i in 0..48 {
             randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
@@ -68,8 +69,9 @@ mod slh_dsa_no_std_tests {
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
         // Generate keypair with external randomness
-        let mut key_randomness = [0u8; 32];
-        for i in 0..32 {
+        // Shake128f requires 48 bytes (16 * 3) for key generation
+        let mut key_randomness = [0u8; 48];
+        for i in 0..48 {
             key_randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
@@ -128,7 +130,7 @@ mod slh_dsa_no_std_tests {
         // This should still work as we pad/truncate as needed
 
         // Test with invalid algorithm
-        let result = slh_dsa.generate_keypair_with_randomness(Algorithm::MlDsa65, &[0u8; 32]);
+        let result = slh_dsa.generate_keypair_with_randomness(Algorithm::MlDsa65, &[0u8; 48]);
         assert!(result.is_err());
     }
 
@@ -147,8 +149,9 @@ mod slh_dsa_no_std_tests {
 
         for algorithm in algorithms {
             // Generate deterministic randomness
-            let mut randomness = [0u8; 32];
-            for i in 0..32 {
+            // Use 96 bytes for all parameter sets (works for 256-bit, sufficient for others)
+            let mut randomness = [0u8; 96];
+            for i in 0..96 {
                 randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
 

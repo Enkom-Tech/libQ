@@ -173,7 +173,7 @@ pub trait EntropySource: Send + Sync {
     ///
     /// Returns the type of entropy source.
     fn source_type(&self) -> EntropySourceType {
-        EntropySourceType::Unknown
+        EntropySourceType::User // Default to User for custom implementations
     }
 
     /// Get the maximum entropy that can be obtained in one call
@@ -279,7 +279,7 @@ impl fmt::Display for SecurityLevel {
 }
 
 /// Entropy source type enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EntropySourceType {
     /// Operating system entropy source
     OperatingSystem,
@@ -289,8 +289,8 @@ pub enum EntropySourceType {
     User,
     /// Deterministic source (for testing)
     Deterministic,
-    /// Unknown or custom source
-    Unknown,
+    /// Secure fallback entropy source
+    Fallback,
 }
 
 impl fmt::Display for EntropySourceType {
@@ -300,7 +300,7 @@ impl fmt::Display for EntropySourceType {
             Self::Hardware => write!(f, "Hardware"),
             Self::User => write!(f, "User"),
             Self::Deterministic => write!(f, "Deterministic"),
-            Self::Unknown => write!(f, "Unknown"),
+            Self::Fallback => write!(f, "Fallback"),
         }
     }
 }
@@ -398,6 +398,9 @@ impl Default for ProviderCapabilities {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "std"))]
+    use alloc::format;
+
     use super::*;
 
     #[test]
@@ -422,14 +425,16 @@ mod tests {
             config.security_level,
             SecurityLevel::CryptographicallySecure
         );
-        assert!(config.entropy_source.is_none());
         assert!(config.reseed_interval.is_none());
     }
 
     #[test]
     fn test_entropy_config_default() {
         let config = EntropyConfig::default();
-        assert_eq!(config.min_quality, 0.8);
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(config.min_quality, 0.8);
+        }
         assert!(config.max_per_call.is_none());
     }
 

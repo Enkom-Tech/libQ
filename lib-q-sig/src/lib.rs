@@ -43,8 +43,14 @@
 //! ## Usage
 //!
 //! ### With std (automatic randomness)
-//! ```rust,ignore
-//! use lib_q_core::{Algorithm, SignatureContext, create_signature_context};
+//! ```rust
+//! # #[cfg(feature = "std")]
+//! # {
+//! use lib_q_core::{
+//!     Algorithm,
+//!     SignatureContext,
+//!     create_signature_context,
+//! };
 //! use lib_q_sig::LibQSignatureProvider;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -57,18 +63,31 @@
 //!
 //!     // Sign message
 //!     let message = b"Hello, lib-Q!";
-//!     let signature = ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)?;
+//!     let signature =
+//!         ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)?;
 //!
 //!     // Verify signature
-//!     let is_valid = ctx.verify(Algorithm::MlDsa65, keypair.public_key(), message, &signature)?;
+//!     let is_valid = ctx.verify(
+//!         Algorithm::MlDsa65,
+//!         keypair.public_key(),
+//!         message,
+//!         &signature,
+//!     )?;
 //!     assert!(is_valid);
 //!     Ok(())
 //! }
+//! # }
 //! ```
 //!
 //! ### Without std (external randomness)
-//! ```rust,ignore
-//! use lib_q_core::{Algorithm, SignatureContext, create_signature_context};
+//! ```rust
+//! # #[cfg(feature = "ml-dsa")]
+//! # {
+//! use lib_q_core::{
+//!     Algorithm,
+//!     SignatureContext,
+//!     create_signature_context,
+//! };
 //! use lib_q_sig::LibQSignatureProvider;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -81,23 +100,37 @@
 //!     let signing_randomness = [0u8; 32]; // Get from hardware RNG
 //!
 //!     // Generate keypair with external randomness
-//!     let keypair = ctx.generate_keypair(Algorithm::MlDsa65, Some(&key_randomness))?;
+//!     let keypair =
+//!         ctx.generate_keypair(Algorithm::MlDsa65, Some(&key_randomness))?;
 //!
 //!     // Sign message with external randomness
 //!     let message = b"Hello, lib-Q!";
-//!     let signature = ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), message, Some(&signing_randomness))?;
+//!     let signature = ctx.sign(
+//!         Algorithm::MlDsa65,
+//!         keypair.secret_key(),
+//!         message,
+//!         Some(&signing_randomness),
+//!     )?;
 //!
 //!     // Verify signature
-//!     let is_valid = ctx.verify(Algorithm::MlDsa65, keypair.public_key(), message, &signature)?;
+//!     let is_valid = ctx.verify(
+//!         Algorithm::MlDsa65,
+//!         keypair.public_key(),
+//!         message,
+//!         &signature,
+//!     )?;
 //!     assert!(is_valid);
 //!     Ok(())
 //! }
+//! # }
 //! ```
 //!
 //! ### WASM (JavaScript) Environment
-//! ```rust,ignore
-//! use lib_q_sig::ml_dsa::MlDsa;
+//! ```rust
+//! # #[cfg(feature = "wasm")]
+//! # {
 //! use js_sys::Uint8Array;
+//! use lib_q_sig::ml_dsa::MlDsa;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create ML-DSA instance
@@ -108,13 +141,16 @@
 //!
 //!     // Sign message
 //!     let message = Uint8Array::from(b"Hello, WASM!");
-//!     let signature = ml_dsa.sign_wasm(keypair.secret_key(), message, None)?;
+//!     let signature =
+//!         ml_dsa.sign_wasm(keypair.secret_key(), message, None)?;
 //!
 //!     // Verify signature
-//!     let is_valid = ml_dsa.verify_wasm(keypair.public_key(), message, signature)?;
+//!     let is_valid =
+//!         ml_dsa.verify_wasm(keypair.public_key(), message, signature)?;
 //!     assert!(is_valid);
 //!     Ok(())
 //! }
+//! # }
 //! ```
 //!
 //! ## Provider Pattern Integration
@@ -122,19 +158,39 @@
 //! The `LibQSignatureProvider` implements the `SignatureOperations` trait and integrates
 //! seamlessly with the lib-q-core provider system:
 //!
-//! ```rust,ignore
-//! use lib_q_core::{Algorithm, SignatureContext, create_signature_context};
+//! ```rust
+//! # #[cfg(feature = "std")]
+//! # {
+//! use lib_q_core::{
+//!     Algorithm,
+//!     SignatureContext,
+//!     create_signature_context,
+//! };
 //! use lib_q_sig::LibQSignatureProvider;
 //!
-//! // Create provider and integrate with context
-//! let provider = LibQSignatureProvider::new()?;
-//! let mut ctx = create_signature_context();
-//! ctx.set_provider(Box::new(provider));
+//! fn example() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create provider and integrate with context
+//!     let provider = LibQSignatureProvider::new()?;
+//!     let mut ctx = create_signature_context();
+//!     ctx.set_provider(Box::new(provider));
 //!
-//! // All operations go through the provider with security validation
-//! let keypair = ctx.generate_keypair(Algorithm::MlDsa65, None)?;
-//! let signature = ctx.sign(Algorithm::MlDsa65, keypair.secret_key(), b"message", None)?;
-//! let is_valid = ctx.verify(Algorithm::MlDsa65, keypair.public_key(), b"message", &signature)?;
+//!     // All operations go through the provider with security validation
+//!     let keypair = ctx.generate_keypair(Algorithm::MlDsa65, None)?;
+//!     let signature = ctx.sign(
+//!         Algorithm::MlDsa65,
+//!         keypair.secret_key(),
+//!         b"message",
+//!         None,
+//!     )?;
+//!     let is_valid = ctx.verify(
+//!         Algorithm::MlDsa65,
+//!         keypair.public_key(),
+//!         b"message",
+//!         &signature,
+//!     )?;
+//!     Ok(())
+//! }
+//! # }
 //! ```
 //!
 //! ## Security Features

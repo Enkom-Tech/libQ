@@ -37,8 +37,9 @@ mod provider_tests {
             println!("Testing provider routing for: {:?}", algorithm);
 
             // Test key generation through provider with external randomness
-            let mut randomness = [0u8; 32];
-            for i in 0..32 {
+            // Use 96 bytes to accommodate all parameter sets (192-bit requires 72 bytes)
+            let mut randomness = [0u8; 96];
+            for i in 0..96 {
                 randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
             let keypair = provider
@@ -47,7 +48,7 @@ mod provider_tests {
 
             // Test signing through provider with external randomness
             let message = b"Provider pattern test message";
-            let mut signing_randomness = [0u8; 32]; // Security validator expects 32 bytes
+            let mut signing_randomness = [0u8; 32]; // Use 32 bytes for all parameter sets
             for i in 0..32 {
                 signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
             }
@@ -102,14 +103,14 @@ mod provider_tests {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
 
         // Test with all-zero randomness (should fail security validation)
-        let zero_randomness = [0u8; 32];
+        let zero_randomness = [0u8; 96];
         let result =
             provider.generate_keypair(Algorithm::SlhDsaShake256128fRobust, Some(&zero_randomness));
         assert!(result.is_err(), "Should reject all-zero randomness");
 
         // Test with valid randomness
-        let mut valid_randomness = [0u8; 32];
-        for i in 0..32 {
+        let mut valid_randomness = [0u8; 96];
+        for i in 0..96 {
             valid_randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
         let _result =
@@ -123,8 +124,8 @@ mod provider_tests {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
 
         // Test that different algorithms produce different key sizes
-        let mut randomness = [0u8; 32];
-        for i in 0..32 {
+        let mut randomness = [0u8; 96];
+        for i in 0..96 {
             randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
@@ -159,8 +160,8 @@ mod provider_tests {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
 
         // Test deterministic key generation
-        let mut randomness = [0u8; 32];
-        for i in 0..32 {
+        let mut randomness = [0u8; 96];
+        for i in 0..96 {
             randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
@@ -220,8 +221,8 @@ mod provider_tests {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
 
         // Test that keys are properly handled
-        let mut randomness = [0u8; 32];
-        for i in 0..32 {
+        let mut randomness = [0u8; 96];
+        for i in 0..96 {
             randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
@@ -255,8 +256,8 @@ mod provider_tests {
             let start = std::time::Instant::now();
 
             // Generate keypair with external randomness
-            let mut randomness = [0u8; 32];
-            for i in 0..32 {
+            let mut randomness = [0u8; 96];
+            for i in 0..96 {
                 randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
 

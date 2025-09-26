@@ -15,20 +15,28 @@
 //! ## Usage Examples
 //!
 //! ### With std (automatic randomness generation)
-//! ```rust,ignore
-//! // This example requires the std feature to be enabled
+//! ```rust
+//! # #[cfg(feature = "std")]
+//! # {
 //! use lib_q_core::Signature;
 //! use lib_q_sig::ml_dsa::MlDsa;
 //!
 //! let ml_dsa = MlDsa::ml_dsa_65();
 //! let keypair = ml_dsa.generate_keypair().unwrap();
-//! let signature = ml_dsa.sign(keypair.secret_key(), b"Hello, ML-DSA!").unwrap();
-//! let is_valid = ml_dsa.verify(keypair.public_key(), b"Hello, ML-DSA!", &signature).unwrap();
+//! let signature = ml_dsa
+//!     .sign(keypair.secret_key(), b"Hello, ML-DSA!")
+//!     .unwrap();
+//! let is_valid = ml_dsa
+//!     .verify(keypair.public_key(), b"Hello, ML-DSA!", &signature)
+//!     .unwrap();
 //! assert!(is_valid);
+//! # }
 //! ```
 //!
 //! ### Without std (external randomness)
-//! ```rust,ignore
+//! ```rust
+//! # #[cfg(feature = "ml-dsa")]
+//! # {
 //! use lib_q_core::Signature;
 //! use lib_q_sig::ml_dsa::MlDsa;
 //! use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
@@ -43,12 +51,15 @@
 //! let signature = ml_dsa.sign_with_randomness(keypair.secret_key(), b"Hello, ML-DSA!", signing_randomness).unwrap();
 //! let is_valid = ml_dsa.verify(keypair.public_key(), b"Hello, ML-DSA!", &signature).unwrap();
 //! assert!(is_valid);
+//! # }
 //! ```
 //!
 //! ### WASM (JavaScript) Environment
-//! ```rust,ignore
-//! use lib_q_sig::ml_dsa::MlDsa;
+//! ```rust
+//! # #[cfg(feature = "wasm")]
+//! # {
 //! use js_sys::Uint8Array;
+//! use lib_q_sig::ml_dsa::MlDsa;
 //!
 //! let ml_dsa = MlDsa::ml_dsa_65();
 //!
@@ -57,11 +68,16 @@
 //!
 //! // Sign message
 //! let message = Uint8Array::from(b"Hello, ML-DSA!");
-//! let signature = ml_dsa.sign_wasm(keypair.secret_key(), message, None).unwrap();
+//! let signature = ml_dsa
+//!     .sign_wasm(keypair.secret_key(), message, None)
+//!     .unwrap();
 //!
 //! // Verify signature
-//! let is_valid = ml_dsa.verify_wasm(keypair.public_key(), message, signature).unwrap();
+//! let is_valid = ml_dsa
+//!     .verify_wasm(keypair.public_key(), message, signature)
+//!     .unwrap();
 //! assert!(is_valid);
+//! # }
 //! ```
 
 #[cfg(feature = "alloc")]

@@ -136,10 +136,8 @@ pub trait HypertreeParams: XmssParams + Sized {
 #[cfg(test)]
 mod tests {
     use hybrid_array::Array;
-    use rand::{
-        Rng,
-        rng,
-    };
+    use lib_q_random::new_secure_rng;
+    use rand_core::RngCore;
 
     use super::*;
     use crate::PkSeed;
@@ -147,7 +145,7 @@ mod tests {
     use crate::util::macros::test_parameter_sets;
 
     fn test_ht_sign_verify<HTMode: HypertreeParams>() {
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -156,12 +154,12 @@ mod tests {
         let mut m = Array::<u8, HTMode::N>::default();
         rng.fill(m.as_mut_slice());
 
-        let idx_tree = rng.random_range(
-            0..=(1u64
+        let idx_tree = rng.next_u64() %
+            (1u64
                 .wrapping_shl(HTMode::H::U32 - HTMode::HPrime::U32)
-                .wrapping_sub(1)),
-        );
-        let idx_leaf = rng.random_range(0..(1 << (HTMode::HPrime::USIZE)));
+                .wrapping_sub(1) +
+                1);
+        let idx_leaf = rng.next_u32() % (1 << (HTMode::HPrime::USIZE));
 
         let mut adrs = WotsHash::default();
         adrs.tree_adrs_low.set(0);
@@ -179,7 +177,7 @@ mod tests {
     test_parameter_sets!(test_ht_sign_verify);
 
     fn test_ht_sign_verify_fail<HTMode: HypertreeParams>() {
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -188,12 +186,12 @@ mod tests {
         let mut m = Array::<u8, HTMode::N>::default();
         rng.fill(m.as_mut_slice());
 
-        let idx_tree = rng.random_range(
-            0..=(1u64
+        let idx_tree = rng.next_u64() %
+            (1u64
                 .wrapping_shl(HTMode::H::U32 - HTMode::HPrime::U32)
-                .wrapping_sub(1)),
-        );
-        let idx_leaf = rng.random_range(0..(1 << (HTMode::HPrime::USIZE)));
+                .wrapping_sub(1) +
+                1);
+        let idx_leaf = rng.next_u32() % (1 << (HTMode::HPrime::USIZE));
 
         let mut adrs = WotsHash::default();
         adrs.tree_adrs_low.set(0);

@@ -30,23 +30,49 @@
 //!
 //! ## Quick Start
 //!
+//! ### With std/alloc features
 //! ```rust
-//! use lib_q_random::{
-//!     EntropySource,
-//!     LibQRng,
-//!     RngProvider,
-//! };
-//! use rand_core::RngCore;
+//! #[cfg(feature = "alloc")]
+//! {
+//!     use lib_q_random::{
+//!         EntropySource,
+//!         LibQRng,
+//!         RngProvider,
+//!     };
+//!     use rand_core::RngCore;
 //!
-//! // Create a secure RNG for production use
-//! let mut rng = LibQRng::new_secure().unwrap();
+//!     // Create a secure RNG for production use
+//!     let mut rng = LibQRng::new_secure().unwrap();
 //!
-//! // Generate random bytes
-//! let mut bytes = [0u8; 32];
-//! rng.fill_bytes(&mut bytes);
+//!     // Generate random bytes
+//!     let mut bytes = [0u8; 32];
+//!     rng.fill_bytes(&mut bytes);
 //!
-//! // Create a deterministic RNG for testing
-//! let mut test_rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+//!     // Create a deterministic RNG for testing
+//!     let mut test_rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+//! }
+//! ```
+//!
+//! ### With `no_std` features
+//! ```rust
+//! #[cfg(not(feature = "alloc"))]
+//! {
+//!     use lib_q_random::{
+//!         new_deterministic_rng_no_std,
+//!         new_secure_rng_no_std,
+//!     };
+//!     use rand_core::RngCore;
+//!
+//!     // Create a secure RNG for production use
+//!     let mut rng = new_secure_rng_no_std().unwrap();
+//!
+//!     // Generate random bytes
+//!     let mut bytes = [0u8; 32];
+//!     rng.fill_bytes(&mut bytes);
+//!
+//!     // Create a deterministic RNG for testing
+//!     let mut test_rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+//! }
 //! ```
 //!
 //! ## Architecture
@@ -82,7 +108,12 @@ pub mod traits;
 pub mod validation;
 
 // Specialized RNG implementations for different algorithms
+pub mod secure_fallback;
 pub mod specialized;
+
+// no_std RNG implementation
+#[cfg(any(not(feature = "std"), feature = "no_std"))]
+pub mod no_std_rng;
 
 // Re-export main types
 pub use error::{
@@ -147,6 +178,30 @@ pub fn new_secure_rng() -> Result<LibQRng> {
     LibQRng::new_secure()
 }
 
+/// Create a new secure RNG instance for no_std environments
+///
+/// This function creates a cryptographically secure RNG that works in no_std
+/// environments using getrandom for entropy.
+///
+/// # Errors
+///
+/// Returns an error if getrandom is not available or fails to initialize.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use lib_q_random::new_secure_rng_no_std;
+/// use rand_core::RngCore;
+///
+/// let mut rng = new_secure_rng_no_std().unwrap();
+/// let mut bytes = [0u8; 32];
+/// rng.fill_bytes(&mut bytes);
+/// ```
+#[cfg(not(feature = "alloc"))]
+pub fn new_secure_rng_no_std() -> Result<no_std_rng::NoStdRng> {
+    no_std_rng::NoStdRng::new()
+}
+
 /// Create a new deterministic RNG instance
 ///
 /// This function creates a deterministic RNG suitable for testing and
@@ -170,6 +225,31 @@ pub fn new_secure_rng() -> Result<LibQRng> {
 #[must_use]
 pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
     LibQRng::new_deterministic(seed)
+}
+
+/// Create a new deterministic RNG instance for no_std environments
+///
+/// This function creates a deterministic RNG suitable for testing and
+/// reproducible operations in no_std environments. **NOT CRYPTOGRAPHICALLY SECURE**.
+///
+/// # Arguments
+///
+/// * `seed` - The seed value for deterministic generation
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use lib_q_random::new_deterministic_rng_no_std;
+/// use rand_core::RngCore;
+///
+/// let mut rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+/// let mut bytes = [0u8; 32];
+/// rng.fill_bytes(&mut bytes);
+/// ```
+#[cfg(not(feature = "alloc"))]
+#[must_use]
+pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::NoStdRng {
+    no_std_rng::NoStdRng::new_deterministic(seed)
 }
 
 /// Create a new RNG with custom entropy source
@@ -210,34 +290,45 @@ pub fn new_custom_rng<T: EntropySource + 'static>(entropy_source: T) -> LibQRng 
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "alloc"))]
     use rand_core::RngCore;
 
     use super::*;
 
     #[test]
     fn test_version_constant() {
-        assert!(!VERSION.is_empty());
+        // VERSION is a non-empty string constant
+        #[allow(clippy::const_is_empty)]
+        {
+            assert!(!VERSION.is_empty());
+        }
     }
 
     #[test]
     fn test_constants() {
-        assert!(MIN_ENTROPY_BITS >= 128);
-        assert!(MAX_ENTROPY_BITS > MIN_ENTROPY_BITS);
-        assert!(DEFAULT_ENTROPY_SIZE > 0);
+        // Test that constants have reasonable values
+        #[allow(clippy::assertions_on_constants)]
+        {
+            assert!(MIN_ENTROPY_BITS >= 128);
+            assert!(MAX_ENTROPY_BITS > MIN_ENTROPY_BITS);
+            assert!(DEFAULT_ENTROPY_SIZE > 0);
+        }
     }
 
     #[test]
+    #[cfg(not(feature = "alloc"))]
     fn test_deterministic_rng_creation() {
         let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let rng = new_deterministic_rng(&seed);
+        let rng = new_deterministic_rng_no_std(&seed);
         assert!(rng.is_deterministic());
     }
 
     #[test]
+    #[cfg(not(feature = "alloc"))]
     fn test_deterministic_rng_consistency() {
         let seed = [42u8; 16];
-        let mut rng1 = new_deterministic_rng(&seed);
-        let mut rng2 = new_deterministic_rng(&seed);
+        let mut rng1 = new_deterministic_rng_no_std(&seed);
+        let mut rng2 = new_deterministic_rng_no_std(&seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];

@@ -149,11 +149,8 @@ mod tests {
 
     use hex_literal::hex;
     use hybrid_array::Array;
-    use rand::{
-        Rng,
-        RngCore,
-        rng,
-    };
+    use lib_q_random::new_secure_rng;
+    use rand_core::RngCore;
     use typenum::Unsigned;
 
     use crate::address::WotsHash;
@@ -221,7 +218,7 @@ mod tests {
 
     fn test_sign_verify<Xmss: XmssParams>() {
         // Generate random sk_seed, pk_seed, message, index, address
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -230,7 +227,7 @@ mod tests {
         let mut msg = Array::<u8, _>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx = rng.random_range(0..(1 << Xmss::HPrime::U32));
+        let idx = rng.next_u32() % (1 << Xmss::HPrime::U32);
 
         let adrs = WotsHash::default();
 
@@ -246,7 +243,7 @@ mod tests {
 
     fn test_sign_verify_fail<Xmss: XmssParams>() {
         // Generate random sk_seed, pk_seed, message, index, address
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -255,7 +252,7 @@ mod tests {
         let mut msg = Array::<u8, _>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx = rng.random_range(0..(1 << Xmss::HPrime::U32));
+        let idx = rng.next_u32() % (1 << Xmss::HPrime::U32);
 
         let adrs = WotsHash::default();
 

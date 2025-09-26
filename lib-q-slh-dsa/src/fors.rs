@@ -219,11 +219,8 @@ pub(crate) trait ForsParams: HypertreeParams {
 
 #[cfg(test)]
 mod tests {
-    use rand::{
-        Rng,
-        RngCore,
-        rng,
-    };
+    use lib_q_random::new_secure_rng;
+    use rand_core::RngCore;
 
     use self::address::ForsTree;
     use super::*;
@@ -481,7 +478,7 @@ mod tests {
 
     fn test_sign_verify<Fors: ForsParams>() {
         // Generate random sk_seed, pk_seed, message, index, address
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -490,12 +487,12 @@ mod tests {
         let mut msg = Array::<u8, Fors::MD>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx_tree = rng.random_range(
-            0..=(1u64
+        let idx_tree = rng.next_u64() %
+            (1u64
                 .wrapping_shl(Fors::H::U32 - Fors::HPrime::U32)
-                .wrapping_sub(1)),
-        );
-        let idx_leaf = rng.random_range(0..(1 << (Fors::HPrime::USIZE)));
+                .wrapping_sub(1) +
+                1);
+        let idx_leaf = rng.next_u32() % (1 << (Fors::HPrime::USIZE));
 
         let mut adrs = ForsTree::new(idx_tree, idx_leaf);
         let mut pks = Array::<Array<u8, Fors::N>, Fors::K>::default();
@@ -514,7 +511,7 @@ mod tests {
 
     fn test_sign_verify_failure<Fors: ForsParams>() {
         // Generate random sk_seed, pk_seed, message, index, address
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -523,12 +520,12 @@ mod tests {
         let mut msg = Array::<u8, Fors::MD>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx_tree = rng.random_range(
-            0..=(1u64
+        let idx_tree = rng.next_u64() %
+            (1u64
                 .wrapping_shl(Fors::H::U32 - Fors::HPrime::U32)
-                .wrapping_sub(1)),
-        );
-        let idx_leaf = rng.random_range(0..(1 << (Fors::HPrime::USIZE)));
+                .wrapping_sub(1) +
+                1);
+        let idx_leaf = rng.next_u32() % (1 << (Fors::HPrime::USIZE));
 
         let mut adrs = ForsTree::new(idx_tree, idx_leaf);
         let mut pks = Array::<Array<u8, Fors::N>, Fors::K>::default();

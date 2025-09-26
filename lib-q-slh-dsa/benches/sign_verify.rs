@@ -13,7 +13,7 @@ use signature::{
 };
 
 pub fn sign_benchmark<P: ParameterSet>(c: &mut Criterion) {
-    let mut rng = rand::rng();
+    let mut rng = lib_q_random::new_secure_rng().expect("Failed to create secure RNG");
     let sk = SigningKey::<P>::new(&mut rng);
     c.bench_function(&format!("sign: {}", P::NAME), |b| {
         b.iter(|| {
@@ -25,7 +25,7 @@ pub fn sign_benchmark<P: ParameterSet>(c: &mut Criterion) {
 }
 
 pub fn verify_benchmark<P: ParameterSet>(c: &mut Criterion) {
-    let mut rng = rand::rng();
+    let mut rng = lib_q_random::new_secure_rng().expect("Failed to create secure RNG");
     let sk = SigningKey::<P>::new(&mut rng);
     let msg = b"Hello, world!";
     let sig = sk.try_sign(msg).unwrap();

@@ -210,6 +210,7 @@ impl SignatureLen for Sha2_256f {
 #[cfg(test)]
 mod tests {
     use hybrid_array::Array;
+    use lib_q_random::new_secure_rng;
     use signature::{
         SignatureEncoding,
         Signer,
@@ -224,7 +225,7 @@ mod tests {
     };
 
     fn test_serialize_deserialize<P: ParameterSet>() {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<P>::new(&mut rng);
         let msg = b"Hello, world!";
         let sig = sk.try_sign(msg).unwrap();
@@ -242,7 +243,7 @@ mod tests {
 
     #[cfg(feature = "alloc")]
     fn test_serialize_deserialize_vec<P: ParameterSet>() {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<P>::new(&mut rng);
         let msg = b"Hello, world!";
         let sig = sk.try_sign(msg).unwrap();
@@ -261,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_fail_on_incorrect_length() {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<Shake128f>::new(&mut rng);
         let msg = b"Hello, world!";
         let sig = sk.try_sign(msg).unwrap();

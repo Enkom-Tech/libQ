@@ -14,39 +14,53 @@
 //! ## Usage Examples
 //!
 //! ### With std (automatic randomness generation)
-//! ```rust,ignore
-//! use lib_q_core::{Algorithm, Signature};
+//! ```rust
+//! # #[cfg(feature = "slh-dsa-std")]
+//! # {
+//! use lib_q_core::{
+//!     Algorithm,
+//!     Signature,
+//! };
 //! use lib_q_sig::slh_dsa::SlhDsa;
 //!
 //! let slh_dsa = SlhDsa::new();
-//! let keypair = slh_dsa.generate_keypair_for_algorithm(
-//!     Algorithm::SlhDsaShake256128fRobust,
-//!     None
-//! ).unwrap();
-//! let signature = slh_dsa.sign_for_algorithm(
-//!     Algorithm::SlhDsaShake256128fRobust,
-//!     keypair.secret_key(),
-//!     b"Hello, SLH-DSA!",
-//!     None
-//! ).unwrap();
-//! let is_valid = slh_dsa.verify_for_algorithm(
-//!     Algorithm::SlhDsaShake256128fRobust,
-//!     keypair.public_key(),
-//!     b"Hello, SLH-DSA!",
-//!     &signature
-//! ).unwrap();
+//! let keypair = slh_dsa
+//!     .generate_keypair_for_algorithm(
+//!         Algorithm::SlhDsaShake256128fRobust,
+//!         None,
+//!     )
+//!     .unwrap();
+//! let signature = slh_dsa
+//!     .sign_for_algorithm(
+//!         Algorithm::SlhDsaShake256128fRobust,
+//!         keypair.secret_key(),
+//!         b"Hello, SLH-DSA!",
+//!         None,
+//!     )
+//!     .unwrap();
+//! let is_valid = slh_dsa
+//!     .verify_for_algorithm(
+//!         Algorithm::SlhDsaShake256128fRobust,
+//!         keypair.public_key(),
+//!         b"Hello, SLH-DSA!",
+//!         &signature,
+//!     )
+//!     .unwrap();
 //! assert!(is_valid);
+//! # }
 //! ```
 //!
 //! ### Without std (external randomness)
-//! ```rust,ignore
+//! ```rust
+//! # #[cfg(feature = "slh-dsa")]
+//! # {
 //! use lib_q_core::{Algorithm, Signature};
 //! use lib_q_sig::slh_dsa::SlhDsa;
 //!
 //! let slh_dsa = SlhDsa::new();
 //!
 //! // Provide randomness externally
-//! let key_randomness = [0u8; 32]; // Get from hardware RNG
+//! let key_randomness = [0u8; 48]; // Get from hardware RNG (48 bytes for Shake256128f)
 //! let signing_randomness = [0u8; 16]; // Get from hardware RNG (size depends on parameter set)
 //!
 //! let keypair = slh_dsa.generate_keypair_with_randomness(
@@ -66,6 +80,7 @@
 //!     &signature
 //! ).unwrap();
 //! assert!(is_valid);
+//! # }
 //! ```
 //!
 //! ### WASM (JavaScript) environment
@@ -142,11 +157,6 @@ use lib_q_core::traits::{
     Signature,
 };
 #[cfg(feature = "slh-dsa")]
-use lib_q_slh_dsa::signature::{
-    Keypair,
-    RandomizedSigner,
-};
-#[cfg(feature = "slh-dsa")]
 use lib_q_slh_dsa::{
     ParameterSet,
     Sha2_128f,
@@ -155,20 +165,10 @@ use lib_q_slh_dsa::{
     Shake128f,
     Shake192f,
     Shake256f,
-    Signature as SlhSignature,
-    SigningKey,
-    VerifyingKey,
+    lib_q_integration::SlhDsaSignature,
 };
-#[cfg(feature = "slh-dsa")]
-use rand_core::{
-    CryptoRng,
-    RngCore,
-};
-#[cfg(feature = "slh-dsa")]
-use sha2::{
-    Digest,
-    Sha256,
-};
+#[cfg(feature = "slh-dsa-std")]
+use rand_core::RngCore;
 // WASM support
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -178,6 +178,7 @@ use wasm_bindgen::prelude::*;
 /// This struct provides the lib-Q Signature trait implementation for SLH-DSA,
 /// routing operations to the appropriate parameter set based on the algorithm.
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SlhDsa;
 
 impl SlhDsa {
@@ -200,16 +201,21 @@ impl SlhDsa {
     /// * `Result<SigKeypair>` - The generated keypair or an error
     ///
     /// # Example
-    /// ```rust,ignore
+    /// ```rust
+    /// # #[cfg(feature = "slh-dsa")]
+    /// # {
     /// use lib_q_core::Algorithm;
     /// use lib_q_sig::slh_dsa::SlhDsa;
     ///
     /// let slh_dsa = SlhDsa::new();
-    /// let randomness = [0u8; 32]; // Get from hardware RNG
-    /// let keypair = slh_dsa.generate_keypair_with_randomness(
-    ///     Algorithm::SlhDsaShake256128fRobust,
-    ///     &randomness
-    /// ).unwrap();
+    /// let randomness = [0u8; 48]; // Get from hardware RNG (48 bytes for Shake256128f)
+    /// let keypair = slh_dsa
+    ///     .generate_keypair_with_randomness(
+    ///         Algorithm::SlhDsaShake256128fRobust,
+    ///         &randomness,
+    ///     )
+    ///     .unwrap();
+    /// # }
     /// ```
     #[cfg(feature = "alloc")]
     pub fn generate_keypair_with_randomness(
@@ -236,18 +242,29 @@ impl SlhDsa {
     /// * `Result<Vec<u8>>` - The signature or an error
     ///
     /// # Example
-    /// ```rust,ignore
-    /// use lib_q_core::{Algorithm, SigSecretKey};
+    /// ```rust
+    /// # #[cfg(feature = "slh-dsa")]
+    /// # {
+    /// use lib_q_core::Algorithm;
     /// use lib_q_sig::slh_dsa::SlhDsa;
     ///
     /// let slh_dsa = SlhDsa::new();
-    /// let randomness = [0u8; 16]; // Get from hardware RNG (size depends on parameter set)
+    /// let key_randomness = [0u8; 48]; // Get from hardware RNG (48 bytes for Shake256128f)
+    /// let signing_randomness = [0u8; 16]; // Get from hardware RNG (size depends on parameter set)
+    ///
+    /// // Generate a keypair first
+    /// let keypair = slh_dsa.generate_keypair_with_randomness(
+    ///     Algorithm::SlhDsaShake256128fRobust,
+    ///     &key_randomness
+    /// ).unwrap();
+    ///
     /// let signature = slh_dsa.sign_with_randomness(
     ///     Algorithm::SlhDsaShake256128fRobust,
-    ///     &secret_key,
+    ///     keypair.secret_key(),
     ///     b"Hello, SLH-DSA!",
-    ///     &randomness
+    ///     &signing_randomness
     /// ).unwrap();
+    /// # }
     /// ```
     #[cfg(feature = "alloc")]
     pub fn sign_with_randomness(
@@ -471,18 +488,15 @@ impl SlhDsa {
         &self,
         randomness: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        // Create a deterministic RNG from randomness if provided, otherwise use system RNG
+        let slh_dsa = SlhDsaSignature::<P>::new();
+
         if let Some(rand) = randomness {
-            // For deterministic key generation, we'll use the provided randomness
-            let mut rng = DeterministicRng::new(rand);
-            let signing_key = SigningKey::<P>::new(&mut rng);
-            let verifying_key = signing_key.verifying_key();
-
-            // Serialize keys
-            let public_key = verifying_key.to_bytes().to_vec();
-            let secret_key = signing_key.to_bytes().to_vec();
-
-            Ok((public_key, secret_key))
+            // Use provided randomness
+            let keypair = slh_dsa.generate_keypair_with_randomness(rand)?;
+            Ok((
+                keypair.public_key.as_bytes().to_vec(),
+                keypair.secret_key.as_bytes().to_vec(),
+            ))
         } else {
             // Use system RNG (requires std feature)
             #[cfg(feature = "slh-dsa-std")]
@@ -491,14 +505,18 @@ impl SlhDsa {
                 let mut rng = new_secure_rng().map_err(|_| Error::RandomGenerationFailed {
                     operation: "Failed to create secure RNG".to_string(),
                 })?;
-                let signing_key = SigningKey::<P>::new(&mut rng);
-                let verifying_key = signing_key.verifying_key();
 
-                // Serialize keys
-                let public_key = verifying_key.to_bytes().to_vec();
-                let secret_key = signing_key.to_bytes().to_vec();
+                // Generate randomness for key generation
+                // SLH-DSA requires 3 * N bytes of randomness for key generation
+                // We'll use a conservative size that works for all parameter sets
+                let mut key_randomness = vec![0u8; 96]; // 32 * 3, works for all parameter sets
+                rng.fill_bytes(&mut key_randomness);
 
-                Ok((public_key, secret_key))
+                let keypair = slh_dsa.generate_keypair_with_randomness(&key_randomness)?;
+                Ok((
+                    keypair.public_key.as_bytes().to_vec(),
+                    keypair.secret_key.as_bytes().to_vec(),
+                ))
             }
             #[cfg(not(feature = "slh-dsa-std"))]
             {
@@ -516,46 +534,35 @@ impl SlhDsa {
         message: &[u8],
         randomness: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        // Deserialize signing key
-        let signing_key =
-            SigningKey::<P>::try_from(secret_key.as_bytes()).map_err(|_| Error::InvalidKey {
-                key_type: "SLH-DSA signing key".to_string(),
-                reason: "Failed to deserialize signing key".to_string(),
-            })?;
+        let slh_dsa = SlhDsaSignature::<P>::new();
 
-        // Sign the message using RandomizedSigner trait for consistency
-        let signature = if let Some(rand) = randomness {
-            // Use provided randomness for deterministic signing
-            // Create a deterministic RNG from the provided randomness
-            let mut rng = DeterministicRng::new(rand);
-            signing_key
-                .try_sign_with_rng(&mut rng, message)
-                .map_err(|_| Error::SigningFailed {
-                    operation: "SLH-DSA signing failed".to_string(),
-                })?
+        if let Some(rand) = randomness {
+            // Use provided randomness
+            slh_dsa.sign_with_randomness(secret_key, message, rand)
         } else {
-            // Use system RNG for randomized signing (requires std feature)
+            // Use system RNG (requires std feature)
             #[cfg(feature = "slh-dsa-std")]
             {
                 use lib_q_random::new_secure_rng;
                 let mut rng = new_secure_rng().map_err(|_| Error::RandomGenerationFailed {
                     operation: "Failed to create secure RNG".to_string(),
                 })?;
-                signing_key
-                    .try_sign_with_rng(&mut rng, message)
-                    .map_err(|_| Error::SigningFailed {
-                        operation: "SLH-DSA signing failed".to_string(),
-                    })?
+
+                // Generate randomness for signing
+                // SLH-DSA requires N bytes of randomness for signing
+                // We'll use a conservative size that works for all parameter sets
+                let mut signing_randomness = vec![0u8; 32]; // 32 bytes, works for all parameter sets
+                rng.fill_bytes(&mut signing_randomness);
+
+                slh_dsa.sign_with_randomness(secret_key, message, &signing_randomness)
             }
             #[cfg(not(feature = "slh-dsa-std"))]
             {
-                return Err(Error::RandomGenerationFailed {
+                Err(Error::RandomGenerationFailed {
                     operation: "No randomness source available in no_std environment. Use sign_with_randomness() instead.".to_string(),
-                });
+                })
             }
-        };
-
-        Ok(signature.to_bytes().to_vec())
+        }
     }
 
     #[cfg(all(feature = "slh-dsa", feature = "alloc"))]
@@ -565,27 +572,8 @@ impl SlhDsa {
         message: &[u8],
         signature: &[u8],
     ) -> Result<bool> {
-        // Deserialize verifying key
-        let verifying_key =
-            VerifyingKey::<P>::try_from(public_key.as_bytes()).map_err(|_| Error::InvalidKey {
-                key_type: "SLH-DSA verifying key".to_string(),
-                reason: "Failed to deserialize verifying key".to_string(),
-            })?;
-
-        // Deserialize signature
-        let slh_signature =
-            SlhSignature::<P>::try_from(signature).map_err(|_| Error::InvalidSignatureSize {
-                expected: 0,
-                actual: signature.len(),
-            })?;
-
-        // Verify the signature
-        let result = verifying_key.try_verify_with_context(message, &[], &slh_signature);
-
-        match result {
-            Ok(()) => Ok(true),
-            Err(_) => Ok(false),
-        }
+        let slh_dsa = SlhDsaSignature::<P>::new();
+        slh_dsa.verify(public_key, message, signature)
     }
 
     #[cfg(all(feature = "slh-dsa", not(feature = "alloc")))]
@@ -601,55 +589,6 @@ impl SlhDsa {
         })
     }
 }
-
-/// Simple deterministic RNG for testing and deterministic key generation
-#[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-struct DeterministicRng {
-    seed: Vec<u8>,
-    counter: u64,
-}
-
-#[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-impl DeterministicRng {
-    fn new(seed: &[u8]) -> Self {
-        Self {
-            seed: seed.to_vec(),
-            counter: 0,
-        }
-    }
-}
-
-#[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-impl RngCore for DeterministicRng {
-    fn next_u32(&mut self) -> u32 {
-        self.next_u64() as u32
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let mut hasher = Sha256::new();
-        hasher.update(&self.seed);
-        hasher.update(self.counter.to_be_bytes());
-        let hash = hasher.finalize();
-
-        self.counter += 1;
-
-        u64::from_be_bytes([
-            hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-        ])
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        for chunk in dest.chunks_mut(8) {
-            let value = self.next_u64();
-            let bytes = value.to_be_bytes();
-            let len = chunk.len().min(8);
-            chunk[..len].copy_from_slice(&bytes[..len]);
-        }
-    }
-}
-
-#[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-impl CryptoRng for DeterministicRng {}
 
 #[cfg(test)]
 mod tests {
@@ -714,7 +653,7 @@ impl SlhDsa {
         &self,
         algorithm: &str,
         randomness: Option<Uint8Array>,
-    ) -> Result<WasmSlhDsaKeyPair, JsValue> {
+    ) -> core::result::Result<WasmSlhDsaKeyPair, JsValue> {
         let algorithm = match algorithm {
             "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
             "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
@@ -725,15 +664,17 @@ impl SlhDsa {
             _ => return Err(JsValue::from_str("Invalid algorithm")),
         };
 
-        let randomness_slice = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
+        let randomness_vec = if let Some(rand) = randomness {
+            Some(rand.to_vec())
         } else {
             None
         };
+        let randomness_slice = randomness_vec.as_deref();
 
-        let keypair = self
-            .generate_keypair_for_algorithm(algorithm, randomness_slice)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let keypair = match self.generate_keypair_for_algorithm(algorithm, randomness_slice) {
+            Ok(kp) => kp,
+            Err(e) => return Err(JsValue::from_str(&e.to_string())),
+        };
 
         Ok(WasmSlhDsaKeyPair::new(
             Uint8Array::from(keypair.public_key().as_bytes()),
@@ -758,7 +699,7 @@ impl SlhDsa {
         secret_key: Uint8Array,
         message: Uint8Array,
         randomness: Option<Uint8Array>,
-    ) -> Result<Uint8Array, JsValue> {
+    ) -> core::result::Result<Uint8Array, JsValue> {
         let algorithm = match algorithm {
             "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
             "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
@@ -771,15 +712,18 @@ impl SlhDsa {
 
         let secret_key = SigSecretKey::new(secret_key.to_vec());
         let message = message.to_vec();
-        let randomness_slice = if let Some(rand) = randomness {
-            Some(rand.to_vec().as_slice())
+        let randomness_vec = if let Some(rand) = randomness {
+            Some(rand.to_vec())
         } else {
             None
         };
+        let randomness_slice = randomness_vec.as_deref();
 
-        let signature = self
-            .sign_for_algorithm(algorithm, &secret_key, &message, randomness_slice)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let signature =
+            match self.sign_for_algorithm(algorithm, &secret_key, &message, randomness_slice) {
+                Ok(sig) => sig,
+                Err(e) => return Err(JsValue::from_str(&e.to_string())),
+            };
 
         Ok(Uint8Array::from(signature.as_slice()))
     }
@@ -801,7 +745,7 @@ impl SlhDsa {
         public_key: Uint8Array,
         message: Uint8Array,
         signature: Uint8Array,
-    ) -> Result<bool, JsValue> {
+    ) -> core::result::Result<bool, JsValue> {
         let algorithm = match algorithm {
             "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
             "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
@@ -816,9 +760,11 @@ impl SlhDsa {
         let message = message.to_vec();
         let signature = signature.to_vec();
 
-        let is_valid = self
-            .verify_for_algorithm(algorithm, &public_key, &message, &signature)
-            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let is_valid = match self.verify_for_algorithm(algorithm, &public_key, &message, &signature)
+        {
+            Ok(valid) => valid,
+            Err(e) => return Err(JsValue::from_str(&e.to_string())),
+        };
 
         Ok(is_valid)
     }

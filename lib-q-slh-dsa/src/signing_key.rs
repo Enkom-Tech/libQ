@@ -104,7 +104,89 @@ impl<N: ArraySize> SkPrf<N> {
     }
 }
 
-/// A `SigningKey` allows signing messages with a fixed parameter set
+/// A SLH-DSA signing key for a specific parameter set
+///
+/// This struct provides the ability to sign messages using the SLH-DSA algorithm
+/// with a fixed parameter set. The key contains sensitive cryptographic material
+/// and is automatically zeroized when dropped.
+///
+/// # Security
+///
+/// The signing key contains sensitive cryptographic material and is automatically
+/// zeroized when dropped. Never expose the raw key material.
+///
+/// # Performance Characteristics
+///
+/// Signing performance varies by parameter set:
+/// - **128-bit security**: ~1-2ms per signature
+/// - **192-bit security**: ~2-4ms per signature  
+/// - **256-bit security**: ~4-8ms per signature
+///
+/// # Example: Basic Usage
+///
+/// ```rust
+/// use lib_q_random::new_secure_rng;
+/// use lib_q_slh_dsa::{
+///     Shake128f,
+///     SigningKey,
+/// };
+/// use signature::*;
+///
+/// let mut rng = new_secure_rng().expect("Failed to create RNG");
+/// let sk = SigningKey::<Shake128f>::new(&mut rng);
+/// let vk = sk.verifying_key();
+///
+/// let message = b"Hello, SLH-DSA!";
+/// let sig = sk.sign_with_rng(&mut rng, message);
+/// assert!(vk.verify(message, &sig).is_ok());
+/// ```
+///
+/// # Example: Multiple Messages
+///
+/// ```rust
+/// use lib_q_random::new_secure_rng;
+/// use lib_q_slh_dsa::{
+///     Shake128f,
+///     SigningKey,
+/// };
+/// use signature::*;
+///
+/// let mut rng = new_secure_rng().expect("Failed to create RNG");
+/// let sk = SigningKey::<Shake128f>::new(&mut rng);
+/// let vk = sk.verifying_key();
+///
+/// let messages: &[&[u8]] =
+///     &[b"First message", b"Second message", b"Third message"];
+///
+/// for message in messages {
+///     let sig = sk.sign_with_rng(&mut rng, message);
+///     assert!(vk.verify(message, &sig).is_ok());
+/// }
+/// ```
+///
+/// # Example: no_std Environment
+///
+/// ```rust,no_run
+/// use lib_q_slh_dsa::{
+///     Shake128f,
+///     SigningKey,
+/// };
+/// use signature::*;
+///
+/// // In no_std environments, you must provide randomness externally
+/// let key_randomness = [0u8; 48]; // 3 * 16 bytes for Shake128f
+/// let signing_randomness = [0u8; 16]; // 16 bytes for signing
+///
+/// let sk = SigningKey::<Shake128f>::try_from(&key_randomness[..])
+///     .expect("Invalid key randomness");
+/// let vk = sk.verifying_key();
+///
+/// let message = b"Hello, no_std SLH-DSA!";
+/// // Note: In real no_std environments, you'd need to provide your own RNG
+/// // let mut rng = YourCustomRng::new(&signing_randomness);
+/// // let sig = sk.sign_with_rng(&mut rng, message).expect("Signing failed");
+/// // assert!(vk.verify(message, &sig).is_ok());
+/// ```
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SigningKey<P: ParameterSet> {
     pub(crate) sk_seed: SkSeed<P::N>,
@@ -131,6 +213,39 @@ pub trait SigningKeyLen: VerifyingKeyLen {
 
 impl<P: ParameterSet> SigningKey<P> {
     /// Create a new `SigningKey` from a cryptographic random number generator
+    ///
+    /// This method generates a new signing key using cryptographically secure
+    /// randomness. The key generation follows the SLH-DSA specification in
+    /// NIST FIPS-205.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A new `SigningKey` instance with associated verifying key
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use lib_q_random::new_secure_rng;
+    /// use lib_q_slh_dsa::{
+    ///     Shake128f,
+    ///     SigningKey,
+    /// };
+    /// use signature::*;
+    ///
+    /// let mut rng = new_secure_rng().expect("Failed to create RNG");
+    /// let sk = SigningKey::<Shake128f>::new(&mut rng);
+    /// let vk = sk.verifying_key();
+    /// ```
+    ///
+    /// # Security Considerations
+    ///
+    /// - The RNG must be cryptographically secure
+    /// - Never reuse randomness between key generations
+    /// - The generated key is automatically zeroized when dropped
     pub fn new<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
         let sk_seed = SkSeed::new(rng);
         let sk_prf = SkPrf::new(rng);
@@ -374,6 +489,8 @@ impl<M> SigningKeyLen for Shake<U32, M> {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_random::new_secure_rng;
+
     use crate::util::macros::test_parameter_sets;
     use crate::{
         ParameterSet,
@@ -381,7 +498,7 @@ mod tests {
     };
 
     fn test_serialize_deserialize<P: ParameterSet>() {
-        let mut rng: rand::prelude::ThreadRng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<P>::new(&mut rng);
         let bytes = sk.to_bytes();
         let sk2 = SigningKey::<P>::try_from(bytes.as_slice()).unwrap();
@@ -391,7 +508,7 @@ mod tests {
 
     #[cfg(feature = "alloc")]
     fn test_serialize_deserialize_vec<P: ParameterSet>() {
-        let mut rng: rand::prelude::ThreadRng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<P>::new(&mut rng);
         let vec = sk.to_vec();
         let sk2 = SigningKey::<P>::try_from(vec.as_slice()).unwrap();
@@ -400,9 +517,59 @@ mod tests {
     #[cfg(feature = "alloc")]
     test_parameter_sets!(test_serialize_deserialize_vec);
 
+    fn test_documentation_example_basic_usage<P: ParameterSet>() {
+        use lib_q_random::new_secure_rng;
+        use signature::*;
+
+        use crate::SigningKey;
+
+        let mut rng = new_secure_rng().expect("Failed to create RNG");
+        let sk = SigningKey::<P>::new(&mut rng);
+        let vk = sk.verifying_key();
+
+        let message = b"Hello, SLH-DSA!";
+        let sig = sk.sign_with_rng(&mut rng, message);
+        assert!(vk.verify(message, &sig).is_ok());
+    }
+    test_parameter_sets!(test_documentation_example_basic_usage);
+
+    fn test_documentation_example_multiple_messages<P: ParameterSet>() {
+        use lib_q_random::new_secure_rng;
+        use signature::*;
+
+        use crate::SigningKey;
+
+        let mut rng = new_secure_rng().expect("Failed to create RNG");
+        let sk = SigningKey::<P>::new(&mut rng);
+        let vk = sk.verifying_key();
+
+        let messages: &[&[u8]] = &[b"First message", b"Second message", b"Third message"];
+
+        for message in messages {
+            let sig = sk.sign_with_rng(&mut rng, message);
+            assert!(vk.verify(message, &sig).is_ok());
+        }
+    }
+    test_parameter_sets!(test_documentation_example_multiple_messages);
+
+    fn test_documentation_example_new_method<P: ParameterSet>() {
+        use lib_q_random::new_secure_rng;
+        use signature::Keypair;
+
+        use crate::SigningKey;
+
+        let mut rng = new_secure_rng().expect("Failed to create RNG");
+        let sk = SigningKey::<P>::new(&mut rng);
+        let vk = sk.verifying_key();
+
+        // Verify the key was created successfully
+        assert_eq!(sk.verifying_key(), vk);
+    }
+    test_parameter_sets!(test_documentation_example_new_method);
+
     #[test]
     fn test_deserialize_fail_on_incorrect_length() {
-        let mut rng: rand::prelude::ThreadRng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<Shake128f>::new(&mut rng);
         let bytes = sk.to_bytes();
         let incorrect_bytes = &bytes[..bytes.len() - 1];

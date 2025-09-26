@@ -158,10 +158,8 @@ pub(crate) trait WotsParams: HashSuite {
 mod tests {
     use hex_literal::hex;
     use hybrid_array::Array;
-    use rand::{
-        RngCore,
-        rng,
-    };
+    use lib_q_random::new_secure_rng;
+    use rand_core::RngCore;
 
     use super::WotsParams;
     use crate::address::WotsHash;
@@ -174,7 +172,7 @@ mod tests {
 
     fn test_sign_verify<Wots: WotsParams>() {
         // Generate random sk_seed, pk_seed, message, address
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 
@@ -197,7 +195,7 @@ mod tests {
 
     fn test_sign_verify_fail<Wots: WotsParams>() {
         // Generate random sk_seed, pk_seed, message
-        let mut rng = rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
 
         let sk_seed = SkSeed::new(&mut rng);
 

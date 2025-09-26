@@ -119,7 +119,7 @@ impl EntropySource for OsEntropySource {
             }
         }
 
-        #[cfg(feature = "getrandom")]
+        #[cfg(feature = "std")]
         {
             getrandom::fill(dest).map_err(|_| {
                 Error::platform_rng_failed_with_code(
@@ -129,12 +129,9 @@ impl EntropySource for OsEntropySource {
                 )
             })
         }
-        #[cfg(not(feature = "getrandom"))]
+        #[cfg(not(feature = "std"))]
         {
-            Err(Error::feature_not_available(
-                "OS entropy source",
-                &["getrandom"],
-            ))
+            Err(Error::feature_not_available("OS entropy source", &["std"]))
         }
     }
 
@@ -160,11 +157,11 @@ impl EntropySource for OsEntropySource {
     }
 
     fn is_available(&self) -> bool {
-        #[cfg(feature = "getrandom")]
+        #[cfg(feature = "std")]
         {
             true
         }
-        #[cfg(not(feature = "getrandom"))]
+        #[cfg(not(feature = "std"))]
         {
             false
         }
@@ -192,7 +189,7 @@ impl EntropySource for OsEntropySource {
     }
 
     fn max_entropy_per_call(&self) -> Option<usize> {
-        self.max_per_call.or(Some(256)) // Use config value or default limit
+        self.max_per_call.or(Some(16384)) // Use config value or default limit (16KB)
     }
 }
 
@@ -229,24 +226,15 @@ impl HardwareEntropySource {
 
     /// Detect available hardware RNG
     fn detect_hardware_rng() -> (&'static str, bool) {
-        // This is a simplified detection - in a real implementation,
-        // you would use CPU feature detection and platform-specific APIs
+        // For now, we don't have a working hardware RNG implementation
+        // so we always return false to fall back to OS entropy
         #[cfg(target_arch = "x86_64")]
         {
-            // Check for RDRAND instruction support
-            #[cfg(feature = "std")]
-            {
-                if is_x86_feature_detected!("rdrand") {
-                    return ("Intel RDRAND", true);
-                }
-            }
             return ("Intel x86_64", false);
         }
         #[cfg(target_arch = "aarch64")]
         {
-            // Check for ARM TRNG support
-            // This would require platform-specific detection
-            return ("ARM TRNG", false); // Placeholder
+            return ("ARM TRNG", false);
         }
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
@@ -570,9 +558,23 @@ impl EntropySourceFactory {
             }
         }
 
-        // If no secure entropy is available, return an error
+        // As a last resort, use secure fallback with relaxed quality requirements
+        let mut fallback_config = config.clone();
+        fallback_config.min_quality = 0.5; // Lower threshold for fallback
+
+        let mut fallback_source = crate::secure_fallback::SecureFallbackEntropySource::new();
+        if fallback_source.initialize(&fallback_config).is_ok() {
+            #[cfg(feature = "std")]
+            eprintln!(
+                "Warning: Using secure fallback entropy source. \
+                This may indicate limited entropy availability on this system."
+            );
+            return Ok(Box::new(fallback_source));
+        }
+
+        // If even fallback fails, return an error
         Err(Error::entropy_source_unavailable(
-            "No secure entropy sources available that meet the requirements",
+            "No entropy sources available that meet the requirements, including fallback",
         ))
     }
 
@@ -631,6 +633,12 @@ impl EntropySourceFactory {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "std"))]
+    use alloc::{
+        format,
+        vec,
+    };
+
     use super::*;
 
     #[test]
@@ -662,7 +670,10 @@ mod tests {
         let source = DeterministicEntropySource::new(&seed);
         assert!(!source.name().is_empty());
         assert_eq!(source.source_type(), EntropySourceType::Deterministic);
-        assert_eq!(source.quality(), 0.0);
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(source.quality(), 0.0);
+        }
     }
 
     #[test]
@@ -681,6 +692,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_user_entropy_source_creation() {
         let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let source = UserEntropySource::new(entropy_data);
@@ -689,20 +701,27 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_user_entropy_source_with_quality() {
         let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let source = UserEntropySource::with_quality(entropy_data, 0.9);
-        assert_eq!(source.quality(), 0.9);
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(source.quality(), 0.9);
+        }
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_user_entropy_source_cycling() {
         let entropy_data = vec![1, 2, 3];
         let mut source = UserEntropySource::new(entropy_data);
 
         // Initialize with a config that allows more bytes per call
-        let mut config = EntropyConfig::default();
-        config.max_per_call = Some(6); // Allow up to 6 bytes per call (same as what we're requesting)
+        let config = EntropyConfig {
+            max_per_call: Some(6), // Allow up to 6 bytes per call (same as what we're requesting)
+            ..Default::default()
+        };
         source.initialize(&config).unwrap();
 
         let mut bytes = [0u8; 6];
@@ -713,6 +732,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_entropy_source_factory_deterministic() {
         let seed = [1, 2, 3, 4];
         let source = EntropySourceFactory::create_deterministic_entropy(&seed);
@@ -720,6 +740,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_entropy_source_factory_user() {
         let entropy_data = vec![1, 2, 3, 4, 5];
         let source = EntropySourceFactory::create_user_entropy(entropy_data);
@@ -728,9 +749,11 @@ mod tests {
 
     #[test]
     fn test_entropy_config_validation() {
-        let mut config = EntropyConfig::default();
-        config.min_quality = 0.9; // High quality requirement
-        config.max_per_call = Some(32);
+        let config = EntropyConfig {
+            min_quality: 0.9, // High quality requirement
+            max_per_call: Some(32),
+            ..Default::default()
+        };
 
         // Test OS entropy source with high quality requirement
         let mut os_source = OsEntropySource::new();
@@ -738,16 +761,21 @@ mod tests {
         assert!(os_source.initialize(&config).is_ok());
 
         // Test with quality requirement too high
-        config.min_quality = 0.99;
+        let config2 = EntropyConfig {
+            min_quality: 0.99,
+            ..config
+        };
         let mut os_source2 = OsEntropySource::new();
         // OS entropy should not meet this requirement (0.95 < 0.99)
-        assert!(os_source2.initialize(&config).is_err());
+        assert!(os_source2.initialize(&config2).is_err());
     }
 
     #[test]
     fn test_entropy_config_max_per_call() {
-        let mut config = EntropyConfig::default();
-        config.max_per_call = Some(16);
+        let config = EntropyConfig {
+            max_per_call: Some(16),
+            ..Default::default()
+        };
 
         let mut os_source = OsEntropySource::new();
         os_source.initialize(&config).unwrap();
@@ -758,10 +786,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_entropy_source_factory_with_config() {
-        let mut config = EntropyConfig::default();
-        config.min_quality = 0.8;
-        config.max_per_call = Some(64);
+        let config = EntropyConfig {
+            min_quality: 0.8,
+            max_per_call: Some(64),
+            ..Default::default()
+        };
 
         // This should work with default config
         let result = EntropySourceFactory::create_best_available_with_config(&config);
@@ -775,24 +806,28 @@ mod tests {
         let platform = os_source.platform();
 
         // Test quality error message
-        let mut config = EntropyConfig::default();
-        config.min_quality = 1.0; // Set to impossible value
+        let config = EntropyConfig {
+            min_quality: 1.0, // Set to impossible value
+            ..Default::default()
+        };
 
         let result = os_source.initialize(&config);
         assert!(result.is_err());
         if let Err(error) = result {
-            let error_msg = format!("{}", error);
+            let error_msg = format!("{error}");
             assert!(error_msg.contains("quality below required minimum"));
         }
 
         // Test max_per_call error message
-        let mut config2 = EntropyConfig::default();
-        config2.max_per_call = Some(1000); // Exceeds limit
+        let config2 = EntropyConfig {
+            max_per_call: Some(1000), // Exceeds limit
+            ..Default::default()
+        };
 
         let result2 = os_source.initialize(&config2);
         assert!(result2.is_err());
         if let Err(error) = result2 {
-            let error_msg = format!("{}", error);
+            let error_msg = format!("{error}");
             assert!(error_msg.contains("exceeds OS entropy source limit"));
         }
 

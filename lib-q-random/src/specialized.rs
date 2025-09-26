@@ -10,6 +10,8 @@ use rand_core::{
     RngCore,
 };
 
+use crate::Error;
+
 /// Classical `McEliece` compatible RNG
 ///
 /// This RNG provides the same interface as the original `AesState` but uses
@@ -158,7 +160,7 @@ impl ClassicalMcElieceRng {
             // getrandom is non-blocking and works in both std and no_std environments
             if let Err(_e) = getrandom::fill(dest) {
                 // If getrandom fails, fall back to thread-local CSPRNG
-                self.generate_secure_bytes_fallback(dest);
+                self.generate_secure_bytes(dest);
                 return;
             }
         }
@@ -178,14 +180,6 @@ impl ClassicalMcElieceRng {
         }
 
         self.reseed_counter = self.reseed_counter.wrapping_add(1);
-    }
-
-    /// Fallback secure random generation using thread-local CSPRNG
-    #[cfg(feature = "rand")]
-    fn generate_secure_bytes_fallback(&mut self, dest: &mut [u8]) {
-        use rand::rng;
-        let mut rng = rng();
-        rng.fill_bytes(dest);
     }
 }
 
@@ -245,24 +239,29 @@ pub struct KangarooTwelveRng {
 #[cfg(feature = "hash")]
 impl KangarooTwelveRng {
     /// Create a new secure RNG with system entropy
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if entropy source is unavailable or fails to initialize.
     pub fn new() -> crate::Result<Self> {
-        // Use system entropy to seed the RNG
-        let mut seed = [0u8; 32];
         #[cfg(feature = "getrandom")]
         {
-            getrandom::fill(&mut seed).map_err(|_| Error::EntropySourceFailed {
-                source: "system".to_string(),
+            // Use system entropy to seed the RNG
+            let mut seed = [0u8; 32];
+            getrandom::fill(&mut seed).map_err(|_| Error::EntropySourceUnavailable {
+                source: "system",
+                context: Some("getrandom failed"),
             })?;
+            Ok(Self::from_seed(&seed))
         }
         #[cfg(not(feature = "getrandom"))]
         {
-            // Fallback for no_std - use a simple counter (INSECURE)
-            for (i, byte) in seed.iter_mut().enumerate() {
-                *byte = u8::try_from(i).unwrap_or(0).wrapping_add(0x42);
-            }
+            // No insecure fallback - fail fast if getrandom is not available
+            Err(Error::FeatureNotAvailable {
+                feature: "secure entropy",
+                required_features: &["getrandom"],
+            })
         }
-
-        Ok(Self::from_seed(&seed))
     }
 
     /// Create a new secure RNG with explicit seed
@@ -353,7 +352,7 @@ impl CryptoRng for KangarooTwelveRng {}
 /// FN-DSA compatible RNG with environment-specific implementations
 pub struct FnDsaRng {
     #[cfg(feature = "rand")]
-    rng: Option<rand::rng::ThreadRng>,
+    rng: Option<rand::rngs::ThreadRng>,
 }
 
 impl Default for FnDsaRng {
@@ -397,7 +396,7 @@ impl RngCore for FnDsaRng {
             #[cfg(feature = "wasm")]
             {
                 let mut bytes = [0u8; 4];
-                getrandom::getrandom(&mut bytes).expect("Failed to get random bytes");
+                getrandom::fill(&mut bytes).expect("Failed to get random bytes");
                 u32::from_le_bytes(bytes)
             }
             #[cfg(not(feature = "wasm"))]
@@ -509,7 +508,7 @@ mod tests {
     fn test_fn_dsa_rng_creation() {
         let _rng = FnDsaRng::new();
         // Should create without panicking
-        assert!(true);
+        // Test passes if we reach this point
     }
 
     #[test]

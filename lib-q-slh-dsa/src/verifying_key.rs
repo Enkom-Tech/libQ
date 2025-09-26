@@ -255,12 +255,13 @@ impl<M> VerifyingKeyLen for Shake<U32, M> {
 #[cfg(test)]
 mod tests {
     use hybrid_array::Array;
+    use lib_q_random::new_secure_rng;
     use signature::*;
 
     use crate::*;
     #[test]
     fn test_vk_serialize_deserialize() {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
         let sk = SigningKey::<Shake128f>::new(&mut rng);
         let vk = sk.verifying_key();
         let vk_bytes: Array<u8, _> = (&vk).into();

@@ -12,6 +12,10 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
+use lib_q_random::{
+    LibQRng,
+    new_deterministic_rng,
+};
 use lib_q_slh_dsa::{
     ParameterSet,
     Sha2_128f,
@@ -23,13 +27,17 @@ use lib_q_slh_dsa::{
     SigningKey,
     VerifyingKey,
 };
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use signature::{
     Keypair,
     RandomizedSigner,
     Verifier,
 };
+
+/// Helper function to create a deterministic RNG for benchmarks
+/// This ensures consistent benchmark results and proper error handling
+fn create_benchmark_rng(seed: &[u8; 32]) -> LibQRng {
+    new_deterministic_rng(seed)
+}
 
 /// Benchmark key generation for different SLH-DSA parameter sets
 fn benchmark_key_generation(c: &mut Criterion) {
@@ -53,7 +61,7 @@ fn benchmark_key_generation(c: &mut Criterion) {
     for (name, _) in parameter_sets {
         group.bench_function(name, |b| {
             b.iter(|| {
-                let mut rng = StdRng::from_seed(seed);
+                let mut rng = create_benchmark_rng(&seed);
                 let signing_key = SigningKey::<Sha2_128f>::new(&mut rng);
                 let verifying_key = signing_key.verifying_key();
                 black_box((signing_key, verifying_key))
@@ -79,7 +87,7 @@ fn benchmark_signing(c: &mut Criterion) {
         *item = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
     }
 
-    let mut key_rng = StdRng::from_seed(key_seed);
+    let mut key_rng = create_benchmark_rng(&key_seed);
     let signing_key = SigningKey::<Shake128f>::new(&mut key_rng);
 
     let message_sizes = [64, 256, 1024, 4096, 16384];
@@ -88,7 +96,7 @@ fn benchmark_signing(c: &mut Criterion) {
         let message = vec![0u8; size];
         group.bench_with_input(BenchmarkId::new("SHAKE128f", size), &message, |b, msg| {
             b.iter(|| {
-                let mut signing_rng = StdRng::from_seed(signing_seed);
+                let mut signing_rng = create_benchmark_rng(&signing_seed);
                 let signature = signing_key
                     .try_sign_with_rng(&mut signing_rng, msg)
                     .expect("Signing should succeed");
@@ -115,7 +123,7 @@ fn benchmark_verification(c: &mut Criterion) {
         *item = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
     }
 
-    let mut key_rng = StdRng::from_seed(key_seed);
+    let mut key_rng = create_benchmark_rng(&key_seed);
     let signing_key = SigningKey::<Shake128f>::new(&mut key_rng);
     let verifying_key = signing_key.verifying_key();
 
@@ -123,7 +131,7 @@ fn benchmark_verification(c: &mut Criterion) {
 
     for size in message_sizes {
         let message = vec![0u8; size];
-        let mut signing_rng = StdRng::from_seed(signing_seed);
+        let mut signing_rng = create_benchmark_rng(&signing_seed);
         let signature = signing_key
             .try_sign_with_rng(&mut signing_rng, &message)
             .expect("Signing should succeed");
@@ -149,7 +157,7 @@ fn benchmark_key_serialization(c: &mut Criterion) {
         *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
     }
 
-    let mut rng = StdRng::from_seed(seed);
+    let mut rng = create_benchmark_rng(&seed);
     let signing_key = SigningKey::<Shake128f>::new(&mut rng);
     let verifying_key = signing_key.verifying_key();
 
@@ -203,11 +211,11 @@ fn benchmark_signature_serialization(c: &mut Criterion) {
         *item = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
     }
 
-    let mut key_rng = StdRng::from_seed(key_seed);
+    let mut key_rng = create_benchmark_rng(&key_seed);
     let signing_key = SigningKey::<Shake128f>::new(&mut key_rng);
     let message = b"Benchmark message for signature serialization";
 
-    let mut signing_rng = StdRng::from_seed(signing_seed);
+    let mut signing_rng = create_benchmark_rng(&signing_seed);
     let signature = signing_key
         .try_sign_with_rng(&mut signing_rng, message)
         .expect("Signing should succeed");
@@ -259,11 +267,11 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
     let message = b"Parameter set comparison benchmark";
 
     // Benchmark SHA2-128f
-    let mut key_rng_128f = StdRng::from_seed(key_seed);
+    let mut key_rng_128f = create_benchmark_rng(&key_seed);
     let signing_key_128f = SigningKey::<Sha2_128f>::new(&mut key_rng_128f);
     group.bench_function("SHA2-128f_full_workflow", |b| {
         b.iter(|| {
-            let mut signing_rng = StdRng::from_seed(signing_seed_16);
+            let mut signing_rng = create_benchmark_rng(&signing_seed_16);
             let signature = signing_key_128f
                 .try_sign_with_rng(&mut signing_rng, message)
                 .expect("Signing should succeed");
@@ -272,11 +280,11 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
     });
 
     // Benchmark SHA2-192f
-    let mut key_rng_192f = StdRng::from_seed(key_seed);
+    let mut key_rng_192f = create_benchmark_rng(&key_seed);
     let signing_key_192f = SigningKey::<Sha2_192f>::new(&mut key_rng_192f);
     group.bench_function("SHA2-192f_full_workflow", |b| {
         b.iter(|| {
-            let mut signing_rng = StdRng::from_seed(signing_seed_24);
+            let mut signing_rng = create_benchmark_rng(&signing_seed_24);
             let signature = signing_key_192f
                 .try_sign_with_rng(&mut signing_rng, message)
                 .expect("Signing should succeed");
@@ -285,11 +293,11 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
     });
 
     // Benchmark SHA2-256f
-    let mut key_rng_256f = StdRng::from_seed(key_seed);
+    let mut key_rng_256f = create_benchmark_rng(&key_seed);
     let signing_key_256f = SigningKey::<Sha2_256f>::new(&mut key_rng_256f);
     group.bench_function("SHA2-256f_full_workflow", |b| {
         b.iter(|| {
-            let mut signing_rng = StdRng::from_seed(signing_seed_32);
+            let mut signing_rng = create_benchmark_rng(&signing_seed_32);
             let signature = signing_key_256f
                 .try_sign_with_rng(&mut signing_rng, message)
                 .expect("Signing should succeed");

@@ -204,8 +204,8 @@ fn benchmark_security_validation_overhead(c: &mut Criterion) {
 
         // Benchmark with valid randomness (includes security validation)
         let mut valid_randomness = [0u8; 32];
-        for i in 0..32 {
-            valid_randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, item) in valid_randomness.iter_mut().enumerate() {
+            *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         group.bench_function("with_security_validation", |b| {

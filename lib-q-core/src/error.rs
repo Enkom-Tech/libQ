@@ -188,6 +188,9 @@ pub enum Error {
     AuthenticationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     AuthenticationFailed { operation: &'static str },
+
+    /// Invalid randomness size
+    InvalidRandomnessSize { expected: usize, actual: usize },
 }
 
 impl fmt::Display for Error {
@@ -349,6 +352,12 @@ impl fmt::Display for Error {
             Error::AuthenticationFailed { operation } => {
                 write!(f, "Authentication failed: {operation}")
             }
+            Error::InvalidRandomnessSize { expected, actual } => {
+                write!(
+                    f,
+                    "Invalid randomness size: expected {expected}, got {actual}"
+                )
+            }
         }
     }
 }
@@ -407,6 +416,7 @@ impl Error {
             Error::InvalidKey { .. } => "InvalidKey".to_string(),
             Error::UnsupportedAlgorithm { .. } => "UnsupportedAlgorithm".to_string(),
             Error::AuthenticationFailed { .. } => "AuthenticationFailed".to_string(),
+            Error::InvalidRandomnessSize { .. } => "InvalidRandomnessSize".to_string(),
         }
     }
 }

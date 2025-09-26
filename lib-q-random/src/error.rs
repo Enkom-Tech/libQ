@@ -536,6 +536,9 @@ impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "std"))]
+    use alloc::format;
+
     use super::*;
 
     #[test]

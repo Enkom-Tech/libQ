@@ -4,19 +4,29 @@
 //! testing the interaction between different components and ensuring proper
 //! functionality across various use cases.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+// Conditional imports based on feature flags
+#[cfg(feature = "alloc")]
 use lib_q_random::entropy::{
     DeterministicEntropySource,
     EntropySourceFactory,
     OsEntropySource,
     UserEntropySource,
 };
+#[cfg(feature = "alloc")]
 use lib_q_random::traits::{
     EntropySource,
     EntropySourceType,
     SecureRng,
     SecurityLevel,
 };
+#[cfg(feature = "alloc")]
 use lib_q_random::validation::quick_entropy_check;
+#[cfg(feature = "alloc")]
 use lib_q_random::{
     EntropyQuality,
     EntropyValidator,
@@ -24,43 +34,91 @@ use lib_q_random::{
     new_deterministic_rng,
     new_secure_rng,
 };
+// no_std imports
+#[cfg(not(feature = "alloc"))]
+use lib_q_random::{
+    new_deterministic_rng_no_std,
+    new_secure_rng_no_std,
+};
 use rand_core::RngCore;
 
 #[test]
 fn test_secure_rng_creation() {
-    // Test secure RNG creation (may fail in some environments)
-    let result = new_secure_rng();
-    // We don't assert success here as it depends on platform capabilities
-    if let Ok(rng) = result {
-        assert!(rng.is_secure());
-        assert_eq!(rng.security_level(), SecurityLevel::CryptographicallySecure);
-        assert!(!rng.is_deterministic());
+    #[cfg(feature = "alloc")]
+    {
+        // Test secure RNG creation (may fail in some environments)
+        let result = new_secure_rng();
+        // We don't assert success here as it depends on platform capabilities
+        if let Ok(rng) = result {
+            assert!(rng.is_secure());
+            assert_eq!(rng.security_level(), SecurityLevel::CryptographicallySecure);
+            assert!(!rng.is_deterministic());
+        }
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    {
+        // Test no_std secure RNG creation
+        let result = new_secure_rng_no_std();
+        if let Ok(mut rng) = result {
+            // Test basic functionality
+            let mut bytes = [0u8; 32];
+            rng.fill_bytes(&mut bytes);
+            assert!(!bytes.iter().all(|&b| b == 0));
+        }
     }
 }
 
 #[test]
 fn test_deterministic_rng_creation() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let rng = new_deterministic_rng(&seed);
 
-    assert!(!rng.is_secure());
-    assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
-    assert!(rng.is_deterministic());
+    #[cfg(feature = "alloc")]
+    {
+        let rng = new_deterministic_rng(&seed);
+        assert!(!rng.is_secure());
+        assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
+        assert!(rng.is_deterministic());
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    {
+        let rng = new_deterministic_rng_no_std(&seed);
+        assert!(rng.is_deterministic());
+    }
 }
 
 #[test]
 fn test_deterministic_rng_consistency() {
     let seed = [42u8; 16];
-    let mut rng1 = new_deterministic_rng(&seed);
-    let mut rng2 = new_deterministic_rng(&seed);
 
-    let mut bytes1 = [0u8; 64];
-    let mut bytes2 = [0u8; 64];
+    #[cfg(feature = "alloc")]
+    {
+        let mut rng1 = new_deterministic_rng(&seed);
+        let mut rng2 = new_deterministic_rng(&seed);
 
-    rng1.fill_bytes(&mut bytes1);
-    rng2.fill_bytes(&mut bytes2);
+        let mut bytes1 = [0u8; 64];
+        let mut bytes2 = [0u8; 64];
 
-    assert_eq!(bytes1, bytes2);
+        rng1.fill_bytes(&mut bytes1);
+        rng2.fill_bytes(&mut bytes2);
+
+        assert_eq!(bytes1, bytes2);
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    {
+        let mut rng1 = new_deterministic_rng_no_std(&seed);
+        let mut rng2 = new_deterministic_rng_no_std(&seed);
+
+        let mut bytes1 = [0u8; 64];
+        let mut bytes2 = [0u8; 64];
+
+        rng1.fill_bytes(&mut bytes1);
+        rng2.fill_bytes(&mut bytes2);
+
+        assert_eq!(bytes1, bytes2);
+    }
 }
 
 #[test]
@@ -68,19 +126,37 @@ fn test_deterministic_rng_different_seeds() {
     let seed1 = [1u8; 16];
     let seed2 = [2u8; 16];
 
-    let mut rng1 = new_deterministic_rng(&seed1);
-    let mut rng2 = new_deterministic_rng(&seed2);
+    #[cfg(feature = "alloc")]
+    {
+        let mut rng1 = new_deterministic_rng(&seed1);
+        let mut rng2 = new_deterministic_rng(&seed2);
 
-    let mut bytes1 = [0u8; 32];
-    let mut bytes2 = [0u8; 32];
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
 
-    rng1.fill_bytes(&mut bytes1);
-    rng2.fill_bytes(&mut bytes2);
+        rng1.fill_bytes(&mut bytes1);
+        rng2.fill_bytes(&mut bytes2);
 
-    assert_ne!(bytes1, bytes2);
+        assert_ne!(bytes1, bytes2);
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    {
+        let mut rng1 = new_deterministic_rng_no_std(&seed1);
+        let mut rng2 = new_deterministic_rng_no_std(&seed2);
+
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
+
+        rng1.fill_bytes(&mut bytes1);
+        rng2.fill_bytes(&mut bytes2);
+
+        assert_ne!(bytes1, bytes2);
+    }
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_factory_deterministic() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
     let source = EntropySourceFactory::create_deterministic_entropy(&seed);
@@ -91,6 +167,7 @@ fn test_entropy_source_factory_deterministic() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_factory_user() {
     let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
     let source = EntropySourceFactory::create_user_entropy(entropy_data);
@@ -100,6 +177,7 @@ fn test_entropy_source_factory_user() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_os_entropy_source() {
     let source = OsEntropySource::new();
     assert_eq!(source.source_type(), EntropySourceType::OperatingSystem);
@@ -107,6 +185,7 @@ fn test_os_entropy_source() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_deterministic_entropy_source() {
     let seed = [1, 2, 3, 4];
     let mut source = DeterministicEntropySource::new(&seed);
@@ -121,6 +200,7 @@ fn test_deterministic_entropy_source() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_user_entropy_source() {
     let entropy_data = vec![1, 2, 3, 4, 5];
     let mut source = UserEntropySource::new(entropy_data);
@@ -137,6 +217,7 @@ fn test_user_entropy_source() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_user_entropy_source_with_quality() {
     let entropy_data = vec![1, 2, 3, 4, 5];
     let source = UserEntropySource::with_quality(entropy_data, 0.9);
@@ -145,6 +226,7 @@ fn test_user_entropy_source_with_quality() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_validator_creation() {
     let validator = EntropyValidator::new();
     assert_eq!(validator.min_entropy_bits(), 128);
@@ -153,6 +235,7 @@ fn test_entropy_validator_creation() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_validator_custom_settings() {
     let validator = EntropyValidator::with_settings(256, 2048, 0.9, true);
     assert_eq!(validator.min_entropy_bits(), 256);
@@ -162,6 +245,7 @@ fn test_entropy_validator_custom_settings() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_validation_empty_data() {
     let validator = EntropyValidator::new();
     let result = validator.validate_entropy(&[]);
@@ -169,6 +253,7 @@ fn test_entropy_validation_empty_data() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_validation_insufficient_data() {
     let validator = EntropyValidator::new();
     let data = [1, 2, 3, 4, 5]; // Less than 16 bytes
@@ -177,6 +262,7 @@ fn test_entropy_validation_insufficient_data() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_quality_creation() {
     let quality = EntropyQuality::new(0.8, 0.9, 0.7, 0.1);
     assert_eq!(quality.overall, 0.8);
@@ -186,6 +272,7 @@ fn test_entropy_quality_creation() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_quality_assessment() {
     let quality = EntropyQuality::new(0.95, 0.9, 0.8, 0.05);
     assert!(quality.is_excellent());
@@ -195,6 +282,7 @@ fn test_entropy_quality_assessment() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_quick_entropy_check() {
     // Good entropy (random-looking data)
     let good_data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
@@ -212,23 +300,46 @@ fn test_quick_entropy_check() {
 #[test]
 fn test_rng_interface_compliance() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
 
-    // Test RngCore interface
-    let val1 = rng.next_u32();
-    let val2 = rng.next_u32();
-    assert_ne!(val1, val2);
+    #[cfg(feature = "alloc")]
+    {
+        let mut rng = new_deterministic_rng(&seed);
 
-    let val3 = rng.next_u64();
-    let val4 = rng.next_u64();
-    assert_ne!(val3, val4);
+        // Test RngCore interface
+        let val1 = rng.next_u32();
+        let val2 = rng.next_u32();
+        assert_ne!(val1, val2);
 
-    let mut bytes = [0u8; 32];
-    rng.fill_bytes(&mut bytes);
-    assert_ne!(bytes, [0u8; 32]);
+        let val3 = rng.next_u64();
+        let val4 = rng.next_u64();
+        assert_ne!(val3, val4);
+
+        let mut bytes = [0u8; 32];
+        rng.fill_bytes(&mut bytes);
+        assert_ne!(bytes, [0u8; 32]);
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    {
+        let mut rng = new_deterministic_rng_no_std(&seed);
+
+        // Test RngCore interface
+        let val1 = rng.next_u32();
+        let val2 = rng.next_u32();
+        assert_ne!(val1, val2);
+
+        let val3 = rng.next_u64();
+        let val4 = rng.next_u64();
+        assert_ne!(val3, val4);
+
+        let mut bytes = [0u8; 32];
+        rng.fill_bytes(&mut bytes);
+        assert_ne!(bytes, [0u8; 32]);
+    }
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_rng_reseed_functionality() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
     let mut rng = new_deterministic_rng(&seed);
@@ -243,6 +354,7 @@ fn test_rng_reseed_functionality() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_rng_state_information() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
     let rng = new_deterministic_rng(&seed);
@@ -254,6 +366,7 @@ fn test_rng_state_information() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_rng_display_formatting() {
     let seed = [1, 2, 3, 4, 5, 6, 7, 8];
     let rng = new_deterministic_rng(&seed);
@@ -264,6 +377,7 @@ fn test_rng_display_formatting() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_custom_rng_creation() {
     let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
     let entropy_source = UserEntropySource::new(entropy_data);
@@ -275,6 +389,7 @@ fn test_custom_rng_creation() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_rng_configuration() {
     use lib_q_random::traits::RngConfig;
 
@@ -284,6 +399,7 @@ fn test_rng_configuration() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_cycling() {
     let entropy_data = vec![1, 2, 3];
     let mut source = UserEntropySource::new(entropy_data);
@@ -296,6 +412,7 @@ fn test_entropy_source_cycling() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_availability() {
     let source = OsEntropySource::new();
     // Availability depends on platform and features
@@ -311,6 +428,7 @@ fn test_entropy_source_availability() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_quality() {
     let source = OsEntropySource::new();
     assert!(source.quality() > 0.0);
@@ -325,6 +443,7 @@ fn test_entropy_source_quality() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_entropy_source_max_entropy() {
     let source = OsEntropySource::new();
     let max_entropy = source.max_entropy_per_call();
