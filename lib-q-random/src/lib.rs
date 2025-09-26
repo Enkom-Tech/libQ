@@ -27,6 +27,7 @@
 //! - **Zero-Copy**: Efficient memory usage with minimal allocations
 //! - **Thread-Safe**: Safe for use in multi-threaded environments
 //! - **Extensible**: Plugin architecture for custom entropy sources
+//! - **Custom Entropy Sources**: Secure callback-based system for plugging in custom entropy sources in `no_std` and WASM environments
 //!
 //! ## Quick Start
 //!
@@ -50,6 +51,54 @@
 //!
 //!     // Create a deterministic RNG for testing
 //!     let mut test_rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+//! }
+//! ```
+//!
+//! ### Custom Entropy Sources (`no_std`/WASM)
+//! ```rust
+//! #[cfg(feature = "custom-entropy")]
+//! {
+//!     use lib_q_random::{
+//!         custom_entropy::{CustomEntropySource, EntropyContext, EntropyQuality, CustomEntropyConfig},
+//!         register_custom_entropy_source, unregister_custom_entropy_source,
+//!         new_secure_rng
+//!     };
+//!     use rand_core::RngCore;
+//!
+//!     // Define your custom entropy callback
+//!     unsafe extern "C" fn my_entropy_callback(dest: *mut u8, len: usize, _context: *mut u8) -> i32 {
+//!         // Fill dest with len bytes of entropy from your source
+//!         for i in 0..len {
+//!             unsafe {
+//!                 *dest.add(i) = (i as u8).wrapping_add(42); // Example entropy source
+//!             }
+//!         }
+//!         0
+//!     }
+//!
+//!     // Create and register the custom entropy source
+//!     let context = EntropyContext::empty();
+//!     let config = CustomEntropyConfig::default();
+//!     let source = CustomEntropySource {
+//!         callback: my_entropy_callback,
+//!         context,
+//!         quality: EntropyQuality::Hardware,
+//!         config,
+//!         source_id: "my_hardware_rng",
+//!     };
+//!
+//!     // Register the source (must remain valid for the lifetime of usage)
+//!     unsafe {
+//!         register_custom_entropy_source(&source);
+//!     }
+//!
+//!     // Now create RNGs that will use your custom entropy source
+//!     let mut rng = new_secure_rng().unwrap();
+//!     let mut bytes = [0u8; 32];
+//!     rng.fill_bytes(&mut bytes);
+//!
+//!     // Clean up when done
+//!     unregister_custom_entropy_source();
 //! }
 //! ```
 //!
@@ -114,6 +163,10 @@ pub mod specialized;
 // no_std RNG implementation
 #[cfg(any(not(feature = "std"), feature = "no_std"))]
 pub mod no_std_rng;
+
+// Custom entropy source system for no_std/WASM environments
+#[cfg(feature = "custom-entropy")]
+pub mod custom_entropy;
 
 // Re-export main types
 pub use error::{
@@ -250,6 +303,110 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
 #[must_use]
 pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::NoStdRng {
     no_std_rng::NoStdRng::new_deterministic(seed)
+}
+
+/// Register a custom entropy source for the current thread
+///
+/// This function allows developers to register a custom entropy source that will
+/// be used by `NoStdRng` when generating random bytes. The entropy source must
+/// remain valid for the lifetime of the registration.
+///
+/// # Arguments
+///
+/// * `source` - The custom entropy source to register
+///
+/// # Safety
+///
+/// The `source` must remain valid for the lifetime of the registration.
+/// The caller is responsible for ensuring the source is not dropped
+/// while registered.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use lib_q_random::custom_entropy::{
+///     CustomEntropyConfig,
+///     CustomEntropySource,
+///     EntropyContext,
+///     EntropyQuality,
+/// };
+/// use lib_q_random::{
+///     register_custom_entropy_source,
+///     unregister_custom_entropy_source,
+/// };
+/// use rand_core::RngCore;
+///
+/// // Define a custom entropy callback
+/// unsafe extern "C" fn my_entropy_callback(
+///     dest: *mut u8,
+///     len: usize,
+///     _context: *mut u8,
+/// ) -> i32 {
+///     // Fill dest with len bytes of entropy
+///     // Return 0 on success, non-zero on failure
+///     0
+/// }
+///
+/// // Create and register the entropy source
+/// let context = EntropyContext::empty();
+/// let config = CustomEntropyConfig::default();
+/// let source = unsafe {
+///     CustomEntropySource::new(
+///         my_entropy_callback,
+///         context,
+///         EntropyQuality::User,
+///         config,
+///         "my_custom_source",
+///     )
+/// };
+///
+/// unsafe {
+///     register_custom_entropy_source(&source);
+/// }
+///
+/// // Now NoStdRng will use the custom entropy source
+/// // (In no_std environments, use new_secure_rng_no_std())
+/// // let mut rng = new_secure_rng_no_std().unwrap();
+/// // let mut bytes = [0u8; 32];
+/// // rng.fill_bytes(&mut bytes);
+///
+/// // Clean up
+/// unregister_custom_entropy_source();
+/// ```
+#[cfg(feature = "custom-entropy")]
+pub unsafe fn register_custom_entropy_source(source: *const custom_entropy::CustomEntropySource) {
+    unsafe { custom_entropy::register_custom_entropy_source(source) };
+}
+
+/// Unregister the current custom entropy source
+///
+/// This function removes the currently registered custom entropy source,
+/// causing `NoStdRng` to fall back to the default entropy source (getrandom).
+#[cfg(feature = "custom-entropy")]
+pub fn unregister_custom_entropy_source() {
+    custom_entropy::unregister_custom_entropy_source();
+}
+
+/// Check if a custom entropy source is currently registered
+///
+/// # Returns
+///
+/// Returns `true` if a custom entropy source is registered, `false` otherwise.
+#[cfg(feature = "custom-entropy")]
+#[must_use]
+pub fn has_custom_entropy_source() -> bool {
+    custom_entropy::has_custom_entropy_source()
+}
+
+/// Get information about the currently registered entropy source
+///
+/// # Returns
+///
+/// Returns a tuple of (`source_id`, quality) if a source is registered.
+#[cfg(feature = "custom-entropy")]
+#[must_use]
+pub fn get_custom_entropy_source_info() -> Option<(&'static str, custom_entropy::EntropyQuality)> {
+    custom_entropy::get_entropy_source_info()
 }
 
 /// Create a new RNG with custom entropy source

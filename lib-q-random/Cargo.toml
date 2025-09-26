@@ -52,6 +52,9 @@ test-vectors = []
 wasm = ["dep:wasm-bindgen", "getrandom/wasm_js"]
 js = ["getrandom/std"]
 
+# Custom entropy source features
+custom-entropy = []
+
 [dev-dependencies]
 criterion = "0.7.0"
 hex = "0.4.3"
@@ -62,5 +65,5 @@ name = "rng_benchmarks"
 harness = false
 
 [package.metadata.docs.rs]
-features = ["std", "secure", "zeroize", "entropy-validation"]
+features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy"]
 rustdoc-args = ["--cfg", "docsrs"]

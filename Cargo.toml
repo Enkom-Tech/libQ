@@ -151,6 +151,9 @@ zkp = ["lib-q-zkp/zkp"]
 # For no_std environments, applications must provide custom entropy sources
 # For WASM, use wasm-specific getrandom configuration
 getrandom = ["lib-q-core/getrandom"]
+# lib-q-random integration
+random = ["dep:lib-q-random", "lib-q-random/std"]
+random-custom-entropy = ["dep:lib-q-random", "lib-q-random/custom-entropy"]
 
 # Security features
 # Enable memory zeroization for hash functions and their dependencies

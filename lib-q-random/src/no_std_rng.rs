@@ -10,6 +10,11 @@ use rand_core::{
     RngCore,
 };
 
+#[cfg(feature = "custom-entropy")]
+use crate::custom_entropy::{
+    generate_custom_entropy,
+    has_custom_entropy_source,
+};
 use crate::{
     Error,
     Result,
@@ -182,14 +187,48 @@ impl RngCore for NoStdRng {
                 }
             }
         } else {
-            // Secure RNG using getrandom
-            #[cfg(feature = "getrandom")]
+            // Try custom entropy source first, then fall back to getrandom
+            #[cfg(feature = "custom-entropy")]
             {
-                getrandom::fill(dest).expect("getrandom failed");
+                if has_custom_entropy_source() {
+                    if let Err(e) = generate_custom_entropy(dest) {
+                        // If custom entropy fails, fall back to getrandom
+                        #[cfg(feature = "getrandom")]
+                        {
+                            getrandom::fill(dest).unwrap_or_else(|_| {
+                                panic!("both custom entropy and getrandom failed: {e:?}")
+                            });
+                        }
+                        #[cfg(not(feature = "getrandom"))]
+                        {
+                            panic!("custom entropy failed and getrandom not available: {e:?}");
+                        }
+                    }
+                } else {
+                    // No custom entropy source, use getrandom
+                    #[cfg(feature = "getrandom")]
+                    {
+                        getrandom::fill(dest).expect("getrandom failed");
+                    }
+                    #[cfg(not(feature = "getrandom"))]
+                    {
+                        panic!(
+                            "no custom entropy source registered and getrandom feature not enabled"
+                        );
+                    }
+                }
             }
-            #[cfg(not(feature = "getrandom"))]
+            #[cfg(not(feature = "custom-entropy"))]
             {
-                panic!("getrandom not available");
+                // No custom entropy support, use getrandom
+                #[cfg(feature = "getrandom")]
+                {
+                    getrandom::fill(dest).expect("getrandom failed");
+                }
+                #[cfg(not(feature = "getrandom"))]
+                {
+                    panic!("getrandom feature not enabled");
+                }
             }
         }
 

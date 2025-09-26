@@ -10,6 +10,7 @@ use rand_core::{
     RngCore,
 };
 
+#[cfg(feature = "hash")]
 use crate::Error;
 
 /// Classical `McEliece` compatible RNG

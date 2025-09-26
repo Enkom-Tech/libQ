@@ -65,6 +65,8 @@
 //! - `fn-dsa`: Enable FN-DSA digital signature algorithm
 //! - `saturnin`: Enable Saturnin authenticated encryption
 //! - `dawn`: Enable DAWN key encapsulation mechanism
+//! - `random`: Enable lib-q-random for secure random number generation
+//! - `random-custom-entropy`: Enable custom entropy source support
 //! - `all-algorithms`: Enable all available algorithms
 //! - `security-hardened`: Enable comprehensive security features
 //!
@@ -137,6 +139,34 @@ pub use lib_q_core::{
 pub use lib_q_kem::{
     LibQKemProvider,
     available_algorithms,
+};
+// Re-export lib-q-random for random number generation
+#[cfg(feature = "random")]
+pub use lib_q_random::{
+    EntropyQuality,
+    EntropyValidator,
+    LibQRng,
+    new_custom_rng,
+    new_deterministic_rng,
+    new_secure_rng,
+};
+// Note: random-no-std feature integration requires proper feature alignment
+// between lib-q and lib-q-random crates. Currently, the no_std functions
+// are gated behind #[cfg(not(feature = "alloc"))] in lib-q-random, but
+// the main lib-q crate always enables alloc through default features.
+// This integration can be added in a future update.
+#[cfg(feature = "random-custom-entropy")]
+pub use lib_q_random::{
+    custom_entropy::{
+        CustomEntropyConfig,
+        CustomEntropySource,
+        EntropyContext,
+        EntropyQuality as CustomEntropyQuality,
+    },
+    get_custom_entropy_source_info,
+    has_custom_entropy_source,
+    register_custom_entropy_source,
+    unregister_custom_entropy_source,
 };
 #[cfg(feature = "ml-dsa")]
 pub use lib_q_sig::{

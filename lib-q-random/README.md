@@ -16,6 +16,7 @@ A comprehensive, secure random number generation system designed specifically fo
 - **Zero-Copy**: Efficient memory usage with minimal allocations
 - **Thread-Safe**: Safe for use in multi-threaded environments
 - **Extensible**: Plugin architecture for custom entropy sources
+- **Custom Entropy Sources**: Secure callback-based system for plugging in custom entropy sources in `no_std` and WASM environments
 
 ## Quick Start
 
@@ -24,6 +25,9 @@ Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 lib-q-random = "0.0.2"
+
+# For custom entropy sources in no_std/WASM environments
+lib-q-random = { version = "0.0.2", features = ["custom-entropy"] }
 ```
 
 ### Basic Usage
@@ -55,21 +59,76 @@ use lib_q_rng::{
 // Create a custom RNG with user-provided entropy
 let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
 let entropy_source = UserEntropySource::new(entropy_data);
-let mut rng = LibQRng::new_custom(entropy_source);
-
-// Create an RNG with custom configuration
-let config = RngConfig {
-    security_level: SecurityLevel::CryptographicallySecure,
-    reseed_interval: Some(1024 * 1024), // 1MB reseed interval
-    ..Default::default()
-};
-let mut rng = LibQRng::with_config(config)?;
-
-// Validate entropy quality
-let validator = EntropyValidator::new();
-let quality = validator.validate_entropy(&bytes)?;
-println!("Entropy quality: {}", quality);
 ```
+
+### Custom Entropy Sources (no_std/WASM)
+
+For `no_std` and WASM environments, you can plug in custom entropy sources:
+
+```rust
+#[cfg(feature = "custom-entropy")]
+{
+    use lib_q_random::{
+        CustomEntropySource, EntropyContext, EntropyQuality, CustomEntropyConfig,
+        register_custom_entropy_source, unregister_custom_entropy_source,
+        new_secure_rng_no_std
+    };
+
+    // Define your custom entropy callback
+    unsafe extern "C" fn my_entropy_callback(dest: *mut u8, len: usize, _context: *mut u8) -> i32 {
+        // Fill dest with len bytes of entropy from your source
+        // Return 0 on success, non-zero on failure
+        for i in 0..len {
+            unsafe {
+                *dest.add(i) = get_entropy_from_hardware(i); // Your entropy source
+            }
+        }
+        0
+    }
+
+    // Create and register the custom entropy source
+    let context = EntropyContext::empty();
+    let config = CustomEntropyConfig::default();
+    let source = CustomEntropySource {
+        callback: my_entropy_callback,
+        context,
+        quality: EntropyQuality::Hardware, // or Os, User, Deterministic
+        config,
+        source_id: "my_hardware_rng",
+    };
+
+    // Register the source (must remain valid for the lifetime of usage)
+    unsafe {
+        register_custom_entropy_source(&source);
+    }
+
+    // Now create RNGs that will use your custom entropy source
+    let mut rng = new_secure_rng_no_std().unwrap();
+    let mut bytes = [0u8; 32];
+    rng.fill_bytes(&mut bytes);
+
+    // Clean up when done
+    unregister_custom_entropy_source();
+}
+```
+
+### Feature Flags
+
+- `std`: Enable standard library features (default)
+- `no_std`: Enable no_std compatibility
+- `custom-entropy`: Enable custom entropy source support
+- `secure`: Enable cryptographically secure RNGs
+- `deterministic`: Enable deterministic RNGs for testing
+- `entropy-validation`: Enable entropy quality validation
+- `zeroize`: Enable automatic memory zeroization
+- `wasm`: Enable WebAssembly support
+
+## Security Considerations
+
+- **Entropy Quality**: Always use high-quality entropy sources for cryptographic operations
+- **Custom Entropy**: When using custom entropy sources, ensure they provide cryptographically secure randomness
+- **Memory Safety**: Sensitive data is automatically zeroized when using the `zeroize` feature
+- **Thread Safety**: All RNG implementations are thread-safe and can be used in multi-threaded environments
 
 ## Architecture
 
