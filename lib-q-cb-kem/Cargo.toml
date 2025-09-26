@@ -15,8 +15,8 @@ exclude = ["/data"]
 [dependencies]
 # libQ dependencies
 lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", features = ["classical-mceliece"] }
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
-lib-q-rng = { path = "../lib-q-rng", optional = true }
 
 # External dependencies
 rand = { version = "0.9.2", default-features = false, optional = true }
@@ -54,7 +54,6 @@ wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "
 # Random number generation features
 rand = ["dep:rand"]
 getrandom = ["dep:getrandom"]
-libq-rng = ["dep:lib-q-rng"]
 wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
 
 # Select which variant of Classical McEliece CB-KEM to compile for.

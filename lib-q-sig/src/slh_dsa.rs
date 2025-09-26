@@ -487,8 +487,10 @@ impl SlhDsa {
             // Use system RNG (requires std feature)
             #[cfg(feature = "slh-dsa-std")]
             {
-                use rand::rngs::ThreadRng;
-                let mut rng = ThreadRng::default();
+                use lib_q_random::new_secure_rng;
+                let mut rng = new_secure_rng().map_err(|_| Error::RandomGenerationFailed {
+                    operation: "Failed to create secure RNG".to_string(),
+                })?;
                 let signing_key = SigningKey::<P>::new(&mut rng);
                 let verifying_key = signing_key.verifying_key();
 
@@ -535,8 +537,10 @@ impl SlhDsa {
             // Use system RNG for randomized signing (requires std feature)
             #[cfg(feature = "slh-dsa-std")]
             {
-                use rand::rngs::ThreadRng;
-                let mut rng = ThreadRng::default();
+                use lib_q_random::new_secure_rng;
+                let mut rng = new_secure_rng().map_err(|_| Error::RandomGenerationFailed {
+                    operation: "Failed to create secure RNG".to_string(),
+                })?;
                 signing_key
                     .try_sign_with_rng(&mut rng, message)
                     .map_err(|_| Error::SigningFailed {

@@ -17,8 +17,8 @@ use lib_q_core::{
     Error,
     Result,
 };
-
-use crate::secure_rng::SecureRng;
+#[cfg(feature = "random")]
+use rand_core::RngCore;
 
 /// NTT parameters for different DAWN parameter sets
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -385,7 +385,8 @@ impl NttPolynomial {
     }
 
     /// Sample a random polynomial with small coefficients
-    pub fn random_small<R: SecureRng>(params: NttParams, rng: &mut R) -> Result<Self> {
+    #[cfg(feature = "random")]
+    pub fn random_small<R: RngCore>(params: NttParams, rng: &mut R) -> Result<Self> {
         let mut poly = NttPolynomial::new(params)?;
         let q = poly.params.modulus();
 
@@ -404,7 +405,8 @@ impl NttPolynomial {
     }
 
     /// Sample a random polynomial with coefficients in [0, q-1]
-    pub fn random_uniform<R: SecureRng>(params: NttParams, rng: &mut R) -> Result<Self> {
+    #[cfg(feature = "random")]
+    pub fn random_uniform<R: RngCore>(params: NttParams, rng: &mut R) -> Result<Self> {
         let mut poly = NttPolynomial::new(params)?;
         let q = poly.params.modulus();
 
@@ -446,8 +448,10 @@ impl Eq for NttPolynomial {}
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "random")]
+    use lib_q_random::new_deterministic_rng;
+
     use super::*;
-    use crate::secure_rng::DeterministicRng;
 
     #[test]
     fn test_ntt_params() {
@@ -484,9 +488,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_ntt_multiplication() {
         let params = NttParams::Dawn512 { q: 12289 };
-        let mut rng = DeterministicRng::new(12345);
+        let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
         let a = NttPolynomial::random_small(params, &mut rng).unwrap();
         let b = NttPolynomial::random_small(params, &mut rng).unwrap();
@@ -498,9 +503,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_polynomial_operations() {
         let params = NttParams::Dawn512 { q: 12289 };
-        let mut rng = DeterministicRng::new(12345);
+        let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
         let a = NttPolynomial::random_small(params, &mut rng).unwrap();
         let b = NttPolynomial::random_small(params, &mut rng).unwrap();
@@ -519,9 +525,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_polynomial_sampling() {
         let params = NttParams::Dawn512 { q: 12289 };
-        let mut rng = DeterministicRng::new(12345);
+        let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
         let small_poly = NttPolynomial::random_small(params, &mut rng).unwrap();
         assert!(small_poly.is_small(1));

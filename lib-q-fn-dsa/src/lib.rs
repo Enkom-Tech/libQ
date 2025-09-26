@@ -114,67 +114,9 @@ pub use lib_q_core::{
 // Import RNG traits and implementations
 use rand_core::CryptoRng;
 
-/// Custom RNG implementation for different environments
-#[cfg(not(feature = "rand"))]
-struct CustomRng;
-
-#[cfg(not(feature = "rand"))]
-impl RngCore for CustomRng {
-    fn next_u32(&mut self) -> u32 {
-        #[cfg(feature = "wasm")]
-        {
-            let mut bytes = [0u8; 4];
-            getrandom::getrandom(&mut bytes).expect("Failed to get random bytes");
-            u32::from_le_bytes(bytes)
-        }
-        #[cfg(not(feature = "wasm"))]
-        {
-            // For no_std environments without WASM, we need a different approach
-            // This is a placeholder - in practice, you'd use a hardware RNG or similar
-            // For now, we'll use a simple counter-based approach (NOT cryptographically secure)
-            // In production, this should be replaced with proper hardware RNG
-            // Note: This is intentionally not cryptographically secure for demonstration
-            // In production, replace with proper hardware RNG
-            // For now, use a simple counter (NOT SECURE)
-            static mut COUNTER: u32 = 0;
-            // SAFETY: This is a simple counter for demonstration purposes only
-            // In production, replace with proper hardware RNG
-            #[allow(unsafe_code)]
-            unsafe {
-                COUNTER = COUNTER.wrapping_add(1);
-                COUNTER
-            }
-        }
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let upper = self.next_u32() as u64;
-        let lower = self.next_u32() as u64;
-        (upper << 32) | lower
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
-            let len = chunk.len().min(4);
-            chunk[..len].copy_from_slice(&bytes[..len]);
-        }
-    }
-}
-
-#[cfg(not(feature = "rand"))]
-impl CryptoRng for CustomRng {}
-
 /// Get an appropriate RNG for the current environment
 fn get_rng() -> impl CryptoRng {
-    #[cfg(feature = "rand")]
-    {
-        rand::rng()
-    }
-    #[cfg(not(feature = "rand"))]
-    {
-        CustomRng
-    }
+    lib_q_random::FnDsaRng::new()
 }
 
 /// FN-DSA security level enumeration

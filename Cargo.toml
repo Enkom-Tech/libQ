@@ -21,7 +21,7 @@ members = [
     "lib-q-fn-dsa",
     "lib-q-slh-dsa",
     "lib-q-cb-kem",
-    "lib-q-rng",
+    "lib-q-random",
     "examples",
     "."
 ]
@@ -86,7 +86,7 @@ lib-q-keccak = { path = "lib-q-keccak" }
 lib-q-ascon = { path = "lib-q-ascon", optional = true }
 lib-q-fn-dsa = { path = "lib-q-fn-dsa", optional = true }
 lib-q-cb-kem = { path = "lib-q-cb-kem", optional = true }
-lib-q-rng = { path = "lib-q-rng", optional = true }
+lib-q-random = { path = "lib-q-random", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { version = "0.2.104", optional = true }

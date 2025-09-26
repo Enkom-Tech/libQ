@@ -1,6 +1,6 @@
-//! Benchmarks for lib-q-rng
+//! Benchmarks for lib-q-random
 //!
-//! This module provides comprehensive benchmarks for the lib-q-rng crate,
+//! This module provides comprehensive benchmarks for the lib-q-random crate,
 //! measuring performance across different RNG types and operations.
 
 use std::hint::black_box;
@@ -11,11 +11,11 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
-use lib_q_rng::entropy::{
+use lib_q_random::entropy::{
     DeterministicEntropySource,
     UserEntropySource,
 };
-use lib_q_rng::{
+use lib_q_random::{
     EntropySource,
     LibQRng,
     SecureRng,
@@ -129,8 +129,8 @@ fn benchmark_entropy_source_performance(c: &mut Criterion) {
 fn benchmark_entropy_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("entropy_validation");
 
-    use lib_q_rng::EntropyValidator;
-    use lib_q_rng::validation::quick_entropy_check;
+    use lib_q_random::EntropyValidator;
+    use lib_q_random::validation::quick_entropy_check;
 
     let validator = EntropyValidator::new();
 

@@ -73,15 +73,15 @@ jobs:
           - name: "lib-q-keccak no_std"
             features: "alloc"
             package: "lib-q-keccak"
-          - name: "lib-q-rng"
+          - name: "lib-q-random"
             features: "std,secure,zeroize"
-            package: "lib-q-rng"
-          - name: "lib-q-rng no_std"
+            package: "lib-q-random"
+          - name: "lib-q-random no_std"
             features: "no_std,getrandom"
-            package: "lib-q-rng"
-          - name: "lib-q-rng wasm"
+            package: "lib-q-random"
+          - name: "lib-q-random wasm"
             features: "wasm"
-            package: "lib-q-rng"
+            package: "lib-q-random"
     
     steps:
       - uses: actions/checkout@v5
@@ -343,7 +343,7 @@ jobs:
       - name: Run RNG performance benchmarks
         run: |
           echo "Running RNG-specific performance benchmarks..."
-          cd lib-q-rng
+          cd lib-q-random
           cargo bench --features "std,secure,zeroize" --verbose
           echo "✅ RNG performance benchmarks completed"
 
@@ -433,7 +433,7 @@ jobs:
             test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
           - name: "RNG"
             action: test-rng
-            working-directory: lib-q-rng
+            working-directory: lib-q-random
             features: "std,secure,zeroize"
             rust-version: "stable"
             run-benchmarks: "true"

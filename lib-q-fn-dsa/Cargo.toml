@@ -18,6 +18,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Core libQ types
 lib-q-core = { path = "../lib-q-core" }
+lib-q-random = { path = "../lib-q-random", features = ["fn-dsa"] }
 
 # FN-DSA implementation (the actual algorithm)
 fn-dsa = { path = "fn-dsa" }

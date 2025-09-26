@@ -6,7 +6,7 @@ use criterion::{
 use lib_q_ml_kem::*;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut rng = rand::rng();
+    let mut rng = lib_q_random::new_secure_rng().expect("Failed to create RNG");
 
     // Key generation
     c.bench_function("keygen", |b| {

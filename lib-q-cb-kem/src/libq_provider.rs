@@ -260,30 +260,14 @@ impl LibQCbKemProvider {
         let (public_key, secret_key) = if let Some(rng_bytes) = randomness {
             // Use provided randomness with deterministic RNG
             // Use local RNG implementation (non-blocking)
-            #[cfg(not(feature = "libq-rng"))]
             {
-                let mut rng = crate::libq_rng::LibQRng::new_deterministic_from_bytes(rng_bytes);
-                keypair(&mut public_key_buf, &mut secret_key_buf, &mut rng)
-            }
-            #[cfg(feature = "libq-rng")]
-            {
-                let mut rng = lib_q_rng::LibQRng::new_deterministic(rng_bytes);
+                let mut rng = crate::LibQRng::new_deterministic_from_bytes(rng_bytes);
                 keypair(&mut public_key_buf, &mut secret_key_buf, &mut rng)
             }
         } else {
             // Use secure system randomness with local RNG (non-blocking)
-            #[cfg(not(feature = "libq-rng"))]
             {
-                let mut rng = crate::libq_rng::LibQRng::new();
-                keypair(&mut public_key_buf, &mut secret_key_buf, &mut rng)
-            }
-            #[cfg(feature = "libq-rng")]
-            {
-                let mut rng = lib_q_rng::LibQRng::new_secure().map_err(|_| {
-                    Error::RandomGenerationFailed {
-                        operation: "Failed to create secure RNG".to_string(),
-                    }
-                })?;
+                let mut rng = crate::LibQRng::new();
                 keypair(&mut public_key_buf, &mut secret_key_buf, &mut rng)
             }
         };
@@ -324,30 +308,14 @@ impl LibQCbKemProvider {
         let (ciphertext, shared_secret) = if let Some(rng_bytes) = randomness {
             // Use provided randomness with deterministic RNG
             // Use local RNG implementation (non-blocking)
-            #[cfg(not(feature = "libq-rng"))]
             {
-                let mut rng = crate::libq_rng::LibQRng::new_deterministic_from_bytes(rng_bytes);
-                encapsulate(&public_key, &mut shared_secret_buf, &mut rng)
-            }
-            #[cfg(feature = "libq-rng")]
-            {
-                let mut rng = lib_q_rng::LibQRng::new_deterministic(rng_bytes);
+                let mut rng = crate::LibQRng::new_deterministic_from_bytes(rng_bytes);
                 encapsulate(&public_key, &mut shared_secret_buf, &mut rng)
             }
         } else {
             // Use secure system randomness with local RNG (non-blocking)
-            #[cfg(not(feature = "libq-rng"))]
             {
-                let mut rng = crate::libq_rng::LibQRng::new();
-                encapsulate(&public_key, &mut shared_secret_buf, &mut rng)
-            }
-            #[cfg(feature = "libq-rng")]
-            {
-                let mut rng = lib_q_rng::LibQRng::new_secure().map_err(|_| {
-                    Error::RandomGenerationFailed {
-                        operation: "Failed to create secure RNG".to_string(),
-                    }
-                })?;
+                let mut rng = crate::LibQRng::new();
                 encapsulate(&public_key, &mut shared_secret_buf, &mut rng)
             }
         };

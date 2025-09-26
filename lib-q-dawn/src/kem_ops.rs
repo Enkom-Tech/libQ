@@ -81,7 +81,12 @@ impl DawnKemOps {
         validate_randomness_for_testing(randomness)?;
 
         // Create secure RNG from randomness
+        #[cfg(feature = "random")]
         let mut rng = crate::keygen::DawnRng::new_deterministic(randomness);
+        #[cfg(not(feature = "random"))]
+        return Err(lib_q_core::Error::RandomGenerationFailed {
+            operation: "Random feature not enabled".to_string(),
+        });
 
         // Generate random polynomial r with small coefficients
         let r = FieldPolynomial::random_small(
@@ -420,7 +425,12 @@ impl DeterministicDawnKemOps {
         }
 
         // Regenerate the same polynomial r that was used in encapsulation
+        #[cfg(feature = "random")]
         let mut rng = crate::keygen::DawnRng::new_deterministic(&randomness);
+        #[cfg(not(feature = "random"))]
+        return Err(lib_q_core::Error::RandomGenerationFailed {
+            operation: "Random feature not enabled".to_string(),
+        });
         let r = FieldPolynomial::random_small(
             self.kem_ops.params.degree,
             self.kem_ops.params.large_modulus,

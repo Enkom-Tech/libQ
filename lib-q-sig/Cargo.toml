@@ -15,8 +15,8 @@ lib-q-core = { path = "../lib-q-core" }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
+lib-q-random = { path = "../lib-q-random", optional = true }
 rand_core = { version = "0.9.3", optional = true }
-rand = { version = "0.9.2", optional = true }
 sha2 = { version = "0.11.0-rc.2", optional = true, default-features = false }
 
 # WASM support
@@ -28,8 +28,8 @@ serde_json = { version = "1.0.145", optional = true }
 [features]
 default = ["alloc", "ml-dsa", "std"]
 ml-dsa = ["lib-q-ml-dsa"]
-slh-dsa = ["lib-q-slh-dsa", "rand_core", "sha2"]
-slh-dsa-std = ["slh-dsa", "rand"]
+slh-dsa = ["lib-q-slh-dsa", "sha2", "dep:rand_core"]
+slh-dsa-std = ["slh-dsa", "dep:lib-q-random", "lib-q-random/std"]
 slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm_getrandom"]
 fn-dsa = ["lib-q-fn-dsa"]
 std = ["alloc"]

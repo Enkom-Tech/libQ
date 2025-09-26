@@ -82,12 +82,12 @@ runs:
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-saturnin || echo "⚠️  constant_time test not available for lib-q-saturnin"
-        cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-rng || echo "⚠️  constant_time test not available for lib-q-rng"
+        cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-random || echo "⚠️  constant_time test not available for lib-q-random"
         
         # Run RNG entropy validation tests
         echo "🎲 Running RNG entropy validation..."
-        cargo test --features "std,secure,zeroize,entropy-validation" -p lib-q-rng entropy::tests::test_entropy_quality_assessment
-        cargo test --features "std,secure,zeroize,entropy-validation" -p lib-q-rng validation::tests::test_entropy_validation
+        cargo test --features "std,secure,zeroize,entropy-validation" -p lib-q-random entropy::tests::test_entropy_quality_assessment
+        cargo test --features "std,secure,zeroize,entropy-validation" -p lib-q-random validation::tests::test_entropy_validation
         echo "✅ Cryptographic validation completed"
     
     - name: Constant-time verification
@@ -113,7 +113,7 @@ runs:
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
         cargo test --features "${{ inputs.features }}" --test constant_time -p lib-q-saturnin || echo "⚠️  constant_time test not available for lib-q-saturnin"
-        cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-rng || echo "⚠️  constant_time test not available for lib-q-rng"
+        cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-random || echo "⚠️  constant_time test not available for lib-q-random"
         echo "✅ Constant-time verification completed"
     
     - name: Memory safety validation

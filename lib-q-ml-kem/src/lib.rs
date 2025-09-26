@@ -23,9 +23,8 @@
 //!
 //! ```rust
 //! use lib_q_ml_kem::{MlKem768, KemCore, Encapsulate, Decapsulate};
-//! use rand::prelude::*;
 //!
-//! let mut rng = rand::rng();
+//! let mut rng = lib_q_random::new_secure_rng().expect("Failed to create secure RNG");
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair
 //! let (dk, ek) = MlKem768::generate(&mut rng);
@@ -80,6 +79,8 @@ use hybrid_array::typenum::{
     U11,
     Unsigned,
 };
+#[cfg(feature = "random")]
+use lib_q_random::LibQRng;
 use rand_core::CryptoRng;
 
 /// A value that can be encapsulated to. Often, this will just be a public key. However, it can
@@ -284,13 +285,15 @@ pub const MLKEM1024_CIPHERTEXT_SIZE: usize = <MlKem1024 as KemCore>::CiphertextS
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "random")]
     use super::*;
 
+    #[cfg(feature = "random")]
     fn round_trip_test<K>()
     where
         K: KemCore,
     {
-        let mut rng = rand::rng();
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
 
         let (dk, ek) = K::generate(&mut rng);
 
@@ -300,6 +303,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn round_trip() {
         round_trip_test::<MlKem512>();
         round_trip_test::<MlKem768>();

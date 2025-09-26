@@ -9,16 +9,17 @@ use criterion::{
     criterion_main,
 };
 use lib_q_ascon::State;
-use rand::Rng;
+use lib_q_random::new_secure_rng;
+use rand_core::RngCore;
 
 fn criterion_bench_permutation(c: &mut Criterion) {
-    let mut rng = rand::rng();
+    let mut rng = new_secure_rng().expect("Failed to create RNG");
     let mut state = State::new(
-        rng.random(),
-        rng.random(),
-        rng.random(),
-        rng.random(),
-        rng.random(),
+        rng.next_u64(),
+        rng.next_u64(),
+        rng.next_u64(),
+        rng.next_u64(),
+        rng.next_u64(),
     );
 
     let mut group = c.benchmark_group("Ascon Permutation");

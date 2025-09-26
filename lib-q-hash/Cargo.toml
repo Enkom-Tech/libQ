@@ -13,7 +13,6 @@ readme.workspace = true
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 zeroize = "1.8.1"
-getrandom = { version = "0.3.3", default-features = false, optional = true }
 digest = "0.11.0-rc.2"
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-k12 = { path = "../lib-q-k12" }
@@ -26,11 +25,10 @@ hex-literal = "1"
 base16ct = { version = "0.3.0", features = ["alloc"] }
 
 [features]
-default = ["alloc", "oid", "getrandom"]
+default = ["alloc", "oid"]
 alloc = ["digest/alloc"]
 oid = ["digest/oid"]
 zeroize = ["digest/zeroize"]
-getrandom = ["dep:getrandom"]
 asm = ["lib-q-keccak/asm"] # ARMv8 only
 simd = ["lib-q-keccak/simd"] # Enable SIMD optimizations
 nightly = ["lib-q-keccak/nightly"] # Enable nightly Rust features
@@ -39,7 +37,7 @@ multithreading = ["lib-q-keccak/multithreading"] # Enable multi-threading suppor
 parallelhash = ["rayon"] # Enable parallel processing for ParallelHash
 
 # WASM-specific configuration
-wasm_js = ["getrandom", "getrandom/wasm_js"] # Enable WASM JS backend for getrandom
+wasm_js = [] # WASM support without getrandom dependency
 
 [lib]
 name = "lib_q_hash"

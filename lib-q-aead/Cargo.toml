@@ -15,8 +15,7 @@ lib-q-core = { path = "../lib-q-core" }
 lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 lib-q-hash = { path = "../lib-q-hash", optional = true }
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
-getrandom = { version = "0.3.3", default-features = false, optional = true }
-rand_core = { version = "0.9.3", default-features = false, optional = true }
+lib-q-random = { path = "../lib-q-random", optional = true }
 once_cell = "1.21.3"
 
 [features]
@@ -24,7 +23,7 @@ default = ["alloc", "std", "shake256"]
 std = ["lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
-shake256 = ["dep:lib-q-sha3", "lib-q-sha3/alloc", "dep:getrandom", "getrandom/std", "dep:rand_core", "rand_core/std"]
+shake256 = ["dep:lib-q-sha3", "lib-q-sha3/alloc", "dep:lib-q-random", "lib-q-random/std"]
 kem-aead = ["shake256"]  # KEM AEAD uses the same dependencies as SHAKE256
 
 [lib]

@@ -3,7 +3,7 @@ description: Run RNG tests with security validation, entropy testing, and perfor
 inputs:
   working-directory:
     description: Working directory for RNG crate
-    default: lib-q-rng
+    default: lib-q-random
     required: true
   features:
     description: Features to enable for testing
@@ -151,7 +151,7 @@ runs:
         fi
         
         # Run constant-time tests for RNG operations
-        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for lib-q-rng"
+        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for lib-q-random"
         echo "✅ Constant-time verification completed"
     
     - name: Run benchmarks

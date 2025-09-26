@@ -1,23 +1,23 @@
-//! Integration tests for lib-q-rng
+//! Integration tests for lib-q-random
 //!
-//! This module provides comprehensive integration tests for the lib-q-rng crate,
+//! This module provides comprehensive integration tests for the lib-q-random crate,
 //! testing the interaction between different components and ensuring proper
 //! functionality across various use cases.
 
-use lib_q_rng::entropy::{
+use lib_q_random::entropy::{
     DeterministicEntropySource,
     EntropySourceFactory,
     OsEntropySource,
     UserEntropySource,
 };
-use lib_q_rng::traits::{
+use lib_q_random::traits::{
     EntropySource,
     EntropySourceType,
     SecureRng,
     SecurityLevel,
 };
-use lib_q_rng::validation::quick_entropy_check;
-use lib_q_rng::{
+use lib_q_random::validation::quick_entropy_check;
+use lib_q_random::{
     EntropyQuality,
     EntropyValidator,
     LibQRng,
@@ -276,7 +276,7 @@ fn test_custom_rng_creation() {
 
 #[test]
 fn test_rng_configuration() {
-    use lib_q_rng::traits::RngConfig;
+    use lib_q_random::traits::RngConfig;
 
     let config = RngConfig::default();
     let rng = LibQRng::with_config(&config);

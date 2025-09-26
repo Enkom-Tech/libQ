@@ -7,6 +7,7 @@
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
+    format,
     string::ToString,
     vec::Vec,
 };
@@ -37,6 +38,7 @@ use lib_q_ml_kem::{
     MlKem768,
     MlKem1024,
 };
+use lib_q_random::new_secure_rng;
 
 /// Secure helper function to create Array from slice with runtime validation
 /// This function provides proper error handling instead of panicking
@@ -77,7 +79,9 @@ impl MlKem512Impl {
 
 impl Kem for MlKem512Impl {
     fn generate_keypair(&self) -> Result<KemKeypair, Error> {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (dk, ek) = MlKem512::generate(&mut rng);
 
         let public_key = KemPublicKey {
@@ -112,7 +116,9 @@ impl Kem for MlKem512Impl {
                 .map_err(|_| Error::InvalidKeyFormat)?,
         );
 
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (ciphertext, shared_secret) =
             ek.encapsulate(&mut rng)
                 .map_err(|_| Error::EncryptionFailed {
@@ -239,7 +245,9 @@ impl MlKem768Impl {
 
 impl Kem for MlKem768Impl {
     fn generate_keypair(&self) -> Result<KemKeypair, Error> {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (dk, ek) = MlKem768::generate(&mut rng);
 
         let public_key = KemPublicKey {
@@ -274,7 +282,9 @@ impl Kem for MlKem768Impl {
                 .map_err(|_| Error::InvalidKeyFormat)?,
         );
 
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (ciphertext, shared_secret) =
             ek.encapsulate(&mut rng)
                 .map_err(|_| Error::EncryptionFailed {
@@ -401,7 +411,9 @@ impl MlKem1024Impl {
 
 impl Kem for MlKem1024Impl {
     fn generate_keypair(&self) -> Result<KemKeypair, Error> {
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (dk, ek) = MlKem1024::generate(&mut rng);
 
         let public_key = KemPublicKey {
@@ -436,7 +448,9 @@ impl Kem for MlKem1024Impl {
                 .map_err(|_| Error::InvalidKeyFormat)?,
         );
 
-        let mut rng = rand::rng();
+        let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         let (ciphertext, shared_secret) =
             ek.encapsulate(&mut rng)
                 .map_err(|_| Error::EncryptionFailed {

@@ -1,10 +1,11 @@
-use rand::TryRngCore;
+use lib_q_random::new_secure_rng;
+use rand_core::RngCore;
 
 #[allow(unused)]
 pub(crate) fn random_array<const L: usize>() -> [u8; L] {
-    let mut rng = rand::rngs::OsRng;
+    let mut rng = new_secure_rng().expect("Failed to create RNG");
     let mut seed = [0; L];
-    rng.try_fill_bytes(&mut seed).unwrap();
+    rng.fill_bytes(&mut seed);
     seed
 }
 

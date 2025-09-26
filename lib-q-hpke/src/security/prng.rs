@@ -15,87 +15,10 @@ pub trait CryptoRng {
     fn next_u64(&mut self) -> Result<u64, HpkeError>;
 }
 
-/// Secure cryptographic RNG implementation using KangarooTwelve (K12)
-///
-/// This implementation provides cryptographically secure random number generation
-/// using lib-q's fastest native primitive - KangarooTwelve. K12 is significantly
-/// faster than SHAKE256 while maintaining the same security properties.
-#[cfg(feature = "hash")]
-pub struct KangarooTwelveRng {
-    buffer: [u8; 32], // K12 output size
-    position: usize,
-    counter: u64,
-}
+// Use the unified KangarooTwelveRng from lib-q-random
+pub use lib_q_random::KangarooTwelveRng;
 
-#[cfg(feature = "hash")]
-impl KangarooTwelveRng {
-    /// Create a new secure RNG with system entropy
-    pub fn new() -> Result<Self, HpkeError> {
-        // Use system entropy to seed the RNG
-        let mut seed = [0u8; 32];
-        #[cfg(feature = "secure-rng")]
-        {
-            use rand_core::{
-                OsRng,
-                TryRngCore,
-            };
-            OsRng.try_fill_bytes(&mut seed).map_err(|e| {
-                HpkeError::CryptoError(alloc::format!("Failed to get system entropy: {}", e))
-            })?;
-        }
-        #[cfg(not(feature = "secure-rng"))]
-        {
-            // Fallback for no_std - use a simple counter (INSECURE)
-            for (i, byte) in seed.iter_mut().enumerate() {
-                *byte = (i as u8).wrapping_add(0x42);
-            }
-        }
-
-        Ok(Self::from_seed(&seed))
-    }
-
-    /// Create a new secure RNG with explicit seed
-    pub fn from_seed(seed: &[u8]) -> Self {
-        use lib_q_hash::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
-
-        let mut k12 = lib_q_hash::KangarooTwelve::new(b"HPKE-RNG");
-        k12.update(seed);
-        let mut reader = k12.finalize_xof();
-
-        // Fill initial buffer
-        let mut buffer = [0u8; 32];
-        reader.read(&mut buffer);
-
-        Self {
-            buffer,
-            position: 0,
-            counter: 0,
-        }
-    }
-
-    /// Refill the internal buffer with new random data
-    fn refill(&mut self) {
-        use lib_q_hash::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
-
-        // Use current buffer + counter as seed for next generation
-        let mut k12 = lib_q_hash::KangarooTwelve::new(b"HPKE-RNG");
-        k12.update(&self.buffer);
-        k12.update(&self.counter.to_le_bytes());
-        let mut reader = k12.finalize_xof();
-        reader.read(&mut self.buffer);
-        self.counter = self.counter.wrapping_add(1);
-        self.position = 0;
-    }
-}
-
+// Implement HPKE-specific CryptoRng trait for KangarooTwelveRng
 #[cfg(feature = "hash")]
 impl CryptoRng for KangarooTwelveRng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {

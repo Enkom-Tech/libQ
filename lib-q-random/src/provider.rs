@@ -65,7 +65,7 @@ impl LibQRng {
     /// # Examples
     ///
     /// ```rust
-    /// use lib_q_rng::LibQRng;
+    /// use lib_q_random::LibQRng;
     /// use rand_core::RngCore;
     ///
     /// let mut rng = LibQRng::new_secure().unwrap();
@@ -99,7 +99,7 @@ impl LibQRng {
     /// # Examples
     ///
     /// ```rust
-    /// use lib_q_rng::LibQRng;
+    /// use lib_q_random::LibQRng;
     /// use rand_core::RngCore;
     ///
     /// let mut rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
@@ -134,8 +134,8 @@ impl LibQRng {
     /// # Examples
     ///
     /// ```rust
-    /// use lib_q_rng::LibQRng;
-    /// use lib_q_rng::entropy::UserEntropySource;
+    /// use lib_q_random::LibQRng;
+    /// use lib_q_random::entropy::UserEntropySource;
     /// use rand_core::RngCore;
     ///
     /// let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
@@ -148,7 +148,7 @@ impl LibQRng {
 
         // Determine security level based on entropy source type
         let security_level = match entropy_source.source_type() {
-            crate::traits::EntropySourceType::Hardware => SecurityLevel::HardwareSecure,
+            crate::traits::EntropySourceType::Hardware => SecurityLevel::Hardware,
             crate::traits::EntropySourceType::OperatingSystem => {
                 SecurityLevel::CryptographicallySecure
             }
@@ -239,6 +239,21 @@ impl LibQRng {
     /// Get the bytes generated since last reseed
     pub fn bytes_generated(&self) -> usize {
         self.bytes_generated
+    }
+
+    /// Check if this RNG is cryptographically secure
+    pub fn is_secure(&self) -> bool {
+        self.security_level == SecurityLevel::CryptographicallySecure
+    }
+
+    /// Get the entropy quality estimate (0.0 to 1.0)
+    pub fn entropy_quality(&self) -> f64 {
+        match self.security_level {
+            SecurityLevel::CryptographicallySecure => 1.0,
+            SecurityLevel::Deterministic => 0.0,
+            SecurityLevel::Hardware => 0.95,
+            SecurityLevel::Software => 0.8,
+        }
     }
 
     /// Check if reseeding is needed
@@ -358,6 +373,54 @@ impl RngCore for LibQRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         let _ = self.fill_bytes_secure(dest);
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl LibQRng {
+    /// Fill a slice with random values of any integer type
+    ///
+    /// This method provides a convenient way to fill slices of different integer types
+    /// with random values, handling the byte conversion internally.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lib_q_random::LibQRng;
+    ///
+    /// let mut rng = LibQRng::new_secure().unwrap();
+    /// let mut u16_array = [0u16; 10];
+    /// rng.fill(&mut u16_array);
+    /// ```
+    pub fn fill<T>(&mut self, dest: &mut [T])
+    where
+        T: Copy + Default,
+    {
+        if dest.is_empty() {
+            return;
+        }
+
+        // Calculate the number of bytes needed
+        let size = core::mem::size_of::<T>();
+        let total_bytes = dest.len() * size;
+
+        // Create a temporary byte buffer
+        let mut bytes = vec![0u8; total_bytes];
+
+        // Fill with random bytes
+        let _ = self.fill_bytes_secure(&mut bytes);
+
+        // Convert bytes back to the target type
+        for (i, chunk) in bytes.chunks_exact(size).enumerate() {
+            if i < dest.len() {
+                // This is safe because we're copying the exact number of bytes
+                // that the type occupies in memory
+                unsafe {
+                    let ptr = dest.as_mut_ptr().add(i) as *mut u8;
+                    core::ptr::copy_nonoverlapping(chunk.as_ptr(), ptr, size);
+                }
+            }
+        }
     }
 }
 

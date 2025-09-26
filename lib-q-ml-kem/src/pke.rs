@@ -2,6 +2,8 @@ use hybrid_array::typenum::{
     U1,
     Unsigned,
 };
+#[cfg(feature = "random")]
+use lib_q_random::LibQRng;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
@@ -162,19 +164,23 @@ where
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "random")]
     use super::*;
+    #[cfg(feature = "random")]
     use crate::crypto::rand;
+    #[cfg(feature = "random")]
     use crate::{
         MlKem512Params,
         MlKem768Params,
         MlKem1024Params,
     };
 
+    #[cfg(feature = "random")]
     fn round_trip_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = rand::rng();
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
         let d: B32 = rand(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
@@ -186,17 +192,19 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn round_trip() {
         round_trip_test::<MlKem512Params>();
         round_trip_test::<MlKem768Params>();
         round_trip_test::<MlKem1024Params>();
     }
 
+    #[cfg(feature = "random")]
     fn codec_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = rand::rng();
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
         let d: B32 = rand(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 
@@ -210,6 +218,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn codec() {
         codec_test::<MlKem512Params>();
         codec_test::<MlKem768Params>();

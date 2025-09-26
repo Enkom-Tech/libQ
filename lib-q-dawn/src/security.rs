@@ -25,6 +25,8 @@ use lib_q_core::{
     Error,
     Result,
 };
+#[cfg(feature = "random")]
+use rand_core::RngCore;
 // Constant-time operations for side-channel resistance
 use subtle::{
     ConditionallySelectable,
@@ -676,15 +678,15 @@ pub fn generate_cryptographically_secure_test_data(length: usize) -> Result<Vec<
         return Ok(Vec::new());
     }
 
-    // Use the secure RNG from our secure_rng module
-    use crate::secure_rng::{
-        SecureRng,
-        create_secure_rng,
-    };
-    let mut rng = create_secure_rng()?;
+    // Use the secure RNG from lib-q-random
+    #[cfg(feature = "random")]
+    let mut rng = lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+        operation: format!("Failed to create secure RNG: {}", e),
+    })?;
 
     let mut data = vec![0u8; length];
-    rng.fill_bytes_secure(&mut data)?;
+    #[cfg(feature = "random")]
+    rng.fill_bytes(&mut data);
 
     Ok(data)
 }
@@ -804,15 +806,15 @@ pub fn generate_cryptographically_secure_validation_data(length: usize) -> Resul
         return Ok(Vec::new());
     }
 
-    // Use the secure RNG from our secure_rng module for maximum entropy
-    use crate::secure_rng::{
-        SecureRng,
-        create_secure_rng,
-    };
-    let mut rng = create_secure_rng()?;
+    // Use the secure RNG from lib-q-random for maximum entropy
+    #[cfg(feature = "random")]
+    let mut rng = lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+        operation: format!("Failed to create secure RNG: {}", e),
+    })?;
 
     let mut data = vec![0u8; length];
-    rng.fill_bytes_secure(&mut data)?;
+    #[cfg(feature = "random")]
+    rng.fill_bytes(&mut data);
 
     Ok(data)
 }
@@ -827,11 +829,10 @@ pub fn generate_min_entropy_validation_data(length: usize) -> Result<Vec<u8>> {
         return Ok(Vec::new());
     }
 
-    use crate::secure_rng::{
-        SecureRng,
-        create_secure_rng,
-    };
-    let mut rng = create_secure_rng()?;
+    #[cfg(feature = "random")]
+    let mut rng = lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+        operation: format!("Failed to create secure RNG: {}", e),
+    })?;
 
     let mut data = vec![0u8; length];
     let mut frequency = [0u32; 256];
@@ -841,7 +842,8 @@ pub fn generate_min_entropy_validation_data(length: usize) -> Result<Vec<u8>> {
         let mut attempts = 0;
         loop {
             let mut byte = [0u8; 1];
-            rng.fill_bytes_secure(&mut byte)?;
+            #[cfg(feature = "random")]
+            rng.fill_bytes(&mut byte);
             let value = byte[0] as usize;
 
             // Check if adding this byte would exceed the frequency limit

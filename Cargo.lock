@@ -654,7 +654,7 @@ dependencies = [
  "lib-q-keccak",
  "lib-q-kem",
  "lib-q-ml-dsa",
- "lib-q-rng",
+ "lib-q-random",
  "lib-q-sig",
  "lib-q-utils",
  "lib-q-zkp",
@@ -669,14 +669,13 @@ name = "lib-q-aead"
 version = "0.0.2"
 dependencies = [
  "criterion",
- "getrandom 0.3.3",
  "hex",
  "lib-q-core",
  "lib-q-hash",
+ "lib-q-random",
  "lib-q-saturnin",
  "lib-q-sha3",
  "once_cell",
- "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -684,7 +683,8 @@ name = "lib-q-ascon"
 version = "0.0.2"
 dependencies = [
  "criterion",
- "rand 0.9.2",
+ "lib-q-random",
+ "rand_core 0.9.3",
  "zeroize",
 ]
 
@@ -698,7 +698,7 @@ dependencies = [
  "hex",
  "js-sys",
  "lib-q-core",
- "lib-q-rng",
+ "lib-q-random",
  "lib-q-sha3",
  "rand 0.9.2",
  "rand_core 0.9.3",
@@ -730,11 +730,10 @@ name = "lib-q-dawn"
 version = "0.0.2"
 dependencies = [
  "digest 0.11.0-rc.2",
- "getrandom 0.3.3",
  "lib-q-core",
  "lib-q-k12",
+ "lib-q-random",
  "lib-q-sha3",
- "rand 0.9.2",
  "rand_core 0.9.3",
  "subtle",
  "wasm-bindgen",
@@ -764,6 +763,7 @@ dependencies = [
  "hex",
  "js-sys",
  "lib-q-core",
+ "lib-q-random",
  "proptest",
  "rand 0.9.2",
  "rand_core 0.9.3",
@@ -778,7 +778,6 @@ version = "0.0.2"
 dependencies = [
  "base16ct",
  "digest 0.11.0-rc.2",
- "getrandom 0.3.3",
  "hex-literal",
  "lib-q-core",
  "lib-q-k12",
@@ -800,8 +799,8 @@ dependencies = [
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-ml-kem",
+ "lib-q-random",
  "lib-q-saturnin",
- "rand 0.9.2",
  "rand_core 0.9.3",
  "zeroize",
 ]
@@ -820,8 +819,8 @@ dependencies = [
  "digest 0.11.0-rc.2",
  "hex",
  "hex-literal",
+ "lib-q-random",
  "lib-q-sha3",
- "rand 0.9.2",
  "serde",
  "serde_json",
 ]
@@ -845,9 +844,8 @@ dependencies = [
  "lib-q-core",
  "lib-q-dawn",
  "lib-q-ml-kem",
+ "lib-q-random",
  "lib-q-sha3",
- "rand 0.9.2",
- "rand_core 0.9.3",
  "wasm-bindgen",
 ]
 
@@ -861,9 +859,10 @@ dependencies = [
  "lib-q-intrinsics",
  "lib-q-keccak",
  "lib-q-platform",
+ "lib-q-random",
  "lib-q-sha3",
  "pqcrypto-mldsa",
- "rand 0.9.2",
+ "rand_core 0.9.3",
  "serde",
  "serde_json",
 ]
@@ -878,9 +877,9 @@ dependencies = [
  "hex-literal",
  "hybrid-array",
  "js-sys",
+ "lib-q-random",
  "lib-q-sha3",
  "num-rational",
- "rand 0.9.2",
  "rand_core 0.9.3",
  "serde",
  "serde_json",
@@ -896,13 +895,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib-q-rng"
+name = "lib-q-random"
 version = "0.0.2"
 dependencies = [
  "criterion",
  "getrandom 0.3.3",
  "hex",
  "lib-q-core",
+ "lib-q-hash",
  "proptest",
  "rand 0.9.2",
  "rand_core 0.9.3",
@@ -938,8 +938,8 @@ dependencies = [
  "lib-q-core",
  "lib-q-fn-dsa",
  "lib-q-ml-dsa",
+ "lib-q-random",
  "lib-q-slh-dsa",
- "rand 0.9.2",
  "rand_core 0.9.3",
  "serde-wasm-bindgen",
  "serde_json",
@@ -961,6 +961,7 @@ dependencies = [
  "hex-literal",
  "hmac",
  "hybrid-array",
+ "lib-q-random",
  "lib-q-sha3",
  "num-bigint",
  "pastey",
@@ -983,7 +984,6 @@ dependencies = [
 name = "lib-q-utils"
 version = "0.0.2"
 dependencies = [
- "getrandom 0.3.3",
  "lib-q-core",
 ]
 
@@ -1448,9 +1448,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dca6411025b24b60bfa7ec1fe1f8e710ac09782dca409ee8237ba74b51295fd"
+checksum = "80ece43fc6fbed4eb5392ab50c07334d3e577cbf40997ee896fe7af40bba4245"
 dependencies = [
  "serde_core",
  "serde_derive",
@@ -1469,18 +1469,18 @@ dependencies = [
 
 [[package]]
 name = "serde_core"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba2ba63999edb9dac981fb34b3e5c0d111a69b0924e253ed29d83f7c99e966a4"
+checksum = "7a576275b607a2c86ea29e410193df32bc680303c82f31e275bbfcafe8b33be5"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.226"
+version = "1.0.227"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8db53ae22f34573731bafa1db20f04027b2d25e02d8205921b569171699cdb33"
+checksum = "51e694923b8824cf0e9b382adf0f60d4e05f348f357b38833a3fa5ed7c2ede04"
 dependencies = [
  "proc-macro2",
  "quote",

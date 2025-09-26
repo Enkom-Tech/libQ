@@ -6,7 +6,7 @@
     clippy::too_many_lines
 )]
 
-//! Error types for lib-q-rng
+//! Error types for lib-q-random
 //!
 //! This module defines comprehensive error types for random number generation
 //! operations, providing detailed information about failure modes and recovery
@@ -16,7 +16,7 @@
 use alloc::string::String;
 use core::fmt;
 
-/// Result type alias for lib-q-rng operations
+/// Result type alias for lib-q-random operations
 pub type Result<T> = core::result::Result<T, Error>;
 
 /// Comprehensive error types for RNG operations

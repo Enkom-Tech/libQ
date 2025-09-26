@@ -19,12 +19,9 @@ lib-q-k12 = { path = "../lib-q-k12" }
 # Digest trait for hashing
 digest = "0.11.0-rc.2"
 
-# Rand dependencies for key generation
-rand = { version = "0.9.2", optional = true }
+# Random dependencies for key generation
+lib-q-random = { path = "../lib-q-random", optional = true }
 rand_core = "0.9.3"
-
-# Secure random number generation (no_std and WASM compatible)
-getrandom = { version = "0.3.3", optional = true, default-features = false }
 
 # Secure memory clearing
 zeroize = { version = "1.8.1", features = ["derive"], default-features = false }
@@ -36,22 +33,22 @@ subtle = { version = "2.6.1", default-features = false }
 wasm-bindgen = { version = "0.2.104", optional = true }
 
 [dev-dependencies]
-rand = "0.9.2"
+lib-q-random = { path = "../lib-q-random", features = ["std"] }
 
 [features]
-default = ["alloc", "std", "getrandom"]
-std = ["alloc", "getrandom"]
+default = ["alloc", "std", "random"]
+std = ["alloc", "random"]
 alloc = []
 
 # Random number generation
-getrandom = ["dep:getrandom"]
+random = ["dep:lib-q-random", "lib-q-random/std"]
 
 # Enable WASM support
 wasm = [
     "wasm-bindgen",
     "std",
     "lib-q-core/wasm",
-    "getrandom",
+    "random",
 ]
 
 [lib]

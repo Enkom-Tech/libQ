@@ -26,15 +26,14 @@ lib-q-cb-kem = { path = "../lib-q-cb-kem", optional = true, default-features = f
 # SHA3 for authentication proofs
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
 
-# Rand dependencies for the ml-kem feature
-rand = { version = "0.9.2", optional = true }
-rand_core = { version = "0.9.3", optional = true }
+# Random dependencies for the ml-kem feature
+lib-q-random = { path = "../lib-q-random", optional = true }
 
 # WASM bindings
 wasm-bindgen = { version = "0.2.101", optional = true }
 
 [dev-dependencies]
-rand = "0.9.2"
+lib-q-random = { path = "../lib-q-random", features = ["std"] }
 
 [features]
 default = []
@@ -44,8 +43,8 @@ alloc = [] # Enable alloc support for Vec and other collections
 ml-kem = [
     "dep:lib-q-ml-kem",
     "dep:lib-q-sha3",
-    "rand",
-    "rand_core",
+    "dep:lib-q-random",
+    "lib-q-random/std",
     "lib-q-core/std",
     "alloc",
 ]

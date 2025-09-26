@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
 
 use hybrid_array::typenum::U32;
+#[cfg(feature = "random")]
+use lib_q_random::LibQRng;
 use rand_core::{
     CryptoRng,
     RngCore,
@@ -278,7 +280,9 @@ where
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "random")]
     use super::*;
+    #[cfg(feature = "random")]
     use crate::{
         Decapsulate,
         Encapsulate,
@@ -287,11 +291,12 @@ mod test {
         MlKem1024Params,
     };
 
+    #[cfg(feature = "random")]
     fn round_trip_test<P>()
     where
         P: KemParams,
     {
-        let mut rng = rand::rng();
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
 
         let dk = DecapsulationKey::<P>::generate(&mut rng);
         let ek = dk.encapsulation_key();
@@ -302,17 +307,19 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn round_trip() {
         round_trip_test::<MlKem512Params>();
         round_trip_test::<MlKem768Params>();
         round_trip_test::<MlKem1024Params>();
     }
 
+    #[cfg(feature = "random")]
     fn codec_test<P>()
     where
         P: KemParams,
     {
-        let mut rng = rand::rng();
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
         let dk_original = DecapsulationKey::<P>::generate(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
@@ -326,6 +333,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn codec() {
         codec_test::<MlKem512Params>();
         codec_test::<MlKem768Params>();

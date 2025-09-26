@@ -10,48 +10,62 @@ use core::fmt;
 use std::fmt;
 
 use lib_q_core::Result;
+#[cfg(feature = "random")]
+use lib_q_random::{
+    new_deterministic_rng,
+    new_secure_rng,
+};
 use rand_core::RngCore;
 
 use crate::encoding::ZeroDivisorEncoder;
 use crate::polynomial::field::FieldPolynomial;
-use crate::secure_rng::{
-    SecureRng,
-    create_deterministic_rng_from_bytes,
-    create_secure_rng,
-};
+
+/// Trait alias for RNG that implements both RngCore and CryptoRng
+#[cfg(feature = "random")]
+trait SecureRng: RngCore + rand_core::CryptoRng {}
+#[cfg(feature = "random")]
+impl<T: RngCore + rand_core::CryptoRng> SecureRng for T {}
 
 /// Secure RNG wrapper for DAWN operations
+#[cfg(feature = "random")]
 pub struct DawnRng {
-    rng: Box<dyn SecureRng>,
+    rng: Box<dyn SecureRng + Send + Sync>,
 }
 
+#[cfg(feature = "random")]
 impl DawnRng {
     /// Create a new secure RNG for production use
     pub fn new() -> Result<Self> {
-        let rng = create_secure_rng()?;
+        let rng = new_secure_rng().map_err(|e| lib_q_core::Error::RandomGenerationFailed {
+            operation: format!("Failed to create secure RNG: {}", e),
+        })?;
         Ok(Self { rng: Box::new(rng) })
     }
 
     /// Create a deterministic RNG for testing
     pub fn new_deterministic(seed: &[u8]) -> Self {
-        let rng = create_deterministic_rng_from_bytes(seed);
+        let rng = new_deterministic_rng(seed);
         Self { rng: Box::new(rng) }
     }
 }
 
+#[cfg(feature = "random")]
 impl RngCore for DawnRng {
     fn next_u32(&mut self) -> u32 {
-        self.rng.next_u32_secure().unwrap_or(0)
+        self.rng.next_u32()
     }
 
     fn next_u64(&mut self) -> u64 {
-        self.rng.next_u64_secure().unwrap_or(0)
+        self.rng.next_u64()
     }
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let _ = self.rng.fill_bytes_secure(dest);
+        self.rng.fill_bytes(dest);
     }
 }
+
+#[cfg(feature = "random")]
+impl rand_core::CryptoRng for DawnRng {}
 
 /// DAWN key generation parameters
 #[derive(Clone, Debug)]
@@ -351,7 +365,12 @@ impl DawnKeyGenerator {
     /// This implements proper NTRU polynomial sampling
     fn generate_random_polynomial(&self, randomness: &[u8]) -> Result<FieldPolynomial> {
         // Create a secure RNG from the randomness
+        #[cfg(feature = "random")]
         let mut rng = DawnRng::new_deterministic(randomness);
+        #[cfg(not(feature = "random"))]
+        return Err(lib_q_core::Error::RandomGenerationFailed {
+            operation: "Random feature not enabled".to_string(),
+        });
 
         // Generate a trinary polynomial (coefficients in {-1, 0, 1})
         let mut poly = FieldPolynomial::random_trinary(

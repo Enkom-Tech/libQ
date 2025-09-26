@@ -6,16 +6,16 @@ use criterion::{
     criterion_main,
 };
 use lib_q_ml_dsa::ml_dsa_65;
-use rand::TryRngCore;
-use rand::rngs::OsRng;
+use lib_q_random::new_secure_rng;
+use rand_core::RngCore;
 
 pub fn comparisons_key_generation(c: &mut Criterion) {
-    let mut rng = OsRng;
+    let mut rng = new_secure_rng().expect("Failed to create RNG");
     let mut group = c.benchmark_group("ML-DSA-65 Key Generation");
     group.measurement_time(Duration::from_secs(10));
 
     let mut randomness = [0; 32];
-    rng.try_fill_bytes(&mut randomness).unwrap();
+    rng.fill_bytes(&mut randomness);
 
     group.bench_function("libcrux (external random)", move |b| {
         b.iter(|| {
@@ -32,18 +32,18 @@ pub fn comparisons_key_generation(c: &mut Criterion) {
 }
 
 pub fn comparisons_signing(c: &mut Criterion) {
-    let mut rng = OsRng;
+    let mut rng = new_secure_rng().expect("Failed to create RNG");
     let mut group = c.benchmark_group("ML-DSA-65 Signing");
     group.measurement_time(Duration::from_secs(10));
 
     let mut message = [0u8; 511];
-    rng.try_fill_bytes(&mut message).unwrap();
+    rng.fill_bytes(&mut message);
 
     let mut randomness = [0; 32];
-    rng.try_fill_bytes(&mut randomness).unwrap();
+    rng.fill_bytes(&mut randomness);
     let keypair = ml_dsa_65::generate_key_pair(randomness);
 
-    rng.try_fill_bytes(&mut randomness).unwrap();
+    rng.fill_bytes(&mut randomness);
 
     group.bench_function("libcrux (external random)", move |b| {
         b.iter(|| {
@@ -63,18 +63,18 @@ pub fn comparisons_signing(c: &mut Criterion) {
 }
 
 pub fn comparisons_verification(c: &mut Criterion) {
-    let mut rng = OsRng;
+    let mut rng = new_secure_rng().expect("Failed to create RNG");
     let mut group = c.benchmark_group("ML-DSA-65 Verification");
     group.measurement_time(Duration::from_secs(10));
 
     let mut message = [0u8; 511];
-    rng.try_fill_bytes(&mut message).unwrap();
+    rng.fill_bytes(&mut message);
 
     let mut randomness = [0; 32];
-    rng.try_fill_bytes(&mut randomness).unwrap();
+    rng.fill_bytes(&mut randomness);
     let keypair = ml_dsa_65::generate_key_pair(randomness);
 
-    rng.try_fill_bytes(&mut randomness).unwrap();
+    rng.fill_bytes(&mut randomness);
     let signature = ml_dsa_65::sign(&keypair.signing_key, &message, b"", randomness).unwrap();
 
     group.bench_function("libcrux", move |b| {

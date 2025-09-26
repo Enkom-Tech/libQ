@@ -29,6 +29,8 @@ use lib_q_core::{
     KemSecretKey,
     Result,
 };
+#[cfg(feature = "random")]
+use rand_core::RngCore;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -41,7 +43,6 @@ pub mod ntru_keygen;
 pub mod ntt_polynomial;
 pub mod performance;
 pub mod polynomial;
-pub mod secure_rng;
 pub mod security;
 
 use kem_ops::DawnKemOps;
@@ -219,15 +220,16 @@ impl Kem for DawnKem {
     /// Generate a keypair
     fn generate_keypair(&self) -> Result<KemKeypair> {
         // Use secure random number generation for production
-        use crate::secure_rng::{
-            SecureRng,
-            create_secure_rng,
-        };
-        let mut rng = create_secure_rng()?;
+        #[cfg(feature = "random")]
+        let mut rng =
+            lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+                operation: format!("Failed to create secure RNG: {}", e),
+            })?;
 
         // Generate 64 bytes of secure randomness for key generation
         let mut randomness = [0u8; 64];
-        rng.fill_bytes_secure(&mut randomness)?;
+        #[cfg(feature = "random")]
+        rng.fill_bytes(&mut randomness);
 
         let det_generator =
             DeterministicKeyGenerator::new(self.keygen_params.clone(), randomness.to_vec());
@@ -255,15 +257,16 @@ impl Kem for DawnKem {
         let pk_poly = self.kem_ops.decode_polynomial(&public_key.data)?;
 
         // Use secure random number generation for production
-        use crate::secure_rng::{
-            SecureRng,
-            create_secure_rng,
-        };
-        let mut rng = create_secure_rng()?;
+        #[cfg(feature = "random")]
+        let mut rng =
+            lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+                operation: format!("Failed to create secure RNG: {}", e),
+            })?;
 
         // Generate 64 bytes of secure randomness for encapsulation
         let mut randomness = [0u8; 64];
-        rng.fill_bytes_secure(&mut randomness)?;
+        #[cfg(feature = "random")]
+        rng.fill_bytes(&mut randomness);
 
         // Perform encapsulation using the proper KEM operations
         // The randomness will be embedded in the ciphertext

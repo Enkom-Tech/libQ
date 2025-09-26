@@ -1,8 +1,8 @@
-# lib-q-rng: Secure Random Number Generation for libQ
+# lib-q-random: Secure Random Number Generation for libQ
 
-[![Crates.io](https://img.shields.io/crates/v/lib-q-rng.svg)](https://crates.io/crates/lib-q-rng)
-[![Documentation](https://docs.rs/lib-q-rng/badge.svg)](https://docs.rs/lib-q-rng)
-[![License](https://img.shields.io/crates/l/lib-q-rng.svg)](https://github.com/Enkom-Tech/libQ/blob/main/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/lib-q-random.svg)](https://crates.io/crates/lib-q-random)
+[![Documentation](https://docs.rs/lib-q-random/badge.svg)](https://docs.rs/lib-q-random)
+[![License](https://img.shields.io/crates/l/lib-q-random.svg)](https://github.com/Enkom-Tech/libQ/blob/main/LICENSE)
 
 A comprehensive, secure random number generation system designed specifically for post-quantum cryptography applications in the libQ ecosystem.
 
@@ -23,7 +23,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-rng = "0.0.2"
+lib-q-random = "0.0.2"
 ```
 
 ### Basic Usage

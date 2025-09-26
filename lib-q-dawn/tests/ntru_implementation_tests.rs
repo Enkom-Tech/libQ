@@ -16,15 +16,12 @@ use lib_q_dawn::ntt_polynomial::{
     NttParams,
     NttPolynomial,
 };
-use lib_q_dawn::secure_rng::{
-    DeterministicRng,
-    SecureRng,
-};
+use lib_q_random::new_deterministic_rng;
 use rand_core::RngCore;
 
 #[test]
 fn test_secure_rng_deterministic() {
-    let mut rng = DeterministicRng::new(12345);
+    let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     // Test basic random number generation
     let mut bytes = [0u8; 16];
@@ -34,7 +31,7 @@ fn test_secure_rng_deterministic() {
     assert!(bytes.iter().any(|&b| b != 0));
 
     // Should be deterministic
-    let mut rng2 = DeterministicRng::new(12345);
+    let mut rng2 = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
     let mut bytes2 = [0u8; 16];
     rng2.fill_bytes(&mut bytes2);
     assert_eq!(bytes, bytes2);
@@ -43,7 +40,7 @@ fn test_secure_rng_deterministic() {
 #[test]
 fn test_secure_rng_initialization() {
     let entropy = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
-    let mut rng = DeterministicRng::from_bytes(&entropy);
+    let mut rng = new_deterministic_rng(&entropy);
 
     let mut bytes = [0u8; 8];
     rng.fill_bytes(&mut bytes);
@@ -90,7 +87,7 @@ fn test_ntt_polynomial_forward_inverse() {
 #[test]
 fn test_ntt_polynomial_multiplication() {
     let params = NttParams::Dawn512 { q: 12289 };
-    let mut rng = DeterministicRng::new(12345);
+    let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     let a = NttPolynomial::random_small(params, &mut rng).unwrap();
     let b = NttPolynomial::random_small(params, &mut rng).unwrap();
@@ -104,7 +101,7 @@ fn test_ntt_polynomial_multiplication() {
 #[test]
 fn test_ntt_polynomial_operations() {
     let params = NttParams::Dawn512 { q: 12289 };
-    let mut rng = DeterministicRng::new(12345);
+    let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     let a = NttPolynomial::random_small(params, &mut rng).unwrap();
     let b = NttPolynomial::random_small(params, &mut rng).unwrap();
@@ -125,7 +122,7 @@ fn test_ntt_polynomial_operations() {
 #[test]
 fn test_ntt_polynomial_sampling() {
     let params = NttParams::Dawn512 { q: 12289 };
-    let mut rng = DeterministicRng::new(12345);
+    let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     let small_poly = NttPolynomial::random_small(params, &mut rng).unwrap();
     assert!(small_poly.is_small(1));
@@ -385,7 +382,7 @@ fn test_error_correction_roundtrip() {
 #[test]
 fn test_syndrome_decoder_roundtrip() {
     let ntru_params = NtruKeygenParams::DAWN_ALPHA_512;
-    let _rng = DeterministicRng::new(12345);
+    let _rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     // Create syndrome decoder
     let decoder = SyndromeDecoder::new(ntru_params).unwrap();
@@ -451,7 +448,7 @@ fn test_ntt_polynomial_edge_cases() {
 fn test_secure_rng_edge_cases() {
     // Test with zero entropy
     let zero_entropy = [0u8; 32];
-    let mut rng = DeterministicRng::from_bytes(&zero_entropy);
+    let mut rng = new_deterministic_rng(&zero_entropy);
 
     let mut bytes = [0u8; 8];
     rng.fill_bytes(&mut bytes);
@@ -461,7 +458,7 @@ fn test_secure_rng_edge_cases() {
 
     // Test with maximum entropy
     let max_entropy = [0xFFu8; 32];
-    let mut rng2 = DeterministicRng::from_bytes(&max_entropy);
+    let mut rng2 = new_deterministic_rng(&max_entropy);
 
     let mut bytes2 = [0u8; 8];
     rng2.fill_bytes(&mut bytes2);
@@ -473,7 +470,7 @@ fn test_secure_rng_edge_cases() {
 #[test]
 fn test_secure_rng_trait_methods() {
     // Test DeterministicRng security properties
-    let mut rng = DeterministicRng::new(12345);
+    let mut rng = new_deterministic_rng(&[12345u64.to_le_bytes()].concat());
 
     // Test is_secure method
     assert!(!rng.is_secure()); // DeterministicRng is not cryptographically secure
@@ -483,7 +480,7 @@ fn test_secure_rng_trait_methods() {
     assert!((0.0..=1.0).contains(&quality));
 
     // Test with different entropy
-    let mut rng2 = DeterministicRng::from_bytes(&[0x12, 0x34, 0x56, 0x78]);
+    let mut rng2 = new_deterministic_rng(&[0x12, 0x34, 0x56, 0x78]);
     let quality2 = rng2.entropy_quality();
     assert!((0.0..=1.0).contains(&quality2));
 

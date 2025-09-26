@@ -12,7 +12,7 @@
     clippy::similar_names
 )]
 
-//! # lib-q-rng: Secure Random Number Generation for libQ
+//! # lib-q-random: Secure Random Number Generation for libQ
 //!
 //! This crate provides a comprehensive, secure random number generation system
 //! designed specifically for post-quantum cryptography applications in the libQ ecosystem.
@@ -31,7 +31,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use lib_q_rng::{
+//! use lib_q_random::{
 //!     EntropySource,
 //!     LibQRng,
 //!     RngProvider,
@@ -81,6 +81,9 @@ pub mod provider;
 pub mod traits;
 pub mod validation;
 
+// Specialized RNG implementations for different algorithms
+pub mod specialized;
+
 // Re-export main types
 pub use error::{
     Error,
@@ -88,11 +91,19 @@ pub use error::{
 };
 #[cfg(feature = "alloc")]
 pub use provider::LibQRng;
+// Re-export specialized implementations
+#[cfg(feature = "classical-mceliece")]
+pub use specialized::ClassicalMcElieceRng;
+#[cfg(feature = "fn-dsa")]
+pub use specialized::FnDsaRng;
+#[cfg(feature = "hpke")]
+pub use specialized::KangarooTwelveRng;
 #[cfg(feature = "alloc")]
 pub use traits::RngProvider;
 pub use traits::{
     EntropySource,
     SecureRng,
+    SecurityLevel,
 };
 // Re-export validation types
 pub use validation::{
@@ -124,7 +135,7 @@ pub const DEFAULT_ENTROPY_SIZE: usize = 32;
 /// # Examples
 ///
 /// ```rust
-/// use lib_q_rng::new_secure_rng;
+/// use lib_q_random::new_secure_rng;
 /// use rand_core::RngCore;
 ///
 /// let mut rng = new_secure_rng().unwrap();
@@ -148,7 +159,7 @@ pub fn new_secure_rng() -> Result<LibQRng> {
 /// # Examples
 ///
 /// ```rust
-/// use lib_q_rng::new_deterministic_rng;
+/// use lib_q_random::new_deterministic_rng;
 /// use rand_core::RngCore;
 ///
 /// let mut rng = new_deterministic_rng(&[1, 2, 3, 4]);
@@ -173,7 +184,7 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
 /// # Examples
 ///
 /// ```rust
-/// use lib_q_rng::{
+/// use lib_q_random::{
 ///     EntropySource,
 ///     new_custom_rng,
 /// };
@@ -184,7 +195,7 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
 ///     fn get_entropy(
 ///         &mut self,
 ///         dest: &mut [u8],
-///     ) -> Result<(), lib_q_rng::Error> {
+///     ) -> Result<(), lib_q_random::Error> {
 ///         // Implementation details...
 ///         Ok(())
 ///     }

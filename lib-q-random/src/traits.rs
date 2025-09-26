@@ -2,7 +2,7 @@
 // These are legitimate patterns for API design
 #![allow(clippy::struct_excessive_bools, clippy::doc_markdown)]
 
-//! Core traits for lib-q-rng
+//! Core traits for lib-q-random
 //!
 //! This module defines the fundamental traits that form the interface
 //! for random number generation in the libQ ecosystem.
@@ -262,7 +262,9 @@ pub enum SecurityLevel {
     /// Cryptographically secure
     CryptographicallySecure,
     /// Hardware-based security
-    HardwareSecure,
+    Hardware,
+    /// Software-based security
+    Software,
 }
 
 impl fmt::Display for SecurityLevel {
@@ -270,7 +272,8 @@ impl fmt::Display for SecurityLevel {
         match self {
             Self::Deterministic => write!(f, "Deterministic"),
             Self::CryptographicallySecure => write!(f, "Cryptographically Secure"),
-            Self::HardwareSecure => write!(f, "Hardware Secure"),
+            Self::Hardware => write!(f, "Hardware"),
+            Self::Software => write!(f, "Software"),
         }
     }
 }
@@ -400,7 +403,7 @@ mod tests {
     #[test]
     fn test_security_level_ordering() {
         assert!(SecurityLevel::CryptographicallySecure > SecurityLevel::Deterministic);
-        assert!(SecurityLevel::HardwareSecure > SecurityLevel::CryptographicallySecure);
+        assert!(SecurityLevel::Hardware > SecurityLevel::CryptographicallySecure);
     }
 
     #[test]

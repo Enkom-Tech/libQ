@@ -1,42 +1,56 @@
+#[cfg(feature = "random")]
 use lib_q_ml_dsa::{
     ml_dsa_44,
     ml_dsa_65,
     ml_dsa_87,
 };
-use rand::rngs::OsRng;
-use rand::{
-    Rng,
-    TryRngCore,
-};
+#[cfg(feature = "random")]
+use lib_q_random::LibQRng;
+#[cfg(feature = "random")]
+use rand_core::RngCore;
 
+#[cfg(feature = "random")]
 fn random_array<const L: usize>() -> [u8; L] {
-    let mut rng = OsRng;
+    let mut rng = LibQRng::new_secure().expect("Failed to create secure RNG");
     let mut seed = [0; L];
-    rng.try_fill_bytes(&mut seed).unwrap();
+    rng.fill_bytes(&mut seed);
     seed
 }
+#[cfg(feature = "random")]
 fn random_message() -> Vec<u8> {
-    let mut rng = OsRng;
+    let mut rng = LibQRng::new_secure().expect("Failed to create secure RNG");
 
     let mut length = [0u8; 2];
-    rng.try_fill_bytes(&mut length).unwrap();
+    rng.fill_bytes(&mut length);
     let length = ((length[1] as u16) << 8) | length[0] as u16;
 
-    let mut message = Vec::with_capacity(length.into());
-    rng.try_fill_bytes(&mut message).unwrap();
+    let mut message = vec![0u8; length as usize];
+    rng.fill_bytes(&mut message);
 
     message
 }
 
+#[cfg(feature = "random")]
 fn modify_signing_key<const SIGNING_KEY_SIZE: usize>(signing_key: &mut [u8; SIGNING_KEY_SIZE]) {
-    let option = rand::rng().random_range(0..2);
+    let mut rng = LibQRng::new_secure().expect("Failed to create secure RNG");
+    let mut option_bytes = [0u8; 1];
+    rng.fill_bytes(&mut option_bytes);
+    let option = option_bytes[0] % 2;
 
     let position = match option {
         // Change the seed used for generating A
-        0 => rand::rng().random_range(0..32),
+        0 => {
+            let mut pos_bytes = [0u8; 1];
+            rng.fill_bytes(&mut pos_bytes);
+            (pos_bytes[0] % 32) as usize
+        }
 
         // Change the verification key hash
-        1 => rand::rng().random_range(64..128),
+        1 => {
+            let mut pos_bytes = [0u8; 1];
+            rng.fill_bytes(&mut pos_bytes);
+            (64 + (pos_bytes[0] % 64)) as usize
+        }
 
         // TODO: Changing s1, s2, and t0 could still result in valid
         // signatures. Look into this further.
@@ -52,6 +66,7 @@ fn modify_signing_key<const SIGNING_KEY_SIZE: usize>(signing_key: &mut [u8; SIGN
     signing_key[position] ^= random_byte;
 }
 
+#[cfg(feature = "random")]
 macro_rules! impl_consistency_test {
     ($name:ident, $key_gen:expr, $sign:expr, $verify:expr) => {
         #[test]
@@ -72,6 +87,7 @@ macro_rules! impl_consistency_test {
     };
 }
 
+#[cfg(feature = "random")]
 macro_rules! impl_modified_signing_key_test {
     ($name:ident, $key_gen:expr, $signing_key_size: expr, $sign:expr, $verify:expr) => {
         #[test]
@@ -95,6 +111,7 @@ macro_rules! impl_modified_signing_key_test {
 
 // 44
 
+#[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_44,
     ml_dsa_44::generate_key_pair,
@@ -102,6 +119,7 @@ impl_consistency_test!(
     ml_dsa_44::verify
 );
 
+#[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_44,
     ml_dsa_44::generate_key_pair,
@@ -110,6 +128,7 @@ impl_modified_signing_key_test!(
     ml_dsa_44::verify
 );
 
+#[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_44_portable,
     ml_dsa_44::portable::generate_key_pair,
@@ -117,6 +136,7 @@ impl_consistency_test!(
     ml_dsa_44::portable::verify
 );
 
+#[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_44_portable,
     ml_dsa_44::portable::generate_key_pair,
@@ -125,7 +145,7 @@ impl_modified_signing_key_test!(
     ml_dsa_44::portable::verify
 );
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd128,
     ml_dsa_44::neon::generate_key_pair,
@@ -133,7 +153,7 @@ impl_consistency_test!(
     ml_dsa_44::neon::verify
 );
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd128,
     ml_dsa_44::neon::generate_key_pair,
@@ -142,7 +162,7 @@ impl_modified_signing_key_test!(
     ml_dsa_44::neon::verify
 );
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd256,
     ml_dsa_44::avx2::generate_key_pair,
@@ -150,7 +170,7 @@ impl_consistency_test!(
     ml_dsa_44::avx2::verify
 );
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd256,
     ml_dsa_44::avx2::generate_key_pair,
@@ -161,6 +181,7 @@ impl_modified_signing_key_test!(
 
 // 65
 
+#[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_65,
     ml_dsa_65::generate_key_pair,
@@ -168,6 +189,7 @@ impl_consistency_test!(
     ml_dsa_65::verify
 );
 
+#[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_65,
     ml_dsa_65::generate_key_pair,
@@ -178,6 +200,7 @@ impl_modified_signing_key_test!(
 
 // 87
 
+#[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_87,
     ml_dsa_87::generate_key_pair,
@@ -185,6 +208,7 @@ impl_consistency_test!(
     ml_dsa_87::verify
 );
 
+#[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_87,
     ml_dsa_87::generate_key_pair,

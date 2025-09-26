@@ -37,15 +37,10 @@ impl Shake256Aead {
     /// Fill random bytes using a secure random number generator
     #[cfg(feature = "shake256")]
     pub(crate) fn fill_random_bytes(buf: &mut [u8]) -> Result<()> {
-        use rand_core::{
-            OsRng,
-            TryRngCore,
-        };
-        OsRng
-            .try_fill_bytes(buf)
-            .map_err(|_| Error::RandomGenerationFailed {
-                operation: "Failed to generate random bytes".to_string(),
-            })
+        use lib_q_random::new_secure_rng;
+        let mut rng = new_secure_rng()?;
+        rng.fill_bytes(buf);
+        Ok(())
     }
 
     /// Constant-time equality comparison

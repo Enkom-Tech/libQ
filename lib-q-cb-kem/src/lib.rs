@@ -86,9 +86,6 @@ mod encrypt;
 mod gf;
 mod int32_sort;
 mod libq_provider;
-#[cfg(not(feature = "libq-rng"))]
-mod libq_rng;
-// mod nist_aes_rng;  // No longer needed - replaced with libq_rng
 mod operations;
 mod params;
 mod pk_gen;
@@ -119,14 +116,11 @@ pub use api::{
     CRYPTO_PUBLICKEYBYTES,
     CRYPTO_SECRETKEYBYTES,
 };
-#[cfg(feature = "libq-rng")]
-pub use lib_q_rng::LibQRng;
+// Re-export unified RNG from lib-q-random
+pub use lib_q_random::ClassicalMcElieceRng as LibQRng;
 // Re-export libQ provider
 #[cfg(feature = "alloc")]
 pub use libq_provider::LibQCbKemProvider;
-// Re-export libQ RNG
-#[cfg(not(feature = "libq-rng"))]
-pub use libq_rng::LibQRng;
 
 mod macros {
     /// This macro(A, B, C, T) allows to get “&A[B..B+C]” of type “&[T]” as type “&[T; C]”.

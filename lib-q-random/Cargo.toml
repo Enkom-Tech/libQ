@@ -1,5 +1,5 @@
 [package]
-name = "lib-q-rng"
+name = "lib-q-random"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -7,17 +7,18 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 readme.workspace = true
-description = "Secure random number generation for libQ post-quantum cryptography library"
+description = "Unified secure random number generation for libQ post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", optional = true }
 rand_core = { version = "0.9.3", default-features = false }
 getrandom = { version = "0.3.3", optional = true, default-features = false }
 rand = { version = "0.9.2", default-features = false, optional = true }
 zeroize = { version = "1.8.1", features = ["derive"], default-features = false, optional = true }
-wasm-bindgen = { version = "0.2.103", optional = true }
+wasm-bindgen = { version = "0.2.104", optional = true }
 
 [features]
 default = ["std", "secure", "zeroize"]
@@ -30,6 +31,15 @@ secure = ["dep:getrandom", "dep:rand"]
 deterministic = []
 hardware = []
 getrandom = ["dep:getrandom"]
+
+# Specialized implementations
+hash = ["dep:lib-q-hash"]
+classical-mceliece = []
+hpke = ["hash"]
+fn-dsa = []
+
+# Additional features for specialized implementations
+rand = ["dep:rand"]
 
 # Security features
 zeroize = ["dep:zeroize"]
