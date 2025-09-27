@@ -28,9 +28,9 @@ use lib_q_core::error::{
 };
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
+use lib_q_core::traits::Kem;
 #[cfg(feature = "alloc")]
 use lib_q_core::traits::{
-    Kem,
     KemKeypair,
     KemPublicKey,
     KemSecretKey,

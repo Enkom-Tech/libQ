@@ -495,7 +495,9 @@ mod tests {
         // Check that algorithm names follow NIST conventions
         for algorithm in algorithms {
             assert!(
-                algorithm.starts_with("ML-KEM-") || algorithm.starts_with("DAWN"),
+                algorithm.starts_with("ML-KEM-") ||
+                    algorithm.starts_with("CB-KEM-") ||
+                    algorithm.starts_with("DAWN"),
                 "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm
             );
