@@ -14,7 +14,7 @@ readme.workspace = true
 lib-q-core = { path = "../lib-q-core" }
 
 # Optional dependencies for specific features
-zeroize = { version = "1.8.1", features = ["zeroize_derive"], optional = true }
+zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
 
 [features]
 default = ["aead", "block-cipher", "hash", "stream", "alloc"]

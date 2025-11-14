@@ -102,6 +102,7 @@ npm install @lib-q/utils
 - **ML-DSA** (FIPS 204, Level 1, 3, 5)
 - **FN-DSA** (FIPS 206, Level 1, 5) - Compact lattice-based signatures
 - **SLH-DSA** (FIPS 205, Level 1, 3, 5)
+- **SABER**
 
 ### Hash Functions
 - **SHAKE256** (for hash-based signatures)

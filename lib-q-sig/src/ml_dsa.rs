@@ -93,6 +93,8 @@ use js_sys::Uint8Array;
 use lib_q_core::{
     Result,
     SigKeypair,
+    SigPublicKey,
+    SigSecretKey,
     Signature,
 };
 use lib_q_ml_dsa::constants::{
@@ -113,6 +115,7 @@ use wasm_bindgen::prelude::*;
 ///
 /// This implementation provides both high-level (std) and low-level (no_std) APIs
 /// following the lib-q architecture pattern for maximum flexibility.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct MlDsa {
     /// The specific ML-DSA variant (44, 65, or 87)
     variant: MlDsaVariant,
@@ -248,7 +251,7 @@ impl MlDsa {
     #[cfg(feature = "alloc")]
     pub fn sign_with_randomness(
         &self,
-        secret_key: &lib_q_core::SigSecretKey,
+        secret_key: &SigSecretKey,
         message: &[u8],
         randomness: [u8; SIGNING_RANDOMNESS_SIZE],
     ) -> Result<Vec<u8>> {
@@ -327,7 +330,7 @@ impl MlDsa {
     #[cfg(not(feature = "alloc"))]
     pub fn sign_with_randomness(
         &self,
-        _secret_key: &lib_q_core::SigSecretKey,
+        _secret_key: &SigSecretKey,
         _message: &[u8],
         _randomness: [u8; SIGNING_RANDOMNESS_SIZE],
     ) -> Result<&'static [u8]> {
@@ -389,7 +392,7 @@ impl Signature for MlDsa {
 
     #[cfg(feature = "alloc")]
     #[allow(unused_variables)]
-    fn sign(&self, secret_key: &lib_q_core::SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
+    fn sign(&self, secret_key: &SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
         #[cfg(feature = "std")]
         {
             use lib_q_core::Utils;
@@ -433,7 +436,7 @@ impl Signature for MlDsa {
     }
 
     #[cfg(not(feature = "alloc"))]
-    fn sign(&self, _secret_key: &lib_q_core::SigSecretKey, _message: &[u8]) -> Result<Vec<u8>> {
+    fn sign(&self, _secret_key: &SigSecretKey, _message: &[u8]) -> Result<Vec<u8>> {
         // In no_std mode without alloc, we cannot return Vec<u8>
         // This is a limitation of the trait definition - it should return &'static [u8] in no_std mode
         // For now, we return an error indicating that external randomness is required
@@ -442,12 +445,7 @@ impl Signature for MlDsa {
         })
     }
 
-    fn verify(
-        &self,
-        public_key: &lib_q_core::SigPublicKey,
-        message: &[u8],
-        signature: &[u8],
-    ) -> Result<bool> {
+    fn verify(&self, public_key: &SigPublicKey, message: &[u8], signature: &[u8]) -> Result<bool> {
         use lib_q_ml_dsa::types::{
             MLDSASignature,
             MLDSAVerificationKey,
@@ -670,7 +668,7 @@ fn test_invalid_signature() {
 
 // WASM bindings for ML-DSA
 #[cfg(feature = "wasm")]
-#[wasm_bindgen]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl MlDsa {
     /// Generate a keypair for WASM (JavaScript) environment
     ///
@@ -683,7 +681,7 @@ impl MlDsa {
     pub fn generate_keypair_wasm(
         &self,
         randomness: Option<Uint8Array>,
-    ) -> Result<WasmMlDsaKeyPair, JsValue> {
+    ) -> core::result::Result<WasmMlDsaKeyPair, JsValue> {
         let randomness_array = if let Some(rand) = randomness {
             let rand_vec = rand.to_vec();
             if rand_vec.len() != KEY_GENERATION_RANDOMNESS_SIZE {
@@ -725,7 +723,7 @@ impl MlDsa {
         secret_key: Uint8Array,
         message: Uint8Array,
         randomness: Option<Uint8Array>,
-    ) -> Result<Uint8Array, JsValue> {
+    ) -> core::result::Result<Uint8Array, JsValue> {
         let secret_key = SigSecretKey::new(secret_key.to_vec());
         let message = message.to_vec();
         let randomness_array = if let Some(rand) = randomness {
@@ -766,7 +764,7 @@ impl MlDsa {
         public_key: Uint8Array,
         message: Uint8Array,
         signature: Uint8Array,
-    ) -> Result<bool, JsValue> {
+    ) -> core::result::Result<bool, JsValue> {
         let public_key = SigPublicKey::new(public_key.to_vec());
         let message = message.to_vec();
         let signature = signature.to_vec();

@@ -79,8 +79,6 @@ use hybrid_array::typenum::{
     U11,
     Unsigned,
 };
-#[cfg(feature = "random")]
-use lib_q_random::LibQRng;
 use rand_core::CryptoRng;
 
 /// A value that can be encapsulated to. Often, this will just be a public key. However, it can

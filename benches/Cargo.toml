@@ -15,4 +15,4 @@ harness = false
 lib-q = { path = "../", features = ["full"] }
 
 [dev-dependencies]
-criterion = "0.7.0"
+criterion = { workspace = true }

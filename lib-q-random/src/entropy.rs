@@ -518,6 +518,144 @@ impl EntropySource for UserEntropySource {
     }
 }
 
+/// NIST AES256-CTR-DRBG entropy source for KAT test compatibility
+///
+/// This entropy source implements the NIST AES256-CTR-DRBG algorithm
+/// as specified in SP 800-90A, providing deterministic random generation
+/// compatible with NIST KAT test vectors.
+#[cfg(feature = "nist-drbg")]
+#[derive(Debug, Clone)]
+pub struct NistAes256CtrDrbg {
+    /// 256-bit AES key
+    key: [u8; 32],
+    /// 128-bit counter value
+    v: [u8; 16],
+    /// Reseed counter
+    reseed_counter: i32,
+    /// Quality estimate (high for NIST DRBG)
+    quality: f64,
+}
+
+#[cfg(feature = "nist-drbg")]
+impl NistAes256CtrDrbg {
+    /// Create a new NIST AES256-CTR-DRBG entropy source
+    pub fn new() -> Self {
+        Self {
+            key: [0u8; 32],
+            v: [0u8; 16],
+            reseed_counter: 0,
+            quality: 1.0, // NIST DRBG provides high quality entropy
+        }
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl Default for NistAes256CtrDrbg {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl NistAes256CtrDrbg {
+    /// Initialize the DRBG with entropy input (48 bytes)
+    ///
+    /// This corresponds to the `randombytes_init` function in the reference implementation.
+    pub fn randombytes_init(&mut self, entropy_input: [u8; 48]) {
+        self.key = [0u8; 32];
+        self.v = [0u8; 16];
+        self.reseed_counter = 1i32;
+
+        Self::aes256_ctr_update(&mut Some(entropy_input), &mut self.key, &mut self.v);
+        self.reseed_counter = 1;
+    }
+
+    /// AES256-ECB encryption
+    ///
+    /// Encrypts a 128-bit plaintext using AES256-ECB mode.
+    fn aes256_ecb(key: &[u8; 32], ctr: &[u8; 16], buffer: &mut [u8; 16]) {
+        use aes::cipher::{
+            BlockEncrypt,
+            KeyInit,
+        };
+        let cipher = aes::Aes256::new(key.into());
+        buffer.copy_from_slice(ctr);
+        cipher.encrypt_block(buffer.into());
+    }
+
+    /// Update key and v with provided data by running one round of AES in counter mode
+    fn aes256_ctr_update(
+        provided_data: &mut Option<[u8; 48]>,
+        key: &mut [u8; 32],
+        v: &mut [u8; 16],
+    ) {
+        let mut temp = [[0u8; 16]; 3];
+
+        for tmp in &mut temp[0..3] {
+            let count = u128::from_be_bytes(*v);
+            v.copy_from_slice(&(count + 1).to_be_bytes());
+
+            Self::aes256_ecb(key, v, tmp);
+        }
+
+        if let Some(d) = provided_data {
+            for j in 0..3 {
+                for i in 0..16 {
+                    temp[j][i] ^= d[16 * j + i];
+                }
+            }
+        }
+
+        key[0..16].copy_from_slice(&temp[0]);
+        key[16..32].copy_from_slice(&temp[1]);
+        v.copy_from_slice(&temp[2]);
+    }
+
+    /// Generate random bytes using the DRBG
+    fn generate_bytes(&mut self, dest: &mut [u8]) {
+        for chunk in dest.chunks_mut(16) {
+            let count = u128::from_be_bytes(self.v);
+            self.v.copy_from_slice(&(count + 1).to_be_bytes());
+
+            let mut block = [0u8; 16];
+            Self::aes256_ecb(&self.key, &self.v, &mut block);
+
+            chunk.copy_from_slice(&block[..chunk.len()]);
+        }
+
+        Self::aes256_ctr_update(&mut None, &mut self.key, &mut self.v);
+        self.reseed_counter += 1;
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl EntropySource for NistAes256CtrDrbg {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        self.generate_bytes(dest);
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        "NIST AES256-CTR-DRBG"
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::Deterministic
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        None // No limit for DRBG
+    }
+}
+
 /// Entropy source factory
 ///
 /// This factory provides convenient methods for creating different types
@@ -629,6 +767,14 @@ impl EntropySourceFactory {
     ) -> Box<dyn EntropySource> {
         Box::new(UserEntropySource::with_quality(entropy_data, quality))
     }
+
+    /// Create a NIST AES256-CTR-DRBG entropy source
+    #[cfg(feature = "nist-drbg")]
+    pub fn create_nist_drbg_entropy(entropy_input: [u8; 48]) -> Box<dyn EntropySource> {
+        let mut drbg = NistAes256CtrDrbg::new();
+        drbg.randombytes_init(entropy_input);
+        Box::new(drbg)
+    }
 }
 
 #[cfg(test)]
@@ -737,6 +883,46 @@ mod tests {
         let seed = [1, 2, 3, 4];
         let source = EntropySourceFactory::create_deterministic_entropy(&seed);
         assert_eq!(source.source_type(), EntropySourceType::Deterministic);
+    }
+
+    #[test]
+    #[cfg(all(feature = "alloc", feature = "nist-drbg"))]
+    fn test_nist_drbg_kat_vectors() {
+        use alloc::vec::Vec;
+
+        // Test vectors from classic-mceliece reference implementation
+        const RNG_REF1: &str = "061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA19810F5392D076276EF41277C3AB6E94A4E3B7DCC104A05BB089D338BF55C72CAB375389A94BB920BD5D6DC9E7F2EC6FDE028B6F5724BB039F3652AD98DF8CE6C97013210B84BBE81388C3D141D61957C73BCDC5E5CD92525F46A2B757B03CAB5C337004A2DA35324A325713564DAE28F57ACC6DBE32A0726190BAA6B8A0A255AA1AD01E8DD569AA36D096256C420718A69D46D8DB1C6DD40606A0BE3C235BEFE623A90593F82D6A8F9F924E44E36BE87F7D26B8445966F9EE329C426C12521E85F6FD4ECD5D566BA0A3487125D79CC64";
+        const RNG_REF2: &str = "C17E034061ED5EA817C41D61636281E816F817DCF753A91D97C018FF82FBC9B1728FC66AF114B57978FB6082B70D285140B26725AA5F7BB4409820F67E2D656EDACA30B5BB12EB5249CC3809B188CF0CC95B5AE0EFE8FC5887152CB6601B4CCF9FC411894FA0C0264EB51A481D4D7074FDF065053030C8A92BFCDD06BF18C8489C38D03784FD63001830E5A385A4A37866693F5BDAB8A8A25B519DDBF2D28268601D95BEED647E430484A227C023B0297A282F06C91376433BDE5EC3ABBA8C06B830C26452EA2FA7EDEA8DCFE20EAFCF8980B3D5AECEF89DD861ACEC1F5F7CD2AE6B3CDE3C1D80A2830DD0B9E8468AFAD161981074BEB33DF1CDFF9A5214F9F0";
+
+        // Parse hex strings to bytes
+        fn hex_to_bytes(hex: &str) -> Vec<u8> {
+            let mut bytes = Vec::new();
+            let mut chars = hex.chars().peekable();
+            while let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+                let byte = u8::from_str_radix(&format!("{}{}", c1, c2), 16).unwrap();
+                bytes.push(byte);
+            }
+            bytes
+        }
+
+        let mut entropy_input = [0u8; 48];
+        for i in 0..48 {
+            entropy_input[i] = i as u8;
+        }
+
+        let mut drbg = NistAes256CtrDrbg::new();
+        drbg.randombytes_init(entropy_input);
+
+        // Test first 256 bytes
+        let mut data = [0u8; 256];
+        drbg.get_entropy(&mut data).unwrap();
+        let ref1 = hex_to_bytes(RNG_REF1);
+        assert_eq!(data.as_slice(), ref1.as_slice());
+
+        // Test second 256 bytes
+        drbg.get_entropy(&mut data).unwrap();
+        let ref2 = hex_to_bytes(RNG_REF2);
+        assert_eq!(data.as_slice(), ref2.as_slice());
     }
 
     #[test]

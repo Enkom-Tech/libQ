@@ -18,7 +18,7 @@ fn-dsa-sign = { version = "0.0.2", path = "../fn-dsa-sign" }
 fn-dsa-vrfy = { version = "0.0.2", path = "../fn-dsa-vrfy" }
 
 [dev-dependencies]
-hex = "0.4.3"
+hex = { workspace = true }
 
 [features]
 default = []

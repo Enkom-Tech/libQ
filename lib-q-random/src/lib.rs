@@ -160,6 +160,10 @@ pub mod validation;
 pub mod secure_fallback;
 pub mod specialized;
 
+// HQC-specific specialized functions
+#[cfg(feature = "hqc")]
+pub mod hqc_specialized;
+
 // no_std RNG implementation
 #[cfg(any(not(feature = "std"), feature = "no_std"))]
 pub mod no_std_rng;

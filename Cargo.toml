@@ -22,6 +22,8 @@ members = [
     "lib-q-slh-dsa",
     "lib-q-cb-kem",
     "lib-q-random",
+    "lib-q-dawn",
+    "lib-q-hqc",
     "examples",
     "."
 ]
@@ -42,7 +44,25 @@ categories = ["cryptography", "wasm"]
 
 # Workspace dependencies for inherited properties
 [workspace.dependencies]
-hax-lib = "0.3.4"
+hax-lib = "0.3.5"
+blobby = "0.4.0"
+# WASM dependencies - shared across all workspace members
+wasm-bindgen = "0.2.105"
+js-sys = "0.3.82"
+web-sys = "0.3.82"
+wasm-bindgen-test = "0.3.55"
+# Common dependencies - shared across all workspace members
+zeroize = { version = "1.8.2", default-features = false }
+serde = { version = "1.0.228", default-features = false }
+serde_json = "1.0.145"
+serde-wasm-bindgen = "0.6.5"
+rand_core = { version = "0.9.3", default-features = false }
+rand = { version = "0.9.2", default-features = false }
+# Note: getrandom is not in workspace.dependencies because some crates need default-features = false
+# which cannot be overridden when using workspace dependencies
+criterion = "0.7.0"
+hex = "0.4.3"
+proptest = "1.9.0"
 
 [package]
 name = "lib-q"
@@ -79,6 +99,7 @@ lib-q-ml-dsa = { path = "lib-q-ml-dsa" }
 lib-q-sig = { path = "lib-q-sig", features = ["std", "ml-dsa", "slh-dsa"] }
 lib-q-hash = { path = "lib-q-hash" }
 lib-q-aead = { path = "lib-q-aead" }
+lib-q-hqc = { path = "lib-q-hqc", optional = true }
 lib-q-hpke = { path = "lib-q-hpke", optional = true }
 lib-q-utils = { path = "lib-q-utils" }
 lib-q-zkp = { path = "lib-q-zkp" }
@@ -89,17 +110,17 @@ lib-q-cb-kem = { path = "lib-q-cb-kem", optional = true }
 lib-q-random = { path = "lib-q-random", optional = true }
 
 # WASM-specific dependencies
-wasm-bindgen = { version = "0.2.104", optional = true }
-js-sys = { version = "0.3.81", optional = true }
-web-sys = { version = "0.3.81", optional = true, features = ["console"] }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = ["console"] }
 
 [dev-dependencies]
 # Testing
-criterion = "0.7.0"
-proptest = "1.8.0"
+criterion = { workspace = true }
+proptest = { workspace = true }
 
 # WASM testing
-wasm-bindgen-test = "0.3.54"
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["std"]
@@ -183,21 +204,8 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(simd256)',
     'cfg(aarch64)',
     'cfg(x86_64)',
+    'cfg(feature, values("cb-kem"))',
 ] }
-
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-strip = true
-debug = false
-
-[profile.dev]
-opt-level = 0
-debug = true
-lto = false
-panic = "unwind"
 
 [profile.release-security]
 inherits = "release"
@@ -211,14 +219,34 @@ panic = "unwind"
 inherits = "dev"
 panic = "abort"
 
-[profile.test]
+# Package-specific profiles
+[profile.dev-cb-kem]
 inherits = "dev"
-panic = "unwind"
+opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
 
-[profile.bench]
+[profile.release-cb-kem]
+inherits = "release"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+
+[profile.dev-fn-dsa]
+inherits = "dev"
+opt-level = 0
+debug = true
+lto = false
+panic = "unwind"
+
+[profile.release-fn-dsa]
+inherits = "release"
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
 debug = false
 
 # Additional security hardening options can be added here

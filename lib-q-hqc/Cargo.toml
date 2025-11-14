@@ -1,0 +1,160 @@
+[package]
+name = "lib-q-hqc"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Post-Quantum HQC (Hamming Quasi-Cyclic) KEM for lib-Q"
+keywords = ["cryptography", "post-quantum", "hqc", "kem", "nist"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+# Core libQ dependencies
+lib-q-core = { path = "../lib-q-core" }
+lib-q-random = { path = "../lib-q-random", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3" }
+lib-q-keccak = { path = "../lib-q-keccak" }
+
+# Type-safe arrays for refactored architecture
+hybrid-array = "0.4.5"
+
+# Random number generation
+rand_core = { workspace = true }
+
+# Hex encoding/decoding for test vectors
+hex = { workspace = true }
+
+# no_std collections
+heapless = { version = "0.9.1", optional = true }
+
+# WASM bindings
+wasm-bindgen = { workspace = true, optional = true }
+
+# Serialization support
+serde = { workspace = true, features = ["derive"], optional = true }
+serde-big-array = { version = "0.5.1", optional = true }
+
+# Memory safety
+zeroize = { workspace = true, optional = true }
+
+# AES implementation for CTR-DRBG
+aes = { version = "0.8.4", optional = true }
+
+
+
+# no_std logging support
+defmt = { version = "1.0.1", optional = true }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", features = ["std", "nist-drbg"] }
+criterion = { workspace = true, features = ["html_reports"] }
+sha3 = { path = "../reference/sha3", features = ["alloc"] }
+dudect-bencher = "0.6.0"
+rand = { workspace = true }
+
+[[example]]
+name = "hqc_example"
+path = "examples/hqc_example.rs"
+required-features = ["hqc128", "hqc192", "hqc256"]
+
+# [[bin]]
+# name = "test_runner"
+# path = "tests/verification/test_runner.rs"
+# required-features = ["alloc"]
+
+# [[bin]]
+# name = "test_verification"
+# path = "tests/verification/test_verification.rs"
+# required-features = ["alloc"]
+
+# [[bin]]
+# name = "verify_tests"
+# path = "tests/verification/verify_tests.rs"
+# required-features = ["alloc"]
+
+[[bench]]
+name = "performance_benchmarks"
+harness = false
+
+
+[features]
+default = ["alloc", "random", "bearssl-aes"]
+std = [] # Compatibility feature for CI/testing
+alloc = [] # Enable alloc support for Vec and other collections (uses std)
+no_std = ["dep:heapless"] # Enable no_std support with heapless collections
+ffi = [] # FFI support for C bindings
+
+# HQC algorithm variants
+hqc128 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
+hqc192 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
+hqc256 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
+
+# Enable all HQC variants
+hqc = ["hqc128", "hqc192", "hqc256"]
+
+# Random number generation support
+random = ["dep:lib-q-random", "lib-q-random/std"]
+nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]
+
+# WASM support
+wasm = ["wasm-bindgen", "hqc", "lib-q-core/wasm"]
+
+# Serialization support
+serialization = ["serde", "serde-big-array"]
+
+# Memory safety
+zeroize = ["dep:zeroize"]
+
+# Security features
+security-hardened = ["zeroize", "hqc"]
+
+# AES-CTR-DRBG for KAT compatibility
+aes-drbg = ["aes", "alloc"]
+
+
+# BearSSL AES for exact KAT compatibility
+bearssl-aes = ["aes", "alloc"]
+
+# Dual-mode DRBG diagnostics for interoperability testing
+# Requires both aes-drbg and bearssl-aes to be enabled
+# Enables side-by-side comparison and logging of both DRBG outputs
+debug-drbg-interop = ["aes-drbg", "bearssl-aes"]
+
+# Debug DRBG state transitions for KAT alignment analysis
+# Enables detailed logging of Key, V, and counter state changes
+debug-drbg-state = []
+
+# Debug DRBG state with defmt for no_std environments
+# Enables detailed logging using defmt framework
+debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]
+
+# Archive tests - enables compilation of archived diagnostic tests
+# These tests are excluded from default cargo test runs
+archive-tests = []
+
+# SIMD optimizations
+simd-avx2 = []  # Enable AVX2 optimizations with runtime detection
+
+[lib]
+name = "lib_q_hqc"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(kani)',
+    'cfg(feature, values("lib-q-random"))',
+] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

@@ -55,7 +55,7 @@ fn test_permutation_constant_time() {
     for input in &test_inputs {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut state = *input;
+            let mut state = input.clone();
             state.permute_12();
             // Prevent compiler from optimizing away the operation
             std::hint::black_box(state);
@@ -143,7 +143,7 @@ fn test_round_count_constant_time() {
     // Test 6-round permutation
     for _ in 0..ITERATIONS {
         let start = Instant::now();
-        let mut state = base_state;
+        let mut state = base_state.clone();
         state.permute_6();
         std::hint::black_box(state);
         timings_6.push(start.elapsed());
@@ -152,7 +152,7 @@ fn test_round_count_constant_time() {
     // Test 8-round permutation
     for _ in 0..ITERATIONS {
         let start = Instant::now();
-        let mut state = base_state;
+        let mut state = base_state.clone();
         state.permute_8();
         std::hint::black_box(state);
         timings_8.push(start.elapsed());
@@ -161,7 +161,7 @@ fn test_round_count_constant_time() {
     // Test 12-round permutation
     for _ in 0..ITERATIONS {
         let start = Instant::now();
-        let mut state = base_state;
+        let mut state = base_state.clone();
         state.permute_12();
         std::hint::black_box(state);
         timings_12.push(start.elapsed());

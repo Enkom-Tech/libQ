@@ -35,6 +35,9 @@ use lib_q_core::traits::{
     KemPublicKey,
     KemSecretKey,
 };
+// Import HQC implementations
+#[cfg(feature = "hqc")]
+use lib_q_hqc::LibQHqcProvider;
 
 // Import algorithm implementations
 #[cfg(feature = "ml-kem")]
@@ -132,6 +135,13 @@ impl KemOperations for LibQKemProvider {
                 cb_kem_provider.generate_keypair(algorithm, randomness)
             }
 
+            // HQC algorithms
+            #[cfg(feature = "hqc")]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                let hqc_provider = LibQHqcProvider::new()?;
+                hqc_provider.generate_keypair(algorithm, randomness)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -156,6 +166,12 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
             }),
+            #[cfg(not(feature = "hqc"))]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(Error::NotImplemented {
+                    feature: "HQC implementations require 'hqc' feature flag".to_string(),
+                })
+            }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -216,6 +232,13 @@ impl KemOperations for LibQKemProvider {
                 cb_kem_provider.encapsulate(algorithm, public_key, randomness)
             }
 
+            // HQC algorithms
+            #[cfg(feature = "hqc")]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                let hqc_provider = LibQHqcProvider::new()?;
+                hqc_provider.encapsulate(algorithm, public_key, randomness)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -240,6 +263,12 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
             }),
+            #[cfg(not(feature = "hqc"))]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(Error::NotImplemented {
+                    feature: "HQC implementations require 'hqc' feature flag".to_string(),
+                })
+            }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -299,6 +328,13 @@ impl KemOperations for LibQKemProvider {
                 cb_kem_provider.decapsulate(algorithm, secret_key, ciphertext)
             }
 
+            // HQC algorithms
+            #[cfg(feature = "hqc")]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                let hqc_provider = LibQHqcProvider::new()?;
+                hqc_provider.decapsulate(algorithm, secret_key, ciphertext)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -323,6 +359,12 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
             }),
+            #[cfg(not(feature = "hqc"))]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(Error::NotImplemented {
+                    feature: "HQC implementations require 'hqc' feature flag".to_string(),
+                })
+            }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),
@@ -377,6 +419,13 @@ impl KemOperations for LibQKemProvider {
                 cb_kem_provider.derive_public_key(algorithm, secret_key)
             }
 
+            // HQC algorithms
+            #[cfg(feature = "hqc")]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                let hqc_provider = LibQHqcProvider::new()?;
+                hqc_provider.derive_public_key(algorithm, secret_key)
+            }
+
             // DAWN KEM algorithm
             #[cfg(feature = "dawn")]
             Algorithm::Dawn => {
@@ -401,6 +450,12 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: "CB-KEM implementations require 'cb-kem' feature flag".to_string(),
             }),
+            #[cfg(not(feature = "hqc"))]
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(Error::NotImplemented {
+                    feature: "HQC implementations require 'hqc' feature flag".to_string(),
+                })
+            }
             #[cfg(not(feature = "dawn"))]
             Algorithm::Dawn => Err(Error::NotImplemented {
                 feature: "DAWN KEM implementation requires 'dawn' feature flag".to_string(),

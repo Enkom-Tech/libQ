@@ -962,7 +962,6 @@ mod tests {
         ];
 
         let mut outputs = [[0u8; 32]; 4];
-        let mut expected_outputs = [[0u8; 32]; 4];
 
         // Use SIMD parallel processing
         // Create separate arrays to avoid borrow checker issues
@@ -1027,7 +1026,6 @@ mod tests {
         ];
 
         let mut outputs = [[0u8; 32]; 2];
-        let mut expected_outputs = [[0u8; 32]; 2];
 
         // Use SIMD parallel processing
         // Create separate arrays to avoid borrow checker issues
@@ -1077,7 +1075,6 @@ mod tests {
         ];
 
         let mut outputs = [[0u8; 840]; 4]; // 5 blocks * 168 bytes
-        let mut expected_outputs = [[0u8; 840]; 4];
 
         // Use incremental SIMD API
         let mut state = avx2::x4::incremental::init();
@@ -1140,7 +1137,6 @@ mod tests {
         let inputs = [b"NEON incremental input 1", b"NEON incremental input 2"];
 
         let mut outputs = [[0u8; 840]; 2]; // 5 blocks * 168 bytes
-        let mut expected_outputs = [[0u8; 840]; 2];
 
         // Use incremental SIMD API
         let mut state = neon::x2::incremental::init();
@@ -1225,16 +1221,9 @@ mod tests {
             let simd_time = start.elapsed();
 
             // SIMD should be faster (at least 2x improvement expected)
-            println!("Sequential time: {:?}", sequential_time);
-            println!("SIMD time: {:?}", simd_time);
-            println!(
-                "Speedup: {:.2}x",
-                sequential_time.as_nanos() as f64 / simd_time.as_nanos() as f64
-            );
-
+            // Note: Performance logging removed for no_std compatibility
             // SIMD should provide some performance benefit
             // Note: True SIMD may not always be faster due to overhead, but should be functional
-            println!("SIMD implementation is functional and produces valid outputs");
             assert!(simd_time.as_nanos() > 0, "SIMD processing should complete");
         }
     }
@@ -1255,7 +1244,7 @@ mod tests {
 
             #[cfg(feature = "simd256")]
             {
-                let mut simd_output = [0u8; 32];
+                let simd_output = [0u8; 32];
                 // Create separate arrays to avoid borrow checker issues
                 let mut simd_output0 = simd_output;
                 let mut simd_output1 = simd_output;
@@ -1276,19 +1265,19 @@ mod tests {
                 assert!(
                     !simd_output0.iter().all(|&x| x == 0),
                     "SIMD output is all zeros for {}",
-                    description
+                    _description
                 );
                 let first_byte = simd_output0[0];
                 assert!(
                     !simd_output0.iter().all(|&x| x == first_byte),
                     "SIMD output has no entropy for {}",
-                    description
+                    _description
                 );
             }
 
             #[cfg(feature = "simd128")]
             {
-                let mut simd_output = [0u8; 32];
+                let simd_output = [0u8; 32];
                 // Create separate arrays to avoid borrow checker issues
                 let mut simd_output0 = simd_output;
                 let mut simd_output1 = simd_output;
@@ -1298,13 +1287,13 @@ mod tests {
                 assert!(
                     !simd_output0.iter().all(|&x| x == 0),
                     "SIMD output is all zeros for {}",
-                    description
+                    _description
                 );
                 let first_byte = simd_output0[0];
                 assert!(
                     !simd_output0.iter().all(|&x| x == first_byte),
                     "SIMD output has no entropy for {}",
-                    description
+                    _description
                 );
             }
         }

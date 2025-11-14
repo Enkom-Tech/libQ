@@ -46,7 +46,7 @@ const fn round_constant(round: u64) -> u64 {
 /// The state of Ascon's permutation.
 ///
 /// The permutation operates on a state of 320 bits represented as 5 64 bit words.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct State {
     x: [u64; 5],
 }
@@ -422,7 +422,7 @@ mod tests {
             0xABCDEF0123456789,
             0x89ABCDEF01234567,
         );
-        let mut state2 = state;
+        let mut state2 = state.clone();
 
         state.permute_6();
         state2.permute_n(6).expect("6 rounds should be valid");

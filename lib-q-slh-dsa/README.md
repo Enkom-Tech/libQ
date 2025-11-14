@@ -74,7 +74,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### External Randomness (no_std environments)
+### External Randomness (`no_std` environments)
 
 ```rust,no_run
 use lib_q_slh_dsa::{SigningKey, Shake128f};
@@ -228,10 +228,10 @@ if !is_valid {
 - **Security**: Highest level of security features available
 - **Use Case**: General-purpose applications, servers, desktop applications
 
-#### no_std Environments
+#### `no_std` Environments
 - **Advantages**: Minimal dependencies, embedded-friendly
 - **Security**: Requires external randomness management
-- **Use Case**: Embedded systems, IoT devices, constrained environments
+- **Use Case**: Embedded systems, `IoT` devices, constrained environments
 
 #### WebAssembly (WASM)
 - **Advantages**: Cross-platform compatibility, sandboxed execution

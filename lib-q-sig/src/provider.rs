@@ -38,7 +38,6 @@
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
-    string::ToString,
     vec::Vec,
 };
 

@@ -16,14 +16,14 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
 lib-q-random = { path = "../lib-q-random", optional = true }
-rand_core = { version = "0.9.3", optional = true }
+rand_core = { workspace = true, optional = true }
 sha2 = { version = "0.11.0-rc.2", optional = true, default-features = false }
 
 # WASM support
-wasm-bindgen = { version = "0.2.104", optional = true, features = ["serde-serialize"] }
-js-sys = { version = "0.3.81", optional = true }
-serde-wasm-bindgen = { version = "0.6.5", optional = true }
-serde_json = { version = "1.0.145", optional = true }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [features]
 default = ["alloc", "ml-dsa", "std"]
@@ -46,7 +46,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
-criterion = { version = "0.7.0", features = ["html_reports"] }
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]
 name = "signature_benchmarks"

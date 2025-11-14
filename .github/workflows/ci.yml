@@ -67,6 +67,15 @@ jobs:
           - name: "lib-q-ml-kem"
             features: "std"
             package: "lib-q-ml-kem"
+          - name: "ml-dsa-fips"
+            features: "std,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
+            package: "lib-q-ml-dsa"
+          - name: "ml-dsa-hardened"
+            features: "std,hardened-mode,mldsa44,mldsa65,mldsa87,zeroize,constant-time"
+            package: "lib-q-ml-dsa"
+          - name: "ml-dsa-cross-mode"
+            features: "std,random,acvp,mldsa44,mldsa65,mldsa87"
+            package: "lib-q-ml-dsa"
           - name: "lib-q-ascon no_std"
             features: "no_std"
             package: "lib-q-ascon"
@@ -346,6 +355,13 @@ jobs:
           cd lib-q-random
           cargo bench --features "std,secure,zeroize" --verbose
           echo "✅ RNG performance benchmarks completed"
+      
+      - name: Run HQC SIMD benchmarks
+        run: |
+          echo "Running HQC SIMD performance benchmarks..."
+          cd lib-q-hqc
+          cargo bench --features "alloc,hqc128,simd-avx2" --bench simd_benchmarks --verbose
+          echo "✅ HQC SIMD benchmarks completed"
 
   # Documentation generation - lightweight job
   documentation:
@@ -468,6 +484,15 @@ jobs:
             run-security-tests: "true"
             run-constant-time: "true"
             test-algorithms: "ml-kem512,saturnin256,shake256"
+          - name: "HQC"
+            action: test-hqc
+            working-directory: lib-q-hqc
+            features: "alloc,hqc128,simd-avx2"
+            rust-version: "stable"
+            run-benchmarks: "false"  # Changed from "true" - benchmarks run in performance job
+            run-security-tests: "true"
+            run-simd-tests: "true"
+            test-algorithms: "hqc128,hqc192,hqc256"
     
     steps:
       - uses: actions/checkout@v5
@@ -584,6 +609,101 @@ jobs:
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
 
+  # SIMD debug verification for HQC
+  simd-debug-tests:
+    name: SIMD Debug Verification
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-simd-debug-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-simd-debug-
+      
+      - name: Run SIMD unit tests
+        run: |
+          cd lib-q-hqc
+          RUST_SIMD_DEBUG=1 cargo test --features "simd-avx2,alloc,hqc128" \
+            simd_unit_tests simd_golden_vectors --verbose
+      
+      - name: Run cross-implementation validation
+        run: |
+          cd lib-q-hqc
+          cargo test --features "simd-avx2,alloc,hqc128" simd_correctness --verbose
+
+  # ML-DSA compliance testing
+  ml-dsa-compliance:
+    name: ML-DSA Compliance
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rust-src
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-mldsa-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mldsa-
+
+      - name: Run ML-DSA security audit
+        run: |
+          cd lib-q-ml-dsa
+          chmod +x scripts/security_audit.sh
+          ./scripts/security_audit.sh
+
+      - name: Test NIST compliance
+        run: |
+          cd lib-q-ml-dsa
+          cargo test --features "fips-mode,acvp" --test nist_comparison
+
+      - name: Test SIMD-portable equivalence
+        run: |
+          cd lib-q-ml-dsa
+          cargo test --features "simd256,random,acvp" --test determinism
+
+      - name: Test interoperability
+        run: |
+          cd lib-q-ml-dsa
+          
+          # Test compliance mode
+          cargo test --no-default-features --features "std,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          
+          # Test production mode
+          cargo test --features "random,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          
+          # Test hardened mode
+          cargo test --features "hardened-mode,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          
+          # Verify against saved vectors
+          cargo test --test wire_format_tests test_against_saved_interop_vectors
+
   # ML-KEM specific testing
   ml-kem-tests:
     name: ML-KEM Tests
@@ -699,7 +819,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -711,6 +831,7 @@ jobs:
           # Check if any required jobs failed
           if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.ml-dsa-compliance.result }}" == "failure" ]] || \
              [[ "${{ needs.constant-time.result }}" == "failure" ]] || \
              [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
             echo "❌ Critical jobs failed. Please review the failures above." >> $GITHUB_STEP_SUMMARY

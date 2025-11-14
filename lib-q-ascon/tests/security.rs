@@ -116,9 +116,9 @@ fn test_permutation_determinism() {
     );
 
     // Apply permutation multiple times
-    let mut state1 = input_state;
-    let mut state2 = state1;
-    let mut state3 = state1;
+    let mut state1 = input_state.clone();
+    let mut state2 = input_state.clone();
+    let mut state3 = input_state.clone();
 
     state1.permute_12();
     state2.permute_12();

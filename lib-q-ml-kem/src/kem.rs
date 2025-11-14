@@ -1,8 +1,6 @@
 use core::marker::PhantomData;
 
 use hybrid_array::typenum::U32;
-#[cfg(feature = "random")]
-use lib_q_random::LibQRng;
 use rand_core::{
     CryptoRng,
     RngCore,

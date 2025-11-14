@@ -247,14 +247,24 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + RngCore>(
         feature = "cbkem8192128f"
     ))]
     let mut pivots = 0u64;
-    #[cfg(any(
-        feature = "cbkem348864",
-        feature = "cbkem460896",
-        feature = "cbkem6688128",
-        feature = "cbkem6960119",
-        feature = "cbkem8192128"
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
+        )),
+        any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        )
     ))]
-    let pivots: u64;
+    #[allow(unused_mut)] // mut needed for *f path, but only assigned once in non-*f path
+    let mut pivots: u64;
 
     let mut f = [0u16; SYS_T];
     let mut irr = [0u16; SYS_T];
@@ -321,12 +331,21 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + RngCore>(
                 continue;
             }
         }
-        #[cfg(any(
-            feature = "cbkem348864",
-            feature = "cbkem460896",
-            feature = "cbkem6688128",
-            feature = "cbkem6960119",
-            feature = "cbkem8192128"
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864f",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119f",
+                feature = "cbkem8192128f"
+            )),
+            any(
+                feature = "cbkem348864",
+                feature = "cbkem460896",
+                feature = "cbkem6688128",
+                feature = "cbkem6960119",
+                feature = "cbkem8192128"
+            )
         ))]
         {
             if pk_gen(pk, sub!(mut sk, 40, IRR_BYTES), &perm, &mut pi) != 0 {
@@ -347,12 +366,21 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + RngCore>(
 
         // storing positions of the 32 pivots
 
-        #[cfg(any(
-            feature = "cbkem348864",
-            feature = "cbkem460896",
-            feature = "cbkem6688128",
-            feature = "cbkem6960119",
-            feature = "cbkem8192128"
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864f",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119f",
+                feature = "cbkem8192128f"
+            )),
+            any(
+                feature = "cbkem348864",
+                feature = "cbkem460896",
+                feature = "cbkem6688128",
+                feature = "cbkem6960119",
+                feature = "cbkem8192128"
+            )
         ))]
         {
             pivots = 0xFFFFFFFF;

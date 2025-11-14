@@ -188,7 +188,11 @@ fn syndrome(
         }
 
         for j in ((SYS_N / 8 - PK_ROW_BYTES)..SYS_N / 8).rev() {
-            row[j] = (row[j] << tail) | (row[j - 1] >> (8 - tail));
+            if tail == 0 {
+                row[j] = row[j - 1];
+            } else {
+                row[j] = (row[j] << tail) | (row[j - 1] >> (8 - tail));
+            }
         }
 
         row[i / 8] |= 1 << (i % 8);

@@ -12,13 +12,13 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rand_core = "0.9.3"
+rand_core = { workspace = true }
 
 [target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
 cpufeatures = "0.2.17"
 
 [dev-dependencies]
-hex = "0.4.3"
+hex = { workspace = true }
 
 [features]
 default = []

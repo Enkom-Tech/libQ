@@ -28,8 +28,8 @@ lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 
 # Post-quantum dependencies only
-rand_core = { version = "0.9.3", default-features = false }
-zeroize = { version = "1.8.1", features = ["zeroize_derive"] }
+rand_core = { workspace = true, default-features = false }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 getrandom = { version = "0.3.3", default-features = false, optional = true }
 
 # Post-quantum AEADs

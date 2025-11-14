@@ -95,7 +95,11 @@ fn mov_columns(
             tmp[j] = mat[row + i][block_idx + j];
         }
         for j in 0..8 {
-            tmp[j] = (tmp[j] >> tail) | (tmp[j + 1] << (8 - tail));
+            if tail == 0 {
+                tmp[j] = tmp[j + 1];
+            } else {
+                tmp[j] = (tmp[j] >> tail) | (tmp[j + 1] << (8 - tail));
+            }
         }
 
         buf[i] = u64::from_le_bytes(*sub!(tmp, 0, 8));
@@ -368,7 +372,11 @@ pub(crate) fn pk_gen(
 
         #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
         for (idx, j) in ((PK_NROWS - 1) / 8..SYS_N / 8 - 1).enumerate() {
-            pk[i * INNER_PK_ACCESSES + idx] = (mat[i][j] >> tail) | (mat[i][j + 1] << (8 - tail));
+            if tail == 0 {
+                pk[i * INNER_PK_ACCESSES + idx] = mat[i][j + 1];
+            } else {
+                pk[i * INNER_PK_ACCESSES + idx] = (mat[i][j] >> tail) | (mat[i][j + 1] << (8 - tail));
+            }
         }
         #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
         {

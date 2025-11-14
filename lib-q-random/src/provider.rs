@@ -131,6 +131,49 @@ impl LibQRng {
         }
     }
 
+    /// Create a new RNG with NIST AES256-CTR-DRBG for KAT test compatibility
+    ///
+    /// This method creates an RNG using the NIST AES256-CTR-DRBG algorithm,
+    /// which is required for compatibility with NIST KAT test vectors.
+    ///
+    /// # Arguments
+    ///
+    /// * `entropy_input` - 48-byte entropy input for DRBG initialization
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use lib_q_random::LibQRng;
+    /// use rand_core::RngCore;
+    ///
+    /// let entropy_input = [0u8; 48]; // 48-byte seed
+    /// let mut rng = LibQRng::new_nist_drbg(entropy_input);
+    /// let mut bytes = [0u8; 32];
+    /// rng.fill_bytes(&mut bytes);
+    /// ```
+    #[cfg(feature = "nist-drbg")]
+    pub fn new_nist_drbg(entropy_input: [u8; 48]) -> Self {
+        let entropy_source =
+            crate::entropy::EntropySourceFactory::create_nist_drbg_entropy(entropy_input);
+        // NIST DRBG provides high quality entropy
+        let validator = EntropyValidator::with_settings(
+            256,  // min_entropy_bits: High threshold for NIST DRBG
+            4096, // max_entropy_bits: Higher limit
+            0.9,  // quality_threshold: High threshold for NIST DRBG
+            true, // strict_mode: Enabled for NIST DRBG
+        );
+
+        Self {
+            entropy_source,
+            validator,
+            security_level: SecurityLevel::CryptographicallySecure,
+            deterministic: true, // NIST DRBG is deterministic but cryptographically secure
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: Some(1_000_000), // NIST recommendation
+        }
+    }
+
     /// Create a new RNG with a custom entropy source
     ///
     /// This method allows creating an RNG with a custom entropy source,

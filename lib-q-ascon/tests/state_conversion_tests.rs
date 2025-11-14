@@ -280,7 +280,7 @@ fn test_state_permute_n() {
         0xFFFFFFFF00000000,
     );
 
-    let mut state2 = state1;
+    let mut state2 = state1.clone();
 
     state1.permute_1();
     assert!(state2.permute_n(1).is_ok());
@@ -300,7 +300,7 @@ fn test_state_permute_n() {
         0xFFFFFFFF00000000,
     );
 
-    let mut state2 = state1;
+    let mut state2 = state1.clone();
 
     state1.permute_6();
     assert!(state2.permute_n(6).is_ok());
@@ -340,7 +340,7 @@ fn test_permutation_constants() {
     );
 
     // Store initial state for comparison
-    let initial_state = state;
+    let initial_state = state.clone();
 
     // Apply permutation
     state.permute_12();

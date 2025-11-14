@@ -7,32 +7,131 @@ pub const SYS_N: usize = 3488;
 #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
 pub const SYS_T: usize = 64;
 
-#[cfg(any(feature = "cbkem460896", feature = "cbkem460896f"))]
+#[cfg(all(
+    not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+    any(feature = "cbkem460896", feature = "cbkem460896f")
+))]
 pub const GFBITS: usize = 13;
-#[cfg(any(feature = "cbkem460896", feature = "cbkem460896f"))]
+#[cfg(all(
+    not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+    any(feature = "cbkem460896", feature = "cbkem460896f")
+))]
 pub const SYS_N: usize = 4608;
-#[cfg(any(feature = "cbkem460896", feature = "cbkem460896f"))]
+#[cfg(all(
+    not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+    any(feature = "cbkem460896", feature = "cbkem460896f")
+))]
 pub const SYS_T: usize = 96;
 
-#[cfg(any(feature = "cbkem6688128", feature = "cbkem6688128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f"
+    )),
+    any(feature = "cbkem6688128", feature = "cbkem6688128f")
+))]
 pub const GFBITS: usize = 13;
-#[cfg(any(feature = "cbkem6688128", feature = "cbkem6688128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f"
+    )),
+    any(feature = "cbkem6688128", feature = "cbkem6688128f")
+))]
 pub const SYS_N: usize = 6688;
-#[cfg(any(feature = "cbkem6688128", feature = "cbkem6688128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f"
+    )),
+    any(feature = "cbkem6688128", feature = "cbkem6688128f")
+))]
 pub const SYS_T: usize = 128;
 
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 pub const GFBITS: usize = 13;
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 pub const SYS_N: usize = 6960;
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 pub const SYS_T: usize = 119;
 
-#[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    any(feature = "cbkem8192128", feature = "cbkem8192128f")
+))]
 pub const GFBITS: usize = 13;
-#[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    any(feature = "cbkem8192128", feature = "cbkem8192128f")
+))]
 pub const SYS_N: usize = 8192;
-#[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    any(feature = "cbkem8192128", feature = "cbkem8192128f")
+))]
 pub const SYS_T: usize = 128;
 
 pub const COND_BYTES: usize = (1 << (GFBITS - 4)) * (2 * GFBITS - 1);

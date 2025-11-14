@@ -2,8 +2,6 @@ use hybrid_array::typenum::{
     U1,
     Unsigned,
 };
-#[cfg(feature = "random")]
-use lib_q_random::LibQRng;
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 

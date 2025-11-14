@@ -4,6 +4,7 @@
 //! Currently a placeholder for future implementation.
 
 /// SIMD512 operations placeholder
+#[derive(Debug)]
 pub struct Simd512Ops;
 
 impl Simd512Ops {

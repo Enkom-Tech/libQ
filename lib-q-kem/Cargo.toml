@@ -23,6 +23,9 @@ lib-q-dawn = { path = "../lib-q-dawn", optional = true, default-features = false
 # Classical McEliece KEM implementation
 lib-q-cb-kem = { path = "../lib-q-cb-kem", optional = true, default-features = false }
 
+# HQC KEM implementation
+lib-q-hqc = { path = "../lib-q-hqc", optional = true, default-features = false }
+
 # SHA3 for authentication proofs
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false }
 
@@ -30,7 +33,7 @@ lib-q-sha3 = { path = "../lib-q-sha3", optional = true, default-features = false
 lib-q-random = { path = "../lib-q-random", optional = true }
 
 # WASM bindings
-wasm-bindgen = { version = "0.2.101", optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", features = ["std"] }
@@ -57,7 +60,7 @@ wasm = [
 ]
 
 cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash"]
-hqc = []
+hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-hqc/alloc"]
 dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
 
 [lib]

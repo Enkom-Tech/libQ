@@ -17,6 +17,9 @@ use alloc::{
 };
 
 /// The error type for lib-Q operations
+///
+/// This enum represents all possible errors that can occur during cryptographic operations
+/// across all libQ libraries. Each variant includes context about when the error occurs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 // #[cfg_attr(
@@ -25,33 +28,73 @@ use alloc::{
 // )]
 pub enum Error {
     /// Invalid key size
+    ///
+    /// **When it occurs:** A key (public or secret) has an incorrect size for the algorithm.
+    /// **Cause:** The key data provided doesn't match the expected size for the algorithm variant.
+    /// **Resolution:** Ensure the key size matches the algorithm's requirements. Check algorithm documentation for expected key sizes.
     InvalidKeySize { expected: usize, actual: usize },
 
     /// Invalid signature size
+    ///
+    /// **When it occurs:** A signature has an incorrect size for the algorithm.
+    /// **Cause:** The signature data doesn't match the expected size for verification.
+    /// **Resolution:** Ensure the signature was generated for the same algorithm variant and hasn't been corrupted.
     InvalidSignatureSize { expected: usize, actual: usize },
 
     /// Invalid nonce size
+    ///
+    /// **When it occurs:** A nonce has an incorrect size for the operation.
+    /// **Cause:** The nonce doesn't meet the size requirements for the cryptographic operation.
+    /// **Resolution:** Ensure the nonce size matches the algorithm's requirements (typically 12-16 bytes for AEAD).
     InvalidNonceSize { expected: usize, actual: usize },
 
     /// Invalid message size
+    ///
+    /// **When it occurs:** A message exceeds the maximum allowed size.
+    /// **Cause:** The message is too large for the operation or algorithm limits.
+    /// **Resolution:** Split the message into smaller chunks or use a different approach that supports larger messages.
     InvalidMessageSize { max: usize, actual: usize },
 
     /// Invalid ciphertext size
+    ///
+    /// **When it occurs:** A ciphertext has an incorrect size for decryption.
+    /// **Cause:** The ciphertext data doesn't match the expected size for the algorithm.
+    /// **Resolution:** Ensure the ciphertext was generated for the same algorithm and hasn't been corrupted.
     InvalidCiphertextSize { expected: usize, actual: usize },
 
     /// Invalid plaintext size
+    ///
+    /// **When it occurs:** A plaintext has an incorrect size for the operation.
+    /// **Cause:** The plaintext doesn't meet the size requirements for encryption.
+    /// **Resolution:** Verify the plaintext size matches the algorithm's requirements.
     InvalidPlaintextSize { expected: usize, actual: usize },
 
     /// Invalid associated data size
+    ///
+    /// **When it occurs:** Associated data exceeds the maximum allowed size.
+    /// **Cause:** The associated data is too large for the AEAD operation.
+    /// **Resolution:** Reduce the associated data size or use a different approach.
     InvalidAssociatedDataSize { max: usize, actual: usize },
 
     /// Invalid tag size
+    ///
+    /// **When it occurs:** An authentication tag has an incorrect size.
+    /// **Cause:** The tag doesn't match the expected size for the AEAD algorithm.
+    /// **Resolution:** Ensure the tag size matches the algorithm's requirements (typically 16 bytes).
     InvalidTagSize { expected: usize, actual: usize },
 
     /// Invalid hash size
+    ///
+    /// **When it occurs:** A hash output has an incorrect size.
+    /// **Cause:** The hash size doesn't match the expected output length for the hash function.
+    /// **Resolution:** Ensure the hash size matches the algorithm's output length (e.g., SHA-256 = 32 bytes).
     InvalidHashSize { expected: usize, actual: usize },
 
     /// Invalid algorithm
+    ///
+    /// **When it occurs:** An unsupported or invalid algorithm is specified.
+    /// **Cause:** The algorithm identifier doesn't match any supported algorithm, or the algorithm isn't available in the current configuration.
+    /// **Resolution:** Check that the algorithm is supported and that required features are enabled.
     InvalidAlgorithm { algorithm: &'static str },
 
     /// Invalid security level
@@ -64,48 +107,80 @@ pub enum Error {
     },
 
     /// Verification failed
+    ///
+    /// **When it occurs:** Signature or message authentication verification fails.
+    /// **Cause:** The signature is invalid, the message was tampered with, or the verification key is incorrect.
+    /// **Resolution:** Verify the signature, message, and key are correct and correspond to each other.
     #[cfg(feature = "alloc")]
     VerificationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     VerificationFailed { operation: &'static str },
 
     /// Encryption failed
+    ///
+    /// **When it occurs:** Encryption or encapsulation fails to produce a valid ciphertext.
+    /// **Cause:** Random number generation may have failed, or internal computation encountered an error.
+    /// **Resolution:** Ensure a secure random number generator is available and functioning correctly.
     #[cfg(feature = "alloc")]
     EncryptionFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     EncryptionFailed { operation: &'static str },
 
     /// Decryption failed
+    ///
+    /// **When it occurs:** Decryption or decapsulation fails to recover the plaintext or shared secret.
+    /// **Cause:** The ciphertext may be corrupted, the key may be incorrect, or authentication failed.
+    /// **Resolution:** Verify the ciphertext and key are valid and correspond to each other.
     #[cfg(feature = "alloc")]
     DecryptionFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     DecryptionFailed { operation: &'static str },
 
     /// Key generation failed
+    ///
+    /// **When it occurs:** Key pair generation fails.
+    /// **Cause:** Random number generation may have failed, or internal computation encountered an error.
+    /// **Resolution:** Ensure a secure random number generator is available and functioning correctly.
     #[cfg(feature = "alloc")]
     KeyGenerationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     KeyGenerationFailed { operation: &'static str },
 
     /// Random number generation failed
+    ///
+    /// **When it occurs:** The random number generator fails to produce random bytes.
+    /// **Cause:** The underlying RNG implementation encountered an error or is unavailable.
+    /// **Resolution:** Check RNG initialization and ensure a secure random source is available.
     #[cfg(feature = "alloc")]
     RandomGenerationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     RandomGenerationFailed { operation: &'static str },
 
     /// Signing failed
+    ///
+    /// **When it occurs:** Digital signature generation fails.
+    /// **Cause:** Random number generation may have failed, or internal computation encountered an error.
+    /// **Resolution:** Ensure a secure random number generator is available and functioning correctly.
     #[cfg(feature = "alloc")]
     SigningFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     SigningFailed { operation: &'static str },
 
     /// Memory allocation failed
+    ///
+    /// **When it occurs:** Dynamic memory allocation fails during an operation.
+    /// **Cause:** Insufficient memory is available, or allocation is not supported in the current environment.
+    /// **Resolution:** Ensure sufficient memory is available, or use a no_std-compatible configuration.
     #[cfg(feature = "alloc")]
     MemoryAllocationFailed { operation: String },
     #[cfg(not(feature = "alloc"))]
     MemoryAllocationFailed { operation: &'static str },
 
     /// Internal error
+    ///
+    /// **When it occurs:** An unexpected internal error occurs during cryptographic operations.
+    /// **Cause:** This typically indicates a bug in the implementation or corrupted internal state.
+    /// **Resolution:** Report this error as it may indicate a software bug. Check inputs and system state.
     #[cfg(feature = "alloc")]
     InternalError { operation: String, details: String },
     #[cfg(not(feature = "alloc"))]
@@ -115,6 +190,10 @@ pub enum Error {
     },
 
     /// Not implemented
+    ///
+    /// **When it occurs:** A requested feature or operation is not yet implemented.
+    /// **Cause:** The operation is not available in the current implementation.
+    /// **Resolution:** Check if an alternative approach is available, or wait for the feature to be implemented.
     #[cfg(feature = "alloc")]
     NotImplemented { feature: String },
     #[cfg(not(feature = "alloc"))]

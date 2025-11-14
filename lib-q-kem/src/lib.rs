@@ -139,12 +139,7 @@ pub fn available_algorithms() -> Vec<&'static str> {
 
     #[cfg(feature = "hqc")]
     {
-        // HQC algorithms are planned for future implementation
-        algorithms.extend([
-            "HQC-128 (planned)",
-            "HQC-192 (planned)",
-            "HQC-256 (planned)",
-        ]);
+        algorithms.extend(["HQC-128", "HQC-192", "HQC-256"]);
     }
 
     algorithms
@@ -173,11 +168,11 @@ pub fn available_algorithms() -> &'static [&'static str] {
         #[cfg(feature = "cb-kem")]
         "CB-KEM-8192128",
         #[cfg(feature = "hqc")]
-        "HQC-128 (planned)",
+        "HQC-128",
         #[cfg(feature = "hqc")]
-        "HQC-192 (planned)",
+        "HQC-192",
         #[cfg(feature = "hqc")]
-        "HQC-256 (planned)",
+        "HQC-256",
     ]
 }
 
@@ -359,16 +354,16 @@ mod tests {
         #[cfg(feature = "hqc")]
         {
             assert!(
-                algorithms.contains(&"HQC-128 (planned)"),
-                "HQC-128 (planned) should be available when hqc feature is enabled"
+                algorithms.contains(&"HQC-128"),
+                "HQC-128 should be available when hqc feature is enabled"
             );
             assert!(
-                algorithms.contains(&"HQC-192 (planned)"),
-                "HQC-192 (planned) should be available when hqc feature is enabled"
+                algorithms.contains(&"HQC-192"),
+                "HQC-192 should be available when hqc feature is enabled"
             );
             assert!(
-                algorithms.contains(&"HQC-256 (planned)"),
-                "HQC-256 (planned) should be available when hqc feature is enabled"
+                algorithms.contains(&"HQC-256"),
+                "HQC-256 should be available when hqc feature is enabled"
             );
         }
 
@@ -497,6 +492,7 @@ mod tests {
             assert!(
                 algorithm.starts_with("ML-KEM-") ||
                     algorithm.starts_with("CB-KEM-") ||
+                    algorithm.starts_with("HQC-") ||
                     algorithm.starts_with("DAWN"),
                 "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm

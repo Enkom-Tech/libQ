@@ -55,8 +55,8 @@ path = "examples/no_std_example.rs"
 required-features = ["shake256"]
 
 [dev-dependencies]
-criterion = { version = "0.7.0", features = ["html_reports"] }
-hex = "0.4.3"
+criterion = { workspace = true, features = ["html_reports"] }
+hex = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

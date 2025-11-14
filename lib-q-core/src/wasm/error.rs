@@ -47,6 +47,7 @@ pub fn error_to_js_value(error: Error) -> JsValue {
         Error::InvalidAssociatedDataSize { .. } => "KEM error",
         Error::InvalidTagSize { .. } => "Unknown error",
         Error::InvalidHashSize { .. } => "Hash size error",
+        Error::InvalidRandomnessSize { .. } => "Invalid randomness size",
     };
 
     JsValue::from_str(message)

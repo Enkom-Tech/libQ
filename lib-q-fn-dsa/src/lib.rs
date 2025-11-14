@@ -101,8 +101,6 @@ pub use fn_dsa::{
     signature_size,
     vrfy_key_size,
 };
-#[cfg(feature = "wasm")]
-use getrandom;
 pub use lib_q_core::{
     Error,
     Result,

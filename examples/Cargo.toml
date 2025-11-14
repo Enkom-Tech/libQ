@@ -27,20 +27,20 @@ required-features = []
 [[example]]
 name = "cb_kem_example"
 path = "cb_kem_example.rs"
-required-features = ["cb-kem"]
-
 
 [[example]]
 name = "cb_kem_simple_example"
 path = "cb_kem_simple_example.rs"
-required-features = ["cb-kem"]
 
 [[example]]
 name = "cb_kem_production_example"
 path = "cb_kem_production_example.rs"
-required-features = ["cb-kem"]
 
 [[example]]
 name = "cb_kem_testing_example"
 path = "cb_kem_testing_example.rs"
-required-features = ["cb-kem"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("cb-kem"))',
+] }

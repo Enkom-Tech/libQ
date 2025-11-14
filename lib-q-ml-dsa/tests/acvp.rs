@@ -98,7 +98,7 @@ fn keygen_inner(
     tgId: usize,
     parameter_set: &String,
 ) {
-    use libcrux_ml_dsa::*;
+    use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
     #[inline(never)]
     fn check<const VK_LEN: usize, const SK_LEN: usize>(
@@ -174,7 +174,7 @@ fn siggen_inner(
     tgId: usize,
     parameter_set: &String,
 ) {
-    use libcrux_ml_dsa::*;
+    use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
     let expected_result = results
         .testGroups
@@ -256,7 +256,7 @@ fn sigver_inner(
     pk: &[u8],
     parameter_set: &String,
 ) {
-    use libcrux_ml_dsa::*;
+    use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
     let expected_result = results
         .testGroups

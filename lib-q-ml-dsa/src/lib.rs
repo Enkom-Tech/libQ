@@ -24,6 +24,7 @@ mod ml_dsa_generic;
 mod ntt;
 mod polynomial;
 mod pre_hash;
+pub mod rng;
 mod sample;
 mod samplex4;
 mod sha3_shim;

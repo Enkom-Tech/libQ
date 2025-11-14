@@ -578,7 +578,7 @@ impl Flr {
         {
             let x = u64::from_le_bytes(self.0.to_le_bytes());
             let z = Self::sqrt_emu(x);
-            return Self(f64::from_le_bytes(z.to_le_bytes()));
+            Self(f64::from_le_bytes(z.to_le_bytes()))
         }
     }
 

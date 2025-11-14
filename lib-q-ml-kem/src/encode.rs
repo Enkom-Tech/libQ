@@ -174,8 +174,6 @@ pub(crate) mod test {
         U8,
         U12,
     };
-    #[cfg(feature = "random")]
-    use lib_q_random::LibQRng;
 
     use super::*;
     use crate::param::EncodedPolynomialVector;
