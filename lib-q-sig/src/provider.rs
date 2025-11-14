@@ -37,9 +37,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    vec::Vec,
-};
+use alloc::vec::Vec;
 
 use lib_q_core::api::{
     Algorithm,

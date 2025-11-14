@@ -193,7 +193,6 @@ mod hqc_tests {
     /// Test security properties
     #[test]
     fn test_security_properties() {
-
         // Test that different seeds produce different results
         let seed1 = [1u8; 32];
         let seed2 = [2u8; 32];

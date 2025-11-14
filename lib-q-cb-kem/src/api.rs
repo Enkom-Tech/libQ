@@ -43,7 +43,11 @@ pub const CRYPTO_CIPHERTEXTBYTES: usize = 156;
 /// Name of the variant
 pub const CRYPTO_PRIMITIVE: &str = "cbkem460896";
 #[cfg(all(
-    not(any(feature = "cbkem348864", feature = "cbkem348864f", feature = "cbkem460896")),
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896"
+    )),
     feature = "cbkem460896f"
 ))]
 /// Name of the variant

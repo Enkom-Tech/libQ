@@ -44,7 +44,10 @@ fn test_hpke_with_ml_kem512() {
         .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
         .expect("Open operation should work");
 
-    assert_eq!(decrypted, message, "Decrypted message should match original");
+    assert_eq!(
+        decrypted, message,
+        "Decrypted message should match original"
+    );
 }
 
 /// Test HPKE with ML-KEM-768
@@ -77,7 +80,10 @@ fn test_hpke_with_ml_kem768() {
         .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
         .expect("Open operation should work");
 
-    assert_eq!(decrypted, message, "Decrypted message should match original");
+    assert_eq!(
+        decrypted, message,
+        "Decrypted message should match original"
+    );
 }
 
 /// Test HPKE with HQC-128
@@ -110,7 +116,10 @@ fn test_hpke_with_hqc128() {
         .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
         .expect("Open operation should work");
 
-    assert_eq!(decrypted, message, "Decrypted message should match original");
+    assert_eq!(
+        decrypted, message,
+        "Decrypted message should match original"
+    );
 }
 
 /// Test HPKE with HQC-192
@@ -143,7 +152,10 @@ fn test_hpke_with_hqc192() {
         .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
         .expect("Open operation should work");
 
-    assert_eq!(decrypted, message, "Decrypted message should match original");
+    assert_eq!(
+        decrypted, message,
+        "Decrypted message should match original"
+    );
 }
 
 /// Test HPKE with HQC-256
@@ -176,7 +188,10 @@ fn test_hpke_with_hqc256() {
         .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
         .expect("Open operation should work");
 
-    assert_eq!(decrypted, message, "Decrypted message should match original");
+    assert_eq!(
+        decrypted, message,
+        "Decrypted message should match original"
+    );
 }
 
 /// Test error propagation from KEM operations to HPKE
@@ -208,11 +223,7 @@ fn test_hpke_multiple_kem_algorithms() {
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
 
-    let algorithms = [
-        Algorithm::MlKem512,
-        Algorithm::Hqc128,
-        Algorithm::Hqc192,
-    ];
+    let algorithms = [Algorithm::MlKem512, Algorithm::Hqc128, Algorithm::Hqc192];
 
     for algorithm in algorithms {
         let keypair = kem_ctx
@@ -265,11 +276,11 @@ fn test_hpke_different_message_sizes() {
 
     // Test with different message sizes
     let messages = [
-        b"".as_slice(),                    // Empty message
-        b"a".as_slice(),                   // Single byte
-        b"Hello, World!".as_slice(),       // Short message
-        &vec![0u8; 1024],                  // 1KB message
-        &vec![0u8; 10 * 1024],             // 10KB message
+        b"".as_slice(),              // Empty message
+        b"a".as_slice(),             // Single byte
+        b"Hello, World!".as_slice(), // Short message
+        &vec![0u8; 1024],            // 1KB message
+        &vec![0u8; 10 * 1024],       // 10KB message
     ];
 
     for message in messages {
@@ -282,7 +293,8 @@ fn test_hpke_different_message_sizes() {
             .expect("Open should work for all message sizes");
 
         assert_eq!(
-            decrypted, message,
+            decrypted,
+            message,
             "Decrypted message should match original for size {}",
             message.len()
         );
@@ -312,10 +324,10 @@ fn test_hpke_different_aad_sizes() {
 
     // Test with different AAD sizes
     let aads = [
-        b"".as_slice(),                    // Empty AAD
-        b"a".as_slice(),                   // Single byte
-        b"test-aad".as_slice(),            // Short AAD
-        &vec![0u8; 256],                   // 256 bytes
+        b"".as_slice(),         // Empty AAD
+        b"a".as_slice(),        // Single byte
+        b"test-aad".as_slice(), // Short AAD
+        &vec![0u8; 256],        // 256 bytes
     ];
 
     for aad in aads {
@@ -328,7 +340,8 @@ fn test_hpke_different_aad_sizes() {
             .expect("Open should work for all AAD sizes");
 
         assert_eq!(
-            decrypted, message,
+            decrypted,
+            message,
             "Decrypted message should match original for AAD size {}",
             aad.len()
         );
@@ -370,4 +383,3 @@ fn test_hpke_mismatched_keys() {
     let result = hpke_ctx.open(&encapsulated_key, &wrong_sk, info, aad, &ciphertext);
     assert!(result.is_err(), "Open should fail with mismatched keys");
 }
-

@@ -375,7 +375,8 @@ pub(crate) fn pk_gen(
             if tail == 0 {
                 pk[i * INNER_PK_ACCESSES + idx] = mat[i][j + 1];
             } else {
-                pk[i * INNER_PK_ACCESSES + idx] = (mat[i][j] >> tail) | (mat[i][j + 1] << (8 - tail));
+                pk[i * INNER_PK_ACCESSES + idx] =
+                    (mat[i][j] >> tail) | (mat[i][j + 1] << (8 - tail));
             }
         }
         #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]

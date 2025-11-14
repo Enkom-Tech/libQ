@@ -494,8 +494,9 @@ mod tests {
     #[cfg(feature = "alloc")]
     extern crate alloc;
 
-    use super::*;
     use lib_q_core::Algorithm;
+
+    use super::*;
 
     #[test]
     fn test_derive_public_key_hqc128() {
@@ -584,10 +585,7 @@ mod tests {
 
         // Should return error for invalid key size
         let result = provider.derive_public_key(Algorithm::Hqc128, &invalid_sk);
-        assert!(
-            result.is_err(),
-            "Should return error for invalid key size"
-        );
+        assert!(result.is_err(), "Should return error for invalid key size");
         if let Err(Error::InvalidKeySize { .. }) = result {
             // Expected error type
         } else {
@@ -683,11 +681,7 @@ mod tests {
     fn test_derive_public_key_all_algorithms() {
         let provider = LibQHqcProvider::new().expect("Failed to create provider");
 
-        let algorithms = [
-            Algorithm::Hqc128,
-            Algorithm::Hqc192,
-            Algorithm::Hqc256,
-        ];
+        let algorithms = [Algorithm::Hqc128, Algorithm::Hqc192, Algorithm::Hqc256];
 
         for algorithm in algorithms {
             // Generate keypair
