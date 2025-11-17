@@ -3,6 +3,10 @@
 //! This module provides no_std compatible RNG functionality for SLH-DSA
 //! when the standard library is not available.
 
+use ::signature::rand_core::{
+    CryptoRng as SignatureCryptoRng,
+    RngCore as SignatureRngCore,
+};
 use rand_core::{
     CryptoRng,
     RngCore,
@@ -88,6 +92,26 @@ impl RngCore for SlhDsaNoStdRng {
 }
 
 impl CryptoRng for SlhDsaNoStdRng {}
+
+// Also implement signature::rand_core traits for compatibility with signature crate
+impl SignatureCryptoRng for SlhDsaNoStdRng {}
+
+impl SignatureRngCore for SlhDsaNoStdRng {
+    fn next_u32(&mut self) -> u32 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u32(self)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u64(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::fill_bytes(self, dest)
+    }
+}
 
 #[cfg(test)]
 mod tests {

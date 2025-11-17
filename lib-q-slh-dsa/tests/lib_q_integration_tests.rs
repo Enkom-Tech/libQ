@@ -11,6 +11,10 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec;
 
+use ::signature::rand_core::{
+    CryptoRng as SignatureCryptoRng,
+    RngCore as SignatureRngCore,
+};
 use lib_q_slh_dsa::{
     ParameterSet,
     Sha2_128f,
@@ -51,7 +55,8 @@ impl TestRng {
 
 impl RngCore for TestRng {
     fn next_u32(&mut self) -> u32 {
-        self.next_u64() as u32
+        // Use explicit trait call to avoid ambiguity
+        <Self as RngCore>::next_u64(self) as u32
     }
 
     fn next_u64(&mut self) -> u64 {
@@ -68,7 +73,8 @@ impl RngCore for TestRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         for chunk in dest.chunks_mut(8) {
-            let value = self.next_u64();
+            // Use explicit trait call to avoid ambiguity
+            let value = <Self as RngCore>::next_u64(self);
             let bytes = value.to_be_bytes();
             let len = chunk.len().min(8);
             chunk[..len].copy_from_slice(&bytes[..len]);
@@ -77,6 +83,29 @@ impl RngCore for TestRng {
 }
 
 impl CryptoRng for TestRng {}
+
+// Also implement signature::rand_core traits for compatibility with signature crate
+impl SignatureCryptoRng for TestRng {}
+
+impl SignatureRngCore for TestRng {
+    fn next_u32(&mut self) -> u32 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u32(self)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u64(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::fill_bytes(self, dest)
+    }
+}
+
+// TryCryptoRng is automatically implemented by signature crate for types that implement
+// signature::rand_core::CryptoRng, so we don't need an explicit implementation
 
 /// Test SLH-DSA key generation with external randomness (no_std compatible)
 #[test]

@@ -1,7 +1,4 @@
-use ::signature::rand_core::{
-    CryptoRng,
-    TryCryptoRng,
-};
+use ::signature::rand_core::TryCryptoRng;
 use ::signature::{
     Error,
     KeypairRef,
@@ -28,6 +25,7 @@ use pkcs8::{
         asn1::OctetStringRef,
     },
 };
+use rand_core::CryptoRng;
 use typenum::{
     U,
     U16,
@@ -74,7 +72,7 @@ impl<N: ArraySize> From<&[u8]> for SkSeed<N> {
     }
 }
 impl<N: ArraySize> SkSeed<N> {
-    pub(crate) fn new<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+    pub(crate) fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let mut bytes = Array::<u8, N>::default();
         rng.fill_bytes(bytes.as_mut_slice());
         Self(bytes)
@@ -97,7 +95,7 @@ impl<N: ArraySize> From<&[u8]> for SkPrf<N> {
     }
 }
 impl<N: ArraySize> SkPrf<N> {
-    pub(crate) fn new<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+    pub(crate) fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let mut bytes = Array::<u8, N>::default();
         rng.fill_bytes(bytes.as_mut_slice());
         Self(bytes)
@@ -246,7 +244,7 @@ impl<P: ParameterSet> SigningKey<P> {
     /// - The RNG must be cryptographically secure
     /// - Never reuse randomness between key generations
     /// - The generated key is automatically zeroized when dropped
-    pub fn new<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+    pub fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let sk_seed = SkSeed::new(rng);
         let sk_prf = SkPrf::new(rng);
         let pk_seed = PkSeed::new(rng);

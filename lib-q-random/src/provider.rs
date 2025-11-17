@@ -548,6 +548,28 @@ impl LibQRng {
 #[cfg(feature = "alloc")]
 impl CryptoRng for LibQRng {}
 
+// Also implement signature::rand_core traits for compatibility with signature crate
+#[cfg(all(feature = "alloc", feature = "signature"))]
+impl ::signature::rand_core::CryptoRng for LibQRng {}
+
+#[cfg(all(feature = "alloc", feature = "signature"))]
+impl ::signature::rand_core::RngCore for LibQRng {
+    fn next_u32(&mut self) -> u32 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u32(self)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u64(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::fill_bytes(self, dest)
+    }
+}
+
 #[cfg(feature = "alloc")]
 impl fmt::Display for LibQRng {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

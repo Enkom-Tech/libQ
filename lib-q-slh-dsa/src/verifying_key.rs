@@ -53,7 +53,7 @@ impl<N: ArraySize> From<&[u8]> for PkSeed<N> {
     }
 }
 impl<N: ArraySize> PkSeed<N> {
-    pub(crate) fn new<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
+    pub(crate) fn new<R: CryptoRng>(rng: &mut R) -> Self {
         let mut bytes = Array::<u8, N>::default();
         rng.fill_bytes(bytes.as_mut_slice());
         Self(bytes)

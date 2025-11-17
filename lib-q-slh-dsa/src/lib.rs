@@ -120,8 +120,8 @@ pub trait ParameterSet:
 
 #[cfg(test)]
 mod tests {
+    use ::rand_core::RngCore;
     use lib_q_random::new_secure_rng;
-    use rand_core::RngCore;
     use signature::*;
     use util::macros::test_parameter_sets;
 

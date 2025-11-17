@@ -11,6 +11,10 @@ use alloc::{
     vec::Vec,
 };
 
+use ::signature::rand_core::{
+    CryptoRng as SignatureCryptoRng,
+    RngCore as SignatureRngCore,
+};
 use lib_q_core::{
     Error,
     Result,
@@ -83,7 +87,8 @@ impl<P: ParameterSet> Signature for SlhDsaSignature<P> {
             // Generate randomness for signing
             // Use conservative size that works for all parameter sets
             let mut signing_randomness = [0u8; 32]; // 32 bytes, works for all parameter sets
-            rng.fill_bytes(&mut signing_randomness);
+            // Use explicit trait call to avoid ambiguity between rand_core and signature::rand_core
+            <_ as RngCore>::fill_bytes(&mut rng, &mut signing_randomness);
 
             self.sign_with_randomness(secret_key, message, &signing_randomness)
         }
@@ -252,7 +257,8 @@ impl DeterministicRng {
 
 impl RngCore for DeterministicRng {
     fn next_u32(&mut self) -> u32 {
-        self.next_u64() as u32
+        // Call next_u64 and truncate to u32 - use explicit trait call to avoid ambiguity
+        <Self as RngCore>::next_u64(self) as u32
     }
 
     fn next_u64(&mut self) -> u64 {
@@ -269,7 +275,8 @@ impl RngCore for DeterministicRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         for chunk in dest.chunks_mut(8) {
-            let value = self.next_u64();
+            // Use explicit trait call to avoid ambiguity
+            let value = <Self as RngCore>::next_u64(self);
             let bytes = value.to_be_bytes();
             let len = chunk.len().min(8);
             chunk[..len].copy_from_slice(&bytes[..len]);
@@ -277,4 +284,25 @@ impl RngCore for DeterministicRng {
     }
 }
 
+// Also implement signature::rand_core::RngCore for compatibility
+// Delegate to the workspace rand_core::RngCore implementation to ensure consistency
+impl SignatureRngCore for DeterministicRng {
+    fn next_u32(&mut self) -> u32 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u32(self)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::next_u64(self)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        // Delegate to workspace rand_core::RngCore implementation
+        <Self as RngCore>::fill_bytes(self, dest)
+    }
+}
+
 impl CryptoRng for DeterministicRng {}
+
+impl SignatureCryptoRng for DeterministicRng {}

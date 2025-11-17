@@ -136,7 +136,12 @@ runs:
         cargo install cargo-audit --locked
 
         # Check for known vulnerabilities
-        cargo audit --deny warnings --ignore RUSTSEC-2023-0001
+        # Ignore unmaintained dev-dependencies that are only used in testing/benchmarking:
+        # - RUSTSEC-2021-0139: ansi_term (unmaintained, dev-only via dudect-bencher)
+        # - RUSTSEC-2024-0375: atty (unmaintained, dev-only via dudect-bencher)
+        # - RUSTSEC-2021-0145: atty (unsound, dev-only via dudect-bencher)
+        # - RUSTSEC-2024-0436: paste (unmaintained, dev-only via pqcrypto-mldsa)
+        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145 --ignore RUSTSEC-2024-0436
 
         # Check for outdated dependencies (install cargo-outdated if needed)
         if ! command -v cargo-outdated &> /dev/null; then
