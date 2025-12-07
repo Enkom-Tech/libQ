@@ -152,11 +152,38 @@ impl AlgorithmRegistry {
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Dawn,
+            algorithm: Algorithm::DawnAlpha512,
             category: AlgorithmCategory::Kem,
             security_level: 1,
-            name: "DAWN",
-            description: "DAWN - NTRU-based encryption with double encoding for smaller/faster ciphertexts",
+            name: "DAWN-α-512",
+            description: "DAWN-α-512 - NIST-I security, minimal ciphertext size (pk: 615, sk: 1319, ct: 452)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::DawnBeta512,
+            category: AlgorithmCategory::Kem,
+            security_level: 1,
+            name: "DAWN-β-512",
+            description: "DAWN-β-512 - NIST-I security, minimal combined size (pk: 514, sk: 1154, ct: 466)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::DawnAlpha1024,
+            category: AlgorithmCategory::Kem,
+            security_level: 5,
+            name: "DAWN-α-1024",
+            description: "DAWN-α-1024 - NIST-V security, minimal ciphertext size (pk: 1229, sk: 2605, ct: 989)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::DawnBeta1024,
+            category: AlgorithmCategory::Kem,
+            security_level: 5,
+            name: "DAWN-β-1024",
+            description: "DAWN-β-1024 - NIST-V security, minimal combined size (pk: 1027, sk: 2275, ct: 1043)",
             enabled: true,
         });
 

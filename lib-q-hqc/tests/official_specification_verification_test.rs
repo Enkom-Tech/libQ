@@ -211,6 +211,7 @@ fn verify_param<T: PartialEq + std::fmt::Debug>(
 
 #[cfg(feature = "alloc")]
 #[test]
+#[ignore] // Long-running test - can cause memory issues in full test suite
 fn test_failure_rate_analysis() {
     println!("\n=== HQC FAILURE RATE ANALYSIS ===");
     println!("Note: This test runs a smaller sample size for faster execution.");

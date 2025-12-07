@@ -2,8 +2,9 @@
 //!
 //! These tests validate the HQC implementation against official NIST test vectors.
 
+#[cfg(feature = "bearssl-aes")]
+use lib_q_hqc::bearssl_aes_ctr_drbg::BearSslAes256CtrDrbg;
 use lib_q_hqc::hqc_kem::HqcKem;
-use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
 use lib_q_hqc::*;
 use rand_core::RngCore;
 
@@ -36,6 +37,7 @@ mod hqc1_kat_vectors {
     const EXPECTED_SS: &str = "31D476B2A4D41B493246E055FB9D3088B3D3E4AE8D480477C66A271920C6C849";
 
     #[test]
+    #[cfg(feature = "bearssl-aes")] // KAT tests require AES-CTR DRBG for compatibility
     fn test_hqc1_kat() {
         // Parse test vectors
         let seed = hex_to_bytes(SEED);
@@ -43,21 +45,18 @@ mod hqc1_kat_vectors {
         let expected_ct = hex_to_bytes(EXPECTED_CT);
         let expected_ss = hex_to_bytes(EXPECTED_SS);
 
-        // Create SHAKE256 PRNG with test seed for KAT compatibility (matches reference implementation)
-        let mut entropy_input = [0u8; 48];
-        entropy_input.copy_from_slice(&seed[..48]);
-        let mut rng = create_shake256_prng_rng(entropy_input);
+        // The seed from the KAT file is the seed_kem (48 bytes) that should be passed
+        // directly to keygen_with_seed. The reference implementation initializes DRBG
+        // with this seed, then generates seed_dk (32 bytes) and seed_ek (32 bytes).
+        let mut seed_kem = [0u8; 48];
+        seed_kem.copy_from_slice(&seed[..48]);
 
         // Create HQC KEM instance
         let kem = HqcKem::<Hqc1Params>::new().expect("KEM creation failed");
 
-        // Test key generation - match reference implementation exactly
-        // The reference implementation uses prng_get_bytes to get seed_kem, then uses that for keygen
-        let mut seed_kem = [0u8; 32]; // SEED_BYTES
-        rng.fill_bytes(&mut seed_kem);
-
-        println!("seed_kem: {:02x?}", seed_kem);
-
+        // Test key generation - pass seed_kem directly to keygen_with_seed
+        // keygen_with_seed will use BearSSL AES-CTR DRBG (when feature is enabled)
+        // to generate seed_dk and seed_ek internally
         let (public_key, secret_key) = kem
             .keygen_with_seed(&seed_kem)
             .expect("Key generation failed");
@@ -69,8 +68,17 @@ mod hqc1_kat_vectors {
         assert_eq!(actual_pk, expected_pk, "Public key mismatch");
 
         // Test encapsulation
+        // The reference implementation continues the DRBG stream after keygen.
+        // keygen_with_seed consumes 64 bytes (32 for seed_dk + 32 for seed_ek) from the DRBG.
+        // We need to create a new DRBG instance initialized with seed_kem and advance it
+        // by 64 bytes to match the state after keygen.
+        let mut rng_for_encaps = BearSslAes256CtrDrbg::instantiate(&seed_kem);
+        // Advance DRBG by 64 bytes (the amount consumed by keygen: seed_dk + seed_ek)
+        let mut _skip = [0u8; 64];
+        rng_for_encaps.fill_bytes(&mut _skip);
+
         let (ciphertext, shared_secret_encap) = kem
-            .encapsulate(&public_key, &mut rng)
+            .encapsulate(&public_key, &mut rng_for_encaps)
             .expect("Encapsulation failed");
 
         // Compare ciphertext

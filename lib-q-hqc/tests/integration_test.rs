@@ -167,7 +167,7 @@ fn test_error_correcting_codes_integration() {
 
     // Test Concatenated Code
     let cc = ConcatenatedCode::<Hqc1Params>::new().expect("Failed to create concatenated code");
-    let mut cc_codeword = [0u8; 2208];
+    let mut cc_codeword = [0u8; 3680]; // VEC_N1N2_SIZE_BYTES for HQC-1
     cc.encode(&message, &mut cc_codeword)
         .expect("Failed to encode with concatenated code");
 

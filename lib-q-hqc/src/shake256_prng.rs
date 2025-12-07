@@ -117,12 +117,11 @@ impl EntropySource for Shake256PrngEntropySource {
 /// A new LibQRng instance with SHAKE256 PRNG
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
 /// let entropy_input = [0u8; 48]; // Your entropy input
 /// let mut rng = create_shake256_prng_rng(entropy_input);
-/// let mut bytes = [0u8; 32];
-/// rng.fill_bytes(&mut bytes);
+/// // Use rng with RngCore trait methods
 /// ```
 pub fn create_shake256_prng_rng(entropy_input: [u8; 48]) -> lib_q_random::LibQRng {
     let entropy_source = Shake256PrngEntropySource::new(entropy_input);

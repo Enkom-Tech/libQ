@@ -60,7 +60,7 @@ rand_core = { version = "0.9.3", default-features = false }
 rand = { version = "0.9.2", default-features = false }
 # Note: getrandom is not in workspace.dependencies because some crates need default-features = false
 # which cannot be overridden when using workspace dependencies
-criterion = "0.7.0"
+criterion = "0.8.0"
 hex = "0.4.3"
 proptest = "1.9.0"
 

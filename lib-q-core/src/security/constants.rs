@@ -107,7 +107,34 @@ impl SecurityConstants {
                     1568
                 }
             }
-            Algorithm::Dawn => 1024,
+            Algorithm::DawnAlpha512 => {
+                if is_secret {
+                    1319 // DAWN-α-512 secret key size
+                } else {
+                    615 // DAWN-α-512 public key size
+                }
+            }
+            Algorithm::DawnBeta512 => {
+                if is_secret {
+                    1154 // DAWN-β-512 secret key size
+                } else {
+                    514 // DAWN-β-512 public key size
+                }
+            }
+            Algorithm::DawnAlpha1024 => {
+                if is_secret {
+                    2605 // DAWN-α-1024 secret key size
+                } else {
+                    1229 // DAWN-α-1024 public key size
+                }
+            }
+            Algorithm::DawnBeta1024 => {
+                if is_secret {
+                    2275 // DAWN-β-1024 secret key size
+                } else {
+                    1027 // DAWN-β-1024 public key size
+                }
+            }
 
             // CB-KEM algorithms
             Algorithm::CbKem348864 => {
@@ -257,10 +284,13 @@ impl SecurityConstants {
     /// doesn't produce ciphertext or is not supported.
     pub fn get_expected_ciphertext_size(&self, algorithm: Algorithm) -> Result<usize> {
         let expected_size = match algorithm {
-            Algorithm::MlKem512 => 768,   // ML-KEM-512 ciphertext size
-            Algorithm::MlKem768 => 1088,  // ML-KEM-768 ciphertext size
-            Algorithm::MlKem1024 => 1568, // ML-KEM-1024 ciphertext size
-            Algorithm::Dawn => 1024,      // DAWN ciphertext size
+            Algorithm::MlKem512 => 768,      // ML-KEM-512 ciphertext size
+            Algorithm::MlKem768 => 1088,     // ML-KEM-768 ciphertext size
+            Algorithm::MlKem1024 => 1568,    // ML-KEM-1024 ciphertext size
+            Algorithm::DawnAlpha512 => 452,  // DAWN-α-512 ciphertext size
+            Algorithm::DawnBeta512 => 466,   // DAWN-β-512 ciphertext size
+            Algorithm::DawnAlpha1024 => 989, // DAWN-α-1024 ciphertext size
+            Algorithm::DawnBeta1024 => 1043, // DAWN-β-1024 ciphertext size
 
             // CB-KEM algorithms
             Algorithm::CbKem348864 => 96, // CB-KEM-348864 ciphertext size
@@ -411,12 +441,30 @@ mod tests {
             1568
         );
 
-        // Test other KEM algorithms
+        // Test DAWN algorithms
         assert_eq!(
             constants
-                .get_expected_ciphertext_size(Algorithm::Dawn)
+                .get_expected_ciphertext_size(Algorithm::DawnAlpha512)
                 .unwrap(),
-            1024
+            452
+        );
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::DawnBeta512)
+                .unwrap(),
+            466
+        );
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::DawnAlpha1024)
+                .unwrap(),
+            989
+        );
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::DawnBeta1024)
+                .unwrap(),
+            1043
         );
 
         // Test non-KEM algorithm (should fail)

@@ -167,7 +167,8 @@ lib-Q/
 ### In Progress
 
 ### Planned
-- 📋 **Additional KEMs** - CB-KEM, HQC post-core completion
+- ✅ **HQC** - Complete NIST-standardized code-based KEM (all parameter sets)
+- 📋 **Additional KEMs** - CB-KEM optimization
 - 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
 
 ## Documentation

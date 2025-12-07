@@ -74,7 +74,10 @@ impl KemOperations for LibQKemProvider {
                         .to_string(),
                 })
             }
-            Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
+            Algorithm::DawnAlpha512 |
+            Algorithm::DawnBeta512 |
+            Algorithm::DawnAlpha1024 |
+            Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
@@ -111,7 +114,10 @@ impl KemOperations for LibQKemProvider {
                         .to_string(),
                 })
             }
-            Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
+            Algorithm::DawnAlpha512 |
+            Algorithm::DawnBeta512 |
+            Algorithm::DawnAlpha1024 |
+            Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
@@ -147,7 +153,10 @@ impl KemOperations for LibQKemProvider {
                         .to_string(),
                 })
             }
-            Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
+            Algorithm::DawnAlpha512 |
+            Algorithm::DawnBeta512 |
+            Algorithm::DawnAlpha1024 |
+            Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
@@ -178,7 +187,10 @@ impl KemOperations for LibQKemProvider {
                         .to_string(),
                 })
             }
-            Algorithm::Dawn => Err(crate::error::Error::NotImplemented {
+            Algorithm::DawnAlpha512 |
+            Algorithm::DawnBeta512 |
+            Algorithm::DawnAlpha1024 |
+            Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {

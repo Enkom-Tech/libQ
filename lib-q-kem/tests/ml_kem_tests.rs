@@ -3,6 +3,7 @@
 //! This test suite validates the security, correctness, and performance
 //! of the refactored ML-KEM implementation.
 
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 use lib_q_core::{
     Algorithm,
     Error,
@@ -11,6 +12,7 @@ use lib_q_core::{
     KemSecretKey,
     SecurityLevel,
 };
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 use lib_q_kem::{
     LibQKemProvider,
     available_algorithms,
@@ -48,6 +50,7 @@ impl MlKemTestConfig {
 }
 
 /// ML-KEM test configurations
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 const ML_KEM_CONFIGS: &[MlKemTestConfig] = &[
     MlKemTestConfig::new(
         Algorithm::MlKem512,
@@ -77,6 +80,7 @@ const ML_KEM_CONFIGS: &[MlKemTestConfig] = &[
 
 /// Test basic KEM creation and algorithm availability
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_availability() {
     let algorithms = available_algorithms();
 
@@ -92,6 +96,7 @@ fn test_ml_kem_availability() {
 
 /// Test key generation for all ML-KEM variants
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_key_generation() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -120,6 +125,7 @@ fn test_ml_kem_key_generation() {
 
 /// Test encapsulation and decapsulation for all ML-KEM variants
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_encapsulation_decapsulation() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -166,6 +172,7 @@ fn test_ml_kem_encapsulation_decapsulation() {
 
 /// Test public key derivation from secret key
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_public_key_derivation() {
     use lib_q_core::Kem;
     use lib_q_kem::ml_kem::{
@@ -220,6 +227,7 @@ fn test_ml_kem_public_key_derivation() {
 
 /// Test error handling for invalid key sizes
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_invalid_key_sizes() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -252,6 +260,7 @@ fn test_ml_kem_invalid_key_sizes() {
 
 /// Test error handling for invalid ciphertext sizes
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_invalid_ciphertext_sizes() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -277,6 +286,7 @@ fn test_ml_kem_invalid_ciphertext_sizes() {
 
 /// Test multiple encapsulations with the same keypair
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_multiple_encapsulations() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -311,6 +321,7 @@ fn test_ml_kem_multiple_encapsulations() {
 
 /// Test cross-algorithm key compatibility (should fail)
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_cross_algorithm_incompatibility() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -332,6 +343,7 @@ fn test_ml_kem_cross_algorithm_incompatibility() {
 
 /// Test security level validation
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_security_levels() {
     for config in ML_KEM_CONFIGS {
         assert_eq!(
@@ -345,6 +357,7 @@ fn test_ml_kem_security_levels() {
 
 /// Test that the implementation doesn't use deprecated APIs
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_no_deprecated_apis() {
     // This test ensures that the implementation doesn't rely on deprecated APIs
     // by verifying that all operations work correctly without warnings
@@ -406,6 +419,7 @@ fn test_ml_kem_no_deprecated_apis() {
 
 /// Test memory safety and zeroization
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_memory_safety() {
     let provider = LibQKemProvider::new().unwrap();
 
@@ -425,6 +439,7 @@ fn test_ml_kem_memory_safety() {
 
 /// Test error message clarity and consistency
 #[test]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_error_messages() {
     let provider = LibQKemProvider::new().unwrap();
 

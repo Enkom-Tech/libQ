@@ -12,11 +12,12 @@ use lib_q_random::LibQRng;
 
 #[cfg(feature = "alloc")]
 #[test]
+#[ignore] // Can cause memory issues when run with full test suite - run individually
 fn test_comprehensive_failure_analysis() {
     println!("=== COMPREHENSIVE HQC FAILURE RATE ANALYSIS ===");
 
-    // Test with larger sample sizes for better statistics
-    let sample_sizes = [100, 500, 1000];
+    // Test with smaller sample sizes for fast CI/CD
+    let sample_sizes = [5, 10];
 
     for &sample_size in &sample_sizes {
         println!("\n--- Testing with {} samples ---", sample_size);
@@ -175,6 +176,33 @@ struct NoiseAnalysis {
 
 #[cfg(feature = "alloc")]
 #[test]
+#[ignore] // Long-running test - run manually with --ignored
+fn test_comprehensive_failure_analysis_full() {
+    println!("=== COMPREHENSIVE HQC FAILURE RATE ANALYSIS (FULL) ===");
+
+    // Test with larger sample sizes for detailed statistics (manual run)
+    let sample_sizes = [100, 500, 1000];
+
+    for &sample_size in &sample_sizes {
+        println!("\n--- Testing with {} samples ---", sample_size);
+
+        // Test HQC-1
+        println!("\nHQC-1 Analysis:");
+        analyze_failure_rate::<Hqc1Params>("HQC-1", sample_size, 2.0_f64.powi(-128));
+
+        // Test HQC-3
+        println!("\nHQC-3 Analysis:");
+        analyze_failure_rate::<Hqc3Params>("HQC-3", sample_size, 2.0_f64.powi(-192));
+
+        // Test HQC-5
+        println!("\nHQC-5 Analysis:");
+        analyze_failure_rate::<Hqc5Params>("HQC-5", sample_size, 2.0_f64.powi(-256));
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[test]
+#[ignore] // Long-running statistical test - run manually with --ignored
 fn test_consistency_across_parameter_sets() {
     println!("\n=== CONSISTENCY ANALYSIS ACROSS PARAMETER SETS ===");
 

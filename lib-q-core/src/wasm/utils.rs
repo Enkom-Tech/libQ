@@ -189,7 +189,13 @@ pub fn get_supported_algorithms() -> String {
     // KEM algorithms
     let mut kem_algorithms = Vec::new();
     kem_algorithms.extend(&["ml-kem-512", "ml-kem-768", "ml-kem-1024"]);
-    kem_algorithms.push("dawn");
+    #[cfg(feature = "dawn")]
+    {
+        kem_algorithms.push("dawn-α-512");
+        kem_algorithms.push("dawn-β-512");
+        kem_algorithms.push("dawn-α-1024");
+        kem_algorithms.push("dawn-β-1024");
+    }
     algorithms.insert("kem", kem_algorithms);
 
     // Signature algorithms

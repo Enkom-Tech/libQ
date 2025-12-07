@@ -19,17 +19,17 @@ lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
 lib-q-random = { path = "../lib-q-random", optional = true, features = ["signature"] }
 zerocopy = { version = "0.8.27", features = ["derive"] }
 rand_core = { workspace = true }
-signature = { version = "3.0.0-rc.4", features = ["rand_core"] }
-hmac = "0.13.0-rc.2"
-sha2 = { version = "0.11.0-rc.2", default-features = false }
-digest = "0.11.0-rc.3"
-pkcs8 = { version = "0.11.0-rc.7", default-features = false, features = ["alloc"] }
+signature = { version = "3.0.0-rc.5", features = ["rand_core"] }
+hmac = "0.13.0-rc.3"
+sha2 = { version = "0.11.0-rc.3", default-features = false }
+digest = "0.11.0-rc.4"
+pkcs8 = { version = "0.11.0-rc.8", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.1", features = ["db"] }
 zeroize = { workspace = true, optional = true, default-features = false }
 getrandom = { version = "0.3.3", optional = true, default-features = false }
 
 [dev-dependencies]
-hex-literal = "1.0.0"
+hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }
 lib-q-random = { path = "../lib-q-random", features = ["std", "signature"] }
 num-bigint = "0.4.6"
@@ -37,13 +37,13 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 proptest = { workspace = true }
 criterion = { workspace = true }
-aes = "0.9.0-rc.1"
-cipher = "0.5.0-rc.1"
-ctr = "0.10.0-rc.1"
-paste = { package = "pastey", version = "0.1.1" }
+aes = "0.9.0-rc.2"
+cipher = "0.5.0-rc.2"
+ctr = "0.10.0-rc.2"
+paste = { package = "pastey", version = "0.2.0" }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-pkcs8 = { version = "0.11.0-rc.7", features = ["pem"] }
+pkcs8 = { version = "0.11.0-rc.8", features = ["pem"] }
 
 [lib]
 bench = false

@@ -17,7 +17,7 @@ lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
 lib-q-random = { path = "../lib-q-random", optional = true }
 rand_core = { workspace = true, optional = true }
-sha2 = { version = "0.11.0-rc.2", optional = true, default-features = false }
+sha2 = { version = "0.11.0-rc.3", optional = true, default-features = false }
 
 # WASM support
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
