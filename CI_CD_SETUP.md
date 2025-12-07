@@ -9,7 +9,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **Parallel Test Matrix**: Multiple test configurations running simultaneously
 - **Cross-Platform Builds**: Multi-platform compilation
 - **Performance Benchmarks**: Dedicated performance benchmarking
-- **Algorithm-Specific Testing**: Specialized testing for cryptographic algorithms (ML-DSA, FN-DSA, SHA3, Keccak, K12, Saturnin, Ascon)
+- **Algorithm-Specific Testing**: Specialized testing for cryptographic algorithms (ML-DSA, FN-DSA, SHA3, Keccak, K12, Saturnin)
 
 ### CD Pipeline (`.github/workflows/cd.yml`)
 - **Pre-Release Validation**: Version consistency checking
@@ -85,18 +85,6 @@ This document describes the CI/CD pipeline configuration for lib-Q.
     run-benchmarks: "true"
     test-algorithms: "kangaroo-twelve"
 ```
-
-#### Ascon Test Action (`.github/actions/test-ascon/`)
-```yaml
-- uses: ./.github/actions/test-ascon
-  with:
-    working-directory: "lib-q-ascon"
-    features: "aead,aead-short,block-cipher,hash,stream,alloc"
-    rust-version: "stable"
-    run-benchmarks: "false"
-    test-algorithms: "aead,aead-short,block-cipher,hash,stream"
-```
-
 
 #### Saturnin Test Action (`.github/actions/test-saturnin/`)
 ```yaml
@@ -180,7 +168,6 @@ NPM_TOKEN: "npm publish token"
 - **`lib-q`** - Complete library (re-exports everything)
 - **`lib-q-core`** - Core types and traits
 - **`lib-q-keccak`** - Keccak hash functions
-- **`lib-q-ascon`** - Ascon authenticated encryption
 - **`lib-q-sha3`** - SHA-3 family hash functions
 - **`lib-q-k12`** - KangarooTwelve hash function
 - **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC)
@@ -223,7 +210,6 @@ NPM_TOKEN: "npm publish token"
 - **HQC** - Hamming Quasi-Cyclic KEM
 
 ### Authenticated Encryption
-- **Ascon** - Lightweight authenticated encryption
 - **Saturnin** - Post-quantum symmetric algorithm suite
 
 ### Additional Components
@@ -245,7 +231,6 @@ NPM_TOKEN: "npm publish token"
 | Keccak | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | SHA-3 | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | K12 | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
-| Ascon | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | Saturnin | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | ML-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |
 | FN-DSA | ✅ Complete | ✅ Full | ✅ Integrated | ✅ Published |

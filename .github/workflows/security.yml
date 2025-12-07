@@ -66,7 +66,6 @@ jobs:
           echo "🔐 Running cryptographic validation tests..."
           # Run constant_time tests for each package that has them
           cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
           cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
           echo "✅ Cryptographic tests completed successfully"
       
@@ -141,7 +140,6 @@ jobs:
           echo "⏱️  Testing constant-time operations..."
           # Run constant_time tests for each package that has them
           cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-ascon || echo "⚠️  constant_time test not available for lib-q-ascon"
           cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
           cargo test --test security_tests -p lib-q-fn-dsa --features "std,rand" -- constant_time || echo "⚠️  constant_time test not available for lib-q-fn-dsa"
           cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-random || echo "⚠️  constant_time test not available for lib-q-random"

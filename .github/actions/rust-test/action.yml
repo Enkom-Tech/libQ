@@ -64,16 +64,13 @@ runs:
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package: $PACKAGE"
             # Check that the specific package compiles in no_std mode
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
-              echo "Building no_std package $PACKAGE with explicit panic handler"
-              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
-            elif [[ "$PACKAGE" == *"lib-q-ascon"* ]]; then
               echo "Building no_std package $PACKAGE with explicit panic handler"
               cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
@@ -103,16 +100,13 @@ runs:
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGE" == *"lib-q-ascon"* ]]; then
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package in release: $PACKAGE"
             # Check that the specific package compiles in no_std mode for release
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
-              echo "Building no_std package $PACKAGE with explicit panic handler in release mode"
-              cargo check -p $PACKAGE --profile release --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
-            elif [[ "$PACKAGE" == *"lib-q-ascon"* ]]; then
               echo "Building no_std package $PACKAGE with explicit panic handler in release mode"
               cargo check -p $PACKAGE --profile release --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
@@ -167,7 +161,7 @@ runs:
         
         # For specific packages, exclude all other crates to focus coverage calculation
         if [[ "$PACKAGE" == "lib-q-core" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ascon/*\" --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-sponge/*\""
         elif [[ "$PACKAGE" == "lib-q" ]]; then
           # For the root lib-q package, we need to be more selective about what to include
           # Only include the main lib.rs and core functionality, exclude most implementation details

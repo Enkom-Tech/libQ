@@ -136,7 +136,7 @@ let recovered = ml_kem.decapsulate(&sk, &enc)?;
 - **KEMs**: RSA, ECC, DH, ECDH
 - **Signatures**: RSA-PSS, ECDSA, Ed25519, Ed448
 - **Hash Functions**: SHA-1, SHA-256, SHA-512, MD5
-- **Symmetric Ciphers**: AES-128, ChaCha20, Poly1305, Ascon, Xoodyak, Sparkle
+- **Symmetric Ciphers**: AES-128, ChaCha20, Poly1305
 
 ## Memory Architecture
 
