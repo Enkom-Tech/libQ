@@ -517,7 +517,6 @@ jobs:
           run-benchmarks: ${{ matrix.run-benchmarks }}
           test-algorithms: ${{ matrix.test-algorithms }}
       
-      
       - name: Run Saturnin tests
         uses: ./.github/actions/test-saturnin
         if: matrix.action == 'test-saturnin'
