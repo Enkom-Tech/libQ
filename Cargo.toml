@@ -41,7 +41,7 @@ web-sys = { version = "0.3.77", optional = true, features = ["console"] }
 
 [dev-dependencies]
 # Testing
-criterion = "0.7.0"
+criterion = "0.8.1"
 proptest = "1.7.0"
 quickcheck = "1.0.3"
 
