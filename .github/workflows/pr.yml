@@ -170,7 +170,7 @@ jobs:
         run: cargo tarpaulin --features "all-algorithms" --out Html --output-dir coverage
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: coverage/
@@ -384,7 +384,7 @@ jobs:
           echo "Please review the security implications of this change carefully." >> pr-summary.md
       
       - name: Upload PR summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pr-summary
           path: pr-summary.md
