@@ -1,7 +1,9 @@
 [package]
 name = "lib-q-ml-dsa"
 version.workspace = true
-description = "LibQ ML-DSA implementation"
+description = "NIST FIPS 204 Module-Lattice Digital Signature Algorithm (ML-DSA) implementation"
+keywords = ["cryptography", "post-quantum", "ml-dsa", "dilithium", "signatures"]
+categories = ["cryptography", "no-std"]
 
 authors.workspace = true
 license.workspace = true
@@ -9,6 +11,7 @@ homepage.workspace = true
 edition.workspace = true
 repository.workspace = true
 readme.workspace = true
+rust-version.workspace = true
 publish = false
 
 [lib]
@@ -23,20 +26,20 @@ lib-q-random = { path = "../lib-q-random", optional = true }
 hax-lib.workspace = true
 hex = { workspace = true }
 zeroize = { workspace = true, optional = true }
-subtle = { version = "2.6.1", optional = true }
+subtle = { workspace = true, optional = true }
 
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", features = ["std"] }
 rand_core = { workspace = true }
-    hex = { workspace = true, features = ["serde"] }
-    serde_json = { workspace = true }
-    serde = { workspace = true, features = ["derive"] }
-    criterion = { workspace = true }
-    glob = "0.3.3"
+hex = { workspace = true, features = ["serde"] }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+criterion = { workspace = true }
+glob = "0.3.3"
 
-# This doesn't build on intel macos.
+# Reference implementation for comparison tests (doesn't build on Intel macOS)
 [target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
-pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
+pqcrypto-mldsa = { version = "0.1.2" }
 
 # Optional: Uncomment if you need hax formal verification with core-models
 # Note: This requires the reference directory to not be excluded in the main Cargo.toml
@@ -45,45 +48,57 @@ pqcrypto-mldsa = { version = "0.1.2" } #, default-features = false
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]
-simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]
-simd256 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd256"]
-random = ["dep:lib-q-random", "lib-q-random/std"]
-nist-drbg = ["lib-q-random/nist-drbg"]                           # NIST DRBG for KAT compatibility
-acvp = []                                                        # expose internal API for ACVP testing
-test-utils = []                                                  # exposing internal functions for testing
-debug-trace = []                                                 # enable debug tracing for SIGGEN debugging
 
-# Compliance vs Security modes
-fips-mode = []                                                   # Strict FIPS 204 compliance, minimal overhead
-hardened-mode = ["random", "zeroize", "constant-time"]          # Enhanced security with RNG abstraction
-zeroize = ["dep:zeroize"]                                        # Automatic zeroization of sensitive material
-constant-time = ["dep:subtle"]                                   # Constant-time operations where possible
+# Parameter sets (FIPS 204)
+mldsa44 = []  # ML-DSA-44: Security Category 2
+mldsa65 = []  # ML-DSA-65: Security Category 3
+mldsa87 = []  # ML-DSA-87: Security Category 5
 
-# Features for the different key sizes of ML-DSA
-mldsa44 = []
-mldsa65 = []
-mldsa87 = []
+# Platform optimizations
+simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]  # ARM NEON optimizations
+simd256 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd256"]  # x86_64 AVX2 optimizations
 
-# std support
+# Standard library support
 std = []
+
+# Random number generation
+random = ["dep:lib-q-random", "lib-q-random/std"]
+nist-drbg = ["random", "lib-q-random/nist-drbg"]  # NIST SP 800-90A DRBG for KAT compatibility
+
+# Security hardening
+fips-mode = []                                      # Strict FIPS 204 compliance, minimal overhead
+hardened-mode = ["random", "zeroize", "constant-time"]  # Enhanced security features
+zeroize = ["dep:zeroize"]                           # Automatic zeroization of sensitive material
+constant-time = ["dep:subtle"]                      # Constant-time operations where possible
+
+# Testing and validation
+acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
+test-utils = []   # Expose internal functions for advanced testing
+debug-trace = []  # Enable debug tracing for signature generation debugging
 
 [[bench]]
 name = "manual44"
 harness = false
+required-features = ["mldsa44"]
 
 [[bench]]
 name = "manual65"
 harness = false
+required-features = ["mldsa65"]
 
 [[bench]]
 name = "manual87"
 harness = false
+required-features = ["mldsa87"]
 
 [[bench]]
 name = "ml-dsa"
 harness = false
 
-
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)'] }

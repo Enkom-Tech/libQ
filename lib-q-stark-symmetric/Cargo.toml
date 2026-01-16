@@ -1,0 +1,27 @@
+[package]
+name = "lib-q-stark-symmetric"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A modular framework for symmetric cryptographic primitives."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-keccak = { path = "../lib-q-keccak" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+serde = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

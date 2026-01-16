@@ -17,10 +17,6 @@ use lib_q_ml_dsa::{
     ml_dsa_65,
     ml_dsa_87,
 };
-use {
-    hex,
-    serde_json,
-};
 
 include!("wycheproof/verify_schema.rs");
 

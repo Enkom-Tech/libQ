@@ -8,6 +8,7 @@ extern crate alloc;
 use alloc::{
     format,
     string::String,
+    vec,
     vec::Vec,
 };
 
@@ -48,11 +49,7 @@ impl LibQHqcProvider {
 
     /// Get the provider capabilities
     pub fn capabilities(&self) -> Vec<Algorithm> {
-        let mut caps = Vec::new();
-        caps.push(Algorithm::Hqc128);
-        caps.push(Algorithm::Hqc192);
-        caps.push(Algorithm::Hqc256);
-        caps
+        vec![Algorithm::Hqc128, Algorithm::Hqc192, Algorithm::Hqc256]
     }
 
     /// Check if the provider supports a specific algorithm
@@ -689,12 +686,12 @@ mod tests {
             // Generate keypair
             let keypair = provider
                 .generate_keypair(algorithm, None)
-                .expect(&format!("Failed to generate keypair for {:?}", algorithm));
+                .unwrap_or_else(|_| panic!("Failed to generate keypair for {algorithm:?}"));
 
             // Derive public key
             let derived_pk = provider
                 .derive_public_key(algorithm, &keypair.secret_key)
-                .expect(&format!("Failed to derive public key for {:?}", algorithm));
+                .unwrap_or_else(|_| panic!("Failed to derive public key for {algorithm:?}"));
 
             // Verify match
             assert_eq!(

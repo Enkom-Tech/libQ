@@ -1,0 +1,6 @@
+/target
+Cargo.lock
+flamegraph.svg
+
+# Proptest data
+proptest-regressions/

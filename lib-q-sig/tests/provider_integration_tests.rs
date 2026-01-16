@@ -39,8 +39,8 @@ mod provider_tests {
             // Test key generation through provider with external randomness
             // Use 96 bytes to accommodate all parameter sets (192-bit requires 72 bytes)
             let mut randomness = [0u8; 96];
-            for i in 0..96 {
-                randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+            for (i, byte) in randomness.iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
             let keypair = provider
                 .generate_keypair(algorithm, Some(&randomness))
@@ -49,8 +49,8 @@ mod provider_tests {
             // Test signing through provider with external randomness
             let message = b"Provider pattern test message";
             let mut signing_randomness = [0u8; 32]; // Use 32 bytes for all parameter sets
-            for i in 0..32 {
-                signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+            for (i, byte) in signing_randomness.iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
             }
             let signature = provider
                 .sign(
@@ -110,8 +110,8 @@ mod provider_tests {
 
         // Test with valid randomness
         let mut valid_randomness = [0u8; 96];
-        for i in 0..96 {
-            valid_randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in valid_randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
         let _result =
             provider.generate_keypair(Algorithm::SlhDsaShake256128fRobust, Some(&valid_randomness));
@@ -125,8 +125,8 @@ mod provider_tests {
 
         // Test that different algorithms produce different key sizes
         let mut randomness = [0u8; 96];
-        for i in 0..96 {
-            randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair_128f = provider
@@ -161,8 +161,8 @@ mod provider_tests {
 
         // Test deterministic key generation
         let mut randomness = [0u8; 96];
-        for i in 0..96 {
-            randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair1 = provider
@@ -187,8 +187,8 @@ mod provider_tests {
         // Test deterministic signing
         let message = b"Deterministic signing test";
         let mut signing_randomness = [0u8; 32]; // Security validator expects 32 bytes
-        for i in 0..32 {
-            signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+        for (i, byte) in signing_randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
         }
 
         let signature1 = provider
@@ -222,8 +222,8 @@ mod provider_tests {
 
         // Test that keys are properly handled
         let mut randomness = [0u8; 96];
-        for i in 0..96 {
-            randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair = provider
@@ -257,8 +257,8 @@ mod provider_tests {
 
             // Generate keypair with external randomness
             let mut randomness = [0u8; 96];
-            for i in 0..96 {
-                randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+            for (i, byte) in randomness.iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
 
             let keypair = provider
@@ -270,8 +270,8 @@ mod provider_tests {
             // Sign message with external randomness
             let message = b"Performance test message";
             let mut signing_randomness = [0u8; 32]; // Security validator expects 32 bytes
-            for i in 0..32 {
-                signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+            for (i, byte) in signing_randomness.iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
             }
 
             let sign_start = std::time::Instant::now();

@@ -2,6 +2,7 @@
 name = "lib-q-random"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 homepage.workspace = true
@@ -26,6 +27,8 @@ signature = { version = "3.0.0-rc.5", features = ["rand_core"], optional = true 
 default = ["std", "secure", "zeroize"]
 std = ["dep:getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
 alloc = ["dep:lib-q-core"]
+
+# no_std support - requires getrandom or custom-entropy
 no_std = ["getrandom"]
 
 # RNG provider features
@@ -40,8 +43,8 @@ hash = ["dep:lib-q-hash"]
 classical-mceliece = []
 hpke = ["hash"]
 fn-dsa = []
-hqc = []
-nist-drbg = ["dep:aes"]
+hqc = ["alloc"]  # HQC reference implementation in tests (requires Vec)
+nist-drbg = ["dep:aes", "alloc"]  # NIST AES256-CTR-DRBG for KAT compliance
 
 # Additional features for specialized implementations
 rand = ["dep:rand"]
@@ -54,8 +57,8 @@ entropy-validation = []
 test-vectors = []
 
 # Platform-specific features
-wasm = ["dep:wasm-bindgen", "getrandom/wasm_js"]
-js = ["getrandom/std"]
+wasm = ["dep:wasm-bindgen", "dep:getrandom", "getrandom/wasm_js", "custom-entropy"]
+js = ["dep:getrandom", "getrandom/std"]
 
 # Custom entropy source features
 custom-entropy = []

@@ -2,6 +2,7 @@
 name = "lib-q-sig"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,7 +12,7 @@ keywords = ["cryptography", "post-quantum", "signatures", "digital-signatures"]
 categories = ["cryptography"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core" }
+lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc"] }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-slh-dsa = { path = "../lib-q-slh-dsa", optional = true }
@@ -30,12 +31,12 @@ default = ["alloc", "ml-dsa", "std"]
 ml-dsa = ["lib-q-ml-dsa"]
 slh-dsa = ["alloc", "lib-q-slh-dsa", "sha2", "dep:rand_core"]
 slh-dsa-std = ["slh-dsa", "dep:lib-q-random", "lib-q-random/std", "lib-q-slh-dsa/std"]
-slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm_getrandom"]
+slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "dep:lib-q-random", "lib-q-random/wasm", "lib-q-random/getrandom", "lib-q-core/wasm_getrandom"]
 fn-dsa = ["lib-q-fn-dsa"]
-std = ["alloc"]
+std = ["alloc", "lib-q-core/std"]
 alloc = []
 no_std = []
-wasm = ["wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json"]
+wasm = ["alloc", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm"]
 
 [lib]
 name = "lib_q_sig"
@@ -47,6 +48,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
+wasm-bindgen-test = { workspace = true }
 
 [[bench]]
 name = "signature_benchmarks"

@@ -112,7 +112,12 @@ lib-Q ZKP Architecture
 ## Security Considerations
 
 ### Post-Quantum Security
-- **Hash functions**: Use SHAKE256 for collision resistance
+- **Hash functions**: Multiple NIST-approved hash options available (all FIPS 202 compliant):
+  - **SHAKE128**: 128-bit security level, lighter option for performance-sensitive applications
+  - **SHAKE256**: 256-bit security level, recommended default for production use
+  - **SHA3-256**: 256-bit security level, fixed-length output (non-XOF)
+- **Modular architecture**: The challenger and Merkle tree implementations are generic over hash functions via the `CryptographicHasher` trait, allowing any NIST-approved hash to be used
+- **Default recommendation**: SHAKE256 is the recommended default for all STARK operations
 - **Field arithmetic**: Use large prime fields (≥ 256 bits)
 - **Proof parameters**: Ensure quantum-resistant security levels
 

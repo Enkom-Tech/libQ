@@ -3,10 +3,6 @@ use std::io::BufReader;
 use std::path::Path;
 
 use serde::Deserialize;
-use {
-    hex,
-    serde_json,
-};
 
 #[derive(Debug, Deserialize)]
 struct MlDsaNISTKAT {

@@ -1,12 +1,18 @@
-//! Tests for HQC-specific functionality in lib-q-random
+//! Tests for HQC Reference Implementation in lib-q-random
 //!
-//! These tests verify that lib-q-random provides the specialized functions
-//! needed for HQC operations, following secure development practices.
+//! These tests verify that lib-q-random RNGs work correctly with HQC-style
+//! polynomial and cryptographic operations using the reference implementation
+//! in tests/common/hqc_reference.rs
+
+// Import common test utilities
+#[path = "common/mod.rs"]
+mod common;
 
 #[cfg(feature = "hqc")]
 mod hqc_tests {
     use lib_q_random::LibQRng;
-    use lib_q_random::hqc_specialized::*;
+
+    use super::common::hqc_reference::*;
 
     /// Test polynomial multiplication in GF(2)
     #[test]
@@ -138,15 +144,16 @@ mod hqc_tests {
     /// Test HQC decryption
     #[test]
     fn test_hqc_decrypt() {
-        let ciphertext = [1u8; 200];
-        let secret_key = [1u8; 100];
+        let ciphertext = [1u8, 2, 3, 4, 5];
+        let secret_key = [5u8, 4, 3, 2, 1];
         let mut message = [0u8; 5];
 
         let res = hqc_decrypt(&mut message, &ciphertext, &secret_key);
         assert!(res.is_ok());
 
-        // Message should not be all zeros
-        assert!(message.iter().any(|&x| x != 0));
+        // The simplified implementation XORs: ciphertext XOR secret_key
+        // Expected: [1^5, 2^4, 3^3, 4^2, 5^1] = [4, 6, 0, 6, 4]
+        assert_eq!(message, [4, 6, 0, 6, 4]);
     }
 
     /// Test deterministic behavior with same seeds

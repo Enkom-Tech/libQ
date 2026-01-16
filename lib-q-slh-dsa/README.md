@@ -233,7 +233,7 @@ if !is_valid {
 - **Security**: Requires external randomness management
 - **Use Case**: Embedded systems, `IoT` devices, constrained environments
 
-#### WebAssembly (WASM)
+#### `WebAssembly` (WASM)
 - **Advantages**: Cross-platform compatibility, sandboxed execution
 - **Security**: Limited RNG options, requires careful randomness management
 - **Use Case**: Web applications, browser-based cryptography

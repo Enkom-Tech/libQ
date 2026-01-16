@@ -20,9 +20,12 @@ fn random_array<const L: usize>() -> [u8; L] {
 fn random_message() -> Vec<u8> {
     let mut rng = LibQRng::new_secure().expect("Failed to create secure RNG");
 
+    // Limit message size to 4KB to avoid exceeding RNG entropy limits
+    // Original code could generate up to 65KB which exceeds the per-call limit
     let mut length = [0u8; 2];
     rng.fill_bytes(&mut length);
     let length = ((length[1] as u16) << 8) | length[0] as u16;
+    let length = length.min(4096); // Cap at 4KB
 
     let mut message = vec![0u8; length as usize];
     rng.fill_bytes(&mut message);

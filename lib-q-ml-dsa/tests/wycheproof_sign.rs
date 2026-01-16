@@ -26,10 +26,6 @@ use lib_q_ml_dsa::{
     MLDSASigningKey,
     SigningError,
 };
-use {
-    hex,
-    serde_json,
-};
 
 include!("wycheproof/sign_schema.rs");
 

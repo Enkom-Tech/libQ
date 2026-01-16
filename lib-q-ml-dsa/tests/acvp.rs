@@ -96,7 +96,7 @@ fn keygen_inner(
     test: KeyGenPrompt,
     results: &Results<ResultPromptTestGroup>,
     tgId: usize,
-    parameter_set: &String,
+    parameter_set: &str,
 ) {
     use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
@@ -119,7 +119,7 @@ fn keygen_inner(
         .find(|t| t.tcId == test.tcId)
         .unwrap();
 
-    match parameter_set.as_str() {
+    match parameter_set {
         "ML-DSA-44" => check(ml_dsa_44::generate_key_pair(test.seed), expected_result),
 
         "ML-DSA-65" => check(ml_dsa_65::generate_key_pair(test.seed), expected_result),
@@ -172,7 +172,7 @@ fn siggen_inner(
     test: SigGenTest,
     results: &Results<ResultSigGenTestGroup>,
     tgId: usize,
-    parameter_set: &String,
+    parameter_set: &str,
 ) {
     use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
@@ -188,34 +188,49 @@ fn siggen_inner(
 
     let Randomness(rnd) = test.rnd.unwrap_or(Randomness([0u8; 32]));
 
-    match parameter_set.as_str() {
+    match parameter_set {
         "ML-DSA-44" => {
             let signature = ml_dsa_44::sign_internal(
-                &MLDSASigningKey::new(test.sk.try_into().unwrap()),
+                &MLDSASigningKey::new(test.sk.clone().try_into().unwrap()),
                 &test.message,
                 rnd,
             )
-            .unwrap();
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Signing failed for tcId {}: {:?} (test vector may be invalid)",
+                    test.tcId, e
+                )
+            });
             assert_eq!(signature.as_slice(), expected_result.signature);
         }
 
         "ML-DSA-65" => {
             let signature = ml_dsa_65::sign_internal(
-                &MLDSASigningKey::new(test.sk.try_into().unwrap()),
+                &MLDSASigningKey::new(test.sk.clone().try_into().unwrap()),
                 &test.message,
                 rnd,
             )
-            .unwrap();
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Signing failed for tcId {}: {:?} (test vector may be invalid)",
+                    test.tcId, e
+                )
+            });
             assert_eq!(signature.as_slice(), expected_result.signature);
         }
 
         "ML-DSA-87" => {
             let signature = ml_dsa_87::sign_internal(
-                &MLDSASigningKey::new(test.sk.try_into().unwrap()),
+                &MLDSASigningKey::new(test.sk.clone().try_into().unwrap()),
                 &test.message,
                 rnd,
             )
-            .unwrap();
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Signing failed for tcId {}: {:?} (test vector may be invalid)",
+                    test.tcId, e
+                )
+            });
             assert_eq!(signature.as_slice(), expected_result.signature);
         }
         _ => unimplemented!(),
@@ -254,7 +269,7 @@ fn sigver_inner(
     results: &Results<ResultSigVerTestGroup>,
     tgId: usize,
     pk: &[u8],
-    parameter_set: &String,
+    parameter_set: &str,
 ) {
     use lib_q_ml_dsa::*;
     eprintln!("  {}", test.tcId);
@@ -268,7 +283,7 @@ fn sigver_inner(
         .find(|t| t.tcId == test.tcId)
         .unwrap();
 
-    match parameter_set.as_str() {
+    match parameter_set {
         "ML-DSA-44" => {
             let valid = ml_dsa_44::verify_internal(
                 &MLDSAVerificationKey::new(pk.to_owned().try_into().unwrap()),

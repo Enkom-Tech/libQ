@@ -36,19 +36,25 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::string::ToString;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+#[cfg(feature = "alloc")]
 use lib_q_core::api::{
     Algorithm,
     CryptoProvider,
     SignatureOperations,
 };
+#[cfg(feature = "alloc")]
 use lib_q_core::error::{
     Error,
     Result,
 };
+#[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
+#[cfg(feature = "alloc")]
 use lib_q_core::traits::{
     SigKeypair,
     SigPublicKey,
@@ -530,12 +536,12 @@ mod tests {
 
     #[test]
     fn test_provider_feature_flag_handling() {
-        let provider = LibQSignatureProvider::new().unwrap();
+        let _provider = LibQSignatureProvider::new().unwrap();
 
         // Test ML-DSA without feature flag
         #[cfg(not(feature = "ml-dsa"))]
         {
-            let result = provider.generate_keypair(Algorithm::MlDsa65, None);
+            let result = _provider.generate_keypair(Algorithm::MlDsa65, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"
@@ -554,7 +560,7 @@ mod tests {
         // Test FN-DSA without feature flag
         #[cfg(not(feature = "fn-dsa"))]
         {
-            let result = provider.generate_keypair(Algorithm::FnDsa512, None);
+            let result = _provider.generate_keypair(Algorithm::FnDsa512, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"
@@ -573,7 +579,7 @@ mod tests {
         // Test SLH-DSA without feature flag
         #[cfg(not(feature = "slh-dsa"))]
         {
-            let result = provider.generate_keypair(Algorithm::SlhDsaSha256128fRobust, None);
+            let result = _provider.generate_keypair(Algorithm::SlhDsaSha256128fRobust, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"

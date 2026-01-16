@@ -1,6 +1,6 @@
 [package]
 name = "fn-dsa"
-version = "0.3.0"
+version = "0.0.2"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -22,8 +22,8 @@ hex = { workspace = true }
 
 [features]
 default = []
-no_avx2 = []
-shake256x4 = [ "fn-dsa-comm/shake256x4", "fn-dsa-kgen/shake256x4", "fn-dsa-sign/shake256x4" ]
+no_avx2 = ["fn-dsa-comm/no_avx2", "fn-dsa-kgen/no_avx2", "fn-dsa-sign/no_avx2", "fn-dsa-vrfy/no_avx2"]
+shake256x4 = ["fn-dsa-comm/shake256x4", "fn-dsa-kgen/shake256x4", "fn-dsa-sign/shake256x4"]
 
 [[bench]]
 name = "keygen"

@@ -17,7 +17,7 @@ fn test_hqc1_parameters() {
     // Verify HQC-1 parameters against specification
     assert_eq!(Hqc1Params::N, 17669, "HQC-1 N parameter");
     assert_eq!(Hqc1Params::N1, 46, "HQC-1 N1 parameter");
-    assert_eq!(Hqc1Params::N2, 640, "HQC-1 N2 parameter");
+    assert_eq!(Hqc1Params::N2, 384, "HQC-1 N2 parameter (reference)");
     assert_eq!(Hqc1Params::OMEGA, 66, "HQC-1 OMEGA parameter");
     assert_eq!(Hqc1Params::OMEGA_R, 75, "HQC-1 OMEGA_R parameter");
 
@@ -29,14 +29,26 @@ fn test_hqc1_parameters() {
     );
     assert_eq!(
         Hqc1Params::VEC_N1N2_SIZE_64,
-        460,
-        "HQC-1 VEC_N1N2_SIZE_64 parameter"
+        276, // ceil(17664/64) for reference N1N2
+        "HQC-1 VEC_N1N2_SIZE_64 parameter (reference)"
     );
 
-    // Verify key and ciphertext sizes
-    assert_eq!(Hqc1Params::SECRET_KEY_BYTES, 2305, "HQC-1 SECRET_KEY_BYTES");
-    assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, 2249, "HQC-1 PUBLIC_KEY_BYTES");
-    assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, 5905, "HQC-1 CIPHERTEXT_BYTES");
+    // Verify key and ciphertext sizes (reference values from api.h)
+    assert_eq!(
+        Hqc1Params::SECRET_KEY_BYTES,
+        2321,
+        "HQC-1 SECRET_KEY_BYTES (reference)"
+    );
+    assert_eq!(
+        Hqc1Params::PUBLIC_KEY_BYTES,
+        2241,
+        "HQC-1 PUBLIC_KEY_BYTES (reference)"
+    );
+    assert_eq!(
+        Hqc1Params::CIPHERTEXT_BYTES,
+        4433,
+        "HQC-1 CIPHERTEXT_BYTES (reference)"
+    );
     assert_eq!(
         Hqc1Params::SHARED_SECRET_BYTES,
         32,
@@ -135,10 +147,9 @@ fn test_parameter_consistency() {
     const _: () = assert!(Hqc1Params::N1 < Hqc3Params::N1);
     const _: () = assert!(Hqc3Params::N1 < Hqc5Params::N1);
 
-    // Verify that N2 is consistent for HQC-3 and HQC-5 (both 640)
-    // HQC-1 has N2=640, HQC-3 and HQC-5 also have N2=640
-    const _: () = assert!(Hqc1Params::N2 == Hqc3Params::N2);
-    const _: () = assert!(Hqc3Params::N2 == Hqc5Params::N2);
+    // Verify N2 values per reference: HQC-1 has N2=384, HQC-3 and HQC-5 have N2=640
+    const _: () = assert!(Hqc1Params::N2 < Hqc3Params::N2); // 384 < 640
+    const _: () = assert!(Hqc3Params::N2 == Hqc5Params::N2); // 640 == 640
 
     // Verify that OMEGA increases with security level
     // OMEGA should increase with security level
@@ -209,9 +220,9 @@ fn test_key_size_calculations() {
     // PUBLIC_KEY_BYTES = SEED_BYTES + VEC_N_SIZE_64 * 8
     // CIPHERTEXT_BYTES = VEC_N_SIZE_64 * 8 + VEC_N1N2_SIZE_64 * 8
 
-    let hqc1_expected_pk = 2249; // NIST Oct 2024 specification
-    let hqc1_expected_sk = 2305; // NIST Oct 2024 specification
-    let hqc1_expected_ct = 5905; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
+    let hqc1_expected_pk = 2241; // Reference: CRYPTO_PUBLICKEYBYTES
+    let hqc1_expected_sk = 2321; // Reference: CRYPTO_SECRETKEYBYTES
+    let hqc1_expected_ct = 4433; // Reference: CRYPTO_CIPHERTEXTBYTES
 
     assert_eq!(
         Hqc1Params::PUBLIC_KEY_BYTES,

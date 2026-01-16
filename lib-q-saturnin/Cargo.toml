@@ -2,6 +2,7 @@
 name = "lib-q-saturnin"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Saturnin post-quantum symmetric algorithm suite for lib-Q"
 license.workspace = true

@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-stark-commit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A framework for implementing various cryptographic commitment schemes, including non-hiding variants."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+serde = { workspace = true }
+
+# for testing
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", optional = true }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", optional = true }
+
+[dev-dependencies]
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft" }
+
+[features]
+default = ["test-utils"]
+test-utils = ["lib-q-stark-challenger", "lib-q-stark-dft"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

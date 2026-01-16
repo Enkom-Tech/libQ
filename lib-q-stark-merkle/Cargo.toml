@@ -1,0 +1,42 @@
+[package]
+name = "lib-q-stark-merkle"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A Merkle tree implementation providing commitment scheme functionality for cryptographic proofs."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-commit = { path = "../lib-q-stark-commit" }
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+rand = { workspace = true, features = ["small_rng"] }
+serde = { workspace = true, features = ["alloc"] }
+thiserror = { version = "2.0.17", default-features = false }
+tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+
+[dev-dependencies]
+lib-q-stark-mds = { path = "../lib-q-stark-mds" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256" }
+
+criterion = { workspace = true }
+
+[[bench]]
+name = "merkle_tree"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

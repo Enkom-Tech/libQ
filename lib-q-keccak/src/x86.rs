@@ -1,4 +1,4 @@
-//! x86 SIMD optimizations for Keccak-p[1600]
+//! x86 SIMD optimizations for Keccak-p\[1600\]
 //!
 //! This module provides optimized implementations using AVX2 and AVX-512
 //! instruction sets, based on the XKCP reference implementation.

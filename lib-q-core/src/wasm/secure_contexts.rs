@@ -212,6 +212,7 @@ impl SecureWasmKemContext {
 
     /// Get supported algorithms
     pub fn get_supported_algorithms(&self) -> Result<JsValue, JsValue> {
+        #[allow(unused_mut)] // mut needed when feature flags are enabled
         let mut algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024"];
         #[cfg(feature = "dawn")]
         {

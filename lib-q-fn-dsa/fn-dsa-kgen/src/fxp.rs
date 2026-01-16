@@ -4943,8 +4943,8 @@ mod tests {
         // that all the constants have been correctly generated.
         let mut sh = Sha256::new();
         for z in GM_TAB.iter() {
-            sh.update(&z.re.0.to_le_bytes());
-            sh.update(&z.im.0.to_le_bytes());
+            sh.update(z.re.0.to_le_bytes());
+            sh.update(z.im.0.to_le_bytes());
         }
         assert!(
             sh.finalize()[..] ==

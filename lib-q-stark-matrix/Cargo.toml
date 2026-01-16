@@ -1,0 +1,45 @@
+[package]
+name = "lib-q-stark-matrix"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A matrix library providing common matrix operations and traits for finite field elements."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+transpose = "0.2.3"
+zeroize = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
+criterion = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
+
+[[bench]]
+name = "transpose_benchmark"
+path = "benches/transpose_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "columnwise_dot_product"
+path = "benches/columnwise_dot_product.rs"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

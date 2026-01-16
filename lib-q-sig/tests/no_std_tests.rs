@@ -35,8 +35,8 @@ mod slh_dsa_no_std_tests {
         // Generate deterministic randomness
         // Shake128f requires 48 bytes (16 * 3) for key generation
         let mut randomness = [0u8; 48];
-        for i in 0..48 {
-            randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair = slh_dsa
@@ -71,8 +71,8 @@ mod slh_dsa_no_std_tests {
         // Generate keypair with external randomness
         // Shake128f requires 48 bytes (16 * 3) for key generation
         let mut key_randomness = [0u8; 48];
-        for i in 0..48 {
-            key_randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        for (i, byte) in key_randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair = slh_dsa
@@ -82,8 +82,8 @@ mod slh_dsa_no_std_tests {
         // Sign with external randomness
         let message = b"Hello, no_std SLH-DSA!";
         let mut signing_randomness = [0u8; 16]; // SLH-DSA uses first 16 bytes
-        for i in 0..16 {
-            signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+        for (i, byte) in signing_randomness.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
         }
 
         let signature = slh_dsa
@@ -151,8 +151,8 @@ mod slh_dsa_no_std_tests {
             // Generate deterministic randomness
             // Use 96 bytes for all parameter sets (works for 256-bit, sufficient for others)
             let mut randomness = [0u8; 96];
-            for i in 0..96 {
-                randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+            for (i, byte) in randomness.iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
 
             let keypair = slh_dsa
@@ -168,8 +168,12 @@ mod slh_dsa_no_std_tests {
                 _ => 16,
             };
             let mut signing_randomness = [0u8; 32]; // Use fixed size array
-            for i in 0..signing_randomness_size {
-                signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+            for (i, byte) in signing_randomness
+                .iter_mut()
+                .take(signing_randomness_size)
+                .enumerate()
+            {
+                *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
             }
 
             let signature = slh_dsa

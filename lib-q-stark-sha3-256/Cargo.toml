@@ -1,0 +1,23 @@
+[package]
+name = "lib-q-stark-sha3-256"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "SHA3-256 adapter for lib-Q STARK implementation"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+digest = "0.11.0-rc.4"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
+

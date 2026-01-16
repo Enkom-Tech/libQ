@@ -42,6 +42,44 @@ impl<P: HqcParams> HqcPke<P> {
         &self.concatenated_code
     }
 
+    /// XOF get bytes matching reference xof_get_bytes behavior
+    ///
+    /// The reference xof_get_bytes has special handling for non-8-byte-aligned sizes:
+    ///
+    /// 1. Squeeze (output_size - remainder) bytes directly
+    /// 2. Squeeze 8 more bytes into tmp buffer
+    /// 3. Copy only 'remainder' bytes from tmp to output
+    ///
+    /// This ensures consistent XOF state advancement across implementations.
+    fn xof_get_bytes(xof: &mut Shake256Xof, output: &mut [u8]) -> Result<(), HqcPkeError> {
+        let output_size = output.len();
+        let bsize = 8usize;
+        let remainder = output_size % bsize;
+
+        if remainder == 0 {
+            // Output size is 8-byte aligned - simple case
+            xof.squeeze(output).map_err(|_| HqcPkeError::HashError)?;
+        } else {
+            // Output size is NOT 8-byte aligned - match reference behavior
+            let aligned_size = output_size - remainder;
+
+            // Squeeze aligned portion directly
+            if aligned_size > 0 {
+                xof.squeeze(&mut output[..aligned_size])
+                    .map_err(|_| HqcPkeError::HashError)?;
+            }
+
+            // Squeeze 8 more bytes into tmp (reference behavior!)
+            let mut tmp = [0u8; 8];
+            xof.squeeze(&mut tmp).map_err(|_| HqcPkeError::HashError)?;
+
+            // Copy only first 'remainder' bytes from tmp
+            output[aligned_size..].copy_from_slice(&tmp[..remainder]);
+        }
+
+        Ok(())
+    }
+
     /// Generate a key pair for HQC PKE with a random seed
     ///
     /// Returns (public_key, secret_key) where:
@@ -62,66 +100,61 @@ impl<P: HqcParams> HqcPke<P> {
     /// - public_key: (seed_ek, s) where seed_ek is used to derive h and s = y*h + x
     /// - secret_key: (seed_dk) where seed_dk is used to derive y
     ///
-    /// This implementation matches the reference implementation approach:
-    /// - Takes a 48-byte seed (for KAT compatibility)
-    /// - Initializes PRNG with the seed
-    /// - Generates two separate 32-byte seeds using sequential PRNG calls
+    /// This implementation matches the reference implementation KAT generation flow:
+    /// - Takes entropy seed (48 bytes for KAT compatibility)
+    /// - Derives seed_kem using SHAKE-256 PRNG (domain=0)
+    /// - Derives seed_pke from seed_kem using XOF (SHAKE-256 with domain=1)
+    /// - Uses hash_i (SHA3-512 with domain=2) on seed_pke to derive keypair seeds
+    /// - Produces seed_dk (32 bytes) and seed_ek (32 bytes)
     pub fn keygen_with_seed(
         &self,
         seed: &[u8],
     ) -> Result<(HqcPkePublicKey<P>, HqcPkeSecretKey<P>), HqcPkeError> {
-        use rand_core::RngCore;
+        // Step 1: Derive seed_kem from entropy using PRNG (SHAKE-256 with domain=0)
+        // This matches the reference implementation prng_init/prng_get_bytes exactly:
+        //   shake256_inc_absorb(&shake256_prng_ctx, entropy_input, enlen);
+        //   shake256_inc_absorb(&shake256_prng_ctx, personalization_string, perlen); // empty
+        //   shake256_inc_absorb(&shake256_prng_ctx, &domain, 1);
+        //   shake256_inc_finalize(&shake256_prng_ctx);
+        let mut prng_ctx = Shake256Xof::new();
+        prng_ctx.absorb(seed).map_err(|_| HqcPkeError::HashError)?;
+        prng_ctx.absorb(&[]).map_err(|_| HqcPkeError::HashError)?; // empty personalization string
+        const HQC_PRNG_DOMAIN: u8 = 0;
+        prng_ctx
+            .absorb(&[HQC_PRNG_DOMAIN])
+            .map_err(|_| HqcPkeError::HashError)?;
+        prng_ctx
+            .finalize_absorb()
+            .map_err(|_| HqcPkeError::HashError)?;
+        let mut seed_kem = [0u8; 32];
+        prng_ctx
+            .squeeze(&mut seed_kem)
+            .map_err(|_| HqcPkeError::HashError)?;
 
-        // The seed should be 48 bytes for KAT compatibility
-        let mut seed_48 = [0u8; 48];
-        if seed.len() >= 48 {
-            seed_48.copy_from_slice(&seed[..48]);
-        } else {
-            seed_48[..seed.len()].copy_from_slice(seed);
-        }
+        // Step 2: Derive seed_pke from seed_kem using XOF (SHAKE-256 with domain=1)
+        // This matches the reference implementation in kem.c:
+        //   xof_init(&ctx_kem, seed_kem, SEED_BYTES);
+        //   xof_get_bytes(&ctx_kem, seed_pke, SEED_BYTES);
+        let mut xof_ctx = Shake256Xof::new();
+        xof_ctx
+            .init_with_domain(&seed_kem, 1) // HQC_XOF_DOMAIN = 1
+            .map_err(|_| HqcPkeError::HashError)?;
+        let mut seed_pke = [0u8; 32];
+        xof_ctx
+            .squeeze(&mut seed_pke)
+            .map_err(|_| HqcPkeError::HashError)?;
 
-        // Mutually exclusive DRBG selection with diagnostic mode support
-        #[cfg(all(
-            feature = "bearssl-aes",
-            feature = "aes-drbg",
-            feature = "debug-drbg-interop"
-        ))]
-        let mut rng = {
-            // Dual-mode diagnostics: Use BearSSL as primary, log comparison with Rust AES
-            let bearssl_rng =
-                crate::bearssl_aes_ctr_drbg::BearSslAes256CtrDrbg::instantiate(&seed_48);
-            let rust_rng = crate::aes_ctr_drbg::Aes256CtrDrbg::instantiate(&seed_48);
+        // Step 3: Derive keypair seeds using hash_i (SHA3-512 with domain=2)
+        // This matches the reference implementation in hqc.c:
+        //   hash_i(keypair_seed, seed);  // seed is seed_pke
+        let mut keypair_seed = [0u8; 64];
+        self.hash_i(&mut keypair_seed, &seed_pke);
 
-            // Create diagnostic wrapper that generates from both and logs differences
-            crate::drbg_diagnostic::DualModeDrbg::new(bearssl_rng, rust_rng)
-        };
-
-        #[cfg(all(
-            feature = "bearssl-aes",
-            feature = "aes-drbg",
-            not(feature = "debug-drbg-interop")
-        ))]
-        compile_error!(
-            "Both 'aes-drbg' and 'bearssl-aes' features are enabled. \
-             Please enable 'debug-drbg-interop' feature for diagnostic mode, \
-             or disable one of the DRBG implementations."
-        );
-
-        #[cfg(all(feature = "bearssl-aes", not(feature = "aes-drbg")))]
-        let mut rng = crate::bearssl_aes_ctr_drbg::BearSslAes256CtrDrbg::instantiate(&seed_48);
-
-        #[cfg(all(feature = "aes-drbg", not(feature = "bearssl-aes")))]
-        let mut rng = crate::aes_ctr_drbg::Aes256CtrDrbg::instantiate(&seed_48);
-
-        #[cfg(not(any(feature = "aes-drbg", feature = "bearssl-aes")))]
-        let mut rng = crate::shake256_prng::create_shake256_prng_rng(seed_48);
-
-        // Generate two separate seeds from DRBG (matching reference implementation)
-        // The reference calls randombytes(seed_dk, 32) and randombytes(seed_ek, 32) separately
+        // Split the 64-byte hash output into seed_dk and seed_ek
         let mut seed_dk = [0u8; 32];
         let mut seed_ek = [0u8; 32];
-        rng.fill_bytes(&mut seed_dk);
-        rng.fill_bytes(&mut seed_ek);
+        seed_dk.copy_from_slice(&keypair_seed[..32]);
+        seed_ek.copy_from_slice(&keypair_seed[32..64]);
 
         // Generate decryption key components using seed_dk
         let mut dk_xof = Shake256Xof::new();
@@ -463,8 +496,8 @@ impl<P: HqcParams> HqcPke<P> {
         while i < weight {
             loop {
                 if j == random_bytes_size {
-                    xof.squeeze(&mut rand_bytes)
-                        .map_err(|_| HqcPkeError::HashError)?;
+                    // Use xof_get_bytes to match reference XOF consumption behavior
+                    Self::xof_get_bytes(xof, &mut rand_bytes)?;
                     j = 0;
                 }
 
@@ -502,10 +535,9 @@ impl<P: HqcParams> HqcPke<P> {
         // Implementation based on reference vector.c vect_generate_random_support2
         let mut rand_u32 = vec![0u32; weight];
 
-        // Get random bytes from XOF
+        // Get random bytes from XOF using reference-compatible behavior
         let mut bytes = vec![0u8; weight * 4];
-        xof.squeeze(&mut bytes)
-            .map_err(|_| HqcPkeError::HashError)?;
+        Self::xof_get_bytes(xof, &mut bytes)?;
 
         // Convert bytes to u32 array (little-endian)
         for (i, item) in rand_u32.iter_mut().enumerate() {
@@ -603,30 +635,77 @@ impl<P: HqcParams> HqcPke<P> {
     }
 
     /// Set random vector
+    /// Matches reference xof_get_bytes behavior which handles non-8-byte-aligned sizes specially
     pub fn vect_set_random(
         &self,
         xof: &mut Shake256Xof,
         output: &mut [u64],
     ) -> Result<(), HqcPkeError> {
-        // Get bytes from XOF and convert to u64 array
-        let mut bytes = vec![0u8; output.len() * 8];
-        xof.squeeze(&mut bytes)
-            .map_err(|_| HqcPkeError::HashError)?;
+        // Match reference: xof_get_bytes(ctx, (uint8_t *)v, VEC_N_SIZE_BYTES);
+        // The reference uses VEC_N_SIZE_BYTES, not output.len() * 8!
+        // For HQC-128: VEC_N_SIZE_BYTES = 2209, not 277 * 8 = 2216
+        let output_size = P::VEC_N_SIZE_BYTES;
 
-        // Convert bytes to u64 array (little-endian)
-        for (i, item) in output.iter_mut().enumerate() {
-            let start = i * 8;
-            let end = start + 8;
-            let mut u64_bytes = [0u8; 8];
-            u64_bytes.copy_from_slice(&bytes[start..end]);
-            *item = u64::from_le_bytes(u64_bytes);
+        // Reference xof_get_bytes has special handling for non-8-byte-aligned sizes:
+        // 1. Squeeze (output_size - remainder) bytes directly
+        // 2. Squeeze 8 more bytes into tmp buffer
+        // 3. Copy only 'remainder' bytes from tmp
+        // This ensures the XOF state is advanced consistently
+        let bsize = 8usize;
+        let remainder = output_size % bsize;
+
+        // Clear output first
+        for item in output.iter_mut() {
+            *item = 0;
         }
 
-        // Apply bitmask to last word if needed (like reference implementation)
+        if remainder == 0 {
+            // Output size is 8-byte aligned - simple case
+            let mut bytes = vec![0u8; output_size];
+            xof.squeeze(&mut bytes)
+                .map_err(|_| HqcPkeError::HashError)?;
+
+            for (i, item) in output.iter_mut().enumerate() {
+                let start = i * 8;
+                if start + 8 <= bytes.len() {
+                    let mut u64_bytes = [0u8; 8];
+                    u64_bytes.copy_from_slice(&bytes[start..start + 8]);
+                    *item = u64::from_le_bytes(u64_bytes);
+                }
+            }
+        } else {
+            // Output size is NOT 8-byte aligned - match reference xof_get_bytes behavior
+            // Squeeze the aligned portion
+            let aligned_size = output_size - remainder;
+            let mut aligned_bytes = vec![0u8; aligned_size];
+            xof.squeeze(&mut aligned_bytes)
+                .map_err(|_| HqcPkeError::HashError)?;
+
+            // Squeeze 8 more bytes into tmp (reference behavior!)
+            let mut tmp = [0u8; 8];
+            xof.squeeze(&mut tmp).map_err(|_| HqcPkeError::HashError)?;
+
+            // Convert aligned portion to u64s
+            let full_words = aligned_size / 8;
+            for (i, chunk) in aligned_bytes.chunks_exact(8).enumerate().take(full_words) {
+                let mut u64_bytes = [0u8; 8];
+                u64_bytes.copy_from_slice(chunk);
+                output[i] = u64::from_le_bytes(u64_bytes);
+            }
+
+            // Handle the last partial word using tmp (only first 'remainder' bytes)
+            if full_words < output.len() {
+                let mut last_bytes = [0u8; 8];
+                last_bytes[..remainder].copy_from_slice(&tmp[..remainder]);
+                output[full_words] = u64::from_le_bytes(last_bytes);
+            }
+        }
+
+        // Apply bitmask to last word (reference: v[VEC_N_SIZE_64 - 1] &= BITMASK(PARAM_N, 64))
         if !output.is_empty() {
             let last_word_idx = output.len() - 1;
-            let bitmask = (1u64 << (P::N % 64)) - 1;
             if P::N % 64 != 0 {
+                let bitmask = (1u64 << (P::N % 64)) - 1;
                 output[last_word_idx] &= bitmask;
             }
         }
@@ -776,14 +855,28 @@ impl<P: HqcParams> HqcPke<P> {
         }
     }
 
-    /// Convert vector to bytes
+    /// Convert vector to bytes (matches reference hqc_store8)
+    /// Writes exactly output.len() bytes from the input u64 array
     fn vect_to_bytes(&self, input: &[u64], output: &mut [u8]) -> Result<(), HqcPkeError> {
-        for (i, &word) in input.iter().enumerate() {
-            let start = i * 8;
-            if start + 8 <= output.len() {
-                output[start..start + 8].copy_from_slice(&word.to_le_bytes());
+        let full_words = output.len() / 8;
+        let remainder = output.len() % 8;
+
+        // Write full 8-byte words
+        for i in 0..full_words {
+            if i >= input.len() {
+                break;
             }
+            let start = i * 8;
+            output[start..start + 8].copy_from_slice(&input[i].to_le_bytes());
         }
+
+        // Write remaining partial bytes from the last word
+        if remainder > 0 && full_words < input.len() {
+            let start = full_words * 8;
+            let word_bytes = input[full_words].to_le_bytes();
+            output[start..start + remainder].copy_from_slice(&word_bytes[..remainder]);
+        }
+
         Ok(())
     }
 

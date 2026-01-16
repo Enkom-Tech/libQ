@@ -17,11 +17,10 @@
 //! platforms and use cases, including OS entropy, hardware RNGs, and
 //! deterministic sources for testing.
 
-#[cfg(not(feature = "std"))]
-use alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+#[cfg(feature = "alloc")]
+use alloc::boxed::Box;
+#[cfg(all(not(feature = "std"), feature = "hqc"))]
+use alloc::vec::Vec;
 
 use crate::traits::{
     EntropyConfig,
@@ -319,14 +318,24 @@ impl Default for HardwareEntropySource {
 ///
 /// This entropy source provides deterministic "entropy" based on a seed,
 /// making it suitable for testing and reproducible operations.
-/// **NOT CRYPTOGRAPHICALLY SECURE**.
+///
+/// **USE CASE**: This is designed for:
+/// - Unit testing with reproducible outcomes
+/// - Known Answer Tests (KAT) verification
+/// - Benchmarking with consistent inputs
+///
+/// **NOT FOR CRYPTOGRAPHIC USE**: For actual cryptographic operations,
+/// use `OsEntropySource` or other secure entropy sources.
+///
+/// The implementation uses xorshift64* which provides excellent statistical
+/// properties suitable for testing, though it is deterministic by design.
 #[derive(Debug, Clone)]
 pub struct DeterministicEntropySource {
     /// Seed for deterministic generation
     seed: u64,
     /// Counter for generation
     counter: u64,
-    /// Quality estimate (low for deterministic)
+    /// Quality estimate (0.0 for deterministic)
     quality: f64,
 }
 
@@ -335,37 +344,42 @@ impl DeterministicEntropySource {
     pub fn new(seed: &[u8]) -> Self {
         let mut seed_value = 0u64;
 
-        // Use a better hash function to combine seed bytes
+        // Use SipHash-inspired mixing for better seed distribution
         for (i, &byte) in seed.iter().enumerate() {
-            let shift = (i % 8) * 8;
-            seed_value ^= (byte as u64) << shift;
-            // Add some mixing
-            seed_value = seed_value.wrapping_mul(0x9E3779B97F4A7C15u64);
+            seed_value = seed_value.wrapping_add(u64::from(byte));
+            seed_value = seed_value.wrapping_mul(0x9E37_79B9_7F4A_7C15_u64);
+            seed_value ^= seed_value >> 32;
+            seed_value =
+                seed_value.wrapping_add((i as u64).wrapping_mul(0x517C_C1B7_2722_0A95_u64));
         }
 
-        // Ensure different seeds produce different initial states
+        // Final mixing
+        seed_value ^= seed_value.wrapping_mul(0x94D0_49BB_1331_11EB_u64);
+        seed_value ^= seed_value >> 31;
+
+        // Ensure non-zero
         if seed_value == 0 {
-            seed_value = 1;
+            seed_value = 0xCAFE_BABE_DEAD_BEEF_u64;
         }
 
         Self {
             seed: seed_value,
             counter: 0,
-            quality: 0.0, // Deterministic sources have no entropy
+            quality: 0.0, // Deterministic sources have no true entropy
         }
     }
 
-    /// Generate deterministic "entropy"
+    /// Generate deterministic "entropy" using xorshift64*
     fn generate_deterministic_bytes(&mut self, dest: &mut [u8]) {
         for chunk in dest.chunks_mut(8) {
-            // Simple LCG for deterministic generation
-            self.seed = self
-                .seed
-                .wrapping_mul(6364136223846793005u64)
-                .wrapping_add(1442695040888963407u64);
+            // xorshift64* algorithm - passes BigCrush tests
+            self.seed ^= self.seed >> 12;
+            self.seed ^= self.seed << 25;
+            self.seed ^= self.seed >> 27;
             self.counter = self.counter.wrapping_add(1);
 
-            let value = self.seed ^ self.counter;
+            // Mix with counter for additional stream differentiation
+            let value = self.seed.wrapping_mul(0x2545_F491_4F6C_DD1D_u64) ^ self.counter;
             let bytes = value.to_le_bytes();
 
             let len = chunk.len().min(8);
@@ -780,10 +794,9 @@ impl EntropySourceFactory {
 #[cfg(test)]
 mod tests {
     #[cfg(not(feature = "std"))]
-    use alloc::{
-        format,
-        vec,
-    };
+    use alloc::format;
+    #[cfg(all(test, feature = "alloc"))]
+    use alloc::vec;
 
     use super::*;
 
@@ -899,15 +912,15 @@ mod tests {
             let mut bytes = Vec::new();
             let mut chars = hex.chars().peekable();
             while let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
-                let byte = u8::from_str_radix(&format!("{}{}", c1, c2), 16).unwrap();
+                let byte = u8::from_str_radix(&format!("{c1}{c2}"), 16).unwrap();
                 bytes.push(byte);
             }
             bytes
         }
 
         let mut entropy_input = [0u8; 48];
-        for i in 0..48 {
-            entropy_input[i] = i as u8;
+        for (i, byte) in entropy_input.iter_mut().enumerate().take(48) {
+            *byte = u8::try_from(i).expect("i < 48, so conversion to u8 is safe");
         }
 
         let mut drbg = NistAes256CtrDrbg::new();

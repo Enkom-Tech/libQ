@@ -732,14 +732,28 @@ impl Default for AlgorithmRegistry {
 }
 
 // Global algorithm registry instance
-lazy_static::lazy_static! {
-    static ref REGISTRY: AlgorithmRegistry = AlgorithmRegistry::new();
-}
+// Note: AlgorithmRegistry requires alloc (uses HashMap/BTreeMap)
+#[cfg(all(feature = "alloc", feature = "std"))]
+static REGISTRY: once_cell::sync::Lazy<AlgorithmRegistry> =
+    once_cell::sync::Lazy::new(AlgorithmRegistry::new);
+
+#[cfg(all(feature = "alloc", not(feature = "std"), feature = "spin"))]
+static REGISTRY: spin::Once<AlgorithmRegistry> = spin::Once::new();
 
 /// Get the global algorithm registry
+/// Requires alloc feature (registry uses HashMap/BTreeMap internally)
+#[cfg(all(feature = "alloc", feature = "std"))]
 pub fn registry() -> &'static AlgorithmRegistry {
     &REGISTRY
 }
+
+#[cfg(all(feature = "alloc", not(feature = "std"), feature = "spin"))]
+pub fn registry() -> &'static AlgorithmRegistry {
+    REGISTRY.call_once(AlgorithmRegistry::new)
+}
+
+// registry() is not available in no_alloc mode
+// Use supported_algorithms() etc. which return static slices directly
 
 /// Get all supported algorithms
 #[cfg(feature = "alloc")]
@@ -749,7 +763,19 @@ pub fn supported_algorithms() -> Vec<Algorithm> {
 
 #[cfg(not(feature = "alloc"))]
 pub fn supported_algorithms() -> &'static [Algorithm] {
-    registry().supported_algorithms()
+    // In no_alloc mode, return static slice directly without using registry
+    static ALGORITHMS: &[Algorithm] = &[
+        Algorithm::MlKem512,
+        Algorithm::MlKem768,
+        Algorithm::MlKem1024,
+        Algorithm::MlDsa44,
+        Algorithm::MlDsa65,
+        Algorithm::MlDsa87,
+        Algorithm::FnDsa,
+        Algorithm::FnDsa512,
+        Algorithm::FnDsa1024,
+    ];
+    ALGORITHMS
 }
 
 /// Get algorithms by category
@@ -760,7 +786,33 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
 
 #[cfg(not(feature = "alloc"))]
 pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorithm] {
-    registry().algorithms_by_category(category)
+    // In no_alloc mode, return static slice directly without using registry
+    match category {
+        AlgorithmCategory::Kem => &[
+            Algorithm::MlKem512,
+            Algorithm::MlKem768,
+            Algorithm::MlKem1024,
+        ],
+        AlgorithmCategory::Signature => &[
+            Algorithm::MlDsa44,
+            Algorithm::MlDsa65,
+            Algorithm::MlDsa87,
+            Algorithm::FnDsa,
+            Algorithm::FnDsa512,
+            Algorithm::FnDsa1024,
+        ],
+        AlgorithmCategory::Hash => &[
+            Algorithm::Sha224,
+            Algorithm::Sha256,
+            Algorithm::Sha384,
+            Algorithm::Sha512,
+        ],
+        AlgorithmCategory::Aead => &[
+            Algorithm::Saturnin,
+            Algorithm::Shake256Aead,
+            Algorithm::KemAead,
+        ],
+    }
 }
 
 /// Get algorithms by security level
@@ -771,7 +823,21 @@ pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
 
 #[cfg(not(feature = "alloc"))]
 pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
-    registry().algorithms_by_security_level(level)
+    // In no_alloc mode, return static slice directly without using registry
+    match level {
+        1 => &[
+            Algorithm::MlKem512,
+            Algorithm::MlDsa44,
+            Algorithm::FnDsa,
+            Algorithm::FnDsa512,
+            Algorithm::Saturnin,
+            Algorithm::Shake256Aead,
+        ],
+        3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
+        4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87, Algorithm::KemAead],
+        5 => &[Algorithm::FnDsa1024],
+        _ => &[],
+    }
 }
 
 #[cfg(test)]

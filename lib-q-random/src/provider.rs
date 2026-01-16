@@ -7,14 +7,18 @@
 //! This module provides the main RNG provider implementation and factory
 //! for creating and managing RNG instances with different characteristics.
 
+#[cfg(feature = "alloc")]
 use core::fmt;
 
+#[cfg(feature = "alloc")]
 use rand_core::{
     CryptoRng,
     RngCore,
 };
 
+#[cfg(feature = "alloc")]
 use crate::Result;
+#[cfg(feature = "alloc")]
 use crate::traits::{
     EntropySource,
     ProviderCapabilities,
@@ -23,6 +27,7 @@ use crate::traits::{
     SecureRng,
     SecurityLevel,
 };
+#[cfg(feature = "alloc")]
 use crate::validation::EntropyValidator;
 
 /// Main libQ random number generator
@@ -30,9 +35,9 @@ use crate::validation::EntropyValidator;
 /// This is the primary RNG implementation for the libQ ecosystem, providing
 /// a unified interface for secure random number generation across different
 /// platforms and use cases.
+#[cfg(feature = "alloc")]
 pub struct LibQRng {
     /// Entropy source for random data
-    #[cfg(feature = "alloc")]
     entropy_source: Box<dyn EntropySource>,
     /// Entropy validator for quality assessment
     validator: EntropyValidator,
@@ -566,7 +571,7 @@ impl ::signature::rand_core::RngCore for LibQRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::fill_bytes(self, dest)
+        <Self as RngCore>::fill_bytes(self, dest);
     }
 }
 
@@ -640,10 +645,7 @@ impl Default for LibQRngProvider {
 #[cfg(test)]
 mod tests {
     #[cfg(not(feature = "std"))]
-    use alloc::{
-        format,
-        vec,
-    };
+    use alloc::format;
 
     use rand_core::RngCore;
 

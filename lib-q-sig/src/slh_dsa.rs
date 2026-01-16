@@ -597,7 +597,7 @@ mod tests {
     #[test]
     fn test_slh_dsa_creation() {
         let slh_dsa = SlhDsa::new();
-        assert_eq!(slh_dsa, SlhDsa::default());
+        assert_eq!(slh_dsa, SlhDsa);
     }
 
     #[cfg(feature = "slh-dsa")]

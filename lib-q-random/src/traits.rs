@@ -346,6 +346,7 @@ pub struct EntropyConfig {
     /// Additional configuration parameters
     #[cfg(feature = "alloc")]
     pub parameters: BTreeMap<String, String>,
+    /// Additional configuration parameters (no_std version - placeholder)
     #[cfg(not(feature = "alloc"))]
     pub parameters: (),
 }

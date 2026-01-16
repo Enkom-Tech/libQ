@@ -162,11 +162,7 @@ fn test_constant_time_properties() {
 
     // While we can't guarantee exact timing equality, we should ensure
     // that the difference isn't so large as to leak message length
-    let time_diff = if short_time > long_time {
-        short_time - long_time
-    } else {
-        long_time - short_time
-    };
+    let time_diff = short_time.abs_diff(long_time);
 
     // Allow for some variance but ensure it's not excessive
     let max_allowed_diff = std::time::Duration::from_millis(100);

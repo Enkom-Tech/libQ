@@ -83,8 +83,8 @@ impl HqcParams for Hqc1Params {
     const SECURITY_LEVEL: usize = 128;
     const N: usize = 17669; // Official HQC-1 parameter
     const N1: usize = 46; // Official HQC-1 parameter
-    const N2: usize = 640; // Official HQC-1 parameter (NIST Oct 2024)
-    const N1N2: usize = 29440; // Official HQC-1 parameter (N1 * N2 = 46 * 640)
+    const N2: usize = 384; // Reference parameter (PARAM_N2 in parameters.h)
+    const N1N2: usize = 17664; // Reference parameter (N1 * N2 = 46 * 384)
     const K: usize = 16; // Official HQC-1 parameter
     const OMEGA: usize = 66; // Official HQC-1 parameter
     const OMEGA_E: usize = 75; // Official HQC-1 parameter
@@ -96,9 +96,9 @@ impl HqcParams for Hqc1Params {
     const G: usize = 31; // Matches RS_POLY_COEFS array length
     const FFT: usize = 4;
 
-    const SECRET_KEY_BYTES: usize = 2305; // NIST Oct 2024 specification
-    const PUBLIC_KEY_BYTES: usize = 2249; // NIST Oct 2024 specification
-    const CIPHERTEXT_BYTES: usize = 2209 + 3680 + 16; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
+    const SECRET_KEY_BYTES: usize = 2321; // Reference: CRYPTO_SECRETKEYBYTES
+    const PUBLIC_KEY_BYTES: usize = 2241; // Reference: CRYPTO_PUBLICKEYBYTES = 32 + VEC_N_SIZE_BYTES
+    const CIPHERTEXT_BYTES: usize = 4433; // Reference: CRYPTO_CIPHERTEXTBYTES (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES)
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
 
     const SEED_BYTES: usize = 32;
@@ -106,11 +106,11 @@ impl HqcParams for Hqc1Params {
 
     const VEC_N_SIZE_BYTES: usize = 2209; // CEIL_DIVIDE(17669, 8)
     const VEC_N1_SIZE_BYTES: usize = 46; // PARAM_N1 directly
-    const VEC_N1N2_SIZE_BYTES: usize = 3680; // CEIL_DIVIDE(29440, 8)
+    const VEC_N1N2_SIZE_BYTES: usize = 2208; // CEIL_DIVIDE(17664, 8)
 
     const VEC_N_SIZE_64: usize = 277; // CEIL_DIVIDE(17669, 64)
     const VEC_N1_SIZE_64: usize = 6; // CEIL_DIVIDE(46, 8)
-    const VEC_N1N2_SIZE_64: usize = 460; // CEIL_DIVIDE(29440, 64)
+    const VEC_N1N2_SIZE_64: usize = 276; // CEIL_DIVIDE(17664, 64)
 
     const N_MU: u64 = 243079; // Official HQC-1 parameter: floor(2^32 / 17669)
     const UTILS_REJECTION_THRESHOLD: u32 = 16767881; // Official HQC-1 parameter
@@ -726,12 +726,12 @@ mod tests {
     fn test_hqc1_parameters() {
         assert_eq!(Hqc1Params::N, 17669);
         assert_eq!(Hqc1Params::N1, 46);
-        assert_eq!(Hqc1Params::N2, 640);
-        assert_eq!(Hqc1Params::N1N2, 29440);
+        assert_eq!(Hqc1Params::N2, 384); // Reference parameter
+        assert_eq!(Hqc1Params::N1N2, 17664); // Reference: 46 * 384
         assert_eq!(Hqc1Params::K, 16);
-        assert_eq!(Hqc1Params::SECRET_KEY_BYTES, 2305);
-        assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, 2249);
-        assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, 5905);
+        assert_eq!(Hqc1Params::SECRET_KEY_BYTES, 2321); // Reference: CRYPTO_SECRETKEYBYTES
+        assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, 2241); // Reference: CRYPTO_PUBLICKEYBYTES
+        assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, 4433); // Reference: CRYPTO_CIPHERTEXTBYTES
         assert_eq!(Hqc1Params::SHARED_SECRET_BYTES, 32);
     }
 

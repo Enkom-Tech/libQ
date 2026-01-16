@@ -2,6 +2,7 @@
 name = "lib-q-fn-dsa"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -18,34 +19,34 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Core libQ types
 lib-q-core = { path = "../lib-q-core" }
-lib-q-random = { path = "../lib-q-random", features = ["fn-dsa"] }
+lib-q-random = { path = "../lib-q-random", features = ["fn-dsa", "rand", "getrandom"] }
 
 # FN-DSA implementation (the actual algorithm)
 fn-dsa = { path = "fn-dsa" }
 
 # Standard library features
 rand_core = { workspace = true }
-rand = { workspace = true, optional = true }
 zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
 
 # WASM support
-getrandom = { version = "0.3.3", optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = ["console"] }
 
 [features]
-default = ["std", "alloc", "rand"]
-std = ["alloc", "rand"]
+default = ["std", "alloc"]
+std = ["alloc"]
 alloc = []
-no_std = []
 
 # Security features
 zeroize = ["dep:zeroize"]
-rand = ["dep:rand"]
+
+# Performance features
+no_avx2 = ["fn-dsa/no_avx2"]
+shake256x4 = ["fn-dsa/shake256x4"]
 
 # WASM support
-wasm = ["getrandom/wasm_js", "wasm-bindgen", "js-sys", "web-sys"]
+wasm = ["lib-q-random/wasm", "wasm-bindgen", "js-sys", "web-sys"]
 
 [dev-dependencies]
 # Testing

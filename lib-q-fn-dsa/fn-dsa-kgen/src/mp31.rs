@@ -2792,19 +2792,19 @@ mod tests {
     #[test]
     fn check_small_primes() {
         let mut sh = Sha256::new();
-        for i in 0..PRIMES.len() {
-            let p = PRIMES[i].p;
+        for (i, prime) in PRIMES.iter().enumerate() {
+            let p = prime.p;
             // 1438814045 = 1 + floor(1.34*2^30)
-            assert!(1438814045 <= p && p <= 0x7FFFFFFF);
+            assert!((1438814045..=0x7FFFFFFF).contains(&p));
 
             // We hash all primes to verify against a reference value.
-            sh.update(&p.to_le_bytes());
+            sh.update(p.to_le_bytes());
 
             // p0i = -1/p mod 2^32
-            assert!(p.wrapping_mul(PRIMES[i].p0i) == 0xFFFFFFFF);
+            assert!(p.wrapping_mul(prime.p0i) == 0xFFFFFFFF);
 
             // R2 = 2^64 mod p
-            assert!((PRIMES[i].R2 as u128) == (1u128 << 64) % (p as u128));
+            assert!((prime.R2 as u128) == (1u128 << 64) % (p as u128));
 
             // Compute 1/2^32 mod p
             let mut iR = 1u32;
@@ -2817,8 +2817,8 @@ mod tests {
             // g^1024 = -1 mod p
             // ig = 1/g mod p
             // g and ig are in Montgomery representation
-            let mut g = mmul(PRIMES[i].g, iR, p);
-            let ig = mmul(PRIMES[i].ig, iR, p);
+            let mut g = mmul(prime.g, iR, p);
+            let ig = mmul(prime.ig, iR, p);
             assert!(mmul(g, ig, p) == 1);
             for _ in 0..10 {
                 g = mmul(g, g, p);
@@ -2826,12 +2826,12 @@ mod tests {
             assert!(g == p - 1);
 
             // s = 1 / prod_{j<i} p_j mod p
-            let mut s = mmul(PRIMES[i].s, iR, p);
+            let mut s = mmul(prime.s, iR, p);
             if i == 0 {
                 assert!(s == 1);
             } else {
-                for j in 0..i {
-                    s = mmul(s, PRIMES[j].p, p);
+                for prev_prime in PRIMES.iter().take(i) {
+                    s = mmul(s, prev_prime.p, p);
                 }
                 assert!(s == 1);
             }

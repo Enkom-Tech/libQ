@@ -252,11 +252,11 @@ mod tests {
 
     fn mulvect(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
         let n = 1usize << logn;
-        for i in 0..n {
-            d[i] = Fxr::ZERO;
+        for item in d.iter_mut().take(n) {
+            *item = Fxr::ZERO;
         }
-        for i in 0..n {
-            for j in 0..n {
+        for (i, _) in a.iter().enumerate().take(n) {
+            for (j, _) in b.iter().enumerate().take(n) {
                 let z = a[i] * b[j];
                 let k = i + j;
                 if k < n {
@@ -277,7 +277,7 @@ mod tests {
         for logn in 1u32..10u32 {
             let n = 1usize << logn;
             for i in 0u32..10u32 {
-                rndvect(logn, &mut a, (0 | (logn << 8) | (i << 12)) as u64);
+                rndvect(logn, &mut a, ((logn << 8) | (i << 12)) as u64);
                 rndvect(logn, &mut b, (1 | (logn << 8) | (i << 12)) as u64);
                 c[..n].copy_from_slice(&a[..n]);
                 vect_FFT(logn, &mut c);

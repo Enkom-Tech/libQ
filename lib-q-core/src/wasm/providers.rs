@@ -168,6 +168,7 @@ impl WasmProviderManager {
 
     /// Get KEM algorithms
     pub fn get_kem_algorithms(&self) -> Vec<String> {
+        #[allow(unused_mut)] // mut needed when feature flags are enabled
         let mut algorithms = alloc::vec![
             "ml-kem-512".to_string(),
             "ml-kem-768".to_string(),

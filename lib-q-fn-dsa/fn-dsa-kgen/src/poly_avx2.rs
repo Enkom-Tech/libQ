@@ -1390,8 +1390,8 @@ mod tests {
 
         // Compute the product t1*t2 into w3 "manually", then reduce it
         // modulo X^n+1.
-        for i in 0..(2 * n) {
-            w3[i] = 0;
+        for item in w3.iter_mut().take(2 * n) {
+            *item = 0;
         }
         for i in 0..n {
             for j in 0..n {
@@ -1430,15 +1430,8 @@ mod tests {
         if fn_dsa_comm::has_avx2() {
             unsafe {
                 for logn in 1..11 {
-                    for i in 0..5 {
-                        inner_NTT(
-                            logn,
-                            PRIMES[i].g,
-                            PRIMES[i].ig,
-                            PRIMES[i].p,
-                            PRIMES[i].p0i,
-                            PRIMES[i].R2,
-                        );
+                    for prime in PRIMES.iter().take(5) {
+                        inner_NTT(logn, prime.g, prime.ig, prime.p, prime.p0i, prime.R2);
                     }
                 }
             }

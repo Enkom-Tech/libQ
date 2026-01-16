@@ -45,7 +45,12 @@ pub use rand_core::{
     RngCore,
 };
 
-/// Error type for RNG operations
+/// Error type for RNG operations.
+///
+/// Note: The upstream reference uses `rand_core::Error` from rand_core 0.6.4,
+/// but this implementation uses rand_core 0.9.3 which does not export `Error`.
+/// We use `core::fmt::Error` instead, which is compatible with `no_std` and
+/// provides the same functionality for our use case.
 pub type RngError = core::fmt::Error;
 
 /// Symbolic constant for FN-DSA with degree 512 (`logn = 9`).

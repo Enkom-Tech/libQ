@@ -52,6 +52,7 @@ pub struct SlhDsaSignature<P: ParameterSet> {
 
 impl<P: ParameterSet> SlhDsaSignature<P> {
     /// Create a new SLH-DSA signature instance
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _phantom: core::marker::PhantomData,
@@ -121,8 +122,12 @@ impl<P: ParameterSet> Signature for SlhDsaSignature<P> {
 impl<P: ParameterSet> SlhDsaSignature<P> {
     /// Generate a keypair with external randomness
     ///
-    /// This method follows the lib-q pattern for no_std support by requiring
+    /// This method follows the `lib-q` pattern for `no_std` support by requiring
     /// external randomness rather than generating it internally.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the randomness is insufficient or key generation fails.
     #[cfg(feature = "alloc")]
     pub fn generate_keypair_with_randomness(&self, randomness: &[u8]) -> Result<SigKeypair> {
         // SLH-DSA requires 3 * N bytes of randomness for key generation
@@ -154,8 +159,12 @@ impl<P: ParameterSet> SlhDsaSignature<P> {
 
     /// Sign a message with external randomness
     ///
-    /// This method follows the lib-q pattern for no_std support by requiring
+    /// This method follows the `lib-q` pattern for `no_std` support by requiring
     /// external randomness rather than generating it internally.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if signing fails.
     #[cfg(feature = "alloc")]
     pub fn sign_with_randomness(
         &self,
@@ -181,7 +190,11 @@ impl<P: ParameterSet> SlhDsaSignature<P> {
     }
 }
 
-/// Convert SLH-DSA SigningKey to lib-q-core SigSecretKey
+/// Convert SLH-DSA `SigningKey` to `lib-q-core` `SigSecretKey`
+///
+/// # Errors
+///
+/// Returns an error if the conversion fails.
 #[cfg(feature = "alloc")]
 pub fn signing_key_to_sig_secret_key<P: ParameterSet>(
     signing_key: &SigningKey<P>,
@@ -190,7 +203,11 @@ pub fn signing_key_to_sig_secret_key<P: ParameterSet>(
     Ok(SigSecretKey::new(key_bytes.to_vec()))
 }
 
-/// Convert SLH-DSA VerifyingKey to lib-q-core SigPublicKey
+/// Convert SLH-DSA `VerifyingKey` to `lib-q-core` `SigPublicKey`
+///
+/// # Errors
+///
+/// Returns an error if the conversion fails.
 #[cfg(feature = "alloc")]
 pub fn verifying_key_to_sig_public_key<P: ParameterSet>(
     verifying_key: &VerifyingKey<P>,
@@ -199,7 +216,11 @@ pub fn verifying_key_to_sig_public_key<P: ParameterSet>(
     Ok(SigPublicKey::new(key_bytes.to_vec()))
 }
 
-/// Convert lib-q-core SigSecretKey to SLH-DSA SigningKey
+/// Convert `lib-q-core` `SigSecretKey` to SLH-DSA `SigningKey`
+///
+/// # Errors
+///
+/// Returns an error if the conversion fails.
 #[cfg(feature = "alloc")]
 pub fn sig_secret_key_to_signing_key<P: ParameterSet>(
     secret_key: &SigSecretKey,
@@ -210,7 +231,11 @@ pub fn sig_secret_key_to_signing_key<P: ParameterSet>(
     })
 }
 
-/// Convert lib-q-core SigPublicKey to SLH-DSA VerifyingKey
+/// Convert `lib-q-core` `SigPublicKey` to SLH-DSA `VerifyingKey`
+///
+/// # Errors
+///
+/// Returns an error if the conversion fails.
 #[cfg(feature = "alloc")]
 pub fn sig_public_key_to_verifying_key<P: ParameterSet>(
     public_key: &SigPublicKey,
@@ -227,7 +252,11 @@ pub fn slh_signature_to_bytes<P: ParameterSet>(signature: &SlhSignature<P>) -> V
     signature.to_bytes().to_vec()
 }
 
-/// Convert bytes to SLH-DSA Signature
+/// Convert bytes to SLH-DSA `Signature`
+///
+/// # Errors
+///
+/// Returns an error if the bytes are not a valid signature.
 #[cfg(feature = "alloc")]
 pub fn bytes_to_slh_signature<P: ParameterSet>(bytes: &[u8]) -> Result<SlhSignature<P>> {
     SlhSignature::<P>::try_from(bytes).map_err(|_| Error::InvalidSignatureSize {
@@ -256,8 +285,10 @@ impl DeterministicRng {
 }
 
 impl RngCore for DeterministicRng {
+    #[allow(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
         // Call next_u64 and truncate to u32 - use explicit trait call to avoid ambiguity
+        // Note: This truncation is intentional for RngCore compatibility
         <Self as RngCore>::next_u64(self) as u32
     }
 
@@ -299,7 +330,7 @@ impl SignatureRngCore for DeterministicRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::fill_bytes(self, dest)
+        <Self as RngCore>::fill_bytes(self, dest);
     }
 }
 

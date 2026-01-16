@@ -549,9 +549,10 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
         for _ in 0..(sc >> 5) {
             scv = mp_mmul(scv, R2, p, p0i);
         }
-        for k_item in k.iter_mut().take(n) {
-            let x = mp_set(*k_item as i32, p);
-            *k_item = mp_mmul(scv, x, p, p0i);
+        #[allow(clippy::needless_range_loop)]
+        for j in 0..n {
+            let x = mp_set(k[j] as i32, p);
+            k[j] = mp_mmul(scv, x, p, p0i);
         }
         mp_NTT(logn, k, gm, p, p0i);
 
@@ -598,15 +599,15 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
         // Same treatment for G and gt.
         for j in 0..n {
             t1[j] = mp_set(g[j << 1] as i32, p);
-            t2[j] = mp_set(g[j << (1 + 1)] as i32, p);
+            t2[j] = mp_set(g[(j << 1) + 1] as i32, p);
         }
         mp_NTT(logn, t1, gm, p, p0i);
         mp_NTT(logn, t2, gm, p, p0i);
         for j in 0..hn {
             let xe0 = t1[j << 1];
-            let xe1 = t1[j << (1 + 1)];
+            let xe1 = t1[(j << 1) + 1];
             let xo0 = t2[j << 1];
-            let xo1 = t2[j << (1 + 1)];
+            let xo1 = t2[(j << 1) + 1];
             let xv0 = gm[j + hn];
             let xv1 = p - xv0; // values in gm[] are non-zero
             let xe0 = mp_mmul(xe0, xe0, p, p0i);
@@ -616,9 +617,9 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
             let xg0 = mp_sub(xe0, mp_mmul(xo0, xv0, p, p0i), p);
             let xg1 = mp_sub(xe1, mp_mmul(xo1, xv1, p, p0i), p);
             let xkg0 = mp_mmul(mp_mmul(xg0, k[j << 1], p, p0i), R3, p, p0i);
-            let xkg1 = mp_mmul(mp_mmul(xg1, k[j << (1 + 1)], p, p0i), R3, p, p0i);
+            let xkg1 = mp_mmul(mp_mmul(xg1, k[(j << 1) + 1], p, p0i), R3, p, p0i);
             Gu[j << 1] = mp_sub(Gu[j << 1], xkg0, p);
-            Gu[j << (1 + 1)] = mp_sub(Gu[j << (1 + 1)], xkg1, p);
+            Gu[(j << 1) + 1] = mp_sub(Gu[(j << 1) + 1], xkg1, p);
         }
 
         // Convert back F and G to RNS.
@@ -634,8 +635,9 @@ pub(crate) fn poly_sub_kfg_scaled_depth1(
             for _ in 0..(sc >> 5) {
                 scv = mp_mmul(scv, 1, p, p0i);
             }
-            for k_item in k.iter_mut().take(n) {
-                *k_item = mp_norm(mp_mmul(scv, *k_item, p, p0i), p) as u32;
+            #[allow(clippy::needless_range_loop)]
+            for j in 0..n {
+                k[j] = mp_norm(mp_mmul(scv, k[j], p, p0i), p) as u32;
             }
         }
     }
@@ -708,8 +710,8 @@ mod tests {
 
         // Compute the product t1*t2 into w3 "manually", then reduce it
         // modulo X^n+1.
-        for i in 0..(2 * n) {
-            w3[i] = 0;
+        for item in w3.iter_mut().take(2 * n) {
+            *item = 0;
         }
         for i in 0..n {
             for j in 0..n {
@@ -744,15 +746,8 @@ mod tests {
     #[test]
     fn NTT() {
         for logn in 1..11 {
-            for i in 0..5 {
-                inner_NTT(
-                    logn,
-                    PRIMES[i].g,
-                    PRIMES[i].ig,
-                    PRIMES[i].p,
-                    PRIMES[i].p0i,
-                    PRIMES[i].R2,
-                );
+            for prime in PRIMES.iter().take(5) {
+                inner_NTT(logn, prime.g, prime.ig, prime.p, prime.p0i, prime.R2);
             }
         }
     }

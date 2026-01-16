@@ -1,4 +1,4 @@
-//! Optimized core implementations for Keccak-p[1600]
+//! Optimized core implementations for Keccak-p\[1600\]
 //!
 //! This module provides high-performance implementations with proper feature gating
 //! and security considerations. All optimizations are optional and fall back to
@@ -175,7 +175,7 @@ impl OptimizationLevel {
     }
 }
 
-/// Optimized Keccak-p[1600] permutation with automatic optimization selection
+/// Optimized Keccak-p\[1600\] permutation with automatic optimization selection
 ///
 /// This function automatically selects the best available optimization
 /// while maintaining cryptographic security guarantees.
@@ -658,6 +658,7 @@ pub mod parallel {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)] // Test vectors should remain as-is
 mod tests {
     #[cfg(feature = "std")]
     use super::*;

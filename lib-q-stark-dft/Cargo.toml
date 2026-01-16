@@ -1,0 +1,41 @@
+[package]
+name = "lib-q-stark-dft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A collection of discrete Fourier transform (DFT) implementations for finite fields."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+spin = "0.10.0"
+tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+lib-q-stark-monty31 = { path = "../lib-q-stark-monty31" }
+
+criterion = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
+
+[features]
+parallel = ["lib-q-stark-rayon/parallel"]
+
+[[bench]]
+name = "fft"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

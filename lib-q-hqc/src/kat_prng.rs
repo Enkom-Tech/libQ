@@ -1,9 +1,13 @@
 //! KAT (Known Answer Test) compatible PRNG implementation
 //!
 //! This module provides a PRNG implementation that matches the reference HQC
-//! implementation's behavior for KAT tests. The reference implementation appears
-//! to return the first 32 bytes of the entropy input directly for the first call,
-//! rather than using SHAKE256 hashing.
+//! implementation's behavior for KAT tests. The reference implementation uses
+//! SHAKE-256 XOF with domain separation for random number generation.
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::vec;
 
 #[cfg(feature = "random")]
 use lib_q_random::traits::EntropySource;
@@ -11,6 +15,76 @@ use rand_core::{
     CryptoRng,
     RngCore,
 };
+
+/// SHAKE-256 based PRNG that matches the reference HQC implementation
+///
+/// This PRNG uses SHAKE-256 XOF with domain=0 (HQC_PRNG_DOMAIN) to generate
+/// deterministic random bytes, matching the reference implementation's behavior.
+pub struct Shake256KatPrng {
+    xof: crate::internal::shake256::Shake256Xof,
+}
+
+impl Shake256KatPrng {
+    /// Create a new SHAKE-256 KAT-compatible PRNG
+    ///
+    /// # Arguments
+    /// * `seed` - 48-byte seed (entropy input)
+    ///
+    /// # Returns
+    /// A new SHAKE-256 PRNG initialized matching reference prng_init exactly:
+    /// 1. Absorb entropy_input (seed)
+    /// 2. Absorb personalization_string (empty)
+    /// 3. Absorb domain byte (HQC_PRNG_DOMAIN = 0)
+    /// 4. Finalize
+    pub fn new(seed: &[u8; 48]) -> Self {
+        let mut xof = crate::internal::shake256::Shake256Xof::new();
+
+        // Match reference prng_init exactly:
+        // shake256_inc_absorb(&shake256_prng_ctx, entropy_input, enlen);
+        xof.absorb(seed).expect("SHAKE256 absorb seed failed");
+
+        // shake256_inc_absorb(&shake256_prng_ctx, personalization_string, perlen);
+        // Even for empty personalization string, we must call absorb to match reference
+        xof.absorb(&[])
+            .expect("SHAKE256 absorb personalization failed");
+
+        // shake256_inc_absorb(&shake256_prng_ctx, &domain, 1);
+        const HQC_PRNG_DOMAIN: u8 = 0;
+        xof.absorb(&[HQC_PRNG_DOMAIN])
+            .expect("SHAKE256 absorb domain failed");
+
+        // shake256_inc_finalize(&shake256_prng_ctx);
+        xof.finalize_absorb().expect("SHAKE256 finalize failed");
+
+        Self { xof }
+    }
+
+    /// Skip a specified number of bytes from the PRNG output
+    pub fn skip(&mut self, count: usize) {
+        let mut tmp = vec![0u8; count];
+        self.xof.squeeze(&mut tmp).expect("SHAKE256 squeeze failed");
+    }
+}
+
+impl RngCore for Shake256KatPrng {
+    fn next_u32(&mut self) -> u32 {
+        let mut bytes = [0u8; 4];
+        self.fill_bytes(&mut bytes);
+        u32::from_le_bytes(bytes)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        let mut bytes = [0u8; 8];
+        self.fill_bytes(&mut bytes);
+        u64::from_le_bytes(bytes)
+    }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        self.xof.squeeze(dest).expect("SHAKE256 squeeze failed");
+    }
+}
+
+impl CryptoRng for Shake256KatPrng {}
 
 /// KAT-compatible PRNG that matches reference implementation behavior
 ///

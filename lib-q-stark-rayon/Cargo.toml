@@ -1,0 +1,23 @@
+[package]
+name = "lib-q-stark-rayon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Feature-gated wrapper around rayon"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+rayon = { version = "1.11.0", optional = true }
+
+[features]
+parallel = ["rayon"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

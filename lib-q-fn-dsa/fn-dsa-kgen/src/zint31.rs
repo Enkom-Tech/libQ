@@ -798,17 +798,16 @@ mod tests {
         let n = x.len();
         let t = &mut tmp[0..n];
         t.fill(0);
-        for i in 0..n {
-            let w = x[i];
+        for (i, w) in x.iter().enumerate().take(n) {
             let j = i * 31;
             let k = j >> 5;
             let m = j & 31;
-            t[k] |= w << m;
+            t[k] |= *w << m;
             if m > 1 {
-                t[k + 1] |= w >> (32 - m);
+                t[k + 1] |= *w >> (32 - m);
             }
         }
-        BigInt::from_slice(Sign::Plus, &t)
+        BigInt::from_slice(Sign::Plus, t)
     }
 
     fn check_bezout(u: &[u32], v: &[u32], x: &[u32], y: &[u32], tmp: &mut [u32]) {
@@ -821,8 +820,8 @@ mod tests {
         let zv = zint_to_big(v, tmp);
         let zx = zint_to_big(x, tmp);
         let zy = zint_to_big(y, tmp);
-        assert!(&zu <= &zy);
-        assert!(&zv <= &zx);
+        assert!(zu <= zy);
+        assert!(zv <= zx);
         let zr = &zx * &zu - &zy * &zv;
         assert!(zr.to_u64().unwrap() == 1);
     }
@@ -835,8 +834,8 @@ mod tests {
         let mut acc = 0u64;
         let mut acc_len = 0;
         let mut j = 0;
-        for i in 0..bp.len() {
-            let w = bp[i] as u64;
+        for w in bp {
+            let w = *w as u64;
             acc |= w << acc_len;
             acc_len += 8;
             if acc_len >= 31 {

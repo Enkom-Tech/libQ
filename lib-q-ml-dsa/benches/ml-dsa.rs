@@ -79,8 +79,7 @@ pub fn comparisons_verification(c: &mut Criterion) {
 
     group.bench_function("libcrux", move |b| {
         b.iter(|| {
-            let _ =
-                ml_dsa_65::verify(&keypair.verification_key, &message, b"", &signature).unwrap();
+            ml_dsa_65::verify(&keypair.verification_key, &message, b"", &signature).unwrap();
         })
     });
 
@@ -91,9 +90,8 @@ pub fn comparisons_verification(c: &mut Criterion) {
 
         group.bench_function("pqclean", move |b| {
             b.iter(|| {
-                let _ =
-                    pqcrypto_mldsa::mldsa65::verify_detached_signature(&signature, &message, &vk)
-                        .unwrap();
+                pqcrypto_mldsa::mldsa65::verify_detached_signature(&signature, &message, &vk)
+                    .unwrap();
             })
         });
     }

@@ -4,6 +4,7 @@
 //! and the official NIST FIPS 204 reference implementation.
 
 #![cfg(all(feature = "random", feature = "acvp"))]
+#![allow(clippy::disallowed_types)] // HashMap is appropriate for parsing KAT files
 
 use std::collections::HashMap;
 use std::fs;
@@ -48,10 +49,10 @@ fn parse_kat_file(content: &str) -> Vec<NistTestVector> {
     }
 
     // Parse last vector if file doesn't end with "="
-    if !current_vector.is_empty() {
-        if let Some(vector) = parse_vector(&current_vector) {
-            vectors.push(vector);
-        }
+    if !current_vector.is_empty() &&
+        let Some(vector) = parse_vector(&current_vector)
+    {
+        vectors.push(vector);
     }
 
     vectors
@@ -100,16 +101,10 @@ fn load_nist_kat_file(
     );
 
     // Find the actual file (handle wildcard)
-    let mut found_path = None;
-    for entry in glob::glob(&path)? {
-        if let Ok(path) = entry {
-            found_path = Some(path);
-            break;
-        }
-    }
-
-    let file_path =
-        found_path.ok_or("NIST KAT file not found - run reference/nist-ml-dsa-ref/setup.sh")?;
+    let file_path = glob::glob(&path)?
+        .flatten()
+        .next()
+        .ok_or("NIST KAT file not found - run reference/nist-ml-dsa-ref/setup.sh")?;
     let contents = fs::read_to_string(file_path)?;
 
     Ok(parse_kat_file(&contents))

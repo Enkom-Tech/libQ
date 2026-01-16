@@ -68,8 +68,8 @@ impl MLDsaRng {
         Self { rng }
     }
 
-    /// Fallback implementation when random feature is disabled
-    #[cfg(not(feature = "random"))]
+    /// Fallback implementation when random feature is disabled (requires std)
+    #[cfg(all(not(feature = "random"), feature = "std"))]
     pub fn new_secure() -> Result<Self> {
         // Use system time as fallback seed (not cryptographically secure)
         let seed = std::time::SystemTime::now()
@@ -79,6 +79,13 @@ impl MLDsaRng {
         Ok(Self {
             fallback_seed: seed,
         })
+    }
+
+    /// Fallback for no-std without random feature
+    #[cfg(all(not(feature = "random"), not(feature = "std")))]
+    pub fn new_secure() -> Result<Self> {
+        // In no-std without random feature, secure RNG is not available
+        Err("Secure RNG requires either 'random' feature or 'std' feature".into())
     }
 
     /// Fallback deterministic implementation
@@ -393,6 +400,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_entropy_source_availability() {
         // Test that secure RNG can be created (entropy source is available)
         let rng = MLDsaRng::new_secure();

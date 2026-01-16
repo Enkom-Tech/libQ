@@ -1,0 +1,26 @@
+[package]
+name = "lib-q-stark-interpolation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Tools for performing Lagrange interpolation over two-adic subgroups and their cosets."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

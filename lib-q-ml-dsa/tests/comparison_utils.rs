@@ -144,9 +144,9 @@ impl BitAnalysis {
 
         for (our, nist) in our_data.iter().zip(nist_data.iter()) {
             let diff = our ^ nist;
-            for bit_pos in 0..8 {
+            for (bit_pos, count) in bit_differences.iter_mut().enumerate().take(8) {
                 if (diff >> bit_pos) & 1 == 1 {
-                    bit_differences[bit_pos] += 1;
+                    *count += 1;
                 }
             }
             total_bits += 8;

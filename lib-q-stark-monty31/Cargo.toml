@@ -1,0 +1,36 @@
+[package]
+name = "lib-q-stark-monty31"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "An implementation of a generic prime field F_p, where 2^30 < p < 2^31 using Montgomery arithmetic."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-dft = { path = "../lib-q-stark-dft" }
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-mds = { path = "../lib-q-stark-mds" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+# Note: poseidon2 removed - non-NIST hash
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+num-bigint = { version = "0.4.6", default-features = false }
+paste = "1.0.15"
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+spin = "0.10.0"
+tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+transpose = "0.2.3"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

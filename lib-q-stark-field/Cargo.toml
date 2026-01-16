@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-stark-field"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A modular framework for finite fields, including support for generic binomial extensions, SIMD-packed field arithmetic."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+num-bigint = { version = "0.4.6", default-features = false }
+paste = "1.0.15"
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+subtle = { version = "2.6.1", default-features = false }
+tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+zeroize = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
+[[test]]
+name = "constant_time_tests"
+path = "tests/constant_time_tests.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

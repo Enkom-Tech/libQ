@@ -162,7 +162,7 @@ impl<N: ArraySize> SkPrf<N> {
 /// }
 /// ```
 ///
-/// # Example: no_std Environment
+/// # Example: `no_std` Environment
 ///
 /// ```rust,no_run
 /// use lib_q_slh_dsa::{

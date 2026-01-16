@@ -28,10 +28,15 @@ impl BearSslAes256CtrDrbg {
         let mut key = [0u8; 32];
         let mut v = [0u8; 16];
 
-        key.copy_from_slice(&entropy_input[..32]);
-        v.copy_from_slice(&entropy_input[32..48]);
+        // Initialize Key and V to zeros (NIST SP 800-90A requirement)
+        // The entropy_input will be used as provided_data in the update
+        // This matches the reference implementation's randombytes_init:
+        // memset(DRBG_ctx.Key, 0x00, 32);
+        // memset(DRBG_ctx.V, 0x00, 16);
+        // AES256_CTR_DRBG_Update(seed_material, DRBG_ctx.Key, DRBG_ctx.V);
 
-        Self::ctr_drbg_update(None, &mut key, &mut v);
+        // Call ctr_drbg_update with entropy_input as provided_data
+        Self::ctr_drbg_update(Some(entropy_input), &mut key, &mut v);
 
         Self {
             key,
@@ -42,28 +47,47 @@ impl BearSslAes256CtrDrbg {
 
     fn ctr_drbg_update(provided_data: Option<&[u8]>, key: &mut [u8; 32], v: &mut [u8; 16]) {
         let mut temp = [0u8; 48];
-        let aes_ctx = Aes256CtxPure::new(key);
 
+        // Generate 48 bytes using AES-256-ECB (3 blocks of 16 bytes)
+        // This matches the reference implementation's AES256_CTR_DRBG_Update
+        // Note: Reference creates a new AES context for each encryption call
         for i in 0..3 {
             Self::increment_counter(v);
+            // Create new AES context for each encryption (matches reference: AES256_ECB creates new context each time)
+            let aes_ctx = Aes256CtxPure::new(key);
             let encrypted = aes_ctx.encrypt_block(v);
             temp[i * 16..(i + 1) * 16].copy_from_slice(&encrypted);
         }
 
+        // XOR with provided_data if present (matches reference: if (provided_data != NULL))
         if let Some(data) = provided_data {
-            for i in 0..data.len() {
+            // Ensure we don't exceed temp bounds (should be 48 bytes)
+            let len = core::cmp::min(48, data.len());
+            for i in 0..len {
                 temp[i] ^= data[i];
             }
         }
 
+        // Update Key and V from temp (matches reference: memcpy(Key, temp, 32); memcpy(V, temp+32, 16))
         key.copy_from_slice(&temp[..32]);
         v.copy_from_slice(&temp[32..48]);
     }
 
     pub fn increment_counter(v: &mut [u8; 16]) {
+        // Match reference implementation exactly:
+        // for (int j=15; j>=0; j--) {
+        //     if ( V[j] == 0xff )
+        //         V[j] = 0x00;
+        //     else {
+        //         V[j]++;
+        //         break;
+        //     }
+        // }
         for i in (0..16).rev() {
-            v[i] = v[i].wrapping_add(1);
-            if v[i] != 0 {
+            if v[i] == 0xFF {
+                v[i] = 0x00;
+            } else {
+                v[i] += 1;
                 break;
             }
         }
@@ -109,10 +133,13 @@ impl RngCore for BearSslAes256CtrDrbg {
             );
         }
 
-        let aes_ctx = Aes256CtxPure::new(&self.key);
+        // Generate output bytes (matches reference: randombytes function)
+        // Note: Reference creates a new AES context for each encryption call
         let mut offset = 0;
         while offset < dest.len() {
             Self::increment_counter(&mut self.v);
+            // Create new AES context for each encryption (matches reference: AES256_ECB creates new context each time)
+            let aes_ctx = Aes256CtxPure::new(&self.key);
             let block = aes_ctx.encrypt_block(&self.v);
             let to_copy = core::cmp::min(16, dest.len() - offset);
             dest[offset..offset + to_copy].copy_from_slice(&block[..to_copy]);

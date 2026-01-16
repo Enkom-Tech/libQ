@@ -13,7 +13,7 @@ rust-version.workspace = true
 
 [dependencies]
 fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
-zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
 sha2 = "0.10.9"

@@ -1,10 +1,17 @@
-//! Keccak [sponge function](https://en.wikipedia.org/wiki/Sponge_function).
+//! Pure Rust implementation of the Keccak [sponge function](https://en.wikipedia.org/wiki/Sponge_function).
 //!
-//! If you are looking for SHA-3 hash functions take a look at [`sha3`][1] and
-//! [`tiny-keccak`][2] crates.
+//! This crate provides low-level Keccak permutation functions (keccak-f and keccak-p variants).
+//! For high-level SHA-3 hash functions, see [`lib-q-sha3`](https://docs.rs/lib-q-sha3).
 //!
-//! To disable loop unrolling (e.g. for constraint targets) use `no_unroll`
-//! feature.
+//! ## Features
+//!
+//! - **no_std compatible**: Works in embedded and WASM environments
+//! - **Optimized implementations**: Platform-specific optimizations for ARM64 and x86_64
+//! - **SIMD support**: Parallel processing with portable SIMD
+//! - **Multi-threading**: Concurrent state processing for high-performance applications
+//! - **WebAssembly**: Full WASM support with JavaScript interop
+//!
+//! ## Example
 //!
 //! ```
 //! // Test vectors are from KeccakCodePackage
@@ -12,13 +19,16 @@
 //!
 //! lib_q_keccak::f1600(&mut data);
 //! ```
+//!
+//! ## Configuration
+//!
+//! To disable loop unrolling (e.g. for constraint targets) use the `no_unroll` feature.
 
-#![cfg_attr(feature = "std", feature(portable_simd))]
-#![cfg_attr(not(feature = "std"), feature(portable_simd))]
+#![cfg_attr(feature = "simd", feature(portable_simd))]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
+    html_logo_url = "https://raw.githubusercontent.com/Enkom-Tech/libQ/main/docs/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/Enkom-Tech/libQ/main/docs/logo.svg"
 )]
 #![allow(non_upper_case_globals)]
 #![warn(
@@ -73,9 +83,6 @@ extern crate std;
 ///     ]
 /// );
 /// ```
-///
-/// [1]: https://docs.rs/sha3
-/// [2]: https://docs.rs/tiny-keccak
 use core::fmt::Debug;
 use core::ops::{
     BitAnd,
@@ -130,6 +137,8 @@ const PI: [usize; 24] = [
     10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1,
 ];
 
+// Keccak round constants - keep as-is for cryptographic correctness
+#[allow(clippy::unreadable_literal)]
 const RC: [u64; 24] = [
     0x0000000000000001,
     0x0000000000008082,
@@ -432,6 +441,7 @@ pub use crate::optimized_core::{
 };
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)] // Test vectors should remain as-is
 mod tests {
     use crate::{
         LaneSize,
@@ -645,43 +655,4 @@ mod tests {
         impl_keccak_f1600xn!(keccak_f1600x4, u64x4);
         impl_keccak_f1600xn!(keccak_f1600x8, u64x8);
     }
-}
-
-// For no_std builds with alloc, we use the system allocator if available
-// This is a simplified approach for CI/testing
-#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
-#[global_allocator]
-static ALLOCATOR: SystemAllocator = SystemAllocator;
-
-/// Simple system allocator for no_std builds with alloc support
-///
-/// This is a minimal allocator for CI/testing purposes. In production no_std
-/// applications, you would implement a proper heap allocator or use a different
-/// approach that doesn't require dynamic memory allocation.
-#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
-pub struct SystemAllocator;
-
-#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "simd")))]
-unsafe impl core::alloc::GlobalAlloc for SystemAllocator {
-    unsafe fn alloc(&self, _layout: core::alloc::Layout) -> *mut u8 {
-        // For CI/testing purposes, we'll return null for allocations
-        // In a real no_std application, you'd implement a proper allocator
-        // or use a different approach that doesn't require heap allocation
-        core::ptr::null_mut()
-    }
-
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
-        // No-op for this simple test allocator
-    }
-}
-
-// Include panic handler only when build script determines it's safe
-// This is controlled by the build script to avoid cfg evaluation issues in CI
-#[cfg(panic_handler_enabled)]
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
-    // With panic="abort" (configured in workspace Cargo.toml),
-    // this function should never be called in practice.
-    // We provide it to satisfy the compiler's requirements for pure no_std builds.
-    unsafe { core::hint::unreachable_unchecked() }
 }

@@ -16,7 +16,7 @@ fn test_hardened_mode_rng_integration() {
 
     // Should work with RNG wrapper
     assert!(
-        keys.verification_key.as_slice().len() > 0,
+        !keys.verification_key.as_slice().is_empty(),
         "RNG integration must produce valid keys"
     );
 
@@ -213,13 +213,13 @@ fn test_hardened_mode_key_separation() {
     // Keys should have expected sizes
     assert_eq!(
         keys.verification_key.as_slice().len(),
-        1952,
-        "ML-DSA-44 verification key must be 1952 bytes"
+        1312,
+        "ML-DSA-44 verification key must be 1312 bytes"
     );
     assert_eq!(
         keys.signing_key.as_slice().len(),
-        4000,
-        "ML-DSA-44 signing key must be 4000 bytes"
+        2560,
+        "ML-DSA-44 signing key must be 2560 bytes"
     );
 
     println!("✓ Hardened mode key separation verified");

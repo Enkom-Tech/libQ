@@ -21,10 +21,7 @@ use lib_q_core::{
     Signature,
 };
 #[cfg(feature = "fn-dsa")]
-use lib_q_sig::fn_dsa::{
-    FnDsa512,
-    FnDsa1024,
-};
+use lib_q_sig::fn_dsa::FnDsa512;
 use lib_q_sig::ml_dsa::MlDsa;
 
 /// Test timing attack resistance

@@ -30,8 +30,8 @@ use lib_q_sig::slh_dsa::SlhDsa;
 fn generate_test_randomness() -> [u8; 32] {
     // Use a deterministic but valid randomness pattern for testing
     let mut randomness = [0u8; 32];
-    for i in 0..32 {
-        randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+    for (i, byte) in randomness.iter_mut().enumerate() {
+        *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
     }
     randomness
 }
@@ -41,8 +41,8 @@ fn generate_test_randomness() -> [u8; 32] {
 fn generate_test_signing_randomness() -> [u8; 32] {
     // Use a different deterministic pattern for signing randomness
     let mut randomness = [0u8; 32];
-    for i in 0..32 {
-        randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+    for (i, byte) in randomness.iter_mut().enumerate() {
+        *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
     }
     randomness
 }
@@ -163,7 +163,7 @@ mod ml_dsa_crypto_tests {
         }
 
         // Check that all public keys are unique
-        for i in 0..keypairs.len() {
+        for (i, _) in keypairs.iter().enumerate() {
             for j in (i + 1)..keypairs.len() {
                 assert_ne!(
                     keypairs[i].public_key().as_bytes(),
@@ -197,7 +197,7 @@ mod ml_dsa_crypto_tests {
         }
 
         // Check that all signatures are unique (due to randomness)
-        for i in 0..signatures.len() {
+        for (i, _) in signatures.iter().enumerate() {
             for j in (i + 1)..signatures.len() {
                 assert_ne!(
                     signatures[i], signatures[j],
@@ -466,7 +466,7 @@ mod slh_dsa_crypto_tests {
         }
 
         // Check that all public keys are unique
-        for i in 0..keypairs.len() {
+        for (i, _) in keypairs.iter().enumerate() {
             for j in (i + 1)..keypairs.len() {
                 assert_ne!(
                     keypairs[i].public_key().as_bytes(),
@@ -505,7 +505,7 @@ mod slh_dsa_crypto_tests {
         }
 
         // Check that all signatures are unique (due to randomness)
-        for i in 0..signatures.len() {
+        for (i, _) in signatures.iter().enumerate() {
             for j in (i + 1)..signatures.len() {
                 assert_ne!(
                     signatures[i], signatures[j],
@@ -605,7 +605,7 @@ mod fn_dsa_crypto_tests {
         }
 
         // Check that all public keys are unique
-        for i in 0..keypairs.len() {
+        for (i, _) in keypairs.iter().enumerate() {
             for j in (i + 1)..keypairs.len() {
                 assert_ne!(
                     keypairs[i].public_key().as_bytes(),

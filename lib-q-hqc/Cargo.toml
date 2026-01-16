@@ -2,6 +2,7 @@
 name = "lib-q-hqc"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -14,66 +15,40 @@ categories = ["cryptography", "wasm"]
 [dependencies]
 # Core libQ dependencies
 lib-q-core = { path = "../lib-q-core" }
-lib-q-random = { path = "../lib-q-random", optional = true }
 lib-q-sha3 = { path = "../lib-q-sha3" }
 lib-q-keccak = { path = "../lib-q-keccak" }
+lib-q-random = { path = "../lib-q-random", optional = true }
 
-# Type-safe arrays for refactored architecture
-hybrid-array = "0.4.5"
+# Core cryptographic primitives
+hybrid-array = "0.4.5"           # Type-safe fixed-size arrays
+rand_core = { workspace = true } # RNG traits
+hex = { workspace = true }       # Hex encoding for test vectors
 
-# Random number generation
-rand_core = { workspace = true }
+# Platform-specific dependencies
+heapless = { version = "0.9.2", optional = true }              # no_std collections
+wasm-bindgen = { workspace = true, optional = true }           # WASM bindings
+defmt = { version = "1.0.1", optional = true }                 # no_std logging
 
-# Hex encoding/decoding for test vectors
-hex = { workspace = true }
-
-# no_std collections
-heapless = { version = "0.9.2", optional = true }
-
-# WASM bindings
-wasm-bindgen = { workspace = true, optional = true }
-
-# Serialization support
+# Optional features
 serde = { workspace = true, features = ["derive"], optional = true }
-serde-big-array = { version = "0.5.1", optional = true }
-
-# Memory safety
-zeroize = { workspace = true, optional = true }
-
-# AES implementation for CTR-DRBG
-aes = { version = "0.8.4", optional = true }
-
-
-
-# no_std logging support
-defmt = { version = "1.0.1", optional = true }
+serde-big-array = { version = "0.5.1", optional = true }       # Large array serialization
+zeroize = { workspace = true, optional = true }                # Secure memory clearing
+aes = { version = "0.8.4", optional = true }                   # AES for DRBG
 
 [dev-dependencies]
+# Test dependencies
 lib-q-random = { path = "../lib-q-random", features = ["std", "nist-drbg"] }
-criterion = { workspace = true, features = ["html_reports"] }
-sha3 = { path = "../reference/sha3", features = ["alloc"] }
-dudect-bencher = "0.6.0"
+sha3 = { path = "../reference/sha3", features = ["alloc"] }    # Reference SHA3 for comparison
 rand = { workspace = true }
+
+# Benchmarking dependencies
+criterion = { workspace = true, features = ["html_reports"] }
+dudect-bencher = "0.6.0"                                       # Constant-time verification
 
 [[example]]
 name = "hqc_example"
 path = "examples/hqc_example.rs"
 required-features = ["hqc128", "hqc192", "hqc256"]
-
-# [[bin]]
-# name = "test_runner"
-# path = "tests/verification/test_runner.rs"
-# required-features = ["alloc"]
-
-# [[bin]]
-# name = "test_verification"
-# path = "tests/verification/test_verification.rs"
-# required-features = ["alloc"]
-
-# [[bin]]
-# name = "verify_tests"
-# path = "tests/verification/verify_tests.rs"
-# required-features = ["alloc"]
 
 [[bench]]
 name = "performance_benchmarks"
@@ -82,61 +57,42 @@ harness = false
 
 [features]
 default = ["alloc", "random", "bearssl-aes"]
-std = [] # Compatibility feature for CI/testing
-alloc = [] # Enable alloc support for Vec and other collections (uses std)
-no_std = ["dep:heapless"] # Enable no_std support with heapless collections
-ffi = [] # FFI support for C bindings
 
-# HQC algorithm variants
-hqc128 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
-hqc192 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
-hqc256 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]
+# Core features
+std = []                            # Standard library support (compatibility feature)
+alloc = []                          # Heap allocation support (required for std builds)
+no_std = ["dep:heapless"]           # Embedded/no_std with heapless collections
 
-# Enable all HQC variants
-hqc = ["hqc128", "hqc192", "hqc256"]
+# HQC algorithm variants (NIST security levels)
+hqc128 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)
+hqc192 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 192-bit security (Level 3)
+hqc256 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 256-bit security (Level 5)
+hqc = ["hqc128", "hqc192", "hqc256"]                                # All HQC variants
 
-# Random number generation support
-random = ["dep:lib-q-random", "lib-q-random/std"]
-nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]
+# Random number generation
+random = ["dep:lib-q-random", "lib-q-random/std"]                   # RNG support (required for key generation)
+nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]         # NIST SP 800-90A DRBG
 
-# WASM support
-wasm = ["wasm-bindgen", "hqc", "lib-q-core/wasm"]
+# Platform support
+wasm = ["wasm-bindgen", "hqc", "lib-q-core/wasm"]                  # WebAssembly bindings
+serialization = ["serde", "serde-big-array"]                        # Serde serialization
 
-# Serialization support
-serialization = ["serde", "serde-big-array"]
+# Security hardening
+zeroize = ["dep:zeroize"]                                           # Automatic memory zeroization
+security-hardened = ["zeroize", "hqc"]                              # Full security hardening
 
-# Memory safety
-zeroize = ["dep:zeroize"]
+# DRBG implementations (for KAT compatibility)
+aes-drbg = ["aes", "alloc"]                                         # Standard AES-256-CTR-DRBG
+bearssl-aes = ["aes", "alloc"]                                      # BearSSL AES for exact KAT match
 
-# Security features
-security-hardened = ["zeroize", "hqc"]
+# Debug and diagnostics features (development only)
+debug-drbg-interop = ["aes-drbg", "bearssl-aes"]                   # Compare DRBG implementations
+debug-drbg-state = []                                               # Log DRBG state transitions
+debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]             # DRBG state logging with defmt
+archive-tests = []                                                  # Enable archived diagnostic tests
 
-# AES-CTR-DRBG for KAT compatibility
-aes-drbg = ["aes", "alloc"]
-
-
-# BearSSL AES for exact KAT compatibility
-bearssl-aes = ["aes", "alloc"]
-
-# Dual-mode DRBG diagnostics for interoperability testing
-# Requires both aes-drbg and bearssl-aes to be enabled
-# Enables side-by-side comparison and logging of both DRBG outputs
-debug-drbg-interop = ["aes-drbg", "bearssl-aes"]
-
-# Debug DRBG state transitions for KAT alignment analysis
-# Enables detailed logging of Key, V, and counter state changes
-debug-drbg-state = []
-
-# Debug DRBG state with defmt for no_std environments
-# Enables detailed logging using defmt framework
-debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]
-
-# Archive tests - enables compilation of archived diagnostic tests
-# These tests are excluded from default cargo test runs
-archive-tests = []
-
-# SIMD optimizations
-simd-avx2 = []  # Enable AVX2 optimizations with runtime detection
+# Performance optimizations
+simd-avx2 = []                                                      # AVX2 SIMD with runtime detection
 
 [lib]
 name = "lib_q_hqc"
@@ -157,4 +113,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [package.metadata.wasm-pack.profile.release]
+# Disable wasm-opt to preserve cryptographic timing characteristics
+# Enable manually if binary size is more critical than constant-time guarantees
 wasm-opt = false

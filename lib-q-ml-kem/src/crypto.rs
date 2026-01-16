@@ -48,10 +48,6 @@ pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
 pub fn H(x: impl AsRef<[u8]>) -> B32 {
     let mut h = Sha3_256::new();
     Digest::update(&mut h, x);
-
-    // This odd conversion is needed because the `sha3` crate links against an old version of
-    // the `generic-array` crate.  It should be pretty cheap though, since there's only one
-    // allocation / no copies.
     let mut out = B32::default();
     h.finalize_into(&mut out);
     out

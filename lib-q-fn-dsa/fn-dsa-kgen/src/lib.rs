@@ -1148,6 +1148,7 @@ mod tests {
         let mut t16 = [0u16; 1024];
         let mut t32 = [0u32; 6 * 1024];
         let mut tfx = [fxp::Fxr::ZERO; 5 * 512];
+        #[allow(clippy::needless_range_loop)]
         for i in 0..rh.len() {
             let mut seed = [0u8; 10];
             seed[..4].copy_from_slice(&b"test"[..]);
@@ -1242,6 +1243,7 @@ mod tests {
                     &mut t32,
                     &mut tfx,
                 );
+                #[allow(clippy::needless_range_loop)]
                 for i in 0..(2 * n) {
                     r[i] = 0;
                 }
@@ -1258,6 +1260,7 @@ mod tests {
                     r[i] -= r[i + n];
                 }
                 assert!(r[0] == 12289);
+                #[allow(clippy::needless_range_loop)]
                 for i in 1..n {
                     assert!(r[i] == 0);
                 }

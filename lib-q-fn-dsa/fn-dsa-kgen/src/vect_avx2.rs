@@ -833,11 +833,11 @@ mod tests {
 
     fn mulvect(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr]) {
         let n = 1usize << logn;
-        for i in 0..n {
-            d[i] = Fxr::ZERO;
+        for item in d.iter_mut().take(n) {
+            *item = Fxr::ZERO;
         }
-        for i in 0..n {
-            for j in 0..n {
+        for (i, _) in a.iter().enumerate().take(n) {
+            for (j, _) in b.iter().enumerate().take(n) {
                 let z = a[i] * b[j];
                 let k = i + j;
                 if k < n {
@@ -860,7 +860,7 @@ mod tests {
                 for logn in 1u32..10u32 {
                     let n = 1usize << logn;
                     for i in 0u32..10u32 {
-                        rndvect(logn, &mut a, (0 | (logn << 8) | (i << 12)) as u64);
+                        rndvect(logn, &mut a, ((logn << 8) | (i << 12)) as u64);
                         rndvect(logn, &mut b, (1 | (logn << 8) | (i << 12)) as u64);
                         c[..n].copy_from_slice(&a[..n]);
                         let mut c2 = c;
@@ -899,7 +899,7 @@ mod tests {
                 for i in 0..1000u32 {
                     let mut f = [Fxr::ZERO; 4];
                     let mut g = [Fxr::ZERO; 4];
-                    sh.update((2 * i + 0).to_le_bytes());
+                    sh.update((2 * i).to_le_bytes());
                     buf[..].copy_from_slice(&sh.finalize_reset());
                     for j in 0..4 {
                         f[j] = Fxr(u64::from_le_bytes(
@@ -915,9 +915,9 @@ mod tests {
                     }
 
                     let mut h = [Fxr::ZERO; 4];
-                    let fp: *const __m256i = transmute((&f).as_ptr());
-                    let gp: *const __m256i = transmute((&g).as_ptr());
-                    let hp: *mut __m256i = transmute((&mut h).as_mut_ptr());
+                    let fp: *const __m256i = transmute(f.as_ptr());
+                    let gp: *const __m256i = transmute(g.as_ptr());
+                    let hp: *mut __m256i = transmute(h.as_mut_ptr());
                     let yf = _mm256_loadu_si256(fp);
                     let yg = _mm256_loadu_si256(gp);
 

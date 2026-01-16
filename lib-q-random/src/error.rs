@@ -12,7 +12,7 @@
 //! operations, providing detailed information about failure modes and recovery
 //! strategies.
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::string::String;
 use core::fmt;
 
@@ -80,11 +80,13 @@ pub enum Error {
         /// Expected value or range
         #[cfg(feature = "alloc")]
         expected: String,
+        /// Expected value or range (no_std version)
         #[cfg(not(feature = "alloc"))]
         expected: &'static str,
         /// Actual value provided
         #[cfg(feature = "alloc")]
         actual: String,
+        /// Actual value provided (no_std version)
         #[cfg(not(feature = "alloc"))]
         actual: &'static str,
     },
@@ -122,11 +124,13 @@ pub enum Error {
         /// Expected value
         #[cfg(feature = "alloc")]
         expected: String,
+        /// Expected value (no_std version)
         #[cfg(not(feature = "alloc"))]
         expected: &'static str,
         /// Actual value
         #[cfg(feature = "alloc")]
         actual: String,
+        /// Actual value (no_std version)
         #[cfg(not(feature = "alloc"))]
         actual: &'static str,
     },

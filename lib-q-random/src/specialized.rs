@@ -394,29 +394,21 @@ impl RngCore for FnDsaRng {
         }
         #[cfg(not(feature = "rand"))]
         {
-            #[cfg(feature = "wasm")]
+            // Use getrandom for secure entropy - works on all platforms including WASM
+            #[cfg(feature = "getrandom")]
             {
                 let mut bytes = [0u8; 4];
-                getrandom::fill(&mut bytes).expect("Failed to get random bytes");
+                getrandom::fill(&mut bytes).expect("Failed to get random bytes from getrandom");
                 u32::from_le_bytes(bytes)
             }
-            #[cfg(not(feature = "wasm"))]
+            #[cfg(not(feature = "getrandom"))]
             {
-                // For no_std environments without WASM, we need a different approach
-                // This is a placeholder - in practice, you'd use a hardware RNG or similar
-                // For now, we'll use a simple counter-based approach (NOT cryptographically secure)
-                // In production, this should be replaced with proper hardware RNG
-                // Note: This is intentionally not cryptographically secure for demonstration
-                // In production, replace with proper hardware RNG
-                // For now, use a simple counter (NOT SECURE)
-                static mut COUNTER: u32 = 0;
-                // SAFETY: This is a simple counter for demonstration purposes only
-                // In production, replace with proper hardware RNG
-                #[allow(unsafe_code)]
-                unsafe {
-                    COUNTER = COUNTER.wrapping_add(1);
-                    COUNTER
-                }
+                // If getrandom is not available, this RNG cannot provide secure randomness
+                // The caller should use the deterministic version for testing
+                panic!(
+                    "ClassicalMcElieceRng::randombytes() requires either 'rand' or 'getrandom' feature. \
+                       Use ClassicalMcElieceRng::new_deterministic() for testing without these features."
+                );
             }
         }
     }
@@ -513,6 +505,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "rand", feature = "getrandom"))]
     fn test_fn_dsa_rng_interface() {
         let mut rng = FnDsaRng::new();
 

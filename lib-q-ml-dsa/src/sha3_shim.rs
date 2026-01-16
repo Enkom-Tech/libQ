@@ -401,15 +401,12 @@ pub mod avx2 {
         }
 
         pub mod incremental {
-            use lib_q_keccak::advanced::parallel;
-
             use super::super::super::incremental;
 
-            /// The Keccak state for the incremental API with true SIMD parallel processing
+            /// The Keccak state for the incremental API
+            /// Uses portable implementation wrapped for x4 interface
             pub struct KeccakStateX4 {
                 states: [super::super::super::KeccakState; 4],
-                simd_states: [[u64; 25]; 4], // SIMD-optimized state representation
-                initialized: bool,
             }
 
             impl KeccakStateX4 {
@@ -421,93 +418,6 @@ pub mod avx2 {
                             incremental::shake128_init(),
                             incremental::shake128_init(),
                         ],
-                        simd_states: [[0u64; 25]; 4],
-                        initialized: false,
-                    }
-                }
-
-                /// Initialize SIMD states from individual states
-                fn init_simd_states(&mut self) {
-                    if !self.initialized {
-                        // Convert individual states to SIMD format
-                        for i in 0..4 {
-                            match &self.states[i] {
-                                crate::sha3_shim::KeccakState::Shake128 {
-                                    hasher: _,
-                                    reader: _,
-                                } => {
-                                    // Extract state from hasher (simplified - in practice would need access to internal state)
-                                    // For now, we'll use the incremental API and convert
-                                    self.simd_states[i] = [0u64; 25];
-                                    self.simd_states[i][0] = 0x1F; // SHAKE128 domain separator
-                                }
-                                _ => panic!("Invalid state type"),
-                            }
-                        }
-                        self.initialized = true;
-                    }
-                }
-
-                pub fn absorb_final(&mut self, inputs: &[&[u8]; 4]) {
-                    self.init_simd_states();
-
-                    // Process absorption in parallel using SIMD
-                    for (simd_state, input) in self.simd_states.iter_mut().zip(inputs.iter()) {
-                        let mut offset = 0;
-                        while offset + 8 <= input.len() {
-                            let value = u64::from_le_bytes([
-                                input[offset],
-                                input[offset + 1],
-                                input[offset + 2],
-                                input[offset + 3],
-                                input[offset + 4],
-                                input[offset + 5],
-                                input[offset + 6],
-                                input[offset + 7],
-                            ]);
-                            simd_state[offset / 8] ^= value;
-                            offset += 8;
-                        }
-
-                        // Handle remaining bytes
-                        if offset < input.len() {
-                            let mut remaining = [0u8; 8];
-                            remaining[..input.len() - offset].copy_from_slice(&input[offset..]);
-                            let value = u64::from_le_bytes(remaining);
-                            simd_state[offset / 8] ^= value;
-                        }
-
-                        // Apply padding
-                        simd_state[input.len() / 8] ^= 0x1F << ((input.len() % 8) * 8);
-                        simd_state[16] ^= 0x8000000000000000; // Final padding
-                    }
-
-                    // Apply parallel Keccak permutation
-                    parallel::p1600_parallel_4x(&mut self.simd_states);
-                }
-
-                pub fn squeeze_first_block(&mut self, outputs: &mut [&mut [u8]; 4]) {
-                    self.init_simd_states();
-
-                    // Squeeze first block from all states in parallel
-                    for (simd_state, output) in self.simd_states.iter().zip(outputs.iter_mut()) {
-                        let squeeze_state = *simd_state;
-
-                        // Apply permutation for squeezing
-                        parallel::p1600_parallel_4x(&mut [
-                            squeeze_state,
-                            squeeze_state,
-                            squeeze_state,
-                            squeeze_state,
-                        ]);
-
-                        // Extract first block (168 bytes for SHAKE128)
-                        let block_size = output.len().min(168);
-                        for i in 0..block_size {
-                            let lane = i / 8;
-                            let bit_offset = (i % 8) * 8;
-                            output[i] = (squeeze_state[lane] >> bit_offset) as u8;
-                        }
                     }
                 }
             }
@@ -524,8 +434,10 @@ pub mod avx2 {
                 input2: &[u8],
                 input3: &[u8],
             ) {
-                let inputs = [input0, input1, input2, input3];
-                state.absorb_final(&inputs);
+                incremental::shake128_absorb_final(&mut state.states[0], input0);
+                incremental::shake128_absorb_final(&mut state.states[1], input1);
+                incremental::shake128_absorb_final(&mut state.states[2], input2);
+                incremental::shake128_absorb_final(&mut state.states[3], input3);
             }
 
             pub fn shake128_squeeze_first_five_blocks(
@@ -535,28 +447,10 @@ pub mod avx2 {
                 out2: &mut [u8],
                 out3: &mut [u8],
             ) {
-                // Ensure output buffers are large enough for 5 blocks
-                debug_assert!(out0.len() >= 168 * 5);
-                debug_assert!(out1.len() >= 168 * 5);
-                debug_assert!(out2.len() >= 168 * 5);
-                debug_assert!(out3.len() >= 168 * 5);
-
-                // Squeeze 5 blocks from all states in parallel
-                // Process each output individually to avoid borrow checker issues
-                for block in 0..5 {
-                    let start = block * 168;
-                    let end = (block + 1) * 168;
-
-                    // Process each output individually to avoid borrow checker issues
-                    // Use individual mutable references to avoid array borrowing conflicts
-                    let mut temp_outputs = [
-                        &mut out0[start..end],
-                        &mut out1[start..end],
-                        &mut out2[start..end],
-                        &mut out3[start..end],
-                    ];
-                    state.squeeze_first_block(&mut temp_outputs);
-                }
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[0], out0);
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[1], out1);
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[2], out2);
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[3], out3);
             }
 
             pub fn shake128_squeeze_next_block(
@@ -566,9 +460,10 @@ pub mod avx2 {
                 out2: &mut [u8],
                 out3: &mut [u8],
             ) {
-                // Use individual mutable references to avoid array borrowing conflicts
-                let mut temp_outputs = [out0, out1, out2, out3];
-                state.squeeze_first_block(&mut temp_outputs);
+                incremental::shake128_squeeze_next_block(&mut state.states[0], out0);
+                incremental::shake128_squeeze_next_block(&mut state.states[1], out1);
+                incremental::shake128_squeeze_next_block(&mut state.states[2], out2);
+                incremental::shake128_squeeze_next_block(&mut state.states[3], out3);
             }
 
             pub fn shake256_absorb_final(
@@ -578,9 +473,10 @@ pub mod avx2 {
                 input2: &[u8],
                 input3: &[u8],
             ) {
-                // Similar to SHAKE128 but with different domain separator
-                let inputs = [input0, input1, input2, input3];
-                state.absorb_final(&inputs);
+                incremental::shake256_absorb_final(&mut state.states[0], input0);
+                incremental::shake256_absorb_final(&mut state.states[1], input1);
+                incremental::shake256_absorb_final(&mut state.states[2], input2);
+                incremental::shake256_absorb_final(&mut state.states[3], input3);
             }
 
             pub fn shake256_squeeze_first_block(
@@ -590,9 +486,10 @@ pub mod avx2 {
                 out2: &mut [u8],
                 out3: &mut [u8],
             ) {
-                // Use individual mutable references to avoid array borrowing conflicts
-                let mut temp_outputs = [out0, out1, out2, out3];
-                state.squeeze_first_block(&mut temp_outputs);
+                incremental::shake256_squeeze_first_block(&mut state.states[0], out0);
+                incremental::shake256_squeeze_first_block(&mut state.states[1], out1);
+                incremental::shake256_squeeze_first_block(&mut state.states[2], out2);
+                incremental::shake256_squeeze_first_block(&mut state.states[3], out3);
             }
 
             pub fn shake256_squeeze_next_block(
@@ -602,9 +499,10 @@ pub mod avx2 {
                 out2: &mut [u8],
                 out3: &mut [u8],
             ) {
-                // Use individual mutable references to avoid array borrowing conflicts
-                let mut temp_outputs = [out0, out1, out2, out3];
-                state.squeeze_first_block(&mut temp_outputs);
+                incremental::shake256_squeeze_next_block(&mut state.states[0], out0);
+                incremental::shake256_squeeze_next_block(&mut state.states[1], out1);
+                incremental::shake256_squeeze_next_block(&mut state.states[2], out2);
+                incremental::shake256_squeeze_next_block(&mut state.states[3], out3);
             }
         }
     }
@@ -706,137 +604,18 @@ pub mod neon {
         }
 
         pub mod incremental {
-            use lib_q_keccak::advanced::parallel;
-
             use super::super::super::incremental;
 
-            /// The Keccak state for the incremental API with true SIMD parallel processing
+            /// The Keccak state for the incremental API
+            /// Uses portable implementation wrapped for x2 interface
             pub struct KeccakStateX2 {
                 states: [super::super::super::KeccakState; 2],
-                simd_states: [[u64; 25]; 2], // SIMD-optimized state representation
-                initialized: bool,
             }
 
             impl KeccakStateX2 {
                 pub fn new() -> Self {
                     Self {
                         states: [incremental::shake128_init(), incremental::shake128_init()],
-                        simd_states: [[0u64; 25]; 2],
-                        initialized: false,
-                    }
-                }
-
-                /// Initialize SIMD states from individual states
-                fn init_simd_states(&mut self) {
-                    if !self.initialized {
-                        // Convert individual states to SIMD format
-                        for i in 0..2 {
-                            match &self.states[i] {
-                                crate::sha3_shim::KeccakState::Shake128 {
-                                    hasher: _,
-                                    reader: _,
-                                } => {
-                                    // Extract state from hasher (simplified - in practice would need access to internal state)
-                                    // For now, we'll use the incremental API and convert
-                                    self.simd_states[i] = [0u64; 25];
-                                    self.simd_states[i][0] = 0x1F; // SHAKE128 domain separator
-                                }
-                                _ => panic!("Invalid state type"),
-                            }
-                        }
-                        self.initialized = true;
-                    }
-                }
-
-                pub fn absorb_final(&mut self, inputs: &[&[u8]; 2]) {
-                    self.init_simd_states();
-
-                    // Process absorption in parallel using SIMD
-                    for (simd_state, input) in self.simd_states.iter_mut().zip(inputs.iter()) {
-                        let mut offset = 0;
-                        while offset + 8 <= input.len() {
-                            let value = u64::from_le_bytes([
-                                input[offset],
-                                input[offset + 1],
-                                input[offset + 2],
-                                input[offset + 3],
-                                input[offset + 4],
-                                input[offset + 5],
-                                input[offset + 6],
-                                input[offset + 7],
-                            ]);
-                            simd_state[offset / 8] ^= value;
-                            offset += 8;
-                        }
-
-                        // Handle remaining bytes
-                        if offset < input.len() {
-                            let mut remaining = [0u8; 8];
-                            remaining[..input.len() - offset].copy_from_slice(&input[offset..]);
-                            let value = u64::from_le_bytes(remaining);
-                            simd_state[offset / 8] ^= value;
-                        }
-
-                        // Apply padding
-                        simd_state[input.len() / 8] ^= 0x1F << ((input.len() % 8) * 8);
-                        simd_state[16] ^= 0x8000000000000000; // Final padding
-                    }
-
-                    // Apply parallel Keccak permutation
-                    parallel::p1600_parallel_2x(&mut self.simd_states);
-                }
-
-                pub fn squeeze_first_five_blocks(&mut self, outputs: &mut [&mut [u8]; 2]) {
-                    self.init_simd_states();
-
-                    // Squeeze first 5 blocks from both states in parallel
-                    for (simd_state, output) in self.simd_states.iter().zip(outputs.iter_mut()) {
-                        let squeeze_state = *simd_state;
-
-                        // Apply permutation for squeezing
-                        parallel::p1600_parallel_2x(&mut [squeeze_state, squeeze_state]);
-
-                        // Extract first 5 blocks (168 * 5 = 840 bytes for SHAKE128)
-                        let block_size = output.len().min(840);
-                        for i in 0..block_size {
-                            let lane = i / 8;
-                            let bit_offset = (i % 8) * 8;
-                            // Ensure we don't access beyond the 25-lane Keccak state
-                            if lane < 25 {
-                                output[i] = (squeeze_state[lane] >> bit_offset) as u8;
-                            } else {
-                                // If we need more bytes than available in the state,
-                                // we need to apply another permutation
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                pub fn squeeze_next_block(&mut self, outputs: &mut [&mut [u8]; 2]) {
-                    self.init_simd_states();
-
-                    // Squeeze next block from both states in parallel
-                    for (simd_state, output) in self.simd_states.iter().zip(outputs.iter_mut()) {
-                        let squeeze_state = *simd_state;
-
-                        // Apply permutation for squeezing
-                        parallel::p1600_parallel_2x(&mut [squeeze_state, squeeze_state]);
-
-                        // Extract next block (168 bytes for SHAKE128)
-                        let block_size = output.len().min(168);
-                        for i in 0..block_size {
-                            let lane = i / 8;
-                            let bit_offset = (i % 8) * 8;
-                            // Ensure we don't access beyond the 25-lane Keccak state
-                            if lane < 25 {
-                                output[i] = (squeeze_state[lane] >> bit_offset) as u8;
-                            } else {
-                                // If we need more bytes than available in the state,
-                                // we need to apply another permutation
-                                break;
-                            }
-                        }
                     }
                 }
             }
@@ -847,8 +626,8 @@ pub mod neon {
             }
 
             pub fn shake128_absorb_final(state: &mut KeccakStateX2, input0: &[u8], input1: &[u8]) {
-                let inputs = [input0, input1];
-                state.absorb_final(&inputs);
+                incremental::shake128_absorb_final(&mut state.states[0], input0);
+                incremental::shake128_absorb_final(&mut state.states[1], input1);
             }
 
             pub fn shake128_squeeze_first_five_blocks(
@@ -856,8 +635,8 @@ pub mod neon {
                 out0: &mut [u8],
                 out1: &mut [u8],
             ) {
-                let mut outputs = [out0, out1];
-                state.squeeze_first_five_blocks(&mut outputs);
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[0], out0);
+                incremental::shake128_squeeze_first_five_blocks(&mut state.states[1], out1);
             }
 
             pub fn shake128_squeeze_next_block(
@@ -865,13 +644,13 @@ pub mod neon {
                 out0: &mut [u8],
                 out1: &mut [u8],
             ) {
-                let mut outputs = [out0, out1];
-                state.squeeze_next_block(&mut outputs);
+                incremental::shake128_squeeze_next_block(&mut state.states[0], out0);
+                incremental::shake128_squeeze_next_block(&mut state.states[1], out1);
             }
 
             pub fn shake256_absorb_final(state: &mut KeccakStateX2, input0: &[u8], input1: &[u8]) {
-                let inputs = [input0, input1];
-                state.absorb_final(&inputs);
+                incremental::shake256_absorb_final(&mut state.states[0], input0);
+                incremental::shake256_absorb_final(&mut state.states[1], input1);
             }
 
             pub fn shake256_squeeze_first_block(
@@ -879,8 +658,8 @@ pub mod neon {
                 out0: &mut [u8],
                 out1: &mut [u8],
             ) {
-                let mut outputs = [out0, out1];
-                state.squeeze_first_five_blocks(&mut outputs);
+                incremental::shake256_squeeze_first_block(&mut state.states[0], out0);
+                incremental::shake256_squeeze_first_block(&mut state.states[1], out1);
             }
 
             pub fn shake256_squeeze_next_block(
@@ -888,8 +667,8 @@ pub mod neon {
                 out0: &mut [u8],
                 out1: &mut [u8],
             ) {
-                let mut outputs = [out0, out1];
-                state.squeeze_next_block(&mut outputs);
+                incremental::shake256_squeeze_next_block(&mut state.states[0], out0);
+                incremental::shake256_squeeze_next_block(&mut state.states[1], out1);
             }
         }
     }

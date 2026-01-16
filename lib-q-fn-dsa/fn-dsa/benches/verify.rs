@@ -37,13 +37,13 @@ fn bench_verify(logn: u32) -> (f64, u8) {
     let sig_len = signature_size(logn);
     let mut sk = SigningKeyStandard::decode(sk_e).unwrap();
     let mut msg = [0u8];
-    for i in 0..sigs_buf.len() {
+    for sig in &mut sigs_buf {
         sk.sign(
             &mut rng,
             &DOMAIN_NONE,
             &HASH_ID_RAW,
             &msg,
-            &mut sigs_buf[i][..sig_len],
+            &mut sig[..sig_len],
         );
     }
 
@@ -79,13 +79,13 @@ fn bench_verify_full(logn: u32) -> (f64, u8) {
     let sig_len = signature_size(logn);
     let mut sk = SigningKeyStandard::decode(sk_e).unwrap();
     let mut msg = [0u8];
-    for i in 0..sigs_buf.len() {
+    for sig in &mut sigs_buf {
         sk.sign(
             &mut rng,
             &DOMAIN_NONE,
             &HASH_ID_RAW,
             &msg,
-            &mut sigs_buf[i][..sig_len],
+            &mut sig[..sig_len],
         );
     }
 

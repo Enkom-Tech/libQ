@@ -237,7 +237,7 @@ pub trait AdvancedLaneSize: LaneSize {
 impl AdvancedLaneSize for u64x2 {
     const SIMD_WIDTH: usize = 2;
 
-    /// Secure SIMD parallel Keccak-p[1600]×2 implementation
+    /// Secure SIMD parallel Keccak-p\[1600\]×2 implementation
     /// Processes 2 Keccak states simultaneously using SIMD operations
     fn parallel_keccak_p(states: &mut [Self; PLEN], round_count: usize) {
         // Following XKCP reference implementation patterns
@@ -349,7 +349,7 @@ impl AdvancedLaneSize for u64x2 {
 impl AdvancedLaneSize for u64x4 {
     const SIMD_WIDTH: usize = 4;
 
-    /// Secure SIMD parallel Keccak-p[1600]×4 implementation
+    /// Secure SIMD parallel Keccak-p\[1600\]×4 implementation
     /// Processes 4 Keccak states simultaneously using AVX2/AVX512 operations
     fn parallel_keccak_p(states: &mut [Self; PLEN], round_count: usize) {
         // Security validation
@@ -441,7 +441,7 @@ impl AdvancedLaneSize for u64x4 {
 impl AdvancedLaneSize for u64x8 {
     const SIMD_WIDTH: usize = 8;
 
-    /// Secure SIMD parallel Keccak-p[1600]×8 implementation
+    /// Secure SIMD parallel Keccak-p\[1600\]×8 implementation
     /// Processes 8 Keccak states simultaneously using AVX512 operations
     fn parallel_keccak_p(states: &mut [Self; PLEN], round_count: usize) {
         // Security validation
@@ -533,7 +533,7 @@ impl AdvancedLaneSize for u64x8 {
     }
 }
 
-/// Parallel Keccak-p[1600] processing functions
+/// Parallel Keccak-p\[1600\] processing functions
 #[cfg(feature = "simd")]
 pub mod parallel {
     use super::*;
@@ -683,6 +683,7 @@ pub fn fast_loop_absorb_advanced(state: &mut [u64; 25], data: &[u8], parallelism
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)] // Test vectors should remain as-is
 mod tests {
     use super::*;
 

@@ -3590,8 +3590,8 @@ mod tests {
     use crate::tests::SHAKE256x4;
 
     fn rand_poly(rng: &mut SHAKE256x4, f: &mut [Flr]) {
-        for i in 0..f.len() {
-            f[i] = Flr::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
+        for item in f {
+            *item = Flr::from_i64(((rng.next_u16() & 0x3FF) as i64) - 512);
         }
     }
 
@@ -3618,11 +3618,11 @@ mod tests {
 
             if ctr < 5 {
                 rand_poly(&mut rng, g);
-                for i in 0..n {
-                    h[i] = Flr::ZERO;
+                for item in h.iter_mut().take(n) {
+                    *item = Flr::ZERO;
                 }
-                for i in 0..n {
-                    for j in 0..n {
+                for (i, _) in f.iter().enumerate().take(n) {
+                    for (j, _) in g.iter().enumerate().take(n) {
                         let s = f[i] * g[j];
                         let k = i + j;
                         if i + j < n {
@@ -3673,8 +3673,8 @@ mod tests {
     #[test]
     fn check_GM() {
         let mut sh = SHAKE256::new();
-        for i in 0..2048 {
-            let x = GM[i].encode();
+        for item in &GM {
+            let x = item.encode();
             sh.inject(&x);
         }
         sh.flip();

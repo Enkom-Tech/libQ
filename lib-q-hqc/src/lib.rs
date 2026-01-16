@@ -74,7 +74,7 @@
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "ffi"), deny(unsafe_code))]
+#![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
 #[cfg(feature = "alloc")]

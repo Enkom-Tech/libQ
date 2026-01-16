@@ -265,6 +265,7 @@ impl WasmKemContext {
 
     /// Get supported algorithms
     pub fn supported_algorithms(&self) -> String {
+        #[allow(unused_mut)] // mut needed when feature flags are enabled
         let mut algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024"];
         #[cfg(feature = "dawn")]
         {
@@ -853,6 +854,7 @@ impl WasmCryptoProvider {
     pub fn supported_algorithms(&self) -> String {
         #[cfg(feature = "wasm")]
         {
+            #[allow(unused_mut)] // mut needed when feature flags are enabled
             let mut kem_algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024"];
             #[cfg(feature = "dawn")]
             {

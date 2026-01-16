@@ -80,13 +80,14 @@
 //! # }
 //! ```
 
-#[cfg(feature = "alloc")]
+#[cfg(not(feature = "std"))]
 extern crate alloc;
-#[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+#[cfg(not(feature = "std"))]
+use alloc::string::ToString;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 #[cfg(feature = "wasm")]
 use js_sys::Uint8Array;
@@ -373,20 +374,10 @@ impl Signature for MlDsa {
         #[cfg(not(feature = "std"))]
         {
             // In no_std mode, return error - key generation requires randomness
-            #[cfg(feature = "alloc")]
-            {
-                Err(lib_q_core::Error::RandomGenerationFailed {
-                    operation: "ml-dsa key generation requires std feature or external randomness"
-                        .to_string(),
-                })
-            }
-            #[cfg(not(feature = "alloc"))]
-            {
-                Err(lib_q_core::Error::RandomGenerationFailed {
-                    operation: "ml-dsa key generation requires std feature or external randomness"
-                        .to_string(),
-                })
-            }
+            Err(lib_q_core::Error::RandomGenerationFailed {
+                operation: "ml-dsa key generation requires std feature or external randomness"
+                    .to_string(),
+            })
         }
     }
 
@@ -419,19 +410,9 @@ impl Signature for MlDsa {
         #[cfg(not(feature = "std"))]
         {
             // In no_std mode, return error - signing requires randomness
-            #[cfg(feature = "alloc")]
-            {
-                Err(lib_q_core::Error::RandomGenerationFailed {
-                    operation: "ml-dsa signing requires std feature or external randomness"
-                        .to_string(),
-                })
-            }
-            #[cfg(not(feature = "alloc"))]
-            {
-                Err(lib_q_core::Error::RandomGenerationFailed {
-                    operation: "ml-dsa signing requires std feature or external randomness",
-                })
-            }
+            Err(lib_q_core::Error::RandomGenerationFailed {
+                operation: "ml-dsa signing requires std feature or external randomness".to_string(),
+            })
         }
     }
 
@@ -738,12 +719,21 @@ impl MlDsa {
             None
         };
 
-        let signature = if let Some(rand) = randomness_array {
+        let signature: Vec<u8> = if let Some(rand) = randomness_array {
             self.sign_with_randomness(&secret_key, &message, rand)
                 .map_err(|e| JsValue::from_str(&e.to_string()))?
         } else {
-            self.sign(&secret_key, &message)
-                .map_err(|e| JsValue::from_str(&e.to_string()))?
+            #[cfg(feature = "std")]
+            {
+                self.sign(&secret_key, &message)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))?
+            }
+            #[cfg(not(feature = "std"))]
+            {
+                return Err(JsValue::from_str(
+                    "Randomness required for signing in no_std mode",
+                ));
+            }
         };
 
         Ok(Uint8Array::from(signature.as_slice()))

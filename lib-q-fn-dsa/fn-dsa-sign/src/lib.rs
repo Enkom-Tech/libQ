@@ -838,10 +838,10 @@ pub(crate) mod tests {
                 SHAKE256::new(),
                 SHAKE256::new(),
             ];
-            for i in 0..4 {
-                sh[i].inject(seed);
-                sh[i].inject(&[i as u8]);
-                sh[i].flip();
+            for (i, item) in sh.iter_mut().enumerate() {
+                item.inject(seed);
+                item.inject(&[i as u8]);
+                item.flip();
             }
             Self {
                 sh,
@@ -979,9 +979,9 @@ pub(crate) mod tests {
                 );
                 cc += 1;
 
-                for j in 0..16 {
+                for (j, item) in state.iter().enumerate() {
                     let k = (i << 2) + (j << 5);
-                    self.buf[k..(k + 4)].copy_from_slice(&state[j].to_le_bytes());
+                    self.buf[k..(k + 4)].copy_from_slice(&item.to_le_bytes());
                 }
             }
             self.state[48..56].copy_from_slice(&cc.to_le_bytes());
@@ -1239,9 +1239,11 @@ pub(crate) mod tests {
         sh.extract(&mut seed);
         let mut p = ChaCha20PRNG::new(&seed);
 
+        #[allow(clippy::needless_range_loop)]
         for i in 0..KAT_RNG_1.len() {
             assert!(p.next_u64() == KAT_RNG_1[i]);
         }
+        #[allow(clippy::needless_range_loop)]
         for i in 0..KAT_RNG_2.len() {
             assert!(p.next_u8() == KAT_RNG_2[i]);
         }

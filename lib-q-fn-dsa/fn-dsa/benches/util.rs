@@ -79,7 +79,7 @@ impl RngCore for FakeRNG {
 }
 
 pub fn banner_arch() {
-    #[cfg(any(target_arch = "x86_64"))]
+    #[cfg(target_arch = "x86_64")]
     {
         print!("Arch: x86_64 (64-bit)");
         #[cfg(feature = "no_avx2")]
@@ -92,7 +92,7 @@ pub fn banner_arch() {
         println!();
     }
 
-    #[cfg(any(target_arch = "x86"))]
+    #[cfg(target_arch = "x86")]
     {
         print!("Arch: x86 (32-bit)");
         #[cfg(feature = "no_avx2")]
@@ -105,13 +105,13 @@ pub fn banner_arch() {
         println!();
     }
 
-    #[cfg(any(target_arch = "aarch64"))]
+    #[cfg(target_arch = "aarch64")]
     println!("Arch: aarch64");
 
-    #[cfg(any(target_arch = "arm64ec"))]
+    #[cfg(target_arch = "arm64ec")]
     println!("Arch: arm64ec");
 
-    #[cfg(any(target_arch = "riscv64"))]
+    #[cfg(target_arch = "riscv64")]
     println!("Arch: riscv64");
 
     #[cfg(not(any(

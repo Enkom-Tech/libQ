@@ -572,6 +572,7 @@ mod tests {
                 simd_unit.values[i] = FIELD_MODULUS + (FIELD_MODULUS / 1024) + 6;
             }
         }
+        #[allow(clippy::let_unit_value, clippy::unit_arg)]
         let _ = core::hint::black_box(invert_ntt_montgomery(&mut re.simd_units));
     }
 
@@ -584,6 +585,7 @@ mod tests {
                 simd_unit.values[i] = FIELD_MODULUS + (FIELD_MODULUS / 1024) + 7;
             }
         }
+        #[allow(clippy::unit_arg)]
         core::hint::black_box(invert_ntt_montgomery(&mut re1.simd_units)); // In debug mode this will panic since the intermediate values overflow.
 
         let mut re2 = PolynomialRingElement::<crate::simd::portable::PortableSIMDUnit>::zero();
@@ -593,6 +595,7 @@ mod tests {
             }
         }
         reduce(&mut re2);
+        #[allow(clippy::unit_arg)]
         core::hint::black_box(invert_ntt_montgomery(&mut re2.simd_units));
 
         // In release mode, one of the checks below will panic, since
@@ -614,6 +617,7 @@ mod tests {
             }
         }
         reduce(&mut re);
+        #[allow(clippy::let_unit_value, clippy::unit_arg)]
         let _ = core::hint::black_box(invert_ntt_montgomery(&mut re.simd_units));
     }
 
@@ -626,6 +630,7 @@ mod tests {
             }
         }
         reduce(&mut re);
+        #[allow(clippy::let_unit_value, clippy::unit_arg)]
         let _ = core::hint::black_box(invert_ntt_montgomery(&mut re.simd_units));
     }
 }

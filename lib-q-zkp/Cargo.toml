@@ -2,6 +2,7 @@
 name = "lib-q-zkp"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
 license.workspace = true
@@ -12,6 +13,20 @@ readme.workspace = true
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
+lib-q-stark = { path = "../lib-q-stark" }
+lib-q-stark-air = { path = "../lib-q-stark-air" }
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
+postcard = { version = "1.1.3", default-features = false, features = ["alloc"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
 
 [features]
 default = []
