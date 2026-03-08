@@ -9,10 +9,11 @@ use lib_q_stark_matrix::Matrix;
 use thiserror::Error;
 
 /// A set of parameters defining a specific instance of the FRI protocol.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FriParameters<M> {
     pub log_blowup: usize,
-    // TODO: This parameter and FRI early stopping are not yet implemented in `CirclePcs`.
+    /// Final polynomial length (2^log_final_poly_len). TwoAdicFriPcs uses this for early stopping;
+    /// CirclePcs does not yet honor it in the verify path.
     pub log_final_poly_len: usize,
     pub num_queries: usize,
     pub proof_of_work_bits: usize,

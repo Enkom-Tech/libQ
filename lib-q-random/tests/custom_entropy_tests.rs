@@ -22,7 +22,7 @@ use lib_q_random::{
     new_secure_rng_no_std,
     no_std_rng::NoStdRng,
 };
-// RngCore is not used in this test file
+// Rng is not used in this test file
 
 // Test entropy callback that generates predictable data
 #[allow(dead_code)]

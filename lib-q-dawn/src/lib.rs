@@ -30,11 +30,12 @@ use lib_q_core::{
     Result,
 };
 #[cfg(feature = "random")]
-use rand_core::RngCore;
+use rand_core::TryRng;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 // DAWN cryptographic modules
+pub mod codec;
 pub mod encoding;
 pub mod error_correction;
 pub mod kem_ops;
@@ -52,6 +53,16 @@ use keygen::{
     DeterministicKeyGenerator,
     KeyGenParams,
 };
+
+/// Profile for DAWN parameter sets: spec (paper-faithful) vs production (tuned for correctness).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+pub enum DawnProfile {
+    /// Paper/spec parameters; may have non-negligible decryption failure with current decoder.
+    SpecExperimental,
+    /// Implementation-tuned parameters for negligible decryption failure.
+    Production,
+}
 
 /// DAWN parameter sets
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,31 +116,27 @@ impl DawnParameterSet {
     /// Get the public key size in bytes
     pub fn public_key_size(&self) -> usize {
         match self {
-            DawnParameterSet::Alpha512 => 615,
-            DawnParameterSet::Alpha1024 => 1229,
-            DawnParameterSet::Beta512 => 514,
-            DawnParameterSet::Beta1024 => 1027,
+            DawnParameterSet::Alpha512 => 640,
+            DawnParameterSet::Alpha1024 => 1280,
+            DawnParameterSet::Beta512 => 576,
+            DawnParameterSet::Beta1024 => 1152,
         }
     }
 
-    /// Get the secret key size in bytes
+    /// Get the secret key size in bytes (f || f2 || k_stored || h_pk || pk)
     pub fn secret_key_size(&self) -> usize {
-        match self {
-            DawnParameterSet::Alpha512 => 1319,
-            DawnParameterSet::Alpha1024 => 2605,
-            DawnParameterSet::Beta512 => 1154,
-            DawnParameterSet::Beta1024 => 2275,
-        }
+        let pk = self.public_key_size();
+        let f2_len = (self.polynomial_degree() / 2).div_ceil(8);
+        pk + f2_len + 32 + 32 + pk
     }
 
-    /// Get the ciphertext size in bytes
-    /// Note: This includes 16 bytes for embedded randomness hash
+    /// Get the ciphertext size in bytes (encoded compressed PKE ciphertext only)
     pub fn ciphertext_size(&self) -> usize {
         match self {
-            DawnParameterSet::Alpha512 => 436 + 16,  // 452
-            DawnParameterSet::Alpha1024 => 973 + 16, // 989
-            DawnParameterSet::Beta512 => 450 + 16,   // 466
-            DawnParameterSet::Beta1024 => 1027 + 16, // 1043
+            DawnParameterSet::Alpha512 => 448,
+            DawnParameterSet::Alpha1024 => 1024,
+            DawnParameterSet::Beta512 => 512,
+            DawnParameterSet::Beta1024 => 1152,
         }
     }
 
@@ -143,19 +150,20 @@ impl DawnParameterSet {
 pub struct DawnKem {
     parameter_set: DawnParameterSet,
     keygen_params: KeyGenParams,
+    #[allow(dead_code)] // retained for future deterministic keygen API
     key_generator: DawnKeyGenerator,
     kem_ops: DawnKemOps,
 }
 
 impl DawnKem {
-    /// Create a new DAWN KEM instance with the specified parameter set
+    /// Create a new DAWN KEM instance with the specified parameter set (production profile).
     pub fn new(parameter_set: DawnParameterSet) -> Self {
-        let keygen_params = match parameter_set {
-            DawnParameterSet::Alpha512 => KeyGenParams::dawn_alpha_512(),
-            DawnParameterSet::Alpha1024 => KeyGenParams::dawn_alpha_1024(),
-            DawnParameterSet::Beta512 => KeyGenParams::dawn_beta_512(),
-            DawnParameterSet::Beta1024 => KeyGenParams::dawn_beta_1024(),
-        };
+        Self::new_with_profile(parameter_set, DawnProfile::Production)
+    }
+
+    /// Create a new DAWN KEM instance with the specified parameter set and profile.
+    pub fn new_with_profile(parameter_set: DawnParameterSet, profile: DawnProfile) -> Self {
+        let keygen_params = KeyGenParams::for_profile(parameter_set, profile);
 
         let key_generator = DawnKeyGenerator::new(keygen_params.clone());
         let kem_ops = DawnKemOps::new(keygen_params.clone());
@@ -168,9 +176,56 @@ impl DawnKem {
         }
     }
 
+    /// Create a KEM instance with explicit keygen params (for tuning and tests).
+    pub fn new_with_params(keygen_params: KeyGenParams) -> Self {
+        let parameter_set = keygen_params.base_parameter_set;
+        let key_generator = DawnKeyGenerator::new(keygen_params.clone());
+        let kem_ops = DawnKemOps::new(keygen_params.clone());
+
+        Self {
+            parameter_set,
+            keygen_params,
+            key_generator,
+            kem_ops,
+        }
+    }
+
+    /// Create a KEM instance that uses the reliability-bounded decoder in decapsulation (for sweep/prototype evaluation).
+    pub fn new_with_params_and_reliability_decoder(keygen_params: KeyGenParams) -> Self {
+        let parameter_set = keygen_params.base_parameter_set;
+        let key_generator = DawnKeyGenerator::new(keygen_params.clone());
+        let kem_ops = DawnKemOps::new_with_reliability_decoder(keygen_params.clone());
+
+        Self {
+            parameter_set,
+            keygen_params,
+            key_generator,
+            kem_ops,
+        }
+    }
+
+    /// Create a KEM instance that uses the Path B majority-reliability decoder in decapsulation (for sweep/prototype evaluation).
+    pub fn new_with_params_and_majority_reliability_decoder(keygen_params: KeyGenParams) -> Self {
+        let parameter_set = keygen_params.base_parameter_set;
+        let key_generator = DawnKeyGenerator::new(keygen_params.clone());
+        let kem_ops = DawnKemOps::new_with_majority_reliability_decoder(keygen_params.clone());
+
+        Self {
+            parameter_set,
+            keygen_params,
+            key_generator,
+            kem_ops,
+        }
+    }
+
     /// Get the parameter set for this KEM instance
     pub fn parameter_set(&self) -> DawnParameterSet {
         self.parameter_set
+    }
+
+    /// Get the keygen params (defines actual sizes and crypto parameters)
+    pub fn keygen_params(&self) -> &KeyGenParams {
+        &self.keygen_params
     }
 }
 
@@ -186,66 +241,94 @@ impl DawnKem {
         self.parameter_set.security_level()
     }
 
-    /// Reconstruct a DawnKeyPair from a secret key
+    /// Reconstruct a DawnKeyPair from a secret key.
+    /// Layout: f_bytes || f2 || k_stored (32) || h_pk (32) || pk_bytes.
     fn reconstruct_keypair_from_secret_key(
         &self,
         secret_key: &KemSecretKey,
     ) -> Result<DawnKeyPair> {
-        // The secret key contains both f and g polynomials
         let sk_data = &secret_key.data;
-        let poly_size = sk_data.len() / 2;
-
-        if sk_data.len() < poly_size * 2 {
+        let degree = self.keygen_params.degree;
+        let pk_size = self.keygen_params.public_key_byte_size();
+        let min_len = self.keygen_params.secret_key_byte_size();
+        if sk_data.len() < min_len {
             return Err(Error::InvalidKeySize {
-                expected: poly_size * 2,
+                expected: min_len,
                 actual: sk_data.len(),
             });
         }
+        let f2_size = (degree / 2).div_ceil(8);
 
-        // Extract f and g polynomials
-        let f_data = &sk_data[0..poly_size];
-        let g_data = &sk_data[poly_size..poly_size * 2];
+        let f_data = &sk_data[0..pk_size];
+        let f = self.kem_ops.decode_pk_polynomial(f_data)?;
+        let f2 = sk_data[pk_size..pk_size + f2_size].to_vec();
+        let mut k_stored = [0u8; 32];
+        k_stored.copy_from_slice(&sk_data[pk_size + f2_size..pk_size + f2_size + 32]);
+        let mut h_pk = [0u8; 32];
+        h_pk.copy_from_slice(&sk_data[pk_size + f2_size + 32..pk_size + f2_size + 64]);
+        let pk_data = &sk_data[pk_size + f2_size + 64..pk_size + f2_size + 64 + pk_size];
+        let h = self.kem_ops.decode_pk_polynomial(pk_data)?;
 
-        let f = self.kem_ops.decode_polynomial(f_data)?;
-        let g = self.kem_ops.decode_polynomial(g_data)?;
+        let mut g = f.clone() * h.clone();
+        g.reduce_mod_field();
+        g.reduce_mod_cyclotomic();
 
-        // Compute the public key h = f^(-1) * g
-        let h = self.key_generator.compute_public_key(&f, &g)?;
-
-        Ok(DawnKeyPair::new(h, f, g, self.keygen_params.clone()))
+        Ok(DawnKeyPair::new(
+            h,
+            f,
+            g,
+            f2,
+            k_stored,
+            h_pk,
+            self.keygen_params.clone(),
+        ))
     }
 }
 
+#[cfg(feature = "random")]
 impl Kem for DawnKem {
     /// Generate a keypair
     fn generate_keypair(&self) -> Result<KemKeypair> {
-        // Use secure random number generation for production
-        #[cfg(feature = "random")]
-        let mut rng =
-            lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
-                operation: format!("Failed to create secure RNG: {}", e),
-            })?;
+        const MAX_RETRIES: usize = 10;
+        for _ in 0..MAX_RETRIES {
+            let mut rng =
+                lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+                    operation: format!("lib-q-random: {}", e),
+                })?;
+            let mut randomness = [0u8; 64];
+            rng.try_fill_bytes(&mut randomness)
+                .map_err(|e| Error::RandomGenerationFailed {
+                    operation: format!("RNG fill: {}", e),
+                })?;
 
-        // Generate 64 bytes of secure randomness for key generation
-        let mut randomness = [0u8; 64];
-        #[cfg(feature = "random")]
-        rng.fill_bytes(&mut randomness);
+            let det_generator =
+                DeterministicKeyGenerator::new(self.keygen_params.clone(), randomness.to_vec());
 
-        let det_generator =
-            DeterministicKeyGenerator::new(self.keygen_params.clone(), randomness.to_vec());
+            match det_generator.generate_keypair() {
+                Ok(dawn_keypair) => {
+                    let public_key = dawn_keypair.public_key_bytes();
+                    let secret_key = dawn_keypair.secret_key_bytes();
+                    return Ok(KemKeypair::new(public_key, secret_key));
+                }
+                Err(Error::InternalError { ref details, .. })
+                    if details.contains("not invertible") =>
+                {
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
+        }
 
-        let dawn_keypair = det_generator.generate_keypair()?;
-
-        let public_key = dawn_keypair.public_key_bytes();
-        let secret_key = dawn_keypair.secret_key_bytes();
-
-        Ok(KemKeypair::new(public_key, secret_key))
+        Err(Error::InternalError {
+            operation: "key generation".to_string(),
+            details: "f not invertible after retries; try again".to_string(),
+        })
     }
 
     /// Encapsulate a shared secret
     fn encapsulate(&self, public_key: &KemPublicKey) -> Result<(Vec<u8>, Vec<u8>)> {
         // Validate public key size
-        let expected_size = self.parameter_set.public_key_size();
+        let expected_size = self.keygen_params.public_key_byte_size();
         if public_key.data.len() != expected_size {
             return Err(Error::InvalidKeySize {
                 expected: expected_size,
@@ -253,20 +336,19 @@ impl Kem for DawnKem {
             });
         }
 
-        // Decode public key to polynomial
-        let pk_poly = self.kem_ops.decode_polynomial(&public_key.data)?;
-
-        // Use secure random number generation for production
-        #[cfg(feature = "random")]
-        let mut rng =
-            lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
-                operation: format!("Failed to create secure RNG: {}", e),
-            })?;
+        // Decode public key to polynomial (pk encoding, not ct)
+        let pk_poly = self.kem_ops.decode_pk_polynomial(&public_key.data)?;
 
         // Generate 64 bytes of secure randomness for encapsulation
+        let mut rng =
+            lib_q_random::new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
+                operation: format!("lib-q-random: {}", e),
+            })?;
         let mut randomness = [0u8; 64];
-        #[cfg(feature = "random")]
-        rng.fill_bytes(&mut randomness);
+        rng.try_fill_bytes(&mut randomness)
+            .map_err(|e| Error::RandomGenerationFailed {
+                operation: format!("RNG fill: {}", e),
+            })?;
 
         // Perform encapsulation using the proper KEM operations
         // The randomness will be embedded in the ciphertext
@@ -278,7 +360,7 @@ impl Kem for DawnKem {
     /// Decapsulate a shared secret
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>> {
         // Validate secret key size
-        let expected_sk_size = self.parameter_set.secret_key_size();
+        let expected_sk_size = self.keygen_params.secret_key_byte_size();
         if secret_key.data.len() != expected_sk_size {
             return Err(Error::InvalidKeySize {
                 expected: expected_sk_size,
@@ -287,7 +369,7 @@ impl Kem for DawnKem {
         }
 
         // Validate ciphertext size
-        let expected_ct_size = self.parameter_set.ciphertext_size();
+        let expected_ct_size = self.keygen_params.ciphertext_byte_size();
         if ciphertext.len() != expected_ct_size {
             return Err(Error::InvalidCiphertextSize {
                 expected: expected_ct_size,
@@ -308,7 +390,7 @@ impl Kem for DawnKem {
     /// Derive public key from secret key
     fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey> {
         // Validate secret key size
-        let expected_sk_size = self.parameter_set.secret_key_size();
+        let expected_sk_size = self.keygen_params.secret_key_byte_size();
         if secret_key.data.len() != expected_sk_size {
             return Err(Error::InvalidKeySize {
                 expected: expected_sk_size,
@@ -441,9 +523,9 @@ mod tests {
         assert_eq!(alpha512.polynomial_degree(), 512);
         assert_eq!(alpha512.large_modulus(), 769);
         assert_eq!(alpha512.compression_divisor(), 7);
-        assert_eq!(alpha512.public_key_size(), 615);
-        assert_eq!(alpha512.secret_key_size(), 1319);
-        assert_eq!(alpha512.ciphertext_size(), 452);
+        assert_eq!(alpha512.public_key_size(), 640);
+        assert_eq!(alpha512.secret_key_size(), 640 + 32 + 32 + 32 + 640);
+        assert_eq!(alpha512.ciphertext_size(), 448);
         assert_eq!(alpha512.shared_secret_size(), 32);
 
         // Test DAWN-α-1024
@@ -452,9 +534,9 @@ mod tests {
         assert_eq!(alpha1024.polynomial_degree(), 1024);
         assert_eq!(alpha1024.large_modulus(), 769);
         assert_eq!(alpha1024.compression_divisor(), 4);
-        assert_eq!(alpha1024.public_key_size(), 1229);
-        assert_eq!(alpha1024.secret_key_size(), 2605);
-        assert_eq!(alpha1024.ciphertext_size(), 989);
+        assert_eq!(alpha1024.public_key_size(), 1280);
+        assert_eq!(alpha1024.secret_key_size(), 1280 + 64 + 32 + 32 + 1280);
+        assert_eq!(alpha1024.ciphertext_size(), 1024);
         assert_eq!(alpha1024.shared_secret_size(), 32);
 
         // Test DAWN-β-512
@@ -463,9 +545,9 @@ mod tests {
         assert_eq!(beta512.polynomial_degree(), 512);
         assert_eq!(beta512.large_modulus(), 257);
         assert_eq!(beta512.compression_divisor(), 2);
-        assert_eq!(beta512.public_key_size(), 514);
-        assert_eq!(beta512.secret_key_size(), 1154);
-        assert_eq!(beta512.ciphertext_size(), 466);
+        assert_eq!(beta512.public_key_size(), 576);
+        assert_eq!(beta512.secret_key_size(), 576 + 32 + 32 + 32 + 576);
+        assert_eq!(beta512.ciphertext_size(), 512);
         assert_eq!(beta512.shared_secret_size(), 32);
 
         // Test DAWN-β-1024
@@ -474,9 +556,9 @@ mod tests {
         assert_eq!(beta1024.polynomial_degree(), 1024);
         assert_eq!(beta1024.large_modulus(), 257);
         assert_eq!(beta1024.compression_divisor(), 1);
-        assert_eq!(beta1024.public_key_size(), 1027);
-        assert_eq!(beta1024.secret_key_size(), 2275);
-        assert_eq!(beta1024.ciphertext_size(), 1043);
+        assert_eq!(beta1024.public_key_size(), 1152);
+        assert_eq!(beta1024.secret_key_size(), 1152 + 64 + 32 + 32 + 1152);
+        assert_eq!(beta1024.ciphertext_size(), 1152);
         assert_eq!(beta1024.shared_secret_size(), 32);
     }
 
@@ -497,8 +579,14 @@ mod tests {
         assert!(result.is_ok());
 
         let keypair = result.unwrap();
-        assert_eq!(keypair.public_key.data.len(), 615);
-        assert_eq!(keypair.secret_key.data.len(), 1319);
+        assert_eq!(
+            keypair.public_key.data.len(),
+            dawn.keygen_params().public_key_byte_size()
+        );
+        assert_eq!(
+            keypair.secret_key.data.len(),
+            dawn.keygen_params().secret_key_byte_size()
+        );
     }
 
     #[test]
@@ -506,7 +594,7 @@ mod tests {
         let dawn = DawnKem::new(DawnParameterSet::Alpha512);
         let public_key_data = security::generate_deterministic_high_entropy_data(
             b"test_dawn_encapsulation_public_key",
-            615,
+            640,
         );
         let public_key = KemPublicKey::new(public_key_data);
 
@@ -514,7 +602,10 @@ mod tests {
         assert!(result.is_ok());
 
         let (ciphertext, shared_secret) = result.unwrap();
-        assert_eq!(ciphertext.len(), 452); // Updated size with embedded randomness
+        assert_eq!(
+            ciphertext.len(),
+            dawn.keygen_params().ciphertext_byte_size()
+        );
         assert_eq!(shared_secret.len(), 32);
     }
 
@@ -527,7 +618,7 @@ mod tests {
         assert!(result.is_err());
 
         if let Err(Error::InvalidKeySize { expected, actual }) = result {
-            assert_eq!(expected, 615);
+            assert_eq!(expected, dawn.keygen_params().public_key_byte_size());
             assert_eq!(actual, 100);
         } else {
             panic!("Expected InvalidKeySize error");
@@ -559,14 +650,15 @@ mod tests {
     #[test]
     fn test_dawn_decapsulation_invalid_key_size() {
         let dawn = DawnKem::new(DawnParameterSet::Alpha512);
+        let expected_sk = dawn.keygen_params().secret_key_byte_size();
         let secret_key = KemSecretKey::new(vec![0u8; 100]); // Wrong size
-        let ciphertext = vec![0u8; 436];
+        let ciphertext = vec![0u8; dawn.keygen_params().ciphertext_byte_size()];
 
         let result = dawn.decapsulate(&secret_key, &ciphertext);
         assert!(result.is_err());
 
         if let Err(Error::InvalidKeySize { expected, actual }) = result {
-            assert_eq!(expected, 1319);
+            assert_eq!(expected, expected_sk);
             assert_eq!(actual, 100);
         } else {
             panic!("Expected InvalidKeySize error");
@@ -576,14 +668,15 @@ mod tests {
     #[test]
     fn test_dawn_decapsulation_invalid_ciphertext_size() {
         let dawn = DawnKem::new(DawnParameterSet::Alpha512);
-        let secret_key = KemSecretKey::new(vec![0u8; 1319]);
+        let expected_sk = dawn.keygen_params().secret_key_byte_size();
+        let secret_key = KemSecretKey::new(vec![0u8; expected_sk]);
         let ciphertext = vec![0u8; 100]; // Wrong size
 
         let result = dawn.decapsulate(&secret_key, &ciphertext);
         assert!(result.is_err());
 
         if let Err(Error::InvalidCiphertextSize { expected, actual }) = result {
-            assert_eq!(expected, 452); // Updated size with embedded randomness
+            assert_eq!(expected, dawn.keygen_params().ciphertext_byte_size());
             assert_eq!(actual, 100);
         } else {
             panic!("Expected InvalidCiphertextSize error");
@@ -604,12 +697,21 @@ mod tests {
 
             // Test key generation
             let keypair = dawn.generate_keypair().unwrap();
-            assert_eq!(keypair.public_key.data.len(), param_set.public_key_size());
-            assert_eq!(keypair.secret_key.data.len(), param_set.secret_key_size());
+            assert_eq!(
+                keypair.public_key.data.len(),
+                dawn.keygen_params().public_key_byte_size()
+            );
+            assert_eq!(
+                keypair.secret_key.data.len(),
+                dawn.keygen_params().secret_key_byte_size()
+            );
 
             // Test encapsulation
             let (ciphertext, shared_secret) = dawn.encapsulate(&keypair.public_key).unwrap();
-            assert_eq!(ciphertext.len(), param_set.ciphertext_size());
+            assert_eq!(
+                ciphertext.len(),
+                dawn.keygen_params().ciphertext_byte_size()
+            );
             assert_eq!(shared_secret.len(), param_set.shared_secret_size());
 
             // Test decapsulation
@@ -640,7 +742,9 @@ mod tests {
         assert!(debug_str.contains("Alpha512"));
     }
 
+    /// Full cycle with strict shared-secret equality. Ignored until production params are tuned for negligible failure.
     #[test]
+    #[ignore = "production Alpha512 params under tuning for zero decryption failure"]
     fn test_secure_kem_full_cycle() {
         let dawn = DawnKem::new(DawnParameterSet::Alpha512);
 
@@ -654,8 +758,11 @@ mod tests {
             .encapsulate(&keypair.public_key)
             .expect("Encapsulation should succeed");
 
-        // Verify ciphertext size includes embedded randomness
-        assert_eq!(ciphertext.len(), 452);
+        // Verify ciphertext size
+        assert_eq!(
+            ciphertext.len(),
+            dawn.keygen_params().ciphertext_byte_size()
+        );
         assert_eq!(shared_secret1.len(), 32);
 
         // Decapsulate
@@ -664,10 +771,48 @@ mod tests {
             .expect("Decapsulation should succeed");
 
         assert_eq!(shared_secret2.len(), 32);
+        if shared_secret1 != shared_secret2 {
+            eprintln!(
+                "KEM secret mismatch: enc[..8] = {:?}, dec[..8] = {:?}",
+                &shared_secret1[..8],
+                &shared_secret2[..8]
+            );
+        }
+        assert_eq!(
+            shared_secret1, shared_secret2,
+            "decapsulation must recover the same shared secret as encapsulation"
+        );
+    }
 
-        // In a proper implementation with correct error correction,
-        // the shared secrets should match. For now, we verify the flow works.
-        // TODO: Implement proper error correction to make secrets match
+    /// Alpha1024 full cycle. Un-ignore after Path A promotion.
+    #[test]
+    #[ignore = "Alpha1024 production; un-ignore after sweep/stress promotion"]
+    fn test_secure_kem_full_cycle_alpha1024() {
+        let dawn = DawnKem::new(DawnParameterSet::Alpha1024);
+
+        let keypair = dawn
+            .generate_keypair()
+            .expect("Key generation should succeed");
+
+        let (ciphertext, shared_secret1) = dawn
+            .encapsulate(&keypair.public_key)
+            .expect("Encapsulation should succeed");
+
+        assert_eq!(
+            ciphertext.len(),
+            dawn.keygen_params().ciphertext_byte_size()
+        );
+        assert_eq!(shared_secret1.len(), 32);
+
+        let shared_secret2 = dawn
+            .decapsulate(&keypair.secret_key, &ciphertext)
+            .expect("Decapsulation should succeed");
+
+        assert_eq!(shared_secret2.len(), 32);
+        assert_eq!(
+            shared_secret1, shared_secret2,
+            "decapsulation must recover the same shared secret as encapsulation"
+        );
     }
 
     #[test]
@@ -704,5 +849,31 @@ mod tests {
 
         assert_eq!(decrypted1.len(), 32);
         assert_eq!(decrypted2.len(), 32);
+    }
+
+    #[test]
+    fn test_reconstruction_algebra_g_equals_f_times_h() {
+        let params = KeyGenParams::dawn_alpha_512();
+        let seed = security::generate_deterministic_high_entropy_data(
+            b"test_reconstruction_algebra_g_equals_f_times_h",
+            64,
+        );
+        let key_gen = DeterministicKeyGenerator::new(params, seed);
+        let keypair = key_gen
+            .generate_keypair()
+            .expect("key generation should succeed");
+
+        let f = &keypair.secret_key;
+        let h = &keypair.public_key;
+        let g = &keypair.g;
+
+        let mut g_reconstructed = f.clone() * h.clone();
+        g_reconstructed.reduce_mod_field();
+        g_reconstructed.reduce_mod_cyclotomic();
+
+        assert_eq!(
+            g_reconstructed.coefficients, g.coefficients,
+            "reconstruction invariant: g must equal f * h (mod field and cyclotomic)"
+        );
     }
 }

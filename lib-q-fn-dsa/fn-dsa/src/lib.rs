@@ -129,7 +129,7 @@ pub use fn_dsa_comm::{
     HASH_ID_SHAKE128,
     HASH_ID_SHAKE256,
     HashIdentifier,
-    RngCore,
+    Rng,
     RngError,
     sign_key_size,
     signature_size,
@@ -159,6 +159,12 @@ pub use fn_dsa_vrfy::{
 
 #[cfg(test)]
 mod tests {
+    use fn_dsa_comm::{
+        Infallible,
+        TryCryptoRng,
+        TryRng,
+    };
+
     use super::*;
 
     // We use two fake RNGs for tests; they have been designed to allow
@@ -180,18 +186,25 @@ mod tests {
             Self(sh)
         }
     }
-    impl CryptoRng for FakeRng1 {}
-    impl RngCore for FakeRng1 {
-        fn next_u32(&mut self) -> u32 {
-            unimplemented!();
+    impl TryRng for FakeRng1 {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+            let mut buf = [0u8; 4];
+            self.0.extract(&mut buf);
+            Ok(u32::from_le_bytes(buf))
         }
-        fn next_u64(&mut self) -> u64 {
-            unimplemented!();
+        fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+            let mut buf = [0u8; 8];
+            self.0.extract(&mut buf);
+            Ok(u64::from_le_bytes(buf))
         }
-        fn fill_bytes(&mut self, dest: &mut [u8]) {
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
             self.0.extract(dest);
+            Ok(())
         }
     }
+    impl TryCryptoRng for FakeRng1 {}
 
     struct FakeRng2 {
         sh: SHAKE256,
@@ -211,15 +224,20 @@ mod tests {
             }
         }
     }
-    impl CryptoRng for FakeRng2 {}
-    impl RngCore for FakeRng2 {
-        fn next_u32(&mut self) -> u32 {
-            unimplemented!();
+    impl TryRng for FakeRng2 {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+            let mut buf = [0u8; 4];
+            self.try_fill_bytes(&mut buf)?;
+            Ok(u32::from_le_bytes(buf))
         }
-        fn next_u64(&mut self) -> u64 {
-            unimplemented!();
+        fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+            let mut buf = [0u8; 8];
+            self.try_fill_bytes(&mut buf)?;
+            Ok(u64::from_le_bytes(buf))
         }
-        fn fill_bytes(&mut self, dest: &mut [u8]) {
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
             let mut j = 0;
             let mut ptr = self.ptr;
             while j < dest.len() {
@@ -237,8 +255,10 @@ mod tests {
                 j += clen;
             }
             self.ptr = ptr;
+            Ok(())
         }
     }
+    impl TryCryptoRng for FakeRng2 {}
 
     fn self_test_inner<KG: KeyPairGenerator, SK: SigningKey, VK: VerifyingKey>(logn: u32) {
         let mut kg = KG::default();

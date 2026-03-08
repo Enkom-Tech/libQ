@@ -75,8 +75,12 @@
 //! 5. **Never Log Secrets**: Avoid logging or debug-printing secret values
 //! 6. **Zeroization**: Trust the automatic zeroization, but be aware of move semantics
 
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![feature(where_clause_attrs)]
+#![deny(unsafe_code)]
+#![deny(unused_qualifications)]
 
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 mod check_constraints;

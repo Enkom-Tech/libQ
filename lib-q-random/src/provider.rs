@@ -12,8 +12,8 @@ use core::fmt;
 
 #[cfg(feature = "alloc")]
 use rand_core::{
-    CryptoRng,
-    RngCore,
+    TryCryptoRng,
+    TryRng,
 };
 
 #[cfg(feature = "alloc")]
@@ -68,7 +68,7 @@ impl LibQRng {
     ///
     /// ```rust
     /// use lib_q_random::LibQRng;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let mut rng = LibQRng::new_secure().unwrap();
     /// let mut bytes = [0u8; 32];
@@ -108,7 +108,7 @@ impl LibQRng {
     ///
     /// ```rust
     /// use lib_q_random::LibQRng;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let mut rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
     /// let mut bytes = [0u8; 32];
@@ -149,7 +149,7 @@ impl LibQRng {
     ///
     /// ```rust
     /// use lib_q_random::LibQRng;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let entropy_input = [0u8; 48]; // 48-byte seed
     /// let mut rng = LibQRng::new_nist_drbg(entropy_input);
@@ -193,7 +193,7 @@ impl LibQRng {
     /// ```rust
     /// use lib_q_random::LibQRng;
     /// use lib_q_random::entropy::UserEntropySource;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
     /// let entropy_source = UserEntropySource::new(entropy_data);
@@ -453,15 +453,16 @@ impl SecureRng for LibQRng {
 }
 
 #[cfg(feature = "alloc")]
-impl RngCore for LibQRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for LibQRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         // CRITICAL SECURITY: Never fall back to zero or predictable values
         match self.next_u32_secure() {
-            Ok(value) => value,
+            Ok(value) => Ok(value),
             Err(e) => {
                 #[cfg(feature = "std")]
                 eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-
                 panic!(
                     "CRITICAL SECURITY FAILURE: Unable to generate secure random u32. \
                     This indicates a serious system-level problem. Error: {e:?}"
@@ -470,14 +471,12 @@ impl RngCore for LibQRng {
         }
     }
 
-    fn next_u64(&mut self) -> u64 {
-        // CRITICAL SECURITY: Never fall back to zero or predictable values
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
         match self.next_u64_secure() {
-            Ok(value) => value,
+            Ok(value) => Ok(value),
             Err(e) => {
                 #[cfg(feature = "std")]
                 eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-
                 panic!(
                     "CRITICAL SECURITY FAILURE: Unable to generate secure random u64. \
                     This indicates a serious system-level problem. Error: {e:?}"
@@ -486,21 +485,23 @@ impl RngCore for LibQRng {
         }
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        // CRITICAL SECURITY: Never fall back to zeros or predictable patterns
-        // This would be a catastrophic security failure
-        if let Err(e) = self.fill_bytes_secure(dest) {
-            // Log the error for debugging but panic to prevent silent failure
-            #[cfg(feature = "std")]
-            eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-
-            panic!(
-                "CRITICAL SECURITY FAILURE: Unable to generate secure random bytes. \
-                This indicates a serious system-level problem. Error: {e:?}"
-            );
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
+        match self.fill_bytes_secure(dest) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                #[cfg(feature = "std")]
+                eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
+                panic!(
+                    "CRITICAL SECURITY FAILURE: Unable to generate secure random bytes. \
+                    This indicates a serious system-level problem. Error: {e:?}"
+                );
+            }
         }
     }
 }
+
+#[cfg(feature = "alloc")]
+impl TryCryptoRng for LibQRng {}
 
 #[cfg(feature = "alloc")]
 impl LibQRng {
@@ -550,30 +551,9 @@ impl LibQRng {
     }
 }
 
-#[cfg(feature = "alloc")]
-impl CryptoRng for LibQRng {}
-
-// Also implement signature::rand_core traits for compatibility with signature crate
-#[cfg(all(feature = "alloc", feature = "signature"))]
-impl ::signature::rand_core::CryptoRng for LibQRng {}
-
-#[cfg(all(feature = "alloc", feature = "signature"))]
-impl ::signature::rand_core::RngCore for LibQRng {
-    fn next_u32(&mut self) -> u32 {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::next_u32(self)
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::next_u64(self)
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::fill_bytes(self, dest);
-    }
-}
+// LibQRng implements rand_core::Rng and TryCryptoRng, so CryptoRng and Rng
+// are provided by rand_core blanket impls. The signature crate uses rand_core
+// and will see these implementations when using the same rand_core version.
 
 #[cfg(feature = "alloc")]
 impl fmt::Display for LibQRng {
@@ -647,7 +627,7 @@ mod tests {
     #[cfg(not(feature = "std"))]
     use alloc::format;
 
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use super::*;
 

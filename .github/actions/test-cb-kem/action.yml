@@ -27,7 +27,7 @@ inputs:
     required: false
   test-algorithms:
     description: Specific CB-KEM algorithms to test
-    default: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
+    default: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128,cbkem8192128f"
     required: false
 
 runs:
@@ -168,10 +168,14 @@ runs:
         echo "Testing all CB-KEM variants..."
         cd ${{ inputs.working-directory }}
         
-        # Test each variant individually
-        for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128; do
+        # Test each variant individually (includes 8192128f for NIST AES RNG / nist_aes_rng)
+        for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128 cbkem8192128f; do
           echo "Testing $variant..."
-          cargo test --no-default-features --features "$variant,sha3-hash"
+          if [ "$variant" = "cbkem8192128f" ]; then
+            cargo test --no-default-features --features "$variant,sha3-hash,alloc,zeroize"
+          else
+            cargo test --no-default-features --features "$variant,sha3-hash"
+          fi
         done
         
         echo "All CB-KEM variants tested successfully"

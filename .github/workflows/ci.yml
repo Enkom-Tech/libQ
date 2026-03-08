@@ -455,7 +455,7 @@ jobs:
             run-benchmarks: "true"
             run-security-tests: "true"
             run-constant-time: "true"
-            test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128"
+            test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128,cbkem8192128f"
           - name: "SLH-DSA"
             action: test-slh-dsa
             working-directory: lib-q-slh-dsa

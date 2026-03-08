@@ -263,7 +263,7 @@ macro_rules! impl_rng {
         paste::paste! {
             impl$(<$param_name: $type_param>)? Distribution<$type$(<$param_name>)?> for StandardUniform {
                 #[inline]
-            fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> $type$(<$param_name>)? {
+            fn sample<R: rand::RngExt + ?Sized>(&self, rng: &mut R) -> $type$(<$param_name>)? {
                 $type(rng.random())
                 }
             }

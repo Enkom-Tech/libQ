@@ -55,7 +55,7 @@ pub trait StarkGenericConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct StarkConfig<Pcs, Challenge, Challenger> {
     /// The [`Pcs`] used to commit polynomials and produce opening proofs.
     pcs: Pcs,

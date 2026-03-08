@@ -66,7 +66,7 @@ pub(crate) fn uint64_sort<const N: usize>(x: &mut [u64; N]) {
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "rand")]
-    use rand::Rng;
+    use rand::RngExt;
 
     use super::*;
 

@@ -220,7 +220,7 @@ pub(crate) trait ForsParams: HypertreeParams {
 #[cfg(test)]
 mod tests {
     use lib_q_random::new_secure_rng;
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use self::address::ForsTree;
     use super::*;

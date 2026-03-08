@@ -120,7 +120,7 @@ pub trait ParameterSet:
 
 #[cfg(test)]
 mod tests {
-    use ::rand_core::RngCore;
+    use ::rand_core::Rng;
     use lib_q_random::new_secure_rng;
     use signature::*;
     use util::macros::test_parameter_sets;
@@ -327,7 +327,7 @@ mod tests {
 ///
 /// ```rust,no_run
 /// use lib_q_slh_dsa::new_secure_rng_no_std;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_secure_rng_no_std().unwrap();
 /// let mut bytes = [0u8; 32];
@@ -351,7 +351,7 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng:
 ///
 /// ```rust,no_run
 /// use lib_q_slh_dsa::new_deterministic_rng_no_std;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
 /// let mut bytes = [0u8; 32];

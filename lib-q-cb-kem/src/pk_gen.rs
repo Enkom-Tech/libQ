@@ -395,6 +395,9 @@ pub(crate) fn pk_gen(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    use alloc::vec;
+
     #[cfg(any(
         feature = "cbkem348864f",
         feature = "cbkem460896f",

@@ -13,7 +13,7 @@ extern crate alloc;
 use lib_q_random::new_secure_rng;
 #[cfg(not(feature = "alloc"))]
 use lib_q_random::new_secure_rng_no_std;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[test]
 fn test_rng_randomness() {

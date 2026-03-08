@@ -97,11 +97,15 @@ mod transpose;
 mod uint64_sort;
 mod util;
 
+#[cfg(feature = "nist-aes-rng")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nist-aes-rng")))]
+mod nist_aes_rng;
+
 use core::fmt::Debug;
 
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
 };
 
 #[cfg(feature = "alloc")]
@@ -121,6 +125,15 @@ pub use lib_q_random::ClassicalMcElieceRng as LibQRng;
 // Re-export libQ provider
 #[cfg(feature = "alloc")]
 pub use libq_provider::LibQCbKemProvider;
+#[cfg(feature = "nist-aes-rng")]
+#[cfg_attr(docsrs, doc(cfg(feature = "nist-aes-rng")))]
+pub use nist_aes_rng::{
+    AesState,
+    MAX_BYTES_PER_REQUEST,
+    NistDrbgError,
+    RESEED_INTERVAL,
+    SEEDLEN,
+};
 
 mod macros {
     /// This macro(A, B, C, T) allows to get “&A[B..B+C]” of type “&[T]” as type “&[T; C]”.
@@ -407,7 +420,7 @@ impl Drop for SharedSecret<'_> {
 /// Generate a public and secret key.
 /// The public key is meant to be shared with any party,
 /// but access to the secret key must be limited to the generating party.
-pub fn keypair<'public, 'secret, R: CryptoRng + RngCore>(
+pub fn keypair<'public, 'secret, R: CryptoRng + Rng>(
     public_key_buf: &'public mut [u8; CRYPTO_PUBLICKEYBYTES],
     secret_key_buf: &'secret mut [u8; CRYPTO_SECRETKEYBYTES],
     rng: &mut R,
@@ -424,9 +437,7 @@ pub fn keypair<'public, 'secret, R: CryptoRng + RngCore>(
 /// and returns them with the ``'static`` lifetime.
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-pub fn keypair_boxed<R: CryptoRng + RngCore>(
-    rng: &mut R,
-) -> (PublicKey<'static>, SecretKey<'static>) {
+pub fn keypair_boxed<R: CryptoRng + Rng>(rng: &mut R) -> (PublicKey<'static>, SecretKey<'static>) {
     let mut public_key_buf = util::alloc_boxed_array::<CRYPTO_PUBLICKEYBYTES>();
     let mut secret_key_buf = util::alloc_boxed_array::<CRYPTO_SECRETKEYBYTES>();
 
@@ -444,7 +455,7 @@ pub fn keypair_boxed<R: CryptoRng + RngCore>(
 /// The returned ciphertext should be sent back to the entity holding
 /// the secret key corresponding to public key given here, so they can compute
 /// the same shared key.
-pub fn encapsulate<'shared_secret, R: CryptoRng + RngCore>(
+pub fn encapsulate<'shared_secret, R: CryptoRng + Rng>(
     public_key: &PublicKey<'_>,
     shared_secret_buf: &'shared_secret mut [u8; CRYPTO_BYTES],
     rng: &mut R,
@@ -466,7 +477,7 @@ pub fn encapsulate<'shared_secret, R: CryptoRng + RngCore>(
 /// and returns it with the ``'static`` lifetime.
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
-pub fn encapsulate_boxed<R: CryptoRng + RngCore>(
+pub fn encapsulate_boxed<R: CryptoRng + Rng>(
     public_key: &PublicKey<'_>,
     rng: &mut R,
 ) -> (Ciphertext, SharedSecret<'static>) {

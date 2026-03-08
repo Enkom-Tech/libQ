@@ -36,7 +36,7 @@ use rand::distr::{
 };
 use rand::rngs::SmallRng;
 use rand::{
-    Rng,
+    RngExt,
     SeedableRng,
 };
 use serde::Serialize;
@@ -942,6 +942,7 @@ macro_rules! test_prime_field_64 {
             use rand::rngs::SmallRng;
             use rand::{
                 Rng,
+                RngExt,
                 SeedableRng,
             };
 
@@ -1022,6 +1023,7 @@ macro_rules! test_prime_field_32 {
             use rand::rngs::SmallRng;
             use rand::{
                 Rng,
+                RngExt,
                 SeedableRng,
             };
 

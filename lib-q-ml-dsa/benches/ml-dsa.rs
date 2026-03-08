@@ -7,7 +7,7 @@ use criterion::{
 };
 use lib_q_ml_dsa::ml_dsa_65;
 use lib_q_random::new_secure_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 pub fn comparisons_key_generation(c: &mut Criterion) {
     let mut rng = new_secure_rng().expect("Failed to create RNG");

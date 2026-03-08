@@ -168,7 +168,7 @@ use lib_q_slh_dsa::{
     lib_q_integration::SlhDsaSignature,
 };
 #[cfg(feature = "slh-dsa-std")]
-use rand_core::RngCore;
+use rand_core::Rng;
 // WASM support
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;

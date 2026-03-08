@@ -22,7 +22,7 @@ use lib_q_random::{
     new_deterministic_rng,
     new_secure_rng,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 fn benchmark_deterministic_rng_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("deterministic_rng_creation");

@@ -18,7 +18,7 @@ use lib_q_random::{
     new_deterministic_rng_no_std,
     new_secure_rng_no_std,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Test that secure RNG never produces all zeros
 #[test]

@@ -1,6 +1,7 @@
 use core::borrow::Borrow;
 extern crate alloc;
 
+use lib_q_random::DeterministicRng;
 use lib_q_stark::{
     StarkConfig,
     prove,
@@ -51,8 +52,6 @@ use lib_q_stark_symmetric::{
     Hash,
     SerializingHasher,
 };
-use rand::SeedableRng;
-use rand::rngs::SmallRng;
 
 /// For testing the public values feature
 pub struct FibonacciAir {}
@@ -169,7 +168,7 @@ where
         Complex<Mersenne31>: Clone,
     {
         for value in values {
-            self.observe(value.clone());
+            self.observe(*value);
         }
     }
 }
@@ -327,12 +326,12 @@ fn test_zk() {
         u8,
         MyHidingHash,
         MyHidingCompress,
-        SmallRng,
+        DeterministicRng,
         32,
         32,
     >;
 
-    let rng = SmallRng::seed_from_u64(1);
+    let rng = DeterministicRng::seed_from_u64(1);
     let val_mmcs = ValHidingMmcs::new(hash, compress, rng);
 
     // Use wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
@@ -349,9 +348,15 @@ fn test_zk() {
     let dft = Dft::default();
     let trace = generate_trace_rows::<Val>(0, 1, n);
     let fri_params = create_test_fri_params(challenge_mmcs, 2);
-    type HidingPcs = HidingFriPcs<Val, Dft, ValHidingMmcs, ChallengeHidingMmcs, SmallRng>;
+    type HidingPcs = HidingFriPcs<Val, Dft, ValHidingMmcs, ChallengeHidingMmcs, DeterministicRng>;
     type MyHidingConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
-    let pcs = HidingPcs::new(dft, val_mmcs, fri_params, 4, SmallRng::seed_from_u64(1));
+    let pcs = HidingPcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        DeterministicRng::seed_from_u64(1),
+    );
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
     let config = MyHidingConfig::new(pcs, challenger);

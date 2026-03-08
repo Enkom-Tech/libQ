@@ -17,10 +17,13 @@ use lib_q_stark_field::{
     scale_slice_in_place_single_core,
 };
 use lib_q_stark_rayon::prelude::*;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
+};
+use rand::{
+    Rng,
+    RngExt,
 };
 use serde::{
     Deserialize,
@@ -554,7 +557,7 @@ impl<T: Clone + Default + Send + Sync> DenseMatrix<T> {
     {
         let values = rng
             .sample_iter(StandardUniform)
-            .filter(|x| !x.is_zero())
+            .filter(|x: &T| !x.is_zero())
             .take(rows * cols)
             .collect();
         Self::new(values, cols)

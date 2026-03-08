@@ -34,7 +34,7 @@ use getrandom;
 // };
 #[cfg(any(feature = "getrandom", feature = "rand"))]
 #[allow(unused_imports)]
-use rand_core::RngCore;
+use rand_core::Rng;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
@@ -575,7 +575,7 @@ impl Utils {
     /// Generate cryptographically secure random bytes
     ///
     /// This function works in both std and no_std environments:
-    /// - In std environments with the "rand" feature: Uses rand::thread_rng()
+    /// - In std environments with the "rand" feature: Uses rand::rng()
     /// - In no_std environments with the "getrandom" feature: Uses getrandom directly
     /// - In no_std environments without getrandom: Returns an error
     #[cfg(feature = "rand")]

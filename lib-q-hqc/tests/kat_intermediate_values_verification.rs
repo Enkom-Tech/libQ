@@ -5,7 +5,7 @@ use lib_q_hqc::{
     Hqc1Params,
     HqcParams,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Test comparing intermediate values against reference implementation
 ///

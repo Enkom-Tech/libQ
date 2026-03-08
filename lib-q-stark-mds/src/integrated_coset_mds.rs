@@ -92,7 +92,7 @@ mod tests {
     use lib_q_stark_util::reverse_slice_index_bits;
     use rand::rngs::SmallRng;
     use rand::{
-        Rng,
+        RngExt,
         SeedableRng,
     };
 

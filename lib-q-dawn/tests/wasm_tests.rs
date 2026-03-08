@@ -19,25 +19,26 @@ mod wasm_tests {
         assert!(result.is_ok());
 
         let keypair = result.unwrap();
-        assert_eq!(keypair.public_key_bytes().len(), 615);
-        assert_eq!(keypair.secret_key_bytes().len(), 1319);
+        assert_eq!(keypair.public_key_bytes().len(), 640);
+        assert_eq!(keypair.secret_key_bytes().len(), 1360);
     }
 
     #[test]
     fn test_wasm_encapsulate() {
-        let public_key = KemPublicKey::new(vec![0u8; 615]);
+        let public_key = KemPublicKey::new(vec![0u8; 640]);
         let result = wasm::encapsulate(DawnParameterSet::Alpha512, &public_key);
         assert!(result.is_ok());
 
         let encap_result = result.unwrap();
-        assert_eq!(encap_result.ciphertext().len(), 436);
+        // Production Alpha512 ciphertext size (d_c=1: 512*10/8 = 640)
+        assert_eq!(encap_result.ciphertext().len(), 640);
         assert_eq!(encap_result.shared_secret().len(), 32);
     }
 
     #[test]
     fn test_wasm_decapsulate() {
-        let secret_key = KemSecretKey::new(vec![0u8; 1319]);
-        let ciphertext = vec![0u8; 436];
+        let secret_key = KemSecretKey::new(vec![0u8; 1360]);
+        let ciphertext = vec![0u8; 640]; // Production Alpha512
         let result = wasm::decapsulate(DawnParameterSet::Alpha512, &secret_key, &ciphertext);
         assert!(result.is_ok());
 
@@ -47,7 +48,7 @@ mod wasm_tests {
 
     #[test]
     fn test_wasm_encapsulation_result() {
-        let ciphertext = vec![1u8; 436];
+        let ciphertext = vec![1u8; 640]; // Production Alpha512 size
         let shared_secret = vec![2u8; 32];
 
         let result = wasm::EncapsulationResult::new(ciphertext.clone(), shared_secret.clone());

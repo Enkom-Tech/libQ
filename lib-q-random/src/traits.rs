@@ -13,19 +13,19 @@ use core::fmt;
 
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
 };
 
 use crate::Result;
 
 /// Enhanced random number generator trait for cryptographic applications
 ///
-/// This trait extends the standard `RngCore` and `CryptoRng` traits with
+/// This trait extends the standard `Rng` and `CryptoRng` traits with
 /// additional functionality required for secure cryptographic operations.
-pub trait SecureRng: RngCore + CryptoRng + Send + Sync {
+pub trait SecureRng: Rng + CryptoRng + Send + Sync {
     /// Fill the buffer with cryptographically secure random bytes
     ///
-    /// This method provides the same functionality as `RngCore::fill_bytes`
+    /// This method provides the same functionality as `Rng::fill_bytes`
     /// but with additional security guarantees and error handling.
     ///
     /// # Arguments

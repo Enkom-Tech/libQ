@@ -20,7 +20,7 @@
 //!
 //! ```rust
 //! use lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg;
-//! use rand_core::RngCore;
+//! use rand_core::Rng;
 //!
 //! let entropy = [0u8; 48]; // 48 bytes of entropy
 //! let mut rng = Aes256CtrDrbg::instantiate(&entropy);
@@ -44,7 +44,9 @@ use aes::cipher::{
 };
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 /// AES256-CTR-DRBG state structure
@@ -147,20 +149,22 @@ impl Aes256CtrDrbg {
 }
 
 #[cfg(feature = "aes-drbg")]
-impl RngCore for Aes256CtrDrbg {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for Aes256CtrDrbg {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         // Generate all requested bytes first (matches reference randombytes behavior)
         let mut offset = 0;
         while offset < dest.len() {
@@ -179,11 +183,12 @@ impl RngCore for Aes256CtrDrbg {
         // Update state after generating all bytes (matches reference behavior)
         Self::ctr_drbg_update(None, &mut self.key, &mut self.v);
         self.reseed_counter += 1;
+        Ok(())
     }
 }
 
 #[cfg(feature = "aes-drbg")]
-impl CryptoRng for Aes256CtrDrbg {}
+impl TryCryptoRng for Aes256CtrDrbg {}
 
 #[cfg(feature = "aes-drbg")]
 impl Aes256CtrDrbg {
@@ -215,22 +220,24 @@ impl Aes256CtrDrbg {
 }
 
 #[cfg(not(feature = "aes-drbg"))]
-impl RngCore for Aes256CtrDrbg {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for Aes256CtrDrbg {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
     }
 
-    fn fill_bytes(&mut self, _dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), Self::Error> {
         panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
     }
 }
 
 #[cfg(not(feature = "aes-drbg"))]
-impl CryptoRng for Aes256CtrDrbg {}
+impl TryCryptoRng for Aes256CtrDrbg {}
 
 #[cfg(not(feature = "aes-drbg"))]
 pub fn create_aes_ctr_drbg_rng(_entropy: [u8; 48]) -> Aes256CtrDrbg {

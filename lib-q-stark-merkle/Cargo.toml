@@ -10,6 +10,7 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
+lib-q-poseidon = { path = "../lib-q-poseidon", optional = true }
 lib-q-stark-commit = { path = "../lib-q-stark-commit" }
 lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
@@ -18,10 +19,18 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-rand = { workspace = true, features = ["small_rng"] }
-serde = { workspace = true, features = ["alloc"] }
-thiserror = { version = "2.0.17", default-features = false }
-tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+lib-q-random = { path = "../lib-q-random", default-features = false }
+rand = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["alloc"], default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
+poseidon = ["dep:lib-q-poseidon", "alloc"]
 
 [dev-dependencies]
 lib-q-stark-mds = { path = "../lib-q-stark-mds" }

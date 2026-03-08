@@ -6,7 +6,7 @@
 use lib_q_hqc::bearssl_aes_ctr_drbg::BearSslAes256CtrDrbg;
 use lib_q_hqc::hqc_kem::HqcKem;
 use lib_q_hqc::*;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Parse hex string to bytes
 fn hex_to_bytes(hex: &str) -> Vec<u8> {

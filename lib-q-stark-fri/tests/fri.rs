@@ -1,3 +1,4 @@
+use lib_q_random::DeterministicRng;
 use lib_q_stark_challenger::{
     CanObserve,
     CanSample,
@@ -36,11 +37,7 @@ use lib_q_stark_symmetric::{
     Hash,
     SerializingHasher,
 };
-use rand::rngs::SmallRng;
-use rand::{
-    Rng,
-    SeedableRng,
-};
+use rand::Rng;
 
 /// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
 #[derive(Clone)]
@@ -156,20 +153,6 @@ where
     {
         for value in values {
             self.observe(value.clone());
-        }
-    }
-}
-
-impl<BaseChallenger> CanObserve<Vec<Vec<Complex<Mersenne31>>>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<Complex<Mersenne31>>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
         }
     }
 }
@@ -329,7 +312,7 @@ fn test_fri_ldt() {
     // of the same size and that the array is not ordered.
     let polynomial_log_sizes = [5, 8, 10, 7, 5, 5, 7];
     for i in 0..5 {
-        let mut rng = SmallRng::seed_from_u64(i as u64);
+        let mut rng = DeterministicRng::seed_from_u64(i as u64);
         do_test_fri_ldt(&mut rng, i, &polynomial_log_sizes);
     }
 }
@@ -342,6 +325,6 @@ fn test_fri_ldt_should_panic() {
     // Chosen to ensure there are both multiple polynomials
     // of the same size and that the array is not ordered.
     let polynomial_log_sizes = [5, 8, 10, 7, 5, 5, 7];
-    let mut rng = SmallRng::seed_from_u64(5);
+    let mut rng = DeterministicRng::seed_from_u64(5);
     do_test_fri_ldt(&mut rng, 5, &polynomial_log_sizes);
 }

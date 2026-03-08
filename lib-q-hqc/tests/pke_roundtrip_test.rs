@@ -5,7 +5,7 @@
 
 use lib_q_hqc::*;
 use lib_q_random::LibQRng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Test PKE encrypt/decrypt roundtrip with various messages
 #[test]

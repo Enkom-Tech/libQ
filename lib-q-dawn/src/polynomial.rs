@@ -24,7 +24,7 @@ use lib_q_core::{
     Result,
 };
 // Import RNG traits for random polynomial generation
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// A polynomial over the ring R[x^n+1] where n is a power of 2
 #[derive(Clone, Debug, PartialEq)]
@@ -166,6 +166,76 @@ impl Mul for Polynomial {
 pub mod field {
     use super::*;
 
+    fn poly_degree(p: &[i64]) -> usize {
+        for i in (0..p.len()).rev() {
+            if p[i] != 0 {
+                return i;
+            }
+        }
+        0
+    }
+
+    fn scalar_inv(a: i64, q: i64) -> Option<i64> {
+        if a == 0 {
+            return None;
+        }
+        let a = a.rem_euclid(q);
+        let (mut old_r, mut r) = (a, q);
+        let (mut old_s, mut s) = (1i64, 0i64);
+        while r != 0 {
+            let qt = old_r / r;
+            (old_r, r) = (r, old_r - qt * r);
+            (old_s, s) = (s, old_s - qt * s);
+        }
+        if old_r != 1 {
+            return None;
+        }
+        Some(old_s.rem_euclid(q))
+    }
+
+    fn poly_div_rem_zq(dividend: &[i64], divisor: &[i64], q: i64) -> (Vec<i64>, Vec<i64>) {
+        let mut rem = dividend.to_vec();
+        let dd = poly_degree(divisor);
+        let lead_inv = scalar_inv(divisor[dd], q).expect("divisor leading coeff not invertible");
+        let mut quot = vec![0i64; dividend.len()];
+        loop {
+            let dr = poly_degree(&rem);
+            if dr < dd || (dr == 0 && rem[0] == 0) {
+                break;
+            }
+            let k = dr - dd;
+            let scale = (rem[dr] * lead_inv).rem_euclid(q);
+            quot[k] = (quot[k] + scale).rem_euclid(q);
+            for j in 0..=dd {
+                if j + k < rem.len() {
+                    rem[j + k] = (rem[j + k] - scale * divisor[j]).rem_euclid(q);
+                }
+            }
+        }
+        (quot, rem)
+    }
+
+    fn poly_mul_zq(a: &[i64], b: &[i64], q: i64) -> Vec<i64> {
+        let n = a.len() + b.len().saturating_sub(1);
+        let mut res = vec![0i64; n];
+        for i in 0..a.len() {
+            for j in 0..b.len() {
+                res[i + j] = (res[i + j] + a[i] * b[j]).rem_euclid(q);
+            }
+        }
+        res
+    }
+
+    fn poly_sub_zq(a: &[i64], b: &[i64], q: i64, len: usize) -> Vec<i64> {
+        let mut res = vec![0i64; len];
+        for i in 0..len {
+            let av = if i < a.len() { a[i] } else { 0 };
+            let bv = if i < b.len() { b[i] } else { 0 };
+            res[i] = (av - bv).rem_euclid(q);
+        }
+        res
+    }
+
     /// A polynomial over a finite field Z_q
     #[derive(Clone, Debug, PartialEq)]
     pub struct FieldPolynomial {
@@ -213,107 +283,65 @@ pub mod field {
             self.coefficients.truncate(self.degree);
         }
 
-        /// Compute the inverse of the polynomial (if it exists)
-        ///
-        /// Uses Newton's method for polynomial inversion over Z_q[x]/(x^n + 1)
-        /// Based on ntrust-native implementation
+        /// Compute the inverse of the polynomial mod (x^n+1, q) using extended GCD.
         pub fn inverse(&self) -> Result<Self> {
-            if !self.is_invertible() {
-                return Err(Error::InternalError {
-                    operation: "polynomial inversion".to_string(),
-                    details: "polynomial is not invertible".to_string(),
-                });
-            }
+            let n = self.degree;
+            let q = self.modulus as i64;
+            let cap = 2 * n + 2;
 
-            // Newton's method for polynomial inversion
-            // Start with initial guess: 1 / constant_term
-            let mut result = Self::new(self.degree, self.modulus);
-            if self.coefficients[0] != 0 {
-                let inv_constant = self.mod_inverse(self.coefficients[0])?;
-                result.coefficients[0] = inv_constant;
-            } else {
-                // If constant term is zero, find first non-zero coefficient
-                for i in 1..self.degree {
-                    if self.coefficients[i] != 0 {
-                        let inv_coeff = self.mod_inverse(self.coefficients[i])?;
-                        result.coefficients[self.degree - i] = inv_coeff;
-                        break;
+            let mut modpoly = vec![0i64; cap];
+            modpoly[0] = 1;
+            modpoly[n] = 1;
+
+            let mut r0 = modpoly.clone();
+            let mut r1: Vec<i64> = self.coefficients.iter().map(|&c| c as i64).collect();
+            r1.resize(cap, 0);
+
+            let mut s0 = vec![0i64; cap];
+            let mut s1 = vec![0i64; cap];
+            s1[0] = 1;
+
+            loop {
+                if poly_degree(&r1) == 0 && r1[0] == 0 {
+                    return Err(Error::InternalError {
+                        operation: "polynomial inversion".to_string(),
+                        details: "polynomial is not invertible mod (x^n+1, q)".to_string(),
+                    });
+                }
+                if poly_degree(&r1) == 0 {
+                    let c_inv = scalar_inv(r1[0], q).ok_or_else(|| Error::InternalError {
+                        operation: "polynomial inversion".to_string(),
+                        details: "gcd leading coeff not invertible".to_string(),
+                    })?;
+                    let mut inv_full: Vec<i64> =
+                        s1.iter().map(|&c| (c * c_inv).rem_euclid(q)).collect();
+                    for i in n..inv_full.len() {
+                        let idx = i - n;
+                        inv_full[idx] = (inv_full[idx] - inv_full[i]).rem_euclid(q);
                     }
-                }
-            }
-
-            // Newton iteration: x_{n+1} = x_n * (2 - a * x_n)
-            for _ in 0..4 {
-                // 4 iterations should be sufficient for convergence
-                let mut temp = self.clone() * result.clone();
-                temp.reduce_mod_field();
-                temp.reduce_mod_cyclotomic();
-
-                // Compute 2 - a * x_n
-                for i in 0..self.degree {
-                    temp.coefficients[i] = (2 * self.modulus - temp.coefficients[i]) % self.modulus;
+                    let inv_coeffs: Vec<u32> = inv_full[..n].iter().map(|&c| c as u32).collect();
+                    return Ok(Self::from_coefficients(inv_coeffs, self.modulus));
                 }
 
-                result = result * temp;
-                result.reduce_mod_field();
-                result.reduce_mod_cyclotomic();
-            }
+                let (q_poly, rem) = poly_div_rem_zq(&r0, &r1, q);
+                let qs1 = poly_mul_zq(&q_poly, &s1, q);
+                let new_s0 = poly_sub_zq(&s0, &qs1, q, cap);
 
-            Ok(result)
+                r0 = r1;
+                r1 = rem;
+                r1.resize(cap, 0);
+                s0 = s1;
+                s1 = new_s0;
+            }
         }
 
-        /// Modular inverse using extended Euclidean algorithm
-        fn mod_inverse(&self, a: u32) -> Result<u32> {
-            if a == 0 {
-                return Err(Error::InternalError {
-                    operation: "modular inverse".to_string(),
-                    details: "cannot compute inverse of zero".to_string(),
-                });
-            }
-
-            // Extended Euclidean algorithm for integers
-            let mut old_r = a as i64;
-            let mut r = self.modulus as i64;
-            let mut old_s = 1i64;
-            let mut s = 0i64;
-
-            while r != 0 {
-                let quotient = old_r / r;
-                let temp = r;
-                r = old_r - quotient * r;
-                old_r = temp;
-
-                let temp = s;
-                s = old_s - quotient * s;
-                old_s = temp;
-            }
-
-            if old_r > 1 {
-                return Err(Error::InternalError {
-                    operation: "modular inverse".to_string(),
-                    details: "element is not invertible".to_string(),
-                });
-            }
-
-            // Ensure positive result
-            let result = if old_s < 0 {
-                (old_s + self.modulus as i64) as u32
-            } else {
-                old_s as u32
-            };
-
-            Ok(result % self.modulus)
-        }
-
-        /// Check if the polynomial is invertible
+        /// Check if the polynomial is invertible mod (x^n+1, q).
         pub fn is_invertible(&self) -> bool {
-            // For NTRU, a polynomial is invertible if it has at least one non-zero coefficient
-            // and the constant term is non-zero (for proper inversion)
-            self.coefficients.iter().any(|&c| c != 0) && self.coefficients[0] != 0
+            self.inverse().is_ok()
         }
 
         /// Sample a random polynomial with coefficients in [0, q-1]
-        pub fn random(degree: usize, modulus: u32, rng: &mut impl RngCore) -> Self {
+        pub fn random(degree: usize, modulus: u32, rng: &mut impl Rng) -> Self {
             let mut poly = Self::new(degree, modulus);
             for i in 0..degree {
                 poly.coefficients[i] = rng.next_u32() % modulus;
@@ -322,7 +350,7 @@ pub mod field {
         }
 
         /// Sample a trinary polynomial (coefficients in {-1, 0, 1})
-        pub fn random_trinary(degree: usize, modulus: u32, rng: &mut impl RngCore) -> Self {
+        pub fn random_trinary(degree: usize, modulus: u32, rng: &mut impl Rng) -> Self {
             let mut poly = Self::new(degree, modulus);
             for i in 0..degree {
                 let val = rng.next_u32() % 3;
@@ -337,12 +365,7 @@ pub mod field {
         }
 
         /// Sample a small polynomial (coefficients in small range)
-        pub fn random_small(
-            degree: usize,
-            modulus: u32,
-            bound: u32,
-            rng: &mut impl RngCore,
-        ) -> Self {
+        pub fn random_small(degree: usize, modulus: u32, bound: u32, rng: &mut impl Rng) -> Self {
             let mut poly = Self::new(degree, modulus);
             for i in 0..degree {
                 let val = rng.next_u32() % (2 * bound + 1);
@@ -351,6 +374,33 @@ pub mod field {
                 } else {
                     modulus - (val - bound)
                 };
+            }
+            poly
+        }
+
+        /// Sample from T_{n,k}: exactly k coefficients equal to +1, k equal to -1 (mod q), rest zero.
+        /// Uses Fisher-Yates shuffle for uniform permutation.
+        pub fn random_ternary_exact(
+            degree: usize,
+            k: usize,
+            modulus: u32,
+            rng: &mut impl Rng,
+        ) -> Self {
+            assert!(2 * k <= degree, "T_{{n,k}} requires 2*k <= n");
+            let mut poly = Self::new(degree, modulus);
+            let minus_one = modulus - 1;
+            for i in 0..k {
+                poly.coefficients[i] = 1;
+            }
+            for i in k..(2 * k) {
+                poly.coefficients[i] = minus_one;
+            }
+            for i in (2 * k)..degree {
+                poly.coefficients[i] = 0;
+            }
+            for i in 0..degree {
+                let j = i + (rng.next_u32() as usize % (degree - i));
+                poly.coefficients.swap(i, j);
             }
             poly
         }
@@ -426,13 +476,18 @@ pub mod field {
 
             let mut result = Self::new(self.degree, self.modulus);
 
-            // Naive polynomial multiplication
+            // Polynomial multiplication in Z_q[x]/(x^n+1): x^n = -1
             for i in 0..self.degree {
                 for j in 0..self.degree {
                     let idx = (i + j) % self.degree;
-                    result.coefficients[idx] = (result.coefficients[idx] +
-                        (self.coefficients[i] as u64 * rhs.coefficients[j] as u64) as u32) %
-                        self.modulus;
+                    let prod = (self.coefficients[i] as u64 * rhs.coefficients[j] as u64 %
+                        self.modulus as u64) as u32;
+                    if i + j < self.degree {
+                        result.coefficients[idx] = (result.coefficients[idx] + prod) % self.modulus;
+                    } else {
+                        result.coefficients[idx] =
+                            (result.coefficients[idx] + self.modulus - prod) % self.modulus;
+                    }
                 }
             }
 

@@ -21,7 +21,7 @@ rand = { workspace = true }
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
 
 criterion = { workspace = true }
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true, default-features = false, features = ["std"] }
 
 [[bench]]
 name = "mds"

@@ -6,6 +6,7 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
+use lib_q_random::DeterministicRng;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::{
     ExtensionField,
@@ -18,16 +19,12 @@ use lib_q_stark_fri::{
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_stark_util::pretty_name;
+use rand::RngExt;
 // Goldilocks field not integrated
 // use p3_goldilocks::Goldilocks;
 use rand::distr::{
     Distribution,
     StandardUniform,
-};
-use rand::rngs::SmallRng;
-use rand::{
-    Rng,
-    SeedableRng,
 };
 
 fn bench<F: TwoAdicField, EF: ExtensionField<F>>(c: &mut Criterion, log_sizes: &[usize])
@@ -42,7 +39,7 @@ where
     for log_size in log_sizes {
         let n = 1 << log_size;
 
-        let mut rng = SmallRng::seed_from_u64(n as u64);
+        let mut rng = DeterministicRng::seed_from_u64(n as u64);
         let beta = rng.sample(StandardUniform);
         let mat = RowMajorMatrix::<EF>::rand(&mut rng, n, 2);
 

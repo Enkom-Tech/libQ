@@ -81,7 +81,7 @@ use crate::{
 /// `gH` where `|H| >= 2 * deg(f)`. A value `f(z)` is opened by using a FRI
 /// proof to show that the evaluations of `(f(x) - f(z))/(x - z)` over
 /// `gH` are low degree.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs> {
     pub(crate) dft: Dft,
     pub(crate) mmcs: InputMmcs,
@@ -260,21 +260,24 @@ where
         self.mmcs.commit(ldes)
     }
 
-    /// Given the evaluations on a domain `gH`, return the evaluations on a different domain `g'K`.
+    /// Returns the evaluations of the committed LDE at the given domain.
     ///
     /// Arguments:
     /// - `prover_data`: The prover data containing all committed evaluation matrices.
-    /// - `idx`: The index of the matrix containing the evaluations we want. These evaluations
-    ///   are assumed to be over the coset `gH` where `g = Val::GENERATOR`.
-    /// - `domain`: The domain `g'K` on which to get evaluations on. Currently, this assumes that
-    ///   `g' = g` and `K` is a subgroup of `H` and panics if this is not the case.
+    /// - `idx`: The index of the matrix. Evaluations are assumed over the coset `gH` with `g = Val::GENERATOR`.
+    /// - `domain`: The domain `g'K` on which to get evaluations. Currently requires `g' = g` and
+    ///   `K` a subgroup of `H`; panics otherwise.
+    ///
+    /// Precondition: `domain` must be a subdomain of the committed LDE (same shift,
+    /// `domain.size()` ≤ LDE height). When the requested domain is not a subset of the committed
+    /// LDE, the implementation should fall back to polynomial interpolation + evaluation
+    /// (extrapolation); that fallback is not yet implemented.
     fn get_evaluations_on_domain<'a>(
         &self,
         prover_data: &'a Self::ProverData,
         idx: usize,
         domain: Self::Domain,
     ) -> Self::EvaluationsOnDomain<'a> {
-        // todo: handle extrapolation for LDEs we don't have
         assert_eq!(domain.shift(), Val::GENERATOR);
         let lde = self.mmcs.get_matrices(prover_data)[idx];
         assert!(lde.height() >= domain.size());
@@ -390,10 +393,10 @@ where
                 // For each collection of matrices
                 izip!(mats.iter(), points.iter())
                     .map(|(mat, points_for_mat)| {
-                        // TODO: This assumes that every input matrix has a blowup of at least self.fri.log_blowup.
-                        // If the blow_up factor is smaller than self.fri.log_blowup, this will lead to errors.
-                        // If it is bigger, we shouldn't get any errors but it will be slightly slower.
-                        // Ideally, polynomials could be passed in with their blow_up factors known.
+                        // This assumes every input matrix has blowup at least self.fri.log_blowup;
+                        // smaller blowup leads to errors, larger is correct but slower. Ideally each
+                        // committed matrix would carry its own log_blowup so the opening can select
+                        // the correct submatrix height (h = mat.height() >> matrix_log_blowup).
 
                         // The point of this correction is that each column of the matrix corresponds to a low degree polynomial.
                         // Hence we can save time by restricting the height of the matrix to be the minimal height which
@@ -467,8 +470,9 @@ where
         // We will use `alpha` to batch together both different claimed openings `zeta` and
         // different polynomials `f` whose evaluation vectors have the same height.
 
-        // TODO: If we allow different polynomials to have different blow_up factors
-        // we may need to revisit this and to ensure it is safe to batch them together.
+        // If different polynomials have different blow_up factors, reduced_openings grouping
+        // and batching must account for per-matrix log_blowup so that each polynomial is
+        // reduced with the correct degree bound.
 
         // num_reduced records the number of (function, opening point) pairs for each `log_height`.
         // TODO: This should really be `[0; Val::TWO_ADICITY]` but that runs into issues with generics.

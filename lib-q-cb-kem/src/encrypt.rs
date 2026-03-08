@@ -2,7 +2,7 @@
 
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
 };
 
 use crate::api::CRYPTO_CIPHERTEXTBYTES;
@@ -30,7 +30,7 @@ fn same_mask_u8(x: u16, y: u16) -> u8 {
 /// Does not take any input arguments.
 /// If generation of pseudo-random numbers fails, an error is returned.
 #[cfg(not(any(feature = "cbkem8192128", feature = "cbkem8192128f")))]
-fn gen_e<R: CryptoRng + RngCore>(e: &mut [u8; SYS_N / 8], rng: &mut R) {
+fn gen_e<R: CryptoRng + Rng>(e: &mut [u8; SYS_N / 8], rng: &mut R) {
     let mut ind = [0u16; SYS_T];
     let mut val = [0u8; SYS_T];
 
@@ -108,7 +108,7 @@ fn gen_e<R: CryptoRng + RngCore>(e: &mut [u8; SYS_N / 8], rng: &mut R) {
 /// Does not take any input arguments.
 /// If generation of pseudo-random numbers fails, an error is returned.
 #[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
-fn gen_e<R: CryptoRng + RngCore>(e: &mut [u8], rng: &mut R) {
+fn gen_e<R: CryptoRng + Rng>(e: &mut [u8], rng: &mut R) {
     let mut ind = [0u16; SYS_T];
     let mut bytes = [0u8; SYS_T * 2];
     let mut val = [0u8; SYS_T];
@@ -255,7 +255,7 @@ fn syndrome(
 
 /// Encryption routine.
 /// Takes a public key `pk` to compute error vector `e` and syndrome `s`.
-pub(crate) fn encrypt<R: CryptoRng + RngCore>(
+pub(crate) fn encrypt<R: CryptoRng + Rng>(
     s: &mut [u8; CRYPTO_CIPHERTEXTBYTES],
     pk: &[u8; PK_NROWS * PK_ROW_BYTES],
     e: &mut [u8; SYS_N / 8],

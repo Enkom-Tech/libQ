@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 use crate::error::HqcError;
 
@@ -43,7 +43,7 @@ pub fn vect_resize(output: &mut [u8], input: &[u8]) -> Result<(), HqcError> {
 }
 
 /// Generate random vector
-pub fn vect_set_random<R: RngCore>(result: &mut [u8], rng: &mut R) -> Result<(), HqcError> {
+pub fn vect_set_random<R: Rng>(result: &mut [u8], rng: &mut R) -> Result<(), HqcError> {
     rng.fill_bytes(result);
     Ok(())
 }
@@ -78,9 +78,11 @@ pub fn vect_fixed_weight(
     let mut j = 0;
     for _i in 0..weight {
         let mut random_data: u32;
-        let mut exist = false;
+        let mut exist;
 
         loop {
+            exist = false;
+
             if j >= random_bytes.len() {
                 rng.fill_bytes(&mut random_bytes);
                 j = 0;

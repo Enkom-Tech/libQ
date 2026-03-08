@@ -3,7 +3,7 @@
 //! This module provides a centralized registry of all supported algorithms,
 //! eliminating the need for manual enumeration and providing better maintainability.
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::collections::BTreeMap as HashMap;
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
@@ -31,11 +31,13 @@ pub struct AlgorithmMetadata {
 }
 
 /// Central registry of all algorithms
+#[cfg(any(feature = "std", feature = "alloc"))]
 pub struct AlgorithmRegistry {
     #[allow(clippy::disallowed_types)]
     algorithms: HashMap<Algorithm, AlgorithmMetadata>,
 }
 
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl AlgorithmRegistry {
     /// Create a new algorithm registry
     pub fn new() -> Self {
@@ -725,6 +727,7 @@ impl AlgorithmRegistry {
     }
 }
 
+#[cfg(any(feature = "std", feature = "alloc"))]
 impl Default for AlgorithmRegistry {
     fn default() -> Self {
         Self::new()
@@ -756,9 +759,14 @@ pub fn registry() -> &'static AlgorithmRegistry {
 // Use supported_algorithms() etc. which return static slices directly
 
 /// Get all supported algorithms
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "spin")))]
 pub fn supported_algorithms() -> Vec<Algorithm> {
     registry().supported_algorithms()
+}
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "spin"))))]
+pub fn supported_algorithms() -> Vec<Algorithm> {
+    AlgorithmRegistry::new().supported_algorithms()
 }
 
 #[cfg(not(feature = "alloc"))]
@@ -779,9 +787,14 @@ pub fn supported_algorithms() -> &'static [Algorithm] {
 }
 
 /// Get algorithms by category
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "spin")))]
 pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
     registry().algorithms_by_category(category)
+}
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "spin"))))]
+pub fn algorithms_by_category(category: AlgorithmCategory) -> Vec<Algorithm> {
+    AlgorithmRegistry::new().algorithms_by_category(category)
 }
 
 #[cfg(not(feature = "alloc"))]
@@ -816,9 +829,14 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
 }
 
 /// Get algorithms by security level
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", any(feature = "std", feature = "spin")))]
 pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
     registry().algorithms_by_security_level(level)
+}
+
+#[cfg(all(feature = "alloc", not(any(feature = "std", feature = "spin"))))]
+pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
+    AlgorithmRegistry::new().algorithms_by_security_level(level)
 }
 
 #[cfg(not(feature = "alloc"))]

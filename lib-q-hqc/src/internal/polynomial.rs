@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 use crate::error::HqcError;
 

@@ -20,9 +20,10 @@ lib-q-random = { path = "../lib-q-random", features = ["classical-mceliece"] }
 lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
 
 # External dependencies
+aes = { version = "0.8", default-features = false, optional = true }
 rand = { workspace = true, default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
-getrandom = { version = "0.3.3", optional = true, default-features = false }
+getrandom = { workspace = true, optional = true, default-features = false }
 zeroize = { workspace = true, default-features = false, optional = true }
 
 # WASM bindings
@@ -68,12 +69,15 @@ cbkem6688128f = []
 cbkem6960119 = []
 cbkem6960119f = []
 cbkem8192128 = []
-cbkem8192128f = []
+cbkem8192128f = ["nist-aes-rng"]
+
+# NIST AES256-CTR RNG for KATs and deterministic testing (includes zeroize for uninstantiate)
+nist-aes-rng = ["dep:aes", "zeroize"]
 
 [lib]
 name = "lib_q_cb_kem"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [[bench]]
 name = "kem_api"

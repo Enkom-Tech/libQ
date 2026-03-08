@@ -17,7 +17,7 @@ use lib_q_dawn::ntt_polynomial::{
     NttPolynomial,
 };
 use lib_q_random::new_deterministic_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[test]
 fn test_secure_rng_deterministic() {

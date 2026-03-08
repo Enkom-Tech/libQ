@@ -72,26 +72,9 @@ pub struct KmacRng {
 impl KmacRng {
     /// Create a new KMAC-based RNG with system entropy
     pub fn new() -> Result<Self, HpkeError> {
-        // Use system entropy to seed the RNG
         let mut seed = [0u8; 32];
-        #[cfg(feature = "secure-rng")]
-        {
-            use rand_core::{
-                OsRng,
-                TryRngCore,
-            };
-            OsRng.try_fill_bytes(&mut seed).map_err(|e| {
-                HpkeError::CryptoError(alloc::format!("Failed to get system entropy: {}", e))
-            })?;
-        }
-        #[cfg(not(feature = "secure-rng"))]
-        {
-            // Fallback for no_std - use a simple counter (INSECURE)
-            for (i, byte) in seed.iter_mut().enumerate() {
-                *byte = (i as u8).wrapping_add(0x42);
-            }
-        }
-
+        lib_q_random::fill_entropy(&mut seed)
+            .map_err(|e| HpkeError::CryptoError(alloc::format!("Entropy unavailable: {}", e)))?;
         Ok(Self::from_seed(&seed))
     }
 
@@ -201,45 +184,16 @@ impl CryptoRng for SimpleRng {
     }
 }
 
-/// Fill a buffer with random bytes using system entropy
-#[cfg(feature = "secure-rng")]
-pub fn fill_random_bytes(dest: &mut [u8]) -> Result<(), HpkeError> {
-    use rand_core::{
-        OsRng,
-        TryRngCore,
-    };
-    OsRng
-        .try_fill_bytes(dest)
-        .map_err(|e| HpkeError::CryptoError(alloc::format!("Failed to get system entropy: {}", e)))
-}
-
-/// Fill a buffer with random bytes (no_std fallback - INSECURE)
+/// Fill a buffer with random bytes using system entropy.
 ///
-/// # Security Warning
-/// This implementation is NOT cryptographically secure and should only be used
-/// in no_std environments where system entropy is not available.
-/// For production use, ensure the `secure-rng` feature is enabled.
-#[cfg(not(feature = "secure-rng"))]
+/// Uses lib-q-random's entropy source. Returns an error if secure entropy
+/// is not available (e.g. when the `getrandom` feature is disabled).
 pub fn fill_random_bytes(dest: &mut [u8]) -> Result<(), HpkeError> {
-    // This is a placeholder implementation for no_std environments
-    // In production, this should be replaced with a proper hardware RNG
-    // or external entropy source
-    for (i, byte) in dest.iter_mut().enumerate() {
-        *byte = (i as u8).wrapping_add(0x42);
-    }
-    Ok(())
+    lib_q_random::fill_entropy(dest)
+        .map_err(|e| HpkeError::CryptoError(alloc::format!("Entropy unavailable: {}", e)))
 }
 
 /// Generate a random u32 using system entropy
-#[cfg(feature = "secure-rng")]
-pub fn random_u32() -> Result<u32, HpkeError> {
-    let mut bytes = [0u8; 4];
-    fill_random_bytes(&mut bytes)?;
-    Ok(u32::from_le_bytes(bytes))
-}
-
-/// Generate a random u32 (no_std fallback - INSECURE)
-#[cfg(not(feature = "secure-rng"))]
 pub fn random_u32() -> Result<u32, HpkeError> {
     let mut bytes = [0u8; 4];
     fill_random_bytes(&mut bytes)?;
@@ -247,15 +201,6 @@ pub fn random_u32() -> Result<u32, HpkeError> {
 }
 
 /// Generate a random u64 using system entropy
-#[cfg(feature = "secure-rng")]
-pub fn random_u64() -> Result<u64, HpkeError> {
-    let mut bytes = [0u8; 8];
-    fill_random_bytes(&mut bytes)?;
-    Ok(u64::from_le_bytes(bytes))
-}
-
-/// Generate a random u64 (no_std fallback - INSECURE)
-#[cfg(not(feature = "secure-rng"))]
 pub fn random_u64() -> Result<u64, HpkeError> {
     let mut bytes = [0u8; 8];
     fill_random_bytes(&mut bytes)?;

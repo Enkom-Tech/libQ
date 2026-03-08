@@ -14,7 +14,7 @@ use rand::distr::{
 };
 use rand::rngs::SmallRng;
 use rand::{
-    Rng,
+    RngExt,
     SeedableRng,
 };
 

@@ -14,7 +14,7 @@ categories = ["cryptography"]
 [lib]
 name = "lib_q_fn_dsa"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 # Core libQ types

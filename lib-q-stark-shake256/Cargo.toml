@@ -12,7 +12,7 @@ readme.workspace = true
 [dependencies]
 lib-q-sha3 = { path = "../lib-q-sha3" }
 lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
-digest = "0.11.0-rc.4"
+digest = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

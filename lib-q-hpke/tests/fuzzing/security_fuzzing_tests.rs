@@ -19,32 +19,34 @@ use lib_q_hpke::{
     HpkeKem,
     HpkeMode,
 };
+use lib_q_hpke::security::prng::{CryptoRng, KangarooTwelveRng};
 use lib_q_kem::LibQKemProvider;
-use rand::{
-    Rng,
-    SeedableRng,
-};
-use rand_chacha::ChaCha20Rng;
+
+fn random_bytes(rng: &mut KangarooTwelveRng, n: usize) -> Vec<u8> {
+    let mut v = vec![0u8; n];
+    rng.fill_bytes(&mut v).unwrap();
+    v
+}
 
 /// Fuzzing test for authentication proof validation
 #[test]
 fn fuzz_auth_proof_validation() {
-    let mut rng = ChaCha20Rng::from_seed([0u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[0u8; 32]);
     
     for _ in 0..1000 {
         // Generate random but valid key sizes
-        let kem = match rng.gen_range(0..3) {
+        let kem = match rng.next_u32().unwrap() % 3 {
             0 => HpkeKem::MlKem512,
             1 => HpkeKem::MlKem768,
             _ => HpkeKem::MlKem1024,
         };
         
         // Generate random data with correct sizes
-        let sender_sk = vec![rng.gen(); kem.secret_key_len()];
-        let sender_pk = vec![rng.gen(); kem.public_key_len()];
-        let recipient_pk = vec![rng.gen(); kem.public_key_len()];
-        let encapsulated_key = vec![rng.gen(); kem.enc_len()];
-        let shared_secret = vec![rng.gen(); kem.shared_secret_len()];
+        let sender_sk = random_bytes(&mut rng, kem.secret_key_len());
+        let sender_pk = random_bytes(&mut rng, kem.public_key_len());
+        let recipient_pk = random_bytes(&mut rng, kem.public_key_len());
+        let encapsulated_key = random_bytes(&mut rng, kem.enc_len());
+        let shared_secret = random_bytes(&mut rng, kem.shared_secret_len());
         
         // Test with valid data - should not panic
         let provider = lib_q_hpke::providers::post_quantum::PostQuantumProvider::new();
@@ -94,25 +96,25 @@ fn fuzz_auth_proof_validation() {
 /// Fuzzing test for invalid authentication proof detection
 #[test]
 fn fuzz_invalid_auth_proof_detection() {
-    let mut rng = ChaCha20Rng::from_seed([1u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[1u8; 32]);
     
     for _ in 0..1000 {
         let kem = HpkeKem::MlKem512; // Use consistent KEM for this test
         
         // Generate valid base data
-        let sender_sk = vec![rng.gen(); kem.secret_key_len()];
-        let sender_pk = vec![rng.gen(); kem.public_key_len()];
-        let recipient_pk = vec![rng.gen(); kem.public_key_len()];
-        let encapsulated_key = vec![rng.gen(); kem.enc_len()];
-        let shared_secret = vec![rng.gen(); kem.shared_secret_len()];
+        let sender_sk = random_bytes(&mut rng, kem.secret_key_len());
+        let sender_pk = random_bytes(&mut rng, kem.public_key_len());
+        let recipient_pk = random_bytes(&mut rng, kem.public_key_len());
+        let encapsulated_key = random_bytes(&mut rng, kem.enc_len());
+        let shared_secret = random_bytes(&mut rng, kem.shared_secret_len());
         
         let provider = lib_q_hpke::providers::post_quantum::PostQuantumProvider::new();
         let sender_sk_obj = KemSecretKey::new(sender_sk);
         let sender_pk_obj = KemPublicKey::new(sender_pk);
         
         // Generate random invalid proof
-        let invalid_proof_len = rng.gen_range(1..64);
-        let invalid_proof = vec![rng.gen(); invalid_proof_len];
+        let invalid_proof_len = (rng.next_u32().unwrap() % 63) as usize + 1;
+        let invalid_proof = random_bytes(&mut rng, invalid_proof_len);
         
         // Verification should fail for invalid proof
         let verify_result = provider.verify_auth_proof(
@@ -131,7 +133,7 @@ fn fuzz_invalid_auth_proof_detection() {
 /// Fuzzing test for key validation edge cases
 #[test]
 fn fuzz_key_validation_edge_cases() {
-    let mut rng = ChaCha20Rng::from_seed([2u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[2u8; 32]);
     
     for _ in 0..1000 {
         let kem = HpkeKem::MlKem512;
@@ -143,7 +145,7 @@ fn fuzz_key_validation_edge_cases() {
         ];
         
         for &size in &invalid_sizes {
-            let invalid_key = vec![rng.gen(); size];
+            let invalid_key = random_bytes(&mut rng, size);
             
             // Test public key validation
             let pk_result = provider.validate_key(kem, &invalid_key, false);
@@ -159,7 +161,7 @@ fn fuzz_key_validation_edge_cases() {
 /// Fuzzing test for zero key rejection
 #[test]
 fn fuzz_zero_key_rejection() {
-    let mut rng = ChaCha20Rng::from_seed([3u8; 32]);
+    let _rng = KangarooTwelveRng::from_seed(&[3u8; 32]);
     
     for _ in 0..100 {
         let kem = HpkeKem::MlKem512;
@@ -181,7 +183,7 @@ fn fuzz_zero_key_rejection() {
 /// Fuzzing test for AEAD key validation
 #[test]
 fn fuzz_aead_key_validation() {
-    let mut rng = ChaCha20Rng::from_seed([4u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[4u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -191,7 +193,7 @@ fn fuzz_aead_key_validation() {
         let invalid_sizes = vec![0, 1, 7, 15, 31, 33, 63, 65, 127, 129];
         
         for &size in &invalid_sizes {
-            let invalid_key = vec![rng.gen(); size];
+            let invalid_key = random_bytes(&mut rng, size);
             let nonce = vec![0u8; aead.nonce_len()];
             let plaintext = b"test message";
             
@@ -209,7 +211,7 @@ fn fuzz_aead_key_validation() {
 /// Fuzzing test for nonce validation
 #[test]
 fn fuzz_nonce_validation() {
-    let mut rng = ChaCha20Rng::from_seed([5u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[5u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -221,7 +223,7 @@ fn fuzz_nonce_validation() {
         let invalid_sizes = vec![0, 1, 7, 15, 17, 31, 33, 63, 65];
         
         for &size in &invalid_sizes {
-            let invalid_nonce = vec![rng.gen(); size];
+            let invalid_nonce = random_bytes(&mut rng, size);
             
             // Test encryption with invalid nonce
             let encrypt_result = provider.seal(aead, &key, &invalid_nonce, b"", plaintext);
@@ -237,7 +239,7 @@ fn fuzz_nonce_validation() {
 /// Fuzzing test for ciphertext length validation
 #[test]
 fn fuzz_ciphertext_length_validation() {
-    let mut rng = ChaCha20Rng::from_seed([6u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[6u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -250,7 +252,7 @@ fn fuzz_ciphertext_length_validation() {
         let invalid_sizes = vec![0, 1, 7, 15, 31, 33, 63, 65, 127, 129];
         
         for &size in &invalid_sizes {
-            let invalid_ciphertext = vec![rng.gen(); size];
+            let invalid_ciphertext = random_bytes(&mut rng, size);
             
             // Test decryption with invalid ciphertext length
             let decrypt_result = provider.open(aead, &key, &nonce, b"", &invalid_ciphertext);
@@ -262,7 +264,7 @@ fn fuzz_ciphertext_length_validation() {
 /// Fuzzing test for HPKE context state transitions
 #[test]
 fn fuzz_hpke_context_state_transitions() {
-    let mut rng = ChaCha20Rng::from_seed([7u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[7u8; 32]);
     
     for _ in 0..100 {
         let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
@@ -276,8 +278,8 @@ fn fuzz_hpke_context_state_transitions() {
         let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
         
         // Test context setup with random info
-        let info_len = rng.gen_range(0..1024);
-        let info = vec![rng.gen(); info_len];
+        let info_len = (rng.next_u32().unwrap() % 1024) as usize;
+        let info = random_bytes(&mut rng, info_len);
         
         let setup_result = hpke_ctx.setup_sender(&recipient_pk, &info);
         
@@ -285,10 +287,10 @@ fn fuzz_hpke_context_state_transitions() {
             Ok(mut sender_ctx) => {
                 // Test multiple encryptions with random data
                 for _ in 0..10 {
-                    let msg_len = rng.gen_range(0..1024);
-                    let message = vec![rng.gen(); msg_len];
-                    let aad_len = rng.gen_range(0..512);
-                    let aad = vec![rng.gen(); aad_len];
+                    let msg_len = (rng.next_u32().unwrap() % 1024) as usize;
+                    let message = random_bytes(&mut rng, msg_len);
+                    let aad_len = (rng.next_u32().unwrap() % 512) as usize;
+                    let aad = random_bytes(&mut rng, aad_len);
                     
                     let encrypt_result = sender_ctx.seal(&aad, &message);
                     
@@ -350,7 +352,7 @@ fn fuzz_sequence_number_overflow() {
 /// Fuzzing test for memory safety with large inputs
 #[test]
 fn fuzz_memory_safety_large_inputs() {
-    let mut rng = ChaCha20Rng::from_seed([8u8; 32]);
+    let mut rng = KangarooTwelveRng::from_seed(&[8u8; 32]);
     
     for _ in 0..10 {
         let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
@@ -364,10 +366,10 @@ fn fuzz_memory_safety_large_inputs() {
         let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
         
         // Test with very large messages
-        let large_msg_size = rng.gen_range(1024..65536);
-        let large_message = vec![rng.gen(); large_msg_size];
-        let large_aad = vec![rng.gen(); 1024];
-        let large_info = vec![rng.gen(); 1024];
+        let large_msg_size = (rng.next_u32().unwrap() % (65536 - 1024)) as usize + 1024;
+        let large_message = random_bytes(&mut rng, large_msg_size);
+        let large_aad = random_bytes(&mut rng, 1024);
+        let large_info = random_bytes(&mut rng, 1024);
         
         // Should handle large inputs gracefully
         let encrypt_result = hpke_ctx.seal(&recipient_pk, &large_info, &large_aad, &large_message);

@@ -56,6 +56,11 @@ name = "kat_tests"
 path = "tests/kat_tests.rs"
 required-features = ["alloc"]
 
+[[test]]
+name = "constant_time"
+path = "tests/constant_time.rs"
+required-features = ["alloc", "aead"]
+
 [[bench]]
 name = "saturnin_benches"
 harness = false

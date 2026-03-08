@@ -15,11 +15,14 @@ use lib_q_core::Result;
 use lib_q_fn_dsa::*;
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Infallible,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 /// Hardware RNG trait for different hardware platforms
-pub trait HardwareRng: CryptoRng + RngCore {
+pub trait HardwareRng: CryptoRng + Rng {
     /// Initialize the hardware RNG
     fn initialize(&mut self) -> Result<()>;
 
@@ -106,9 +109,11 @@ impl HardwareRng for HardwareRngEnum {
     }
 }
 
-impl RngCore for HardwareRngEnum {
-    fn next_u32(&mut self) -> u32 {
-        match self {
+impl TryRng for HardwareRngEnum {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+        Ok(match self {
             #[cfg(target_arch = "arm")]
             HardwareRngEnum::ArmTrustZone(rng) => rng.next_u32(),
             #[cfg(target_arch = "x86_64")]
@@ -116,11 +121,11 @@ impl RngCore for HardwareRngEnum {
             #[cfg(target_arch = "xtensa")]
             HardwareRngEnum::Esp32(rng) => rng.next_u32(),
             HardwareRngEnum::Fallback(rng) => rng.next_u32(),
-        }
+        })
     }
 
-    fn next_u64(&mut self) -> u64 {
-        match self {
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        Ok(match self {
             #[cfg(target_arch = "arm")]
             HardwareRngEnum::ArmTrustZone(rng) => rng.next_u64(),
             #[cfg(target_arch = "x86_64")]
@@ -128,10 +133,10 @@ impl RngCore for HardwareRngEnum {
             #[cfg(target_arch = "xtensa")]
             HardwareRngEnum::Esp32(rng) => rng.next_u64(),
             HardwareRngEnum::Fallback(rng) => rng.next_u64(),
-        }
+        })
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         match self {
             #[cfg(target_arch = "arm")]
             HardwareRngEnum::ArmTrustZone(rng) => rng.fill_bytes(dest),
@@ -141,10 +146,11 @@ impl RngCore for HardwareRngEnum {
             HardwareRngEnum::Esp32(rng) => rng.fill_bytes(dest),
             HardwareRngEnum::Fallback(rng) => rng.fill_bytes(dest),
         }
+        Ok(())
     }
 }
 
-impl CryptoRng for HardwareRngEnum {}
+impl TryCryptoRng for HardwareRngEnum {}
 
 /// ARM TrustZone RNG implementation
 #[cfg(target_arch = "arm")]
@@ -197,31 +203,34 @@ impl HardwareRng for ArmTrustZoneRng {
 }
 
 #[cfg(target_arch = "arm")]
-impl RngCore for ArmTrustZoneRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for ArmTrustZoneRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         if !self.initialized {
             let _ = self.initialize();
         }
-        self.read_trustzone_rng()
+        Ok(self.read_trustzone_rng())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        let upper = self.next_u32() as u64;
-        let lower = self.next_u32() as u64;
-        (upper << 32) | lower
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        let upper = self.try_next_u32().unwrap() as u64;
+        let lower = self.try_next_u32().unwrap() as u64;
+        Ok((upper << 32) | lower)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
+            let bytes = self.try_next_u32().unwrap().to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "arm")]
-impl CryptoRng for ArmTrustZoneRng {}
+impl TryCryptoRng for ArmTrustZoneRng {}
 
 /// Intel RDRAND implementation
 #[cfg(target_arch = "x86_64")]
@@ -250,8 +259,9 @@ impl IntelRdrandRng {
         // 3. Retry if necessary
         // SAFETY: This is a placeholder for demonstration
         unsafe {
-            // In real implementation: use RDRAND instruction
-            core::arch::x86_64::_rdrand32_step(&mut 0u32) as u32
+            let mut out = 0u32;
+            core::arch::x86_64::_rdrand32_step(&mut out);
+            out
         }
     }
 }
@@ -282,31 +292,34 @@ impl HardwareRng for IntelRdrandRng {
 }
 
 #[cfg(target_arch = "x86_64")]
-impl RngCore for IntelRdrandRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for IntelRdrandRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         if !self.initialized {
             let _ = self.initialize();
         }
-        self.read_rdrand()
+        Ok(self.read_rdrand())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        let upper = self.next_u32() as u64;
-        let lower = self.next_u32() as u64;
-        (upper << 32) | lower
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        let upper = self.try_next_u32().unwrap() as u64;
+        let lower = self.try_next_u32().unwrap() as u64;
+        Ok((upper << 32) | lower)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
+            let bytes = self.try_next_u32().unwrap().to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "x86_64")]
-impl CryptoRng for IntelRdrandRng {}
+impl TryCryptoRng for IntelRdrandRng {}
 
 /// ESP32 RNG implementation
 #[cfg(target_arch = "xtensa")]
@@ -359,31 +372,34 @@ impl HardwareRng for Esp32Rng {
 }
 
 #[cfg(target_arch = "xtensa")]
-impl RngCore for Esp32Rng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for Esp32Rng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         if !self.initialized {
             let _ = self.initialize();
         }
-        self.read_esp32_rng()
+        Ok(self.read_esp32_rng())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        let upper = self.next_u32() as u64;
-        let lower = self.next_u32() as u64;
-        (upper << 32) | lower
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        let upper = self.try_next_u32().unwrap() as u64;
+        let lower = self.try_next_u32().unwrap() as u64;
+        Ok((upper << 32) | lower)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
+            let bytes = self.try_next_u32().unwrap().to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
+        Ok(())
     }
 }
 
 #[cfg(target_arch = "xtensa")]
-impl CryptoRng for Esp32Rng {}
+impl TryCryptoRng for Esp32Rng {}
 
 /// Fallback software RNG for unsupported platforms
 pub struct FallbackSoftwareRng {
@@ -416,30 +432,33 @@ impl HardwareRng for FallbackSoftwareRng {
     }
 }
 
-impl RngCore for FallbackSoftwareRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for FallbackSoftwareRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         // Simple counter-based RNG (NOT cryptographically secure)
         // This is only for demonstration - in production, use proper hardware RNG
         self.counter = self.counter.wrapping_add(1);
-        (self.counter ^ (self.counter >> 16)) as u32
+        Ok((self.counter ^ (self.counter >> 16)) as u32)
     }
 
-    fn next_u64(&mut self) -> u64 {
-        let upper = self.next_u32() as u64;
-        let lower = self.next_u32() as u64;
-        (upper << 32) | lower
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        let upper = self.try_next_u32().unwrap() as u64;
+        let lower = self.try_next_u32().unwrap() as u64;
+        Ok((upper << 32) | lower)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
+            let bytes = self.try_next_u32().unwrap().to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
+        Ok(())
     }
 }
 
-impl CryptoRng for FallbackSoftwareRng {}
+impl TryCryptoRng for FallbackSoftwareRng {}
 
 /// Hardware RNG factory
 pub struct HardwareRngFactory;

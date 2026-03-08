@@ -40,7 +40,7 @@
 //!         LibQRng,
 //!         RngProvider,
 //!     };
-//!     use rand_core::RngCore;
+//!     use rand_core::Rng;
 //!
 //!     // Create a secure RNG for production use
 //!     let mut rng = LibQRng::new_secure().unwrap();
@@ -63,7 +63,7 @@
 //!         register_custom_entropy_source, unregister_custom_entropy_source,
 //!         new_secure_rng
 //!     };
-//!     use rand_core::RngCore;
+//!     use rand_core::Rng;
 //!
 //!     // Define your custom entropy callback
 //!     unsafe extern "C" fn my_entropy_callback(dest: *mut u8, len: usize, _context: *mut u8) -> i32 {
@@ -110,7 +110,7 @@
 //!         new_deterministic_rng_no_std,
 //!         new_secure_rng_no_std,
 //!     };
-//!     use rand_core::RngCore;
+//!     use rand_core::Rng;
 //!
 //!     // Create a secure RNG for production use
 //!     let mut rng = new_secure_rng_no_std().unwrap();
@@ -164,6 +164,10 @@ pub mod specialized;
 #[cfg(any(not(feature = "std"), feature = "no_std"))]
 pub mod no_std_rng;
 
+// Deterministic RNG for STARK/ZKP use
+pub mod deterministic_rng;
+pub use deterministic_rng::DeterministicRng;
+
 // Custom entropy source system for no_std/WASM environments
 #[cfg(feature = "custom-entropy")]
 pub mod custom_entropy;
@@ -207,6 +211,33 @@ pub const MAX_ENTROPY_BITS: usize = 4096;
 /// Default entropy buffer size
 pub const DEFAULT_ENTROPY_SIZE: usize = 32;
 
+/// Fill `dest` with cryptographically secure bytes from the OS entropy source.
+///
+/// Requires the `getrandom` feature. Returns `Err` if that feature is absent
+/// rather than silently producing weak output.
+///
+/// # Errors
+///
+/// Returns [`Error::FeatureNotAvailable`] when the `getrandom` feature is not
+/// enabled. Returns [`Error::EntropySourceUnavailable`] when getrandom fails.
+pub fn fill_entropy(dest: &mut [u8]) -> Result<()> {
+    #[cfg(feature = "getrandom")]
+    {
+        getrandom::fill(dest).map_err(|_| Error::EntropySourceUnavailable {
+            source: "system",
+            context: Some("getrandom failed"),
+        })
+    }
+    #[cfg(not(feature = "getrandom"))]
+    {
+        let _ = dest;
+        Err(Error::FeatureNotAvailable {
+            feature: "secure entropy",
+            required_features: &["getrandom"],
+        })
+    }
+}
+
 /// Create a new secure RNG instance
 ///
 /// This function creates a cryptographically secure RNG using the best available
@@ -220,7 +251,7 @@ pub const DEFAULT_ENTROPY_SIZE: usize = 32;
 ///
 /// ```rust
 /// use lib_q_random::new_secure_rng;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_secure_rng().unwrap();
 /// let mut bytes = [0u8; 32];
@@ -244,7 +275,7 @@ pub fn new_secure_rng() -> Result<LibQRng> {
 ///
 /// ```rust,no_run
 /// use lib_q_random::new_secure_rng_no_std;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_secure_rng_no_std().unwrap();
 /// let mut bytes = [0u8; 32];
@@ -268,7 +299,7 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::NoStdRng> {
 ///
 /// ```rust
 /// use lib_q_random::new_deterministic_rng;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_deterministic_rng(&[1, 2, 3, 4]);
 /// let mut bytes = [0u8; 32];
@@ -293,7 +324,7 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
 ///
 /// ```rust,no_run
 /// use lib_q_random::new_deterministic_rng_no_std;
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// let mut rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
 /// let mut bytes = [0u8; 32];
@@ -334,7 +365,7 @@ pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::NoStdRng {
 ///     register_custom_entropy_source,
 ///     unregister_custom_entropy_source,
 /// };
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// // Define a custom entropy callback
 /// unsafe extern "C" fn my_entropy_callback(
@@ -425,7 +456,7 @@ pub fn get_custom_entropy_source_info() -> Option<(&'static str, custom_entropy:
 ///     EntropySource,
 ///     new_custom_rng,
 /// };
-/// use rand_core::RngCore;
+/// use rand_core::Rng;
 ///
 /// struct MyEntropySource;
 /// impl EntropySource for MyEntropySource {
@@ -448,7 +479,7 @@ pub fn new_custom_rng<T: EntropySource + 'static>(entropy_source: T) -> LibQRng 
 #[cfg(test)]
 mod tests {
     #[cfg(not(feature = "alloc"))]
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use super::*;
 

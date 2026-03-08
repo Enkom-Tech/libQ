@@ -186,9 +186,9 @@ impl SaturninShortAead {
         // Split ciphertext and tag
         let (ct, tag) = ciphertext.split_at(ciphertext.len() - Self::tag_size());
 
-        // Verify authentication tag
+        // Verify authentication tag in constant time to prevent timing side channels
         let expected_tag = self.generate_tag(key, nonce, ad, ct)?;
-        if tag != expected_tag {
+        if !lib_q_core::Utils::constant_time_compare(tag, &expected_tag) {
             return Err(Error::InvalidMessageSize { actual: 0, max: 0 });
         }
 

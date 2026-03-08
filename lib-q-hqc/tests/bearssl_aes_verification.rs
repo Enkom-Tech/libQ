@@ -54,7 +54,7 @@ fn test_bearssl_aes_determinism() {
 #[ignore] // Note: This test expects specific DRBG values. Key generation now uses SHAKE-256 PRNG.
 fn test_bearssl_drbg_kat_compatibility() {
     use lib_q_hqc::bearssl_aes_ctr_drbg::BearSslAes256CtrDrbg;
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     let kat_seed = [
         0x9E, 0xF8, 0x77, 0xFD, 0xDB, 0xE8, 0x89, 0x1C, 0x6E, 0x4E, 0x79, 0xEA, 0xF0, 0x22, 0xE5,

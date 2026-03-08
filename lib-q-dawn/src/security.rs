@@ -26,7 +26,7 @@ use lib_q_core::{
     Result,
 };
 #[cfg(feature = "random")]
-use rand_core::RngCore;
+use rand_core::Rng;
 // Constant-time operations for side-channel resistance
 use subtle::{
     ConditionallySelectable,
@@ -337,15 +337,15 @@ fn get_ntru_security_parameters(params: &crate::DawnParameterSet) -> NtruSecurit
             min_small_coeff_ratio: 0.70, // 70% small coefficients (very relaxed for current keygen)
             max_medium_coeff_ratio: 0.20, // 20% medium coefficients max (relaxed)
             max_large_coeff_ratio: 0.15, // 15% large coefficients max (relaxed)
-            min_entropy_score: 0.1,      // Very low entropy requirement (for current keygen)
-            max_hamming_weight: 450,     // Higher Hamming weight for current keygen
+            min_entropy_score: 0.08,     // T_{n,k} ternary keys have lower normalized entropy
+            max_hamming_weight: 512,     // Allow full n/2 non-zero for f/g
             min_nonzero_coeffs: 50,      // Lower minimum non-zero coefficients
         },
         crate::DawnParameterSet::Alpha1024 => NtruSecurityParams {
             min_small_coeff_ratio: 0.70, // 70% small coefficients (relaxed for current keygen)
             max_medium_coeff_ratio: 0.20, // 20% medium coefficients max (relaxed)
             max_large_coeff_ratio: 0.15, // 15% large coefficients max (relaxed)
-            min_entropy_score: 0.1,      // Very low entropy requirement (for current keygen)
+            min_entropy_score: 0.08,     // T_{n,k} ternary keys have lower normalized entropy
             max_hamming_weight: 900,     // Higher Hamming weight for current keygen
             min_nonzero_coeffs: 100,     // Lower minimum non-zero coefficients
         },
@@ -353,15 +353,15 @@ fn get_ntru_security_parameters(params: &crate::DawnParameterSet) -> NtruSecurit
             min_small_coeff_ratio: 0.70, // 70% small coefficients (relaxed for current keygen)
             max_medium_coeff_ratio: 0.20, // 20% medium coefficients max (relaxed)
             max_large_coeff_ratio: 0.15, // 15% large coefficients max (relaxed)
-            min_entropy_score: 0.1,      // Very low entropy requirement (for current keygen)
-            max_hamming_weight: 450,     // Higher Hamming weight for current keygen
+            min_entropy_score: 0.08,     // T_{n,k} ternary keys have lower normalized entropy
+            max_hamming_weight: 512,     // Allow full n/2 non-zero for f/g
             min_nonzero_coeffs: 50,      // Lower minimum non-zero coefficients
         },
         crate::DawnParameterSet::Beta1024 => NtruSecurityParams {
             min_small_coeff_ratio: 0.70, // 70% small coefficients (relaxed for current keygen)
             max_medium_coeff_ratio: 0.20, // 20% medium coefficients max (relaxed)
             max_large_coeff_ratio: 0.15, // 15% large coefficients max (relaxed)
-            min_entropy_score: 0.1,      // Very low entropy requirement (for current keygen)
+            min_entropy_score: 0.08,     // T_{n,k} ternary keys have lower normalized entropy
             max_hamming_weight: 900,     // Higher Hamming weight for current keygen
             min_nonzero_coeffs: 100,     // Lower minimum non-zero coefficients
         },
@@ -1540,8 +1540,8 @@ mod tests {
         assert_eq!(alpha512_params.min_small_coeff_ratio, 0.70);
         assert_eq!(alpha512_params.max_medium_coeff_ratio, 0.20);
         assert_eq!(alpha512_params.max_large_coeff_ratio, 0.15);
-        assert_eq!(alpha512_params.min_entropy_score, 0.1);
-        assert_eq!(alpha512_params.max_hamming_weight, 450);
+        assert_eq!(alpha512_params.min_entropy_score, 0.08);
+        assert_eq!(alpha512_params.max_hamming_weight, 512);
         assert_eq!(alpha512_params.min_nonzero_coeffs, 50);
 
         // Test Alpha1024 parameters (relaxed for current keygen)
@@ -1549,7 +1549,7 @@ mod tests {
         assert_eq!(alpha1024_params.min_small_coeff_ratio, 0.70);
         assert_eq!(alpha1024_params.max_medium_coeff_ratio, 0.20);
         assert_eq!(alpha1024_params.max_large_coeff_ratio, 0.15);
-        assert_eq!(alpha1024_params.min_entropy_score, 0.1);
+        assert_eq!(alpha1024_params.min_entropy_score, 0.08);
         assert_eq!(alpha1024_params.max_hamming_weight, 900);
         assert_eq!(alpha1024_params.min_nonzero_coeffs, 100);
     }
@@ -1601,12 +1601,14 @@ mod tests {
         assert!(validate_ntru_polynomial_structure(&invalid_poly, &security_params).is_err());
 
         // Test too many non-zero coefficients (high Hamming weight)
+        // Use 512-degree poly with all 512 coeffs non-zero; max is 512 so use params with max 511
+        let mut strict_params = security_params.clone();
+        strict_params.max_hamming_weight = 511;
         let mut high_weight_poly = FieldPolynomial::new(512, 769);
-        for i in 0..500 {
-            // 500 non-zero coefficients (exceeds maximum of 450)
+        for i in 0..512 {
             high_weight_poly.coefficients[i] = (i % 10) as u32 + 1;
         }
-        assert!(validate_ntru_polynomial_structure(&high_weight_poly, &security_params).is_err());
+        assert!(validate_ntru_polynomial_structure(&high_weight_poly, &strict_params).is_err());
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use lib_q_random::new_secure_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[allow(unused)]
 pub(crate) fn random_array<const L: usize>() -> [u8; L] {

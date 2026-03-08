@@ -33,7 +33,7 @@
 //! random numbers to polynomial operations and cryptographic primitives.
 //! It is NOT a complete or secure HQC implementation.
 
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Result type for HQC reference operations
 pub type Result<T> = core::result::Result<T, HqcError>;
@@ -61,7 +61,7 @@ impl core::fmt::Display for HqcError {
 pub mod polynomial {
     use super::{
         Result,
-        RngCore,
+        Rng,
     };
 
     /// Multiply two polynomials in GF(2)
@@ -90,7 +90,7 @@ pub mod polynomial {
     /// Generate a random polynomial with specified weight
     ///
     /// **TEST HELPER ONLY** - Reference implementation for testing
-    pub fn polynomial_random_weight<R: RngCore + ?Sized>(
+    pub fn polynomial_random_weight<R: Rng + ?Sized>(
         result: &mut [u8],
         weight: usize,
         rng: &mut R,
@@ -228,13 +228,13 @@ pub mod codec {
 pub mod keygen {
     use super::{
         Result,
-        RngCore,
+        Rng,
     };
 
     /// Generate HQC key pair using RNG
     ///
     /// **TEST HELPER ONLY** - Simplified key generation for testing RNG integration
-    pub fn hqc_keygen<R: RngCore + ?Sized>(
+    pub fn hqc_keygen<R: Rng + ?Sized>(
         public_key: &mut [u8],
         secret_key: &mut [u8],
         rng: &mut R,
@@ -261,13 +261,13 @@ pub mod keygen {
 pub mod encrypt {
     use super::{
         Result,
-        RngCore,
+        Rng,
     };
 
     /// Encrypt a message (simplified for testing)
     ///
     /// **TEST HELPER ONLY** - Not secure HQC encryption
-    pub fn hqc_encrypt<R: RngCore + ?Sized>(
+    pub fn hqc_encrypt<R: Rng + ?Sized>(
         ciphertext: &mut [u8],
         message: &[u8],
         public_key: &[u8],

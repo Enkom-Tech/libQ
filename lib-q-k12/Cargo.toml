@@ -13,11 +13,11 @@ keywords = ["crypto", "hash", "digest", "lib-q"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-digest = "0.11.0-rc.4"
+digest = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
 
 [dev-dependencies]
-digest = { version = "0.11.0-rc.4", features = ["alloc", "dev"] }
+digest = { workspace = true, features = ["alloc", "dev"] }
 hex-literal = "1.0.0"
 lib-q-random = { path = "../lib-q-random", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
@@ -32,7 +32,7 @@ zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
 [lib]
 name = "lib_q_k12"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -6,7 +6,7 @@
 #[cfg(feature = "aes-drbg")]
 use lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg;
 #[cfg(feature = "aes-drbg")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Helper function to convert hex string to bytes
 fn hex_to_bytes(hex: &str) -> Vec<u8> {

@@ -230,7 +230,7 @@ where
         Complex<Mersenne31>: Clone,
     {
         for value in values {
-            self.observe(value.clone());
+            self.observe(*value);
         }
     }
 }
@@ -319,20 +319,6 @@ where
     {
         for value in values {
             self.observe(value.clone());
-        }
-    }
-}
-
-impl<BaseChallenger> CanObserve<Vec<Vec<Complex<Mersenne31>>>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<Complex<Mersenne31>>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
         }
     }
 }

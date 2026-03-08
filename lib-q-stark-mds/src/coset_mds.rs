@@ -106,7 +106,7 @@ mod tests {
     use lib_q_stark_symmetric::Permutation;
     use rand::rngs::SmallRng;
     use rand::{
-        Rng,
+        RngExt,
         SeedableRng,
     };
 

@@ -4,7 +4,7 @@ use lib_q_hqc::{
     Hqc1Params,
     HqcParams,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 fn hex_to_bytes(hex: &str) -> Vec<u8> {
     let mut bytes = Vec::new();

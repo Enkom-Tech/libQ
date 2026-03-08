@@ -104,6 +104,9 @@ pub mod provider;
 #[cfg(feature = "ml-kem")]
 pub mod ml_kem;
 
+#[cfg(feature = "hqc")]
+pub mod hqc;
+
 /// DAWN KEM implementation
 #[cfg(feature = "dawn")]
 pub use lib_q_dawn::DawnKem as DawnImpl;
@@ -189,6 +192,13 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
 
         #[cfg(feature = "dawn")]
         "dawn" | "DAWN" => Ok(Box::new(DawnImpl::default())),
+
+        #[cfg(feature = "hqc")]
+        "HQC-128" | "hqc-128" => Ok(Box::new(hqc::Hqc128Impl::default())),
+        #[cfg(feature = "hqc")]
+        "HQC-192" | "hqc-192" => Ok(Box::new(hqc::Hqc192Impl::default())),
+        #[cfg(feature = "hqc")]
+        "HQC-256" | "hqc-256" => Ok(Box::new(hqc::Hqc256Impl::default())),
 
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown algorithm",

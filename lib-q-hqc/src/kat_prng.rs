@@ -12,8 +12,8 @@ use alloc::vec;
 #[cfg(feature = "random")]
 use lib_q_random::traits::EntropySource;
 use rand_core::{
-    CryptoRng,
-    RngCore,
+    TryCryptoRng,
+    TryRng,
 };
 
 /// SHAKE-256 based PRNG that matches the reference HQC implementation
@@ -66,25 +66,28 @@ impl Shake256KatPrng {
     }
 }
 
-impl RngCore for Shake256KatPrng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for Shake256KatPrng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         self.xof.squeeze(dest).expect("SHAKE256 squeeze failed");
+        Ok(())
     }
 }
 
-impl CryptoRng for Shake256KatPrng {}
+impl TryCryptoRng for Shake256KatPrng {}
 
 /// KAT-compatible PRNG that matches reference implementation behavior
 ///
@@ -134,20 +137,22 @@ impl EntropySource for KatPrng {
     }
 }
 
-impl RngCore for KatPrng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for KatPrng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         #[cfg(feature = "random")]
         {
             self.get_entropy(dest)
@@ -171,10 +176,11 @@ impl RngCore for KatPrng {
                 dest[to_copy..].fill(0);
             }
         }
+        Ok(())
     }
 }
 
-impl CryptoRng for KatPrng {}
+impl TryCryptoRng for KatPrng {}
 
 /// Create a KAT-compatible PRNG RNG
 ///
@@ -182,13 +188,15 @@ impl CryptoRng for KatPrng {}
 /// * `entropy_input` - 48-byte entropy input
 ///
 /// # Returns
-/// A KAT-compatible PRNG that implements RngCore
+/// A KAT-compatible PRNG that implements Rng
 pub fn create_kat_prng_rng(entropy_input: [u8; 48]) -> KatPrng {
     KatPrng::new(entropy_input)
 }
 
 #[cfg(test)]
 mod tests {
+    use rand_core::Rng;
+
     use super::*;
 
     #[test]

@@ -15,17 +15,17 @@ use digest::block_api::{
     Eager,
     UpdateCore,
 };
+use digest::common::hazmat::{
+    DeserializeStateError,
+    SerializableState,
+    SerializedState,
+};
 use digest::consts::{
     U16,
     U32,
     U136,
     U168,
     U400,
-};
-use digest::crypto_common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
 };
 use digest::{
     CollisionResistance,

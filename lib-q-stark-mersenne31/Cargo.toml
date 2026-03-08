@@ -22,14 +22,18 @@ lib-q-stark-util = { path = "../lib-q-stark-util" }
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
 paste = "1.0.15"
-rand = { workspace = true, features = ["small_rng"] }
-serde = { workspace = true, features = ["derive"] }
+rand = { workspace = true, default-features = false, features = ["std"] }
+serde = { workspace = true, features = ["derive"], default-features = false }
 subtle = { version = "2.6.1", default-features = false }
 
 criterion = { workspace = true }
 rand_xoshiro = "0.7.0"
 
 [features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 # Feature to enable TestPermutation for benches and test utilities
 test-utils = []
 

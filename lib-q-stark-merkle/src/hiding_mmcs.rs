@@ -164,6 +164,7 @@ mod tests {
     use alloc::vec;
 
     use itertools::Itertools;
+    use lib_q_random::DeterministicRng;
     use lib_q_stark_commit::Mmcs;
     use lib_q_stark_field::{
         Field,
@@ -179,8 +180,6 @@ mod tests {
         PaddingFreeSponge,
         TruncatedPermutation,
     };
-    use rand::SeedableRng;
-    use rand::rngs::SmallRng;
 
     use super::MerkleTreeHidingMmcs;
     use crate::MerkleTreeError;
@@ -196,7 +195,7 @@ mod tests {
         <F as Field>::Packing,
         MyHash,
         MyCompress,
-        SmallRng,
+        DeterministicRng,
         8,
         SALT_ELEMS,
     >;
@@ -204,7 +203,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn mismatched_heights() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -218,7 +217,7 @@ mod tests {
 
     #[test]
     fn different_widths() -> Result<(), MerkleTreeError> {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         // 10 mats with 32 rows where the ith mat has i + 1 cols
         let mats = (0..10)
             .map(|i| RowMajorMatrix::<F>::rand(&mut rng, 32, i + 1))

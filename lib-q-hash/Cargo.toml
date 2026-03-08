@@ -14,16 +14,16 @@ readme.workspace = true
 [dependencies]
 lib-q-core = { path = "../lib-q-core" }
 zeroize = { workspace = true }
-digest = "0.11.0-rc.4"
+digest = { workspace = true }
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-k12 = { path = "../lib-q-k12" }
 lib-q-sha3 = { path = "../lib-q-sha3" }
 rayon = { version = "1.11.0", optional = true }
 
 [dev-dependencies]
-digest = { version = "0.11.0-rc.4", features = ["dev"] }
-hex-literal = "1.0.0"
-base16ct = { version = "0.3.0", features = ["alloc"] }
+digest = { workspace = true, features = ["dev"] }
+hex-literal = "1.1.0"
+base16ct = { version = "1.0.0", features = ["alloc"] }
 
 [features]
 default = ["alloc", "oid"]
@@ -43,7 +43,7 @@ wasm_js = [] # WASM support without getrandom dependency
 [lib]
 name = "lib_q_hash"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

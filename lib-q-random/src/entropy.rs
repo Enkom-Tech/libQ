@@ -532,11 +532,17 @@ impl EntropySource for UserEntropySource {
     }
 }
 
-/// NIST AES256-CTR-DRBG entropy source for KAT test compatibility
+/// NIST AES256-CTR-DRBG entropy source for KAT test compatibility (minimal implementation).
 ///
-/// This entropy source implements the NIST AES256-CTR-DRBG algorithm
-/// as specified in SP 800-90A, providing deterministic random generation
-/// compatible with NIST KAT test vectors.
+/// This entropy source implements a minimal NIST AES256-CTR-DRBG-style algorithm:
+/// `randombytes_init` and `EntropySource` for contexts that need the same 48-byte-init
+/// API (e.g. KAT or legacy tests) but do not require reseed, personalization, or health tests.
+/// It is **not** a full NIST-aligned DRBG (no reseed interval enforcement, no uninstantiate,
+/// no health test).
+///
+/// For full NIST SP 800-90A Rev. 1 CTR_DRBG alignment (instantiate with personalization,
+/// reseed, uninstantiate, health test, reseed interval, error state), use the canonical
+/// implementation in **lib-q-cb-kem** behind the `nist-aes-rng` feature (`AesState`).
 #[cfg(feature = "nist-drbg")]
 #[derive(Debug, Clone)]
 pub struct NistAes256CtrDrbg {

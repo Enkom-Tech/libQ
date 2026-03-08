@@ -51,17 +51,22 @@ impl<const WIDTH: usize> Permutation<[Mersenne31; WIDTH]> for TestPermutation<WI
         if WIDTH > 1 {
             // First pass: accumulate all elements with non-linear mixing
             let mut acc = input[0];
-            for i in 1..WIDTH {
+            for (i, &val) in input
+                .iter()
+                .enumerate()
+                .skip(1)
+                .take(WIDTH.saturating_sub(1))
+            {
                 // Non-linear accumulation: multiply before adding for better diffusion
-                acc = acc * Mersenne31::new((i + 1) as u32) + input[i];
+                acc = acc * Mersenne31::new((i + 1) as u32) + val;
             }
 
             // Second pass: mix accumulated value into each position with non-linear operations
             // This ensures that even after truncation, all original inputs influence the result
-            for i in 0..WIDTH {
+            for (i, inp) in input.iter_mut().enumerate().take(WIDTH) {
                 // Non-linear mixing: square the position-dependent offset for better diffusion
                 let offset = Mersenne31::new((i + 1) as u32);
-                input[i] = input[i] * Mersenne31::TWO + acc + offset * offset;
+                *inp = *inp * Mersenne31::TWO + acc + offset * offset;
             }
         }
     }

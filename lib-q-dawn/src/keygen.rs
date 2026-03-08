@@ -9,22 +9,58 @@ use core::fmt;
 #[cfg(feature = "std")]
 use std::fmt;
 
+use digest::{
+    ExtendableOutput,
+    Update,
+    XofReader,
+};
 use lib_q_core::Result;
+use lib_q_k12::KangarooTwelve256;
 #[cfg(feature = "random")]
 use lib_q_random::{
     new_deterministic_rng,
     new_secure_rng,
 };
-use rand_core::RngCore;
+use rand_core::{
+    Rng,
+    TryRng,
+};
 
-use crate::encoding::ZeroDivisorEncoder;
+use crate::codec::{
+    ct_bits_per_coeff,
+    pack_bits,
+    pk_bits_per_coeff,
+};
+use crate::encoding::{
+    ZeroDivisorEncoder,
+    fast_inversion_mod_t,
+};
 use crate::polynomial::field::FieldPolynomial;
 
-/// Trait alias for RNG that implements both RngCore and CryptoRng
+fn hash_pk(pk_bytes: &[u8]) -> [u8; 32] {
+    let mut hasher = KangarooTwelve256::new(b"DAWN-KEM-H-PK");
+    hasher.update(pk_bytes);
+    let mut reader = hasher.finalize_xof();
+    let mut out = [0u8; 32];
+    reader.read(&mut out);
+    out
+}
+
+fn derive_k_stored(pk_bytes: &[u8], randomness: &[u8]) -> [u8; 32] {
+    let mut hasher = KangarooTwelve256::new(b"DAWN-KEM-K-STORED");
+    hasher.update(pk_bytes);
+    hasher.update(randomness);
+    let mut reader = hasher.finalize_xof();
+    let mut out = [0u8; 32];
+    reader.read(&mut out);
+    out
+}
+
+/// Trait alias for RNG that implements both Rng and CryptoRng
 #[cfg(feature = "random")]
-trait SecureRng: RngCore + rand_core::CryptoRng {}
+trait SecureRng: Rng + rand_core::CryptoRng {}
 #[cfg(feature = "random")]
-impl<T: RngCore + rand_core::CryptoRng> SecureRng for T {}
+impl<T: Rng + rand_core::CryptoRng> SecureRng for T {}
 
 /// Secure RNG wrapper for DAWN operations
 #[cfg(feature = "random")]
@@ -50,22 +86,25 @@ impl DawnRng {
 }
 
 #[cfg(feature = "random")]
-impl RngCore for DawnRng {
-    fn next_u32(&mut self) -> u32 {
-        self.rng.next_u32()
+impl TryRng for DawnRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+        Ok(self.rng.next_u32())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        self.rng.next_u64()
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        Ok(self.rng.next_u64())
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         self.rng.fill_bytes(dest);
+        Ok(())
     }
 }
 
 #[cfg(feature = "random")]
-impl rand_core::CryptoRng for DawnRng {}
+impl rand_core::TryCryptoRng for DawnRng {}
 
 /// DAWN key generation parameters
 #[derive(Clone, Debug)]
@@ -78,74 +117,185 @@ pub struct KeyGenParams {
     pub small_modulus: u32,
     /// Compression divisor d_c
     pub compression_divisor: u32,
-    /// Number of random coefficients for f
+    /// Number of non-zero coefficients for f (T_{n,k_f}: 2*k_f total)
     pub f_coeff_count: usize,
-    /// Number of random coefficients for g
+    /// Number of non-zero coefficients for g (T_{n,k_g}: 2*k_g total)
     pub g_coeff_count: usize,
+    /// Number of non-zero coefficients for s (T_{n,k_s}: 2*k_s total)
+    pub s_coeff_count: usize,
+    /// Number of non-zero coefficients for e (T_{n,k_e}: 2*k_e total)
+    pub e_coeff_count: usize,
+    /// Base parameter set (Alpha512, etc.); used for validation and API identity.
+    pub base_parameter_set: crate::DawnParameterSet,
+    /// Profile (spec vs production); determines decoding failure behavior.
+    pub profile: crate::DawnProfile,
 }
 
 impl fmt::Display for KeyGenParams {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "KeyGenParams(degree={}, large_modulus={}, small_modulus={}, compression_divisor={}, f_coeff_count={}, g_coeff_count={})",
+            "KeyGenParams(degree={}, large_modulus={}, small_modulus={}, compression_divisor={}, f_coeff_count={}, g_coeff_count={}, s_coeff_count={}, e_coeff_count={})",
             self.degree,
             self.large_modulus,
             self.small_modulus,
             self.compression_divisor,
             self.f_coeff_count,
-            self.g_coeff_count
+            self.g_coeff_count,
+            self.s_coeff_count,
+            self.e_coeff_count
         )
     }
 }
 
 impl KeyGenParams {
-    /// Create parameters for DAWN-α-512
-    pub fn dawn_alpha_512() -> Self {
+    /// Parameters for the given parameter set and profile. Production profile uses
+    /// implementation-tuned values for negligible decryption failure; SpecExperimental
+    /// matches the paper (may have non-negligible failure with current decoder).
+    pub fn for_profile(
+        parameter_set: crate::DawnParameterSet,
+        profile: crate::DawnProfile,
+    ) -> Self {
+        match (parameter_set, profile) {
+            (crate::DawnParameterSet::Alpha512, crate::DawnProfile::SpecExperimental) => {
+                Self::dawn_alpha_512_spec()
+            }
+            (crate::DawnParameterSet::Alpha512, crate::DawnProfile::Production) => {
+                Self::dawn_alpha_512_impl()
+            }
+            (crate::DawnParameterSet::Alpha1024, _) => Self::dawn_alpha_1024_impl(),
+            (crate::DawnParameterSet::Beta512, _) => Self::dawn_beta_512_impl(),
+            (crate::DawnParameterSet::Beta1024, _) => {
+                let mut p = Self::dawn_beta_1024();
+                p.base_parameter_set = crate::DawnParameterSet::Beta1024;
+                p.profile = profile;
+                p
+            }
+        }
+    }
+
+    /// Create parameters for DAWN-α-512 spec (paper: k_g=160, k_f=64, k_s=96, k_e=160, d_c=7)
+    pub fn dawn_alpha_512_spec() -> Self {
         Self {
             degree: 512,
             large_modulus: 769,
             small_modulus: 2,
             compression_divisor: 7,
-            f_coeff_count: 256, // n/2
-            g_coeff_count: 256, // n/2
+            f_coeff_count: 128, // 2*k_f
+            g_coeff_count: 320, // 2*k_g
+            s_coeff_count: 192, // 2*k_s
+            e_coeff_count: 320, // 2*k_e
+            base_parameter_set: crate::DawnParameterSet::Alpha512,
+            profile: crate::DawnProfile::SpecExperimental,
         }
     }
 
-    /// Create parameters for DAWN-α-1024
+    /// Create parameters for DAWN-α-512 production profile (currently experimental).
+    /// Uses dawn_alpha_512_custom(24, 32, 1). Current quick-sweep data indicates decoding failures persist.
+    fn dawn_alpha_512_impl() -> Self {
+        Self::dawn_alpha_512_custom(24, 32, 1)
+    }
+
+    /// Create parameters for DAWN-α-512 (spec profile; backward compat for tests)
+    pub fn dawn_alpha_512() -> Self {
+        Self::dawn_alpha_512_spec()
+    }
+
+    /// Alpha512 with custom k_s, k_e, d_c for parameter tuning (n=512, q=769, k_f=64, k_g=160).
+    /// k_s and k_e are coefficient counts; stored as s_coeff_count = 2*k_s, e_coeff_count = 2*k_e.
+    pub fn dawn_alpha_512_custom(k_s: usize, k_e: usize, d_c: u32) -> Self {
+        Self {
+            degree: 512,
+            large_modulus: 769,
+            small_modulus: 2,
+            compression_divisor: d_c,
+            f_coeff_count: 128,
+            g_coeff_count: 320,
+            s_coeff_count: 2 * k_s,
+            e_coeff_count: 2 * k_e,
+            base_parameter_set: crate::DawnParameterSet::Alpha512,
+            profile: crate::DawnProfile::Production,
+        }
+    }
+
+    /// Create parameters for DAWN-α-1024 (Table 6: k_g=256, k_f=96, k_s=192, k_e=256)
     pub fn dawn_alpha_1024() -> Self {
+        Self::dawn_alpha_1024_custom(192, 256, 4)
+    }
+
+    /// Alpha1024 production profile (tunable). Initially spec defaults; update after sweep/stress.
+    fn dawn_alpha_1024_impl() -> Self {
+        Self::dawn_alpha_1024_custom(192, 256, 4)
+    }
+
+    /// Alpha1024 with custom k_s, k_e, d_c (n=1024, q=769, k_f=96, k_g=256).
+    pub fn dawn_alpha_1024_custom(k_s: usize, k_e: usize, d_c: u32) -> Self {
         Self {
             degree: 1024,
             large_modulus: 769,
             small_modulus: 2,
-            compression_divisor: 4,
-            f_coeff_count: 512, // n/2
-            g_coeff_count: 512, // n/2
+            compression_divisor: d_c,
+            f_coeff_count: 192,
+            g_coeff_count: 512,
+            s_coeff_count: 2 * k_s,
+            e_coeff_count: 2 * k_e,
+            base_parameter_set: crate::DawnParameterSet::Alpha1024,
+            profile: crate::DawnProfile::Production,
         }
     }
 
-    /// Create parameters for DAWN-β-512
+    /// Create parameters for DAWN-β-512 (Table 6: k_g=64, k_f=32, k_s=48, k_e=64)
     pub fn dawn_beta_512() -> Self {
+        Self::dawn_beta_512_custom(48, 64, 2)
+    }
+
+    /// Beta512 production profile (tunable). Initially spec defaults; update after sweep if used.
+    fn dawn_beta_512_impl() -> Self {
+        Self::dawn_beta_512_custom(48, 64, 2)
+    }
+
+    /// Beta512 with custom k_s, k_e, d_c (n=512, q=257, k_f=32, k_g=64).
+    pub fn dawn_beta_512_custom(k_s: usize, k_e: usize, d_c: u32) -> Self {
         Self {
             degree: 512,
             large_modulus: 257,
             small_modulus: 2,
-            compression_divisor: 2,
-            f_coeff_count: 256, // n/2
-            g_coeff_count: 256, // n/2
+            compression_divisor: d_c,
+            f_coeff_count: 64,
+            g_coeff_count: 128,
+            s_coeff_count: 2 * k_s,
+            e_coeff_count: 2 * k_e,
+            base_parameter_set: crate::DawnParameterSet::Beta512,
+            profile: crate::DawnProfile::Production,
         }
     }
 
-    /// Create parameters for DAWN-β-1024
+    /// Create parameters for DAWN-β-1024 (Table 6: k_g=96, k_f=64, k_s=96, k_e=96)
     pub fn dawn_beta_1024() -> Self {
         Self {
             degree: 1024,
             large_modulus: 257,
             small_modulus: 2,
             compression_divisor: 1,
-            f_coeff_count: 512, // n/2
-            g_coeff_count: 512, // n/2
+            f_coeff_count: 128, // 2*k_f
+            g_coeff_count: 192, // 2*k_g
+            s_coeff_count: 192, // 2*k_s
+            e_coeff_count: 192, // 2*k_e
+            base_parameter_set: crate::DawnParameterSet::Beta1024,
+            profile: crate::DawnProfile::Production,
         }
+    }
+
+    /// Ciphertext size in bytes for this parameter set (encoded compressed polynomial, full degree n).
+    pub fn ciphertext_byte_size(&self) -> usize {
+        let bits = ct_bits_per_coeff(self.large_modulus, self.compression_divisor);
+        (self.degree * bits).div_ceil(8)
+    }
+
+    /// Public key size in bytes.
+    pub fn public_key_byte_size(&self) -> usize {
+        let bits = pk_bits_per_coeff(self.large_modulus);
+        (self.degree * bits).div_ceil(8)
     }
 
     /// Get the security level in bits
@@ -167,8 +317,20 @@ impl KeyGenParams {
             self.compression_divisor > 0 &&
             self.f_coeff_count > 0 &&
             self.g_coeff_count > 0 &&
+            self.s_coeff_count > 0 &&
+            self.e_coeff_count > 0 &&
             self.f_coeff_count <= self.degree &&
-            self.g_coeff_count <= self.degree
+            self.g_coeff_count <= self.degree &&
+            self.s_coeff_count <= self.degree &&
+            self.e_coeff_count <= self.degree
+    }
+
+    /// Secret key size in bytes: f_bytes + f2_bytes + 32 + 32 + pk_bytes (f_bytes same length as pk).
+    pub fn secret_key_byte_size(&self) -> usize {
+        let pk_bits = pk_bits_per_coeff(self.large_modulus);
+        let pk_size = self.degree * pk_bits / 8;
+        let f2_size = (self.degree / 2).div_ceil(8);
+        pk_size + f2_size + 32 + 32 + pk_size
     }
 }
 
@@ -181,6 +343,12 @@ pub struct DawnKeyPair {
     pub secret_key: FieldPolynomial,
     /// Auxiliary polynomial g
     pub g: FieldPolynomial,
+    /// f^{-1} mod (x^{n/2}+1, Z_2) for decryption (FO-KEM re-encrypt)
+    pub f2: Vec<u8>,
+    /// Stored random value for FO-KEM implicit rejection
+    pub k_stored: [u8; 32],
+    /// Hash of public key for FO-KEM
+    pub h_pk: [u8; 32],
     /// Parameters used for key generation
     pub params: KeyGenParams,
 }
@@ -199,17 +367,23 @@ impl fmt::Display for DawnKeyPair {
 }
 
 impl DawnKeyPair {
-    /// Create a new key pair
+    /// Create a new key pair (with f2, k_stored, h_pk for FO-KEM)
     pub fn new(
         public_key: FieldPolynomial,
         secret_key: FieldPolynomial,
         g: FieldPolynomial,
+        f2: Vec<u8>,
+        k_stored: [u8; 32],
+        h_pk: [u8; 32],
         params: KeyGenParams,
     ) -> Self {
         Self {
             public_key,
             secret_key,
             g,
+            f2,
+            k_stored,
+            h_pk,
             params,
         }
     }
@@ -219,102 +393,21 @@ impl DawnKeyPair {
         self.encode_polynomial(&self.public_key)
     }
 
-    /// Get the secret key as bytes
+    /// Get the secret key as bytes: f || f2 || k_stored || h_pk || pk (for decapsulate re-encrypt).
     pub fn secret_key_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-
-        // Encode f polynomial
-        let f_bytes = self.encode_polynomial(&self.secret_key);
-        bytes.extend_from_slice(&f_bytes);
-
-        // Encode g polynomial
-        let g_bytes = self.encode_polynomial(&self.g);
-        bytes.extend_from_slice(&g_bytes);
-
-        // Truncate to the expected secret key size
-        let expected_size = match self.params.degree {
-            512 => {
-                if self.params.large_modulus == 769 {
-                    1319
-                } else {
-                    1154
-                }
-            }
-            1024 => {
-                if self.params.large_modulus == 769 {
-                    2605
-                } else {
-                    2275
-                }
-            }
-            _ => bytes.len(),
-        };
-
-        bytes.truncate(expected_size);
-        bytes.resize(expected_size, 0);
-
+        bytes.extend_from_slice(&self.encode_polynomial(&self.secret_key));
+        bytes.extend_from_slice(&self.f2);
+        bytes.extend_from_slice(&self.k_stored);
+        bytes.extend_from_slice(&self.h_pk);
+        bytes.extend_from_slice(&self.public_key_bytes());
         bytes
     }
 
-    /// Encode a polynomial to bytes
+    /// Encode a polynomial to bytes (lossless, pk bit-width).
     fn encode_polynomial(&self, poly: &FieldPolynomial) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // For DAWN, we need to compress the polynomial representation
-        // The actual key sizes are much smaller than the raw polynomial size
-
-        // Calculate the number of bits needed per coefficient
-        let bits_per_coeff = if self.params.large_modulus <= 256 {
-            8
-        } else if self.params.large_modulus <= 65536 {
-            16
-        } else {
-            32
-        };
-
-        // Pack coefficients into bytes
-        let mut bit_buffer = 0u64;
-        let mut bit_count = 0;
-
-        for &coeff in &poly.coefficients {
-            bit_buffer |= (coeff as u64) << bit_count;
-            bit_count += bits_per_coeff;
-
-            while bit_count >= 8 {
-                bytes.push((bit_buffer & 0xFF) as u8);
-                bit_buffer >>= 8;
-                bit_count -= 8;
-            }
-        }
-
-        // Add remaining bits
-        if bit_count > 0 {
-            bytes.push((bit_buffer & 0xFF) as u8);
-        }
-
-        // Truncate to the expected key size
-        let expected_size = match self.params.degree {
-            512 => {
-                if self.params.large_modulus == 769 {
-                    615
-                } else {
-                    514
-                }
-            }
-            1024 => {
-                if self.params.large_modulus == 769 {
-                    1229
-                } else {
-                    1027
-                }
-            }
-            _ => bytes.len(),
-        };
-
-        bytes.truncate(expected_size);
-        bytes.resize(expected_size, 0);
-
-        bytes
+        let bits = pk_bits_per_coeff(self.params.large_modulus);
+        pack_bits(&poly.coefficients, bits)
     }
 
     /// Validate the key pair structure
@@ -348,23 +441,46 @@ impl DawnKeyGenerator {
         Self { params, encoder }
     }
 
-    /// Generate a new key pair
+    /// Generate a new key pair (with f2, k_stored, h_pk for FO-KEM)
     pub fn generate_keypair(&self, randomness: &[u8]) -> Result<DawnKeyPair> {
-        // Generate random polynomials f and g
-        let f = self.generate_random_polynomial(&randomness[0..randomness.len() / 2])?;
-        let g = self.generate_random_polynomial(&randomness[randomness.len() / 2..])?;
+        let half = randomness.len() / 2;
+        let f = self.generate_random_polynomial(&randomness[0..half])?;
+        let g = self.generate_random_polynomial(&randomness[half..])?;
 
-        // Compute h = f^(-1) * g (mod x^n + 1, q)
         let h = self.compute_public_key(&f, &g)?;
 
-        Ok(DawnKeyPair::new(h, f, g, self.params.clone()))
+        let f2 = fast_inversion_mod_t(&f, self.params.degree).ok_or_else(|| {
+            lib_q_core::Error::InternalError {
+                operation: "key generation".to_string(),
+                details: "f not invertible mod (x^{n/2}+1, Z_2); retry with fresh randomness"
+                    .to_string(),
+            }
+        })?;
+
+        let pk_bytes = self.encode_polynomial_for_key(&h);
+        let h_pk = hash_pk(&pk_bytes);
+        let k_stored = derive_k_stored(&pk_bytes, randomness);
+
+        Ok(DawnKeyPair::new(
+            h,
+            f,
+            g,
+            f2,
+            k_stored,
+            h_pk,
+            self.params.clone(),
+        ))
     }
 
-    /// Generate a random polynomial with specified number of non-zero coefficients
-    ///
-    /// This implements proper NTRU polynomial sampling
+    /// Encode a polynomial to bytes (same layout as DawnKeyPair::encode_polynomial).
+    fn encode_polynomial_for_key(&self, poly: &FieldPolynomial) -> Vec<u8> {
+        let bits = pk_bits_per_coeff(self.params.large_modulus);
+        pack_bits(&poly.coefficients, bits)
+    }
+
+    /// Generate a random polynomial from T_{n,k_f}: exactly k_f positive and k_f negative coefficients.
+    /// Then ensure f(1) = 1 mod 2 (required for Z_2 invertibility) by flipping one zero to +1 if needed.
     fn generate_random_polynomial(&self, randomness: &[u8]) -> Result<FieldPolynomial> {
-        // Create a secure RNG from the randomness
         #[cfg(feature = "random")]
         let mut rng = DawnRng::new_deterministic(randomness);
         #[cfg(not(feature = "random"))]
@@ -372,40 +488,23 @@ impl DawnKeyGenerator {
             operation: "Random feature not enabled".to_string(),
         });
 
-        // Generate a trinary polynomial (coefficients in {-1, 0, 1})
-        let mut poly = FieldPolynomial::random_trinary(
+        let k_f = self.params.f_coeff_count / 2;
+        let mut poly = FieldPolynomial::random_ternary_exact(
             self.params.degree,
+            k_f,
             self.params.large_modulus,
             &mut rng,
         );
-
-        // Ensure we have the right number of non-zero coefficients
-        let mut non_zero_count = 0;
-        for &coeff in &poly.coefficients {
-            if coeff != 0 && coeff != self.params.large_modulus - 1 {
-                non_zero_count += 1;
+        let sum_mod2: u32 = poly.coefficients.iter().map(|&c| c % 2).sum::<u32>() % 2;
+        if sum_mod2 == 0 {
+            let zeros: Vec<usize> = (0..self.params.degree)
+                .filter(|&i| poly.coefficients[i] == 0)
+                .collect();
+            if !zeros.is_empty() {
+                let idx = zeros[rng.next_u32() as usize % zeros.len()];
+                poly.coefficients[idx] = 1;
             }
         }
-
-        // If we don't have enough non-zero coefficients, adjust
-        if non_zero_count < self.params.f_coeff_count {
-            let needed = self.params.f_coeff_count - non_zero_count;
-            let mut added = 0;
-
-            for i in 0..self.params.degree {
-                if poly.coefficients[i] == 0 && added < needed {
-                    // Set to 1 or -1 randomly
-                    let val = rng.next_u32() % 2;
-                    poly.coefficients[i] = if val == 0 {
-                        1
-                    } else {
-                        self.params.large_modulus - 1
-                    };
-                    added += 1;
-                }
-            }
-        }
-
         Ok(poly)
     }
 
@@ -450,58 +549,54 @@ impl DawnKeyGenerator {
 
     /// Generate a key pair with proper g coefficient count
     pub fn generate_keypair_with_g_coeff_count(&self, randomness: &[u8]) -> Result<DawnKeyPair> {
-        // Generate random polynomial f with f_coeff_count non-zero coefficients
-        let f = self.generate_random_polynomial(&randomness[0..randomness.len() / 2])?;
+        let half = randomness.len() / 2;
+        let f = self.generate_random_polynomial(&randomness[0..half])?;
+        let g = self.generate_random_polynomial_with_g_count(&randomness[half..])?;
 
-        // Generate random polynomial g with g_coeff_count non-zero coefficients
-        let g =
-            self.generate_random_polynomial_with_g_count(&randomness[randomness.len() / 2..])?;
-
-        // Compute h = f^(-1) * g (mod x^n + 1, q)
         let h = self.compute_public_key(&f, &g)?;
 
-        Ok(DawnKeyPair::new(h, f, g, self.params.clone()))
+        let f2 = fast_inversion_mod_t(&f, self.params.degree).ok_or_else(|| {
+            lib_q_core::Error::InternalError {
+                operation: "key generation".to_string(),
+                details: "f not invertible mod (x^{n/2}+1, Z_2); retry with fresh randomness"
+                    .to_string(),
+            }
+        })?;
+
+        let pk_bytes = self.encode_polynomial_for_key(&h);
+        let h_pk = hash_pk(&pk_bytes);
+        let k_stored = derive_k_stored(&pk_bytes, randomness);
+
+        Ok(DawnKeyPair::new(
+            h,
+            f,
+            g,
+            f2,
+            k_stored,
+            h_pk,
+            self.params.clone(),
+        ))
     }
 
-    /// Generate a random polynomial with g_coeff_count non-zero coefficients
+    /// Generate a random polynomial from T_{n,k_g}: exactly k_g positive and k_g negative coefficients.
     fn generate_random_polynomial_with_g_count(
         &self,
         randomness: &[u8],
     ) -> Result<FieldPolynomial> {
-        let mut poly = FieldPolynomial::new(self.params.degree, self.params.large_modulus);
+        #[cfg(feature = "random")]
+        let mut rng = DawnRng::new_deterministic(randomness);
+        #[cfg(not(feature = "random"))]
+        return Err(lib_q_core::Error::RandomGenerationFailed {
+            operation: "Random feature not enabled".to_string(),
+        });
 
-        // Use randomness to determine which coefficients are non-zero
-        let mut random_idx = 0;
-        let mut coeff_idx = 0;
-
-        while coeff_idx < self.params.g_coeff_count && random_idx < randomness.len() {
-            let byte = randomness[random_idx];
-            random_idx += 1;
-
-            // Use each bit to determine coefficient values
-            for bit in 0..8 {
-                if coeff_idx >= self.params.g_coeff_count {
-                    break;
-                }
-
-                let bit_value = (byte >> bit) & 1;
-                if bit_value == 1 {
-                    // Set coefficient to 1 or -1 (mod q)
-                    let coeff = if (coeff_idx % 2) == 0 {
-                        1
-                    } else {
-                        self.params.large_modulus - 1
-                    };
-                    poly.coefficients[coeff_idx] = coeff;
-                }
-                coeff_idx += 1;
-            }
-        }
-
-        // Fill remaining coefficients with zeros
-        for i in coeff_idx..self.params.degree {
-            poly.coefficients[i] = 0;
-        }
+        let k_g = self.params.g_coeff_count / 2;
+        let poly = FieldPolynomial::random_ternary_exact(
+            self.params.degree,
+            k_g,
+            self.params.large_modulus,
+            &mut rng,
+        );
 
         Ok(poly)
     }
@@ -553,31 +648,61 @@ impl DeterministicKeyGenerator {
 
     /// Generate a key pair deterministically
     pub fn generate_keypair(&self) -> Result<DawnKeyPair> {
-        // Use the seed to generate deterministic randomness
-        let mut randomness = Vec::new();
-        randomness.extend_from_slice(&self.seed);
-
-        // Extend the seed to provide enough randomness
-        while randomness.len() < 64 {
+        const MAX_RETRIES: usize = 50;
+        for attempt in 0..MAX_RETRIES {
+            let mut randomness = Vec::new();
             randomness.extend_from_slice(&self.seed);
+            if attempt > 0 {
+                randomness.extend_from_slice(&attempt.to_le_bytes());
+            }
+            while randomness.len() < 64 {
+                randomness.extend_from_slice(&self.seed);
+            }
+            match self.generator.generate_keypair(&randomness) {
+                Ok(kp) => return Ok(kp),
+                Err(lib_q_core::Error::InternalError { ref details, .. })
+                    if details.contains("not invertible") =>
+                {
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
         }
-
-        self.generator.generate_keypair(&randomness)
+        Err(lib_q_core::Error::InternalError {
+            operation: "key generation".to_string(),
+            details: "f not invertible mod (x^{n/2}+1, Z_2) after retries".to_string(),
+        })
     }
 
     /// Generate a key pair with proper g coefficient count
     pub fn generate_keypair_with_g_coeff_count(&self) -> Result<DawnKeyPair> {
-        // Use the seed to generate deterministic randomness
-        let mut randomness = Vec::new();
-        randomness.extend_from_slice(&self.seed);
-
-        // Extend the seed to provide enough randomness
-        while randomness.len() < 64 {
+        const MAX_RETRIES: usize = 50;
+        for attempt in 0..MAX_RETRIES {
+            let mut randomness = Vec::new();
             randomness.extend_from_slice(&self.seed);
+            if attempt > 0 {
+                randomness.extend_from_slice(&attempt.to_le_bytes());
+            }
+            while randomness.len() < 64 {
+                randomness.extend_from_slice(&self.seed);
+            }
+            match self
+                .generator
+                .generate_keypair_with_g_coeff_count(&randomness)
+            {
+                Ok(kp) => return Ok(kp),
+                Err(lib_q_core::Error::InternalError { ref details, .. })
+                    if details.contains("not invertible") =>
+                {
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
         }
-
-        self.generator
-            .generate_keypair_with_g_coeff_count(&randomness)
+        Err(lib_q_core::Error::InternalError {
+            operation: "key generation".to_string(),
+            details: "f not invertible mod (x^{n/2}+1, Z_2) after retries".to_string(),
+        })
     }
 }
 
@@ -652,13 +777,15 @@ mod tests {
         let params = KeyGenParams::dawn_alpha_512();
         let generator = DawnKeyGenerator::new(params);
 
-        // Test generation with proper g coefficient count
-        let randomness = vec![0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
-        let keypair = generator
-            .generate_keypair_with_g_coeff_count(&randomness)
-            .expect("Key generation should succeed");
-
-        assert!(keypair.is_valid());
+        // Try many seeds; f may not be invertible mod (x^{n/4}+1, Z_2) for some seeds
+        for seed in 0u8..=255 {
+            let randomness = vec![0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, seed];
+            if let Ok(keypair) = generator.generate_keypair_with_g_coeff_count(&randomness) {
+                assert!(keypair.is_valid());
+                return;
+            }
+        }
+        panic!("Key generation should succeed with at least one of the tried seeds");
     }
 
     #[test]

@@ -764,7 +764,7 @@ mod tests {
 
     use rand::rngs::SmallRng;
     use rand::{
-        Rng,
+        RngExt,
         SeedableRng,
     };
 

@@ -66,10 +66,15 @@ let plaintext = stream.decrypt(&key, &nonce, &ciphertext)?;
 - `stream` - Stream cipher
 - `zeroize` - Secure memory zeroization
 
+### Performance features
+
+- `simd`, `lookup-tables`, `parallel`, and `assembly` are optional performance features.
+- SIMD and assembly implementations currently delegate to the scalar implementation. The primary, KAT-validated production path is the scalar (no_std-safe) implementation in `core` and `bs32_core`.
+
 ## Security
 
 - 256-bit post-quantum security
-- Constant-time operations
+- Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
 - No side channels
 - Validated against reference implementation
 

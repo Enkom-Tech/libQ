@@ -16,8 +16,8 @@ use digest::block_api::{
     UpdateCore,
     XofReaderCore,
 };
-use digest::crypto_common::BlockSizes;
-use digest::crypto_common::hazmat::{
+use digest::common::BlockSizes;
+use digest::common::hazmat::{
     DeserializeStateError,
     SerializableState,
     SerializedState,

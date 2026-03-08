@@ -11,6 +11,7 @@ use lib_q_core::{
     KemPublicKey,
     KemSecretKey,
 };
+use lib_q_hpke::security::prng::{CryptoRng, KangarooTwelveRng};
 use lib_q_hpke::{
     HpkeAead,
     HpkeCipherSuite,
@@ -207,6 +208,8 @@ fn test_timing_consistency_auth_proof_operations() {
     
     let invalid_sender_sk_obj = KemSecretKey::new(invalid_sender_sk);
     let invalid_sender_pk_obj = KemPublicKey::new(invalid_sender_pk);
+
+    let mut rng = KangarooTwelveRng::new().expect("K12 RNG");
     
     // Measure timing for valid proof creation
     let mut valid_times = Vec::new();
@@ -219,7 +222,7 @@ fn test_timing_consistency_auth_proof_operations() {
             &recipient_pk_obj,
             &encapsulated_key,
             &shared_secret,
-            &mut rand::thread_rng(),
+            &mut rng,
         );
         valid_times.push(start.elapsed());
     }
@@ -235,7 +238,7 @@ fn test_timing_consistency_auth_proof_operations() {
             &recipient_pk_obj,
             &encapsulated_key,
             &shared_secret,
-            &mut rand::thread_rng(),
+            &mut rng,
         );
         invalid_times.push(start.elapsed());
     }

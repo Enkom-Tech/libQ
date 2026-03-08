@@ -5,9 +5,11 @@
 
 use core::fmt;
 
+#[cfg_attr(not(feature = "rand"), allow(unused_imports))]
 use rand_core::{
-    CryptoRng,
-    RngCore,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 #[cfg(feature = "hash")]
@@ -203,25 +205,28 @@ impl fmt::Display for ClassicalMcElieceRng {
     }
 }
 
-impl RngCore for ClassicalMcElieceRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for ClassicalMcElieceRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         self.generate_bytes(dest);
+        Ok(())
     }
 }
 
-impl CryptoRng for ClassicalMcElieceRng {}
+impl TryCryptoRng for ClassicalMcElieceRng {}
 
 /// HPKE-compatible RNG using `KangarooTwelve`
 ///
@@ -309,20 +314,22 @@ impl KangarooTwelveRng {
 }
 
 #[cfg(feature = "hash")]
-impl RngCore for KangarooTwelveRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for KangarooTwelveRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         let mut remaining = dest.len();
         let mut offset = 0;
 
@@ -341,11 +348,12 @@ impl RngCore for KangarooTwelveRng {
             offset += to_copy;
             remaining -= to_copy;
         }
+        Ok(())
     }
 }
 
 #[cfg(feature = "hash")]
-impl CryptoRng for KangarooTwelveRng {}
+impl TryCryptoRng for KangarooTwelveRng {}
 
 // HPKE-specific trait implementation for compatibility
 // This will be implemented in the HPKE crate itself to avoid circular dependencies
@@ -379,59 +387,60 @@ impl FnDsaRng {
     }
 }
 
-impl RngCore for FnDsaRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for FnDsaRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         #[cfg(feature = "rand")]
         {
             if let Some(ref mut rng) = self.rng {
-                rng.next_u32()
+                Ok(rng.next_u32())
             } else {
-                // Fallback
                 let mut bytes = [0u8; 4];
-                self.fill_bytes(&mut bytes);
-                u32::from_le_bytes(bytes)
+                self.try_fill_bytes(&mut bytes)?;
+                Ok(u32::from_le_bytes(bytes))
             }
         }
         #[cfg(not(feature = "rand"))]
         {
-            // Use getrandom for secure entropy - works on all platforms including WASM
             #[cfg(feature = "getrandom")]
             {
                 let mut bytes = [0u8; 4];
                 getrandom::fill(&mut bytes).expect("Failed to get random bytes from getrandom");
-                u32::from_le_bytes(bytes)
+                Ok(u32::from_le_bytes(bytes))
             }
             #[cfg(not(feature = "getrandom"))]
             {
-                // If getrandom is not available, this RNG cannot provide secure randomness
-                // The caller should use the deterministic version for testing
                 panic!(
-                    "ClassicalMcElieceRng::randombytes() requires either 'rand' or 'getrandom' feature. \
-                       Use ClassicalMcElieceRng::new_deterministic() for testing without these features."
+                    "FnDsaRng requires either 'rand' or 'getrandom' feature. \
+                       Use deterministic RNG for testing without these features."
                 );
             }
         }
     }
 
-    fn next_u64(&mut self) -> u64 {
-        let upper = u64::from(self.next_u32());
-        let lower = u64::from(self.next_u32());
-        (upper << 32) | lower
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        let upper = u64::from(self.try_next_u32()?);
+        let lower = u64::from(self.try_next_u32()?);
+        Ok((upper << 32) | lower)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.next_u32().to_le_bytes();
+            let bytes = self.try_next_u32()?.to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
+        Ok(())
     }
 }
 
-impl CryptoRng for FnDsaRng {}
+impl TryCryptoRng for FnDsaRng {}
 
 #[cfg(test)]
 mod tests {
+    use rand_core::Rng;
+
     use super::*;
 
     #[test]

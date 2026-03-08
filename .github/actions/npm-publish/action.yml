@@ -44,7 +44,12 @@ runs:
         npm pkg set name="${{ inputs.package-name }}"
         npm pkg set version="${{ inputs.version }}"
         npm pkg set description="${{ inputs.package-description }}"
-        npm pkg set keywords="${{ inputs.package-keywords }}"
+        
+        # Convert comma-separated keywords string to JSON array
+        export KEYWORDS_INPUT="${{ inputs.package-keywords }}"
+        KEYWORDS_JSON=$(node -e "const keywords = process.env.KEYWORDS_INPUT.split(',').map(k => k.trim()).filter(k => k); console.log(JSON.stringify(keywords));")
+        npm pkg set keywords="$KEYWORDS_JSON"
+        
         npm pkg set author="lib-Q Contributors"
         npm pkg set license="Apache-2.0"
         npm pkg set repository.type="git"
@@ -53,12 +58,22 @@ runs:
         npm pkg set bugs.url="https://github.com/Enkom-Tech/libQ/issues"
         npm pkg set files=["*.js","*.d.ts","*.wasm"]
         
-        # Set main entry points
-        npm pkg set main="$(ls *.js | head -1)"
-        npm pkg set types="$(ls *.d.ts | head -1)"
+        # Validate and set main entry points
+        MAIN_JS=$(ls *.js 2>/dev/null | head -1)
+        if [ -z "$MAIN_JS" ]; then
+          echo "Error: No .js files found in ${{ inputs.working-directory }}"
+          exit 1
+        fi
+        npm pkg set main="./$MAIN_JS"
+        
+        TYPES_FILE=$(ls *.d.ts 2>/dev/null | head -1)
+        if [ -z "$TYPES_FILE" ]; then
+          echo "Error: No .d.ts files found in ${{ inputs.working-directory }}"
+          exit 1
+        fi
+        npm pkg set types="./$TYPES_FILE"
         
         # Set exports
-        MAIN_JS=$(ls *.js | head -1)
         npm pkg set exports.import="./$MAIN_JS"
         npm pkg set exports.require="./$MAIN_JS"
         

@@ -194,11 +194,6 @@ impl SaturninBs32Core {
     /// # Returns
     /// Result indicating success or failure
     pub fn decrypt_block(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
-        #[cfg(feature = "std")]
-        {
-            eprintln!("=== DECRYPT DEBUG ===");
-            eprintln!("Input block: {:02X?}", &block[0..8]);
-        }
         if key.len() != 32 {
             return Err(Error::InvalidKeySize {
                 expected: 32,

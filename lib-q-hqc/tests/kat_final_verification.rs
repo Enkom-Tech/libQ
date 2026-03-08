@@ -11,7 +11,7 @@ use lib_q_hqc::{
     hqc_kem::HqcKem,
 };
 #[cfg(feature = "aes-drbg")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Helper function to convert hex string to bytes
 #[allow(dead_code)]

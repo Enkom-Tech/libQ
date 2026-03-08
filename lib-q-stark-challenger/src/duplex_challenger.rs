@@ -155,22 +155,6 @@ where
     }
 }
 
-// for TrivialPcs
-impl<F, P, const WIDTH: usize, const RATE: usize> CanObserve<Vec<Vec<F>>>
-    for DuplexChallenger<F, P, WIDTH, RATE>
-where
-    F: Copy,
-    P: CryptographicPermutation<[F; WIDTH]>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<F>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
-        }
-    }
-}
-
 impl<F, EF, P, const WIDTH: usize, const RATE: usize> CanSample<EF>
     for DuplexChallenger<F, P, WIDTH, RATE>
 where

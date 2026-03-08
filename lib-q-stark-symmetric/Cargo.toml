@@ -14,7 +14,13 @@ lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-keccak = { path = "../lib-q-keccak" }
 
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-serde = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, features = ["alloc"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }

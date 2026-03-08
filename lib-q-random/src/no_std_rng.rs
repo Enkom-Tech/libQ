@@ -7,7 +7,8 @@ use core::fmt;
 
 use rand_core::{
     CryptoRng,
-    RngCore,
+    TryCryptoRng,
+    TryRng,
 };
 
 #[cfg(feature = "custom-entropy")]
@@ -50,7 +51,7 @@ impl NoStdRng {
     ///
     /// ```rust,no_run
     /// use lib_q_random::no_std_rng::NoStdRng;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let mut rng = NoStdRng::new().unwrap();
     /// let mut bytes = [0u8; 32];
@@ -104,7 +105,7 @@ impl NoStdRng {
     ///
     /// ```rust,no_run
     /// use lib_q_random::no_std_rng::NoStdRng;
-    /// use rand_core::RngCore;
+    /// use rand_core::Rng;
     ///
     /// let mut rng = NoStdRng::new_deterministic(&[1, 2, 3, 4, 5, 6, 7, 8]);
     /// let mut bytes = [0u8; 32];
@@ -167,22 +168,24 @@ impl NoStdRng {
     }
 }
 
-impl RngCore for NoStdRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for NoStdRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         if dest.is_empty() {
-            return;
+            return Ok(());
         }
 
         // Check if we need to reseed
@@ -193,28 +196,21 @@ impl RngCore for NoStdRng {
 
         // Generate random bytes
         if let Some(ref mut state) = self.deterministic_state {
-            // Deterministic RNG using xorshift64* algorithm (high-quality PRNG)
-            // This is significantly better than LCG with good statistical properties
-            // Based on Sebastiano Vigna's xorshift* generators
             for byte in dest.iter_mut() {
-                // xorshift64* algorithm - passes BigCrush statistical tests
                 *state ^= *state >> 12;
                 *state ^= *state << 25;
                 *state ^= *state >> 27;
                 let output = state.wrapping_mul(0x2545_F491_4F6C_DD1D_u64);
-
                 #[allow(clippy::cast_possible_truncation)]
                 {
-                    *byte = (output >> 56) as u8; // Use highest quality bits
+                    *byte = (output >> 56) as u8;
                 }
             }
         } else {
-            // Try custom entropy source first, then fall back to getrandom
             #[cfg(feature = "custom-entropy")]
             {
                 if has_custom_entropy_source() {
                     if let Err(e) = generate_custom_entropy(dest) {
-                        // If custom entropy fails, fall back to getrandom
                         #[cfg(feature = "getrandom")]
                         {
                             getrandom::fill(dest).unwrap_or_else(|_| {
@@ -227,7 +223,6 @@ impl RngCore for NoStdRng {
                         }
                     }
                 } else {
-                    // No custom entropy source, use getrandom
                     #[cfg(feature = "getrandom")]
                     {
                         getrandom::fill(dest).expect("getrandom failed");
@@ -242,7 +237,6 @@ impl RngCore for NoStdRng {
             }
             #[cfg(not(feature = "custom-entropy"))]
             {
-                // No custom entropy support, use getrandom
                 #[cfg(feature = "getrandom")]
                 {
                     getrandom::fill(dest).expect("getrandom failed");
@@ -255,10 +249,11 @@ impl RngCore for NoStdRng {
         }
 
         self.bytes_generated += dest.len();
+        Ok(())
     }
 }
 
-impl CryptoRng for NoStdRng {}
+impl TryCryptoRng for NoStdRng {}
 
 impl fmt::Display for NoStdRng {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -274,7 +269,7 @@ impl fmt::Display for NoStdRng {
 
 #[cfg(test)]
 mod tests {
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use super::*;
 

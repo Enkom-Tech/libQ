@@ -15,19 +15,13 @@ lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-serde = { workspace = true }
-
-# for testing
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", optional = true }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", optional = true }
-
-[dev-dependencies]
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft" }
+serde = { workspace = true, default-features = false }
 
 [features]
-default = ["test-utils"]
-test-utils = ["lib-q-stark-challenger", "lib-q-stark-dft"]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

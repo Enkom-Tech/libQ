@@ -17,14 +17,14 @@ keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-digest = "0.11.0-rc.4"
+digest = { workspace = true }
 lib-q-keccak = { path = "../lib-q-keccak" }
 
 [dev-dependencies]
-digest = { version = "0.11.0-rc.4", features = ["dev"] }
+digest = { workspace = true }
 blobby = { version = "0.4.0", features = ["alloc"] }
-hex-literal = "1.0.0"
-base16ct = { version = "0.3.0", features = ["alloc"] }
+hex-literal = "1.1.0"
+base16ct = { version = "1.0.0", features = ["alloc"] }
 
 [features]
 default = ["alloc", "oid"]
@@ -36,7 +36,7 @@ asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
 [lib]
 name = "lib_q_sha3"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

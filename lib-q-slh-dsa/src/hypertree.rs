@@ -137,7 +137,7 @@ pub trait HypertreeParams: XmssParams + Sized {
 mod tests {
     use hybrid_array::Array;
     use lib_q_random::new_secure_rng;
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use super::*;
     use crate::PkSeed;

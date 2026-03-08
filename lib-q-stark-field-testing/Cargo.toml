@@ -17,9 +17,9 @@ lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 criterion = { workspace = true }
 num-bigint = { version = "0.4.6", default-features = false }
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true, default-features = false, features = ["std"] }
 serde = { workspace = true, default-features = false }
-serde_json = { version = "1.0.145", default-features = false }
+serde_json = { version = "1.0.149", default-features = false }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

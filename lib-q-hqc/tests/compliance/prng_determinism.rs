@@ -1,5 +1,5 @@
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// PRNG determinism tests to ensure reproducible random number generation
 /// 

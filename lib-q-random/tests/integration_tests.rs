@@ -40,7 +40,7 @@ use lib_q_random::{
     new_deterministic_rng_no_std,
     new_secure_rng_no_std,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[test]
 fn test_secure_rng_creation() {
@@ -305,7 +305,7 @@ fn test_rng_interface_compliance() {
     {
         let mut rng = new_deterministic_rng(&seed);
 
-        // Test RngCore interface
+        // Test Rng interface
         let val1 = rng.next_u32();
         let val2 = rng.next_u32();
         assert_ne!(val1, val2);
@@ -323,7 +323,7 @@ fn test_rng_interface_compliance() {
     {
         let mut rng = new_deterministic_rng_no_std(&seed);
 
-        // Test RngCore interface
+        // Test Rng interface
         let val1 = rng.next_u32();
         let val2 = rng.next_u32();
         assert_ne!(val1, val2);

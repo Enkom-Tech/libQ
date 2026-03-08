@@ -184,6 +184,5 @@ runs:
       run: |
         echo "Verifying constant-time operations..."
         cd ${{ inputs.working-directory }}
-        # Run specific tests that verify constant-time behavior
-        cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-saturnin || echo "⚠️  constant_time test not available for Saturnin"
+        cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-saturnin
         echo "Constant-time verification completed"

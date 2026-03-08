@@ -149,23 +149,6 @@ where
     }
 }
 
-// for TrivialPcs
-impl<F, PF, P, const WIDTH: usize, const RATE: usize> CanObserve<Vec<Vec<F>>>
-    for MultiField32Challenger<F, PF, P, WIDTH, RATE>
-where
-    F: PrimeField32,
-    PF: PrimeField,
-    P: CryptographicPermutation<[PF; WIDTH]>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<F>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
-        }
-    }
-}
-
 impl<F, EF, PF, P, const WIDTH: usize, const RATE: usize> CanSample<EF>
     for MultiField32Challenger<F, PF, P, WIDTH, RATE>
 where

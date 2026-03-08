@@ -63,17 +63,16 @@ fn test_kangaroo_twelve_rng_availability() {
 
     #[cfg(not(feature = "hash"))]
     {
-        // Fallback to simple RNG when hash feature is not available
         use lib_q_hpke::security::prng::fill_random_bytes;
 
         let mut bytes = [0u8; 32];
-        fill_random_bytes(&mut bytes).unwrap();
-
-        // The insecure implementation should still work but is deterministic
-        assert!(
-            bytes.iter().any(|&b| b != 0),
-            "RNG should produce non-zero bytes"
-        );
+        // With secure-rng (getrandom), fill_random_bytes succeeds; otherwise it returns Err
+        if fill_random_bytes(&mut bytes).is_ok() {
+            assert!(
+                bytes.iter().any(|&b| b != 0),
+                "RNG should produce non-zero bytes"
+            );
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use lib_q_ml_dsa::ml_dsa_65;
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
 #[cfg(feature = "random")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[cfg(feature = "random")]
 fn random_array<const L: usize>() -> [u8; L] {

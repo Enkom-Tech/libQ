@@ -19,10 +19,11 @@ use cipher::{
 use ctr::Ctr128BE;
 use lib_q_slh_dsa::*;
 use rand_core::{
-    CryptoRng,
-    RngCore,
+    Rng,
     TryCryptoRng,
-    TryRngCore,
+    TryRng,
+    UnwrapErr,
+    utils,
 };
 use sha2::Digest;
 use signature::{
@@ -52,31 +53,34 @@ impl KatRng {
     }
 }
 
-impl RngCore for KatRng {
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+impl TryRng for KatRng {
+    type Error = core::convert::Infallible;
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         dest.fill(0);
         self.0.apply_keystream(dest);
         // Discard up to end of block if not a multiple of 16
         let pad = (16 - (dest.len() % 16)) % 16;
         self.0.apply_keystream(&mut [0; 16][..pad]);
         self.update(None);
+        Ok(())
     }
 
-    fn next_u32(&mut self) -> u32 {
-        rand_core::impls::next_u32_via_fill(self)
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+        utils::next_word_via_fill::<u32, Self>(self)
     }
 
-    fn next_u64(&mut self) -> u64 {
-        rand_core::impls::next_u64_via_fill(self)
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        utils::next_word_via_fill::<u64, Self>(self)
     }
 }
 
-impl CryptoRng for KatRng {}
+impl TryCryptoRng for KatRng {}
 
 // Mock RNG that just returns a pre-determined bytestring
 struct ConstRng(Vec<u8>);
 
-impl TryRngCore for ConstRng {
+impl TryRng for ConstRng {
     type Error = RandError;
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), RandError> {
         let len = dest.len();
@@ -145,9 +149,9 @@ where
 
         let mut seed = vec![0; (P::VkLen::USIZE * 3) / 2];
         rng.fill_bytes(&mut seed);
-        let mut seed_rng = ConstRng(seed);
+        let mut seed_rng = UnwrapErr(ConstRng(seed));
 
-        let sk = SigningKey::<P>::new(&mut seed_rng.unwrap_mut());
+        let sk = SigningKey::<P>::new(&mut seed_rng);
         let pk = sk.verifying_key();
 
         writeln!(resp, "pk = {}", hex::encode_upper(pk.to_bytes())).unwrap();

@@ -26,6 +26,7 @@ use tracing::instrument;
 ///
 /// This function is used in debug mode (via `#[cfg(debug_assertions)]`) and in tests.
 #[allow(dead_code)] // Used conditionally in debug mode and in tests
+#[allow(unsafe_code)] // Safe: bounds are guaranteed by loop invariants (row_index in [0, height))
 #[instrument(skip_all)]
 pub(crate) fn check_constraints<F, A>(air: &A, main: &RowMajorMatrix<F>, public_values: &[F])
 where
@@ -50,18 +51,18 @@ where
         );
 
         let (prep_local, prep_next);
-        #[allow(clippy::option_if_let_else)]
-        let preprocessed_pair = if let Some(prep) = preprocessed.as_ref() {
-            // SAFETY: Same invariants as above - row_index and row_index_next are both in [0, height).
-            // The preprocessed trace has the same height as the main trace, so these indices are valid.
-            prep_local = unsafe { prep.row_slice_unchecked(row_index) };
-            prep_next = unsafe { prep.row_slice_unchecked(row_index_next) };
-            Some(ViewPair::new(
-                RowMajorMatrixView::new_row(&*prep_local),
-                RowMajorMatrixView::new_row(&*prep_next),
-            ))
-        } else {
-            None
+        let preprocessed_pair = match preprocessed.as_ref() {
+            Some(prep) => {
+                // SAFETY: Same invariants as above - row_index and row_index_next are both in [0, height).
+                // The preprocessed trace has the same height as the main trace, so these indices are valid.
+                prep_local = unsafe { prep.row_slice_unchecked(row_index) };
+                prep_next = unsafe { prep.row_slice_unchecked(row_index_next) };
+                Some(ViewPair::new(
+                    RowMajorMatrixView::new_row(&*prep_local),
+                    RowMajorMatrixView::new_row(&*prep_next),
+                ))
+            }
+            None => None,
         };
 
         let mut builder = DebugConstraintBuilder {

@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod config;
+pub mod extractor;
 mod hiding_pcs;
 mod proof;
 pub mod prover;
@@ -12,6 +13,7 @@ mod two_adic_pcs;
 pub mod verifier;
 
 pub use config::*;
+pub use extractor::*;
 pub use hiding_pcs::*;
 pub use proof::*;
 pub use two_adic_pcs::*;

@@ -2,7 +2,7 @@
 
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
 };
 
 use crate::api::{
@@ -66,7 +66,7 @@ fn check_c_padding(c: &[u8; SYND_BYTES]) -> u8 {
 /// This shared key is returned through parameter `key` whereas
 /// the ciphertext (meant to be used for decapsulation) is returned as `c`.
 #[cfg(not(any(feature = "cbkem6960119", feature = "cbkem6960119f")))]
-pub(crate) fn crypto_kem_enc<R: CryptoRng + RngCore>(
+pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
     c: &mut [u8; CRYPTO_CIPHERTEXTBYTES],
     key: &mut [u8; CRYPTO_BYTES],
     pk: &[u8; CRYPTO_PUBLICKEYBYTES],
@@ -91,7 +91,7 @@ pub(crate) fn crypto_kem_enc<R: CryptoRng + RngCore>(
 /// This shared key is returned through parameter `key` whereas
 /// the ciphertext (meant to be used for decapsulation) is returned as `c`.
 #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
-pub(crate) fn crypto_kem_enc<R: CryptoRng + RngCore>(
+pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
     c: &mut [u8; CRYPTO_CIPHERTEXTBYTES],
     key: &mut [u8; CRYPTO_BYTES],
     pk: &[u8; CRYPTO_PUBLICKEYBYTES],
@@ -223,7 +223,7 @@ pub(crate) fn crypto_kem_dec(
 /// The structure of the secret key is given by the following segments:
 /// (32 bytes seed, 8 bytes pivots, IRR_BYTES bytes, COND_BYTES bytes, SYS_N/8 bytes).
 /// The structure of the public key is simple: a matrix of PK_NROWS times PK_ROW_BYTES bytes.
-pub(crate) fn crypto_kem_keypair<R: CryptoRng + RngCore>(
+pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
     pk: &mut [u8; CRYPTO_PUBLICKEYBYTES],
     sk: &mut [u8; CRYPTO_SECRETKEYBYTES],
     rng: &mut R,
@@ -394,7 +394,7 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + RngCore>(
 
 #[cfg(all(test, feature = "cbkem8192128f"))]
 mod tests {
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     use super::*;
     use crate::nist_aes_rng::AesState;

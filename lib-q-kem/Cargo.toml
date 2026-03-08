@@ -67,7 +67,7 @@ dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
 [lib]
 name = "lib_q_kem"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

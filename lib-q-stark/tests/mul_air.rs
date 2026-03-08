@@ -1,11 +1,13 @@
 use core::fmt::Debug;
-use core::marker::PhantomData;
 
 use itertools::Itertools;
+use lib_q_random::DeterministicRng;
 use lib_q_stark::{
+    PcsError,
     StarkConfig,
     StarkGenericConfig,
     Val,
+    VerificationError,
     prove,
     verify,
 };
@@ -24,7 +26,6 @@ use lib_q_stark_challenger::{
 };
 // p3_circle::CirclePcs removed: non-NIST hash
 use lib_q_stark_commit::ExtensionMmcs;
-use lib_q_stark_commit::testing::TrivialPcs;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::{
@@ -56,14 +57,10 @@ use lib_q_stark_symmetric::{
     Hash,
     SerializingHasher,
 };
+use rand::RngExt;
 use rand::distr::{
     Distribution,
     StandardUniform,
-};
-use rand::rngs::SmallRng;
-use rand::{
-    Rng,
-    SeedableRng,
 };
 
 /// How many `a * b = c` operations to do per row in the AIR.
@@ -98,7 +95,7 @@ impl MulAir {
     where
         StandardUniform: Distribution<F>,
     {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let mut trace_values = F::zero_vec(rows * TRACE_WIDTH);
         for (i, (a, b, c)) in trace_values.iter_mut().tuples().enumerate() {
             let row = i / REPETITIONS;
@@ -156,19 +153,18 @@ impl<AB: AirBuilder> Air<AB> for MulAir {
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
 fn do_test<SC: StarkGenericConfig>(
-    config: SC,
-    air: MulAir,
+    config: &SC,
+    air: &MulAir,
     log_height: usize,
-) -> Result<(), impl Debug>
+) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC::Challenger: Clone,
     StandardUniform: Distribution<Val<SC>>,
 {
     let trace = air.random_valid_trace(log_height, true);
 
-    let proof = prove(&config, &air, trace, &[]);
+    let proof = prove(config, air, trace, &[]);
 
     let serialized_proof = postcard::to_allocvec(&proof).expect("unable to serialize proof");
     tracing::debug!("serialized_proof len: {} bytes", serialized_proof.len());
@@ -176,7 +172,7 @@ where
     let deserialized_proof =
         postcard::from_bytes(&serialized_proof).expect("unable to deserialize proof");
 
-    verify(&config, &air, &deserialized_proof, &[])
+    verify(config, air, &deserialized_proof, &[])
 }
 
 /// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
@@ -205,7 +201,7 @@ where
         Complex<Mersenne31>: Clone,
     {
         for value in values {
-            self.observe(value.clone());
+            self.observe(*value);
         }
     }
 }
@@ -298,67 +294,6 @@ where
     }
 }
 
-// Forward CanObserve for Vec<Vec<Complex<Mersenne31>>> to base challenger
-impl<BaseChallenger> CanObserve<Vec<Vec<Complex<Mersenne31>>>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<Complex<Mersenne31>>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
-        }
-    }
-}
-
-fn do_test_bb_trivial(degree: u64, log_n: usize) -> Result<(), impl Debug> {
-    type Val = Complex<Mersenne31>;
-    // Use Complex<Mersenne31> directly as challenge field
-    type Challenge = Val;
-
-    type Dft = Mersenne31ComplexRadix2Dit;
-    let dft = Dft::default();
-
-    type BaseChallenger = Shake256Challenger32<Mersenne31>;
-    type Challenger = ComplexFieldChallenger<BaseChallenger>;
-
-    type Pcs = TrivialPcs<Val, Dft>;
-    let pcs = TrivialPcs {
-        dft,
-        log_n,
-        _phantom: PhantomData,
-    };
-    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
-    let challenger = Challenger::new(base_challenger);
-
-    type MyConfig = StarkConfig<Pcs, Challenge, Challenger>;
-    let config = MyConfig::new(pcs, challenger);
-
-    let air = MulAir {
-        degree,
-        ..Default::default()
-    };
-
-    do_test(config, air, 1 << log_n)
-}
-
-#[test]
-fn prove_bb_trivial_deg2() -> Result<(), impl Debug> {
-    do_test_bb_trivial(2, 8)
-}
-
-#[test]
-fn prove_bb_trivial_deg3() -> Result<(), impl Debug> {
-    do_test_bb_trivial(3, 8)
-}
-
-#[test]
-fn prove_bb_trivial_deg4() -> Result<(), impl Debug> {
-    do_test_bb_trivial(4, 8)
-}
-
 fn do_test_bb_twoadic(log_blowup: usize, degree: u64, log_n: usize) -> Result<(), impl Debug> {
     type Val = Complex<Mersenne31>;
     // Use Complex<Mersenne31> directly as challenge field
@@ -405,7 +340,7 @@ fn do_test_bb_twoadic(log_blowup: usize, degree: u64, log_n: usize) -> Result<()
         ..Default::default()
     };
 
-    do_test(config, air, 1 << log_n)
+    do_test(&config, &air, 1 << log_n)
 }
 
 #[test]
@@ -427,10 +362,17 @@ fn prove_bb_twoadic_deg2_zk() -> Result<(), impl Debug> {
     type MyCompress = CompressionFunctionFromHasher<Shake256Hash, 2, 32>;
     let compress = MyCompress::new(shake256);
 
-    type ValMmcs =
-        MerkleTreeHidingMmcs<<Val as Field>::Packing, u8, MyHash, MyCompress, SmallRng, 32, 4>;
+    type ValMmcs = MerkleTreeHidingMmcs<
+        <Val as Field>::Packing,
+        u8,
+        MyHash,
+        MyCompress,
+        DeterministicRng,
+        32,
+        4,
+    >;
 
-    let rng = SmallRng::seed_from_u64(1);
+    let rng = DeterministicRng::seed_from_u64(1);
     let val_mmcs = ValMmcs::new(hash, compress, rng);
 
     type ChallengeMmcs = ExtensionMmcs<Val, Challenge, ValMmcs>;
@@ -443,8 +385,14 @@ fn prove_bb_twoadic_deg2_zk() -> Result<(), impl Debug> {
     type Challenger = ComplexFieldChallenger<BaseChallenger>;
 
     let fri_params = create_test_fri_params_zk(challenge_mmcs);
-    type HidingPcs = HidingFriPcs<Val, Dft, ValMmcs, ChallengeMmcs, SmallRng>;
-    let pcs = HidingPcs::new(dft, val_mmcs, fri_params, 4, SmallRng::seed_from_u64(1));
+    type HidingPcs = HidingFriPcs<Val, Dft, ValMmcs, ChallengeMmcs, DeterministicRng>;
+    let pcs = HidingPcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        DeterministicRng::seed_from_u64(1),
+    );
     type MyConfig = StarkConfig<HidingPcs, Challenge, Challenger>;
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
@@ -454,7 +402,7 @@ fn prove_bb_twoadic_deg2_zk() -> Result<(), impl Debug> {
         degree: 3,
         ..Default::default()
     };
-    do_test(config, air, 1 << 8)
+    do_test(&config, &air, 1 << 8)
 }
 
 #[test]

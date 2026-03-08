@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-poseidon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Poseidon hash function optimized for zero-knowledge proofs"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords = ["cryptography", "post-quantum", "poseidon", "zkp", "hash"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", default-features = false, features = ["alloc"] }
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+digest = { workspace = true }
+zeroize = { workspace = true, default-features = false }
+
+[dev-dependencies]
+criterion = { workspace = true }
+hex = { workspace = true }
+
+[features]
+default = ["alloc"]
+std = ["alloc", "lib-q-core/std"]
+alloc = []
+no_std = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

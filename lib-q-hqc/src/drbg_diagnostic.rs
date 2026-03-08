@@ -29,7 +29,9 @@ use alloc::vec::Vec;
 ))]
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 #[cfg(all(
@@ -100,8 +102,10 @@ impl DualModeDrbg {
     feature = "bearssl-aes",
     feature = "debug-drbg-interop"
 ))]
-impl RngCore for DualModeDrbg {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for DualModeDrbg {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         self.generation_count += 1;
         let primary_val = self.primary.next_u32();
         let secondary_val = self.secondary.next_u32();
@@ -114,10 +118,10 @@ impl RngCore for DualModeDrbg {
             self.log_buffer.push(log);
         }
 
-        primary_val
+        Ok(primary_val)
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         self.generation_count += 1;
         let primary_val = self.primary.next_u64();
         let secondary_val = self.secondary.next_u64();
@@ -130,10 +134,10 @@ impl RngCore for DualModeDrbg {
             self.log_buffer.push(log);
         }
 
-        primary_val
+        Ok(primary_val)
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         self.generation_count += 1;
 
         // Generate from primary
@@ -146,6 +150,7 @@ impl RngCore for DualModeDrbg {
 
         // Log comparison
         self.log_comparison(&primary_output, &secondary_output);
+        Ok(())
     }
 }
 
@@ -154,4 +159,4 @@ impl RngCore for DualModeDrbg {
     feature = "bearssl-aes",
     feature = "debug-drbg-interop"
 ))]
-impl CryptoRng for DualModeDrbg {}
+impl TryCryptoRng for DualModeDrbg {}

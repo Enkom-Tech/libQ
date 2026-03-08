@@ -21,6 +21,10 @@ use lib_q_hpke::providers::{
     AeadProvider,
     KemProvider,
 };
+use lib_q_hpke::security::prng::{
+    CryptoRng,
+    KangarooTwelveRng,
+};
 use lib_q_hpke::{
     HpkeAead,
     HpkeCipherSuite,
@@ -30,7 +34,6 @@ use lib_q_hpke::{
     HpkeMode,
 };
 use lib_q_kem::LibQKemProvider;
-use rand::Rng;
 
 /// Test proper authentication implementation
 #[test]
@@ -140,6 +143,8 @@ fn _test_authentication_proof_security() {
     let sender_pk_obj = KemPublicKey::new(sender_pk.clone());
     let recipient_pk_obj = KemPublicKey::new(recipient_pk.clone());
 
+    let mut rng = KangarooTwelveRng::new().expect("K12 RNG");
+
     // Test authentication proof creation
     let proof_result = provider.create_auth_proof(
         kem,
@@ -148,7 +153,7 @@ fn _test_authentication_proof_security() {
         &recipient_pk_obj,
         &encapsulated_key,
         &shared_secret,
-        &mut rand::thread_rng(),
+        &mut rng,
     );
 
     assert!(proof_result.is_ok(), "Auth proof creation should succeed");
@@ -198,7 +203,7 @@ fn _test_authentication_proof_security() {
         &recipient_pk_obj,
         &encapsulated_key,
         &shared_secret,
-        &mut rand::thread_rng(),
+        &mut rng,
     );
 
     assert!(

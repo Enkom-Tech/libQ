@@ -374,8 +374,8 @@ impl Aead for SaturninAead {
         // Continue cascade on ciphertext
         self.cascade(&mut tag, 4, 5, ciphertext_data)?;
 
-        // Verify tag
-        if tag != received_tag {
+        // Verify tag in constant time to prevent timing side channels
+        if !lib_q_core::Utils::constant_time_compare(&tag, received_tag) {
             return Err(Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
             });

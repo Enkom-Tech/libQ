@@ -5,7 +5,7 @@
 //! exactly, ensuring KAT compliance.
 
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Test vector from HQC-1 KAT file
 /// SEED: 9EF877FDDBE8891C6E4E79EAF022E563DEFACA6B152161B9A423E8FE96A403E774B2D352CF74C934069C9DE74757F505

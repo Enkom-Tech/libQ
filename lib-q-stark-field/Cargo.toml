@@ -16,11 +16,17 @@ lib-q-stark-util = { path = "../lib-q-stark-util" }
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
 paste = "1.0.15"
-rand = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+rand = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive"], default-features = false }
 subtle = { version = "2.6.1", default-features = false }
 tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
-zeroize = { workspace = true, features = ["derive"] }
+zeroize = { workspace = true, features = ["derive"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }

@@ -14,8 +14,8 @@ categories = ["cryptography", "wasm"]
 
 [dependencies]
 # Core cryptographic dependencies - no_std compatible
-getrandom = { version = "0.3.3", optional = true, default-features = false }
-# rand_core: os_rng feature requires std, so we make it optional and only enable with std
+getrandom = { workspace = true, optional = true, default-features = false }
+# rand_core 0.10 has no optional features; OS RNG comes from getrandom/rand when std is enabled
 rand_core = { workspace = true, default-features = false }
 rand = { workspace = true, default-features = false, features = ["thread_rng"], optional = true }
 
@@ -42,7 +42,7 @@ spin = { workspace = true, optional = true }
 
 [features]
 default = ["std"]
-std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std", "rand_core/os_rng"]
+std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]
 alloc = []
 no_std = ["spin"]
 # Random number generation - requires platform-specific configuration for no_std
@@ -79,7 +79,7 @@ relaxed_entropy_validation = []
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

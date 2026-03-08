@@ -163,8 +163,8 @@ where
             max_height > 0
         {
             let log_max_height = log2_ceil_usize(max_height);
-            // TODO: Support arbitrary-length matrices by placing their leaves at multiple levels
-            // in the tree so every global index still maps to well-defined openings.
+            // Non-power-of-two matrix heights: support by placing leaves at appropriate tree levels
+            // so every global index maps to a well-defined opening (future work).
             for matrix in &inputs {
                 let height = matrix.height();
                 assert!(height > 0, "matrix height 0 not supported");
@@ -261,7 +261,8 @@ where
             return Err(WrongBatchSize);
         }
 
-        // TODO: Disabled for now since TwoAdicFriPcs and CirclePcs currently pass 0 for width.
+        // Width check: re-enable once TwoAdicFriPcs and CirclePcs pass matrix widths through to
+        // the MMCS verifier (dimensions.width must match opened row length).
         // for (dims, opened_vals) in zip_eq(dimensions.iter(), opened_values) {
         //     if opened_vals.len() != dims.width {
         //         return Err(WrongWidth);
@@ -364,6 +365,7 @@ mod tests {
     use alloc::vec;
 
     use itertools::Itertools;
+    use lib_q_random::DeterministicRng;
     use lib_q_stark_commit::Mmcs;
     use lib_q_stark_field::{
         Field,
@@ -384,8 +386,6 @@ mod tests {
         PseudoCompressionFunction,
         TruncatedPermutation,
     };
-    use rand::SeedableRng;
-    use rand::rngs::SmallRng;
 
     use super::MerkleTreeMmcs;
 
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn commit_single_1x8() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -433,7 +433,7 @@ mod tests {
 
     #[test]
     fn commit_single_8x1() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn commit_single_2x2() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn commit_single_2x3() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn commit_mixed() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -594,7 +594,7 @@ mod tests {
 
     #[test]
     fn commit_either_order() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn mismatched_heights() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn verify_tampered_proof_fails() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -698,7 +698,7 @@ mod tests {
 
     #[test]
     fn size_gaps() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -751,7 +751,7 @@ mod tests {
 
     #[test]
     fn different_widths() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = DeterministicRng::seed_from_u64(1);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);
@@ -772,7 +772,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "matrix height 5 incompatible")]
     fn commit_rejects_missing_leaf_coverage() {
-        let mut rng = SmallRng::seed_from_u64(9);
+        let mut rng = DeterministicRng::seed_from_u64(9);
         let perm = Perm::new_from_rng_128(&mut rng);
         let hash = MyHash::new(perm);
         let compress = MyCompress::new(perm);

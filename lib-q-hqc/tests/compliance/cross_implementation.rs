@@ -1,7 +1,7 @@
 use lib_q_hqc::{Hqc1Params, hqc_pke::HqcPke, hqc_kem::HqcKem, HqcParams};
 use lib_q_hqc::internal::shake256::Shake256Xof;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Cross-implementation tests to compare our implementation against reference behavior
 /// 

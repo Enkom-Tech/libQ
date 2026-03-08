@@ -19,7 +19,7 @@ use lib_q_random::{
     new_secure_rng_no_std,
     no_std_rng::NoStdRng,
 };
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// Test basic RNG creation and functionality
 #[test]
@@ -151,12 +151,12 @@ fn test_rng_traits() {
     {
         use rand_core::{
             CryptoRng,
-            RngCore,
+            Rng,
         };
 
         let mut rng = new_secure_rng_no_std().unwrap();
 
-        // Test RngCore implementation
+        // Test Rng implementation
         let u32_val = rng.next_u32();
         let u64_val = rng.next_u64();
 

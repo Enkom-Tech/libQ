@@ -1,7 +1,7 @@
 use lib_q_hqc::Hqc1Params;
 use lib_q_hqc::hqc_pke::HqcPke;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[test]
 #[ignore] // Probabilistic failures - covered by integration_test.rs

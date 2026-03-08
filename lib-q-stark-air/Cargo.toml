@@ -14,7 +14,7 @@ lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }

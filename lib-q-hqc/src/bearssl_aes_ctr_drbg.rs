@@ -7,8 +7,8 @@ use alloc::string::String;
 
 #[cfg(feature = "bearssl-aes")]
 use rand_core::{
-    CryptoRng,
-    RngCore,
+    TryCryptoRng,
+    TryRng,
 };
 
 #[cfg(feature = "bearssl-aes")]
@@ -95,20 +95,22 @@ impl BearSslAes256CtrDrbg {
 }
 
 #[cfg(feature = "bearssl-aes")]
-impl RngCore for BearSslAes256CtrDrbg {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for BearSslAes256CtrDrbg {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes);
-        u32::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
         let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes);
-        u64::from_le_bytes(bytes)
+        self.try_fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
         #[cfg(all(feature = "debug-drbg-state", feature = "std"))]
         {
             println!("=== fill_bytes START ===");
@@ -170,11 +172,13 @@ impl RngCore for BearSslAes256CtrDrbg {
             );
             defmt::info!("=== fill_bytes END ===");
         }
+
+        Ok(())
     }
 }
 
 #[cfg(feature = "bearssl-aes")]
-impl CryptoRng for BearSslAes256CtrDrbg {}
+impl TryCryptoRng for BearSslAes256CtrDrbg {}
 
 #[cfg(feature = "bearssl-aes")]
 impl BearSslAes256CtrDrbg {

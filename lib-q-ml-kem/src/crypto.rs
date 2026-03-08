@@ -16,7 +16,10 @@ use lib_q_sha3::{
     Shake128,
     Shake256,
 };
-use rand_core::CryptoRng;
+use rand_core::{
+    CryptoRng,
+    Rng,
+};
 
 use crate::param::{
     CbdSamplingSize,
@@ -24,7 +27,7 @@ use crate::param::{
 };
 use crate::util::B32;
 
-pub fn rand<L: ArraySize, R: CryptoRng + ?Sized>(rng: &mut R) -> Array<u8, L> {
+pub fn rand<L: ArraySize, R: CryptoRng + Rng + ?Sized>(rng: &mut R) -> Array<u8, L> {
     let mut val = Array::default();
     rng.fill_bytes(&mut val);
     val

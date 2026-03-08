@@ -99,19 +99,6 @@ impl<F: PrimeField32, const N: usize, Inner: CanObserve<u8>> CanObserve<Hash<F, 
     }
 }
 
-// for TrivialPcs
-impl<F: PrimeField32, Inner: CanObserve<u8>> CanObserve<Vec<Vec<F>>>
-    for SerializingChallenger32<F, Inner>
-{
-    fn observe(&mut self, valuess: Vec<Vec<F>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
-        }
-    }
-}
-
 impl<F, EF, Inner> CanSample<EF> for SerializingChallenger32<F, Inner>
 where
     F: PrimeField32,
@@ -225,19 +212,6 @@ impl<F: PrimeField64, const N: usize, Inner: CanObserve<u8>> CanObserve<Hash<F, 
     fn observe(&mut self, values: Hash<F, u64, N>) {
         for value in values {
             self.inner.observe_slice(&value.to_le_bytes());
-        }
-    }
-}
-
-// for TrivialPcs
-impl<F: PrimeField64, Inner: CanObserve<u8>> CanObserve<Vec<Vec<F>>>
-    for SerializingChallenger64<F, Inner>
-{
-    fn observe(&mut self, valuess: Vec<Vec<F>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
         }
     }
 }

@@ -28,7 +28,7 @@ use rand::distr::{
 };
 use rand::rngs::SmallRng;
 use rand::{
-    Rng,
+    RngExt,
     SeedableRng,
 };
 
@@ -63,7 +63,9 @@ where
     let mut rng = SmallRng::seed_from_u64(1);
     let input = rng.random::<[R; WIDTH]>();
     let id = BenchmarkId::new(type_name::<Mds>(), WIDTH);
-    c.bench_with_input(id, &input, |b, input| b.iter(|| mds.permute(input.clone())));
+    c.bench_with_input(id, &input, |b, input: &[R; WIDTH]| {
+        b.iter(|| mds.permute(input.clone()))
+    });
 }
 
 criterion_group!(benches, bench_all_mds);

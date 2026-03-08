@@ -36,10 +36,13 @@ use lib_q_stark_matrix::dense::{
 use lib_q_stark_matrix::horizontally_truncated::HorizontallyTruncated;
 use lib_q_stark_matrix::row_index_mapped::RowIndexMappedView;
 use lib_q_stark_util::zip_eq::zip_eq;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
+};
+use rand::{
+    Rng,
+    RngExt,
 };
 use tracing::{
     info_span,

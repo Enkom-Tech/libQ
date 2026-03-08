@@ -65,10 +65,7 @@ impl SecureWasmKemContext {
             Err(error) => return Err(error.into()),
         };
         let inner = KemContext::with_provider(provider);
-        let security_validator = match SecurityValidator::new() {
-            Ok(validator) => validator,
-            Err(error) => return Err(error.into()),
-        };
+        let security_validator = SecurityValidator::new()?;
 
         Ok(SecureWasmKemContext {
             inner,
@@ -251,10 +248,7 @@ impl SecureWasmSignatureContext {
             Err(error) => return Err(error.into()),
         };
         let inner = SignatureContext::with_provider(provider);
-        let security_validator = match SecurityValidator::new() {
-            Ok(validator) => validator,
-            Err(error) => return Err(error.into()),
-        };
+        let security_validator = SecurityValidator::new()?;
 
         Ok(SecureWasmSignatureContext {
             inner,
@@ -447,10 +441,7 @@ impl SecureWasmHashContext {
             Err(error) => return Err(error.into()),
         };
         let inner = HashContext::with_provider(provider);
-        let security_validator = match SecurityValidator::new() {
-            Ok(validator) => validator,
-            Err(error) => return Err(error.into()),
-        };
+        let security_validator = SecurityValidator::new()?;
 
         Ok(SecureWasmHashContext {
             inner,
@@ -526,10 +517,7 @@ impl SecureWasmAeadContext {
             Err(error) => return Err(error.into()),
         };
         let inner = AeadContext::with_provider(provider);
-        let security_validator = match SecurityValidator::new() {
-            Ok(validator) => validator,
-            Err(error) => return Err(error.into()),
-        };
+        let security_validator = SecurityValidator::new()?;
 
         Ok(SecureWasmAeadContext {
             inner,

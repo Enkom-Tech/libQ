@@ -9,7 +9,9 @@ use ::signature::rand_core::{
 };
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 // Use a simple error type for no_std
@@ -77,45 +79,34 @@ impl SlhDsaNoStdRng {
     }
 }
 
-impl RngCore for SlhDsaNoStdRng {
-    fn next_u32(&mut self) -> u32 {
-        self.inner.next_u32()
+impl TryRng for SlhDsaNoStdRng {
+    type Error = core::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+        Ok(self.inner.next_u32())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        self.inner.next_u64()
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        Ok(self.inner.next_u64())
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         self.inner.fill_bytes(dest);
+        Ok(())
     }
 }
 
-impl CryptoRng for SlhDsaNoStdRng {}
+impl TryCryptoRng for SlhDsaNoStdRng {}
 
 // Also implement signature::rand_core traits for compatibility with signature crate
 impl SignatureCryptoRng for SlhDsaNoStdRng {}
 
-impl SignatureRngCore for SlhDsaNoStdRng {
-    fn next_u32(&mut self) -> u32 {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::next_u32(self)
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::next_u64(self)
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        // Delegate to workspace rand_core::RngCore implementation
-        <Self as RngCore>::fill_bytes(self, dest)
-    }
-}
+// In rand_core 0.10 RngCore is a stub (extends Rng); blanket impl applies when we implement TryRng.
+impl SignatureRngCore for SlhDsaNoStdRng {}
 
 #[cfg(test)]
 mod tests {
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     use super::*;
 

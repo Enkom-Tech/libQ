@@ -106,36 +106,40 @@ where
         .sum::<SC::Challenge>()
 }
 
+/// Out-of-domain evaluation data for constraint verification.
+pub struct OodEvaluationData<'a, SC: StarkGenericConfig> {
+    pub trace_local: &'a [SC::Challenge],
+    pub trace_next: &'a [SC::Challenge],
+    pub preprocessed_local: Option<&'a [SC::Challenge]>,
+    pub preprocessed_next: Option<&'a [SC::Challenge]>,
+    pub trace_domain: Domain<SC>,
+    pub zeta: SC::Challenge,
+    pub alpha: SC::Challenge,
+    pub quotient: SC::Challenge,
+}
+
 /// Verifies that the folded constraints match the quotient polynomial at zeta.
 ///
 /// This evaluates the [`Air`] constraints at the out-of-domain point and checks
 /// that constraints(zeta) / Z_H(zeta) = quotient(zeta).
-#[allow(clippy::too_many_arguments)]
 pub fn verify_constraints<SC, A, PcsErr>(
     air: &A,
-    trace_local: &[SC::Challenge],
-    trace_next: &[SC::Challenge],
-    preprocessed_local: Option<&[SC::Challenge]>,
-    preprocessed_next: Option<&[SC::Challenge]>,
     public_values: &[Val<SC>],
-    trace_domain: Domain<SC>,
-    zeta: SC::Challenge,
-    alpha: SC::Challenge,
-    quotient: SC::Challenge,
+    ood: &OodEvaluationData<SC>,
 ) -> Result<(), VerificationError<PcsErr>>
 where
     SC: StarkGenericConfig,
     A: for<'a> Air<VerifierConstraintFolder<'a, SC>>,
     PcsErr: core::fmt::Debug,
 {
-    let sels = trace_domain.selectors_at_point(zeta);
+    let sels = ood.trace_domain.selectors_at_point(ood.zeta);
 
     let main = VerticalPair::new(
-        RowMajorMatrixView::new_row(trace_local),
-        RowMajorMatrixView::new_row(trace_next),
+        RowMajorMatrixView::new_row(ood.trace_local),
+        RowMajorMatrixView::new_row(ood.trace_next),
     );
 
-    let preprocessed = match (preprocessed_local, preprocessed_next) {
+    let preprocessed = match (ood.preprocessed_local, ood.preprocessed_next) {
         (Some(local), Some(next)) => Some(VerticalPair::new(
             RowMajorMatrixView::new_row(local),
             RowMajorMatrixView::new_row(next),
@@ -150,35 +154,34 @@ where
         is_first_row: sels.is_first_row,
         is_last_row: sels.is_last_row,
         is_transition: sels.is_transition,
-        alpha,
+        alpha: ood.alpha,
         accumulator: SC::Challenge::ZERO,
     };
     air.eval(&mut folder);
     let folded_constraints = folder.accumulator;
 
     // Check that constraints(zeta) / Z_H(zeta) = quotient(zeta)
-    if folded_constraints * sels.inv_vanishing != quotient {
+    if folded_constraints * sels.inv_vanishing != ood.quotient {
         return Err(VerificationError::OodEvaluationMismatch { index: None });
     }
 
     Ok(())
 }
 
+/// Result of processing preprocessed trace: width and optional commitment.
+struct PreprocessedResult<SC: StarkGenericConfig>(
+    pub usize,
+    pub Option<<SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Commitment>,
+);
+
 /// Validates and commits the preprocessed trace if present.
 /// Returns the preprocessed width and its commitment hash (available iff width > 0).
-#[allow(clippy::type_complexity)]
 fn process_preprocessed_trace<SC, A>(
     air: &A,
     opened_values: &crate::proof::OpenedValues<SC::Challenge>,
     is_zk: usize,
     preprocessed_vk: Option<&PreprocessedVerifierKey<SC>>,
-) -> Result<
-    (
-        usize,
-        Option<<SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Commitment>,
-    ),
-    VerificationError<PcsError<SC>>,
->
+) -> Result<PreprocessedResult<SC>, VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
     A: for<'a> Air<VerifierConstraintFolder<'a, SC>>,
@@ -210,7 +213,7 @@ where
         // Case: No preprocessed columns.
         //
         // Valid only if no verifier key is provided.
-        (0, None) => Ok((0, None)),
+        (0, None) => Ok(PreprocessedResult(0, None)),
 
         // Case: Preprocessed columns exist.
         //
@@ -218,7 +221,7 @@ where
         (w, Some(vk)) if w == vk.width => {
             // Preprocessed columns are currently only supported in non-zk mode.
             assert_eq!(is_zk, 0, "preprocessed columns not supported in zk mode");
-            Ok((w, Some(vk.commitment.clone())))
+            Ok(PreprocessedResult(w, Some(vk.commitment.clone())))
         }
 
         // Catch-all for invalid states, such as:
@@ -285,8 +288,10 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
     let trace_domain = pcs.natural_domain_for_degree(degree);
-    // TODO: allow moving preprocessed commitment to preprocess time, if known in advance
-    let (preprocessed_width, preprocessed_commit) =
+    // Preprocessed commitment is extracted from the proof here. For setups where the preprocessed
+    // commitment is known in advance, process_preprocessed_trace could accept a PreprocessedVk
+    // and skip extraction (optimization).
+    let PreprocessedResult(preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), preprocessed_vk)?;
 
     // Ensure the preprocessed trace and main trace have the same height.
@@ -367,15 +372,11 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
 
-    // Observe the instance.
+    // Observe the instance (must match prover: same order and encoding).
     challenger.observe(Val::<SC>::from_usize(proof.degree_bits));
     challenger.observe(Val::<SC>::from_usize(proof.degree_bits - config.is_zk()));
     challenger.observe(Val::<SC>::from_usize(preprocessed_width));
-    // TODO: Might be best practice to include other instance data here in the transcript, like some
-    // encoding of the AIR. This protects against transcript collisions between distinct instances.
-    // Practically speaking though, the only related known attack is from failing to include public
-    // values. It's not clear if failing to include other instance data could enable a transcript
-    // collision, since most such changes would completely change the set of satisfying witnesses.
+    challenger.observe(Val::<SC>::from_usize(A::width(air)));
     challenger.observe(commitments.trace.clone());
     if preprocessed_width > 0 {
         challenger.observe(preprocessed_commit.as_ref().unwrap().clone());
@@ -463,18 +464,17 @@ where
         zeta,
     );
 
-    verify_constraints::<SC, A, PcsError<SC>>(
-        air,
-        &opened_values.trace_local,
-        &opened_values.trace_next,
-        opened_values.preprocessed_local.as_deref(),
-        opened_values.preprocessed_next.as_deref(),
-        public_values,
-        init_trace_domain,
+    let ood = OodEvaluationData {
+        trace_local: &opened_values.trace_local,
+        trace_next: &opened_values.trace_next,
+        preprocessed_local: opened_values.preprocessed_local.as_deref(),
+        preprocessed_next: opened_values.preprocessed_next.as_deref(),
+        trace_domain: init_trace_domain,
         zeta,
         alpha,
         quotient,
-    )?;
+    };
+    verify_constraints::<SC, A, PcsError<SC>>(air, public_values, &ood)?;
 
     Ok(())
 }

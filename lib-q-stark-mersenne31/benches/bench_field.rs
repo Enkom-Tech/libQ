@@ -17,7 +17,7 @@ use lib_q_stark_field_testing::bench_func::{
 use lib_q_stark_mersenne31::Mersenne31;
 use rand::rngs::SmallRng;
 use rand::{
-    Rng,
+    RngExt,
     SeedableRng,
 };
 

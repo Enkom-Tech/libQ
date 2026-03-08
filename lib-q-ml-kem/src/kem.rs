@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
 use rand_core::{
     CryptoRng,
-    RngCore,
+    Rng,
 };
 #[cfg(feature = "zeroize")]
 use zeroize::{
@@ -149,7 +149,7 @@ where
         &self.ek
     }
 
-    pub(crate) fn generate<R: CryptoRng + RngCore + ?Sized>(rng: &mut R) -> Self {
+    pub(crate) fn generate<R: CryptoRng + Rng + ?Sized>(rng: &mut R) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
         Self::generate_deterministic(&d, &z)
@@ -213,7 +213,7 @@ where
 {
     type Error = core::convert::Infallible;
 
-    fn encapsulate<R: CryptoRng + ?Sized>(
+    fn encapsulate<R: CryptoRng + Rng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
@@ -257,7 +257,7 @@ where
     type EncapsulationKey = EncapsulationKey<P>;
 
     /// Generate a new (decapsulation, encapsulation) key pair
-    fn generate<R: CryptoRng + RngCore + ?Sized>(
+    fn generate<R: CryptoRng + Rng + ?Sized>(
         rng: &mut R,
     ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
         let dk = Self::DecapsulationKey::generate(rng);

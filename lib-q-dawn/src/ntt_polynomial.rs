@@ -18,7 +18,7 @@ use lib_q_core::{
     Result,
 };
 #[cfg(feature = "random")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 /// NTT parameters for different DAWN parameter sets
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -386,7 +386,7 @@ impl NttPolynomial {
 
     /// Sample a random polynomial with small coefficients
     #[cfg(feature = "random")]
-    pub fn random_small<R: RngCore>(params: NttParams, rng: &mut R) -> Result<Self> {
+    pub fn random_small<R: Rng>(params: NttParams, rng: &mut R) -> Result<Self> {
         let mut poly = NttPolynomial::new(params)?;
         let q = poly.params.modulus();
 
@@ -406,7 +406,7 @@ impl NttPolynomial {
 
     /// Sample a random polynomial with coefficients in [0, q-1]
     #[cfg(feature = "random")]
-    pub fn random_uniform<R: RngCore>(params: NttParams, rng: &mut R) -> Result<Self> {
+    pub fn random_uniform<R: Rng>(params: NttParams, rng: &mut R) -> Result<Self> {
         let mut poly = NttPolynomial::new(params)?;
         let q = poly.params.modulus();
 

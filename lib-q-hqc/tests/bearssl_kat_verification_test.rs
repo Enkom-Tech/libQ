@@ -10,7 +10,7 @@ use lib_q_hqc::hqc_kem::HqcKem;
 #[cfg(feature = "bearssl-aes")]
 use lib_q_hqc::*;
 #[cfg(feature = "bearssl-aes")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[cfg(feature = "bearssl-aes")]
 #[test]

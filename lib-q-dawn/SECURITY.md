@@ -6,18 +6,32 @@ This document provides a comprehensive security analysis of the lib-q-dawn imple
 
 ## Cryptographic Security
 
-### Parameter Set Validation
+### Parameter Set Validation and Profiles
 
-The implementation correctly implements all four DAWN parameter sets as specified:
+The implementation supports four DAWN parameter sets. For Alpha512, two profiles are available:
 
-| Parameter Set | Security Level | n | q | d_c | Public Key | Secret Key | Ciphertext |
-|---------------|----------------|---|---|-----|------------|------------|------------|
-| DAWN-α-512    | NIST-I (128-bit) | 512 | 769 | 7 | 615 bytes | 1319 bytes | 436 bytes |
-| DAWN-α-1024   | NIST-V (256-bit) | 1024 | 769 | 4 | 1229 bytes | 2605 bytes | 973 bytes |
-| DAWN-β-512    | NIST-I (128-bit) | 512 | 257 | 2 | 514 bytes | 1154 bytes | 450 bytes |
-| DAWN-β-1024   | NIST-V (256-bit) | 1024 | 257 | 1 | 1027 bytes | 2275 bytes | 1027 bytes |
+- **Spec (experimental)**: Paper-faithful parameters (n=512, q=769, d_c=7, k_s=96, k_e=160). Matches the DAWN specification. With the current SimpleDecoding implementation, decryption failure rate may be non-negligible; use for experimentation only.
+- **Production** (Alpha512, currently experimental): Implementation-tuned parameters (d_c=1, k_s=24, k_e=32). Ciphertext size is larger (640 bytes). A reliability-bounded decoder prototype (top-4 least-reliable bits, ≤2 flips, syndrome-weight scoring) was implemented and used in a quick sweep over the same grid; PKE histograms remained in \(>4\) errors and KEM mismatches were non-zero for every candidate. The bounded-search decoder did not achieve negligible failure in the tested regimes. This profile remains experimental; see reference/DAWN/DAWN-spec.md §6.8.
 
-✅ **VERIFIED**: All parameter values match the DAWN specification exactly.
+| Parameter Set | Profile    | n   | q   | d_c | k_s | k_e | Public Key | Secret Key | Ciphertext |
+|---------------|------------|-----|-----|-----|-----|-----|------------|------------|------------|
+| DAWN-α-512    | Spec       | 512 | 769 | 7   | 96  | 160 | 640 bytes  | 1360 bytes | 448 bytes  |
+| DAWN-α-512    | Production | 512 | 769 | 1   | 24  | 32  | 640 bytes  | 1360 bytes | 640 bytes  |
+| DAWN-α-1024   | —          | 1024 | 769 | 4 | —  | —  | 1280 bytes | 2688 bytes | 1024 bytes |
+| DAWN-β-512    | —          | 512 | 257 | 2   | —  | —  | 576 bytes  | 1248 bytes | 512 bytes  |
+| DAWN-β-1024   | —          | 1024 | 257 | 1 | —  | —  | 1152 bytes | 2400 bytes | 1152 bytes |
+
+✅ **VERIFIED**: Spec profile matches the DAWN specification.
+⚠️ **STATUS**: All DAWN production profiles (Alpha512, Alpha1024, Beta512) remain experimental. Path A (quick sweeps with baseline decoder for Alpha1024 and Beta512) found no candidate with zero KEM mismatches; PKE histograms stayed entirely in the >4 error bucket. A decoder-enhancement phase (Path B) is required before any set can be promoted. See reference/DAWN/DAWN-spec.md §6.9.
+
+### Security margin for production tuning (Alpha512)
+
+When choosing production parameters (k_s, k_e, d_c) for negligible decryption failure:
+
+- **Unchanged vs spec:** Ring (n=512, q=769), key-generation (f, g: k_f=64, k_g=160). Lattice hardness and NTRU/Ring-LWE assumptions are unchanged; security level remains aligned with NIST-I (≈128-bit) per DAWN and NTRU literature.
+- **What is reduced:** Only encryption noise (fewer ±1 coefficients in s and e) and compression (d_c=1 instead of 7). Smaller k_s, k_e strictly reduce the norm of s and e, so the ciphertext is *less* noisy and decryption is more likely to succeed; this does not weaken the underlying NTRU or Ring-LWE problem (which are defined for small s,e; the assumption is that distinguishing from uniform remains hard).
+- **Lower bound:** Do not reduce k_s/k_e to the point where the encryption distribution becomes trivially distinguishable or where known attacks (e.g. lattice reduction, BKZ) would apply with lower cost. Use the DAWN paper and lattice estimators (e.g. estimate-all-the-lwe-ntru-schemes) as reference; keep k_s, k_e within a defensible range (e.g. ≥16) so that the encryption noise is still “small” in the sense of the security proof.
+- **Decryption failure:** Production is only promoted when stress tests show zero observed failures over 10⁵–10⁶ cycles; then document the chosen (k_s, k_e, d_c) and the empirical bound in this file and in DAWN-spec.md.
 
 ### NTRU Security Model
 

@@ -65,7 +65,7 @@ pub(crate) fn int32_sort(x: &mut [i32]) {
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "rand")]
-    use rand::Rng;
+    use rand::RngExt;
 
     use super::*;
 

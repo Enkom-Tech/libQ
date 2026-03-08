@@ -153,7 +153,7 @@ pub(crate) unsafe fn compute_basis_avx2_inner(
 // This is a specialized version of sign_inner() (defined in the parent
 // module); it leverages AVX2 intrinsics to speed up operations.
 #[target_feature(enable = "avx2")]
-pub(crate) unsafe fn sign_avx2_inner<T: CryptoRng + RngCore, P: PRNG>(
+pub(crate) unsafe fn sign_avx2_inner<T: CryptoRng + Rng, P: PRNG>(
     logn: u32,
     rng: &mut T,
     f: &[i8],

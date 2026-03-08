@@ -20,12 +20,19 @@ lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-rand = { workspace = true, features = ["small_rng"] }
-serde = { workspace = true, features = ["derive", "alloc"] }
+lib-q-random = { path = "../lib-q-random", default-features = false }
+rand = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 subtle = { version = "2.6.1", default-features = false }
-thiserror = { version = "2.0.17", default-features = false }
-tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
-zeroize = { workspace = true, features = ["derive"] }
+thiserror = { version = "2.0.18", default-features = false }
+tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
+zeroize = { workspace = true, features = ["derive"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 
 [dev-dependencies]
 lib-q-stark-dft = { path = "../lib-q-stark-dft" }

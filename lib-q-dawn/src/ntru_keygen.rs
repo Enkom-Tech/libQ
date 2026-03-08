@@ -18,7 +18,7 @@ use lib_q_core::{
     Result,
 };
 #[cfg(feature = "random")]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 use crate::ntt_polynomial::{
     NttParams,
@@ -109,7 +109,7 @@ pub struct NtruKeyPair {
 impl NtruKeyPair {
     /// Generate a new NTRU key pair
     #[cfg(feature = "random")]
-    pub fn generate<R: RngCore>(params: NtruKeygenParams, rng: &mut R) -> Result<Self> {
+    pub fn generate<R: Rng>(params: NtruKeygenParams, rng: &mut R) -> Result<Self> {
         // Generate private key polynomial f
         let f = Self::generate_private_key_f(params, rng)?;
 
@@ -129,7 +129,7 @@ impl NtruKeyPair {
 
     /// Generate private key polynomial f
     #[cfg(feature = "random")]
-    fn generate_private_key_f<R: RngCore>(
+    fn generate_private_key_f<R: Rng>(
         params: NtruKeygenParams,
         rng: &mut R,
     ) -> Result<NttPolynomial> {
@@ -167,7 +167,7 @@ impl NtruKeyPair {
 
     /// Generate private key polynomial g
     #[cfg(feature = "random")]
-    fn generate_private_key_g<R: RngCore>(
+    fn generate_private_key_g<R: Rng>(
         params: NtruKeygenParams,
         rng: &mut R,
     ) -> Result<NttPolynomial> {

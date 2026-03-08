@@ -18,7 +18,7 @@ lib-q-sha3 = { path = "../lib-q-sha3" }
 lib-q-k12 = { path = "../lib-q-k12" }
 
 # Digest trait for hashing
-digest = "0.11.0-rc.4"
+digest = { workspace = true }
 
 # Random dependencies for key generation
 lib-q-random = { path = "../lib-q-random", optional = true }
@@ -55,7 +55,7 @@ wasm = [
 [lib]
 name = "lib_q_dawn"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

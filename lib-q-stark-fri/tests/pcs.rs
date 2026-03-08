@@ -2,6 +2,7 @@ use itertools::{
     Itertools,
     izip,
 };
+use lib_q_random::DeterministicRng;
 use lib_q_stark_challenger::{
     CanObserve,
     CanSample,
@@ -44,14 +45,13 @@ use rand::distr::{
     Distribution,
     StandardUniform,
 };
-use rand::rngs::SmallRng;
 use rand::{
     Rng,
-    SeedableRng,
+    RngExt,
 };
 
 fn seeded_rng() -> impl Rng {
-    SmallRng::seed_from_u64(0)
+    DeterministicRng::seed_from_u64(0)
 }
 
 /// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
@@ -168,20 +168,6 @@ where
     {
         for value in values {
             self.observe(value.clone());
-        }
-    }
-}
-
-impl<BaseChallenger> CanObserve<Vec<Vec<Complex<Mersenne31>>>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<Complex<Mersenne31>>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
         }
     }
 }

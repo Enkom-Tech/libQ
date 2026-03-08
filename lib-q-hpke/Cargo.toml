@@ -16,7 +16,7 @@ categories = ["cryptography"]
 [lib]
 name = "lib_q_hpke"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 required-features = ["alloc"]
 
 [dependencies]
@@ -31,16 +31,16 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true }
 # Post-quantum dependencies only
 rand_core = { workspace = true, default-features = false }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
-getrandom = { version = "0.3.3", default-features = false, optional = true }
+getrandom = { workspace = true, default-features = false, optional = true }
 
 # Post-quantum AEADs
 lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 
 [features]
 default = ["alloc", "ml-kem", "saturnin", "shake256", "hash", "secure-rng"]
-std = ["alloc", "lib-q-core/std", "lib-q-aead/std", "rand_core/std", "getrandom/std"]
+std = ["alloc", "lib-q-core/std", "lib-q-aead/std"]
 alloc = ["lib-q-core/alloc"]
-secure-rng = ["getrandom", "getrandom/std"]
+secure-rng = ["lib-q-random/getrandom"]
 
 # Post-quantum algorithm support
 ml-kem = ["dep:lib-q-ml-kem", "lib-q-kem/ml-kem"]

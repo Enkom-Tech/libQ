@@ -8,8 +8,6 @@
 //! The sub-AIR enforces the decomposition + booleanity over columns `1..`, while the parent AIR
 //! never touches the bit columns and only reasons about the accumulated sum.
 
-use core::marker::PhantomData;
-
 use lib_q_stark::{
     StarkConfig,
     SubAirBuilder,
@@ -30,7 +28,7 @@ use lib_q_stark_challenger::{
     GrindingChallenger,
     Shake256Challenger32,
 };
-use lib_q_stark_commit::testing::TrivialPcs;
+use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::{
@@ -39,15 +37,24 @@ use lib_q_stark_field::{
     PrimeCharacteristicRing,
     PrimeField32,
 };
+use lib_q_stark_fri::{
+    FriParameters,
+    TwoAdicFriPcs,
+};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
+use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::Hash;
+use lib_q_stark_symmetric::{
+    CompressionFunctionFromHasher,
+    Hash,
+    SerializingHasher,
+};
 
 const NUM_RANGE_BITS: usize = 4;
 const TRACE_WIDTH: usize = 2 + NUM_RANGE_BITS;
@@ -163,7 +170,7 @@ fn range_checked_sub_builder() {
         "Range-check AIR should emit constraints"
     );
 
-    prove_bb_trivial_deg4(&air, 3);
+    prove_bb_twoadic(&air, 6);
 }
 
 /// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
@@ -191,7 +198,7 @@ where
         Complex<Mersenne31>: Clone,
     {
         for value in values {
-            self.observe(value.clone());
+            self.observe(*value);
         }
     }
 }
@@ -284,44 +291,44 @@ where
     }
 }
 
-impl<BaseChallenger> CanObserve<Vec<Vec<Complex<Mersenne31>>>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, valuess: Vec<Vec<Complex<Mersenne31>>>) {
-        for values in valuess {
-            for value in values {
-                self.observe(value);
-            }
-        }
-    }
-}
-
-/// Tests the whole AIR on a trivial trace.
-fn prove_bb_trivial_deg4(air: &RangeCheckAir, log_n: usize) {
+/// Tests the whole AIR with TwoAdicFriPcs (post-quantum).
+fn prove_bb_twoadic(air: &RangeCheckAir, log_n: usize) {
     type Val = Complex<Mersenne31>;
-    // Use Complex<Mersenne31> directly as challenge field
     type Challenge = Val;
     type Dft = Mersenne31ComplexRadix2Dit;
     type BaseChallenger = Shake256Challenger32<Mersenne31>;
     type Challenger = ComplexFieldChallenger<BaseChallenger>;
-    type Pcs = TrivialPcs<Val, Dft>;
-    type Config = StarkConfig<Pcs, Challenge, Challenger>;
 
-    let rows = 1 << log_n;
-    let trace = air.generate_trace::<Val>(rows);
+    let shake256 = Shake256Hash {};
+    type MyHash = SerializingHasher<Shake256Hash>;
+    let hash = MyHash::new(shake256);
+
+    type MyCompress = CompressionFunctionFromHasher<Shake256Hash, 2, 32>;
+    let compress = MyCompress::new(shake256);
+
+    type ValMmcs = MerkleTreeMmcs<<Val as Field>::Packing, u8, MyHash, MyCompress, 32>;
+    let val_mmcs = ValMmcs::new(hash, compress);
+
+    type ChallengeMmcs = ExtensionMmcs<Val, Challenge, ValMmcs>;
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
 
     let dft = Dft::default();
 
-    let pcs = Pcs {
-        dft,
-        log_n,
-        _phantom: PhantomData,
+    let fri_params = FriParameters {
+        log_blowup: 2,
+        log_final_poly_len: 3,
+        num_queries: 40,
+        proof_of_work_bits: 8,
+        mmcs: challenge_mmcs,
     };
+    type Pcs = TwoAdicFriPcs<Val, Dft, ValMmcs, ChallengeMmcs>;
+    let pcs = Pcs::new(dft, val_mmcs, fri_params);
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
-    let config = Config::new(pcs, challenger);
+    let config = StarkConfig::<Pcs, Challenge, Challenger>::new(pcs, challenger);
+
+    let rows = 1 << log_n;
+    let trace = air.generate_trace::<Val>(rows);
 
     let proof = prove(&config, air, trace, &[]);
     verify(&config, air, &proof, &[]).expect("verification failed");

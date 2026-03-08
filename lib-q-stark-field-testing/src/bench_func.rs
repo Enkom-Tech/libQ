@@ -15,7 +15,7 @@ use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
 use rand::rngs::SmallRng;
 use rand::{
-    Rng,
+    RngExt,
     SeedableRng,
 };
 

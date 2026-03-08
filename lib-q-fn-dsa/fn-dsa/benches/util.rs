@@ -1,8 +1,9 @@
-use fn_dsa::{
-    CryptoRng,
-    RngCore,
-};
 use fn_dsa_comm::shake::SHAKE256;
+use fn_dsa_comm::{
+    Infallible,
+    TryCryptoRng,
+    TryRng,
+};
 
 #[cfg(target_arch = "x86")]
 pub fn core_cycles() -> u64 {
@@ -61,22 +62,25 @@ impl FakeRNG {
     }
 }
 
-impl CryptoRng for FakeRNG {}
-impl RngCore for FakeRNG {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for FakeRNG {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         let mut buf = [0u8; 4];
         self.0.extract(&mut buf);
-        u32::from_le_bytes(buf)
+        Ok(u32::from_le_bytes(buf))
     }
-    fn next_u64(&mut self) -> u64 {
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
         let mut buf = [0u8; 8];
         self.0.extract(&mut buf);
-        u64::from_le_bytes(buf)
+        Ok(u64::from_le_bytes(buf))
     }
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         self.0.extract(dest);
+        Ok(())
     }
 }
+impl TryCryptoRng for FakeRNG {}
 
 pub fn banner_arch() {
     #[cfg(target_arch = "x86_64")]

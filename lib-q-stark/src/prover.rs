@@ -8,6 +8,7 @@ use lib_q_stark_challenger::{
     FieldChallenger,
 };
 use lib_q_stark_commit::{
+    LagrangeSelectors,
     Pcs,
     PolynomialSpace,
 };
@@ -18,6 +19,7 @@ use lib_q_stark_field::{
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
+#[cfg(feature = "parallel")]
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_util::log2_strict_usize;
 use tracing::{
@@ -44,7 +46,18 @@ use crate::{
 
 /// Maximum trace height (2^30) to prevent memory exhaustion attacks.
 /// This limits trace size to approximately 1 billion rows.
-const MAX_TRACE_HEIGHT: usize = 1 << 30;
+pub const MAX_TRACE_HEIGHT: usize = 1 << 30;
+
+/// Panics if `height` exceeds [`MAX_TRACE_HEIGHT`]. Used for DoS protection and testability.
+#[inline]
+pub fn assert_trace_height_within_limit(height: usize) {
+    if height > MAX_TRACE_HEIGHT {
+        panic!(
+            "Trace height {} exceeds maximum allowed {} (prevents memory exhaustion)",
+            height, MAX_TRACE_HEIGHT
+        );
+    }
+}
 
 /// Maximum trace width to prevent memory exhaustion attacks.
 /// This limits the number of columns in a trace.
@@ -76,13 +89,27 @@ const MAX_PUBLIC_VALUES: usize = 1 << 20; // ~1 million public values
 ///
 /// # Returns
 /// A STARK proof that can be verified without revealing the witness trace.
+#[cfg(debug_assertions)]
 #[instrument(skip_all)]
-#[allow(clippy::multiple_bound_locations, clippy::type_repetition_in_bounds)] // cfg not supported in where clauses?
-pub fn prove_with_preprocessed<
-    SC,
-    #[cfg(debug_assertions)] A: for<'a> Air<crate::check_constraints::DebugConstraintBuilder<'a, Val<SC>>>,
-    #[cfg(not(debug_assertions))] A,
->(
+pub fn prove_with_preprocessed<SC, A>(
+    config: &SC,
+    air: &A,
+    trace: RowMajorMatrix<Val<SC>>,
+    public_values: &[Val<SC>],
+    preprocessed: Option<&PreprocessedProverData<SC>>,
+) -> Proof<SC>
+where
+    SC: StarkGenericConfig,
+    A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
+    A: for<'a> Air<crate::check_constraints::DebugConstraintBuilder<'a, Val<SC>>>,
+{
+    crate::check_constraints::check_constraints(air, &trace, public_values);
+    prove_with_preprocessed_impl(config, air, trace, public_values, preprocessed)
+}
+
+#[cfg(not(debug_assertions))]
+#[instrument(skip_all)]
+pub fn prove_with_preprocessed<SC, A>(
     config: &SC,
     air: &A,
     trace: RowMajorMatrix<Val<SC>>,
@@ -93,9 +120,20 @@ where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
 {
-    #[cfg(debug_assertions)]
-    crate::check_constraints::check_constraints(air, &trace, public_values);
+    prove_with_preprocessed_impl(config, air, trace, public_values, preprocessed)
+}
 
+fn prove_with_preprocessed_impl<SC, A>(
+    config: &SC,
+    air: &A,
+    trace: RowMajorMatrix<Val<SC>>,
+    public_values: &[Val<SC>],
+    preprocessed: Option<&PreprocessedProverData<SC>>,
+) -> Proof<SC>
+where
+    SC: StarkGenericConfig,
+    A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
+{
     // Input validation to prevent DoS and invalid states
     let degree = trace.height();
     let width = trace.width();
@@ -107,12 +145,7 @@ where
     if !degree.is_power_of_two() {
         panic!("Trace height must be a power of 2, got {}", degree);
     }
-    if degree > MAX_TRACE_HEIGHT {
-        panic!(
-            "Trace height {} exceeds maximum allowed {} (prevents memory exhaustion)",
-            degree, MAX_TRACE_HEIGHT
-        );
-    }
+    assert_trace_height_within_limit(degree);
     if width == 0 {
         panic!("Trace width must be greater than 0");
     }
@@ -231,6 +264,10 @@ where
 
     let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
 
+    let trace_to_commit = trace.clone();
+    let degree_for_domains = degree;
+    let log_ext_degree_commit = log_ext_degree;
+
     // Initialize the PCS and the Challenger.
     let pcs = config.pcs();
     let mut challenger = config.initialise_challenger();
@@ -238,11 +275,11 @@ where
     // Get the subgroup `H` of size `N`. We treat each column `T_i` of
     // the trace as an evaluation vector of polynomials `T_i(x)` over `H`.
     // (In the Circle STARK case `H` is instead a standard position twin coset of size `N`)
-    let trace_domain = pcs.natural_domain_for_degree(degree);
+    let trace_domain = pcs.natural_domain_for_degree(degree_for_domains);
 
     // When ZK is enabled, we need to use an extended domain of size `2N` as we will
     // add random values to the trace.
-    let ext_trace_domain = pcs.natural_domain_for_degree(degree * (config.is_zk() + 1));
+    let ext_trace_domain = pcs.natural_domain_for_degree(degree_for_domains * (config.is_zk() + 1));
 
     // Let `g` denote a generator of the multiplicative group of `F` and `H'` the unique
     // subgroup of `F` of size `N << (pcs.config.log_blowup + config.is_zk())`.
@@ -253,20 +290,19 @@ where
     //      trace_commit contains the root of the tree
     //      trace_data contains the entire tree.
     //          - trace_data.leaves is the matrix containing `ET`.
-    let (trace_commit, trace_data) =
-        info_span!("commit to trace data").in_scope(|| pcs.commit([(ext_trace_domain, trace)]));
+    let (trace_commit, trace_data) = info_span!("commit to trace data")
+        .in_scope(|| pcs.commit([(ext_trace_domain, trace_to_commit)]));
 
     // Preprocessed commitment and prover data (if any).
     let (preprocessed_commit, preprocessed_data_ref) = preprocessed
         .map(|pp| (pp.commitment.clone(), &pp.prover_data))
         .unzip();
 
-    // Observe the instance.
-    // degree < 2^255 so we can safely cast log_degree to a u8.
-    challenger.observe(Val::<SC>::from_u8(log_ext_degree as u8));
-    challenger.observe(Val::<SC>::from_u8(log_degree as u8));
+    // Observe the instance (must match verifier: use from_usize for transcript consistency).
+    challenger.observe(Val::<SC>::from_usize(log_ext_degree_commit));
+    challenger.observe(Val::<SC>::from_usize(log2_strict_usize(degree_for_domains)));
     challenger.observe(Val::<SC>::from_usize(preprocessed_width));
-    // TODO: Might be best practice to include other instance data here; see verifier comment.
+    challenger.observe(Val::<SC>::from_usize(A::width(air)));
 
     // Observe the Merkle root of the trace commitment.
     challenger.observe(trace_commit.clone());
@@ -301,15 +337,15 @@ where
 
     // A domain large enough to uniquely identify the quotient polynomial.
     // This domain must be contained in the domain over which `trace_data` is defined.
-    // Explicitly it should be equal to `gK` for some subgroup `K` contained in `H'`.
     let quotient_domain =
         ext_trace_domain.create_disjoint_domain(1 << (log_ext_degree + log_num_quotient_chunks));
 
-    // Return a the subset of the extended trace `ET` corresponding to the rows giving evaluations
+    // Return the subset of the extended trace `ET` corresponding to the rows giving evaluations
     // over the quotient domain.
     //
-    // This only works if the trace domain is `gH'` and the quotient domain is `gK` for some subgroup `K` contained in `H'`.
-    // TODO: Make this explicit in `get_evaluations_on_domain` or otherwise fix this.
+    // Precondition: the quotient domain must be contained in the extended trace domain. Concretely,
+    // the trace domain is gH' and the quotient domain is gK for some subgroup K contained in H';
+    // get_evaluations_on_domain relies on this so that requested evaluations exist in trace_data.
     let trace_on_quotient_domain = pcs.get_evaluations_on_domain(&trace_data, 0, quotient_domain);
     let preprocessed_on_quotient_domain =
         preprocessed_data_ref.map(|data| pcs.get_evaluations_on_domain(data, 0, quotient_domain));
@@ -318,16 +354,14 @@ where
     //          `C(T_1(x), ..., T_w(x), T_1(hx), ..., T_w(hx), selectors(x)) / Z_H(x)`
     // at every point in the quotient domain. The degree of `Q(x)` is `<= deg(C(x)) - N = 2N - 2` in the case
     // where `deg(C) = 3`. (See the discussion above constraint_degree for more details.)
-    let quotient_values = quotient_values(
-        air,
-        public_values,
+    let quotient_input = QuotientInput {
         trace_domain,
         quotient_domain,
-        &trace_on_quotient_domain,
-        preprocessed_on_quotient_domain.as_ref(),
-        alpha,
-        constraint_count,
-    );
+        trace_on_quotient_domain: &trace_on_quotient_domain,
+        preprocessed_on_quotient_domain: preprocessed_on_quotient_domain.as_ref(),
+    };
+    let quotient_values =
+        quotient_values(air, public_values, &quotient_input, alpha, constraint_count);
 
     // Due to `alpha`, evaluations of `Q` all lie in the extension field `E`.
     // We flatten this into a matrix of `F` values by treating `E` as an `F`
@@ -367,7 +401,8 @@ where
     // Since we need a random polynomial defined over the extension field, and the `commit` method is over the base field,
     // we actually need to commit to `SC::CHallenge::D` base field random polynomials.
     // This is similar to what is done for the quotient polynomials.
-    // TODO: This approach is only statistically zk. To make it perfectly zk, `R` would have to truly be an extension field polynomial.
+    // This yields statistical ZK only. For perfect ZK, add a config flag (e.g. PerfectZk) and commit to
+    // an extension-field random polynomial by generating R in extension-field form before committing.
     let (opt_r_commit, opt_r_data) = if SC::Pcs::ZK {
         let (r_commit, r_data) = pcs
             .get_opt_randomization_poly_commitment(ext_trace_domain)
@@ -453,17 +488,29 @@ where
         commitments,
         opened_values,
         opening_proof,
-        degree_bits: log_ext_degree,
+        degree_bits: log_ext_degree_commit,
     }
 }
 
+#[cfg(debug_assertions)]
 #[instrument(skip_all)]
-#[allow(clippy::multiple_bound_locations, clippy::type_repetition_in_bounds)] // cfg not supported in where clauses?
-pub fn prove<
-    SC,
-    #[cfg(debug_assertions)] A: for<'a> Air<crate::check_constraints::DebugConstraintBuilder<'a, Val<SC>>>,
-    #[cfg(not(debug_assertions))] A,
->(
+pub fn prove<SC, A>(
+    config: &SC,
+    air: &A,
+    trace: RowMajorMatrix<Val<SC>>,
+    public_values: &[Val<SC>],
+) -> Proof<SC>
+where
+    SC: StarkGenericConfig,
+    A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
+    A: for<'a> Air<crate::check_constraints::DebugConstraintBuilder<'a, Val<SC>>>,
+{
+    prove_with_preprocessed::<SC, A>(config, air, trace, public_values, None)
+}
+
+#[cfg(not(debug_assertions))]
+#[instrument(skip_all)]
+pub fn prove<SC, A>(
     config: &SC,
     air: &A,
     trace: RowMajorMatrix<Val<SC>>,
@@ -476,16 +523,32 @@ where
     prove_with_preprocessed::<SC, A>(config, air, trace, public_values, None)
 }
 
+/// Input for quotient polynomial evaluation (trace/quotient domains and matrices).
+pub struct QuotientInput<'a, SC: StarkGenericConfig, Mat> {
+    pub trace_domain: Domain<SC>,
+    pub quotient_domain: Domain<SC>,
+    pub trace_on_quotient_domain: &'a Mat,
+    pub preprocessed_on_quotient_domain: Option<&'a Mat>,
+}
+
+/// Context for a single chunk of quotient evaluation (selectors, alpha powers, etc.).
+struct QuotientChunkCtx<'a, SC: StarkGenericConfig, Mat> {
+    quotient_size: usize,
+    next_step: usize,
+    width: usize,
+    sels: &'a LagrangeSelectors<Vec<Val<SC>>>,
+    trace_on_quotient_domain: &'a Mat,
+    preprocessed_on_quotient_domain: Option<&'a Mat>,
+    public_values: &'a [Val<SC>],
+    alpha_powers: &'a [SC::Challenge],
+    decomposed_alpha_powers: &'a [Vec<Val<SC>>],
+}
+
 #[instrument(skip_all)]
-// TODO: Group some arguments to remove the `allow`?
-#[allow(clippy::too_many_arguments)]
 pub fn quotient_values<SC, A, Mat>(
     air: &A,
     public_values: &[Val<SC>],
-    trace_domain: Domain<SC>,
-    quotient_domain: Domain<SC>,
-    trace_on_quotient_domain: &Mat,
-    preprocessed_on_quotient_domain: Option<&Mat>,
+    input: &QuotientInput<SC, Mat>,
     alpha: SC::Challenge,
     constraint_count: usize,
 ) -> Vec<SC::Challenge>
@@ -494,12 +557,13 @@ where
     A: for<'a> Air<ProverConstraintFolder<'a, SC>>,
     Mat: Matrix<Val<SC>> + Sync,
 {
-    let quotient_size = quotient_domain.size();
-    let width = trace_on_quotient_domain.width();
+    let quotient_size = input.quotient_domain.size();
+    let width = input.trace_on_quotient_domain.width();
     let mut sels = debug_span!("Compute Selectors")
-        .in_scope(|| trace_domain.selectors_on_coset(quotient_domain));
+        .in_scope(|| input.trace_domain.selectors_on_coset(input.quotient_domain));
 
-    let qdb = log2_strict_usize(quotient_domain.size()) - log2_strict_usize(trace_domain.size());
+    let qdb = log2_strict_usize(input.quotient_domain.size()) -
+        log2_strict_usize(input.trace_domain.size());
     let next_step = 1 << qdb;
 
     // We take PackedVal::<SC>::WIDTH worth of values at a time from a quotient_size slice, so we need to
@@ -523,54 +587,86 @@ where
                 .collect()
         })
         .collect();
-    (0..quotient_size)
+
+    let ctx = QuotientChunkCtx {
+        quotient_size,
+        next_step,
+        width,
+        sels: &sels,
+        trace_on_quotient_domain: input.trace_on_quotient_domain,
+        preprocessed_on_quotient_domain: input.preprocessed_on_quotient_domain,
+        public_values,
+        alpha_powers: &alpha_powers,
+        decomposed_alpha_powers: &decomposed_alpha_powers,
+    };
+
+    #[cfg(feature = "parallel")]
+    let iter = (0..quotient_size)
         .into_par_iter()
         .step_by(PackedVal::<SC>::WIDTH)
-        .flat_map_iter(|i_start| {
-            let i_range = i_start..i_start + PackedVal::<SC>::WIDTH;
+        .flat_map_iter(|i_start| quotient_values_chunk(air, i_start, &ctx));
 
-            let is_first_row = *PackedVal::<SC>::from_slice(&sels.is_first_row[i_range.clone()]);
-            let is_last_row = *PackedVal::<SC>::from_slice(&sels.is_last_row[i_range.clone()]);
-            let is_transition = *PackedVal::<SC>::from_slice(&sels.is_transition[i_range.clone()]);
-            let inv_vanishing = *PackedVal::<SC>::from_slice(&sels.inv_vanishing[i_range]);
+    #[cfg(not(feature = "parallel"))]
+    let iter = (0..quotient_size)
+        .step_by(PackedVal::<SC>::WIDTH)
+        .flat_map(|i_start| quotient_values_chunk(air, i_start, &ctx));
 
-            let main = RowMajorMatrix::new(
-                trace_on_quotient_domain.vertically_packed_row_pair(i_start, next_step),
-                width,
-            );
+    iter.collect()
+}
 
-            let preprocessed = preprocessed_on_quotient_domain.map(|preprocessed| {
-                let preprocessed_width = preprocessed.width();
-                RowMajorMatrix::new(
-                    preprocessed.vertically_packed_row_pair(i_start, next_step),
-                    preprocessed_width,
-                )
-            });
+fn quotient_values_chunk<'b, A, SC, Mat>(
+    air: &'b A,
+    i_start: usize,
+    ctx: &'b QuotientChunkCtx<SC, Mat>,
+) -> impl Iterator<Item = SC::Challenge> + 'b
+where
+    A: for<'a> Air<ProverConstraintFolder<'a, SC>>,
+    SC: StarkGenericConfig,
+    Mat: Matrix<Val<SC>>,
+{
+    let i_range = i_start..i_start + PackedVal::<SC>::WIDTH;
 
-            let accumulator = PackedChallenge::<SC>::ZERO;
-            let mut folder = ProverConstraintFolder {
-                main: main.as_view(),
-                preprocessed: preprocessed.as_ref().map(|m| m.as_view()),
-                public_values,
-                is_first_row,
-                is_last_row,
-                is_transition,
-                alpha_powers: &alpha_powers,
-                decomposed_alpha_powers: &decomposed_alpha_powers,
-                accumulator,
-                constraint_index: 0,
-            };
-            air.eval(&mut folder);
+    let is_first_row = *PackedVal::<SC>::from_slice(&ctx.sels.is_first_row[i_range.clone()]);
+    let is_last_row = *PackedVal::<SC>::from_slice(&ctx.sels.is_last_row[i_range.clone()]);
+    let is_transition = *PackedVal::<SC>::from_slice(&ctx.sels.is_transition[i_range.clone()]);
+    let inv_vanishing = *PackedVal::<SC>::from_slice(&ctx.sels.inv_vanishing[i_range]);
 
-            // quotient(x) = constraints(x) / Z_H(x)
-            let quotient = folder.accumulator * inv_vanishing;
+    let main = RowMajorMatrix::new(
+        ctx.trace_on_quotient_domain
+            .vertically_packed_row_pair(i_start, ctx.next_step),
+        ctx.width,
+    );
 
-            // "Transpose" D packed base coefficients into WIDTH scalar extension coefficients.
-            (0..core::cmp::min(quotient_size, PackedVal::<SC>::WIDTH)).map(move |idx_in_packing| {
-                SC::Challenge::from_basis_coefficients_fn(|coeff_idx| {
-                    quotient.as_basis_coefficients_slice()[coeff_idx].as_slice()[idx_in_packing]
-                })
-            })
+    let preprocessed = ctx.preprocessed_on_quotient_domain.map(|preprocessed| {
+        let preprocessed_width = preprocessed.width();
+        RowMajorMatrix::new(
+            preprocessed.vertically_packed_row_pair(i_start, ctx.next_step),
+            preprocessed_width,
+        )
+    });
+
+    let accumulator = PackedChallenge::<SC>::ZERO;
+    let mut folder = ProverConstraintFolder {
+        main: main.as_view(),
+        preprocessed: preprocessed.as_ref().map(|m| m.as_view()),
+        public_values: ctx.public_values,
+        is_first_row,
+        is_last_row,
+        is_transition,
+        alpha_powers: ctx.alpha_powers,
+        decomposed_alpha_powers: ctx.decomposed_alpha_powers,
+        accumulator,
+        constraint_index: 0,
+    };
+    air.eval(&mut folder);
+
+    // quotient(x) = constraints(x) / Z_H(x)
+    let quotient = folder.accumulator * inv_vanishing;
+
+    // "Transpose" D packed base coefficients into WIDTH scalar extension coefficients.
+    (0..core::cmp::min(ctx.quotient_size, PackedVal::<SC>::WIDTH)).map(move |idx_in_packing| {
+        SC::Challenge::from_basis_coefficients_fn(|coeff_idx| {
+            quotient.as_basis_coefficients_slice()[coeff_idx].as_slice()[idx_in_packing]
         })
-        .collect()
+    })
 }

@@ -122,7 +122,7 @@ fn test_kat_encapsulation_with_aes_drbg() {
 
     // Use AES-CTR-DRBG for encapsulation randomness
     use lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg;
-    use rand_core::RngCore;
+    use rand_core::Rng;
 
     let mut rng_for_encaps = Aes256CtrDrbg::instantiate(&entropy_input);
     // Skip the seed generation bytes

@@ -29,7 +29,7 @@ use lib_q_core::Result;
 #[cfg(target_arch = "x86_64")]
 mod x86_64 {
     #[cfg(target_feature = "avx2")]
-    pub use std::arch::x86_64::*;
+    pub use core::arch::x86_64::*;
 
     pub fn is_avx2_available() -> bool {
         #[cfg(target_feature = "avx2")]
@@ -47,7 +47,7 @@ mod x86_64 {
 #[cfg(target_arch = "aarch64")]
 mod aarch64 {
     #[cfg(target_feature = "neon")]
-    pub use std::arch::aarch64::*;
+    pub use core::arch::aarch64::*;
 
     pub fn is_neon_available() -> bool {
         #[cfg(target_feature = "neon")]

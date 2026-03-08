@@ -3,7 +3,7 @@ use lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg;
 #[cfg(all(feature = "bearssl-aes", feature = "aes-drbg"))]
 use lib_q_hqc::bearssl_aes_pure::Aes256CtxPure;
 #[cfg(all(feature = "bearssl-aes", feature = "aes-drbg"))]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[cfg(all(feature = "bearssl-aes", feature = "aes-drbg"))]
 #[test]

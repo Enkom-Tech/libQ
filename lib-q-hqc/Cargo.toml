@@ -97,7 +97,7 @@ simd-avx2 = []                                                      # AVX2 SIMD 
 [lib]
 name = "lib_q_hqc"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -12,10 +12,8 @@ use lib_q_stark_air::{
     AirBuilder,
     BaseAir,
 };
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::Field;
+use lib_q_stark_matrix::Matrix;
 
 /// A wire in the circuit, representing a field element
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -184,6 +182,92 @@ impl<F: Field> CircuitAir<F> {
     pub fn circuit(&self) -> &ArithmeticCircuit<F> {
         &self.circuit
     }
+
+    /// Generate an execution trace from witness values
+    ///
+    /// The witness values should include all wire values in the circuit.
+    /// Wire indices 0..witness_size are witness wires,
+    /// indices witness_size..witness_size+public_input_size are public inputs,
+    /// and remaining indices are intermediate wires.
+    ///
+    /// # Arguments
+    ///
+    /// * `witness` - Private witness values (witness wires)
+    /// * `public` - Public input values
+    ///
+    /// # Returns
+    ///
+    /// A RowMajorMatrix containing the trace, or an error if validation fails
+    pub fn generate_trace(
+        &self,
+        witness: &[F],
+        public: &[F],
+    ) -> Result<lib_q_stark_matrix::dense::RowMajorMatrix<F>, lib_q_core::Error> {
+        use lib_q_stark_matrix::dense::RowMajorMatrix;
+
+        // Validate input sizes
+        if witness.len() != self.circuit.witness_size {
+            return Err(lib_q_core::Error::InvalidState {
+                operation: "CircuitAir::generate_trace".into(),
+                reason: alloc::format!(
+                    "Witness size mismatch: expected {}, got {}",
+                    self.circuit.witness_size,
+                    witness.len()
+                ),
+            });
+        }
+
+        if public.len() != self.circuit.public_input_size {
+            return Err(lib_q_core::Error::InvalidState {
+                operation: "CircuitAir::generate_trace".into(),
+                reason: alloc::format!(
+                    "Public input size mismatch: expected {}, got {}",
+                    self.circuit.public_input_size,
+                    public.len()
+                ),
+            });
+        }
+
+        let width = self.width();
+
+        // Allocate trace for a single row (power of 2)
+        let mut trace_values = F::zero_vec(width);
+
+        // Fill witness wires
+        for (i, val) in witness.iter().enumerate() {
+            if i < width {
+                trace_values[i] = *val;
+            }
+        }
+
+        // Fill public input wires
+        for (i, val) in public.iter().enumerate() {
+            let idx = self.circuit.witness_size + i;
+            if idx < width {
+                trace_values[idx] = *val;
+            }
+        }
+
+        // Compute intermediate wire values by evaluating constraints
+        for constraint in &self.circuit.constraints {
+            match constraint {
+                Constraint::AssertAdd(out, l, r) => {
+                    if out.index < width && l.index < width && r.index < width {
+                        trace_values[out.index] = trace_values[l.index] + trace_values[r.index];
+                    }
+                }
+                Constraint::AssertMul(out, l, r) => {
+                    if out.index < width && l.index < width && r.index < width {
+                        trace_values[out.index] = trace_values[l.index] * trace_values[r.index];
+                    }
+                }
+                // Other constraints don't compute new values
+                _ => {}
+            }
+        }
+
+        Ok(RowMajorMatrix::new(trace_values, width))
+    }
 }
 
 impl<F: Field> BaseAir<F> for CircuitAir<F> {
@@ -208,24 +292,56 @@ impl<F: Field> BaseAir<F> for CircuitAir<F> {
 }
 
 impl<F: Field, AB: AirBuilder<F = F>> Air<AB> for CircuitAir<F> {
-    fn eval(&self, _builder: &mut AB) {
-        // TODO: Implement full circuit evaluation
-        // This is a placeholder implementation. A full implementation would:
-        // 1. Generate a trace from the circuit constraints and witness values
-        // 2. Evaluate constraints on the trace rows using builder methods
-        // 3. Handle intermediate wire values properly
+    fn eval(&self, builder: &mut AB) {
+        let main = builder.main();
+        let row = main
+            .row_slice(0)
+            .expect("Matrix should have at least one row");
 
-        // The challenge is that we need to:
-        // - Access individual wire values from the trace matrix
-        // - The trace matrix type (AB::M) is generic and may not support direct row access
-        // - We need a proper trace generation mechanism that converts circuit + witness -> trace
-
-        // For now, this is a placeholder that can be extended when trace generation is implemented
+        // Evaluate each constraint in the circuit
+        for constraint in &self.circuit.constraints {
+            match constraint {
+                Constraint::AssertZero(w) => {
+                    // Constraint: wire[w.index] == 0
+                    if w.index < row.len() {
+                        builder.assert_zero(row[w.index].clone());
+                    }
+                }
+                Constraint::AssertEqual(l, r) => {
+                    // Constraint: wire[l.index] == wire[r.index]
+                    if l.index < row.len() && r.index < row.len() {
+                        builder.assert_eq(row[l.index].clone(), row[r.index].clone());
+                    }
+                }
+                Constraint::AssertConstant(w, c) => {
+                    // Constraint: wire[w.index] == constant
+                    if w.index < row.len() {
+                        builder.assert_eq(row[w.index].clone(), *c);
+                    }
+                }
+                Constraint::AssertAdd(out, l, r) => {
+                    // Constraint: wire[out.index] == wire[l.index] + wire[r.index]
+                    if out.index < row.len() && l.index < row.len() && r.index < row.len() {
+                        let sum = row[l.index].clone() + row[r.index].clone();
+                        builder.assert_eq(row[out.index].clone(), sum);
+                    }
+                }
+                Constraint::AssertMul(out, l, r) => {
+                    // Constraint: wire[out.index] == wire[l.index] * wire[r.index]
+                    if out.index < row.len() && l.index < row.len() && r.index < row.len() {
+                        let product = row[l.index].clone() * row[r.index].clone();
+                        builder.assert_eq(row[out.index].clone(), product);
+                    }
+                }
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark_air::BaseAir;
+    use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
@@ -299,6 +415,6 @@ mod tests {
         circuit.add_constraint(Constraint::AssertEqual(Wire::new(1), Wire::new(2)));
 
         let air = CircuitAir::new(circuit);
-        assert!(air.width() >= 3); // At least total_wires
+        assert!(BaseAir::<TestField>::width(&air) >= 3); // At least total_wires
     }
 }

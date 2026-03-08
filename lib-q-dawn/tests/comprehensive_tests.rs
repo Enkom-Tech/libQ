@@ -46,14 +46,20 @@ fn test_all_parameter_sets_comprehensive() {
         let keypair = kem
             .generate_keypair()
             .expect("Key generation should succeed");
-        assert_eq!(keypair.public_key.data.len(), param_set.public_key_size());
-        assert_eq!(keypair.secret_key.data.len(), param_set.secret_key_size());
+        assert_eq!(
+            keypair.public_key.data.len(),
+            kem.keygen_params().public_key_byte_size()
+        );
+        assert_eq!(
+            keypair.secret_key.data.len(),
+            kem.keygen_params().secret_key_byte_size()
+        );
 
         // Test encapsulation
         let (ciphertext, shared_secret) = kem
             .encapsulate(&keypair.public_key)
             .expect("Encapsulation should succeed");
-        assert_eq!(ciphertext.len(), param_set.ciphertext_size());
+        assert_eq!(ciphertext.len(), kem.keygen_params().ciphertext_byte_size());
         assert_eq!(shared_secret.len(), param_set.shared_secret_size());
 
         // Test decapsulation
@@ -66,7 +72,10 @@ fn test_all_parameter_sets_comprehensive() {
         let derived_pk = kem
             .derive_public_key(&keypair.secret_key)
             .expect("Public key derivation should succeed");
-        assert_eq!(derived_pk.data.len(), param_set.public_key_size());
+        assert_eq!(
+            derived_pk.data.len(),
+            kem.keygen_params().public_key_byte_size()
+        );
     }
 }
 
@@ -257,17 +266,18 @@ fn test_edge_cases_comprehensive() {
     let result = kem.encapsulate(&invalid_pk);
     assert!(result.is_err());
     if let Err(Error::InvalidKeySize { expected, actual }) = result {
-        assert_eq!(expected, 615);
+        assert_eq!(expected, 640);
         assert_eq!(actual, 100);
     }
 
     // Test invalid secret key size
     let invalid_sk = KemSecretKey::new(vec![0u8; 100]);
-    let ciphertext = vec![0u8; 436];
+    let ciphertext = vec![0u8; kem.keygen_params().ciphertext_byte_size()];
     let result = kem.decapsulate(&invalid_sk, &ciphertext);
     assert!(result.is_err());
+    let expected_sk_size = kem.keygen_params().secret_key_byte_size();
     if let Err(Error::InvalidKeySize { expected, actual }) = result {
-        assert_eq!(expected, 1319);
+        assert_eq!(expected, expected_sk_size);
         assert_eq!(actual, 100);
     }
 
@@ -279,7 +289,7 @@ fn test_edge_cases_comprehensive() {
     let result = kem.decapsulate(&keypair.secret_key, &invalid_ciphertext);
     assert!(result.is_err());
     if let Err(Error::InvalidCiphertextSize { expected, actual }) = result {
-        assert_eq!(expected, 452);
+        assert_eq!(expected, kem.keygen_params().ciphertext_byte_size());
         assert_eq!(actual, 100);
     }
 
@@ -334,6 +344,10 @@ fn test_key_generation_edge_cases() {
         compression_divisor: 7,
         f_coeff_count: 0,
         g_coeff_count: 0,
+        s_coeff_count: 0,
+        e_coeff_count: 0,
+        base_parameter_set: lib_q_dawn::DawnParameterSet::Alpha512,
+        profile: lib_q_dawn::DawnProfile::SpecExperimental,
     };
 
     let generator = DawnKeyGenerator::new(invalid_params);
@@ -455,7 +469,7 @@ fn test_all_parameter_sets_comprehensive_scenarios() {
                     .unwrap_or_else(|_| panic!("Decapsulation {} should succeed", j));
 
                 // Verify sizes
-                assert_eq!(ciphertext.len(), param_set.ciphertext_size());
+                assert_eq!(ciphertext.len(), kem.keygen_params().ciphertext_byte_size());
                 assert_eq!(shared_secret.len(), param_set.shared_secret_size());
                 assert_eq!(decrypted_secret.len(), param_set.shared_secret_size());
             }

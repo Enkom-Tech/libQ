@@ -19,7 +19,13 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
-zeroize = { workspace = true, features = ["derive"] }
+zeroize = { workspace = true, features = ["derive"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }

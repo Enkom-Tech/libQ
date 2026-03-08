@@ -10,7 +10,7 @@ mod coset {
     // use p3_goldilocks::Goldilocks;
     use rand::rngs::SmallRng;
     use rand::{
-        Rng,
+        RngExt,
         SeedableRng,
     };
 

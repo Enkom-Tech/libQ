@@ -42,7 +42,10 @@ pub mod mq_avx2;
 // Re-export RNG traits to get a smooth dependency management.
 pub use rand_core::{
     CryptoRng,
-    RngCore,
+    Infallible,
+    Rng,
+    TryCryptoRng,
+    TryRng,
 };
 
 /// Error type for RNG operations.

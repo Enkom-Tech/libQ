@@ -10,17 +10,17 @@ use digest::block_api::{
     ExtendableOutputCore,
     UpdateCore,
 };
+use digest::common::hazmat::{
+    DeserializeStateError,
+    SerializableState,
+    SerializedState,
+};
 use digest::consts::{
     U16,
     U32,
     U136,
     U168,
     U400,
-};
-use digest::crypto_common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
 };
 use digest::typenum::Unsigned;
 use digest::{

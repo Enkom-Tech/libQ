@@ -38,7 +38,7 @@ use lib_q_hqc::params_correct::Hqc1Params;
     feature = "bearssl-aes",
     feature = "debug-drbg-interop"
 ))]
-use rand_core::RngCore;
+use rand_core::Rng;
 
 #[cfg(all(
     feature = "aes-drbg",
