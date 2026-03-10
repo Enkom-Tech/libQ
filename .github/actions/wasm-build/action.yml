@@ -13,9 +13,13 @@ inputs:
     description: Comma-separated list of targets (web,nodejs)
     default: "web,nodejs"
     required: false
+  out-dir:
+    description: Output directory for wasm-pack (default pkg)
+    default: "pkg"
+    required: false
   rust-version:
     description: Rust toolchain version to use
-    default: "nightly"
+    default: "stable"
     required: false
   verify-artifacts:
     description: Whether to verify build artifacts
@@ -48,7 +52,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-          ${{ inputs.cache-pkg == 'true' && 'pkg' || '' }}
+          ${{ inputs.cache-pkg == 'true' && format('{0}/{1}', inputs.working-directory, inputs.out-dir) || '' }}
         key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-wasm-
@@ -62,14 +66,14 @@ runs:
       run: |
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
+        OUT_DIR="${{ inputs.out-dir }}"
         if [ -n "${{ inputs.features }}" ]; then
-          # Pre-check with cargo to ensure proper feature resolution (avoid dev-dependencies)
           echo "Pre-checking with cargo for feature resolution..."
           cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
-          wasm-pack build --target web -- --features "${{ inputs.features }}" --verbose
+          wasm-pack build --target web --out-dir "$OUT_DIR" -- --features "${{ inputs.features }}" --verbose
         else
-          wasm-pack build --target web --verbose
+          wasm-pack build --target web --out-dir "$OUT_DIR" --verbose
         fi
         echo "WASM web build completed successfully"
     
@@ -82,14 +86,14 @@ runs:
       run: |
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
+        OUT_DIR="${{ inputs.out-dir }}"
         if [ -n "${{ inputs.features }}" ]; then
-          # Pre-check with cargo to ensure proper feature resolution (avoid dev-dependencies)
           echo "Pre-checking with cargo for feature resolution..."
           cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
-          wasm-pack build --target nodejs -- --features "${{ inputs.features }}" --verbose
+          wasm-pack build --target nodejs --out-dir "$OUT_DIR" -- --features "${{ inputs.features }}" --verbose
         else
-          wasm-pack build --target nodejs --verbose
+          wasm-pack build --target nodejs --out-dir "$OUT_DIR" --verbose
         fi
         echo "WASM nodejs build completed successfully"
     
@@ -99,10 +103,11 @@ runs:
       run: |
         echo "Verifying WASM build artifacts..."
         cd ${{ inputs.working-directory }}
-        ls -la pkg/ || echo "No pkg directory found"
-        if [ -d "pkg" ]; then
+        OUT_DIR="${{ inputs.out-dir }}"
+        ls -la "$OUT_DIR"/ || echo "No $OUT_DIR directory found"
+        if [ -d "$OUT_DIR" ]; then
           echo "WASM package contents:"
-          ls -la pkg/
+          ls -la "$OUT_DIR"/
           echo "WASM file size:"
-          ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+          ls -lh "$OUT_DIR"/*.wasm 2>/dev/null || echo "No .wasm files found"
         fi

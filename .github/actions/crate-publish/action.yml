@@ -5,7 +5,7 @@ inputs:
     description: Package name to publish
     required: true
   token:
-    description: Cargo registry token
+    description: Cargo registry token (prefer steps.<id>.outputs.token from rust-lang/crates-io-auth-action for Trusted Publishing)
     required: true
   working-directory:
     description: Working directory for the crate

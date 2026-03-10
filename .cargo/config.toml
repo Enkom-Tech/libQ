@@ -9,8 +9,7 @@ rustflags = [
     "-W", "warnings",
     # Enable overflow checks in debug builds
     "-C", "overflow-checks=on",
-    # Use LLVM optimizations for better code generation
-    "-C", "opt-level=3",
+    # Opt-level is controlled by the selected profile (dev/release/custom), not here
     # Enable control flow integrity where supported
     "-C", "control-flow-guard=checks",
 ]
@@ -55,12 +54,11 @@ rustflags = [
     "-C", "link-arg=-static",
 ]
 
-# x86_64 Linux target configuration (for consistency)
+# x86_64 Linux target configuration (portable; no forced AVX2 to avoid SIGILL on older CPUs/VMs)
 [target.x86_64-unknown-linux-gnu]
 rustflags = [
     "--cfg", "cross_compile",
-    # Enable AVX2 for x86_64 when available
-    "-C", "target-feature=+avx2,+sse4.1",
+    # Opt-in for known AVX2 hosts: RUSTFLAGS="-C target-feature=+avx2,+sse4.1"
 ]
 
 # Security-focused build configuration
@@ -103,11 +101,9 @@ rustflags = [
     "--cfg", "getrandom_backend=\"wasm_js\"",
 ]
 
+# WASI uses getrandom's default native backend (random_get); do not set getrandom_backend="wasm_js"
 [target.wasm32-wasi]
-# Configure getrandom for WebAssembly WASI builds
-rustflags = [
-    "--cfg", "getrandom_backend=\"wasm_js\"",
-]
+# No rustflags needed; wasm_js is for wasm32-unknown-unknown only
 
 # Cargo audit configuration
 # Note: cargo-audit ignores are specified via command-line flags in CI workflows

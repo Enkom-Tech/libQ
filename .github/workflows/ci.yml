@@ -588,6 +588,18 @@ jobs:
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
 
+      - name: Run HQC tests
+        uses: ./.github/actions/test-hqc
+        if: matrix.action == 'test-hqc'
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          rust-version: ${{ matrix.rust-version }}
+          run-benchmarks: ${{ matrix.run-benchmarks }}
+          run-security-tests: ${{ matrix.run-security-tests }}
+          run-simd-tests: ${{ matrix.run-simd-tests }}
+          test-algorithms: ${{ matrix.test-algorithms }}
+
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification

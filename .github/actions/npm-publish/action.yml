@@ -31,7 +31,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         registry-url: 'https://registry.npmjs.org'
     
     - name: Prepare NPM package
@@ -81,12 +81,14 @@ runs:
     
     - name: Publish NPM package
       shell: bash
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.token }}
       run: |
         echo "Publishing NPM package..."
         cd ${{ inputs.working-directory }}
         
         if [ -z "${{ inputs.token }}" ]; then
-          echo "Warning: NPM_TOKEN not set, skipping NPM publication"
+          echo "Warning: NPM token not set, skipping NPM publication"
           exit 0
         fi
         

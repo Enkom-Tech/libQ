@@ -33,6 +33,8 @@ jobs:
   coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         rust: [stable, nightly]
@@ -71,7 +73,7 @@ jobs:
           # Run coverage for core cryptographic components
           echo "Running coverage for core cryptographic components with ${{ matrix.rust }}"
           for crate in $CORE_CRATES; do
-            if [ -d "../$crate" ]; then
+            if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
               bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
@@ -83,7 +85,7 @@ jobs:
           # Run coverage for cryptographic algorithm implementations
           echo "Running coverage for cryptographic algorithm implementations with ${{ matrix.rust }}"
           for crate in $CRYPTO_CRATES; do
-            if [ -d "../$crate" ]; then
+            if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
               bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
@@ -95,7 +97,7 @@ jobs:
           # Run coverage for utility crates
           echo "Running coverage for utility crates with ${{ matrix.rust }}"
           for crate in $UTIL_CRATES; do
-            if [ -d "../$crate" ]; then
+            if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
               bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold 70 --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               

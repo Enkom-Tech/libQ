@@ -63,9 +63,11 @@ jobs:
       - name: Run release tests
         run: cargo test --all-features --release
 
-  # Parallel publishing jobs - run after validation
-  publish-rust-crates:
-    name: Publish Rust Crates
+  # Rust crate publishing in dependency order (each tier after the previous).
+  # Uses crates.io Trusted Publishing (OIDC); configure trusted publishers at
+  # https://crates.io/settings/publishing for this repo and workflow.
+  publish-rust-tier-0:
+    name: Publish Rust (tier 0)
     needs: pre-release-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -74,27 +76,104 @@ jobs:
         include:
           - package: "lib-q-core"
           - package: "lib-q-keccak"
-          - package: "lib-q-sha3"
-          - package: "lib-q-k12"
-          - package: "lib-q-kem"
-          - package: "lib-q-ml-kem"
-          - package: "lib-q-sig"
-          - package: "lib-q-hash"
-          - package: "lib-q-aead"
-          - package: "lib-q-utils"
-          - package: "lib-q-zkp"
-          - package: "lib-q-fn-dsa"
-          - package: "lib-q-cb-kem"
-          - package: "lib-q"
-
     steps:
       - uses: actions/checkout@v5
-      
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
           package: ${{ matrix.package }}
-          token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-1:
+    name: Publish Rust (tier 1)
+    needs: [publish-rust-tier-0]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-sha3"
+          - package: "lib-q-utils"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-2:
+    name: Publish Rust (tier 2)
+    needs: [publish-rust-tier-1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-k12"
+          - package: "lib-q-ml-kem"
+          - package: "lib-q-cb-kem"
+          - package: "lib-q-fn-dsa"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-3:
+    name: Publish Rust (tier 3)
+    needs: [publish-rust-tier-2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-hash"
+          - package: "lib-q-aead"
+          - package: "lib-q-kem"
+          - package: "lib-q-sig"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-4:
+    name: Publish Rust (tier 4)
+    needs: [publish-rust-tier-3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-zkp"
+          - package: "lib-q"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-wasm-packages:
     name: Publish WASM Packages
@@ -153,6 +232,7 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}
           targets: "web"
+          out-dir: ${{ matrix.out-dir || 'pkg' }}
       
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
@@ -160,14 +240,14 @@ jobs:
           package-name: ${{ matrix.package-name }}
           package-description: ${{ matrix.package-description }}
           package-keywords: ${{ matrix.package-keywords }}
-          working-directory: ${{ matrix.out-dir || 'pkg' }}
+          working-directory: ${{ matrix.working-directory }}/${{ matrix.out-dir || 'pkg' }}
           token: ${{ secrets.NPM_TOKEN }}
           version: ${{ needs.pre-release-validation.outputs.version }}
 
   # Post-release tasks - run after publishing
   post-release:
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-crates, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-4, publish-wasm-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -192,12 +272,12 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Create GitHub Release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: |
             ## What's Changed
             
@@ -227,6 +307,7 @@ jobs:
             - [Development Guide](https://github.com/Enkom-Tech/libQ/blob/main/CONTRIBUTING.md)
           draft: false
           prerelease: false
+          generate_release_notes: false
 
   # Security verification - runs after release
   security-verification:
@@ -267,7 +348,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-crates, publish-wasm-packages, post-release, security-verification]
+    needs: [pre-release-validation, publish-rust-tier-4, publish-wasm-packages, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -278,7 +359,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Rust crate publishing: ${{ needs.publish-rust-crates.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-4.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY
@@ -297,4 +378,4 @@ jobs:
           echo "### Published Packages:" >> $GITHUB_STEP_SUMMARY
           echo "- Rust: [lib-q@${{ needs.pre-release-validation.outputs.version }}](https://crates.io/crates/lib-q)" >> $GITHUB_STEP_SUMMARY
           echo "- NPM: [@lib-q/core@${{ needs.pre-release-validation.outputs.version }}](https://www.npmjs.com/package/@lib-q/core)" >> $GITHUB_STEP_SUMMARY
-          echo "- GitHub: [Release ${{ github.ref }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref }})" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub: [Release ${{ github.ref_name }}](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY

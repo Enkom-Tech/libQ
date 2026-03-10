@@ -42,7 +42,11 @@ A reusable action for building and validating Rust code.
 
 ### `wasm-build`
 
-A reusable action for building WebAssembly targets.
+Builds WebAssembly targets (web, nodejs) via wasm-pack. Supports `out-dir` (default `pkg`), `rust-version` (default `stable`), and feature flags.
+
+### `crate-publish`
+
+Publishes Rust crates to crates.io. The CD workflow uses `rust-lang/crates-io-auth-action` (Trusted Publishing) and passes its token output to this action. Configure this repository as a trusted publisher at https://crates.io/settings/publishing for workflow `cd.yml` before releasing.
 
 ## Workflow Integration
 
