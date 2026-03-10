@@ -70,12 +70,12 @@ rustflags = [
 ]
 
 # x86_64 Linux target configuration (portable; no forced AVX2 to avoid SIGILL on older CPUs/VMs)
+# Native target on Linux; do not set cross_compile.
 [target.x86_64-unknown-linux-gnu]
 rustflags = [
     "-D", "warnings",
     "-C", "overflow-checks=on",
     "-C", "control-flow-guard=checks",
-    "--cfg", "cross_compile",
     # Opt-in for known AVX2 hosts: RUSTFLAGS="-C target-feature=+avx2,+sse4.1"
 ]
 

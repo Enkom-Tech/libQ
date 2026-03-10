@@ -3,7 +3,7 @@ description: Run Keccak tests with security validation and benchmarking
 inputs:
   working-directory:
     description: Working directory for keccak crate
-    default: lib-q-sponge/keccak
+    default: lib-q-keccak
     required: true
   features:
     description: Features to enable for testing

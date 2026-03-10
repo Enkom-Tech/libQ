@@ -43,7 +43,7 @@ runs:
         echo "Publishing ${{ inputs.package }}..."
         cd ${{ inputs.working-directory }}
         
-        if [ -z "${{ inputs.token }}" ]; then
+        if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
           echo "Warning: Token not set, skipping publication"
           exit 0
         fi

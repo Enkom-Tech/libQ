@@ -87,7 +87,7 @@ runs:
         echo "Publishing NPM package..."
         cd ${{ inputs.working-directory }}
         
-        if [ -z "${{ inputs.token }}" ]; then
+        if [ -z "$NODE_AUTH_TOKEN" ]; then
           echo "Warning: NPM token not set, skipping NPM publication"
           exit 0
         fi
