@@ -1,6 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 
+use block_buffer::BlockSizes;
 use digest::array::ArraySize;
 use digest::block_api::{
     AlgorithmName,
@@ -16,7 +17,6 @@ use digest::block_api::{
     UpdateCore,
     XofReaderCore,
 };
-use digest::common::BlockSizes;
 use digest::common::hazmat::{
     DeserializeStateError,
     SerializableState,

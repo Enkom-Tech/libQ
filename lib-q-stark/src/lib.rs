@@ -76,7 +76,6 @@
 //! 6. **Zeroization**: Trust the automatic zeroization, but be aware of move semantics
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(where_clause_attrs)]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 

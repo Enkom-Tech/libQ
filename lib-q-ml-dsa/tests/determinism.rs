@@ -21,10 +21,14 @@ fn test_keygen_determinism_portable_vs_simd() {
         .fill_bytes(&mut randomness_portable)
         .expect("RNG should not fail");
 
-    let keys_portable = ml_dsa_44::generate_key_pair(randomness_portable);
+    let keys_portable = ml_dsa_44::portable::generate_key_pair(randomness_portable);
+    assert!(
+        !keys_portable.signing_key.as_slice().is_empty(),
+        "Portable keygen should produce non-empty keys"
+    );
 
     // Generate keys with SIMD implementation (if available)
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     {
         let mut rng_simd = MLDsaRng::new_deterministic(seed);
         let mut randomness_simd = [0u8; 32];
@@ -32,7 +36,7 @@ fn test_keygen_determinism_portable_vs_simd() {
             .fill_bytes(&mut randomness_simd)
             .expect("RNG should not fail");
 
-        let keys_simd = ml_dsa_44::generate_key_pair(randomness_simd);
+        let keys_simd = ml_dsa_44::avx2::generate_key_pair(randomness_simd);
 
         // Keys should be identical
         assert_eq!(
@@ -62,7 +66,7 @@ fn test_signing_determinism_portable_vs_simd() {
         .fill_bytes(&mut randomness_portable)
         .expect("RNG should not fail");
 
-    let keys_portable = ml_dsa_44::generate_key_pair(randomness_portable);
+    let keys_portable = ml_dsa_44::portable::generate_key_pair(randomness_portable);
 
     // Sign with portable implementation
     let mut rng_sign_portable = MLDsaRng::new_deterministic(b"signing_randomness_seed");
@@ -71,15 +75,19 @@ fn test_signing_determinism_portable_vs_simd() {
         .fill_bytes(&mut signing_randomness_portable)
         .expect("RNG should not fail");
 
-    let signature_portable = ml_dsa_44::sign_internal(
+    let signature_portable = ml_dsa_44::portable::sign_internal(
         &keys_portable.signing_key,
         message,
         signing_randomness_portable,
     )
     .expect("Signing should succeed");
+    assert!(
+        !signature_portable.as_slice().is_empty(),
+        "Portable signing should produce non-empty signature"
+    );
 
     // Sign with SIMD implementation (if available)
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     {
         let mut rng_simd = MLDsaRng::new_deterministic(seed);
         let mut randomness_simd = [0u8; 32];
@@ -87,7 +95,7 @@ fn test_signing_determinism_portable_vs_simd() {
             .fill_bytes(&mut randomness_simd)
             .expect("RNG should not fail");
 
-        let keys_simd = ml_dsa_44::generate_key_pair(randomness_simd);
+        let keys_simd = ml_dsa_44::avx2::generate_key_pair(randomness_simd);
 
         let mut rng_sign_simd = MLDsaRng::new_deterministic(b"signing_randomness_seed");
         let mut signing_randomness_simd = [0u8; 32];
@@ -95,9 +103,12 @@ fn test_signing_determinism_portable_vs_simd() {
             .fill_bytes(&mut signing_randomness_simd)
             .expect("RNG should not fail");
 
-        let signature_simd =
-            ml_dsa_44::sign_internal(&keys_simd.signing_key, message, signing_randomness_simd)
-                .expect("Signing should succeed");
+        let signature_simd = ml_dsa_44::avx2::sign_internal(
+            &keys_simd.signing_key,
+            message,
+            signing_randomness_simd,
+        )
+        .expect("Signing should succeed");
 
         // Signatures should be identical
         assert_eq!(
@@ -121,7 +132,7 @@ fn test_verification_cross_implementation() {
         .fill_bytes(&mut randomness_portable)
         .expect("RNG should not fail");
 
-    let keys_portable = ml_dsa_44::generate_key_pair(randomness_portable);
+    let keys_portable = ml_dsa_44::portable::generate_key_pair(randomness_portable);
 
     // Sign with portable implementation
     let mut rng_sign_portable = MLDsaRng::new_deterministic(b"signing_randomness_seed");
@@ -130,7 +141,7 @@ fn test_verification_cross_implementation() {
         .fill_bytes(&mut signing_randomness_portable)
         .expect("RNG should not fail");
 
-    let signature_portable = ml_dsa_44::sign_internal(
+    let signature_portable = ml_dsa_44::portable::sign_internal(
         &keys_portable.signing_key,
         message,
         signing_randomness_portable,
@@ -138,7 +149,7 @@ fn test_verification_cross_implementation() {
     .expect("Signing should succeed");
 
     // Verify with portable implementation
-    let verification_result_portable = ml_dsa_44::verify_internal(
+    let verification_result_portable = ml_dsa_44::portable::verify_internal(
         &keys_portable.verification_key,
         message,
         &signature_portable,
@@ -150,9 +161,9 @@ fn test_verification_cross_implementation() {
     );
 
     // Verify with SIMD implementation (if available)
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     {
-        let verification_result_simd = ml_dsa_44::verify_internal(
+        let verification_result_simd = ml_dsa_44::avx2::verify_internal(
             &keys_portable.verification_key,
             message,
             &signature_portable,

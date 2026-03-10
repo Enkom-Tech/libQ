@@ -1,4 +1,5 @@
-//! Debug test for hash_i function to verify seed derivation
+//! Debug test for hash_i function to verify seed derivation.
+//! Canonical HQC hash_i KAT now lives in tests/sha3_hqc_kat.rs (test_hash_i_kat_against_reference).
 
 use lib_q_hqc::Hqc1Params;
 use lib_q_hqc::hqc_pke::HqcPke;

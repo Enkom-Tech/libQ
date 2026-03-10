@@ -13,10 +13,11 @@ use alloc::vec::Vec;
 #[allow(clippy::disallowed_types)]
 use std::collections::HashMap;
 
+#[cfg(any(feature = "std", feature = "alloc"))]
+use crate::Result;
 use crate::{
     Algorithm,
     AlgorithmCategory,
-    Result,
 };
 
 /// Algorithm metadata

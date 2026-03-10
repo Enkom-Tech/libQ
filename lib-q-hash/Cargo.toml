@@ -12,6 +12,7 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
+block-buffer = { workspace = true }
 lib-q-core = { path = "../lib-q-core" }
 zeroize = { workspace = true }
 digest = { workspace = true }

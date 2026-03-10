@@ -280,24 +280,24 @@ impl SideChannelProtection {
     /// Protected integer division with timing attack resistance
     pub fn secure_integer_div(&self, a: u64, b: u64) -> u64 {
         if !self.timing_protection {
-            return if b == 0 { 0 } else { a / b };
+            return a.checked_div(b).unwrap_or(0);
         }
 
         // Use constant-time division
         let is_zero = b == 0;
-        let result = if is_zero { 0 } else { a / b };
+        let result = a.checked_div(b).unwrap_or(0);
         crate::security::constant_time::constant_time_select(is_zero, 0, result)
     }
 
     /// Protected integer modulo with timing attack resistance
     pub fn secure_integer_mod(&self, a: u64, b: u64) -> u64 {
         if !self.timing_protection {
-            return if b == 0 { 0 } else { a % b };
+            return a.checked_rem(b).unwrap_or(0);
         }
 
         // Use constant-time modulo
         let is_zero = b == 0;
-        let result = if is_zero { 0 } else { a % b };
+        let result = a.checked_rem(b).unwrap_or(0);
         crate::security::constant_time::constant_time_select(is_zero, 0, result)
     }
 

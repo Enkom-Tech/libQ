@@ -7,6 +7,9 @@
 
 use lib_q_ml_dsa::*;
 
+/// Domain separation context for all sign/verify calls in this test module.
+const CONTEXT: &[u8] = b"hardened_mode_test";
+
 /// Test hardened mode RNG integration
 #[test]
 fn test_hardened_mode_rng_integration() {
@@ -64,10 +67,10 @@ fn test_hardened_mode_constant_time() {
         let seed = [0x42; 32];
         let keys = ml_dsa_44::generate_key_pair(seed);
         let message = b"constant time test";
-        let rnd = [0x42; 32];
+        let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
-        let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
-        let verify = ml_dsa_44::verify_internal(&keys.verification_key, message, &sig);
+        let sig = ml_dsa_44::sign(&keys.signing_key, message, CONTEXT, rnd).unwrap();
+        let verify = ml_dsa_44::verify(&keys.verification_key, message, CONTEXT, &sig);
         assert!(
             verify.is_ok(),
             "Constant-time operations must work correctly"
@@ -128,18 +131,18 @@ fn test_hardened_mode_side_channel_resistance() {
     let seed = [0x42; 32];
     let keys = ml_dsa_44::generate_key_pair(seed);
     let _message = b"side channel test";
-    let rnd = [0x42; 32];
+    let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
     // Test with different message lengths to ensure no timing leaks
     let short_msg = b"short";
     let long_msg = b"this is a much longer message for side channel testing";
 
-    let sig_short = ml_dsa_44::sign_internal(&keys.signing_key, short_msg, rnd).unwrap();
-    let sig_long = ml_dsa_44::sign_internal(&keys.signing_key, long_msg, rnd).unwrap();
+    let sig_short = ml_dsa_44::sign(&keys.signing_key, short_msg, CONTEXT, rnd).unwrap();
+    let sig_long = ml_dsa_44::sign(&keys.signing_key, long_msg, CONTEXT, rnd).unwrap();
 
     // Both signatures should be valid
-    let verify_short = ml_dsa_44::verify_internal(&keys.verification_key, short_msg, &sig_short);
-    let verify_long = ml_dsa_44::verify_internal(&keys.verification_key, long_msg, &sig_long);
+    let verify_short = ml_dsa_44::verify(&keys.verification_key, short_msg, CONTEXT, &sig_short);
+    let verify_long = ml_dsa_44::verify(&keys.verification_key, long_msg, CONTEXT, &sig_long);
 
     assert!(verify_short.is_ok(), "Short message signature must verify");
     assert!(verify_long.is_ok(), "Long message signature must verify");
@@ -152,13 +155,13 @@ fn test_hardened_mode_side_channel_resistance() {
 fn test_hardened_mode_memory_safety() {
     let seed = [0x42; 32];
     let message = b"memory safety test";
-    let rnd = [0x42; 32];
+    let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
     // Test multiple operations to ensure no memory leaks or corruption
     for i in 0..10 {
         let keys = ml_dsa_44::generate_key_pair(seed);
-        let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
-        let verify = ml_dsa_44::verify_internal(&keys.verification_key, message, &sig);
+        let sig = ml_dsa_44::sign(&keys.signing_key, message, CONTEXT, rnd).unwrap();
+        let verify = ml_dsa_44::verify(&keys.verification_key, message, CONTEXT, &sig);
         assert!(verify.is_ok(), "Operation {} must succeed", i);
     }
 
@@ -170,16 +173,16 @@ fn test_hardened_mode_memory_safety() {
 fn test_hardened_mode_api_security() {
     let seed = [0x42; 32];
     let message = b"API security test";
-    let rnd = [0x42; 32];
+    let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
     let keys = ml_dsa_44::generate_key_pair(seed);
-    let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
+    let sig = ml_dsa_44::sign(&keys.signing_key, message, CONTEXT, rnd).unwrap();
 
     // Test that verification rejects invalid signatures
     let mut invalid_sig = sig.clone();
     invalid_sig.as_mut_slice()[0] ^= 0xFF; // Flip a bit
 
-    let verify_invalid = ml_dsa_44::verify_internal(&keys.verification_key, message, &invalid_sig);
+    let verify_invalid = ml_dsa_44::verify(&keys.verification_key, message, CONTEXT, &invalid_sig);
     assert!(
         verify_invalid.is_err(),
         "Invalid signature must be rejected"
@@ -188,7 +191,7 @@ fn test_hardened_mode_api_security() {
     // Test that verification rejects signatures for different messages
     let different_message = b"different message";
     let verify_different =
-        ml_dsa_44::verify_internal(&keys.verification_key, different_message, &sig);
+        ml_dsa_44::verify(&keys.verification_key, different_message, CONTEXT, &sig);
     assert!(
         verify_different.is_err(),
         "Signature for different message must be rejected"

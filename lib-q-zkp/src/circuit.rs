@@ -251,15 +251,15 @@ impl<F: Field> CircuitAir<F> {
         // Compute intermediate wire values by evaluating constraints
         for constraint in &self.circuit.constraints {
             match constraint {
-                Constraint::AssertAdd(out, l, r) => {
-                    if out.index < width && l.index < width && r.index < width {
-                        trace_values[out.index] = trace_values[l.index] + trace_values[r.index];
-                    }
+                Constraint::AssertAdd(out, l, r)
+                    if out.index < width && l.index < width && r.index < width =>
+                {
+                    trace_values[out.index] = trace_values[l.index] + trace_values[r.index];
                 }
-                Constraint::AssertMul(out, l, r) => {
-                    if out.index < width && l.index < width && r.index < width {
-                        trace_values[out.index] = trace_values[l.index] * trace_values[r.index];
-                    }
+                Constraint::AssertMul(out, l, r)
+                    if out.index < width && l.index < width && r.index < width =>
+                {
+                    trace_values[out.index] = trace_values[l.index] * trace_values[r.index];
                 }
                 // Other constraints don't compute new values
                 _ => {}

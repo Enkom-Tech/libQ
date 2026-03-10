@@ -17,6 +17,7 @@ keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
+block-buffer = { workspace = true }
 digest = { workspace = true }
 lib-q-keccak = { path = "../lib-q-keccak" }
 

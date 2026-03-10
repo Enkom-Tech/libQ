@@ -6,6 +6,7 @@
 // PhantomData import removed - no longer needed after removing old Context<T>
 
 use crate::error::Result;
+#[cfg(feature = "alloc")]
 use crate::traits::*;
 
 #[cfg(feature = "alloc")]

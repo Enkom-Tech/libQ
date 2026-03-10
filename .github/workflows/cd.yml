@@ -97,6 +97,9 @@ jobs:
         include:
           - package: "lib-q-sha3"
           - package: "lib-q-utils"
+          - package: "lib-q-platform"
+          - package: "lib-q-saturnin"
+          - package: "lib-q-random"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -120,6 +123,10 @@ jobs:
           - package: "lib-q-ml-kem"
           - package: "lib-q-cb-kem"
           - package: "lib-q-fn-dsa"
+          - package: "lib-q-intrinsics"
+          - package: "lib-q-hqc"
+          - package: "lib-q-slh-dsa"
+          - package: "lib-q-dawn"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -139,6 +146,7 @@ jobs:
     strategy:
       matrix:
         include:
+          - package: "lib-q-ml-dsa"
           - package: "lib-q-hash"
           - package: "lib-q-aead"
           - package: "lib-q-kem"
@@ -163,7 +171,182 @@ jobs:
       matrix:
         include:
           - package: "lib-q-zkp"
+          - package: "lib-q-hpke"
           - package: "lib-q"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
+  publish-rust-tier-5:
+    name: Publish Rust (tier 5)
+    needs: [publish-rust-tier-4]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-util"
+          - package: "lib-q-stark-rayon"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-6:
+    name: Publish Rust (tier 6)
+    needs: [publish-rust-tier-5]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-field"
+          - package: "lib-q-stark-symmetric"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-7:
+    name: Publish Rust (tier 7)
+    needs: [publish-rust-tier-6]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-matrix"
+          - package: "lib-q-stark-dft"
+          - package: "lib-q-stark-commit"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-8:
+    name: Publish Rust (tier 8)
+    needs: [publish-rust-tier-7]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-mds"
+          - package: "lib-q-stark-field-testing"
+          - package: "lib-q-stark-shake256"
+          - package: "lib-q-stark-shake128"
+          - package: "lib-q-stark-sha3-256"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-9:
+    name: Publish Rust (tier 9)
+    needs: [publish-rust-tier-8]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-mersenne31"
+          - package: "lib-q-stark-monty31"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-10:
+    name: Publish Rust (tier 10)
+    needs: [publish-rust-tier-9]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-challenger"
+          - package: "lib-q-stark-interpolation"
+          - package: "lib-q-stark-merkle"
+          - package: "lib-q-stark-fri"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-11:
+    name: Publish Rust (tier 11)
+    needs: [publish-rust-tier-10]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-air"
+          - package: "lib-q-poseidon"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-12:
+    name: Publish Rust (tier 12)
+    needs: [publish-rust-tier-11]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -247,7 +430,7 @@ jobs:
   # Post-release tasks - run after publishing
   post-release:
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-tier-4, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-12, publish-wasm-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -348,7 +531,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-tier-4, publish-wasm-packages, post-release, security-verification]
+    needs: [pre-release-validation, publish-rust-tier-12, publish-wasm-packages, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -359,7 +542,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-4.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-12.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY

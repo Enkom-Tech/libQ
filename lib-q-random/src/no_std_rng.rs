@@ -6,7 +6,6 @@
 use core::fmt;
 
 use rand_core::{
-    CryptoRng,
     TryCryptoRng,
     TryRng,
 };

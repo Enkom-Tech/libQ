@@ -26,10 +26,8 @@ rustflags = [
     "-C", "overflow-checks=on",
     "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
-    # Ensure no host architecture leaks into cross-compiled binaries
-    "-C", "target-feature=-aes,-sha3",
-    # Use soft-float for better compatibility
-    "-C", "target-feature=+neon",
+    # Ensure no host architecture leaks; use neon for compatibility
+    "-C", "target-feature=-aes,-sha3,+neon",
 ]
 
 # ARM64 Linux MUSL target configuration

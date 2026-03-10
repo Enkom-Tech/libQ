@@ -108,11 +108,22 @@ macro_rules! instantiate {
                 message: &[u8],
                 randomness: [u8; SIGNING_RANDOMNESS_SIZE],
             ) -> Result<MLDSA65Signature, SigningError> {
-                crate::ml_dsa_generic::multiplexing::ml_dsa_65::sign_internal(
+                let mut signature = MLDSA65Signature::zero();
+                crate::ml_dsa_generic::ml_dsa_65::sign_internal::<
+                    crate::simd::portable::PortableSIMDUnit,
+                    crate::samplex4::portable::PortableSampler,
+                    crate::hash_functions::portable::Shake128X4,
+                    crate::hash_functions::portable::Shake256,
+                    crate::hash_functions::portable::Shake256Xof,
+                    crate::hash_functions::portable::Shake256X4,
+                >(
                     signing_key.as_ref(),
                     message,
+                    None,
                     randomness,
-                )
+                    signature.as_ref_mut(),
+                )?;
+                Ok(signature)
             }
 
             /// Verify an ML-DSA-65 Signature (Algorithm 8 in FIPS204)
@@ -124,11 +135,13 @@ macro_rules! instantiate {
                 message: &[u8],
                 signature: &MLDSA65Signature,
             ) -> Result<(), VerificationError> {
-                crate::ml_dsa_generic::multiplexing::ml_dsa_65::verify_internal(
-                    verification_key.as_ref(),
-                    message,
-                    signature.as_ref(),
-                )
+                crate::ml_dsa_generic::ml_dsa_65::verify_internal::<
+                    crate::simd::portable::PortableSIMDUnit,
+                    crate::samplex4::portable::PortableSampler,
+                    crate::hash_functions::portable::Shake128X4,
+                    crate::hash_functions::portable::Shake256,
+                    crate::hash_functions::portable::Shake256Xof,
+                >(verification_key.as_ref(), message, None, signature.as_ref())
             }
 
             /// Generate a HashML-DSA-65 Signature, with a SHAKE128 pre-hashing

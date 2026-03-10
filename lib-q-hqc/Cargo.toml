@@ -38,7 +38,6 @@ aes = { version = "0.8.4", optional = true }                   # AES for DRBG
 [dev-dependencies]
 # Test dependencies
 lib-q-random = { path = "../lib-q-random", features = ["std", "nist-drbg"] }
-sha3 = { path = "../reference/sha3", features = ["alloc"] }    # Reference SHA3 for comparison
 rand = { workspace = true }
 
 # Benchmarking dependencies
