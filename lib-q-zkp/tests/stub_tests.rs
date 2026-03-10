@@ -53,7 +53,10 @@ fn test_transaction_constraint_soundness() {
     if cfg!(debug_assertions) {
         let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
         let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(verify_result.is_ok(), "Valid trace must verify in debug run");
+        assert!(
+            verify_result.is_ok(),
+            "Valid trace must verify in debug run"
+        );
     } else {
         let mut bad_trace = trace;
         if !bad_trace.values.is_empty() {
@@ -112,13 +115,17 @@ fn test_state_transition_signature_commitment_soundness() {
     if cfg!(debug_assertions) {
         let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
         let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(verify_result.is_ok(), "Valid trace must verify in debug run");
+        assert!(
+            verify_result.is_ok(),
+            "Valid trace must verify in debug run"
+        );
     } else {
         let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
         let mut bad_trace = trace;
         if proof_start < bad_trace.width() && !bad_trace.values.is_empty() {
-            bad_trace.values[proof_start] +=
-                lib_q_stark_field::extension::Complex::from(lib_q_stark_mersenne31::Mersenne31::new(1));
+            bad_trace.values[proof_start] += lib_q_stark_field::extension::Complex::from(
+                lib_q_stark_mersenne31::Mersenne31::new(1),
+            );
         }
         let proof = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
         let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);

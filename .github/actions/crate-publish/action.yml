@@ -37,6 +37,8 @@ runs:
     
     - name: Publish crate
       shell: bash
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ inputs.token }}
       run: |
         echo "Publishing ${{ inputs.package }}..."
         cd ${{ inputs.working-directory }}
@@ -48,9 +50,9 @@ runs:
         
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package }}"
-          cargo publish -p ${{ inputs.package }} --token ${{ inputs.token }} --dry-run
+          cargo publish -p ${{ inputs.package }} --dry-run
         else
-          cargo publish -p ${{ inputs.package }} --token ${{ inputs.token }}
+          cargo publish -p ${{ inputs.package }}
         fi
         
         echo "Successfully published ${{ inputs.package }}"

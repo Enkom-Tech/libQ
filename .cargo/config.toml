@@ -1,12 +1,15 @@
 # Cross-compilation configuration for lib-Q
 # This file configures the proper linkers for cross-compilation targets
-# to ensure secure and correct builds for cryptography libraries
+# to ensure secure and correct builds for cryptography libraries.
+#
+# Note: target-specific rustflags replace (do not merge with) [build] rustflags.
+# Security flags are therefore duplicated in each [target.*] so they actually apply.
 
 [build]
-# Global build configuration for cryptography security
+# Global build configuration for cryptography security (documentation; each target repeats these where applicable)
 rustflags = [
-    # Enable all warnings and treat them as errors for security
-    "-W", "warnings",
+    # Deny all warnings (treat as errors) for security
+    "-D", "warnings",
     # Enable overflow checks in debug builds
     "-C", "overflow-checks=on",
     # Opt-level is controlled by the selected profile (dev/release/custom), not here
@@ -19,6 +22,9 @@ rustflags = [
 linker = "aarch64-linux-gnu-gcc"
 # Disable features that require native compilation during cross-compilation
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+    "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
     # Ensure no host architecture leaks into cross-compiled binaries
     "-C", "target-feature=-aes,-sha3",
@@ -30,6 +36,9 @@ rustflags = [
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+    "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
     # Static linking for MUSL targets
     "-C", "target-feature=+crt-static",
@@ -40,6 +49,9 @@ rustflags = [
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+    "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
     # ARMv7 specific features
     "-C", "target-feature=+vfp3,+d16",
@@ -49,6 +61,9 @@ rustflags = [
 [target.armv7-unknown-linux-musleabihf]
 linker = "arm-linux-musleabihf-gcc"
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+    "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
     "-C", "target-feature=+crt-static",
     "-C", "link-arg=-static",
@@ -57,6 +72,9 @@ rustflags = [
 # x86_64 Linux target configuration (portable; no forced AVX2 to avoid SIGILL on older CPUs/VMs)
 [target.x86_64-unknown-linux-gnu]
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+    "-C", "control-flow-guard=checks",
     "--cfg", "cross_compile",
     # Opt-in for known AVX2 hosts: RUSTFLAGS="-C target-feature=+avx2,+sse4.1"
 ]
@@ -98,12 +116,17 @@ debug = true
 # Configure getrandom for WebAssembly builds
 # Both feature flags AND this configuration are required for getrandom WASM support
 rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
     "--cfg", "getrandom_backend=\"wasm_js\"",
 ]
 
 # WASI uses getrandom's default native backend (random_get); do not set getrandom_backend="wasm_js"
 [target.wasm32-wasi]
-# No rustflags needed; wasm_js is for wasm32-unknown-unknown only
+rustflags = [
+    "-D", "warnings",
+    "-C", "overflow-checks=on",
+]
 
 # Cargo audit configuration
 # Note: cargo-audit ignores are specified via command-line flags in CI workflows

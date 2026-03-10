@@ -58,6 +58,15 @@ cargo build
 - Use `cargo clippy` for linting
 - Maximum line length: 100 characters
 
+### Linting (Clippy)
+Before submitting, ensure there are no Clippy issues. Run from the workspace root:
+
+```bash
+cargo clippy --all-targets --all-features
+```
+
+Warnings are treated as errors via `.cargo/config.toml` (`-D warnings`), so the build will fail if any lints are reported.
+
 ### Documentation
 - All public APIs must be documented
 - Include usage examples
@@ -75,7 +84,7 @@ cargo build
 
 ### Before Submitting
 1. **Self-review**: Check your code against security guidelines
-2. **Static analysis**: Run `cargo audit` and `cargo clippy`
+2. **Static analysis**: Run `cargo audit` and `cargo clippy --all-targets --all-features`
 3. **Testing**: Ensure all tests pass, including WASM tests
 4. **Documentation**: Update relevant documentation
 
