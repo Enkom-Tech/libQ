@@ -32,6 +32,7 @@ lib-q-random = { path = "../lib-q-random", default-features = false }
 postcard = { version = "1.1.3", default-features = false, features = ["alloc"] }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 zeroize = { workspace = true, default-features = false }
+lib-q-plonky = { path = "../lib-q-plonky", optional = true }
 
 [features]
 default = ["alloc", "zkp"]
@@ -42,6 +43,11 @@ wasm = ["alloc", "lib-q-core/wasm"]
 parallel = ["lib-q-stark-rayon", "lib-q-stark/parallel"]
 zkp = []
 stark = []
+plonky = ["dep:lib-q-plonky", "lib-q-plonky/full"]
+plonky-keccak-air = ["dep:lib-q-plonky", "lib-q-plonky/keccak-air"]
+plonky-lookup = ["dep:lib-q-plonky", "lib-q-plonky/lookup"]
+plonky-uni-stark = ["dep:lib-q-plonky", "lib-q-plonky/uni-stark"]
+plonky-batch-stark = ["dep:lib-q-plonky", "lib-q-plonky/batch-stark"]
 recursive-proofs-experimental = ["lib-q-stark-merkle/poseidon"]
 
 [lib]

@@ -266,7 +266,7 @@ impl EntropyValidator {
                         // Use Newton's method for square root approximation
                         let mut x = product;
                         for _ in 0..10 {
-                            x = (x + product / x) / 2.0;
+                            x = f64::midpoint(x, product / x);
                         }
                         x
                     }

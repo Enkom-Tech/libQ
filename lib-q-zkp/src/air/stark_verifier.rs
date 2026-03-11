@@ -43,6 +43,7 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_commit::BatchOpening;
@@ -392,113 +393,19 @@ where
     AB::F: Field + Sized + lib_q_stark_field::BasedVectorSpace<Mersenne31>,
 {
     fn eval(&self, builder: &mut AB) {
-        use lib_q_stark_field::PrimeCharacteristicRing;
-
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
-
-        let metadata_width = 4;
-        let num_commitments = if self.serialized_proof.random_commitment_hash.is_some() {
-            3
-        } else {
-            2
-        };
-        let commitment_air =
-            CommitmentVerifierAir::new(num_commitments, self.merkle_tree_depth).unwrap();
-        let commitment_width = <CommitmentVerifierAir as BaseAir<AB::F>>::width(&commitment_air);
-
-        let fri_air = FriVerifierAir::new(
-            self.serialized_proof.fri_rounds.len(),
-            self.log_final_poly_len,
-            self.num_fri_queries,
-        )
-        .unwrap();
-        let fri_width = <FriVerifierAir as BaseAir<AB::F>>::width(&fri_air);
-
-        let constraint_air = ConstraintVerifierAir::new(
-            self.serialized_proof.num_quotient_chunks,
-            self.serialized_proof.trace_width,
-            self.serialized_proof.degree_bits,
-        )
-        .unwrap();
-        let constraint_width = <ConstraintVerifierAir as BaseAir<AB::F>>::width(&constraint_air);
-
-        let num_opened_values =
-            self.serialized_proof.trace_width * 2 + self.serialized_proof.num_quotient_chunks;
-        let opening_air =
-            OpeningVerifierAir::new(num_opened_values, self.merkle_tree_depth).unwrap();
-        let opening_width = <OpeningVerifierAir as BaseAir<AB::F>>::width(&opening_air);
-
-        let mut offset = metadata_width;
-
-        CommitmentVerifierAir::eval_with_offset(
-            builder,
-            &local,
-            offset,
-            num_commitments,
-            self.merkle_tree_depth,
-        );
-        offset += commitment_width;
-
-        FriVerifierAir::eval_with_offset(
-            builder,
-            &local,
-            offset,
-            self.serialized_proof.fri_rounds.len(),
-            self.log_final_poly_len,
-            self.num_fri_queries,
-        );
-        offset += fri_width;
-
-        ConstraintVerifierAir::eval_with_offset(
-            builder,
-            &local,
-            offset,
-            self.serialized_proof.num_quotient_chunks,
-            self.serialized_proof.trace_width,
-            self.serialized_proof.degree_bits,
-        );
-        offset += constraint_width;
-
-        OpeningVerifierAir::eval_with_offset(
-            builder,
-            &local,
-            offset,
-            num_opened_values,
-            self.merkle_tree_depth,
-        );
-        offset += opening_width;
-
-        // Metadata: is_zk must be 0 or 1
-        let is_zk_col = 3;
-        let is_zk = local[is_zk_col].clone();
-        let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
-        builder.assert_zero(AB::Expr::from(is_zk.clone()) * (AB::Expr::from(is_zk) - one));
-
-        // Public values equality: expected[i] == actual[i]
-        for i in 0..self.serialized_proof.expected_public_values.len() {
-            let expected_col = offset + i * 2;
-            let actual_col = offset + i * 2 + 1;
-            builder.assert_eq(
-                local[expected_col].clone().into(),
-                local[actual_col].clone().into(),
-            );
-        }
+        let local = main.current_slice();
+        self.eval_on_slice(builder, local);
     }
 }
 
-/// Evaluate constraints on a specific row. Used by BatchStarkVerifierAir.
+/// Evaluate constraints on a row slice. Used by both Air::eval and BatchStarkVerifierAir.
 impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
-    pub fn eval_at_row<B: AirBuilder<F = F>>(&self, builder: &mut B, row: usize)
+    pub fn eval_on_slice<B: AirBuilder<F = F>>(&self, builder: &mut B, local: &[B::Var])
     where
         F: lib_q_stark_field::BasedVectorSpace<Mersenne31>,
     {
         use lib_q_stark_field::PrimeCharacteristicRing;
-
-        let main = builder.main();
-        let local = main.row_slice(row).expect("Batch row should exist");
 
         let metadata_width = 4;
         let num_commitments = if self.serialized_proof.random_commitment_hash.is_some() {
@@ -535,7 +442,7 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
 
         CommitmentVerifierAir::eval_with_offset(
             builder,
-            &local,
+            local,
             offset,
             num_commitments,
             self.merkle_tree_depth,
@@ -544,7 +451,7 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
 
         FriVerifierAir::eval_with_offset(
             builder,
-            &local,
+            local,
             offset,
             self.serialized_proof.fri_rounds.len(),
             self.log_final_poly_len,
@@ -554,7 +461,7 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
 
         ConstraintVerifierAir::eval_with_offset(
             builder,
-            &local,
+            local,
             offset,
             self.serialized_proof.num_quotient_chunks,
             self.serialized_proof.trace_width,
@@ -564,7 +471,7 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
 
         OpeningVerifierAir::eval_with_offset(
             builder,
-            &local,
+            local,
             offset,
             num_opened_values,
             self.merkle_tree_depth,

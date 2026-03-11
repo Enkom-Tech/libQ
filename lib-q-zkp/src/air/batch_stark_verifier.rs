@@ -19,6 +19,7 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
@@ -98,8 +99,10 @@ where
     AB::F: Field + Sized + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>,
 {
     fn eval(&self, builder: &mut AB) {
-        for (i, air) in self.airs.iter().enumerate() {
-            air.eval_at_row(builder, i);
+        let main = builder.main();
+        let local = main.current_slice();
+        for air in &self.airs {
+            air.eval_on_slice(builder, local);
         }
     }
 }

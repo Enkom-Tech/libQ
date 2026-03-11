@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod air;
+pub mod symbolic;
 pub mod utils;
 mod virtual_column;
 

@@ -2,7 +2,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use itertools::Itertools;
-use lib_q_stark_air::Air;
+use lib_q_stark_air::{
+    Air,
+    RowWindow,
+};
 use lib_q_stark_challenger::{
     CanObserve,
     FieldChallenger,
@@ -405,7 +408,7 @@ where
     // an extension-field random polynomial by generating R in extension-field form before committing.
     let (opt_r_commit, opt_r_data) = if SC::Pcs::ZK {
         let (r_commit, r_data) = pcs
-            .get_opt_randomization_poly_commitment(ext_trace_domain)
+            .get_opt_randomization_poly_commitment(core::iter::once(ext_trace_domain))
             .expect("ZK is enabled, so we should have randomization commitments");
         (Some(r_commit), Some(r_data))
     } else {
@@ -636,6 +639,8 @@ where
             .vertically_packed_row_pair(i_start, ctx.next_step),
         ctx.width,
     );
+    let main_view = main.as_view();
+    let main_window = RowWindow::from_view(&main_view);
 
     let preprocessed = ctx.preprocessed_on_quotient_domain.map(|preprocessed| {
         let preprocessed_width = preprocessed.width();
@@ -644,11 +649,16 @@ where
             preprocessed_width,
         )
     });
+    let preprocessed_view = preprocessed.as_ref().map(|m| m.as_view());
+    let preprocessed_window = match preprocessed_view.as_ref() {
+        Some(view) => RowWindow::from_view(view),
+        None => RowWindow::from_two_rows(&[], &[]),
+    };
 
     let accumulator = PackedChallenge::<SC>::ZERO;
     let mut folder = ProverConstraintFolder {
-        main: main.as_view(),
-        preprocessed: preprocessed.as_ref().map(|m| m.as_view()),
+        main: main_window,
+        preprocessed: preprocessed_window,
         public_values: ctx.public_values,
         is_first_row,
         is_last_row,

@@ -1297,6 +1297,104 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-plonky"
+version = "0.0.2"
+dependencies = [
+ "lib-q-plonky-batch-stark",
+ "lib-q-plonky-keccak-air",
+ "lib-q-plonky-lookup",
+ "lib-q-plonky-multilinear-util",
+ "lib-q-plonky-uni-stark",
+]
+
+[[package]]
+name = "lib-q-plonky-batch-stark"
+version = "0.0.2"
+dependencies = [
+ "itertools 0.14.0",
+ "lib-q-plonky-lookup",
+ "lib-q-plonky-uni-stark",
+ "lib-q-stark-air",
+ "lib-q-stark-challenger",
+ "lib-q-stark-commit",
+ "lib-q-stark-dft",
+ "lib-q-stark-field",
+ "lib-q-stark-fri",
+ "lib-q-stark-matrix",
+ "lib-q-stark-merkle",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-shake256",
+ "lib-q-stark-symmetric",
+ "lib-q-stark-util",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "lib-q-plonky-keccak-air"
+version = "0.0.2"
+dependencies = [
+ "itertools 0.14.0",
+ "lib-q-keccak",
+ "lib-q-plonky-uni-stark",
+ "lib-q-stark-air",
+ "lib-q-stark-field",
+ "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-symmetric",
+ "lib-q-stark-util",
+]
+
+[[package]]
+name = "lib-q-plonky-lookup"
+version = "0.0.2"
+dependencies = [
+ "itertools 0.14.0",
+ "lib-q-stark-air",
+ "lib-q-stark-field",
+ "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-util",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "lib-q-plonky-multilinear-util"
+version = "0.0.2"
+dependencies = [
+ "itertools 0.14.0",
+ "lib-q-stark-field",
+ "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-rayon",
+ "lib-q-stark-util",
+]
+
+[[package]]
+name = "lib-q-plonky-uni-stark"
+version = "0.0.2"
+dependencies = [
+ "itertools 0.14.0",
+ "lib-q-stark-air",
+ "lib-q-stark-challenger",
+ "lib-q-stark-commit",
+ "lib-q-stark-dft",
+ "lib-q-stark-field",
+ "lib-q-stark-fri",
+ "lib-q-stark-matrix",
+ "lib-q-stark-merkle",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-rayon",
+ "lib-q-stark-shake256",
+ "lib-q-stark-symmetric",
+ "lib-q-stark-util",
+ "serde",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "lib-q-poseidon"
 version = "0.0.2"
 dependencies = [
@@ -1720,6 +1818,7 @@ version = "0.0.2"
 dependencies = [
  "digest 0.11.1",
  "lib-q-core",
+ "lib-q-plonky",
  "lib-q-poseidon",
  "lib-q-random",
  "lib-q-sha3",

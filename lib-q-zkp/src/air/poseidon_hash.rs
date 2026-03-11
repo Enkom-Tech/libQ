@@ -24,12 +24,12 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -128,9 +128,7 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let local = main.current_slice();
 
         // Column layout:
         // [preimage[0..max_preimage_size], state[0..3], output]

@@ -242,21 +242,35 @@ where
             .into_iter()
             .map(|(domain, evals)| {
                 assert_eq!(domain.size(), evals.height());
-                // coset_lde_batch converts from evaluations over `xH` to evaluations over `shift * x * K`.
-                // Hence, letting `shift = g/x` the output will be evaluations over `gK` as desired.
-                // When `x = g`, we could just use the standard LDE but currently this doesn't seem
-                // to give a meaningful performance boost.
                 let shift = Val::GENERATOR / domain.shift();
-                // Compute the LDE with blowup factor fri.log_blowup.
-                // We bit reverse as this is required by our implementation of the FRI protocol.
                 self.dft
                     .coset_lde_batch(evals, self.fri.log_blowup, shift)
                     .bit_reverse_rows()
                     .to_row_major_matrix()
             })
             .collect();
+        self.mmcs.commit(ldes)
+    }
 
-        // Commit to the bit-reversed LDEs.
+    fn get_quotient_ldes(
+        &self,
+        evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val>)>,
+        _num_chunks: usize,
+    ) -> Vec<RowMajorMatrix<Val>> {
+        evaluations
+            .into_iter()
+            .map(|(domain, evals)| {
+                assert_eq!(domain.size(), evals.height());
+                let shift = Val::GENERATOR / domain.shift();
+                self.dft
+                    .coset_lde_batch(evals, self.fri.log_blowup, shift)
+                    .bit_reverse_rows()
+                    .to_row_major_matrix()
+            })
+            .collect()
+    }
+
+    fn commit_ldes(&self, ldes: Vec<RowMajorMatrix<Val>>) -> (Self::Commitment, Self::ProverData) {
         self.mmcs.commit(ldes)
     }
 

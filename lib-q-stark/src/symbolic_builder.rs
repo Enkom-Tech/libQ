@@ -4,12 +4,12 @@ use alloc::vec::Vec;
 use lib_q_stark_air::{
     Air,
     AirBuilder,
-    AirBuilderWithPublicValues,
     ExtensionBuilder,
-    PairBuilder,
     PermutationAirBuilder,
+    WindowAccess,
 };
 use lib_q_stark_field::{
+    Algebra,
     ExtensionField,
     Field,
 };
@@ -20,6 +20,35 @@ use tracing::instrument;
 use crate::Entry;
 use crate::symbolic_expression::SymbolicExpression;
 use crate::symbolic_variable::SymbolicVariable;
+
+/// A two-row matrix wrapper implementing [`WindowAccess`] for symbolic evaluation.
+///
+/// Wraps a `RowMajorMatrix<T>` that is known to have exactly 2 rows, exposing
+/// the first row as `current_slice()` and the second as `next_slice()`.
+#[derive(Debug, Clone)]
+pub struct DenseWindow<T> {
+    pub(crate) inner: RowMajorMatrix<T>,
+}
+
+impl<T> DenseWindow<T> {
+    pub fn new(inner: RowMajorMatrix<T>) -> Self {
+        debug_assert_eq!(
+            inner.values.len(),
+            2 * inner.width,
+            "DenseWindow requires exactly 2 rows"
+        );
+        Self { inner }
+    }
+}
+
+impl<T: Clone + Send + Sync> WindowAccess<T> for DenseWindow<T> {
+    fn current_slice(&self) -> &[T] {
+        &self.inner.values[..self.inner.width]
+    }
+    fn next_slice(&self) -> &[T] {
+        &self.inner.values[self.inner.width..]
+    }
+}
 
 #[instrument(skip_all)]
 pub fn get_log_num_quotient_chunks<F, A>(
@@ -197,12 +226,13 @@ where
 /// An [`AirBuilder`] for evaluating constraints symbolically, and recording them for later use.
 #[derive(Debug)]
 pub struct SymbolicAirBuilder<F: Field, EF: ExtensionField<F> = F> {
-    preprocessed: RowMajorMatrix<SymbolicVariable<F>>,
-    main: RowMajorMatrix<SymbolicVariable<F>>,
+    preprocessed: DenseWindow<SymbolicVariable<F>>,
+    main: DenseWindow<SymbolicVariable<F>>,
     public_values: Vec<SymbolicVariable<F>>,
     base_constraints: Vec<SymbolicExpression<F>>,
-    permutation: RowMajorMatrix<SymbolicVariable<EF>>,
+    permutation: DenseWindow<SymbolicVariable<EF>>,
     permutation_challenges: Vec<SymbolicVariable<EF>>,
+    permutation_values: Vec<SymbolicVariable<EF>>,
     extension_constraints: Vec<SymbolicExpression<EF>>,
 }
 
@@ -237,17 +267,18 @@ impl<F: Field, EF: ExtensionField<F>> SymbolicAirBuilder<F, EF> {
                     .map(move |index| SymbolicVariable::new(Entry::Permutation { offset }, index))
             })
             .collect();
-        let permutation = RowMajorMatrix::new(perm_values, permutation_width);
+        let permutation = DenseWindow::new(RowMajorMatrix::new(perm_values, permutation_width));
         let permutation_challenges = (0..num_permutation_challenges)
             .map(|index| SymbolicVariable::new(Entry::Challenge, index))
             .collect();
         Self {
-            preprocessed: RowMajorMatrix::new(prep_values, preprocessed_width),
-            main: RowMajorMatrix::new(main_values, width),
+            preprocessed: DenseWindow::new(RowMajorMatrix::new(prep_values, preprocessed_width)),
+            main: DenseWindow::new(RowMajorMatrix::new(main_values, width)),
             public_values,
             base_constraints: vec![],
             permutation,
             permutation_challenges,
+            permutation_values: vec![],
             extension_constraints: vec![],
         }
     }
@@ -265,10 +296,20 @@ impl<F: Field, EF: ExtensionField<F>> AirBuilder for SymbolicAirBuilder<F, EF> {
     type F = F;
     type Expr = SymbolicExpression<F>;
     type Var = SymbolicVariable<F>;
-    type M = RowMajorMatrix<Self::Var>;
+    type PreprocessedWindow = DenseWindow<Self::Var>;
+    type MainWindow = DenseWindow<Self::Var>;
+    type PublicVar = SymbolicVariable<F>;
 
-    fn main(&self) -> Self::M {
+    fn main(&self) -> Self::MainWindow {
         self.main.clone()
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        &self.preprocessed
+    }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        &self.public_values
     }
 
     fn is_first_row(&self) -> Self::Expr {
@@ -294,22 +335,9 @@ impl<F: Field, EF: ExtensionField<F>> AirBuilder for SymbolicAirBuilder<F, EF> {
     }
 }
 
-impl<F: Field, EF: ExtensionField<F>> AirBuilderWithPublicValues for SymbolicAirBuilder<F, EF> {
-    type PublicVar = SymbolicVariable<F>;
-    fn public_values(&self) -> &[Self::PublicVar] {
-        &self.public_values
-    }
-}
-
-impl<F: Field, EF: ExtensionField<F>> PairBuilder for SymbolicAirBuilder<F, EF> {
-    fn preprocessed(&self) -> Self::M {
-        self.preprocessed.clone()
-    }
-}
-
 impl<F: Field, EF: ExtensionField<F>> ExtensionBuilder for SymbolicAirBuilder<F, EF>
 where
-    SymbolicExpression<EF>: From<SymbolicExpression<F>>,
+    SymbolicExpression<EF>: From<SymbolicExpression<F>> + Algebra<SymbolicExpression<F>>,
 {
     type EF = EF;
     type ExprEF = SymbolicExpression<EF>;
@@ -325,11 +353,13 @@ where
 
 impl<F: Field, EF: ExtensionField<F>> PermutationAirBuilder for SymbolicAirBuilder<F, EF>
 where
-    SymbolicExpression<EF>: From<SymbolicExpression<F>>,
+    SymbolicExpression<EF>: From<SymbolicExpression<F>> + Algebra<SymbolicExpression<F>>,
 {
-    type MP = RowMajorMatrix<Self::VarEF>;
+    type MP = DenseWindow<Self::VarEF>;
 
     type RandomVar = SymbolicVariable<EF>;
+
+    type PermutationVar = SymbolicVariable<EF>;
 
     fn permutation(&self) -> Self::MP {
         self.permutation.clone()
@@ -337,6 +367,10 @@ where
 
     fn permutation_randomness(&self) -> &[Self::RandomVar] {
         &self.permutation_challenges
+    }
+
+    fn permutation_values(&self) -> &[Self::PermutationVar] {
+        &self.permutation_values
     }
 }
 
@@ -468,7 +502,7 @@ mod tests {
             SymbolicVariable::<Mersenne31>::new(Entry::Main { offset: 1 }, 3),
         ];
 
-        let builder_main = builder.main.values;
+        let builder_main = builder.main.inner.values;
 
         assert_eq!(
             builder_main.len(),

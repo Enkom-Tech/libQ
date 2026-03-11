@@ -28,6 +28,7 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::Field;
 use lib_q_stark_field::integers::QuotientMap;
@@ -134,10 +135,8 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
-        Self::eval_with_offset(builder, &local, 0, self.num_opened_values, self.tree_depth);
+        let local = main.current_slice();
+        Self::eval_with_offset(builder, local, 0, self.num_opened_values, self.tree_depth);
     }
 }
 

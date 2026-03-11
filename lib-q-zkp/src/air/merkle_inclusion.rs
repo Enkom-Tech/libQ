@@ -35,12 +35,12 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -428,9 +428,7 @@ where
         use super::poseidon_gadget::PoseidonGadget;
 
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let local = main.current_slice();
 
         // Column layout:
         // [leaf_hash, level_0_data, level_1_data, ...]

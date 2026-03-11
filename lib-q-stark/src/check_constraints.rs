@@ -1,16 +1,11 @@
 use lib_q_stark_air::{
     Air,
     AirBuilder,
-    AirBuilderWithPublicValues,
-    PairBuilder,
+    RowWindow,
 };
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
-use lib_q_stark_matrix::stack::ViewPair;
+use lib_q_stark_matrix::dense::RowMajorMatrix;
 use tracing::instrument;
 
 /// Runs constraint checks using a given [`Air`] implementation and trace matrix.
@@ -45,30 +40,24 @@ where
         // SAFETY: row_index_next = (row_index + 1) % height, which is always in range [0, height).
         // Since row_index < height, row_index + 1 <= height, and modulo ensures 0 <= row_index_next < height.
         let next = unsafe { main.row_slice_unchecked(row_index_next) };
-        let main = ViewPair::new(
-            RowMajorMatrixView::new_row(&*local),
-            RowMajorMatrixView::new_row(&*next),
-        );
+        let main_window = RowWindow::from_two_rows(&*local, &*next);
 
         let (prep_local, prep_next);
-        let preprocessed_pair = match preprocessed.as_ref() {
+        let preprocessed_window = match preprocessed.as_ref() {
             Some(prep) => {
                 // SAFETY: Same invariants as above - row_index and row_index_next are both in [0, height).
                 // The preprocessed trace has the same height as the main trace, so these indices are valid.
                 prep_local = unsafe { prep.row_slice_unchecked(row_index) };
                 prep_next = unsafe { prep.row_slice_unchecked(row_index_next) };
-                Some(ViewPair::new(
-                    RowMajorMatrixView::new_row(&*prep_local),
-                    RowMajorMatrixView::new_row(&*prep_next),
-                ))
+                RowWindow::from_two_rows(&*prep_local, &*prep_next)
             }
-            None => None,
+            None => RowWindow::from_two_rows(&[], &[]),
         };
 
         let mut builder = DebugConstraintBuilder {
             row_index,
-            main,
-            preprocessed: preprocessed_pair,
+            main: main_window,
+            preprocessed: preprocessed_window,
             public_values,
             is_first_row: F::from_bool(row_index == 0),
             is_last_row: F::from_bool(row_index == height - 1),
@@ -87,10 +76,10 @@ where
 pub struct DebugConstraintBuilder<'a, F: Field> {
     /// The index of the row currently being evaluated.
     row_index: usize,
-    /// A view of the current and next row as a vertical pair.
-    main: ViewPair<'a, F>,
-    /// A view of the preprocessed current and next row as a vertical pair (if present).
-    preprocessed: Option<ViewPair<'a, F>>,
+    /// Two-row window over the main trace.
+    main: RowWindow<'a, F>,
+    /// Two-row window over the preprocessed trace (zero-width if not present).
+    preprocessed: RowWindow<'a, F>,
     /// The public values provided for constraint validation (e.g. inputs or outputs).
     public_values: &'a [F],
     /// A flag indicating whether this is the first row.
@@ -108,10 +97,20 @@ where
     type F = F;
     type Expr = F;
     type Var = F;
-    type M = ViewPair<'a, F>;
+    type PreprocessedWindow = RowWindow<'a, F>;
+    type MainWindow = RowWindow<'a, F>;
+    type PublicVar = F;
 
-    fn main(&self) -> Self::M {
+    fn main(&self) -> Self::MainWindow {
         self.main
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        &self.preprocessed
+    }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.public_values
     }
 
     fn is_first_row(&self) -> Self::Expr {
@@ -152,28 +151,13 @@ where
     }
 }
 
-impl<F: Field> AirBuilderWithPublicValues for DebugConstraintBuilder<'_, F> {
-    type PublicVar = Self::F;
-
-    fn public_values(&self) -> &[Self::F] {
-        self.public_values
-    }
-}
-
-impl<'a, F: Field> PairBuilder for DebugConstraintBuilder<'a, F> {
-    fn preprocessed(&self) -> Self::M {
-        self.preprocessed
-            .expect("DebugConstraintBuilder requires preprocessed columns when used as PairBuilder")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloc::vec;
 
     use lib_q_stark_air::{
         BaseAir,
-        BaseAirWithPublicValues,
+        WindowAccess,
     };
     use lib_q_stark_field::{
         Field,
@@ -198,33 +182,31 @@ mod tests {
         }
     }
 
-    impl<F: Field, const W: usize> BaseAirWithPublicValues<F> for RowLogicAir<W> {}
-
     impl<F: Field, const W: usize> Air<DebugConstraintBuilder<'_, F>> for RowLogicAir<W> {
         fn eval(&self, builder: &mut DebugConstraintBuilder<'_, F>) {
             let main = builder.main();
+            let current = main.current_slice();
+            let next = main.next_slice();
 
             for col in 0..W {
-                let a = main.top.get(0, col).unwrap();
-                let b = main.bottom.get(0, col).unwrap();
+                let a = current[col];
+                let b = next[col];
 
-                // New logic: enforce row[i+1] = row[i] + 1, only on transitions
                 builder.when_transition().assert_eq(b, a + F::ONE);
             }
 
-            // Add public value equality on last row for extra coverage
             let public_values = builder.public_values;
+            let main = builder.main();
+            let current = main.current_slice();
             let mut when_last = builder.when(builder.is_last_row);
             for (i, &pv) in public_values.iter().enumerate().take(W) {
-                when_last.assert_eq(main.top.get(0, i).unwrap(), pv);
+                when_last.assert_eq(current[i], pv);
             }
         }
     }
 
     #[test]
     fn test_incremental_rows_with_last_row_check() {
-        // Each row = previous + 1, with 4 rows total, 2 columns.
-        // Last row must match public values [4, 4]
         let air = RowLogicAir::<2>;
         let values = vec![
             Mersenne31::ONE,
@@ -243,7 +225,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_incorrect_increment_logic() {
-        // Row 2 does not equal row 1 + 1 → should fail on transition from row 1 to 2.
         let air = RowLogicAir::<2>;
         let values = vec![
             Mersenne31::ONE,
@@ -262,7 +243,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_wrong_last_row_public_value() {
-        // The transition logic is fine, but public value check fails at the last row.
         let air = RowLogicAir::<2>;
         let values = vec![
             Mersenne31::ONE,
@@ -275,15 +255,11 @@ mod tests {
             Mersenne31::new(4), // Row 3
         ];
         let main = RowMajorMatrix::new(values, 2);
-        // Wrong public value on column 1
         check_constraints(&air, &main, &[Mersenne31::new(4), Mersenne31::new(5)]);
     }
 
     #[test]
     fn test_single_row_wraparound_logic() {
-        // A single-row matrix still performs a wraparound check with itself.
-        // row[0] == row[0] + 1 ⇒ fails unless handled properly by transition logic.
-        // Here: is_transition == false ⇒ so no assertions are enforced.
         let air = RowLogicAir::<2>;
         let values = vec![
             Mersenne31::new(99),

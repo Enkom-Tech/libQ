@@ -2,15 +2,12 @@ use alloc::vec::Vec;
 
 use lib_q_stark_air::{
     AirBuilder,
-    AirBuilderWithPublicValues,
-    PairBuilder,
+    RowWindow,
 };
 use lib_q_stark_field::{
     BasedVectorSpace,
     PackedField,
 };
-use lib_q_stark_matrix::dense::RowMajorMatrixView;
-use lib_q_stark_matrix::stack::ViewPair;
 
 use crate::{
     PackedChallenge,
@@ -26,10 +23,10 @@ use crate::{
 /// `C_0 + alpha C_1 + alpha^2 C_2 + ...`
 #[derive(Debug)]
 pub struct ProverConstraintFolder<'a, SC: StarkGenericConfig> {
-    /// The [`RowMajorMatrixView`] containing rows on which the constraint polynomial is evaluated.
-    pub main: RowMajorMatrixView<'a, PackedVal<SC>>,
-    /// The preprocessed columns (if any) as a [`RowMajorMatrixView`].
-    pub preprocessed: Option<RowMajorMatrixView<'a, PackedVal<SC>>>,
+    /// Two-row window over the main trace columns.
+    pub main: RowWindow<'a, PackedVal<SC>>,
+    /// Two-row window over the preprocessed columns.
+    pub preprocessed: RowWindow<'a, PackedVal<SC>>,
     /// Public inputs to the [AIR]([`lib_q_stark_air::Air`]) implementation.
     pub public_values: &'a [Val<SC>],
     /// Evaluations of the Selector polynomial for the first row of the trace
@@ -55,10 +52,10 @@ pub struct ProverConstraintFolder<'a, SC: StarkGenericConfig> {
 /// using a more efficient accumulation method for verification.
 #[derive(Debug)]
 pub struct VerifierConstraintFolder<'a, SC: StarkGenericConfig> {
-    /// Pair of consecutive rows from the committed polynomial evaluations as a [`ViewPair`].
-    pub main: ViewPair<'a, SC::Challenge>,
-    /// The preprocessed columns (if any) as a [`ViewPair`].
-    pub preprocessed: Option<ViewPair<'a, SC::Challenge>>,
+    /// Two-row window over the main trace opened values.
+    pub main: RowWindow<'a, SC::Challenge>,
+    /// Two-row window over the preprocessed trace opened values.
+    pub preprocessed: RowWindow<'a, SC::Challenge>,
     /// Public values that are inputs to the computation
     pub public_values: &'a [Val<SC>],
     /// Evaluations of the Selector polynomial for the first row of the trace
@@ -77,11 +74,23 @@ impl<'a, SC: StarkGenericConfig> AirBuilder for ProverConstraintFolder<'a, SC> {
     type F = Val<SC>;
     type Expr = PackedVal<SC>;
     type Var = PackedVal<SC>;
-    type M = RowMajorMatrixView<'a, PackedVal<SC>>;
+    type PreprocessedWindow = RowWindow<'a, PackedVal<SC>>;
+    type MainWindow = RowWindow<'a, PackedVal<SC>>;
+    type PublicVar = Val<SC>;
 
     #[inline]
-    fn main(&self) -> Self::M {
+    fn main(&self) -> Self::MainWindow {
         self.main
+    }
+
+    #[inline]
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        &self.preprocessed
+    }
+
+    #[inline]
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.public_values
     }
 
     #[inline]
@@ -126,31 +135,24 @@ impl<'a, SC: StarkGenericConfig> AirBuilder for ProverConstraintFolder<'a, SC> {
     }
 }
 
-impl<SC: StarkGenericConfig> AirBuilderWithPublicValues for ProverConstraintFolder<'_, SC> {
-    type PublicVar = Self::F;
-
-    #[inline]
-    fn public_values(&self) -> &[Self::F] {
-        self.public_values
-    }
-}
-
-impl<'a, SC: StarkGenericConfig> PairBuilder for ProverConstraintFolder<'a, SC> {
-    #[inline]
-    fn preprocessed(&self) -> Self::M {
-        self.preprocessed
-            .expect("Air does not provide preprocessed columns, hence can not be consumed")
-    }
-}
-
 impl<'a, SC: StarkGenericConfig> AirBuilder for VerifierConstraintFolder<'a, SC> {
     type F = Val<SC>;
     type Expr = SC::Challenge;
     type Var = SC::Challenge;
-    type M = ViewPair<'a, SC::Challenge>;
+    type PreprocessedWindow = RowWindow<'a, SC::Challenge>;
+    type MainWindow = RowWindow<'a, SC::Challenge>;
+    type PublicVar = Val<SC>;
 
-    fn main(&self) -> Self::M {
+    fn main(&self) -> Self::MainWindow {
         self.main
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        &self.preprocessed
+    }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.public_values
     }
 
     fn is_first_row(&self) -> Self::Expr {
@@ -176,20 +178,5 @@ impl<'a, SC: StarkGenericConfig> AirBuilder for VerifierConstraintFolder<'a, SC>
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
         self.accumulator *= self.alpha;
         self.accumulator += x.into();
-    }
-}
-
-impl<SC: StarkGenericConfig> AirBuilderWithPublicValues for VerifierConstraintFolder<'_, SC> {
-    type PublicVar = Self::F;
-
-    fn public_values(&self) -> &[Self::F] {
-        self.public_values
-    }
-}
-
-impl<'a, SC: StarkGenericConfig> PairBuilder for VerifierConstraintFolder<'a, SC> {
-    fn preprocessed(&self) -> Self::M {
-        self.preprocessed
-            .expect("Air does not provide preprocessed columns, hence can not be consumed")
     }
 }

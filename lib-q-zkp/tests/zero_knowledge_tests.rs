@@ -153,15 +153,15 @@ fn test_statistical_zk_no_repeated_commitments_100_proofs() {
 #[test]
 fn test_zk_proof_bytes_do_not_contain_raw_witness_value() {
     let air = ArithmeticAir::new(1).unwrap();
-    let dead_beef = 0xDEADBEEFu32;
-    let (trace, pv) = make_arithmetic_trace_and_pv(dead_beef, 1);
+    let sentinel = 0x5EAD_BEEFu32;
+    let (trace, pv) = make_arithmetic_trace_and_pv(sentinel, 1);
 
     let proof = StarkProver::new(zk_config()).prove(&air, trace, &pv);
     let bytes = postcard::to_allocvec(&proof).unwrap();
 
-    let pattern = dead_beef.to_le_bytes();
+    let pattern = sentinel.to_le_bytes();
     assert!(
         !bytes.windows(4).any(|w| w == pattern),
-        "serialized proof must not contain raw witness value 0xDEADBEEF"
+        "serialized proof must not contain raw witness value 0x5EADBEEF"
     );
 }

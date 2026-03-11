@@ -85,19 +85,38 @@ where
         quotient_evaluations: RowMajorMatrix<Val<Self::Domain>>,
         num_chunks: usize,
     ) -> (Self::Commitment, Self::ProverData) {
-        // Given the evaluation vector of `Q_i(x)` over a domain, split it into evaluation vectors
-        // of `q_{i0}(x), ...` over subdomains and commit to these `q`'s.
-        // TODO: Currently, split_evals involves copying the data to a new matrix.
-        //       We may be able to avoid this copy making use of bit-reversals.
         let quotient_sub_evaluations =
             quotient_domain.split_evals(num_chunks, quotient_evaluations);
         let quotient_sub_domains = quotient_domain.split_domains(num_chunks);
-
-        self.commit(
+        let ldes = self.get_quotient_ldes(
             quotient_sub_domains
                 .into_iter()
                 .zip(quotient_sub_evaluations),
-        )
+            num_chunks,
+        );
+        self.commit_ldes(ldes)
+    }
+
+    /// When committing to quotient polynomials in batch-STARK, it is simpler to first compute
+    /// the LDE evaluations before batch-committing. When `zk` is enabled, this may add randomization.
+    fn get_quotient_ldes(
+        &self,
+        evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val<Self::Domain>>)>,
+        num_chunks: usize,
+    ) -> Vec<RowMajorMatrix<Val<Self::Domain>>>;
+
+    /// Commits to a collection of LDE evaluation matrices.
+    fn commit_ldes(
+        &self,
+        ldes: Vec<RowMajorMatrix<Val<Self::Domain>>>,
+    ) -> (Self::Commitment, Self::ProverData);
+
+    /// Same as `commit`; used when the committed data is preprocessing (e.g. fixed trace).
+    fn commit_preprocessing(
+        &self,
+        evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val<Self::Domain>>)>,
+    ) -> (Self::Commitment, Self::ProverData) {
+        self.commit(evaluations)
     }
 
     /// Given prover data corresponding to a commitment to a collection of evaluation matrices,
@@ -111,6 +130,16 @@ where
         idx: usize,
         domain: Self::Domain,
     ) -> Self::EvaluationsOnDomain<'a>;
+
+    /// Like `get_evaluations_on_domain` but without applying ZK randomization (e.g. for quotient domain).
+    fn get_evaluations_on_domain_no_random<'a>(
+        &self,
+        prover_data: &'a Self::ProverData,
+        idx: usize,
+        domain: Self::Domain,
+    ) -> Self::EvaluationsOnDomain<'a> {
+        self.get_evaluations_on_domain(prover_data, idx, domain)
+    }
 
     /// Open a collection of polynomial commitments at a set of points. Produce the values at those points along with a proof
     /// of correctness.
@@ -144,6 +173,17 @@ where
         )>,
         fiat_shamir_challenger: &mut Challenger,
     ) -> (OpenedValues<Challenge>, Self::Proof);
+
+    /// Like `open` but allows the implementation to treat some rounds as preprocessing (e.g. for ZK).
+    #[allow(clippy::type_complexity)]
+    fn open_with_preprocessing(
+        &self,
+        rounds: Vec<(&Self::ProverData, Vec<Vec<Challenge>>)>,
+        challenger: &mut Challenger,
+        _is_preprocessing: bool,
+    ) -> (OpenedValues<Challenge>, Self::Proof) {
+        self.open(rounds, challenger)
+    }
 
     /// Verify that a collection of opened values is correct.
     ///
@@ -180,7 +220,7 @@ where
 
     fn get_opt_randomization_poly_commitment(
         &self,
-        _domain: Self::Domain,
+        _domains: impl IntoIterator<Item = Self::Domain>,
     ) -> Option<(Self::Commitment, Self::ProverData)> {
         None
     }

@@ -1,0 +1,47 @@
+[package]
+name = "lib-q-plonky-keccak-air"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Keccak permutation AIR constraints for lib-Q ZK proofs"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords = ["cryptography", "post-quantum", "zkp", "lib-q"]
+categories = ["cryptography"]
+
+[lib]
+name = "lib_q_plonky_keccak_air"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
+
+[dependencies]
+lib-q-stark-air = { path = "../lib-q-stark-air" }
+lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+lib-q-stark-util = { path = "../lib-q-stark-util" }
+lib-q-keccak = { path = "../lib-q-keccak" }
+itertools = { workspace = true }
+
+[dev-dependencies]
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []

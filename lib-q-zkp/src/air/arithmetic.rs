@@ -29,9 +29,9 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::Field;
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::{
@@ -133,9 +133,7 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let local = main.current_slice();
 
         // Enforce a * b = c for each triplet
         for i in 0..self.num_operations {
@@ -203,6 +201,7 @@ mod tests {
 
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

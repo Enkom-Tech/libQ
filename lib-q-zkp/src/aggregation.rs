@@ -126,7 +126,7 @@ impl Default for AggregationConfig {
     fn default() -> Self {
         Self {
             merkle_tree_depth: 8,
-            log_final_poly_len: 4,
+            log_final_poly_len: 0, // must match poseidon_config/default_config FRI parameters
             num_fri_queries: 100,
             fri_log_blowup: 2,
             fri_proof_of_work_bits: 16,
@@ -742,7 +742,7 @@ mod tests {
     fn test_aggregation_config_default() {
         let config = AggregationConfig::default();
         assert_eq!(config.merkle_tree_depth, 8);
-        assert_eq!(config.log_final_poly_len, 4);
+        assert_eq!(config.log_final_poly_len, 0);
         assert_eq!(config.num_fri_queries, 100);
         assert_eq!(config.fri_log_blowup, 2);
         assert_eq!(config.fri_proof_of_work_bits, 16);

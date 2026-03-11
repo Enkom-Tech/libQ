@@ -9,31 +9,20 @@ use lib_q_stark::{
 use lib_q_stark_air::{
     Air,
     AirBuilder,
-    AirBuilderWithPublicValues,
     BaseAir,
-    PairBuilder,
+    WindowAccess,
 };
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
+    ComplexFieldChallenger,
     Shake256Challenger32,
 };
 use lib_q_stark_commit::ExtensionMmcs;
+use lib_q_stark_field::Field;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeField32,
-};
 use lib_q_stark_fri::{
     TwoAdicFriPcs,
     create_test_fri_params,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_mersenne31::{
@@ -44,7 +33,6 @@ use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
-    Hash,
     SerializingHasher,
 };
 
@@ -82,31 +70,32 @@ impl<F: Field> BaseAir<F> for MulFibPAir {
     }
 }
 
-impl<AB: AirBuilderWithPublicValues + PairBuilder> Air<AB> for MulFibPAir
+impl<AB: AirBuilder> Air<AB> for MulFibPAir
 where
     AB::F: Field,
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
+        let local: &MulFibPairRow<AB::Var> = main.current_slice().borrow();
+        let next: &MulFibPairRow<AB::Var> = main.next_slice().borrow();
+
         let preprocessed = builder.preprocessed();
+        let prep: &PreprocessedRow<AB::Var> = preprocessed.current_slice().borrow();
 
-        let local_slice = main.row_slice(0).expect("Matrix is empty?");
-        let next_slice = main.row_slice(1).expect("Matrix only has 1 row?");
-        let prep_slice = preprocessed.row_slice(0).expect("Preprocessed is empty?");
-
-        let local: &MulFibPairRow<AB::Var> = (*local_slice).borrow();
-        let next: &MulFibPairRow<AB::Var> = (*next_slice).borrow();
-        let prep: &PreprocessedRow<AB::Var> = (*prep_slice).borrow();
+        let local_a = local.a.clone();
+        let local_b = local.b.clone();
+        let next_a = next.a.clone();
+        let next_b = next.b.clone();
+        let prod_coeff = prep.prod_coeff.clone();
+        let sum_coeff = prep.sum_coeff.clone();
 
         let mut when_transition = builder.when_transition();
 
-        // a' <- b
-        when_transition.assert_eq(local.b.clone(), next.a.clone());
+        when_transition.assert_eq(local_b.clone(), next_a);
 
-        // b' <- prod_coeff * a * b + sum_coeff * (a + b)
-        let prod_term = prep.prod_coeff.clone() * local.a.clone() * local.b.clone();
-        let sum_term = prep.sum_coeff.clone() * (local.a.clone() + local.b.clone());
-        when_transition.assert_eq(prod_term + sum_term, next.b.clone());
+        let prod_term = prod_coeff * local_a.clone() * local_b.clone();
+        let sum_term = sum_coeff * (local_a + local_b);
+        when_transition.assert_eq(prod_term + sum_term, next_b);
     }
 }
 
@@ -202,124 +191,6 @@ impl<F> Borrow<PreprocessedRow<F>> for [F] {
         debug_assert!(suffix.is_empty(), "Alignment should match");
         debug_assert_eq!(shorts.len(), 1);
         &shorts[0]
-    }
-}
-
-/// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>
-#[derive(Clone)]
-struct ComplexFieldChallenger<BaseChallenger> {
-    base: BaseChallenger,
-}
-
-impl<BaseChallenger> ComplexFieldChallenger<BaseChallenger> {
-    fn new(base: BaseChallenger) -> Self {
-        Self { base }
-    }
-}
-
-impl<BaseChallenger> CanObserve<Complex<Mersenne31>> for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, value: Complex<Mersenne31>) {
-        self.base.observe_algebra_element(value);
-    }
-
-    fn observe_slice(&mut self, values: &[Complex<Mersenne31>])
-    where
-        Complex<Mersenne31>: Clone,
-    {
-        for value in values {
-            self.observe(*value);
-        }
-    }
-}
-
-impl<BaseChallenger> CanSample<Complex<Mersenne31>> for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
-{
-    fn sample(&mut self) -> Complex<Mersenne31> {
-        self.base.sample_algebra_element()
-    }
-
-    fn sample_array<const N: usize>(&mut self) -> [Complex<Mersenne31>; N] {
-        core::array::from_fn(|_| self.sample())
-    }
-
-    fn sample_vec(&mut self, n: usize) -> Vec<Complex<Mersenne31>> {
-        (0..n).map(|_| self.sample()).collect()
-    }
-}
-
-impl<BaseChallenger> CanSampleBits<usize> for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31>,
-{
-    fn sample_bits(&mut self, bits: usize) -> usize {
-        self.base.sample_bits(bits)
-    }
-}
-
-impl<BaseChallenger> FieldChallenger<Complex<Mersenne31>> for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: FieldChallenger<Mersenne31> + Clone + Send + Sync,
-    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
-{
-}
-
-impl<BaseChallenger> GrindingChallenger for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: GrindingChallenger<Witness = Mersenne31>
-        + FieldChallenger<Mersenne31>
-        + Clone
-        + Send
-        + Sync,
-{
-    type Witness = Complex<Mersenne31>;
-
-    fn grind(&mut self, bits: usize) -> Self::Witness {
-        assert!(bits < (usize::BITS as usize));
-        assert!((1 << bits) < Mersenne31::ORDER_U32 as usize);
-
-        let witness = (0..Mersenne31::ORDER_U32)
-            .into_par_iter()
-            .map(|i| {
-                let base = Mersenne31::from_int(i);
-                Complex::<Mersenne31>::from(base)
-            })
-            .find_any(|witness| self.clone().check_witness(bits, *witness))
-            .expect("failed to find witness");
-
-        assert!(self.check_witness(bits, witness));
-        witness
-    }
-
-    fn check_witness(&mut self, bits: usize, witness: Self::Witness) -> bool {
-        self.observe(witness);
-        self.sample_bits(bits) == 0
-    }
-}
-
-impl<BaseChallenger, F, const DIGEST_ELEMS: usize> CanObserve<Hash<F, u8, DIGEST_ELEMS>>
-    for ComplexFieldChallenger<BaseChallenger>
-where
-    BaseChallenger: CanObserve<Hash<Mersenne31, u8, DIGEST_ELEMS>>,
-{
-    fn observe(&mut self, value: Hash<F, u8, DIGEST_ELEMS>) {
-        let array: [u8; DIGEST_ELEMS] = value.into();
-        let mersenne_hash = Hash::<Mersenne31, u8, DIGEST_ELEMS>::from(array);
-        self.base.observe(mersenne_hash);
-    }
-
-    fn observe_slice(&mut self, values: &[Hash<F, u8, DIGEST_ELEMS>])
-    where
-        Hash<F, u8, DIGEST_ELEMS>: Clone,
-    {
-        for value in values {
-            self.observe(value.clone());
-        }
     }
 }
 

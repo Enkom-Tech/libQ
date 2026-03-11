@@ -1,7 +1,7 @@
 //! Helpers for reusing an [`AirBuilder`] on a restricted set of trace columns.
 //!
 //! The uni-STARK builders often need to enforce constraints that refer to only a slice of the main
-//! trace. [`HorizontallyTruncated`] offers a cheap view over a subset of columns, and
+//! trace. [`SubSliced`] offers a cheap view over a subset of columns, and
 //! [`SubAirBuilder`] wires that view into any [`AirBuilder`] implementation so a sub-air can be
 //! evaluated independently without cloning trace data.
 
@@ -13,8 +13,31 @@ use core::ops::Range;
 use lib_q_stark_air::{
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
-use lib_q_stark_matrix::horizontally_truncated::HorizontallyTruncated;
+
+/// A window wrapper that restricts access to a contiguous column range.
+#[derive(Debug, Clone)]
+pub struct SubSliced<W> {
+    inner: W,
+    range: Range<usize>,
+}
+
+impl<W> SubSliced<W> {
+    /// Create a new sub-sliced window over the given column range.
+    pub fn new(inner: W, range: Range<usize>) -> Self {
+        Self { inner, range }
+    }
+}
+
+impl<T, W: WindowAccess<T>> WindowAccess<T> for SubSliced<W> {
+    fn current_slice(&self) -> &[T] {
+        &self.inner.current_slice()[self.range.clone()]
+    }
+    fn next_slice(&self) -> &[T] {
+        &self.inner.next_slice()[self.range.clone()]
+    }
+}
 
 /// Evaluates a sub-AIR against a restricted slice of the parent trace.
 ///
@@ -51,13 +74,20 @@ impl<AB: AirBuilder, SubAir: BaseAir<AB::F>, F> AirBuilder for SubAirBuilder<'_,
     type F = AB::F;
     type Expr = AB::Expr;
     type Var = AB::Var;
-    type M = HorizontallyTruncated<Self::Var, AB::M>;
+    type PreprocessedWindow = AB::PreprocessedWindow;
+    type MainWindow = SubSliced<AB::MainWindow>;
+    type PublicVar = AB::PublicVar;
 
-    fn main(&self) -> Self::M {
-        let matrix = self.inner.main();
+    fn main(&self) -> Self::MainWindow {
+        SubSliced::new(self.inner.main(), self.column_range.clone())
+    }
 
-        HorizontallyTruncated::new_with_range(matrix, self.column_range.clone())
-            .expect("sub-air column range exceeds parent width")
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        self.inner.preprocessed()
+    }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.inner.public_values()
     }
 
     fn is_first_row(&self) -> Self::Expr {

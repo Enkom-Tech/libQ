@@ -35,13 +35,13 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -157,8 +157,8 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main.row_slice(0).expect("at least one row");
-        let next_opt = main.row_slice(1);
+        let local = main.current_slice();
+        let next = main.next_slice();
 
         let w = row_width();
         let state_in_0 = local[0].clone().into();
@@ -171,7 +171,6 @@ where
         let state_out_1 = local[w - 2].clone().into();
         let state_out_2 = local[w - 1].clone().into();
 
-        // First row: state_in = (input_0, input_1, 0)
         {
             let mut b = builder.when_first_row();
             b.assert_zero(state_in_0.clone() - input_0.clone());
@@ -179,8 +178,7 @@ where
             b.assert_zero(state_in_2);
         }
 
-        // Transition: next.state_in = (local.state_out_0, local.state_out_1 + next.input_0, local.state_out_2 + next.input_1)
-        if let Some(next) = next_opt {
+        {
             let next_state_in_0 = next[0].clone().into();
             let next_state_in_1 = next[1].clone().into();
             let next_state_in_2 = next[2].clone().into();
@@ -404,6 +402,7 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKe
 mod tests {
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

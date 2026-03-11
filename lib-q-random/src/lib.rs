@@ -262,9 +262,9 @@ pub fn new_secure_rng() -> Result<LibQRng> {
     LibQRng::new_secure()
 }
 
-/// Create a new secure RNG instance for no_std environments
+/// Create a new secure RNG instance for `no_std` environments
 ///
-/// This function creates a cryptographically secure RNG that works in no_std
+/// This function creates a cryptographically secure RNG that works in `no_std`
 /// environments using getrandom for entropy.
 ///
 /// # Errors
@@ -311,10 +311,10 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
     LibQRng::new_deterministic(seed)
 }
 
-/// Create a new deterministic RNG instance for no_std environments
+/// Create a new deterministic RNG instance for `no_std` environments
 ///
 /// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations in no_std environments. **NOT CRYPTOGRAPHICALLY SECURE**.
+/// reproducible operations in `no_std` environments. **NOT CRYPTOGRAPHICALLY SECURE**.
 ///
 /// # Arguments
 ///

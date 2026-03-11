@@ -31,15 +31,14 @@ use lib_q_poseidon::{
 use lib_q_stark_air::{
     Air,
     AirBuilder,
-    AirBuilderWithPublicValues,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -152,14 +151,14 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> BaseAir<F> for IdentityProofAir {
     }
 }
 
-impl<AB: AirBuilder + AirBuilderWithPublicValues> Air<AB> for IdentityProofAir
+impl<AB: AirBuilder> Air<AB> for IdentityProofAir
 where
     AB::F: Field + BasedVectorSpace<Mersenne31>,
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main.row_slice(0).expect("at least one row");
-        let next_opt = main.row_slice(1);
+        let local = main.current_slice();
+        let next = main.next_slice();
 
         let w = row_width();
         let state_in_0 = local[0].clone().into();
@@ -190,7 +189,7 @@ where
 
         // Transition: rate (positions 0, 1) absorbs input; capacity (2, 3, 4) passes through.
         // On the padding row, state_in = state_out_prev + 10*1 in rate only: (1, 1, 0, 0, 0) for rate=2.
-        if let Some(next) = next_opt {
+        {
             let next_state_in_0 = next[0].clone().into();
             let next_state_in_1 = next[1].clone().into();
             let next_state_in_2 = next[2].clone().into();
@@ -410,6 +409,7 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, IdentityP
 mod tests {
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

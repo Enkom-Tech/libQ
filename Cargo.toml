@@ -44,6 +44,12 @@ members = [
     "lib-q-stark-shake128",
     "lib-q-stark-sha3-256",
     "lib-q-poseidon",
+    "lib-q-plonky-multilinear-util",
+    "lib-q-plonky-keccak-air",
+    "lib-q-plonky-lookup",
+    "lib-q-plonky-uni-stark",
+    "lib-q-plonky-batch-stark",
+    "lib-q-plonky",
     "examples"
 ]
 

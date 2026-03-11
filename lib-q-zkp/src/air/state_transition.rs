@@ -28,6 +28,7 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::{
@@ -35,7 +36,6 @@ use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -157,7 +157,7 @@ where
         use lib_q_stark_field::PrimeCharacteristicRing;
 
         let main = builder.main();
-        let local = main.row_slice(0).expect("Matrix is empty?");
+        let local = main.current_slice();
 
         // 1. Constrain pre-state hash columns == known pre_state_hash bytes
         for (i, &byte) in self.pre_state_hash.iter().enumerate() {

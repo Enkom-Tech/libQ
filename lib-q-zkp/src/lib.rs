@@ -56,6 +56,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 pub use lib_q_core::Result;
+/// Plonky3-derived components (Keccak AIR, lookup, batch STARK, etc.); optional via `plonky` feature.
+#[cfg(feature = "plonky")]
+pub use lib_q_plonky as plonky;
 
 /// zk-STARK implementation
 #[cfg(feature = "zkp")]

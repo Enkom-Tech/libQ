@@ -11,9 +11,9 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::Field;
-use lib_q_stark_matrix::Matrix;
 
 /// A wire in the circuit, representing a field element
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -266,7 +266,17 @@ impl<F: Field> CircuitAir<F> {
             }
         }
 
-        Ok(RowMajorMatrix::new(trace_values, width))
+        // Pad to at least MIN_TRACE_ROWS so FRI has sufficient two-adic height (degree >= 1)
+        const MIN_TRACE_ROWS: usize = 64;
+        if MIN_TRACE_ROWS > 1 {
+            let mut padded = trace_values.clone();
+            for _ in 1..MIN_TRACE_ROWS {
+                padded.extend_from_slice(&trace_values);
+            }
+            Ok(RowMajorMatrix::new(padded, width))
+        } else {
+            Ok(RowMajorMatrix::new(trace_values, width))
+        }
     }
 }
 
@@ -294,9 +304,7 @@ impl<F: Field> BaseAir<F> for CircuitAir<F> {
 impl<F: Field, AB: AirBuilder<F = F>> Air<AB> for CircuitAir<F> {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let row = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let row = main.current_slice();
 
         // Evaluate each constraint in the circuit
         for constraint in &self.circuit.constraints {

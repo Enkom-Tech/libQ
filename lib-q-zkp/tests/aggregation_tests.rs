@@ -101,10 +101,10 @@ fn test_verify_batch_rejects_invalid_second_proof() {
     assert!(result.is_err());
 }
 
-/// Fails with InvalidProofShape in derive_query_positions; proof shape vs verifier expectation mismatch to fix separately.
+/// Fiat-Shamir transcript fixed; still fails at check_constraints (constraint eval mismatch in recursive verification).
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "derive_query_positions InvalidProofShape with poseidon_config"]
+#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_single_proof_verifies() {
     let config = poseidon_config();
     let air = ArithmeticAir::new(1).unwrap();
@@ -123,7 +123,7 @@ fn test_aggregate_single_proof_verifies() {
 
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "derive_query_positions InvalidProofShape with poseidon_config"]
+#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_three_proofs_all_pass() {
     let config = poseidon_config();
     let air = ArithmeticAir::new(1).unwrap();
@@ -177,7 +177,7 @@ fn test_aggregate_rejects_invalid_second_proof() {
 
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "derive_query_positions InvalidProofShape with poseidon_config"]
+#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_merkle_root_covers_all_proofs() {
     use lib_q_sha3::Shake256;
     use lib_q_sha3::digest::{

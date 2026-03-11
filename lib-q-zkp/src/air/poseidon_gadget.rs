@@ -30,12 +30,14 @@ use lib_q_poseidon::{
     PoseidonField,
     PoseidonParams,
 };
-use lib_q_stark_air::AirBuilder;
+use lib_q_stark_air::{
+    AirBuilder,
+    WindowAccess,
+};
 use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::{
@@ -128,9 +130,7 @@ impl PoseidonGadget {
         AB::F: Field + BasedVectorSpace<Mersenne31>,
     {
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let local = main.current_slice();
 
         let full_rounds = self.params.full_rounds;
         let partial_rounds = self.params.partial_rounds;

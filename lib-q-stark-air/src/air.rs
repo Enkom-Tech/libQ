@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::ops::{
     Add,
     Mul,
@@ -10,21 +11,138 @@ use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
 };
-use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::RowMajorMatrix;
+use lib_q_stark_matrix::dense::{
+    RowMajorMatrix,
+    RowMajorMatrixView,
+};
+
+/// Read access to a pair of trace rows (typically current and next).
+///
+/// Implementors expose two flat slices that constraint evaluators use
+/// to express algebraic relations between rows.
+pub trait WindowAccess<T> {
+    fn current_slice(&self) -> &[T];
+    fn next_slice(&self) -> &[T];
+
+    #[inline]
+    fn current(&self, i: usize) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.current_slice().get(i).cloned()
+    }
+
+    #[inline]
+    fn next(&self, i: usize) -> Option<T>
+    where
+        T: Clone,
+    {
+        self.next_slice().get(i).cloned()
+    }
+}
+
+/// A lightweight two-row window into a trace matrix.
+///
+/// Stores two `&[T]` slices -- one for the current row and one for
+/// the next -- without carrying any matrix metadata.
+#[derive(Debug, Clone, Copy)]
+pub struct RowWindow<'a, T> {
+    current: &'a [T],
+    next: &'a [T],
+}
+
+impl<'a, T> RowWindow<'a, T> {
+    /// Create a window from a [`RowMajorMatrixView`] that has exactly
+    /// two rows.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the view does not contain exactly `2 * width` elements.
+    #[inline]
+    pub fn from_view(view: &RowMajorMatrixView<'a, T>) -> Self {
+        let width = view.width;
+        assert_eq!(
+            view.values.len(),
+            2 * width,
+            "RowWindow::from_view: expected 2 rows (2*{width} elements), got {}",
+            view.values.len()
+        );
+        let (current, next) = view.values.split_at(width);
+        Self { current, next }
+    }
+
+    /// Create a window from two separate row slices.
+    ///
+    /// # Panics
+    ///
+    /// Panics (in debug builds) if the slices have different lengths.
+    #[inline]
+    pub fn from_two_rows(current: &'a [T], next: &'a [T]) -> Self {
+        debug_assert_eq!(
+            current.len(),
+            next.len(),
+            "RowWindow::from_two_rows: row lengths differ ({} vs {})",
+            current.len(),
+            next.len()
+        );
+        Self { current, next }
+    }
+}
+
+impl<T> WindowAccess<T> for RowWindow<'_, T> {
+    #[inline]
+    fn current_slice(&self) -> &[T] {
+        self.current
+    }
+
+    #[inline]
+    fn next_slice(&self) -> &[T] {
+        self.next
+    }
+}
 
 /// The underlying structure of an AIR.
 pub trait BaseAir<F>: Sync {
     /// The number of columns (a.k.a. registers) in this AIR.
     fn width(&self) -> usize;
+
     /// Return an optional preprocessed trace matrix to be included in the prover's trace.
     fn preprocessed_trace(&self) -> Option<RowMajorMatrix<F>> {
         None
     }
-}
 
-/// An extension of `BaseAir` that includes support for public values.
-pub trait BaseAirWithPublicValues<F>: BaseAir<F> {
+    /// Which main trace columns have their next row accessed by this AIR's
+    /// constraints.
+    ///
+    /// By default returns every column index, requiring opening all main
+    /// columns at both `zeta` and `zeta_next`. Override to return an empty
+    /// vector for single-row AIRs or a subset for partial next-row access.
+    ///
+    /// Must be consistent with [`Air::eval`]. Omitting a column the AIR
+    /// reads will cause verification failures or soundness gaps.
+    fn main_next_row_columns(&self) -> Vec<usize> {
+        (0..self.width()).collect()
+    }
+
+    /// Which preprocessed trace columns have their next row accessed.
+    fn preprocessed_next_row_columns(&self) -> Vec<usize> {
+        self.preprocessed_trace()
+            .map(|t| (0..t.width).collect())
+            .unwrap_or_default()
+    }
+
+    /// Optional hint for the number of constraints, letting the prover skip
+    /// symbolic evaluation. Must exactly match the actual count.
+    fn num_constraints(&self) -> Option<usize> {
+        None
+    }
+
+    /// Optional upper bound on constraint degree multiple, letting both
+    /// prover and verifier skip symbolic degree inference.
+    fn max_constraint_degree(&self) -> Option<usize> {
+        None
+    }
+
     /// Return the number of expected public values.
     fn num_public_values(&self) -> usize {
         0
@@ -34,40 +152,26 @@ pub trait BaseAirWithPublicValues<F>: BaseAir<F> {
 /// An algebraic intermediate representation (AIR) definition.
 ///
 /// Contains an evaluation function for computing the constraints of the AIR.
-/// This function can be applied to an evaluation trace in which case each
-/// constraint will compute a particular value or it can be applied symbolically
-/// with each constraint computing a symbolic expression.
+/// This function can be applied to a concrete evaluation trace or symbolically.
 pub trait Air<AB: AirBuilder>: BaseAir<AB::F> {
-    /// Evaluate all AIR constraints using the provided builder.
-    ///
-    /// The builder provides both the trace on which the constraints
-    /// are evaluated on as well as the method of accumulating the
-    /// constraint evaluations.
-    ///
-    /// # Arguments
-    /// - `builder`: Mutable reference to an `AirBuilder` for defining constraints.
     fn eval(&self, builder: &mut AB);
 }
 
-/// A builder which contains both a trace on which AIR constraints can be evaluated as well as a method of accumulating the AIR constraint evaluations.
+/// A builder providing both a trace on which AIR constraints can be evaluated
+/// and a method of accumulating constraint evaluations.
 ///
-/// Supports both symbolic cases where the constraints are treated as polynomials and collected into a vector
-/// as well cases where the constraints are evaluated on an evaluation trace and combined using randomness.
+/// Supports symbolic evaluation (constraints as polynomials) and concrete
+/// evaluation (constraints combined using randomness).
 pub trait AirBuilder: Sized {
     /// Underlying field type.
-    ///
-    /// This should usually implement `Field` but there are a few edge cases (mostly involving `PackedFields`) where
-    /// it may only implement `PrimeCharacteristicRing`.
     type F: PrimeCharacteristicRing + Sync;
 
-    /// Serves as the output type for an AIR constraint evaluation.
+    /// Output type for an AIR constraint evaluation.
     type Expr: Algebra<Self::F> + Algebra<Self::Var>;
 
-    /// The type of the variable appearing in the trace matrix.
-    ///
-    /// Serves as the input type for an AIR constraint evaluation.
+    /// Variable type appearing in the trace matrix.
     type Var: Into<Self::Expr>
-        + Clone
+        + Copy
         + Send
         + Sync
         + Add<Self::F, Output = Self::Expr>
@@ -80,24 +184,33 @@ pub trait AirBuilder: Sized {
         + Mul<Self::Var, Output = Self::Expr>
         + Mul<Self::Expr, Output = Self::Expr>;
 
-    /// Matrix type holding variables.
-    type M: Matrix<Self::Var>;
+    /// Two-row window over the preprocessed trace columns.
+    type PreprocessedWindow: WindowAccess<Self::Var> + Clone;
 
-    /// Return the matrix representing the main (primary) trace registers.
-    fn main(&self) -> Self::M;
+    /// Two-row window over the main trace columns.
+    type MainWindow: WindowAccess<Self::Var> + Clone;
 
-    /// Expression evaluating to 1 on the first row, 0 elsewhere.
+    /// Variable type for public values.
+    type PublicVar: Into<Self::Expr> + Copy;
+
+    /// Return the current and next row slices of the main trace.
+    fn main(&self) -> Self::MainWindow;
+
+    /// Return the preprocessed registers as a two-row window.
+    fn preprocessed(&self) -> &Self::PreprocessedWindow;
+
+    /// Expression evaluating to a non-zero value only on the first row.
     fn is_first_row(&self) -> Self::Expr;
 
-    /// Expression evaluating to 1 on the last row, 0 elsewhere.
+    /// Expression evaluating to a non-zero value only on the last row.
     fn is_last_row(&self) -> Self::Expr;
 
-    /// Expression evaluating to 1 on all transition rows (not last row), 0 on last row.
+    /// Expression evaluating to zero only on the last row.
     fn is_transition(&self) -> Self::Expr {
         self.is_transition_window(2)
     }
 
-    /// Expression evaluating to 1 on rows except the last `size - 1` rows, 0 otherwise.
+    /// Expression evaluating to zero only on the last `size - 1` rows.
     fn is_transition_window(&self, size: usize) -> Self::Expr;
 
     /// Returns a sub-builder whose constraints are enforced only when `condition` is nonzero.
@@ -127,25 +240,20 @@ pub trait AirBuilder: Sized {
         self.when(self.is_last_row())
     }
 
-    /// Returns a sub-builder whose constraints are enforced on all rows except the last.
+    /// Returns a sub-builder whose constraints are enforced on all transition rows.
     fn when_transition(&mut self) -> FilteredAirBuilder<'_, Self> {
         self.when(self.is_transition())
     }
 
-    /// Returns a sub-builder whose constraints are enforced on all rows except the last `size - 1`.
+    /// Like [`when_transition`](Self::when_transition), but requires a window of `size` rows.
     fn when_transition_window(&mut self, size: usize) -> FilteredAirBuilder<'_, Self> {
         self.when(self.is_transition_window(size))
     }
 
     /// Assert that the given element is zero.
-    ///
-    /// Where possible, batching multiple assert_zero calls
-    /// into a single assert_zeros call will improve performance.
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I);
 
     /// Assert that every element of a given array is 0.
-    ///
-    /// This should be preferred over calling `assert_zero` multiple times.
     fn assert_zeros<const N: usize, I: Into<Self::Expr>>(&mut self, array: [I; N]) {
         for elem in array {
             self.assert_zero(elem);
@@ -158,38 +266,37 @@ pub trait AirBuilder: Sized {
         self.assert_zeros(zero_array);
     }
 
-    /// Assert that `x` element is equal to `1`.
+    /// Assert that `x` is equal to `1`.
     fn assert_one<I: Into<Self::Expr>>(&mut self, x: I) {
         self.assert_zero(x.into() - Self::Expr::ONE);
     }
 
-    /// Assert that the given elements are equal.
+    /// Assert that two expressions are equal.
     fn assert_eq<I1: Into<Self::Expr>, I2: Into<Self::Expr>>(&mut self, x: I1, y: I2) {
         self.assert_zero(x.into() - y.into());
     }
 
+    /// Public input values available during constraint evaluation.
+    fn public_values(&self) -> &[Self::PublicVar] {
+        &[]
+    }
+
     /// Assert that `x` is a boolean, i.e. either `0` or `1`.
-    ///
-    /// Where possible, batching multiple assert_bool calls
-    /// into a single assert_bools call will improve performance.
     fn assert_bool<I: Into<Self::Expr>>(&mut self, x: I) {
         self.assert_zero(x.into().bool_check());
     }
 }
 
-/// Extension trait for `AirBuilder` providing access to public values.
-pub trait AirBuilderWithPublicValues: AirBuilder {
-    /// Type representing a public variable.
-    type PublicVar: Into<Self::Expr> + Copy;
-
-    /// Return the list of public variables.
-    fn public_values(&self) -> &[Self::PublicVar];
+/// Extension of [`AirBuilder`] for builders that supply periodic column values.
+pub trait PeriodicAirBuilder: AirBuilder {
+    type PeriodicVar: Into<Self::Expr> + Copy;
+    fn periodic_values(&self) -> &[Self::PeriodicVar];
 }
 
-/// Trait for `AirBuilder` variants that include preprocessed data columns.
-pub trait PairBuilder: AirBuilder {
-    /// Return a matrix of preprocessed registers.
-    fn preprocessed(&self) -> Self::M;
+/// Extension trait for builders that carry additional runtime context.
+pub trait AirBuilderWithContext: AirBuilder {
+    type EvalContext;
+    fn eval_context(&self) -> &Self::EvalContext;
 }
 
 /// Extension of `AirBuilder` for working over extension fields.
@@ -198,7 +305,7 @@ pub trait ExtensionBuilder: AirBuilder<F: Field> {
     type EF: ExtensionField<Self::F>;
 
     /// Expression type over extension field elements.
-    type ExprEF: From<Self::Expr> + Algebra<Self::EF>;
+    type ExprEF: Algebra<Self::Expr> + Algebra<Self::EF>;
 
     /// Variable type over extension field elements.
     type VarEF: Into<Self::ExprEF> + Copy + Send + Sync;
@@ -228,32 +335,30 @@ pub trait ExtensionBuilder: AirBuilder<F: Field> {
 
 /// Trait for builders supporting permutation arguments (e.g., for lookup constraints).
 pub trait PermutationAirBuilder: ExtensionBuilder {
-    /// Matrix type over extension field variables representing a permutation.
-    type MP: Matrix<Self::VarEF>;
+    /// Two-row window over the permutation trace columns.
+    type MP: WindowAccess<Self::VarEF>;
 
     /// Randomness variable type used in permutation commitments.
     type RandomVar: Into<Self::ExprEF> + Copy;
 
-    /// Return the matrix representing permutation registers.
+    /// Value type for expected cumulated values used in global lookup arguments.
+    type PermutationVar: Into<Self::ExprEF> + Clone;
+
+    /// Return the current and next row slices of the permutation trace.
     fn permutation(&self) -> Self::MP;
 
-    /// Return the list of randomness values for permutation argument.
+    /// Return the list of randomness values for the permutation argument.
     fn permutation_randomness(&self) -> &[Self::RandomVar];
+
+    /// Return the expected cumulated values for global lookup arguments.
+    fn permutation_values(&self) -> &[Self::PermutationVar];
 }
 
-/// A wrapper around an [`AirBuilder`] that enforces constraints only when a specified condition is met.
-///
-/// This struct allows selectively applying constraints to certain rows or under certain conditions in the AIR,
-/// without modifying the underlying logic. All constraints asserted through this filtered builder will be
-/// multiplied by the given `condition`, effectively disabling them when `condition` evaluates to zero.
+/// A wrapper around an [`AirBuilder`] that enforces constraints only when a
+/// specified condition is met.
 #[derive(Debug)]
 pub struct FilteredAirBuilder<'a, AB: AirBuilder> {
-    /// Reference to the underlying inner [`AirBuilder`] where constraints are ultimately recorded.
     pub inner: &'a mut AB,
-
-    /// Condition expression that controls when the constraints are enforced.
-    ///
-    /// If `condition` evaluates to zero, constraints asserted through this builder have no effect.
     condition: AB::Expr,
 }
 
@@ -267,10 +372,16 @@ impl<AB: AirBuilder> AirBuilder for FilteredAirBuilder<'_, AB> {
     type F = AB::F;
     type Expr = AB::Expr;
     type Var = AB::Var;
-    type M = AB::M;
+    type PreprocessedWindow = AB::PreprocessedWindow;
+    type MainWindow = AB::MainWindow;
+    type PublicVar = AB::PublicVar;
 
-    fn main(&self) -> Self::M {
+    fn main(&self) -> Self::MainWindow {
         self.inner.main()
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        self.inner.preprocessed()
     }
 
     fn is_first_row(&self) -> Self::Expr {
@@ -281,6 +392,10 @@ impl<AB: AirBuilder> AirBuilder for FilteredAirBuilder<'_, AB> {
         self.inner.is_last_row()
     }
 
+    fn is_transition(&self) -> Self::Expr {
+        self.inner.is_transition()
+    }
+
     fn is_transition_window(&self, size: usize) -> Self::Expr {
         self.inner.is_transition_window(size)
     }
@@ -288,11 +403,17 @@ impl<AB: AirBuilder> AirBuilder for FilteredAirBuilder<'_, AB> {
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
         self.inner.assert_zero(self.condition() * x.into());
     }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.inner.public_values()
+    }
 }
 
-impl<AB: PairBuilder> PairBuilder for FilteredAirBuilder<'_, AB> {
-    fn preprocessed(&self) -> Self::M {
-        self.inner.preprocessed()
+impl<AB: PeriodicAirBuilder> PeriodicAirBuilder for FilteredAirBuilder<'_, AB> {
+    type PeriodicVar = AB::PeriodicVar;
+
+    fn periodic_values(&self) -> &[Self::PeriodicVar] {
+        self.inner.periodic_values()
     }
 }
 
@@ -305,17 +426,16 @@ impl<AB: ExtensionBuilder> ExtensionBuilder for FilteredAirBuilder<'_, AB> {
     where
         I: Into<Self::ExprEF>,
     {
-        let ext_x = x.into();
-        let condition: Self::ExprEF = self.condition().into();
-
+        let ext_x: Self::ExprEF = x.into();
+        let condition: AB::Expr = self.condition();
         self.inner.assert_zero_ext(ext_x * condition);
     }
 }
 
 impl<AB: PermutationAirBuilder> PermutationAirBuilder for FilteredAirBuilder<'_, AB> {
     type MP = AB::MP;
-
     type RandomVar = AB::RandomVar;
+    type PermutationVar = AB::PermutationVar;
 
     fn permutation(&self) -> Self::MP {
         self.inner.permutation()
@@ -323,5 +443,17 @@ impl<AB: PermutationAirBuilder> PermutationAirBuilder for FilteredAirBuilder<'_,
 
     fn permutation_randomness(&self) -> &[Self::RandomVar] {
         self.inner.permutation_randomness()
+    }
+
+    fn permutation_values(&self) -> &[Self::PermutationVar] {
+        self.inner.permutation_values()
+    }
+}
+
+impl<AB: AirBuilderWithContext> AirBuilderWithContext for FilteredAirBuilder<'_, AB> {
+    type EvalContext = AB::EvalContext;
+
+    fn eval_context(&self) -> &Self::EvalContext {
+        self.inner.eval_context()
     }
 }

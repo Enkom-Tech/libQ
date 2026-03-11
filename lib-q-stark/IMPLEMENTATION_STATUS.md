@@ -3,8 +3,8 @@
 ## Summary
 
 ✅ **Core Infrastructure**: Successfully integrated and adapted Plonky3 STARK implementation
-⚠️ **Integration Tests**: Temporarily disabled due to field selection constraints
-🔧 **Field Testing**: Requires `lib-q-stark-field-testing` crate integration
+✅ **Integration Tests**: Enabled; all tests use `Complex<Mersenne31>` as base field (TWO_ADICITY = 32)
+🔧 **Field Testing**: `lib-q-stark-field-testing` provides macros; additional macro invocations can be added in `lib-q-stark-mersenne31`
 
 ## What Was Achieved
 
@@ -17,74 +17,42 @@
 - **SHAKE256 adapter**: Created `lib-q-stark-shake256` wrapping `lib-q-sha3::Shake256`
 - **KeccakF permutation**: Implemented as `CryptographicPermutation` using `lib-q-keccak::f1600`
 - **Hash-based challengers**: Created `Shake256Challenger32` and `Shake256Challenger64` type aliases
+- **Test hashing**: Tests use `SerializingHasher<Shake256Hash>` and `ComplexFieldChallenger` for Fiat–Shamir consistency
 
 ### 3. Field Arithmetic ✅
 - **Mersenne31**: Correctly implemented `TwoAdicField` with `TWO_ADICITY = 1`
 - **Complex extension**: `Complex<Mersenne31>` provides `TWO_ADICITY = 32` for FRI
 - **Extension fields**: Proper binomial extension support for degree 2 and degree 3
 
-### 4. Code Quality ✅
+### 4. Test Suite ✅
+- All integration tests migrated to `Complex<Mersenne31>` as `Val` type
+- No tests are disabled with `#[ignore]`
+- Tests cover: fib_air, mul_air (two-adic deg 2–5, ZK), mul_fib_pair (preprocessed), rc_sub_builder, DoS protection, transcript integrity, soundness, zeroization
+
+### 5. Code Quality ✅
 - **No clippy warnings** in core libraries
 - **No std support** maintained throughout
 - **Proper documentation** for mathematical constraints
 
 ## Current Limitations
 
-### 1. Field Selection for Tests ⚠️
+### 1. Field Testing Macros 🔧
 
-**Issue**: Mersenne31 has `TWO_ADICITY = 1`, which is mathematically correct but insufficient for FRI protocol internals.
+- `lib-q-stark-field-testing` is present and provides `test_field!`, `test_prime_field!`, `test_two_adic_field!`, etc.
+- `lib-q-stark-mersenne31` could add more macro invocations (e.g. `test_prime_field!`, `test_prime_field_32!`, `test_two_adic_field!` for base Mersenne31) for broader coverage.
 
-**Why TWO_ADICITY = 1 is correct**:
-- Mersenne31 prime: p = 2^31 - 1
-- Multiplicative group order: p - 1 = 2^31 - 2 = 2 × (2^30 - 1)
-- Since 2^30 - 1 is odd, the highest power of 2 dividing (p-1) is 2^1
-- Therefore, `TWO_ADICITY = 1` is the mathematical fact, not a design choice
-
-**Why FRI requires high two-adicity**:
-- Creating multiplicative cosets: `TwoAdicMultiplicativeCoset::new(log_n, shift)` requires `log_n ≤ TWO_ADICITY`
-- FFT/NTT operations: Need 2^n-th roots of unity for efficient polynomial operations
-- Typical requirement: TWO_ADICITY ≥ 16-32 for practical STARK systems
-
-**Solution**: Use `Complex<Mersenne31>` as the base field (`Val` type):
-- `Complex<Mersenne31>` has `TWO_ADICITY = 32`
-- This is the same approach used by original Plonky3
-- Requires updating test infrastructure to work with extension fields
-
-### 2. Test Status ⚠️
-
-**Integration tests disabled**:
-```rust
-#[test]
-#[ignore = "Mersenne31 TWO_ADICITY=1 insufficient for FRI. Requires Complex<Mersenne31> as base field."]
-fn test_one_row_trace() { ... }
-
-#[test]
-#[ignore = "Mersenne31 TWO_ADICITY=1 insufficient for FRI. Requires Complex<Mersenne31> as base field."]
-fn test_public_value() { ... }
-
-#[test]
-#[ignore = "Mersenne31 TWO_ADICITY=1 insufficient for FRI. Requires Complex<Mersenne31> as base field."]
-fn test_zk() { ... }
-```
-
-**Field tests commented out**:
-- `lib-q-stark-field-testing` crate not yet integrated from Plonky3
-- All `test_field!()`, `test_extension_field!()`, `test_packed_field!()` macros disabled
-- Core field arithmetic still works correctly
-
-### 3. Missing Components 🔧
+### 2. Missing Components 🔧
 
 **Not yet integrated from Plonky3**:
-- `lib-q-stark-field-testing`: Field testing utilities and macros
-- `lib-q-stark-keccak-air`: Keccak AIR for testing
-- `lib-q-stark-uni-stark`: Univariate STARK variant
+- `lib-q-stark-keccak-air`: Keccak AIR for testing (optional)
+- `lib-q-stark-uni-stark`: Univariate STARK variant (optional; lib-q-plonky-uni-stark exists separately)
 
 **Intentionally not integrated**:
 - Non-NIST hash functions (Poseidon2, Blake3, SHA-256, Rescue, Monolith)
 - Non-NIST fields (BabyBear, KoalaBear, Goldilocks, BN254)
 - Circle STARKs (different approach, future consideration)
-- Batch STARKs (optimization, not yet needed)
-- Lookup arguments (advanced feature)
+- Batch STARKs in core lib-q-stark (optimization; lib-q-plonky-batch-stark exists separately)
+- Lookup arguments (advanced feature; lib-q-plonky-lookup exists)
 
 ## Security Analysis
 
@@ -103,40 +71,20 @@ fn test_zk() { ... }
 3. **Test Permutations**:
    - `TestPermutation` clearly marked as non-cryptographic and test-only
    - Only used under `#[cfg(test)]`
-   - Production code uses SHAKE256
+   - Production code and test prove/verify paths use SHAKE256-based hashing
 
 4. **Constant-Time Operations**:
    - SHAKE256 from `lib-q-sha3` is constant-time
    - Field arithmetic operations are constant-time
    - No timing-dependent code paths
 
-## Next Steps
+## Next Steps (Optional)
 
-### Phase 1: Enable STARK Tests (High Priority)
+### Phase 1: Field Testing (Medium Priority)
 
-1. **Update test infrastructure to use `Complex<Mersenne31>` as base field**:
-   - Change `type Val = Mersenne31` to `type Val = Complex<Mersenne31>`
-   - Update `generate_trace_rows` to work with extension fields
-   - Update all permutations and hash functions for Complex field types
+1. Add `test_prime_field!`, `test_prime_field_32!`, `test_two_adic_field!` invocations for `Mersenne31` in `lib-q-stark-mersenne31` where applicable.
 
-2. **Alternative**: Use different field with high two-adicity:
-   - Evaluate NIST compliance of alternative prime fields
-   - Example: Find p where p-1 has high two-adicity
-   - Less preferred: Extension fields are standard practice
-
-### Phase 2: Integrate Field Testing (Medium Priority)
-
-1. **Copy `lib-q-stark-field-testing` from Plonky3**:
-   - Test utilities and macros
-   - Update imports and naming
-   - Re-enable all field tests
-
-2. **Verify correctness**:
-   - Run comprehensive field tests
-   - Verify packed field operations
-   - Verify extension field arithmetic
-
-### Phase 3: Production Readiness (Future)
+### Phase 2: Production Readiness (Future)
 
 1. **Performance optimization**:
    - Benchmark SHAKE256 vs alternatives
@@ -145,8 +93,8 @@ fn test_zk() { ... }
 
 2. **Additional features**:
    - Circle STARKs support
-   - Batch proving
-   - Lookup arguments
+   - Batch proving in core (or rely on lib-q-plonky-batch-stark)
+   - Lookup arguments (or rely on lib-q-plonky-lookup)
 
 3. **Documentation**:
    - API documentation
@@ -171,10 +119,10 @@ fn test_zk() { ... }
 - `lib-q-stark-mersenne31/src/test_permutation.rs`: Test-only permutation
 
 ### Tests
-- `lib-q-stark/tests/fib_air.rs`: Tests disabled with explanations
-- `lib-q-stark/tests/mul_air.rs`: Requires field updates
-- `lib-q-stark/tests/mul_fib_pair.rs`: Requires field updates
-- `lib-q-stark/tests/rc_sub_builder.rs`: Requires field updates
+- `lib-q-stark/tests/fib_air.rs`: Uses `Complex<Mersenne31>`, SHAKE256, `ComplexFieldChallenger`
+- `lib-q-stark/tests/mul_air.rs`: Two-adic FRI with `Complex<Mersenne31>`
+- `lib-q-stark/tests/mul_fib_pair.rs`: Preprocessed columns with `Complex<Mersenne31>`
+- `lib-q-stark/tests/rc_sub_builder.rs`: Range-check AIR with `Complex<Mersenne31>`
 - `lib-q-stark/tests/README.md`: Test status documentation
 
 ## Conclusion
@@ -182,8 +130,7 @@ fn test_zk() { ... }
 ✅ **Solid foundation**: Core STARK infrastructure successfully integrated
 ✅ **NIST compliant**: All cryptographic primitives meet `lib-Q` requirements
 ✅ **No security regression**: Architectural decisions are mathematically sound
-⚠️ **Tests temporarily disabled**: Waiting for field selection finalization
-🔧 **Next step**: Enable tests with `Complex<Mersenne31>` as base field
+✅ **Tests enabled**: All integration tests use `Complex<Mersenne31>` and run without `#[ignore]`
+🔧 **Optional**: Add more field test macro invocations and export `ComplexFieldChallenger` from a shared crate to reduce duplication
 
-**The implementation is architecturally sound and follows cryptographic best practices. Test re-enabling is a matter of updating field types, not fundamental design.**
-
+**The implementation is architecturally sound and follows cryptographic best practices.**

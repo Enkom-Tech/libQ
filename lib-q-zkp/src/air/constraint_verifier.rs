@@ -30,10 +30,10 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_field::Field;
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::recursive_types::MAX_QUOTIENT_CHUNKS;
@@ -169,12 +169,10 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main
-            .row_slice(0)
-            .expect("Matrix should have at least one row");
+        let local = main.current_slice();
         Self::eval_with_offset(
             builder,
-            &local,
+            local,
             0,
             self.num_quotient_chunks,
             self.trace_width,

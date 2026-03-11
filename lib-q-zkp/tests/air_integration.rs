@@ -244,6 +244,76 @@ fn test_circuit_air_trace_generation() {
     assert!(trace.is_ok());
 }
 
+#[test]
+fn test_circuit_air_e2e_prove_verify() {
+    use lib_q_zkp::{
+        ZkpField,
+        ZkpProver,
+        ZkpVerifier,
+    };
+
+    // Build circuit: prove knowledge of a, b such that a * b = public_output
+    let mut builder = CircuitBuilder::<ZkpField>::new(2, 1);
+    let a = builder.wire(0);
+    let b = builder.wire(1);
+    let output = builder.wire(2);
+    let product = builder.mul(a, b);
+    builder.assert_eq(product, output);
+    let circuit = builder.build();
+
+    let witness = vec![
+        ZkpField::from(Mersenne31::new(3)),
+        ZkpField::from(Mersenne31::new(4)),
+    ];
+    let public = vec![ZkpField::from(Mersenne31::new(12))];
+
+    let mut prover = ZkpProver::new();
+    let proof = prover
+        .prove_computation(&circuit, &witness, &public)
+        .expect("prove_computation should succeed");
+
+    let verifier = ZkpVerifier::new();
+    let result = verifier
+        .verify_computation(&proof, &circuit, &public)
+        .expect("verify_computation should not error");
+    assert!(result, "Valid circuit proof should verify");
+}
+
+#[test]
+fn test_circuit_air_soundness_wrong_public_fails() {
+    use lib_q_zkp::{
+        ZkpField,
+        ZkpProver,
+        ZkpVerifier,
+    };
+
+    let mut builder = CircuitBuilder::<ZkpField>::new(2, 1);
+    let a = builder.wire(0);
+    let b = builder.wire(1);
+    let output = builder.wire(2);
+    let product = builder.mul(a, b);
+    builder.assert_eq(product, output);
+    let circuit = builder.build();
+
+    let witness = vec![
+        ZkpField::from(Mersenne31::new(3)),
+        ZkpField::from(Mersenne31::new(4)),
+    ];
+    let public_correct = vec![ZkpField::from(Mersenne31::new(12))];
+    let public_wrong = vec![ZkpField::from(Mersenne31::new(99))];
+
+    let mut prover = ZkpProver::new();
+    let proof = prover
+        .prove_computation(&circuit, &witness, &public_correct)
+        .expect("prove should succeed");
+
+    let verifier = ZkpVerifier::new();
+    let result = verifier
+        .verify_computation(&proof, &circuit, &public_wrong)
+        .expect("verify_computation should not error");
+    assert!(!result, "Verification with wrong public value should fail");
+}
+
 // ============================================================================
 // Poseidon Hash AIR Tests
 // ============================================================================

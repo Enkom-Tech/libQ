@@ -11,6 +11,7 @@ readme.workspace = true
 
 [dependencies]
 lib-q-stark-field = { path = "../lib-q-stark-field" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
 lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
 lib-q-stark-shake256 = { path = "../lib-q-stark-shake256" }
 lib-q-stark-shake128 = { path = "../lib-q-stark-shake128" }

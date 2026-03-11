@@ -13,36 +13,28 @@ use lib_q_stark_air::{
     Air,
     AirBuilder,
     BaseAir,
+    WindowAccess,
 };
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
+    ComplexFieldChallenger,
     Shake256Challenger32,
 };
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::{
-    BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
-    PrimeField32,
 };
 use lib_q_stark_fri::{
     TwoAdicFriPcs,
     create_test_fri_params,
 };
-use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
-use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -52,107 +44,6 @@ use lib_q_stark_symmetric::{
 
 type ValF = Complex<Mersenne31>;
 type Challenge = ValF;
-
-#[derive(Clone)]
-struct ComplexFieldChallenger<BaseChallenger> {
-    base: BaseChallenger,
-}
-
-impl<B> ComplexFieldChallenger<B> {
-    fn new(base: B) -> Self {
-        Self { base }
-    }
-}
-
-impl<B> CanObserve<Complex<Mersenne31>> for ComplexFieldChallenger<B>
-where
-    B: FieldChallenger<Mersenne31>,
-{
-    fn observe(&mut self, value: Complex<Mersenne31>) {
-        self.base.observe_algebra_element(value);
-    }
-
-    fn observe_slice(&mut self, values: &[Complex<Mersenne31>]) {
-        for v in values {
-            self.observe(*v);
-        }
-    }
-}
-
-impl<B> CanSample<Complex<Mersenne31>> for ComplexFieldChallenger<B>
-where
-    B: FieldChallenger<Mersenne31>,
-    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
-{
-    fn sample(&mut self) -> Complex<Mersenne31> {
-        self.base.sample_algebra_element()
-    }
-
-    fn sample_array<const N: usize>(&mut self) -> [Complex<Mersenne31>; N] {
-        core::array::from_fn(|_| self.sample())
-    }
-
-    fn sample_vec(&mut self, n: usize) -> Vec<Complex<Mersenne31>> {
-        (0..n).map(|_| self.sample()).collect()
-    }
-}
-
-impl<B> CanSampleBits<usize> for ComplexFieldChallenger<B>
-where
-    B: FieldChallenger<Mersenne31>,
-{
-    fn sample_bits(&mut self, bits: usize) -> usize {
-        self.base.sample_bits(bits)
-    }
-}
-
-impl<B> FieldChallenger<Complex<Mersenne31>> for ComplexFieldChallenger<B>
-where
-    B: FieldChallenger<Mersenne31> + Clone + Send + Sync,
-    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
-{
-}
-
-impl<B> GrindingChallenger for ComplexFieldChallenger<B>
-where
-    B: GrindingChallenger<Witness = Mersenne31> + FieldChallenger<Mersenne31> + Clone + Send + Sync,
-{
-    type Witness = Complex<Mersenne31>;
-
-    fn grind(&mut self, bits: usize) -> Self::Witness {
-        assert!(bits < (usize::BITS as usize));
-        assert!((1 << bits) < Mersenne31::ORDER_U32 as usize);
-        let witness = (0..Mersenne31::ORDER_U32)
-            .into_par_iter()
-            .map(|i| Complex::<Mersenne31>::from(Mersenne31::from_int(i)))
-            .find_any(|witness| self.clone().check_witness(bits, *witness))
-            .expect("failed to find witness");
-        assert!(self.check_witness(bits, witness));
-        witness
-    }
-
-    fn check_witness(&mut self, bits: usize, witness: Self::Witness) -> bool {
-        self.observe(witness);
-        self.sample_bits(bits) == 0
-    }
-}
-
-impl<B, F, const N: usize> CanObserve<Hash<F, u8, N>> for ComplexFieldChallenger<B>
-where
-    B: CanObserve<Hash<Mersenne31, u8, N>>,
-    Hash<F, u8, N>: Clone,
-{
-    fn observe(&mut self, value: Hash<F, u8, N>) {
-        let arr: [u8; N] = value.into();
-        self.base.observe(Hash::from(arr));
-    }
-
-    fn observe_slice(&mut self, values: &[Hash<F, u8, N>]) {
-        for v in values {
-            self.observe(v.clone());
-        }
-    }
-}
 
 /// Simple multiplication AIR: one row constraint a * b = c per "op".
 /// Width = 3 * num_ops. No boundary/transition for minimal soundness tests.
@@ -179,7 +70,7 @@ where
 {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let local = main.row_slice(0).expect("at least one row");
+        let local = main.current_slice();
         for i in 0..self.num_ops {
             let a = local[i * 3].clone();
             let b = local[i * 3 + 1].clone();
