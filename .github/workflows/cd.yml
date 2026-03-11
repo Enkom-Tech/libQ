@@ -44,7 +44,7 @@ jobs:
       - name: Validate version consistency
         run: |
           VERSION=${{ steps.extract-version.outputs.version }}
-          CARGO_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+          CARGO_VERSION=$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
           if [ "$VERSION" != "$CARGO_VERSION" ]; then
             echo "❌ Version mismatch: tag $VERSION != Cargo.toml $CARGO_VERSION"
             exit 1

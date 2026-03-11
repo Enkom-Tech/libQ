@@ -10,7 +10,7 @@ authors.workspace = true
 license.workspace = true
 readme.workspace = true
 edition.workspace = true
-rust-version = "1.92.0"
+rust-version.workspace = true
 documentation = "https://docs.rs/lib-q-sha3"
 repository.workspace = true
 keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]
@@ -23,9 +23,14 @@ lib-q-keccak = { path = "../lib-q-keccak" }
 
 [dev-dependencies]
 digest = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
 blobby = { version = "0.4.0", features = ["alloc"] }
 hex-literal = "1.1.0"
 base16ct = { version = "1.0.0", features = ["alloc"] }
+
+[[bench]]
+name = "sha3_benchmarks"
+harness = false
 
 [features]
 default = ["alloc", "oid"]

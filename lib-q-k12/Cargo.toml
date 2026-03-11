@@ -6,7 +6,7 @@ authors.workspace = true
 license.workspace = true
 readme.workspace = true
 edition.workspace = true
-rust-version = "1.92.0"
+rust-version.workspace = true
 documentation = "https://docs.rs/lib-q-k12"
 repository.workspace = true
 keywords = ["crypto", "hash", "digest", "lib-q"]
@@ -17,12 +17,17 @@ digest = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
 
 [dev-dependencies]
-digest = { workspace = true, features = ["alloc", "dev"] }
-hex-literal = "1.0.0"
+digest = { workspace = true, features = ["alloc"] }
+criterion = { workspace = true, features = ["html_reports"] }
+hex-literal = "1.1.0"
 lib-q-random = { path = "../lib-q-random", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hex = { workspace = true }
+
+[[bench]]
+name = "k12_benchmarks"
+harness = false
 
 [features]
 default = ["alloc"]

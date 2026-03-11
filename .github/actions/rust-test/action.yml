@@ -50,8 +50,21 @@ runs:
         restore-keys: |
           ${{ runner.os }}-rust-
     
-    - name: Install cargo-tarpaulin (if coverage enabled)
+    - name: Set coverage skip flag
+      id: coverage-skip
       if: inputs.run-coverage == 'true'
+      shell: bash
+      run: |
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Install cargo-tarpaulin (if coverage enabled)
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
       shell: bash
       run: cargo install cargo-tarpaulin
     
@@ -127,7 +140,7 @@ runs:
         echo "Release tests completed"
     
     - name: Generate coverage report
-      if: inputs.run-coverage == 'true' && inputs.features != 'no_std*'
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
       shell: bash
       run: |
         echo "Generating coverage report..."
@@ -173,7 +186,7 @@ runs:
         echo "Coverage report generated"
 
     - name: Check coverage threshold
-      if: inputs.run-coverage == 'true' && inputs.features != 'no_std*'
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
       shell: bash
       run: |
         echo "Checking coverage threshold..."

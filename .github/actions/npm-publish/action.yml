@@ -88,8 +88,8 @@ runs:
         cd ${{ inputs.working-directory }}
         
         if [ -z "$NODE_AUTH_TOKEN" ]; then
-          echo "Warning: NPM token not set, skipping NPM publication"
-          exit 0
+          echo "::error::NODE_AUTH_TOKEN is empty. NPM publish requires a valid token (e.g. secrets.NPM_TOKEN)."
+          exit 1
         fi
         
         if [ "${{ inputs.dry-run }}" = "true" ]; then
