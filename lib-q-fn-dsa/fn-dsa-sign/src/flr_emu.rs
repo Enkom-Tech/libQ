@@ -8,13 +8,13 @@
 // Floating-point operations: emulated
 // ========================================================================
 
-// This file implements the FLR type for IEEE-754:2008 operations, with
+// This file implements the Flr type for IEEE-754:2008 operations, with
 // the requirements listed in flr.rs (in particular, there is no support
 // for denormals, infinites or NaNs). The implementation uses only integer
 // operations and strives to be constant-time.
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct FLR(u64);
+pub(crate) struct Flr(u64);
 
 // lzcnt_nz(x) returns the number of leading zeros in the value x, assuming
 // that it is non-zero.
@@ -161,7 +161,7 @@ const M63: u64 = 0x7FFFFFFFFFFFFFFF;
 // Convenient constant for a 52-bit mask.
 const M52: u64 = 0x000FFFFFFFFFFFFF;
 
-impl FLR {
+impl Flr {
     // IMPLEMENTATION NOTES
     // ====================
     //
@@ -231,7 +231,7 @@ impl FLR {
     pub(crate) const NZERO: Self = Self(1u64 << 63);
     pub(crate) const ONE: Self = Self::from_i64(1);
 
-    // Convert a signed 64-bit integer to an FLR value.
+    // Convert a signed 64-bit integer to an Flr value.
     // Source value j must be in [-(2^63-1),+(2^63-1)] (i.e. -2^63 is
     // not allowed).
     #[inline(always)]
@@ -239,7 +239,7 @@ impl FLR {
         Self::scaled(j, 0)
     }
 
-    // Convert a signed 32-bit integer to an FLR value.
+    // Convert a signed 32-bit integer to an Flr value.
     // The complete 32-bit range is allowed, and the conversion is always
     // exact (the original integer can be recovered exactly).
     #[inline(always)]
@@ -334,10 +334,10 @@ impl FLR {
     // Divide all values in the provided slice with 2^e, for e in the
     // 1 to 9 range (inclusive). The value of e is not considered secret.
     // This is a helper function used in the implementation of the FFT
-    // and included in the FLR API because different implementations might
+    // and included in the Flr API because different implementations might
     // do it very differently.
     #[allow(dead_code)]
-    pub(crate) fn slice_div2e(f: &mut [FLR], e: u32) {
+    pub(crate) fn slice_div2e(f: &mut [Flr], e: u32) {
         // In the emulated implementation, division by 2^e is done by
         // subtracting e from the exponent; we must just take care not to
         // do that with zero. If the exponent subtraction overflows, then

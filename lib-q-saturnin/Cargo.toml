@@ -38,6 +38,9 @@ assembly = []
 # Security features
 zeroize = ["dep:zeroize"]
 
+# WASM: enable getrandom/wasm_js so lib-q-core (and getrandom) compile for wasm32-unknown-unknown
+wasm = ["lib-q-core/wasm_getrandom"]
+
 [lib]
 name = "lib_q_saturnin"
 path = "src/lib.rs"
@@ -71,4 +74,5 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
     'cfg(eurydice)',
     'cfg(doc_cfg)',
+    'cfg(target_arch, values("wasm32"))',
 ] }

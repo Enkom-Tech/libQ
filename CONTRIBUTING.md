@@ -33,8 +33,10 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 
 ## Development Setup
 
+For full development workflow, CI/CD pipeline, and troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ### Prerequisites
-- Rust 1.70+ (latest stable recommended)
+- Rust 1.94+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - `wasm-pack` for WASM compilation
 - `cargo-audit` for security audits
 - `cargo-tarpaulin` for code coverage
@@ -46,7 +48,7 @@ cargo install wasm-pack cargo-audit cargo-tarpaulin
 
 # Clone and setup
 git clone https://github.com/Enkom-Tech/libQ.git
-cd lib-q
+cd libQ
 cargo build
 ```
 
@@ -76,7 +78,7 @@ Warnings are treated as errors via `.cargo/config.toml` (`-D warnings`), so the 
 ### Testing Requirements
 - **100% code coverage** for cryptographic functions
 - Property-based testing with `proptest`
-- Fuzzing tests for all public APIs
+- Property-based or fuzz-style tests for public APIs (continuous fuzzing e.g. `cargo fuzz` encouraged where applicable)
 - Constant-time verification tests
 - WASM compatibility tests
 
@@ -130,22 +132,21 @@ mod tests {
 - Test WASM compilation
 - Test performance characteristics
 
-### Fuzzing Tests
+### Property-based / fuzz-style tests
+Use `proptest` or `arbitrary` to exercise public APIs with generated inputs. Continuous fuzzing (e.g. `cargo fuzz`) is encouraged where applicable.
+
 ```rust
 #[cfg(test)]
-mod fuzz {
+mod tests {
     use super::*;
-    use arbitrary::Arbitrary;
+    use proptest::prelude::*;
 
-    #[derive(Arbitrary)]
-    struct FuzzInput {
-        data: Vec<u8>,
-        key: Vec<u8>,
-    }
-
-    #[test]
-    fn fuzz_encryption(input: FuzzInput) {
-        // Fuzzing test
+    proptest! {
+        #[test]
+        fn roundtrip_encryption(input in prop::collection::vec(any::<u8>(), 0..MAX_SIZE)) {
+            let result = encrypt(&input, &[0u8; 32]).unwrap();
+            assert_eq!(decrypt(&result, &[0u8; 32]).unwrap(), input);
+        }
     }
 }
 ```
@@ -183,7 +184,7 @@ wasm-pack test --headless --chrome
 
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Commit** your changes: `git commit -m 'Add amazing feature'`
+3. **Commit** your changes with a signed-off commit: `git commit -s -m 'Add amazing feature'`
 4. **Push** to the branch: `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
@@ -220,7 +221,7 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ## Getting Help
 
-- **Security issues**: Email security@lib-q.org (private)
+- **Security issues**: Email github@enkom.dev (private)
 - **General questions**: Open an issue on GitHub
 - **Development questions**: Join our Discord/Matrix
 - **AI-Generated Wiki**: [https://deepwiki.com/Enkom-Tech/libQ](https://deepwiki.com/Enkom-Tech/libQ)

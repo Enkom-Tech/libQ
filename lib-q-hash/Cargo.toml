@@ -44,7 +44,7 @@ wasm_js = [] # WASM support without getrandom dependency
 [lib]
 name = "lib_q_hash"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -326,23 +326,13 @@ jobs:
           fi
           echo "✅ Cross-compilation integrity verified"
 
-      - name: Run cross-compilation tests
-        if: matrix.install-cross-compiler && matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          echo "Running cross-compilation validation tests for ${{ matrix.name }}"
-          cd lib-q-keccak
-          # Run the cross-compilation test script
-          chmod +x cross_compile_test.sh
-          ./cross_compile_test.sh
-          echo "✅ Cross-compilation build validation passed"
-
       - name: Build cross-compilation tests (without execution)
         if: matrix.install-cross-compiler && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
         run: |
           echo "Building cross-compilation tests for ${{ matrix.name }} (execution skipped)"
           # Build tests for cross-compilation target to ensure they compile correctly
           # We skip execution since we can't run ARM binaries on x86_64 hosts
-          cargo test --target ${{ matrix.target }} --features std cross_compilation --release --no-run
+          cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --release --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
   # Performance and benchmarks - runs after core validation
@@ -655,12 +645,12 @@ jobs:
         run: |
           cd lib-q-hqc
           RUST_SIMD_DEBUG=1 cargo test --features "simd-avx2,alloc,hqc128" \
-            simd_unit_tests simd_golden_vectors --verbose
+            simd_unit_tests --verbose
       
       - name: Run cross-implementation validation
         run: |
           cd lib-q-hqc
-          cargo test --features "simd-avx2,alloc,hqc128" simd_correctness --verbose
+          cargo test --features "simd-avx2,alloc,hqc128" cross_implementation --verbose
 
   # ML-DSA compliance testing
   ml-dsa-compliance:

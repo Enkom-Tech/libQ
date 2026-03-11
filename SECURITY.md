@@ -9,6 +9,8 @@ lib-q is still in active development and pre-release. Security updates are provi
 | main    | ✅                 |
 | 0.0.x   | ✅                 |
 
+Contributors: for the security checklist and review process, see [CONTRIBUTING.md](CONTRIBUTING.md#security-review-process).
+
 ## Reporting a Vulnerability
 
 We take security vulnerabilities very seriously. If you discover a security issue in lib-q, please report it responsibly.
@@ -52,7 +54,7 @@ lib-q includes several security features:
 - **Constant-time operations**: Designed to prevent timing attacks
 - **Memory zeroization**: Sensitive data is automatically cleared
 - **Input validation**: All inputs are validated before processing
-- **No unsafe code**: Strict prohibition of unsafe Rust code
+- **Unsafe code**: Limited to performance-critical paths (e.g. SIMD/intrinsics), documented and reviewed; no unsafe in security-critical logic without justification
 - **Formal verification ready**: Architecture supports formal verification
 
 ## Security Audit Status

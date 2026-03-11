@@ -22,6 +22,7 @@ wasm_js = []
 [lib]
 name = "lib_q_utils"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "security-validator"

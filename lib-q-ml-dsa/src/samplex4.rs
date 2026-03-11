@@ -75,7 +75,7 @@ pub(crate) mod portable {
 }
 
 /// Neon sampling
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 pub(crate) mod neon {
     use super::*;
 

@@ -41,6 +41,7 @@ wasm = ["alloc", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "
 [lib]
 name = "lib_q_sig"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true

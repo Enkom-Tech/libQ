@@ -13,7 +13,7 @@ lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quant
 - **Memory safe**: Built in Rust with zero-cost abstractions
 - **Cross-platform**: Native Rust + WASM compilation
 - **Intuitive API**: Clean, consistent interface designed for modern development
-- **Zero dependencies**: Self-contained implementations
+- **Self-contained algorithms**: No external non-Rust tooling required for core use
 - **Three security tiers**: Ultra-secure, balanced, and performance-optimized options
 - **Modular design**: Use only what you need with individual crates and npm packages
 
@@ -160,20 +160,18 @@ lib-Q/
 - ✅ **Core Architecture** - Provider pattern with clean separation of interfaces
 - ✅ **Hash Functions** - SHA3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash
 - ✅ **WASM Support** - Basic WASM bindings for web environments
-- ✅ **Memory Safety** - Zero unsafe code, automatic memory management
+- ✅ **Memory Safety** - Automatic memory management; unsafe limited to documented performance-critical paths (e.g. SIMD)
 - ✅ **Error Handling** - Consistent error types and fail-fast behavior
 - ✅ **CI/CD Integration** - Complete testing, security validation, and publishing workflows
-
-### In Progress
+- ✅ **HQC** - Complete NIST-standardized code-based KEM (all parameter sets)
 
 ### Planned
-- ✅ **HQC** - Complete NIST-standardized code-based KEM (all parameter sets)
 - 📋 **Additional KEMs** - CB-KEM optimization
 - 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
 
 ## Documentation
 
-- [Development Plan](docs/development-plan.md)
+- [ROADMAP](ROADMAP.md)
 - [Security Model](docs/security.md)
 - [API Design](docs/api-design.md)
 - [HPKE Architecture](docs/hpke-architecture.md)
@@ -195,14 +193,12 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ⚠️ **This library is in active development with implemented cryptographic algorithms.**
 
 **Current Status:**
-- Core cryptographic primitives (ML-DSA, hashes) are implemented and tested
-- Provider pattern architecture is in place with proper error handling
+- Implemented: ML-DSA, ML-KEM, SLH-DSA, FN-DSA, DAWN, HQC, Saturnin AEAD, HPKE, hash suite (SHA3, SHAKE, cSHAKE, etc.), provider pattern, WASM bindings
 - No known security vulnerabilities in implemented algorithms
 - **NOT READY FOR PRODUCTION USE** until:
   - Security audit completion
   - Comprehensive testing (fuzzing, side-channel analysis)
   - Performance optimization and validation
-  - AEAD implementation for authenticated encryption
 
 **Use only for:**
 - Research and development

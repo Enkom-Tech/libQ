@@ -1,12 +1,12 @@
 # lib-Q Development Guide
 
-This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to lib-Q.
+This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to lib-Q. For the contribution process, security checklist, and PR template, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Rust 1.70+** (latest stable recommended)
+- **Rust 1.94+** (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - **Git** with proper signing setup
 - **Node.js 18+** (for WASM development)
 - **Development tools** (see installation below)
@@ -23,11 +23,10 @@ cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 # Clone repository
 git clone https://github.com/Enkom-Tech/libQ.git
-cd lib-q
+cd libQ
 
-# Install pre-commit hooks
-cargo install pre-commit
-pre-commit install
+# Optional: install pre-commit hooks (Python; use pip or conda)
+# pip install pre-commit && pre-commit install
 
 # Verify setup
 ./scripts/security-check.sh  # Linux/macOS
@@ -67,6 +66,8 @@ pre-commit install
    - Test coverage analysis
    - Performance regression detection
    - Documentation validation
+
+5. **Coverage (`coverage.yml`)**: Code coverage reporting
 
 ### Security Checks
 
@@ -240,9 +241,7 @@ We follow [Semantic Versioning](https://semver.org/):
 # Install development tools
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
-# Install pre-commit hooks
-cargo install pre-commit
-pre-commit install
+# Optional: pre-commit hooks (Python — pip install pre-commit && pre-commit install)
 ```
 
 ### Useful Scripts

@@ -385,7 +385,7 @@ jobs:
             package-name: "@lib-q/sig"
             package-description: "Post-quantum Digital Signatures for Node.js"
             package-keywords: "cryptography,post-quantum,signatures,digital-signatures,wasm"
-            features: "dilithium"
+            features: "wasm,ml-dsa"
             out-dir: "pkg-sig"
           - working-directory: "lib-q-hash"
             package-name: "@lib-q/hash"

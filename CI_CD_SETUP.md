@@ -158,7 +158,7 @@ NPM_TOKEN: "npm publish token"
 ```
 
 ### Environment Requirements
-- **Rust 1.70+**
+- **Rust 1.94+** (see workspace [Cargo.toml](Cargo.toml) `rust-version`)
 - **Node.js 18+** (for WASM development)
 - **Development tools**: cargo-audit, cargo-tarpaulin, wasm-pack
 
@@ -188,6 +188,15 @@ NPM_TOKEN: "npm publish token"
 - **`@lib-q/hash`** - Hash-only package
 - **`@lib-q/utils`** - Utilities-only package
 - **`@lib-q/fn-dsa`** - FN-DSA signature-only package
+
+Any crate added to the WASM publish matrix in `cd.yml` must have in its `Cargo.toml`:
+
+```toml
+[lib]
+crate-type = ["cdylib", "rlib"]
+```
+
+wasm-pack requires `cdylib` to produce `.wasm` artifacts; `rlib` is kept so the crate remains usable as a Rust dependency.
 
 ### Additional Publishing
 - **GitHub release** with automated changelog generation

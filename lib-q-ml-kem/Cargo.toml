@@ -34,6 +34,11 @@ zeroize = { workspace = true, optional = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
 
+[lib]
+name = "lib_q_ml_kem"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
 [dev-dependencies]
 criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }

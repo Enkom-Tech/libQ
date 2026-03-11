@@ -71,6 +71,12 @@ let plaintext = stream.decrypt(&key, &nonce, &ciphertext)?;
 - `simd`, `lookup-tables`, `parallel`, and `assembly` are optional performance features.
 - SIMD and assembly implementations currently delegate to the scalar implementation. The primary, KAT-validated production path is the scalar (no_std-safe) implementation in `core` and `bs32_core`.
 
+### WebAssembly
+
+The crate builds for `wasm32-unknown-unknown`. Enable the `wasm` feature so that the `getrandom` dependency (via lib-q-core) compiles with `wasm_js`; otherwise the build will fail on that target. The `parallel` feature is not available on `wasm32` (the module is omitted on that target). For WASM builds use default features plus `wasm`, or other performance options such as `lookup-tables`.
+
+Example: `cargo build --target wasm32-unknown-unknown --features wasm`
+
 ## Security
 
 - 256-bit post-quantum security

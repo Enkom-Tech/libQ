@@ -508,7 +508,7 @@ pub mod avx2 {
     }
 }
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 pub mod neon {
     pub mod x2 {
         use lib_q_keccak::advanced::parallel;

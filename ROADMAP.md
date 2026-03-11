@@ -9,24 +9,24 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [x] Error handling system
 - [x] Security documentation and guidelines
 - [x] Development workflow setup
-- [ ] Basic utility functions
-- [ ] Random number generation
-- [ ] Memory management utilities
-- [ ] Constant-time operations
+- [x] Basic utility functions
+- [x] Random number generation
+- [x] Memory management utilities (zeroization, secure key traits)
+- [x] Constant-time operations
 
 ### Development Tools
-- [ ] CI/CD pipeline setup
-- [ ] Security scanning integration
-- [ ] Code coverage requirements
-- [ ] Performance benchmarking framework
-- [ ] WASM compilation pipeline
-- [ ] Documentation generation
+- [x] CI/CD pipeline setup
+- [x] Security scanning integration
+- [x] Code coverage requirements
+- [x] Performance benchmarking framework
+- [x] WASM compilation pipeline
+- [x] Documentation generation
 
 ### Security Foundation
-- [ ] Security audit framework
-- [ ] Constant-time verification tools
+- [x] Security audit framework (cargo audit, NIST compliance validation)
+- [ ] Constant-time verification tools (dudect in HQC; project-wide pending)
 - [ ] Side-channel analysis tools
-- [ ] Fuzzing infrastructure
+- [x] Fuzzing infrastructure (HPKE fuzzing harness, property-based tests)
 - [ ] Formal verification setup
 
 ## Phase 1: Core Algorithms
@@ -53,15 +53,16 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] All parameter sets (α-512, α-1024, β-512, β-1024)
   - [x] Complete test coverage
   - [ ] Performance optimization
-- [ ] CB-KEM (Level 1, 3, 4, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
+- [x] CB-KEM (Classical McEliece, all five parameter sets)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
   - [ ] Performance optimization
-- [ ] HQC (Level 1, 3, 4, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
+- [x] HQC (Level 1, 3, 5 — HQC-128, HQC-192, HQC-256)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
+  - [ ] Performance optimization
 
 ### Digital Signatures
 - [x] ML-DSA (FIPS 204, Level 1, 3, 5)
@@ -134,8 +135,10 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 
 ### WASM Support
 - [x] Basic WASM compilation
-- [ ] Browser compatibility
-- [ ] Node.js compatibility
+- [x] WASM feature support across core crates (core, hash, KEM, sig, AEAD, HPKE, random, etc.)
+- [x] CI WASM validation (wasm32-unknown-unknown check for algorithm crates)
+- [x] Browser compatibility (wasm-pack `--target web` in CI/CD)
+- [x] Node.js compatibility (wasm-pack `--target nodejs` in CI/CD)
 - [ ] Performance optimization
 - [ ] Memory management
 
@@ -154,11 +157,11 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 ## Phase 4: Advanced Features
 
 ### Advanced Cryptography
-- [ ] Zero-knowledge proofs (zk-STARKs)
-  - [ ] Core STARK implementation
-  - [ ] Proof generation and verification
-  - [ ] WASM compatibility
-  - [ ] Integration with post-quantum crypto
+- [x] Zero-knowledge proofs (zk-STARKs)
+  - [x] Core STARK implementation
+  - [x] Proof generation and verification
+  - [x] WASM compatibility (lib-q-zkp wasm feature)
+  - [x] Integration with post-quantum crypto (SHAKE256, Mersenne31)
 
 ### Performance Optimization
 - [ ] SIMD optimizations

@@ -208,8 +208,8 @@ instantiate! {portable,
 #[cfg(feature = "simd256")]
 pub mod avx2;
 
-// NEON generic implementation.
-#[cfg(feature = "simd128")]
+// NEON generic implementation (AArch64 only; multiplexing uses it only on aarch64).
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 instantiate! {neon,
     crate::simd::portable::PortableSIMDUnit,
     crate::hash_functions::portable::Shake128,

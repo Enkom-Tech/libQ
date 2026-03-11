@@ -161,7 +161,7 @@ pub mod core;
 pub mod assembly;
 #[cfg(feature = "lookup-tables")]
 pub mod lookup_tables;
-#[cfg(feature = "parallel")]
+#[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
 pub mod parallel;
 #[cfg(feature = "simd")]
 pub mod simd;

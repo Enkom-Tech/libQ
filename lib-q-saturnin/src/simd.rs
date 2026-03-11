@@ -193,6 +193,18 @@ impl SimdOptimizedCore {
         self.fallback_core.decrypt_block(key, block)
     }
 
+    /// Fallback for non-x86_64 architectures (e.g. wasm32, aarch64)
+    #[cfg(not(target_arch = "x86_64"))]
+    fn encrypt_block_avx2(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
+        self.fallback_core.encrypt_block(key, block)
+    }
+
+    /// Fallback for non-x86_64 architectures (e.g. wasm32, aarch64)
+    #[cfg(not(target_arch = "x86_64"))]
+    fn decrypt_block_avx2(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
+        self.fallback_core.decrypt_block(key, block)
+    }
+
     /// Fallback for non-ARM architectures
     #[cfg(not(target_arch = "aarch64"))]
     fn encrypt_block_neon(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
@@ -248,6 +260,7 @@ impl SimdCapabilities {
 
 /// SIMD-optimized XOR operations for 32-byte blocks
 pub mod simd_xor {
+    #[allow(unused_imports)] // x86_64/aarch64 submodules only present on those targets
     use super::*;
 
     /// XOR two 32-byte blocks using the best available SIMD

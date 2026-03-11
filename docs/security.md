@@ -335,7 +335,6 @@ pub fn secure_random_bytes(buffer: &mut [u8]) -> Result<(), Error> {
 - **User notification**: Clear notification of affected users
 
 ### Security Contact
-- **Security email**: security@lib-q.org
-- **PGP key**: Published for secure communication
-- **Bug bounty**: Rewards for security researchers
+- **Security email**: github@enkom.dev
+- **PGP key**: Published for secure communication (when available)
 - **Responsible disclosure**: Recognition for responsible disclosure

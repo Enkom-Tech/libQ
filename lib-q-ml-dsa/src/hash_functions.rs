@@ -706,7 +706,7 @@ pub(crate) mod simd256 {
 }
 
 /// A SIMD256 implementation of [`shake128::Xof`] and [`shake256::Xof`] for Neon.
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 pub(crate) mod neon {
 
     use super::{

@@ -44,8 +44,8 @@ runs:
         cd ${{ inputs.working-directory }}
         
         if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
-          echo "Warning: Token not set, skipping publication"
-          exit 0
+          echo "::error::CARGO_REGISTRY_TOKEN is empty. Crate publish requires a valid crates.io token (e.g. from rust-lang/crates-io-auth-action)."
+          exit 1
         fi
         
         if [ "${{ inputs.dry-run }}" = "true" ]; then

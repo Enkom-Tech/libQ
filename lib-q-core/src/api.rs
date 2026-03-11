@@ -928,18 +928,23 @@ mod tests {
             "Too many byte values are missing from random generation"
         );
 
-        // Check that no single byte value dominates (chi-square test approximation)
+        // Chi-square goodness-of-fit test for uniform byte distribution (χ² with ν=255).
+        // Wilson-Hilferty approximation converts χ² to z; reject if z > 5 (false positive ~2.9e-7).
         let expected_per_byte = total_bytes as f64 / 256.0;
-        let max_deviation = byte_counts
+        let chi_sq: f64 = byte_counts
             .iter()
-            .map(|&count| (count as f64 - expected_per_byte).abs())
-            .fold(0.0, f64::max);
-
-        // Allow for reasonable statistical variation (3 standard deviations)
-        let max_expected_deviation = 3.0 * (expected_per_byte.sqrt());
+            .map(|&count| {
+                let d = count as f64 - expected_per_byte;
+                d * d / expected_per_byte
+            })
+            .sum();
+        const NU: f64 = 255.0;
+        let z =
+            ((chi_sq / NU).powf(1.0 / 3.0) - (1.0 - 2.0 / (9.0 * NU))) / (2.0 / (9.0 * NU)).sqrt();
         assert!(
-            max_deviation < max_expected_deviation,
-            "Random bytes show poor entropy distribution"
+            z <= 5.0,
+            "Random bytes show poor entropy distribution (chi-square z = {})",
+            z
         );
     }
 
