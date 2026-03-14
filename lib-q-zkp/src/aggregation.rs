@@ -9,6 +9,7 @@
 
 extern crate alloc;
 
+#[cfg(feature = "recursive-proofs-experimental")]
 use alloc::format;
 use alloc::string::ToString;
 use alloc::vec::Vec;
@@ -21,7 +22,9 @@ use lib_q_stark::{
     Val,
 };
 use lib_q_stark_air::Air;
+use lib_q_stark_mersenne31::Mersenne31;
 
+#[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::TraceGenerator;
 #[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::batch_stark_verifier::{
@@ -32,23 +35,20 @@ use crate::air::recursive_types::{
     SerializedStarkProof,
     serialize_stark_proof,
 };
+use crate::air::stark_verifier::StarkVerifierAir;
+#[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::stark_verifier::{
     FriProofInputProofExtractor,
     MerklePathExtractable,
-    StarkVerifierAir,
     build_recursive_verification_input,
-};
-#[cfg(feature = "recursive-proofs-experimental")]
-use crate::air::stark_verifier::{
     build_recursive_verification_input_from_proof,
     build_recursive_verification_input_from_proof_with_poseidon,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
 use crate::stark::FriQueryParams;
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-};
+#[cfg(feature = "recursive-proofs-experimental")]
+use crate::stark::StarkProver;
+use crate::stark::StarkVerifier;
 
 /// When `recursive-proofs-experimental` is enabled, builds recursive verification input using
 /// real Merkle siblings from the proof (Poseidon path). Requires Proof to implement
@@ -68,7 +68,12 @@ fn build_recursive_input_with_poseidon<C, A>(
 >
 where
     C: StarkGenericConfig,
-    Val<C>: lib_q_stark_field::Field + serde::Serialize,
+    Val<C>: lib_q_stark_field::Field
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + lib_q_stark_field::BasedVectorSpace<Mersenne31>
+        + lib_q_stark_field::TwoAdicField
+        + From<C::Challenge>,
     A: Air<SymbolicAirBuilder<Val<C>>>
         + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
     C::Challenger: lib_q_stark_challenger::CanObserve<Val<C>>
@@ -86,9 +91,25 @@ where
     <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof:
         lib_q_stark_fri::FriDataExtractor<Challenge = C::Challenge> + FriProofInputProofExtractor,
     <<C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof
-        as lib_q_stark_fri::FriDataExtractor>::CommitPhaseStep: MerklePathExtractable,
+        as lib_q_stark_fri::FriDataExtractor>::CommitPhaseStep: MerklePathExtractable
+        + lib_q_stark_fri::SiblingValueRef<Challenge = Val<C>>,
     <<C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof
         as lib_q_stark_fri::FriDataExtractor>::Witness: Clone,
+    <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment:
+        crate::air::PoseidonCommitmentRoot,
+    C::Pcs: lib_q_stark_fri::FriInitialEval<
+            C::Challenge,
+            Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+            Error = lib_q_stark::PcsError<C>,
+            Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+            Domain = lib_q_stark::Domain<C>,
+        > + lib_q_stark_fri::FriReducedOpenings<
+            C::Challenge,
+            Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+            Error = lib_q_stark::PcsError<C>,
+            Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+            Domain = lib_q_stark::Domain<C>,
+        >,
 {
     build_recursive_verification_input_from_proof_with_poseidon(
         verifier,
@@ -207,6 +228,7 @@ where
     /// # Returns
     ///
     /// An aggregated proof whose recursive component proves only verification of the first proof.
+    #[cfg(feature = "recursive-proofs-experimental")]
     pub fn aggregate_single<A>(
         &self,
         verifier: &StarkVerifier<C>,
@@ -220,7 +242,9 @@ where
         (Val<C>, C::Challenge): SameFieldOnly,
         C::Challenge: Into<Val<C>>,
         Val<C>: lib_q_stark_field::Field
-            + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>,
+            + lib_q_stark_field::BasedVectorSpace<Mersenne31>
+            + lib_q_stark_field::TwoAdicField
+            + From<C::Challenge>,
         StarkVerifierAir<Val<C>, Val<C>>: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::ProverConstraintFolder<'a, C>>,
         <<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
@@ -234,7 +258,8 @@ where
         <<<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
             <C as StarkGenericConfig>::Challenge,
             <C as StarkGenericConfig>::Challenger,
-        >>::Proof as lib_q_stark_fri::FriDataExtractor>::CommitPhaseStep: MerklePathExtractable,
+        >>::Proof as lib_q_stark_fri::FriDataExtractor>::CommitPhaseStep: MerklePathExtractable
+            + lib_q_stark_fri::SiblingValueRef<Challenge = Val<C>>,
         <<<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
             <C as StarkGenericConfig>::Challenge,
             <C as StarkGenericConfig>::Challenger,
@@ -254,6 +279,21 @@ where
                     <C as StarkGenericConfig>::Challenger,
                 >>::Proof as lib_q_stark_fri::FriDataExtractor>::Witness,
             >,
+        <C as StarkGenericConfig>::Pcs: lib_q_stark_fri::FriInitialEval<
+                <C as StarkGenericConfig>::Challenge,
+                Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+                Error = lib_q_stark::PcsError<C>,
+                Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+                Domain = lib_q_stark::Domain<C>,
+            > + lib_q_stark_fri::FriReducedOpenings<
+                <C as StarkGenericConfig>::Challenge,
+                Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+                Error = lib_q_stark::PcsError<C>,
+                Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+                Domain = lib_q_stark::Domain<C>,
+            >,
+        <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment:
+            crate::air::PoseidonCommitmentRoot,
     {
         if public_values_per_proof.len() != self.proofs.len() {
             return Err(lib_q_core::Error::InvalidState {
@@ -351,7 +391,12 @@ where
         let public_values = recursive_air.public_values(&recursive_input);
 
         let prover = StarkProver::new(self.config.clone());
-        let proof = prover.prove(&recursive_air, trace, &public_values);
+        let proof = prover
+            .prove(&recursive_air, trace, &public_values)
+            .map_err(|e| lib_q_core::Error::InternalError {
+                operation: "STARK proof generation".to_string(),
+                details: e.to_string(),
+            })?;
 
         Ok(AggregatedProof {
             proof,
@@ -378,7 +423,7 @@ where
         (Val<C>, C::Challenge): SameFieldOnly,
         C::Challenge: Into<Val<C>>,
         Val<C>: lib_q_stark_field::Field
-            + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>
+            + lib_q_stark_field::BasedVectorSpace<Mersenne31>
             + From<lib_q_poseidon::PoseidonField>
             + Into<lib_q_poseidon::PoseidonField>,
         StarkVerifierAir<Val<C>, Val<C>>: Air<SymbolicAirBuilder<Val<C>>>
@@ -498,7 +543,12 @@ where
         let public_values = batch_air.public_values(&batch_inputs);
 
         let prover = StarkProver::new(self.config.clone());
-        let proof = prover.prove(&batch_air, trace, &public_values);
+        let proof = prover
+            .prove(&batch_air, trace, &public_values)
+            .map_err(|e| lib_q_core::Error::InternalError {
+                operation: "STARK proof generation".to_string(),
+                details: e.to_string(),
+            })?;
 
         Ok(AggregatedProof {
             proof,
@@ -510,6 +560,7 @@ where
     }
 
     /// Serialize all proofs for aggregation using real challenges from verifier replay
+    #[allow(dead_code)]
     fn serialize_all_proofs<A>(
         &self,
         verifier: &StarkVerifier<C>,
@@ -568,6 +619,7 @@ where
     }
 
     /// Compute Merkle root of proof commitment hashes
+    #[allow(dead_code)]
     fn compute_proofs_merkle_root(
         &self,
         serialized_proofs: &[SerializedStarkProof<Val<C>, C::Challenge>],
@@ -628,7 +680,7 @@ where
     (Val<C>, C::Challenge): SameFieldOnly,
     C::Challenge: Into<Val<C>> + serde::Serialize,
     Val<C>: lib_q_stark_field::Field
-        + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>
+        + lib_q_stark_field::BasedVectorSpace<Mersenne31>
         + serde::Serialize,
     StarkVerifierAir<Val<C>, Val<C>>:
         Air<SymbolicAirBuilder<Val<C>>> + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
@@ -651,7 +703,7 @@ where
     (Val<C>, C::Challenge): SameFieldOnly,
     C::Challenge: Into<Val<C>> + serde::Serialize,
     Val<C>: lib_q_stark_field::Field
-        + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>
+        + lib_q_stark_field::BasedVectorSpace<Mersenne31>
         + serde::Serialize,
     StarkVerifierAir<Val<C>, Val<C>>:
         Air<SymbolicAirBuilder<Val<C>>> + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,

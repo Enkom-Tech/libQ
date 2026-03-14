@@ -35,7 +35,6 @@ use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
-use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -128,7 +127,7 @@ where
     }
     let trace = RowMajorMatrix::new(trace_values, 2);
 
-    let proof = prove(&config, &air, trace, &[]);
+    let proof = prove(&config, &air, trace, &[]).expect("prove");
     (config, air, proof)
 }
 
@@ -263,7 +262,7 @@ where
     }
     let trace = RowMajorMatrix::new(trace_values, 2);
 
-    let proof = prove(&config, &air, trace, &[]);
+    let proof = prove(&config, &air, trace, &[]).expect("prove");
     let result = verify(&config, &air, &proof, &[]);
     assert!(result.is_ok(), "Valid proof should verify");
 }

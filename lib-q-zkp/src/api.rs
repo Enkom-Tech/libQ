@@ -27,6 +27,33 @@ pub struct MerklePath {
     pub siblings: Vec<crate::air::merkle_inclusion::MerkleHash>,
 }
 
+/// Build a Poseidon Merkle tree from leaf data.
+///
+/// The tree uses the same hashing as `MerkleInclusionAir`. Use `tree.path(index)`
+/// to get `(path_bits, siblings)` and construct `MerklePath { path_bits, siblings }`
+/// for `prove_membership`. Use `tree.root_bytes()` for `verify_membership`.
+///
+/// # Errors
+///
+/// Returns error if `leaves` is empty or padded size exceeds 2^64.
+pub fn build_merkle_tree(leaves: &[&[u8]]) -> Result<crate::merkle::PoseidonMerkleTree> {
+    crate::merkle::PoseidonMerkleTree::from_leaves(leaves)
+}
+
+/// Build a MerklePath for a leaf index from a built tree.
+///
+/// Convenience for `prove_membership(leaves[leaf_index], &path)`.
+pub fn merkle_path_from_tree(
+    tree: &crate::merkle::PoseidonMerkleTree,
+    leaf_index: usize,
+) -> Result<MerklePath> {
+    let (path_bits, siblings) = tree.path(leaf_index)?;
+    Ok(MerklePath {
+        path_bits,
+        siblings,
+    })
+}
+
 /// Prove membership in a Merkle tree
 ///
 /// This is a high-level function that proves a leaf value is included
@@ -91,6 +118,7 @@ pub fn prove_membership(leaf: &[u8], path: &MerklePath) -> Result<ZkpProof> {
 
     let input = MerkleProofInput {
         leaf: leaf.to_vec(),
+        leaf_hash_direct: None,
         path_bits: path.path_bits.clone(),
         siblings: path.siblings.clone(),
     };
@@ -106,7 +134,12 @@ pub fn prove_membership(leaf: &[u8], path: &MerklePath) -> Result<ZkpProof> {
 
     let config = default_config();
     let prover = StarkProver::new(config);
-    let proof = prover.prove(&air, trace, &public_values);
+    let proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+        lib_q_core::Error::InternalError {
+            operation: "STARK proof generation".to_string(),
+            details: e.to_string(),
+        }
+    })?;
 
     // Store tree depth in proof metadata for self-describing verification
     let metadata = ProofMetadata::MerkleInclusion {
@@ -150,15 +183,9 @@ pub fn verify_membership_with_depth(
     root: &[u8],
     expected_tree_depth: usize,
 ) -> Result<bool> {
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-    };
-
     use crate::ProofMetadata;
     use crate::air::{
         MerkleInclusionAir,
-        bytes_to_poseidon_field,
         poseidon_slice_to_field,
     };
     use crate::stark::{
@@ -198,12 +225,13 @@ pub fn verify_membership_with_depth(
         }
     })?;
 
-    // Convert root bytes to Poseidon field elements
-    let root_field_elements = bytes_to_poseidon_field(root);
-    let poseidon_root = Poseidon128.hash(&root_field_elements);
-
-    // Convert Poseidon hash output to public values (field elements)
-    let expected_public_values = poseidon_slice_to_field(&poseidon_root);
+    // Deserialize root bytes to the single PoseidonField (no extra hash)
+    let root_poseidon =
+        crate::air::merkle_root_from_bytes(root).map_err(|e| lib_q_core::Error::InternalError {
+            operation: "verify_membership_with_depth".into(),
+            details: e.to_string(),
+        })?;
+    let expected_public_values = poseidon_slice_to_field(&[root_poseidon]);
 
     // Deserialize and verify the STARK proof
     let stark_proof = proof.to_stark_proof()?;
@@ -246,15 +274,9 @@ pub fn verify_membership_with_depth(
 /// let is_valid = verify_membership(&proof, root)?;
 /// ```
 pub fn verify_membership(proof: &ZkpProof, root: &[u8]) -> Result<bool> {
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-    };
-
     use crate::ProofMetadata;
     use crate::air::{
         MerkleInclusionAir,
-        bytes_to_poseidon_field,
         poseidon_slice_to_field,
     };
     use crate::stark::{
@@ -283,12 +305,12 @@ pub fn verify_membership(proof: &ZkpProof, root: &[u8]) -> Result<bool> {
         return Ok(false);
     }
 
-    // Convert root bytes to Poseidon field elements
-    let root_field_elements = bytes_to_poseidon_field(root);
-    let poseidon_root = Poseidon128.hash(&root_field_elements);
-
-    // Convert Poseidon hash output to public values (field elements)
-    let expected_public_values = poseidon_slice_to_field(&poseidon_root);
+    // Deserialize root bytes to the single PoseidonField (no extra hash)
+    let root_poseidon = match crate::air::merkle_root_from_bytes(root) {
+        Ok(r) => r,
+        Err(_) => return Ok(false),
+    };
+    let expected_public_values = poseidon_slice_to_field(&[root_poseidon]);
 
     // Create AIR with the metadata depth
     let air = MerkleInclusionAir::new(depth).map_err(|e| lib_q_core::Error::InternalError {

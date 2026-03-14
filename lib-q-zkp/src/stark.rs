@@ -177,7 +177,7 @@ impl<C: StarkGenericConfig> StarkProver<C> {
         air: &A,
         trace: RowMajorMatrix<Val<C>>,
         public_values: &[Val<C>],
-    ) -> StarkProof<C>
+    ) -> Result<StarkProof<C>, lib_q_stark::ProverError>
     where
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::ProverConstraintFolder<'a, C>>,
@@ -191,7 +191,7 @@ impl<C: StarkGenericConfig> StarkProver<C> {
         air: &A,
         trace: RowMajorMatrix<Val<C>>,
         public_values: &[Val<C>],
-    ) -> StarkProof<C>
+    ) -> Result<StarkProof<C>, lib_q_stark::ProverError>
     where
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::ProverConstraintFolder<'a, C>>

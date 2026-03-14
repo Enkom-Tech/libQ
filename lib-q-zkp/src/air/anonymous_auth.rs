@@ -152,6 +152,7 @@ impl
         // The member identity is the leaf in the Merkle proof
         let merkle_input = MerkleProofInput {
             leaf: inputs.member_identity.clone(),
+            leaf_hash_direct: None,
             path_bits: inputs.membership_path.path_bits.clone(),
             siblings: inputs.membership_path.siblings.clone(),
         };
@@ -167,6 +168,7 @@ impl
         // Member identity remains secret
         let merkle_input = MerkleProofInput {
             leaf: inputs.member_identity.clone(),
+            leaf_hash_direct: None,
             path_bits: inputs.membership_path.path_bits.clone(),
             siblings: inputs.membership_path.siblings.clone(),
         };
@@ -210,6 +212,7 @@ mod tests {
             member_identity: vec![1, 2, 3, 4],
             membership_path: MerkleProofInput {
                 leaf: vec![1, 2, 3, 4],
+                leaf_hash_direct: None,
                 path_bits: vec![false, true, false],
                 siblings: vec![
                     MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -232,6 +235,7 @@ mod tests {
             member_identity: vec![1, 2, 3, 4],
             membership_path: MerkleProofInput {
                 leaf: vec![1, 2, 3, 4],
+                leaf_hash_direct: None,
                 path_bits: vec![false, true, false],
                 siblings: vec![
                     MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -253,6 +257,7 @@ mod tests {
             member_identity: vec![10, 20, 30, 40],
             membership_path: MerkleProofInput {
                 leaf: vec![10, 20, 30, 40],
+                leaf_hash_direct: None,
                 path_bits: vec![true, false, true],
                 siblings: vec![
                     MerkleHash::from_bytes(&[1u8; 32]).unwrap(),
@@ -280,6 +285,7 @@ mod tests {
             member_identity: leaf.clone(),
             membership_path: MerkleProofInput {
                 leaf,
+                leaf_hash_direct: None,
                 path_bits: vec![false, true, false],
                 siblings: siblings.clone(),
             },
@@ -316,12 +322,14 @@ mod tests {
             member_identity: leaf.clone(),
             membership_path: MerkleProofInput {
                 leaf: leaf.clone(),
+                leaf_hash_direct: None,
                 path_bits: path_bits.clone(),
                 siblings: siblings.clone(),
             },
         };
         let merkle_input = MerkleProofInput {
             leaf: leaf.clone(),
+            leaf_hash_direct: None,
             path_bits: path_bits.clone(),
             siblings: siblings.clone(),
         };

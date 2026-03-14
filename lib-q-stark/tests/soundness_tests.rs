@@ -133,7 +133,7 @@ fn make_mul_proof(
     let trace = RowMajorMatrix::new(values, 3);
     let pv = vec![ValF::from(Mersenne31::new(product))];
     let config = make_fast_config();
-    let proof = prove(&config, &air, trace.clone(), &pv);
+    let proof = prove(&config, &air, trace.clone(), &pv).expect("prove");
     (air, trace, pv, proof)
 }
 
@@ -211,7 +211,7 @@ fn test_verifier_rejects_constraint_violation_in_trace() {
     let (air, mut trace, pv, _) = make_mul_proof(3, 4);
     let config = make_fast_config();
     trace.values[2] = ValF::from(Mersenne31::new(13));
-    let bad_proof = prove(&config, &air, trace, &pv);
+    let bad_proof = prove(&config, &air, trace, &pv).expect("prove");
     assert!(verify(&config, &air, &bad_proof, &pv).is_err());
 }
 

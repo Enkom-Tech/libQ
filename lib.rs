@@ -175,6 +175,46 @@ pub use lib_q_sig::{
     create_signature,
 };
 
+#[cfg(feature = "zkp")]
+pub mod zkp {
+    //! Zero-knowledge proof types and functions.
+    //!
+    //! Re-exports from `lib-q-zkp` for convenient top-level access.
+
+    pub use lib_q_zkp::api::{
+        MerklePath,
+        prove_membership,
+        prove_preimage,
+        verify_membership,
+        verify_membership_with_depth,
+        verify_preimage,
+    };
+    pub use lib_q_zkp::circuit::{
+        ArithmeticCircuit,
+        CircuitAir,
+        CircuitBuilder,
+    };
+    pub use lib_q_zkp::ip::credential::{
+        IpCredential,
+        compute_credential_commitment,
+        prove_credential_attributes,
+        verify_credential_proof,
+    };
+    pub use lib_q_zkp::stark::{
+        StarkProver,
+        StarkVerifier,
+        default_config,
+    };
+    pub use lib_q_zkp::{
+        ProofMetadata,
+        ProofType,
+        ZkpField,
+        ZkpProof,
+        ZkpProver,
+        ZkpVerifier,
+    };
+}
+
 // Note: hash, aead, and utils features are handled by individual crates
 // and don't need separate feature flags in the main lib-q crate
 

@@ -13,6 +13,7 @@ readme.workspace = true
 lib-q-stark-air = { path = "../lib-q-stark-air" }
 lib-q-stark-challenger = { path = "../lib-q-stark-challenger" }
 lib-q-stark-commit = { path = "../lib-q-stark-commit" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri" }
 lib-q-stark-dft = { path = "../lib-q-stark-dft" }
 lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }

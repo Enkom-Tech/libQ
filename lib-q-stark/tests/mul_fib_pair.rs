@@ -29,7 +29,6 @@ use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
-use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -234,7 +233,8 @@ fn test_mul_fib_pair() {
     let (preprocessed_prover_data, preprocessed_vk) =
         setup_preprocessed::<MyConfig, _>(&config, &air, degree_bits).unwrap();
 
-    let proof = prove_with_preprocessed(&config, &air, trace, &[], Some(&preprocessed_prover_data));
+    let proof = prove_with_preprocessed(&config, &air, trace, &[], Some(&preprocessed_prover_data))
+        .expect("prove");
 
     verify_with_preprocessed(&config, &air, &proof, &[], Some(&preprocessed_vk))
         .expect("verification failed");
@@ -251,7 +251,8 @@ fn test_tampered_preprocessed_fails() {
     // Prover uses the correct AIR for preprocessed setup.
     let (preprocessed_prover_data, _) =
         setup_preprocessed::<MyConfig, _>(&config, &air, degree_bits).unwrap();
-    let proof = prove_with_preprocessed(&config, &air, trace, &[], Some(&preprocessed_prover_data));
+    let proof = prove_with_preprocessed(&config, &air, trace, &[], Some(&preprocessed_prover_data))
+        .expect("prove");
 
     // Verifier uses a *tampered* AIR to derive the preprocessed commitment, which should
     // not match the one used in the proof.

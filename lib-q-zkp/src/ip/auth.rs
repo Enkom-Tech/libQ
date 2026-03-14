@@ -77,6 +77,7 @@ pub fn prove_group_membership(
     // Convert MerklePath to MerkleProofInput
     let merkle_input = MerkleProofInput {
         leaf: member_identity,
+        leaf_hash_direct: None,
         path_bits: membership_path.path_bits.clone(),
         siblings: membership_path.siblings.clone(),
     };
@@ -100,7 +101,12 @@ pub fn prove_group_membership(
     // Generate STARK proof
     let config = default_config();
     let prover = StarkProver::new(config);
-    let stark_proof = prover.prove(&air, trace, &public_values);
+    let stark_proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+        lib_q_core::Error::InternalError {
+            operation: "STARK proof generation".to_string(),
+            details: e.to_string(),
+        }
+    })?;
 
     // Create ZkpProof with metadata
     let metadata = ProofMetadata::MerkleInclusion {
@@ -150,19 +156,12 @@ pub fn verify_group_membership(proof: &ZkpProof, group_root: &MerkleRoot) -> Res
     // Deserialize STARK proof
     let stark_proof = proof.to_stark_proof()?;
 
-    // Convert group root to public values
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
+    // Deserialize group root bytes to single PoseidonField (no extra hash)
+    let root_poseidon = match crate::air::merkle_root_from_bytes(group_root) {
+        Ok(r) => r,
+        Err(_) => return Ok(false),
     };
-
-    use crate::air::{
-        bytes_to_poseidon_field,
-        poseidon_slice_to_field,
-    };
-    let root_fields = bytes_to_poseidon_field(group_root);
-    let poseidon_root = Poseidon128.hash(&root_fields);
-    let public_values = poseidon_slice_to_field(&poseidon_root);
+    let public_values = crate::air::poseidon_slice_to_field(&[root_poseidon]);
 
     // Verify proof
     let config = default_config();

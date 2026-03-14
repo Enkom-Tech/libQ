@@ -31,7 +31,6 @@ use lib_q_stark_air::{
     WindowAccess,
 };
 use lib_q_stark_field::Field;
-use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
@@ -186,27 +185,26 @@ impl OpeningVerifierAir {
     }
 }
 
-/// Input for opening verification
+/// Input for opening verification (field-typed for correct constraint satisfaction).
 #[derive(Debug, Clone)]
-pub struct OpeningVerificationInput {
-    /// Opened values
-    pub opened_values: Vec<Vec<u8>>, // Serialized field elements
-    /// Domain points for each opened value
-    pub domain_points: Vec<Vec<u8>>, // Serialized field elements (zeta or zeta_next)
-    /// Merkle proofs for each opened value
+pub struct OpeningVerificationInput<F: Field> {
+    /// Opened values (one field element per value).
+    pub opened_values: Vec<F>,
+    /// Domain points for each opened value (zeta or zeta_next).
+    pub domain_points: Vec<F>,
+    /// Merkle proofs for each opened value.
     pub merkle_proofs: Vec<MerkleProofInput>,
-    /// Expected commitment roots
-    pub expected_roots: Vec<[u8; 32]>, // Commitment hashes
+    /// Expected commitment root for each opened value (as field element for in-circuit comparison).
+    pub expected_roots: Vec<F>,
 }
 
 impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>>
-    TraceGenerator<F, OpeningVerificationInput> for OpeningVerifierAir
+    TraceGenerator<F, OpeningVerificationInput<F>> for OpeningVerifierAir
 {
     fn generate_trace(
         &self,
-        inputs: &OpeningVerificationInput,
+        inputs: &OpeningVerificationInput<F>,
     ) -> Result<RowMajorMatrix<F>, AirError> {
-        // Validate input dimensions
         if inputs.opened_values.len() != self.num_opened_values {
             return Err(AirError::InvalidInput {
                 reason: format!(
@@ -264,20 +262,8 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
             let expected_root_col = merkle_proof_start + merkle_width;
             let verification_result_col = expected_root_col + 1;
 
-            trace_values[value_col] =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                    inputs.opened_values[value_idx]
-                        .first()
-                        .copied()
-                        .unwrap_or(0u8),
-                ));
-            trace_values[domain_point_col] =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                    inputs.domain_points[value_idx]
-                        .first()
-                        .copied()
-                        .unwrap_or(0u8),
-                ));
+            trace_values[value_col] = inputs.opened_values[value_idx];
+            trace_values[domain_point_col] = inputs.domain_points[value_idx];
 
             let merkle_trace: RowMajorMatrix<F> =
                 merkle_air.generate_trace(&inputs.merkle_proofs[value_idx])?;
@@ -285,15 +271,25 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
                 trace_values[merkle_proof_start + col] = match merkle_trace.get(0, col) {
                     Some(x) => x,
                     None => F::ZERO,
-                }
+                };
             }
 
             let computed_root = merkle_air.public_values(&inputs.merkle_proofs[value_idx]);
-            let expected_root_field =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                    inputs.expected_roots[value_idx][0],
-                ));
             let computed_root_field = computed_root.first().copied().unwrap_or(F::ZERO);
+            let expected_root_field = inputs.expected_roots[value_idx];
+
+            // Overwrite the computed-root column with the canonical value from public_values(),
+            // so eval reads the same value (MerkleInclusionAir trace can disagree with public_values).
+            {
+                use super::poseidon_gadget::PoseidonGadget;
+                const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+                let level_width = 1 +
+                    HASH_SIZE_FIELD_ELEMENTS +
+                    HASH_SIZE_FIELD_ELEMENTS +
+                    PoseidonGadget::COLUMNS_PER_HASH;
+                let root_col_within_merkle = 1 + (self.tree_depth - 1) * level_width + 2;
+                trace_values[merkle_proof_start + root_col_within_merkle] = computed_root_field;
+            }
 
             trace_values[expected_root_col] = expected_root_field;
             trace_values[verification_result_col] = computed_root_field - expected_root_field;
@@ -302,23 +298,15 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
         Ok(RowMajorMatrix::new(trace_values, width))
     }
 
-    fn public_values(&self, inputs: &OpeningVerificationInput) -> Vec<F> {
-        // Public values are the expected commitment roots
-        let mut public_vals = Vec::new();
-        for root in &inputs.expected_roots {
-            for &byte in root.iter() {
-                public_vals.push(F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<
-                    u8,
-                >>::from_int(byte)));
-            }
-        }
-        public_vals
+    fn public_values(&self, inputs: &OpeningVerificationInput<F>) -> Vec<F> {
+        inputs.expected_roots.clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use lib_q_stark_air::BaseAir;
+    use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
@@ -358,12 +346,14 @@ mod tests {
     #[test]
     fn test_generate_trace_basic() {
         let air = OpeningVerifierAir::new(1, 4).unwrap();
+        let zero = TestField::ZERO;
 
-        let input = OpeningVerificationInput {
-            opened_values: vec![vec![1]],
-            domain_points: vec![vec![2]],
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![zero],
+            domain_points: vec![zero],
             merkle_proofs: vec![MerkleProofInput {
                 leaf: b"test".to_vec(),
+                leaf_hash_direct: None,
                 path_bits: vec![false, true, false, true],
                 siblings: vec![
                     MerkleHash::hash_data(b"s0"),
@@ -372,7 +362,7 @@ mod tests {
                     MerkleHash::hash_data(b"s3"),
                 ],
             }],
-            expected_roots: vec![[0u8; 32]],
+            expected_roots: vec![zero],
         };
 
         let trace: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
@@ -383,8 +373,8 @@ mod tests {
     fn test_generate_trace_mismatched_lengths() {
         let air = OpeningVerifierAir::new(2, 4).unwrap();
 
-        let input = OpeningVerificationInput {
-            opened_values: vec![vec![1]], // Only 1, expected 2
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO],
             domain_points: vec![],
             merkle_proofs: vec![],
             expected_roots: vec![],

@@ -67,6 +67,7 @@ use tracing::{
 use crate::verifier::{
     self,
     FriError,
+    FriInitialEval,
 };
 use crate::{
     FriFoldingStrategy,
@@ -609,6 +610,82 @@ where
         )?;
 
         Ok(())
+    }
+}
+
+impl<Val, Dft, InputMmcs, FriMmcs, Challenge> FriInitialEval<Challenge>
+    for TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs>
+where
+    Val: TwoAdicField,
+    Dft: TwoAdicSubgroupDft<Val>,
+    InputMmcs: Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
+    Challenge: ExtensionField<Val>,
+{
+    type Proof = FriProof<Challenge, FriMmcs, Val, Vec<BatchOpening<Val, InputMmcs>>>;
+    type Error = FriError<FriMmcs::Error, InputMmcs::Error>;
+    type Commitment = InputMmcs::Commitment;
+    type Domain = TwoAdicMultiplicativeCoset<Val>;
+
+    fn initial_fri_eval_for_query(
+        &self,
+        commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+            Challenge,
+            Self::Commitment,
+            Self::Domain,
+        >],
+        proof: &Self::Proof,
+        query_proof_index: usize,
+        domain_index: usize,
+        alpha: Challenge,
+    ) -> Result<Challenge, Self::Error> {
+        verifier::initial_fri_eval_for_query(
+            &self.fri,
+            &self.mmcs,
+            commitments_with_opening_points,
+            proof,
+            query_proof_index,
+            domain_index,
+            alpha,
+        )
+    }
+}
+
+impl<Val, Dft, InputMmcs, FriMmcs, Challenge> verifier::FriReducedOpenings<Challenge>
+    for TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs>
+where
+    Val: TwoAdicField,
+    Dft: TwoAdicSubgroupDft<Val>,
+    InputMmcs: Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
+    Challenge: ExtensionField<Val>,
+{
+    type Proof = FriProof<Challenge, FriMmcs, Val, Vec<BatchOpening<Val, InputMmcs>>>;
+    type Error = FriError<FriMmcs::Error, InputMmcs::Error>;
+    type Commitment = InputMmcs::Commitment;
+    type Domain = TwoAdicMultiplicativeCoset<Val>;
+
+    fn reduced_openings_for_query(
+        &self,
+        commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+            Challenge,
+            Self::Commitment,
+            Self::Domain,
+        >],
+        proof: &Self::Proof,
+        query_proof_index: usize,
+        domain_index: usize,
+        alpha: Challenge,
+    ) -> Result<Vec<(usize, Challenge)>, Self::Error> {
+        verifier::reduced_openings_for_query(
+            &self.fri,
+            &self.mmcs,
+            commitments_with_opening_points,
+            proof,
+            query_proof_index,
+            domain_index,
+            alpha,
+        )
     }
 }
 

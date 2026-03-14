@@ -80,6 +80,10 @@ pub mod aggregation;
 #[cfg(feature = "zkp")]
 pub mod ip;
 
+/// Poseidon Merkle tree builder (compatible with MerkleInclusionAir)
+#[cfg(feature = "zkp")]
+pub mod merkle;
+
 /// High-level lib q API
 #[cfg(feature = "zkp")]
 pub mod api;
@@ -87,6 +91,7 @@ pub mod api;
 #[cfg(feature = "zkp")]
 pub use api::{
     MerklePath,
+    build_merkle_tree,
     prove_membership,
     prove_preimage,
     verify_membership,
@@ -98,6 +103,7 @@ pub use lib_q_stark::{
     Proof as StarkProof,
     StarkConfig,
     StarkGenericConfig,
+    check_constraints,
     prove,
     verify,
 };
@@ -109,6 +115,8 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 #[cfg(feature = "zkp")]
 use lib_q_stark_mersenne31::Mersenne31;
+#[cfg(feature = "zkp")]
+pub use merkle::PoseidonMerkleTree;
 #[cfg(feature = "zkp")]
 use serde::{
     Deserialize,
@@ -231,14 +239,13 @@ impl ZkpProof {
 }
 
 /// Types of zero-knowledge proofs supported by lib-Q
+///
+/// Only NIST-approved post-quantum proof systems are included.
+/// Classical schemes (SNARKs, Bulletproofs) are intentionally excluded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProofType {
-    /// zk-STARK proof
+    /// zk-STARK proof (transparent, post-quantum secure)
     Stark,
-    /// Future: zk-SNARK proof
-    Snark,
-    /// Future: Bulletproofs
-    Bulletproof,
 }
 
 /// Prover for creating zero-knowledge proofs
@@ -340,7 +347,12 @@ impl ZkpProver {
         let prover = StarkProver::new(config);
 
         // Generate STARK proof
-        let proof = prover.prove(&air, trace, &public_values);
+        let proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+            lib_q_core::Error::InternalError {
+                operation: "STARK proof generation".to_string(),
+                details: e.to_string(),
+            }
+        })?;
 
         // Store output size in proof metadata
         let metadata = ProofMetadata::HashPreimage { output_size: 1u16 };
@@ -412,7 +424,13 @@ impl ZkpProver {
         let prover = StarkProver::new(config);
 
         // Generate STARK proof
-        let proof = prover.prove(&air, trace, public);
+        let proof =
+            prover
+                .prove(&air, trace, public)
+                .map_err(|e| lib_q_core::Error::InternalError {
+                    operation: "STARK proof generation".to_string(),
+                    details: e.to_string(),
+                })?;
 
         // Store circuit parameters in proof metadata
         let metadata = ProofMetadata::Circuit {
@@ -740,7 +758,9 @@ mod tests {
         let input = alloc::vec![(one, seven)];
         let trace = air.generate_trace(&input).expect("trace generation");
         let public_values = air.public_values(&input);
-        let proof_inner = StarkProver::new(default_config()).prove(&air, trace, &public_values);
+        let proof_inner = StarkProver::new(default_config())
+            .prove(&air, trace, &public_values)
+            .expect("prove");
         let proof_bytes = postcard::to_allocvec(&proof_inner).expect("serialize STARK proof");
 
         let proof = ZkpProof {
@@ -943,19 +963,10 @@ mod tests {
 
     #[cfg(feature = "zkp")]
     #[test]
-    fn test_verify_snark_proof_type_is_rejected() {
-        let proof = ZkpProof {
-            data: alloc::vec![0u8; 64],
-            proof_type: ProofType::Snark,
-            security_level: 1,
-            metadata: ProofMetadata::HashPreimage { output_size: 1 },
-        };
-        let verifier = ZkpVerifier::new();
-        assert_eq!(
-            verifier.verify(proof, b"anything").unwrap(),
-            false,
-            "non-Stark proof type must be rejected"
-        );
+    fn test_proof_type_only_stark_exists() {
+        let _stark = ProofType::Stark;
+        // ProofType::Snark and ProofType::Bulletproof have been removed.
+        // Only NIST-approved post-quantum proof systems are supported.
     }
 
     #[cfg(feature = "zkp")]

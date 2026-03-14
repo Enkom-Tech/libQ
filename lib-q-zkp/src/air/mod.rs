@@ -87,6 +87,8 @@ pub use batch_stark_verifier::{
     BatchRecursiveStarkVerificationInput,
     BatchStarkVerifierAir,
 };
+#[cfg(all(feature = "recursive-proofs-experimental", feature = "std"))]
+pub use commitment_verifier::debug_commitment_trace_sanity_check;
 pub use commitment_verifier::{
     CommitmentVerificationInput,
     CommitmentVerifierAir,
@@ -133,6 +135,12 @@ pub use session_key::{
     SessionKeyDerivationAir,
     SessionKeyInput,
 };
+/// Trait for PCS commitments that are Poseidon Merkle roots. Used by the recursive verifier.
+/// The only implementation is when `recursive-proofs-experimental` is enabled (Hash in stark_verifier).
+pub trait PoseidonCommitmentRoot {
+    fn to_poseidon_root_bytes(&self) -> [u8; recursive_types::COMMITMENT_HASH_SIZE];
+}
+
 #[cfg(feature = "recursive-proofs-experimental")]
 pub use stark_verifier::{
     MerklePathExtractable,
@@ -206,6 +214,12 @@ pub enum AirError {
         /// Description of what is not supported
         reason: String,
     },
+
+    /// FRI commit-phase openings missing for the query index
+    MissingFriCommitPhaseOpenings,
+
+    /// FRI commit-phase step count does not match number of rounds
+    FriRoundCountMismatch,
 }
 
 impl fmt::Display for AirError {
@@ -250,6 +264,15 @@ impl fmt::Display for AirError {
             }
             AirError::NotSupported { reason } => {
                 write!(f, "Not supported: {}", reason)
+            }
+            AirError::MissingFriCommitPhaseOpenings => {
+                write!(f, "FRI commit-phase openings missing for query index")
+            }
+            AirError::FriRoundCountMismatch => {
+                write!(
+                    f,
+                    "FRI commit-phase step count does not match number of rounds"
+                )
             }
         }
     }
@@ -431,6 +454,62 @@ pub fn poseidon_field_to_bytes(hash: &[PoseidonField]) -> Vec<u8> {
     use lib_q_stark_field::RawDataSerializable;
     // Complex<Mersenne31> has NUM_BYTES = 8 (4 real + 4 imag)
     hash.iter().flat_map(|f| (*f).into_bytes()).collect()
+}
+
+/// Serialize a Merkle root (single PoseidonField) to a fixed 32-byte array.
+///
+/// Uses RawDataSerializable: one Complex&lt;Mersenne31&gt; produces 8 bytes (4 real + 4 imag, LE).
+/// The result is zero-padded to 32 bytes for a fixed-size root representation.
+///
+/// # Arguments
+///
+/// * `root` - The Merkle root as a Poseidon field element
+///
+/// # Returns
+///
+/// 32-byte array suitable for `verify_membership` and related APIs
+#[must_use]
+pub fn merkle_root_to_bytes(root: &PoseidonField) -> [u8; 32] {
+    use lib_q_stark_field::RawDataSerializable;
+    let mut out = [0u8; 32];
+    let bytes: Vec<u8> = root.clone().into_bytes().into_iter().collect();
+    let n = core::cmp::min(bytes.len(), 32);
+    out[..n].copy_from_slice(&bytes[..n]);
+    out
+}
+
+/// Deserialize a Merkle root from bytes back to a PoseidonField.
+///
+/// Expects at least 8 bytes: first 4 bytes (u32 LE) = real part, next 4 = imag part
+/// of Complex&lt;Mersenne31&gt;. Used by verifiers to reconstruct the expected public value.
+///
+/// # Arguments
+///
+/// * `bytes` - At least 8 bytes (extra bytes are ignored)
+///
+/// # Returns
+///
+/// The root as PoseidonField, or InvalidInput if bytes.len() &lt; 8
+pub fn merkle_root_from_bytes(bytes: &[u8]) -> Result<PoseidonField, AirError> {
+    use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_field::integers::QuotientMap;
+    use lib_q_stark_mersenne31::Mersenne31;
+
+    if bytes.len() < 8 {
+        return Err(AirError::InvalidInput {
+            reason: alloc::format!(
+                "Merkle root bytes must have at least 8 bytes, got {}",
+                bytes.len()
+            ),
+        });
+    }
+    let mut real_bytes = [0u8; 4];
+    let mut imag_bytes = [0u8; 4];
+    real_bytes.copy_from_slice(&bytes[0..4]);
+    imag_bytes.copy_from_slice(&bytes[4..8]);
+    let real = Mersenne31::from_int(u32::from_le_bytes(real_bytes));
+    let imag = Mersenne31::from_int(u32::from_le_bytes(imag_bytes));
+    Ok(Complex::new_complex(real, imag))
 }
 
 /// Compute one Poseidon permutation row: state in, intermediates, state out.

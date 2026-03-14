@@ -108,6 +108,8 @@ pub use symbolic_expression::*;
 pub use symbolic_variable::*;
 pub use verifier::{
     VerificationError,
+    all_fri_reduced_openings_for_query,
+    initial_fri_eval_for_query,
     verify,
     verify_from_bytes,
     verify_with_preprocessed,

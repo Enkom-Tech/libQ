@@ -134,8 +134,8 @@ fn test_different_public_values_change_quotient_commitment() {
     let (trace, pv1) = make_trace_and_pv(3, 4);
     let pv2 = vec![ValF::from(Mersenne31::new(99))];
 
-    let proof1 = prove(&config, &air, trace.clone(), &pv1);
-    let proof2 = prove(&config, &air, trace, &pv2);
+    let proof1 = prove(&config, &air, trace.clone(), &pv1).expect("prove");
+    let proof2 = prove(&config, &air, trace, &pv2).expect("prove");
 
     assert!(verify(&config, &air, &proof1, &pv1).is_ok());
     assert!(verify(&config, &air, &proof2, &pv2).is_ok());
@@ -151,8 +151,8 @@ fn test_different_trace_changes_quotient_commitment() {
     let (trace1, pv1) = make_trace_and_pv(3, 4);
     let (trace2, pv2) = make_trace_and_pv(5, 6);
 
-    let proof1 = prove(&config, &air, trace1, &pv1);
-    let proof2 = prove(&config, &air, trace2, &pv2);
+    let proof1 = prove(&config, &air, trace1, &pv1).expect("prove");
+    let proof2 = prove(&config, &air, trace2, &pv2).expect("prove");
 
     assert_ne!(
         proof1.commitments.trace, proof2.commitments.trace,
@@ -170,7 +170,7 @@ fn test_prover_verifier_challenger_sync_64bits() {
     let air = SimpleMulAir::new(1);
     let (trace, pv) = make_trace_and_pv(3, 4);
 
-    let proof = prove(&config, &air, trace, &pv);
+    let proof = prove(&config, &air, trace, &pv).expect("prove");
     let result = verify(&config, &air, &proof, &pv);
     assert!(
         result.is_ok(),
@@ -203,8 +203,8 @@ fn test_missing_air_data_in_transcript_documented() {
         RowMajorMatrix::new(values, 6)
     };
 
-    let proof_ops1 = prove(&config, &air_ops1, trace_one_op.clone(), &pv);
-    let proof_ops2 = prove(&config, &air_ops2, trace_ops2, &pv);
+    let proof_ops1 = prove(&config, &air_ops1, trace_one_op.clone(), &pv).expect("prove");
+    let proof_ops2 = prove(&config, &air_ops2, trace_ops2, &pv).expect("prove");
 
     assert_ne!(
         proof_ops1.commitments.trace, proof_ops2.commitments.trace,

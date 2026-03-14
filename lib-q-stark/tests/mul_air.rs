@@ -43,7 +43,6 @@ use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
-use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -156,7 +155,7 @@ where
 {
     let trace = air.random_valid_trace(log_height, true);
 
-    let proof = prove(config, air, trace, &[]);
+    let proof = prove(config, air, trace, &[]).expect("prove");
 
     let serialized_proof = postcard::to_allocvec(&proof).expect("unable to serialize proof");
     tracing::debug!("serialized_proof len: {} bytes", serialized_proof.len());

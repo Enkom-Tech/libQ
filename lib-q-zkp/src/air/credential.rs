@@ -228,7 +228,7 @@ pub struct CredentialInput {
     pub attributes: Vec<Vec<u8>>,
 }
 
-fn attr_to_left_right(attr: &[u8]) -> (PoseidonField, PoseidonField) {
+pub(crate) fn attr_to_left_right(attr: &[u8]) -> (PoseidonField, PoseidonField) {
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;

@@ -62,8 +62,12 @@ fn test_zk_proofs_have_distinct_trace_commitments() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
 
-    let proof1 = StarkProver::new(zk_config_with_seeds(0, 1)).prove(&air, trace.clone(), &pv);
-    let proof2 = StarkProver::new(zk_config_with_seeds(1, 2)).prove(&air, trace, &pv);
+    let proof1 = StarkProver::new(zk_config_with_seeds(0, 1))
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove");
+    let proof2 = StarkProver::new(zk_config_with_seeds(1, 2))
+        .prove(&air, trace, &pv)
+        .expect("prove");
 
     assert_ne!(
         proof1.commitments.trace, proof2.commitments.trace,
@@ -76,8 +80,12 @@ fn test_zk_proofs_have_distinct_quotient_commitments() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
 
-    let proof1 = StarkProver::new(zk_config_with_seeds(0, 1)).prove(&air, trace.clone(), &pv);
-    let proof2 = StarkProver::new(zk_config_with_seeds(1, 2)).prove(&air, trace, &pv);
+    let proof1 = StarkProver::new(zk_config_with_seeds(0, 1))
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove");
+    let proof2 = StarkProver::new(zk_config_with_seeds(1, 2))
+        .prove(&air, trace, &pv)
+        .expect("prove");
 
     assert_ne!(
         proof1.commitments.quotient_chunks, proof2.commitments.quotient_chunks,
@@ -90,8 +98,12 @@ fn test_non_zk_proofs_are_deterministic() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
 
-    let proof1 = StarkProver::new(default_config()).prove(&air, trace.clone(), &pv);
-    let proof2 = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof1 = StarkProver::new(default_config())
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove");
+    let proof2 = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
 
     assert_eq!(
         proof1.commitments.trace, proof2.commitments.trace,
@@ -104,8 +116,12 @@ fn test_zk_degree_bits_are_extended() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
 
-    let nozk = StarkProver::new(default_config()).prove(&air, trace.clone(), &pv);
-    let zk = StarkProver::new(zk_config()).prove(&air, trace, &pv);
+    let nozk = StarkProver::new(default_config())
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove");
+    let zk = StarkProver::new(zk_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
 
     assert_eq!(
         zk.degree_bits,
@@ -121,7 +137,9 @@ fn test_zk_mode_all_5_proofs_verify() {
     let verifier = StarkVerifier::new(zk_config());
 
     for _ in 0..5 {
-        let proof = StarkProver::new(zk_config()).prove(&air, trace.clone(), &pv);
+        let proof = StarkProver::new(zk_config())
+            .prove(&air, trace.clone(), &pv)
+            .expect("prove");
         assert!(
             verifier.verify(&air, &proof, &pv).is_ok(),
             "each ZK proof must verify"
@@ -136,8 +154,9 @@ fn test_statistical_zk_no_repeated_commitments_100_proofs() {
 
     let hashes: HashSet<[u8; 32]> = (0..100)
         .map(|i| {
-            let proof =
-                StarkProver::new(zk_config_with_seeds(i, i + 100)).prove(&air, trace.clone(), &pv);
+            let proof = StarkProver::new(zk_config_with_seeds(i, i + 100))
+                .prove(&air, trace.clone(), &pv)
+                .expect("prove");
             let bytes: [u8; 32] = proof.commitments.trace.into();
             bytes
         })
@@ -156,7 +175,9 @@ fn test_zk_proof_bytes_do_not_contain_raw_witness_value() {
     let sentinel = 0x5EAD_BEEFu32;
     let (trace, pv) = make_arithmetic_trace_and_pv(sentinel, 1);
 
-    let proof = StarkProver::new(zk_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(zk_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     let bytes = postcard::to_allocvec(&proof).unwrap();
 
     let pattern = sentinel.to_le_bytes();

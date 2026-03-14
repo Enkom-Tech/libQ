@@ -22,6 +22,8 @@
 
 extern crate alloc;
 
+#[cfg(feature = "recursive-proofs-experimental")]
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use alloc::{
     format,
@@ -51,22 +53,29 @@ use lib_q_stark_commit::BatchOpening;
 use lib_q_stark_commit::Pcs;
 use lib_q_stark_field::Field;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_field::RawDataSerializable;
-#[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_field::extension::BinomialExtensionField;
+use lib_q_stark_field::TwoAdicField;
 use lib_q_stark_field::integers::QuotientMap;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_fri::CommitPhaseProofStep;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_fri::FriDataExtractor;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_fri::FriProof;
+use lib_q_stark_fri::FriInitialEval;
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_stark_fri::{
+    FriProof,
+    SiblingValueRef,
+};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_merkle::PoseidonMmcs;
 use lib_q_stark_mersenne31::Mersenne31;
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_stark_symmetric::Hash;
 
+#[cfg(feature = "recursive-proofs-experimental")]
+use super::PoseidonCommitmentRoot;
 use super::recursive_types::{
     MAX_FRI_ROUNDS,
     MAX_QUOTIENT_CHUNKS,
@@ -152,6 +161,15 @@ pub trait InputProofMerkleExtractable {
     fn input_proof_siblings(&self, batch_idx: usize, tree_depth: usize) -> Option<Vec<MerkleHash>>;
     /// Path bits for the given query index (bit at level `i` is `(query_index >> i) & 1 == 1`).
     fn input_proof_path_bits(&self, query_index: usize, tree_depth: usize) -> Vec<bool>;
+    /// Leaf hash (32-byte Poseidon root encoding) for the `batch_idx`-th batch at this query, if available.
+    /// Used so the commitment Merkle path verifies to the expected root.
+    fn input_proof_leaf_hash(
+        &self,
+        batch_idx: usize,
+    ) -> Option<[u8; super::recursive_types::COMMITMENT_HASH_SIZE]> {
+        let _ = (batch_idx, self);
+        None
+    }
 }
 
 /// Trait for FRI proofs whose first query's input proof can be used for commitment/opening verification.
@@ -162,29 +180,53 @@ pub trait FriProofInputProofExtractor {
 }
 
 #[cfg(feature = "recursive-proofs-experimental")]
-impl<F, M, W> FriProofInputProofExtractor
-    for FriProof<F, M, W, Vec<BatchOpening<BinomialExtensionField<Mersenne31, 2>, PoseidonMmcs>>>
+impl<F, M, W, EF, MM> FriProofInputProofExtractor for FriProof<F, M, W, Vec<BatchOpening<EF, MM>>>
 where
     F: Field,
     M: lib_q_stark_commit::Mmcs<F>,
+    EF: Field,
+    MM: lib_q_stark_commit::Mmcs<EF>,
+    Vec<BatchOpening<EF, MM>>: InputProofMerkleExtractable,
 {
-    type InputProof = Vec<BatchOpening<BinomialExtensionField<Mersenne31, 2>, PoseidonMmcs>>;
+    type InputProof = Vec<BatchOpening<EF, MM>>;
     fn first_query_input_proof(&self) -> Option<&Self::InputProof> {
         self.query_proofs.get(0).map(|q| &q.input_proof)
     }
 }
 
 #[cfg(feature = "recursive-proofs-experimental")]
-impl InputProofMerkleExtractable
-    for Vec<BatchOpening<BinomialExtensionField<Mersenne31, 2>, PoseidonMmcs>>
-{
+impl PoseidonCommitmentRoot for Hash<PoseidonField, PoseidonField, 1> {
+    fn to_poseidon_root_bytes(&self) -> [u8; super::recursive_types::COMMITMENT_HASH_SIZE] {
+        super::merkle_root_to_bytes(&self.as_ref()[0])
+    }
+}
+
+#[cfg(feature = "recursive-proofs-experimental")]
+impl InputProofMerkleExtractable for Vec<BatchOpening<PoseidonField, PoseidonMmcs>> {
     fn input_proof_siblings(&self, batch_idx: usize, tree_depth: usize) -> Option<Vec<MerkleHash>> {
         let batch = self.get(batch_idx)?;
         let proof = &batch.opening_proof;
         let siblings: Vec<MerkleHash> = proof
             .iter()
             .take(tree_depth)
-            .map(|s| MerkleHash::from_field(s[0]))
+            .filter_map(|sibling_row| {
+                // Each sibling is a slice of field elements (width of the matrix row).
+                // Hash all elements into a single MerkleHash for multi-width support.
+                if sibling_row.is_empty() {
+                    return None;
+                }
+                if sibling_row.len() == 1 {
+                    Some(MerkleHash::from_field(sibling_row[0]))
+                } else {
+                    use lib_q_poseidon::{
+                        Poseidon,
+                        Poseidon128,
+                    };
+                    let hash_output = Poseidon128.hash(sibling_row);
+                    let first = hash_output.into_iter().next().unwrap_or_default();
+                    Some(MerkleHash::from_field(first))
+                }
+            })
             .collect();
         if siblings.len() < tree_depth {
             return None;
@@ -197,6 +239,23 @@ impl InputProofMerkleExtractable
         (0..tree_depth)
             .map(|level| ((query_index >> level) & 1) == 1)
             .collect()
+    }
+
+    fn input_proof_leaf_hash(
+        &self,
+        batch_idx: usize,
+    ) -> Option<[u8; super::recursive_types::COMMITMENT_HASH_SIZE]> {
+        let batch = self.get(batch_idx)?;
+        let row = batch.opened_values.first()?;
+        // Mirror MMCS verifier: verify_batch hashes opened_values with hash_iter_slices (flatten
+        // of slices). For one matrix that is hash(row). PoseidonHasher::hash_iter uses
+        // Poseidon128.hash(&vec). Leaf layer uses unpacked row when PW::WIDTH is 1 (PoseidonField).
+        use lib_q_poseidon::{
+            Poseidon,
+            Poseidon128,
+        };
+        let out = Poseidon128.hash(row.as_slice());
+        Some(super::merkle_root_to_bytes(&out[0]))
     }
 }
 
@@ -440,6 +499,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
 
         let mut offset = metadata_width;
 
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        std::eprintln!("StarkVerifierAir: checking CommitmentVerifierAir");
         CommitmentVerifierAir::eval_with_offset(
             builder,
             local,
@@ -449,6 +514,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         );
         offset += commitment_width;
 
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        std::eprintln!("StarkVerifierAir: checking FriVerifierAir");
         FriVerifierAir::eval_with_offset(
             builder,
             local,
@@ -459,6 +530,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         );
         offset += fri_width;
 
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        std::eprintln!("StarkVerifierAir: checking ConstraintVerifierAir");
         ConstraintVerifierAir::eval_with_offset(
             builder,
             local,
@@ -469,6 +546,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         );
         offset += constraint_width;
 
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        std::eprintln!("StarkVerifierAir: checking OpeningVerifierAir");
         OpeningVerifierAir::eval_with_offset(
             builder,
             local,
@@ -478,6 +561,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         );
         offset += opening_width;
 
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        std::eprintln!("StarkVerifierAir: checking is_zk and public_values");
         let is_zk_col = 3;
         let is_zk = local[is_zk_col].clone();
         let one = B::Expr::from(<F as PrimeCharacteristicRing>::ONE);
@@ -494,7 +583,7 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
     }
 }
 
-/// Input for recursive STARK verification
+/// Input for recursive STARK verification (field-typed for correct constraint satisfaction).
 #[derive(Debug, Clone)]
 pub struct RecursiveStarkVerificationInput<F: Field, Ch: Field = F> {
     /// Serialized inner proof
@@ -502,11 +591,11 @@ pub struct RecursiveStarkVerificationInput<F: Field, Ch: Field = F> {
     /// Commitment verification inputs
     pub commitment_inputs: CommitmentVerificationInput,
     /// FRI verification inputs
-    pub fri_inputs: FriVerificationInput,
+    pub fri_inputs: FriVerificationInput<F>,
     /// Constraint verification inputs
-    pub constraint_inputs: ConstraintVerificationInput,
+    pub constraint_inputs: ConstraintVerificationInput<F>,
     /// Opening verification inputs
-    pub opening_inputs: OpeningVerificationInput,
+    pub opening_inputs: OpeningVerificationInput<F>,
 }
 
 /// Build recursive verification input from a serialized STARK proof.
@@ -547,14 +636,13 @@ pub fn build_recursive_verification_input<F, Ch>(
     num_fri_queries: usize,
 ) -> Result<RecursiveStarkVerificationInput<F, Ch>, AirError>
 where
-    F: Field + serde::Serialize,
-    Ch: Field + serde::Serialize,
+    F: Field + serde::Serialize + serde::de::DeserializeOwned,
+    Ch: Field + serde::Serialize + serde::de::DeserializeOwned + Into<F>,
 {
     let zero_hash = MerkleHash::from_bytes(&[0u8; 32]).map_err(|e| AirError::InvalidInput {
         reason: format!("stub MerkleHash: {}", e),
     })?;
 
-    // CommitmentVerificationInput
     let mut expected_roots = vec![proof.trace_commitment_hash, proof.quotient_commitment_hash];
     if let Some(ref h) = proof.random_commitment_hash {
         expected_roots.push(*h);
@@ -563,6 +651,7 @@ where
         .iter()
         .map(|root| MerkleProofInput {
             leaf: root.to_vec(),
+            leaf_hash_direct: None,
             path_bits: vec![false; merkle_tree_depth],
             siblings: vec![zero_hash.clone(); merkle_tree_depth],
         })
@@ -572,114 +661,71 @@ where
         merkle_proofs: merkle_proofs_commit,
     };
 
-    // FriVerificationInput
     let final_poly_len = 1 << log_final_poly_len;
-    let final_poly_bytes =
-        postcard::to_allocvec(&proof.final_poly).unwrap_or_else(|_| alloc::vec![]);
-    let mut final_poly = final_poly_bytes;
-    final_poly.resize(final_poly_len, 0u8);
-    let fri_inputs = FriVerificationInput {
+    let num_rounds = proof.fri_rounds.len();
+    let round_betas: Vec<F> = proof
+        .fri_rounds
+        .iter()
+        .map(|r| {
+            postcard::from_bytes::<Ch>(&r.beta)
+                .ok()
+                .map(|b| b.into())
+                .unwrap_or(F::ZERO)
+        })
+        .collect();
+    let mut final_poly: Vec<F> = proof.final_poly.iter().map(|c| c.clone().into()).collect();
+    final_poly.resize(final_poly_len, F::ZERO);
+
+    let fri_inputs = FriVerificationInput::<F> {
         fri_rounds: proof.fri_rounds.clone(),
+        round_betas,
         final_poly,
         query_indices: vec![0usize; num_fri_queries],
-        query_evaluations: vec![0u8; num_fri_queries],
-        round_current_evals: alloc::vec![],
-        round_sibling_evals: alloc::vec![],
-        round_domain_point_inverses: alloc::vec![],
+        query_evaluations: vec![F::ZERO; num_fri_queries],
+        round_current_evals: vec![F::ZERO; num_rounds],
+        round_sibling_evals: vec![F::ZERO; num_rounds],
+        round_domain_point_inverses: vec![F::ZERO; num_rounds],
+        round_domain_point_x0: vec![F::ZERO; num_rounds],
+        round_parity: vec![F::ZERO; num_rounds],
+        final_poly_eval_point: F::ZERO,
+        round_roll_ins: vec![F::ZERO; num_rounds],
     };
 
-    // ConstraintVerificationInput: quotient_chunks, trace_local, trace_next, zeta, alpha, public_values
-    let quotient_chunks: Vec<Vec<u8>> = proof
+    let quotient_chunks: Vec<F> = proof
         .quotient_chunks
         .iter()
-        .map(|chunk| {
-            let b = chunk
-                .first()
-                .and_then(|c| postcard::to_allocvec(c).ok())
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8);
-            vec![b]
-        })
+        .map(|chunk| chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO))
         .collect();
-    let trace_local: Vec<u8> = proof
-        .trace_local
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let trace_next: Vec<u8> = proof
-        .trace_next
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let zeta = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let alpha = postcard::to_allocvec(&proof.alpha).unwrap_or_else(|_| alloc::vec![0u8]);
-    let public_values =
-        postcard::to_allocvec(&proof.expected_public_values).unwrap_or_else(|_| alloc::vec![]);
-    let constraint_inputs = ConstraintVerificationInput {
+    let constraint_inputs = ConstraintVerificationInput::<F> {
         quotient_chunks,
-        trace_local,
-        trace_next,
-        zeta,
-        alpha,
-        public_values,
+        trace_local: proof.trace_local.clone(),
+        trace_next: proof.trace_next.clone(),
+        zeta: proof.zeta.clone().into(),
+        alpha: proof.alpha.clone().into(),
+        public_values: proof.expected_public_values.clone(),
     };
 
-    // OpeningVerificationInput
     let num_opened_values = proof.trace_width * 2 + proof.num_quotient_chunks;
-    let zeta_bytes = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let zeta_next_bytes =
-        postcard::to_allocvec(&proof.zeta_next).unwrap_or_else(|_| alloc::vec![0u8]);
-    let mut opened_values = Vec::with_capacity(num_opened_values);
-    let mut domain_points = Vec::with_capacity(num_opened_values);
-    let mut expected_roots_open = Vec::with_capacity(num_opened_values);
-    for (i, f) in proof.trace_local.iter().enumerate() {
-        let _ = i;
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
-    for (i, f) in proof.trace_next.iter().enumerate() {
-        let _ = i;
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_next_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
+    let zeta_f: F = proof.zeta.clone().into();
+    let zeta_next_f: F = proof.zeta_next.clone().into();
+    let mut opened_values: Vec<F> = proof.trace_local.iter().cloned().collect();
+    opened_values.extend(proof.trace_next.iter().cloned());
     for chunk in &proof.quotient_chunks {
-        let b = chunk
-            .first()
-            .and_then(|c| postcard::to_allocvec(c).ok())
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.quotient_commitment_hash);
+        opened_values.push(chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO));
     }
+    let mut domain_points: Vec<F> = alloc::vec![zeta_f; proof.trace_width];
+    domain_points.extend(alloc::vec![zeta_next_f; proof.trace_width]);
+    domain_points.extend(alloc::vec![zeta_f; proof.num_quotient_chunks]);
+    let expected_roots_open: Vec<F> = alloc::vec![F::ZERO; num_opened_values];
     let merkle_proofs_open = (0..num_opened_values)
         .map(|_| MerkleProofInput {
             leaf: vec![0u8; 32],
+            leaf_hash_direct: None,
             path_bits: vec![false; merkle_tree_depth],
             siblings: vec![zero_hash.clone(); merkle_tree_depth],
         })
         .collect();
-    let opening_inputs = OpeningVerificationInput {
+    let opening_inputs = OpeningVerificationInput::<F> {
         opened_values,
         domain_points,
         merkle_proofs: merkle_proofs_open,
@@ -755,7 +801,11 @@ pub fn build_recursive_verification_input_from_proof_with_poseidon<C, A>(
 ) -> Result<RecursiveStarkVerificationInput<Val<C>, Val<C>>, AirError>
 where
     C: StarkGenericConfig,
-    Val<C>: Field + serde::Serialize,
+    Val<C>: Field
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + lib_q_stark_field::BasedVectorSpace<Mersenne31>
+        + TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<C>>>
         + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
     C::Challenger: lib_q_stark_challenger::CanObserve<Val<C>>
@@ -771,14 +821,77 @@ where
     <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof: FriDataExtractor<Challenge = C::Challenge>
         + FriProofInputProofExtractor,
     <<C::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof as FriDataExtractor>::CommitPhaseStep:
-        MerklePathExtractable,
+        MerklePathExtractable + SiblingValueRef<Challenge = Val<C>>,
     <<C::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof as FriDataExtractor>::Witness: Clone,
+    <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Commitment: PoseidonCommitmentRoot,
+    C::Pcs: FriInitialEval<
+            C::Challenge,
+            Proof = <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof,
+            Error = lib_q_stark::PcsError<C>,
+            Commitment = <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Commitment,
+            Domain = lib_q_stark::Domain<C>,
+        > + lib_q_stark_fri::FriReducedOpenings<
+            C::Challenge,
+            Proof = <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof,
+            Error = lib_q_stark::PcsError<C>,
+            Commitment = <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Commitment,
+            Domain = lib_q_stark::Domain<C>,
+        >,
+    Val<C>: From<C::Challenge>,
 {
     let query_indices = verifier
         .derive_query_positions(air, proof, public_values, fri_params)
         .map_err(|e: VerificationError<_>| AirError::InvalidInput {
             reason: alloc::format!("derive_query_positions: {:?}", e),
         })?;
+
+    let alpha = serialized_proof.alpha.clone();
+    let zeta = serialized_proof.zeta.clone();
+    let zeta_next = serialized_proof.zeta_next.clone();
+    let query_idx0 = *query_indices.first().unwrap_or(&0);
+    let initial_eval = lib_q_stark::initial_fri_eval_for_query(
+        verifier.config(),
+        proof,
+        air,
+        public_values,
+        0,
+        query_idx0,
+        alpha.clone().into(),
+        zeta.clone().into(),
+        zeta_next.clone().into(),
+    )
+    .map_err(|e: VerificationError<_>| AirError::InvalidInput {
+        reason: alloc::format!("initial_fri_eval_for_query: {:?}", e),
+    })?;
+
+    let reduced_openings = lib_q_stark::all_fri_reduced_openings_for_query(
+        verifier.config(),
+        proof,
+        air,
+        public_values,
+        0,
+        query_idx0,
+        alpha.clone().into(),
+        zeta.clone().into(),
+        zeta_next.clone().into(),
+    )
+    .ok()
+    .map(|v| {
+        v.into_iter()
+            .map(|(h, c)| (h, c.into()))
+            .collect::<Vec<_>>()
+    });
+
+    let commitment_roots = {
+        let mut roots = alloc::vec![
+            proof.commitments.trace.to_poseidon_root_bytes(),
+            proof.commitments.quotient_chunks.to_poseidon_root_bytes(),
+        ];
+        if let Some(ref r) = proof.commitments.random {
+            roots.push(r.to_poseidon_root_bytes());
+        }
+        roots
+    };
 
     build_recursive_verification_input_with_real_siblings(
         serialized_proof,
@@ -787,12 +900,152 @@ where
         fri_params.log_final_poly_len,
         fri_params.num_queries,
         &query_indices,
+        fri_params.log_blowup,
+        Some(initial_eval.into()),
+        reduced_openings,
+        Some(&commitment_roots),
     )
+}
+
+/// Reverses the lower `len` bits of `n`. Used for FRI domain point indexing.
+#[cfg(feature = "recursive-proofs-experimental")]
+fn reverse_bits_len(n: usize, len: usize) -> usize {
+    (0..len).map(|i| ((n >> i) & 1) << (len - 1 - i)).sum()
+}
+
+/// Debug one FRI round by comparing builder fold vs verifier-style fold.
+/// Replicates lib_q_stark_fri::two_adic_pcs::fold_row logic to isolate mismatches.
+/// For the last round, compares (fold + roll_in) to Horner at eval_point.
+/// Enabled with `recursive-proofs-experimental` for use in tests.
+#[cfg(feature = "recursive-proofs-experimental")]
+pub fn debug_one_fri_round<F>(
+    round_idx: usize,
+    query_idx0: usize,
+    log_final_height: usize,
+    num_rounds: usize,
+    round_current_evals: &[F],
+    round_sibling_evals: &[F],
+    round_domain_point_inverses: &[F],
+    round_betas: &[F],
+    round_roll_ins: Option<&[F]>,
+    final_poly: &[F],
+    eval_point: F,
+) where
+    F: Field + TwoAdicField + core::fmt::Debug,
+{
+    if round_idx >= num_rounds ||
+        round_current_evals.len() <= round_idx ||
+        round_sibling_evals.len() <= round_idx ||
+        round_domain_point_inverses.len() <= round_idx ||
+        round_betas.len() <= round_idx
+    {
+        return;
+    }
+
+    let i = round_idx;
+    let domain_row_index = query_idx0 >> (i + 1);
+    let log_folded_height = log_final_height + (num_rounds - 1 - i);
+    let query_parity = (query_idx0 >> i) & 1;
+    let current = round_current_evals[i];
+    let sibling = round_sibling_evals[i];
+    let beta = round_betas[i];
+
+    // Verifier-style domain points (same as two_adic_pcs::fold_row, log_arity = 1)
+    let subgroup_start = F::two_adic_generator(log_folded_height + 1)
+        .exp_u64(reverse_bits_len(domain_row_index, log_folded_height) as u64);
+    let g_arity = F::two_adic_generator(1);
+    let xs0 = subgroup_start;
+    let xs1 = subgroup_start * g_arity;
+    let domain_inv_verifier = (xs1 - xs0).inverse();
+
+    // Verifier (e0, e1) = value at even index, value at odd index
+    let (e0, e1) = if query_parity == 0 {
+        (current, sibling)
+    } else {
+        (sibling, current)
+    };
+
+    let folded_verifier = e0 + (beta - xs0) * (e1 - e0) * domain_inv_verifier;
+    // Builder uses same formula; compare with builder's stored domain_inv
+    let folded_builder = e0 + (beta - xs0) * (e1 - e0) * round_domain_point_inverses[i];
+
+    #[cfg(feature = "std")]
+    {
+        std::println!(
+            "Round {}: domain_row_index={}, log_folded_height={}, query_parity={}",
+            i,
+            domain_row_index,
+            log_folded_height,
+            query_parity
+        );
+        std::println!(
+            "  domain_inv: verifier={:?}, builder={:?}",
+            domain_inv_verifier,
+            round_domain_point_inverses[i]
+        );
+        std::println!(
+            "  (current={:?}, sibling={:?}) -> (e0={:?}, e1={:?})",
+            current,
+            sibling,
+            e0,
+            e1
+        );
+        std::println!(
+            "  folded_verifier={:?}, folded_builder={:?}, match={}",
+            folded_verifier,
+            folded_builder,
+            folded_verifier == folded_builder
+        );
+    }
+
+    if folded_verifier != folded_builder {
+        panic!(
+            "FRI round {} fold mismatch: folded_verifier={:?}, folded_builder={:?}, \
+             domain_inv_verifier={:?}, domain_inv_builder={:?}, (e0,e1)=({:?},{:?})",
+            i,
+            folded_verifier,
+            folded_builder,
+            domain_inv_verifier,
+            round_domain_point_inverses[i],
+            e0,
+            e1
+        );
+    }
+
+    if i == num_rounds - 1 && !final_poly.is_empty() {
+        let mut horner = final_poly[final_poly.len().saturating_sub(1)];
+        for j in (0..final_poly.len().saturating_sub(1)).rev() {
+            horner = horner * eval_point + final_poly[j];
+        }
+        let roll_in = round_roll_ins
+            .and_then(|r| r.get(i))
+            .copied()
+            .unwrap_or(F::ZERO);
+        let folded_after_roll = folded_verifier + roll_in;
+        let last_round_match = folded_after_roll == horner;
+        #[cfg(feature = "std")]
+        std::println!(
+            "  [last round] folded_after_roll={:?}, horner_result={:?}, match={}",
+            folded_after_roll,
+            horner,
+            last_round_match
+        );
+        if !last_round_match {
+            panic!(
+                "FRI last round: folded_after_roll != horner_result: {:?} != {:?}",
+                folded_after_roll, horner
+            );
+        }
+    }
 }
 
 /// Builds recursive verification input using real Merkle siblings from the FRI proof.
 /// Uses the first query's input proof (polynomial commitment tree) for commitment verification
 /// when `P` implements `FriProofInputProofExtractor`; otherwise falls back to FRI round siblings or zero.
+///
+/// When `commitment_roots_override` is `Some`, those bytes are used as expected_roots (Poseidon
+/// root encoding). Use this when the inner proof uses Poseidon so the recursive verifier's
+/// MerkleInclusionAir computed root matches.
 #[cfg(feature = "recursive-proofs-experimental")]
 fn build_recursive_verification_input_with_real_siblings<F, Ch, P>(
     proof: &SerializedStarkProof<F, Ch>,
@@ -801,12 +1054,20 @@ fn build_recursive_verification_input_with_real_siblings<F, Ch, P>(
     log_final_poly_len: usize,
     num_fri_queries: usize,
     query_indices: &[usize],
+    log_blowup: usize,
+    first_query_initial_eval: Option<F>,
+    first_query_reduced_openings: Option<Vec<(usize, F)>>,
+    commitment_roots_override: Option<&Vec<[u8; super::recursive_types::COMMITMENT_HASH_SIZE]>>,
 ) -> Result<RecursiveStarkVerificationInput<F, Ch>, AirError>
 where
-    F: Field + serde::Serialize,
-    Ch: Field + serde::Serialize,
+    F: Field
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + lib_q_stark_field::BasedVectorSpace<Mersenne31>
+        + TwoAdicField,
+    Ch: Field + serde::Serialize + serde::de::DeserializeOwned + Into<F>,
     P: FriDataExtractor + FriProofInputProofExtractor,
-    P::CommitPhaseStep: MerklePathExtractable,
+    P::CommitPhaseStep: MerklePathExtractable + SiblingValueRef<Challenge = Ch>,
 {
     let zero_hash = MerkleHash::from_bytes(&[0u8; 32]).map_err(|e| AirError::InvalidInput {
         reason: alloc::format!("stub MerkleHash: {}", e),
@@ -814,16 +1075,32 @@ where
 
     let query_idx0 = query_indices.first().copied().unwrap_or(0);
 
-    let mut expected_roots = vec![proof.trace_commitment_hash, proof.quotient_commitment_hash];
-    if let Some(ref h) = proof.random_commitment_hash {
-        expected_roots.push(*h);
-    }
+    let expected_roots: Vec<[u8; super::recursive_types::COMMITMENT_HASH_SIZE]> =
+        if let Some(roots) = commitment_roots_override {
+            roots.clone()
+        } else {
+            let mut r = vec![proof.trace_commitment_hash, proof.quotient_commitment_hash];
+            if let Some(ref h) = proof.random_commitment_hash {
+                r.push(*h);
+            }
+            r
+        };
 
     let mut merkle_proofs_commit: Vec<MerkleProofInput> = Vec::with_capacity(expected_roots.len());
 
     if let Some(input_proof) = opening_proof.first_query_input_proof() {
         let path_bits = input_proof.input_proof_path_bits(query_idx0, merkle_tree_depth);
-        for (batch_idx, root) in expected_roots.iter().enumerate() {
+        // PCS batch order is [random?, trace, quotient, preprocessed?], so when ZK we have
+        // batch 0=random, 1=trace, 2=quotient. Our expected_roots are [trace, quotient, random?].
+        let commitment_to_batch = |commitment_idx: usize| -> usize {
+            if expected_roots.len() >= 3 {
+                [1, 2, 0][commitment_idx] // trace=1, quotient=2, random=0
+            } else {
+                commitment_idx // trace=0, quotient=1
+            }
+        };
+        for (commitment_idx, root) in expected_roots.iter().enumerate() {
+            let batch_idx = commitment_to_batch(commitment_idx);
             let siblings = input_proof
                 .input_proof_siblings(batch_idx, merkle_tree_depth)
                 .unwrap_or_else(|| alloc::vec![zero_hash.clone(); merkle_tree_depth]);
@@ -831,8 +1108,10 @@ where
             while s.len() < merkle_tree_depth {
                 s.push(zero_hash.clone());
             }
+            let leaf_hash_direct = input_proof.input_proof_leaf_hash(batch_idx);
             merkle_proofs_commit.push(MerkleProofInput {
                 leaf: root.to_vec(),
+                leaf_hash_direct,
                 path_bits: path_bits.clone(),
                 siblings: s,
             });
@@ -855,12 +1134,14 @@ where
             .collect();
         merkle_proofs_commit.push(MerkleProofInput {
             leaf: expected_roots[0].to_vec(),
+            leaf_hash_direct: None,
             path_bits,
             siblings,
         });
         for root in expected_roots.iter().skip(1) {
             merkle_proofs_commit.push(MerkleProofInput {
                 leaf: root.to_vec(),
+                leaf_hash_direct: None,
                 path_bits: vec![false; merkle_tree_depth],
                 siblings: vec![zero_hash.clone(); merkle_tree_depth],
             });
@@ -869,6 +1150,7 @@ where
         for root in &expected_roots {
             merkle_proofs_commit.push(MerkleProofInput {
                 leaf: root.to_vec(),
+                leaf_hash_direct: None,
                 path_bits: vec![false; merkle_tree_depth],
                 siblings: vec![zero_hash.clone(); merkle_tree_depth],
             });
@@ -881,10 +1163,19 @@ where
     };
 
     let final_poly_len = 1 << log_final_poly_len;
-    let final_poly_bytes =
-        postcard::to_allocvec(&proof.final_poly).unwrap_or_else(|_| alloc::vec![]);
-    let mut final_poly = final_poly_bytes;
-    final_poly.resize(final_poly_len, 0u8);
+    let num_rounds = proof.fri_rounds.len();
+    let round_betas: Vec<F> = proof
+        .fri_rounds
+        .iter()
+        .map(|r| {
+            postcard::from_bytes::<Ch>(&r.beta)
+                .ok()
+                .map(|b| b.into())
+                .unwrap_or(F::ZERO)
+        })
+        .collect();
+    let mut final_poly: Vec<F> = proof.final_poly.iter().map(|c| c.clone().into()).collect();
+    final_poly.resize(final_poly_len, F::ZERO);
     let mut query_indices_vec: Vec<usize> = query_indices
         .iter()
         .take(num_fri_queries)
@@ -892,118 +1183,172 @@ where
         .collect();
     query_indices_vec.resize(num_fri_queries, 0);
 
-    let mut query_evaluations = alloc::vec![0u8; num_fri_queries];
+    let mut query_evaluations: Vec<F> = alloc::vec![F::ZERO; num_fri_queries];
     for (q, &idx) in query_indices.iter().take(num_fri_queries).enumerate() {
         if let Some(steps) = opening_proof.commit_phase_openings(idx) {
             if let Some(last) = steps.last() {
                 if let Ok(mh) = last.sibling_as_merkle_hash() {
-                    let bytes: Vec<u8> = mh.as_field().clone().into_bytes().into_iter().collect();
-                    if !bytes.is_empty() {
-                        query_evaluations[q] = bytes[0];
-                    }
+                    query_evaluations[q] = super::poseidon_to_field(mh.as_field());
                 }
             }
         }
     }
 
-    let fri_inputs = FriVerificationInput {
+    let (
+        round_current_evals,
+        round_sibling_evals,
+        round_domain_point_inverses,
+        round_domain_point_x0,
+        round_parity,
+        round_roll_ins,
+    ) = if let Some(init) = first_query_initial_eval {
+        let query_idx0 = *query_indices.first().unwrap_or(&0);
+        let steps = opening_proof
+            .commit_phase_openings(query_idx0)
+            .ok_or_else(|| AirError::MissingFriCommitPhaseOpenings)?;
+        if steps.len() != num_rounds {
+            return Err(AirError::FriRoundCountMismatch);
+        }
+        let log_final_height = log_blowup + log_final_poly_len;
+        let ro_by_height: alloc::collections::BTreeMap<usize, F> = first_query_reduced_openings
+            .as_ref()
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default();
+        let mut round_current_evals = alloc::vec![F::ZERO; num_rounds];
+        let mut round_sibling_evals = alloc::vec![F::ZERO; num_rounds];
+        let mut round_domain_point_inverses = alloc::vec![F::ZERO; num_rounds];
+        let mut round_domain_point_x0 = alloc::vec![F::ZERO; num_rounds];
+        let mut round_parity = alloc::vec![F::ZERO; num_rounds];
+        let mut round_roll_ins = alloc::vec![F::ZERO; num_rounds];
+        let mut path_value = init;
+        for i in 0..num_rounds {
+            let sibling_f: F = steps[i].sibling_value_ref().clone().into();
+            round_current_evals[i] = path_value;
+            round_sibling_evals[i] = sibling_f;
+            round_parity[i] = F::from_prime_subfield(
+                <F::PrimeSubfield as QuotientMap<usize>>::from_int((query_idx0 >> i) & 1),
+            );
+            let log_folded_height = log_final_height + (num_rounds - 1 - i);
+            let domain_row_index = query_idx0 >> (i + 1);
+            let subgroup_start = F::two_adic_generator(log_folded_height + 1)
+                .exp_u64(reverse_bits_len(domain_row_index, log_folded_height) as u64);
+            let g_arity = F::two_adic_generator(1);
+            let xs0 = subgroup_start;
+            let xs1 = subgroup_start * g_arity;
+            round_domain_point_x0[i] = xs0;
+            round_domain_point_inverses[i] = (xs1 - xs0).inverse();
+            let parity = (query_idx0 >> i) & 1;
+            let (e0, e1) = if parity == 0 {
+                (path_value, sibling_f)
+            } else {
+                (sibling_f, path_value)
+            };
+            let beta = round_betas[i];
+            let folded = e0 + (beta - xs0) * (e1 - e0) * round_domain_point_inverses[i];
+            let roll_in = ro_by_height
+                .get(&log_folded_height)
+                .copied()
+                .unwrap_or(F::ZERO);
+            round_roll_ins[i] = beta * beta * roll_in;
+            path_value = folded + round_roll_ins[i];
+        }
+        (
+            round_current_evals,
+            round_sibling_evals,
+            round_domain_point_inverses,
+            round_domain_point_x0,
+            round_parity,
+            round_roll_ins,
+        )
+    } else {
+        (
+            alloc::vec![F::ZERO; num_rounds],
+            alloc::vec![F::ZERO; num_rounds],
+            alloc::vec![F::ZERO; num_rounds],
+            alloc::vec![F::ZERO; num_rounds],
+            alloc::vec![F::ZERO; num_rounds],
+            alloc::vec![F::ZERO; num_rounds],
+        )
+    };
+
+    // First query's evaluation must equal first round's current_eval (FRI AIR constraint).
+    if let Some(init) = first_query_initial_eval {
+        if !query_evaluations.is_empty() {
+            query_evaluations[0] = init;
+        }
+    }
+
+    // Final polynomial evaluation point: verifier checks folded_eval == final_poly(x) with this x.
+    let log_global_max_height = log_blowup + log_final_poly_len + num_rounds;
+    let final_domain_index = query_indices_vec.first().copied().unwrap_or(0) >> num_rounds;
+    let final_poly_eval_point = F::two_adic_generator(log_global_max_height)
+        .exp_u64(reverse_bits_len(final_domain_index, log_global_max_height) as u64);
+
+    let fri_inputs = FriVerificationInput::<F> {
         fri_rounds: proof.fri_rounds.clone(),
+        round_betas,
         final_poly,
         query_indices: query_indices_vec,
         query_evaluations,
-        round_current_evals: alloc::vec![],
-        round_sibling_evals: alloc::vec![],
-        round_domain_point_inverses: alloc::vec![],
+        round_current_evals,
+        round_sibling_evals,
+        round_domain_point_inverses,
+        round_domain_point_x0,
+        round_parity,
+        final_poly_eval_point,
+        round_roll_ins,
     };
 
-    let quotient_chunks: Vec<Vec<u8>> = proof
+    let quotient_chunks: Vec<F> = proof
         .quotient_chunks
         .iter()
-        .map(|chunk| {
-            let b = chunk
-                .first()
-                .and_then(|c| postcard::to_allocvec(c).ok())
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8);
-            vec![b]
-        })
+        .map(|chunk| chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO))
         .collect();
-    let trace_local: Vec<u8> = proof
-        .trace_local
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let trace_next: Vec<u8> = proof
-        .trace_next
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let zeta = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let alpha = postcard::to_allocvec(&proof.alpha).unwrap_or_else(|_| alloc::vec![0u8]);
-    let public_values =
-        postcard::to_allocvec(&proof.expected_public_values).unwrap_or_else(|_| alloc::vec![]);
-    let constraint_inputs = ConstraintVerificationInput {
+    let constraint_inputs = ConstraintVerificationInput::<F> {
         quotient_chunks,
-        trace_local,
-        trace_next,
-        zeta,
-        alpha,
-        public_values,
+        trace_local: proof.trace_local.clone(),
+        trace_next: proof.trace_next.clone(),
+        zeta: proof.zeta.clone().into(),
+        alpha: proof.alpha.clone().into(),
+        public_values: proof.expected_public_values.clone(),
     };
 
     let num_opened_values = proof.trace_width * 2 + proof.num_quotient_chunks;
-    let zeta_bytes = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let zeta_next_bytes =
-        postcard::to_allocvec(&proof.zeta_next).unwrap_or_else(|_| alloc::vec![0u8]);
-    let mut opened_values = Vec::with_capacity(num_opened_values);
-    let mut domain_points = Vec::with_capacity(num_opened_values);
-    let mut expected_roots_open = Vec::with_capacity(num_opened_values);
-    for (_, f) in proof.trace_local.iter().enumerate() {
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
-    for (_, f) in proof.trace_next.iter().enumerate() {
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_next_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
+    let zeta_f: F = proof.zeta.clone().into();
+    let zeta_next_f: F = proof.zeta_next.clone().into();
+    let mut opened_values: Vec<F> = proof.trace_local.iter().cloned().collect();
+    opened_values.extend(proof.trace_next.iter().cloned());
     for chunk in &proof.quotient_chunks {
-        let b = chunk
-            .first()
-            .and_then(|c| postcard::to_allocvec(c).ok())
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.quotient_commitment_hash);
+        opened_values.push(chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO));
     }
-    let merkle_proofs_open = (0..num_opened_values)
+    let mut domain_points: Vec<F> = alloc::vec![zeta_f; proof.trace_width];
+    domain_points.extend(alloc::vec![zeta_next_f; proof.trace_width]);
+    domain_points.extend(alloc::vec![zeta_f; proof.num_quotient_chunks]);
+    let merkle_proofs_open: Vec<MerkleProofInput> = (0..num_opened_values)
         .map(|_| MerkleProofInput {
             leaf: vec![0u8; 32],
+            leaf_hash_direct: None,
             path_bits: vec![false; merkle_tree_depth],
             siblings: vec![zero_hash.clone(); merkle_tree_depth],
         })
         .collect();
-    let opening_inputs = OpeningVerificationInput {
+    // Expected roots must match the roots computed from the dummy Merkle proofs so that
+    // verification_result = computed_root - expected_root = 0 in the opening trace.
+    let merkle_air =
+        super::MerkleInclusionAir::new(merkle_tree_depth).map_err(|e| AirError::InvalidInput {
+            reason: e.to_string(),
+        })?;
+    let expected_roots_open: Vec<F> = merkle_proofs_open
+        .iter()
+        .map(|proof| {
+            merkle_air
+                .public_values(proof)
+                .first()
+                .copied()
+                .unwrap_or(F::ZERO)
+        })
+        .collect();
+    let opening_inputs = OpeningVerificationInput::<F> {
         opened_values,
         domain_points,
         merkle_proofs: merkle_proofs_open,
@@ -1029,8 +1374,8 @@ fn build_recursive_verification_input_with_query_indices<F, Ch>(
     query_indices: &[usize],
 ) -> Result<RecursiveStarkVerificationInput<F, Ch>, AirError>
 where
-    F: Field + serde::Serialize,
-    Ch: Field + serde::Serialize,
+    F: Field + serde::Serialize + serde::de::DeserializeOwned,
+    Ch: Field + serde::Serialize + serde::de::DeserializeOwned + Into<F>,
 {
     let zero_hash = MerkleHash::from_bytes(&[0u8; 32]).map_err(|e| AirError::InvalidInput {
         reason: alloc::format!("stub MerkleHash: {}", e),
@@ -1044,6 +1389,7 @@ where
         .iter()
         .map(|root| MerkleProofInput {
             leaf: root.to_vec(),
+            leaf_hash_direct: None,
             path_bits: vec![false; merkle_tree_depth],
             siblings: vec![zero_hash.clone(); merkle_tree_depth],
         })
@@ -1054,118 +1400,79 @@ where
     };
 
     let final_poly_len = 1 << log_final_poly_len;
-    let final_poly_bytes =
-        postcard::to_allocvec(&proof.final_poly).unwrap_or_else(|_| alloc::vec![]);
-    let mut final_poly = final_poly_bytes;
-    final_poly.resize(final_poly_len, 0u8);
+    let num_rounds = proof.fri_rounds.len();
+    let round_betas: Vec<F> = proof
+        .fri_rounds
+        .iter()
+        .map(|r| {
+            postcard::from_bytes::<Ch>(&r.beta)
+                .ok()
+                .map(|b| b.into())
+                .unwrap_or(F::ZERO)
+        })
+        .collect();
+    let mut final_poly: Vec<F> = proof.final_poly.iter().map(|c| c.clone().into()).collect();
+    final_poly.resize(final_poly_len, F::ZERO);
     let mut query_indices_vec: Vec<usize> = query_indices
         .iter()
         .take(num_fri_queries)
         .copied()
         .collect();
     query_indices_vec.resize(num_fri_queries, 0);
-    let fri_inputs = FriVerificationInput {
+
+    let fri_inputs = FriVerificationInput::<F> {
         fri_rounds: proof.fri_rounds.clone(),
+        round_betas,
         final_poly,
         query_indices: query_indices_vec,
-        query_evaluations: vec![0u8; num_fri_queries],
-        round_current_evals: alloc::vec![],
-        round_sibling_evals: alloc::vec![],
-        round_domain_point_inverses: alloc::vec![],
+        query_evaluations: alloc::vec![F::ZERO; num_fri_queries],
+        round_current_evals: alloc::vec![F::ZERO; num_rounds],
+        round_sibling_evals: alloc::vec![F::ZERO; num_rounds],
+        round_domain_point_inverses: alloc::vec![F::ZERO; num_rounds],
+        round_domain_point_x0: alloc::vec![F::ZERO; num_rounds],
+        round_parity: alloc::vec![F::ZERO; num_rounds],
+        final_poly_eval_point: F::ZERO,
+        round_roll_ins: alloc::vec![F::ZERO; num_rounds],
     };
 
-    let quotient_chunks: Vec<Vec<u8>> = proof
+    let quotient_chunks: Vec<F> = proof
         .quotient_chunks
         .iter()
-        .map(|chunk| {
-            let b = chunk
-                .first()
-                .and_then(|c| postcard::to_allocvec(c).ok())
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8);
-            vec![b]
-        })
+        .map(|chunk| chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO))
         .collect();
-    let trace_local: Vec<u8> = proof
-        .trace_local
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let trace_next: Vec<u8> = proof
-        .trace_next
-        .iter()
-        .map(|f| {
-            postcard::to_allocvec(f)
-                .ok()
-                .and_then(|v| v.into_iter().next())
-                .unwrap_or(0u8)
-        })
-        .collect();
-    let zeta = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let alpha = postcard::to_allocvec(&proof.alpha).unwrap_or_else(|_| alloc::vec![0u8]);
-    let public_values =
-        postcard::to_allocvec(&proof.expected_public_values).unwrap_or_else(|_| alloc::vec![]);
-    let constraint_inputs = ConstraintVerificationInput {
+    let constraint_inputs = ConstraintVerificationInput::<F> {
         quotient_chunks,
-        trace_local,
-        trace_next,
-        zeta,
-        alpha,
-        public_values,
+        trace_local: proof.trace_local.clone(),
+        trace_next: proof.trace_next.clone(),
+        zeta: proof.zeta.clone().into(),
+        alpha: proof.alpha.clone().into(),
+        public_values: proof.expected_public_values.clone(),
     };
 
     let num_opened_values = proof.trace_width * 2 + proof.num_quotient_chunks;
-    let zeta_bytes = postcard::to_allocvec(&proof.zeta).unwrap_or_else(|_| alloc::vec![0u8]);
-    let zeta_next_bytes =
-        postcard::to_allocvec(&proof.zeta_next).unwrap_or_else(|_| alloc::vec![0u8]);
-    let mut opened_values = Vec::with_capacity(num_opened_values);
-    let mut domain_points = Vec::with_capacity(num_opened_values);
-    let mut expected_roots_open = Vec::with_capacity(num_opened_values);
-    for (_, f) in proof.trace_local.iter().enumerate() {
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
-    for (_, f) in proof.trace_next.iter().enumerate() {
-        let b = postcard::to_allocvec(f)
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_next_bytes.clone());
-        expected_roots_open.push(proof.trace_commitment_hash);
-    }
+    let zeta_f: F = proof.zeta.clone().into();
+    let zeta_next_f: F = proof.zeta_next.clone().into();
+    let mut opened_values: Vec<F> = proof.trace_local.iter().cloned().collect();
+    opened_values.extend(proof.trace_next.iter().cloned());
     for chunk in &proof.quotient_chunks {
-        let b = chunk
-            .first()
-            .and_then(|c| postcard::to_allocvec(c).ok())
-            .and_then(|v| v.into_iter().next())
-            .unwrap_or(0u8);
-        opened_values.push(vec![b]);
-        domain_points.push(zeta_bytes.clone());
-        expected_roots_open.push(proof.quotient_commitment_hash);
+        opened_values.push(chunk.first().cloned().map(Into::into).unwrap_or(F::ZERO));
     }
+    let mut domain_points: Vec<F> = alloc::vec![zeta_f; proof.trace_width];
+    domain_points.extend(alloc::vec![zeta_next_f; proof.trace_width]);
+    domain_points.extend(alloc::vec![zeta_f; proof.num_quotient_chunks]);
     let merkle_proofs_open = (0..num_opened_values)
         .map(|_| MerkleProofInput {
             leaf: vec![0u8; 32],
+            leaf_hash_direct: None,
             path_bits: vec![false; merkle_tree_depth],
             siblings: vec![zero_hash.clone(); merkle_tree_depth],
         })
         .collect();
-    let opening_inputs = OpeningVerificationInput {
+    let opening_inputs = OpeningVerificationInput::<F> {
         opened_values,
         domain_points,
         merkle_proofs: merkle_proofs_open,
-        expected_roots: expected_roots_open,
+        expected_roots: alloc::vec![F::ZERO; num_opened_values],
     };
 
     Ok(RecursiveStarkVerificationInput {
@@ -1215,6 +1522,75 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             commitment_air.generate_trace(&inputs.commitment_inputs)?;
         let commitment_width = <CommitmentVerifierAir as BaseAir<Val>>::width(&commitment_air);
 
+        #[cfg(all(feature = "std", feature = "recursive-proofs-experimental"))]
+        {
+            use super::recursive_types::COMMITMENT_HASH_SIZE;
+
+            let commitment_public_values: Vec<F> =
+                commitment_air.public_values(&inputs.commitment_inputs);
+
+            for commit_idx in 0..num_commitments {
+                let input_root = &inputs.commitment_inputs.expected_roots[commit_idx];
+                let _input_root_hex: String = input_root
+                    .iter()
+                    .take(8)
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join("");
+                let _pv_start = commit_idx * COMMITMENT_HASH_SIZE;
+                let pv_end = (commit_idx + 1) * COMMITMENT_HASH_SIZE;
+                let pv_len = commitment_public_values.len();
+                #[cfg(feature = "trace-debug")]
+                std::eprintln!(
+                    "commit{} input_root (hex first 8)={} pv_slice=[{}..{}] pv_len={}",
+                    commit_idx,
+                    _input_root_hex,
+                    _pv_start,
+                    pv_end,
+                    pv_len
+                );
+                assert!(
+                    pv_end <= pv_len,
+                    "public_values mismatch @ commit{}: pv_len {} < {}",
+                    commit_idx,
+                    pv_len,
+                    pv_end
+                );
+            }
+
+            if let Ok(merkle_air) = super::MerkleInclusionAir::new(self.merkle_tree_depth) {
+                for commit_idx in 0..num_commitments {
+                    let expected_root_field = super::merkle_root_from_bytes(
+                        &inputs.commitment_inputs.expected_roots[commit_idx][..],
+                    )
+                    .ok()
+                    .map(|poseidon_root| super::poseidon_to_field(&poseidon_root))
+                    .unwrap_or_else(|| {
+                        F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
+                            inputs.commitment_inputs.expected_roots[commit_idx][0],
+                        ))
+                    });
+                    let air_root = merkle_air
+                        .public_values(&inputs.commitment_inputs.merkle_proofs[commit_idx])
+                        .first()
+                        .copied()
+                        .unwrap_or(F::ZERO);
+                    #[cfg(feature = "trace-debug")]
+                    std::eprintln!(
+                        "commit{} expected_root_field={:?} air_root (Merkle computed)={:?}",
+                        commit_idx,
+                        expected_root_field,
+                        air_root
+                    );
+                    assert_eq!(
+                        expected_root_field, air_root,
+                        "MerkleInclusionAir mismatch @ commit{}: expected (from input bytes) != root computed from Merkle path",
+                        commit_idx
+                    );
+                }
+            }
+        }
+
         let fri_air = FriVerifierAir::new(
             self.serialized_proof.fri_rounds.len(),
             self.log_final_poly_len,
@@ -1239,6 +1615,62 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             opening_air.generate_trace(&inputs.opening_inputs)?;
         let opening_width = <OpeningVerifierAir as BaseAir<Val>>::width(&opening_air);
 
+        #[cfg(all(feature = "std", feature = "recursive-proofs-experimental"))]
+        if let Ok(merkle_air) = super::MerkleInclusionAir::new(self.merkle_tree_depth) {
+            use lib_q_stark_air::BaseAir;
+
+            use super::poseidon_gadget::PoseidonGadget;
+            use super::recursive_types::COMMITMENT_HASH_SIZE;
+
+            let tree_depth = self.merkle_tree_depth;
+            let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
+            let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
+            const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+            let level_width = 1 +
+                HASH_SIZE_FIELD_ELEMENTS +
+                HASH_SIZE_FIELD_ELEMENTS +
+                PoseidonGadget::COLUMNS_PER_HASH;
+
+            for commit_idx in 0..num_commitments {
+                let per_commitment_start_local = commit_idx * per_commitment_width;
+                let expected_col_local = per_commitment_start_local;
+                let merkle_proof_start_local = per_commitment_start_local + COMMITMENT_HASH_SIZE;
+                let equality_check_col_local = merkle_proof_start_local + merkle_width;
+                let computed_root_col_local =
+                    merkle_proof_start_local + 1 + (tree_depth - 1) * level_width + 2;
+
+                let eq_val = commitment_trace
+                    .get(0, equality_check_col_local)
+                    .unwrap_or(F::ZERO);
+                let expected_val = commitment_trace
+                    .get(0, expected_col_local)
+                    .unwrap_or(F::ZERO);
+                let computed_val = commitment_trace
+                    .get(0, computed_root_col_local)
+                    .unwrap_or(F::ZERO);
+
+                assert_eq!(
+                    eq_val,
+                    F::ZERO,
+                    "commitment_trace eq_col != 0 @ commit {}",
+                    commit_idx
+                );
+                assert_eq!(
+                    expected_val, computed_val,
+                    "commitment_trace expected != computed @ commit {}",
+                    commit_idx
+                );
+                #[cfg(feature = "trace-debug")]
+                std::eprintln!(
+                    "✓ SOURCE commitment_trace commit{}: eq={:?} expected={:?} computed={:?}",
+                    commit_idx,
+                    eq_val,
+                    expected_val,
+                    computed_val
+                );
+            }
+        }
+
         // Combine all traces into a single trace
         let mut offset = 0;
 
@@ -1262,6 +1694,45 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
         };
         offset += metadata_width;
 
+        // Column layout logging: same formula as CommitmentVerifierAir::eval_with_offset
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        if let Ok(merkle_air) = super::MerkleInclusionAir::new(self.merkle_tree_depth) {
+            use lib_q_stark_air::BaseAir;
+
+            use super::poseidon_gadget::PoseidonGadget;
+            use super::recursive_types::COMMITMENT_HASH_SIZE;
+
+            let commitment_offset = metadata_width;
+            let tree_depth = self.merkle_tree_depth;
+            let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
+            let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
+            const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+            let level_width = 1 +
+                HASH_SIZE_FIELD_ELEMENTS +
+                HASH_SIZE_FIELD_ELEMENTS +
+                PoseidonGadget::COLUMNS_PER_HASH;
+
+            for commit_idx in 0..num_commitments {
+                let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
+                let expected_root_col = per_commitment_start;
+                let merkle_proof_start = per_commitment_start + COMMITMENT_HASH_SIZE;
+                let equality_check_col = merkle_proof_start + merkle_width;
+                let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
+
+                std::eprintln!(
+                    "WRITE commit_idx={} → eq_col={}, expected_root_col={}, computed_root_col={}",
+                    commit_idx,
+                    equality_check_col,
+                    expected_root_col,
+                    computed_root_col
+                );
+            }
+        }
+
         // Commitment verification section
         for col in 0..commitment_width {
             trace_values[offset + col] = match commitment_trace.get(0, col) {
@@ -1269,6 +1740,100 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
                 None => F::ZERO,
             };
         }
+
+        #[cfg(all(feature = "std", feature = "recursive-proofs-experimental"))]
+        if let Ok(merkle_air) = super::MerkleInclusionAir::new(self.merkle_tree_depth) {
+            use lib_q_stark_air::BaseAir;
+
+            use super::poseidon_gadget::PoseidonGadget;
+            use super::recursive_types::COMMITMENT_HASH_SIZE;
+
+            let commitment_offset = metadata_width;
+            let tree_depth = self.merkle_tree_depth;
+            let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
+            let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
+            const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+            let level_width = 1 +
+                HASH_SIZE_FIELD_ELEMENTS +
+                HASH_SIZE_FIELD_ELEMENTS +
+                PoseidonGadget::COLUMNS_PER_HASH;
+
+            for commit_idx in 0..num_commitments {
+                let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
+                let expected_root_col = per_commitment_start;
+                let merkle_proof_start = per_commitment_start + COMMITMENT_HASH_SIZE;
+                let equality_check_col = merkle_proof_start + merkle_width;
+                let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
+
+                let _eq_val = trace_values.get(equality_check_col).copied();
+                let expected_val = trace_values.get(expected_root_col).copied();
+                let computed_val = trace_values.get(computed_root_col).copied();
+
+                #[cfg(feature = "trace-debug")]
+                std::eprintln!(
+                    "✓ DEST combined_trace commit{}: eq={:?} expected={:?} computed={:?}",
+                    commit_idx,
+                    _eq_val,
+                    expected_val,
+                    computed_val
+                );
+
+                match (expected_val, computed_val) {
+                    (Some(a), Some(b)) if a != b => {
+                        panic!(
+                            "CORRUPTION DETECTED: combined_trace corrupted @ commit {}",
+                            commit_idx
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        #[cfg(all(
+            feature = "std",
+            feature = "recursive-proofs-experimental",
+            feature = "trace-debug"
+        ))]
+        if let Ok(merkle_air) = super::MerkleInclusionAir::new(self.merkle_tree_depth) {
+            use lib_q_stark_air::BaseAir;
+
+            use super::poseidon_gadget::PoseidonGadget;
+            use super::recursive_types::COMMITMENT_HASH_SIZE;
+
+            let commitment_offset = metadata_width;
+            let tree_depth = self.merkle_tree_depth;
+            let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
+            let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
+            const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+            let level_width = 1 +
+                HASH_SIZE_FIELD_ELEMENTS +
+                HASH_SIZE_FIELD_ELEMENTS +
+                PoseidonGadget::COLUMNS_PER_HASH;
+
+            for commit_idx in 0..num_commitments {
+                let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
+                let expected_root_col = per_commitment_start;
+                let merkle_proof_start = per_commitment_start + COMMITMENT_HASH_SIZE;
+                let equality_check_col = merkle_proof_start + merkle_width;
+                let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
+
+                let expected_val = trace_values.get(expected_root_col).copied();
+                let computed_val = trace_values.get(computed_root_col).copied();
+                let eq_val = trace_values.get(equality_check_col).copied();
+                std::eprintln!(
+                    "Wrote expected_root[{}]={:?} to col {}, computed_root={:?} to col {}, eq={:?} to col {}",
+                    commit_idx,
+                    expected_val,
+                    expected_root_col,
+                    computed_val,
+                    computed_root_col,
+                    eq_val,
+                    equality_check_col
+                );
+            }
+        }
+
         offset += commitment_width;
 
         // FRI verification section
@@ -1308,6 +1873,71 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             let f_val = *val;
             trace_values[offset + i * 2] = f_val;
             trace_values[offset + i * 2 + 1] = f_val;
+        }
+
+        let metadata_width = 4;
+        let fri_start = metadata_width + commitment_width;
+        let fri_end = fri_start + fri_width;
+        let num_rounds = self.serialized_proof.fri_rounds.len();
+        let final_poly_len = 1 << self.log_final_poly_len;
+        let per_round = 32 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1;
+        if num_rounds > 0 && final_poly_len > 0 {
+            let last_folded_col = fri_start + (num_rounds - 1) * per_round + 32 + 1;
+            let horner_start = fri_start + num_rounds * per_round + final_poly_len + 1;
+            let horner_result_col = horner_start + final_poly_len - 1;
+            debug_assert!(
+                last_folded_col >= fri_start && last_folded_col < fri_end,
+                "FRI last_folded_col {} out of FRI range [{}, {})",
+                last_folded_col,
+                fri_start,
+                fri_end
+            );
+            debug_assert!(
+                horner_result_col >= fri_start && horner_result_col < fri_end,
+                "FRI horner_result_col {} out of FRI range [{}, {})",
+                horner_result_col,
+                fri_start,
+                fri_end
+            );
+        }
+
+        #[cfg(feature = "std")]
+        {
+            let constraint_start = fri_end;
+            let constraint_end = constraint_start + constraint_width;
+            let opening_start = constraint_end;
+            let opening_end = opening_start + opening_width;
+            std::println!(
+                "Trace layout: metadata 0..{}, commitment {}..{}, fri {}..{}, constraint {}..{}, opening {}..{}",
+                metadata_width,
+                metadata_width,
+                fri_start,
+                fri_start,
+                fri_end,
+                constraint_start,
+                constraint_end,
+                opening_start,
+                opening_end
+            );
+            if num_rounds > 0 && final_poly_len > 0 {
+                let last_folded_col = fri_start + (num_rounds - 1) * per_round + 32 + 1;
+                let horner_start = fri_start + num_rounds * per_round + final_poly_len + 1;
+                let horner_result_col = horner_start + final_poly_len - 1;
+                std::println!(
+                    "FRI segment: last_folded_col={}, horner_result_col={} (fri_start={}, fri_width={})",
+                    last_folded_col,
+                    horner_result_col,
+                    fri_start,
+                    fri_width
+                );
+                if last_folded_col < trace_values.len() && horner_result_col < trace_values.len() {
+                    std::println!(
+                        "  trace[last_folded_col]={:?}, trace[horner_result_col]={:?}",
+                        trace_values[last_folded_col],
+                        trace_values[horner_result_col]
+                    );
+                }
+            }
         }
 
         Ok(RowMajorMatrix::new(trace_values, width))

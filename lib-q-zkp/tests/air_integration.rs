@@ -128,6 +128,7 @@ fn test_merkle_inclusion_trace_generation() {
     let air = MerkleInclusionAir::new(3).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false, true, false],
         siblings: vec![
             MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -148,6 +149,7 @@ fn test_merkle_inclusion_mismatched_depth() {
     // Wrong number of path bits
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false, true], // 2 instead of 4
         siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 4],
     };
@@ -441,11 +443,41 @@ fn test_merkle_membership_soundness() {
     // Test with wrong root (should fail)
     let wrong_root = b"wrong root hash";
     let result = verify_membership(&proof, wrong_root);
-    // The verification should return false for invalid proof
     assert!(
         !result.unwrap_or(false),
         "Invalid Merkle proof must be rejected"
     );
+}
+
+#[test]
+fn test_merkle_membership_roundtrip_correct_root() {
+    // Build a tree, prove membership, verify with correct root (positive case)
+    use lib_q_zkp::api::{
+        build_merkle_tree,
+        merkle_path_from_tree,
+        prove_membership,
+        verify_membership,
+        verify_membership_with_depth,
+    };
+
+    let leaves: Vec<&[u8]> = vec![b"leaf0", b"leaf1", b"leaf2"];
+    let tree = build_merkle_tree(&leaves).unwrap();
+    let root_bytes = tree.root_bytes();
+
+    for (i, leaf) in leaves.iter().enumerate() {
+        let path = merkle_path_from_tree(&tree, i).unwrap();
+        let proof = prove_membership(leaf, &path).unwrap();
+        assert!(
+            verify_membership(&proof, &root_bytes).unwrap(),
+            "correct root must verify for leaf {}",
+            i
+        );
+        assert!(
+            verify_membership_with_depth(&proof, &root_bytes, tree.depth()).unwrap(),
+            "correct root with explicit depth must verify for leaf {}",
+            i
+        );
+    }
 }
 
 #[test]
@@ -679,7 +711,9 @@ fn test_arithmetic_air_soundness_zero_product_is_valid() {
     };
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_pv_padded(0, 5);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -698,7 +732,9 @@ fn test_arithmetic_air_soundness_wrong_product() {
     let air = ArithmeticAir::new(1).unwrap();
     let (mut trace, pv) = make_arithmetic_trace_pv_padded(3, 4);
     trace.values[2] = TestField::from(Mersenne31::new(13));
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -717,7 +753,9 @@ fn test_range_proof_boundary_value_valid() {
     let inputs = vec![<TestField as PrimeCharacteristicRing>::ZERO];
     let trace = air.generate_trace(&inputs).unwrap();
     let pv = air.public_values(&inputs);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -742,7 +780,9 @@ fn test_range_proof_non_boolean_bit_rejected() {
         trace.values[row * width + 1 + 1] = TestField::from(Mersenne31::new(2));
     }
     let pv = air.public_values(&inputs);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -770,6 +810,7 @@ fn test_merkle_inclusion_constraint_soundness() {
     // Create valid input
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false, true],
         siblings: vec![
             MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -784,7 +825,7 @@ fn test_merkle_inclusion_constraint_soundness() {
     // Create proof
     let config = default_config();
     let prover = StarkProver::new(config);
-    let proof = prover.prove(&air, trace, &public_values);
+    let proof = prover.prove(&air, trace, &public_values).expect("prove");
 
     // Verify proof
     let config2 = default_config();
@@ -816,6 +857,7 @@ fn test_merkle_inclusion_soundness_corrupted_sibling() {
     let air = MerkleInclusionAir::new(2).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false, true],
         siblings: vec![
             MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -831,7 +873,9 @@ fn test_merkle_inclusion_soundness_corrupted_sibling() {
         trace.values[row * width + sibling_col] += TestField::from(Mersenne31::new(1));
     }
     let pv = air.public_values(&input);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -870,7 +914,9 @@ fn test_merkle_inclusion_soundness_wrong_direction_bit() {
         trace.values[row * width + direction_col] = TestField::from(Mersenne31::new(1));
     }
     let pv = air.public_values(&input);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -901,7 +947,9 @@ fn test_hash_preimage_soundness_wrong_preimage() {
         trace.values[row * width + preimage_start] += TestField::from(Mersenne31::new(1));
     }
     let pv = air.public_values(&preimage);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -926,6 +974,7 @@ fn test_poseidon_gadget_intermediate_states_are_binding() {
     let air = MerkleInclusionAir::new(1).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false],
         siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap()],
     };
@@ -941,7 +990,9 @@ fn test_poseidon_gadget_intermediate_states_are_binding() {
         }
     }
     let pv = air.public_values(&input);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     assert!(
         StarkVerifier::new(default_config())
             .verify(&air, &proof, &pv)
@@ -986,6 +1037,7 @@ fn test_stark_layer_wide_trace_regression() {
 
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false],
         siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap()],
     };
@@ -993,7 +1045,9 @@ fn test_stark_layer_wide_trace_regression() {
     let public_values = air.public_values(&input);
     let degree = trace.height();
 
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &public_values);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &public_values)
+        .expect("prove");
     let expected_degree_bits = degree.trailing_zeros() as usize + config.is_zk();
     assert_eq!(
         proof.degree_bits, expected_degree_bits,

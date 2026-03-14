@@ -51,7 +51,9 @@ fn test_transaction_constraint_soundness() {
     let pv = air.public_values(&input);
 
     if cfg!(debug_assertions) {
-        let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+        let proof = StarkProver::new(default_config())
+            .prove(&air, trace, &pv)
+            .expect("prove");
         let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
         assert!(
             verify_result.is_ok(),
@@ -64,12 +66,8 @@ fn test_transaction_constraint_soundness() {
                 lib_q_stark_mersenne31::Mersenne31::new(100),
             );
         }
-        let proof = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(
-            verify_result.is_err(),
-            "Corrupting tx_type column must cause verify to fail"
-        );
+        let result = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
+        assert!(result.is_err(), "prove with mismatched trace should fail");
     }
 }
 
@@ -88,7 +86,9 @@ fn test_state_transition_signature_commitment_valid() {
     assert_valid_trace_dimensions(&trace);
     let pv = air.public_values(&input);
 
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
     assert!(
         verify_result.is_ok(),
@@ -113,7 +113,9 @@ fn test_state_transition_signature_commitment_soundness() {
     let pv = air.public_values(&input);
 
     if cfg!(debug_assertions) {
-        let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+        let proof = StarkProver::new(default_config())
+            .prove(&air, trace, &pv)
+            .expect("prove");
         let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
         assert!(
             verify_result.is_ok(),
@@ -127,11 +129,7 @@ fn test_state_transition_signature_commitment_soundness() {
                 lib_q_stark_mersenne31::Mersenne31::new(1),
             );
         }
-        let proof = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(
-            verify_result.is_err(),
-            "Corrupting signature commitment column must cause verify to fail"
-        );
+        let result = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
+        assert!(result.is_err(), "prove with mismatched trace should fail");
     }
 }

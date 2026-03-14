@@ -354,7 +354,7 @@ where
 /// - `commitments_with_opening_points`: A vector of joint commitments to collections of matrices
 ///   and openings of those matrices at a collection of points.
 #[inline]
-fn open_input<Val, Challenge, InputMmcs, FriMmcs>(
+pub fn open_input<Val, Challenge, InputMmcs, FriMmcs>(
     params: &FriParameters<FriMmcs>,
     log_global_max_height: usize,
     index: usize,
@@ -466,4 +466,141 @@ where
         .rev()
         .map(|(log_height, (_, ro))| (log_height, ro))
         .collect())
+}
+
+/// Returns the initial FRI evaluation (first reduced opening at the given domain index) for use by
+/// recursive verifiers that need to populate the FRI folding witness.
+///
+/// Call with the same `commitments_with_opening_points` and `alpha` that would be used for
+/// full FRI verification. `query_proof_index` selects which query proof (e.g. 0 for first query)
+/// and `domain_index` is the FRI domain index that was used for that query (e.g. from
+/// the verifier's derived query positions).
+pub fn initial_fri_eval_for_query<Val, Challenge, InputMmcs, FriMmcs, Witness>(
+    params: &FriParameters<FriMmcs>,
+    input_mmcs: &InputMmcs,
+    commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+        Challenge,
+        InputMmcs::Commitment,
+        TwoAdicMultiplicativeCoset<Val>,
+    >],
+    proof: &FriProof<Challenge, FriMmcs, Witness, Vec<BatchOpening<Val, InputMmcs>>>,
+    query_proof_index: usize,
+    domain_index: usize,
+    alpha: Challenge,
+) -> Result<Challenge, FriError<FriMmcs::Error, InputMmcs::Error>>
+where
+    Val: TwoAdicField,
+    Challenge: ExtensionField<Val>,
+    InputMmcs: Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
+{
+    let log_global_max_height =
+        proof.commit_phase_commits.len() + params.log_blowup + params.log_final_poly_len;
+    let query_proof = proof
+        .query_proofs
+        .get(query_proof_index)
+        .ok_or(FriError::InvalidProofShape)?;
+    let input_proof = &query_proof.input_proof;
+    let ro = open_input(
+        params,
+        log_global_max_height,
+        domain_index,
+        input_proof,
+        alpha,
+        input_mmcs,
+        commitments_with_opening_points,
+    )?;
+    let (_log_height, initial_eval) = ro.first().ok_or(FriError::InvalidProofShape)?;
+    Ok(*initial_eval)
+}
+
+/// Returns all reduced openings for a query (log_height, ro) in descending order of log_height.
+/// Used by recursive verifiers to apply roll-in terms (beta^2 * ro) at each FRI round.
+pub fn reduced_openings_for_query<Val, Challenge, InputMmcs, FriMmcs, Witness>(
+    params: &FriParameters<FriMmcs>,
+    input_mmcs: &InputMmcs,
+    commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+        Challenge,
+        InputMmcs::Commitment,
+        TwoAdicMultiplicativeCoset<Val>,
+    >],
+    proof: &FriProof<Challenge, FriMmcs, Witness, Vec<BatchOpening<Val, InputMmcs>>>,
+    query_proof_index: usize,
+    domain_index: usize,
+    alpha: Challenge,
+) -> Result<Vec<(usize, Challenge)>, FriError<FriMmcs::Error, InputMmcs::Error>>
+where
+    Val: TwoAdicField,
+    Challenge: ExtensionField<Val>,
+    InputMmcs: Mmcs<Val>,
+    FriMmcs: Mmcs<Challenge>,
+{
+    let log_global_max_height =
+        proof.commit_phase_commits.len() + params.log_blowup + params.log_final_poly_len;
+    let query_proof = proof
+        .query_proofs
+        .get(query_proof_index)
+        .ok_or(FriError::InvalidProofShape)?;
+    let input_proof = &query_proof.input_proof;
+    let ro = open_input(
+        params,
+        log_global_max_height,
+        domain_index,
+        input_proof,
+        alpha,
+        input_mmcs,
+        commitments_with_opening_points,
+    )?;
+    Ok(ro)
+}
+
+/// Trait for PCS implementations that support returning the initial FRI evaluation at a query
+/// (for recursive verifiers that need to populate the FRI folding witness).
+pub trait FriInitialEval<Challenge> {
+    /// The opening proof type (e.g. `FriProof`).
+    type Proof: Clone;
+    /// Error type from FRI/open_input.
+    type Error: core::fmt::Debug;
+    /// Commitment type (must match the PCS).
+    type Commitment: Clone;
+    /// Domain type (e.g. `TwoAdicMultiplicativeCoset<Val>`).
+    type Domain;
+
+    /// Returns the initial reduced opening at the given query (first element of `open_input`).
+    fn initial_fri_eval_for_query(
+        &self,
+        commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+            Challenge,
+            Self::Commitment,
+            Self::Domain,
+        >],
+        proof: &Self::Proof,
+        query_proof_index: usize,
+        domain_index: usize,
+        alpha: Challenge,
+    ) -> Result<Challenge, Self::Error>;
+}
+
+/// Trait for PCS implementations that can return all reduced openings at a query
+/// (for recursive verifiers that need roll-in terms at each FRI round).
+pub trait FriReducedOpenings<Challenge> {
+    /// Same associated types as [`FriInitialEval`].
+    type Proof: Clone;
+    type Error: core::fmt::Debug;
+    type Commitment: Clone;
+    type Domain;
+
+    /// Returns all (log_height, reduced_opening) for the query in descending log_height order.
+    fn reduced_openings_for_query(
+        &self,
+        commitments_with_opening_points: &[CommitmentWithOpeningPoints<
+            Challenge,
+            Self::Commitment,
+            Self::Domain,
+        >],
+        proof: &Self::Proof,
+        query_proof_index: usize,
+        domain_index: usize,
+        alpha: Challenge,
+    ) -> Result<Vec<(usize, Challenge)>, Self::Error>;
 }

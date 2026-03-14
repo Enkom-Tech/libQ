@@ -51,6 +51,23 @@ use crate::{
 /// This limits trace size to approximately 1 billion rows.
 pub const MAX_TRACE_HEIGHT: usize = 1 << 30;
 
+/// Error type for prover operations.
+#[derive(Debug, thiserror::Error)]
+pub enum ProverError {
+    #[error("trace height must be greater than 0")]
+    EmptyTrace,
+    #[error("trace height {0} is not a power of 2")]
+    NonPowerOfTwoHeight(usize),
+    #[error("trace height {height} exceeds maximum {max}")]
+    TraceHeightExceeded { height: usize, max: usize },
+    #[error("trace width must be greater than 0")]
+    EmptyTraceWidth,
+    #[error("trace width {width} exceeds maximum {max}")]
+    TraceWidthExceeded { width: usize, max: usize },
+    #[error("public values count {count} exceeds maximum {max}")]
+    TooManyPublicValues { count: usize, max: usize },
+}
+
 /// Panics if `height` exceeds [`MAX_TRACE_HEIGHT`]. Used for DoS protection and testability.
 #[inline]
 pub fn assert_trace_height_within_limit(height: usize) {
@@ -100,7 +117,7 @@ pub fn prove_with_preprocessed<SC, A>(
     trace: RowMajorMatrix<Val<SC>>,
     public_values: &[Val<SC>],
     preprocessed: Option<&PreprocessedProverData<SC>>,
-) -> Proof<SC>
+) -> Result<Proof<SC>, ProverError>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
@@ -118,7 +135,7 @@ pub fn prove_with_preprocessed<SC, A>(
     trace: RowMajorMatrix<Val<SC>>,
     public_values: &[Val<SC>],
     preprocessed: Option<&PreprocessedProverData<SC>>,
-) -> Proof<SC>
+) -> Result<Proof<SC>, ProverError>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
@@ -132,38 +149,40 @@ fn prove_with_preprocessed_impl<SC, A>(
     trace: RowMajorMatrix<Val<SC>>,
     public_values: &[Val<SC>],
     preprocessed: Option<&PreprocessedProverData<SC>>,
-) -> Proof<SC>
+) -> Result<Proof<SC>, ProverError>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
 {
-    // Input validation to prevent DoS and invalid states
     let degree = trace.height();
     let width = trace.width();
 
-    // Validate trace dimensions
     if degree == 0 {
-        panic!("Trace height must be greater than 0");
+        return Err(ProverError::EmptyTrace);
     }
     if !degree.is_power_of_two() {
-        panic!("Trace height must be a power of 2, got {}", degree);
+        return Err(ProverError::NonPowerOfTwoHeight(degree));
     }
-    assert_trace_height_within_limit(degree);
+    if degree > MAX_TRACE_HEIGHT {
+        return Err(ProverError::TraceHeightExceeded {
+            height: degree,
+            max: MAX_TRACE_HEIGHT,
+        });
+    }
     if width == 0 {
-        panic!("Trace width must be greater than 0");
+        return Err(ProverError::EmptyTraceWidth);
     }
     if width > MAX_TRACE_WIDTH {
-        panic!(
-            "Trace width {} exceeds maximum allowed {} (prevents memory exhaustion)",
-            width, MAX_TRACE_WIDTH
-        );
+        return Err(ProverError::TraceWidthExceeded {
+            width,
+            max: MAX_TRACE_WIDTH,
+        });
     }
     if public_values.len() > MAX_PUBLIC_VALUES {
-        panic!(
-            "Number of public values {} exceeds maximum allowed {} (prevents DoS)",
-            public_values.len(),
-            MAX_PUBLIC_VALUES
-        );
+        return Err(ProverError::TooManyPublicValues {
+            count: public_values.len(),
+            max: MAX_PUBLIC_VALUES,
+        });
     }
 
     // Validate trace data consistency
@@ -487,12 +506,12 @@ where
         quotient_chunks,
         random,
     };
-    Proof {
+    Ok(Proof {
         commitments,
         opened_values,
         opening_proof,
         degree_bits: log_ext_degree_commit,
-    }
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -502,7 +521,7 @@ pub fn prove<SC, A>(
     air: &A,
     trace: RowMajorMatrix<Val<SC>>,
     public_values: &[Val<SC>],
-) -> Proof<SC>
+) -> Result<Proof<SC>, ProverError>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,
@@ -518,7 +537,7 @@ pub fn prove<SC, A>(
     air: &A,
     trace: RowMajorMatrix<Val<SC>>,
     public_values: &[Val<SC>],
-) -> Proof<SC>
+) -> Result<Proof<SC>, ProverError>
 where
     SC: StarkGenericConfig,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<ProverConstraintFolder<'a, SC>>,

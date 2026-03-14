@@ -6,13 +6,17 @@
 
 extern crate alloc;
 
-use alloc::format;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use alloc::{
+    format,
+    vec,
+};
 
 use lib_q_core::Result;
 
 use crate::ZkpProof;
+use crate::air::credential::attr_to_left_right;
 use crate::air::{
     CredentialAir,
     CredentialInput,
@@ -124,7 +128,12 @@ pub fn prove_credential_attributes(
     // Generate STARK proof
     let config = default_config();
     let prover = StarkProver::new(config);
-    let stark_proof = prover.prove(&air, trace, &public_values);
+    let stark_proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+        lib_q_core::Error::InternalError {
+            operation: "STARK proof generation".to_string(),
+            details: e.to_string(),
+        }
+    })?;
 
     // Create ZkpProof with credential-specific metadata
     let metadata = crate::ProofMetadata::Credential {
@@ -136,6 +145,80 @@ pub fn prove_credential_attributes(
         reveal_mask: reveal_mask.to_vec(),
     };
     ZkpProof::from_stark_proof(&stark_proof, metadata)
+}
+
+/// Compute the credential commitment from all attributes.
+///
+/// This produces the same commitment that the prover embeds in the proof,
+/// allowing a verifier (or issuer) to derive `expected_commitment` from the
+/// full attribute set without needing the proof itself.
+///
+/// The commitment is computed by Poseidon-hashing each attribute individually,
+/// then aggregating all per-attribute hashes via an iterated Poseidon chain.
+///
+/// Returns 8 bytes: 4 LE bytes for the real part, 4 LE bytes for the imaginary
+/// part of the `Complex<Mersenne31>` commitment field element. Pass these bytes
+/// to `verify_credential_proof` as `expected_commitment`.
+pub fn compute_credential_commitment(attributes: &[Vec<u8>]) -> Result<Vec<u8>> {
+    if attributes.is_empty() {
+        return Err(lib_q_core::Error::InvalidState {
+            operation: "compute_credential_commitment".to_string(),
+            reason: "Credential must have at least one attribute".to_string(),
+        });
+    }
+
+    use lib_q_poseidon::PoseidonField;
+
+    use crate::air::merkle_inclusion::compute_poseidon_with_intermediates;
+
+    let n = attributes.len();
+    let mut attr_hashes: Vec<PoseidonField> = Vec::with_capacity(n);
+    for attr in attributes {
+        let (left, right) = attr_to_left_right(attr);
+        let input_vec = vec![left, right];
+        let (hash_out, _) = compute_poseidon_with_intermediates(&input_vec);
+        attr_hashes.push(hash_out);
+    }
+
+    let commitment_field = if n == 1 {
+        attr_hashes[0]
+    } else {
+        let mut running = attr_hashes[0];
+        for right in attr_hashes.iter().take(n).skip(1) {
+            let input_vec = vec![running, *right];
+            let (hash_out, _) = compute_poseidon_with_intermediates(&input_vec);
+            running = hash_out;
+        }
+        running
+    };
+
+    Ok(commitment_field_to_bytes(commitment_field))
+}
+
+/// Serialize a Complex<Mersenne31> to 8 LE bytes (4 real + 4 imag).
+fn commitment_field_to_bytes(f: lib_q_poseidon::PoseidonField) -> Vec<u8> {
+    use lib_q_stark_field::{
+        BasedVectorSpace,
+        PrimeField32,
+    };
+    use lib_q_stark_mersenne31::Mersenne31;
+    let coords: &[Mersenne31] = f.as_basis_coefficients_slice();
+    let mut bytes = Vec::with_capacity(8);
+    bytes.extend_from_slice(&coords[0].as_canonical_u32().to_le_bytes());
+    bytes.extend_from_slice(&coords[1].as_canonical_u32().to_le_bytes());
+    bytes
+}
+
+/// Deserialize 8 LE bytes into a Complex<Mersenne31>.
+fn commitment_field_from_bytes(bytes: &[u8]) -> Option<lib_q_poseidon::PoseidonField> {
+    use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_mersenne31::Mersenne31;
+    if bytes.len() < 8 {
+        return None;
+    }
+    let real = Mersenne31::new(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
+    let imag = Mersenne31::new(u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]));
+    Some(Complex::new_complex(real, imag))
 }
 
 /// Verify a credential proof
@@ -198,25 +281,23 @@ pub fn verify_credential_proof(
         }
     })?;
 
-    // Compute expected public values
-    // Public values = commitment + revealed attributes
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
-    use crate::air::{
-        bytes_to_poseidon_field,
-        poseidon_to_field,
-    };
+    use crate::air::poseidon_to_field;
     type Val = Complex<Mersenne31>;
 
-    // Compute commitment from expected_commitment bytes
-    let commitment_fields = bytes_to_poseidon_field(expected_commitment);
-    let mut public_values: Vec<Val> = commitment_fields
-        .iter()
-        .map(poseidon_to_field::<Val>)
-        .collect();
+    // Deserialize commitment from bytes (8 LE bytes → single Complex<Mersenne31>)
+    let commitment_poseidon =
+        commitment_field_from_bytes(expected_commitment).ok_or_else(|| {
+            lib_q_core::Error::InvalidState {
+                operation: "verify_credential_proof".to_string(),
+                reason: "expected_commitment must be at least 8 bytes".to_string(),
+            }
+        })?;
+    let mut public_values: Vec<Val> = vec![poseidon_to_field::<Val>(&commitment_poseidon)];
 
-    // Add revealed attributes to public values (in the same order as during proving)
+    // Add revealed attribute hashes (same order as during proving)
     let mut revealed_idx = 0;
     for (attr_size, &revealed) in attribute_sizes.iter().zip(reveal_mask.iter()) {
         if revealed {
@@ -224,14 +305,14 @@ pub fn verify_credential_proof(
                 return Ok(false);
             }
             let attr = &revealed_attributes[revealed_idx];
-            // Validate attribute size matches schema
             if attr.len() > *attr_size as usize {
                 return Ok(false);
             }
-            let attr_fields = bytes_to_poseidon_field(attr);
-            for field in attr_fields {
-                public_values.push(poseidon_to_field::<Val>(&field));
-            }
+            let (left, right) = attr_to_left_right(attr);
+            let input_vec = vec![left, right];
+            let (hash_out, _) =
+                crate::air::merkle_inclusion::compute_poseidon_with_intermediates(&input_vec);
+            public_values.push(poseidon_to_field::<Val>(&hash_out));
             revealed_idx += 1;
         }
     }
@@ -268,5 +349,68 @@ mod tests {
         let reveal_mask = vec![true, false];
         let result = prove_credential_attributes(&credential, &reveal_mask);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compute_credential_commitment_empty_attributes() {
+        let result = compute_credential_commitment(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compute_credential_commitment_deterministic() {
+        let attrs = vec![b"Alice".to_vec(), b"42".to_vec()];
+        let c1 = compute_credential_commitment(&attrs).unwrap();
+        let c2 = compute_credential_commitment(&attrs).unwrap();
+        assert_eq!(c1, c2, "commitment must be deterministic");
+        assert_eq!(c1.len(), 8, "commitment is 8 bytes (Complex<Mersenne31>)");
+    }
+
+    #[test]
+    fn test_credential_prove_verify_roundtrip() {
+        let credential = IpCredential {
+            attributes: vec![b"Alice".to_vec(), b"42".to_vec(), b"secret".to_vec()],
+        };
+        let reveal_mask = vec![true, true, false];
+
+        let commitment = compute_credential_commitment(&credential.attributes).expect("commitment");
+        let proof = prove_credential_attributes(&credential, &reveal_mask).expect("prove");
+
+        let revealed = vec![b"Alice".to_vec(), b"42".to_vec()];
+        let result = verify_credential_proof(&proof, &commitment, &revealed)
+            .expect("verify should not error");
+        assert!(result, "valid credential proof must verify");
+    }
+
+    #[test]
+    fn test_credential_soundness_wrong_commitment() {
+        let credential = IpCredential {
+            attributes: vec![b"Alice".to_vec(), b"42".to_vec()],
+        };
+        let reveal_mask = vec![true, false];
+
+        let proof = prove_credential_attributes(&credential, &reveal_mask).expect("prove");
+
+        let wrong_commitment = vec![0u8; 8];
+        let revealed = vec![b"Alice".to_vec()];
+        let result = verify_credential_proof(&proof, &wrong_commitment, &revealed)
+            .expect("verify should not error");
+        assert!(!result, "wrong commitment must fail verification");
+    }
+
+    #[test]
+    fn test_credential_soundness_wrong_revealed_attribute() {
+        let credential = IpCredential {
+            attributes: vec![b"Alice".to_vec(), b"42".to_vec()],
+        };
+        let reveal_mask = vec![true, false];
+
+        let commitment = compute_credential_commitment(&credential.attributes).expect("commitment");
+        let proof = prove_credential_attributes(&credential, &reveal_mask).expect("prove");
+
+        let wrong_revealed = vec![b"Bob".to_vec()];
+        let result = verify_credential_proof(&proof, &commitment, &wrong_revealed)
+            .expect("verify should not error");
+        assert!(!result, "wrong revealed attribute must fail verification");
     }
 }

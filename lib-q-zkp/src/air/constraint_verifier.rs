@@ -33,7 +33,6 @@ use lib_q_stark_air::{
     WindowAccess,
 };
 use lib_q_stark_field::Field;
-use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::recursive_types::MAX_QUOTIENT_CHUNKS;
@@ -250,29 +249,28 @@ impl ConstraintVerifierAir {
     }
 }
 
-/// Input for constraint verification
+/// Input for constraint verification (field-typed for correct constraint satisfaction).
 #[derive(Debug, Clone)]
-pub struct ConstraintVerificationInput {
-    /// Quotient chunks (evaluated at zeta)
-    pub quotient_chunks: Vec<Vec<u8>>, // Serialized field elements
-    /// Trace local values (at zeta)
-    pub trace_local: Vec<u8>, // Serialized field elements
-    /// Trace next values (at zeta_next)
-    pub trace_next: Vec<u8>, // Serialized field elements
-    /// Out-of-domain point
-    pub zeta: Vec<u8>, // Serialized field element
-    /// Constraint combination challenge
-    pub alpha: Vec<u8>, // Serialized field element
-    /// Public values
-    pub public_values: Vec<u8>, // Serialized field elements
+pub struct ConstraintVerificationInput<F: Field> {
+    /// Quotient chunks evaluated at zeta (one field element per chunk).
+    pub quotient_chunks: Vec<F>,
+    /// Trace local values at zeta.
+    pub trace_local: Vec<F>,
+    /// Trace next values at zeta_next.
+    pub trace_next: Vec<F>,
+    /// Out-of-domain point.
+    pub zeta: F,
+    /// Constraint combination challenge.
+    pub alpha: F,
+    /// Public values.
+    pub public_values: Vec<F>,
 }
 
-impl<F: Field> TraceGenerator<F, ConstraintVerificationInput> for ConstraintVerifierAir {
+impl<F: Field> TraceGenerator<F, ConstraintVerificationInput<F>> for ConstraintVerifierAir {
     fn generate_trace(
         &self,
-        inputs: &ConstraintVerificationInput,
+        inputs: &ConstraintVerificationInput<F>,
     ) -> Result<RowMajorMatrix<F>, AirError> {
-        // Validate input dimensions
         if inputs.quotient_chunks.len() != self.num_quotient_chunks {
             return Err(AirError::InvalidInput {
                 reason: format!(
@@ -321,51 +319,31 @@ impl<F: Field> TraceGenerator<F, ConstraintVerificationInput> for ConstraintVeri
         let constraint_eval_col = recomposed_quotient_col + 1;
         let verification_result_col = constraint_eval_col + 1;
 
-        // Fill quotient chunks (simplified: use first byte as field element)
-        for (chunk_idx, chunk) in inputs.quotient_chunks.iter().enumerate() {
+        for (chunk_idx, &chunk_val) in inputs.quotient_chunks.iter().enumerate() {
             let chunk_col = quotient_chunks_start + chunk_idx * CHALLENGE_DIM;
-            trace_values[chunk_col] =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                    chunk.first().copied().unwrap_or(0u8),
-                ));
+            trace_values[chunk_col] = chunk_val;
         }
 
-        // Fill trace local
-        for (i, &byte) in inputs.trace_local.iter().enumerate() {
-            trace_values[trace_local_start + i] =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(byte));
+        for (i, &v) in inputs.trace_local.iter().enumerate() {
+            trace_values[trace_local_start + i] = v;
         }
 
-        // Fill trace next
-        for (i, &byte) in inputs.trace_next.iter().enumerate() {
-            trace_values[trace_next_start + i] =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(byte));
+        for (i, &v) in inputs.trace_next.iter().enumerate() {
+            trace_values[trace_next_start + i] = v;
         }
 
-        // Fill zeta
-        trace_values[zeta_col] =
-            F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                inputs.zeta.first().copied().unwrap_or(0u8),
-            ));
+        trace_values[zeta_col] = inputs.zeta;
+        trace_values[alpha_col] = inputs.alpha;
 
-        // Fill alpha
-        trace_values[alpha_col] =
-            F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                inputs.alpha.first().copied().unwrap_or(0u8),
-            ));
-
-        // Fill zeta pow chain: col[0] = zeta, col[i] = col[i-1]^2
-        trace_values[zeta_pow_chain_start] = trace_values[zeta_col];
+        trace_values[zeta_pow_chain_start] = inputs.zeta;
         for step in 1..=self.log_trace_domain_size {
             let prev = trace_values[zeta_pow_chain_start + step - 1];
             trace_values[zeta_pow_chain_start + step] = prev * prev;
         }
 
-        // Vanishing polynomial Z_H(zeta) = zeta^n - 1
         let zeta_pow_n = trace_values[zeta_pow_chain_start + self.log_trace_domain_size];
         trace_values[vanishing_poly_col] = zeta_pow_n - F::ONE;
 
-        // Recompose quotient: q0 + alpha*(q1 + alpha*(q2 + ...))
         let mut recomposed_quotient = F::ZERO;
         for i in (0..self.num_quotient_chunks).rev() {
             let chunk_val = trace_values[quotient_chunks_start + i * CHALLENGE_DIM];
@@ -373,12 +351,9 @@ impl<F: Field> TraceGenerator<F, ConstraintVerificationInput> for ConstraintVeri
         }
         trace_values[recomposed_quotient_col] = recomposed_quotient;
 
-        // Constraint evaluation at zeta: quotient(zeta) * Z_H(zeta) (constraint polynomial
-        // equals quotient * vanishing on the domain)
         let vanishing_poly = trace_values[vanishing_poly_col];
         trace_values[constraint_eval_col] = recomposed_quotient * vanishing_poly;
 
-        // Verification result: constraint_eval - recomposed_quotient * vanishing_poly
         let constraint_eval = trace_values[constraint_eval_col];
         trace_values[verification_result_col] =
             constraint_eval - recomposed_quotient * vanishing_poly;
@@ -386,19 +361,15 @@ impl<F: Field> TraceGenerator<F, ConstraintVerificationInput> for ConstraintVeri
         Ok(RowMajorMatrix::new(trace_values, width))
     }
 
-    fn public_values(&self, inputs: &ConstraintVerificationInput) -> Vec<F> {
-        // Public values are the input public values
-        inputs
-            .public_values
-            .iter()
-            .map(|&b| F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(b)))
-            .collect()
+    fn public_values(&self, inputs: &ConstraintVerificationInput<F>) -> Vec<F> {
+        inputs.public_values.clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use lib_q_stark_air::BaseAir;
+    use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
@@ -438,13 +409,14 @@ mod tests {
     #[test]
     fn test_generate_trace_basic() {
         let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
+        let zero = TestField::ZERO;
 
-        let input = ConstraintVerificationInput {
-            quotient_chunks: vec![vec![1], vec![2]],
-            trace_local: vec![0u8; 4],
-            trace_next: vec![0u8; 4],
-            zeta: vec![5],
-            alpha: vec![6],
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![zero, zero],
+            trace_local: vec![zero; 4],
+            trace_next: vec![zero; 4],
+            zeta: zero,
+            alpha: zero,
             public_values: vec![],
         };
 
@@ -456,12 +428,12 @@ mod tests {
     fn test_generate_trace_mismatched_lengths() {
         let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
 
-        let input = ConstraintVerificationInput {
-            quotient_chunks: vec![vec![1]], // Only 1 chunk, expected 2
-            trace_local: vec![0u8; 4],
-            trace_next: vec![0u8; 4],
-            zeta: vec![5],
-            alpha: vec![6],
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![TestField::ZERO],
+            trace_local: vec![TestField::ZERO; 4],
+            trace_next: vec![TestField::ZERO; 4],
+            zeta: TestField::ZERO,
+            alpha: TestField::ZERO,
             public_values: vec![],
         };
 

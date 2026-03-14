@@ -74,6 +74,7 @@ mod benches {
         let air = MerkleInclusionAir::new(8).unwrap();
         let input = MerkleProofInput {
             leaf: alloc::vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: alloc::vec![false; 8],
             siblings: (0..8)
                 .map(|_| MerkleHash::from_bytes(&[0u8; 32]).unwrap())
@@ -95,6 +96,7 @@ mod benches {
         let air = MerkleInclusionAir::new(32).unwrap();
         let input = MerkleProofInput {
             leaf: alloc::vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: alloc::vec![false; 32],
             siblings: (0..32)
                 .map(|_| MerkleHash::from_bytes(&[0u8; 32]).unwrap())
@@ -116,6 +118,7 @@ mod benches {
         let air = MerkleInclusionAir::new(64).unwrap();
         let input = MerkleProofInput {
             leaf: alloc::vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: alloc::vec![false; 64],
             siblings: (0..64)
                 .map(|_| MerkleHash::from_bytes(&[0u8; 32]).unwrap())

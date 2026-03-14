@@ -15,10 +15,29 @@ use lib_q_zkp::aggregation::{
     ProofAggregator,
     verify_batch,
 };
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::air::recursive_types::serialize_stark_proof;
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::air::stark_verifier::debug_one_fri_round;
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::air::stark_verifier::{
+    StarkVerifierAir,
+    build_recursive_verification_input_from_proof_with_poseidon,
+};
 use lib_q_zkp::air::{
     ArithmeticAir,
     TraceGenerator,
 };
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::air::{
+    MerkleInclusionAir,
+    merkle_root_from_bytes,
+    poseidon_to_field,
+};
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::check_constraints;
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::stark::FriQueryParams;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::stark::poseidon_config;
 use lib_q_zkp::stark::{
@@ -67,7 +86,9 @@ fn make_arithmetic_trace_and_pv(
 fn test_verify_batch_single_proof() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
-    let proof = StarkProver::new(default_config()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(default_config())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     let verifier = StarkVerifier::new(default_config());
     assert!(verify_batch(&[proof], &verifier, &air, &[pv]).is_ok());
 }
@@ -79,9 +100,15 @@ fn test_verify_batch_three_proofs() {
     let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
     let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
     let (trace3, pv3) = make_arithmetic_trace_and_pv(7, 8);
-    let p1 = StarkProver::new(default_config()).prove(&air, trace1, &pv1);
-    let p2 = StarkProver::new(default_config()).prove(&air, trace2, &pv2);
-    let p3 = StarkProver::new(default_config()).prove(&air, trace3, &pv3);
+    let p1 = StarkProver::new(default_config())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(default_config())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
+    let p3 = StarkProver::new(default_config())
+        .prove(&air, trace3, &pv3)
+        .expect("prove");
     assert!(verify_batch(&[p1, p2, p3], &verifier, &air, &[pv1, pv2, pv3]).is_ok());
 }
 
@@ -91,8 +118,12 @@ fn test_verify_batch_rejects_invalid_second_proof() {
     let verifier = StarkVerifier::new(default_config());
     let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
     let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
-    let p1 = StarkProver::new(default_config()).prove(&air, trace1, &pv1);
-    let mut p2 = StarkProver::new(default_config()).prove(&air, trace2, &pv2);
+    let p1 = StarkProver::new(default_config())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let mut p2 = StarkProver::new(default_config())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
     let bytes: [u8; 32] = p2.commitments.trace.into();
     let mut bad = bytes;
     bad[0] ^= 0x01;
@@ -101,15 +132,15 @@ fn test_verify_batch_rejects_invalid_second_proof() {
     assert!(result.is_err());
 }
 
-/// Fiat-Shamir transcript fixed; still fails at check_constraints (constraint eval mismatch in recursive verification).
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_single_proof_verifies() {
     let config = poseidon_config();
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
-    let proof = StarkProver::new(config.clone()).prove(&air, trace, &pv);
+    let proof = StarkProver::new(config.clone())
+        .prove(&air, trace, &pv)
+        .expect("prove");
     let verifier = StarkVerifier::new(config.clone());
 
     let agg = ProofAggregator::new(vec![proof], config.clone())
@@ -123,7 +154,6 @@ fn test_aggregate_single_proof_verifies() {
 
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_three_proofs_all_pass() {
     let config = poseidon_config();
     let air = ArithmeticAir::new(1).unwrap();
@@ -133,9 +163,15 @@ fn test_aggregate_three_proofs_all_pass() {
     let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
     let (trace3, pv3) = make_arithmetic_trace_and_pv(7, 8);
 
-    let p1 = StarkProver::new(config.clone()).prove(&air, trace1, &pv1);
-    let p2 = StarkProver::new(config.clone()).prove(&air, trace2, &pv2);
-    let p3 = StarkProver::new(config.clone()).prove(&air, trace3, &pv3);
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(config.clone())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
+    let p3 = StarkProver::new(config.clone())
+        .prove(&air, trace3, &pv3)
+        .expect("prove");
 
     let agg = ProofAggregator::new(vec![p1, p2, p3], config.clone())
         .unwrap()
@@ -161,8 +197,12 @@ fn test_aggregate_rejects_invalid_second_proof() {
     let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
     let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
 
-    let p1 = StarkProver::new(config.clone()).prove(&air, trace1, &pv1);
-    let mut p2 = StarkProver::new(config.clone()).prove(&air, trace2, &pv2);
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let mut p2 = StarkProver::new(config.clone())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
     // Corrupt trace commitment (Poseidon digest is Hash<Complex, Complex, 1>)
     let mut arr: [Val; 1] = p2.commitments.trace.into();
     arr[0] = arr[0] + <Val as PrimeCharacteristicRing>::ONE;
@@ -177,7 +217,6 @@ fn test_aggregate_rejects_invalid_second_proof() {
 
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
-#[ignore = "recursive verification constraint mismatch in check_constraints; see FriVerifierAir/StarkVerifierAir"]
 fn test_aggregate_merkle_root_covers_all_proofs() {
     use lib_q_sha3::Shake256;
     use lib_q_sha3::digest::{
@@ -194,9 +233,15 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
     let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
     let (trace3, pv3) = make_arithmetic_trace_and_pv(7, 8);
 
-    let p1 = StarkProver::new(config.clone()).prove(&air, trace1, &pv1);
-    let p2 = StarkProver::new(config.clone()).prove(&air, trace2, &pv2);
-    let p3 = StarkProver::new(config.clone()).prove(&air, trace3, &pv3);
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(config.clone())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
+    let p3 = StarkProver::new(config.clone())
+        .prove(&air, trace3, &pv3)
+        .expect("prove");
 
     let (z1, zn1, a1, b1) = verifier.derive_challenges(&air, &p1, &pv1).unwrap();
     let serialized =
@@ -253,6 +298,156 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
         .unwrap();
 
     assert_eq!(agg.proofs_root, expected_root);
+}
+
+/// Regression test: build recursive verification input, generate verifier trace,
+/// run check_constraints on it, then run full prove + verify.
+#[test]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
+    let config = poseidon_config();
+    let air = ArithmeticAir::new(1).unwrap();
+    let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
+    let proof = StarkProver::new(config.clone())
+        .prove(&air, trace, &pv)
+        .expect("prove");
+    let verifier = StarkVerifier::new(config.clone());
+
+    let (zeta, zeta_next, alpha, betas) = verifier.derive_challenges(&air, &proof, &pv).unwrap();
+    let serialized =
+        serialize_stark_proof(&proof, pv.clone(), zeta, zeta_next, alpha, &betas).unwrap();
+
+    let agg_config = AggregationConfig::default();
+    let fri_params = FriQueryParams {
+        num_queries: agg_config.num_fri_queries,
+        log_blowup: agg_config.fri_log_blowup,
+        log_final_poly_len: agg_config.log_final_poly_len,
+        proof_of_work_bits: agg_config.fri_proof_of_work_bits,
+    };
+    let recursive_input = build_recursive_verification_input_from_proof_with_poseidon(
+        &verifier,
+        &air,
+        &proof,
+        &pv,
+        &serialized,
+        agg_config.merkle_tree_depth,
+        &fri_params,
+    )
+    .expect("build recursive input");
+
+    // Debug FRI folding: compare builder vs verifier-style fold for round 0 and last round
+    let fri = &recursive_input.fri_inputs;
+    let num_rounds = fri.fri_rounds.len();
+    let log_final_height = fri_params.log_blowup + fri_params.log_final_poly_len;
+    let query_idx0 = fri.query_indices.first().copied().unwrap_or(0);
+    let eval_point = fri.final_poly_eval_point;
+    if num_rounds > 0 {
+        debug_one_fri_round(
+            0,
+            query_idx0,
+            log_final_height,
+            num_rounds,
+            &fri.round_current_evals,
+            &fri.round_sibling_evals,
+            &fri.round_domain_point_inverses,
+            &fri.round_betas,
+            Some(&fri.round_roll_ins),
+            &fri.final_poly,
+            eval_point,
+        );
+        if num_rounds > 1 {
+            debug_one_fri_round(
+                num_rounds - 1,
+                query_idx0,
+                log_final_height,
+                num_rounds,
+                &fri.round_current_evals,
+                &fri.round_sibling_evals,
+                &fri.round_domain_point_inverses,
+                &fri.round_betas,
+                Some(&fri.round_roll_ins),
+                &fri.final_poly,
+                eval_point,
+            );
+        }
+    }
+
+    let verifier_air = StarkVerifierAir::new(
+        serialized.clone(),
+        agg_config.merkle_tree_depth,
+        agg_config.log_final_poly_len,
+        agg_config.num_fri_queries,
+    )
+    .expect("StarkVerifierAir::new");
+
+    let trace_matrix = verifier_air
+        .generate_trace(&recursive_input)
+        .expect("generate trace");
+
+    // Merkle root consistency check: expected_roots must match root recomputed from path
+    {
+        let num_commitments = recursive_input.commitment_inputs.expected_roots.len();
+        let tree_depth = agg_config.merkle_tree_depth;
+        let merkle_air = MerkleInclusionAir::new(tree_depth).expect("MerkleInclusionAir::new");
+        for commit_idx in 0..num_commitments {
+            let expected_root = recursive_input.commitment_inputs.expected_roots[commit_idx];
+            let merkle_proof = &recursive_input.commitment_inputs.merkle_proofs[commit_idx];
+            assert!(
+                merkle_proof.leaf_hash_direct.is_some(),
+                "commit_idx {}: leaf_hash_direct must be set for recursive proofs",
+                commit_idx
+            );
+            let recomputed_pv = merkle_air.public_values(merkle_proof);
+            let recomputed_root_field = recomputed_pv.first().copied().unwrap_or(Val::ZERO);
+            let expected_root_field = merkle_root_from_bytes(&expected_root[..])
+                .map(|pf| poseidon_to_field::<Val>(&pf))
+                .expect("expected_roots must be valid Poseidon root encoding");
+            assert_eq!(
+                expected_root_field,
+                recomputed_root_field,
+                "commit_idx {}: expected_root (field) != merkle_recomputed_root (field); \
+                 expected_roots[{}] first 8 bytes = {:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+                commit_idx,
+                commit_idx,
+                expected_root[0],
+                expected_root[1],
+                expected_root[2],
+                expected_root[3],
+                expected_root[4],
+                expected_root[5],
+                expected_root[6],
+                expected_root[7]
+            );
+            #[cfg(feature = "trace-debug")]
+            std::println!("✓ commit_idx {}: expected_root == merkle_root", commit_idx);
+        }
+    }
+
+    // Sanity check: log commitment segment so we can distinguish AIR wiring from leaf/root mismatch
+    #[cfg(feature = "std")]
+    {
+        const METADATA_WIDTH: usize = 4;
+        let num_commitments = recursive_input.commitment_inputs.expected_roots.len();
+        lib_q_zkp::air::debug_commitment_trace_sanity_check(
+            &trace_matrix,
+            &recursive_input.commitment_inputs,
+            METADATA_WIDTH,
+            num_commitments,
+            agg_config.merkle_tree_depth,
+        );
+    }
+
+    check_constraints(
+        &verifier_air,
+        &trace_matrix,
+        &serialized.expected_public_values,
+    );
+
+    let agg = ProofAggregator::new(vec![proof], config.clone())
+        .unwrap()
+        .aggregate_single(&verifier, &air, &[pv], agg_config)
+        .unwrap();
+    assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
 }
 
 #[test]

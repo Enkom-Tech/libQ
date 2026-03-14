@@ -636,6 +636,7 @@ mod tests {
         test_prime_field,
         test_prime_field_32,
         test_prime_field_64,
+        test_two_adic_field,
     };
     use num_bigint::BigUint;
 
@@ -682,4 +683,5 @@ mod tests {
     test_prime_field!(crate::Mersenne31);
     test_prime_field_64!(crate::Mersenne31, &super::ZEROS, &super::ONES);
     test_prime_field_32!(crate::Mersenne31, &super::ZEROS, &super::ONES);
+    test_two_adic_field!(crate::Mersenne31);
 }

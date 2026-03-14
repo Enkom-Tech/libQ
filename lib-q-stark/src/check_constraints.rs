@@ -19,11 +19,12 @@ use tracing::instrument;
 /// - `main`: The [`RowMajorMatrix`] containing witness rows.
 /// - `public_values`: Public values provided to the builder.
 ///
-/// This function is used in debug mode (via `#[cfg(debug_assertions)]`) and in tests.
+/// This function is used in debug mode (via `#[cfg(debug_assertions)]`), in tests, and by
+/// recursive verifier regression tests that need to assert constraint satisfaction before prove.
 #[allow(dead_code)] // Used conditionally in debug mode and in tests
 #[allow(unsafe_code)] // Safe: bounds are guaranteed by loop invariants (row_index in [0, height))
 #[instrument(skip_all)]
-pub(crate) fn check_constraints<F, A>(air: &A, main: &RowMajorMatrix<F>, public_values: &[F])
+pub fn check_constraints<F, A>(air: &A, main: &RowMajorMatrix<F>, public_values: &[F])
 where
     F: Field,
     A: for<'a> Air<DebugConstraintBuilder<'a, F>>,
@@ -132,8 +133,17 @@ where
     }
 
     fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
+        let x = x.into();
+        if x != F::ZERO {
+            #[cfg(feature = "std")]
+            std::eprintln!(
+                "Constraint assert_zero failed: row={}, value={:?}",
+                self.row_index,
+                x
+            );
+        }
         assert_eq!(
-            x.into(),
+            x,
             F::ZERO,
             "constraints had nonzero value on row {}",
             self.row_index
@@ -143,6 +153,15 @@ where
     fn assert_eq<I1: Into<Self::Expr>, I2: Into<Self::Expr>>(&mut self, x: I1, y: I2) {
         let x = x.into();
         let y = y.into();
+        if x != y {
+            #[cfg(feature = "std")]
+            std::eprintln!(
+                "Constraint assert_eq failed: row={}, left={:?}, right={:?}",
+                self.row_index,
+                x,
+                y
+            );
+        }
         assert_eq!(
             x, y,
             "values didn't match on row {}: {} != {}",

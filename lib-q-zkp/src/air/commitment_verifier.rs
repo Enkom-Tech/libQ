@@ -177,6 +177,12 @@ impl CommitmentVerifierAir {
             let equality_check_col = merkle_proof_start + merkle_width;
             let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
 
+            #[cfg(all(feature = "std", feature = "trace-debug"))]
+            eprintln!(
+                "READ commit_idx={} → eq_col={}, expected_col={}, computed_col={}",
+                commitment_idx, equality_check_col, expected_root_start, computed_root_col
+            );
+
             let expected_root = local[expected_root_start].clone();
             let computed_root = local[computed_root_col].clone();
 
@@ -266,12 +272,36 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
 
             // Compute root from Merkle proof and compare to expected
             let computed_root = merkle_air.public_values(&inputs.merkle_proofs[commitment_idx]);
-            // For simplicity, compare first field element
-            let expected_root_field =
-                F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
-                    inputs.expected_roots[commitment_idx][0],
-                ));
             let computed_root_field = computed_root.first().copied().unwrap_or(F::ZERO);
+
+            // Overwrite the computed-root column with the canonical value from public_values(),
+            // so the trace matches what eval_with_offset expects (MerkleInclusionAir's trace
+            // can disagree with public_values() due to intermediate layout).
+            {
+                use super::poseidon_gadget::PoseidonGadget;
+                const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+                let level_width = 1 +
+                    HASH_SIZE_FIELD_ELEMENTS +
+                    HASH_SIZE_FIELD_ELEMENTS +
+                    PoseidonGadget::COLUMNS_PER_HASH;
+                let root_col_within_merkle = 1 + (self.tree_depth - 1) * level_width + 2;
+                trace_values[merkle_proof_start + root_col_within_merkle] = computed_root_field;
+            }
+
+            // Expected root: when bytes are Poseidon root encoding (merkle_root_to_bytes), decode
+            // so that computed_root (from Merkle path) matches. Otherwise use first byte as field (legacy).
+            let expected_root_field =
+                super::merkle_root_from_bytes(&inputs.expected_roots[commitment_idx][..])
+                    .ok()
+                    .map(|poseidon_root| super::poseidon_to_field(&poseidon_root))
+                    .unwrap_or_else(|| {
+                        F::from_prime_subfield(<F::PrimeSubfield as QuotientMap<u8>>::from_int(
+                            inputs.expected_roots[commitment_idx][0],
+                        ))
+                    });
+
+            // Store expected root in first column so eval_with_offset reads it for the constraint
+            trace_values[expected_root_start] = expected_root_field;
 
             // Equality check: computed_root - expected_root
             let equality_check_col = merkle_proof_start + merkle_width;
@@ -292,6 +322,70 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
             }
         }
         public_vals
+    }
+}
+
+/// Sanity check for recursive verifier trace: log commitment segment equality-check column
+/// and expected vs trace roots so we can distinguish AIR wiring bugs from leaf/root mismatch.
+/// Call before check_constraints in tests. No-op when `std` or `recursive-proofs-experimental` disabled.
+#[cfg(all(feature = "recursive-proofs-experimental", feature = "std"))]
+#[allow(unused_variables)]
+pub fn debug_commitment_trace_sanity_check<F>(
+    trace: &RowMajorMatrix<F>,
+    commitment_inputs: &CommitmentVerificationInput,
+    commitment_offset: usize,
+    num_commitments: usize,
+    tree_depth: usize,
+) where
+    F: Field
+        + core::fmt::Debug
+        + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>,
+{
+    use lib_q_stark_air::BaseAir;
+
+    use super::poseidon_gadget::PoseidonGadget;
+
+    let merkle_air = match MerkleInclusionAir::new(tree_depth) {
+        Ok(a) => a,
+        Err(_) => return,
+    };
+    let merkle_width = <MerkleInclusionAir as BaseAir<F>>::width(&merkle_air);
+    let per_commitment = COMMITMENT_HASH_SIZE + merkle_width + 1;
+    const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
+    let level_width =
+        1 + HASH_SIZE_FIELD_ELEMENTS + HASH_SIZE_FIELD_ELEMENTS + PoseidonGadget::COLUMNS_PER_HASH;
+
+    let num_rows = trace.height().min(3);
+    for commitment_idx in 0..num_commitments {
+        let commitment_start = commitment_offset + commitment_idx * per_commitment;
+        let expected_root_start = commitment_start;
+        let merkle_proof_start = expected_root_start + COMMITMENT_HASH_SIZE;
+        let equality_check_col = merkle_proof_start + merkle_width;
+        let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
+
+        #[cfg(feature = "trace-debug")]
+        {
+            eprintln!("--- commitment {} ---", commitment_idx);
+            for (i, root) in commitment_inputs.expected_roots.iter().enumerate() {
+                if i != commitment_idx {
+                    continue;
+                }
+                let hex_short = root
+                    .iter()
+                    .take(8)
+                    .fold(String::new(), |a, &b| format!("{}{:02x}", a, b));
+                eprintln!("  expected_root[{}] (first 8 bytes) = {}", i, hex_short);
+            }
+            for r in 0..num_rows {
+                let eq_val = trace.get(r, equality_check_col);
+                let exp_val = trace.get(r, expected_root_start);
+                let comp_val = trace.get(r, computed_root_col);
+                eprintln!(
+                    "  row {}: eq_col={:?} expected_root_col={:?} computed_root_col={:?}",
+                    r, eq_val, exp_val, comp_val
+                );
+            }
+        }
     }
 }
 
@@ -342,6 +436,7 @@ mod tests {
         // Create a simple Merkle proof input
         let merkle_proof = MerkleProofInput {
             leaf: b"test_leaf".to_vec(),
+            leaf_hash_direct: None,
             path_bits: vec![false, true, false, true],
             siblings: vec![
                 MerkleHash::hash_data(b"sibling0"),

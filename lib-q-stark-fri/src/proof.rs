@@ -41,3 +41,16 @@ pub struct CommitPhaseProofStep<F: Field, M: Mmcs<F>> {
 
     pub opening_proof: M::Proof,
 }
+
+/// Allows recursive verifiers to read the sibling evaluation from a commit-phase step.
+pub trait SiblingValueRef {
+    type Challenge: Field;
+    fn sibling_value_ref(&self) -> &Self::Challenge;
+}
+
+impl<F: Field, M: Mmcs<F>> SiblingValueRef for CommitPhaseProofStep<F, M> {
+    type Challenge = F;
+    fn sibling_value_ref(&self) -> &F {
+        &self.sibling_value
+    }
+}

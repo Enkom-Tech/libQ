@@ -502,8 +502,11 @@ where
 /// Input for Merkle inclusion proof
 #[derive(Debug, Clone)]
 pub struct MerkleProofInput {
-    /// The leaf data (will be hashed)
+    /// The leaf data (will be hashed). Ignored when `leaf_hash_direct` is set.
     pub leaf: Vec<u8>,
+    /// When set, use this as the leaf hash directly (32-byte Poseidon root encoding).
+    /// Use when the tree's leaf is a precomputed digest (e.g. from MMCS opened row hash).
+    pub leaf_hash_direct: Option<[u8; 32]>,
     /// Direction bits for each level (false = left, true = right)
     pub path_bits: Vec<bool>,
     /// Sibling hashes at each level (already computed hashes, not raw data)
@@ -541,11 +544,19 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, MerkleProofInput
 
         let mut trace_values = vec![F::ZERO; num_rows_padded * width];
 
-        // Convert leaf bytes to field elements and compute Poseidon hash
-        let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
-        let leaf_hash = POSEIDON_128.hash(&leaf_field_elements);
+        // Leaf hash: either use precomputed digest or hash leaf bytes
+        let leaf_hash = if let Some(ref bytes) = inputs.leaf_hash_direct {
+            super::merkle_root_from_bytes(bytes)
+                .map(|f| alloc::vec![f])
+                .unwrap_or_else(|_| {
+                    let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
+                    POSEIDON_128.hash(&leaf_field_elements)
+                })
+        } else {
+            let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
+            POSEIDON_128.hash(&leaf_field_elements)
+        };
 
-        // Fill leaf hash (first field element)
         if !leaf_hash.is_empty() {
             trace_values[0] = poseidon_to_field(&leaf_hash[0]);
         }
@@ -602,9 +613,17 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, MerkleProofInput
     }
 
     fn public_values(&self, inputs: &MerkleProofInput) -> Vec<F> {
-        // Convert leaf bytes to field elements and compute Poseidon hash
-        let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
-        let mut current_hash = POSEIDON_128.hash(&leaf_field_elements);
+        let mut current_hash = if let Some(ref bytes) = inputs.leaf_hash_direct {
+            super::merkle_root_from_bytes(bytes)
+                .map(|f| alloc::vec![f])
+                .unwrap_or_else(|_| {
+                    let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
+                    POSEIDON_128.hash(&leaf_field_elements)
+                })
+        } else {
+            let leaf_field_elements = bytes_to_poseidon_field(&inputs.leaf);
+            POSEIDON_128.hash(&leaf_field_elements)
+        };
 
         for level in 0..self.tree_depth {
             // Sibling is already a hash (field element), use directly
@@ -625,46 +644,38 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, MerkleProofInput
     }
 }
 
-/// Compute Merkle root from leaf and authentication path using Poseidon
-pub fn compute_merkle_root(leaf: &[u8], path_bits: &[bool], siblings: &[Vec<u8>]) -> Vec<u8> {
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-    };
+/// Compute Merkle root from leaf and authentication path using Poseidon.
+///
+/// Matches the AIR convention: leaf is hashed via Poseidon128(bytes_to_poseidon_field(leaf));
+/// each level combines current hash with sibling (single PoseidonField) as [left, right] then hashes.
+///
+/// # Arguments
+///
+/// * `leaf` - Raw leaf bytes
+/// * `path_bits` - Direction per level (false = left, true = right)
+/// * `siblings` - Sibling hashes as MerkleHash (one field element per level)
+///
+/// # Returns
+///
+/// The root as MerkleHash. Use `crate::air::merkle_root_to_bytes(root.as_field())` for bytes.
+#[must_use]
+pub fn compute_merkle_root(leaf: &[u8], path_bits: &[bool], siblings: &[MerkleHash]) -> MerkleHash {
+    use super::bytes_to_poseidon_field;
 
-    use super::{
-        bytes_to_poseidon_field,
-        poseidon_field_to_bytes,
-    };
-
-    // Convert leaf bytes to field elements
     let leaf_field_elements = bytes_to_poseidon_field(leaf);
+    let mut current_hash = POSEIDON_128.hash(&leaf_field_elements);
 
-    let mut current_hash = Poseidon128.hash(&leaf_field_elements);
-
-    for (level, (bit, sibling)) in path_bits.iter().zip(siblings.iter()).enumerate() {
-        // Convert sibling bytes to field elements
-        let sibling_field_elements = bytes_to_poseidon_field(sibling);
-
+    for (bit, sibling) in path_bits.iter().zip(siblings.iter()) {
+        let sibling_field = sibling.as_field();
         let combined = if *bit {
-            [sibling_field_elements.as_slice(), current_hash.as_slice()].concat()
+            [*sibling_field, current_hash[0]].to_vec()
         } else {
-            [current_hash.as_slice(), sibling_field_elements.as_slice()].concat()
+            [current_hash[0], *sibling_field].to_vec()
         };
         current_hash = POSEIDON_128.hash(&combined);
-        let _ = level; // Suppress unused warning
     }
 
-    // Convert field element back to bytes using RawDataSerializable
-    let bytes = poseidon_field_to_bytes(&current_hash);
-    // Return first 32 bytes (or pad if needed)
-    if bytes.len() >= 32 {
-        bytes[..32].to_vec()
-    } else {
-        let mut result = bytes;
-        result.resize(32, 0u8);
-        result
-    }
+    MerkleHash::from_field(current_hash[0])
 }
 
 #[cfg(test)]
@@ -713,6 +724,7 @@ mod tests {
         let air = MerkleInclusionAir::new(2).unwrap();
         let input = MerkleProofInput {
             leaf: vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: vec![false, true],
             siblings: vec![
                 MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
@@ -729,6 +741,7 @@ mod tests {
         let air = MerkleInclusionAir::new(4).unwrap();
         let input = MerkleProofInput {
             leaf: vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: vec![false, true], // Wrong length
             siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 4],
         };
@@ -742,6 +755,7 @@ mod tests {
         let air = MerkleInclusionAir::new(4).unwrap();
         let input = MerkleProofInput {
             leaf: vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: vec![false, true, false, true],
             siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 2], // Wrong length
         };
@@ -754,13 +768,16 @@ mod tests {
     fn test_compute_merkle_root_deterministic() {
         let leaf = vec![1, 2, 3, 4];
         let path_bits = vec![false, true];
-        let siblings = vec![vec![0u8; 32], vec![1u8; 32]];
+        let siblings = vec![
+            MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+            MerkleHash::from_bytes(&[1u8; 32]).unwrap(),
+        ];
 
         let root1 = compute_merkle_root(&leaf, &path_bits, &siblings);
         let root2 = compute_merkle_root(&leaf, &path_bits, &siblings);
 
         assert_eq!(root1, root2);
-        assert_eq!(root1.len(), 32); // Still returns 32 bytes for compatibility
+        assert_eq!(crate::air::merkle_root_to_bytes(root1.as_field()).len(), 32);
     }
 
     #[test]
@@ -768,6 +785,7 @@ mod tests {
         let air = MerkleInclusionAir::new(2).unwrap();
         let input = MerkleProofInput {
             leaf: vec![1, 2, 3, 4],
+            leaf_hash_direct: None,
             path_bits: vec![false, true],
             siblings: vec![
                 MerkleHash::from_bytes(&[0u8; 32]).unwrap(),

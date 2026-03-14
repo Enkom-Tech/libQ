@@ -25,6 +25,10 @@ use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
 };
+use lib_q_stark_fri::{
+    FriInitialEval,
+    FriReducedOpenings,
+};
 use lib_q_stark_util::zip_eq::zip_eq;
 use thiserror::Error;
 use tracing::instrument;
@@ -472,6 +476,303 @@ where
     verify_constraints::<SC, A, PcsError<SC>>(air, public_values, &ood)?;
 
     Ok(())
+}
+
+/// Returns the initial FRI evaluation at the given query for use by recursive verifiers
+/// that need to populate the FRI folding witness. Builds the same commitment structure
+/// as full verification and calls the PCS's `initial_fri_eval_for_query`.
+///
+/// Call with `zeta`, `zeta_next`, and `alpha` from the serialized proof (or from the
+/// verifier's challenger replay), and `domain_index` from the derived query positions
+/// (e.g. the first query index).
+#[allow(dead_code)] // used by lib-q-zkp for recursive aggregation
+pub fn initial_fri_eval_for_query<SC, A>(
+    config: &SC,
+    proof: &Proof<SC>,
+    air: &A,
+    public_values: &[Val<SC>],
+    query_proof_index: usize,
+    domain_index: usize,
+    alpha: SC::Challenge,
+    zeta: SC::Challenge,
+    zeta_next: SC::Challenge,
+) -> Result<SC::Challenge, VerificationError<PcsError<SC>>>
+where
+    SC: StarkGenericConfig,
+    SC::Pcs: FriInitialEval<
+            SC::Challenge,
+            Proof = <<SC as StarkGenericConfig>::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Proof,
+            Error = PcsError<SC>,
+            Commitment = <<SC as StarkGenericConfig>::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Commitment,
+            Domain = Domain<SC>,
+        >,
+    A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
+{
+    if public_values.len() > MAX_PUBLIC_VALUES {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let Proof {
+        commitments,
+        opened_values,
+        opening_proof,
+        degree_bits,
+    } = proof;
+
+    if *degree_bits > MAX_DEGREE_BITS {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let pcs = config.pcs();
+    let degree = 1 << degree_bits;
+    if degree == 0 {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let trace_domain = pcs.natural_domain_for_degree(degree);
+    let PreprocessedResult(preprocessed_width, preprocessed_commit) =
+        process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), None)?;
+
+    let log_num_quotient_chunks = get_log_num_quotient_chunks::<Val<SC>, A>(
+        air,
+        preprocessed_width,
+        public_values.len(),
+        config.is_zk(),
+    );
+    let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
+    let _init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
+
+    let quotient_domain =
+        trace_domain.create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks));
+    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
+    let randomized_quotient_chunks_domains = quotient_chunks_domains
+        .iter()
+        .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
+        .collect_vec();
+
+    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
+        (commitments.random.is_some() != SC::Pcs::ZK)
+    {
+        return Err(VerificationError::RandomizationError);
+    }
+
+    let air_width = A::width(air);
+    let valid_shape = opened_values.trace_local.len() == air_width &&
+        opened_values.trace_next.len() == air_width &&
+        opened_values.quotient_chunks.len() == num_quotient_chunks &&
+        opened_values
+            .quotient_chunks
+            .iter()
+            .all(|qc| qc.len() == SC::Challenge::DIMENSION) &&
+        opened_values
+            .random
+            .as_ref()
+            .is_none_or(|r_comm| r_comm.len() == SC::Challenge::DIMENSION);
+    if !valid_shape {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let mut coms_to_verify = if let Some(random_commit) = &commitments.random {
+        let random_values = opened_values
+            .random
+            .as_ref()
+            .ok_or(VerificationError::RandomizationError)?;
+        vec![(
+            random_commit.clone(),
+            vec![(trace_domain, vec![(zeta, random_values.clone())])],
+        )]
+    } else {
+        vec![]
+    };
+    coms_to_verify.extend(vec![
+        (
+            commitments.trace.clone(),
+            vec![(
+                trace_domain,
+                vec![
+                    (zeta, opened_values.trace_local.clone()),
+                    (zeta_next, opened_values.trace_next.clone()),
+                ],
+            )],
+        ),
+        (
+            commitments.quotient_chunks.clone(),
+            zip_eq(
+                randomized_quotient_chunks_domains.iter(),
+                &opened_values.quotient_chunks,
+                VerificationError::InvalidProofShape,
+            )?
+            .map(|(domain, values)| (*domain, vec![(zeta, values.clone())]))
+            .collect_vec(),
+        ),
+    ]);
+    if preprocessed_width > 0 {
+        coms_to_verify.push((
+            preprocessed_commit.unwrap(),
+            vec![(
+                trace_domain,
+                vec![
+                    (zeta, opened_values.preprocessed_local.clone().unwrap()),
+                    (zeta_next, opened_values.preprocessed_next.clone().unwrap()),
+                ],
+            )],
+        ));
+    }
+
+    pcs.initial_fri_eval_for_query(
+        coms_to_verify.as_slice(),
+        opening_proof,
+        query_proof_index,
+        domain_index,
+        alpha,
+    )
+    .map_err(VerificationError::InvalidOpeningArgument)
+}
+
+/// Returns all FRI reduced openings (log_height, ro) for the given query for use by recursive
+/// verifiers that need to apply roll-in terms at each round.
+#[allow(dead_code)] // used by lib-q-zkp
+pub fn all_fri_reduced_openings_for_query<SC, A>(
+    config: &SC,
+    proof: &Proof<SC>,
+    air: &A,
+    public_values: &[Val<SC>],
+    query_proof_index: usize,
+    domain_index: usize,
+    alpha: SC::Challenge,
+    zeta: SC::Challenge,
+    zeta_next: SC::Challenge,
+) -> Result<Vec<(usize, SC::Challenge)>, VerificationError<PcsError<SC>>>
+where
+    SC: StarkGenericConfig,
+    SC::Pcs: FriReducedOpenings<
+            SC::Challenge,
+            Proof = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Proof,
+            Error = PcsError<SC>,
+            Commitment = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Commitment,
+            Domain = Domain<SC>,
+        >,
+    A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
+{
+    if public_values.len() > MAX_PUBLIC_VALUES {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let Proof {
+        commitments,
+        opened_values,
+        opening_proof,
+        degree_bits,
+    } = proof;
+
+    if *degree_bits > MAX_DEGREE_BITS {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let pcs = config.pcs();
+    let degree = 1 << degree_bits;
+    if degree == 0 {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let trace_domain = pcs.natural_domain_for_degree(degree);
+    let PreprocessedResult(preprocessed_width, preprocessed_commit) =
+        process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), None)?;
+
+    let log_num_quotient_chunks = get_log_num_quotient_chunks::<Val<SC>, A>(
+        air,
+        preprocessed_width,
+        public_values.len(),
+        config.is_zk(),
+    );
+    let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
+    let _init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
+
+    let quotient_domain =
+        trace_domain.create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks));
+    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
+    let randomized_quotient_chunks_domains = quotient_chunks_domains
+        .iter()
+        .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
+        .collect_vec();
+
+    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
+        (commitments.random.is_some() != SC::Pcs::ZK)
+    {
+        return Err(VerificationError::RandomizationError);
+    }
+
+    let air_width = A::width(air);
+    let valid_shape = opened_values.trace_local.len() == air_width &&
+        opened_values.trace_next.len() == air_width &&
+        opened_values.quotient_chunks.len() == num_quotient_chunks &&
+        opened_values
+            .quotient_chunks
+            .iter()
+            .all(|qc| qc.len() == SC::Challenge::DIMENSION) &&
+        opened_values
+            .random
+            .as_ref()
+            .is_none_or(|r_comm| r_comm.len() == SC::Challenge::DIMENSION);
+    if !valid_shape {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let mut coms_to_verify = if let Some(random_commit) = &commitments.random {
+        let random_values = opened_values
+            .random
+            .as_ref()
+            .ok_or(VerificationError::RandomizationError)?;
+        vec![(
+            random_commit.clone(),
+            vec![(trace_domain, vec![(zeta, random_values.clone())])],
+        )]
+    } else {
+        vec![]
+    };
+    coms_to_verify.extend(vec![
+        (
+            commitments.trace.clone(),
+            vec![(
+                trace_domain,
+                vec![
+                    (zeta, opened_values.trace_local.clone()),
+                    (zeta_next, opened_values.trace_next.clone()),
+                ],
+            )],
+        ),
+        (
+            commitments.quotient_chunks.clone(),
+            zip_eq(
+                randomized_quotient_chunks_domains.iter(),
+                &opened_values.quotient_chunks,
+                VerificationError::InvalidProofShape,
+            )?
+            .map(|(domain, values)| (*domain, vec![(zeta, values.clone())]))
+            .collect_vec(),
+        ),
+    ]);
+    if preprocessed_width > 0 {
+        coms_to_verify.push((
+            preprocessed_commit.unwrap(),
+            vec![(
+                trace_domain,
+                vec![
+                    (zeta, opened_values.preprocessed_local.clone().unwrap()),
+                    (zeta_next, opened_values.preprocessed_next.clone().unwrap()),
+                ],
+            )],
+        ));
+    }
+
+    pcs.reduced_openings_for_query(
+        coms_to_verify.as_slice(),
+        opening_proof,
+        query_proof_index,
+        domain_index,
+        alpha,
+    )
+    .map_err(VerificationError::InvalidOpeningArgument)
 }
 
 /// Verifies a STARK proof from serialized bytes with size validation.

@@ -120,7 +120,12 @@ pub fn prove_it_ownership(_it: &IdentityToken, private_key: &MlDsaPrivateKey) ->
     // Generate STARK proof
     let config = default_config();
     let prover = StarkProver::new(config);
-    let stark_proof = prover.prove(&air, trace, &public_values);
+    let stark_proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+        lib_q_core::Error::InternalError {
+            operation: "STARK proof generation".to_string(),
+            details: e.to_string(),
+        }
+    })?;
 
     // Create ZkpProof with metadata (store DSA level for verification)
     let level_u8 = match dsa_level {

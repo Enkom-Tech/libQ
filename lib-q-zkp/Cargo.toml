@@ -49,6 +49,8 @@ plonky-lookup = ["dep:lib-q-plonky", "lib-q-plonky/lookup"]
 plonky-uni-stark = ["dep:lib-q-plonky", "lib-q-plonky/uni-stark"]
 plonky-batch-stark = ["dep:lib-q-plonky", "lib-q-plonky/batch-stark"]
 recursive-proofs-experimental = ["lib-q-stark-merkle/poseidon"]
+# Enable verbose trace/constraint logging in recursive verifier (off by default).
+trace-debug = []
 
 [lib]
 name = "lib_q_zkp"

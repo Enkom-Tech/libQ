@@ -41,7 +41,6 @@ use lib_q_stark_mersenne31::{
     Mersenne31,
     Mersenne31ComplexRadix2Dit,
 };
-use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -204,6 +203,6 @@ fn prove_bb_twoadic(air: &RangeCheckAir, log_n: usize) {
     let rows = 1 << log_n;
     let trace = air.generate_trace::<Val>(rows);
 
-    let proof = prove(&config, air, trace, &[]);
+    let proof = prove(&config, air, trace, &[]).expect("prove");
     verify(&config, air, &proof, &[]).expect("verification failed");
 }
