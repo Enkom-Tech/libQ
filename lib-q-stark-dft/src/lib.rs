@@ -1,6 +1,6 @@
 //! This crate contains some DFT implementations.
 
-#![no_std]
+#![cfg_attr(not(feature = "parallel"), no_std)]
 
 extern crate alloc;
 

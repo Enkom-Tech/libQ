@@ -649,7 +649,9 @@ impl Utils {
         }
 
         // For no_std without alloc, we need to handle platform-specific RNG
-        // This provides a graceful fallback for platforms where getrandom is not available
+        // This provides a graceful fallback for platforms where getrandom is not available.
+        // WASM builds should enable the root crate's `wasm` or `wasm_js` feature so that
+        // lib-q-core/wasm_getrandom is enabled and getrandom works (this path is then avoided).
         #[cfg(target_arch = "wasm32")]
         {
             // For WASM targets, getrandom might not be available

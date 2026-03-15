@@ -116,6 +116,15 @@ jobs:
           - name: "lib-q-random wasm"
             features: "wasm"
             package: "lib-q-random"
+          - name: "lib-q-stark-rayon parallel"
+            features: "parallel"
+            package: "lib-q-stark-rayon"
+          - name: "lib-q-stark-dft no_std"
+            features: "alloc"
+            package: "lib-q-stark-dft"
+          - name: "lib-q-stark-dft parallel"
+            features: "alloc,parallel"
+            package: "lib-q-stark-dft"
     
     steps:
       - uses: actions/checkout@v5

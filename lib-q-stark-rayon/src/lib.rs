@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "parallel"), no_std)]
 
 #[cfg(all(feature = "parallel", target_arch = "wasm32"))]
 compile_error!(
