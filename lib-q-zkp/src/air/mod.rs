@@ -8,7 +8,7 @@
 //!
 //! - [`ArithmeticAir`] - Basic arithmetic operations (multiplication constraints)
 //! - [`RangeProofAir`] - Proves a value is within a specified range
-//! - [`HashPreimageAir`] - Proves knowledge of a SHAKE256 preimage
+//! - [`HashPreimageAir`] - Proves knowledge of a Poseidon-128 preimage (industry-standard for STARK constraint encoding)
 //! - [`MerkleInclusionAir`] - Proves membership in a Merkle tree
 //!
 //! # Security
@@ -65,6 +65,7 @@ pub mod constraint_verifier;
 pub mod credential;
 pub mod fri_verifier;
 pub mod hash_preimage;
+pub mod hash_preimage_nist;
 pub mod identity_proof;
 pub mod merkle_inclusion;
 pub mod opening_verifier;
@@ -107,6 +108,12 @@ pub use fri_verifier::{
     FriVerifierAir,
 };
 pub use hash_preimage::HashPreimageAir;
+pub use hash_preimage_nist::{
+    HASH_OUTPUT_BYTES,
+    HashPreimageNistAir,
+    HashPreimageNistInput,
+    expected_hash_to_public_values,
+};
 pub use identity_proof::{
     IdentityProofAir,
     IdentityProofInput,
@@ -472,7 +479,7 @@ pub fn poseidon_field_to_bytes(hash: &[PoseidonField]) -> Vec<u8> {
 pub fn merkle_root_to_bytes(root: &PoseidonField) -> [u8; 32] {
     use lib_q_stark_field::RawDataSerializable;
     let mut out = [0u8; 32];
-    let bytes: Vec<u8> = root.clone().into_bytes().into_iter().collect();
+    let bytes: Vec<u8> = (*root).into_bytes().into_iter().collect();
     let n = core::cmp::min(bytes.len(), 32);
     out[..n].copy_from_slice(&bytes[..n]);
     out

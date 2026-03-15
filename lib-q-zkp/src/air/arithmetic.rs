@@ -137,9 +137,9 @@ where
 
         // Enforce a * b = c for each triplet
         for i in 0..self.num_operations {
-            let a = local[i * COLS_PER_OP].clone();
-            let b = local[i * COLS_PER_OP + 1].clone();
-            let c = local[i * COLS_PER_OP + 2].clone();
+            let a = local[i * COLS_PER_OP];
+            let b = local[i * COLS_PER_OP + 1];
+            let c = local[i * COLS_PER_OP + 2];
 
             // Constraint: a * b - c = 0
             builder.assert_zero(a * b - c);

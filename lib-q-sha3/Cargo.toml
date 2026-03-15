@@ -24,7 +24,7 @@ lib-q-keccak = { path = "../lib-q-keccak" }
 [dev-dependencies]
 digest = { workspace = true }
 criterion = { workspace = true, features = ["html_reports"] }
-blobby = { version = "0.4.0", features = ["alloc"] }
+blobby = { workspace = true, features = ["alloc"] }
 hex-literal = "1.1.0"
 base16ct = { version = "1.0.0", features = ["alloc"] }
 

@@ -31,8 +31,14 @@ use lib_q_zkp::air::{
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::{
     MerkleInclusionAir,
+    MerkleProofInput,
     merkle_root_from_bytes,
     poseidon_to_field,
+};
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::api::{
+    build_merkle_tree,
+    merkle_path_from_tree,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::check_constraints;
@@ -448,6 +454,48 @@ fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
         .aggregate_single(&verifier, &air, &[pv], agg_config)
         .unwrap();
     assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
+}
+
+/// Merkle-inclusion proof with poseidon_config: create and verify. Validates that Merkle certificates
+/// can be produced with the same config used by the recursive pipeline (Poseidon FRI commitments).
+/// Full recursive input building (and thus aggregate_single) for Merkle-inclusion inner proofs
+/// is a follow-up when FRI opening extraction supports this AIR shape.
+#[test]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_merkle_inclusion_proof_with_poseidon_config_creates_and_verifies() {
+    let leaves: Vec<&[u8]> = vec![b"leaf0", b"leaf1", b"leaf2"];
+    let tree = build_merkle_tree(&leaves).unwrap();
+    let path = merkle_path_from_tree(&tree, 0).unwrap();
+    let merkle_input = MerkleProofInput {
+        leaf: leaves[0].to_vec(),
+        leaf_hash_direct: None,
+        path_bits: path.path_bits,
+        siblings: path.siblings,
+    };
+
+    let merkle_air = MerkleInclusionAir::new(tree.depth()).expect("MerkleInclusionAir::new");
+    let trace_one: lib_q_stark_matrix::dense::RowMajorMatrix<Val> = merkle_air
+        .generate_trace(&merkle_input)
+        .expect("generate trace");
+    let width = trace_one.width();
+    let mut padded_values = Vec::with_capacity(MIN_TRACE_ROWS * width);
+    let row0: Vec<Val> = (0..width)
+        .map(|c| trace_one.get(0, c).map(|r| r.clone()).unwrap_or(Val::ZERO))
+        .collect();
+    for _ in 0..MIN_TRACE_ROWS {
+        padded_values.extend_from_slice(&row0);
+    }
+    let trace = lib_q_stark_matrix::dense::RowMajorMatrix::new(padded_values, width);
+    let pv = merkle_air.public_values(&merkle_input);
+
+    let config = poseidon_config();
+    let proof = StarkProver::new(config.clone())
+        .prove(&merkle_air, trace, &pv)
+        .expect("prove");
+    let verifier = StarkVerifier::new(config);
+    verifier
+        .verify(&merkle_air, &proof, &pv)
+        .expect("Merkle-inclusion proof with poseidon_config must verify");
 }
 
 #[test]

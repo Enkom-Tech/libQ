@@ -447,16 +447,16 @@ where
             let level_start = HASH_SIZE_FIELD_ELEMENTS + level * level_width;
 
             // Direction bit must be boolean (0 or 1)
-            let direction = local[level_start].clone();
-            builder.assert_bool(direction.clone());
+            let direction = local[level_start];
+            builder.assert_bool(direction);
 
             // Sibling hash (field element) - already a computed hash
             let sibling_col = level_start + 1;
-            let sibling = local[sibling_col].clone();
+            let sibling = local[sibling_col];
 
             // Computed hash output (field element)
             let computed_hash_col = level_start + 1 + HASH_SIZE_FIELD_ELEMENTS;
-            let computed_hash = local[computed_hash_col].clone().into();
+            let computed_hash = local[computed_hash_col].into();
 
             // Select left/right based on direction bit
             // If direction = 1 (right), we're on right: left = sibling, right = previous_hash
@@ -466,10 +466,10 @@ where
             //        right = direction * previous_hash + (1 - direction) * sibling
             use lib_q_stark_field::PrimeCharacteristicRing;
             let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
-            let left = (one.clone() - direction.clone()) * local[previous_hash_col].clone().into() +
-                direction.clone() * sibling.clone().into();
-            let right = direction.clone() * local[previous_hash_col].clone().into() +
-                (one - direction.clone()) * sibling.clone().into();
+            let left = (one.clone() - direction) * local[previous_hash_col].into() +
+                direction * sibling.into();
+            let right =
+                direction * local[previous_hash_col].into() + (one - direction) * sibling.into();
 
             // Intermediate states start after computed_hash
             let intermediate_start = computed_hash_col + 1;

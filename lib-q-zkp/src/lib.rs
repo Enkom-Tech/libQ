@@ -35,6 +35,11 @@
 //! // Verify proof
 //! // verifier.verify(&air, &proof, &public_values)?;
 //! ```
+//!
+//! ## Testing
+//!
+//! - **Recursive aggregation**: The test `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify` (in `aggregation_tests`) runs the full prove → aggregate → verify pipeline. It is slow in dev (unoptimized); run with `--release` for completion in a few minutes. CI runs this test in release with a 15-minute timeout.
+//! - **Merkle tree certificates**: Create/use and security checks (wrong root, wrong depth, cross-tree) are covered by `tests/merkle_certificate_tests.rs`. Additional Merkle and group-membership tests live in `air_integration` and `ip_soundness_tests`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(lazy_type_alias)]
@@ -94,9 +99,11 @@ pub use api::{
     build_merkle_tree,
     prove_membership,
     prove_preimage,
+    prove_preimage_nist,
     verify_membership,
     verify_membership_with_depth,
     verify_preimage,
+    verify_preimage_nist,
 };
 #[cfg(feature = "zkp")]
 pub use lib_q_stark::{
@@ -151,9 +158,14 @@ pub enum ProofMetadata {
         /// Depth of the Merkle tree (required for AIR reconstruction)
         tree_depth: u8,
     },
-    /// Hash preimage proof metadata
+    /// Hash preimage proof metadata (Poseidon-128)
     HashPreimage {
         /// Output size in bytes
+        output_size: u16,
+    },
+    /// NIST hash preimage proof metadata (cSHAKE256)
+    HashPreimageNist {
+        /// Output size in bytes (e.g. 32 for cSHAKE256)
         output_size: u16,
     },
     /// Circuit computation proof metadata
@@ -276,12 +288,14 @@ impl ZkpProver {
     /// Prove knowledge of a secret value without revealing it
     ///
     /// This generates a STARK proof that the prover knows a preimage `secret_value`
-    /// that hashes (via SHAKE256) to a value derived from `public_statement`.
+    /// whose **Poseidon-128** hash equals the public commitment. The proof uses
+    /// Poseidon for constraint encoding (industry-standard for STARKs; e.g. StarkWare,
+    /// RISC Zero, Succinct). For a NIST-only hash, use [`prove_secret_value_nist`](ZkpProver::prove_secret_value_nist).
     ///
     /// # Arguments
     ///
     /// * `secret_value` - The secret preimage to prove knowledge of
-    /// * `public_statement` - Additional public data (combined with hash output)
+    /// * `public_statement` - Additional public data (currently unused; reserved for future use)
     ///
     /// # Returns
     ///
@@ -358,6 +372,70 @@ impl ZkpProver {
         let metadata = ProofMetadata::HashPreimage { output_size: 1u16 };
 
         // Serialize into ZkpProof
+        ZkpProof::from_stark_proof(&proof, metadata)
+    }
+
+    /// Prove knowledge of a secret value using NIST cSHAKE256 (100% NIST compliance)
+    ///
+    /// Same semantics as [`prove_secret_value`](ZkpProver::prove_secret_value) but uses
+    /// cSHAKE256 with domain `b"HashPreimageNistAir"` for the commitment. Use this when
+    /// NIST-only hashes are required; prover cost is higher than Poseidon-based proofs.
+    ///
+    /// # Arguments
+    ///
+    /// * `secret_value` - The secret preimage to prove knowledge of
+    /// * `_public_statement` - Reserved for future use
+    pub fn prove_secret_value_nist(
+        &mut self,
+        secret_value: &[u8],
+        _public_statement: &[u8],
+    ) -> Result<ZkpProof> {
+        use crate::air::{
+            HASH_OUTPUT_BYTES,
+            HashPreimageNistAir,
+            TraceGenerator,
+        };
+        use crate::stark::{
+            StarkProver,
+            default_config,
+        };
+
+        if secret_value.is_empty() {
+            return Err(lib_q_core::Error::InvalidState {
+                operation: "prove_secret_value_nist".to_string(),
+                reason: "Secret value cannot be empty".to_string(),
+            });
+        }
+        if secret_value.len() > air::hash_preimage_nist::MAX_PREIMAGE_SIZE {
+            return Err(lib_q_core::Error::InvalidState {
+                operation: "prove_secret_value_nist".to_string(),
+                reason: "Secret value exceeds maximum size".to_string(),
+            });
+        }
+
+        let air = HashPreimageNistAir::new();
+        let input = secret_value.to_vec();
+        let trace: RowMajorMatrix<ZkpField> =
+            air.generate_trace(&input)
+                .map_err(|e| lib_q_core::Error::InternalError {
+                    operation: "prove_secret_value_nist".to_string(),
+                    details: e.to_string(),
+                })?;
+
+        let public_values: Vec<ZkpField> = air.public_values(&input);
+        let config = default_config();
+        let prover = StarkProver::new(config);
+
+        let proof = prover.prove(&air, trace, &public_values).map_err(|e| {
+            lib_q_core::Error::InternalError {
+                operation: "STARK proof generation (NIST)".to_string(),
+                details: e.to_string(),
+            }
+        })?;
+
+        let metadata = ProofMetadata::HashPreimageNist {
+            output_size: HASH_OUTPUT_BYTES as u16,
+        };
         ZkpProof::from_stark_proof(&proof, metadata)
     }
 
@@ -460,6 +538,58 @@ impl ZkpProver {
             feature: "ZKP feature not enabled".to_string(),
         })
     }
+
+    /// Prove knowledge of a secret value (NIST variant)
+    pub fn prove_secret_value_nist(
+        &mut self,
+        _secret_value: &[u8],
+        _public_statement: &[u8],
+    ) -> Result<ZkpProof> {
+        Err(lib_q_core::Error::NotImplemented {
+            feature: "ZKP feature not enabled".to_string(),
+        })
+    }
+}
+
+/// Crate-private helper for NIST secret value verification. Used by both
+/// `ZkpVerifier::verify` and `ZkpVerifier::verify_secret_value_nist`.
+#[cfg(feature = "zkp")]
+fn verify_secret_value_nist_impl(proof: &ZkpProof, expected_hash: &[u8]) -> Result<bool> {
+    use crate::air::{
+        HashPreimageNistAir,
+        expected_hash_to_public_values,
+    };
+    use crate::stark::{
+        StarkVerifier,
+        default_config,
+    };
+
+    if proof.proof_type != ProofType::Stark {
+        return Ok(false);
+    }
+    if proof.data.is_empty() {
+        return Ok(false);
+    }
+
+    let ProofMetadata::HashPreimageNist { .. } = &proof.metadata else {
+        return Ok(false);
+    };
+
+    let air = HashPreimageNistAir::new();
+    let public_values = expected_hash_to_public_values::<ZkpField>(expected_hash);
+
+    let stark_proof = match proof.to_stark_proof() {
+        Ok(p) => p,
+        Err(_) => return Ok(false),
+    };
+
+    let config = default_config();
+    let verifier = StarkVerifier::new(config);
+
+    match verifier.verify(&air, &stark_proof, &public_values) {
+        Ok(()) => Ok(true),
+        Err(_) => Ok(false),
+    }
 }
 
 #[cfg(feature = "zkp")]
@@ -471,12 +601,14 @@ impl ZkpVerifier {
 
     /// Verify a zero-knowledge proof of secret value knowledge
     ///
-    /// This verifies a proof generated by `ZkpProver::prove_secret_value`.
+    /// This verifies a proof generated by `ZkpProver::prove_secret_value`. The
+    /// expected hash is the **Poseidon** commitment (same encoding as used in proving).
+    /// For NIST proofs use [`verify_secret_value_nist`](ZkpVerifier::verify_secret_value_nist).
     ///
     /// # Arguments
     ///
     /// * `proof` - The proof to verify
-    /// * `public_statement` - The expected hash output bytes
+    /// * `public_hash` - The expected Poseidon hash output (bytes encoding used by the prover)
     ///
     /// # Returns
     ///
@@ -538,6 +670,14 @@ impl ZkpVerifier {
         }
     }
 
+    /// Verify a NIST (cSHAKE256) secret value proof
+    ///
+    /// Verifies a proof from [`prove_secret_value_nist`](ZkpProver::prove_secret_value_nist).
+    /// `expected_hash` is the raw 32-byte cSHAKE256 output (same as used in proving).
+    pub fn verify_secret_value_nist(&self, proof: &ZkpProof, expected_hash: &[u8]) -> Result<bool> {
+        verify_secret_value_nist_impl(proof, expected_hash)
+    }
+
     /// Verify a zero-knowledge proof of computation
     ///
     /// This verifies a proof generated by `ZkpProver::prove_computation`.
@@ -595,6 +735,8 @@ impl ZkpVerifier {
     ///
     /// - `ProofMetadata::HashPreimage`: `public_statement` is the expected hash output
     ///   (same semantics as `verify_secret_value`).
+    /// - `ProofMetadata::HashPreimageNist`: `public_statement` is the expected cSHAKE256
+    ///   hash output (same semantics as `verify_secret_value_nist`).
     /// - `ProofMetadata::MerkleInclusion`: `public_statement` is the expected Merkle
     ///   root hash (same semantics as `api::verify_membership`).
     ///
@@ -613,6 +755,9 @@ impl ZkpVerifier {
         match &proof.metadata {
             ProofMetadata::HashPreimage { .. } => {
                 self.verify_secret_value(&proof, public_statement)
+            }
+            ProofMetadata::HashPreimageNist { .. } => {
+                verify_secret_value_nist_impl(&proof, public_statement)
             }
             ProofMetadata::MerkleInclusion { .. } => verify_membership(&proof, public_statement),
             _ => Ok(false),
@@ -658,6 +803,17 @@ impl ZkpVerifier {
 
     /// Verify a zero-knowledge proof
     pub fn verify(&self, _proof: ZkpProof, _public_statement: &[u8]) -> Result<bool> {
+        Err(lib_q_core::Error::NotImplemented {
+            feature: "ZKP feature not enabled".to_string(),
+        })
+    }
+
+    /// Verify a NIST secret value proof
+    pub fn verify_secret_value_nist(
+        &self,
+        _proof: &ZkpProof,
+        _expected_hash: &[u8],
+    ) -> Result<bool> {
         Err(lib_q_core::Error::NotImplemented {
             feature: "ZKP feature not enabled".to_string(),
         })
@@ -734,6 +890,88 @@ mod tests {
             result.is_ok(),
             "Proof generation should succeed: {:?}",
             result.err()
+        );
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_nist_secret_value_round_trip() {
+        use digest::{
+            ExtendableOutput,
+            Update,
+        };
+        use lib_q_sha3::CShake256;
+
+        use crate::air::hash_preimage_nist::CSHAKE_DOMAIN;
+
+        let secret = b"nist_secret_value";
+        let mut prover = ZkpProver::new();
+        let proof = prover
+            .prove_secret_value_nist(secret, b"")
+            .expect("prove_secret_value_nist");
+        let mut expected_hash = [0u8; 32];
+        {
+            let mut hasher = CShake256::new_with_function_name(&[], CSHAKE_DOMAIN);
+            hasher.update(secret);
+            hasher.finalize_xof_into(&mut expected_hash);
+        }
+        let verifier = ZkpVerifier::new();
+        assert!(
+            verifier
+                .verify_secret_value_nist(&proof, &expected_hash)
+                .unwrap(),
+            "NIST proof should verify with correct expected hash"
+        );
+        // Generic verify() must dispatch to verify_secret_value_nist for HashPreimageNist
+        assert!(
+            verifier.verify(proof.clone(), &expected_hash).unwrap(),
+            "verify() must accept NIST proof with correct expected hash"
+        );
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_nist_proof_rejected_by_poseidon_verifier() {
+        use digest::{
+            ExtendableOutput,
+            Update,
+        };
+        use lib_q_sha3::CShake256;
+
+        use crate::air::hash_preimage_nist::CSHAKE_DOMAIN;
+
+        let secret = b"nist_only";
+        let mut prover = ZkpProver::new();
+        let proof = prover
+            .prove_secret_value_nist(secret, b"")
+            .expect("NIST prove");
+        let mut expected_hash = [0u8; 32];
+        let mut hasher = CShake256::new_with_function_name(&[], CSHAKE_DOMAIN);
+        hasher.update(secret);
+        hasher.finalize_xof_into(&mut expected_hash);
+        let verifier = ZkpVerifier::new();
+        assert!(
+            !verifier
+                .verify_secret_value(&proof, &expected_hash)
+                .unwrap(),
+            "NIST proof must not be accepted by Poseidon verifier"
+        );
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_poseidon_proof_rejected_by_nist_verifier() {
+        let secret = b"poseidon_only";
+        let mut prover = ZkpProver::new();
+        let proof = prover
+            .prove_secret_value(secret, b"")
+            .expect("Poseidon prove");
+        let verifier = ZkpVerifier::new();
+        assert!(
+            !verifier
+                .verify_secret_value_nist(&proof, &[0u8; 32])
+                .unwrap(),
+            "Poseidon proof must not be accepted by NIST verifier"
         );
     }
 

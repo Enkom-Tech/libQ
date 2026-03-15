@@ -16,10 +16,10 @@ lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
 criterion = { workspace = true }
-num-bigint = { version = "0.4.6", default-features = false }
+num-bigint = { workspace = true }
 rand = { workspace = true, default-features = false, features = ["std"] }
 serde = { workspace = true, default-features = false }
-serde_json = { version = "1.0.149", default-features = false }
+serde_json = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

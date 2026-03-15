@@ -122,6 +122,7 @@ npm install @lib-q/utils
 - **Proof generation and verification**
 - **Privacy-preserving computation**
 - **WASM compatible**
+- The default API is in `lib-q-zkp` (backed by `lib-q-stark`); the full Plonky3-derived stack (univariate and batch STARK, Keccak AIR, lookup) is in `lib-q-plonky` and is fully implemented behind features.
 
 ## Architecture
 
@@ -173,6 +174,7 @@ lib-Q/
 
 - [ROADMAP](ROADMAP.md)
 - [Security Model](docs/security.md)
+- [ZKP Implementation and Library Layout](docs/zkp-implementation.md)
 - [API Design](docs/api-design.md)
 - [HPKE Architecture](docs/hpke-architecture.md)
 - [Memory Architecture](docs/memory-architecture.md)

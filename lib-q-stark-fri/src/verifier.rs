@@ -56,6 +56,9 @@ where
     MissingInput,
 }
 
+/// Error type for `reduced_openings_for_query` to satisfy clippy::type_complexity.
+type ReducedOpeningsError<CommitErr, InputErr> = FriError<CommitErr, InputErr>;
+
 /// A chain of FRI input openings allowing a verifier to check a sequence of
 /// FRI folds and rolls. The first element of each pair indicates the round of
 /// fri in which the input should be rolled in. The second element is the opening.
@@ -516,6 +519,7 @@ where
 
 /// Returns all reduced openings for a query (log_height, ro) in descending order of log_height.
 /// Used by recursive verifiers to apply roll-in terms (beta^2 * ro) at each FRI round.
+#[allow(clippy::type_complexity)]
 pub fn reduced_openings_for_query<Val, Challenge, InputMmcs, FriMmcs, Witness>(
     params: &FriParameters<FriMmcs>,
     input_mmcs: &InputMmcs,
@@ -528,7 +532,7 @@ pub fn reduced_openings_for_query<Val, Challenge, InputMmcs, FriMmcs, Witness>(
     query_proof_index: usize,
     domain_index: usize,
     alpha: Challenge,
-) -> Result<Vec<(usize, Challenge)>, FriError<FriMmcs::Error, InputMmcs::Error>>
+) -> Result<Vec<(usize, Challenge)>, ReducedOpeningsError<FriMmcs::Error, InputMmcs::Error>>
 where
     Val: TwoAdicField,
     Challenge: ExtensionField<Val>,

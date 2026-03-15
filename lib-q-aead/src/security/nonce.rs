@@ -8,7 +8,7 @@ use core::sync::atomic::{
     AtomicU64,
     Ordering,
 };
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "std"))]
 #[allow(clippy::disallowed_types)]
 use std::collections::HashSet;
 
@@ -69,13 +69,13 @@ impl NonceConfig {
 pub struct NonceManager {
     config: NonceConfig,
     counter: AtomicU64,
-    // Track recently used nonces to prevent collisions
-    #[cfg(feature = "alloc")]
+    // Track recently used nonces to prevent collisions (requires std)
+    #[cfg(all(feature = "alloc", feature = "std"))]
     #[allow(clippy::disallowed_types)]
     used_nonces: std::sync::RwLock<HashSet<Vec<u8>>>,
-    // For no_std environments, use a simple bloom filter approximation
-    #[cfg(not(feature = "alloc"))]
-    used_nonces: core::sync::atomic::AtomicU64,
+    // For no_std or alloc-only environments, use a simple bloom filter approximation
+    #[cfg(not(all(feature = "alloc", feature = "std")))]
+    used_nonces: AtomicU64,
 }
 
 impl NonceManager {
@@ -89,11 +89,11 @@ impl NonceManager {
         Self {
             config,
             counter: AtomicU64::new(0),
-            #[cfg(feature = "alloc")]
+            #[cfg(all(feature = "alloc", feature = "std"))]
             #[allow(clippy::disallowed_types)]
             used_nonces: std::sync::RwLock::new(HashSet::new()),
-            #[cfg(not(feature = "alloc"))]
-            used_nonces: core::sync::atomic::AtomicU64::new(0),
+            #[cfg(not(all(feature = "alloc", feature = "std")))]
+            used_nonces: AtomicU64::new(0),
         }
     }
 
@@ -201,7 +201,7 @@ impl NonceManager {
 
     /// Check if a nonce has been used before
     fn is_nonce_used(&self, nonce_data: &[u8]) -> Result<bool> {
-        #[cfg(feature = "alloc")]
+        #[cfg(all(feature = "alloc", feature = "std"))]
         {
             if let Ok(used_nonces) = self.used_nonces.read() {
                 Ok(used_nonces.contains(nonce_data))
@@ -213,9 +213,9 @@ impl NonceManager {
             }
         }
 
-        #[cfg(not(feature = "alloc"))]
+        #[cfg(not(all(feature = "alloc", feature = "std")))]
         {
-            // For no_std, use a simple hash-based approximation
+            // For no_std or alloc-only, use a simple hash-based approximation
             let hash = self.hash_nonce(nonce_data);
             let used_nonces = self.used_nonces.load(Ordering::SeqCst);
             Ok((used_nonces & (1 << (hash % 64))) != 0)
@@ -224,7 +224,7 @@ impl NonceManager {
 
     /// Internal method to mark nonce data as used
     fn mark_nonce_used_internal(&self, nonce_data: &[u8]) -> Result<()> {
-        #[cfg(feature = "alloc")]
+        #[cfg(all(feature = "alloc", feature = "std"))]
         {
             if let Ok(mut used_nonces) = self.used_nonces.write() {
                 used_nonces.insert(nonce_data.to_vec());
@@ -246,9 +246,9 @@ impl NonceManager {
             }
         }
 
-        #[cfg(not(feature = "alloc"))]
+        #[cfg(not(all(feature = "alloc", feature = "std")))]
         {
-            // For no_std, use a simple hash-based approximation
+            // For no_std or alloc-only, use a simple hash-based approximation
             let hash = self.hash_nonce(nonce_data);
             let mut used_nonces = self.used_nonces.load(Ordering::SeqCst);
             used_nonces |= 1 << (hash % 64);
@@ -258,7 +258,7 @@ impl NonceManager {
     }
 
     /// Hash a nonce for tracking (simple hash function)
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(not(all(feature = "alloc", feature = "std")))]
     fn hash_nonce(&self, nonce_data: &[u8]) -> u64 {
         let mut hash = 0u64;
         for &byte in nonce_data {
@@ -360,8 +360,8 @@ impl Default for NonceManager {
     }
 }
 
-/// Global nonce manager
-#[cfg(feature = "alloc")]
+/// Global nonce manager (std + alloc: lazy init with HashSet tracking)
+#[cfg(all(feature = "alloc", feature = "std"))]
 static NONCE_MANAGER: std::sync::LazyLock<NonceManager> =
     std::sync::LazyLock::new(|| NonceManager {
         config: NonceConfig {
@@ -375,7 +375,8 @@ static NONCE_MANAGER: std::sync::LazyLock<NonceManager> =
         used_nonces: std::sync::RwLock::new(HashSet::new()),
     });
 
-#[cfg(not(feature = "alloc"))]
+/// Global nonce manager (no_std or alloc-only: static with AtomicU64 fallback)
+#[cfg(not(all(feature = "alloc", feature = "std")))]
 static NONCE_MANAGER: NonceManager = NonceManager {
     config: NonceConfig {
         check_uniqueness: true,
@@ -384,16 +385,16 @@ static NONCE_MANAGER: NonceManager = NonceManager {
         nonce_size: 16,
     },
     counter: AtomicU64::new(0),
-    used_nonces: core::sync::atomic::AtomicU64::new(0),
+    used_nonces: AtomicU64::new(0),
 };
 
 /// Get the global nonce manager
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "std"))]
 pub fn get_nonce_manager() -> &'static NonceManager {
     &NONCE_MANAGER
 }
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(all(feature = "alloc", feature = "std")))]
 pub fn get_nonce_manager() -> &'static NonceManager {
     &NONCE_MANAGER
 }

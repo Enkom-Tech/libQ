@@ -217,24 +217,24 @@ impl FriVerifierAir {
         for round_idx in 0..num_rounds {
             let round_start = offset + round_idx * per_round;
             let beta_col = round_start + 32;
-            let beta = local[beta_col].clone();
-            let folded_eval = local[beta_col + 1].clone();
-            let sibling_eval = local[beta_col + 2].clone();
-            let current_eval = local[beta_col + 3].clone();
-            let domain_point_inv = local[beta_col + 4].clone();
-            let x0 = local[beta_col + 5].clone();
-            let parity = local[beta_col + 6].clone();
-            let roll_in = local[beta_col + 7].clone();
+            let beta = local[beta_col];
+            let folded_eval = local[beta_col + 1];
+            let sibling_eval = local[beta_col + 2];
+            let current_eval = local[beta_col + 3];
+            let domain_point_inv = local[beta_col + 4];
+            let x0 = local[beta_col + 5];
+            let parity = local[beta_col + 6];
+            let roll_in = local[beta_col + 7];
 
             // e0 = (1 - parity)*current + parity*sibling, e1 = parity*current + (1 - parity)*sibling
-            let p = AB::Expr::from(parity.clone());
-            let e0 = (one_expr.clone() - p.clone()) * AB::Expr::from(current_eval.clone()) +
-                p.clone() * AB::Expr::from(sibling_eval.clone());
+            let p = AB::Expr::from(parity);
+            let e0 = (one_expr.clone() - p.clone()) * AB::Expr::from(current_eval) +
+                p.clone() * AB::Expr::from(sibling_eval);
             let e1 = p.clone() * AB::Expr::from(current_eval) +
                 (one_expr.clone() - p) * AB::Expr::from(sibling_eval);
             let diff = e1 - e0.clone();
             let fold_part = e0 +
-                (AB::Expr::from(beta.clone()) - AB::Expr::from(x0)) *
+                (AB::Expr::from(beta) - AB::Expr::from(x0)) *
                     diff *
                     AB::Expr::from(domain_point_inv);
             let expected_folded =
@@ -247,8 +247,8 @@ impl FriVerifierAir {
             let prev_folded_col = offset + (round_idx - 1) * per_round + 32 + 1;
             let curr_current_col = offset + round_idx * per_round + 32 + 3;
             builder.assert_eq(
-                local[prev_folded_col].clone().into(),
-                local[curr_current_col].clone().into(),
+                local[prev_folded_col].into(),
+                local[curr_current_col].into(),
             );
         }
 
@@ -258,20 +258,20 @@ impl FriVerifierAir {
         let horner_start = eval_point_col + 1;
 
         if final_poly_len > 0 {
-            let eval_point = local[eval_point_col].clone();
+            let eval_point = local[eval_point_col];
 
             // Horner: h[0] = c[k-1]
             builder.assert_eq(
-                local[horner_start].clone().into(),
-                local[coeff_start + final_poly_len - 1].clone().into(),
+                local[horner_start].into(),
+                local[coeff_start + final_poly_len - 1].into(),
             );
             // Horner: h[i] = h[i-1] * x + c[k-1-i]
             for i in 1..final_poly_len {
-                let prev_horner = local[horner_start + i - 1].clone();
-                let coeff = local[coeff_start + final_poly_len - 1 - i].clone();
-                let expected = AB::Expr::from(prev_horner) * AB::Expr::from(eval_point.clone()) +
+                let prev_horner = local[horner_start + i - 1];
+                let coeff = local[coeff_start + final_poly_len - 1 - i];
+                let expected = AB::Expr::from(prev_horner) * AB::Expr::from(eval_point) +
                     AB::Expr::from(coeff);
-                builder.assert_eq(local[horner_start + i].clone().into(), expected);
+                builder.assert_eq(local[horner_start + i].into(), expected);
             }
 
             // Final polynomial evaluation must equal last round's folded value
@@ -279,8 +279,8 @@ impl FriVerifierAir {
                 let last_folded_col = offset + (num_rounds - 1) * per_round + 32 + 1;
                 let horner_result_col = horner_start + final_poly_len - 1;
                 builder.assert_eq(
-                    local[last_folded_col].clone().into(),
-                    local[horner_result_col].clone().into(),
+                    local[last_folded_col].into(),
+                    local[horner_result_col].into(),
                 );
             }
         }
@@ -292,8 +292,8 @@ impl FriVerifierAir {
             let first_round_current_col = offset + 32 + 3;
             let first_query_eval_col = queries_start + 1;
             builder.assert_eq(
-                local[first_round_current_col].clone().into(),
-                local[first_query_eval_col].clone().into(),
+                local[first_round_current_col].into(),
+                local[first_query_eval_col].into(),
             );
         }
         // Read query columns (index + eval) for all queries

@@ -177,9 +177,9 @@ where
         // Helper: get (left, right, output, intermediate_start) for block i
         let block_cols = |i: usize| {
             let base = i * COLS_PER_BLOCK;
-            let left = local[base].clone().into();
-            let right = local[base + 1].clone().into();
-            let out = local[base + 2].clone().into();
+            let left = local[base].into();
+            let right = local[base + 1].into();
+            let out = local[base + 2].into();
             let intermed_start = base + 3;
             (left, right, out, intermed_start)
         };
@@ -210,12 +210,8 @@ where
                 let next_out_col = (k + 1) * COLS_PER_BLOCK + 2;
                 let agg_left = agg_block * COLS_PER_BLOCK;
                 let agg_right = agg_block * COLS_PER_BLOCK + 1;
-                builder.assert_zero(
-                    local[agg_left].clone().into() - local[prev_out_col].clone().into(),
-                );
-                builder.assert_zero(
-                    local[agg_right].clone().into() - local[next_out_col].clone().into(),
-                );
+                builder.assert_zero(local[agg_left].into() - local[prev_out_col].into());
+                builder.assert_zero(local[agg_right].into() - local[next_out_col].into());
             }
         }
     }

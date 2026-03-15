@@ -13,6 +13,7 @@ lib-q-hash = { path = "../lib-q-hash" }
 lib-q-core = { path = "../lib-q-core" }
 lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
 lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", default-features = false, features = ["std", "mldsa44", "mldsa65", "mldsa87"] }
 lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
 lib-q-cb-kem = { path = "../lib-q-cb-kem" }
 
@@ -40,6 +41,26 @@ path = "cb_kem_production_example.rs"
 [[example]]
 name = "cb_kem_testing_example"
 path = "cb_kem_testing_example.rs"
+
+[[example]]
+name = "ml_dsa_working_no_std"
+path = "ml_dsa_working_no_std.rs"
+
+[[example]]
+name = "ml_dsa_full_integration_test"
+path = "ml_dsa_full_integration_test.rs"
+
+[[example]]
+name = "ml_dsa_no_std_example"
+path = "ml_dsa_no_std_example.rs"
+
+[[example]]
+name = "ml_dsa_no_std_trait_test"
+path = "ml_dsa_no_std_trait_test.rs"
+
+[[example]]
+name = "ml_dsa_integration_test"
+path = "ml_dsa_integration_test.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

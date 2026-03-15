@@ -16,7 +16,7 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-AUDIT_IGNORES="--ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145 --ignore RUSTSEC-2024-0436"
+AUDIT_IGNORES="--ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145"
 
 run() {
   echo "==> $*"

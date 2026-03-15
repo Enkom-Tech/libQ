@@ -62,6 +62,8 @@ All tiers support post-quantum zero-knowledge proofs:
 - **WASM compatible**: Full browser and Node.js support
 - **Use Cases**: Blockchain privacy, scalable computation, verifiable computation
 
+lib-Q implements zk-STARKs via its own NIST-adapted stack (lib-q-stark) and a full Plonky3-derived stack (lib-q-plonky); see [ZKP Implementation](zkp-implementation.md) (section "Library layout and implementation status") for the library layout.
+
 #### Implementation Options
 1. **OpenZKP**: Open-source Rust implementation with simple interface
 2. **Winterfell**: Meta's general-purpose STARK prover/verifier

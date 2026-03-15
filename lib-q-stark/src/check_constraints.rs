@@ -41,7 +41,7 @@ where
         // SAFETY: row_index_next = (row_index + 1) % height, which is always in range [0, height).
         // Since row_index < height, row_index + 1 <= height, and modulo ensures 0 <= row_index_next < height.
         let next = unsafe { main.row_slice_unchecked(row_index_next) };
-        let main_window = RowWindow::from_two_rows(&*local, &*next);
+        let main_window = RowWindow::from_two_rows(&local, &next);
 
         let (prep_local, prep_next);
         let preprocessed_window = match preprocessed.as_ref() {
@@ -50,7 +50,7 @@ where
                 // The preprocessed trace has the same height as the main trace, so these indices are valid.
                 prep_local = unsafe { prep.row_slice_unchecked(row_index) };
                 prep_next = unsafe { prep.row_slice_unchecked(row_index_next) };
-                RowWindow::from_two_rows(&*prep_local, &*prep_next)
+                RowWindow::from_two_rows(&prep_local, &prep_next)
             }
             None => RowWindow::from_two_rows(&[], &[]),
         };

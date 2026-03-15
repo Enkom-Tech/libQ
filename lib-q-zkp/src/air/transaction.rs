@@ -129,7 +129,7 @@ where
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
         let local = main.current_slice();
-        let tx_type = local[0].clone().into();
+        let tx_type = local[0].into();
         let one = AB::Expr::from(AB::F::ONE);
         let two = one.clone() + one.clone();
         builder.assert_zero(tx_type.clone() * (tx_type.clone() - one) * (tx_type.clone() - two));

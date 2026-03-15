@@ -372,3 +372,28 @@ pub fn verify_preimage(proof: &ZkpProof, expected_hash: &[u8]) -> Result<bool> {
     let verifier = ZkpVerifier::new();
     verifier.verify_secret_value(proof, expected_hash)
 }
+
+/// Prove knowledge of a preimage using NIST cSHAKE256
+///
+/// Same as [`prove_preimage`] but uses cSHAKE256 (domain `b"HashPreimageNistAir"`).
+/// Use when 100% NIST compliance is required; prover cost is higher than Poseidon-based proofs.
+///
+/// # Arguments
+///
+/// * `secret` - The secret preimage
+///
+/// # Returns
+///
+/// A zero-knowledge proof (NIST variant)
+pub fn prove_preimage_nist(secret: &[u8]) -> Result<ZkpProof> {
+    let mut prover = ZkpProver::new();
+    prover.prove_secret_value_nist(secret, b"")
+}
+
+/// Verify a NIST (cSHAKE256) preimage proof
+///
+/// Verifies a proof from [`prove_preimage_nist`]. `expected_hash` is the 32-byte cSHAKE256 output.
+pub fn verify_preimage_nist(proof: &ZkpProof, expected_hash: &[u8]) -> Result<bool> {
+    let verifier = ZkpVerifier::new();
+    verifier.verify_secret_value_nist(proof, expected_hash)
+}

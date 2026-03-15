@@ -33,7 +33,7 @@ getrandom = { workspace = true, optional = true, default-features = false }
 hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }
 lib-q-random = { path = "../lib-q-random", features = ["std", "signature"] }
-num-bigint = "0.4.6"
+num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
 proptest = { workspace = true }
@@ -41,7 +41,7 @@ criterion = { workspace = true }
 aes = "0.9.0-rc.4"
 cipher = "0.5.1"
 ctr = "0.10.0-rc.4"
-paste = { package = "pastey", version = "0.2.1" }
+pastey = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 pkcs8 = { version = "0.11.0-rc.11", features = ["pem"] }

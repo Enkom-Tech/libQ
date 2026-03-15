@@ -15,9 +15,9 @@ lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-spin = "0.10.0"
-tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
+itertools = { workspace = true }
+spin = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }

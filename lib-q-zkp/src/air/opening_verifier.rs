@@ -172,12 +172,12 @@ impl OpeningVerifierAir {
             let verification_result_col = expected_root_col + 1;
 
             let computed_root_col = merkle_proof_start + 1 + (tree_depth - 1) * level_width + 2;
-            let expected_root = local[expected_root_col].clone();
-            let computed_root = local[computed_root_col].clone();
-            let verification_result = local[verification_result_col].clone();
+            let expected_root = local[expected_root_col];
+            let computed_root = local[computed_root_col];
+            let verification_result = local[verification_result_col];
 
             builder.assert_eq(
-                verification_result.clone().into(),
+                verification_result.into(),
                 AB::Expr::from(computed_root) - AB::Expr::from(expected_root),
             );
             builder.assert_zero(verification_result);

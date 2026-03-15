@@ -58,7 +58,7 @@ pub mod macros {
     #[macro_export]
     macro_rules! gen_test {
         ($name:ident, $t:ty) => {
-            paste::paste! {
+            pastey::paste! {
                #[test]
                fn [<$name _ $t:lower>]() {
                    $name::<$t>()

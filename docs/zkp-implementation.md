@@ -4,6 +4,18 @@
 
 Integration strategy for zero-knowledge proofs (ZKPs) into lib-Q, focusing on zk-STARKs for post-quantum security and scalability.
 
+## Library layout and implementation status
+
+This section is the single source of truth for where ZKP/STARK/Plonky functionality lives and when to use which stack.
+
+- **lib-q-stark** (and lib-q-stark-*): Core NIST-adapted STARK stack (SHAKE256, Complex&lt;Mersenne31&gt;, FRI, Merkle). Provides the minimal univariate STARK used by the default high-level API.
+
+- **lib-q-zkp**: Public ZKP API. Uses lib-q-stark for proving and verifying. Exposes `ZkpProver`, `ZkpVerifier`, `StarkProver`, `StarkVerifier`, `default_config`, aggregation, and type-specific verification. The default dependency for ZKP is lib-q-stark.
+
+- **lib-q-plonky**: Full Plonky3-derived STARK ecosystem. It is the complete port of the Plonky3 feature set: univariate STARK (lib-q-plonky-uni-stark), batch STARK (lib-q-plonky-batch-stark), Keccak AIR (lib-q-plonky-keccak-air), lookup arguments (lib-q-plonky-lookup), multilinear utilities (lib-q-plonky-multilinear-util). All of these are fully implemented; they are optional only in the sense of feature flags (e.g. `lib-q-plonky` with feature `full`). Use lib-q-plonky when you need batch proving, Keccak AIR, or lookup; use lib-q-zkp with lib-q-stark for the default high-level API.
+
+- **Security**: Both stacks use NIST-approved primitives (SHAKE256) in the STARK pipeline. Any exception (e.g. Poseidon in a specific AIR) is documented where it occurs (e.g. lib-q-zkp for `prove_secret_value`).
+
 ## Strategic Alignment
 
 - **Post-quantum security**: zk-STARKs use collision-resistant hash functions

@@ -19,7 +19,7 @@ lib-q-stark-sha3-256 = { path = "../lib-q-stark-sha3-256" }
 lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
+tracing = { workspace = true }
 zeroize = { workspace = true, features = ["derive"], default-features = false }
 
 [features]

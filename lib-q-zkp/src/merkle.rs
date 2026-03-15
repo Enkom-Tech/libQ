@@ -85,7 +85,7 @@ impl PoseidonMerkleTree {
         let poseidon = Poseidon128;
         for _ in 0..depth {
             let prev = layers.last().unwrap();
-            let mut next = Vec::with_capacity((prev.len() + 1) / 2);
+            let mut next = Vec::with_capacity(prev.len().div_ceil(2));
             for pair in prev.chunks(2) {
                 let left = pair[0].as_field();
                 let right = pair[1].as_field();

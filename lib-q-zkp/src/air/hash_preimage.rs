@@ -90,19 +90,19 @@ where
         let next = main.next_slice();
 
         let w = row_width();
-        let state_in_0 = local[0].clone().into();
-        let state_in_1 = local[1].clone().into();
-        let state_in_2 = local[2].clone().into();
-        let state_in_3 = local[3].clone().into();
-        let state_in_4 = local[4].clone().into();
-        let input_0 = local[5].clone().into();
-        let input_1 = local[6].clone().into();
+        let state_in_0 = local[0].into();
+        let state_in_1 = local[1].into();
+        let state_in_2 = local[2].into();
+        let state_in_3 = local[3].into();
+        let state_in_4 = local[4].into();
+        let input_0 = local[5].into();
+        let input_1 = local[6].into();
         let intermediate_start = STATE_IN_COLS + INPUT_COLS;
-        let state_out_0 = local[w - 5].clone().into();
-        let state_out_1 = local[w - 4].clone().into();
-        let state_out_2 = local[w - 3].clone().into();
-        let state_out_3 = local[w - 2].clone().into();
-        let state_out_4 = local[w - 1].clone().into();
+        let state_out_0 = local[w - 5].into();
+        let state_out_1 = local[w - 4].into();
+        let state_out_2 = local[w - 3].into();
+        let state_out_3 = local[w - 2].into();
+        let state_out_4 = local[w - 1].into();
 
         {
             let mut b = builder.when_first_row();
@@ -114,13 +114,13 @@ where
         }
 
         {
-            let next_state_in_0 = next[0].clone().into();
-            let next_state_in_1 = next[1].clone().into();
-            let next_state_in_2 = next[2].clone().into();
-            let next_state_in_3 = next[3].clone().into();
-            let next_state_in_4 = next[4].clone().into();
-            let next_input_0 = next[5].clone().into();
-            let next_input_1 = next[6].clone().into();
+            let next_state_in_0 = next[0].into();
+            let next_state_in_1 = next[1].into();
+            let next_state_in_2 = next[2].into();
+            let next_state_in_3 = next[3].into();
+            let next_state_in_4 = next[4].into();
+            let next_input_0 = next[5].into();
+            let next_input_1 = next[6].into();
             let mut b = builder.when_transition();
             b.assert_zero(next_state_in_0 - state_out_0.clone());
             b.assert_zero(next_state_in_1 - (state_out_1.clone() + next_input_0));
@@ -131,11 +131,11 @@ where
 
         let gadget = PoseidonGadget::new();
         let full_state: [AB::Expr; 5] = [
-            local[0].clone().into(),
-            local[1].clone().into(),
-            local[2].clone().into(),
-            local[3].clone().into(),
-            local[4].clone().into(),
+            local[0].into(),
+            local[1].into(),
+            local[2].into(),
+            local[3].into(),
+            local[4].into(),
         ];
         if gadget
             .constrain_full_state(builder, &full_state, state_out_0, intermediate_start)

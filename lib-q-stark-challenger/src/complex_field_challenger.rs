@@ -124,7 +124,7 @@ where
         Hash<Complex<Mersenne31>, Complex<Mersenne31>, 1>: Clone,
     {
         for value in values {
-            self.observe(value.clone());
+            self.observe(*value);
         }
     }
 }

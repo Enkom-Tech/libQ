@@ -1,7 +1,12 @@
-//! Plonky3-derived ZK proving components for lib-Q.
+//! Entry point for the full Plonky3-derived STARK implementation in lib-Q.
 //!
-//! Optional components (Keccak AIR, lookup arguments, batch STARK, etc.)
-//! are enabled via features and re-exported here.
+//! This crate re-exports: univariate STARK (`uni-stark`), batch STARK (`batch-stark`),
+//! Keccak AIR (`keccak-air`), lookup arguments (`lookup`), and multilinear utilities
+//! (`multilinear-util`). Each is a full implementation; components are enabled via
+//! **features** (optional to enable, not optional in completeness).
+//!
+//! Use the `full` feature to enable the complete set. All dependencies are built on
+//! the lib-q-stark-* primitives (NIST, SHAKE256).
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

@@ -19,14 +19,14 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 # Note: poseidon2 removed - non-NIST hash
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
-num-bigint = { version = "0.4.6", default-features = false }
-paste = "1.0.15"
+itertools = { workspace = true }
+num-bigint = { workspace = true }
+pastey = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-spin = "0.10.0"
-tracing = { version = "0.1.43", default-features = false, features = ["attributes"] }
-transpose = "0.2.3"
+spin = { workspace = true }
+tracing = { workspace = true }
+transpose = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

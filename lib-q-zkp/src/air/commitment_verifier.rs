@@ -183,15 +183,15 @@ impl CommitmentVerifierAir {
                 commitment_idx, equality_check_col, expected_root_start, computed_root_col
             );
 
-            let expected_root = local[expected_root_start].clone();
-            let computed_root = local[computed_root_col].clone();
+            let expected_root = local[expected_root_start];
+            let computed_root = local[computed_root_col];
 
             builder.assert_eq(
-                local[equality_check_col].clone().into(),
+                local[equality_check_col].into(),
                 AB::Expr::from(computed_root) - AB::Expr::from(expected_root),
             );
 
-            let equality_check = local[equality_check_col].clone();
+            let equality_check = local[equality_check_col];
             builder.assert_zero(equality_check);
         }
     }

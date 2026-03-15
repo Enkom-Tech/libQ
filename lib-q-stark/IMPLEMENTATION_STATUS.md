@@ -43,9 +43,10 @@
 
 ### 2. Missing Components 🔧
 
-**Not yet integrated from Plonky3**:
-- `lib-q-stark-keccak-air`: Keccak AIR for testing (optional)
-- `lib-q-stark-uni-stark`: Univariate STARK variant (optional; lib-q-plonky-uni-stark exists separately)
+**Full implementations in lib-q-plonky** (optional only as feature dependencies):
+- **Univariate STARK**: A full Plonky3-style univariate STARK (prover, verifier, preprocessed columns, constraint folders) is implemented in **lib-q-plonky-uni-stark**, built on lib-q-stark primitives. Optional as a feature (lib-q-plonky feature `uni-stark`), not a partial implementation.
+- **Batch STARK**: A full batch STARK (prove_batch, verify_batch, multiple AIRs, shared LogUp) is implemented in **lib-q-plonky-batch-stark**. Optional as a feature (lib-q-plonky feature `batch-stark`).
+- **Keccak AIR**: A full Keccak AIR implementation is in **lib-q-plonky-keccak-air**. Optional as a feature (lib-q-plonky feature `keccak-air`).
 
 **Intentionally not integrated**:
 - Non-NIST hash functions (Poseidon2, Blake3, SHA-256, Rescue, Monolith)

@@ -19,7 +19,7 @@ digest = { workspace = true }
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-k12 = { path = "../lib-q-k12" }
 lib-q-sha3 = { path = "../lib-q-sha3" }
-rayon = { version = "1.11.0", optional = true }
+rayon = { workspace = true, optional = true }
 
 [dev-dependencies]
 digest = { workspace = true, features = ["dev"] }

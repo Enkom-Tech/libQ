@@ -14,7 +14,7 @@ lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+itertools = { workspace = true }
 serde = { workspace = true, default-features = false }
 
 [features]

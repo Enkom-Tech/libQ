@@ -568,17 +568,14 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         ))]
         std::eprintln!("StarkVerifierAir: checking is_zk and public_values");
         let is_zk_col = 3;
-        let is_zk = local[is_zk_col].clone();
+        let is_zk = local[is_zk_col];
         let one = B::Expr::from(<F as PrimeCharacteristicRing>::ONE);
-        builder.assert_zero(B::Expr::from(is_zk.clone()) * (B::Expr::from(is_zk) - one));
+        builder.assert_zero(B::Expr::from(is_zk) * (B::Expr::from(is_zk) - one));
 
         for i in 0..self.serialized_proof.expected_public_values.len() {
             let expected_col = offset + i * 2;
             let actual_col = offset + i * 2 + 1;
-            builder.assert_eq(
-                local[expected_col].clone().into(),
-                local[actual_col].clone().into(),
-            );
+            builder.assert_eq(local[expected_col].into(), local[actual_col].into());
         }
     }
 }

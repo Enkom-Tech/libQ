@@ -127,6 +127,38 @@ jobs:
           package: ${{ matrix.package }}
           run-release-tests: "true"
 
+  # ZKP recursive aggregation - full prove/aggregate/verify in release (slow test)
+  zkp-recursive:
+    name: ZKP Recursive Aggregation
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy, rust-src
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-zkp-recursive-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-zkp-recursive-
+
+      - name: Run recursive aggregation test (release)
+        run: |
+          cargo test -p lib-q-zkp --release --features "zkp,recursive-proofs-experimental,std" \
+            --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
+            -- --test-threads=1
+
   # WASM validation - parallel with test matrix
   wasm-validation:
     name: WASM Validation
@@ -826,7 +858,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

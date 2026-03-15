@@ -312,33 +312,33 @@ impl<F: Field, AB: AirBuilder<F = F>> Air<AB> for CircuitAir<F> {
                 Constraint::AssertZero(w) => {
                     // Constraint: wire[w.index] == 0
                     if w.index < row.len() {
-                        builder.assert_zero(row[w.index].clone());
+                        builder.assert_zero(row[w.index]);
                     }
                 }
                 Constraint::AssertEqual(l, r) => {
                     // Constraint: wire[l.index] == wire[r.index]
                     if l.index < row.len() && r.index < row.len() {
-                        builder.assert_eq(row[l.index].clone(), row[r.index].clone());
+                        builder.assert_eq(row[l.index], row[r.index]);
                     }
                 }
                 Constraint::AssertConstant(w, c) => {
                     // Constraint: wire[w.index] == constant
                     if w.index < row.len() {
-                        builder.assert_eq(row[w.index].clone(), *c);
+                        builder.assert_eq(row[w.index], *c);
                     }
                 }
                 Constraint::AssertAdd(out, l, r) => {
                     // Constraint: wire[out.index] == wire[l.index] + wire[r.index]
                     if out.index < row.len() && l.index < row.len() && r.index < row.len() {
-                        let sum = row[l.index].clone() + row[r.index].clone();
-                        builder.assert_eq(row[out.index].clone(), sum);
+                        let sum = row[l.index] + row[r.index];
+                        builder.assert_eq(row[out.index], sum);
                     }
                 }
                 Constraint::AssertMul(out, l, r) => {
                     // Constraint: wire[out.index] == wire[l.index] * wire[r.index]
                     if out.index < row.len() && l.index < row.len() && r.index < row.len() {
-                        let product = row[l.index].clone() * row[r.index].clone();
-                        builder.assert_eq(row[out.index].clone(), product);
+                        let product = row[l.index] * row[r.index];
+                        builder.assert_eq(row[out.index], product);
                     }
                 }
             }

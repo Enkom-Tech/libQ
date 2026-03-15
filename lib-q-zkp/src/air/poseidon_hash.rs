@@ -169,7 +169,7 @@ where
         // when malicious prover resistance is required
         //
         // At minimum, ensure output column exists (basic sanity check)
-        let _output = local[output_idx].clone();
+        let _output = local[output_idx];
     }
 }
 

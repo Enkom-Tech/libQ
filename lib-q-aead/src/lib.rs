@@ -5,7 +5,6 @@
 //! registration and follows libQ's architectural principles.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(not(feature = "std"), feature(alloc_error_handler))]
 // Note: We need unsafe code for global registry initialization
 #![deny(unused_qualifications)]
 

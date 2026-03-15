@@ -6,23 +6,15 @@ This directory contains examples demonstrating the usage of lib-Q post-quantum c
 
 ### Running ML-DSA Examples
 
-Some ML-DSA examples require the `ml-dsa` feature to be enabled. Run them with:
+When building from the workspace root, specify the examples package with `-p lib-q-examples`. The package already depends on `lib-q-ml-dsa` and `lib-q-sig` with ml-dsa; no extra feature flags are required.
 
 ```bash
-# Full integration test (high-level and low-level APIs)
-cargo run --example ml_dsa_full_integration_test --features "lib-q-sig/ml-dsa"
-
-# No_std example (external randomness)
-cargo run --example ml_dsa_no_std_example --features "lib-q-sig/ml-dsa"
-
-# No_std trait test
-cargo run --example ml_dsa_no_std_trait_test --features "lib-q-sig/ml-dsa"
-
-# Working no_std example (uses lib_q_ml_dsa directly)
-cargo run --example ml_dsa_working_no_std
-
-# Integration test (uses main libq crate)
-cargo run --example ml_dsa_integration_test
+# From workspace root (libQ/)
+cargo run -p lib-q-examples --example ml_dsa_working_no_std
+cargo run -p lib-q-examples --example ml_dsa_full_integration_test
+cargo run -p lib-q-examples --example ml_dsa_no_std_example
+cargo run -p lib-q-examples --example ml_dsa_no_std_trait_test
+cargo run -p lib-q-examples --example ml_dsa_integration_test
 ```
 
 ### Example Descriptions
@@ -50,13 +42,11 @@ Tests the Signature trait implementation in no_std environments:
 Working example using lib_q_ml_dsa directly:
 - Demonstrates all ML-DSA variants (44, 65, 87)
 - Shows proper no_std usage patterns
-- No feature flags required
 
 #### `ml_dsa_integration_test.rs`
 Integration test using the main libq crate:
 - Tests algorithm availability
 - Tests signature context functionality
-- No feature flags required
 
 ### Features
 

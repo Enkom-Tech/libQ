@@ -166,7 +166,7 @@ where
                     byte,
                 ),
             );
-            builder.assert_eq(local[i].clone().into(), AB::Expr::from(expected));
+            builder.assert_eq(local[i].into(), AB::Expr::from(expected));
         }
 
         // 2. Constrain post-state hash columns == known post_state_hash bytes
@@ -177,10 +177,7 @@ where
                     byte,
                 ),
             );
-            builder.assert_eq(
-                local[post_start + i].clone().into(),
-                AB::Expr::from(expected),
-            );
+            builder.assert_eq(local[post_start + i].into(), AB::Expr::from(expected));
         }
 
         // 3. Transition constraints
@@ -195,7 +192,7 @@ where
             let zero = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
             let mut balance_sum = zero.clone();
             for i in 0..32 {
-                balance_sum += AB::Expr::from(local[balance_start + i].clone());
+                balance_sum += AB::Expr::from(local[balance_start + i]);
             }
             builder.assert_zero(balance_sum);
         }
@@ -217,7 +214,7 @@ where
                                 u8,
                             >>::from_int(byte),
                         );
-                    builder.assert_eq(local[col].clone().into(), AB::Expr::from(expected));
+                    builder.assert_eq(local[col].into(), AB::Expr::from(expected));
                 }
             }
         }

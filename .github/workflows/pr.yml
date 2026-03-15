@@ -212,6 +212,12 @@ jobs:
           cargo check --examples --package lib-q --features "all-algorithms"
           echo "✅ README examples compile successfully"
 
+      - name: Build and run lib-q-examples
+        run: |
+          cargo build -p lib-q-examples --examples
+          cargo run -p lib-q-examples --example ml_dsa_working_no_std
+          echo "✅ lib-q-examples build and ML-DSA example run successfully"
+
   # PR summary and reporting - runs after all other jobs
   pr-summary:
     name: PR Summary

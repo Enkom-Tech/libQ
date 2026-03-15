@@ -141,7 +141,7 @@ where
         let main = builder.main();
         let local = main.current_slice();
 
-        let value = local[0].clone();
+        let value = local[0];
         let bits = &local[1..];
 
         // Recompose value from bits
@@ -149,10 +149,10 @@ where
         for (i, bit) in bits.iter().enumerate() {
             // Weight for bit i is 2^i
             let weight = AB::F::from_u64(1u64 << i);
-            recomposed += bit.clone() * weight;
+            recomposed += *bit * weight;
 
             // Constrain each bit to be boolean: bit * (bit - 1) = 0
-            builder.assert_bool(bit.clone());
+            builder.assert_bool(*bit);
         }
 
         // Constrain value = sum of weighted bits

@@ -14,11 +14,11 @@ lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+itertools = { workspace = true }
 rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"], default-features = false }
-tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
-transpose = "0.2.3"
+tracing = { workspace = true }
+transpose = { workspace = true }
 zeroize = { workspace = true, features = ["derive"], default-features = false }
 
 [features]

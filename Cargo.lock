@@ -547,9 +547,9 @@ dependencies = [
 
 [[package]]
 name = "digest"
-version = "0.11.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "285743a676ccb6b3e116bc14cc69319b957867930ae9c4822f8e0f54509d7243"
+checksum = "4850db49bf08e663084f7fb5c87d202ef91a3907271aff24a94eb97ff039153c"
 dependencies = [
  "blobby",
  "block-buffer 0.12.0",
@@ -919,7 +919,7 @@ version = "0.13.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef451d73f36d8a3f93ad32c332ea01146c9650e1ec821a9b0e46c01277d544f8"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
 ]
 
 [[package]]
@@ -1101,7 +1101,7 @@ dependencies = [
 name = "lib-q-dawn"
 version = "0.0.2"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
  "lib-q-core",
  "lib-q-k12",
  "lib-q-random",
@@ -1122,6 +1122,7 @@ dependencies = [
  "lib-q-hash",
  "lib-q-keccak",
  "lib-q-kem",
+ "lib-q-ml-dsa",
  "lib-q-sig",
 ]
 
@@ -1149,7 +1150,7 @@ version = "0.0.2"
 dependencies = [
  "base16ct",
  "block-buffer 0.12.0",
- "digest 0.11.1",
+ "digest 0.11.2",
  "hex-literal",
  "lib-q-core",
  "lib-q-k12",
@@ -1212,7 +1213,7 @@ name = "lib-q-k12"
 version = "0.0.2"
 dependencies = [
  "criterion",
- "digest 0.11.1",
+ "digest 0.11.2",
  "hex",
  "hex-literal",
  "lib-q-random",
@@ -1399,7 +1400,7 @@ name = "lib-q-poseidon"
 version = "0.0.2"
 dependencies = [
  "criterion",
- "digest 0.11.1",
+ "digest 0.11.2",
  "hex",
  "lib-q-core",
  "lib-q-sha3",
@@ -1442,7 +1443,7 @@ dependencies = [
  "blobby",
  "block-buffer 0.12.0",
  "criterion",
- "digest 0.11.1",
+ "digest 0.11.2",
  "hex-literal",
  "lib-q-keccak",
 ]
@@ -1475,7 +1476,7 @@ dependencies = [
  "const-oid",
  "criterion",
  "ctr",
- "digest 0.11.1",
+ "digest 0.11.2",
  "getrandom 0.4.2",
  "hex",
  "hex-literal",
@@ -1593,7 +1594,7 @@ dependencies = [
  "lib-q-stark-rayon",
  "lib-q-stark-util",
  "num-bigint",
- "paste",
+ "pastey",
  "rand 0.10.0",
  "serde",
  "subtle",
@@ -1721,7 +1722,7 @@ dependencies = [
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
  "num-bigint",
- "paste",
+ "pastey",
  "rand 0.10.0",
  "rand_xoshiro",
  "serde",
@@ -1741,7 +1742,7 @@ dependencies = [
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
  "num-bigint",
- "paste",
+ "pastey",
  "rand 0.10.0",
  "serde",
  "spin",
@@ -1760,7 +1761,7 @@ dependencies = [
 name = "lib-q-stark-sha3-256"
 version = "0.0.2"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
  "lib-q-sha3",
  "lib-q-stark-symmetric",
 ]
@@ -1769,7 +1770,7 @@ dependencies = [
 name = "lib-q-stark-shake128"
 version = "0.0.2"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
  "lib-q-sha3",
  "lib-q-stark-symmetric",
 ]
@@ -1778,7 +1779,7 @@ dependencies = [
 name = "lib-q-stark-shake256"
 version = "0.0.2"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
  "lib-q-sha3",
  "lib-q-stark-symmetric",
 ]
@@ -1816,7 +1817,7 @@ dependencies = [
 name = "lib-q-zkp"
 version = "0.0.2"
 dependencies = [
- "digest 0.11.1",
+ "digest 0.11.2",
  "lib-q-core",
  "lib-q-plonky",
  "lib-q-poseidon",
@@ -2500,7 +2501,7 @@ checksum = "7c5f3b1e2dc8aad28310d8410bd4d7e180eca65fca176c52ab00d364475d0024"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.2.17",
- "digest 0.11.1",
+ "digest 0.11.2",
 ]
 
 [[package]]

@@ -207,44 +207,40 @@ impl ConstraintVerifierAir {
         let constraint_eval_col = recomposed_quotient_col + 1;
         let verification_result_col = constraint_eval_col + 1;
 
-        let zeta = local[zeta_col].clone();
-        let alpha = local[alpha_col].clone();
-        let vanishing_poly = local[vanishing_poly_col].clone();
-        let recomposed_quotient = local[recomposed_quotient_col].clone();
-        let constraint_eval = local[constraint_eval_col].clone();
+        let zeta = local[zeta_col];
+        let alpha = local[alpha_col];
+        let vanishing_poly = local[vanishing_poly_col];
+        let recomposed_quotient = local[recomposed_quotient_col];
+        let constraint_eval = local[constraint_eval_col];
 
         let zero = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
         let mut recomposed = zero.clone();
         for i in (0..num_quotient_chunks).rev() {
-            let chunk = local[quotient_chunks_start + i * CHALLENGE_DIM].clone();
-            recomposed = AB::Expr::from(alpha.clone()) * recomposed + AB::Expr::from(chunk);
+            let chunk = local[quotient_chunks_start + i * CHALLENGE_DIM];
+            recomposed = AB::Expr::from(alpha) * recomposed + AB::Expr::from(chunk);
         }
-        builder.assert_eq(AB::Expr::from(recomposed_quotient.clone()), recomposed);
+        builder.assert_eq(AB::Expr::from(recomposed_quotient), recomposed);
 
-        builder.assert_eq(
-            local[zeta_pow_chain_start].clone().into(),
-            AB::Expr::from(zeta.clone()),
-        );
+        builder.assert_eq(local[zeta_pow_chain_start].into(), AB::Expr::from(zeta));
         for step in 1..=log_trace_domain_size {
             let col_in = zeta_pow_chain_start + step - 1;
             let col_out = zeta_pow_chain_start + step;
-            let prev = local[col_in].clone();
+            let prev = local[col_in];
             builder.assert_eq(
-                local[col_out].clone().into(),
-                AB::Expr::from(prev.clone()) * AB::Expr::from(prev),
+                local[col_out].into(),
+                AB::Expr::from(prev) * AB::Expr::from(prev),
             );
         }
 
-        let zeta_pow_n = local[zeta_pow_chain_start + log_trace_domain_size].clone();
+        let zeta_pow_n = local[zeta_pow_chain_start + log_trace_domain_size];
         let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
         builder.assert_eq(
-            AB::Expr::from(vanishing_poly.clone()),
+            AB::Expr::from(vanishing_poly),
             AB::Expr::from(zeta_pow_n) - one,
         );
 
-        let verification_result = local[verification_result_col].clone();
-        let expected_result =
-            constraint_eval.clone() - recomposed_quotient.clone() * vanishing_poly.clone();
+        let verification_result = local[verification_result_col];
+        let expected_result = constraint_eval - recomposed_quotient * vanishing_poly;
         builder.assert_zero(verification_result - expected_result);
     }
 }

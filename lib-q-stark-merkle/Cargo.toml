@@ -18,12 +18,12 @@ lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
 lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+itertools = { workspace = true }
 lib-q-random = { path = "../lib-q-random", default-features = false }
 rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["alloc"], default-features = false }
-thiserror = { version = "2.0.18", default-features = false }
-tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 
 [features]
 default = ["alloc"]

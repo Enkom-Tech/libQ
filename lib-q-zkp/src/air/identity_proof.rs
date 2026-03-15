@@ -161,21 +161,21 @@ where
         let next = main.next_slice();
 
         let w = row_width();
-        let state_in_0 = local[0].clone().into();
-        let state_in_1 = local[1].clone().into();
-        let state_in_2 = local[2].clone().into();
-        let state_in_3 = local[3].clone().into();
-        let state_in_4 = local[4].clone().into();
-        let input_0 = local[5].clone().into();
-        let input_1 = local[6].clone().into();
+        let state_in_0 = local[0].into();
+        let state_in_1 = local[1].into();
+        let state_in_2 = local[2].into();
+        let state_in_3 = local[3].into();
+        let state_in_4 = local[4].into();
+        let input_0 = local[5].into();
+        let input_1 = local[6].into();
         let intermediate_start = STATE_IN_COLS + INPUT_COLS; // 7
         // state_out at w-6..w-2, is_final_row at w-1
-        let state_out_0 = local[w - 6].clone().into();
-        let state_out_1 = local[w - 5].clone().into();
-        let state_out_2 = local[w - 4].clone().into();
-        let state_out_3 = local[w - 3].clone().into();
-        let state_out_4 = local[w - 2].clone().into();
-        let is_final_row = local[w - 1].clone().into();
+        let state_out_0 = local[w - 6].into();
+        let state_out_1 = local[w - 5].into();
+        let state_out_2 = local[w - 4].into();
+        let state_out_3 = local[w - 3].into();
+        let state_out_4 = local[w - 2].into();
+        let is_final_row = local[w - 1].into();
 
         // First row: state_in = (input_0, input_1, 0, 0, 0)
         {
@@ -190,14 +190,14 @@ where
         // Transition: rate (positions 0, 1) absorbs input; capacity (2, 3, 4) passes through.
         // On the padding row, state_in = state_out_prev + 10*1 in rate only: (1, 1, 0, 0, 0) for rate=2.
         {
-            let next_state_in_0 = next[0].clone().into();
-            let next_state_in_1 = next[1].clone().into();
-            let next_state_in_2 = next[2].clone().into();
-            let next_state_in_3 = next[3].clone().into();
-            let next_state_in_4 = next[4].clone().into();
-            let next_input_0 = next[5].clone().into();
-            let next_input_1 = next[6].clone().into();
-            let next_is_final: AB::Expr = next[w - 1].clone().into();
+            let next_state_in_0 = next[0].into();
+            let next_state_in_1 = next[1].into();
+            let next_state_in_2 = next[2].into();
+            let next_state_in_3 = next[3].into();
+            let next_state_in_4 = next[4].into();
+            let next_input_0 = next[5].into();
+            let next_input_1 = next[6].into();
+            let next_is_final: AB::Expr = next[w - 1].into();
             let one_expr = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
             let mut b = builder.when_transition();
             b.assert_bool(next_is_final.clone());
@@ -233,11 +233,11 @@ where
         // Poseidon permutation with full 5-element state (multi-row sponge capacity carry).
         let gadget = PoseidonGadget::new();
         let full_state: [AB::Expr; 5] = [
-            local[0].clone().into(),
-            local[1].clone().into(),
-            local[2].clone().into(),
-            local[3].clone().into(),
-            local[4].clone().into(),
+            local[0].into(),
+            local[1].into(),
+            local[2].into(),
+            local[3].into(),
+            local[4].into(),
         ];
         if gadget
             .constrain_full_state(

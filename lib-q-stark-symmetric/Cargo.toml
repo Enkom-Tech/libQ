@@ -13,7 +13,7 @@ readme.workspace = true
 lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-keccak = { path = "../lib-q-keccak" }
 
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+itertools = { workspace = true }
 serde = { workspace = true, features = ["alloc"], default-features = false }
 
 [features]

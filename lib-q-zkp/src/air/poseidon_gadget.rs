@@ -163,7 +163,7 @@ impl PoseidonGadget {
                 &state,
                 &round_params,
                 &mut round_const_idx,
-                &local,
+                local,
                 &mut intermediate_col,
             )?;
         }
@@ -173,7 +173,7 @@ impl PoseidonGadget {
                 &state,
                 &round_params,
                 &mut round_const_idx,
-                &local,
+                local,
                 &mut intermediate_col,
             )?;
         }
@@ -183,7 +183,7 @@ impl PoseidonGadget {
                 &state,
                 &round_params,
                 &mut round_const_idx,
-                &local,
+                local,
                 &mut intermediate_col,
             )?;
         }
@@ -212,31 +212,28 @@ impl PoseidonGadget {
             let rc_field =
                 poseidon_to_field::<AB::F>(&params.round_constants[*round_const_idx + i]);
             let expected = state[i].clone() + AB::Expr::from(rc_field);
-            builder.assert_eq(local[*intermediate_col + i].clone().into(), expected);
+            builder.assert_eq(local[*intermediate_col + i].into(), expected);
         }
         *round_const_idx += n;
         *intermediate_col += n;
 
         for i in 0..n {
-            let arc_val = local[*intermediate_col - n + i].clone();
-            let arc_sq = arc_val.clone() * arc_val.clone();
+            let arc_val = local[*intermediate_col - n + i];
+            let arc_sq = arc_val * arc_val;
             let arc_quad = arc_sq.clone() * arc_sq.clone();
             let expected_sbox = arc_quad * arc_val;
-            builder.assert_eq(local[*intermediate_col + i].clone().into(), expected_sbox);
+            builder.assert_eq(local[*intermediate_col + i].into(), expected_sbox);
         }
         *intermediate_col += n;
 
         let mut next_state: Vec<AB::Expr> = (0..n).map(|_| zero.clone()).collect();
         for i in 0..n {
             for j in 0..n {
-                let sbox_val = local[*intermediate_col - n + j].clone();
+                let sbox_val = local[*intermediate_col - n + j];
                 let mds_field = poseidon_to_field::<AB::F>(&params.mds[i][j]);
                 next_state[i] = next_state[i].clone() + AB::Expr::from(mds_field) * sbox_val;
             }
-            builder.assert_eq(
-                local[*intermediate_col + i].clone().into(),
-                next_state[i].clone(),
-            );
+            builder.assert_eq(local[*intermediate_col + i].into(), next_state[i].clone());
         }
         *intermediate_col += n;
 
@@ -263,20 +260,20 @@ impl PoseidonGadget {
             let rc_field =
                 poseidon_to_field::<AB::F>(&params.round_constants[*round_const_idx + i]);
             let expected = state[i].clone() + AB::Expr::from(rc_field);
-            builder.assert_eq(local[*intermediate_col + i].clone().into(), expected);
+            builder.assert_eq(local[*intermediate_col + i].into(), expected);
         }
         *round_const_idx += n;
         *intermediate_col += n;
 
-        let arc_val_0 = local[*intermediate_col - n].clone();
-        let arc_sq_0 = arc_val_0.clone() * arc_val_0.clone();
+        let arc_val_0 = local[*intermediate_col - n];
+        let arc_sq_0 = arc_val_0 * arc_val_0;
         let arc_quad_0 = arc_sq_0.clone() * arc_sq_0.clone();
         let expected_sbox_0 = arc_quad_0 * arc_val_0;
-        builder.assert_eq(local[*intermediate_col].clone().into(), expected_sbox_0);
+        builder.assert_eq(local[*intermediate_col].into(), expected_sbox_0);
         for i in 1..n {
             builder.assert_eq(
-                local[*intermediate_col + i].clone().into(),
-                local[*intermediate_col - n + i].clone().into(),
+                local[*intermediate_col + i].into(),
+                local[*intermediate_col - n + i].into(),
             );
         }
         *intermediate_col += n;
@@ -284,14 +281,11 @@ impl PoseidonGadget {
         let mut next_state: Vec<AB::Expr> = (0..n).map(|_| zero.clone()).collect();
         for i in 0..n {
             for j in 0..n {
-                let sbox_val = local[*intermediate_col - n + j].clone();
+                let sbox_val = local[*intermediate_col - n + j];
                 let mds_field = poseidon_to_field::<AB::F>(&params.mds[i][j]);
                 next_state[i] = next_state[i].clone() + AB::Expr::from(mds_field) * sbox_val;
             }
-            builder.assert_eq(
-                local[*intermediate_col + i].clone().into(),
-                next_state[i].clone(),
-            );
+            builder.assert_eq(local[*intermediate_col + i].into(), next_state[i].clone());
         }
         *intermediate_col += n;
 
