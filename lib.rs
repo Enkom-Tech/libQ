@@ -58,7 +58,9 @@
 //! # Feature Flags
 //!
 //! - `std`: Enable standard library features (default)
-//! - `no_std`: Disable standard library for embedded environments
+//! - `no_std`: Marker feature; this crate uses `#![no_std]` when `std` is off, but path
+//!   dependencies may still enable `std` (see crate README). For embedded builds, prefer
+//!   leaf crates (`lib-q-core`, `lib-q-kem`, …) with `--no-default-features` and `alloc`.
 //! - `wasm`: Enable WebAssembly compilation support
 //! - `ml-kem`: Enable ML-KEM key encapsulation mechanism
 //! - `ml-dsa`: Enable ML-DSA digital signature algorithm
@@ -87,7 +89,10 @@
 //! wasm-pack build --target web --out-dir pkg
 //! ```
 //!
-//! This provides a JavaScript API that mirrors the Rust API.
+//! For `getrandom` on `wasm32-unknown-unknown`, use the same flags as CI:
+//! `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C panic=abort'`.
+//!
+//! This provides a JavaScript API that mirrors the Rust API where `wasm-bindgen` is enabled.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]

@@ -17,6 +17,14 @@ lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quant
 - **Three security tiers**: Ultra-secure, balanced, and performance-optimized options
 - **Modular design**: Use only what you need with individual crates and npm packages
 
+## no_std, embedded, and WebAssembly
+
+- **Umbrella `lib-q` crate**: Disabling default features applies `#![no_std]` to this crate's own code, but some path dependencies are still declared with `std` enabled (for example unified signature support via `lib-q-sig`). The final artifact may still link the standard library. For a **true** `no_std` + `alloc` dependency tree, use the **workspace crates you need** (`lib-q-core`, `lib-q-kem`, `lib-q-ml-dsa`, etc.) with `--no-default-features` and each crate's `alloc` / algorithm features. Per-crate READMEs describe WASM and `no_std` where relevant (for example [lib-q-saturnin/README.md](lib-q-saturnin/README.md)).
+
+- **WASM and `getrandom`**: Match CI when compiling for `wasm32-unknown-unknown`: set `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS` to `--cfg getrandom_backend="wasm_js" -C panic=abort` (see [.github/actions/wasm-build/action.yml](.github/actions/wasm-build/action.yml), [scripts/build-wasm.ps1](scripts/build-wasm.ps1), [scripts/security-check.ps1](scripts/security-check.ps1)).
+
+- **`lib-q-zkp`**: Built as a normal Rust library (not a `cdylib` npm bundle). CI runs `cargo check --target wasm32-unknown-unknown` with `wasm,zkp` to guard the ZKP stack on WASM without `wasm-pack`.
+
 ## Package Structure
 
 lib-Q is organized as a Rust workspace with individual crates and npm packages:

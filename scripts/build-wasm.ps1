@@ -106,6 +106,15 @@ function Remove-PreviousBuild {
 # Function to build WASM
 function Invoke-WasmBuild {
     Write-Status "INFO" "Building WASM module..."
+    # Match .github/actions/wasm-build: getrandom in browsers + wasm-pack-friendly panic
+    $env:CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS = '--cfg getrandom_backend="wasm_js" -C panic=abort'
+    Write-Status "INFO" "Pre-check: cargo check wasm32 (same RUSTFLAGS as CI)..."
+    $precheck = cargo check --target wasm32-unknown-unknown --features "wasm" --lib 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Status "FAIL" "cargo check wasm32 failed before wasm-pack"
+        if ($Verbose) { Write-Host $precheck }
+        return $false
+    }
     
     # Build command for lib-Q
     $buildCommand = @(

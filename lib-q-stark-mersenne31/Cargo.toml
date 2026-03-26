@@ -26,9 +26,6 @@ rand = { workspace = true, default-features = false, features = ["std"] }
 serde = { workspace = true, features = ["derive"], default-features = false }
 subtle = { workspace = true }
 
-criterion = { workspace = true }
-rand_xoshiro = { workspace = true }
-
 [features]
 default = ["alloc"]
 std = ["alloc"]
@@ -36,6 +33,13 @@ alloc = []
 no_std = []
 # Feature to enable TestPermutation for benches and test utilities
 test-utils = []
+
+[dev-dependencies]
+criterion = { workspace = true }
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", features = [
+    "criterion-bench",
+] }
+rand_xoshiro = { workspace = true }
 
 [[bench]]
 name = "bench_field"

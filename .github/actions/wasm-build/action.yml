@@ -29,6 +29,10 @@ inputs:
     description: Whether to cache pkg directory
     default: "true"
     required: false
+  check-only:
+    description: If true, run cargo check for wasm32 only (no wasm-pack); for rlib crates without JS bindings
+    default: "false"
+    required: false
 
 runs:
   using: composite
@@ -41,6 +45,7 @@ runs:
         targets: wasm32-unknown-unknown
     
     - name: Install wasm-pack
+      if: inputs.check-only != 'true'
       uses: jetli/wasm-pack-action@v0.4.0
       with:
         version: latest
@@ -57,8 +62,22 @@ runs:
         restore-keys: |
           ${{ runner.os }}-wasm-
     
+    - name: Cargo check WASM (library only)
+      if: inputs.check-only == 'true'
+      shell: bash
+      env:
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "cargo check for wasm32 (check-only, no wasm-pack)..."
+        cd ${{ inputs.working-directory }}
+        if [ -z "${{ inputs.features }}" ]; then
+          cargo check --target wasm32-unknown-unknown --lib
+        else
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        fi
+    
     - name: Build WASM for web target
-      if: contains(inputs.targets, 'web')
+      if: ${{ contains(inputs.targets, 'web') && inputs.check-only != 'true' }}
       shell: bash
       env:
         # Ensure getrandom WASM backend is properly configured
@@ -78,7 +97,7 @@ runs:
         echo "WASM web build completed successfully"
     
     - name: Build WASM for nodejs target
-      if: contains(inputs.targets, 'nodejs')
+      if: ${{ contains(inputs.targets, 'nodejs') && inputs.check-only != 'true' }}
       shell: bash
       env:
         # Ensure getrandom WASM backend is properly configured
@@ -98,7 +117,7 @@ runs:
         echo "WASM nodejs build completed successfully"
     
     - name: Verify WASM artifacts
-      if: inputs.verify-artifacts == 'true'
+      if: ${{ inputs.verify-artifacts == 'true' && inputs.check-only != 'true' }}
       shell: bash
       run: |
         echo "Verifying WASM build artifacts..."

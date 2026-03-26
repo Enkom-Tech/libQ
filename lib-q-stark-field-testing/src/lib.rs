@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+#[cfg(feature = "criterion-bench")]
 pub mod bench_func;
 pub mod dft_testing;
 pub mod extension_testing;
@@ -14,6 +15,7 @@ use alloc::vec::Vec;
 use core::array;
 use core::iter::successors;
 
+#[cfg(feature = "criterion-bench")]
 pub use bench_func::*;
 pub use dft_testing::*;
 pub use extension_testing::*;

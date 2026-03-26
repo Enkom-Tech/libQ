@@ -205,3 +205,4 @@ Cargo.audit.toml
 .cargo/config.toml
 
 /reference
+/Plonky3-main

@@ -179,10 +179,16 @@ jobs:
         include:
           - working-directory: "."
             features: "wasm,all-algorithms,ml-kem"
+            check-only: "false"
           - working-directory: "lib-q-kem"
             features: "wasm,ml-kem"
+            check-only: "false"
           - working-directory: "lib-q-core"
             features: "wasm,ml-kem,rand"
+            check-only: "false"
+          - working-directory: "lib-q-zkp"
+            features: "wasm,zkp"
+            check-only: "true"
     
     steps:
       - uses: actions/checkout@v5
@@ -193,6 +199,7 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}
           targets: "web,nodejs"
+          check-only: ${{ matrix.check-only }}
 
   # Cross-platform builds - parallel execution
   cross-platform:

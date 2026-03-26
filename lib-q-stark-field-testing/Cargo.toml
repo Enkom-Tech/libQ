@@ -15,11 +15,18 @@ lib-q-stark-field = { path = "../lib-q-stark-field" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
 lib-q-stark-util = { path = "../lib-q-stark-util" }
 
-criterion = { workspace = true }
+criterion = { workspace = true, optional = true }
 num-bigint = { workspace = true }
 rand = { workspace = true, default-features = false, features = ["std"] }
-serde = { workspace = true, default-features = false }
-serde_json = { workspace = true }
+serde = { workspace = true, default-features = false, features = ["alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
+
+[features]
+default = []
+criterion-bench = ["dep:criterion"]
+
+[package.metadata.docs.rs]
+features = ["criterion-bench"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
