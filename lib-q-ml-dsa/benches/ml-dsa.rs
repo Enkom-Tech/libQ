@@ -5,6 +5,10 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
+use fips204::traits::{
+    Signer,
+    Verifier,
+};
 use lib_q_ml_dsa::ml_dsa_65;
 use lib_q_random::new_secure_rng;
 use rand_core::Rng;
@@ -17,16 +21,15 @@ pub fn comparisons_key_generation(c: &mut Criterion) {
     let mut randomness = [0; 32];
     rng.fill_bytes(&mut randomness);
 
-    group.bench_function("libcrux (external random)", move |b| {
+    group.bench_function("lib-q (external random)", move |b| {
         b.iter(|| {
             let _ = ml_dsa_65::generate_key_pair(randomness);
         })
     });
 
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    group.bench_function("pqclean (internal random)", move |b| {
+    group.bench_function("fips204 (OS RNG)", move |b| {
         b.iter(|| {
-            let (_, _) = pqcrypto_mldsa::mldsa65::keypair();
+            let _ = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
         })
     });
 }
@@ -45,21 +48,18 @@ pub fn comparisons_signing(c: &mut Criterion) {
 
     rng.fill_bytes(&mut randomness);
 
-    group.bench_function("libcrux (external random)", move |b| {
+    group.bench_function("lib-q (external random)", move |b| {
         b.iter(|| {
             let _ = ml_dsa_65::sign(&keypair.signing_key, &message, b"", randomness);
         })
     });
 
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    {
-        let (_, sk) = pqcrypto_mldsa::mldsa65::keypair();
-        group.bench_function("pqclean (internal random)", move |b| {
-            b.iter(|| {
-                let _ = pqcrypto_mldsa::mldsa65::detached_sign(&message, &sk);
-            })
-        });
-    }
+    let (_pk_f, sk_f) = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
+    group.bench_function("fips204 (OS RNG)", move |b| {
+        b.iter(|| {
+            let _ = sk_f.try_sign(&message, &[]).expect("fips204 sign");
+        })
+    });
 }
 
 pub fn comparisons_verification(c: &mut Criterion) {
@@ -77,24 +77,20 @@ pub fn comparisons_verification(c: &mut Criterion) {
     rng.fill_bytes(&mut randomness);
     let signature = ml_dsa_65::sign(&keypair.signing_key, &message, b"", randomness).unwrap();
 
-    group.bench_function("libcrux", move |b| {
+    group.bench_function("lib-q", move |b| {
         b.iter(|| {
             ml_dsa_65::verify(&keypair.verification_key, &message, b"", &signature).unwrap();
         })
     });
 
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    {
-        let (vk, sk) = pqcrypto_mldsa::mldsa65::keypair();
-        let signature = pqcrypto_mldsa::mldsa65::detached_sign(&message, &sk);
+    let (pk_f, sk_f) = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
+    let sig_f = sk_f.try_sign(&message, &[]).expect("fips204 sign");
 
-        group.bench_function("pqclean", move |b| {
-            b.iter(|| {
-                pqcrypto_mldsa::mldsa65::verify_detached_signature(&signature, &message, &vk)
-                    .unwrap();
-            })
-        });
-    }
+    group.bench_function("fips204", move |b| {
+        b.iter(|| {
+            assert!(pk_f.verify(&message, &sig_f, &[]));
+        })
+    });
 }
 
 pub fn comparisons(c: &mut Criterion) {

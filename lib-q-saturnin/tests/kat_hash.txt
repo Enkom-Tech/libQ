@@ -1,6 +1,6 @@
 # Saturnin Hash Known Answer Tests
 # Format: Count, Msg, MD
-# Based on reference/saturnin/Implementations/crypto_hash/saturninhashv2/LWC_HASH_KAT_256.txt
+# Based on the Saturnin LWC hash KAT file (saturninhashv2 / LWC_HASH_KAT_256.txt) from the reference distribution
 
 Count = 1
 Msg = 

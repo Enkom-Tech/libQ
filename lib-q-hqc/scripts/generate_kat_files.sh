@@ -13,8 +13,12 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Generating HQC KAT files from reference implementation...${NC}"
 
-# Base directory for reference implementation
-REF_DIR="../../reference/hqc-avx2/Reference_Implementation 2"
+# Directory containing upstream HQC reference build trees (e.g. hqc-128-1). Set explicitly; not tracked in-repo.
+REF_DIR="${HQC_UPSTREAM_REF_IMPL_DIR:-}"
+if [ -z "$REF_DIR" ]; then
+    echo -e "${RED}Set HQC_UPSTREAM_REF_IMPL_DIR to the directory that contains the upstream HQC Makefile parameter folders (hqc-128-1, ...).${NC}"
+    exit 2
+fi
 KAT_DIR="tests/kat_data"
 
 # Create KAT data directory

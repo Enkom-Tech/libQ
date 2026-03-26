@@ -14,7 +14,7 @@ use rand_core::Rng;
 ///
 /// Reference intermediate values are available in:
 /// - Our KAT: `lib-q-hqc/kats/ref/hqc-1/intermediates_values`
-/// - Official: `reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values`
+/// - Official (from NIST HQC submission KATs): `KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values` under the submission package root
 
 #[test]
 #[ignore] // KAT intermediate values - implementation differences with reference

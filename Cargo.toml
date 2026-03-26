@@ -62,7 +62,7 @@ edition = "2024"
 repository = "https://github.com/Enkom-Tech/libQ"
 readme = "README.md"
 version = "0.0.2"
-rust-version = "1.94.0"
+rust-version = "1.94.1"
 description = "Post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
 categories = ["cryptography", "wasm"]
@@ -86,7 +86,7 @@ rand = { version = "0.10.0", default-features = false }
 getrandom = { version = "0.4.2", default-features = false }
 criterion = "0.8.2"
 hex = "0.4.3"
-proptest = "1.10.0"
+proptest = "1.11.0"
 cpufeatures = "0.3.0"
 # STARK dependencies
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }

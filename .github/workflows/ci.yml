@@ -735,7 +735,7 @@ jobs:
       - name: Test NIST compliance
         run: |
           cd lib-q-ml-dsa
-          cargo test --features "fips-mode,acvp" --test nist_comparison
+          cargo test --features "fips-mode,acvp" --test nistkats
 
       - name: Test SIMD-portable equivalence
         run: |

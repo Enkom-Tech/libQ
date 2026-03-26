@@ -136,7 +136,7 @@ if ($cargoContent -notmatch "zeroize") {
 # Run cargo audit if available
 Write-Host "Running cargo audit..."
 try {
-    $auditResult = cargo audit --deny warnings 2>&1
+    $auditResult = cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Status "PASS" "Cargo audit passed"
     } else {

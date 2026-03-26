@@ -11,7 +11,7 @@ This document provides a comprehensive security analysis of the lib-q-dawn imple
 The implementation supports four DAWN parameter sets. For Alpha512, two profiles are available:
 
 - **Spec (experimental)**: Paper-faithful parameters (n=512, q=769, d_c=7, k_s=96, k_e=160). Matches the DAWN specification. With the current SimpleDecoding implementation, decryption failure rate may be non-negligible; use for experimentation only.
-- **Production** (Alpha512, currently experimental): Implementation-tuned parameters (d_c=1, k_s=24, k_e=32). Ciphertext size is larger (640 bytes). A reliability-bounded decoder prototype (top-4 least-reliable bits, ≤2 flips, syndrome-weight scoring) was implemented and used in a quick sweep over the same grid; PKE histograms remained in \(>4\) errors and KEM mismatches were non-zero for every candidate. The bounded-search decoder did not achieve negligible failure in the tested regimes. This profile remains experimental; see reference/DAWN/DAWN-spec.md §6.8.
+- **Production** (Alpha512, currently experimental): Implementation-tuned parameters (d_c=1, k_s=24, k_e=32). Ciphertext size is larger (640 bytes). A reliability-bounded decoder prototype (top-4 least-reliable bits, ≤2 flips, syndrome-weight scoring) was implemented and used in a quick sweep over the same grid; PKE histograms remained in \(>4\) errors and KEM mismatches were non-zero for every candidate. The bounded-search decoder did not achieve negligible failure in the tested regimes. This profile remains experimental; see the DAWN specification §6.8.
 
 | Parameter Set | Profile    | n   | q   | d_c | k_s | k_e | Public Key | Secret Key | Ciphertext |
 |---------------|------------|-----|-----|-----|-----|-----|------------|------------|------------|
@@ -22,7 +22,7 @@ The implementation supports four DAWN parameter sets. For Alpha512, two profiles
 | DAWN-β-1024   | —          | 1024 | 257 | 1 | —  | —  | 1152 bytes | 2400 bytes | 1152 bytes |
 
 ✅ **VERIFIED**: Spec profile matches the DAWN specification.
-⚠️ **STATUS**: All DAWN production profiles (Alpha512, Alpha1024, Beta512) remain experimental. Path A (quick sweeps with baseline decoder for Alpha1024 and Beta512) found no candidate with zero KEM mismatches; PKE histograms stayed entirely in the >4 error bucket. A decoder-enhancement phase (Path B) is required before any set can be promoted. See reference/DAWN/DAWN-spec.md §6.9.
+⚠️ **STATUS**: All DAWN production profiles (Alpha512, Alpha1024, Beta512) remain experimental. Path A (quick sweeps with baseline decoder for Alpha1024 and Beta512) found no candidate with zero KEM mismatches; PKE histograms stayed entirely in the >4 error bucket. A decoder-enhancement phase (Path B) is required before any set can be promoted. See the DAWN specification §6.9.
 
 ### Security margin for production tuning (Alpha512)
 

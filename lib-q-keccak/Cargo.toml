@@ -8,7 +8,7 @@ and keccak-p variants for lib-Q
 authors.workspace = true
 license.workspace = true
 documentation = "https://docs.rs/lib-q-keccak"
-homepage = "https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sponge/keccak"
+homepage = "https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak"
 repository.workspace = true
 keywords = ["crypto", "keccak", "sponge", "hash", "lib-q"]
 categories = ["cryptography", "no-std"]

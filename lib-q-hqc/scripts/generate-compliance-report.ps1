@@ -49,7 +49,7 @@ $katProvenance = @{
     status = "VERIFIED"
     details = @{
         source = "NIST Round 2 HQC submission package"
-        location = "reference/hqc-submission/"
+        location = "NIST Round 2 HQC submission package (obtain separately; path not fixed in-repo)"
         authenticity = "CONFIRMED"
         format_compliance = "NIST_KAT_SPECIFICATION_COMPLIANT"
     }

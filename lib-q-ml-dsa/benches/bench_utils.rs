@@ -142,47 +142,52 @@ macro_rules! bench_group_libcrux {
     }};
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+/// Benchmarks against the pure-Rust [`fips204`](https://crates.io/crates/fips204) implementation
+/// (FIPS 204 final) for rough cross-implementation timing comparison.
 #[macro_export]
-macro_rules! bench_group_pqclean {
-    ($variant:literal, $mod:ident) => {{
-        bench!("pqclean", "KeyGen", "auto", $variant, (), |()| {}, |()| {
-            pqcrypto_mldsa::$mod::keypair()
+macro_rules! bench_group_fips204 {
+    ($variant:literal, $mod:path, $sig_len:literal) => {{
+        use $mod as m;
+
+        bench!("fips204", "KeyGen", "auto", $variant, (), |()| {}, |()| {
+            let _ = m::try_keygen().expect("fips204 keygen");
         });
         bench!(
-            "pqclean",
+            "fips204",
             "Sign",
             "auto",
             $variant,
             (),
             |()| {
-                let (_, sk) = pqcrypto_mldsa::$mod::keypair();
+                let (_pk, sk) = m::try_keygen().expect("fips204 keygen");
                 let message = bench_utils::random_array::<1023>();
                 (sk, message)
             },
-            |(sk, message): (pqcrypto_mldsa::$mod::SecretKey, [u8; 1023])| {
-                let _ = pqcrypto_mldsa::$mod::detached_sign(&message, &sk);
+            |(sk, message): (m::PrivateKey, [u8; 1023])| {
+                let _ =
+                    fips204::traits::Signer::try_sign(&sk, &message, &[]).expect("fips204 sign");
             }
         );
         bench!(
-            "pqclean",
+            "fips204",
             "Verify",
             "auto",
             $variant,
             (),
             |()| {
-                let (vk, sk) = pqcrypto_mldsa::$mod::keypair();
+                let (pk, sk) = m::try_keygen().expect("fips204 keygen");
                 let message = bench_utils::random_array::<1023>();
-                let signature = pqcrypto_mldsa::$mod::detached_sign(&message, &sk);
-                (vk, message, signature)
+                let signature =
+                    fips204::traits::Signer::try_sign(&sk, &message, &[]).expect("fips204 sign");
+                (pk, message, signature)
             },
-            |(vk, message, signature): (
-                pqcrypto_mldsa::$mod::PublicKey,
-                [u8; 1023],
-                pqcrypto_mldsa::$mod::DetachedSignature
-            )| {
-                let _ = pqcrypto_mldsa::$mod::verify_detached_signature(&signature, &message, &vk)
-                    .unwrap();
+            |(pk, message, signature): (m::PublicKey, [u8; 1023], [u8; $sig_len])| {
+                assert!(fips204::traits::Verifier::verify(
+                    &pk,
+                    &message,
+                    &signature,
+                    &[]
+                ));
             }
         );
     }};

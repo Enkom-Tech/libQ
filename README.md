@@ -1,15 +1,15 @@
 # lib-Q - Post-Quantum Cryptography Library
 
-A modern cryptography library built exclusively with NIST-approved post-quantum algorithms. Written in Rust with WASM compilation support.
+A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. WASM builds are supported for selected crates and features.
 
 ## Mission
 
-lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quantum resistance while maintaining intuitive, easy-to-use interfaces for developers.
+lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitives, SHA-3–family hashing, Saturnin AEAD, HPKE, and optional STARK-based proofs, with the goal of keeping advanced cryptography approachable without hiding residual implementation risk.
 
-## Key Features
+## Key features
 
 - **Post-quantum first**: Post-quantum KEMs and signatures with tiered symmetric options
-- **NIST-approved**: All algorithms are NIST PQC standardized
+- **Standards-aligned**: PQC KEMs and signatures track NIST-standardized modules (e.g. FIPS 203/204/205/206, HQC, Classic McEliece–family CB-KEM); hashes and XOFs use the SHA-3 family; symmetric design centers on Saturnin; ZKPs use a transparent STARK stack (complementary to the NIST PQC algorithm set)
 - **Memory safe**: Built in Rust with zero-cost abstractions
 - **Cross-platform**: Native Rust + WASM compilation
 - **Intuitive API**: Clean, consistent interface designed for modern development
@@ -25,11 +25,11 @@ lib-Q provides a clean, modern API for post-quantum cryptography, ensuring quant
 
 - **`lib-q-zkp`**: Built as a normal Rust library (not a `cdylib` npm bundle). CI runs `cargo check --target wasm32-unknown-unknown` with `wasm,zkp` to guard the ZKP stack on WASM without `wasm-pack`.
 
-## Package Structure
+## Package structure
 
 lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
-### Rust Crates (crates.io)
+### Rust crates (crates.io)
 
 - **`lib-q`** - Complete library (re-exports everything)
 - **`lib-q-core`** - Core types and traits
@@ -41,7 +41,7 @@ lib-Q is organized as a Rust workspace with individual crates and npm packages:
 - **`lib-q-utils`** - Utility functions
 - **`lib-q-zkp`** - Zero-Knowledge Proofs
 
-### NPM Packages (npmjs.com)
+### npm packages (npmjs.com)
 
 - **`@lib-q/core`** - Complete library for Node.js
 - **`@lib-q/kem`** - KEM-only package
@@ -98,90 +98,94 @@ npm install @lib-q/hash
 npm install @lib-q/utils
 ```
 
-## Supported Algorithms
+## Supported algorithms
 
-### Key Encapsulation Mechanisms (KEMs)
-- **ML-KEM** (FIPS 203, Level 1, 3, 5)
-- **CB-KEM** (Level 1, 3, 4, 5)
-- **HQC** (Level 1, 3, 4, 5)
-- **DAWN** (NTRU-based, smaller and faster)
+### Key encapsulation mechanisms (KEMs)
+- **ML-KEM** (FIPS 203; security levels 1, 3, and 5)
+- **CB-KEM** (code-based KEM in the Classic McEliece family; five NIST parameter sets, selectable via crate features)
+- **HQC** (NIST-standardized code-based KEM; parameter sets HQC-128, HQC-192, and HQC-256, corresponding to levels 1, 3, and 5)
+- **DAWN** (NTRU-based KEM; multiple parameter sets)
 
-### Digital Signatures
-- **ML-DSA** (FIPS 204, Level 1, 3, 5)
-- **FN-DSA** (FIPS 206, Level 1, 5) - Compact lattice-based signatures
-- **SLH-DSA** (FIPS 205, Level 1, 3, 5)
-- **SABER**
+### Digital signatures
+- **ML-DSA** (FIPS 204; levels 1, 3, and 5)
+- **FN-DSA** (FIPS 206; levels 1 and 5)
+- **SLH-DSA** (FIPS 205; levels 1, 3, and 5)
 
-### Hash Functions
-- **SHAKE256** (for hash-based signatures)
-- **SHAKE128** (for general hashing)
-- **cSHAKE256** (customizable hashing)
+### Hash functions
+- **SHAKE256**, **SHAKE128**, **cSHAKE256** (SHA-3 family; used across signatures, KDFs, and protocols)
+- Additional SHA-3–family APIs where exposed by `lib-q-hash` and related workspace crates (see crate documentation)
 
-### Authenticated Encryption
-- **Saturnin** (post-quantum symmetric algorithm suite)
+### Authenticated encryption
+- **Saturnin** (post-quantum symmetric suite: AEAD, block cipher, hash, and stream modes)
 
-### Hybrid Public Key Encryption (HPKE)
+### Hybrid public-key encryption (HPKE)
 - **Tier 1: Ultra-Secure** (Pure post-quantum with SHAKE256-based AEAD)
 - **Tier 2: Balanced** (Post-quantum KEM + Saturnin AEAD)
 - **Tier 3: Performance** (Post-quantum KEM + optimized Saturnin)
 
-### Zero-Knowledge Proofs (ZKPs)
-- **zk-STARKs** (scalable, transparent, post-quantum secure)
-- **Proof generation and verification**
-- **Privacy-preserving computation**
-- **WASM compatible**
-- The default API is in `lib-q-zkp` (backed by `lib-q-stark`); the full Plonky3-derived stack (univariate and batch STARK, Keccak AIR, lookup) is in `lib-q-plonky` and is fully implemented behind features.
+### Zero-knowledge proofs (ZKPs)
+- **zk-STARKs** (transparent, post-quantum-friendly proof system used in this stack)
+- **Proof generation and verification** via `lib-q-zkp` (built on the workspace STARK crates)
+- **WASM**: `lib-q-zkp` is checked for `wasm32-unknown-unknown` in CI when the relevant features are enabled
+- **Deeper stack**: `lib-q-plonky` and related crates host the Plonky3-derived STARK pipeline (including univariate and batch STARK, Keccak AIR, and lookup support), gated by features for selective compilation
 
 ## Architecture
 
+The workspace is centered on the umbrella **`lib-q`** crate and splits algorithms and infrastructure across focused crates. Conceptually:
+
 ```
-lib-Q/
-├── lib-q-core/      # Core types and traits
-├── lib-q-kem/       # Key Encapsulation Mechanisms
-├── lib-q-sig/       # Digital Signatures
-├── lib-q-fn-dsa/    # FN-DSA Digital Signatures
-├── lib-q-hash/      # Hash Functions
-├── lib-q-aead/      # Authenticated Encryption
-├── lib-q-utils/     # Utilities and helpers
-├── lib-q-zkp/       # Zero-Knowledge Proofs
-└── lib-q/           # Main crate (re-exports everything)
+lib-Q/   (repository root)
+├── lib-q/              # Umbrella library (feature-gated re-exports)
+├── lib-q-core/         # Types, traits, provider surface, validation
+├── lib-q-kem/          # KEM façade and integrations
+├── lib-q-ml-kem/, lib-q-cb-kem/, lib-q-dawn/, lib-q-hqc/  # Concrete KEM implementations
+├── lib-q-sig/, lib-q-ml-dsa/, lib-q-slh-dsa/, lib-q-fn-dsa/
+├── lib-q-hash/, lib-q-sha3/, lib-q-keccak/, lib-q-k12/
+├── lib-q-aead/, lib-q-saturnin/
+├── lib-q-hpke/
+├── lib-q-zkp/, lib-q-stark*/, lib-q-plonky*/
+├── lib-q-utils/, lib-q-random/, lib-q-platform/, …
+└── examples/
 ```
 
-## Security Model
+For a full member list, see the `[workspace].members` table in [Cargo.toml](Cargo.toml).
 
-- **Post-quantum only**: No reliance on classical algorithms
-- **Constant-time operations**: All cryptographic operations are constant-time
-- **Secure memory**: Automatic secure memory zeroing
-- **No side-channels**: Designed to prevent timing and power analysis attacks
+## Security model
 
-## Development Status
+- **Post-quantum only**: No reliance on classical public-key or symmetric primitives outside the stated SHA-3 family and PQC standards.
+- **Constant-time intent**: Critical paths are written for constant-time behavior; full guarantees require platform-specific review and tooling (see [ROADMAP.md](ROADMAP.md)).
+- **Secure memory**: Sensitive buffers use explicit zeroization where the type system allows.
+- **Side-channel awareness**: Design and review target timing and cache behavior; formal side-channel certification is not yet claimed.
 
-**Active Development** - Core cryptographic algorithms implemented and integrated
+## Development status
 
-### Implemented Features
-- ✅ **ML-DSA** (FIPS 204, 44, 65, 87) - Complete with provider pattern integration
-- ✅ **FN-DSA** (FIPS 206, Level 1, 5) - Complete implementation with CI/CD integration
-- ✅ **SLH-DSA** (FIPS 205, Level 1, 3, 5) - Complete implementation with all 12 parameter sets
-- ✅ **ML-KEM** (FIPS 203, Level 1, 3, 5) - Complete KEM implementation
-- ✅ **DAWN KEM** - Complete NTRU-based KEM with all parameter sets (α-512, α-1024, β-512, β-1024)
-- ✅ **Saturnin AEAD** - Complete post-quantum symmetric encryption with AEAD, block cipher, hash, and stream modes
-- ✅ **HPKE** - Complete RFC 9180 compliant Hybrid Public Key Encryption system
-- ✅ **Core Architecture** - Provider pattern with clean separation of interfaces
-- ✅ **Hash Functions** - SHA3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash
-- ✅ **WASM Support** - Basic WASM bindings for web environments
-- ✅ **Memory Safety** - Automatic memory management; unsafe limited to documented performance-critical paths (e.g. SIMD)
-- ✅ **Error Handling** - Consistent error types and fail-fast behavior
-- ✅ **CI/CD Integration** - Complete testing, security validation, and publishing workflows
-- ✅ **HQC** - Complete NIST-standardized code-based KEM (all parameter sets)
+**Active development.** Major algorithms are implemented and covered by automated tests; the library remains **pre-production** until independent audit and release hardening (see [SECURITY.md](SECURITY.md)).
 
-### Planned
-- 📋 **Additional KEMs** - CB-KEM optimization
-- 📋 **Zero-Knowledge Proofs** - Advanced cryptographic protocols
+### Implemented capabilities
+- **ML-DSA** (FIPS 204; parameter sets ML-DSA-44, ML-DSA-65, ML-DSA-87) with provider-style integration
+- **FN-DSA** (FIPS 206) with CI coverage
+- **SLH-DSA** (FIPS 205) including all twelve SLH-DSA parameter sets
+- **ML-KEM** (FIPS 203; levels 1, 3, and 5)
+- **CB-KEM** (Classic McEliece–family; five parameter sets, feature-selected)
+- **DAWN** NTRU-based KEM (α-512, α-1024, β-512, β-1024)
+- **HQC** (HQC-128, HQC-192, HQC-256)
+- **Saturnin** (AEAD, block, hash, stream modes)
+- **HPKE** (RFC 9180) with post-quantum KEM and AEAD options
+- **Hash and XOF suite** (SHA-3 family, including SHAKE and cSHAKE, as exposed by workspace crates)
+- **ZKP / STARK stack** (`lib-q-zkp` and supporting `lib-q-stark*` / `lib-q-plonky*` crates)
+- **WASM** build paths for core scenarios (see CI and scripts referenced in the [no_std and WASM](#no_std-embedded-and-webassembly) section)
+- **Engineering**: consistent error types, security validation utilities, and GitHub Actions for build, test, coverage, and security checks
+
+### Near-term focus
+- **Performance and ergonomics** for CB-KEM and other large-key KEMs
+- **Assurance**: expanded fuzzing, constant-time verification where feasible, and third-party security review
+- **ZKP**: documentation, API stability, and production-oriented hardening of the STARK pipeline
 
 ## Documentation
 
 - [ROADMAP](ROADMAP.md)
-- [Security Model](docs/security.md)
+- [Security policy](SECURITY.md)
+- [Security model (technical)](docs/security.md)
 - [ZKP Implementation and Library Layout](docs/zkp-implementation.md)
 - [API Design](docs/api-design.md)
 - [HPKE Architecture](docs/hpke-architecture.md)
@@ -198,22 +202,11 @@ Apache 2.0 License - see [LICENSE](LICENSE) for details.
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## Security Notice
+## Security notice
 
-⚠️ **This library is in active development with implemented cryptographic algorithms.**
+This project ships real cryptographic code but is **not positioned as production-ready**. Treat it as suitable for research, education, interoperability experiments, and internal prototypes until:
 
-**Current Status:**
-- Implemented: ML-DSA, ML-KEM, SLH-DSA, FN-DSA, DAWN, HQC, Saturnin AEAD, HPKE, hash suite (SHA3, SHAKE, cSHAKE, etc.), provider pattern, WASM bindings
-- No known security vulnerabilities in implemented algorithms
-- **NOT READY FOR PRODUCTION USE** until:
-  - Security audit completion
-  - Comprehensive testing (fuzzing, side-channel analysis)
-  - Performance optimization and validation
+- An independent security audit of the code you enable has been completed, and  
+- Your own integration testing, threat modeling, and operational controls are in place.
 
-**Use only for:**
-- Research and development
-- Algorithm evaluation
-- Educational purposes
-- Non-production prototyping
-
-For production use, wait for version 1.0.0 and security audit completion.
+Absence of a published vulnerability report does not constitute a warranty. Track [SECURITY.md](SECURITY.md) for supported branches, reporting, and update policy.

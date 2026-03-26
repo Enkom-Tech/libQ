@@ -32,7 +32,7 @@ let decrypted_secret = kem.decapsulate(&keypair.secret_key, &ciphertext)?;
 
 ### Profiles (Alpha512)
 
-- **Production** (currently experimental): Alpha512, Alpha1024, and Beta512 tuned profiles are available via `DawnKem::new(...)`; all remain experimental. Alpha512 was evaluated with a reliability-bounded decoder prototype (quick sweep: no zero-mismatch candidate). Path A sweeps (Alpha1024, Beta512, baseline decoder) also found no passing candidate. See SECURITY.md and reference/DAWN/DAWN-spec.md §6.8–6.9.
+- **Production** (currently experimental): Alpha512, Alpha1024, and Beta512 tuned profiles are available via `DawnKem::new(...)`; all remain experimental. Alpha512 was evaluated with a reliability-bounded decoder prototype (quick sweep: no zero-mismatch candidate). Path A sweeps (Alpha1024, Beta512, baseline decoder) also found no passing candidate. See SECURITY.md and the DAWN specification §6.8–6.9.
 - **Spec / experimental**: Use `DawnKem::new_with_profile(DawnParameterSet::Alpha512, DawnProfile::SpecExperimental)` for paper-faithful parameters (d_c=7, k_s=96, k_e=160). Non-negligible decryption failure with current decoder; experimentation only.
 
 ## Parameter Sets

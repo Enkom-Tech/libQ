@@ -103,6 +103,6 @@ cargo test --package lib-q-ml-dsa --features "fips-mode,acvp" --test fips_mode_t
 # Run determinism tests
 cargo test --package lib-q-ml-dsa --features "simd256,random,acvp" --test determinism
 
-# Run NIST comparison tests
-cargo test --package lib-q-ml-dsa --features "fips-mode,acvp" --test nist_comparison
+# Run NIST KAT tests (vectors under `tests/kats/`)
+cargo test --package lib-q-ml-dsa --features "mldsa44,mldsa65,mldsa87,std" --test nistkats
 ```

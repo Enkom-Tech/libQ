@@ -3,7 +3,6 @@
 
 param (
     [string]$Crate = "",
-    [switch]$NoReference,
     [switch]$ShowReport,
     [string]$OutputDir = "coverage",
     [string]$OutputFormat = "Html",
@@ -14,7 +13,6 @@ param (
 )
 
 # Set defaults for switch parameters
-$NoReference = if ($PSBoundParameters.ContainsKey('NoReference')) { $NoReference } else { $true }
 $ShowReport = if ($PSBoundParameters.ContainsKey('ShowReport')) { $ShowReport } else { $true }
 $IgnoreTests = if ($PSBoundParameters.ContainsKey('IgnoreTests')) { $IgnoreTests } else { $true }
 $IgnorePanics = if ($PSBoundParameters.ContainsKey('IgnorePanics')) { $IgnorePanics } else { $true }
@@ -44,11 +42,6 @@ if ($IgnoreTests) {
 
 if ($IgnorePanics) {
     $cmd += " --ignore-panics"
-}
-
-# Exclude reference implementations if requested
-if ($NoReference) {
-    $cmd += " --exclude-files 'reference/*'"
 }
 
 # Add output format

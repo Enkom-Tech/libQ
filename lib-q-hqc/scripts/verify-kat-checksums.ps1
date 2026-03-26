@@ -8,6 +8,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$OfficialSubmissionRoot = $env:HQC_OFFICIAL_SUBMISSION_ROOT
+if ([string]::IsNullOrWhiteSpace($OfficialSubmissionRoot)) {
+    Write-Host "Set HQC_OFFICIAL_SUBMISSION_ROOT to the root of the NIST HQC submission package (directory containing KATs/)." -ForegroundColor Red
+    exit 2
+}
+$OfficialKatDir = Join-Path $OfficialSubmissionRoot "KATs/Reference_Implementation/hqc-128"
+
 # Define file paths
 $OurKats = @{
     "hqc-1" = @{
@@ -19,9 +26,9 @@ $OurKats = @{
 
 $OfficialKats = @{
     "hqc-128" = @{
-        "req" = "reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_kat.req"
-        "rsp" = "reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_kat.rsp"
-        "intermediates" = "reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values"
+        "req" = Join-Path $OfficialKatDir "hqc-128_kat.req"
+        "rsp" = Join-Path $OfficialKatDir "hqc-128_kat.rsp"
+        "intermediates" = Join-Path $OfficialKatDir "hqc-128_intermediates_values"
     }
 }
 
@@ -148,7 +155,7 @@ Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
 
 ### Official NIST HQC Submission
 - **Source**: NIST Round 2 HQC submission package
-- **Location**: `reference/hqc-submission/`
+- **Root**: set via environment variable `HQC_OFFICIAL_SUBMISSION_ROOT` when running verification
 - **Version**: Round 2 submission (as submitted to NIST)
 - **Algorithm**: HQC (Hamming Quasi-Cyclic)
 
@@ -161,9 +168,9 @@ Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
 
 | Our File | Official File | Status |
 |----------|---------------|--------|
-| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.req` | `reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_kat.req` | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["req"] -OfficialFile $OfficialKats["hqc-128"]["req"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
-| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.rsp` | `reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_kat.rsp` | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["rsp"] -OfficialFile $OfficialKats["hqc-128"]["rsp"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
-| `lib-q-hqc/kats/ref/hqc-1/intermediates_values` | `reference/hqc-submission/KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values` | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["intermediates"] -OfficialFile $OfficialKats["hqc-128"]["intermediates"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
+| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.req` | `KATs/Reference_Implementation/hqc-128/hqc-128_kat.req` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["req"] -OfficialFile $OfficialKats["hqc-128"]["req"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
+| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.rsp` | `KATs/Reference_Implementation/hqc-128/hqc-128_kat.rsp` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["rsp"] -OfficialFile $OfficialKats["hqc-128"]["rsp"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
+| `lib-q-hqc/kats/ref/hqc-1/intermediates_values` | `KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["intermediates"] -OfficialFile $OfficialKats["hqc-128"]["intermediates"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
 
 ## Compliance Status
 
@@ -188,7 +195,7 @@ Next steps:
 
 - [NIST PQC Standardization Process](https://csrc.nist.gov/projects/post-quantum-cryptography)
 - [HQC Official Submission](https://pqc-hqc.org/)
-- [HQC Specification](reference/hqc-submission/Supporting_Documentation/HQC_Submission.pdf)
+- [HQC specification and downloads](https://pqc-hqc.org/)
 "@
 
 # Create docs directory if it doesn't exist

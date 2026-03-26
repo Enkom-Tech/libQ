@@ -13,26 +13,20 @@ lib-Q maintains strict test coverage requirements as a NIST-approved quantum-res
 
 ```powershell
 # Run coverage for a specific crate
-.\scripts\run-coverage.ps1 -Crate "lib-q-sponge"
+.\scripts\run-coverage.ps1 -Crate "lib-q-core"
 
 # Run coverage with custom threshold
 .\scripts\run-coverage.ps1 -LineThreshold 90
-
-# Include reference implementations in coverage calculation
-.\scripts\run-coverage.ps1 -NoReference:$false
 ```
 
 ### Linux/macOS
 
 ```bash
 # Run coverage for a specific crate
-./scripts/run-coverage.sh --crate lib-q-sponge
+./scripts/run-coverage.sh --crate lib-q-core
 
 # Run coverage with custom threshold
 ./scripts/run-coverage.sh --threshold 90
-
-# Include reference implementations in coverage calculation
-./scripts/run-coverage.sh --with-reference
 ```
 
 ## Coverage Strategy

@@ -75,7 +75,7 @@ jobs:
           for crate in $CORE_CRATES; do
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
-              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/core/$crate"
@@ -87,7 +87,7 @@ jobs:
           for crate in $CRYPTO_CRATES; do
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
-              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/crypto/$crate"
@@ -99,7 +99,7 @@ jobs:
           for crate in $UTIL_CRATES; do
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
-              bash scripts/run-coverage.sh --crate "$crate" --no-reference --threshold 70 --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              bash scripts/run-coverage.sh --crate "$crate" --threshold 70 --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/utils/$crate"
@@ -109,7 +109,7 @@ jobs:
       # Then run coverage for the entire workspace to get overall metrics
       - name: Run coverage for entire workspace
         run: |
-          bash scripts/run-coverage.sh --no-reference --threshold 60 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
+          bash scripts/run-coverage.sh --threshold 60 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
           
           # Copy to combined directory
           cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"

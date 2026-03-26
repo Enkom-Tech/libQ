@@ -2,7 +2,6 @@
 # Bash script for running targeted test coverage analysis
 
 CRATE=""
-NO_REFERENCE=true
 SHOW_REPORT=true
 OUTPUT_DIR="coverage"
 OUTPUT_FORMAT="Html"
@@ -17,14 +16,6 @@ while [[ $# -gt 0 ]]; do
     --crate)
       CRATE="$2"
       shift 2
-      ;;
-    --no-reference)
-      NO_REFERENCE=true
-      shift
-      ;;
-    --with-reference)
-      NO_REFERENCE=false
-      shift
       ;;
     --no-report)
       SHOW_REPORT=false
@@ -56,7 +47,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--crate CRATE] [--no-reference|--with-reference] [--no-report] [--output-dir DIR] [--format FORMAT] [--with-tests] [--with-panics] [--threshold THRESHOLD] [--toolchain TOOLCHAIN]"
+      echo "Usage: $0 [--crate CRATE] [--no-report] [--output-dir DIR] [--format FORMAT] [--with-tests] [--with-panics] [--threshold THRESHOLD] [--toolchain TOOLCHAIN]"
       exit 1
       ;;
   esac
@@ -98,12 +89,12 @@ if [[ "$IGNORE_PANICS" == true ]]; then
   CMD="$CMD --ignore-panics"
 fi
 
-# Always exclude reference implementations and build artifacts
-CMD="$CMD --exclude-files 'reference/*' --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*'"
+# Always exclude build artifacts and non-library trees from coverage
+CMD="$CMD --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*'"
 
 # For specific packages, exclude all other crates to focus coverage calculation
 if [[ "$CRATE" == "lib-q-core" ]]; then
-  CMD="$CMD --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-sponge/*'"
+  CMD="$CMD --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*'"
 elif [[ "$CRATE" == "lib-q" ]]; then
   # For the root lib-q package, we need to be more selective about what to include
   # Only include the main lib.rs and core functionality, exclude most implementation details

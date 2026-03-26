@@ -1,6 +1,6 @@
 # Saturnin AEAD Known Answer Tests
 # Format: Count, Key, Nonce, PT, AD, CT
-# Based on reference/saturnin/Implementations/crypto_aead/saturninctrcascadev2/LWC_AEAD_KAT_256_128.txt
+# Based on the Saturnin LWC AEAD KAT file (saturninctrcascadev2 / LWC_AEAD_KAT_256_128.txt) from the reference distribution
 
 Count = 1
 Key = 000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F

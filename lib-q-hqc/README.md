@@ -268,7 +268,7 @@ The implementation is **production-ready** with the following considerations:
 
 ## Reference Implementation
 
-The HQC reference implementation is based on the C++ code in the `reference/hqc-avx2/` directory, which follows the NIST KEM API specification.
+The SIMD paths are derived from the upstream HQC AVX2 C reference (NIST KEM API layout), which is not vendored in this repository.
 
 ## Security Considerations
 

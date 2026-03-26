@@ -34,16 +34,8 @@ hex = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 criterion = { workspace = true }
-glob = "0.3.3"
-
-# Reference implementation for comparison tests (doesn't build on Intel macOS)
-[target.'cfg(not(all(target_os = "macos", target_arch = "x86_64")))'.dev-dependencies]
-pqcrypto-mldsa = { version = "0.1.2" }
-
-# Optional: Uncomment if you need hax formal verification with core-models
-# Note: This requires the reference directory to not be excluded in the main Cargo.toml
-# [target.'cfg(hax)'.dependencies]
-# core-models = { path = "../reference/libcrux-main/fstar-helpers/core-models" }
+# Pure Rust FIPS 204 implementation for benchmark comparison (replaces PQClean bindings).
+fips204 = { version = "0.4.6", default-features = false, features = ["default-rng", "ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]

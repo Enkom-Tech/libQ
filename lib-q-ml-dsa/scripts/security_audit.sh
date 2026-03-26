@@ -28,7 +28,7 @@ fi
 
 # 4. Validate against NIST vectors
 echo "4. Validating NIST compliance..."
-cargo test --features "fips-mode,acvp" --test nist_comparison
+cargo test --features "fips-mode,acvp" --test nistkats
 
 # 5. Check SIMD-portable equivalence
 echo "5. Checking SIMD-portable equivalence..."

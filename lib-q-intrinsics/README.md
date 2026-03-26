@@ -156,7 +156,7 @@ To migrate from libcrux-intrinsics:
 1. **Update dependencies**:
    ```toml
    # Remove
-   libcrux-intrinsics = { path = "../reference/libcrux-main/libcrux-intrinsics" }
+   libcrux-intrinsics = { path = "../path/to/libcrux-intrinsics" }
    
    # Add
    lib-q-intrinsics = { path = "../lib-q-intrinsics", features = ["simd256"] }

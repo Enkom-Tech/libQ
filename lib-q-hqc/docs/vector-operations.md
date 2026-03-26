@@ -306,7 +306,7 @@ All vector operations are designed to execute in constant time to prevent timing
 
 ## References
 - [HQC Official Specification](https://pqc-hqc.org/)
-- [Reference Implementation](reference/hqc/src/ref/)
+- Upstream HQC reference C implementation (obtain from the HQC submission / project sources)
 - [NIST Post-Quantum Cryptography Standards](https://csrc.nist.gov/projects/post-quantum-cryptography)
 - [Constant-Time Programming](https://www.bearssl.org/constanttime.html)
 

@@ -128,21 +128,10 @@ runs:
             echo "Building $pkg with no default features..."
             cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
           done
-        elif [[ "$WORKING_DIR" == "lib-q-keccak" || "$WORKING_DIR" == "lib-q-sponge" ]]; then
+        elif [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
           echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
-          echo "Building no_std package $WORKING_DIR with build-std for panic compatibility"
-          # For no_std packages, we need to rebuild core library to avoid unwinding issues
-          # Use build-std to ensure consistent panic strategy across all components
-          if [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
-            echo "EXECUTING: Building lib-q-keccak with explicit no_std panic handler"
-            # Use explicit panic handler feature for proper no_std builds
-            # This provides the required panic handler while avoiding test conflicts
-            cargo build --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
-          else
-            echo "EXECUTING: Building lib-q-sponge with standard approach"
-            # lib-q-sponge depends on no_std packages with explicit panic handlers
-            cargo build --no-default-features --features "lib-q-keccak/alloc,lib-q-keccak/no_std_panic_handler"
-          fi
+          echo "Building lib-q-keccak with explicit no_std panic handler"
+          cargo build --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
         else
           cargo build --no-default-features
         fi
@@ -243,7 +232,7 @@ runs:
         PACKAGE="${{ inputs.package }}"
         WORKING_DIR="${{ inputs.working-directory }}"
         
-        if [[ "$WORKING_DIR" == *"lib-q-keccak"* || "$WORKING_DIR" == *"lib-q-sponge"* ]]; then
+        if [[ "$WORKING_DIR" == *"lib-q-keccak"* ]]; then
           echo "Running no_std-compatible compilation check with all features"
           echo "Cannot run tests for no_std-compatible packages"
           

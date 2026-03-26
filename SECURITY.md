@@ -1,83 +1,78 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Scope
 
-lib-q is still in active development and pre-release. Security updates are provided for the main development branch and recent releases.
+This policy applies to the lib-Q workspace (`lib-q` and related crates published from this repository). The project targets post-quantum key encapsulation, signatures, SHA-3–family primitives, Saturnin-based symmetric constructions, HPKE, and a STARK-based zero-knowledge stack. It is **pre-production**: absence of a published advisory does not imply suitability for high-assurance deployment without your own review and testing.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| main    | ✅                 |
-| 0.0.x   | ✅                 |
+## Supported versions
 
-Contributors: for the security checklist and review process, see [CONTRIBUTING.md](CONTRIBUTING.md#security-review-process).
+Security-sensitive fixes are applied on the main development branch and backported when practical to recent `0.0.x` releases. Use the latest tag or commit you can verify.
 
-## Reporting a Vulnerability
+| Channel / version | Support |
+| ----------------- | ------- |
+| `main`            | Yes     |
+| `0.0.x` releases  | Yes     |
 
-We take security vulnerabilities very seriously. If you discover a security issue in lib-q, please report it responsibly.
+For contributor expectations (review checklist, dependency hygiene), see [CONTRIBUTING.md](CONTRIBUTING.md#security-review-process).
 
-### Private Security Reports
+## Reporting a vulnerability
 
-For critical security vulnerabilities, please use GitHub's private vulnerability reporting feature:
+### Preferred: private disclosure
 
-- [GitHub Security Advisories](https://github.com/Enkom-Tech/libQ/security/advisories)
+Use [GitHub private vulnerability reporting](https://github.com/Enkom-Tech/libQ/security/advisories) for issues that could compromise confidentiality, integrity, or availability of callers.
 
-Alternatively, you can report security issues via email to:
-- [github@enkom.dev](mailto:github@enkom.dev)
+You may also email **github@enkom.dev** if GitHub is unavailable. Include:
 
-Please include the following information in your report:
-- A detailed description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact and exploit scenarios
-- Any proof-of-concept code (if applicable)
-- Your contact information for follow-up
+- A concise description and affected component (crate, feature flag, or API surface).
+- Steps or a minimal reproducer.
+- Assessment of impact (best effort is fine).
+- Optional proof-of-concept and preferred disclosure timeline.
+- Contact details for follow-up questions.
 
-### Public Security Reports
+### Public discussion
 
-For less critical issues or general security questions, you can:
-- Open a regular GitHub issue (but please avoid disclosing exploit details publicly)
-- Contact the maintainers directly
+For general hardening ideas or non-sensitive questions, open a regular issue without exploit details, or contact maintainers directly.
 
-## Security Considerations
+## Security properties and limits
 
-lib-q implements exclusively post-quantum cryptographic algorithms that are designed to resist both classical and quantum computer attacks. The library follows a "Post-Quantum Only" principle, rejecting all classical algorithms . However, the overall security of any system depends on:
+lib-Q intentionally avoids classical public-key schemes (RSA, ECC, etc.) and non–SHA-3 hash families in its cryptographic design. **Actual security** still depends on correct integration:
 
-1. **Proper key management**: Keys must be generated securely and stored safely
-2. **Secure randomness**: High-quality entropy sources for key generation
-3. **Side-channel protection**: Protection against timing and cache attacks
-4. **Implementation correctness**: Following cryptographic best practices
+1. **Key management** — generation, storage, rotation, and destruction of long-term and ephemeral keys.
+2. **Entropy** — quality of randomness for key generation and nonces (platform and `getrandom` configuration matter, especially on WASM).
+3. **Side channels** — implementation is written with timing and cache awareness; we do not claim completed independent side-channel evaluation for all targets.
+4. **Correct use** — calling the right API with the right parameter set, domain separation, and protocol context.
 
-## Security Features
+## Implementation practices
 
-lib-q includes several security features:
+- **Constant-time intent** on sensitive paths; validation via tooling and review is ongoing.
+- **Zeroization** of sensitive buffers where types and APIs permit.
+- **Input validation** on public entry points.
+- **`unsafe`** restricted to narrow, reviewed cases (e.g. SIMD or FFI boundaries), not sprinkled through cryptographic logic.
+- **Automation** — CI includes builds, tests, `cargo audit`, and NIST-oriented validation utilities; see [.github/workflows/security.yml](.github/workflows/security.yml) and the scripts referenced from [README.md](README.md).
 
-- **Post-quantum only**: Exclusively uses NIST-approved post-quantum algorithms
-- **Constant-time operations**: Designed to prevent timing attacks
-- **Memory zeroization**: Sensitive data is automatically cleared
-- **Input validation**: All inputs are validated before processing
-- **Unsafe code**: Limited to performance-critical paths (e.g. SIMD/intrinsics), documented and reviewed; no unsafe in security-critical logic without justification
-- **Formal verification ready**: Architecture supports formal verification
+## Audit status
 
-## Security Audit Status
+There has been **no published third-party security audit** of the full workspace. Plan for external review before relying on this code in adversarial environments.
 
-lib-q is currently under active development. While we follow cryptographic best practices and have implemented security features, the library has not yet undergone a formal third-party security audit.
+## Disclosure process
 
-## Responsible Disclosure
+We aim to:
 
-We follow responsible disclosure practices and will:
-- Acknowledge receipt of vulnerability reports within 24 hours
-- Provide regular updates on the investigation and fix progress
-- Coordinate public disclosure timing with the reporter
-- Credit researchers for their findings (with permission)
+- Acknowledge receipt of credible reports quickly (typically within one business day).
+- Share status updates while a fix is developed and released.
+- Coordinate publication of advisories with the reporter when reasonable.
+- Credit discoverers in advisories with their consent.
 
-## Security Updates
+## Security updates
 
-Security updates will be released as:
-- Patch releases (0.0.x) for security fixes
-- Security advisories on GitHub
-- Announcements in our documentation and release notes
+Fixes are delivered through:
+
+- Patch releases on the `0.0.x` line when applicable.
+- GitHub Security Advisories and release notes.
+
+Subscribe to repository notifications or advisories if you depend on published crates.
 
 ## Contact
 
-For security-related questions or concerns:
-- Email: [github@enkom.dev](mailto:github@enkom.dev)
-- GitHub: [Enkom-Tech/libQ](https://github.com/Enkom-Tech/libQ)
+- **Email:** [github@enkom.dev](mailto:github@enkom.dev)
+- **Repository:** [Enkom-Tech/libQ](https://github.com/Enkom-Tech/libQ)

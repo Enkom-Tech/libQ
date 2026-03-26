@@ -35,6 +35,5 @@ fn main() {
         MLDSA44Signature
     );
 
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    bench_group_pqclean!("44", mldsa44);
+    bench_group_fips204!("44", fips204::ml_dsa_44, 2420);
 }

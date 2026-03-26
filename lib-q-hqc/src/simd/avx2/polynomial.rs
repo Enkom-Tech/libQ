@@ -58,7 +58,7 @@ use core::arch::x86_64::{
 pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
     unsafe {
         // Full AVX2 implementation using intrinsics
-        // Port from reference/hqc-avx2/Fast_Implementation/.../gf2x_avx2.c
+        // Port from upstream HQC AVX2 reference gf2x_avx2.c (Fast_Implementation)
 
         // Convert to proper sparse representation
         let mut positions = Vec::with_capacity(weight as usize);

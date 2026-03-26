@@ -12,8 +12,12 @@ $WarningColor = "Yellow"
 
 Write-Host "Generating HQC KAT files from reference implementation..." -ForegroundColor $SuccessColor
 
-# Base directory for reference implementation
-$RefDir = "../../reference/hqc-avx2/Reference_Implementation 2"
+# Directory containing upstream HQC reference build trees (e.g. hqc-128-1, hqc-192-1). Set explicitly; not tracked in-repo.
+$RefDir = $env:HQC_UPSTREAM_REF_IMPL_DIR
+if ([string]::IsNullOrWhiteSpace($RefDir)) {
+    Write-Host "Set environment variable HQC_UPSTREAM_REF_IMPL_DIR to the directory that contains the upstream HQC Makefile parameter folders (hqc-128-1, ...)." -ForegroundColor $ErrorColor
+    exit 2
+}
 $KatDir = "tests/kat_data"
 
 # Create KAT data directory
@@ -22,7 +26,7 @@ if (!(Test-Path $KatDir)) {
 }
 
 # Function to generate KAT files for a parameter set
-function Generate-KatForParams {
+function Invoke-KatForParams {
     param($Params)
     
     $ParamDir = "$RefDir/$Params"
@@ -45,8 +49,8 @@ function Generate-KatForParams {
         # Compile KAT generator
         Write-Host "Compiling KAT generator for $Params..."
         $MakeTarget = "${Params}-kat"
-        $MakeResult = & make $MakeTarget 2>&1
-        
+        $null = & make $MakeTarget 2>&1
+
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Warning: Could not compile KAT generator for $Params" -ForegroundColor $ErrorColor
             Write-Host "This might be due to missing dependencies (NTL, gf2x, OpenSSL)"
@@ -92,7 +96,7 @@ function Generate-KatForParams {
 $ParamSets = @("hqc-128-1", "hqc-192-1", "hqc-192-2", "hqc-256-1", "hqc-256-2", "hqc-256-3")
 
 foreach ($Params in $ParamSets) {
-    Generate-KatForParams -Params $Params
+    Invoke-KatForParams -Params $Params
 }
 
 Write-Host "KAT file generation complete!" -ForegroundColor $SuccessColor

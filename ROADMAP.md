@@ -1,10 +1,12 @@
-# lib-Q Development Roadmap
+# lib-Q development roadmap
 
-This roadmap outlines the development phases for lib-Q, a post-quantum cryptography library equivalent to libsodium. The roadmap is driven by security requirements, NIST standardization progress, and community needs.
+This document sequences engineering and assurance work for lib-Q: a Rust workspace for post-quantum key establishment, signatures, symmetric constructions, HPKE, and a STARK-based ZKP stack. Priorities follow cryptographic risk, standards evolution, and what integrators need to ship safely.
 
-## Phase 0: Foundation (Current)
+**Status:** Core algorithms and protocols are largely implemented; remaining effort skews toward performance, verification, third-party audit, and operational polish (see [README.md](README.md) and [SECURITY.md](SECURITY.md)).
 
-### Core Infrastructure
+## Phase 0: Foundation (mature; continuous maintenance)
+
+### Core infrastructure
 - [x] Project structure and configuration
 - [x] Error handling system
 - [x] Security documentation and guidelines
@@ -14,24 +16,24 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [x] Memory management utilities (zeroization, secure key traits)
 - [x] Constant-time operations
 
-### Development Tools
+### Development tools
 - [x] CI/CD pipeline setup
-- [x] Security scanning integration
+- [x] Security scanning integration (`cargo audit`, NIST validation utilities, dedicated security workflow)
 - [x] Code coverage requirements
 - [x] Performance benchmarking framework
 - [x] WASM compilation pipeline
 - [x] Documentation generation
 
-### Security Foundation
-- [x] Security audit framework (cargo audit, NIST compliance validation)
-- [ ] Constant-time verification tools (dudect in HQC; project-wide pending)
-- [ ] Side-channel analysis tools
-- [x] Fuzzing infrastructure (HPKE fuzzing harness, property-based tests)
-- [ ] Formal verification setup
+### Security foundation
+- [x] Security audit framework (`cargo audit`, NIST compliance validation, scheduled security workflow)
+- [ ] Constant-time verification tooling (targeted work in HQC; broader coverage TBD)
+- [ ] Side-channel analysis tooling and methodology
+- [x] Fuzzing infrastructure (e.g. HPKE harness, property-based tests; expand coverage over time)
+- [ ] Formal verification setup where cost-effective
 
-## Phase 1: Core Algorithms
+## Phase 1: Core algorithms
 
-### Hash Functions
+### Hash functions
 - [x] SHAKE256 implementation
 - [x] SHAKE128 implementation
 - [x] cSHAKE256 implementation
@@ -39,7 +41,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Performance optimizations
 - [ ] Constant-time verification
 
-### Key Encapsulation Mechanisms (KEMs)
+### Key encapsulation mechanisms (KEMs)
 - [x] ML-KEM (FIPS 203, Level 1, 3, 5)
   - [x] Core implementation
   - [x] Key generation
@@ -64,7 +66,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] Encapsulation/Decapsulation
   - [ ] Performance optimization
 
-### Digital Signatures
+### Digital signatures
 - [x] ML-DSA (FIPS 204, Level 1, 3, 5)
   - [x] Core implementation
   - [x] Key generation
@@ -84,9 +86,9 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] Complete test coverage
   - [ ] Performance optimization
 
-## Phase 2: High-Level APIs
+## Phase 2: High-level APIs
 
-### Authenticated Encryption
+### Authenticated encryption
 - [x] Saturnin AEAD implementation
   - [x] Core AEAD mode
   - [x] Block cipher mode
@@ -113,7 +115,7 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
   - [x] Global nonce manager with thread safety
   - [x] Counter-based and random nonce support
 
-### Hybrid Public Key Encryption (HPKE)
+### Hybrid public-key encryption (HPKE)
 - [x] RFC 9180 compliant HPKE implementation
   - [x] ML-KEM integration (512, 768, 1024)
   - [x] SHAKE256 and SHA3 KDF support
@@ -126,14 +128,14 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] HPKE performance benchmarking
 - [ ] HPKE constant-time verification
 
-### Key Exchange
-- [ ] Post-quantum key exchange protocols
-- [ ] Forward secrecy guarantees
-- [ ] Session key derivation
+### Key exchange and sessions
+- [ ] Higher-level session protocols on top of existing KEMs (where distinct from HPKE)
+- [ ] Documented forward-secrecy patterns for integrators
+- [ ] Session key derivation guidance and reference patterns
 
-## Phase 3: Platform Support
+## Phase 3: Platform support
 
-### WASM Support
+### WASM support
 - [x] Basic WASM compilation
 - [x] WASM feature support across core crates (core, hash, KEM, sig, AEAD, HPKE, random, etc.)
 - [x] CI WASM validation (wasm32-unknown-unknown check for algorithm crates)
@@ -142,47 +144,47 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] Performance optimization
 - [ ] Memory management
 
-### Cross-Platform
+### Cross-platform
 - [ ] ARM optimization (NEON)
 - [ ] x86 optimization (AVX2, AVX512)
 - [ ] RISC-V support
 - [ ] Mobile platforms
 - [ ] Embedded systems
 
-### Language Bindings
-- [ ] JavaScript/TypeScript
+### Language bindings
+- [x] JavaScript / TypeScript (WASM and published `@lib-q/*` packages where released)
 - [ ] Python
-- [ ] C/C++
+- [ ] C / C++
 
-## Phase 4: Advanced Features
+## Phase 4: Advanced features
 
-### Advanced Cryptography
+### Advanced cryptography
 - [x] Zero-knowledge proofs (zk-STARKs)
   - [x] Core STARK implementation
   - [x] Proof generation and verification
   - [x] WASM compatibility (lib-q-zkp wasm feature)
   - [x] Integration with post-quantum crypto (SHAKE256, Mersenne31)
 
-### Performance Optimization
+### Performance optimization
 - [ ] SIMD optimizations
 - [ ] Parallel processing
 - [ ] Hardware acceleration
 - [ ] Memory pooling
 
-### Security Enhancements
+### Security enhancements
 - [ ] Formal verification
 - [ ] Side-channel resistance
 - [ ] Quantum-resistant randomness
 
 ## Phase 5: Ecosystem
 
-### Documentation & Education
+### Documentation and education
 - [ ] Comprehensive API documentation
 - [ ] Migration guides
 - [ ] Security best practices
 - [ ] Performance guides
 
-### Tools & Utilities
+### Tools and utilities
 - [ ] Command-line tools
 - [ ] Key management utilities
 - [ ] Performance benchmarking tools
@@ -193,53 +195,53 @@ This roadmap outlines the development phases for lib-Q, a post-quantum cryptogra
 - [ ] SSH integration
 - [ ] IoT protocols
 
-## Phase 6: Production Ready
+## Phase 6: Production readiness
 
-### Security Certification
+### Security certification
 - [ ] Third-party security audit
 - [ ] Formal verification completion
 - [ ] Side-channel analysis
 - [ ] Penetration testing
 
-### Performance Validation
+### Performance validation
 - [ ] Performance benchmarking
 - [ ] Memory usage analysis
 - [ ] Scalability testing
 - [ ] Stress testing
 
-### Production Deployment
+### Production deployment
 - [ ] Production-ready releases
 - [ ] Long-term support (LTS)
 - [ ] Security update process
 - [ ] Vulnerability disclosure
 
-## Ongoing Development
+## Ongoing development
 
-### Continuous Improvement
+### Continuous improvement
 - [ ] Algorithm updates based on NIST progress
 - [ ] Performance optimizations
 - [ ] Security enhancements
 - [ ] Platform support expansion
 - [ ] Documentation updates
 
-### Research & Development
+### Research and development
 - [ ] New post-quantum algorithms
 - [ ] Advanced cryptographic protocols
 - [ ] Quantum-resistant protocols
 
-## Success Metrics
+## Success metrics
 
 ### Security
-- [x] Zero classical crypto usage
-- [ ] 100% constant-time operations
-- [x] Zero memory safety issues
-- [ ] Comprehensive security audit
-- [ ] Formal verification completion
+- [x] No classical cryptographic primitives in the project’s stated PQC / SHA-3 / Saturnin threat model
+- [ ] Demonstrated constant-time behavior on supported targets (measured, not asserted)
+- [x] Memory safety via Rust’s model; `unsafe` only where justified and reviewed
+- [ ] Independent security audit with published results
+- [ ] Formal verification only where ROI is clear
 
 ### Performance
-- [ ] Competitive with classical crypto
-- [ ] Acceptable WASM performance
-- [ ] Low memory footprint
-- [ ] Fast key generation
-- [ ] Efficient encryption/decryption
+- [ ] Competitive operational cost versus comparable PQC stacks (not versus pre-quantum RSA/ECC, which are out of scope)
+- [ ] WASM performance characterized for supported call paths
+- [ ] Documented memory footprint for primary parameter sets
+- [ ] Key generation and encapsulation/signing latencies acceptable for stated use cases
+- [ ] Efficient encryption, decryption, and verification on hot paths
 

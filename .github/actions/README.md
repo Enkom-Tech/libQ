@@ -21,7 +21,7 @@ A comprehensive Rust testing action that supports:
     features: "all-algorithms"
     run-coverage: "true"
     coverage-threshold: "80"
-    package: "lib-q-sponge"
+    package: "lib-q-core"
 ```
 
 #### Parameters
