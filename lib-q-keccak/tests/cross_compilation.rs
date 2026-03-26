@@ -89,6 +89,7 @@ mod tests {
     /// Test that cross-compilation flags are properly applied
     #[test]
     #[cfg(feature = "std")]
+    #[allow(clippy::assertions_on_constants)]
     fn test_cross_compilation_flags() {
         // This test verifies that the cross_compile cfg flag is working
         // During cross-compilation, this should be true and optimizations disabled

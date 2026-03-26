@@ -24,7 +24,7 @@
 //!
 //! To disable loop unrolling (e.g. for constraint targets) use the `no_unroll` feature.
 
-#![cfg_attr(feature = "simd", feature(portable_simd))]
+#![cfg_attr(keccak_portable_simd, feature(portable_simd))]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/Enkom-Tech/libQ/main/docs/logo.svg",
@@ -118,7 +118,7 @@ cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
 #[cfg(all(target_arch = "x86_64", feature = "asm"))]
 mod x86;
 
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 mod advanced_simd;
 
 mod features;
@@ -296,7 +296,7 @@ pub fn f1600(state: &mut [u64; PLEN]) {
     }
 }
 
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 /// SIMD implementations for Keccak-f1600 sponge function
 pub mod simd {
     pub use core::simd::{
@@ -336,7 +336,7 @@ pub mod simd {
     impl_keccak!(p1600x8, f1600x8, u64x8);
 }
 
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 /// Advanced SIMD optimizations using nightly features
 pub mod advanced {
     pub use super::advanced_simd::*;
@@ -404,7 +404,7 @@ pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
 
 // Re-export optimized functions
 // Re-export feature configuration
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 pub use crate::advanced_simd::{
     AdvancedLaneSize,
     SimdConfig,
@@ -575,7 +575,7 @@ mod tests {
         keccak_f::<u64>(state_first, state_second);
     }
 
-    #[cfg(all(test, feature = "simd"))]
+    #[cfg(all(test, feature = "simd", keccak_portable_simd))]
     mod test_simd {
         use core::simd::{
             u64x2,

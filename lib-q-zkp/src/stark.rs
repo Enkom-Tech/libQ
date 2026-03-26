@@ -110,24 +110,17 @@ pub struct FriQueryParams {
     pub proof_of_work_bits: usize,
 }
 
-// Generic type aliases for StarkVerifier (require lazy_type_alias).
-type PcsCommitment<C>
-    = <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Commitment
-where
-    C: StarkGenericConfig;
+// Generic type aliases for StarkVerifier (`C: StarkGenericConfig` on the alias is stable Rust).
+type PcsCommitment<C: StarkGenericConfig> =
+    <C::Pcs as Pcs<C::Challenge, C::Challenger>>::Commitment;
 
-type CommitmentRounds<C>
-    = Vec<(
+type CommitmentRounds<C: StarkGenericConfig> = Vec<(
     PcsCommitment<C>,
     Vec<(Domain<C>, Vec<(C::Challenge, Vec<C::Challenge>)>)>,
-)>
-where
-    C: StarkGenericConfig;
+)>;
 
-type QuotientRounds<C>
-    = Vec<(Domain<C>, Vec<(C::Challenge, Vec<C::Challenge>)>)>
-where
-    C: StarkGenericConfig;
+type QuotientRounds<C: StarkGenericConfig> =
+    Vec<(Domain<C>, Vec<(C::Challenge, Vec<C::Challenge>)>)>;
 
 /// zk-STARK prover
 ///

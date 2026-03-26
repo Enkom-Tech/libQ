@@ -14,7 +14,6 @@ keywords = ["crypto", "keccak", "sponge", "hash", "lib-q"]
 categories = ["cryptography", "no-std"]
 readme.workspace = true
 edition.workspace = true
-rust-version = "1.92.0"
 
 [features]
 default = ["std", "asm"]
@@ -67,6 +66,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
     'cfg(eurydice)',
     'cfg(doc_cfg)',
+    'cfg(keccak_portable_simd)',
     'cfg(simd128)',
     'cfg(simd256)',
     'cfg(aarch64)',

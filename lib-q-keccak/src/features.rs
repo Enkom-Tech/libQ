@@ -91,14 +91,14 @@ impl FeatureConfig {
     /// Check if parallel processing is available and enabled
     pub fn parallel_available(&self) -> bool {
         self.enable_parallel &&
-            cfg!(feature = "simd") &&
+            cfg!(all(feature = "simd", keccak_portable_simd)) &&
             self.optimization_level != OptimizationLevel::Reference
     }
 
     /// Check if advanced SIMD features are available and enabled
     pub fn advanced_simd_available(&self) -> bool {
         self.enable_advanced_simd &&
-            cfg!(feature = "simd") &&
+            cfg!(all(feature = "simd", keccak_portable_simd)) &&
             self.optimization_level != OptimizationLevel::Reference
     }
 
@@ -194,7 +194,7 @@ pub mod detection {
                 target_feature = "sha3",
                 not(cross_compile)
             )),
-            simd_support: cfg!(feature = "simd"),
+            simd_support: cfg!(all(feature = "simd", keccak_portable_simd)),
             nightly_features: cfg!(feature = "nightly"),
         }
     }

@@ -295,6 +295,7 @@ pub mod portable {
 #[cfg(feature = "simd256")]
 pub mod avx2 {
     pub mod x4 {
+        #[cfg(ml_dsa_keccak_portable_simd)]
         use lib_q_keccak::advanced::parallel;
 
         /// Perform 4 SHAKE256 operations in parallel using true SIMD
@@ -374,8 +375,16 @@ pub mod avx2 {
                 state[16] ^= 0x8000000000000000;
             }
 
-            // Process all 4 states in parallel using true SIMD
+            // Process all 4 states (SIMD batch on nightly; scalar Keccak-f on stable)
+            #[cfg(ml_dsa_keccak_portable_simd)]
             parallel::p1600_parallel_4x(&mut states);
+
+            #[cfg(not(ml_dsa_keccak_portable_simd))]
+            {
+                for state in &mut states {
+                    lib_q_keccak::keccak_p(state, 24);
+                }
+            }
 
             // Squeeze output data from all states in parallel
             let mut outputs = [out0, out1, out2, out3];
@@ -511,6 +520,7 @@ pub mod avx2 {
 #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 pub mod neon {
     pub mod x2 {
+        #[cfg(ml_dsa_keccak_portable_simd)]
         use lib_q_keccak::advanced::parallel;
 
         /// Perform 2 SHAKE256 operations in parallel using true SIMD
@@ -576,8 +586,15 @@ pub mod neon {
                 state[16] ^= 0x8000000000000000;
             }
 
-            // Process both states in parallel using true SIMD
+            #[cfg(ml_dsa_keccak_portable_simd)]
             parallel::p1600_parallel_2x(&mut states);
+
+            #[cfg(not(ml_dsa_keccak_portable_simd))]
+            {
+                for state in &mut states {
+                    lib_q_keccak::keccak_p(state, 24);
+                }
+            }
 
             // Squeeze output data from both states in parallel
             let mut outputs = [out0, out1];
@@ -1004,6 +1021,10 @@ mod tests {
             // SIMD should provide some performance benefit
             // Note: True SIMD may not always be faster due to overhead, but should be functional
             assert!(simd_time.as_nanos() > 0, "SIMD processing should complete");
+            assert!(
+                outputs.iter().any(|row| row.iter().any(|&b| b != 0)),
+                "batched SHAKE256 outputs should be non-zero"
+            );
         }
     }
 

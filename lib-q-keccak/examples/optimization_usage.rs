@@ -4,7 +4,7 @@
 //! available in the keccak crate, including x86 SIMD optimizations,
 //! parallel processing, and advanced optimizations.
 
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 use lib_q_keccak::parallel;
 use lib_q_keccak::{
     FeatureConfig,
@@ -96,7 +96,7 @@ fn main() {
     println!();
 
     // 6. Parallel Processing (if available)
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "simd", keccak_portable_simd))]
     {
         println!("6. Parallel Processing:");
         let mut states = vec![[0u64; 25]; 8];
@@ -146,10 +146,17 @@ fn main() {
     // 8. Nightly Features Usage
     println!("8. Nightly Features Usage:");
 
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "simd", keccak_portable_simd))]
     {
         println!("   SIMD features enabled: ✓");
         println!("   Portable SIMD available: ✓");
+    }
+
+    #[cfg(all(feature = "simd", not(keccak_portable_simd)))]
+    {
+        println!(
+            "   SIMD feature enabled for linkage, but portable SIMD needs a nightly toolchain"
+        );
     }
 
     #[cfg(not(feature = "simd"))]
@@ -237,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "simd")]
+    #[cfg(all(feature = "simd", keccak_portable_simd))]
     fn test_parallel_processing() {
         let mut states = vec![[0u64; 25]; 4];
 

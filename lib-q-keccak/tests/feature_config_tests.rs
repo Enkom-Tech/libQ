@@ -51,7 +51,8 @@ fn test_parallel_available() {
     // Check if it's consistent with the configuration
     assert_eq!(
         config.parallel_available(),
-        cfg!(feature = "simd") && config.optimization_level != OptimizationLevel::Reference
+        cfg!(all(feature = "simd", keccak_portable_simd)) &&
+            config.optimization_level != OptimizationLevel::Reference
     );
 
     // Test when disabled by optimization level
@@ -83,7 +84,8 @@ fn test_advanced_simd_available() {
     // Check if it's consistent with the configuration
     assert_eq!(
         config.advanced_simd_available(),
-        cfg!(feature = "simd") && config.optimization_level != OptimizationLevel::Reference
+        cfg!(all(feature = "simd", keccak_portable_simd)) &&
+            config.optimization_level != OptimizationLevel::Reference
     );
 
     // Test when disabled by optimization level

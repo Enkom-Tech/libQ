@@ -374,170 +374,200 @@ fn fast_loop_absorb_reference(state: &mut [u64; 25], data: &[u8]) -> usize {
 /// operations, similar to XKCP's times2, times4, times8 implementations.
 #[cfg(feature = "simd")]
 pub mod parallel {
-    // In Rust 2024, extern crate is not idiomatic
-    // Core types are available by default
+    #[cfg(keccak_portable_simd)]
+    mod batch {
+        use super::super::*;
+        use crate::advanced_simd;
 
-    use super::*;
-    use crate::advanced_simd;
+        /// Process multiple Keccak states in parallel
+        ///
+        /// This function processes multiple Keccak states simultaneously,
+        /// providing significant performance improvements for batch operations.
+        pub fn p1600_parallel(states: &mut [[u64; 25]], level: OptimizationLevel) {
+            match level {
+                OptimizationLevel::Reference => {
+                    // Process sequentially
+                    for state in states.iter_mut() {
+                        keccak_p(state, 24);
+                    }
+                }
+                OptimizationLevel::Basic => {
+                    // Process in pairs if possible
+                    for chunk in states.chunks_mut(2) {
+                        if chunk.len() == 2 {
+                            advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]);
+                        } else {
+                            keccak_p(&mut chunk[0], 24);
+                        }
+                    }
+                }
+                OptimizationLevel::Advanced => {
+                    // Process in groups of 4
+                    for chunk in states.chunks_mut(4) {
+                        match chunk.len() {
+                            4 => advanced_simd::parallel::p1600_parallel_4x(&mut [
+                                chunk[0], chunk[1], chunk[2], chunk[3],
+                            ]),
+                            3 => {
+                                advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                    chunk[0], chunk[1],
+                                ]);
+                                keccak_p(&mut chunk[2], 24);
+                            }
+                            2 => advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                chunk[0], chunk[1],
+                            ]),
+                            1 => keccak_p(&mut chunk[0], 24),
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                OptimizationLevel::Maximum => {
+                    // Process in groups of 8
+                    for chunk in states.chunks_mut(8) {
+                        match chunk.len() {
+                            8 => advanced_simd::parallel::p1600_parallel_8x(&mut [
+                                chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5],
+                                chunk[6], chunk[7],
+                            ]),
+                            7 => {
+                                advanced_simd::parallel::p1600_parallel_4x(&mut [
+                                    chunk[0], chunk[1], chunk[2], chunk[3],
+                                ]);
+                                advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                    chunk[4], chunk[5],
+                                ]);
+                                keccak_p(&mut chunk[6], 24);
+                            }
+                            6 => {
+                                advanced_simd::parallel::p1600_parallel_4x(&mut [
+                                    chunk[0], chunk[1], chunk[2], chunk[3],
+                                ]);
+                                advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                    chunk[4], chunk[5],
+                                ]);
+                            }
+                            5 => {
+                                advanced_simd::parallel::p1600_parallel_4x(&mut [
+                                    chunk[0], chunk[1], chunk[2], chunk[3],
+                                ]);
+                                keccak_p(&mut chunk[4], 24);
+                            }
+                            4 => advanced_simd::parallel::p1600_parallel_4x(&mut [
+                                chunk[0], chunk[1], chunk[2], chunk[3],
+                            ]),
+                            3 => {
+                                advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                    chunk[0], chunk[1],
+                                ]);
+                                keccak_p(&mut chunk[2], 24);
+                            }
+                            2 => advanced_simd::parallel::p1600_parallel_2x(&mut [
+                                chunk[0], chunk[1],
+                            ]),
+                            1 => keccak_p(&mut chunk[0], 24),
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+            }
+        }
 
-    /// Process multiple Keccak states in parallel
-    ///
-    /// This function processes multiple Keccak states simultaneously,
-    /// providing significant performance improvements for batch operations.
-    pub fn p1600_parallel(states: &mut [[u64; 25]], level: OptimizationLevel) {
-        match level {
-            OptimizationLevel::Reference => {
-                // Process sequentially
-                for state in states.iter_mut() {
-                    keccak_p(state, 24);
-                }
-            }
-            OptimizationLevel::Basic => {
-                // Process in pairs if possible
-                for chunk in states.chunks_mut(2) {
-                    if chunk.len() == 2 {
-                        advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]);
-                    } else {
-                        keccak_p(&mut chunk[0], 24);
+        /// Fast parallel absorption for large data blocks
+        ///
+        /// This function provides optimized absorption for large data blocks
+        /// using parallel processing techniques.
+        pub fn fast_loop_absorb_parallel(
+            states: &mut [[u64; 25]],
+            data: &[u8],
+            level: OptimizationLevel,
+        ) -> usize {
+            match level {
+                OptimizationLevel::Reference => {
+                    // Process sequentially
+                    let mut min_offset = usize::MAX;
+                    for state in states.iter_mut() {
+                        let offset = fast_loop_absorb_reference(state, data);
+                        min_offset = min_offset.min(offset);
                     }
+                    min_offset
                 }
-            }
-            OptimizationLevel::Advanced => {
-                // Process in groups of 4
-                for chunk in states.chunks_mut(4) {
-                    match chunk.len() {
-                        4 => advanced_simd::parallel::p1600_parallel_4x(&mut [
-                            chunk[0], chunk[1], chunk[2], chunk[3],
-                        ]),
-                        3 => {
-                            advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]);
-                            keccak_p(&mut chunk[2], 24);
+                OptimizationLevel::Basic => {
+                    // Process in pairs
+                    let mut min_offset = usize::MAX;
+                    for chunk in states.chunks_mut(2) {
+                        if chunk.len() == 2 {
+                            let offset =
+                                advanced_simd::fast_loop_absorb_advanced(&mut chunk[0], data, 2);
+                            min_offset = min_offset.min(offset);
+                        } else {
+                            let offset = fast_loop_absorb_reference(&mut chunk[0], data);
+                            min_offset = min_offset.min(offset);
                         }
-                        2 => advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]),
-                        1 => keccak_p(&mut chunk[0], 24),
-                        _ => unreachable!(),
                     }
+                    min_offset
                 }
-            }
-            OptimizationLevel::Maximum => {
-                // Process in groups of 8
-                for chunk in states.chunks_mut(8) {
-                    match chunk.len() {
-                        8 => advanced_simd::parallel::p1600_parallel_8x(&mut [
-                            chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6],
-                            chunk[7],
-                        ]),
-                        7 => {
-                            advanced_simd::parallel::p1600_parallel_4x(&mut [
-                                chunk[0], chunk[1], chunk[2], chunk[3],
-                            ]);
-                            advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[4], chunk[5]]);
-                            keccak_p(&mut chunk[6], 24);
+                OptimizationLevel::Advanced => {
+                    // Process in groups of 4
+                    let mut min_offset = usize::MAX;
+                    for chunk in states.chunks_mut(4) {
+                        match chunk.len() {
+                            4 => {
+                                let offset = advanced_simd::fast_loop_absorb_advanced(
+                                    &mut chunk[0],
+                                    data,
+                                    4,
+                                );
+                                min_offset = min_offset.min(offset);
+                            }
+                            _ => {
+                                for state in chunk.iter_mut() {
+                                    let offset = fast_loop_absorb_reference(state, data);
+                                    min_offset = min_offset.min(offset);
+                                }
+                            }
                         }
-                        6 => {
-                            advanced_simd::parallel::p1600_parallel_4x(&mut [
-                                chunk[0], chunk[1], chunk[2], chunk[3],
-                            ]);
-                            advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[4], chunk[5]]);
-                        }
-                        5 => {
-                            advanced_simd::parallel::p1600_parallel_4x(&mut [
-                                chunk[0], chunk[1], chunk[2], chunk[3],
-                            ]);
-                            keccak_p(&mut chunk[4], 24);
-                        }
-                        4 => advanced_simd::parallel::p1600_parallel_4x(&mut [
-                            chunk[0], chunk[1], chunk[2], chunk[3],
-                        ]),
-                        3 => {
-                            advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]);
-                            keccak_p(&mut chunk[2], 24);
-                        }
-                        2 => advanced_simd::parallel::p1600_parallel_2x(&mut [chunk[0], chunk[1]]),
-                        1 => keccak_p(&mut chunk[0], 24),
-                        _ => unreachable!(),
                     }
+                    min_offset
+                }
+                OptimizationLevel::Maximum => {
+                    // Process in groups of 8
+                    let mut min_offset = usize::MAX;
+                    for chunk in states.chunks_mut(8) {
+                        match chunk.len() {
+                            8 => {
+                                let offset = advanced_simd::fast_loop_absorb_advanced(
+                                    &mut chunk[0],
+                                    data,
+                                    8,
+                                );
+                                min_offset = min_offset.min(offset);
+                            }
+                            _ => {
+                                for state in chunk.iter_mut() {
+                                    let offset = fast_loop_absorb_reference(state, data);
+                                    min_offset = min_offset.min(offset);
+                                }
+                            }
+                        }
+                    }
+                    min_offset
                 }
             }
         }
     }
 
-    /// Fast parallel absorption for large data blocks
-    ///
-    /// This function provides optimized absorption for large data blocks
-    /// using parallel processing techniques.
-    pub fn fast_loop_absorb_parallel(
-        states: &mut [[u64; 25]],
-        data: &[u8],
-        level: OptimizationLevel,
-    ) -> usize {
-        match level {
-            OptimizationLevel::Reference => {
-                // Process sequentially
-                let mut min_offset = usize::MAX;
-                for state in states.iter_mut() {
-                    let offset = fast_loop_absorb_reference(state, data);
-                    min_offset = min_offset.min(offset);
-                }
-                min_offset
-            }
-            OptimizationLevel::Basic => {
-                // Process in pairs
-                let mut min_offset = usize::MAX;
-                for chunk in states.chunks_mut(2) {
-                    if chunk.len() == 2 {
-                        let offset =
-                            advanced_simd::fast_loop_absorb_advanced(&mut chunk[0], data, 2);
-                        min_offset = min_offset.min(offset);
-                    } else {
-                        let offset = fast_loop_absorb_reference(&mut chunk[0], data);
-                        min_offset = min_offset.min(offset);
-                    }
-                }
-                min_offset
-            }
-            OptimizationLevel::Advanced => {
-                // Process in groups of 4
-                let mut min_offset = usize::MAX;
-                for chunk in states.chunks_mut(4) {
-                    match chunk.len() {
-                        4 => {
-                            let offset =
-                                advanced_simd::fast_loop_absorb_advanced(&mut chunk[0], data, 4);
-                            min_offset = min_offset.min(offset);
-                        }
-                        _ => {
-                            for state in chunk.iter_mut() {
-                                let offset = fast_loop_absorb_reference(state, data);
-                                min_offset = min_offset.min(offset);
-                            }
-                        }
-                    }
-                }
-                min_offset
-            }
-            OptimizationLevel::Maximum => {
-                // Process in groups of 8
-                let mut min_offset = usize::MAX;
-                for chunk in states.chunks_mut(8) {
-                    match chunk.len() {
-                        8 => {
-                            let offset =
-                                advanced_simd::fast_loop_absorb_advanced(&mut chunk[0], data, 8);
-                            min_offset = min_offset.min(offset);
-                        }
-                        _ => {
-                            for state in chunk.iter_mut() {
-                                let offset = fast_loop_absorb_reference(state, data);
-                                min_offset = min_offset.min(offset);
-                            }
-                        }
-                    }
-                }
-                min_offset
-            }
-        }
-    }
+    #[cfg(keccak_portable_simd)]
+    pub use batch::{
+        fast_loop_absorb_parallel,
+        p1600_parallel,
+    };
+
+    #[cfg(feature = "multithreading")]
+    use super::{
+        OptimizationLevel,
+        keccak_p,
+    };
 
     /// Multi-threaded parallel processing for large workloads
     ///
@@ -565,7 +595,7 @@ pub mod parallel {
         }
     }
 
-    /// providing significant performance improvements for large workloads.
+    /// Multi-threaded parallel processing (`no_std` + `alloc` build).
     #[cfg(all(feature = "multithreading", not(feature = "std"), feature = "alloc"))]
     pub fn p1600_multithreaded(
         states: &[[u64; 25]],
@@ -706,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "std", feature = "simd"))]
+    #[cfg(all(feature = "std", feature = "simd", keccak_portable_simd))]
     fn test_parallel_processing() {
         use super::{
             OptimizationLevel,

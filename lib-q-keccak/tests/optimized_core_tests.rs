@@ -193,7 +193,7 @@ fn test_fast_loop_absorb_partial_lanes() {
     assert_ne!(state, [0u64; 25]);
 }
 
-#[cfg(feature = "simd")]
+#[cfg(all(feature = "simd", keccak_portable_simd))]
 mod simd_tests {
     use lib_q_keccak::OptimizationLevel;
     use lib_q_keccak::parallel::p1600_parallel;

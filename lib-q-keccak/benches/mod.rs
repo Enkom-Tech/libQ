@@ -1,13 +1,16 @@
-#![cfg_attr(all(test, feature = "nightly"), feature(test))]
-#![cfg_attr(all(feature = "nightly", feature = "simd"), feature(portable_simd))]
+#![cfg_attr(all(test, feature = "nightly", keccak_portable_simd), feature(test))]
+#![cfg_attr(
+    all(feature = "nightly", feature = "simd", keccak_portable_simd),
+    feature(portable_simd)
+)]
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 extern crate test;
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 use lib_q_keccak::*;
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 macro_rules! impl_bench {
     ($name:ident, $fn:ident, $type:expr) => {
         #[bench]
@@ -18,24 +21,24 @@ macro_rules! impl_bench {
     };
 }
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 impl_bench!(b_f1600, f1600, 0u64);
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 #[bench]
 fn b_p1600_24(b: &mut test::Bencher) {
     let mut data = [0u64; 25];
     b.iter(|| p1600(&mut data, 24));
 }
 
-#[cfg(all(test, feature = "nightly"))]
+#[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 #[bench]
 fn b_p1600_16(b: &mut test::Bencher) {
     let mut data = [0u64; 25];
     b.iter(|| p1600(&mut data, 16));
 }
 
-#[cfg(all(test, feature = "nightly", feature = "simd"))]
+#[cfg(all(test, feature = "nightly", feature = "simd", keccak_portable_simd))]
 mod simd {
     use lib_q_keccak::simd_parallel::{
         p1600_parallel_2x,

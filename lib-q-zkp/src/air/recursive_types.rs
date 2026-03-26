@@ -320,10 +320,8 @@ where
 }
 
 /// Result of extracting FRI data from an opening proof (rounds, final poly, pow witness).
-type FriExtractionResult<C>
-    = (Vec<SerializedFriRound>, Vec<C::Challenge>, Vec<u8>)
-where
-    C: StarkGenericConfig;
+type FriExtractionResult<C: StarkGenericConfig> =
+    (Vec<SerializedFriRound>, Vec<C::Challenge>, Vec<u8>);
 
 /// Extract FRI proof data from opening_proof using the FriDataExtractor trait.
 ///

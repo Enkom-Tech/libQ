@@ -42,8 +42,9 @@
 //! - **Merkle tree certificates**: Create/use and security checks (wrong root, wrong depth, cross-tree) are covered by `tests/merkle_certificate_tests.rs`. Additional Merkle and group-membership tests live in `air_integration` and `ip_soundness_tests`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![feature(lazy_type_alias)]
-#![allow(incomplete_features)] // type aliases with where clauses in stark.rs; tracks #112792
+// Bounds on generic type parameters in aliases are not enforced by the type checker (Rust RFC
+// follow-up); we still document constraints via `C: StarkGenericConfig` / `F: Field` on aliases.
+#![allow(type_alias_bounds)]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
