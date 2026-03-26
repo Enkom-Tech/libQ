@@ -1,8 +1,4 @@
 #![cfg_attr(all(test, feature = "nightly", keccak_portable_simd), feature(test))]
-#![cfg_attr(
-    all(feature = "nightly", feature = "simd", keccak_portable_simd),
-    feature(portable_simd)
-)]
 
 #[cfg(all(test, feature = "nightly", keccak_portable_simd))]
 extern crate test;

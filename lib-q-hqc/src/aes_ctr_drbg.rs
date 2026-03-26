@@ -43,8 +43,6 @@ use aes::cipher::{
     generic_array::GenericArray,
 };
 use rand_core::{
-    CryptoRng,
-    Rng,
     TryCryptoRng,
     TryRng,
 };

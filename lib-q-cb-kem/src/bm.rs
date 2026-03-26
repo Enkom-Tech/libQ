@@ -76,8 +76,20 @@ pub(crate) fn bm(out: &mut [Gf; SYS_T + 1], s: &mut [Gf; 2 * SYS_T]) {
     }
 }
 
-#[cfg(test)]
-#[cfg(feature = "cbkem8192128f")]
+#[cfg(all(
+    test,
+    feature = "cbkem8192128f",
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f",
+    )),
+))]
 mod tests {
     use super::*;
     use crate::macros::sub;

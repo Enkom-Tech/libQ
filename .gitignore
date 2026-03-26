@@ -206,3 +206,4 @@ Cargo.audit.toml
 
 /reference
 /Plonky3-main
+.cursor/

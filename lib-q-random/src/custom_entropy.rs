@@ -435,6 +435,7 @@ mod tests {
     use super::*;
 
     // Test entropy callback that generates predictable data
+    #[allow(clippy::cast_possible_truncation)]
     unsafe extern "C" fn test_entropy_callback(
         dest: *mut u8,
         len: usize,
@@ -461,7 +462,7 @@ mod tests {
         assert_eq!(context.size, 0);
 
         let data = [1u8, 2, 3, 4];
-        let context = unsafe { EntropyContext::new(data.as_ptr() as *mut u8, data.len()) };
+        let context = unsafe { EntropyContext::new(data.as_ptr().cast_mut(), data.len()) };
         assert!(!context.user_data.is_null());
         assert_eq!(context.size, 4);
     }
@@ -473,10 +474,10 @@ mod tests {
         assert!(EntropyQuality::User.is_secure());
         assert!(!EntropyQuality::Deterministic.is_secure());
 
-        assert_eq!(EntropyQuality::Hardware.as_f64(), 1.0);
-        assert_eq!(EntropyQuality::Os.as_f64(), 0.95);
-        assert_eq!(EntropyQuality::User.as_f64(), 0.8);
-        assert_eq!(EntropyQuality::Deterministic.as_f64(), 0.0);
+        assert!((EntropyQuality::Hardware.as_f64() - 1.0).abs() < f64::EPSILON);
+        assert!((EntropyQuality::Os.as_f64() - 0.95).abs() < f64::EPSILON);
+        assert!((EntropyQuality::User.as_f64() - 0.8).abs() < f64::EPSILON);
+        assert!((EntropyQuality::Deterministic.as_f64() - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -508,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation)]
     fn test_custom_entropy_generation() {
         let context = EntropyContext::empty();
         let config = CustomEntropyConfig::default();
@@ -527,15 +529,18 @@ mod tests {
 
         // Check that the callback was called (predictable test data)
         for (i, &byte) in buffer.iter().enumerate() {
-            assert_eq!(byte, (i as u8).wrapping_add(42));
+            let expected = (i as u8).wrapping_add(42);
+            assert_eq!(byte, expected);
         }
     }
 
     #[test]
     fn test_custom_entropy_max_bytes_validation() {
         let context = EntropyContext::empty();
-        let mut config = CustomEntropyConfig::default();
-        config.max_bytes_per_call = 8;
+        let config = CustomEntropyConfig {
+            max_bytes_per_call: 8,
+            ..Default::default()
+        };
 
         let source = unsafe {
             CustomEntropySource::new(
@@ -555,8 +560,10 @@ mod tests {
     #[test]
     fn test_custom_entropy_quality_validation() {
         let context = EntropyContext::empty();
-        let mut config = CustomEntropyConfig::default();
-        config.validate_quality = true;
+        let config = CustomEntropyConfig {
+            validate_quality: true,
+            ..Default::default()
+        };
 
         let source = unsafe {
             CustomEntropySource::new(
@@ -593,7 +600,7 @@ mod tests {
 
         // Register the source
         unsafe {
-            register_custom_entropy_source(&source);
+            register_custom_entropy_source(&raw const source);
         }
 
         assert!(has_custom_entropy_source());
@@ -626,7 +633,7 @@ mod tests {
             )
         };
 
-        let display = format!("{}", source);
+        let display = format!("{source}");
         assert!(display.contains("display_test"));
         assert!(display.contains("Hardware"));
     }

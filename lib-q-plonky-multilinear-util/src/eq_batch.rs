@@ -823,13 +823,13 @@ mod tests {
             for (i, &z_i) in eval_point.iter().enumerate().rev() {
                 let x_i = (x >> (num_vars - 1 - i)) & 1;
                 if x_i == 1 {
-                    eq_val = eq_val * z_i;
+                    eq_val *= z_i;
                 } else {
-                    eq_val = eq_val * (EF::ONE - z_i);
+                    eq_val *= EF::ONE - z_i;
                 }
             }
             if INITIALIZED {
-                *o = *o + eq_val;
+                *o += eq_val;
             } else {
                 *o = eq_val;
             }

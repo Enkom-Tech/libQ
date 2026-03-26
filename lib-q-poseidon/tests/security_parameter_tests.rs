@@ -163,18 +163,16 @@ fn test_round_constants_reproduced_from_shake256_seed() {
 fn det_3x3(m: &[Vec<F>]) -> F {
     assert_eq!(m.len(), 3);
     assert_eq!(m[0].len(), 3);
-    let a = m[0][0].clone();
-    let b = m[0][1].clone();
-    let c = m[0][2].clone();
-    let d = m[1][0].clone();
-    let e = m[1][1].clone();
-    let f = m[1][2].clone();
-    let g = m[2][0].clone();
-    let h = m[2][1].clone();
-    let i = m[2][2].clone();
-    a.clone() * (e.clone() * i.clone() - f.clone() * h.clone()) -
-        b.clone() * (d.clone() * i.clone() - f.clone() * g.clone()) +
-        c * (d * h - e * g)
+    let a = m[0][0];
+    let b = m[0][1];
+    let c = m[0][2];
+    let d = m[1][0];
+    let e = m[1][1];
+    let f = m[1][2];
+    let g = m[2][0];
+    let h = m[2][1];
+    let i = m[2][2];
+    a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
 }
 
 /// Determinant of 5x5 matrix via Laplace expansion along first row
@@ -187,19 +185,19 @@ fn det_5x5(m: &[Vec<F>]) -> F {
         let mut minor = vec![vec![F::ZERO; 4]; 4];
         for ri in 1..5 {
             let mut ci = 0;
-            for cj in 0..5 {
+            for (cj, &elem) in m[ri].iter().enumerate() {
                 if cj == j {
                     continue;
                 }
-                minor[ri - 1][ci] = m[ri][cj].clone();
+                minor[ri - 1][ci] = elem;
                 ci += 1;
             }
         }
         let minor_det = det_4x4(&minor);
         if sign > 0 {
-            acc = acc + m[0][j].clone() * minor_det;
+            acc += m[0][j] * minor_det;
         } else {
-            acc = acc - m[0][j].clone() * minor_det;
+            acc -= m[0][j] * minor_det;
         }
     }
     acc
@@ -212,19 +210,19 @@ fn det_4x4(m: &[Vec<F>]) -> F {
         let mut minor = vec![vec![F::ZERO; 3]; 3];
         for ri in 1..4 {
             let mut ci = 0;
-            for cj in 0..4 {
+            for (cj, &elem) in m[ri].iter().enumerate() {
                 if cj == j {
                     continue;
                 }
-                minor[ri - 1][ci] = m[ri][cj].clone();
+                minor[ri - 1][ci] = elem;
                 ci += 1;
             }
         }
         let minor_det = det_3x3(&minor);
         if sign > 0 {
-            acc = acc + m[0][j].clone() * minor_det;
+            acc += m[0][j] * minor_det;
         } else {
-            acc = acc - m[0][j].clone() * minor_det;
+            acc -= m[0][j] * minor_det;
         }
     }
     acc
@@ -257,7 +255,7 @@ fn test_mds_matrix_5x5_all_3x3_submatrices_nonzero_determinant() {
             let mut sub = vec![vec![F::ZERO; 3]; 3];
             for (i, &r) in rows.iter().enumerate() {
                 for (j, &c) in cols.iter().enumerate() {
-                    sub[i][j] = mds[r][c].clone();
+                    sub[i][j] = mds[r][c];
                 }
             }
             let det = det_3x3(&sub);

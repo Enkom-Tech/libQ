@@ -28,8 +28,6 @@ use alloc::vec::Vec;
     feature = "debug-drbg-interop"
 ))]
 use rand_core::{
-    CryptoRng,
-    Rng,
     TryCryptoRng,
     TryRng,
 };

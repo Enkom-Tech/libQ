@@ -540,7 +540,7 @@ impl EntropySource for UserEntropySource {
 /// It is **not** a full NIST-aligned DRBG (no reseed interval enforcement, no uninstantiate,
 /// no health test).
 ///
-/// For full NIST SP 800-90A Rev. 1 CTR_DRBG alignment (instantiate with personalization,
+/// For full NIST SP 800-90A Rev. 1 `CTR_DRBG` alignment (instantiate with personalization,
 /// reseed, uninstantiate, health test, reseed interval, error state), use the canonical
 /// implementation in **lib-q-cb-kem** behind the `nist-aes-rng` feature (`AesState`).
 #[cfg(feature = "nist-drbg")]

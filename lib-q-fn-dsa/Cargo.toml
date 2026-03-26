@@ -37,6 +37,8 @@ web-sys = { workspace = true, optional = true, features = ["console"] }
 default = ["std", "alloc"]
 std = ["alloc"]
 alloc = []
+# Marker for CI/scripts that pass `--features std,rand`; RNG is provided via `lib-q-random` on the default dependency path.
+rand = []
 
 # Security features
 zeroize = ["dep:zeroize"]

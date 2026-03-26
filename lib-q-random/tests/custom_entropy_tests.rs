@@ -275,8 +275,10 @@ fn test_custom_entropy_config_validation() {
 #[cfg(feature = "custom-entropy")]
 fn test_custom_entropy_deterministic_validation() {
     let context = EntropyContext::empty();
-    let mut config = CustomEntropyConfig::default();
-    config.validate_quality = true;
+    let config = CustomEntropyConfig {
+        validate_quality: true,
+        ..Default::default()
+    };
 
     let source = CustomEntropySource {
         callback: test_entropy_callback,
@@ -455,8 +457,10 @@ fn test_custom_entropy_edge_cases() {
 #[cfg(feature = "custom-entropy")]
 fn test_custom_entropy_security_validation() {
     let context = EntropyContext::empty();
-    let mut config = CustomEntropyConfig::default();
-    config.validate_quality = true;
+    let config = CustomEntropyConfig {
+        validate_quality: true,
+        ..Default::default()
+    };
 
     // Test secure source
     let secure_source = CustomEntropySource {

@@ -63,20 +63,20 @@ pub fn generate_trace_rows<F: PrimeField64>(
             let mut row_view = KeccakColsRefMut::new(row_slice).expect("row length");
 
             if round == 0 {
-                for y in 0..5 {
-                    for x in 0..5 {
-                        for limb in 0..U64_LIMBS {
-                            row_view.set_preimage(y, x, limb, initial_state[y][x][limb]);
-                            row_view.set_a(y, x, limb, initial_state[y][x][limb]);
+                for (y, y_row) in initial_state.iter().enumerate() {
+                    for (x, x_limbs) in y_row.iter().enumerate() {
+                        for (limb, &val) in x_limbs.iter().enumerate() {
+                            row_view.set_preimage(y, x, limb, val);
+                            row_view.set_a(y, x, limb, val);
                         }
                     }
                 }
             } else {
                 let prev_a = prev_a_vals.expect("round > 0");
-                for y in 0..5 {
-                    for x in 0..5 {
-                        for limb in 0..U64_LIMBS {
-                            row_view.set_preimage(y, x, limb, initial_state[y][x][limb]);
+                for (y, y_row) in initial_state.iter().enumerate() {
+                    for (x, x_limbs) in y_row.iter().enumerate() {
+                        for (limb, &val_init) in x_limbs.iter().enumerate() {
+                            row_view.set_preimage(y, x, limb, val_init);
                             row_view.set_a(y, x, limb, prev_a[y][x][limb]);
                         }
                     }

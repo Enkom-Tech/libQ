@@ -242,7 +242,7 @@ mod tests {
             let mut ptr = self.ptr;
             while j < dest.len() {
                 if ptr == self.buf.len() {
-                    let mut sh = self.sh.clone();
+                    let mut sh = self.sh;
                     sh.inject(&self.ctr.to_le_bytes());
                     sh.flip();
                     sh.extract(&mut self.buf);
@@ -611,9 +611,9 @@ mod tests {
 
     #[test]
     fn test_kat() {
-        for i in 0..KAT.len() {
+        for (i, row) in KAT.iter().enumerate() {
             let logn = (i as u32) + 2;
-            for j in 0..KAT[i].len() {
+            for (j, expected_hex) in row.iter().enumerate() {
                 let r = if logn <= 8 {
                     inner_kat::<KeyPairGeneratorWeak, SigningKeyWeak, VerifyingKeyWeak>(
                         logn, j as u32,
@@ -623,7 +623,7 @@ mod tests {
                         logn, j as u32,
                     )
                 };
-                assert!(r[..] == hex::decode(KAT[i][j]).unwrap());
+                assert!(r[..] == hex::decode(expected_hex).unwrap());
             }
         }
     }

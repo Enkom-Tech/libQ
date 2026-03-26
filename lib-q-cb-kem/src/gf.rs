@@ -518,7 +518,7 @@ mod tests {
 
     #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
     #[test]
-    fn test_gf_mul_inplace() {
+    fn test_gf_mul_inplace_cbkem348864() {
         let mut res = [0u16; SYS_T];
         let mut arg1 = [0u16; SYS_T];
         let mut arg2 = [0u16; SYS_T];
@@ -807,9 +807,12 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "cbkem460896", feature = "cbkem460896f"))]
+    #[cfg(all(
+        any(feature = "cbkem460896", feature = "cbkem460896f"),
+        not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+    ))]
     #[test]
-    fn test_gf_mul_inplace() {
+    fn test_gf_mul_inplace_cbkem460896() {
         let mut res = [0u16; SYS_T];
         let mut arg1 = [0u16; SYS_T];
         let mut arg2 = [0u16; SYS_T];
@@ -1123,9 +1126,19 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+    #[cfg(all(
+        any(feature = "cbkem6960119", feature = "cbkem6960119f"),
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+        )),
+    ))]
     #[test]
-    fn test_gf_mul_inplace() {
+    fn test_gf_mul_inplace_cbkem6960119() {
         let mut res = [0u16; SYS_T];
         let mut arg1 = [0u16; SYS_T];
         let mut arg2 = [0u16; SYS_T];
@@ -1463,13 +1476,30 @@ mod tests {
     }
 
     #[cfg(any(
-        feature = "cbkem6688128",
-        feature = "cbkem6688128f",
-        feature = "cbkem8192128",
-        feature = "cbkem8192128f"
+        all(
+            any(feature = "cbkem6688128", feature = "cbkem6688128f"),
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+            )),
+        ),
+        all(
+            any(feature = "cbkem8192128", feature = "cbkem8192128f"),
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119",
+                feature = "cbkem6960119f",
+            )),
+        ),
     ))]
-    #[test]
-    fn test_gf_mul_inplace() {
+    fn assert_gf_mul_inplace_kats_128() {
         let mut res = [0u16; SYS_T];
         let mut arg1 = [0u16; SYS_T];
         let mut arg2 = [0u16; SYS_T];
@@ -1814,5 +1844,37 @@ mod tests {
                 8190, 1, 8190
             ]
         );
+    }
+
+    #[cfg(all(
+        any(feature = "cbkem6688128", feature = "cbkem6688128f"),
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+        )),
+    ))]
+    #[test]
+    fn test_gf_mul_inplace_cbkem6688128() {
+        assert_gf_mul_inplace_kats_128();
+    }
+
+    #[cfg(all(
+        any(feature = "cbkem8192128", feature = "cbkem8192128f"),
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f",
+        )),
+    ))]
+    #[test]
+    fn test_gf_mul_inplace_cbkem8192128() {
+        assert_gf_mul_inplace_kats_128();
     }
 }

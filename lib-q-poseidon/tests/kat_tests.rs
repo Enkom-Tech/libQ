@@ -4,6 +4,8 @@
 //! generated from this implementation; replace with reference-derived values
 //! when available (e.g. Python/Sage with same field and parameters).
 
+use std::collections::BTreeSet;
+
 use lib_q_poseidon::{
     Poseidon,
     Poseidon128,
@@ -104,7 +106,7 @@ fn test_poseidon256_kat_all_zeros_input() {
 
 #[test]
 fn test_poseidon_collision_resistance_50_random_inputs() {
-    let mut outputs = std::collections::HashSet::new();
+    let mut outputs = BTreeSet::new();
     for i in 0..50u32 {
         let a = F::from(m31(i));
         let b = F::from(m31(i + 1));
