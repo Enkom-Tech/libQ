@@ -8,6 +8,10 @@
 extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::string::String;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::string::String;
 
 // Import Classical McEliece implementations
 #[cfg(feature = "cb-kem")]
@@ -181,7 +185,7 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "ML-KEM implementations require 'ml-kem' feature flag",
                     ),
                 })
@@ -192,14 +196,14 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem6688128 |
             Algorithm::CbKem6960119 |
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "CB-KEM implementations require 'cb-kem' feature flag",
                 ),
             }),
             #[cfg(not(feature = "hqc"))]
             Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "HQC implementations require 'hqc' feature flag",
                     ),
                 })
@@ -209,7 +213,7 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta512 |
             Algorithm::DawnAlpha1024 |
             Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "DAWN KEM implementations require 'dawn' feature flag",
                 ),
             }),
@@ -318,7 +322,7 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "ML-KEM implementations require 'ml-kem' feature flag",
                     ),
                 })
@@ -329,14 +333,14 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem6688128 |
             Algorithm::CbKem6960119 |
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "CB-KEM implementations require 'cb-kem' feature flag",
                 ),
             }),
             #[cfg(not(feature = "hqc"))]
             Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "HQC implementations require 'hqc' feature flag",
                     ),
                 })
@@ -346,7 +350,7 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta512 |
             Algorithm::DawnAlpha1024 |
             Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "DAWN KEM implementations require 'dawn' feature flag",
                 ),
             }),
@@ -454,7 +458,7 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "ML-KEM implementations require 'ml-kem' feature flag",
                     ),
                 })
@@ -465,14 +469,14 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem6688128 |
             Algorithm::CbKem6960119 |
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "CB-KEM implementations require 'cb-kem' feature flag",
                 ),
             }),
             #[cfg(not(feature = "hqc"))]
             Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "HQC implementations require 'hqc' feature flag",
                     ),
                 })
@@ -482,7 +486,7 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta512 |
             Algorithm::DawnAlpha1024 |
             Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "DAWN KEM implementations require 'dawn' feature flag",
                 ),
             }),
@@ -585,7 +589,7 @@ impl KemOperations for LibQKemProvider {
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "ML-KEM implementations require 'ml-kem' feature flag",
                     ),
                 })
@@ -596,14 +600,14 @@ impl KemOperations for LibQKemProvider {
             Algorithm::CbKem6688128 |
             Algorithm::CbKem6960119 |
             Algorithm::CbKem8192128 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "CB-KEM implementations require 'cb-kem' feature flag",
                 ),
             }),
             #[cfg(not(feature = "hqc"))]
             Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
                 Err(Error::NotImplemented {
-                    feature: alloc::string::String::from(
+                    feature: String::from(
                         "HQC implementations require 'hqc' feature flag",
                     ),
                 })
@@ -613,7 +617,7 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta512 |
             Algorithm::DawnAlpha1024 |
             Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: alloc::string::String::from(
+                feature: String::from(
                     "DAWN KEM implementations require 'dawn' feature flag",
                 ),
             }),
