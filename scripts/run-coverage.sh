@@ -75,6 +75,8 @@ if [[ -n "$CRATE" ]]; then
   # Add crate-specific features if needed
   if [[ "$CRATE" == "lib-q-core" ]]; then
     CMD="$CMD --features std,rand"
+  elif [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
+    CMD="$CMD --features std,rand"
   elif [[ "$CRATE" == "lib-q" ]]; then
     CMD="$CMD --features all-algorithms"
   fi
@@ -103,6 +105,11 @@ fi
 
 # Add output format
 CMD="$CMD --out $OUTPUT_FORMAT --output-dir $OUTPUT_DIR"
+
+# FN-DSA: quick smoke tests only (full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1)
+if [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
+  CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality"
+fi
 
 # Add line coverage threshold (removed as not supported by current tarpaulin version)
 # We'll check the threshold manually after running

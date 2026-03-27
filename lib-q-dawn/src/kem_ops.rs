@@ -39,6 +39,7 @@ use crate::encoding::{
 use crate::keygen::{
     DawnKeyPair,
     KeyGenParams,
+    PkeDecryptKind,
 };
 use crate::polynomial::field::FieldPolynomial;
 use crate::security::validate_randomness_for_testing;
@@ -52,10 +53,6 @@ pub struct DawnKemOps {
     pub encoder: DoubleEncoder,
     /// Error corrector
     pub error_corrector: ErrorCorrector,
-    /// Use reliability-bounded decoder in decapsulation (for prototype evaluation).
-    pub use_reliability_decoder: bool,
-    /// Use Path B majority-reliability decoder in decapsulation (repetition-code majority + c_prime tie-break).
-    pub use_majority_reliability_decoder: bool,
 }
 
 impl fmt::Display for DawnKemOps {
@@ -69,26 +66,24 @@ impl fmt::Display for DawnKemOps {
 }
 
 impl DawnKemOps {
-    /// Create a new KEM operations instance (baseline decoder).
+    /// Create a new KEM operations instance using `params.pke_decrypt`.
     pub fn new(params: KeyGenParams) -> Self {
-        Self::new_inner(params, false, false)
+        Self::new_from_params(params)
     }
 
-    /// Create a KEM operations instance that uses the reliability-bounded decoder in decapsulation.
-    pub fn new_with_reliability_decoder(params: KeyGenParams) -> Self {
-        Self::new_inner(params, true, false)
+    /// Force the reliability-bounded decoder regardless of `params.pke_decrypt` (sweeps / experiments).
+    pub fn new_with_reliability_decoder(mut params: KeyGenParams) -> Self {
+        params.pke_decrypt = PkeDecryptKind::ReliabilityBounded;
+        Self::new_from_params(params)
     }
 
-    /// Create a KEM operations instance that uses the Path B majority-reliability decoder in decapsulation.
-    pub fn new_with_majority_reliability_decoder(params: KeyGenParams) -> Self {
-        Self::new_inner(params, false, true)
+    /// Force the Path B majority-reliability decoder regardless of `params.pke_decrypt`.
+    pub fn new_with_majority_reliability_decoder(mut params: KeyGenParams) -> Self {
+        params.pke_decrypt = PkeDecryptKind::MajorityReliability;
+        Self::new_from_params(params)
     }
 
-    fn new_inner(
-        params: KeyGenParams,
-        use_reliability_decoder: bool,
-        use_majority_reliability_decoder: bool,
-    ) -> Self {
+    fn new_from_params(params: KeyGenParams) -> Self {
         let encoder = DoubleEncoder::new(
             params.degree,
             params.large_modulus,
@@ -100,8 +95,6 @@ impl DawnKemOps {
             params,
             encoder,
             error_corrector,
-            use_reliability_decoder,
-            use_majority_reliability_decoder,
         }
     }
 
@@ -181,27 +174,25 @@ impl DawnKemOps {
 
         let compressed_c = self.decode_polynomial(ciphertext)?;
 
-        let m_prime = if self.use_majority_reliability_decoder {
-            pke_decrypt_majority_reliability(
+        let m_prime = match self.params.pke_decrypt {
+            PkeDecryptKind::MajorityReliability => pke_decrypt_majority_reliability(
                 &compressed_c,
                 &keypair.secret_key,
                 &keypair.f2,
                 &self.encoder,
-            )?
-        } else if self.use_reliability_decoder {
-            pke_decrypt_reliability(
+            )?,
+            PkeDecryptKind::ReliabilityBounded => pke_decrypt_reliability(
                 &compressed_c,
                 &keypair.secret_key,
                 &keypair.f2,
                 &self.encoder,
-            )?
-        } else {
-            pke_decrypt(
+            )?,
+            PkeDecryptKind::Baseline => pke_decrypt(
                 &compressed_c,
                 &keypair.secret_key,
                 &keypair.f2,
                 &self.encoder,
-            )?
+            )?,
         };
 
         let (k_m, rho) = {
@@ -489,9 +480,8 @@ mod tests {
         assert!(display_str.contains("seed_len=32"));
     }
 
-    /// Full cycle with strict shared-secret equality. Ignored until production params tuned.
+    /// Full cycle with strict shared-secret equality (Production Alpha512).
     #[test]
-    #[ignore = "production Alpha512 params under tuning for zero decryption failure"]
     fn test_deterministic_kem_ops_full_cycle() {
         let params = KeyGenParams::for_profile(
             crate::DawnParameterSet::Alpha512,
@@ -520,9 +510,8 @@ mod tests {
         assert!(cycle_success);
     }
 
-    /// Alpha1024 full cycle. Un-ignore after Path A promotion.
+    /// Alpha1024 full cycle (Production).
     #[test]
-    #[ignore = "Alpha1024 production; un-ignore after sweep/stress promotion"]
     fn test_deterministic_kem_ops_full_cycle_alpha1024() {
         let params = KeyGenParams::for_profile(
             crate::DawnParameterSet::Alpha1024,
@@ -600,9 +589,10 @@ mod tests {
 
     #[test]
     fn test_shared_secret_generation() {
+        let ct_len = KeyGenParams::dawn_alpha_512().ciphertext_byte_size();
         let mut hasher = KangarooTwelve256::new(b"DAWN-KEM-K");
         hasher.update(&[1u8; 32]);
-        hasher.update(&[0u8; 448]);
+        hasher.update(&vec![0u8; ct_len]);
         let mut reader = hasher.finalize_xof();
         let mut shared_secret = [0u8; 32];
         reader.read(&mut shared_secret);
@@ -673,9 +663,8 @@ mod tests {
         assert_eq!(hash1, hash1_again);
     }
 
-    /// Strict shared-secret equality. Ignored until production params tuned for negligible failure.
+    /// Strict shared-secret equality (Production Alpha512).
     #[test]
-    #[ignore = "production Alpha512 params under tuning for zero decryption failure"]
     fn test_encapsulation_with_embedded_randomness() {
         let params = KeyGenParams::for_profile(
             crate::DawnParameterSet::Alpha512,
@@ -723,9 +712,8 @@ mod tests {
         );
     }
 
-    /// Alpha1024 encapsulation with embedded randomness. Un-ignore after Path A promotion.
+    /// Alpha1024 encapsulation with embedded randomness (Production).
     #[test]
-    #[ignore = "Alpha1024 production; un-ignore after sweep/stress promotion"]
     fn test_encapsulation_with_embedded_randomness_alpha1024() {
         let params = KeyGenParams::for_profile(
             crate::DawnParameterSet::Alpha1024,

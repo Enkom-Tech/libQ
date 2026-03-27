@@ -64,8 +64,11 @@ mod thread_safety_tests {
             handle.join().expect("Thread should not panic");
         }
 
-        // Verify that all operations succeeded
-        let total_operations = NUM_THREADS * OPERATIONS_PER_THREAD * 3; // 3 operations per iteration
+        // Per iteration: 1 (non-empty registry) + 2 per registered algorithm
+        // (availability check + metadata lookup).
+        let n = available_algorithms().len();
+        let ops_per_iteration = 1 + 2 * n;
+        let total_operations = NUM_THREADS * OPERATIONS_PER_THREAD * ops_per_iteration;
         assert_eq!(success_count.load(Ordering::Relaxed), total_operations);
     }
 
@@ -248,12 +251,16 @@ mod thread_safety_tests {
         const NUM_THREADS: usize = 5;
         const OPERATIONS_PER_THREAD: usize = 20;
 
-        // Test with specific known algorithms
-        let test_algorithms = vec![
-            Algorithm::Saturnin,
-            Algorithm::Shake256Aead,
-            Algorithm::KemAead,
-        ];
+        // Test with specific known algorithms (feature-gated registrations)
+        let mut test_algorithms = vec![Algorithm::Shake256Aead];
+        #[cfg(feature = "saturnin")]
+        test_algorithms.push(Algorithm::Saturnin);
+        #[cfg(feature = "kem-aead")]
+        test_algorithms.push(Algorithm::KemAead);
+        #[cfg(feature = "duplex-sponge-aead")]
+        test_algorithms.push(Algorithm::DuplexSpongeAead);
+        #[cfg(feature = "tweak-aead")]
+        test_algorithms.push(Algorithm::TweakAead);
 
         let success_count = Arc::new(AtomicUsize::new(0));
         let mut handles = Vec::new();

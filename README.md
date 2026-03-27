@@ -37,7 +37,7 @@ lib-Q is organized as a Rust workspace with individual crates and npm packages:
 - **`lib-q-sig`** - Digital Signatures (ML-DSA, SLH-DSA)
 - **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
 - **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
-- **`lib-q-aead`** - Authenticated Encryption (Saturnin)
+- **`lib-q-aead`** - Authenticated Encryption
 - **`lib-q-utils`** - Utility functions
 - **`lib-q-zkp`** - Zero-Knowledge Proofs
 

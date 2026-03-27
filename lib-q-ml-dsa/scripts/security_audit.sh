@@ -5,6 +5,9 @@ echo "Running ML-DSA Security Audit..."
 
 # Change to the lib-q-ml-dsa directory
 cd "$(dirname "$0")/.."
+MLDSA_DIR="$(pwd)"
+# Workspace Cargo.lock lives at the repository root (parent of this crate)
+WORKSPACE_ROOT="$(cd "$MLDSA_DIR/.." && pwd)"
 
 # 1. Run all tests
 echo "1. Running test suite..."
@@ -21,7 +24,7 @@ fi
 # 3. Run cargo-audit for known vulnerabilities
 echo "3. Checking for known vulnerabilities..."
 if command -v cargo-audit &> /dev/null; then
-    cargo audit
+    (cd "$WORKSPACE_ROOT" && cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145)
 else
     echo "cargo-audit not installed, skipping vulnerability check"
 fi

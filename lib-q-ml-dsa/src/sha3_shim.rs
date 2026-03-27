@@ -812,7 +812,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "simd128")]
+    #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
     #[test]
     fn test_neon_simd_parallel_processing() {
         // Test NEON SIMD parallel processing
@@ -926,7 +926,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "simd128")]
+    #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
     #[test]
     fn test_neon_incremental_simd() {
         // Test NEON incremental SIMD API
@@ -1075,7 +1075,7 @@ mod tests {
                 );
             }
 
-            #[cfg(feature = "simd128")]
+            #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
             {
                 let simd_output = [0u8; 32];
                 // Create separate arrays to avoid borrow checker issues

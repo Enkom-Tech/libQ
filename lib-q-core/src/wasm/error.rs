@@ -29,6 +29,7 @@ pub fn error_to_js_value(error: Error) -> JsValue {
         Error::InvalidKeyFormat => "Invalid key material",
         Error::InvalidSecurityLevel { .. } => "Invalid security level",
         Error::NotImplemented { .. } => "Feature not implemented",
+        Error::ProviderNotConfigured { .. } => "Provider not configured",
         Error::VerificationFailed { .. } => "Security violation detected",
         Error::EncryptionFailed { .. } => "Timing attack detected",
         Error::DecryptionFailed { .. } => "Memory error",
@@ -113,6 +114,8 @@ pub fn parse_algorithm_wasm(algorithm: &str) -> Result<crate::api::Algorithm, Js
         "saturnin" => Ok(crate::api::Algorithm::Saturnin),
         "shake256-aead" => Ok(crate::api::Algorithm::Shake256Aead),
         "kem-aead" => Ok(crate::api::Algorithm::KemAead),
+        "duplex-sponge-aead" | "duplexspongeaead" => Ok(crate::api::Algorithm::DuplexSpongeAead),
+        "tweak-aead" | "tweakaead" => Ok(crate::api::Algorithm::TweakAead),
 
         _ => Err(JsValue::from_str("Unsupported algorithm")),
     }

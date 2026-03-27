@@ -88,8 +88,8 @@ impl SignatureContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.generate_keypair(algorithm, randomness),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("signature"),
             }),
         }
     }
@@ -119,8 +119,8 @@ impl SignatureContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.sign(algorithm, secret_key, message, randomness),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("signature"),
             }),
         }
     }
@@ -150,8 +150,8 @@ impl SignatureContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.signature()) {
             Some(sig_ops) => sig_ops.verify(algorithm, public_key, message, signature),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Signature operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("signature"),
             }),
         }
     }

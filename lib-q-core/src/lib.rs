@@ -2,6 +2,14 @@
 //!
 //! This crate provides the foundational types, traits, and error handling
 //! used across all lib-Q crates.
+//!
+//! ## Context factories
+//!
+//! Core does not provide factories that depend on algorithm implementation crates (no cycles).
+//! For [`AeadContext`](crate::contexts::AeadContext), use [`AeadContext::new`](crate::contexts::AeadContext::new),
+//! [`with_aead_operations`](crate::contexts::AeadContext::with_aead_operations), or
+//! [`with_provider`](crate::contexts::AeadContext::with_provider). The `lib-q-aead` crate supplies
+//! `LibQAeadProvider` for [`with_aead_operations`](crate::contexts::AeadContext::with_aead_operations); the umbrella `lib-q` crate exposes `libq::aead::context()` wired to that provider.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
@@ -82,10 +90,15 @@ pub fn create_signature_context() -> SignatureContext {
     SignatureContext::new()
 }
 
-/// Create a new AEAD context
-#[cfg(feature = "alloc")]
-pub fn create_aead_context() -> AeadContext {
-    AeadContext::new()
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
 }
 
 #[cfg(test)]

@@ -3,12 +3,6 @@
 //! This module contains the reference implementations that work on all platforms.
 //! These are used as fallbacks when SIMD instructions are not available.
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
-
 use super::traits::{
     PolynomialOps,
     SyndromeOps,
@@ -19,8 +13,14 @@ use super::traits::{
 pub struct Portable;
 
 impl PolynomialOps for Portable {
-    fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-        sparse_dense_mul_portable(output, sparse, dense, weight);
+    fn sparse_dense_mul(
+        output: &mut [u8],
+        sparse: &[u8],
+        dense: &[u8],
+        weight: u32,
+        n_bits: usize,
+    ) {
+        sparse_dense_mul_portable(output, sparse, dense, weight, n_bits);
     }
 
     fn shift_xor(dest: &mut [u64], source: &[u64], distance: usize) {
@@ -44,72 +44,85 @@ impl SyndromeOps for Portable {
 
 // Portable implementations (to be moved from hqc_pke.rs)
 
-/// Portable sparse-dense polynomial multiplication
-///
-/// Implements polynomial multiplication in GF(2)[x]/(x^n - 1) using schoolbook method.
-/// This is the portable fallback for when AVX2 is not available.
-///
-/// # Arguments
-/// * `output` - Output buffer for the result (must be same size as dense)
-/// * `sparse` - Sparse polynomial (fixed weight, represented as bit positions)
-/// * `dense` - Dense polynomial (full representation)
-/// * `weight` - Weight of the sparse polynomial
-#[cfg(feature = "alloc")]
-pub fn sparse_dense_mul_portable(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-    // Initialize output to zero
-    output.fill(0);
+#[inline]
+fn get_bit_byte_order(data: &[u8], bit: usize) -> u8 {
+    let byte = bit / 8;
+    if byte >= data.len() {
+        return 0;
+    }
+    (data[byte] >> (bit % 8)) & 1
+}
 
-    // Convert sparse representation to bit positions
-    let mut positions = Vec::with_capacity(weight as usize);
-    for (i, &byte) in sparse.iter().enumerate() {
-        for j in 0..8 {
-            if (byte >> j) & 1 == 1 {
-                positions.push(i * 8 + j);
-            }
+#[inline]
+fn xor_bit_byte_order(data: &mut [u8], bit: usize) {
+    let byte = bit / 8;
+    if byte < data.len() {
+        data[byte] ^= 1u8 << (bit % 8);
+    }
+}
+
+/// XOR `dest` with the cyclic left shift of `source` by `distance` bits modulo `n_bits`.
+///
+/// Bit `i` of `source` (for `i < n_bits`) contributes to bit `(i + distance) % n_bits` of `dest`.
+pub fn shift_xor_cyclic_bytes(dest: &mut [u8], source: &[u8], distance: usize, n_bits: usize) {
+    if n_bits == 0 {
+        return;
+    }
+    for i in 0..n_bits {
+        if get_bit_byte_order(source, i) != 0 {
+            let j = (i + distance) % n_bits;
+            xor_bit_byte_order(dest, j);
         }
     }
+}
 
-    // For each sparse position, perform rotated XOR
-    for &pos in &positions {
-        shift_xor_portable_bytes(output, dense, pos);
-    }
-
-    // Apply final mask to handle bit alignment
-    let output_len = output.len();
-    if let Some(last_byte) = output.last_mut() {
-        *last_byte &= (1u8 << ((output_len * 8) & 7)) - 1;
+/// Portable sparse-dense polynomial multiplication in GF(2)[x]/(x^n - 1).
+///
+/// For each set coefficient at position `p` in `sparse`, XORs `x^p * dense` (cyclic) into `output`.
+#[cfg(feature = "alloc")]
+pub fn sparse_dense_mul_portable(
+    output: &mut [u8],
+    sparse: &[u8],
+    dense: &[u8],
+    _weight: u32,
+    n_bits: usize,
+) {
+    let _ = _weight;
+    output.fill(0);
+    for (bi, &byte) in sparse.iter().enumerate() {
+        for j in 0..8 {
+            let p = bi * 8 + j;
+            if p >= n_bits {
+                continue;
+            }
+            if (byte >> j) & 1 == 1 {
+                shift_xor_cyclic_bytes(output, dense, p, n_bits);
+            }
+        }
     }
 }
 
 /// Portable sparse-dense polynomial multiplication (no_std version)
 #[cfg(not(feature = "alloc"))]
-pub fn sparse_dense_mul_portable(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-    // Initialize output to zero
+pub fn sparse_dense_mul_portable(
+    output: &mut [u8],
+    sparse: &[u8],
+    dense: &[u8],
+    _weight: u32,
+    n_bits: usize,
+) {
+    let _ = _weight;
     output.fill(0);
-
-    // For no_std, use a fixed-size array for positions
-    let mut positions = [0usize; 256]; // Fixed size array
-    let mut positions_len = 0;
-
-    // Convert sparse representation to bit positions
-    for (i, &byte) in sparse.iter().enumerate() {
+    for (bi, &byte) in sparse.iter().enumerate() {
         for j in 0..8 {
-            if (byte >> j) & 1 == 1 && positions_len < positions.len() {
-                positions[positions_len] = (i * 8 + j) as usize;
-                positions_len += 1;
+            let p = bi * 8 + j;
+            if p >= n_bits {
+                continue;
+            }
+            if (byte >> j) & 1 == 1 {
+                shift_xor_cyclic_bytes(output, dense, p, n_bits);
             }
         }
-    }
-
-    // For each sparse position, perform rotated XOR
-    for &pos in positions.iter().take(positions_len) {
-        shift_xor_portable_bytes(output, dense, pos);
-    }
-
-    // Apply final mask to handle bit alignment
-    let output_len = output.len();
-    if let Some(last_byte) = output.last_mut() {
-        *last_byte &= (1u8 << ((output_len * 8) & 7)) - 1;
     }
 }
 

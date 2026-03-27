@@ -41,22 +41,19 @@ jobs:
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
 
-  # Security validation - parallel with core validation
+  # Security validation - parallel with core validation (audit already runs in core-validation)
   security-validation:
     name: Security Validation
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      
-      - name: Run security validation
-        uses: ./.github/actions/rust-build
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          run-security-audit: "true"
-          run-format-check: "false"
-          run-clippy: "false"
-          run-tests: "false"
-      
+          toolchain: stable
+
       - name: Validate classical crypto compliance
         run: |
           echo "🔐 Running classical crypto validation..."
@@ -105,8 +102,8 @@ jobs:
           
           # If no specific crate was modified, check if root files were changed
           if [ -z "$AFFECTED" ]; then
-            if echo "$CHANGED_FILES" | grep -q "^lib\.rs\|^Cargo\.toml\|^Cargo\.lock"; then
-              # Root files changed, test the main lib-q crate
+            if echo "$CHANGED_FILES" | grep -q "^lib-q/\|^Cargo\.toml\|^Cargo\.lock"; then
+              # Workspace root or umbrella crate changed, test the main lib-q package
               AFFECTED="lib-q"
             else
               # Default to lib-q-core if no specific package is identified
@@ -130,39 +127,6 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
-
-  # Performance regression check - runs after core validation
-  performance-check:
-    name: Performance Check
-    needs: core-validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-perf-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-perf-
-      
-      - name: Run benchmarks
-        run: cargo bench --features "all-algorithms" --package lib-q --verbose
-      
-      - name: Check for performance regressions
-        run: |
-          echo "Performance check completed"
-          # This would compare against baseline benchmarks
 
   # WASM compatibility check
   wasm-check:
@@ -221,7 +185,7 @@ jobs:
   # PR summary and reporting - runs after all other jobs
   pr-summary:
     name: PR Summary
-    needs: [core-validation, security-validation, test-coverage, performance-check, wasm-check, docs-validation]
+    needs: [core-validation, security-validation, test-coverage, wasm-check, docs-validation]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -234,7 +198,6 @@ jobs:
           echo "- Core Validation: ${{ needs.core-validation.result }}" >> pr-summary.md
           echo "- Security Validation: ${{ needs.security-validation.result }}" >> pr-summary.md
           echo "- Test Coverage: ${{ needs.test-coverage.result }}" >> pr-summary.md
-          echo "- Performance Check: ${{ needs.performance-check.result }}" >> pr-summary.md
           echo "- WASM Compatibility: ${{ needs.wasm-check.result }}" >> pr-summary.md
           echo "- Documentation: ${{ needs.docs-validation.result }}" >> pr-summary.md
           echo "" >> pr-summary.md

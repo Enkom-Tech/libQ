@@ -39,9 +39,10 @@ fn benchmark_polynomial_multiplication(c: &mut Criterion) {
 
     for &size in &sizes {
         for &weight in &weights {
-            let sparse = vec![0xABu8; size / 2];
-            let dense = vec![0xCDu8; size / 2];
+            let sparse = vec![0xABu8; size];
+            let dense = vec![0xCDu8; size];
             let mut output = vec![0u8; size];
+            let n_bits = size * 8;
 
             // Benchmark portable implementation
             group.bench_with_input(
@@ -54,6 +55,7 @@ fn benchmark_polynomial_multiplication(c: &mut Criterion) {
                             black_box(&sparse),
                             black_box(&dense),
                             black_box(weight),
+                            black_box(n_bits),
                         );
                     });
                 },
@@ -72,6 +74,7 @@ fn benchmark_polynomial_multiplication(c: &mut Criterion) {
                                 black_box(&sparse),
                                 black_box(&dense),
                                 black_box(weight),
+                                black_box(n_bits),
                             );
                         });
                     },
@@ -279,9 +282,9 @@ fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
     name: &str,
 ) {
-    let n_bytes = P::N / 8;
-    let sparse = vec![0xABu8; n_bytes / 2];
-    let dense = vec![0xCDu8; n_bytes / 2];
+    let n_bytes = P::VEC_N_SIZE_BYTES;
+    let sparse = vec![0xABu8; n_bytes];
+    let dense = vec![0xCDu8; n_bytes];
     let mut output = vec![0u8; n_bytes];
 
     // Benchmark portable implementation
@@ -292,6 +295,7 @@ fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
                 black_box(&sparse),
                 black_box(&dense),
                 black_box(P::OMEGA as u32),
+                black_box(P::N),
             );
         });
     });
@@ -306,6 +310,7 @@ fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
                     black_box(&sparse),
                     black_box(&dense),
                     black_box(P::OMEGA as u32),
+                    black_box(P::N),
                 );
             });
         });
@@ -319,9 +324,10 @@ fn benchmark_throughput(c: &mut Criterion) {
 
     // Large buffer throughput test
     let size = 4096;
-    let sparse = vec![0xABu8; size / 2];
-    let dense = vec![0xCDu8; size / 2];
+    let sparse = vec![0xABu8; size];
+    let dense = vec![0xCDu8; size];
     let mut output = vec![0u8; size];
+    let n_bits = size * 8;
 
     group.throughput(Throughput::Bytes(size as u64));
 
@@ -333,6 +339,7 @@ fn benchmark_throughput(c: &mut Criterion) {
                 black_box(&sparse),
                 black_box(&dense),
                 black_box(100),
+                black_box(n_bits),
             );
         });
     });
@@ -347,6 +354,7 @@ fn benchmark_throughput(c: &mut Criterion) {
                     black_box(&sparse),
                     black_box(&dense),
                     black_box(100),
+                    black_box(n_bits),
                 );
             });
         });

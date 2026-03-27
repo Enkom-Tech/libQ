@@ -17,7 +17,7 @@ pub mod signature_provider;
 
 // Re-export main provider
 #[cfg(feature = "alloc")]
-pub use aead_provider::LibQAeadProvider;
+pub use aead_provider::LibQAeadStubProvider;
 #[cfg(feature = "alloc")]
 pub use hash_provider::LibQHashProvider;
 // Re-export individual operation providers

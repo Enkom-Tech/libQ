@@ -48,7 +48,7 @@
 //!     // - For ML-DSA signatures: enable 'ml-dsa' feature
 //!     // - For ML-KEM key exchange: enable 'ml-kem' feature
 //!     // - For FN-DSA signatures: enable 'fn-dsa' feature
-//!     // - For Saturnin AEAD: enable 'saturnin' feature
+//!     // - For AEAD: use `libq::aead::context()` and enable `saturnin` / other AEAD features as needed
 //!     // - For DAWN KEM: enable 'dawn' feature
 //!
 //!     Ok(())
@@ -101,6 +101,9 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+#[cfg(feature = "alloc")]
+pub mod aead;
+
 // Re-export everything from lib-q-core
 // Re-export the core provider as the main provider
 // Re-export specific types and functions for convenience
@@ -134,7 +137,6 @@ pub use lib_q_core::{
 pub use lib_q_core::{
     LibQCryptoProvider,
     Utils,
-    create_aead_context,
     create_hash_context,
     create_kem_context,
     create_signature_context,
@@ -315,10 +317,13 @@ pub mod wasm {
         WasmHashContext::new()
     }
 
-    /// Create a new AEAD context for WASM
+    /// Create an AEAD context for WASM backed by `lib-q-aead` (same wiring as `libq::aead::context`).
     #[wasm_bindgen]
     pub fn create_aead_context() -> WasmAeadContext {
-        WasmAeadContext::new()
+        WasmAeadContext::from_aead_context(lib_q_core::AeadContext::with_aead_operations(Box::new(
+            lib_q_aead::LibQAeadProvider::new()
+                .expect("lib-q-aead LibQAeadProvider / SecurityValidator initialization"),
+        )))
     }
 
     /// Create a new provider manager for WASM
@@ -355,6 +360,8 @@ mod tests {
     };
 
     use super::*;
+    #[cfg(feature = "alloc")]
+    use crate::aead;
 
     #[test]
     fn test_init() {
@@ -495,12 +502,13 @@ mod tests {
             b"plaintext",
             Some(b"associated data"),
         );
-        // AEAD operations should always return NotImplemented since implementations are in separate crates
+        // Default `LibQCryptoProvider` uses `LibQAeadStubProvider`; use `libq::aead::context()` or
+        // `lib_q_aead::LibQAeadProvider` for registry-backed AEAD.
         assert!(aead_result.is_err());
         match aead_result {
             Err(Error::NotImplemented { feature }) => {
                 assert!(
-                    feature.contains("Saturnin implementation is provided by the main lib-q crate")
+                    feature.contains("LibQAeadProvider") || feature.contains("libq::aead::context")
                 );
             }
             Err(e) => {
@@ -513,5 +521,143 @@ mod tests {
                 panic!("Expected error for AEAD operations, but got success");
             }
         }
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn test_create_aead_context_shake256_roundtrip() {
+        use lib_q_core::traits::{
+            AeadKey,
+            Nonce,
+        };
+
+        let mut key_bytes = vec![0u8; 32];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        }
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
+        }
+
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let plaintext = b"hello lib-q aead bridge";
+        let ad = b"associated data";
+
+        let mut ctx = aead::context();
+        let ciphertext = ctx
+            .encrypt(
+                Algorithm::Shake256Aead,
+                &key,
+                &nonce,
+                plaintext.as_slice(),
+                Some(ad.as_slice()),
+            )
+            .expect("SHAKE256-AEAD encrypt");
+
+        let recovered = ctx
+            .decrypt(
+                Algorithm::Shake256Aead,
+                &key,
+                &nonce,
+                &ciphertext,
+                Some(ad.as_slice()),
+            )
+            .expect("SHAKE256-AEAD decrypt");
+
+        assert_eq!(recovered.as_slice(), plaintext.as_slice());
+    }
+
+    #[cfg(all(feature = "alloc", feature = "duplex-sponge-aead"))]
+    #[test]
+    fn test_create_aead_context_duplex_sponge_roundtrip() {
+        use lib_q_core::traits::{
+            AeadKey,
+            Nonce,
+        };
+
+        let mut key_bytes = vec![0u8; 32];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x11).wrapping_add(0x3C);
+        }
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x29).wrapping_add(0x71);
+        }
+
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let plaintext = b"duplex-sponge roundtrip";
+        let ad = b"ad";
+
+        let mut ctx = aead::context();
+        let ciphertext = ctx
+            .encrypt(
+                Algorithm::DuplexSpongeAead,
+                &key,
+                &nonce,
+                plaintext.as_slice(),
+                Some(ad.as_slice()),
+            )
+            .expect("Duplex-Sponge-AEAD encrypt");
+
+        let recovered = ctx
+            .decrypt(
+                Algorithm::DuplexSpongeAead,
+                &key,
+                &nonce,
+                &ciphertext,
+                Some(ad.as_slice()),
+            )
+            .expect("Duplex-Sponge-AEAD decrypt");
+
+        assert_eq!(recovered.as_slice(), plaintext.as_slice());
+    }
+
+    #[cfg(all(feature = "alloc", feature = "tweak-aead"))]
+    #[test]
+    fn test_create_aead_context_tweak_aead_roundtrip() {
+        use lib_q_core::traits::{
+            AeadKey,
+            Nonce,
+        };
+
+        let mut key_bytes = vec![0u8; 32];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x13).wrapping_add(0x2E);
+        }
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x2B).wrapping_add(0x6D);
+        }
+
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let plaintext = b"tweak aead roundtrip";
+        let ad = b"ad2";
+
+        let mut ctx = aead::context();
+        let ciphertext = ctx
+            .encrypt(
+                Algorithm::TweakAead,
+                &key,
+                &nonce,
+                plaintext.as_slice(),
+                Some(ad.as_slice()),
+            )
+            .expect("Tweak-AEAD encrypt");
+
+        let recovered = ctx
+            .decrypt(
+                Algorithm::TweakAead,
+                &key,
+                &nonce,
+                &ciphertext,
+                Some(ad.as_slice()),
+            )
+            .expect("Tweak-AEAD decrypt");
+
+        assert_eq!(recovered.as_slice(), plaintext.as_slice());
     }
 }

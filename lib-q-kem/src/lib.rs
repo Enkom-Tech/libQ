@@ -435,14 +435,14 @@ mod tests {
         // This test just verifies the basic context creation and structure
         let mut ctx = result.unwrap();
 
-        // Without a provider, keypair generation should return NotImplemented
+        // Without a provider, keypair generation should fail with ProviderNotConfigured
         let keypair_result = ctx.generate_keypair(Algorithm::MlKem512, None);
         assert!(
             keypair_result.is_err(),
             "Keypair generation should fail without provider"
         );
         if let Err(err) = keypair_result {
-            assert!(matches!(err, Error::NotImplemented { .. }));
+            assert!(matches!(err, Error::ProviderNotConfigured { .. }));
         }
     }
 

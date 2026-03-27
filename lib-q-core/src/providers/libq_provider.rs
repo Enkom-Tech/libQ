@@ -5,7 +5,7 @@
 
 #[cfg(feature = "std")]
 use super::{
-    LibQAeadProvider,
+    LibQAeadStubProvider,
     LibQHashProvider,
     LibQKemProvider,
     LibQSignatureProvider,
@@ -30,7 +30,7 @@ pub struct LibQCryptoProvider {
     kem_provider: LibQKemProvider,
     signature_provider: LibQSignatureProvider,
     hash_provider: LibQHashProvider,
-    aead_provider: LibQAeadProvider,
+    aead_provider: LibQAeadStubProvider,
 }
 
 // WASM-compatible version
@@ -59,7 +59,7 @@ impl LibQCryptoProvider {
             kem_provider: LibQKemProvider::new()?,
             signature_provider: LibQSignatureProvider::new()?,
             hash_provider: LibQHashProvider::new()?,
-            aead_provider: LibQAeadProvider::new()?,
+            aead_provider: LibQAeadStubProvider::new()?,
         })
     }
 
@@ -78,8 +78,8 @@ impl LibQCryptoProvider {
         &self.hash_provider
     }
 
-    /// Get the AEAD provider
-    pub fn aead_provider(&self) -> &LibQAeadProvider {
+    /// Get the stub AEAD provider (use `lib-q-aead` for real AEAD).
+    pub fn aead_provider(&self) -> &LibQAeadStubProvider {
         &self.aead_provider
     }
 }

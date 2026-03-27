@@ -13,7 +13,7 @@ name = "lib"
 harness = false
 
 [dependencies]
-lib-q = { path = "../", features = ["full"] }
+lib-q = { path = "../lib-q", features = ["full"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

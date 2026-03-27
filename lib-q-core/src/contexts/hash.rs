@@ -79,8 +79,8 @@ impl HashContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.hash()) {
             Some(hash_ops) => hash_ops.hash(algorithm, data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("Hash operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("hash"),
             }),
         }
     }

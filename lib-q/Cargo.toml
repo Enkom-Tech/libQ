@@ -1,0 +1,147 @@
+[package]
+name = "lib-q"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+exclude = [
+    "/target",
+]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lib]
+name = "libq"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core dependencies
+lib-q-core = { path = "../lib-q-core", features = ["rand"] }
+lib-q-kem = { path = "../lib-q-kem" }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa" }
+lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa", "slh-dsa"] }
+lib-q-hash = { path = "../lib-q-hash" }
+lib-q-aead = { path = "../lib-q-aead" }
+lib-q-hqc = { path = "../lib-q-hqc", optional = true }
+lib-q-hpke = { path = "../lib-q-hpke", optional = true }
+lib-q-utils = { path = "../lib-q-utils" }
+lib-q-zkp = { path = "../lib-q-zkp" }
+lib-q-keccak = { path = "../lib-q-keccak" }
+lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", optional = true }
+lib-q-random = { path = "../lib-q-random", optional = true }
+
+# WASM-specific dependencies
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = ["console"] }
+
+[dev-dependencies]
+# Testing
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+# WASM testing
+wasm-bindgen-test = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["alloc"]
+alloc = []
+no_std = []
+# WASM API
+wasm = [
+    "alloc",
+    "wasm-bindgen",
+    "js-sys",
+    "web-sys",
+    "lib-q-hash/wasm_js",
+    "lib-q-core/wasm",
+    "lib-q-core/wasm_getrandom",
+    "lib-q-utils/wasm_js",
+]
+# WebAssembly JavaScript integration
+wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
+# Random number generation
+rand = []
+# Logging support
+log = []
+# Experimental APIs
+experimental = []
+# Testing support
+tests = []
+
+# Algorithm implementations
+# Re-export features from individual crates
+ml-kem = ["lib-q-kem/ml-kem"]
+ml-dsa = ["lib-q-sig/ml-dsa"]
+mldsa44 = ["lib-q-ml-dsa/mldsa44"]
+mldsa65 = ["lib-q-ml-dsa/mldsa65"]
+mldsa87 = ["lib-q-ml-dsa/mldsa87"]
+
+# NIST PQC Standards
+slh-dsa = ["lib-q-sig/slh-dsa"]
+slh-dsa-std = ["lib-q-sig/slh-dsa-std"]
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
+relaxed_entropy_validation = ["lib-q-core/relaxed_entropy_validation"]
+hqc = ["lib-q-kem/hqc"]
+fn-dsa = ["dep:lib-q-fn-dsa", "lib-q-sig/fn-dsa"]
+
+# New Post-Quantum Algorithms
+saturnin = ["lib-q-aead/saturnin"]
+duplex-sponge-aead = ["lib-q-aead/duplex-sponge-aead"]
+tweak-aead = ["lib-q-aead/tweak-aead"]
+dawn = ["lib-q-kem/dawn"]
+
+# Protocol implementations
+hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
+zkp = ["lib-q-zkp/zkp"]
+
+# Random number generation features
+# Note: getrandom requires std in this configuration
+# For no_std environments, applications must provide custom entropy sources
+# For WASM, use wasm-specific getrandom configuration
+getrandom = ["lib-q-core/getrandom"]
+# lib-q-random integration
+random = ["dep:lib-q-random", "lib-q-random/std"]
+random-custom-entropy = ["dep:lib-q-random", "lib-q-random/custom-entropy"]
+
+# Security features
+# Enable memory zeroization for hash functions and their dependencies
+zeroize = ["lib-q-hash/zeroize"]
+
+# SIMD features
+simd128 = ["lib-q-ml-dsa/simd128"]
+simd256 = ["lib-q-ml-dsa/simd256"]
+
+# Security features
+# Comprehensive security hardening with zeroization and all algorithms
+security-hardened = ["zeroize", "all-algorithms"]
+
+# Convenience features
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "duplex-sponge-aead", "tweak-aead", "dawn", "zkp"]
+
+# Development and testing features
+dev = ["experimental", "tests"]
+full = ["std", "wasm", "rand", "log", "all-algorithms"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+    'cfg(feature, values("cb-kem"))',
+] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

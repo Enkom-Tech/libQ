@@ -1,10 +1,19 @@
 name: CI
 
+# Pull requests: core checks, feature test matrix, WASM, algorithm crates, integration, ML-KEM,
+# ML-DSA targeted tests. Push to main/develop, weekly schedule, and workflow_dispatch also run
+# heavier jobs (benchmarks, cross-OS builds, valgrind, HQC SIMD debug, full ML-DSA audit script,
+# ZKP recursive) to keep CI minutes predictable on PRs.
+
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+  # Full pipeline (including jobs gated off PRs) runs weekly for regression signal without slowing every PR.
+  schedule:
+    - cron: "0 5 * * 0"
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,36 +39,13 @@ jobs:
         with:
           run-security-audit: "true"
           run-format-check: "true"
-          run-clippy: "true"
+          # Clippy runs once below (workspace, all features) to avoid compiling twice.
+          run-clippy: "false"
           run-tests: "false"
           features: "all-algorithms"
 
-  # Clippy with every feature combination - catches lints in optional code paths
-  clippy-all-features:
-    name: Clippy (all features)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: rustfmt, clippy, rust-src
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-
-
-      - name: Clippy (all targets, all features)
+      # Single workspace clippy pass (all crates, all optional code paths).
+      - name: Clippy (workspace, all targets, all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   # Parallel test matrix - runs after core validation
@@ -139,6 +125,7 @@ jobs:
   # ZKP recursive aggregation - full prove/aggregate/verify in release (slow test)
   zkp-recursive:
     name: ZKP Recursive Aggregation
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -204,6 +191,7 @@ jobs:
   # Cross-platform builds - parallel execution
   cross-platform:
     name: Cross-Platform Builds
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -386,6 +374,7 @@ jobs:
   # Performance and benchmarks - runs after core validation
   performance:
     name: Performance & Benchmarks
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -499,10 +488,9 @@ jobs:
             working-directory: lib-q-fn-dsa
             features: "std,rand"
             rust-version: "stable"
-            run-benchmarks: "true"
+            run-benchmarks: "false"
             run-security-tests: "true"
             run-constant-time: "true"
-            test-algorithms: "fn-dsa,fn-dsa-512,fn-dsa-1024"
           - name: "RNG"
             action: test-rng
             working-directory: lib-q-random
@@ -603,7 +591,6 @@ jobs:
           run-benchmarks: ${{ matrix.run-benchmarks }}
           run-security-tests: ${{ matrix.run-security-tests }}
           run-constant-time: ${{ matrix.run-constant-time }}
-          test-algorithms: ${{ matrix.test-algorithms }}
       
       - name: Run RNG tests
         uses: ./.github/actions/test-rng
@@ -669,6 +656,7 @@ jobs:
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -726,40 +714,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mldsa-
 
-      - name: Run ML-DSA security audit
+      # PRs: targeted tests only (full audit script is slow and duplicates other jobs).
+      - name: ML-DSA focused validation (pull requests)
+        if: github.event_name == 'pull_request'
+        working-directory: lib-q-ml-dsa
+        run: |
+          cargo test --features "fips-mode,acvp" --test nistkats
+          cargo test --features "simd256,random,acvp" --test determinism
+          cargo test --no-default-features --features "std,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          cargo test --features "random,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          cargo test --features "hardened-mode,mldsa44" \
+            --test interoperability_tests --test wire_format_tests
+          cargo test --test wire_format_tests test_against_saved_interop_vectors
+
+      # Push / schedule / manual: full script (tests, clippy, audit from workspace root, etc.).
+      - name: ML-DSA full security audit
+        if: github.event_name != 'pull_request'
         run: |
           cd lib-q-ml-dsa
           chmod +x scripts/security_audit.sh
           ./scripts/security_audit.sh
-
-      - name: Test NIST compliance
-        run: |
-          cd lib-q-ml-dsa
-          cargo test --features "fips-mode,acvp" --test nistkats
-
-      - name: Test SIMD-portable equivalence
-        run: |
-          cd lib-q-ml-dsa
-          cargo test --features "simd256,random,acvp" --test determinism
-
-      - name: Test interoperability
-        run: |
-          cd lib-q-ml-dsa
-          
-          # Test compliance mode
-          cargo test --no-default-features --features "std,mldsa44" \
-            --test interoperability_tests --test wire_format_tests
-          
-          # Test production mode
-          cargo test --features "random,mldsa44" \
-            --test interoperability_tests --test wire_format_tests
-          
-          # Test hardened mode
-          cargo test --features "hardened-mode,mldsa44" \
-            --test interoperability_tests --test wire_format_tests
-          
-          # Verify against saved vectors
-          cargo test --test wire_format_tests test_against_saved_interop_vectors
 
   # ML-KEM specific testing
   ml-kem-tests:
@@ -796,7 +772,7 @@ jobs:
         run: |
           cd lib-q-core
           cargo test --features "ml-kem,rand" --verbose
-          cargo build --no-default-features --features "getrandom"
+          cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler"
       
       - name: Test ML-KEM with lib-q-kem
         run: |
@@ -806,6 +782,7 @@ jobs:
   # Constant-time verification - critical for crypto
   constant-time:
     name: Constant-Time Verification
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -862,7 +839,7 @@ jobs:
       - name: Run hash integration tests
         run: |
           echo "Running hash algorithm integration tests..."
-          cargo test --test hash_integration_tests --features "all-algorithms" --verbose
+          cargo test -p lib-q --test hash_integration_tests --features "all-algorithms" --verbose
           echo "✅ Hash integration tests completed successfully"
       
       - name: Run unified API tests

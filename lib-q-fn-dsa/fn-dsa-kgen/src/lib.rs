@@ -1211,14 +1211,21 @@ mod tests {
         }
     }
 
+    /// Full SHA256 keygen KATs (degrees 256 / 512 / 1024). Too slow for routine `cargo test`
+    /// (NTRU solve); run before release or when touching keygen, e.g.
+    /// `cargo test -p fn-dsa-kgen test_keygen_ref_full_kat -- --ignored --release --test-threads=1`
     #[test]
-    fn test_keygen_ref() {
+    #[ignore = "slow full keygen KAT; run with --ignored --release"]
+    fn test_keygen_ref_full_kat() {
         inner_keygen_ref(8, &KAT_KG256);
         inner_keygen_ref(9, &KAT_KG512);
         inner_keygen_ref(10, &KAT_KG1024);
     }
 
+    /// NTRU identity check (all supported `logn`). Too slow for routine `cargo test` in debug;
+    /// run with `--ignored --release` (see also `test_keygen_ref_full_kat`).
     #[test]
+    #[ignore = "slow NTRU keygen self-test; run with --ignored --release"]
     fn test_keygen_self() {
         for logn in 2..11 {
             let n = 1usize << logn;

@@ -18,12 +18,12 @@ fn test_simd_infrastructure() {
     println!("Best available implementation: {}", implementation);
 
     // Test that we can call the functions without panicking
-    let mut output = [0u8; 32];
+    let mut output = [0u8; 16];
     let sparse = [0u8; 16];
     let dense = [0u8; 16];
 
     // This should not panic
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 10);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 10, 16 * 8);
 
     // Test syndrome operations
     let mut syndrome = [0u8; 16];
@@ -43,11 +43,11 @@ fn test_avx2_availability() {
     println!("AVX2 available: {}", has_avx2);
 
     // Test that AVX2 functions can be called
-    let mut output = [0u8; 32];
+    let mut output = [0u8; 16];
     let sparse = [0u8; 16];
     let dense = [0u8; 16];
 
-    Avx2::sparse_dense_mul(&mut output, &sparse, &dense, 10);
+    Avx2::sparse_dense_mul(&mut output, &sparse, &dense, 10, 16 * 8);
 
     println!("✓ AVX2 availability test passed");
 }
@@ -55,12 +55,12 @@ fn test_avx2_availability() {
 /// Test that portable implementation always works
 #[test]
 fn test_portable_implementation() {
-    let mut output = [0u8; 32];
+    let mut output = [0u8; 16];
     let sparse = [0u8; 16];
     let dense = [0u8; 16];
 
     // Test polynomial operations
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 10);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 10, 16 * 8);
 
     // Test vector operations
     let mut dest = [0u64; 4];

@@ -11,18 +11,45 @@ use alloc::{
 };
 
 use super::BaseContext;
-#[cfg(test)]
-use crate::api::AeadOperations;
 use crate::api::{
+    AeadOperations,
     Algorithm,
     AlgorithmCategory,
     CryptoProvider,
+    HashOperations,
+    KemOperations,
+    SignatureOperations,
 };
 use crate::error::Result;
 use crate::traits::{
     AeadKey,
     Nonce,
 };
+
+/// Wraps a concrete [`AeadOperations`] value as a [`CryptoProvider`] that only exposes AEAD.
+#[cfg(feature = "alloc")]
+pub struct AeadOperationsBridge {
+    aead: Box<dyn AeadOperations + Send + Sync>,
+}
+
+#[cfg(feature = "alloc")]
+impl CryptoProvider for AeadOperationsBridge {
+    fn kem(&self) -> Option<&dyn KemOperations> {
+        None
+    }
+
+    fn signature(&self) -> Option<&dyn SignatureOperations> {
+        None
+    }
+
+    fn hash(&self) -> Option<&dyn HashOperations> {
+        None
+    }
+
+    fn aead(&self) -> Option<&dyn AeadOperations> {
+        Some(self.aead.as_ref())
+    }
+}
 
 /// AEAD context for authenticated encryption operations
 #[cfg(feature = "alloc")]
@@ -32,7 +59,11 @@ pub struct AeadContext {
 
 #[cfg(feature = "alloc")]
 impl AeadContext {
-    /// Create a new AEAD context with no provider
+    /// Create an AEAD context with no provider configured.
+    ///
+    /// Operations return [`Error::ProviderNotConfigured`](crate::error::Error::ProviderNotConfigured)
+    /// until you call [`set_provider`](Self::set_provider) or build via [`with_aead_operations`](Self::with_aead_operations).
+    /// The `lib-q` crate provides `libq::aead::context()` wired to `lib-q-aead`.
     pub fn new() -> Self {
         Self {
             inner: BaseContext::new(),
@@ -43,6 +74,16 @@ impl AeadContext {
     pub fn with_provider(provider: Box<dyn CryptoProvider>) -> Self {
         Self {
             inner: BaseContext::with_provider(provider),
+        }
+    }
+
+    /// Create a new AEAD context backed by the given AEAD implementation only.
+    ///
+    /// The `lib-q` facade typically injects `lib_q_aead::LibQAeadProvider` this way so `lib-q-core`
+    /// does not depend on `lib-q-aead`.
+    pub fn with_aead_operations(aead: Box<dyn AeadOperations + Send + Sync>) -> Self {
+        Self {
+            inner: BaseContext::with_provider(Box::new(AeadOperationsBridge { aead })),
         }
     }
 
@@ -90,8 +131,8 @@ impl AeadContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.aead()) {
             Some(aead_ops) => aead_ops.encrypt(algorithm, key, nonce, plaintext, associated_data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("AEAD operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("AEAD"),
             }),
         }
     }
@@ -122,8 +163,8 @@ impl AeadContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.aead()) {
             Some(aead_ops) => aead_ops.decrypt(algorithm, key, nonce, ciphertext, associated_data),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("AEAD operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("AEAD"),
             }),
         }
     }
@@ -144,19 +185,25 @@ impl Default for AeadContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::CryptoProvider;
+    use crate::api::{
+        AeadOperations,
+        CryptoProvider,
+        HashOperations,
+        KemOperations,
+        SignatureOperations,
+    };
 
     // Mock provider for testing
     struct MockAeadProvider;
 
     impl CryptoProvider for MockAeadProvider {
-        fn kem(&self) -> Option<&dyn crate::api::KemOperations> {
+        fn kem(&self) -> Option<&dyn KemOperations> {
             None
         }
-        fn signature(&self) -> Option<&dyn crate::api::SignatureOperations> {
+        fn signature(&self) -> Option<&dyn SignatureOperations> {
             None
         }
-        fn hash(&self) -> Option<&dyn crate::api::HashOperations> {
+        fn hash(&self) -> Option<&dyn HashOperations> {
             None
         }
         fn aead(&self) -> Option<&dyn AeadOperations> {
@@ -190,6 +237,14 @@ mod tests {
                 feature: "Mock AEAD operations not implemented".to_string(),
             })
         }
+    }
+
+    #[test]
+    fn test_aead_context_with_aead_operations_bridge() {
+        let context = AeadContext::with_aead_operations(Box::new(MockAeadProvider));
+        assert!(!context.is_initialized());
+        assert!(context.provider().is_some());
+        assert!(context.provider().unwrap().aead().is_some());
     }
 
     #[test]

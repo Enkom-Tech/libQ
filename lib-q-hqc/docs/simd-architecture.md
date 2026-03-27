@@ -30,7 +30,13 @@ All SIMD operations are defined through traits:
 
 ```rust
 pub trait PolynomialOps {
-    fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32);
+    fn sparse_dense_mul(
+        output: &mut [u8],
+        sparse: &[u8],
+        dense: &[u8],
+        weight: u32,
+        n_bits: usize,
+    );
     fn shift_xor(dest: &mut [u64], source: &[u64], distance: usize);
     fn vect_add(output: &mut [u8], a: &[u8], b: &[u8]);
 }
@@ -256,18 +262,22 @@ The HQC implementation automatically selects the best available implementation:
 
 ```rust
 fn vect_mul(&self, output: &mut [u64], a: &[u64], b: &[u64]) -> Result<(), HqcPkeError> {
-    #[cfg(feature = "simd-avx2")]
+    #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
     {
         if crate::simd::runtime::has_avx2() {
             use crate::simd::{Avx2, PolynomialOps};
-            // Use AVX2 implementation
-            Avx2::sparse_dense_mul(&mut output_bytes, a_bytes, b_bytes, P::OMEGA as u32);
+            Avx2::sparse_dense_mul(
+                &mut output_bytes,
+                &a_bytes,
+                &b_bytes,
+                P::OMEGA as u32,
+                P::N,
+            );
             return Ok(());
         }
     }
-    
-    // Fallback to portable implementation
-    // ... portable code ...
+    // Fallback: schoolbook GF(2)[x]/(x^n-1) multiply
+    schoolbook_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
 }
 ```
 
@@ -286,13 +296,14 @@ Comprehensive test suite ensures AVX2 and portable implementations produce ident
 ```rust
 #[test]
 fn test_avx2_polynomial_mul_correctness() {
-    let mut output_avx2 = [0u8; 256];
-    let mut output_portable = [0u8; 256];
+    let mut output_avx2 = [0u8; 128];
+    let mut output_portable = [0u8; 128];
     let sparse = [0xABu8; 128];
     let dense = [0xCDu8; 128];
+    let n_bits = dense.len() * 8;
 
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 10);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 10);
+    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 10, n_bits);
+    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 10, n_bits);
 
     assert_eq!(output_avx2, output_portable);
 }
@@ -315,13 +326,13 @@ fn bench_sparse_dense_mul_avx2(c: &mut Criterion) {
     
     group.bench_function("avx2", |b| {
         b.iter(|| {
-            Avx2::sparse_dense_mul(&mut output, &sparse, &dense, weight);
+            Avx2::sparse_dense_mul(&mut output, &sparse, &dense, weight, n_bits);
         });
     });
     
     group.bench_function("portable", |b| {
         b.iter(|| {
-            Portable::sparse_dense_mul(&mut output, &sparse, &dense, weight);
+            Portable::sparse_dense_mul(&mut output, &sparse, &dense, weight, n_bits);
         });
     });
 }

@@ -103,11 +103,10 @@ impl DawnParameterSet {
         }
     }
 
-    /// Get the compression divisor d_c
+    /// Get the compression divisor d_c (matches `KeyGenParams::for_profile` Production where applicable).
     pub fn compression_divisor(&self) -> u32 {
         match self {
-            DawnParameterSet::Alpha512 => 7,
-            DawnParameterSet::Alpha1024 => 4,
+            DawnParameterSet::Alpha512 | DawnParameterSet::Alpha1024 => 1,
             DawnParameterSet::Beta512 => 2,
             DawnParameterSet::Beta1024 => 1,
         }
@@ -133,8 +132,10 @@ impl DawnParameterSet {
     /// Get the ciphertext size in bytes (encoded compressed PKE ciphertext only)
     pub fn ciphertext_size(&self) -> usize {
         match self {
-            DawnParameterSet::Alpha512 => 448,
-            DawnParameterSet::Alpha1024 => 1024,
+            // Production Alpha512 uses d_c=1 (10 bits/coeff × 512 / 8).
+            DawnParameterSet::Alpha512 => 640,
+            // Production Alpha1024 uses d_c=1 (10 bits/coeff × 1024 / 8).
+            DawnParameterSet::Alpha1024 => 1280,
             DawnParameterSet::Beta512 => 512,
             DawnParameterSet::Beta1024 => 1152,
         }
@@ -522,10 +523,10 @@ mod tests {
         assert_eq!(alpha512.security_level(), 1);
         assert_eq!(alpha512.polynomial_degree(), 512);
         assert_eq!(alpha512.large_modulus(), 769);
-        assert_eq!(alpha512.compression_divisor(), 7);
+        assert_eq!(alpha512.compression_divisor(), 1);
         assert_eq!(alpha512.public_key_size(), 640);
         assert_eq!(alpha512.secret_key_size(), 640 + 32 + 32 + 32 + 640);
-        assert_eq!(alpha512.ciphertext_size(), 448);
+        assert_eq!(alpha512.ciphertext_size(), 640);
         assert_eq!(alpha512.shared_secret_size(), 32);
 
         // Test DAWN-α-1024
@@ -533,10 +534,10 @@ mod tests {
         assert_eq!(alpha1024.security_level(), 5);
         assert_eq!(alpha1024.polynomial_degree(), 1024);
         assert_eq!(alpha1024.large_modulus(), 769);
-        assert_eq!(alpha1024.compression_divisor(), 4);
+        assert_eq!(alpha1024.compression_divisor(), 1);
         assert_eq!(alpha1024.public_key_size(), 1280);
         assert_eq!(alpha1024.secret_key_size(), 1280 + 64 + 32 + 32 + 1280);
-        assert_eq!(alpha1024.ciphertext_size(), 1024);
+        assert_eq!(alpha1024.ciphertext_size(), 1280);
         assert_eq!(alpha1024.shared_secret_size(), 32);
 
         // Test DAWN-β-512
@@ -742,9 +743,8 @@ mod tests {
         assert!(debug_str.contains("Alpha512"));
     }
 
-    /// Full cycle with strict shared-secret equality. Ignored until production params are tuned for negligible failure.
+    /// Full cycle with strict shared-secret equality (Production Alpha512).
     #[test]
-    #[ignore = "production Alpha512 params under tuning for zero decryption failure"]
     fn test_secure_kem_full_cycle() {
         let dawn = DawnKem::new(DawnParameterSet::Alpha512);
 
@@ -784,9 +784,8 @@ mod tests {
         );
     }
 
-    /// Alpha1024 full cycle. Un-ignore after Path A promotion.
+    /// Alpha1024 full cycle (Production).
     #[test]
-    #[ignore = "Alpha1024 production; un-ignore after sweep/stress promotion"]
     fn test_secure_kem_full_cycle_alpha1024() {
         let dawn = DawnKem::new(DawnParameterSet::Alpha1024);
 

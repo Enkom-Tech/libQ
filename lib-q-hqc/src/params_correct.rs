@@ -62,6 +62,11 @@ pub trait HqcParams: Clone + fmt::Debug + PartialEq {
     const VEC_N1_SIZE_64: usize;
     const VEC_N1N2_SIZE_64: usize;
 
+    /// Padded polynomial bit-length for the reference AVX2 multiply (`PARAM_N_MULT` in submission `parameters.h`).
+    const PARAM_N_MULT: usize;
+    /// `(CEIL_DIVIDE(PARAM_N_MULT, 256) << 2)` — u64 slots reserved for a 256-bit–aligned operand view (`VEC_N_256_SIZE_64` in the reference).
+    const VEC_N_256_SIZE_64: usize;
+
     /// Barrett reduction multiplier: floor(2^32 / N)
     const N_MU: u64;
     /// Rejection threshold for uniform sampling in [0, N)
@@ -111,6 +116,9 @@ impl HqcParams for Hqc1Params {
     const VEC_N_SIZE_64: usize = 277; // CEIL_DIVIDE(17669, 64)
     const VEC_N1_SIZE_64: usize = 6; // CEIL_DIVIDE(46, 8)
     const VEC_N1N2_SIZE_64: usize = 276; // CEIL_DIVIDE(17664, 64)
+
+    const PARAM_N_MULT: usize = 18_048;
+    const VEC_N_256_SIZE_64: usize = Self::PARAM_N_MULT.div_ceil(256) << 2; // 284
 
     const N_MU: u64 = 243079; // Official HQC-1 parameter: floor(2^32 / 17669)
     const UTILS_REJECTION_THRESHOLD: u32 = 16767881; // Official HQC-1 parameter
@@ -322,6 +330,9 @@ impl HqcParams for Hqc3Params {
     const VEC_N1_SIZE_64: usize = 1; // CEIL_DIVIDE(7, 8) rounded up
     const VEC_N1N2_SIZE_64: usize = 560; // CEIL_DIVIDE(35840, 64)
 
+    const PARAM_N_MULT: usize = 36_480;
+    const VEC_N_256_SIZE_64: usize = Self::PARAM_N_MULT.div_ceil(256) << 2; // 572
+
     const N_MU: u64 = 119800;
     const UTILS_REJECTION_THRESHOLD: u32 = 16742417;
 
@@ -531,6 +542,9 @@ impl HqcParams for Hqc5Params {
     const VEC_N_SIZE_64: usize = 901; // CEIL_DIVIDE(57637, 64)
     const VEC_N1_SIZE_64: usize = 2; // CEIL_DIVIDE(12, 8) rounded up
     const VEC_N1N2_SIZE_64: usize = 900; // CEIL_DIVIDE(57600, 64)
+
+    const PARAM_N_MULT: usize = 59_904;
+    const VEC_N_256_SIZE_64: usize = Self::PARAM_N_MULT.div_ceil(256) << 2; // 936
 
     const N_MU: u64 = 74517;
     const UTILS_REJECTION_THRESHOLD: u32 = 16772367;
@@ -776,6 +790,22 @@ mod tests {
         assert_eq!(
             Hqc1Params::VEC_N1N2_SIZE_64,
             ceil_divide(Hqc1Params::N1N2, 64)
+        );
+
+        assert_eq!(Hqc1Params::PARAM_N_MULT, 18_048);
+        assert_eq!(Hqc3Params::PARAM_N_MULT, 36_480);
+        assert_eq!(Hqc5Params::PARAM_N_MULT, 59_904);
+        assert_eq!(
+            Hqc1Params::VEC_N_256_SIZE_64,
+            (ceil_divide(Hqc1Params::PARAM_N_MULT, 256)) << 2
+        );
+        assert_eq!(
+            Hqc3Params::VEC_N_256_SIZE_64,
+            (ceil_divide(Hqc3Params::PARAM_N_MULT, 256)) << 2
+        );
+        assert_eq!(
+            Hqc5Params::VEC_N_256_SIZE_64,
+            (ceil_divide(Hqc5Params::PARAM_N_MULT, 256)) << 2
         );
     }
 

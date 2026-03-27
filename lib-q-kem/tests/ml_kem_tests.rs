@@ -19,6 +19,7 @@ use lib_q_kem::{
 };
 
 /// Test configuration for ML-KEM variants
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 #[derive(Debug, Clone, Copy)]
 struct MlKemTestConfig {
     algorithm: Algorithm,
@@ -29,6 +30,7 @@ struct MlKemTestConfig {
     shared_secret_size: usize,
 }
 
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 impl MlKemTestConfig {
     const fn new(
         algorithm: Algorithm,

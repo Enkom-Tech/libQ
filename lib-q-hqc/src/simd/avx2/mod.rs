@@ -18,6 +18,10 @@ pub mod polynomial;
 pub mod syndrome;
 pub mod vector;
 
+/// Dense polynomial multiply mod \(x^N-1\) (PCLMUL + Karatsuba); requires `alloc`.
+#[cfg(all(target_arch = "x86_64", feature = "simd-avx2", feature = "alloc"))]
+pub mod gf2x;
+
 use super::traits::{
     PolynomialOps,
     SyndromeOps,
@@ -28,8 +32,14 @@ use super::traits::{
 pub struct Avx2;
 
 impl PolynomialOps for Avx2 {
-    fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-        polynomial::sparse_dense_mul_avx2(output, sparse, dense, weight);
+    fn sparse_dense_mul(
+        output: &mut [u8],
+        sparse: &[u8],
+        dense: &[u8],
+        weight: u32,
+        n_bits: usize,
+    ) {
+        polynomial::sparse_dense_mul_avx2(output, sparse, dense, weight, n_bits);
     }
 
     fn shift_xor(dest: &mut [u64], source: &[u64], distance: usize) {

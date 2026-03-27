@@ -1422,6 +1422,29 @@ pub fn pke_failure_rate_histogram_majority_reliability(
     (bucket_0, bucket_1, bucket_2_4, bucket_gt4)
 }
 
+/// PKE bit-error histogram using the decoder selected by `params.pke_decrypt`.
+#[cfg(feature = "random")]
+pub fn pke_failure_rate_histogram_for_params(
+    keypair: &crate::keygen::DawnKeyPair,
+    params: &crate::keygen::KeyGenParams,
+    num_samples: usize,
+    rng_seed: &[u8; 64],
+) -> (usize, usize, usize, usize) {
+    use crate::keygen::PkeDecryptKind;
+
+    match params.pke_decrypt {
+        PkeDecryptKind::Baseline => {
+            pke_failure_rate_histogram(keypair, params, num_samples, rng_seed)
+        }
+        PkeDecryptKind::ReliabilityBounded => {
+            pke_failure_rate_histogram_reliability(keypair, params, num_samples, rng_seed)
+        }
+        PkeDecryptKind::MajorityReliability => {
+            pke_failure_rate_histogram_majority_reliability(keypair, params, num_samples, rng_seed)
+        }
+    }
+}
+
 /// Side-by-side PKE histograms: same samples, baseline vs reliability decoder.
 /// Returns (baseline_buckets, reliability_buckets) for 0/1/2-4/>4.
 /// Histogram bucket counts: (baseline 0,1,2-4,>4), (reliability 0,1,2-4,>4).
@@ -2492,6 +2515,46 @@ mod tests {
         assert_eq!(product[0], 1, "f * f2 should equal 1 (mod x^(n/2)+1, Z_2)");
         for (i, &c) in product.iter().enumerate().skip(1) {
             assert_eq!(c, 0, "coefficient at index {} should be 0", i);
+        }
+    }
+
+    /// Regression: Production `KeyGenParams` PKE histogram must not land in the >4 bit-error tail.
+    #[cfg(feature = "random")]
+    #[test]
+    fn production_profile_pke_histogram_no_gt4_bucket_tripwire() {
+        use crate::keygen::{
+            DeterministicKeyGenerator,
+            KeyGenParams,
+        };
+
+        for (set, tag) in [
+            (
+                crate::DawnParameterSet::Alpha512,
+                b"prod_hist_a512".as_slice(),
+            ),
+            (
+                crate::DawnParameterSet::Alpha1024,
+                b"prod_hist_a1024".as_slice(),
+            ),
+        ] {
+            let params = KeyGenParams::for_profile(set, crate::DawnProfile::Production);
+            let seed = crate::security::generate_deterministic_high_entropy_data(tag, 64);
+            let kp = DeterministicKeyGenerator::new(params.clone(), seed)
+                .generate_keypair()
+                .expect("keypair");
+            let mut rng_seed = [0u8; 64];
+            rng_seed.copy_from_slice(&crate::security::generate_deterministic_high_entropy_data(
+                &[tag, b"rng"].concat(),
+                64,
+            ));
+            let n_samples = if params.degree == 512 { 50 } else { 30 };
+            let (_b0, _b1, _b2_4, b_gt4) =
+                pke_failure_rate_histogram_for_params(&kp, &params, n_samples, &rng_seed);
+            assert_eq!(
+                b_gt4, 0,
+                "Production {:?}: expected b_gt4==0 over {} PKE samples",
+                set, n_samples
+            );
         }
     }
 }

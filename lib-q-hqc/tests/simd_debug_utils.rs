@@ -13,8 +13,9 @@ pub mod debug {
         let mut avx2_out = vec![0u8; dense.len()];
         let mut portable_out = vec![0u8; dense.len()];
 
-        Avx2::sparse_dense_mul(&mut avx2_out, sparse, dense, weight);
-        Portable::sparse_dense_mul(&mut portable_out, sparse, dense, weight);
+        let n_bits = dense.len() * 8;
+        Avx2::sparse_dense_mul(&mut avx2_out, sparse, dense, weight, n_bits);
+        Portable::sparse_dense_mul(&mut portable_out, sparse, dense, weight, n_bits);
 
         for (i, (&a, &p)) in avx2_out.iter().zip(portable_out.iter()).enumerate() {
             if a != p {

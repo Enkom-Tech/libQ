@@ -5,9 +5,6 @@
 
 #![allow(unsafe_code)]
 
-#[cfg(all(feature = "alloc", target_arch = "x86_64", feature = "simd-avx2"))]
-use alloc::vec::Vec;
-
 #[allow(unused_macros)]
 #[cfg(all(test, feature = "simd-avx2"))]
 macro_rules! debug_log {
@@ -27,7 +24,6 @@ macro_rules! debug_log {
 use core::arch::x86_64::{
     __m256i,
     _mm256_loadu_si256,
-    _mm256_setzero_si256,
     _mm256_storeu_si256,
     _mm256_xor_si256,
 };
@@ -54,48 +50,19 @@ use core::arch::x86_64::{
 /// * `sparse` - Sparse polynomial (fixed weight, represented as bit positions)
 /// * `dense` - Dense polynomial (full representation)
 /// * `weight` - Weight of the sparse polynomial
+/// Sparse–dense product in GF(2)[x]/(x^n - 1) with correct cyclic reduction modulo `n_bits`.
+///
+/// Uses the same bit-accurate reference as [`super::super::portable::sparse_dense_mul_portable`].
+/// AVX2-accelerated cyclic shifts can be layered in later without changing this API.
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-    unsafe {
-        // Full AVX2 implementation using intrinsics
-        // Port from upstream HQC AVX2 reference gf2x_avx2.c (Fast_Implementation)
-
-        // Convert to proper sparse representation
-        let mut positions = Vec::with_capacity(weight as usize);
-        for (i, &byte) in sparse.iter().enumerate() {
-            for j in 0..8 {
-                if (byte >> j) & 1 == 1 {
-                    positions.push(i * 8 + j);
-                }
-            }
-        }
-
-        // Initialize result with AVX2 zeros
-        let chunks = output.len() / 32;
-        let zero = _mm256_setzero_si256();
-        for i in 0..chunks {
-            _mm256_storeu_si256(output.as_mut_ptr().add(i * 32) as *mut __m256i, zero);
-        }
-
-        // Handle remaining bytes
-        let remaining = output.len() % 32;
-        if remaining > 0 {
-            for i in 0..remaining {
-                output[chunks * 32 + i] = 0;
-            }
-        }
-
-        // For each sparse position, perform rotated XOR with AVX2
-        for &pos in &positions {
-            shift_xor_avx2_bytes(output, dense, pos);
-        }
-
-        // Apply final mask
-        let output_len = output.len();
-        if let Some(last_byte) = output.last_mut() {
-            *last_byte &= (1u8 << ((output_len * 8) & 7)) - 1;
-        }
-    }
+pub fn sparse_dense_mul_avx2(
+    output: &mut [u8],
+    sparse: &[u8],
+    dense: &[u8],
+    weight: u32,
+    n_bits: usize,
+) {
+    super::super::portable::sparse_dense_mul_portable(output, sparse, dense, weight, n_bits);
 }
 
 /// AVX2-optimized byte-level shift and XOR operation
@@ -310,8 +277,14 @@ pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
 
 // Fallback implementations for when AVX2 is not available
 #[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]
-pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-    super::super::portable::sparse_dense_mul_portable(output, sparse, dense, weight);
+pub fn sparse_dense_mul_avx2(
+    output: &mut [u8],
+    sparse: &[u8],
+    dense: &[u8],
+    weight: u32,
+    n_bits: usize,
+) {
+    super::super::portable::sparse_dense_mul_portable(output, sparse, dense, weight, n_bits);
 }
 
 #[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]

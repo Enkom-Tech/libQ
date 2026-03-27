@@ -12,11 +12,12 @@ pub trait PolynomialOps {
     /// The sparse polynomial has a fixed weight (number of non-zero coefficients).
     ///
     /// # Arguments
-    /// * `output` - Output buffer for the result
-    /// * `sparse` - Sparse polynomial (fixed weight)
-    /// * `dense` - Dense polynomial (full representation)
-    /// * `weight` - Weight of the sparse polynomial
-    fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32);
+    /// * `output` - Output buffer for the result (same length as `dense`)
+    /// * `sparse` - First operand (bit-packed, same byte length as `dense` typical)
+    /// * `dense` - Second operand (full representation)
+    /// * `weight` - Hint for preallocating position lists (actual bits used are all set bits in `sparse`)
+    /// * `n_bits` - Ring dimension `N` for GF(2)[x]/(x^n - 1); operations wrap modulo `n_bits`
+    fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32, n_bits: usize);
 
     /// Vector XOR operation with shift
     ///

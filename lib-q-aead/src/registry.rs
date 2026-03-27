@@ -129,6 +129,32 @@ impl AeadRegistry {
             description: "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
         });
 
+        metadata.insert(
+            Algorithm::DuplexSpongeAead,
+            &AeadMetadata {
+                algorithm: Algorithm::DuplexSpongeAead,
+                key_size: 32,
+                nonce_size: 16,
+                tag_size: 32,
+                security_level: 4,
+                name: "Duplex-Sponge-AEAD",
+                description: "Keccak-f[1600] duplex-sponge authenticated encryption",
+            },
+        );
+
+        metadata.insert(
+            Algorithm::TweakAead,
+            &AeadMetadata {
+                algorithm: Algorithm::TweakAead,
+                key_size: 32,
+                nonce_size: 16,
+                tag_size: 32,
+                security_level: 4,
+                name: "Tweak-AEAD",
+                description: "Parallel tweakable-block CTR AEAD over Keccak-f[1600]",
+            },
+        );
+
         metadata
     }
 

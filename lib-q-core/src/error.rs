@@ -205,6 +205,12 @@ pub enum Error {
     #[cfg(not(feature = "alloc"))]
     UnsupportedOperation { operation: &'static str },
 
+    /// No `CryptoProvider` configured on the context (distinct from stub `NotImplemented`)
+    #[cfg(feature = "alloc")]
+    ProviderNotConfigured { operation: String },
+    #[cfg(not(feature = "alloc"))]
+    ProviderNotConfigured { operation: &'static str },
+
     /// Invalid state
     #[cfg(feature = "alloc")]
     InvalidState { operation: String, reason: String },
@@ -350,6 +356,12 @@ impl fmt::Display for Error {
             Error::NotImplemented { feature } => {
                 write!(f, "Feature not implemented: {feature}")
             }
+            Error::ProviderNotConfigured { operation } => {
+                write!(
+                    f,
+                    "Cryptographic provider not configured for {operation}; set a provider on the context"
+                )
+            }
             Error::UnsupportedOperation { operation } => {
                 write!(f, "Unsupported operation: {operation}")
             }
@@ -485,6 +497,7 @@ impl Error {
             Error::MemoryAllocationFailed { .. } => "MemoryAllocationFailed".to_string(),
             Error::InternalError { .. } => "InternalError".to_string(),
             Error::NotImplemented { .. } => "NotImplemented".to_string(),
+            Error::ProviderNotConfigured { .. } => "ProviderNotConfigured".to_string(),
             Error::UnsupportedOperation { .. } => "UnsupportedOperation".to_string(),
             Error::InvalidState { .. } => "InvalidState".to_string(),
             Error::InvalidAssociatedDataSize { .. } => "InvalidAssociatedDataSize".to_string(),

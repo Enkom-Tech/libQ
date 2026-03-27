@@ -1,0 +1,45 @@
+[package]
+name = "lib-q-tweak-aead"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Parallel tweakable-block (CTR) AEAD over Keccak-f[1600] for lib-Q"
+keywords = ["cryptography", "post-quantum", "aead", "keccak", "simd"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc"] }
+lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
+subtle = { workspace = true, default-features = false }
+zeroize = { workspace = true, default-features = false, features = ["derive"] }
+cpufeatures = { workspace = true, optional = true }
+
+[features]
+default = ["alloc", "std"]
+alloc = ["lib-q-core/alloc"]
+std = ["lib-q-core/std"]
+simd-avx2 = ["dep:cpufeatures"]
+
+[lib]
+name = "lib_q_tweak_aead"
+path = "src/lib.rs"
+
+[dev-dependencies]
+hex = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
+lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc", "std"] }
+
+[[bench]]
+name = "tweak_aead"
+harness = false
+required-features = ["std"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(doc_cfg)',
+] }

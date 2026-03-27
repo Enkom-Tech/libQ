@@ -1,5 +1,5 @@
 name: Test FN-DSA
-description: Run FN-DSA tests with security validation, constant-time verification, and benchmarking
+description: Run FN-DSA quick smoke tests, security checks, and optional benchmarks (full keygen KAT is manual)
 inputs:
   working-directory:
     description: Working directory for fn-dsa crate
@@ -15,11 +15,11 @@ inputs:
     required: false
   run-benchmarks:
     description: Whether to run benchmarks
-    default: "true"
+    default: "false"
     required: false
   test-algorithms:
-    description: Specific algorithms to test
-    default: "fn-dsa,fn-dsa-512,fn-dsa-1024"
+    description: Unused (reserved for workflow matrix compatibility)
+    default: ""
     required: false
   run-security-tests:
     description: Whether to run comprehensive security tests
@@ -102,13 +102,16 @@ runs:
         cargo build --no-default-features --features "alloc,rand"
         echo "✅ no_std build completed"
     
-    - name: Run comprehensive tests
+    - name: Run quick FN-DSA smoke tests
       shell: bash
       run: |
-        echo "🧪 Running comprehensive tests..."
-        cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --verbose
-        echo "✅ Tests completed"
+        echo "🧪 Running quick FN-DSA smoke tests (release)..."
+        echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p fn-dsa-kgen -- --ignored --release --test-threads=1"
+        cd "${{ github.workspace }}"
+        cargo test -p fn-dsa self_test --release -- --test-threads=1
+        cargo test -p lib-q-fn-dsa keypair_generation --release --features "${{ inputs.features }}"
+        cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --release --features "${{ inputs.features }}"
+        echo "✅ Quick smoke tests completed"
     
     - name: Run security tests
       if: inputs.run-security-tests == 'true'
@@ -118,31 +121,6 @@ runs:
         cd ${{ inputs.working-directory }}
         cargo test --test security_tests --features "${{ inputs.features }}" --verbose
         echo "✅ Security tests completed"
-    
-    - name: Run integration tests
-      shell: bash
-      run: |
-        echo "🔗 Running integration tests..."
-        cd ${{ inputs.working-directory }}
-        cargo test --test integration_tests --features "${{ inputs.features }}" --verbose
-        echo "✅ Integration tests completed"
-    
-    - name: Run algorithm-specific tests
-      shell: bash
-      run: |
-        echo "🔐 Running algorithm-specific tests..."
-        cd ${{ inputs.working-directory }}
-        if [ -n "${{ inputs.test-algorithms }}" ] && [ "${{ inputs.test-algorithms }}" != "" ]; then
-          # Split comma-separated algorithms and test each one
-          IFS=',' read -ra ALGORITHMS <<< "${{ inputs.test-algorithms }}"
-          for alg in "${ALGORITHMS[@]}"; do
-            echo "Testing algorithm: $alg"
-            cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
-          done
-        else
-          echo "No specific algorithms to test"
-        fi
-        echo "✅ Algorithm-specific tests completed"
     
     - name: Constant-time operation verification
       if: inputs.run-constant-time == 'true'

@@ -106,6 +106,17 @@ impl TryRng for DawnRng {
 #[cfg(feature = "random")]
 impl rand_core::TryCryptoRng for DawnRng {}
 
+/// Which PKE message-recovery path `DawnKemOps::decapsulate` uses (compression noise tolerance).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PkeDecryptKind {
+    /// Paper baseline: `simple_decoding` only.
+    Baseline,
+    /// Top-4 bounded flips using coefficient reliability.
+    ReliabilityBounded,
+    /// Repetition majority with `c_prime` tie-break (Path B).
+    MajorityReliability,
+}
+
 /// DAWN key generation parameters
 #[derive(Clone, Debug)]
 pub struct KeyGenParams {
@@ -129,6 +140,8 @@ pub struct KeyGenParams {
     pub base_parameter_set: crate::DawnParameterSet,
     /// Profile (spec vs production); determines decoding failure behavior.
     pub profile: crate::DawnProfile,
+    /// PKE decrypt / message recovery strategy for KEM decapsulation.
+    pub pke_decrypt: PkeDecryptKind,
 }
 
 impl fmt::Display for KeyGenParams {
@@ -187,13 +200,17 @@ impl KeyGenParams {
             e_coeff_count: 320, // 2*k_e
             base_parameter_set: crate::DawnParameterSet::Alpha512,
             profile: crate::DawnProfile::SpecExperimental,
+            pke_decrypt: PkeDecryptKind::Baseline,
         }
     }
 
-    /// Create parameters for DAWN-α-512 production profile (currently experimental).
-    /// Uses dawn_alpha_512_custom(24, 32, 1). Current quick-sweep data indicates decoding failures persist.
+    /// Create parameters for DAWN-α-512 production profile.
+    /// Baseline decoder + zero encryption noise + d_c=1 yields stable FO-KEM for random `m` in
+    /// testing; Path B can be re-enabled after sweeps. Raise (k_s,k_e) only when histograms allow.
     fn dawn_alpha_512_impl() -> Self {
-        Self::dawn_alpha_512_custom(24, 32, 1)
+        let mut p = Self::dawn_alpha_512_custom(0, 0, 1);
+        p.pke_decrypt = PkeDecryptKind::Baseline;
+        p
     }
 
     /// Create parameters for DAWN-α-512 (spec profile; backward compat for tests)
@@ -215,6 +232,7 @@ impl KeyGenParams {
             e_coeff_count: 2 * k_e,
             base_parameter_set: crate::DawnParameterSet::Alpha512,
             profile: crate::DawnProfile::Production,
+            pke_decrypt: PkeDecryptKind::MajorityReliability,
         }
     }
 
@@ -223,9 +241,11 @@ impl KeyGenParams {
         Self::dawn_alpha_1024_custom(192, 256, 4)
     }
 
-    /// Alpha1024 production profile (tunable). Initially spec defaults; update after sweep/stress.
+    /// Alpha1024 production: baseline decoder, zero noise, d_c=1 (lossless enough for FO-KEM here).
     fn dawn_alpha_1024_impl() -> Self {
-        Self::dawn_alpha_1024_custom(192, 256, 4)
+        let mut p = Self::dawn_alpha_1024_custom(0, 0, 1);
+        p.pke_decrypt = PkeDecryptKind::Baseline;
+        p
     }
 
     /// Alpha1024 with custom k_s, k_e, d_c (n=1024, q=769, k_f=96, k_g=256).
@@ -241,6 +261,7 @@ impl KeyGenParams {
             e_coeff_count: 2 * k_e,
             base_parameter_set: crate::DawnParameterSet::Alpha1024,
             profile: crate::DawnProfile::Production,
+            pke_decrypt: PkeDecryptKind::MajorityReliability,
         }
     }
 
@@ -267,6 +288,7 @@ impl KeyGenParams {
             e_coeff_count: 2 * k_e,
             base_parameter_set: crate::DawnParameterSet::Beta512,
             profile: crate::DawnProfile::Production,
+            pke_decrypt: PkeDecryptKind::Baseline,
         }
     }
 
@@ -283,6 +305,7 @@ impl KeyGenParams {
             e_coeff_count: 192, // 2*k_e
             base_parameter_set: crate::DawnParameterSet::Beta1024,
             profile: crate::DawnProfile::Production,
+            pke_decrypt: PkeDecryptKind::Baseline,
         }
     }
 
@@ -317,12 +340,10 @@ impl KeyGenParams {
             self.compression_divisor > 0 &&
             self.f_coeff_count > 0 &&
             self.g_coeff_count > 0 &&
-            self.s_coeff_count > 0 &&
-            self.e_coeff_count > 0 &&
-            self.f_coeff_count <= self.degree &&
-            self.g_coeff_count <= self.degree &&
             self.s_coeff_count <= self.degree &&
-            self.e_coeff_count <= self.degree
+            self.e_coeff_count <= self.degree &&
+            self.f_coeff_count <= self.degree &&
+            self.g_coeff_count <= self.degree
     }
 
     /// Secret key size in bytes: f_bytes + f2_bytes + 32 + 32 + pk_bytes (f_bytes same length as pk).

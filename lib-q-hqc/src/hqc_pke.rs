@@ -715,75 +715,18 @@ impl<P: HqcParams> HqcPke<P> {
 
     /// Vector multiplication in GF(2)[x]/(x^n - 1)
     fn vect_mul(&self, output: &mut [u64], a: &[u64], b: &[u64]) -> Result<(), HqcPkeError> {
-        // Ensure output is the correct size
         if output.len() != P::VEC_N_SIZE_64 {
             return Err(HqcPkeError::InvalidKey);
         }
 
-        #[cfg(feature = "simd-avx2")]
+        #[cfg(all(feature = "simd-avx2", target_arch = "x86_64", feature = "alloc"))]
         {
-            // Check if AVX2 is available at runtime
             if crate::simd::runtime::has_avx2() {
-                // Use Avx2 ZST directly via trait
-                use crate::simd::{
-                    Avx2,
-                    PolynomialOps,
-                };
-
-                let a_bytes =
-                    unsafe { core::slice::from_raw_parts(a.as_ptr() as *const u8, a.len() * 8) };
-                let b_bytes =
-                    unsafe { core::slice::from_raw_parts(b.as_ptr() as *const u8, b.len() * 8) };
-                let output_bytes = unsafe {
-                    core::slice::from_raw_parts_mut(
-                        output.as_mut_ptr() as *mut u8,
-                        output.len() * 8,
-                    )
-                };
-
-                Avx2::sparse_dense_mul(output_bytes, a_bytes, b_bytes, P::OMEGA as u32);
-                return Ok(());
+                return crate::simd::avx2::gf2x::avx2_vect_mul_mod_xnm1::<P>(output, a, b);
             }
         }
 
-        // Fallback to portable schoolbook multiplication
-        // Implementation of polynomial multiplication in GF(2)[x]/(x^n - 1)
-        // Based on the reference implementation in gf2x.c
-
-        let mut unreduced = vec![0u64; 2 * P::VEC_N_SIZE_64];
-
-        // Schoolbook multiplication into unreduced buffer (matching reference exactly)
-        for (i, &ai) in a.iter().enumerate().take(P::VEC_N_SIZE_64) {
-            for bit in 0..64 {
-                let mask = if (ai >> bit) & 1 == 1 { !0u64 } else { 0u64 };
-                let base = i;
-                let sh = bit;
-                let inv = 64 - sh;
-
-                if sh == 0 {
-                    for j in 0..P::VEC_N_SIZE_64 {
-                        unreduced[base + j] ^= b[j] & mask;
-                    }
-                } else {
-                    for j in 0..P::VEC_N_SIZE_64 {
-                        unreduced[base + j] ^= (b[j] << sh) & mask;
-                        unreduced[base + j + 1] ^= (b[j] >> inv) & mask;
-                    }
-                }
-            }
-        }
-
-        // Reduce modulo x^n - 1 (matching reference exactly)
-        for i in 0..P::VEC_N_SIZE_64 {
-            let r = unreduced[i + P::VEC_N_SIZE_64 - 1] >> (P::N & 0x3F);
-            let carry = unreduced[i + P::VEC_N_SIZE_64] << (64 - (P::N & 0x3F));
-            output[i] = unreduced[i] ^ r ^ carry;
-        }
-
-        // Mask excess bits in the last word (using BITMASK equivalent)
-        output[P::VEC_N_SIZE_64 - 1] &= (1u64 << (P::N & 0x3F)) - 1;
-
-        Ok(())
+        schoolbook_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
     }
 
     /// Vector addition in GF(2)
@@ -1039,6 +982,59 @@ impl From<ConcatenatedCodeError> for HqcPkeError {
     fn from(error: ConcatenatedCodeError) -> Self {
         HqcPkeError::CodeError(error)
     }
+}
+
+/// Schoolbook product in GF(2)[x]/(x^n - 1) matching the reference `gf2x` path.
+///
+/// `n_bits` is the HQC parameter `N`; `vec_n_words` is `ceil(n_bits / 64)`.
+/// Used by [`HqcPke::vect_mul`] and exposed for regression tests against SIMD paths.
+#[doc(hidden)]
+pub fn schoolbook_vect_mul_mod_xnm1(
+    output: &mut [u64],
+    a: &[u64],
+    b: &[u64],
+    vec_n_words: usize,
+    n_bits: usize,
+) -> Result<(), HqcPkeError> {
+    debug_assert!(
+        !n_bits.is_multiple_of(64),
+        "schoolbook_vect_mul_mod_xnm1: N multiple of 64 not supported by this reduction"
+    );
+    if output.len() != vec_n_words || a.len() < vec_n_words || b.len() < vec_n_words {
+        return Err(HqcPkeError::InvalidKey);
+    }
+
+    let mut unreduced = vec![0u64; 2 * vec_n_words];
+    let mask_n = n_bits & 0x3F;
+
+    for (i, &ai) in a.iter().enumerate().take(vec_n_words) {
+        for bit in 0..64 {
+            let mask = if (ai >> bit) & 1 == 1 { !0u64 } else { 0u64 };
+            let base = i;
+            let sh = bit;
+            let inv = 64 - sh;
+
+            if sh == 0 {
+                for j in 0..vec_n_words {
+                    unreduced[base + j] ^= b[j] & mask;
+                }
+            } else {
+                for j in 0..vec_n_words {
+                    unreduced[base + j] ^= (b[j] << sh) & mask;
+                    unreduced[base + j + 1] ^= (b[j] >> inv) & mask;
+                }
+            }
+        }
+    }
+
+    for i in 0..vec_n_words {
+        let r = unreduced[i + vec_n_words - 1] >> mask_n;
+        let carry = unreduced[i + vec_n_words] << (64 - mask_n);
+        output[i] = unreduced[i] ^ r ^ carry;
+    }
+
+    output[vec_n_words - 1] &= (1u64 << mask_n) - 1;
+    Ok(())
 }
 
 /*

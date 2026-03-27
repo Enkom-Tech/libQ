@@ -209,10 +209,32 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
     );
 
+    static DUPLEX_SPONGE_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
+        Algorithm::DuplexSpongeAead,
+        32,
+        16,
+        32,
+        4,
+        "Duplex-Sponge-AEAD",
+        "Keccak-f[1600] duplex-sponge authenticated encryption",
+    );
+
+    static TWEAK_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
+        Algorithm::TweakAead,
+        32,
+        16,
+        32,
+        4,
+        "Tweak-AEAD",
+        "Parallel tweakable-block CTR AEAD over Keccak-f[1600]",
+    );
+
     match algorithm {
         Algorithm::Saturnin => Some(&SATURNIN_METADATA),
         Algorithm::Shake256Aead => Some(&SHAKE256_METADATA),
         Algorithm::KemAead => Some(&KEM_AEAD_METADATA),
+        Algorithm::DuplexSpongeAead => Some(&DUPLEX_SPONGE_AEAD_METADATA),
+        Algorithm::TweakAead => Some(&TWEAK_AEAD_METADATA),
         _ => None,
     }
 }

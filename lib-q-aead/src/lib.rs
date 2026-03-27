@@ -17,14 +17,16 @@ use alloc::{
     vec::Vec,
 };
 
-// Re-export core types for public use
+// Re-export types: algorithm IDs from `lib-q-types`; crypto API from `lib-q-core`
 pub use lib_q_core::{
     Aead,
     AeadKey,
-    Algorithm,
-    AlgorithmCategory,
     Nonce,
     Result,
+};
+pub use lib_q_types::{
+    Algorithm,
+    AlgorithmCategory,
 };
 
 // Internal modules
@@ -62,23 +64,36 @@ pub use security::{
     validation,
 };
 
+#[cfg(feature = "alloc")]
+mod provider;
+#[cfg(feature = "alloc")]
+pub use provider::LibQAeadProvider;
+
 // Macro is exported at crate root via #[macro_export] in plugin.rs
 
 // Algorithm implementations
+#[cfg(feature = "duplex-sponge-aead")]
+mod duplex_aead_impl;
 #[cfg(feature = "kem-aead")]
 mod kem_aead_impl;
 #[cfg(feature = "saturnin")]
 mod saturnin_impl;
 #[cfg(feature = "shake256")]
 mod shake256_impl;
+#[cfg(feature = "tweak-aead")]
+mod tweak_aead_impl;
 
 // Re-export implementations
+#[cfg(feature = "duplex-sponge-aead")]
+pub use duplex_aead_impl::DuplexSpongeAead;
 #[cfg(feature = "kem-aead")]
 pub use kem_aead_impl::KemAead;
 #[cfg(feature = "saturnin")]
 pub use saturnin_impl::SaturninAead;
 #[cfg(feature = "shake256")]
 pub use shake256_impl::Shake256Aead;
+#[cfg(feature = "tweak-aead")]
+pub use tweak_aead_impl::TweakAead;
 
 /// Global AEAD registry instance
 ///
@@ -106,6 +121,16 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
         Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
+    #[cfg(feature = "duplex-sponge-aead")]
+    let _ = registry.register_algorithm(Algorithm::DuplexSpongeAead, || {
+        Ok(Box::new(DuplexSpongeAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "tweak-aead")]
+    let _ = registry.register_algorithm(Algorithm::TweakAead, || {
+        Ok(Box::new(TweakAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
     registry
 });
 
@@ -131,6 +156,16 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
     #[cfg(feature = "kem-aead")]
     let _ = registry.register_algorithm(Algorithm::KemAead, || {
         Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "duplex-sponge-aead")]
+    let _ = registry.register_algorithm(Algorithm::DuplexSpongeAead, || {
+        Ok(Box::new(DuplexSpongeAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "tweak-aead")]
+    let _ = registry.register_algorithm(Algorithm::TweakAead, || {
+        Ok(Box::new(TweakAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
     registry

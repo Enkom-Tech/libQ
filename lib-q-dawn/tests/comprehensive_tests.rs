@@ -348,6 +348,7 @@ fn test_key_generation_edge_cases() {
         e_coeff_count: 0,
         base_parameter_set: lib_q_dawn::DawnParameterSet::Alpha512,
         profile: lib_q_dawn::DawnProfile::SpecExperimental,
+        pke_decrypt: lib_q_dawn::keygen::PkeDecryptKind::Baseline,
     };
 
     let generator = DawnKeyGenerator::new(invalid_params);

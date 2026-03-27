@@ -621,10 +621,22 @@ pub struct WasmAeadContext {
 }
 
 impl WasmAeadContext {
-    /// Create a new WASM AEAD context with default provider
+    /// Create a WASM AEAD context with **no** crypto provider configured.
+    ///
+    /// For AEAD backed by `lib-q-aead`, use the `lib-q` crate's `wasm::create_aead_context`, or
+    /// [`Self::from_aead_context`] / [`Self::with_provider`].
     pub fn new() -> WasmAeadContext {
         WasmAeadContext {
-            inner: AeadContext::with_default_provider(),
+            inner: AeadContext::new(),
+            security_validator: SecurityValidator::new()
+                .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
+        }
+    }
+
+    /// Wrap a Rust [`AeadContext`] (for example one built with `AeadContext::with_aead_operations`).
+    pub fn from_aead_context(inner: AeadContext) -> WasmAeadContext {
+        WasmAeadContext {
+            inner,
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
@@ -970,7 +982,11 @@ mod tests {
         assert!(result.is_err());
         if let Err(error) = result {
             let error_str = error.as_string().unwrap_or_default();
-            assert!(error_str.contains("NotImplemented") || error_str.contains("WASM"));
+            assert!(
+                error_str.contains("Provider not configured") ||
+                    error_str.contains("NotImplemented") ||
+                    error_str.contains("WASM")
+            );
         }
     }
 }

@@ -322,7 +322,16 @@ pub(crate) fn poly_sub_scaled(
                 let kf1 = k[1].wrapping_neg() as i32;
                 zint_add_scaled_mul_small(&mut F[0..], Flen, &f[0..], flen, 2, kf0, sch, scl);
                 zint_add_scaled_mul_small(&mut F[1..], Flen, &f[1..], flen, 2, kf1, sch, scl);
-                zint_add_scaled_mul_small(&mut F[0..], Flen, &f[1..], flen, 2, -kf1, sch, scl);
+                zint_add_scaled_mul_small(
+                    &mut F[0..],
+                    Flen,
+                    &f[1..],
+                    flen,
+                    2,
+                    kf1.wrapping_neg(),
+                    sch,
+                    scl,
+                );
             }
             2 => {
                 // n = 4
@@ -347,7 +356,7 @@ pub(crate) fn poly_sub_scaled(
                             &f[((j + 4) - i)..],
                             flen,
                             4,
-                            -kf,
+                            kf.wrapping_neg(),
                             sch,
                             scl,
                         );
@@ -377,7 +386,7 @@ pub(crate) fn poly_sub_scaled(
                             &f[((j + 8) - i)..],
                             flen,
                             8,
-                            -kf,
+                            kf.wrapping_neg(),
                             sch,
                             scl,
                         );

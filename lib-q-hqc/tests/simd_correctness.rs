@@ -12,14 +12,15 @@ use lib_q_hqc::simd::traits::{
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 #[test]
 fn test_avx2_polynomial_mul_correctness() {
-    let mut output_avx2 = [0u8; 256];
-    let mut output_portable = [0u8; 256];
+    let mut output_avx2 = [0u8; 128];
+    let mut output_portable = [0u8; 128];
     let sparse = [0xABu8; 128];
     let dense = [0xCDu8; 128];
 
     // Run both implementations using ZSTs
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 10);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 10);
+    let n_bits = dense.len() * 8;
+    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 10, n_bits);
+    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 10, n_bits);
 
     // Results should match byte-for-byte
     assert_eq!(output_avx2, output_portable);
@@ -68,7 +69,7 @@ fn test_zst_dispatch() {
     let dense = [2u8; 32];
     let weight = 10;
 
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, weight);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, weight, 32 * 8);
 
     // Test syndrome operations
     let mut syndrome = [0u8; 32];
@@ -108,19 +109,19 @@ fn test_simd_edge_cases() {
     let mut output = [];
     let sparse = [];
     let dense = [];
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 0);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 0, 0);
 
     // Test with single byte
     let mut output = [0u8; 1];
     let sparse = [1u8];
     let dense = [2u8];
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 1);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 1, 8);
 
     // Test with non-32-byte aligned sizes
     let mut output = [0u8; 33];
     let sparse = [1u8; 33];
     let dense = [2u8; 33];
-    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 5);
+    Portable::sparse_dense_mul(&mut output, &sparse, &dense, 5, 33 * 8);
 }
 
 /// Test large buffer operations (1KB)
@@ -130,12 +131,13 @@ fn test_large_buffer_1kb() {
     const SIZE: usize = 1024;
     let mut output_avx2 = [0u8; SIZE];
     let mut output_portable = [0u8; SIZE];
-    let sparse = [0xABu8; SIZE / 2];
-    let dense = [0xCDu8; SIZE / 2];
+    let sparse = [0xABu8; SIZE];
+    let dense = [0xCDu8; SIZE];
+    let n_bits = SIZE * 8;
 
     // Test polynomial multiplication
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 50);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 50);
+    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 50, n_bits);
+    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 50, n_bits);
     assert_eq!(output_avx2, output_portable);
 
     // Test vector addition
@@ -160,12 +162,13 @@ fn test_large_buffer_4kb() {
     const SIZE: usize = 4096;
     let mut output_avx2 = [0u8; SIZE];
     let mut output_portable = [0u8; SIZE];
-    let sparse = [0xABu8; SIZE / 2];
-    let dense = [0xCDu8; SIZE / 2];
+    let sparse = [0xABu8; SIZE];
+    let dense = [0xCDu8; SIZE];
+    let n_bits = SIZE * 8;
 
     // Test polynomial multiplication
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 100);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 100);
+    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 100, n_bits);
+    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 100, n_bits);
     assert_eq!(output_avx2, output_portable);
 
     // Test vector addition
@@ -193,8 +196,9 @@ fn test_known_answer_vectors() {
         let mut output_avx2 = [0u8; 32];
         let mut output_portable = [0u8; 32];
 
-        Avx2::sparse_dense_mul(&mut output_avx2, sparse, dense, *weight);
-        Portable::sparse_dense_mul(&mut output_portable, sparse, dense, *weight);
+        let n_bits = dense.len() * 8;
+        Avx2::sparse_dense_mul(&mut output_avx2, sparse, dense, *weight, n_bits);
+        Portable::sparse_dense_mul(&mut output_portable, sparse, dense, *weight, n_bits);
 
         assert_eq!(output_avx2, output_portable, "KAT test case {} failed", i);
     }
@@ -226,9 +230,10 @@ fn test_stress_random_data() {
     let mut output_portable = [0u8; 256];
 
     // Test with various weights
+    let n_bits = dense.len() * 8;
     for weight in [1, 10, 50, 100, 200] {
-        Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, weight);
-        Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, weight);
+        Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, weight, n_bits);
+        Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, weight, n_bits);
         assert_eq!(
             output_avx2, output_portable,
             "Stress test failed for weight {}",
@@ -298,14 +303,14 @@ fn test_hqc_parameter_sets() {
 
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 fn test_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(name: &str) {
-    let n_bytes = P::N / 8;
+    let n_bytes = P::VEC_N_SIZE_BYTES;
     let mut output_avx2 = vec![0u8; n_bytes];
     let mut output_portable = vec![0u8; n_bytes];
-    let sparse = vec![0xABu8; n_bytes / 2];
-    let dense = vec![0xCDu8; n_bytes / 2];
+    let sparse = vec![0xABu8; n_bytes];
+    let dense = vec![0xCDu8; n_bytes];
 
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, P::OMEGA as u32);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, P::OMEGA as u32);
+    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, P::OMEGA as u32, P::N);
+    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, P::OMEGA as u32, P::N);
 
     assert_eq!(
         output_avx2, output_portable,

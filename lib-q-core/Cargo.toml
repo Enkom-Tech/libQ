@@ -13,6 +13,7 @@ keywords = ["cryptography", "post-quantum", "security", "core", "nist"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
+lib-q-types = { path = "../lib-q-types", default-features = false }
 # Core cryptographic dependencies - no_std compatible
 getrandom = { workspace = true, optional = true, default-features = false }
 # rand_core 0.10 has no optional features; OS RNG comes from getrandom/rand when std is enabled
@@ -45,6 +46,8 @@ default = ["std"]
 std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]
 alloc = []
 no_std = ["spin"]
+# Aborting #[panic_handler] for `cargo check` of this crate as `cdylib` in no_std (CI only).
+no_std_panic_handler = []
 # Random number generation - requires platform-specific configuration for no_std
 # In no_std environments, applications must provide custom entropy sources
 getrandom = ["dep:getrandom"]
@@ -57,10 +60,19 @@ rand = ["dep:rand"]
 hash = []
 
 # Serialization features
-serde = ["dep:serde"]
+serde = ["dep:serde", "lib-q-types/serde"]
 
 # WASM support
-wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom", "alloc"]
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "serde",
+    "serde-wasm-bindgen",
+    "serde_json",
+    "wasm_getrandom",
+    "alloc",
+    "lib-q-types/wasm",
+]
 
 # WASM-specific getrandom configuration
 wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
@@ -79,15 +91,16 @@ relaxed_entropy_validation = []
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.wasm-pack.profile.release]
-# Enable bulk memory operations to fix wasm-validator errors
-wasm-opt = ["-O", "--enable-bulk-memory"]
+# Disable wasm-opt: LLVM may emit saturating float-to-int ops that older wasm-opt
+# defaults reject without extra feature flags; matches lib-q-kem / root lib-q.
+wasm-opt = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

@@ -77,7 +77,7 @@ fn test_sha3_512_seed_kem_determinism() {
     ];
 
     let mut hasher = Sha3_512::new();
-    hasher.update(&seed_kem);
+    hasher.update(seed_kem);
     hasher.update([domain]);
     let result = hasher.finalize();
 

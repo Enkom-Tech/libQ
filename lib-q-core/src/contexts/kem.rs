@@ -88,8 +88,8 @@ impl KemContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.generate_keypair(algorithm, randomness),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("KEM"),
             }),
         }
     }
@@ -118,8 +118,8 @@ impl KemContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.encapsulate(algorithm, public_key, randomness),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("KEM"),
             }),
         }
     }
@@ -148,8 +148,8 @@ impl KemContext {
         // Use provider if available
         match self.inner.provider().and_then(|p| p.kem()) {
             Some(kem_ops) => kem_ops.decapsulate(algorithm, secret_key, ciphertext),
-            None => Err(crate::error::Error::NotImplemented {
-                feature: String::from("KEM operations - no provider configured"),
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("KEM"),
             }),
         }
     }

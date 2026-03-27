@@ -589,6 +589,24 @@ impl AlgorithmRegistry {
             description: "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
             enabled: true,
         });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::DuplexSpongeAead,
+            category: AlgorithmCategory::Aead,
+            security_level: 4,
+            name: "Duplex-Sponge-AEAD",
+            description: "Keccak-f[1600] duplex-sponge authenticated encryption (SHA-3 family permutation)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::TweakAead,
+            category: AlgorithmCategory::Aead,
+            security_level: 4,
+            name: "Tweak-AEAD",
+            description: "Parallel tweakable-block CTR AEAD over Keccak-f[1600] with independent 32-byte blocks",
+            enabled: true,
+        });
     }
 
     /// Register an algorithm
@@ -660,6 +678,8 @@ impl AlgorithmRegistry {
                 Algorithm::Saturnin,
                 Algorithm::Shake256Aead,
                 Algorithm::KemAead,
+                Algorithm::DuplexSpongeAead,
+                Algorithm::TweakAead,
             ],
         }
     }
@@ -687,7 +707,13 @@ impl AlgorithmRegistry {
                 Algorithm::Shake256Aead,
             ],
             3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
-            4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87, Algorithm::KemAead],
+            4 => &[
+                Algorithm::MlKem1024,
+                Algorithm::MlDsa87,
+                Algorithm::KemAead,
+                Algorithm::DuplexSpongeAead,
+                Algorithm::TweakAead,
+            ],
             5 => &[Algorithm::FnDsa1024],
             _ => &[],
         }
@@ -825,6 +851,8 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
             Algorithm::Saturnin,
             Algorithm::Shake256Aead,
             Algorithm::KemAead,
+            Algorithm::DuplexSpongeAead,
+            Algorithm::TweakAead,
         ],
     }
 }
@@ -853,7 +881,13 @@ pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
             Algorithm::Shake256Aead,
         ],
         3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
-        4 => &[Algorithm::MlKem1024, Algorithm::MlDsa87, Algorithm::KemAead],
+        4 => &[
+            Algorithm::MlKem1024,
+            Algorithm::MlDsa87,
+            Algorithm::KemAead,
+            Algorithm::DuplexSpongeAead,
+            Algorithm::TweakAead,
+        ],
         5 => &[Algorithm::FnDsa1024],
         _ => &[],
     }

@@ -93,13 +93,16 @@ run_test_or_check() {
       if [[ "$package" == "lib-q-keccak" ]]; then
         run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "${features},no_std_panic_handler" --verbose
         run_or_fail cargo check -p "$package" --profile release --no-default-features --features "${features},no_std_panic_handler" --verbose
+      elif [[ "$package" == "lib-q-core" ]]; then
+        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "${features},no_std_panic_handler" --verbose
+        run_or_fail cargo check -p "$package" --profile release-security --no-default-features --features "${features},no_std_panic_handler" --verbose
       else
-        run_or_fail cargo check -p "$package" --no-default-features --features "$features" --verbose
-        run_or_fail cargo check -p "$package" --no-default-features --features "$features" --release --verbose
+        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "$features" --verbose
+        run_or_fail cargo check -p "$package" --profile release-security --no-default-features --features "$features" --verbose
       fi
     else
-      run_or_fail cargo check --no-default-features --features "$features" --verbose
-      run_or_fail cargo check --no-default-features --features "$features" --release --verbose
+      run_or_fail cargo check --profile dev-no-std --no-default-features --features "$features" --verbose
+      run_or_fail cargo check --profile release-security --no-default-features --features "$features" --verbose
     fi
   else
     if [[ -n "$package" ]]; then
@@ -129,5 +132,8 @@ run_test_or_check "alloc" "lib-q-keccak"
 run_test_or_check "std,secure,zeroize" "lib-q-random"
 run_test_or_check "no_std,getrandom" "lib-q-random"
 run_test_or_check "wasm" "lib-q-random"
+run_test_or_check "parallel" "lib-q-stark-rayon"
+run_test_or_check "alloc" "lib-q-stark-dft"
+run_test_or_check "alloc,parallel" "lib-q-stark-dft"
 
 echo "All steps completed successfully."

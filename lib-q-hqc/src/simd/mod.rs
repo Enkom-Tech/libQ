@@ -19,10 +19,10 @@
 //!
 //! if has_avx2() {
 //!     // Use AVX2 optimized implementation
-//!     crate::simd::avx2::polynomial::sparse_dense_mul_optimized(output, a, b, weight);
+//!     crate::simd::Avx2::sparse_dense_mul(output, a, b, weight, n_bits);
 //! } else {
 //!     // Use portable implementation
-//!     crate::simd::portable::polynomial::sparse_dense_mul_portable(output, a, b, weight);
+//!     crate::simd::Portable::sparse_dense_mul(output, a, b, weight, n_bits);
 //! }
 //! ```
 

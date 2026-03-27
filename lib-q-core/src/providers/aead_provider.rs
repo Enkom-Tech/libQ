@@ -1,7 +1,7 @@
-//! AEAD provider implementation
+//! AEAD stub provider (core only)
 //!
-//! This module provides the LibQAeadProvider that implements AEAD operations
-//! with proper security validation and algorithm routing.
+//! [`LibQAeadStubProvider`] validates inputs then returns [`NotImplemented`](crate::error::Error::NotImplemented).
+//! Registry-backed AEAD lives in the `lib-q-aead` crate as `LibQAeadProvider`.
 
 #[cfg(feature = "alloc")]
 use alloc::{
@@ -20,27 +20,18 @@ use crate::traits::{
     Nonce,
 };
 
-/// lib-Q AEAD provider implementation
+/// Stub AEAD provider bundled with `lib-q-core` (no algorithm implementations).
 ///
-/// This provider implements AEAD operations for lib-Q, including encryption
-/// and decryption with proper security validation.
+/// Use `lib_q_aead::LibQAeadProvider` or the `lib-q` crate’s `libq::aead::context()` for real AEAD.
 #[cfg(feature = "alloc")]
 #[derive(Clone)]
-pub struct LibQAeadProvider {
+pub struct LibQAeadStubProvider {
     security_validator: SecurityValidator,
 }
 
 #[cfg(feature = "alloc")]
-impl LibQAeadProvider {
-    /// Create a new AEAD provider
-    ///
-    /// # Returns
-    ///
-    /// A new instance of LibQAeadProvider with security validation initialized.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the security validator fails to initialize.
+impl LibQAeadStubProvider {
+    /// Create a new stub AEAD provider.
     pub fn new() -> Result<Self> {
         Ok(Self {
             security_validator: SecurityValidator::new()?,
@@ -49,7 +40,7 @@ impl LibQAeadProvider {
 }
 
 #[cfg(feature = "alloc")]
-impl AeadOperations for LibQAeadProvider {
+impl AeadOperations for LibQAeadStubProvider {
     fn encrypt(
         &self,
         algorithm: Algorithm,
@@ -77,23 +68,10 @@ impl AeadOperations for LibQAeadProvider {
             self.security_validator.validate_message(ad)?;
         }
 
-        // Route to specific algorithm implementation
-        // Note: Actual implementations are provided by the main lib-q crate
-        match algorithm {
-            Algorithm::Saturnin => Err(crate::error::Error::NotImplemented {
-                feature: "Saturnin implementation is provided by the main lib-q crate".to_string(),
-            }),
-            Algorithm::Shake256Aead => Err(crate::error::Error::NotImplemented {
-                feature: "SHAKE256 AEAD implementation is provided by the main lib-q crate"
-                    .to_string(),
-            }),
-            Algorithm::KemAead => Err(crate::error::Error::NotImplemented {
-                feature: "KEM AEAD implementation is provided by the main lib-q crate".to_string(),
-            }),
-            _ => Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm not supported for AEAD operations",
-            }),
-        }
+        Err(crate::error::Error::NotImplemented {
+            feature: "AEAD — use `lib_q_aead::LibQAeadProvider`, `libq::aead::context()`, or `AeadContext::with_aead_operations`"
+                .to_string(),
+        })
     }
 
     fn decrypt(
@@ -124,23 +102,10 @@ impl AeadOperations for LibQAeadProvider {
             self.security_validator.validate_message(ad)?;
         }
 
-        // Route to specific algorithm implementation
-        // Note: Actual implementations are provided by the main lib-q crate
-        match algorithm {
-            Algorithm::Saturnin => Err(crate::error::Error::NotImplemented {
-                feature: "Saturnin implementation is provided by the main lib-q crate".to_string(),
-            }),
-            Algorithm::Shake256Aead => Err(crate::error::Error::NotImplemented {
-                feature: "SHAKE256 AEAD implementation is provided by the main lib-q crate"
-                    .to_string(),
-            }),
-            Algorithm::KemAead => Err(crate::error::Error::NotImplemented {
-                feature: "KEM AEAD implementation is provided by the main lib-q crate".to_string(),
-            }),
-            _ => Err(crate::error::Error::InvalidAlgorithm {
-                algorithm: "Algorithm not supported for AEAD operations",
-            }),
-        }
+        Err(crate::error::Error::NotImplemented {
+            feature: "AEAD — use `lib_q_aead::LibQAeadProvider`, `libq::aead::context()`, or `AeadContext::with_aead_operations`"
+                .to_string(),
+        })
     }
 }
 
@@ -150,17 +115,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_aead_provider_creation() {
-        let provider = LibQAeadProvider::new();
+    fn test_aead_stub_provider_creation() {
+        let provider = LibQAeadStubProvider::new();
         assert!(
             provider.is_ok(),
-            "LibQAeadProvider should be created successfully"
+            "LibQAeadStubProvider should be created successfully"
         );
     }
 
     #[test]
-    fn test_aead_provider_unsupported_algorithm() {
-        let provider = LibQAeadProvider::new().unwrap();
+    fn test_aead_stub_unsupported_algorithm() {
+        let provider = LibQAeadStubProvider::new().unwrap();
         let key = AeadKey::new(vec![0u8; 32]);
         let nonce = Nonce::new(vec![0u8; 16]);
         let result = provider.encrypt(Algorithm::MlKem512, &key, &nonce, b"test", None);
@@ -177,8 +142,8 @@ mod tests {
     }
 
     #[test]
-    fn test_aead_provider_feature_flag_handling() {
-        let provider = LibQAeadProvider::new().unwrap();
+    fn test_aead_stub_unregistered_aead_algorithm() {
+        let provider = LibQAeadStubProvider::new().unwrap();
         let key = AeadKey::new(vec![
             0x1A, 0x2B, 0x3C, 0x4D, 0x5E, 0x6F, 0x70, 0x81, 0x92, 0xA3, 0xB4, 0xC5, 0xD6, 0xE7,
             0xF8, 0x09, 0x1A, 0x2B, 0x3C, 0x4D, 0x5E, 0x6F, 0x70, 0x81, 0x92, 0xA3, 0xB4, 0xC5,
@@ -198,8 +163,8 @@ mod tests {
 
         if let Err(crate::error::Error::NotImplemented { feature }) = result {
             assert!(
-                feature.contains("Saturnin implementation is provided by the main lib-q crate"),
-                "Error should mention that implementations are provided by main lib-q crate"
+                feature.contains("LibQAeadProvider") || feature.contains("libq::aead::context"),
+                "Error should direct callers to lib-q-aead / libq::aead::context(): {feature}"
             );
         } else {
             panic!("Expected NotImplemented error, got: {:?}", result);

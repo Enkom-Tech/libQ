@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Mirror selected GitHub Actions CI checks under Linux (run from WSL).
+# Deeper CI-style checks under Linux/WSL (SLH-DSA all parameter sets, ZKP recursive, docs, …).
+# For a fast PR-style gate use: ./scripts/simulate-ci-wsl.sh
+# For full feature matrix + builds use: ./scripts/simulate-ci-wsl.sh full
 # Prefer a native WSL filesystem clone for speed: ~/libQ instead of /mnt/c/...
 set -euo pipefail
 
@@ -48,7 +50,7 @@ cargo doc --all-features --no-deps
 cargo doc --all-features --no-deps --document-private-items
 
 echo "== Integration tests job =="
-cargo test --test hash_integration_tests --features "all-algorithms" --verbose
+cargo test -p lib-q --test hash_integration_tests --features "all-algorithms" --verbose
 cargo test --package lib-q --features "all-algorithms" --verbose
 
 echo "== ci-wsl-mirror.sh: finished OK =="

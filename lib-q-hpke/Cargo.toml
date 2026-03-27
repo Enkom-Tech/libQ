@@ -65,7 +65,7 @@ required-features = ["std"]
 
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", features = ["std"] }
-lib-q = { path = "..", features = ["ml-kem"] }
+lib-q = { path = "../lib-q", features = ["ml-kem"] }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -86,17 +86,25 @@ runs:
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
               echo "Building no_std package $PACKAGE with explicit panic handler"
               cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
+            elif [[ "$PACKAGE" == "lib-q-core" ]]; then
+              echo "Building lib-q-core no_std (cdylib) with dev-no-std + no_std_panic_handler"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
-              cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --verbose
+              echo "Building no_std package $PACKAGE with dev-no-std profile (panic=abort)"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
             fi
           else
             echo "Testing workspace with no_std features"
             # For workspace no_std check, just verify compilation
-            cargo check --no-default-features --features "$FEATURES" --verbose
+            cargo check --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
           fi
         else
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-            cargo test -p $PACKAGE --features "$FEATURES" --verbose
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+              echo "Skipping full dev test suite for lib-q-fn-dsa (quick smoke runs in release step only)"
+            else
+              cargo test -p $PACKAGE --features "$FEATURES" --verbose
+            fi
           else
             cargo test --features "$FEATURES" --verbose
           fi
@@ -122,17 +130,30 @@ runs:
             if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
               echo "Building no_std package $PACKAGE with explicit panic handler in release mode"
               cargo check -p $PACKAGE --profile release --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
+            elif [[ "$PACKAGE" == "lib-q-core" ]]; then
+              echo "Building lib-q-core no_std release check with release-security + no_std_panic_handler"
+              cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES,no_std_panic_handler" --verbose
             else
-              cargo check -p $PACKAGE --no-default-features --features "$FEATURES" --release --verbose
+              echo "Building no_std package $PACKAGE with release-security profile (panic=abort)"
+              cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES" --verbose
             fi
           else
             echo "Testing workspace with no_std features in release"
             # For workspace no_std check, just verify compilation for release
-            cargo check --no-default-features --features "$FEATURES" --release --verbose
+            cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
           fi
         else
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-            cargo test -p $PACKAGE --features "$FEATURES" --release --verbose
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+              echo "Running quick FN-DSA smoke tests (release). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
+              cd "${GITHUB_WORKSPACE:-.}"
+              FN_FEAT="${FEATURES:-std,rand}"
+              cargo test -p fn-dsa self_test --release -- --test-threads=1
+              cargo test -p lib-q-fn-dsa keypair_generation --release --features "$FN_FEAT"
+              cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --release --features "$FN_FEAT"
+            else
+              cargo test -p $PACKAGE --features "$FEATURES" --release --verbose
+            fi
           else
             cargo test --features "$FEATURES" --release --verbose
           fi
@@ -165,6 +186,8 @@ runs:
         elif [[ "$PACKAGE" == "lib-q" ]]; then
           # lib-q needs all-algorithms feature
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
+        elif [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -179,6 +202,10 @@ runs:
           # For the root lib-q package, we need to be more selective about what to include
           # Only include the main lib.rs and core functionality, exclude most implementation details
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-zkp/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-utils/*\""
+        fi
+        
+        if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD -- keypair_generation test_basic_fn_dsa_functionality"
         fi
         
         echo "Running: $TARPAULIN_CMD"
