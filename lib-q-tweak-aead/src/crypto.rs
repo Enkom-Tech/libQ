@@ -1,5 +1,7 @@
 //! Tweakable CTR AEAD encrypt/decrypt.
 
+use core::fmt;
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
@@ -21,6 +23,16 @@ use crate::sponge::{
     first_32_from_state,
 };
 
+/// Encrypt/decrypt failed: buffer too small, length overflow, or (decrypt) authentication failure.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct TweakCryptoError;
+
+impl fmt::Debug for TweakCryptoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("TweakCryptoError")
+    }
+}
+
 /// Encrypt: `out` is `pt.len() + TAG_BYTES`.
 pub fn encrypt(
     key: &[u8; KEY_BYTES],
@@ -28,10 +40,10 @@ pub fn encrypt(
     ad: &[u8],
     pt: &[u8],
     out: &mut [u8],
-) -> Result<(), ()> {
-    let total = pt.len().checked_add(TAG_BYTES).ok_or(())?;
+) -> Result<(), TweakCryptoError> {
+    let total = pt.len().checked_add(TAG_BYTES).ok_or(TweakCryptoError)?;
     if out.len() < total {
-        return Err(());
+        return Err(TweakCryptoError);
     }
     let ct = &mut out[..pt.len()];
     xor_body(key, nonce, pt, ct);
@@ -63,22 +75,22 @@ pub fn decrypt(
     ad: &[u8],
     ct_in: &[u8],
     out: &mut [u8],
-) -> Result<(), ()> {
+) -> Result<(), TweakCryptoError> {
     if ct_in.len() < TAG_BYTES {
-        return Err(());
+        return Err(TweakCryptoError);
     }
     let body_len = ct_in.len() - TAG_BYTES;
     if out.len() < body_len {
-        return Err(());
+        return Err(TweakCryptoError);
     }
     let ct_body = &ct_in[..body_len];
     let tag_recv = &ct_in[body_len..body_len + TAG_BYTES];
 
     let tag_calc = compute_tag(key, nonce, ad, ct_body);
-    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| ())?;
+    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| TweakCryptoError)?;
     if tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() != 1 {
         out[..body_len].fill(0);
-        return Err(());
+        return Err(TweakCryptoError);
     }
 
     xor_body(key, nonce, ct_body, &mut out[..body_len]);

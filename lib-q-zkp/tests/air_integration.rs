@@ -654,8 +654,6 @@ fn test_merkle_hash_sibling_not_rehashed() {
 
     // Verify it's a valid field element (can access real part)
     let _real = field.real();
-    // Just verify we can access the field without panicking
-    assert!(true);
 }
 
 // ============================================================================

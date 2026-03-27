@@ -3,6 +3,8 @@
 //! These tests verify that the verifier properly rejects proofs that exceed
 //! resource limits to prevent denial-of-service attacks.
 
+#![allow(clippy::clone_on_copy)]
+
 use lib_q_stark::{
     StarkConfig,
     prove,

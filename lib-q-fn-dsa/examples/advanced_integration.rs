@@ -4,6 +4,7 @@
 //! including multi-party protocols, certificate chains, and enterprise
 //! security configurations.
 
+#![allow(clippy::needless_range_loop)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

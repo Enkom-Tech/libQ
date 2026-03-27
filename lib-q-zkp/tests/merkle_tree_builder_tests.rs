@@ -1,6 +1,7 @@
 //! Tests for Poseidon Merkle tree builder and prove/verify round-trip.
 
 #![cfg(feature = "zkp")]
+#![allow(clippy::needless_range_loop)]
 
 use lib_q_zkp::air::MerkleHash;
 use lib_q_zkp::api::{

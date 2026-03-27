@@ -3,6 +3,7 @@
 //! This example demonstrates how to integrate hardware-specific random number
 //! generators with FN-DSA for enhanced security in embedded and IoT environments.
 
+#![allow(clippy::new_without_default)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

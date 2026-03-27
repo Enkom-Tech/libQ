@@ -194,11 +194,11 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
         "dawn" | "DAWN" => Ok(Box::new(DawnImpl::default())),
 
         #[cfg(feature = "hqc")]
-        "HQC-128" | "hqc-128" => Ok(Box::new(hqc::Hqc128Impl::default())),
+        "HQC-128" | "hqc-128" => Ok(Box::new(hqc::Hqc128Impl)),
         #[cfg(feature = "hqc")]
-        "HQC-192" | "hqc-192" => Ok(Box::new(hqc::Hqc192Impl::default())),
+        "HQC-192" | "hqc-192" => Ok(Box::new(hqc::Hqc192Impl)),
         #[cfg(feature = "hqc")]
-        "HQC-256" | "hqc-256" => Ok(Box::new(hqc::Hqc256Impl::default())),
+        "HQC-256" | "hqc-256" => Ok(Box::new(hqc::Hqc256Impl)),
 
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown algorithm",

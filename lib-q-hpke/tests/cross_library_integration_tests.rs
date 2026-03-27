@@ -228,7 +228,9 @@ fn test_hpke_multiple_kem_algorithms() {
     for algorithm in algorithms {
         let keypair = kem_ctx
             .generate_keypair(algorithm, None)
-            .expect(&format!("Key generation should work for {:?}", algorithm));
+            .unwrap_or_else(|e| {
+                panic!("Key generation should work for {algorithm:?}: {e}");
+            });
 
         let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
         let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -239,11 +241,11 @@ fn test_hpke_multiple_kem_algorithms() {
 
         let (encapsulated_key, ciphertext) = hpke_ctx
             .seal(&recipient_pk, info, aad, &message)
-            .expect(&format!("Seal should work for {:?}", algorithm));
+            .unwrap_or_else(|e| panic!("Seal should work for {algorithm:?}: {e}"));
 
         let decrypted = hpke_ctx
             .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
-            .expect(&format!("Open should work for {:?}", algorithm));
+            .unwrap_or_else(|e| panic!("Open should work for {algorithm:?}: {e}"));
 
         assert_eq!(
             decrypted, message,

@@ -7,6 +7,9 @@
 //! - Memory usage patterns
 //! - Algorithm comparison
 
+#![allow(clippy::explicit_auto_deref)]
+#![allow(clippy::useless_vec)]
+
 use std::hint::black_box;
 
 use criterion::{

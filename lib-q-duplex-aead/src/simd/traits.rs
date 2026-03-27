@@ -1,5 +1,6 @@
 //! SIMD dispatch trait for duplex AEAD (portable path; AVX2 delegates here).
 
+use crate::crypto::DuplexCryptoError;
 use crate::params::{
     KEY_BYTES,
     NONCE_BYTES,
@@ -13,7 +14,7 @@ pub trait DuplexAeadOps {
         ad: &[u8],
         pt: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), DuplexCryptoError>;
 
     fn decrypt(
         key: &[u8; KEY_BYTES],
@@ -21,5 +22,5 @@ pub trait DuplexAeadOps {
         ad: &[u8],
         ct_in: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()>;
+    ) -> Result<(), DuplexCryptoError>;
 }

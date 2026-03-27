@@ -21,6 +21,7 @@ extern crate alloc;
 
 pub mod block;
 pub mod crypto;
+pub use crypto::TweakCryptoError;
 pub mod params;
 pub mod simd;
 pub mod sponge;

@@ -79,10 +79,13 @@ unsafe fn rotl64x4(v: __m256i, n: u32) -> __m256i {
 }
 
 /// 24-round Keccak-f[1600] on four interleaved states (`state[w]` holds lane `j` = word `w` of instance `j`).
+///
+/// # Safety
+///
+/// The CPU must support AVX2.
 #[target_feature(enable = "avx2")]
 pub unsafe fn f1600_x4(state: &mut [__m256i; PLEN]) {
-    for ri in 0..24 {
-        let rc = RC[ri];
+    for &rc in &RC {
         let mut c = [_mm256_setzero_si256(); 5];
         for x in 0..5usize {
             for y in 0..5usize {
@@ -126,6 +129,10 @@ pub unsafe fn f1600_x4(state: &mut [__m256i; PLEN]) {
 }
 
 /// Pack four `[u64; 25]` states into interleaved vectors (lane `k` = instance `k`).
+///
+/// # Safety
+///
+/// The CPU must support AVX2.
 #[target_feature(enable = "avx2")]
 pub unsafe fn transpose_to_x4(states: &[[u64; PLEN]; 4], out: &mut [__m256i; PLEN]) {
     for w in 0..PLEN {
@@ -138,6 +145,11 @@ pub unsafe fn transpose_to_x4(states: &[[u64; PLEN]; 4], out: &mut [__m256i; PLE
     }
 }
 
+/// Unpack interleaved vectors into four scalar Keccak states.
+///
+/// # Safety
+///
+/// The CPU must support AVX2.
 #[target_feature(enable = "avx2")]
 pub unsafe fn transpose_from_x4(v: &[__m256i; PLEN], out: &mut [[u64; PLEN]; 4]) {
     let mut lane = [0u64; 4];

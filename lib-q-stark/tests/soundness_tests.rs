@@ -1,5 +1,7 @@
 //! Soundness tests: verifier rejects every category of invalid proof.
 
+#![allow(clippy::clone_on_copy)]
+
 use std::vec::Vec;
 
 use lib_q_stark::{

@@ -2,6 +2,8 @@
 //! Run with: cargo test -p lib-q-dawn --features random --test parameter_sweep -- --ignored --nocapture
 //! Results are logged to stderr and optionally to docs/parameter_tuning_log.md when run.
 
+#![allow(clippy::disallowed_methods)]
+
 use lib_q_core::Kem;
 use lib_q_dawn::encoding::{
     pke_failure_rate_histogram,

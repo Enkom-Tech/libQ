@@ -1,3 +1,5 @@
+#![allow(clippy::clone_on_copy)]
+
 use core::borrow::Borrow;
 extern crate alloc;
 

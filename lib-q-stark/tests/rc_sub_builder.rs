@@ -1,3 +1,4 @@
+#![allow(clippy::clone_on_copy)]
 //! Minimal range-check example that reuses a bit-decomposition gadget via [`SubAirBuilder`].
 //!
 //! Column layout:

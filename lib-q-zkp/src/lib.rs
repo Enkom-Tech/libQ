@@ -47,6 +47,14 @@
 #![allow(type_alias_bounds)]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
+#![allow(clippy::bool_assert_comparison)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::get_first)]
+#![allow(clippy::iter_cloned_collect)]
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::unnecessary_lazy_evaluations)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

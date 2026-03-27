@@ -3,6 +3,8 @@
 //! These tests verify that the signature implementations work correctly
 //! in WASM environments with JavaScript bindings.
 
+#![allow(clippy::needless_range_loop)]
+
 #[cfg(feature = "wasm")]
 use wasm_bindgen_test::*;
 

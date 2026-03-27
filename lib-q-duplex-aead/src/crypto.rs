@@ -1,5 +1,7 @@
 //! Duplex AEAD encrypt/decrypt over byte slices.
 
+use core::fmt;
+
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -18,6 +20,16 @@ use crate::state::{
     tag_from_state,
 };
 
+/// Encrypt/decrypt failed: buffer too small, length overflow, or (decrypt) authentication failure.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct DuplexCryptoError;
+
+impl fmt::Debug for DuplexCryptoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("DuplexCryptoError")
+    }
+}
+
 /// Encrypt: `ciphertext` is `pt.len() + TAG_BYTES`; `ct` must hold at least that.
 pub fn encrypt(
     key: &[u8; KEY_BYTES],
@@ -25,10 +37,10 @@ pub fn encrypt(
     ad: &[u8],
     pt: &[u8],
     out: &mut [u8],
-) -> Result<(), ()> {
-    let total = pt.len().checked_add(TAG_BYTES).ok_or(())?;
+) -> Result<(), DuplexCryptoError> {
+    let total = pt.len().checked_add(TAG_BYTES).ok_or(DuplexCryptoError)?;
     if out.len() < total {
-        return Err(());
+        return Err(DuplexCryptoError);
     }
     let mut state = [0u64; PLEN];
     init_key_nonce(&mut state, key, nonce);
@@ -61,13 +73,13 @@ pub fn decrypt(
     ad: &[u8],
     ct_in: &[u8],
     out: &mut [u8],
-) -> Result<(), ()> {
+) -> Result<(), DuplexCryptoError> {
     if ct_in.len() < TAG_BYTES {
-        return Err(());
+        return Err(DuplexCryptoError);
     }
     let body_len = ct_in.len() - TAG_BYTES;
     if out.len() < body_len {
-        return Err(());
+        return Err(DuplexCryptoError);
     }
     let ct_body = &ct_in[..body_len];
     let tag_recv = &ct_in[body_len..body_len + TAG_BYTES];
@@ -91,11 +103,11 @@ pub fn decrypt(
     }
 
     let tag_calc = tag_from_state(&state);
-    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| ())?;
+    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| DuplexCryptoError)?;
     if tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() != 1 {
         pt.fill(0);
         state.zeroize();
-        return Err(());
+        return Err(DuplexCryptoError);
     }
     state.zeroize();
     Ok(())

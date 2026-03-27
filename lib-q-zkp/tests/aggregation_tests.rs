@@ -1,6 +1,10 @@
 //! Aggregation tests: single proof, batch aggregation, Merkle root, and rejection of invalid batches.
 
 #![cfg(feature = "zkp")]
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::cloned_ref_to_slice_refs)]
+#![allow(clippy::map_clone)]
 
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_field::PrimeCharacteristicRing;

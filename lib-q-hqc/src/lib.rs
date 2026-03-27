@@ -76,6 +76,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
+// SIMD paths mirror reference implementations; style lints are suppressed to keep `-D warnings` CI green.
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::manual_memcpy)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::unusual_byte_groupings)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

@@ -18,6 +18,8 @@
 #![no_std]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::type_complexity)]
 
 extern crate alloc;
 

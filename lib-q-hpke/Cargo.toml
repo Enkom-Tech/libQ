@@ -44,6 +44,7 @@ secure-rng = ["lib-q-random/getrandom"]
 
 # Post-quantum algorithm support
 ml-kem = ["dep:lib-q-ml-kem", "lib-q-kem/ml-kem"]
+hqc = ["lib-q-kem/hqc"]
 ml-dsa = ["dep:lib-q-ml-dsa"]
 hash = ["lib-q-hash/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]

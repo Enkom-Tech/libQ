@@ -3,6 +3,7 @@
 //! This example demonstrates advanced security configurations, including
 //! custom security policies, audit logging, and compliance frameworks.
 
+#![allow(clippy::collapsible_if)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -13,7 +14,7 @@ use alloc::collections::BTreeMap;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 #[cfg(feature = "std")]
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use lib_q_core::{
     Result,
@@ -276,7 +277,7 @@ impl AuditLogger {
 pub struct KeyManager {
     config: KeyManagementPolicy,
     #[cfg(feature = "std")]
-    key_registry: HashMap<String, KeyMetadata>,
+    key_registry: BTreeMap<String, KeyMetadata>,
 }
 
 /// Key metadata for tracking
@@ -295,7 +296,7 @@ impl KeyManager {
         Self {
             config,
             #[cfg(feature = "std")]
-            key_registry: HashMap::new(),
+            key_registry: BTreeMap::new(),
         }
     }
 
@@ -366,7 +367,7 @@ impl KeyManager {
 pub struct PerformanceMonitor {
     config: PerformanceConfig,
     #[cfg(feature = "std")]
-    metrics: HashMap<String, PerformanceMetric>,
+    metrics: BTreeMap<String, PerformanceMetric>,
 }
 
 /// Performance metric
@@ -385,7 +386,7 @@ impl PerformanceMonitor {
         Self {
             config,
             #[cfg(feature = "std")]
-            metrics: HashMap::new(),
+            metrics: BTreeMap::new(),
         }
     }
 

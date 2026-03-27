@@ -3,9 +3,9 @@
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use ::kem::Decapsulate;
 use hybrid_array::Array;
-use ml_kem::*;
+use lib_q_ml_kem::kem::Decapsulate;
+use lib_q_ml_kem::*;
 
 #[test]
 fn acvp_encap_decap() {

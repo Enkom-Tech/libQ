@@ -19,7 +19,11 @@ use crate::simd::avx2_keccak::{
 use crate::sponge::first_32_from_state;
 
 /// XOR keystream for plaintext slice using AVX2 batched permutation when possible.
-/// Caller must ensure `has_avx2()` is true.
+///
+/// # Safety
+///
+/// The CPU must support AVX2 (call `crate::simd::runtime::has_avx2()` first). `pt` and `ct` must
+/// have the same length.
 #[target_feature(enable = "avx2")]
 pub unsafe fn xor_keystream_avx2(
     key: &[u8; KEY_BYTES],
@@ -36,14 +40,14 @@ pub unsafe fn xor_keystream_avx2(
 
     while block_idx + 4 <= full_blocks as u64 {
         let mut states = [[0u64; PLEN]; 4];
-        for i in 0..4 {
-            setup_state_pre_f1600(&mut states[i], key, nonce, block_idx + i as u64);
+        for (i, st) in states.iter_mut().enumerate() {
+            setup_state_pre_f1600(st, key, nonce, block_idx + i as u64);
         }
         transpose_to_x4(&states, &mut vx);
         f1600_x4(&mut vx);
         transpose_from_x4(&vx, &mut states);
-        for i in 0..4 {
-            let ks = first_32_from_state(&states[i]);
+        for (i, state) in states.iter().enumerate() {
+            let ks = first_32_from_state(state);
             let base = byte_off + i * BLOCK_BYTES;
             for j in 0..BLOCK_BYTES {
                 ct[base + j] = pt[base + j] ^ ks[j];

@@ -23,14 +23,14 @@ where
 
         let local = main.row_slice(row_index).expect("row_index in bounds");
         let next = main.row_slice(row_index_next).expect("next row in bounds");
-        let main_window = RowWindow::from_two_rows(&*local, &*next);
+        let main_window = RowWindow::from_two_rows(&local, &next);
 
         let (prep_local, prep_next);
         let preprocessed_window = match preprocessed.as_ref() {
             Some(prep) => {
                 prep_local = prep.row_slice(row_index).expect("row_index in bounds");
                 prep_next = prep.row_slice(row_index_next).expect("next row in bounds");
-                RowWindow::from_two_rows(&*prep_local, &*prep_next)
+                RowWindow::from_two_rows(&prep_local, &prep_next)
             }
             None => RowWindow::from_two_rows(&[], &[]),
         };

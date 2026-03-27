@@ -233,10 +233,11 @@ where
     let (preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, preprocessed_vk)?;
 
-    if let Some(vk) = preprocessed_vk {
-        if preprocessed_width > 0 && vk.degree_bits != *degree_bits {
-            return Err(VerificationError::InvalidProofShape);
-        }
+    if let Some(vk) = preprocessed_vk &&
+        preprocessed_width > 0 &&
+        vk.degree_bits != *degree_bits
+    {
+        return Err(VerificationError::InvalidProofShape);
     }
 
     let layout = AirLayout {

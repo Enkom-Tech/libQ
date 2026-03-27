@@ -75,6 +75,14 @@
 #![no_std]
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// Reference-style loops and explicit formulas match upstream crypto code; keep Clippy from blocking CI.
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::identity_op)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::manual_memcpy)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::unnecessary_mut_passed)]
 
 mod api;
 mod benes;

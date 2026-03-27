@@ -1,3 +1,6 @@
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::default_constructed_unit_structs)]
+
 use lib_q_random::DeterministicRng;
 use lib_q_stark_challenger::{
     CanObserve,

@@ -664,11 +664,7 @@ impl SlhDsa {
             _ => return Err(JsValue::from_str("Invalid algorithm")),
         };
 
-        let randomness_vec = if let Some(rand) = randomness {
-            Some(rand.to_vec())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
         let randomness_slice = randomness_vec.as_deref();
 
         let keypair = match self.generate_keypair_for_algorithm(algorithm, randomness_slice) {
@@ -712,11 +708,7 @@ impl SlhDsa {
 
         let secret_key = SigSecretKey::new(secret_key.to_vec());
         let message = message.to_vec();
-        let randomness_vec = if let Some(rand) = randomness {
-            Some(rand.to_vec())
-        } else {
-            None
-        };
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
         let randomness_slice = randomness_vec.as_deref();
 
         let signature =

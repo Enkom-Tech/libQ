@@ -1,5 +1,11 @@
 //! FRI soundness tests: verifier rejects invalid or tampered proofs.
 
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::default_constructed_unit_structs)]
+#![allow(clippy::type_complexity)]
+
 use std::vec::Vec;
 
 use lib_q_random::DeterministicRng;

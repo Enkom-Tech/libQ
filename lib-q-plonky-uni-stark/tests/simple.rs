@@ -1,6 +1,8 @@
 //! Integration tests for uni-stark: round-trip prove/verify, wrong public values rejected,
 //! and preprocessed columns.
 
+#![allow(clippy::clone_on_copy)]
+
 extern crate alloc;
 
 use alloc::vec;

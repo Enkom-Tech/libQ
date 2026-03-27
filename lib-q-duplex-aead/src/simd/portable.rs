@@ -20,7 +20,7 @@ impl DuplexAeadOps for Portable {
         ad: &[u8],
         pt: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), crate::crypto::DuplexCryptoError> {
         core_encrypt(key, nonce, ad, pt, out)
     }
 
@@ -30,7 +30,7 @@ impl DuplexAeadOps for Portable {
         ad: &[u8],
         ct_in: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), crate::crypto::DuplexCryptoError> {
         core_decrypt(key, nonce, ad, ct_in, out)
     }
 }

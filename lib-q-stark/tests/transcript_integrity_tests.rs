@@ -4,6 +4,8 @@
 //! them must change the quotient commitment. See prover.rs and verifier.rs for
 //! observation order.
 
+#![allow(clippy::clone_on_copy)]
+
 use std::vec::Vec;
 
 use lib_q_stark::{

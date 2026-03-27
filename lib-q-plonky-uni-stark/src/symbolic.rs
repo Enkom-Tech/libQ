@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 pub use lib_q_stark_air::symbolic::BaseLeaf;
 use lib_q_stark_air::symbolic::{
     BaseEntry,
@@ -31,8 +33,8 @@ pub struct AirLayout {
 /// `packed_linear_combination`) and which to extension-field constraints.
 #[derive(Debug, Default)]
 pub struct ConstraintLayout {
-    pub base_indices: alloc::vec::Vec<usize>,
-    pub ext_indices: alloc::vec::Vec<usize>,
+    pub base_indices: Vec<usize>,
+    pub ext_indices: Vec<usize>,
 }
 
 impl ConstraintLayout {
@@ -49,7 +51,7 @@ impl ConstraintLayout {
     pub fn decompose_alpha<F: Field, EF: ExtensionField<F>>(
         &self,
         alpha: EF,
-    ) -> (alloc::vec::Vec<alloc::vec::Vec<F>>, alloc::vec::Vec<EF>) {
+    ) -> (Vec<Vec<F>>, Vec<EF>) {
         let total = self.total_constraints();
 
         let mut alpha_powers = alpha.powers().collect_n(total);
@@ -100,10 +102,7 @@ where
     skip_all,
     level = "debug"
 )]
-pub fn get_symbolic_constraints<F, A>(
-    air: &A,
-    layout: AirLayout,
-) -> alloc::vec::Vec<SymbolicExpression<F>>
+pub fn get_symbolic_constraints<F, A>(air: &A, layout: AirLayout) -> Vec<SymbolicExpression<F>>
 where
     F: Field,
     A: Air<SymbolicAirBuilder<F>>,
@@ -144,9 +143,9 @@ pub struct SymbolicAirBuilder<F: Field> {
     preprocessed: lib_q_stark_matrix::dense::RowMajorMatrix<SymbolicVariable<F>>,
     preprocessed_window: SymbolicWindow<SymbolicVariable<F>>,
     main: lib_q_stark_matrix::dense::RowMajorMatrix<SymbolicVariable<F>>,
-    public_values: alloc::vec::Vec<SymbolicVariable<F>>,
-    base_constraints: alloc::vec::Vec<SymbolicExpression<F>>,
-    constraint_types: alloc::vec::Vec<ConstraintType>,
+    public_values: Vec<SymbolicVariable<F>>,
+    base_constraints: Vec<SymbolicExpression<F>>,
+    constraint_types: Vec<ConstraintType>,
 }
 
 impl<F: Field> SymbolicAirBuilder<F> {
@@ -159,7 +158,7 @@ impl<F: Field> SymbolicAirBuilder<F> {
             num_public_values,
         } = layout;
 
-        let prep_values: alloc::vec::Vec<_> = [0, 1]
+        let prep_values: Vec<_> = [0, 1]
             .into_iter()
             .flat_map(|offset| {
                 (0..preprocessed_width).map(move |index| {
@@ -168,7 +167,7 @@ impl<F: Field> SymbolicAirBuilder<F> {
             })
             .collect();
 
-        let main_values: alloc::vec::Vec<_> = [0, 1]
+        let main_values: Vec<_> = [0, 1]
             .into_iter()
             .flat_map(|offset| {
                 (0..main_width)
@@ -193,8 +192,8 @@ impl<F: Field> SymbolicAirBuilder<F> {
     }
 
     pub fn constraint_layout(&self) -> ConstraintLayout {
-        let mut base_indices = alloc::vec::Vec::new();
-        let mut ext_indices = alloc::vec::Vec::new();
+        let mut base_indices = Vec::new();
+        let mut ext_indices = Vec::new();
         for (idx, kind) in self.constraint_types.iter().enumerate() {
             match kind {
                 ConstraintType::Base => base_indices.push(idx),
@@ -207,7 +206,7 @@ impl<F: Field> SymbolicAirBuilder<F> {
         }
     }
 
-    pub fn base_constraints(&self) -> alloc::vec::Vec<SymbolicExpression<F>> {
+    pub fn base_constraints(&self) -> Vec<SymbolicExpression<F>> {
         self.base_constraints.clone()
     }
 }
@@ -217,7 +216,7 @@ impl<F: Field> SymbolicAirBuilder<F> {
 /// This local type lets us implement `WindowAccess` without orphan rule issues.
 #[derive(Clone, Debug)]
 pub struct SymbolicWindow<T> {
-    values: alloc::vec::Vec<T>,
+    values: Vec<T>,
     width: usize,
 }
 

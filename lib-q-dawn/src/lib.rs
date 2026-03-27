@@ -10,6 +10,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::unnecessary_cast)]
 
 #[cfg(not(feature = "std"))]
 extern crate alloc;

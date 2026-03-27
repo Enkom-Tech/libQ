@@ -3,7 +3,7 @@
 
 #![cfg(feature = "zkp")]
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::Matrix;
@@ -152,7 +152,7 @@ fn test_statistical_zk_no_repeated_commitments_100_proofs() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
 
-    let hashes: HashSet<[u8; 32]> = (0..100)
+    let hashes: BTreeSet<[u8; 32]> = (0..100)
         .map(|i| {
             let proof = StarkProver::new(zk_config_with_seeds(i, i + 100))
                 .prove(&air, trace.clone(), &pv)

@@ -1,6 +1,7 @@
 //! NIST SP 800-90A CTR_DRBG integration KATs; run with feature `nist-aes-rng` or `cbkem8192128f`.
 
 #![cfg(feature = "nist-aes-rng")]
+#![allow(clippy::needless_range_loop)]
 
 use lib_q_cb_kem::{
     AesState,

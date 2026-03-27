@@ -18,6 +18,7 @@
 extern crate alloc;
 
 pub mod crypto;
+pub use crypto::DuplexCryptoError;
 pub mod params;
 pub mod simd;
 pub mod state;

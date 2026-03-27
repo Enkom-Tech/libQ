@@ -23,7 +23,7 @@ impl DuplexAeadOps for Avx2 {
         ad: &[u8],
         pt: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), crate::crypto::DuplexCryptoError> {
         <Portable as DuplexAeadOps>::encrypt(key, nonce, ad, pt, out)
     }
 
@@ -33,7 +33,7 @@ impl DuplexAeadOps for Avx2 {
         ad: &[u8],
         ct_in: &[u8],
         out: &mut [u8],
-    ) -> Result<(), ()> {
+    ) -> Result<(), crate::crypto::DuplexCryptoError> {
         <Portable as DuplexAeadOps>::decrypt(key, nonce, ad, ct_in, out)
     }
 }

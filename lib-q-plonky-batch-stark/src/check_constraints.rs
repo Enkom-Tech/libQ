@@ -246,7 +246,7 @@ pub fn check_constraints<F, EF, A, LG>(
 
         let main_local_guard = main.row_slice(row_index).expect("row_index in bounds");
         let main_next_guard = main.row_slice(row_index_next).expect("next row in bounds");
-        let main_window = RowWindow::from_two_rows(&*main_local_guard, &*main_next_guard);
+        let main_window = RowWindow::from_two_rows(&main_local_guard, &main_next_guard);
 
         let prep_row0;
         let prep_row1;

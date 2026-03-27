@@ -4,6 +4,8 @@
 //! such as embedded systems or bare-metal applications. It shows the
 //! complete workflow without relying on the standard library.
 
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::new_without_default)]
 #![no_std]
 
 extern crate alloc;

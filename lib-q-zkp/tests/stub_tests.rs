@@ -5,6 +5,7 @@
 //! constrains the trace's signature-commitment column to match.
 
 #![cfg(feature = "zkp")]
+#![allow(clippy::field_reassign_with_default)]
 
 use lib_q_stark_matrix::Matrix;
 use lib_q_zkp::air::TraceGenerator;

@@ -4,7 +4,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use hybrid_array::Array;
-use ml_kem::*;
+use lib_q_ml_kem::*;
 
 #[test]
 fn acvp_key_gen() {

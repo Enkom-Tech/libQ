@@ -1,5 +1,8 @@
 //! Round-trip test: prove_batch then verify_batch with a simple Fibonacci AIR (no lookups).
 
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::cloned_ref_to_slice_refs)]
+
 extern crate alloc;
 
 use alloc::vec;
