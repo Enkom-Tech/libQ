@@ -205,9 +205,10 @@ pub(crate) mod ml_dsa_87 {
     pub type MLDSA87VerificationKey = crate::MLDSAVerificationKey<VERIFICATION_KEY_SIZE>;
 }
 
-/// Eta values
+/// Eta values (parameter sets use a subset; `Two` is kept for spec completeness).
 #[derive(Clone, Copy)]
 pub(crate) enum Eta {
+    #[allow(dead_code)]
     Two = 2,
     Four = 4,
 }

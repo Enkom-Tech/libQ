@@ -64,3 +64,5 @@ std = ["alloc", "dep:lib-q-random", "lib-q-random/std"]
 no_std = ["getrandom", "alloc", "dep:lib-q-random", "lib-q-random/no_std", "lib-q-random/getrandom"]
 test = []
 zeroize = ["dep:zeroize", "hybrid-array/zeroize"]
+# Expand `test_parameter_sets!` and integration KATs to all 12 FIPS parameter sets (slow). Default smoke uses Shake128f + Sha2_128f only (lib + known_answer_tests).
+all-parameter-set-tests = []

@@ -55,7 +55,8 @@ runs:
       run: |
         echo "Running security audit for SLH-DSA..."
         cargo install cargo-audit --locked
-        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145        echo "Security audit completed successfully"
+        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145
+        echo "Security audit completed successfully"
     
     - name: Check formatting
       shell: bash
@@ -123,14 +124,6 @@ runs:
         cargo test --features "${{ inputs.features }}" --test acvp_ver
         echo "ACVP tests completed"
     
-    - name: Run known answer tests
-      shell: bash
-      run: |
-        echo "Running known answer tests..."
-        cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test known_answer_tests
-        echo "Known answer tests completed"
-    
     - name: Test WASM compatibility
       shell: bash
       run: |
@@ -179,19 +172,13 @@ runs:
         cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
         echo "Cross-compilation test completed"
     
-    - name: Test all SLH-DSA parameter sets
+    - name: Known answer tests (all parameter sets)
       shell: bash
       run: |
-        echo "Testing all SLH-DSA parameter sets..."
+        echo "Running full known_answer_tests suite (12 KATs; smoke pair already ran in the main cargo test step)..."
         cd ${{ inputs.working-directory }}
-        
-        # Test each parameter set individually
-        for param_set in sha2-128f sha2-192f sha2-256f shake128f shake192f shake256f; do
-          echo "Testing $param_set..."
-          cargo test --features "${{ inputs.features }}" --test known_answer_tests test_kat_$param_set
-        done
-        
-        echo "All SLH-DSA parameter sets tested successfully"
+        cargo test --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
+        echo "Full KAT suite completed"
     
     - name: Test no_std compatibility
       shell: bash

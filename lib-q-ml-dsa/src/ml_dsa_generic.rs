@@ -1,12 +1,6 @@
 use crate::constants::*;
-use crate::hash_functions::{
-    shake128,
-    shake256,
-};
-use crate::pre_hash::{
-    DomainSeparationContext,
-    PreHash,
-};
+use crate::hash_functions::shake256;
+use crate::pre_hash::DomainSeparationContext;
 use crate::types::*;
 pub(crate) mod instantiations;
 
@@ -24,7 +18,10 @@ pub(crate) mod ml_dsa_44 {
         vector_infinity_norm_exceeds,
     };
     use crate::constants::ml_dsa_44::*;
-    use crate::hash_functions::shake256;
+    use crate::hash_functions::{
+        shake128,
+        shake256,
+    };
     use crate::matrix::{
         add_vectors,
         compute_as1_plus_s2,
@@ -35,7 +32,10 @@ pub(crate) mod ml_dsa_44 {
     };
     use crate::ntt::ntt;
     use crate::polynomial::PolynomialRingElement;
-    use crate::pre_hash::DomainSeparationContext;
+    use crate::pre_hash::{
+        DomainSeparationContext,
+        PreHash,
+    };
     use crate::sample::{
         sample_challenge_ring_element,
         sample_mask_vector,

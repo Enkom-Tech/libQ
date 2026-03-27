@@ -71,18 +71,28 @@ pub mod macros {
         ($name:ident) => {
             #[allow(unused_imports)]
             use crate::hashes::*;
+            // Smoke: one SHAKE and one SHA2 (level-1f). Full suite: `--features all-parameter-set-tests`.
             crate::gen_test!($name, Shake128f);
-            crate::gen_test!($name, Shake128s);
-            crate::gen_test!($name, Shake192f);
-            crate::gen_test!($name, Shake192s);
-            crate::gen_test!($name, Shake256f);
-            crate::gen_test!($name, Shake256s);
-
             crate::gen_test!($name, Sha2_128f);
+            #[cfg(feature = "all-parameter-set-tests")]
+            crate::gen_test!($name, Shake128s);
+            #[cfg(feature = "all-parameter-set-tests")]
+            crate::gen_test!($name, Shake192f);
+            #[cfg(feature = "all-parameter-set-tests")]
+            crate::gen_test!($name, Shake192s);
+            #[cfg(feature = "all-parameter-set-tests")]
+            crate::gen_test!($name, Shake256f);
+            #[cfg(feature = "all-parameter-set-tests")]
+            crate::gen_test!($name, Shake256s);
+            #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Sha2_128s);
+            #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Sha2_192f);
+            #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Sha2_192s);
+            #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Sha2_256f);
+            #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Sha2_256s);
         };
     }

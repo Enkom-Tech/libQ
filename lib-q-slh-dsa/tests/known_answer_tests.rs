@@ -3,6 +3,7 @@
 //! with PQCgenKAT_sign.c modified on line 59 to reduce iterations from 100 to 10
 //!
 //! These tests call the `slh_*_internal` functions directly, bypassing context processing.
+//! By default only two KATs run (Shake128f, Sha2_128f). Enable `--features all-parameter-set-tests` for the full set.
 #![cfg(feature = "alloc")]
 use core::{
     error,
@@ -199,50 +200,65 @@ fn test_kat_sha2_128f() {
 }
 
 #[test]
+fn test_kat_shake_128f() {
+    test_kat::<Shake128f>("056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29");
+}
+
+#[cfg(feature = "all-parameter-set-tests")]
+#[test]
+fn test_kat_sha2_128s() {
+    test_kat::<Sha2_128s>("5e501f7c91fa189dff618dda9cca0511140fb85e133bab986c9ef89ed220389e");
+}
+
+#[cfg(feature = "all-parameter-set-tests")]
+#[test]
 fn test_kat_sha2_192s() {
     test_kat::<Sha2_192s>("0d17bdb1d3e7d7f06e88d79f3b65fbeae70694914ec088a3d1c081e65c35a928");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_sha2_192f() {
     test_kat::<Sha2_192f>("73519c7365ac46695ea96dae3283f05a2ddcb1e8f9e0ba800544ba737b746206");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_sha2_256s() {
     test_kat::<Sha2_256s>("f935d6af17fa16f290421c5112c4c2cee445ba7c332a74fe3d88a7a219c2176b");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_sha2_256f() {
     test_kat::<Sha2_256f>("e58442029ff40d3f61d5a7d3495fae38500ad4be4db9db1ef4f42a365077b070");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_128s() {
     test_kat::<Shake128s>("1930c23fb13b4f95ec11343d9a68d270879bfbb8821c1cfb59b37cd0b5e4665e");
 }
 
-#[test]
-fn test_kat_shake_128f() {
-    test_kat::<Shake128f>("056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29");
-}
-
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_192s() {
     test_kat::<Shake192s>("7d35e89f91116f0869d7a7591df026c4033f8ca3e33d795f03b25905277175cd");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_192f() {
     test_kat::<Shake192f>("d83825fb99bc22a3eb4ae388a9e88716b5cae0622682a210bd11f7b8ffbd47ee");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_256s() {
     test_kat::<Shake256s>("7c8f16c7b9645df58518b1c0aa7a26f7a2e1b9ee860819f25305cf97aecce1f3");
 }
 
+#[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_256f() {
     test_kat::<Shake256f>("be37b5222c98b3a1f0d2d3d69bc32205ed17e93c6a4da684c76ee1ca29ec28ef");

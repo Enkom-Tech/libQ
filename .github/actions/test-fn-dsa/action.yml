@@ -55,7 +55,8 @@ runs:
       run: |
         echo "🔒 Running security audit for FN-DSA..."
         cargo install cargo-audit --locked
-        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145        echo "✅ Security audit completed successfully"
+        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145
+        echo "✅ Security audit completed successfully"
     
     - name: Check formatting
       shell: bash
