@@ -41,6 +41,12 @@ once_cell = { version = "1.21.3", default-features = false, optional = true }
 # Spin for no_std global registry
 spin = { workspace = true, optional = true }
 
+# `rand` 0.10 pulls `getrandom` without `wasm_js`; getrandom 0.4 requires that feature on
+# wasm32-unknown-unknown (RUSTFLAGS `--cfg getrandom_backend=...` is not enough). A direct
+# edge merges features so transitive `getrandom` builds for the JS backend.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
 [features]
 default = ["std"]
 std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]

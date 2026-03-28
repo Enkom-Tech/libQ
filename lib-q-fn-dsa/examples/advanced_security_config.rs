@@ -4,6 +4,7 @@
 //! custom security policies, audit logging, and compliance frameworks.
 
 #![allow(clippy::collapsible_if)]
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

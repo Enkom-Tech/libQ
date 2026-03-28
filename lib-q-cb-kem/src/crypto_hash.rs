@@ -9,7 +9,7 @@ pub(crate) fn shake256(output: &mut [u8], input: &[u8]) {
     Shake256::digest_xof(input, output);
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
     use crate::test_utils::TestData;

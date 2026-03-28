@@ -3,6 +3,8 @@
 //! This example demonstrates the complete integration of FN-DSA into the libQ
 //! cryptographic library, showing how to use FN-DSA for post-quantum digital signatures.
 
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use lib_q_fn_dsa::*;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

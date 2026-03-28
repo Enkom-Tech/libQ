@@ -6,6 +6,7 @@
 
 #![allow(clippy::manual_is_multiple_of)]
 #![allow(clippy::new_without_default)]
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(target_arch = "wasm32", no_std)]
 
 #[cfg(target_arch = "wasm32")]

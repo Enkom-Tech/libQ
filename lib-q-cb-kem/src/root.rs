@@ -30,7 +30,7 @@ pub(crate) fn root(out: &mut [Gf; SYS_N], f: &[Gf; SYS_T + 1], l: &[Gf; SYS_N]) 
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     use super::*;
     use crate::test_utils::TestData;
@@ -52,7 +52,6 @@ mod tests {
         assert_eq!(expected, inv);
     }
 
-    #[cfg(feature = "alloc")]
     #[test]
     fn test_root() {
         let mut out = [0u16; SYS_N];
@@ -69,7 +68,6 @@ mod tests {
 
         root(&mut out, &f, &l);
 
-        #[cfg(feature = "alloc")]
         use alloc::format;
         let mut name = format!("{}_root_out_expected", crate::api::CRYPTO_PRIMITIVE);
         // NOTE the f-variants equals the non-f variants. We only stored the non-f variants

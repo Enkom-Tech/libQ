@@ -267,19 +267,19 @@ pub(crate) fn encrypt<R: CryptoRng + Rng>(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use super::*;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::api::CRYPTO_CIPHERTEXTBYTES;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::api::CRYPTO_PUBLICKEYBYTES;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::nist_aes_rng::AesState;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::test_utils::TestData;
 
     #[test]
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     fn test_encrypt() {
         let entropy_input = [
             6, 21, 80, 35, 77, 21, 140, 94, 201, 85, 149, 254, 4, 239, 122, 37, 118, 127, 46, 36,

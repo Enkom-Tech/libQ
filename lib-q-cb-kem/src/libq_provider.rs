@@ -387,6 +387,63 @@ impl CryptoProvider for LibQCbKemProvider {
 mod tests {
     use super::*;
 
+    /// [`Algorithm`] that matches the single active `cbkem*` feature for this build (see `api.rs`).
+    fn compiled_cb_kem_algorithm() -> Algorithm {
+        #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+        {
+            Algorithm::CbKem348864
+        }
+        #[cfg(all(
+            not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+            any(feature = "cbkem460896", feature = "cbkem460896f"),
+        ))]
+        {
+            Algorithm::CbKem460896
+        }
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+            )),
+            any(feature = "cbkem6688128", feature = "cbkem6688128f"),
+        ))]
+        {
+            Algorithm::CbKem6688128
+        }
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f",
+            )),
+            any(feature = "cbkem6960119", feature = "cbkem6960119f"),
+        ))]
+        {
+            Algorithm::CbKem6960119
+        }
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119",
+                feature = "cbkem6960119f",
+            )),
+            any(feature = "cbkem8192128", feature = "cbkem8192128f"),
+        ))]
+        {
+            Algorithm::CbKem8192128
+        }
+    }
+
     #[test]
     fn test_provider_creation() {
         let provider = LibQCbKemProvider::new();
@@ -420,21 +477,25 @@ mod tests {
     fn test_provider_algorithm_routing() {
         let provider = LibQCbKemProvider::new().unwrap();
 
-        // Test that Classical McEliece algorithms are properly routed
-        let result = provider.generate_keypair(Algorithm::CbKem348864, None);
-        // Should either succeed or return NotImplemented (depending on std feature)
-        match result {
-            Ok(_) => {
-                // Success case - this is expected with std feature
-            }
-            Err(Error::NotImplemented { .. }) => {
-                // Expected when std feature is not available
-            }
-            Err(Error::RandomGenerationFailed { .. }) => {
-                // Expected when std feature is not available for randomness generation
-            }
-            Err(e) => {
-                panic!("Unexpected error type: {:?}", e);
+        // Must match the compiled variant: this crate is built for exactly one `cbkem*` feature.
+        let alg = compiled_cb_kem_algorithm();
+
+        provider
+            .security_validator()
+            .validate_algorithm_category(alg, lib_q_core::api::AlgorithmCategory::Kem)
+            .expect("compiled CB-KEM algorithm should be a KEM");
+
+        // This crate is `#![no_std]` (the `std` feature is only a cfg knob), so we cannot spawn
+        // a thread with a larger stack. Full `keypair()` for large-parameter variants overflows
+        // the default test thread stack in debug builds; exercise it only for the smallest build.
+        #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+        {
+            let result = provider.generate_keypair(alg, None);
+            match result {
+                Ok(_) => {}
+                Err(Error::NotImplemented { .. }) => {}
+                Err(Error::RandomGenerationFailed { .. }) => {}
+                Err(e) => panic!("Unexpected error type: {:?}", e),
             }
         }
     }
@@ -445,19 +506,19 @@ mod tests {
         {
             let provider = LibQCbKemProvider::new().unwrap();
 
-            // Test full KEM cycle for Classical McEliece
-            let keypair = provider
-                .generate_keypair(Algorithm::CbKem348864, None)
-                .unwrap();
+            let alg = compiled_cb_kem_algorithm();
+
+            // Test full KEM cycle for the Classical McEliece variant in this build
+            let keypair = provider.generate_keypair(alg, None).unwrap();
 
             // Test encapsulation
             let (ciphertext, shared_secret1) = provider
-                .encapsulate(Algorithm::CbKem348864, &keypair.public_key, None)
+                .encapsulate(alg, &keypair.public_key, None)
                 .unwrap();
 
             // Test decapsulation
             let shared_secret2 = provider
-                .decapsulate(Algorithm::CbKem348864, &keypair.secret_key, &ciphertext)
+                .decapsulate(alg, &keypair.secret_key, &ciphertext)
                 .unwrap();
 
             // Verify shared secrets match

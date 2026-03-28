@@ -12,150 +12,104 @@ use lib_q_core::{
 };
 use lib_q_fn_dsa::*;
 
+type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
 /// Test basic FN-DSA functionality
 #[test]
-fn test_basic_fn_dsa_functionality() {
+fn test_basic_fn_dsa_functionality() -> TestResult {
     let fn_dsa = FnDsa512::new();
 
-    // Test keypair generation
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test signing
     let message = b"Hello, FN-DSA!";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, message)?;
 
-    // Test verification
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, message, &signature)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
     assert!(is_valid, "Signature should be valid");
+    Ok(())
 }
 
 /// Test FN-DSA 1024 functionality
 #[test]
-fn test_fn_dsa_1024_functionality() {
+fn test_fn_dsa_1024_functionality() -> TestResult {
     let fn_dsa = FnDsa1024::new();
 
-    // Test keypair generation
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test signing
     let message = b"Hello, FN-DSA 1024!";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, message)?;
 
-    // Test verification
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, message, &signature)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
     assert!(is_valid, "Signature should be valid");
+    Ok(())
 }
 
 /// Test generic FN-DSA functionality
 #[test]
-fn test_generic_fn_dsa_functionality() {
-    // Test Level 1
+fn test_generic_fn_dsa_functionality() -> TestResult {
     let fn_dsa1 = FnDsa::level1();
     assert_eq!(fn_dsa1.security_level(), FnDsaSecurityLevel::Level1);
 
-    let keypair1 = fn_dsa1
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair1 = fn_dsa1.generate_keypair()?;
     let message = b"Test message";
-    let signature1 = fn_dsa1
-        .sign(&keypair1.secret_key, message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa1
-        .verify(&keypair1.public_key, message, &signature1)
-        .expect("Verification should succeed");
+    let signature1 = fn_dsa1.sign(&keypair1.secret_key, message)?;
+    let is_valid = fn_dsa1.verify(&keypair1.public_key, message, &signature1)?;
     assert!(is_valid, "Level 1 signature should be valid");
 
-    // Test Level 5
     let fn_dsa5 = FnDsa::level5();
     assert_eq!(fn_dsa5.security_level(), FnDsaSecurityLevel::Level5);
 
-    let keypair5 = fn_dsa5
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
-    let signature5 = fn_dsa5
-        .sign(&keypair5.secret_key, message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa5
-        .verify(&keypair5.public_key, message, &signature5)
-        .expect("Verification should succeed");
+    let keypair5 = fn_dsa5.generate_keypair()?;
+    let signature5 = fn_dsa5.sign(&keypair5.secret_key, message)?;
+    let is_valid = fn_dsa5.verify(&keypair5.public_key, message, &signature5)?;
     assert!(is_valid, "Level 5 signature should be valid");
+    Ok(())
 }
 
 /// Test key serialization and deserialization
 #[test]
-fn test_key_serialization() {
+fn test_key_serialization() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test public key serialization
     let public_key_bytes = keypair.public_key().as_bytes();
     assert!(!public_key_bytes.is_empty(), "Public key should have bytes");
 
-    // Test secret key serialization
     let secret_key_bytes = keypair.secret_key().as_bytes();
     assert!(!secret_key_bytes.is_empty(), "Secret key should have bytes");
 
-    // Test that we can create new key objects from the bytes
     let new_public_key = SigPublicKey::new(public_key_bytes.to_vec());
     let new_secret_key = SigSecretKey::new(secret_key_bytes.to_vec());
 
-    // Test that the new keys work
     let message = b"Test message";
-    let signature = fn_dsa
-        .sign(&new_secret_key, message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa
-        .verify(&new_public_key, message, &signature)
-        .expect("Verification should succeed");
+    let signature = fn_dsa.sign(&new_secret_key, message)?;
+    let is_valid = fn_dsa.verify(&new_public_key, message, &signature)?;
     assert!(is_valid, "Deserialized keys should work");
+    Ok(())
 }
 
 /// Test signature serialization
 #[test]
-fn test_signature_serialization() {
+fn test_signature_serialization() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
     let message = b"Test message";
 
-    // Generate signature
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, message)?;
 
-    // Test signature serialization
     let signature_bytes = signature.as_slice();
     assert!(!signature_bytes.is_empty(), "Signature should have bytes");
 
-    // Test that we can verify the serialized signature
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, message, signature_bytes)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair.public_key, message, signature_bytes)?;
     assert!(is_valid, "Serialized signature should be valid");
+    Ok(())
 }
 
 /// Test multiple message signing
 #[test]
-fn test_multiple_message_signing() {
+fn test_multiple_message_signing() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
     let messages: Vec<&[u8]> = vec![
         b"First message",
@@ -166,72 +120,52 @@ fn test_multiple_message_signing() {
     ];
 
     for message in messages {
-        let signature = fn_dsa
-            .sign(&keypair.secret_key, message)
-            .expect("Signing should succeed");
-        let is_valid = fn_dsa
-            .verify(&keypair.public_key, message, &signature)
-            .expect("Verification should succeed");
+        let signature = fn_dsa.sign(&keypair.secret_key, message)?;
+        let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
         assert!(
             is_valid,
             "Signature should be valid for message: {:?}",
             message
         );
     }
+    Ok(())
 }
 
 /// Test cross-key verification (should fail)
 #[test]
-fn test_cross_key_verification() {
+fn test_cross_key_verification() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair1 = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
-    let keypair2 = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair1 = fn_dsa.generate_keypair()?;
+    let keypair2 = fn_dsa.generate_keypair()?;
 
     let message = b"Test message";
-    let signature = fn_dsa
-        .sign(&keypair1.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair1.secret_key, message)?;
 
-    // Verify with correct public key (should succeed)
-    let is_valid = fn_dsa
-        .verify(&keypair1.public_key, message, &signature)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair1.public_key, message, &signature)?;
     assert!(
         is_valid,
         "Signature should be valid with correct public key"
     );
 
-    // Verify with different public key (should fail)
-    let is_valid = fn_dsa
-        .verify(&keypair2.public_key, message, &signature)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair2.public_key, message, &signature)?;
     assert!(
         !is_valid,
         "Signature should be invalid with different public key"
     );
+    Ok(())
 }
 
 /// Test algorithm consistency
 #[test]
-fn test_algorithm_consistency() {
+fn test_algorithm_consistency() -> TestResult {
     let fn_dsa1 = FnDsa512::new();
     let fn_dsa2 = FnDsa512::new();
 
-    // Both instances should have the same security level
     assert_eq!(fn_dsa1.security_level(), fn_dsa2.security_level());
     assert_eq!(fn_dsa1.logn(), fn_dsa2.logn());
 
-    // Both instances should produce the same key sizes
-    let keypair1 = fn_dsa1
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
-    let keypair2 = fn_dsa2
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair1 = fn_dsa1.generate_keypair()?;
+    let keypair2 = fn_dsa2.generate_keypair()?;
 
     assert_eq!(
         keypair1.public_key().as_bytes().len(),
@@ -241,17 +175,15 @@ fn test_algorithm_consistency() {
         keypair1.secret_key().as_bytes().len(),
         keypair2.secret_key().as_bytes().len()
     );
+    Ok(())
 }
 
 /// Test error propagation
 #[test]
-fn test_error_propagation() {
+fn test_error_propagation() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test with invalid secret key size
     let invalid_secret_key = SigSecretKey::new(vec![0u8; 1000]);
     let result = fn_dsa.sign(&invalid_secret_key, b"test");
     assert!(
@@ -259,45 +191,33 @@ fn test_error_propagation() {
         "Signing should fail with invalid secret key size"
     );
 
-    // Test with invalid public key size
     let invalid_public_key = SigPublicKey::new(vec![0u8; 1000]);
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, b"test")
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, b"test")?;
     let result = fn_dsa.verify(&invalid_public_key, b"test", &signature);
     assert!(
         result.is_err(),
         "Verification should fail with invalid public key size"
     );
+    Ok(())
 }
 
 /// Test performance characteristics
 #[test]
-fn test_performance_characteristics() {
+fn test_performance_characteristics() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
     let message = b"Performance test message";
 
-    // Test signing performance
     let start = std::time::Instant::now();
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, message)?;
     let sign_duration = start.elapsed();
 
-    // Test verification performance
     let start = std::time::Instant::now();
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, message, &signature)
-        .expect("Verification should succeed");
+    let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
     let verify_duration = start.elapsed();
 
     assert!(is_valid, "Signature should be valid");
 
-    // Basic performance checks (these are not strict requirements,
-    // but help ensure the implementation is reasonable)
     assert!(
         sign_duration.as_millis() < 1000,
         "Signing should complete within 1 second"
@@ -307,19 +227,15 @@ fn test_performance_characteristics() {
         "Verification should complete within 1 second"
     );
 
-    println!("Signing time: {:?}", sign_duration);
-    println!("Verification time: {:?}", verify_duration);
+    Ok(())
 }
 
 /// Test memory usage
 #[test]
-fn test_memory_usage() {
+fn test_memory_usage() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test that key sizes are as expected
     let expected_public_key_size = vrfy_key_size(FN_DSA_LOGN_512);
     let expected_secret_key_size = sign_key_size(FN_DSA_LOGN_512);
 
@@ -332,27 +248,21 @@ fn test_memory_usage() {
         expected_secret_key_size
     );
 
-    // Test signature size
     let message = b"Memory test message";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, message)
-        .expect("Signing should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, message)?;
     let expected_signature_size = signature_size(FN_DSA_LOGN_512);
 
     assert_eq!(signature.len(), expected_signature_size);
+    Ok(())
 }
 
 /// Test SigKeypair functionality
 #[test]
-fn test_sig_keypair_functionality() {
+fn test_sig_keypair_functionality() -> TestResult {
     let fn_dsa = FnDsa512::new();
 
-    // Test keypair generation
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test that keypair contains both keys
     let public_key = keypair.public_key();
     let secret_key = keypair.secret_key();
 
@@ -365,7 +275,6 @@ fn test_sig_keypair_functionality() {
         "Secret key should not be empty"
     );
 
-    // Test that keys have expected sizes
     let expected_public_key_size = vrfy_key_size(FN_DSA_LOGN_512);
     let expected_secret_key_size = sign_key_size(FN_DSA_LOGN_512);
 
@@ -380,47 +289,31 @@ fn test_sig_keypair_functionality() {
         "Secret key should have expected size"
     );
 
-    // Test that the keypair works for signing and verification
     let message = b"Test message for keypair functionality";
-    let signature = fn_dsa
-        .sign(secret_key, message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa
-        .verify(public_key, message, &signature)
-        .expect("Verification should succeed");
+    let signature = fn_dsa.sign(secret_key, message)?;
+    let is_valid = fn_dsa.verify(public_key, message, &signature)?;
     assert!(is_valid, "Signature should be valid");
 
-    // Test keypair creation from individual keys
     let public_key_bytes = public_key.as_bytes().to_vec();
     let secret_key_bytes = secret_key.as_bytes().to_vec();
     let reconstructed_keypair = SigKeypair::new(public_key_bytes, secret_key_bytes);
 
-    // Test that reconstructed keypair works
-    let signature2 = fn_dsa
-        .sign(reconstructed_keypair.secret_key(), message)
-        .expect("Signing should succeed");
-    let is_valid2 = fn_dsa
-        .verify(reconstructed_keypair.public_key(), message, &signature2)
-        .expect("Verification should succeed");
+    let signature2 = fn_dsa.sign(reconstructed_keypair.secret_key(), message)?;
+    let is_valid2 = fn_dsa.verify(reconstructed_keypair.public_key(), message, &signature2)?;
     assert!(is_valid2, "Reconstructed keypair should work");
 
-    // Test that both keypairs produce the same signature (deterministic)
-    // Note: FN-DSA signatures are non-deterministic due to randomness,
-    // so we just verify both signatures are valid
     assert!(
         is_valid && is_valid2,
         "Both keypairs should produce valid signatures"
     );
+    Ok(())
 }
 
 /// Test SigKeypair with different security levels
 #[test]
-fn test_sig_keypair_security_levels() {
-    // Test Level 1 (512-bit)
+fn test_sig_keypair_security_levels() -> TestResult {
     let fn_dsa512 = FnDsa512::new();
-    let keypair512 = fn_dsa512
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair512 = fn_dsa512.generate_keypair()?;
 
     let expected_public_key_size_512 = vrfy_key_size(FN_DSA_LOGN_512);
     let expected_secret_key_size_512 = sign_key_size(FN_DSA_LOGN_512);
@@ -436,11 +329,8 @@ fn test_sig_keypair_security_levels() {
         "512-bit secret key should have expected size"
     );
 
-    // Test Level 5 (1024-bit)
     let fn_dsa1024 = FnDsa1024::new();
-    let keypair1024 = fn_dsa1024
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair1024 = fn_dsa1024.generate_keypair()?;
 
     let expected_public_key_size_1024 = vrfy_key_size(FN_DSA_LOGN_1024);
     let expected_secret_key_size_1024 = sign_key_size(FN_DSA_LOGN_1024);
@@ -456,7 +346,6 @@ fn test_sig_keypair_security_levels() {
         "1024-bit secret key should have expected size"
     );
 
-    // Test that 1024-bit keys are larger than 512-bit keys
     assert!(
         keypair1024.public_key().as_bytes().len() > keypair512.public_key().as_bytes().len(),
         "1024-bit public key should be larger than 512-bit public key"
@@ -466,64 +355,40 @@ fn test_sig_keypair_security_levels() {
         "1024-bit secret key should be larger than 512-bit secret key"
     );
 
-    // Test that both keypairs work for their respective algorithms
     let message = b"Test message for security level comparison";
 
-    let signature512 = fn_dsa512
-        .sign(keypair512.secret_key(), message)
-        .expect("512-bit signing should succeed");
-    let is_valid512 = fn_dsa512
-        .verify(keypair512.public_key(), message, &signature512)
-        .expect("512-bit verification should succeed");
+    let signature512 = fn_dsa512.sign(keypair512.secret_key(), message)?;
+    let is_valid512 = fn_dsa512.verify(keypair512.public_key(), message, &signature512)?;
     assert!(is_valid512, "512-bit signature should be valid");
 
-    let signature1024 = fn_dsa1024
-        .sign(keypair1024.secret_key(), message)
-        .expect("1024-bit signing should succeed");
-    let is_valid1024 = fn_dsa1024
-        .verify(keypair1024.public_key(), message, &signature1024)
-        .expect("1024-bit verification should succeed");
+    let signature1024 = fn_dsa1024.sign(keypair1024.secret_key(), message)?;
+    let is_valid1024 = fn_dsa1024.verify(keypair1024.public_key(), message, &signature1024)?;
     assert!(is_valid1024, "1024-bit signature should be valid");
+    Ok(())
 }
 
 /// Test edge cases
 #[test]
-fn test_edge_cases() {
+fn test_edge_cases() -> TestResult {
     let fn_dsa = FnDsa512::new();
-    let keypair = fn_dsa
-        .generate_keypair()
-        .expect("Keypair generation should succeed");
+    let keypair = fn_dsa.generate_keypair()?;
 
-    // Test with empty message
     let empty_message = b"";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, empty_message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, empty_message, &signature)
-        .expect("Verification should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, empty_message)?;
+    let is_valid = fn_dsa.verify(&keypair.public_key, empty_message, &signature)?;
     assert!(is_valid, "Empty message signature should be valid");
 
-    // Test with single byte message
     let single_byte_message = b"a";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, single_byte_message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, single_byte_message, &signature)
-        .expect("Verification should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, single_byte_message)?;
+    let is_valid = fn_dsa.verify(&keypair.public_key, single_byte_message, &signature)?;
     assert!(is_valid, "Single byte message signature should be valid");
 
-    // Test with message containing null bytes
     let null_message = b"Message with\0null bytes";
-    let signature = fn_dsa
-        .sign(&keypair.secret_key, null_message)
-        .expect("Signing should succeed");
-    let is_valid = fn_dsa
-        .verify(&keypair.public_key, null_message, &signature)
-        .expect("Verification should succeed");
+    let signature = fn_dsa.sign(&keypair.secret_key, null_message)?;
+    let is_valid = fn_dsa.verify(&keypair.public_key, null_message, &signature)?;
     assert!(
         is_valid,
         "Message with null bytes signature should be valid"
     );
+    Ok(())
 }

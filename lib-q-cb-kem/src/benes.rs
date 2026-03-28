@@ -381,7 +381,7 @@ pub(crate) fn support_gen(s: &mut [Gf; SYS_N], c: &[u8; COND_BYTES]) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "alloc"))]
 mod tests {
     #[cfg(feature = "alloc")]
     use alloc::vec::Vec;

@@ -335,7 +335,10 @@ pub(crate) fn controlbitsfrompermutation(out: &mut [u8], pi: &[i16], w: usize, n
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(any(feature = "cbkem348864", feature = "cbkem6960119"))]
+    #[cfg(all(
+        feature = "alloc",
+        any(feature = "cbkem348864", feature = "cbkem6960119")
+    ))]
     use crate::test_utils::TestData;
 
     // A simple testcase for layer().
@@ -425,7 +428,7 @@ mod tests {
     // This testcase corresponds to the call of controlbitsfrompermutation
     // in the 3rd KAT testcase of the cbkem348864 reference implementation
     #[test]
-    #[cfg(feature = "cbkem348864")]
+    #[cfg(all(feature = "alloc", feature = "cbkem348864"))]
     fn test_controlbitsfrompermutation_kat3_cbkem348864() {
         let pi = TestData::new().i16vec("controlbits_kat3_cbkem348864_pi");
         let mut out = [0u8; 5888];
@@ -439,7 +442,7 @@ mod tests {
     // This testcase corresponds to the call of controlbitsfrompermutation
     // in the 8th KAT testcase of the cbkem348864 reference implementation
     #[test]
-    #[cfg(feature = "cbkem348864")]
+    #[cfg(all(feature = "alloc", feature = "cbkem348864"))]
     fn test_controlbitsfrompermutation_kat8_cbkem348864() {
         let mut out = [0u8; 5888];
         let pi = TestData::new().i16vec("controlbits_kat8_cbkem348864_pi");
@@ -453,7 +456,7 @@ mod tests {
     // This testcase corresponds to the call of controlbitsfrompermutation
     // in the 9th KAT testcase of the cbkem348864 reference implementation
     #[test]
-    #[cfg(feature = "cbkem348864")]
+    #[cfg(all(feature = "alloc", feature = "cbkem348864"))]
     fn test_controlbitsfrompermutation_kat9_cbkem348864() {
         let mut out = [0u8; 5888];
         let pi = TestData::new().i16vec("controlbits_kat9_cbkem348864_pi");
@@ -467,7 +470,7 @@ mod tests {
     // This testcase corresponds to the call of controlbitsfrompermutation
     // in the 3rd KAT testcase of the cbkem6960119 reference implementation
     #[test]
-    #[cfg(feature = "cbkem6960119")]
+    #[cfg(all(feature = "alloc", feature = "cbkem6960119"))]
     fn test_controlbitsfrompermutation_kat3_cbkem6960119() {
         assert_eq!(GFBITS, 13);
 

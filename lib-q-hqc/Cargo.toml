@@ -52,6 +52,10 @@ required-features = ["hqc128", "hqc192", "hqc256"]
 name = "performance_benchmarks"
 harness = false
 
+[[test]]
+name = "bearssl_kat_verification_test"
+path = "tests/bearssl_kat_verification_test.rs"
+required-features = ["bearssl-aes"]
 
 [features]
 default = ["alloc", "random", "bearssl-aes"]

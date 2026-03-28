@@ -63,8 +63,12 @@ jobs:
       # First run coverage for individual critical crates
       - name: Run coverage for core cryptographic crates
         run: |
-          # Create directory for combined reports
-          mkdir -p combined-coverage
+          # Create directory for combined reports (cp -r does not create parent dirs)
+          mkdir -p combined-coverage \
+            "combined-coverage/${{ matrix.rust }}/core" \
+            "combined-coverage/${{ matrix.rust }}/crypto" \
+            "combined-coverage/${{ matrix.rust }}/utils" \
+            "combined-coverage/${{ matrix.rust }}/full"
           
           # Define critical cryptographic crates
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-k12"

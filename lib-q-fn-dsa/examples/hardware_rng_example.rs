@@ -4,6 +4,7 @@
 //! generators with FN-DSA for enhanced security in embedded and IoT environments.
 
 #![allow(clippy::new_without_default)]
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -215,14 +216,14 @@ impl TryRng for ArmTrustZoneRng {
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let upper = self.try_next_u32().unwrap() as u64;
-        let lower = self.try_next_u32().unwrap() as u64;
+        let upper = self.try_next_u32()? as u64;
+        let lower = self.try_next_u32()? as u64;
         Ok((upper << 32) | lower)
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.try_next_u32().unwrap().to_le_bytes();
+            let bytes = self.try_next_u32()?.to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
@@ -304,14 +305,14 @@ impl TryRng for IntelRdrandRng {
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let upper = self.try_next_u32().unwrap() as u64;
-        let lower = self.try_next_u32().unwrap() as u64;
+        let upper = self.try_next_u32()? as u64;
+        let lower = self.try_next_u32()? as u64;
         Ok((upper << 32) | lower)
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.try_next_u32().unwrap().to_le_bytes();
+            let bytes = self.try_next_u32()?.to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
@@ -384,14 +385,14 @@ impl TryRng for Esp32Rng {
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let upper = self.try_next_u32().unwrap() as u64;
-        let lower = self.try_next_u32().unwrap() as u64;
+        let upper = self.try_next_u32()? as u64;
+        let lower = self.try_next_u32()? as u64;
         Ok((upper << 32) | lower)
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.try_next_u32().unwrap().to_le_bytes();
+            let bytes = self.try_next_u32()?.to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }
@@ -444,14 +445,14 @@ impl TryRng for FallbackSoftwareRng {
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let upper = self.try_next_u32().unwrap() as u64;
-        let lower = self.try_next_u32().unwrap() as u64;
+        let upper = self.try_next_u32()? as u64;
+        let lower = self.try_next_u32()? as u64;
         Ok((upper << 32) | lower)
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         for chunk in dest.chunks_mut(4) {
-            let bytes = self.try_next_u32().unwrap().to_le_bytes();
+            let bytes = self.try_next_u32()?.to_le_bytes();
             let len = chunk.len().min(4);
             chunk[..len].copy_from_slice(&bytes[..len]);
         }

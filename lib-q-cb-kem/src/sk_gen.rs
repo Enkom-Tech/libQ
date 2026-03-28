@@ -66,10 +66,14 @@ pub(crate) fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> isize {
 mod tests {
     use super::*;
     use crate::macros::sub;
+    #[cfg(feature = "alloc")]
     use crate::test_utils::TestData;
 
     #[test]
-    #[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        feature = "alloc",
+        any(feature = "cbkem8192128", feature = "cbkem8192128f")
+    ))]
     fn test_genpoly_gen() {
         assert_eq!(SYS_T, 128);
 

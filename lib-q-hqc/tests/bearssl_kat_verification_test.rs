@@ -185,9 +185,3 @@ fn test_bearssl_drbg_state_consistency() {
 
     println!("✅ BearSSL DRBG maintains consistent state and produces different outputs");
 }
-
-#[cfg(not(feature = "bearssl-aes"))]
-#[test]
-fn test_bearssl_feature_required() {
-    panic!("This test requires the 'bearssl-aes' feature to be enabled");
-}

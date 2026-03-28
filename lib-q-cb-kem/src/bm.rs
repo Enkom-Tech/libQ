@@ -93,6 +93,7 @@ pub(crate) fn bm(out: &mut [Gf; SYS_T + 1], s: &mut [Gf; 2 * SYS_T]) {
 mod tests {
     use super::*;
     use crate::macros::sub;
+    #[cfg(feature = "alloc")]
     use crate::test_utils::TestData;
 
     #[test]
@@ -125,6 +126,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_first_round_bm() {
         let compare_array = TestData::new().u16vec("cbkem8192128f_bm_first_round_compare_array");
         let compare_array_slice = sub!(compare_array.as_slice(), 0, SYS_T + 1, u16);

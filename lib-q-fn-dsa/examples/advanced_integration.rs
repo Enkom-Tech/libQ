@@ -5,6 +5,7 @@
 //! security configurations.
 
 #![allow(clippy::needless_range_loop)]
+#![allow(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

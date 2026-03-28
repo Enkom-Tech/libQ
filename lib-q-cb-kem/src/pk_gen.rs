@@ -170,7 +170,11 @@ fn mov_columns(
             tmp[k] = mat[i][block_idx + k];
         }
         for k in 0..8 {
-            tmp[k] = (tmp[k] >> tail) | (tmp[k + 1] << (8 - tail));
+            if tail == 0 {
+                tmp[k] = tmp[k + 1];
+            } else {
+                tmp[k] = (tmp[k] >> tail) | (tmp[k + 1] << (8 - tail));
+            }
         }
 
         let mut t = u64::from_le_bytes(*sub!(tmp, 0, 8));
@@ -186,11 +190,19 @@ fn mov_columns(
 
         *sub!(mut tmp, 0, 8) = t.to_le_bytes();
 
-        mat[i][block_idx + 8] = (mat[i][block_idx + 8] >> tail << tail) | (tmp[7] >> (8 - tail));
-        mat[i][block_idx + 0] = (tmp[0] << tail) | (mat[i][block_idx] << (8 - tail) >> (8 - tail));
+        if tail == 0 {
+            for k in 0..8 {
+                mat[i][block_idx + k] = tmp[k];
+            }
+        } else {
+            mat[i][block_idx + 8] =
+                (mat[i][block_idx + 8] >> tail << tail) | (tmp[7] >> (8 - tail));
+            mat[i][block_idx + 0] =
+                (tmp[0] << tail) | (mat[i][block_idx] << (8 - tail) >> (8 - tail));
 
-        for k in (1..=7).rev() {
-            mat[i][block_idx + k] = (tmp[k] << tail) | (tmp[k - 1] >> (8 - tail));
+            for k in (1..=7).rev() {
+                mat[i][block_idx + k] = (tmp[k] << tail) | (tmp[k - 1] >> (8 - tail));
+            }
         }
     }
 
@@ -406,9 +418,9 @@ mod tests {
         feature = "cbkem8192128f"
     ))]
     use super::*;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::api::CRYPTO_PUBLICKEYBYTES;
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     use crate::test_utils::TestData;
 
     #[test]
@@ -478,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     fn test_mov_columns() {
         const COLS: usize = SYS_N / 8;
 
@@ -521,7 +533,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     fn test_pk_gen_1() {
         let sk_data = TestData::new().u8vec("cbkem8192128f_pk_gen_sk_input");
         let perm_data = TestData::new().u32vec("cbkem8192128f_pk_gen_perm_input");
@@ -563,7 +575,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
     fn test_pk_gen_2() {
         // NOTE expected pk_data of previous testcase becomes input for this one
         let pk_data = TestData::new().u8vec("cbkem8192128f_pk_gen_pk_expected");

@@ -79,7 +79,10 @@ pub(crate) fn decrypt(
 }
 
 #[cfg(test)]
-#[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+#[cfg(all(
+    feature = "alloc",
+    any(feature = "cbkem8192128", feature = "cbkem8192128f")
+))]
 mod tests {
     use super::*;
     use crate::test_utils::TestData;

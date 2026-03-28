@@ -3,6 +3,12 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(all(
+    feature = "alloc",
+    feature = "std",
+    any(feature = "cbkem348864", feature = "cbkem348864f")
+))]
+use lib_q_cb_kem::CRYPTO_CIPHERTEXTBYTES;
 #[cfg(feature = "alloc")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "alloc")]
@@ -10,6 +16,63 @@ use lib_q_core::api::{
     Algorithm,
     KemOperations,
 };
+
+#[cfg(feature = "alloc")]
+fn compiled_cb_kem_algorithm() -> Algorithm {
+    #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+    {
+        Algorithm::CbKem348864
+    }
+    #[cfg(all(
+        not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+        any(feature = "cbkem460896", feature = "cbkem460896f"),
+    ))]
+    {
+        Algorithm::CbKem460896
+    }
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+        )),
+        any(feature = "cbkem6688128", feature = "cbkem6688128f"),
+    ))]
+    {
+        Algorithm::CbKem6688128
+    }
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+        )),
+        any(feature = "cbkem6960119", feature = "cbkem6960119f"),
+    ))]
+    {
+        Algorithm::CbKem6960119
+    }
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f",
+        )),
+        any(feature = "cbkem8192128", feature = "cbkem8192128f"),
+    ))]
+    {
+        Algorithm::CbKem8192128
+    }
+}
 
 #[cfg(feature = "alloc")]
 #[test]
@@ -23,21 +86,20 @@ fn test_cb_kem_provider_creation() {
 fn test_cb_kem_algorithm_support() {
     let provider = LibQCbKemProvider::new().unwrap();
 
-    // Test that Classical McEliece algorithms are supported
-    let result = provider.generate_keypair(Algorithm::CbKem348864, None);
-    // Should either succeed or return NotImplemented (depending on std feature)
-    match result {
-        Ok(_) => {
-            // Success case - this is expected with std feature
-        }
-        Err(lib_q_core::Error::NotImplemented { .. }) => {
-            // Expected when std feature is not available
-        }
-        Err(lib_q_core::Error::RandomGenerationFailed { .. }) => {
-            // Expected when std feature is not available for randomness generation
-        }
-        Err(e) => {
-            panic!("Unexpected error type: {:?}", e);
+    let alg = compiled_cb_kem_algorithm();
+    provider
+        .security_validator()
+        .validate_algorithm_category(alg, lib_q_core::api::AlgorithmCategory::Kem)
+        .expect("compiled CB-KEM algorithm should be a KEM");
+
+    #[cfg(any(feature = "cbkem348864", feature = "cbkem348864f"))]
+    {
+        let result = provider.generate_keypair(alg, None);
+        match result {
+            Ok(_) => {}
+            Err(lib_q_core::Error::NotImplemented { .. }) => {}
+            Err(lib_q_core::Error::RandomGenerationFailed { .. }) => {}
+            Err(e) => panic!("Unexpected error type: {:?}", e),
         }
     }
 }
@@ -59,37 +121,32 @@ fn test_cb_kem_unsupported_algorithm() {
     }
 }
 
-#[cfg(all(feature = "alloc", feature = "std"))]
+#[cfg(all(
+    feature = "alloc",
+    feature = "std",
+    any(feature = "cbkem348864", feature = "cbkem348864f")
+))]
 #[test]
 fn test_cb_kem_full_cycle() {
     let provider = LibQCbKemProvider::new().unwrap();
 
-    // Test full KEM cycle for Classical McEliece
-    let keypair = provider
-        .generate_keypair(Algorithm::CbKem348864, None)
-        .unwrap();
+    let alg = compiled_cb_kem_algorithm();
 
-    // Test encapsulation
+    let keypair = provider.generate_keypair(alg, None).unwrap();
+
     let (ciphertext, shared_secret1) = provider
-        .encapsulate(Algorithm::CbKem348864, &keypair.public_key, None)
+        .encapsulate(alg, &keypair.public_key, None)
         .unwrap();
 
-    // Test decapsulation
     let shared_secret2 = provider
-        .decapsulate(Algorithm::CbKem348864, &keypair.secret_key, &ciphertext)
+        .decapsulate(alg, &keypair.secret_key, &ciphertext)
         .unwrap();
 
-    // Verify shared secrets match
     assert_eq!(
         shared_secret1, shared_secret2,
         "Shared secrets should match"
     );
 
-    // Verify sizes are correct
-    assert_eq!(
-        ciphertext.len(),
-        96, // CRYPTO_CIPHERTEXTBYTES for mceliece348864
-        "Classical McEliece ciphertext should be 96 bytes"
-    );
+    assert_eq!(ciphertext.len(), CRYPTO_CIPHERTEXTBYTES);
     assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
 }

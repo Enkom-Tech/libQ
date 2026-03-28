@@ -41,7 +41,7 @@
 //!
 //! # Example Usage
 //!
-//! ```rust
+//! ```rust,no_run
 //! use lib_q_core::{
 //!     SigKeypair,
 //!     SigPublicKey,
@@ -528,6 +528,8 @@ pub mod utils {
 mod tests {
     use super::*;
 
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
     #[test]
     fn test_fn_dsa512_creation() {
         let fn_dsa = FnDsa512::new();
@@ -589,13 +591,10 @@ mod tests {
     }
 
     #[test]
-    fn test_keypair_generation() {
+    fn test_keypair_generation() -> TestResult {
         let fn_dsa = FnDsa512::new();
-        let keypair = fn_dsa
-            .generate_keypair()
-            .expect("Keypair generation should succeed");
+        let keypair = fn_dsa.generate_keypair()?;
 
-        // Verify key sizes
         assert_eq!(
             keypair.public_key().as_bytes().len(),
             vrfy_key_size(FN_DSA_LOGN_512)
@@ -604,50 +603,36 @@ mod tests {
             keypair.secret_key().as_bytes().len(),
             sign_key_size(FN_DSA_LOGN_512)
         );
+        Ok(())
     }
 
     #[test]
-    fn test_sign_and_verify() {
+    fn test_sign_and_verify() -> TestResult {
         let fn_dsa = FnDsa512::new();
-        let keypair = fn_dsa
-            .generate_keypair()
-            .expect("Keypair generation should succeed");
+        let keypair = fn_dsa.generate_keypair()?;
 
         let message = b"Hello, FN-DSA!";
-        let signature = fn_dsa
-            .sign(&keypair.secret_key, message)
-            .expect("Signing should succeed");
+        let signature = fn_dsa.sign(&keypair.secret_key, message)?;
 
-        // Verify the signature
-        let is_valid = fn_dsa
-            .verify(&keypair.public_key, message, &signature)
-            .expect("Verification should succeed");
+        let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
         assert!(is_valid, "Signature should be valid");
 
-        // Test with wrong message
         let wrong_message = b"Wrong message";
-        let is_valid = fn_dsa
-            .verify(&keypair.public_key, wrong_message, &signature)
-            .expect("Verification should succeed");
+        let is_valid = fn_dsa.verify(&keypair.public_key, wrong_message, &signature)?;
         assert!(!is_valid, "Signature should be invalid for wrong message");
+        Ok(())
     }
 
     #[test]
-    fn test_sign_and_verify_1024() {
+    fn test_sign_and_verify_1024() -> TestResult {
         let fn_dsa = FnDsa1024::new();
-        let keypair = fn_dsa
-            .generate_keypair()
-            .expect("Keypair generation should succeed");
+        let keypair = fn_dsa.generate_keypair()?;
 
         let message = b"Hello, FN-DSA 1024!";
-        let signature = fn_dsa
-            .sign(&keypair.secret_key, message)
-            .expect("Signing should succeed");
+        let signature = fn_dsa.sign(&keypair.secret_key, message)?;
 
-        // Verify the signature
-        let is_valid = fn_dsa
-            .verify(&keypair.public_key, message, &signature)
-            .expect("Verification should succeed");
+        let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
         assert!(is_valid, "Signature should be valid");
+        Ok(())
     }
 }

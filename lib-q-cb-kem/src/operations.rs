@@ -392,7 +392,7 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
     }
 }
 
-#[cfg(all(test, feature = "cbkem8192128f"))]
+#[cfg(all(test, feature = "alloc", feature = "cbkem8192128f"))]
 mod tests {
     use core::convert::TryFrom;
 
