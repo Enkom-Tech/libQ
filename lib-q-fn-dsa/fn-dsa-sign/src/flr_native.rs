@@ -329,9 +329,10 @@ impl Flr {
     #[allow(dead_code)]
     pub(crate) fn decode(src: &[u8]) -> Option<Self> {
         match src.len() {
-            8 => Some(Self(f64::from_le_bytes(
-                *<&[u8; 8]>::try_from(src).unwrap(),
-            ))),
+            8 => {
+                let arr: [u8; 8] = src.try_into().ok()?;
+                Some(Self(f64::from_le_bytes(arr)))
+            }
             _ => None,
         }
     }

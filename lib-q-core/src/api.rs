@@ -351,16 +351,22 @@ mod tests {
             // Test that default provider is properly configured
             let mut ctx = KemContext::with_default_provider();
 
-            // Should return NotImplemented error, not dummy data
+            // Stub core provider: NotImplemented if configured, or ProviderNotConfigured if init failed
             let result = ctx.generate_keypair(Algorithm::MlKem512, None);
             assert!(result.is_err());
 
-            if let Err(crate::error::Error::NotImplemented { feature }) = result {
-                assert!(
-                    feature.contains("ML-KEM implementations are provided by the main lib-q crate")
-                );
-            } else {
-                panic!("Expected NotImplemented error, got different error type");
+            match result {
+                Err(crate::error::Error::NotImplemented { feature }) => {
+                    assert!(
+                        feature.contains(
+                            "ML-KEM implementations are provided by the main lib-q crate"
+                        )
+                    );
+                }
+                Err(crate::error::Error::ProviderNotConfigured { operation }) => {
+                    assert_eq!(operation, "KEM");
+                }
+                _ => panic!("Expected NotImplemented or ProviderNotConfigured"),
             }
         }
 

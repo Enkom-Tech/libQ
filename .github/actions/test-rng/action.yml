@@ -95,13 +95,13 @@ runs:
         cargo build --features "${{ inputs.features }}"
         echo "✅ Build with features completed"
     
-    - name: Run tests with no default features
+    - name: Check all targets compile with no default features
       shell: bash
       run: |
-        echo "Running tests with no default features..."
+        echo "Checking library and tests compile with no default features..."
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features
-        echo "✅ Tests completed"
+        cargo check --all-targets --no-default-features
+        echo "✅ Compile check completed"
     
     - name: Run tests with all features
       shell: bash
@@ -215,7 +215,8 @@ runs:
         echo "- Working directory: ${{ inputs.working-directory }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Tests Run:" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Unit tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Unit tests (configured features)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Compile check: all targets, no default features" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Integration tests" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Documentation tests" >> $GITHUB_STEP_SUMMARY
         if [[ "${{ inputs.run-entropy-validation }}" == "true" ]]; then

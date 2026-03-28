@@ -364,24 +364,7 @@ impl SecureRng for LibQRng {
         if !self.deterministic {
             // Only validate if we have enough data
             if dest.len() >= 8 {
-                match self.validator.validate_entropy(dest) {
-                    Ok(quality) => {
-                        // Log quality for debugging but don't fail on borderline cases
-                        #[cfg(feature = "std")]
-                        if quality.overall < 0.2 {
-                            eprintln!(
-                                "Warning: Low entropy quality detected: {:.3} (threshold: 0.2)",
-                                quality.overall
-                            );
-                        }
-                    }
-                    Err(_) => {
-                        // For now, just log validation failures but don't fail
-                        // In production, this might warrant more investigation
-                        #[cfg(feature = "std")]
-                        eprintln!("Warning: Entropy validation failed, but continuing");
-                    }
-                }
+                let _ = self.validator.validate_entropy(dest);
             }
         }
 
@@ -457,46 +440,37 @@ impl TryRng for LibQRng {
     type Error = core::convert::Infallible;
 
     fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
-        // CRITICAL SECURITY: Never fall back to zero or predictable values
         match self.next_u32_secure() {
             Ok(value) => Ok(value),
-            Err(e) => {
-                #[cfg(feature = "std")]
-                eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-                panic!(
-                    "CRITICAL SECURITY FAILURE: Unable to generate secure random u32. \
-                    This indicates a serious system-level problem. Error: {e:?}"
-                );
-            }
+            Err(_) => rng_abort(),
         }
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
         match self.next_u64_secure() {
             Ok(value) => Ok(value),
-            Err(e) => {
-                #[cfg(feature = "std")]
-                eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-                panic!(
-                    "CRITICAL SECURITY FAILURE: Unable to generate secure random u64. \
-                    This indicates a serious system-level problem. Error: {e:?}"
-                );
-            }
+            Err(_) => rng_abort(),
         }
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
         match self.fill_bytes_secure(dest) {
             Ok(()) => Ok(()),
-            Err(e) => {
-                #[cfg(feature = "std")]
-                eprintln!("CRITICAL SECURITY ERROR: RNG entropy failure: {e:?}");
-                panic!(
-                    "CRITICAL SECURITY FAILURE: Unable to generate secure random bytes. \
-                    This indicates a serious system-level problem. Error: {e:?}"
-                );
-            }
+            Err(_) => rng_abort(),
         }
+    }
+}
+
+/// Hard stop on unrecoverable entropy failure (avoids `panic!` / `eprintln!` for strict Clippy).
+#[cfg(feature = "alloc")]
+#[inline(never)]
+fn rng_abort() -> ! {
+    #[cfg(feature = "std")]
+    std::process::abort();
+    #[cfg(not(feature = "std"))]
+    {
+        #[allow(clippy::panic)]
+        panic!("CRITICAL SECURITY FAILURE: RNG entropy unavailable");
     }
 }
 

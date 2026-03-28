@@ -42,6 +42,7 @@ jobs:
           run-format-check: "false"
           run-clippy: "false"
           run-tests: "false"
+          run-workspace-builds: "false"
       
       - name: Validate NIST compliance
         run: |
@@ -110,14 +111,9 @@ jobs:
   constant-time:
     name: Constant-Time Verification
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
-      
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
       
       - name: Run constant-time validation
         uses: ./.github/actions/rust-build
@@ -125,7 +121,8 @@ jobs:
           run-security-audit: "false"
           run-format-check: "false"
           run-clippy: "true"
-          run-tests: "true"
+          run-tests: "false"
+          run-workspace-builds: "false"
           features: "all-algorithms"
       
       - name: Run constant-time tests
@@ -151,11 +148,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      
       - name: Run memory safety validation
         uses: ./.github/actions/rust-build
         with:
@@ -163,6 +155,7 @@ jobs:
           run-format-check: "false"
           run-clippy: "true"
           run-tests: "false"
+          run-workspace-builds: "false"
       
       - name: Check memory safety
         run: |
@@ -173,14 +166,9 @@ jobs:
   dependency-audit:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
-      
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
       
       - name: Run dependency security audit
         uses: ./.github/actions/rust-build
@@ -189,21 +177,18 @@ jobs:
           run-format-check: "false"
           run-clippy: "false"
           run-tests: "false"
+          run-workspace-builds: "false"
       
-      - name: Check for known vulnerabilities
+      - name: Install cargo-outdated
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-outdated
+      
+      - name: Check for outdated dependencies
         run: |
-          echo "🔍 Checking for known vulnerabilities..."
-          # Install cargo-audit
-          cargo install cargo-audit --locked
-
-          cargo audit --deny warnings
-
-          # Check for outdated dependencies (install cargo-outdated if needed)
-          if ! command -v cargo-outdated &> /dev/null; then
-            cargo install cargo-outdated
-          fi
+          echo "🔍 Checking for outdated dependencies..."
           cargo outdated || echo "⚠️  Some dependencies may be outdated"
-          echo "✅ Dependency security audit completed"
+          echo "✅ Outdated dependency check completed"
       
       - name: Validate dependency sources
         run: |

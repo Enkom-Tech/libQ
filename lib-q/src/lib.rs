@@ -502,7 +502,7 @@ mod tests {
             b"plaintext",
             Some(b"associated data"),
         );
-        // Default `LibQCryptoProvider` uses `LibQAeadStubProvider`; use `libq::aead::context()` or
+        // `LibQCryptoProvider::new()` uses `LibQAeadStubProvider` for AEAD; use `libq::aead::context()` or
         // `lib_q_aead::LibQAeadProvider` for registry-backed AEAD.
         assert!(aead_result.is_err());
         match aead_result {

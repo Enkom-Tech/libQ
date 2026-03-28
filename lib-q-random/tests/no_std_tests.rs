@@ -3,6 +3,13 @@
 //! These tests verify that the no_std implementation works correctly
 //! in constrained environments.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr
+)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -23,7 +30,7 @@ use rand_core::Rng;
 /// Test basic RNG creation and functionality
 #[test]
 fn test_no_std_rng_creation() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let rng = new_secure_rng_no_std();
         assert!(rng.is_ok());
@@ -99,7 +106,7 @@ fn test_deterministic_rng() {
 /// Test RNG reseeding functionality
 #[test]
 fn test_rng_reseeding() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let mut rng = new_secure_rng_no_std().unwrap();
         let _initial_counter = rng.reseed_counter();
@@ -133,20 +140,20 @@ fn test_rng_reseeding() {
 /// Test RNG error handling
 #[test]
 fn test_rng_error_handling() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
-        // Test that RNG creation fails gracefully if getrandom is not available
-        // This test would need to be run with getrandom disabled to be meaningful
-        // In normal circumstances with getrandom available, this should succeed
-        // The error case is tested in the no_std_rng module tests
         assert!(new_secure_rng_no_std().is_ok());
+    }
+    #[cfg(all(not(feature = "alloc"), not(feature = "getrandom")))]
+    {
+        assert!(new_secure_rng_no_std().is_err());
     }
 }
 
 /// Test RNG trait implementations
 #[test]
 fn test_rng_traits() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         use rand_core::{
             CryptoRng,
@@ -180,7 +187,7 @@ fn test_rng_traits() {
 /// Test no_std specific functionality
 #[test]
 fn test_no_std_specific() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let rng = new_secure_rng_no_std().unwrap();
 
@@ -212,7 +219,7 @@ fn test_no_std_specific() {
 /// Test memory safety and zero-copy operations
 #[test]
 fn test_memory_safety() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let mut rng = new_secure_rng_no_std().unwrap();
 
@@ -235,7 +242,7 @@ fn test_memory_safety() {
 /// Test edge cases
 #[test]
 fn test_edge_cases() {
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let mut rng = new_secure_rng_no_std().unwrap();
 

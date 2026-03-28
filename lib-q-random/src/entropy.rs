@@ -722,11 +722,6 @@ impl EntropySourceFactory {
 
         let mut fallback_source = crate::secure_fallback::SecureFallbackEntropySource::new();
         if fallback_source.initialize(&fallback_config).is_ok() {
-            #[cfg(feature = "std")]
-            eprintln!(
-                "Warning: Using secure fallback entropy source. \
-                This may indicate limited entropy availability on this system."
-            );
             return Ok(Box::new(fallback_source));
         }
 

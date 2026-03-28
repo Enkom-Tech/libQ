@@ -629,6 +629,7 @@ impl<T: PRNG> Sampler<T> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use fn_dsa_comm::PRNG;
 

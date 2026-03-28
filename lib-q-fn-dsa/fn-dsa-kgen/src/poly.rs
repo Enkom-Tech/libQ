@@ -305,11 +305,30 @@ pub(crate) fn poly_sub_scaled(
     }
     let flen = core::cmp::min(flen, Flen - (sch as usize));
 
-    let n = 1usize << logn;
+    let mut run_general = |n: usize| {
+        for i in 0..n {
+            let kf = k[i].wrapping_neg() as i32;
+            for j in i..n {
+                zint_add_scaled_mul_small(&mut F[j..], Flen, &f[(j - i)..], flen, n, kf, sch, scl);
+            }
+            let kf = kf.wrapping_neg();
+            for j in 0..i {
+                zint_add_scaled_mul_small(
+                    &mut F[j..],
+                    Flen,
+                    &f[((j + n) - i)..],
+                    flen,
+                    n,
+                    kf,
+                    sch,
+                    scl,
+                );
+            }
+        }
+    };
 
     // Optimize for small degrees (logn <= 3) with unrolled loops
     if logn <= 3 {
-        // Unrolled implementation for small degrees for better performance
         match logn {
             0 => {
                 // n = 1
@@ -393,29 +412,10 @@ pub(crate) fn poly_sub_scaled(
                     }
                 }
             }
-            _ => unreachable!(), // logn <= 3, so this should never happen
+            _ => run_general(1usize << logn),
         }
     } else {
-        // General case for larger degrees
-        for i in 0..n {
-            let kf = k[i].wrapping_neg() as i32;
-            for j in i..n {
-                zint_add_scaled_mul_small(&mut F[j..], Flen, &f[(j - i)..], flen, n, kf, sch, scl);
-            }
-            let kf = kf.wrapping_neg();
-            for j in 0..i {
-                zint_add_scaled_mul_small(
-                    &mut F[j..],
-                    Flen,
-                    &f[((j + n) - i)..],
-                    flen,
-                    n,
-                    kf,
-                    sch,
-                    scl,
-                );
-            }
-        }
+        run_general(1usize << logn);
     }
 }
 

@@ -3582,6 +3582,7 @@ pub(crate) const GM: [Flr; 2048] = [
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use fn_dsa_comm::shake::SHAKE256;
 

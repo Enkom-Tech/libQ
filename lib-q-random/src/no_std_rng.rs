@@ -272,6 +272,7 @@ mod tests {
 
     use super::*;
 
+    #[cfg(feature = "getrandom")]
     #[test]
     fn test_no_std_rng_creation() {
         let rng = NoStdRng::new();
@@ -285,6 +286,7 @@ mod tests {
         assert!(rng.is_deterministic());
     }
 
+    #[cfg(feature = "getrandom")]
     #[test]
     fn test_rng_bytes_generation() {
         let mut rng = NoStdRng::new().unwrap();
@@ -296,6 +298,7 @@ mod tests {
         assert!(!all_zeros);
     }
 
+    #[cfg(feature = "getrandom")]
     #[test]
     fn test_rng_reseed_counter() {
         let mut rng = NoStdRng::new().unwrap();

@@ -3,6 +3,13 @@
 //! This module provides tests to verify the randomness quality and properties
 //! of the RNG implementations.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr
+)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -11,8 +18,9 @@ extern crate alloc;
 // Conditional imports based on feature flags
 #[cfg(feature = "alloc")]
 use lib_q_random::new_secure_rng;
-#[cfg(not(feature = "alloc"))]
+#[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
 use lib_q_random::new_secure_rng_no_std;
+#[cfg(any(feature = "alloc", feature = "getrandom"))]
 use rand_core::Rng;
 
 #[test]
@@ -51,7 +59,7 @@ fn test_rng_randomness() {
         println!("RNG randomness test passed!");
     }
 
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
         let mut rng1 = new_secure_rng_no_std().expect("Failed to create RNG");
         let mut rng2 = new_secure_rng_no_std().expect("Failed to create RNG");

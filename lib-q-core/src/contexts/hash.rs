@@ -46,12 +46,10 @@ impl HashContext {
     #[cfg(feature = "alloc")]
     pub fn with_default_provider() -> Self {
         Self {
-            inner: BaseContext::with_provider(Box::new(
-                crate::providers::LibQCryptoProvider::new().unwrap_or_else(|_| {
-                    // Fallback to a minimal provider if initialization fails
-                    crate::providers::LibQCryptoProvider::new().unwrap()
-                }),
-            )),
+            inner: match crate::providers::LibQCryptoProvider::new() {
+                Ok(provider) => BaseContext::with_provider(Box::new(provider)),
+                Err(_) => BaseContext::new(),
+            },
         }
     }
 

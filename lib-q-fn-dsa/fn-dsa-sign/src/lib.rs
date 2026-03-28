@@ -811,6 +811,7 @@ fn sign_inner<T: CryptoRng + Rng, P: PRNG>(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use fn_dsa_comm::shake::SHAKE256;
     // We need SHAKE256x4 for some tests (because test vectors were

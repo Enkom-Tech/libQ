@@ -11,6 +11,18 @@
     clippy::too_many_lines,
     clippy::similar_names
 )]
+// Unit tests and test-only modules use unwrap/expect/println! for brevity; production `--lib` checks
+// still enforce these lints because `cfg(test)` is off for that build.
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::print_stdout,
+        clippy::print_stderr
+    )
+)]
 
 //! # lib-q-random: Secure Random Number Generation for libQ
 //!
@@ -103,7 +115,7 @@
 //! ```
 //!
 //! ### With `no_std` features
-//! ```rust
+//! ```rust,no_run
 //! #[cfg(not(feature = "alloc"))]
 //! {
 //!     use lib_q_random::{

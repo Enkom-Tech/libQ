@@ -34,6 +34,10 @@ inputs:
     description: Whether to run tests
     default: "true"
     required: false
+  run-workspace-builds:
+    description: Whether to run workspace build steps (no-default-features, feature build, all-features)
+    default: "true"
+    required: false
   run-wasm-check:
     description: Whether to run WASM compilation check
     default: "false"
@@ -116,6 +120,7 @@ runs:
         echo "Clippy linting completed"
     
     - name: Build with no default features
+      if: inputs.run-workspace-builds == 'true'
       shell: bash
       run: |
         echo "Building with no default features..."
@@ -143,7 +148,7 @@ runs:
         echo "Build completed"
     
     - name: Build with features
-      if: inputs.features != ''
+      if: inputs.run-workspace-builds == 'true' && inputs.features != ''
       shell: bash
       run: |
         echo "Building with features: ${{ inputs.features }}"
@@ -167,6 +172,7 @@ runs:
         echo "Build with features completed"
     
     - name: Build with all features
+      if: inputs.run-workspace-builds == 'true'
       shell: bash
       run: |
         echo "Building with all features..."

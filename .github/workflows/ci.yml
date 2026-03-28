@@ -42,6 +42,7 @@ jobs:
           # Clippy runs once below (workspace, all features) to avoid compiling twice.
           run-clippy: "false"
           run-tests: "false"
+          run-workspace-builds: "false"
           features: "all-algorithms"
 
       # Single workspace clippy pass (all crates, all optional code paths).

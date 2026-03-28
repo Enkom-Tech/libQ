@@ -97,6 +97,8 @@ CMD="$CMD --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files
 
 if [[ "$CRATE" == "lib-q-core" ]]; then
   CMD="$CMD --exclude-files 'lib-q-hash/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-k12/*' --exclude-files 'lib-q-keccak/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-sha3/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-utils/*' --exclude-files 'lib-q-zkp/*'"
+  # std,rand coverage builds skip wasm; exclude so denominators match PR rust-test action
+  CMD="$CMD --exclude-files 'lib-q-core/src/wasm/*' --exclude-files 'lib-q-core\\src\\wasm\\*'"
   CMD="$CMD --include-files 'lib-q-core/src/*' --include-files 'lib-q-core/src/**' --include-files 'lib-q-core\\src\\*'"
 elif [[ "$CRATE" == "lib-q" ]]; then
   CMD="$CMD --include-files 'lib-q/src/*' --include-files 'lib-q/src/**' --include-files 'lib-q\\src\\*'"

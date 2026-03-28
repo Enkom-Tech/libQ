@@ -35,6 +35,7 @@ jobs:
           run-format-check: "true"
           run-clippy: "true"
           run-tests: "false"
+          run-workspace-builds: "false"
           features: "all-algorithms"
           package: "lib-q"
       

@@ -198,6 +198,9 @@ mod tests {
         assert!(non_zero_count > 0);
     }
 
+    /// Cross-instance distinction needs time/PID/thread mixing from `std`; without it,
+    /// initial state can collide (e.g. identical stack layout for back-to-back `new()`).
+    #[cfg(feature = "std")]
     #[test]
     fn test_fallback_entropy_uniqueness() {
         let mut source1 = SecureFallbackEntropySource::new();

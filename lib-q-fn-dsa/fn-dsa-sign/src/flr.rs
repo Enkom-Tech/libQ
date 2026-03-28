@@ -357,6 +357,7 @@ impl SubAssign<&Flr> for Flr {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use fn_dsa_comm::shake::SHAKE256;
 

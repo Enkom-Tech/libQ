@@ -25,14 +25,14 @@ signature = { version = "3.0.0-rc.5", features = ["rand_core"], optional = true 
 
 [features]
 default = ["std", "secure", "zeroize"]
-std = ["dep:getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
+std = ["getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
 alloc = ["dep:lib-q-core"]
 
 # no_std support - requires getrandom or custom-entropy
 no_std = ["getrandom"]
 
 # RNG provider features
-secure = ["dep:getrandom", "dep:rand"]
+secure = ["getrandom", "dep:rand"]
 deterministic = []
 hardware = []
 getrandom = ["dep:getrandom"]
@@ -68,9 +68,15 @@ criterion = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }
 
+# Secure RNG cases need the optional getrandom dependency; skip when building with --no-default-features.
+[[test]]
+name = "security_tests"
+required-features = ["getrandom"]
+
 [[bench]]
 name = "rng_benchmarks"
 harness = false
+required-features = ["alloc"]
 
 [package.metadata.docs.rs]
 features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy"]

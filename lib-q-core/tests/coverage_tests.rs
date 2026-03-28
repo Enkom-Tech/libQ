@@ -2,19 +2,23 @@
 
 use lib_q_core::algorithm_registry::AlgorithmRegistry;
 use lib_q_core::contexts::{
+    AeadContext,
     KemContext,
     SignatureContext,
 };
 use lib_q_core::error::Error;
 use lib_q_core::security::SecurityConstants;
 use lib_q_core::traits::{
+    AeadKey,
     KemPublicKey,
+    Nonce,
     SigPublicKey,
     SigSecretKey,
 };
 use lib_q_core::{
     Algorithm,
     AlgorithmCategory,
+    SecurityValidator,
     algorithms_by_category,
     create_hash_context,
     create_kem_context,
@@ -125,4 +129,299 @@ fn test_factories_contexts_and_security_constants() {
             .get_expected_key_size(Algorithm::Sha3_256, false)
             .is_err()
     );
+}
+
+/// Exercise every Display arm for coverage (std implies alloc in this crate).
+#[cfg(feature = "std")]
+#[test]
+fn test_error_display_all_variants() {
+    use std::error::Error as StdError;
+
+    let check = |e: Error| {
+        let s = format!("{e}");
+        assert!(!s.is_empty(), "empty Display for {e:?}");
+        assert!(StdError::source(&e).is_none());
+    };
+
+    check(Error::InvalidKeySize {
+        expected: 32,
+        actual: 16,
+    });
+    check(Error::InvalidSignatureSize {
+        expected: 64,
+        actual: 8,
+    });
+    check(Error::InvalidNonceSize {
+        expected: 12,
+        actual: 8,
+    });
+    check(Error::InvalidMessageSize {
+        max: 100,
+        actual: 200,
+    });
+    check(Error::InvalidCiphertextSize {
+        expected: 32,
+        actual: 10,
+    });
+    check(Error::InvalidPlaintextSize {
+        expected: 16,
+        actual: 4,
+    });
+    check(Error::InvalidAssociatedDataSize {
+        max: 64,
+        actual: 128,
+    });
+    check(Error::InvalidTagSize {
+        expected: 16,
+        actual: 8,
+    });
+    check(Error::InvalidHashSize {
+        expected: 32,
+        actual: 16,
+    });
+    check(Error::InvalidAlgorithm {
+        algorithm: "test-alg",
+    });
+    check(Error::InvalidSecurityLevel {
+        level: 99,
+        supported: vec![1, 3, 4, 5],
+    });
+    check(Error::VerificationFailed {
+        operation: "verify".to_string(),
+    });
+    check(Error::EncryptionFailed {
+        operation: "enc".to_string(),
+    });
+    check(Error::DecryptionFailed {
+        operation: "dec".to_string(),
+    });
+    check(Error::KeyGenerationFailed {
+        operation: "kg".to_string(),
+    });
+    check(Error::RandomGenerationFailed {
+        operation: "rng".to_string(),
+    });
+    check(Error::SigningFailed {
+        operation: "sign".to_string(),
+    });
+    check(Error::MemoryAllocationFailed {
+        operation: "alloc".to_string(),
+    });
+    check(Error::InternalError {
+        operation: "op".to_string(),
+        details: "detail".to_string(),
+    });
+    check(Error::NotImplemented {
+        feature: "feat".to_string(),
+    });
+    check(Error::UnsupportedOperation {
+        operation: "unsupported".to_string(),
+    });
+    check(Error::ProviderNotConfigured {
+        operation: "AEAD".to_string(),
+    });
+    check(Error::InvalidState {
+        operation: "decrypt".to_string(),
+        reason: "Context not initialized".to_string(),
+    });
+    check(Error::PluginDependencyError {
+        plugin: "p".to_string(),
+        dependency: "d".to_string(),
+        required_version: "1.0".to_string(),
+        available_version: Some("0.9".to_string()),
+    });
+    check(Error::PluginDependencyError {
+        plugin: "p".to_string(),
+        dependency: "d".to_string(),
+        required_version: "1.0".to_string(),
+        available_version: None,
+    });
+    check(Error::PluginVersionIncompatible {
+        plugin: "p".to_string(),
+        required_version: "2.0".to_string(),
+        available_version: "1.0".to_string(),
+    });
+    check(Error::InvalidKeyFormat);
+    check(Error::InvalidKey {
+        key_type: "public key".to_string(),
+        reason: "bad".to_string(),
+    });
+    check(Error::UnsupportedAlgorithm {
+        algorithm: "legacy".to_string(),
+    });
+    check(Error::AuthenticationFailed {
+        operation: "auth".to_string(),
+    });
+    check(Error::InvalidRandomnessSize {
+        expected: 32,
+        actual: 4,
+    });
+}
+
+/// Hit remaining SecurityConstants match arms (CB-KEM, DAWN, SLH-DSA) and Default.
+#[cfg(feature = "std")]
+#[test]
+fn test_security_constants_extended_algorithms() {
+    let c = SecurityConstants::default();
+    assert_eq!(c.max_message_size(), 1024 * 1024);
+
+    let kem_algorithms = [
+        Algorithm::MlKem512,
+        Algorithm::MlKem768,
+        Algorithm::MlKem1024,
+        Algorithm::DawnAlpha512,
+        Algorithm::DawnBeta512,
+        Algorithm::DawnAlpha1024,
+        Algorithm::DawnBeta1024,
+        Algorithm::CbKem348864,
+        Algorithm::CbKem460896,
+        Algorithm::CbKem6688128,
+        Algorithm::CbKem6960119,
+        Algorithm::CbKem8192128,
+    ];
+    for a in kem_algorithms {
+        let pk = c.get_expected_key_size(a, false).unwrap();
+        let sk = c.get_expected_key_size(a, true).unwrap();
+        assert!(pk > 0 && sk > 0);
+        let ct = c.get_expected_ciphertext_size(a).unwrap();
+        assert!(ct > 0);
+    }
+
+    let sig_algorithms = [
+        Algorithm::MlDsa44,
+        Algorithm::MlDsa65,
+        Algorithm::MlDsa87,
+        Algorithm::FnDsa,
+        Algorithm::FnDsa512,
+        Algorithm::FnDsa1024,
+        Algorithm::SlhDsaSha256128fRobust,
+        Algorithm::SlhDsaSha256192fRobust,
+        Algorithm::SlhDsaSha256256fRobust,
+        Algorithm::SlhDsaShake256128fRobust,
+        Algorithm::SlhDsaShake256192fRobust,
+        Algorithm::SlhDsaShake256256fRobust,
+    ];
+    for a in sig_algorithms {
+        assert!(c.get_expected_signature_size(a).unwrap() > 0);
+    }
+
+    assert!(c.get_expected_key_size(Algorithm::Hqc128, false).is_err());
+    assert!(c.get_expected_ciphertext_size(Algorithm::Sha3_256).is_err());
+    assert!(c.get_expected_signature_size(Algorithm::MlKem512).is_err());
+}
+
+/// More SecurityValidator branches: key/ciphertext/signature/randomness and entropy accessors.
+#[cfg(feature = "std")]
+#[test]
+fn test_security_validator_extended() {
+    fn pseudo_key_bytes(len: usize, seed: u32) -> Vec<u8> {
+        (0..len)
+            .map(|i| {
+                let x = (i as u32).wrapping_add(seed);
+                (x.wrapping_mul(0x9E37_79B9) ^ (x << 13) ^ (x >> 7)) as u8
+            })
+            .collect()
+    }
+
+    let mut v = SecurityValidator::new().unwrap();
+    let _ = v.entropy_validator();
+    let _ = v.entropy_validator_mut();
+
+    let good = vec![
+        0x1Au8, 0x2B, 0x3C, 0x4D, 0x5E, 0x6F, 0x70, 0x81, 0x92, 0xA3, 0xB4, 0xC5, 0xD6, 0xE7, 0xF8,
+        0x09,
+    ];
+    let pk_ml_kem = pseudo_key_bytes(800, 0xC0FFEE);
+    let sk_ml_kem = pseudo_key_bytes(1632, 0xBEEF);
+    assert!(
+        v.validate_public_key(Algorithm::MlKem512, &pk_ml_kem)
+            .is_ok()
+    );
+    assert!(
+        v.validate_secret_key(Algorithm::MlKem512, &sk_ml_kem)
+            .is_ok()
+    );
+
+    assert!(v.validate_public_key(Algorithm::MlKem512, &good).is_err());
+    assert!(
+        v.validate_secret_key(Algorithm::MlKem512, &[0x4Du8; 100])
+            .is_err()
+    );
+
+    assert!(matches!(
+        v.validate_ciphertext(Algorithm::MlKem512, &[]),
+        Err(Error::InvalidCiphertextSize { actual: 0, .. })
+    ));
+    let wrong_ct = vec![0u8; 10];
+    assert!(
+        v.validate_ciphertext(Algorithm::MlKem512, &wrong_ct)
+            .is_err()
+    );
+    let ok_ct = vec![0u8; 768];
+    assert!(v.validate_ciphertext(Algorithm::MlKem512, &ok_ct).is_ok());
+
+    assert!(matches!(
+        v.validate_signature(Algorithm::MlDsa65, &[]),
+        Err(Error::InvalidSignatureSize { actual: 0, .. })
+    ));
+    let wrong_sig = vec![0u8; 10];
+    assert!(
+        v.validate_signature(Algorithm::MlDsa65, &wrong_sig)
+            .is_err()
+    );
+    let ok_sig = vec![0u8; 3309];
+    assert!(v.validate_signature(Algorithm::MlDsa65, &ok_sig).is_ok());
+
+    assert!(v.validate_randomness(&[0u8; 16]).is_err());
+    let mut rnd = pseudo_key_bytes(32, 0x51A6);
+    assert!(v.validate_randomness(&rnd).is_ok());
+    rnd.fill(0);
+    assert!(v.validate_randomness(&rnd).is_err());
+}
+
+/// AeadContext paths: wrong category, missing provider, decrypt before init.
+#[cfg(feature = "std")]
+#[test]
+fn test_aead_context_coverage_paths() {
+    let key = AeadKey::new(vec![0u8; 32]);
+    let nonce = Nonce::new((1u8..=16).collect::<Vec<_>>());
+
+    let mut ctx = AeadContext::new();
+    let r = ctx.encrypt(Algorithm::MlKem512, &key, &nonce, b"pt", None);
+    assert!(matches!(r, Err(Error::InvalidAlgorithm { .. })));
+
+    let r = ctx.encrypt(Algorithm::Saturnin, &key, &nonce, b"pt", None);
+    assert!(matches!(r, Err(Error::ProviderNotConfigured { .. })));
+
+    let ctx_uninit = AeadContext::new();
+    let d = ctx_uninit.decrypt(Algorithm::Saturnin, &key, &nonce, b"ct", None);
+    assert!(matches!(d, Err(Error::InvalidState { .. })));
+}
+
+/// Extra provider operation shapes (success and error) for hash / AEAD / KEM / signature.
+#[cfg(feature = "std")]
+#[test]
+fn test_libq_provider_operation_paths() {
+    use lib_q_core::CryptoProvider;
+    use lib_q_core::providers::LibQCryptoProvider;
+    use lib_q_core::traits::SigPublicKey as SPK;
+
+    let provider = LibQCryptoProvider::new().unwrap();
+    let kem = provider.kem().unwrap();
+    let pk = KemPublicKey::new(vec![0u8; 800]);
+    let enc = kem.encapsulate(Algorithm::MlKem512, &pk, None);
+    assert!(enc.is_err());
+
+    let sig = provider.signature().unwrap();
+    let pk_sig = SPK::new(vec![0u8; 1952]);
+    let ver = sig.verify(Algorithm::MlDsa65, &pk_sig, b"m", b"sig");
+    assert!(ver.is_err());
+
+    let hp = provider.hash().unwrap();
+    let _ = hp.hash(Algorithm::Sha3_256, b"data");
+
+    let ap = provider.aead().unwrap();
+    let key = AeadKey::new(vec![0u8; 32]);
+    let nonce = Nonce::new(vec![1u8; 16]);
+    let _ = ap.decrypt(Algorithm::Saturnin, &key, &nonce, b"ct", None);
 }

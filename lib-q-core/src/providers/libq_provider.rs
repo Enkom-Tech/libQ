@@ -119,20 +119,6 @@ impl LibQCryptoProvider {
 }
 
 #[cfg(feature = "std")]
-impl Default for LibQCryptoProvider {
-    fn default() -> Self {
-        Self::new().expect("Failed to create default LibQCryptoProvider")
-    }
-}
-
-#[cfg(not(feature = "std"))]
-impl Default for LibQCryptoProvider {
-    fn default() -> Self {
-        Self::new().expect("Failed to create default LibQCryptoProvider")
-    }
-}
-
-#[cfg(feature = "std")]
 impl CryptoProvider for LibQCryptoProvider {
     fn kem(&self) -> Option<&dyn KemOperations> {
         Some(&self.kem_provider)
@@ -538,6 +524,8 @@ impl AeadOperations for WasmAeadProvider {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::panic)]
+
     use super::*;
 
     #[test]
@@ -551,7 +539,10 @@ mod tests {
 
     #[test]
     fn test_libq_provider_default() {
-        let provider = LibQCryptoProvider::default();
+        let provider = match LibQCryptoProvider::new() {
+            Ok(p) => p,
+            Err(e) => panic!("LibQCryptoProvider::new() failed: {e}"),
+        };
         assert!(provider.kem().is_some(), "KEM provider should be available");
         assert!(
             provider.signature().is_some(),
@@ -569,7 +560,10 @@ mod tests {
 
     #[test]
     fn test_libq_provider_operations() {
-        let provider = LibQCryptoProvider::new().unwrap();
+        let provider = match LibQCryptoProvider::new() {
+            Ok(p) => p,
+            Err(e) => panic!("LibQCryptoProvider::new() failed: {e}"),
+        };
 
         // Test that all operation providers are accessible
         assert!(provider.kem().is_some());

@@ -3,6 +3,8 @@
 //! This module provides comprehensive benchmarks for the lib-q-random crate,
 //! measuring performance across different RNG types and operations.
 
+#![allow(clippy::unwrap_used)]
+
 use std::hint::black_box;
 
 use criterion::{
