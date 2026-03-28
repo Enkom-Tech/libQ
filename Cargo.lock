@@ -1058,6 +1058,7 @@ dependencies = [
  "lib-q-tweak-aead",
  "lib-q-types",
  "once_cell",
+ "spin",
 ]
 
 [[package]]

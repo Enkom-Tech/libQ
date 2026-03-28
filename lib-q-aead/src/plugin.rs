@@ -5,8 +5,10 @@
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
-#[cfg(feature = "alloc")]
-use alloc::string::ToString;
+use alloc::string::{
+    String,
+    ToString,
+};
 use alloc::vec::Vec;
 
 use lib_q_core::{

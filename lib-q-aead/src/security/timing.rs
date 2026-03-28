@@ -5,7 +5,11 @@
 //! the input values.
 
 use core::future::Future;
-// Note: AtomicU64 and Ordering imports removed as they were unused
+#[cfg(not(feature = "std"))]
+use core::sync::atomic::{
+    AtomicU64,
+    Ordering,
+};
 
 /// Timing attack protection configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -419,8 +423,6 @@ impl TimingProtection {
     }
 }
 
-#[cfg(not(feature = "std"))]
-use core::cell::RefCell;
 /// Global timing protection configuration with thread-safe access
 #[cfg(feature = "std")]
 use std::sync::{
@@ -432,8 +434,8 @@ use std::sync::{
 static GLOBAL_TIMING_PROTECTION: std::sync::OnceLock<Arc<RwLock<TimingProtection>>> =
     std::sync::OnceLock::new();
 #[cfg(not(feature = "std"))]
-static GLOBAL_TIMING_PROTECTION: core::cell::OnceCell<RefCell<TimingProtection>> =
-    core::cell::OnceCell::new();
+static GLOBAL_TIMING_PROTECTION: once_cell::sync::Lazy<spin::Mutex<TimingProtection>> =
+    once_cell::sync::Lazy::new(|| spin::Mutex::new(TimingProtection::default()));
 
 /// Get the global timing protection configuration
 pub fn get_timing_protection() -> TimingProtection {
@@ -447,10 +449,7 @@ pub fn get_timing_protection() -> TimingProtection {
     }
     #[cfg(not(feature = "std"))]
     {
-        GLOBAL_TIMING_PROTECTION
-            .get_or_init(|| RefCell::new(TimingProtection::default()))
-            .borrow()
-            .clone()
+        *GLOBAL_TIMING_PROTECTION.lock()
     }
 }
 
@@ -468,13 +467,7 @@ pub fn set_timing_protection(protection: TimingProtection) {
     }
     #[cfg(not(feature = "std"))]
     {
-        if let Some(global_protection) = GLOBAL_TIMING_PROTECTION.get() {
-            if let Ok(mut global) = global_protection.try_borrow_mut() {
-                *global = protection;
-            }
-        } else {
-            let _ = GLOBAL_TIMING_PROTECTION.set(RefCell::new(protection));
-        }
+        *GLOBAL_TIMING_PROTECTION.lock() = protection;
     }
 }
 

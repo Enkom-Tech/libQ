@@ -140,6 +140,9 @@ impl CryptoProvider for LibQAeadProvider {
 
 #[cfg(all(test, feature = "alloc"))]
 mod tests {
+    #[cfg(not(feature = "std"))]
+    use alloc::vec;
+
     use lib_q_core::{
         Algorithm,
         Error,

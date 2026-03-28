@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: Test RNG
 description: Run RNG tests with security validation, entropy testing, and performance benchmarking
 inputs:

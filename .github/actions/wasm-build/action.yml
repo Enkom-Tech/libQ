@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: WASM Build
 description: Reusable WASM build action with multiple targets and package support
 inputs:

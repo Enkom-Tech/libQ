@@ -108,11 +108,11 @@ fn test_auth_encap_auth_decap_fixes() {
     );
     let auth_encapsulated_key = auth_encap_result.unwrap();
 
-    // Verify the encapsulated key has the correct size
+    // Ciphertext is enc_len() bytes; PostQuantumProvider appends a 32-byte SHA-256 auth tag.
     assert_eq!(
         auth_encapsulated_key.0.len(),
-        768,
-        "ML-KEM-512 encapsulated key should be 768 bytes"
+        HpkeKem::MlKem512.enc_len() + 32,
+        "ML-KEM-512 auth encapsulation should be ciphertext plus auth tag"
     );
 
     // Test AuthDecap
@@ -198,7 +198,7 @@ fn test_auth_decap_invalid_key_sizes() {
     );
 
     // Test with invalid recipient key size
-    let valid_encapsulated_key = vec![0u8; 768]; // Correct ML-KEM-512 size
+    let valid_encapsulated_key = vec![0u8; HpkeKem::MlKem512.enc_len() + 32]; // ciphertext + auth tag
     let invalid_recipient_sk = vec![0u8; 100]; // Wrong size
 
     let result = hpke_provider.auth_decapsulate(

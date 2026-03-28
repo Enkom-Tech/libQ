@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: Test HPKE
 description: Run HPKE tests with security validation and algorithm testing
 inputs:

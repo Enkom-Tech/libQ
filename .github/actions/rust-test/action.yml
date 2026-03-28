@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: Rust Test
 description: Reusable Rust test action with matrix support and comprehensive testing
 inputs:
@@ -225,7 +226,7 @@ runs:
           echo "ERROR: Missing $EXTRACT"
           exit 1
         fi
-        if ! COVERAGE=$("$EXTRACT" coverage); then
+        if ! COVERAGE=$(bash "$EXTRACT" coverage); then
           echo "ERROR: Could not determine coverage from coverage/ (see directory listing below)"
           ls -la coverage/ || echo "Coverage directory does not exist"
           exit 1

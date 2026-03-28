@@ -166,7 +166,9 @@ fn test_error_handling_no_provider() {
         Err(e) => format!("{}", e),
     };
     assert!(
-        error_msg.contains("no provider configured") || error_msg.contains("NotImplemented"),
+        error_msg.contains("no provider configured") ||
+            error_msg.contains("provider not configured") ||
+            error_msg.contains("NotImplemented"),
         "Error should indicate missing provider: {}",
         error_msg
     );

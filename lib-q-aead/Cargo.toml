@@ -21,6 +21,7 @@ lib-q-random = { path = "../lib-q-random", optional = true }
 lib-q-duplex-aead = { path = "../lib-q-duplex-aead", optional = true }
 lib-q-tweak-aead = { path = "../lib-q-tweak-aead", optional = true }
 once_cell = "1.21.3"
+spin = { workspace = true }
 
 [features]
 default = ["alloc", "std", "shake256"]

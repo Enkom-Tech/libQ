@@ -10,12 +10,28 @@ use lib_q_hpke::{
     HpkeKem,
 };
 
+fn test_key_32() -> [u8; 32] {
+    std::array::from_fn(|i| (i as u8).wrapping_mul(17).wrapping_add(3))
+}
+
+fn test_nonce_16() -> [u8; 16] {
+    std::array::from_fn(|i| (i as u8).wrapping_mul(11).wrapping_add(7))
+}
+
+fn alt_key_32() -> [u8; 32] {
+    std::array::from_fn(|i| (i as u8).wrapping_mul(19).wrapping_add(41))
+}
+
+fn alt_nonce_16() -> [u8; 16] {
+    std::array::from_fn(|i| (i as u8).wrapping_mul(13).wrapping_add(2))
+}
+
 /// Test SHAKE256 AEAD seal operation
 #[test]
 fn test_shake256_aead_seal() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -34,8 +50,8 @@ fn test_shake256_aead_seal() {
 #[test]
 fn test_shake256_aead_open() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -59,12 +75,12 @@ fn test_shake256_aead_open() {
 #[test]
 fn test_shake256_aead_different_key_sizes() {
     let provider = PostQuantumProvider::new();
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Test message";
 
     // Test with 32-byte key (standard)
-    let key_32 = &[1u8; 32]; // Exactly 32 bytes
+    let key_32 = &test_key_32();
     let result_32 = provider.seal(HpkeAead::Shake256, key_32, nonce, aad, plaintext);
     assert!(result_32.is_ok(), "32-byte key should work");
 
@@ -88,12 +104,12 @@ fn test_shake256_aead_different_key_sizes() {
 #[test]
 fn test_shake256_aead_different_nonce_sizes() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
+    let key = &test_key_32();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Test message";
 
     // Test with 16-byte nonce (standard)
-    let nonce_16 = &[0u8; 16]; // Exactly 16 bytes
+    let nonce_16 = &test_nonce_16();
     let result_16 = provider.seal(HpkeAead::Shake256, key, nonce_16, aad, plaintext);
     assert!(result_16.is_ok(), "16-byte nonce should work");
 
@@ -117,8 +133,8 @@ fn test_shake256_aead_different_nonce_sizes() {
 #[test]
 fn test_shake256_aead_empty_plaintext() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"";
 
@@ -138,8 +154,8 @@ fn test_shake256_aead_empty_plaintext() {
 #[test]
 fn test_shake256_aead_empty_aad() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"";
     let plaintext = b"Test message";
 
@@ -154,8 +170,8 @@ fn test_shake256_aead_empty_aad() {
 #[test]
 fn test_shake256_aead_authentication_failure() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -165,7 +181,7 @@ fn test_shake256_aead_authentication_failure() {
         .expect("Seal should work");
 
     // Try to open with wrong key
-    let wrong_key = &[2u8; 32]; // Exactly 32 bytes
+    let wrong_key = &alt_key_32();
     let result = provider.open(HpkeAead::Shake256, wrong_key, nonce, aad, &ciphertext);
 
     assert!(result.is_err(), "Opening with wrong key should fail");
@@ -175,8 +191,8 @@ fn test_shake256_aead_authentication_failure() {
 #[test]
 fn test_shake256_aead_wrong_nonce() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -186,7 +202,7 @@ fn test_shake256_aead_wrong_nonce() {
         .expect("Seal should work");
 
     // Try to open with wrong nonce
-    let wrong_nonce = &[1u8; 16]; // Exactly 16 bytes
+    let wrong_nonce = &alt_nonce_16();
     let result = provider.open(HpkeAead::Shake256, key, wrong_nonce, aad, &ciphertext);
 
     assert!(result.is_err(), "Opening with wrong nonce should fail");
@@ -196,8 +212,8 @@ fn test_shake256_aead_wrong_nonce() {
 #[test]
 fn test_shake256_aead_wrong_aad() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -227,12 +243,12 @@ fn test_shake256_aead_in_hpke_context() {
     assert_eq!(cipher_suite.aead.nonce_len(), 16); // Standard nonce length
 }
 
-/// Test SHAKE256 AEAD non-determinism (should be different due to secure RNG)
+/// Same key, nonce, AAD, and plaintext yield the same ciphertext (explicit-nonce AEAD).
 #[test]
 fn test_shake256_aead_determinism() {
     let provider = PostQuantumProvider::new();
-    let key = &[1u8; 32]; // Exactly 32 bytes
-    let nonce = &[0u8; 16]; // Exactly 16 bytes
+    let key = &test_key_32();
+    let nonce = &test_nonce_16();
     let aad = b"additional_authenticated_data";
     let plaintext = b"Hello, SHAKE256 AEAD!";
 
@@ -245,10 +261,9 @@ fn test_shake256_aead_determinism() {
         .seal(HpkeAead::Shake256, key, nonce, aad, plaintext)
         .expect("Second seal should work");
 
-    // The ciphertexts should be different (due to secure random IV generation)
-    assert_ne!(
+    assert_eq!(
         ciphertext1, ciphertext2,
-        "Ciphertexts should be different due to secure random IV generation"
+        "Identical inputs should produce identical ciphertexts"
     );
 
     // Both should decrypt to the same plaintext

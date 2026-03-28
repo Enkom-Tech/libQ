@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: NPM Publish
 description: Reusable action for publishing NPM packages
 inputs:

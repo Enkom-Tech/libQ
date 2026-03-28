@@ -124,21 +124,32 @@ if [[ "${RESULT}" -ne 0 ]]; then
 fi
 
 if [[ "$SHOW_REPORT" == true ]]; then
+  report=""
   if [[ -f "$OUTPUT_DIR/index.html" ]]; then
-    echo "Opening coverage report..."
-    if command -v xdg-open &> /dev/null; then xdg-open "$OUTPUT_DIR/index.html"
-    elif command -v open &> /dev/null; then open "$OUTPUT_DIR/index.html"
-    else echo "Open manually: $OUTPUT_DIR/index.html"; fi
+    report="$OUTPUT_DIR/index.html"
   elif [[ -f "$OUTPUT_DIR/tarpaulin-report.html" ]]; then
-    echo "Opening coverage report..."
-    if command -v xdg-open &> /dev/null; then xdg-open "$OUTPUT_DIR/tarpaulin-report.html"
-    elif command -v open &> /dev/null; then open "$OUTPUT_DIR/tarpaulin-report.html"
-    else echo "Open manually: $OUTPUT_DIR/tarpaulin-report.html"; fi
+    report="$OUTPUT_DIR/tarpaulin-report.html"
+  fi
+  if [[ -n "$report" ]]; then
+    skip_open=""
+    if [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+      skip_open=1
+    elif [[ "$(uname -s)" == "Linux" ]] && [[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+      skip_open=1
+    fi
+    if [[ -n "$skip_open" ]]; then
+      echo "Coverage report written to $report (skipped opening browser: CI or headless session)"
+    else
+      echo "Opening coverage report..."
+      if command -v xdg-open &> /dev/null; then xdg-open "$report" 2>/dev/null || true
+      elif command -v open &> /dev/null; then open "$report" 2>/dev/null || true
+      else echo "Open manually: $report"; fi
+    fi
   fi
 fi
 
 COVERAGE=""
-if COVERAGE="$("${SCRIPT_DIR}/extract-coverage-percent.sh" "$OUTPUT_DIR")"; then
+if COVERAGE="$(bash "${SCRIPT_DIR}/extract-coverage-percent.sh" "$OUTPUT_DIR")"; then
   if [[ -n "${GITHUB_ENV}" ]]; then
     echo "COVERAGE_PERCENT=${COVERAGE}" >>"${GITHUB_ENV}"
   fi

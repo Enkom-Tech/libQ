@@ -346,8 +346,6 @@ impl Default for InputValidator {
     }
 }
 
-#[cfg(not(feature = "std"))]
-use core::cell::RefCell;
 /// Global input validator with thread-safe access
 #[cfg(feature = "std")]
 use std::sync::{
@@ -359,8 +357,8 @@ use std::sync::{
 static GLOBAL_VALIDATOR: std::sync::OnceLock<Arc<RwLock<InputValidator>>> =
     std::sync::OnceLock::new();
 #[cfg(not(feature = "std"))]
-static GLOBAL_VALIDATOR: core::cell::OnceCell<RefCell<InputValidator>> =
-    core::cell::OnceCell::new();
+static GLOBAL_VALIDATOR: once_cell::sync::Lazy<spin::Mutex<InputValidator>> =
+    once_cell::sync::Lazy::new(|| spin::Mutex::new(InputValidator::new()));
 
 /// Get the global input validator
 pub fn get_input_validator() -> InputValidator {
@@ -374,10 +372,7 @@ pub fn get_input_validator() -> InputValidator {
     }
     #[cfg(not(feature = "std"))]
     {
-        GLOBAL_VALIDATOR
-            .get_or_init(|| RefCell::new(InputValidator::new()))
-            .borrow()
-            .clone()
+        GLOBAL_VALIDATOR.lock().clone()
     }
 }
 
@@ -395,13 +390,7 @@ pub fn set_input_validator(validator: InputValidator) {
     }
     #[cfg(not(feature = "std"))]
     {
-        if let Some(global_validator) = GLOBAL_VALIDATOR.get() {
-            if let Ok(mut global) = global_validator.try_borrow_mut() {
-                *global = validator;
-            }
-        } else {
-            let _ = GLOBAL_VALIDATOR.set(RefCell::new(validator));
-        }
+        *GLOBAL_VALIDATOR.lock() = validator;
     }
 }
 

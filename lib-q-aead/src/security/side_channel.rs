@@ -7,6 +7,8 @@
 //! - Fault injection attacks
 
 #[cfg(feature = "alloc")]
+use alloc::vec;
+#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 /// Side-channel protection configuration

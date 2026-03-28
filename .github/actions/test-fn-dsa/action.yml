@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 name: Test FN-DSA
 description: Run FN-DSA quick smoke tests, security checks, and optional benchmarks (full keygen KAT is manual)
 inputs:

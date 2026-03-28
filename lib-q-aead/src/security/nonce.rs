@@ -465,6 +465,9 @@ pub mod utils {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "std"))]
+    use alloc::vec;
+
     use super::*;
 
     #[test]

@@ -153,6 +153,12 @@ impl KemProvider for PostQuantumProvider {
             ));
         }
 
+        if key.iter().all(|&b| b == 0) {
+            return Err(HpkeError::CryptoError(
+                "Key material cannot be all zeros".to_string(),
+            ));
+        }
+
         Ok(())
     }
 

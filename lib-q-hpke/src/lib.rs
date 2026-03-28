@@ -504,6 +504,9 @@ impl HpkeSenderContext {
     pub fn seal(&mut self, aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
         // Check if context can be used for encryption
         if !self.can_encrypt() {
+            if self.sequence_number >= self.max_sequence_number {
+                self.state = HpkeContextState::NeedsRekey;
+            }
             return Err(lib_q_core::Error::InternalError {
                 operation: "Context validation".into(),
                 details: "Context cannot be used for encryption".into(),
