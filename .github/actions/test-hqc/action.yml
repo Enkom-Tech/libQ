@@ -160,7 +160,7 @@ runs:
         echo "Running security validation tests..."
         cd ${{ inputs.working-directory }}
         # Test KAT (Known Answer Tests)
-        cargo test --features "alloc,hqc128" --test kat_tests
+        cargo test --features "alloc,hqc128" --test kat_test
         # Test libQ integration
         cd ..
         cargo test --features "hqc" --package lib-q

@@ -80,6 +80,8 @@
 
 extern crate alloc;
 
+#[cfg(not(feature = "std"))]
+use alloc::vec;
 // Re-export core types for public use
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

@@ -14,6 +14,14 @@ inputs:
     description: Specific package to test (optional)
     default: ""
     required: false
+  packages:
+    description: >-
+      Space-separated packages to test together. Entries without '@' share --features with
+      inputs.features and are passed in one cargo test -p ... -p ... run. Use pkg@feat1,feat2
+      for a package that needs different features (runs a separate cargo test per such entry).
+      When non-empty, takes precedence over package for the normal (non-no_std) test paths.
+    default: ""
+    required: false
   rust-version:
     description: Rust toolchain version to use
     default: "stable"
@@ -58,7 +66,8 @@ runs:
       run: |
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "skip=true" >> $GITHUB_OUTPUT
         else
           echo "skip=false" >> $GITHUB_OUTPUT
@@ -78,7 +87,8 @@ runs:
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
@@ -100,7 +110,27 @@ runs:
             cargo check --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
           fi
         else
-          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          if [[ -n "$PACKAGES" ]]; then
+            SHARED_FLAGS=""
+            for item in $PACKAGES; do
+              if [[ "$item" == *"@"* ]]; then
+                pkg="${item%%@*}"
+                pfeats="${item#*@}"
+                echo "Running dev tests for $pkg with features $pfeats"
+                cargo test -p "$pkg" --features "$pfeats" --verbose
+              else
+                if [[ -z "$SHARED_FLAGS" ]]; then
+                  SHARED_FLAGS="-p $item"
+                else
+                  SHARED_FLAGS="$SHARED_FLAGS -p $item"
+                fi
+              fi
+            done
+            if [[ -n "$SHARED_FLAGS" ]]; then
+              echo "Running dev tests with $SHARED_FLAGS and features $FEATURES"
+              cargo test $SHARED_FLAGS --features "$FEATURES" --verbose
+            fi
+          elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
               echo "Skipping full dev test suite for lib-q-fn-dsa (quick smoke runs in release step only)"
             else
@@ -122,7 +152,8 @@ runs:
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* ]]; then
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
@@ -144,7 +175,27 @@ runs:
             cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
           fi
         else
-          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          if [[ -n "$PACKAGES" ]]; then
+            SHARED_FLAGS=""
+            for item in $PACKAGES; do
+              if [[ "$item" == *"@"* ]]; then
+                pkg="${item%%@*}"
+                pfeats="${item#*@}"
+                echo "Running release tests for $pkg with features $pfeats"
+                cargo test -p "$pkg" --features "$pfeats" --release --verbose
+              else
+                if [[ -z "$SHARED_FLAGS" ]]; then
+                  SHARED_FLAGS="-p $item"
+                else
+                  SHARED_FLAGS="$SHARED_FLAGS -p $item"
+                fi
+              fi
+            done
+            if [[ -n "$SHARED_FLAGS" ]]; then
+              echo "Running release tests with $SHARED_FLAGS and features $FEATURES"
+              cargo test $SHARED_FLAGS --features "$FEATURES" --release --verbose
+            fi
+          elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
               echo "Running quick FN-DSA smoke tests (release). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
               cd "${GITHUB_WORKSPACE:-.}"

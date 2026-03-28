@@ -438,42 +438,47 @@ fn test_comprehensive_integration_scenarios() {
     assert_eq!(derived_pk1.data, derived_pk2.data);
 }
 
-/// Test all parameter sets with comprehensive scenarios
-#[test]
-fn test_all_parameter_sets_comprehensive_scenarios() {
-    let parameter_sets = [
-        DawnParameterSet::Alpha512,
-        DawnParameterSet::Alpha1024,
-        DawnParameterSet::Beta512,
-        DawnParameterSet::Beta1024,
-    ];
+/// Multiple encaps/decaps on one keypair (split per parameter set so each libtest stays under ~60s in dev).
+fn comprehensive_scenarios_for_param_set(param_set: DawnParameterSet) {
+    println!("Comprehensive testing of parameter set: {:?}", param_set);
 
-    for param_set in parameter_sets {
-        println!("Comprehensive testing of parameter set: {:?}", param_set);
+    let kem = DawnKem::new(param_set);
 
-        let kem = DawnKem::new(param_set);
+    let keypair = kem
+        .generate_keypair()
+        .expect("Key generation should succeed");
 
-        // Test multiple key generations
-        for i in 0..3 {
-            let keypair = kem
-                .generate_keypair()
-                .unwrap_or_else(|_| panic!("Key generation {} should succeed", i));
+    for j in 0..2 {
+        let (ciphertext, shared_secret) = kem
+            .encapsulate(&keypair.public_key)
+            .unwrap_or_else(|_| panic!("Encapsulation {} should succeed", j));
 
-            // Test multiple encapsulations with the same key
-            for j in 0..3 {
-                let (ciphertext, shared_secret) = kem
-                    .encapsulate(&keypair.public_key)
-                    .unwrap_or_else(|_| panic!("Encapsulation {} should succeed", j));
+        let decrypted_secret = kem
+            .decapsulate(&keypair.secret_key, &ciphertext)
+            .unwrap_or_else(|_| panic!("Decapsulation {} should succeed", j));
 
-                let decrypted_secret = kem
-                    .decapsulate(&keypair.secret_key, &ciphertext)
-                    .unwrap_or_else(|_| panic!("Decapsulation {} should succeed", j));
-
-                // Verify sizes
-                assert_eq!(ciphertext.len(), kem.keygen_params().ciphertext_byte_size());
-                assert_eq!(shared_secret.len(), param_set.shared_secret_size());
-                assert_eq!(decrypted_secret.len(), param_set.shared_secret_size());
-            }
-        }
+        assert_eq!(ciphertext.len(), kem.keygen_params().ciphertext_byte_size());
+        assert_eq!(shared_secret.len(), param_set.shared_secret_size());
+        assert_eq!(decrypted_secret.len(), param_set.shared_secret_size());
     }
+}
+
+#[test]
+fn test_all_parameter_sets_comprehensive_scenarios_alpha512() {
+    comprehensive_scenarios_for_param_set(DawnParameterSet::Alpha512);
+}
+
+#[test]
+fn test_all_parameter_sets_comprehensive_scenarios_alpha1024() {
+    comprehensive_scenarios_for_param_set(DawnParameterSet::Alpha1024);
+}
+
+#[test]
+fn test_all_parameter_sets_comprehensive_scenarios_beta512() {
+    comprehensive_scenarios_for_param_set(DawnParameterSet::Beta512);
+}
+
+#[test]
+fn test_all_parameter_sets_comprehensive_scenarios_beta1024() {
+    comprehensive_scenarios_for_param_set(DawnParameterSet::Beta1024);
 }

@@ -68,15 +68,19 @@ jobs:
           - name: "ml-kem"
             features: "std,ml-kem,rand"
             package: ""
+            # Scoped: lib-q-ml-kem uses feature "random", not umbrella "rand" (separate cargo test via @).
+            packages: "lib-q lib-q-kem lib-q-core lib-q-ml-kem@std,random"
           - name: "no_std"
             features: "no_std,getrandom"
             package: "lib-q-core"
           - name: "wasm"
             features: "std,wasm"
             package: ""
+            packages: "lib-q lib-q-core"
           - name: "zkp"
             features: "std,zkp"
             package: ""
+            packages: "lib-q lib-q-zkp"
           - name: "lib-q-kem"
             features: "ml-kem"
             package: "lib-q-kem"
@@ -122,6 +126,7 @@ jobs:
         with:
           features: ${{ matrix.features }}
           package: ${{ matrix.package }}
+          packages: ${{ matrix.packages }}
           run-release-tests: "true"
 
   # ZKP recursive aggregation - full prove/aggregate/verify in release (slow test)

@@ -125,6 +125,10 @@ panic = "abort"
 inherits = "dev"
 opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
 
+# lib-q-dawn: n=1024 KEM and PKE histogram tests are slow at workspace dev defaults; optimize this crate only.
+[profile.dev.package.lib-q-dawn]
+opt-level = 2
+
 [profile.release-cb-kem]
 inherits = "release"
 opt-level = 3
