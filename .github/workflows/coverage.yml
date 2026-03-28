@@ -36,6 +36,7 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false
       matrix:
         rust: [stable, nightly]
     steps:
@@ -47,7 +48,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -67,7 +68,7 @@ jobs:
           
           # Define critical cryptographic crates
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-k12"
-          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           
           # Run coverage for core cryptographic components
@@ -115,7 +116,7 @@ jobs:
           cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"
           
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-reports
           path: combined-coverage/
@@ -123,15 +124,12 @@ jobs:
       - name: Extract coverage percentage
         id: extract-coverage
         run: |
-          # Extract the coverage percentage from the full workspace run
-          if [[ -f "coverage-full/tarpaulin-report.html" ]]; then
-            COVERAGE=$(grep -o '[0-9]\+\.[0-9]\+%' "coverage-full/tarpaulin-report.html" | head -1 | tr -d '%')
-            echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
-            
-            # Determine color based on threshold
-            if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+          set -euo pipefail
+          if COVERAGE=$(bash scripts/extract-coverage-percent.sh coverage-full); then
+            echo "percentage=${COVERAGE}" >> $GITHUB_OUTPUT
+            if awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 50) }'; then
               echo "color=red" >> $GITHUB_OUTPUT
-            elif (( $(echo "$COVERAGE < 60" | bc -l) )); then
+            elif awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 60) }'; then
               echo "color=yellow" >> $GITHUB_OUTPUT
             else
               echo "color=green" >> $GITHUB_OUTPUT

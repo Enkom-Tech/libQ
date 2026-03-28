@@ -56,7 +56,7 @@ runs:
         components: rustfmt, clippy, rust-src
     
     - name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -126,7 +126,11 @@ runs:
           # Build individual packages that can handle no_std
           for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | grep -E '^(lib-q-core|lib-q-kem|lib-q-ml-kem)$'); do
             echo "Building $pkg with no default features..."
-            cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
+            if [[ "$pkg" == "lib-q-core" ]]; then
+              cargo build -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler"
+            else
+              cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
+            fi
           done
         elif [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
           echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"

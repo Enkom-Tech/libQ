@@ -40,7 +40,7 @@ runs:
         components: rustfmt, clippy, rust-src
     
     - name: Cache dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -188,6 +188,8 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
         elif [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
+        elif [[ "$PACKAGE" == "lib-q-cb-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,sha3-hash,alloc,zeroize,cbkem348864\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -218,32 +220,19 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        
-        # Extract coverage percentage from the XML file generated in the previous step
-        if [[ -f "coverage/cobertura.xml" ]]; then
-          # Parse the XML file to extract coverage percentage
-          COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage/cobertura.xml | head -1 | sed 's/line-rate="//' | sed 's/"//' | awk '{print $1 * 100}')
-          
-          # Check if we got a valid coverage percentage
-          if [[ -z "$COVERAGE" || "$COVERAGE" == "0" ]]; then
-            echo "WARNING: Could not extract coverage percentage from XML file"
-            echo "XML file contents:"
-            head -20 coverage/cobertura.xml
-            echo "Setting coverage to 0% for threshold check"
-            COVERAGE="0"
-          fi
-          
-          echo "Coverage: ${COVERAGE}%"
-          
-          # Use awk for floating point comparison instead of bc
-          if awk "BEGIN {exit !($COVERAGE < ${{ inputs.coverage-threshold }})}"; then
-            echo "ERROR: Coverage ${COVERAGE}% is below ${{ inputs.coverage-threshold }}% threshold"
-            exit 1
-          fi
-          echo "Coverage threshold check passed"
-        else
-          echo "ERROR: Coverage XML file not found"
-          echo "Available files in coverage directory:"
+        EXTRACT="${{ github.workspace }}/scripts/extract-coverage-percent.sh"
+        if [[ ! -f "$EXTRACT" ]]; then
+          echo "ERROR: Missing $EXTRACT"
+          exit 1
+        fi
+        if ! COVERAGE=$("$EXTRACT" coverage); then
+          echo "ERROR: Could not determine coverage from coverage/ (see directory listing below)"
           ls -la coverage/ || echo "Coverage directory does not exist"
           exit 1
         fi
+        echo "Coverage: ${COVERAGE}%"
+        if awk -v c="${COVERAGE}" -v t="${{ inputs.coverage-threshold }}" 'BEGIN { exit !(c + 0 < t) }'; then
+          echo "ERROR: Coverage ${COVERAGE}% is below ${{ inputs.coverage-threshold }}% threshold"
+          exit 1
+        fi
+        echo "Coverage threshold check passed"
