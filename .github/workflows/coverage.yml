@@ -107,10 +107,10 @@ jobs:
             fi
           done
       
-      # Then run coverage for the entire workspace to get overall metrics
+      # Aggregate workspace report for badges/artifacts only (denominator is entire repo; do not gate on this %).
       - name: Run coverage for entire workspace
         run: |
-          bash scripts/run-coverage.sh --threshold 60 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
+          bash scripts/run-coverage.sh --threshold 0 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
           
           # Copy to combined directory
           cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"

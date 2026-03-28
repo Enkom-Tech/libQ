@@ -118,7 +118,7 @@ fi
 # Run cargo audit
 echo "Running cargo audit..."
 if command -v cargo-audit &> /dev/null; then
-    if cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145; then
+    if cargo audit --deny warnings; then
         print_status "PASS" "Cargo audit passed"
     else
         print_status "FAIL" "Cargo audit failed"

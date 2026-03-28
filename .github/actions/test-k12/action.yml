@@ -48,7 +48,7 @@ runs:
       run: |
         echo "Running security audit for K12..."
         cargo install cargo-audit --locked
-        cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145
+        cargo audit --deny warnings
         echo "Security audit completed successfully"
     
     - name: Check formatting

@@ -130,6 +130,11 @@ all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa"
 dev = ["experimental", "tests"]
 full = ["std", "wasm", "rand", "log", "all-algorithms"]
 
+[[test]]
+name = "api_surface_tests"
+path = "tests/api_surface_tests.rs"
+required-features = ["all-algorithms"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

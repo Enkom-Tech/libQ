@@ -50,6 +50,18 @@ if ($IgnorePanics) { $cmd += " --ignore-panics" }
 
 $cmd += ' --exclude-files "target/*" --exclude-files "benches/*" --exclude-files "examples/*"'
 
+if ($Crate -eq "lib-q-core") {
+    $cmd += ' --exclude-files "lib-q-hash/*" --exclude-files "lib-q-hpke/*" --exclude-files "lib-q-intrinsics/*"'
+    $cmd += ' --exclude-files "lib-q-k12/*" --exclude-files "lib-q-keccak/*" --exclude-files "lib-q-kem/*"'
+    $cmd += ' --exclude-files "lib-q-ml-dsa/*" --exclude-files "lib-q-ml-kem/*" --exclude-files "lib-q-sha3/*"'
+    $cmd += ' --exclude-files "lib-q-sig/*" --exclude-files "lib-q-aead/*" --exclude-files "lib-q-platform/*"'
+    $cmd += ' --exclude-files "lib-q-utils/*" --exclude-files "lib-q-zkp/*"'
+    $cmd += ' --include-files "lib-q-core/src/*" --include-files "lib-q-core/src/**" --include-files "lib-q-core\src\*"'
+}
+if ($Crate -eq "lib-q") {
+    $cmd += ' --include-files "lib-q/src/*" --include-files "lib-q/src/**" --include-files "lib-q\src\*"'
+}
+
 $formats = $OutputFormat -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 foreach ($f in $formats) {
     $cmd += " --out $f"

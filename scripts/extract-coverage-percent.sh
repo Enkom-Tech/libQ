@@ -9,7 +9,7 @@ pct=""
 
 if [[ -f "$DIR/cobertura.xml" ]]; then
   rate=""
-  rate=$(grep -m1 -oE 'line-rate="[0-9.]+"' "$DIR/cobertura.xml" | head -1 | sed -E 's/^line-rate="//;s/"$//') || true
+  rate=$(grep -m1 -oE 'line-rate="[0-9.]+"' "$DIR/cobertura.xml" | sed -E 's/^line-rate="//;s/"$//' || true)
   if [[ -n "${rate}" ]]; then
     pct=$(awk -v r="$rate" 'BEGIN { printf "%.4g", r * 100 }')
   fi
@@ -18,7 +18,16 @@ fi
 if [[ -z "${pct}" ]]; then
   for f in "$DIR/tarpaulin-report.html" "$DIR/index.html"; do
     [[ -f "$f" ]] || continue
-    found=$(grep -oE '[0-9]+(\.[0-9]+)?[[:space:]]*%' "$f" | head -1 | tr -d ' %' || true)
+    found=$(awk '
+      {
+        if (match($0, /[0-9]+(\.[0-9]+)?[[:space:]]*%/)) {
+          s = substr($0, RSTART, RLENGTH)
+          gsub(/[[:space:]]|%/, "", s)
+          print s
+          exit
+        }
+      }
+    ' "$f" || true)
     if [[ -n "${found}" ]]; then
       pct=$(awk -v x="$found" 'BEGIN { printf "%.4g", x+0 }')
       break

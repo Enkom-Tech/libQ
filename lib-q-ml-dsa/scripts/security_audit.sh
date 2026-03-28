@@ -24,7 +24,7 @@ fi
 # 3. Run cargo-audit for known vulnerabilities
 echo "3. Checking for known vulnerabilities..."
 if command -v cargo-audit &> /dev/null; then
-    (cd "$WORKSPACE_ROOT" && cargo audit --deny warnings --ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145)
+    (cd "$WORKSPACE_ROOT" && cargo audit --deny warnings)
 else
     echo "cargo-audit not installed, skipping vulnerability check"
 fi

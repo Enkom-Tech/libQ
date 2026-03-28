@@ -111,7 +111,7 @@ The current Reed-Muller implementation has a known limitation:
 ### Formal Verification
 While comprehensive testing is implemented, formal verification tools have limitations:
 - **Kani**: Not available on Windows platform
-- **dudect**: API compatibility issues with current version
+- **Timing analysis (e.g. dudect)**: Not wired into this crate; use external tooling if needed
 - **Status**: Manual verification and extensive testing used instead
 
 ## Security Recommendations

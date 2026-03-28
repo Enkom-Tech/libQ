@@ -23,14 +23,12 @@ fi
 export CARGO_TERM_COLOR="${CARGO_TERM_COLOR:-always}"
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 
-AUDIT_IGNORES=(--ignore RUSTSEC-2023-0001 --ignore RUSTSEC-2021-0139 --ignore RUSTSEC-2024-0375 --ignore RUSTSEC-2021-0145)
-
 run_pr_gate() {
   echo "== simulate-ci-wsl: PR-style gate (fmt, clippy, audit, smoke tests) =="
 
   if command -v cargo-audit >/dev/null 2>&1; then
     cargo install cargo-audit --locked 2>/dev/null || true
-    cargo audit --deny warnings "${AUDIT_IGNORES[@]}"
+    cargo audit --deny warnings
   else
     echo "cargo-audit not installed; skip audit (install: cargo install cargo-audit --locked)"
   fi

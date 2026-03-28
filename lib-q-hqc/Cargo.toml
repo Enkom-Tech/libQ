@@ -42,7 +42,6 @@ rand = { workspace = true }
 
 # Benchmarking dependencies
 criterion = { workspace = true, features = ["html_reports"] }
-dudect-bencher = "0.6.0"                                       # Constant-time verification
 
 [[example]]
 name = "hqc_example"
