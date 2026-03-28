@@ -56,6 +56,7 @@ members = [
     "lib-q-plonky",
     "examples"
 ]
+resolver = "3"
 
 # Workspace package defaults for inherited properties
 [workspace.package]
