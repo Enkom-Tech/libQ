@@ -252,6 +252,7 @@ fn test_secure_rng_entropy_quality() {
 }
 
 /// Test byte distribution uniformity
+#[cfg(feature = "alloc")]
 fn test_byte_distribution(data: &[u8]) {
     let mut byte_counts = [0u32; 256];
     for &byte in data {
@@ -277,6 +278,7 @@ fn test_byte_distribution(data: &[u8]) {
 }
 
 /// Test autocorrelation (independence of bytes)
+#[cfg(feature = "alloc")]
 fn test_autocorrelation(data: &[u8]) {
     if data.len() < 2 {
         return;
@@ -307,6 +309,7 @@ fn test_autocorrelation(data: &[u8]) {
 }
 
 /// Test runs (consecutive identical values)
+#[cfg(feature = "alloc")]
 fn test_runs_test(data: &[u8]) {
     if data.is_empty() {
         return;

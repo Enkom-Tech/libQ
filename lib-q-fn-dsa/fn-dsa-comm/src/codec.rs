@@ -134,7 +134,8 @@ pub fn modq_decode(d: &[u8], h: &mut [u16]) -> Option<usize> {
     h[2] = h2 as u16;
     h[3] = h3 as u16;
     for i in 1..(n >> 2) {
-        let x = u64::from_be_bytes(*<&[u8; 8]>::try_from(&d[(7 * i - 1)..(7 * i + 7)]).unwrap());
+        let base = 7 * i - 1;
+        let x = u64::from_be_bytes(core::array::from_fn(|k| d[base + k]));
         let h0 = ((x >> 42) as u32) & 0x3FFF;
         let h1 = ((x >> 28) as u32) & 0x3FFF;
         let h2 = ((x >> 14) as u32) & 0x3FFF;

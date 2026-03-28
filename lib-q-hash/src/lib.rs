@@ -55,6 +55,7 @@ mod hash_types;
 mod internal_block_api;
 mod kmac;
 mod parallelhash;
+#[cfg(feature = "alloc")]
 mod provider;
 mod shake;
 mod tuplehash;

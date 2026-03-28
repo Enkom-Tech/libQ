@@ -115,7 +115,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - uses: ./.github/actions/test-cb-kem
   with:
     working-directory: "lib-q-cb-kem"
-    features: "cbkem348864,sha3-hash"
+    features: "cbkem348864"
     rust-version: "stable"
     run-benchmarks: "true"
     run-security-tests: "true"

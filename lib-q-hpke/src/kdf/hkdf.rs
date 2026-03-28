@@ -36,11 +36,16 @@ impl HkdfImpl {
 
     /// Static HKDF-Extract function
     pub fn extract_static(kdf: HpkeKdf, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, HpkeError> {
-        let output_len = kdf.extract_len();
-        let mut prk = vec![0u8; output_len];
+        #[cfg(not(feature = "hash"))]
+        {
+            return Err(HpkeError::feature_not_enabled("Hash support"));
+        }
 
         #[cfg(feature = "hash")]
         {
+            let output_len = kdf.extract_len();
+            let mut prk = vec![0u8; output_len];
+
             match kdf {
                 HpkeKdf::HkdfShake128 => {
                     let mut hasher = Shake128::default();
@@ -71,13 +76,9 @@ impl HkdfImpl {
                     prk.copy_from_slice(&result);
                 }
             }
-        }
-        #[cfg(not(feature = "hash"))]
-        {
-            return Err(HpkeError::feature_not_enabled("Hash support"));
-        }
 
-        Ok(prk)
+            Ok(prk)
+        }
     }
 
     /// Static HKDF-Expand function
@@ -87,10 +88,15 @@ impl HkdfImpl {
         info: &[u8],
         output_len: usize,
     ) -> Result<Vec<u8>, HpkeError> {
-        let mut output = vec![0u8; output_len];
+        #[cfg(not(feature = "hash"))]
+        {
+            return Err(HpkeError::feature_not_enabled("Hash support"));
+        }
 
         #[cfg(feature = "hash")]
         {
+            let mut output = vec![0u8; output_len];
+
             match kdf {
                 HpkeKdf::HkdfShake128 => {
                     let mut hasher = Shake128::default();
@@ -123,13 +129,9 @@ impl HkdfImpl {
                     output[..copy_len].copy_from_slice(&result[..copy_len]);
                 }
             }
-        }
-        #[cfg(not(feature = "hash"))]
-        {
-            return Err(HpkeError::feature_not_enabled("Hash support"));
-        }
 
-        Ok(output)
+            Ok(output)
+        }
     }
 
     /// Extract a pseudorandom key from input key material

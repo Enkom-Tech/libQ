@@ -527,8 +527,8 @@ mod tests {
             sh.flip();
             let mut hv = [0u8; 16];
             sh.extract(&mut hv);
-            t1[i] = (u64::from_le_bytes(*<&[u8; 8]>::try_from(&hv[0..8]).unwrap()) % 12289) as u16;
-            t2[i] = (u64::from_le_bytes(*<&[u8; 8]>::try_from(&hv[8..16]).unwrap()) % 12289) as u16;
+            t1[i] = (u64::from_le_bytes(core::array::from_fn(|k| hv[k])) % 12289) as u16;
+            t2[i] = (u64::from_le_bytes(core::array::from_fn(|k| hv[8 + k])) % 12289) as u16;
         }
 
         // Compute the product t1*t2 into w3 "manually", then reduce it

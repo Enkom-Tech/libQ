@@ -41,7 +41,7 @@ if ($Crate -ne "") {
     } elseif ($Crate -eq "lib-q") {
         $cmd += " --features all-algorithms"
     } elseif ($Crate -eq "lib-q-cb-kem") {
-        $cmd += " --features std,rand,getrandom,sha3-hash,alloc,zeroize,cbkem348864"
+        $cmd += " --features std,rand,getrandom,alloc,zeroize,cbkem348864"
     }
 }
 

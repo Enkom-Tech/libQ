@@ -116,7 +116,7 @@ impl FuzzingInputGenerator {
                     .map(|i| if i % 2 == 0 { 0x00 } else { 0xFF })
                     .collect(),
             );
-            inputs.push((0..64).map(|i| (i % 256) as u8).collect());
+            inputs.push((0..64).map(|i| i as u8).collect());
 
             // Maximum size input
             inputs.push(vec![0x42u8; self.config.max_input_size]);

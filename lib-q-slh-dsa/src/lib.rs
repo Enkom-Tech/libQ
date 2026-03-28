@@ -24,8 +24,8 @@ mod verifying_key;
 mod wots;
 mod xmss;
 
-// no_std RNG implementation
-#[cfg(not(feature = "std"))]
+// no_std RNG implementation (requires `no_std` feature so optional `lib-q-random` is linked)
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
 mod no_std_rng;
 
 use fors::ForsParams;
@@ -333,7 +333,7 @@ mod tests {
 /// let mut bytes = [0u8; 32];
 /// rng.fill_bytes(&mut bytes);
 /// ```
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
 pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng::NoStdError> {
     no_std_rng::SlhDsaNoStdRng::new()
 }
@@ -357,7 +357,7 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng:
 /// let mut bytes = [0u8; 32];
 /// rng.fill_bytes(&mut bytes);
 /// ```
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), feature = "no_std"))]
 #[must_use]
 pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::SlhDsaNoStdRng {
     no_std_rng::SlhDsaNoStdRng::new_deterministic(seed)

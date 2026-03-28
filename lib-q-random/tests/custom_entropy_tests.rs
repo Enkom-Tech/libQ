@@ -15,13 +15,10 @@ use lib_q_random::custom_entropy::{
     register_custom_entropy_source,
     unregister_custom_entropy_source,
 };
-#[cfg(not(feature = "alloc"))]
-use lib_q_random::{
-    new_deterministic_rng_no_std,
-    new_secure_rng_no_std,
-    no_std_rng::NoStdRng,
-};
-// Rng is not used in this test file
+#[cfg(all(not(feature = "alloc"), feature = "custom-entropy"))]
+use lib_q_random::no_std_rng::NoStdRng;
+#[cfg(all(not(feature = "alloc"), feature = "custom-entropy"))]
+use rand_core::Rng;
 
 // Test entropy callback that generates predictable data
 #[allow(dead_code)]

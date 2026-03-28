@@ -87,7 +87,7 @@ mldsa87 = ["lib-q-ml-dsa/mldsa87"]
 # NIST PQC Standards
 slh-dsa = ["lib-q-sig/slh-dsa"]
 slh-dsa-std = ["lib-q-sig/slh-dsa-std"]
-cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
 relaxed_entropy_validation = ["lib-q-core/relaxed_entropy_validation"]
 hqc = ["lib-q-kem/hqc"]
 fn-dsa = ["dep:lib-q-fn-dsa", "lib-q-sig/fn-dsa"]

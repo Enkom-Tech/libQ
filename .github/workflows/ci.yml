@@ -506,7 +506,7 @@ jobs:
           - name: "CB-KEM"
             action: test-cb-kem
             working-directory: lib-q-cb-kem
-            features: "cbkem348864,sha3-hash"
+            features: "cbkem348864"
             rust-version: "stable"
             run-benchmarks: "true"
             run-security-tests: "true"

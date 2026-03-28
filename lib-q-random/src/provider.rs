@@ -624,11 +624,13 @@ impl Default for LibQRngProvider {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::format;
 
+    #[cfg(feature = "alloc")]
     use rand_core::Rng;
 
+    #[cfg(feature = "alloc")]
     use super::*;
 
     #[test]

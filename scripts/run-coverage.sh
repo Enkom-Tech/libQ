@@ -82,7 +82,7 @@ if [[ -n "$CRATE" ]]; then
   elif [[ "$CRATE" == "lib-q" ]]; then
     CMD="$CMD --features all-algorithms"
   elif [[ "$CRATE" == "lib-q-cb-kem" ]]; then
-    CMD="$CMD --features std,rand,getrandom,sha3-hash,alloc,zeroize,cbkem348864"
+    CMD="$CMD --features std,rand,getrandom,alloc,zeroize,cbkem348864"
   fi
 fi
 

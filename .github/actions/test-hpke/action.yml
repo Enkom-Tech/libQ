@@ -75,12 +75,14 @@ runs:
         cargo clippy --all-targets --all-features -- -D warnings
         echo "Clippy linting completed"
     
+    # HPKE requires alloc (and hash/KEM/AEAD features for a buildable library). Bare
+    # --no-default-features disables alloc and fails compile_error! in lib.rs.
     - name: Build with no default features
       shell: bash
       run: |
-        echo "Building with no default features..."
+        echo "Building with no default features (explicit minimal features)..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features
+        cargo build --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
         echo "Build completed"
     
     - name: Build with all features
@@ -94,9 +96,9 @@ runs:
     - name: Run tests with no default features
       shell: bash
       run: |
-        echo "Running tests with no default features..."
+        echo "Running tests with no default features (explicit minimal features)..."
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features
+        cargo test --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
         echo "Tests completed"
     
     - name: Run tests with all features

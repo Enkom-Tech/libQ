@@ -39,7 +39,7 @@ lib-q-saturnin = { path = "../lib-q-saturnin", optional = true }
 [features]
 default = ["alloc", "ml-kem", "saturnin", "shake256", "hash", "secure-rng"]
 std = ["alloc", "lib-q-core/std", "lib-q-aead/std"]
-alloc = ["lib-q-core/alloc"]
+alloc = ["lib-q-core/alloc", "lib-q-kem/alloc"]
 secure-rng = ["lib-q-random/getrandom"]
 
 # Post-quantum algorithm support

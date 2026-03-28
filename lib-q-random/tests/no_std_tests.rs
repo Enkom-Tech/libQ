@@ -17,7 +17,6 @@ use lib_q_random::{
 use lib_q_random::{
     new_deterministic_rng_no_std,
     new_secure_rng_no_std,
-    no_std_rng::NoStdRng,
 };
 use rand_core::Rng;
 
@@ -103,7 +102,7 @@ fn test_rng_reseeding() {
     #[cfg(not(feature = "alloc"))]
     {
         let mut rng = new_secure_rng_no_std().unwrap();
-        let initial_counter = rng.reseed_counter();
+        let _initial_counter = rng.reseed_counter();
         let initial_bytes = rng.bytes_generated();
 
         // Generate enough bytes to potentially trigger reseed
@@ -138,9 +137,9 @@ fn test_rng_error_handling() {
     {
         // Test that RNG creation fails gracefully if getrandom is not available
         // This test would need to be run with getrandom disabled to be meaningful
-        let rng = new_secure_rng_no_std();
         // In normal circumstances with getrandom available, this should succeed
         // The error case is tested in the no_std_rng module tests
+        assert!(new_secure_rng_no_std().is_ok());
     }
 }
 

@@ -31,7 +31,7 @@ pub(crate) unsafe fn init_seed(sh: &mut SHAKE256x4, seed: &[u8]) {
         let mut quit = false;
         if (i + 8) <= seed.len() {
             // At least 8 seed bytes to inject.
-            x0 = u64::from_le_bytes(*<&[u8; 8]>::try_from(&seed[i..(i + 8)]).unwrap());
+            x0 = u64::from_le_bytes(core::array::from_fn(|k| seed[i + k]));
             x1 = x0;
             x2 = x0;
             x3 = x0;

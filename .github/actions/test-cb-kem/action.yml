@@ -8,7 +8,7 @@ inputs:
     required: true
   features:
     description: Features to enable for testing
-    default: "cbkem348864,sha3-hash"
+    default: "cbkem348864"
     required: false
   rust-version:
     description: Rust toolchain version to use
@@ -107,14 +107,6 @@ runs:
         cargo test --features "${{ inputs.features }}"
         echo "Tests with features completed"
     
-    - name: Test K12 hash function support
-      shell: bash
-      run: |
-        echo "Testing K12 hash function support..."
-        cd ${{ inputs.working-directory }}
-        cargo test --no-default-features --features "k12-hash,cbkem348864"
-        echo "K12 hash tests completed"
-    
     - name: Test WASM compatibility
       shell: bash
       run: |
@@ -173,9 +165,9 @@ runs:
         for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128 cbkem8192128f; do
           echo "Testing $variant..."
           if [ "$variant" = "cbkem8192128f" ]; then
-            cargo test --no-default-features --features "$variant,sha3-hash,alloc,zeroize"
+            cargo test --no-default-features --features "$variant,alloc,zeroize"
           else
-            cargo test --no-default-features --features "$variant,sha3-hash"
+            cargo test --no-default-features --features "$variant"
           fi
         done
         

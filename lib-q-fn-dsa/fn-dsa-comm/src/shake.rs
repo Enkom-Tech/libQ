@@ -775,8 +775,8 @@ impl PRNG for SHAKE256_PRNG {
             let x = self.next_u8() as u16;
             return x | ((self.next_u8() as u16) << 8);
         }
-        let x =
-            u16::from_le_bytes(*<&[u8; 2]>::try_from(&self.buf[self.ptr..self.ptr + 2]).unwrap());
+        let p = self.ptr;
+        let x = u16::from_le_bytes(core::array::from_fn(|k| self.buf[p + k]));
         self.ptr += 2;
         x
     }
@@ -789,8 +789,8 @@ impl PRNG for SHAKE256_PRNG {
             }
             return x;
         }
-        let x =
-            u64::from_le_bytes(*<&[u8; 8]>::try_from(&self.buf[self.ptr..self.ptr + 8]).unwrap());
+        let p = self.ptr;
+        let x = u64::from_le_bytes(core::array::from_fn(|k| self.buf[p + k]));
         self.ptr += 8;
         x
     }
@@ -922,8 +922,8 @@ impl SHAKE256x4 {
         if self.ptr >= (SHAKE256x4_BUF_LEN - 1) {
             self.refill();
         }
-        let x =
-            u16::from_le_bytes(*<&[u8; 2]>::try_from(&self.buf[self.ptr..self.ptr + 2]).unwrap());
+        let p = self.ptr;
+        let x = u16::from_le_bytes(core::array::from_fn(|k| self.buf[p + k]));
         self.ptr += 2;
         x
     }
@@ -933,8 +933,8 @@ impl SHAKE256x4 {
         if self.ptr >= (SHAKE256x4_BUF_LEN - 7) {
             self.refill();
         }
-        let x =
-            u64::from_le_bytes(*<&[u8; 8]>::try_from(&self.buf[self.ptr..self.ptr + 8]).unwrap());
+        let p = self.ptr;
+        let x = u64::from_le_bytes(core::array::from_fn(|k| self.buf[p + k]));
         self.ptr += 8;
         x
     }
@@ -961,6 +961,8 @@ impl PRNG for SHAKE256x4 {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
 
     fn inner_shake<const SZ: usize>(kat: &[&str]) {

@@ -60,7 +60,7 @@ wasm = [
     "lib-q-core/wasm",
 ]
 
-cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/sha3-hash"]
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc"]
 hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-hqc/alloc", "alloc"]
 dawn = ["dep:lib-q-dawn", "lib-q-dawn/std"]
 

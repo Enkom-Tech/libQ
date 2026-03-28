@@ -190,7 +190,7 @@ runs:
         elif [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
         elif [[ "$PACKAGE" == "lib-q-cb-kem" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,sha3-hash,alloc,zeroize,cbkem348864\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,alloc,zeroize,cbkem348864\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -201,6 +201,8 @@ runs:
         # For specific packages, exclude all other crates to focus coverage calculation
         if [[ "$PACKAGE" == "lib-q-core" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\""
+          # PR/coverage runs use std,rand only; wasm sources are not part of that build — keep the percentage aligned.
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-core/src/wasm/*\""
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-core/src/*\" --include-files \"lib-q-core/src/**\" --include-files \"lib-q-core\\\\src\\\\*\""
         elif [[ "$PACKAGE" == "lib-q" ]]; then
           # Umbrella crate: count only lib-q/src so the gate reflects this package, not all deps.

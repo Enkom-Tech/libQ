@@ -11,6 +11,7 @@ use alloc::{
     vec::Vec,
 };
 
+#[cfg(feature = "alloc")]
 use lib_q_core::{
     Error,
     Result,
@@ -19,21 +20,27 @@ use lib_q_core::{
     SigSecretKey,
     Signature,
 };
+#[cfg(all(feature = "alloc", feature = "std"))]
+use rand_core::Rng;
+#[cfg(feature = "alloc")]
 use rand_core::{
-    Rng,
     TryCryptoRng,
     TryRng,
 };
+#[cfg(feature = "alloc")]
 use sha2::Digest;
+#[cfg(feature = "alloc")]
 use signature::{
     Keypair,
     RandomizedSigner,
     Verifier,
 };
+#[cfg(feature = "alloc")]
 use typenum::Unsigned;
 
+use crate::ParameterSet;
+#[cfg(feature = "alloc")]
 use crate::{
-    ParameterSet,
     Signature as SlhSignature,
     SigningKey,
     VerifyingKey,
@@ -265,11 +272,13 @@ pub fn bytes_to_slh_signature<P: ParameterSet>(bytes: &[u8]) -> Result<SlhSignat
 ///
 /// This RNG uses SHA-256 to generate deterministic randomness from a seed.
 /// It's suitable for testing and scenarios where deterministic behavior is required.
+#[cfg(feature = "alloc")]
 struct DeterministicRng {
-    seed: alloc::vec::Vec<u8>,
+    seed: Vec<u8>,
     counter: u64,
 }
 
+#[cfg(feature = "alloc")]
 impl DeterministicRng {
     /// Create a new deterministic RNG from a seed
     fn new(seed: &[u8]) -> Self {
@@ -280,6 +289,7 @@ impl DeterministicRng {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl TryRng for DeterministicRng {
     type Error = core::convert::Infallible;
 
@@ -311,4 +321,5 @@ impl TryRng for DeterministicRng {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl TryCryptoRng for DeterministicRng {}

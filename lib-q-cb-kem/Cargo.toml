@@ -17,7 +17,7 @@ exclude = ["/data"]
 # libQ dependencies
 lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
 lib-q-random = { path = "../lib-q-random", features = ["classical-mceliece"] }
-lib-q-sha3 = { path = "../lib-q-sha3", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3" }
 
 # External dependencies
 aes = { version = "0.8", default-features = false, optional = true }
@@ -39,13 +39,10 @@ serde_json = { workspace = true, optional = true }
 ## generation CI job
 # alloc := enable, if the platform supports dynamic memory allocation
 # zeroize := enable to nullify sensitive memory sections after they go out of scope
-default = ["alloc", "zeroize", "sha3-hash"]
+default = ["alloc", "zeroize"]
 no-default-features = []
 alloc = []
 zeroize = ["dep:zeroize"]
-
-# Hash function selection
-sha3-hash = ["dep:lib-q-sha3"]
 
 # Standard library support
 std = []
