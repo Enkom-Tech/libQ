@@ -432,7 +432,11 @@ fn test_timing_attack_protection() {
     let (result, timing, jitter) = protection.protect_with_timing_and_jitter(|| 42);
     assert_eq!(result, 42);
     assert!(timing > 0); // Should be positive after protection
-    assert!(jitter <= 1000); // Jitter should be within reasonable range
+    assert!(
+        jitter <= protection.jitter_range,
+        "jitter {jitter} exceeds protection.jitter_range {}",
+        protection.jitter_range
+    );
 
     // Test global timing protection
     let result = protect_timing(|| 42);
@@ -444,10 +448,15 @@ fn test_timing_attack_protection() {
     assert!(timing > 0); // Should be positive after protection
 
     // Test global timing protection with timing and jitter
+    let global = get_timing_protection();
     let (result, timing, jitter) = protect_timing_with_timing_and_jitter(|| 42);
     assert_eq!(result, 42);
     assert!(timing > 0); // Should be positive after protection
-    assert!(jitter <= 1000); // Jitter should be within reasonable range
+    assert!(
+        jitter <= global.jitter_range,
+        "jitter {jitter} exceeds global jitter_range {}",
+        global.jitter_range
+    );
 }
 
 /// Test AEAD operations with security enhancements
@@ -546,8 +555,8 @@ fn test_security_configuration() {
     assert!(!config.timing_protection);
     assert!(!config.fault_injection_protection);
 
-    // Test security context
-    let ctx = SecurityContext::new();
+    // Test security context (explicit default config: parallel tests may mutate globals)
+    let ctx = SecurityContext::with_config(SecurityConfig::default());
     assert!(ctx.operation_id() > 0);
     // Note: elapsed_time() returns u64, so it's always >= 0
     // We just verify it's a valid timestamp

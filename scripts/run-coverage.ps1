@@ -50,7 +50,11 @@ if ($IgnorePanics) { $cmd += " --ignore-panics" }
 
 $cmd += ' --exclude-files "target/*" --exclude-files "benches/*" --exclude-files "examples/*"'
 
-$cmd += " --out $OutputFormat --output-dir $OutputDir"
+$formats = $OutputFormat -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+foreach ($f in $formats) {
+    $cmd += " --out $f"
+}
+$cmd += " --output-dir $OutputDir"
 
 Write-Host "Running: $cmd"
 Invoke-Expression $cmd

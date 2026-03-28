@@ -38,8 +38,10 @@ advanced-simd = ["lib-q-keccak/advanced-simd"] # Enable advanced SIMD features
 multithreading = ["lib-q-keccak/multithreading"] # Enable multi-threading support
 parallelhash = ["rayon"] # Enable parallel processing for ParallelHash
 
-# WASM-specific configuration
-wasm_js = [] # WASM support without getrandom dependency
+# WASM-specific configuration (enables `getrandom` JS backend for `wasm32-unknown-unknown`, matching CI RUSTFLAGS)
+wasm_js = ["lib-q-core/wasm_getrandom"]
+# Declared for CI / `cargo test -p lib-q-hash --features alloc,oid,getrandom` (K12 job); RNG is via `lib-q-core` defaults.
+getrandom = []
 
 [lib]
 name = "lib_q_hash"

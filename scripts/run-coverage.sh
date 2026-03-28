@@ -101,7 +101,14 @@ elif [[ "$CRATE" == "lib-q" ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/*' --exclude-files 'lib-q-ml-kem/*' --exclude-files 'lib-q-kem/*' --exclude-files 'lib-q-sig/*' --exclude-files 'lib-q-aead/*' --exclude-files 'lib-q-hpke/*' --exclude-files 'lib-q-zkp/*' --exclude-files 'lib-q-platform/*' --exclude-files 'lib-q-intrinsics/*' --exclude-files 'lib-q-utils/*'"
 fi
 
-CMD="$CMD --out $OUTPUT_FORMAT --output-dir $OUTPUT_DIR"
+OUT_EXTRA=""
+IFS=',' read -ra FORMAT_PARTS <<< "$OUTPUT_FORMAT"
+for part in "${FORMAT_PARTS[@]}"; do
+  part="${part// /}"
+  [[ -z "$part" ]] && continue
+  OUT_EXTRA+=" --out $part"
+done
+CMD="$CMD${OUT_EXTRA} --output-dir $OUTPUT_DIR"
 
 if [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
   CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality"

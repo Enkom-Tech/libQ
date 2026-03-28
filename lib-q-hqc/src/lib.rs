@@ -156,24 +156,14 @@ pub use provider::LibQHqcProvider;
 /// Get available HQC algorithms with proper NIST naming
 #[cfg(feature = "std")]
 pub fn available_algorithms() -> Vec<&'static str> {
-    let mut algorithms = Vec::new();
-
-    #[cfg(feature = "hqc128")]
-    {
-        algorithms.push("HQC-128");
-    }
-
-    #[cfg(feature = "hqc192")]
-    {
-        algorithms.push("HQC-192");
-    }
-
-    #[cfg(feature = "hqc256")]
-    {
-        algorithms.push("HQC-256");
-    }
-
-    algorithms
+    vec![
+        #[cfg(feature = "hqc128")]
+        "HQC-128",
+        #[cfg(feature = "hqc192")]
+        "HQC-192",
+        #[cfg(feature = "hqc256")]
+        "HQC-256",
+    ]
 }
 
 /// Get available HQC algorithms (no_std version)

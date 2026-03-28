@@ -164,7 +164,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - working-directory: "."
+          - working-directory: "lib-q"
             features: "wasm,all-algorithms,ml-kem"
             check-only: "false"
           - working-directory: "lib-q-kem"

@@ -898,6 +898,7 @@ fn test_merkle_inclusion_soundness_wrong_direction_bit() {
     let air = MerkleInclusionAir::new(2).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
+        leaf_hash_direct: None,
         path_bits: vec![false, true],
         siblings: vec![
             MerkleHash::from_bytes(&[0u8; 32]).unwrap(),

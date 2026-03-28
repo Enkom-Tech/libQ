@@ -116,7 +116,7 @@ jobs:
           cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"
           
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-reports
           path: combined-coverage/

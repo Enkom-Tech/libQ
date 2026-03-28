@@ -210,6 +210,7 @@ pub(crate) mod ml_dsa_87 {
 pub(crate) enum Eta {
     #[allow(dead_code)]
     Two = 2,
+    #[allow(dead_code)]
     Four = 4,
 }
 

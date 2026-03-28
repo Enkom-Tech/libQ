@@ -170,7 +170,7 @@ runs:
         FEATURES="${{ inputs.features }}"
         
         # Build tarpaulin command with appropriate options
-        TARPAULIN_CMD="cargo tarpaulin --out Html,Xml --output-dir coverage"
+        TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage"
         
         # Add package filter if specified
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then

@@ -344,6 +344,7 @@ pub const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
 /// let air = MerkleInclusionAir::new(4).unwrap(); // depth 4 tree
 /// let input = MerkleProofInput {
 ///     leaf: vec![1, 2, 3, 4],
+///     leaf_hash_direct: None,
 ///     path_bits: vec![false, true, false, true],
 ///     siblings: vec![
 ///         vec![0u8; 32], // sibling at level 0

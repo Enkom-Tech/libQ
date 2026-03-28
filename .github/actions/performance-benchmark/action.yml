@@ -156,7 +156,7 @@ runs:
     
     - name: Upload benchmark results
       if: inputs.save-results == 'true'
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: benchmark-results-${{ github.run_id }}
         path: ${{ inputs.working-directory }}/benchmark-results/

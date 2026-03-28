@@ -18,6 +18,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # Core security validation - runs first
@@ -118,14 +119,6 @@ jobs:
         with:
           toolchain: stable
       
-      - name: Install valgrind
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y valgrind
-      
-      - name: Install cargo-valgrind
-        run: cargo install cargo-valgrind
-      
       - name: Run constant-time validation
         uses: ./.github/actions/rust-build
         with:
@@ -180,7 +173,7 @@ jobs:
   dependency-audit:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       
@@ -236,18 +229,19 @@ jobs:
       - name: Build WASM
         uses: ./.github/actions/wasm-build
         with:
+          working-directory: lib-q
           features: "wasm,all-algorithms"
           targets: "web,nodejs"
       
       - name: Validate WASM security
         run: |
           echo "🌐 Validating WASM build artifacts..."
-          ls -la pkg/ || echo "No pkg directory found"
-          if [ -d "pkg" ]; then
+          ls -la lib-q/pkg/ || echo "No pkg directory found"
+          if [ -d "lib-q/pkg" ]; then
             echo "WASM package contents:"
-            ls -la pkg/
+            ls -la lib-q/pkg/
             echo "WASM file size:"
-            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
+            ls -lh lib-q/pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
             
             # Validate that WASM exports are secure
             echo "✅ WASM security validation passed"
@@ -310,7 +304,7 @@ jobs:
           fi
       
       - name: Upload security report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: security-report
           path: security-report.md
