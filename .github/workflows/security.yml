@@ -315,7 +315,7 @@ jobs:
           echo "All security validations passed successfully." >> security-report.md
       
       - name: Upload security report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-report
           path: security-report.md
