@@ -18,6 +18,7 @@ members = [
     "lib-q-saturnin",
     "lib-q-duplex-aead",
     "lib-q-tweak-aead",
+    "lib-q-romulus",
     "lib-q-hpke",
     "lib-q-utils",
     "lib-q-zkp",
@@ -107,6 +108,7 @@ rand_xoshiro = "0.8.0"
 rayon = "1.11.0"
 digest = "0.11.2"
 block-buffer = "0.12.0"
+aead = { version = "0.5", default-features = false }
 
 [profile.release-security]
 inherits = "release"

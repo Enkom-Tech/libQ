@@ -252,15 +252,22 @@ mod thread_safety_tests {
         const OPERATIONS_PER_THREAD: usize = 20;
 
         // Test with specific known algorithms (feature-gated registrations)
-        let mut test_algorithms = vec![Algorithm::Shake256Aead];
-        #[cfg(feature = "saturnin")]
-        test_algorithms.push(Algorithm::Saturnin);
-        #[cfg(feature = "kem-aead")]
-        test_algorithms.push(Algorithm::KemAead);
-        #[cfg(feature = "duplex-sponge-aead")]
-        test_algorithms.push(Algorithm::DuplexSpongeAead);
-        #[cfg(feature = "tweak-aead")]
-        test_algorithms.push(Algorithm::TweakAead);
+        let test_algorithms = {
+            let mut v = vec![Algorithm::Shake256Aead];
+            #[cfg(feature = "saturnin")]
+            v.push(Algorithm::Saturnin);
+            #[cfg(feature = "kem-aead")]
+            v.push(Algorithm::KemAead);
+            #[cfg(feature = "duplex-sponge-aead")]
+            v.push(Algorithm::DuplexSpongeAead);
+            #[cfg(feature = "tweak-aead")]
+            v.push(Algorithm::TweakAead);
+            #[cfg(feature = "romulus-n")]
+            v.push(Algorithm::RomulusN);
+            #[cfg(feature = "romulus-m")]
+            v.push(Algorithm::RomulusM);
+            v
+        };
 
         let success_count = Arc::new(AtomicUsize::new(0));
         let mut handles = Vec::new();

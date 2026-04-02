@@ -76,6 +76,10 @@ pub use provider::LibQAeadProvider;
 mod duplex_aead_impl;
 #[cfg(feature = "kem-aead")]
 mod kem_aead_impl;
+#[cfg(feature = "romulus-m")]
+mod romulus_m_impl;
+#[cfg(feature = "romulus-n")]
+mod romulus_n_impl;
 #[cfg(feature = "saturnin")]
 mod saturnin_impl;
 #[cfg(feature = "shake256")]
@@ -88,6 +92,10 @@ mod tweak_aead_impl;
 pub use duplex_aead_impl::DuplexSpongeAead;
 #[cfg(feature = "kem-aead")]
 pub use kem_aead_impl::KemAead;
+#[cfg(feature = "romulus-m")]
+pub use romulus_m_impl::RomulusMAead;
+#[cfg(feature = "romulus-n")]
+pub use romulus_n_impl::RomulusNAead;
 #[cfg(feature = "saturnin")]
 pub use saturnin_impl::SaturninAead;
 #[cfg(feature = "shake256")]
@@ -131,6 +139,16 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
         Ok(Box::new(TweakAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
+    #[cfg(feature = "romulus-n")]
+    let _ = registry.register_algorithm(Algorithm::RomulusN, || {
+        Ok(Box::new(RomulusNAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "romulus-m")]
+    let _ = registry.register_algorithm(Algorithm::RomulusM, || {
+        Ok(Box::new(RomulusMAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
     registry
 });
 
@@ -166,6 +184,16 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
     #[cfg(feature = "tweak-aead")]
     let _ = registry.register_algorithm(Algorithm::TweakAead, || {
         Ok(Box::new(TweakAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "romulus-n")]
+    let _ = registry.register_algorithm(Algorithm::RomulusN, || {
+        Ok(Box::new(RomulusNAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "romulus-m")]
+    let _ = registry.register_algorithm(Algorithm::RomulusM, || {
+        Ok(Box::new(RomulusMAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
     registry

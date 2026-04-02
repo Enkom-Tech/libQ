@@ -82,6 +82,8 @@ pub enum Algorithm {
     KemAead,
     DuplexSpongeAead,
     TweakAead,
+    RomulusN,
+    RomulusM,
 }
 
 impl Algorithm {
@@ -160,6 +162,8 @@ impl Algorithm {
             Algorithm::KemAead => 4,
             Algorithm::DuplexSpongeAead => 4,
             Algorithm::TweakAead => 4,
+            Algorithm::RomulusN => 1,
+            Algorithm::RomulusM => 1,
         }
     }
 
@@ -228,7 +232,9 @@ impl Algorithm {
             Algorithm::Shake256Aead |
             Algorithm::KemAead |
             Algorithm::DuplexSpongeAead |
-            Algorithm::TweakAead => AlgorithmCategory::Aead, // Multi-category algorithms
+            Algorithm::TweakAead |
+            Algorithm::RomulusN |
+            Algorithm::RomulusM => AlgorithmCategory::Aead, // Multi-category algorithms
         }
     }
 
@@ -300,7 +306,9 @@ impl Algorithm {
             Algorithm::Shake256Aead |
             Algorithm::KemAead |
             Algorithm::DuplexSpongeAead |
-            Algorithm::TweakAead => category == AlgorithmCategory::Aead, // Multi-category algorithms
+            Algorithm::TweakAead |
+            Algorithm::RomulusN |
+            Algorithm::RomulusM => category == AlgorithmCategory::Aead, // Multi-category algorithms
         }
     }
 }
@@ -405,6 +413,8 @@ impl core::fmt::Display for Algorithm {
             Algorithm::KemAead => write!(f, "KEM-AEAD"),
             Algorithm::DuplexSpongeAead => write!(f, "Duplex-Sponge-AEAD"),
             Algorithm::TweakAead => write!(f, "Tweak-AEAD"),
+            Algorithm::RomulusN => write!(f, "Romulus-N"),
+            Algorithm::RomulusM => write!(f, "Romulus-M"),
 
             // Additional algorithms
             Algorithm::KangarooTwelve => write!(f, "KangarooTwelve"),

@@ -105,6 +105,8 @@ impl WasmConversions {
             "kemaead" | "kem-aead" => Ok(Algorithm::KemAead),
             "duplexspongeaead" | "duplex-sponge-aead" => Ok(Algorithm::DuplexSpongeAead),
             "tweakaead" | "tweak-aead" => Ok(Algorithm::TweakAead),
+            "romulus-n" | "romulusn" => Ok(Algorithm::RomulusN),
+            "romulus-m" | "romulusm" => Ok(Algorithm::RomulusM),
 
             _ => Err(crate::error::Error::UnsupportedAlgorithm {
                 algorithm: algorithm_str.to_string(),
@@ -146,6 +148,8 @@ impl WasmConversions {
             Algorithm::KemAead => "kem-aead".to_string(),
             Algorithm::DuplexSpongeAead => "duplex-sponge-aead".to_string(),
             Algorithm::TweakAead => "tweak-aead".to_string(),
+            Algorithm::RomulusN => "romulus-n".to_string(),
+            Algorithm::RomulusM => "romulus-m".to_string(),
 
             // Other algorithms (add as needed)
             _ => format!("{:?}", algorithm).to_lowercase().replace('_', "-"),

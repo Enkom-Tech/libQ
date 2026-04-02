@@ -12,13 +12,39 @@ use lib_q_core::{
     Nonce,
 };
 
-/// Generate a proper test key with good entropy
+/// Generate a proper test key with good entropy (32 bytes; typical lib-q AEADs).
 fn create_test_key() -> AeadKey {
     AeadKey::new(vec![
         0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32,
         0x10, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
         0xFF, 0x00,
     ])
+}
+
+/// Key material sized for the algorithm (Romulus uses 128-bit keys).
+fn create_test_key_for(algorithm: Algorithm) -> AeadKey {
+    match algorithm {
+        Algorithm::RomulusN | Algorithm::RomulusM => AeadKey::new(vec![
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54,
+            0x32, 0x10,
+        ]),
+        _ => create_test_key(),
+    }
+}
+
+/// Second distinct key, same length as [`create_test_key_for`].
+fn create_alt_test_key_for(algorithm: Algorithm) -> AeadKey {
+    match algorithm {
+        Algorithm::RomulusN | Algorithm::RomulusM => AeadKey::new(vec![
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+            0xFF, 0x00,
+        ]),
+        _ => AeadKey::new(vec![
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+            0xFF, 0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98,
+            0x76, 0x54, 0x32, 0x10,
+        ]),
+    }
 }
 
 /// Generate a proper test nonce with good entropy
@@ -121,7 +147,7 @@ fn test_aead_encrypt_decrypt() {
         let aead = create_aead(algorithm).unwrap();
 
         // Test with different key and nonce values
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = b"Hello, World!";
         let associated_data = b"metadata";
@@ -147,7 +173,7 @@ fn test_aead_authentication_failure() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = b"Hello, World!";
 
@@ -191,12 +217,8 @@ fn test_aead_wrong_key() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key1 = create_test_key();
-        let key2 = AeadKey::new(vec![
-            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
-            0xFF, 0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98,
-            0x76, 0x54, 0x32, 0x10,
-        ]);
+        let key1 = create_test_key_for(algorithm);
+        let key2 = create_alt_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = b"Hello, World!";
 
@@ -220,7 +242,7 @@ fn test_aead_wrong_nonce() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce1 = create_test_nonce();
         let nonce2 = Nonce::new(vec![
             0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
@@ -248,7 +270,7 @@ fn test_aead_empty_plaintext() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = b"";
 
@@ -281,7 +303,7 @@ fn test_aead_large_plaintext() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = vec![0u8; 1024 * 1024]; // 1MB
 
@@ -314,7 +336,7 @@ fn test_aead_associated_data() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = create_test_key();
+        let key = create_test_key_for(algorithm);
         let nonce = create_test_nonce();
         let plaintext = b"Hello, World!";
         let associated_data = Some(b"important metadata".as_slice());
@@ -356,12 +378,14 @@ fn test_aead_key_validation() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
+        let ks = aead.key_size();
         // Test valid key
-        let key = AeadKey::new(vec![0u8; 32]);
+        let key = AeadKey::new(vec![0u8; ks]);
         assert!(aead.validate_key(&key).is_ok());
 
-        // Test invalid key size
-        let invalid_key = AeadKey::new(vec![0u8; 16]);
+        // Test invalid key size (pick a wrong length distinct from ks)
+        let bad_len = if ks == 32 { 16usize } else { 32usize };
+        let invalid_key = AeadKey::new(vec![0u8; bad_len]);
         assert!(aead.validate_key(&invalid_key).is_err());
     }
 }

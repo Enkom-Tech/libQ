@@ -22,8 +22,29 @@ use lib_q_aead::validation::{
 use lib_q_aead::*;
 use lib_q_core::{
     AeadKey,
+    Algorithm,
     Nonce,
 };
+
+fn test_key_for_security(algorithm: Algorithm) -> AeadKey {
+    match algorithm {
+        Algorithm::RomulusN | Algorithm::RomulusM => {
+            AeadKey::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+        }
+        _ => AeadKey::new(vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ]),
+    }
+}
+
+/// Key length that is invalid for `algorithm` (for negative tests).
+fn invalid_key_wrong_size(algorithm: Algorithm) -> AeadKey {
+    match algorithm {
+        Algorithm::RomulusN | Algorithm::RomulusM => AeadKey::new(vec![0u8; 32]),
+        _ => AeadKey::new(vec![0u8; 16]),
+    }
+}
 
 /// Test constant-time operations
 #[test]
@@ -468,10 +489,7 @@ fn test_aead_operations_with_security() {
         let aead = create_aead(algorithm).unwrap();
 
         // Test with valid inputs
-        let key = AeadKey::new(vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        let key = test_key_for_security(algorithm);
         let nonce = Nonce::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let plaintext = b"Hello, World!";
         let associated_data = Some(b"metadata".as_slice());
@@ -489,7 +507,7 @@ fn test_aead_operations_with_security() {
         assert_eq!(decrypted.unwrap(), plaintext);
 
         // Test with invalid inputs
-        let invalid_key = AeadKey::new(vec![0; 16]); // Wrong size
+        let invalid_key = invalid_key_wrong_size(algorithm);
         let invalid_nonce = Nonce::new(vec![0; 12]); // Wrong size
 
         // Test with invalid key
@@ -615,10 +633,7 @@ fn test_comprehensive_security_integration() {
         let aead = create_aead(algorithm).unwrap();
 
         // Test with valid inputs
-        let key = AeadKey::new(vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        let key = test_key_for_security(algorithm);
         let nonce = Nonce::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let plaintext = b"Hello, World!";
         let associated_data = Some(b"metadata".as_slice());
@@ -640,7 +655,7 @@ fn test_comprehensive_security_integration() {
         assert_eq!(decrypted.unwrap(), plaintext);
 
         // Test with invalid inputs (should fail with strict validation)
-        let invalid_key = AeadKey::new(vec![0; 16]); // Wrong size
+        let invalid_key = invalid_key_wrong_size(algorithm);
         let invalid_nonce = Nonce::new(vec![0; 12]); // Wrong size
 
         // Test with invalid key
@@ -680,10 +695,7 @@ fn test_security_performance_impact() {
     for algorithm in algorithms {
         let aead = create_aead(algorithm).unwrap();
 
-        let key = AeadKey::new(vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
-            25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        let key = test_key_for_security(algorithm);
         let nonce = Nonce::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let plaintext = b"Hello, World!";
         let associated_data = Some(b"metadata".as_slice());
@@ -904,10 +916,7 @@ fn test_security_integration_with_aead_operations() {
         for config in configs {
             set_security_config(config);
 
-            let key = AeadKey::new(vec![
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]);
+            let key = test_key_for_security(algorithm);
             let nonce = Nonce::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
             let plaintext = b"Hello, World!";
             let associated_data = Some(b"metadata".as_slice());

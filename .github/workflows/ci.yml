@@ -183,6 +183,9 @@ jobs:
           - working-directory: "lib-q-zkp"
             features: "wasm,zkp"
             check-only: "true"
+          - working-directory: "lib-q-romulus"
+            features: ""
+            check-only: "true"
     
     steps:
       - uses: actions/checkout@v5
@@ -194,6 +197,32 @@ jobs:
           features: ${{ matrix.features }}
           targets: "web,nodejs"
           check-only: ${{ matrix.check-only }}
+
+  # Romulus: pure no_std crypto core + registry wiring without forcing lib-q-romulus/std
+  romulus-no-std-wasm:
+    name: Romulus no_std / wasm32 smoke
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: lib-q-romulus (stack-only, no alloc)
+        run: |
+          cargo check -p lib-q-romulus --no-default-features
+          cargo check -p lib-q-romulus --no-default-features --target wasm32-unknown-unknown
+
+      - name: lib-q-aead + romulus (alloc, no lib-q-aead default features)
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+        run: |
+          cargo check -p lib-q-aead --no-default-features --features alloc,romulus
+          cargo check -p lib-q-aead --no-default-features --features alloc,romulus --target wasm32-unknown-unknown
 
   # Cross-platform builds - parallel execution
   cross-platform:
@@ -859,7 +888,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -871,6 +900,7 @@ jobs:
           # Check if any required jobs failed
           if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.romulus-no-std-wasm.result }}" == "failure" ]] || \
              [[ "${{ needs.ml-dsa-compliance.result }}" == "failure" ]] || \
              [[ "${{ needs.constant-time.result }}" == "failure" ]] || \
              [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then

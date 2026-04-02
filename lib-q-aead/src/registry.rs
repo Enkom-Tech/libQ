@@ -155,6 +155,32 @@ impl AeadRegistry {
             },
         );
 
+        metadata.insert(
+            Algorithm::RomulusN,
+            &AeadMetadata {
+                algorithm: Algorithm::RomulusN,
+                key_size: 16,
+                nonce_size: 16,
+                tag_size: 16,
+                security_level: 1,
+                name: "Romulus-N",
+                description: "Romulus-N nonce-based AEAD (SKINNY-128-384+), LWC v1.3",
+            },
+        );
+
+        metadata.insert(
+            Algorithm::RomulusM,
+            &AeadMetadata {
+                algorithm: Algorithm::RomulusM,
+                key_size: 16,
+                nonce_size: 16,
+                tag_size: 16,
+                security_level: 1,
+                name: "Romulus-M",
+                description: "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
+            },
+        );
+
         metadata
     }
 

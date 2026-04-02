@@ -116,6 +116,8 @@ pub fn parse_algorithm_wasm(algorithm: &str) -> Result<crate::api::Algorithm, Js
         "kem-aead" => Ok(crate::api::Algorithm::KemAead),
         "duplex-sponge-aead" | "duplexspongeaead" => Ok(crate::api::Algorithm::DuplexSpongeAead),
         "tweak-aead" | "tweakaead" => Ok(crate::api::Algorithm::TweakAead),
+        "romulus-n" | "romulusn" => Ok(crate::api::Algorithm::RomulusN),
+        "romulus-m" | "romulusm" => Ok(crate::api::Algorithm::RomulusM),
 
         _ => Err(JsValue::from_str("Unsupported algorithm")),
     }

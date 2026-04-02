@@ -607,6 +607,24 @@ impl AlgorithmRegistry {
             description: "Parallel tweakable-block CTR AEAD over Keccak-f[1600] with independent 32-byte blocks",
             enabled: true,
         });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::RomulusN,
+            category: AlgorithmCategory::Aead,
+            security_level: 1,
+            name: "Romulus-N",
+            description: "Romulus-N nonce-based AEAD (SKINNY-128-384+), LWC v1.3",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::RomulusM,
+            category: AlgorithmCategory::Aead,
+            security_level: 1,
+            name: "Romulus-M",
+            description: "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
+            enabled: true,
+        });
     }
 
     /// Register an algorithm
@@ -680,6 +698,8 @@ impl AlgorithmRegistry {
                 Algorithm::KemAead,
                 Algorithm::DuplexSpongeAead,
                 Algorithm::TweakAead,
+                Algorithm::RomulusN,
+                Algorithm::RomulusM,
             ],
         }
     }
@@ -705,6 +725,8 @@ impl AlgorithmRegistry {
                 Algorithm::FnDsa512,
                 Algorithm::Saturnin,
                 Algorithm::Shake256Aead,
+                Algorithm::RomulusN,
+                Algorithm::RomulusM,
             ],
             3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
             4 => &[
@@ -853,6 +875,8 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
             Algorithm::KemAead,
             Algorithm::DuplexSpongeAead,
             Algorithm::TweakAead,
+            Algorithm::RomulusN,
+            Algorithm::RomulusM,
         ],
     }
 }
@@ -879,6 +903,8 @@ pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
             Algorithm::FnDsa512,
             Algorithm::Saturnin,
             Algorithm::Shake256Aead,
+            Algorithm::RomulusN,
+            Algorithm::RomulusM,
         ],
         3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
         4 => &[

@@ -15,7 +15,7 @@
 //! # Security Features
 //!
 //! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
-//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, and DAWN
+//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, Romulus (N/M), and DAWN
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
 //!
@@ -48,7 +48,7 @@
 //!     // - For ML-DSA signatures: enable 'ml-dsa' feature
 //!     // - For ML-KEM key exchange: enable 'ml-kem' feature
 //!     // - For FN-DSA signatures: enable 'fn-dsa' feature
-//!     // - For AEAD: use `libq::aead::context()` and enable `saturnin` / other AEAD features as needed
+//!     // - For AEAD: use `libq::aead::context()` and enable `saturnin`, `romulus`, or other AEAD features
 //!     // - For DAWN KEM: enable 'dawn' feature
 //!
 //!     Ok(())
@@ -66,6 +66,7 @@
 //! - `ml-dsa`: Enable ML-DSA digital signature algorithm
 //! - `fn-dsa`: Enable FN-DSA digital signature algorithm
 //! - `saturnin`: Enable Saturnin authenticated encryption
+//! - `romulus`: Enable Romulus-N and Romulus-M AEAD (LWC / SKINNY-128-384+)
 //! - `dawn`: Enable DAWN key encapsulation mechanism
 //! - `random`: Enable lib-q-random for secure random number generation
 //! - `random-custom-entropy`: Enable custom entropy source support
@@ -657,6 +658,98 @@ mod tests {
                 Some(ad.as_slice()),
             )
             .expect("Tweak-AEAD decrypt");
+
+        assert_eq!(recovered.as_slice(), plaintext.as_slice());
+    }
+
+    #[cfg(all(feature = "alloc", feature = "romulus"))]
+    #[test]
+    fn test_create_aead_context_romulus_n_roundtrip() {
+        use lib_q_core::traits::{
+            AeadKey,
+            Nonce,
+        };
+
+        let mut key_bytes = vec![0u8; 16];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x17).wrapping_add(0x31);
+        }
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x2Du8).wrapping_add(0x6Au8);
+        }
+
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let plaintext = b"romulus-n roundtrip";
+        let ad = b"ad-rn";
+
+        let mut ctx = aead::context();
+        let ciphertext = ctx
+            .encrypt(
+                Algorithm::RomulusN,
+                &key,
+                &nonce,
+                plaintext.as_slice(),
+                Some(ad.as_slice()),
+            )
+            .expect("Romulus-N encrypt");
+
+        let recovered = ctx
+            .decrypt(
+                Algorithm::RomulusN,
+                &key,
+                &nonce,
+                &ciphertext,
+                Some(ad.as_slice()),
+            )
+            .expect("Romulus-N decrypt");
+
+        assert_eq!(recovered.as_slice(), plaintext.as_slice());
+    }
+
+    #[cfg(all(feature = "alloc", feature = "romulus"))]
+    #[test]
+    fn test_create_aead_context_romulus_m_roundtrip() {
+        use lib_q_core::traits::{
+            AeadKey,
+            Nonce,
+        };
+
+        let mut key_bytes = vec![0u8; 16];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, byte) in key_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x19).wrapping_add(0x2Fu8);
+        }
+        for (i, byte) in nonce_bytes.iter_mut().enumerate() {
+            *byte = (i as u8).wrapping_mul(0x2Fu8).wrapping_add(0x68u8);
+        }
+
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let plaintext = b"romulus-m roundtrip";
+        let ad = b"ad-rm";
+
+        let mut ctx = aead::context();
+        let ciphertext = ctx
+            .encrypt(
+                Algorithm::RomulusM,
+                &key,
+                &nonce,
+                plaintext.as_slice(),
+                Some(ad.as_slice()),
+            )
+            .expect("Romulus-M encrypt");
+
+        let recovered = ctx
+            .decrypt(
+                Algorithm::RomulusM,
+                &key,
+                &nonce,
+                &ciphertext,
+                Some(ad.as_slice()),
+            )
+            .expect("Romulus-M decrypt");
 
         assert_eq!(recovered.as_slice(), plaintext.as_slice());
     }

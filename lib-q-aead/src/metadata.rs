@@ -229,12 +229,34 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         "Parallel tweakable-block CTR AEAD over Keccak-f[1600]",
     );
 
+    static ROMULUS_N_METADATA: AeadMetadata = AeadMetadata::new(
+        Algorithm::RomulusN,
+        16,
+        16,
+        16,
+        1,
+        "Romulus-N",
+        "Romulus-N nonce-based AEAD (SKINNY-128-384+), LWC v1.3",
+    );
+
+    static ROMULUS_M_METADATA: AeadMetadata = AeadMetadata::new(
+        Algorithm::RomulusM,
+        16,
+        16,
+        16,
+        1,
+        "Romulus-M",
+        "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
+    );
+
     match algorithm {
         Algorithm::Saturnin => Some(&SATURNIN_METADATA),
         Algorithm::Shake256Aead => Some(&SHAKE256_METADATA),
         Algorithm::KemAead => Some(&KEM_AEAD_METADATA),
         Algorithm::DuplexSpongeAead => Some(&DUPLEX_SPONGE_AEAD_METADATA),
         Algorithm::TweakAead => Some(&TWEAK_AEAD_METADATA),
+        Algorithm::RomulusN => Some(&ROMULUS_N_METADATA),
+        Algorithm::RomulusM => Some(&ROMULUS_M_METADATA),
         _ => None,
     }
 }
