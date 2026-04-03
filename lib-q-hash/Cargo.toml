@@ -16,6 +16,7 @@ block-buffer = { workspace = true }
 lib-q-core = { path = "../lib-q-core" }
 zeroize = { workspace = true }
 digest = { workspace = true }
+sha2 = { workspace = true, default-features = false }
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-k12 = { path = "../lib-q-k12" }
 lib-q-sha3 = { path = "../lib-q-sha3" }

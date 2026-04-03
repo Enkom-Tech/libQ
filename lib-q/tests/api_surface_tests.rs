@@ -27,7 +27,14 @@ fn umbrella_init_version_and_supported() {
 #[test]
 fn umbrella_hash_kem_sig_helpers() {
     let mut hash = create_hash_context();
-    let _ = hash.hash(Algorithm::Sha3_256, b"surface-test");
+    let digest = hash
+        .hash(Algorithm::Sha3_256, b"surface-test")
+        .expect("umbrella hash context must use lib-q-hash");
+    assert_eq!(digest.len(), 32);
+    let s2 = hash
+        .hash(Algorithm::Sha256, b"surface-test")
+        .expect("SHA-256 via umbrella hash provider");
+    assert_eq!(s2.len(), 32);
     let _kem = create_kem_context();
     let _sig = create_signature_context();
 }

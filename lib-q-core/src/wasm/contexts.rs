@@ -530,6 +530,16 @@ impl WasmHashContext {
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
     }
+
+    /// Wrap a Rust [`HashContext`] that already has a hash-capable provider (for example from
+    /// `lib-q-hash::LibQHashProvider` in the umbrella crate).
+    pub fn from_hash_context(inner: HashContext) -> WasmHashContext {
+        WasmHashContext {
+            inner,
+            security_validator: SecurityValidator::new()
+                .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
+        }
+    }
 }
 
 impl Default for WasmHashContext {
@@ -604,7 +614,33 @@ impl WasmHashContext {
     /// Get supported algorithms
     pub fn supported_algorithms(&self) -> String {
         let algorithms = alloc::vec![
-            "sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256",
+            "sha3-224",
+            "sha3-256",
+            "sha3-384",
+            "sha3-512",
+            "shake128",
+            "shake256",
+            "sha-224",
+            "sha-256",
+            "sha-384",
+            "sha-512",
+            "sha-512/224",
+            "sha-512/256",
+            "cshake128",
+            "cshake256",
+            "keccak-224",
+            "keccak-256",
+            "keccak-384",
+            "keccak-512",
+            "kangarootwelve",
+            "turboshake128",
+            "turboshake256",
+            "kmac128",
+            "kmac256",
+            "tuplehash128",
+            "tuplehash256",
+            "parallelhash128",
+            "parallelhash256",
         ];
         #[cfg(feature = "wasm")]
         {
@@ -895,7 +931,13 @@ impl WasmCryptoProvider {
             let algorithms = serde_json::json!({
                 "kem": kem_algorithms,
                 "signature": WASM_SIGNATURE_ALGORITHM_IDS,
-                "hash": ["sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256"],
+                "hash": [
+                    "sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256",
+                    "sha-224", "sha-256", "sha-384", "sha-512", "sha-512/224", "sha-512/256",
+                    "cshake128", "cshake256", "keccak-224", "keccak-256", "keccak-384", "keccak-512",
+                    "kangarootwelve", "turboshake128", "turboshake256", "kmac128", "kmac256",
+                    "tuplehash128", "tuplehash256", "parallelhash128", "parallelhash256",
+                ],
                 "aead": ["saturnin", "shake256-aead", "kem-aead"]
             });
             algorithms.to_string()

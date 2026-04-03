@@ -515,6 +515,24 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha512_224,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-512/224",
+            description: "SHA-512/224 hash function (truncated)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Sha512_256,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "SHA-512/256",
+            description: "SHA-512/256 hash function (truncated)",
+            enabled: true,
+        });
+
         // TurboSHAKE algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::TurboShake128,
@@ -663,6 +681,8 @@ impl AlgorithmRegistry {
                 Algorithm::Sha256,
                 Algorithm::Sha384,
                 Algorithm::Sha512,
+                Algorithm::Sha512_224,
+                Algorithm::Sha512_256,
             ],
             AlgorithmCategory::Aead => &[
                 Algorithm::Saturnin,

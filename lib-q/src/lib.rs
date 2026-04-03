@@ -33,11 +33,11 @@
 //!     // Initialize hash context
 //!     let mut hash_ctx = create_hash_context();
 //!
-//!     // Hash data (returns NotImplemented error with current architecture)
+//!     // Hash data via the umbrella-wired `lib-q-hash` provider
 //!     let result = hash_ctx.hash(Algorithm::Shake256, b"Hello, World!");
 //!     match result {
 //!         Ok(hash) => println!("Hash: {}", Utils::bytes_to_hex(&hash)),
-//!         Err(e) => println!("Hash operation not implemented: {:?}", e),
+//!         Err(e) => println!("Hash error: {:?}", e),
 //!     }
 //!
 //!     // Generate random bytes
@@ -104,6 +104,9 @@
 #[cfg(not(feature = "std"))]
 extern crate alloc;
 
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::boxed::Box;
+
 #[cfg(feature = "alloc")]
 pub mod aead;
 
@@ -140,9 +143,10 @@ pub use lib_q_core::{
 pub use lib_q_core::{
     LibQCryptoProvider,
     Utils,
-    create_hash_context,
     create_kem_context,
 };
+#[cfg(feature = "alloc")]
+pub use lib_q_hash::LibQHashProvider;
 #[cfg(feature = "hqc")]
 pub use lib_q_hqc::LibQHqcProvider;
 // Re-export from other crates for convenience
@@ -179,10 +183,12 @@ pub use lib_q_random::{
     register_custom_entropy_source,
     unregister_custom_entropy_source,
 };
+/// Legacy boxed `Signature` factory (`std` only; matches `lib-q-sig` / `Box<dyn Signature>`).
+#[cfg(feature = "std")]
+pub use lib_q_sig::create_signature;
 pub use lib_q_sig::{
     LibQSignatureProvider,
     available_algorithms as sig_available_algorithms,
-    create_signature,
 };
 
 /// Create a [`SignatureContext`] with [`LibQSignatureProvider`](lib_q_sig::LibQSignatureProvider)
@@ -197,6 +203,18 @@ pub fn create_signature_context() -> SignatureContext {
     let provider = LibQSignatureProvider::new()
         .expect("lib-q-sig LibQSignatureProvider / SecurityValidator initialization");
     SignatureContext::with_provider(Box::new(provider))
+}
+
+/// Create a [`HashContext`] with [`LibQHashProvider`](lib_q_hash::LibQHashProvider) installed.
+///
+/// This is the umbrella entry point: [`lib_q_core::create_hash_context`] returns an empty
+/// context; `libq::create_hash_context` wires the hash implementation from `lib-q-hash` (all
+/// registered hash [`Algorithm`](Algorithm) values, `no_std` + `alloc`, and WASM-compatible).
+#[cfg(feature = "alloc")]
+pub fn create_hash_context() -> HashContext {
+    let provider = LibQHashProvider::new()
+        .expect("lib-q-hash LibQHashProvider / SecurityValidator initialization");
+    HashContext::with_provider(Box::new(provider))
 }
 
 #[cfg(feature = "zkp")]
@@ -253,6 +271,8 @@ pub mod wasm {
 
     // Re-export WASM components from lib-q-core
     // Import ToString trait and String type for string conversions
+    #[cfg(not(feature = "std"))]
+    use alloc::boxed::Box;
     #[cfg(not(feature = "std"))]
     use alloc::string::{
         String,
@@ -333,10 +353,15 @@ pub mod wasm {
         ))
     }
 
-    /// Create a new Hash context for WASM
+    /// Create a new Hash context for WASM backed by `lib-q-hash` (same wiring as
+    /// [`crate::create_hash_context`]).
     #[wasm_bindgen]
     pub fn create_hash_context() -> WasmHashContext {
-        WasmHashContext::new()
+        let provider = lib_q_hash::LibQHashProvider::new()
+            .expect("lib-q-hash LibQHashProvider / SecurityValidator initialization");
+        WasmHashContext::from_hash_context(lib_q_core::HashContext::with_provider(Box::new(
+            provider,
+        )))
     }
 
     /// Create an AEAD context for WASM backed by `lib-q-aead` (same wiring as `libq::aead::context`).
@@ -615,6 +640,16 @@ mod tests {
                 panic!("Expected error for AEAD operations, but got success");
             }
         }
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn test_create_hash_context_sha3_256_roundtrip() {
+        let mut ctx = create_hash_context();
+        let out = ctx
+            .hash(Algorithm::Sha3_256, b"lib-q umbrella hash")
+            .expect("SHA3-256 with pre-wired LibQHashProvider");
+        assert_eq!(out.len(), 32);
     }
 
     #[cfg(feature = "alloc")]

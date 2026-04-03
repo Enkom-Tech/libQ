@@ -103,6 +103,14 @@ impl HashOperations for LibQHashProvider {
                         .to_string(),
                 })
             }
+            Algorithm::Sha224 |
+            Algorithm::Sha256 |
+            Algorithm::Sha384 |
+            Algorithm::Sha512 |
+            Algorithm::Sha512_224 |
+            Algorithm::Sha512_256 => Err(crate::error::Error::NotImplemented {
+                feature: "SHA-2 implementations are provided by the main lib-q crate".to_string(),
+            }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for hash operations",
             }),

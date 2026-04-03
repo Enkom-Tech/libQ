@@ -24,7 +24,7 @@ crate-type = ["cdylib", "rlib"]
 lib-q-core = { path = "../lib-q-core", features = ["rand"] }
 lib-q-kem = { path = "../lib-q-kem" }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa" }
-lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa", "slh-dsa"] }
+lib-q-sig = { path = "../lib-q-sig", default-features = false, features = ["alloc", "ml-dsa", "slh-dsa"] }
 lib-q-hash = { path = "../lib-q-hash" }
 lib-q-aead = { path = "../lib-q-aead" }
 lib-q-hqc = { path = "../lib-q-hqc", optional = true, default-features = false }
@@ -51,7 +51,7 @@ wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["alloc"]
+std = ["alloc", "lib-q-sig/std"]
 alloc = []
 no_std = []
 # WASM API
@@ -65,6 +65,8 @@ wasm = [
     "lib-q-core/wasm_getrandom",
     "lib-q-core/slh-dsa",
     "lib-q-utils/wasm_js",
+    "lib-q-sig/wasm",
+    "lib-q-sig/slh-dsa-wasm",
 ]
 # WebAssembly JavaScript integration
 wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]

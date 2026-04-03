@@ -2,6 +2,9 @@
 //!
 //! Use [`context`] to obtain a configured [`AeadContext`].
 
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::boxed::Box;
+
 #[cfg(feature = "alloc")]
 pub use lib_q_core::{
     AeadContext,
