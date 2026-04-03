@@ -64,7 +64,7 @@ fn byte_decode<D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> DecodedValue {
 
         let x = u128::from_le_bytes(xb);
         for (j, vj) in v.iter_mut().enumerate() {
-            let val: Integer = (x >> (D::USIZE * j)).truncate();
+            let val: Integer = Truncate::truncate(x >> (D::USIZE * j));
             vj.0 = val & mask;
 
             if D::USIZE == 12 {

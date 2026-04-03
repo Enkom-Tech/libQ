@@ -45,8 +45,8 @@ impl Compress for FieldElement {
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
         const Q_HALF: u64 = (FieldElement::Q64 + 1) >> 1;
         let x = u64::from(self.0);
-        let y = ((((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT).truncate();
-        self.0 = y.truncate() & D::MASK;
+        let y = Truncate::truncate((((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT);
+        self.0 = Truncate::truncate(y) & D::MASK;
         self
     }
 
@@ -54,7 +54,7 @@ impl Compress for FieldElement {
     fn decompress<D: CompressionFactor>(&mut self) -> &Self {
         let x = u32::from(self.0);
         let y = ((x * FieldElement::Q32) + D::POW2_HALF) >> D::USIZE;
-        self.0 = y.truncate();
+        self.0 = Truncate::truncate(y);
         self
     }
 }

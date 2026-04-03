@@ -10,10 +10,10 @@ pub(crate) fn skinny_128_384_plus_enc(block: &mut [u8; 16], userkey: &[u8; 48]) 
     let mut state = [[0u8; 4]; 4];
     let mut key_cells = [[[0u8; 4]; 4]; 3];
 
-    for i in 0..16 {
+    for (i, &byte) in block.iter().enumerate() {
         let r = i >> 2;
         let c = i & 3;
-        state[r][c] = block[i];
+        state[r][c] = byte;
         key_cells[0][r][c] = userkey[i];
         key_cells[1][r][c] = userkey[i + 16];
         key_cells[2][r][c] = userkey[i + 32];
@@ -27,10 +27,10 @@ pub(crate) fn skinny_128_384_plus_enc(block: &mut [u8; 16], userkey: &[u8; 48]) 
         mix_column(&mut state);
     }
 
-    for i in 0..16 {
+    for (i, byte) in block.iter_mut().enumerate() {
         let r = i >> 2;
         let c = i & 3;
-        block[i] = state[r][c];
+        *byte = state[r][c];
     }
 }
 
@@ -81,25 +81,25 @@ fn add_key(state: &mut [[u8; 4]; 4], key_cells: &mut [[[u8; 4]; 4]; 3]) {
     let mut key_cells_tmp = [[[0u8; 4]; 4]; 3];
 
     for i in 0..=1 {
-        for j in 0..4 {
-            state[i][j] ^= key_cells[0][i][j] ^ key_cells[1][i][j] ^ key_cells[2][i][j];
+        for (j, cell) in state[i].iter_mut().enumerate() {
+            *cell ^= key_cells[0][i][j] ^ key_cells[1][i][j] ^ key_cells[2][i][j];
         }
     }
 
-    for k in 0..3 {
+    for (k, tmp_plane) in key_cells_tmp.iter_mut().enumerate() {
         for i in 0..4 {
             for j in 0..4 {
                 let pos = TWEAKEY_P[j + 4 * i];
-                key_cells_tmp[k][i][j] = key_cells[k][usize::from(pos >> 2)][usize::from(pos & 3)];
+                tmp_plane[i][j] = key_cells[k][usize::from(pos >> 2)][usize::from(pos & 3)];
             }
         }
     }
 
-    for k in 0..3 {
-        for i in 0..=1 {
-            for j in 0..4 {
-                let v = key_cells_tmp[k][i][j];
-                key_cells_tmp[k][i][j] = if k == 1 {
+    for (k, plane) in key_cells_tmp.iter_mut().enumerate() {
+        for row in &mut plane[..2] {
+            for cell in row.iter_mut() {
+                let v = *cell;
+                *cell = if k == 1 {
                     ((v << 1) & 0xFE) ^ ((v >> 7) & 0x01) ^ ((v >> 5) & 0x01)
                 } else if k == 2 {
                     ((v >> 1) & 0x7F) ^ ((v << 7) & 0x80) ^ ((v << 1) & 0x80)
@@ -125,6 +125,8 @@ fn shift_rows(state: &mut [[u8; 4]; 4]) {
 }
 
 fn mix_column(state: &mut [[u8; 4]; 4]) {
+    // Column-wise updates; index is clearer than juggling four mutable row references.
+    #[allow(clippy::needless_range_loop)]
     for j in 0..4 {
         state[1][j] ^= state[2][j];
         state[2][j] ^= state[0][j];

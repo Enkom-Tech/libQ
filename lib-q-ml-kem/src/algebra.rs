@@ -54,9 +54,9 @@ impl FieldElement {
 
     fn barrett_reduce(x: u32) -> u16 {
         let product = u64::from(x) * Self::BARRETT_MULTIPLIER;
-        let quotient = (product >> Self::BARRETT_SHIFT).truncate();
+        let quotient = Truncate::truncate(product >> Self::BARRETT_SHIFT);
         let remainder = x - quotient * Self::Q32;
-        Self::small_reduce(remainder.truncate())
+        Self::small_reduce(Truncate::truncate(remainder))
     }
 
     // Algorithm 11. BaseCaseMultiply
@@ -184,7 +184,7 @@ impl<K: ArraySize> PolynomialVector<K> {
         Eta: CbdSamplingSize,
     {
         Self(Array::from_fn(|i| {
-            let N = start_n + i.truncate();
+            let N = start_n + Truncate::truncate(i);
             let prf_output = PRF::<Eta>(sigma, N);
             Polynomial::sample_cbd::<Eta>(&prf_output)
         }))
@@ -434,7 +434,7 @@ impl<K: ArraySize> NttVector<K> {
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
         Self(Array::from_fn(|j| {
             let (i, j) = if transpose { (j, i) } else { (i, j) };
-            let mut xof = XOF(rho, j.truncate(), i.truncate());
+            let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
             NttPolynomial::sample_uniform(&mut xof)
         }))
     }

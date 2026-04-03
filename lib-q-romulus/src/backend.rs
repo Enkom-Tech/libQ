@@ -1,6 +1,8 @@
 //! Shared Romulus primitives: padding, rho, GF(2^56) counter, tweakey, TBC wrapper.
 
 #![deny(unsafe_code)]
+// AD/message entry points mirror the Romulus reference (many explicit parameters).
+#![allow(clippy::too_many_arguments)]
 
 use crate::skinny::skinny_128_384_plus_enc;
 
@@ -107,12 +109,8 @@ pub(crate) fn compose_tweakey(
     kt[..7].copy_from_slice(&cnt[..7]);
     kt[7] = d;
     kt[8..16].fill(0);
-    for i in 0..tlen {
-        kt[16 + i] = t[i];
-    }
-    for i in 0..16 {
-        kt[16 + tlen + i] = k[i];
-    }
+    kt[16..16 + tlen].copy_from_slice(&t[..tlen]);
+    kt[16 + tlen..16 + tlen + 16].copy_from_slice(k);
 }
 
 #[inline]
@@ -325,7 +323,7 @@ pub(crate) fn romulus_m_compute_w(adlen: u64, xlen: u64, n: usize, t: usize) -> 
         w ^= 2;
         if xlen == 0 {
             w ^= 1;
-        } else if xlen % nt == 0 {
+        } else if xlen.is_multiple_of(nt) {
             w ^= 4;
         } else if xlen % nt < t as u64 {
             w ^= 1;
@@ -334,11 +332,11 @@ pub(crate) fn romulus_m_compute_w(adlen: u64, xlen: u64, n: usize, t: usize) -> 
         } else {
             w ^= 5;
         }
-    } else if adlen % nt == 0 {
+    } else if adlen.is_multiple_of(nt) {
         w ^= 8;
         if xlen == 0 {
             w ^= 1;
-        } else if xlen % nt == 0 {
+        } else if xlen.is_multiple_of(nt) {
             w ^= 4;
         } else if xlen % nt < n as u64 {
             w ^= 1;
@@ -351,7 +349,7 @@ pub(crate) fn romulus_m_compute_w(adlen: u64, xlen: u64, n: usize, t: usize) -> 
         w ^= 2;
         if xlen == 0 {
             w ^= 1;
-        } else if xlen % nt == 0 {
+        } else if xlen.is_multiple_of(nt) {
             w ^= 4;
         } else if xlen % nt < t as u64 {
             w ^= 1;
@@ -364,7 +362,7 @@ pub(crate) fn romulus_m_compute_w(adlen: u64, xlen: u64, n: usize, t: usize) -> 
         w ^= 0;
         if xlen == 0 {
             w ^= 1;
-        } else if xlen % nt == 0 {
+        } else if xlen.is_multiple_of(nt) {
             w ^= 4;
         } else if xlen % nt < t as u64 {
             w ^= 1;
@@ -377,7 +375,7 @@ pub(crate) fn romulus_m_compute_w(adlen: u64, xlen: u64, n: usize, t: usize) -> 
         w ^= 10;
         if xlen == 0 {
             w ^= 1;
-        } else if xlen % nt == 0 {
+        } else if xlen.is_multiple_of(nt) {
             w ^= 4;
         } else if xlen % nt < n as u64 {
             w ^= 1;
