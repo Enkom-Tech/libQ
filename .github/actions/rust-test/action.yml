@@ -270,6 +270,25 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-keccak/src/*\" --include-files \"lib-q-keccak/src/**\" --include-files \"lib-q-keccak\\\\src\\\\*\""
           # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
+        elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          # Any other -p target: count only that crate's src tree (Cobertura line-rate is otherwise dominated by dependencies).
+          INCLUDE_ROOT=""
+          if [[ -d "$PACKAGE/src" ]]; then
+            INCLUDE_ROOT="$PACKAGE"
+          elif command -v jq >/dev/null 2>&1; then
+            MPATH="$(cargo metadata --format-version 1 --no-deps 2>/dev/null | jq -r --arg n "$PACKAGE" '.packages[] | select(.name == $n) | .manifest_path' | head -1)"
+            if [[ -n "$MPATH" && "$MPATH" != "null" ]]; then
+              IDIR="$(cd "$(dirname "$MPATH")" && pwd -P)"
+              WSROOT="$(pwd -P)"
+              if [[ "$IDIR" == "${WSROOT}"/* ]]; then
+                INCLUDE_ROOT="${IDIR#"${WSROOT}/"}"
+              fi
+            fi
+          fi
+          if [[ -n "$INCLUDE_ROOT" && -d "$INCLUDE_ROOT/src" ]]; then
+            PKG_BS="${INCLUDE_ROOT//\//\\\\}"
+            TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"${INCLUDE_ROOT}/src/*\" --include-files \"${INCLUDE_ROOT}/src/**\" --include-files \"${PKG_BS}\\\\src\\\\*\""
+          fi
         fi
         
         if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then

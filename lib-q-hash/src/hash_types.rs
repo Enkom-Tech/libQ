@@ -754,3 +754,95 @@ impl Default for TurboShake256Hash {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod hash_type_tests {
+    use super::*;
+    use crate::Hash;
+
+    fn assert_hash<H: Hash>(h: &H, data: &[u8]) {
+        let n = h.output_size();
+        let out = h.hash(data).expect("hash");
+        assert_eq!(out.len(), n);
+    }
+
+    #[test]
+    fn wrapper_constructors_hash_and_default() {
+        let data = b"lib-q-hash hash_types coverage";
+
+        assert_hash(&CShake128Hash::new(), data);
+        assert_hash(&CShake128Hash::new_customized(b"app"), data);
+        assert_hash(
+            &CShake128Hash::new_with_function_name(b"fn", b"custom"),
+            data,
+        );
+        assert_hash(&CShake128Hash::default(), data);
+
+        assert_hash(&CShake256Hash::new(), data);
+        assert_hash(&CShake256Hash::new_customized(b"app"), data);
+        assert_hash(
+            &CShake256Hash::new_with_function_name(b"fn", b"custom"),
+            data,
+        );
+        assert_hash(&CShake256Hash::default(), data);
+
+        assert_hash(&Shake128Hash::new(), data);
+        assert_hash(&Shake128Hash::default(), data);
+        assert_hash(&Shake256Hash::new(), data);
+        assert_hash(&Shake256Hash::default(), data);
+
+        assert_hash(&Sha3_224Hash::new(), data);
+        assert_hash(&Sha3_224Hash::default(), data);
+        assert_hash(&Sha3_256Hash::new(), data);
+        assert_hash(&Sha3_256Hash::default(), data);
+        assert_hash(&Sha3_384Hash::new(), data);
+        assert_hash(&Sha3_384Hash::default(), data);
+        assert_hash(&Sha3_512Hash::new(), data);
+        assert_hash(&Sha3_512Hash::default(), data);
+
+        assert_hash(&KangarooTwelveHash::new(), data);
+        assert_hash(&KangarooTwelveHash::new_customized(b"custom"), data);
+        assert_hash(&KangarooTwelveHash::default(), data);
+
+        assert_hash(&Keccak224Hash::new(), data);
+        assert_hash(&Keccak224Hash::default(), data);
+        assert_hash(&Keccak256Hash::new(), data);
+        assert_hash(&Keccak256Hash::default(), data);
+        assert_hash(&Keccak384Hash::new(), data);
+        assert_hash(&Keccak384Hash::default(), data);
+        assert_hash(&Keccak512Hash::new(), data);
+        assert_hash(&Keccak512Hash::default(), data);
+
+        assert_hash(&TurboShake128Hash::new(), data);
+        assert_hash(&TurboShake128Hash::default(), data);
+        assert_hash(&TurboShake256Hash::new(), data);
+        assert_hash(&TurboShake256Hash::default(), data);
+
+        assert_hash(&Kmac128Hash::new(), data);
+        assert_hash(&Kmac128Hash::new_with_key_and_custom(b"key", b"cust"), data);
+        assert_hash(&Kmac128Hash::default(), data);
+        assert_hash(&Kmac256Hash::new(), data);
+        assert_hash(&Kmac256Hash::new_with_key_and_custom(b"key", b"cust"), data);
+        assert_hash(&Kmac256Hash::default(), data);
+
+        assert_hash(&TupleHash128Hash::new(), data);
+        assert_hash(&TupleHash128Hash::new_with_custom(b"c"), data);
+        assert_hash(&TupleHash128Hash::default(), data);
+        assert_hash(&TupleHash256Hash::new(), data);
+        assert_hash(&TupleHash256Hash::new_with_custom(b"c"), data);
+        assert_hash(&TupleHash256Hash::default(), data);
+
+        assert_hash(&ParallelHash128Hash::new(), data);
+        assert_hash(
+            &ParallelHash128Hash::new_with_custom_and_block_size(b"c", 1024),
+            data,
+        );
+        assert_hash(&ParallelHash128Hash::default(), data);
+        assert_hash(&ParallelHash256Hash::new(), data);
+        assert_hash(
+            &ParallelHash256Hash::new_with_custom_and_block_size(b"c", 1024),
+            data,
+        );
+        assert_hash(&ParallelHash256Hash::default(), data);
+    }
+}

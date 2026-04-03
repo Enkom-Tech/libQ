@@ -725,8 +725,8 @@ mod tests {
                 "DAWN Alpha512 should work with dawn feature"
             );
             let keypair = result.unwrap();
-            assert_eq!(keypair.public_key.data.len(), 615);
-            assert_eq!(keypair.secret_key.data.len(), 1319);
+            assert_eq!(keypair.public_key.data.len(), 640);
+            assert_eq!(keypair.secret_key.data.len(), 1376);
         }
     }
 
@@ -795,19 +795,19 @@ mod tests {
             // Verify sizes are correct
             assert_eq!(
                 ciphertext.len(),
-                452,
-                "DAWN-α-512 ciphertext should be 452 bytes"
+                640,
+                "DAWN-α-512 ciphertext should be 640 bytes"
             );
             assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
             assert_eq!(
                 keypair.public_key.data.len(),
-                615,
-                "Public key should be 615 bytes"
+                640,
+                "Public key should be 640 bytes"
             );
             assert_eq!(
                 keypair.secret_key.data.len(),
-                1319,
-                "Secret key should be 1319 bytes"
+                1376,
+                "Secret key should be 1376 bytes"
             );
         }
     }

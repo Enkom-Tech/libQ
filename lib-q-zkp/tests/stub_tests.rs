@@ -38,8 +38,11 @@ where
     assert!(trace.height() > 0, "trace height must be positive");
 }
 
-/// TransactionAir constrains column 0 (tx_type) to ∈ {0, 1, 2}. Corrupting it to 100 must fail verify.
-/// In debug the prover asserts on invalid traces, so we only test valid-trace verify; in release we test soundness.
+/// TransactionAir constrains column 0 (tx_type) to ∈ {0, 1, 2}. Corrupting it must be rejected.
+///
+/// In debug builds, `lib-q-stark::prove` runs `check_constraints` and panics on violation before
+/// returning. In release, that check is skipped for performance; the prover may still produce a
+/// proof object, and the **verifier** must reject it. This test covers both paths.
 #[test]
 fn test_transaction_constraint_soundness() {
     let air = TransactionAir::new(TransactionType::Payment, SignatureMode::None);
@@ -67,8 +70,14 @@ fn test_transaction_constraint_soundness() {
                 lib_q_stark_mersenne31::Mersenne31::new(100),
             );
         }
-        let result = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
-        assert!(result.is_err(), "prove with mismatched trace should fail");
+        let proof = StarkProver::new(default_config())
+            .prove(&air, bad_trace, &pv)
+            .expect("release prover does not pre-check constraints");
+        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
+        assert!(
+            verify_result.is_err(),
+            "verifier must reject proof from trace that violates tx_type constraint"
+        );
     }
 }
 
@@ -97,8 +106,10 @@ fn test_state_transition_signature_commitment_valid() {
     );
 }
 
-/// StateTransitionAir with signature commitment: mutating the commitment region must fail verify.
-/// In debug the prover asserts on invalid traces, so we only test valid-trace verify; in release we test soundness.
+/// StateTransitionAir with signature commitment: mutating the commitment region must be rejected.
+///
+/// Same release vs debug behavior as [`test_transaction_constraint_soundness`]: release `prove`
+/// does not run local constraint checks; soundness is enforced at verification.
 #[test]
 fn test_state_transition_signature_commitment_soundness() {
     let mut constraints = TransitionConstraints::default();
@@ -130,7 +141,13 @@ fn test_state_transition_signature_commitment_soundness() {
                 lib_q_stark_mersenne31::Mersenne31::new(1),
             );
         }
-        let result = StarkProver::new(default_config()).prove(&air, bad_trace, &pv);
-        assert!(result.is_err(), "prove with mismatched trace should fail");
+        let proof = StarkProver::new(default_config())
+            .prove(&air, bad_trace, &pv)
+            .expect("release prover does not pre-check constraints");
+        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
+        assert!(
+            verify_result.is_err(),
+            "verifier must reject proof from trace with wrong signature commitment column"
+        );
     }
 }

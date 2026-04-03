@@ -101,6 +101,31 @@ impl SecurityValidator {
         Ok(())
     }
 
+    fn ensure_non_trivial_key_bytes(key_data: &[u8]) -> Result<()> {
+        if key_data.is_empty() {
+            return Err(crate::error::Error::InvalidKeySize {
+                expected: 1,
+                actual: 0,
+            });
+        }
+
+        if key_data.iter().all(|&b| b == 0) {
+            return Err(crate::error::Error::InvalidKey {
+                key_type: "key".to_string(),
+                reason: "Key material cannot be all zeros".to_string(),
+            });
+        }
+
+        if key_data.iter().all(|&b| b == 0xFF) {
+            return Err(crate::error::Error::InvalidKey {
+                key_type: "key".to_string(),
+                reason: "Key material cannot be all ones".to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
     /// Validate that key material is not all zeros (security check)
     ///
     /// # Arguments
@@ -111,32 +136,8 @@ impl SecurityValidator {
     ///
     /// Returns `Ok(())` if the key material is valid, or an error if it's not.
     pub fn validate_key_material(&self, key_data: &[u8]) -> Result<()> {
-        if key_data.is_empty() {
-            return Err(crate::error::Error::InvalidKeySize {
-                expected: 1,
-                actual: 0,
-            });
-        }
-
-        // Check for zero key
-        if key_data.iter().all(|&b| b == 0) {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "key".to_string(),
-                reason: "Key material cannot be all zeros".to_string(),
-            });
-        }
-
-        // Check for all-ones key
-        if key_data.iter().all(|&b| b == 0xFF) {
-            return Err(crate::error::Error::InvalidKey {
-                key_type: "key".to_string(),
-                reason: "Key material cannot be all ones".to_string(),
-            });
-        }
-
-        // Validate entropy
+        Self::ensure_non_trivial_key_bytes(key_data)?;
         self.entropy_validator.validate_key_entropy(key_data)?;
-
         Ok(())
     }
 
@@ -168,7 +169,21 @@ impl SecurityValidator {
     /// Returns `Ok(())` if the secret key is valid, or an error if it's not.
     pub fn validate_secret_key(&self, algorithm: Algorithm, key_data: &[u8]) -> Result<()> {
         self.validate_key_size(algorithm, key_data, true)?;
-        self.validate_key_material(key_data)?;
+        Self::ensure_non_trivial_key_bytes(key_data)?;
+
+        // DAWN secret keys concatenate structured polynomial encodings (including a
+        // copy of the public key); byte-level repeat heuristics misfire on valid keys.
+        let dawn_secret = matches!(
+            algorithm,
+            Algorithm::DawnAlpha512 |
+                Algorithm::DawnBeta512 |
+                Algorithm::DawnAlpha1024 |
+                Algorithm::DawnBeta1024
+        );
+        if !dawn_secret {
+            self.entropy_validator.validate_key_entropy(key_data)?;
+        }
+
         Ok(())
     }
 

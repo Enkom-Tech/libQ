@@ -1,16 +1,7 @@
-# Tarpaulin configuration for lib-q-core
+# Tarpaulin: top-level options must be under a named table (e.g. [lib-q-core]).
 
-# Target specific packages
+[lib-q-core]
 packages = ["lib-q-core"]
-
-# Fail if coverage is below threshold (tarpaulin doesn't support this as a config option yet)
-# fail-under = 80.0
-
-# Enable specific features needed for proper coverage
-features = "std,rand"
-
-# Ignore test functions in coverage
+features = "std rand"
 ignore-tests = true
-
-# Ignore panics in coverage
 ignore-panics = true

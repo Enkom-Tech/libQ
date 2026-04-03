@@ -14,6 +14,31 @@ TOOLCHAIN="stable"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Workspace-relative crate root (directory containing src/) for --include-files.
+# Accepts a repo path (e.g. lib-q-sha3) or a Cargo package name (e.g. lib-q-hqc-traits).
+coverage_src_root() {
+  local ident="$1"
+  local ws
+  ws="$(pwd -P)"
+  if [[ -d "${ident}/src" ]]; then
+    printf '%s\n' "${ident}"
+    return 0
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    return 1
+  fi
+  local man
+  man="$(cargo metadata --format-version 1 --no-deps 2>/dev/null | jq -r --arg n "$ident" '.packages[] | select(.name == $n) | .manifest_path' | head -1)"
+  [[ -z "$man" || "$man" == "null" ]] && return 1
+  local dir
+  dir="$(cd "$(dirname "$man")" && pwd -P)"
+  if [[ "$dir" == "${ws}"/* ]]; then
+    printf '%s\n' "${dir#"${ws}/"}"
+    return 0
+  fi
+  return 1
+}
+
 while [[ $# -gt 0 ]]; do
   case $1 in
     --crate)
@@ -105,6 +130,11 @@ elif [[ "$CRATE" == "lib-q" ]]; then
 elif [[ "$CRATE" == "lib-q-keccak" ]]; then
   CMD="$CMD --include-files 'lib-q-keccak/src/*' --include-files 'lib-q-keccak/src/**' --include-files 'lib-q-keccak\\src\\*'"
   CMD="$CMD --exclude-files 'lib-q-keccak/src/advanced_simd.rs' --exclude-files 'lib-q-keccak\\src\\advanced_simd.rs'"
+elif [[ -n "$CRATE" ]]; then
+  if src_root="$(coverage_src_root "$CRATE")" && [[ -n "$src_root" ]]; then
+    bs="${src_root//\//\\}"
+    CMD="$CMD --include-files '${src_root}/src/*' --include-files '${src_root}/src/**' --include-files '${bs}\\src\\*'"
+  fi
 fi
 
 OUT_EXTRA=""
@@ -156,7 +186,7 @@ fi
 
 COVERAGE=""
 if COVERAGE="$(bash "${SCRIPT_DIR}/extract-coverage-percent.sh" "$OUTPUT_DIR")"; then
-  if [[ -n "${GITHUB_ENV}" ]]; then
+  if [[ -n "${GITHUB_ENV:-}" ]]; then
     echo "COVERAGE_PERCENT=${COVERAGE}" >>"${GITHUB_ENV}"
   fi
   if awk -v c="${COVERAGE}" -v t="${LINE_THRESHOLD}" 'BEGIN { exit !(c < t) }'; then

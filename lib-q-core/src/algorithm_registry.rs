@@ -159,7 +159,7 @@ impl AlgorithmRegistry {
             category: AlgorithmCategory::Kem,
             security_level: 1,
             name: "DAWN-α-512",
-            description: "DAWN-α-512 - NIST-I security, minimal ciphertext size (pk: 615, sk: 1319, ct: 452)",
+            description: "DAWN-α-512 - NIST-I security, Production profile (pk: 640, sk: 1376, ct: 640)",
             enabled: true,
         });
 

@@ -48,28 +48,40 @@ if ($Crate -ne "") {
 if ($IgnoreTests) { $cmd += " --ignore-tests" }
 if ($IgnorePanics) { $cmd += " --ignore-panics" }
 
-$cmd += ' --exclude-files "target/*" --exclude-files "benches/*" --exclude-files "examples/*"'
+$cmd += ' --exclude-files "target/' + '*' + '" --exclude-files "benches/' + '*' + '" --exclude-files "examples/' + '*' + '"'
 
 if ($Crate -eq "lib-q-core") {
-    $cmd += ' --exclude-files "lib-q-hash/*" --exclude-files "lib-q-hpke/*" --exclude-files "lib-q-intrinsics/*"'
-    $cmd += ' --exclude-files "lib-q-k12/*" --exclude-files "lib-q-keccak/*" --exclude-files "lib-q-kem/*"'
-    $cmd += ' --exclude-files "lib-q-ml-dsa/*" --exclude-files "lib-q-ml-kem/*" --exclude-files "lib-q-sha3/*"'
-    $cmd += ' --exclude-files "lib-q-sig/*" --exclude-files "lib-q-aead/*" --exclude-files "lib-q-platform/*"'
-    $cmd += ' --exclude-files "lib-q-utils/*" --exclude-files "lib-q-zkp/*"'
-    $cmd += ' --exclude-files "lib-q-core/src/wasm/*" --exclude-files "lib-q-core\src\wasm\*"'
-    $cmd += ' --include-files "lib-q-core/src/*" --include-files "lib-q-core/src/**" --include-files "lib-q-core\src\*"'
+    $cmd += ' --exclude-files "lib-q-hash/' + '*' + '" --exclude-files "lib-q-hpke/' + '*' + '" --exclude-files "lib-q-intrinsics/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-k12/' + '*' + '" --exclude-files "lib-q-keccak/' + '*' + '" --exclude-files "lib-q-kem/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-ml-dsa/' + '*' + '" --exclude-files "lib-q-ml-kem/' + '*' + '" --exclude-files "lib-q-sha3/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-sig/' + '*' + '" --exclude-files "lib-q-aead/' + '*' + '" --exclude-files "lib-q-platform/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-utils/' + '*' + '" --exclude-files "lib-q-zkp/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-core/src/wasm/' + '*' + '" --exclude-files "lib-q-core/src/wasm/' + '*' + '"'
+    $cmd += ' --include-files "lib-q-core/src/' + '*' + '" --include-files "lib-q-core/src/' + '*' + '*' + '" --include-files "lib-q-core/src/' + '*' + '"'
 }
 if ($Crate -eq "lib-q") {
-    $cmd += ' --include-files "lib-q/src/*" --include-files "lib-q/src/**" --include-files "lib-q\src\*"'
+    $cmd += ' --include-files "lib-q/src/' + '*' + '" --include-files "lib-q/src/' + '*' + '*' + '" --include-files "lib-q/src/' + '*' + '"'
 }
 if ($Crate -eq "lib-q-keccak") {
-    $cmd += ' --include-files "lib-q-keccak/src/*" --include-files "lib-q-keccak/src/**" --include-files "lib-q-keccak\src\*"'
-    $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak\src\advanced_simd.rs"'
+    $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak/src/advanced_simd.rs"'
 }
-
-$formats = $OutputFormat -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-foreach ($f in $formats) {
-    $cmd += " --out $f"
+$needsScopedInclude = ($null -ne $Crate) -and ($Crate.Length -gt 0) -and ($Crate -ne "lib-q-core") -and ($Crate -ne "lib-q") -and ($Crate -ne "lib-q-keccak")
+$crateSrcForScoped = Join-Path $Crate "src"
+$scopedSrcExists = Test-Path -LiteralPath $crateSrcForScoped
+if ($needsScopedInclude -and $scopedSrcExists) {
+    $patStar = '*'
+    $patGlob = $patStar + $patStar
+    $cmd += ' --include-files "' + $Crate + '/src/' + $patStar + '"'
+    $cmd += ' --include-files "' + $Crate + '/src/' + $patGlob + '"'
+    $cmd += ' --include-files "' + $Crate + '/src/' + $patStar + '"'
+}
+$outputFormatParts = $OutputFormat -split ','
+foreach ($rawOut in $outputFormatParts) {
+    $f = $rawOut.Trim()
+    if ($f.Length -gt 0) {
+        $cmd += " --out $f"
+    }
 }
 $cmd += " --output-dir $OutputDir"
 
