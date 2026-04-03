@@ -70,8 +70,17 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 pub use lib_q_core::Result;
-/// Plonky3-derived components (Keccak AIR, lookup, batch STARK, etc.); optional via `plonky` feature.
-#[cfg(feature = "plonky")]
+/// Plonky3-derived components (Keccak AIR, lookup, batch STARK, etc.).
+///
+/// Enabled when any of `plonky` or the granular `plonky-*` features is on (each pulls in
+/// `lib-q-plonky` with the corresponding sub-features; `plonky` enables the full set).
+#[cfg(any(
+    feature = "plonky",
+    feature = "plonky-keccak-air",
+    feature = "plonky-lookup",
+    feature = "plonky-uni-stark",
+    feature = "plonky-batch-stark",
+))]
 pub use lib_q_plonky as plonky;
 
 /// zk-STARK implementation

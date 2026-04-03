@@ -10,6 +10,8 @@ This document defines how [test-coverage.md](test-coverage.md) policy maps to **
 | Other affected crates | Full package under test when a crate path appears in the PR diff | ≥80% line (policy); gates ratchet toward that | PR `test-coverage`: **65%** line for other affected packages |
 | Security-critical subset | Signing/verification entry points in `lib-q-sig` facade | ≥95% line, 100% branch when tooling emits branches | [security-critical-coverage.yml](../.github/workflows/security-critical-coverage.yml): **60%** line (ratchet toward 95%), **100%** branch when reported |
 
+`lib-q-keccak` uses scoped `--include-files` under `lib-q-keccak/src` so Cobertura is not dominated by dependency lines (unscoped runs can show a few percent despite solid crate tests). Under the default stable gate, `lib-q-keccak/src/advanced_simd.rs` is excluded because it is only built for nightly/simd feature sets.
+
 ## Security-critical paths (line targets)
 
 These are the first scoped paths used for the dedicated workflow; extend the list in that workflow when new stable entry points warrant it.

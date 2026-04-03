@@ -62,6 +62,10 @@ if ($Crate -eq "lib-q-core") {
 if ($Crate -eq "lib-q") {
     $cmd += ' --include-files "lib-q/src/*" --include-files "lib-q/src/**" --include-files "lib-q\src\*"'
 }
+if ($Crate -eq "lib-q-keccak") {
+    $cmd += ' --include-files "lib-q-keccak/src/*" --include-files "lib-q-keccak/src/**" --include-files "lib-q-keccak\src\*"'
+    $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak\src\advanced_simd.rs"'
+}
 
 $formats = $OutputFormat -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 foreach ($f in $formats) {

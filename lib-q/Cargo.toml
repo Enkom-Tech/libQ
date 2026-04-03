@@ -30,7 +30,7 @@ lib-q-aead = { path = "../lib-q-aead" }
 lib-q-hqc = { path = "../lib-q-hqc", optional = true, default-features = false }
 lib-q-hpke = { path = "../lib-q-hpke", optional = true }
 lib-q-utils = { path = "../lib-q-utils" }
-lib-q-zkp = { path = "../lib-q-zkp" }
+lib-q-zkp = { path = "../lib-q-zkp", default-features = false, features = ["alloc", "zkp"] }
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-fn-dsa = { path = "../lib-q-fn-dsa", optional = true }
 lib-q-cb-kem = { path = "../lib-q-cb-kem", optional = true }
@@ -51,7 +51,7 @@ wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["alloc", "lib-q-sig/std"]
+std = ["alloc", "lib-q-sig/std", "lib-q-zkp/std"]
 alloc = []
 no_std = []
 # WASM API
@@ -67,6 +67,7 @@ wasm = [
     "lib-q-utils/wasm_js",
     "lib-q-sig/wasm",
     "lib-q-sig/slh-dsa-wasm",
+    "lib-q-zkp/wasm",
 ]
 # WebAssembly JavaScript integration
 wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
@@ -106,6 +107,14 @@ dawn = ["lib-q-kem/dawn"]
 hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
 hpke-duplex-aead = ["hpke", "lib-q-hpke/duplex-sponge-aead"]
 zkp = ["lib-q-zkp/zkp"]
+# Plonky3-derived STARK stack (uni/batch STARK, Keccak AIR, lookup); optional compile cost.
+zkp-plonky = ["zkp", "lib-q-zkp/plonky"]
+zkp-plonky-keccak-air = ["zkp", "lib-q-zkp/plonky-keccak-air"]
+zkp-plonky-lookup = ["zkp", "lib-q-zkp/plonky-lookup"]
+zkp-plonky-uni-stark = ["zkp", "lib-q-zkp/plonky-uni-stark"]
+zkp-plonky-batch-stark = ["zkp", "lib-q-zkp/plonky-batch-stark"]
+zkp-parallel = ["zkp", "lib-q-zkp/parallel"]
+zkp-recursive-experimental = ["zkp", "lib-q-zkp/recursive-proofs-experimental"]
 
 # Random number generation features
 # Note: getrandom requires std in this configuration
@@ -140,6 +149,11 @@ name = "api_surface_tests"
 path = "tests/api_surface_tests.rs"
 required-features = ["all-algorithms"]
 
+[[test]]
+name = "zkp_plonky_umbrella_tests"
+path = "tests/zkp_plonky_umbrella_tests.rs"
+required-features = ["zkp-plonky"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
@@ -150,6 +164,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(aarch64)',
     'cfg(x86_64)',
     'cfg(feature, values("cb-kem"))',
+    'cfg(feature, values("zkp-plonky", "zkp-plonky-keccak-air", "zkp-plonky-lookup", "zkp-plonky-uni-stark", "zkp-plonky-batch-stark"))',
 ] }
 
 [package.metadata.docs.rs]

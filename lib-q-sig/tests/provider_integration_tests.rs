@@ -292,18 +292,39 @@ mod provider_tests {
                 .expect("Verification should succeed");
             let verify_time = verify_start.elapsed();
 
+            // Wall-clock bounds are smoke checks for hangs only. SLH-DSA signing cost grows
+            // with the parameter set; shared CI runners (e.g. GitHub Actions) often land well
+            // above a flat 10s cap for 192f/256f.
+            let max_keygen_ms: u128 = 60_000;
+            let max_verify_ms: u128 = 60_000;
+            let max_sign_ms: u128 = match algorithm {
+                Algorithm::SlhDsaShake256128fRobust => 30_000,
+                Algorithm::SlhDsaShake256192fRobust => 120_000,
+                Algorithm::SlhDsaShake256256fRobust => 180_000,
+                _ => 60_000,
+            };
+
             assert!(is_valid, "Signature should be valid");
             assert!(
-                keygen_time.as_millis() < 10000,
-                "Key generation should be reasonably fast"
+                keygen_time.as_millis() < max_keygen_ms,
+                "Key generation should finish within {}ms for {:?} (took {}ms)",
+                max_keygen_ms,
+                algorithm,
+                keygen_time.as_millis()
             );
             assert!(
-                sign_time.as_millis() < 10000,
-                "Signing should be reasonably fast"
+                sign_time.as_millis() < max_sign_ms,
+                "Signing should finish within {}ms for {:?} (took {}ms)",
+                max_sign_ms,
+                algorithm,
+                sign_time.as_millis()
             );
             assert!(
-                verify_time.as_millis() < 10000,
-                "Verification should be reasonably fast"
+                verify_time.as_millis() < max_verify_ms,
+                "Verification should finish within {}ms for {:?} (took {}ms)",
+                max_verify_ms,
+                algorithm,
+                verify_time.as_millis()
             );
 
             println!(

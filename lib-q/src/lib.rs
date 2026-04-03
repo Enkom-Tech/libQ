@@ -73,6 +73,10 @@
 //! - `random`: Enable lib-q-random for secure random number generation
 //! - `random-custom-entropy`: Enable custom entropy source support
 //! - `all-algorithms`: Enable all available algorithms
+//! - `zkp`: Expose zero-knowledge / STARK API under `libq::zkp` (STARK core is always linked)
+//! - `zkp-plonky` / `zkp-plonky-*`: Add the Plonky3-derived STARK stack under `libq::zkp::plonky`
+//! - `zkp-parallel`: Rayon-backed parallel proving (STARK)
+//! - `zkp-recursive-experimental`: Experimental recursive proof Merkle path (STARK)
 //! - `security-hardened`: Enable comprehensive security features
 //!
 //! # Security Considerations
@@ -242,6 +246,17 @@ pub mod zkp {
         prove_credential_attributes,
         verify_credential_proof,
     };
+    /// Plonky3-derived STARK components (batch/uni STARK, Keccak AIR, lookup, multilinear util).
+    ///
+    /// Enable via `zkp-plonky` or a granular `zkp-plonky-*` feature on the `lib-q` crate.
+    #[cfg(any(
+        feature = "zkp-plonky",
+        feature = "zkp-plonky-keccak-air",
+        feature = "zkp-plonky-lookup",
+        feature = "zkp-plonky-uni-stark",
+        feature = "zkp-plonky-batch-stark",
+    ))]
+    pub use lib_q_zkp::plonky;
     pub use lib_q_zkp::stark::{
         StarkProver,
         StarkVerifier,

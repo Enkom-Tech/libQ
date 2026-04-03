@@ -102,6 +102,9 @@ if [[ "$CRATE" == "lib-q-core" ]]; then
   CMD="$CMD --include-files 'lib-q-core/src/*' --include-files 'lib-q-core/src/**' --include-files 'lib-q-core\\src\\*'"
 elif [[ "$CRATE" == "lib-q" ]]; then
   CMD="$CMD --include-files 'lib-q/src/*' --include-files 'lib-q/src/**' --include-files 'lib-q\\src\\*'"
+elif [[ "$CRATE" == "lib-q-keccak" ]]; then
+  CMD="$CMD --include-files 'lib-q-keccak/src/*' --include-files 'lib-q-keccak/src/**' --include-files 'lib-q-keccak\\src\\*'"
+  CMD="$CMD --exclude-files 'lib-q-keccak/src/advanced_simd.rs' --exclude-files 'lib-q-keccak\\src\\advanced_simd.rs'"
 fi
 
 OUT_EXTRA=""

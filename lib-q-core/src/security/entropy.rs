@@ -225,8 +225,9 @@ impl EntropyValidator {
     /// Check if data has sufficient byte-value diversity.
     ///
     /// Counts distinct byte values and compares against a size-aware threshold.
-    /// Small keys (SLH-DSA 32–128 B) need ≥40 % unique values; medium keys
-    /// need ≥10 %; large keys (>10 KB) need ≥64 unique values.
+    /// Small keys (SLH-DSA 32–128 B) need ≥40 % unique values; medium and large
+    /// keys use a capped diversity floor so structured PQ material (ML-DSA,
+    /// FN-DSA, etc.) is not rejected for failing to hit all 256 byte values.
     #[cfg(not(feature = "relaxed_entropy_validation"))]
     fn has_sufficient_entropy(&self, data: &[u8]) -> bool {
         if data.len() < 16 {
@@ -247,9 +248,12 @@ impl EntropyValidator {
             // minimum 4 unique bytes.
             unique_bytes >= (data.len() * 2 / 5).max(4)
         } else {
-            // Medium keys: ≥10 % unique byte values, capped at 256 (alphabet size).
-            let required = (data.len() / 10).min(256);
-            unique_bytes >= required.max(1)
+            // Medium keys: aim for ~10 % distinct values, but cap at 64. Uncapped
+            // `min(len/10, 256)` becomes 256 for keys ≥2560 B, i.e. it requires
+            // every byte value 0..=255 — a false positive for legitimate ML-DSA
+            // and similar encodings.
+            let required = (data.len() / 10).clamp(1, 64);
+            unique_bytes >= required
         }
     }
 
@@ -375,6 +379,83 @@ mod tests {
         assert!(
             result.is_ok(),
             "A single 4-byte ascending run in a 4032-byte key must not trigger rejection"
+        );
+    }
+
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
+    #[test]
+    fn test_ml_dsa_sized_key_does_not_require_full_byte_alphabet() {
+        let validator = EntropyValidator::new().unwrap();
+
+        // ML-DSA-65 signing keys are ~4 KiB of structured data; they need not use
+        // all 256 byte values. Old logic required min(len/10, 256) = 256 unique
+        // bytes and falsely rejected real keys.
+        let pool: Vec<u8> = (0u8..80).collect();
+        let mut key = Vec::with_capacity(4032);
+        let mut state: u32 = 0xC0FFEE42;
+        while key.len() < 4032 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let b = state.to_le_bytes()[0];
+            key.push(pool[(b as usize) % pool.len()]);
+        }
+
+        let mut seen = [false; 256];
+        let mut unique = 0usize;
+        for &b in &key {
+            if !seen[b as usize] {
+                seen[b as usize] = true;
+                unique += 1;
+            }
+        }
+        assert!(
+            unique < 256,
+            "fixture should use fewer than 256 byte values (got {unique})"
+        );
+
+        let result = validator.validate_key_entropy(&key);
+        assert!(
+            result.is_ok(),
+            "structured PQ-sized key with modest byte diversity must be accepted: {result:?}"
+        );
+    }
+
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
+    #[test]
+    fn test_ml_kem_1024_sized_key_does_not_require_full_byte_alphabet() {
+        let validator = EntropyValidator::new().unwrap();
+
+        // ML-KEM-1024 decapsulation keys are 3168 B. The same `min(len/10, 256)` bug
+        // required 256 distinct byte values and broke HPKE/KEM tests on CI.
+        let pool: Vec<u8> = (0u8..200).collect();
+        let mut key = Vec::with_capacity(3168);
+        let mut state: u32 = 0x514B_3000;
+        while key.len() < 3168 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let b = state.to_le_bytes()[0];
+            key.push(pool[(b as usize) % pool.len()]);
+        }
+
+        let mut seen = [false; 256];
+        let mut unique = 0usize;
+        for &b in &key {
+            if !seen[b as usize] {
+                seen[b as usize] = true;
+                unique += 1;
+            }
+        }
+        assert!(
+            unique < 256,
+            "fixture should use fewer than 256 byte values (got {unique})"
+        );
+
+        let result = validator.validate_key_entropy(&key);
+        assert!(
+            result.is_ok(),
+            "ML-KEM-1024-sized structured key must be accepted: {result:?}"
         );
     }
 

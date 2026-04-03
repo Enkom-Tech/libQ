@@ -265,6 +265,11 @@ runs:
           # Umbrella crate: count only lib-q/src so the gate reflects this package, not all deps.
           # Repeat patterns so paths match on Linux (/) and Windows (\) in reports.
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q/src/*\" --include-files \"lib-q/src/**\" --include-files \"lib-q\\\\src\\\\*\""
+        elif [[ "$PACKAGE" == "lib-q-keccak" ]]; then
+          # Without include-files, Cobertura aggregates the whole instrumented graph (~tens of k lines) and the % collapses.
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-keccak/src/*\" --include-files \"lib-q-keccak/src/**\" --include-files \"lib-q-keccak\\\\src\\\\*\""
+          # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
         fi
         
         if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
