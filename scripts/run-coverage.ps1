@@ -128,7 +128,10 @@ if ($Crate -eq "lib-q-keccak") {
     $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak\src\' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak\src\advanced_simd.rs"'
 }
-if ($Crate -ne "" -and $Crate -ne "lib-q-core" -and $Crate -ne "lib-q" -and $Crate -ne "lib-q-keccak") {
+if ($Crate -eq "lib-q-hash") {
+    $cmd += ' --include-files "lib-q-hash/src/' + '*' + '" --include-files "lib-q-hash/src/' + '*' + '*' + '" --include-files "lib-q-hash\src\' + '*' + '"'
+}
+if ($Crate -ne "" -and $Crate -ne "lib-q-core" -and $Crate -ne "lib-q" -and $Crate -ne "lib-q-keccak" -and $Crate -ne "lib-q-hash") {
     $cmd += Get-TarpaulinIncludeFlags -CrateName $Crate
 }
 if ($Crate -ne "" -and $cmd -notmatch '--include-files') {

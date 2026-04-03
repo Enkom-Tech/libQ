@@ -122,6 +122,8 @@ runs:
         cd ${{ inputs.working-directory }}
         cargo test --features "${{ inputs.features }}" --test acvp_keygen
         cargo test --features "${{ inputs.features }}" --test acvp_sig
+        echo "ACVP sigGen (full signing KATs): release + ignored — too slow for debug"
+        cargo test --features "${{ inputs.features }}" --release --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
         cargo test --features "${{ inputs.features }}" --test acvp_ver
         echo "ACVP tests completed"
     

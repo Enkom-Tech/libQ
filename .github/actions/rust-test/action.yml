@@ -270,13 +270,15 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-keccak/src/*\" --include-files \"lib-q-keccak/src/**\" --include-files \"lib-q-keccak\\\\src\\\\*\""
           # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
+        elif [[ "$PACKAGE" == "lib-q-hash" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-hash/src/*\" --include-files \"lib-q-hash/src/**\" --include-files \"lib-q-hash\\\\src\\\\*\""
         elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
           PIN="${{ github.workspace }}/scripts/print-tarpaulin-include-args.sh"
           if [[ ! -f "$PIN" ]]; then
             echo "ERROR: Missing $PIN"
             exit 1
           fi
-          if ! INC="$(bash "$PIN" "$PACKAGE")"; then
+          if ! INC="$(bash "$PIN" "$PACKAGE" | tr -d '\r')"; then
             echo "ERROR: Could not build tarpaulin --include-files for package '$PACKAGE'"
             exit 1
           fi

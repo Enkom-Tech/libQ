@@ -7,6 +7,11 @@
 #![cfg(feature = "zkp")]
 #![allow(clippy::field_reassign_with_default)]
 
+use std::panic::{
+    AssertUnwindSafe,
+    catch_unwind,
+};
+
 use lib_q_stark_matrix::Matrix;
 use lib_q_zkp::air::TraceGenerator;
 use lib_q_zkp::air::state_transition::{
@@ -54,28 +59,48 @@ fn test_transaction_constraint_soundness() {
     assert_valid_trace_dimensions(&trace);
     let pv = air.public_values(&input);
 
-    if cfg!(debug_assertions) {
-        let proof = StarkProver::new(default_config())
-            .prove(&air, trace, &pv)
-            .expect("prove");
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(
-            verify_result.is_ok(),
-            "Valid trace must verify in debug run"
+    let proof_ok = StarkProver::new(default_config())
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove valid trace");
+    assert!(
+        StarkVerifier::new(default_config())
+            .verify(&air, &proof_ok, &pv)
+            .is_ok(),
+        "valid trace must verify"
+    );
+
+    let mut bad_trace = trace;
+    if !bad_trace.values.is_empty() {
+        bad_trace.values[0] += lib_q_stark_field::extension::Complex::from(
+            lib_q_stark_mersenne31::Mersenne31::new(100),
         );
-    } else {
-        let mut bad_trace = trace;
-        if !bad_trace.values.is_empty() {
-            bad_trace.values[0] += lib_q_stark_field::extension::Complex::from(
-                lib_q_stark_mersenne31::Mersenne31::new(100),
-            );
+    }
+
+    if cfg!(debug_assertions) {
+        let air_ref = &air;
+        let pv_ref = &pv;
+        let bad = bad_trace;
+        let prove_invalid = catch_unwind(AssertUnwindSafe(|| {
+            StarkProver::new(default_config()).prove(air_ref, bad, pv_ref)
+        }));
+        match prove_invalid {
+            Err(_) => {}
+            Ok(Ok(proof_bad)) => assert!(
+                StarkVerifier::new(default_config())
+                    .verify(&air, &proof_bad, &pv)
+                    .is_err(),
+                "prove with mismatched trace should fail; if prove returns Ok, verifier must reject"
+            ),
+            Ok(Err(e)) => panic!("prove returned error for invalid trace: {e:?}"),
         }
-        let proof = StarkProver::new(default_config())
+    } else {
+        let proof_bad = StarkProver::new(default_config())
             .prove(&air, bad_trace, &pv)
             .expect("release prover does not pre-check constraints");
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
         assert!(
-            verify_result.is_err(),
+            StarkVerifier::new(default_config())
+                .verify(&air, &proof_bad, &pv)
+                .is_err(),
             "verifier must reject proof from trace that violates tx_type constraint"
         );
     }
@@ -124,29 +149,48 @@ fn test_state_transition_signature_commitment_soundness() {
     assert_valid_trace_dimensions(&trace);
     let pv = air.public_values(&input);
 
+    let proof_ok = StarkProver::new(default_config())
+        .prove(&air, trace.clone(), &pv)
+        .expect("prove valid trace");
+    assert!(
+        StarkVerifier::new(default_config())
+            .verify(&air, &proof_ok, &pv)
+            .is_ok(),
+        "valid trace must verify"
+    );
+
+    let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
+    let mut bad_trace = trace;
+    if proof_start < bad_trace.width() && !bad_trace.values.is_empty() {
+        bad_trace.values[proof_start] +=
+            lib_q_stark_field::extension::Complex::from(lib_q_stark_mersenne31::Mersenne31::new(1));
+    }
+
     if cfg!(debug_assertions) {
-        let proof = StarkProver::new(default_config())
-            .prove(&air, trace, &pv)
-            .expect("prove");
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
-        assert!(
-            verify_result.is_ok(),
-            "Valid trace must verify in debug run"
-        );
-    } else {
-        let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
-        let mut bad_trace = trace;
-        if proof_start < bad_trace.width() && !bad_trace.values.is_empty() {
-            bad_trace.values[proof_start] += lib_q_stark_field::extension::Complex::from(
-                lib_q_stark_mersenne31::Mersenne31::new(1),
-            );
+        let air_ref = &air;
+        let pv_ref = &pv;
+        let bad = bad_trace;
+        let prove_invalid = catch_unwind(AssertUnwindSafe(|| {
+            StarkProver::new(default_config()).prove(air_ref, bad, pv_ref)
+        }));
+        match prove_invalid {
+            Err(_) => {}
+            Ok(Ok(proof_bad)) => assert!(
+                StarkVerifier::new(default_config())
+                    .verify(&air, &proof_bad, &pv)
+                    .is_err(),
+                "prove with mismatched trace should fail; if prove returns Ok, verifier must reject"
+            ),
+            Ok(Err(e)) => panic!("prove returned error for invalid trace: {e:?}"),
         }
-        let proof = StarkProver::new(default_config())
+    } else {
+        let proof_bad = StarkProver::new(default_config())
             .prove(&air, bad_trace, &pv)
             .expect("release prover does not pre-check constraints");
-        let verify_result = StarkVerifier::new(default_config()).verify(&air, &proof, &pv);
         assert!(
-            verify_result.is_err(),
+            StarkVerifier::new(default_config())
+                .verify(&air, &proof_bad, &pv)
+                .is_err(),
             "verifier must reject proof from trace with wrong signature commitment column"
         );
     }

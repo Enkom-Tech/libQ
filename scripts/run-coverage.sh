@@ -107,17 +107,24 @@ elif [[ "$CRATE" == "lib-q" ]]; then
 elif [[ "$CRATE" == "lib-q-keccak" ]]; then
   CMD="$CMD --include-files 'lib-q-keccak/src/*' --include-files 'lib-q-keccak/src/**' --include-files 'lib-q-keccak\\src\\*'"
   CMD="$CMD --exclude-files 'lib-q-keccak/src/advanced_simd.rs' --exclude-files 'lib-q-keccak\\src\\advanced_simd.rs'"
+elif [[ "$CRATE" == "lib-q-hash" ]]; then
+  CMD="$CMD --include-files 'lib-q-hash/src/*' --include-files 'lib-q-hash/src/**' --include-files 'lib-q-hash\\src\\*'"
 elif [[ -n "$CRATE" ]]; then
   PIN="${SCRIPT_DIR}/print-tarpaulin-include-args.sh"
   if [[ ! -f "$PIN" ]]; then
     echo "ERROR: Missing ${PIN}" >&2
     exit 1
   fi
-  if ! INC="$(bash "$PIN" "$CRATE")"; then
+  if ! INC="$(bash "$PIN" "$CRATE" | tr -d '\r')"; then
     echo "ERROR: Could not resolve tarpaulin --include-files for crate '${CRATE}' (see messages above)." >&2
     exit 1
   fi
   CMD="$CMD ${INC}"
+fi
+
+if [[ -n "$CRATE" ]] && [[ "$CMD" != *"--include-files"* ]]; then
+  echo "ERROR: tarpaulin command is missing --include-files for crate '${CRATE}' (Cobertura would mix dependency lines)." >&2
+  exit 1
 fi
 
 OUT_EXTRA=""

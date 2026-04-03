@@ -44,9 +44,7 @@ macro_rules! parameter_case {
     }};
 }
 
-#[test]
-fn test_sign_cvp() {
-    let mut i = 0;
+fn run_sign_cvp_all() {
     let test_file: TestFile = serde_json::from_str(KEYGEN_KAT_JSON).unwrap();
     for test_group in test_file.testGroups {
         let p = test_group.parameterSet;
@@ -66,8 +64,25 @@ fn test_sign_cvp() {
                 Sha2_256s::NAME => parameter_case!(Sha2_256s, test_case),
                 _ => panic!("Unknown parameter set: {}", p),
             }
-            i += 1;
         }
     }
-    print!("Number of test cases: {}", i);
+}
+
+/// Deserialize the bundled ACVP sigGen JSON (multi‑MiB) and check expected group/case counts.
+#[test]
+fn test_sign_cvp_payload_parses() {
+    let test_file: TestFile = serde_json::from_str(KEYGEN_KAT_JSON).unwrap();
+    assert_eq!(test_file.testGroups.len(), 10);
+    let n: usize = test_file.testGroups.iter().map(|g| g.tests.len()).sum();
+    assert_eq!(n, 88);
+}
+
+/// Full ACVP sigGen signing (~88 cases, including 64KiB messages and SLH-DSA-*s) is far too slow
+/// for routine debug `cargo test` (often many minutes). CI runs this in release with `--ignored`.
+///
+/// Local: `cargo test -p lib-q-slh-dsa --test acvp_sig test_sign_cvp --release -- --ignored --test-threads=1`
+#[test]
+#[ignore = "slow: full ACVP sigGen (run with --release -- --ignored)"]
+fn test_sign_cvp() {
+    run_sign_cvp_all();
 }

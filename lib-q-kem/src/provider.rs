@@ -718,6 +718,8 @@ mod tests {
 
         #[cfg(feature = "dawn")]
         {
+            use lib_q_dawn::DawnParameterSet;
+
             let result = _provider.generate_keypair(Algorithm::DawnAlpha512, None);
             // Should succeed with dawn feature enabled
             assert!(
@@ -725,8 +727,17 @@ mod tests {
                 "DAWN Alpha512 should work with dawn feature"
             );
             let keypair = result.unwrap();
-            assert_eq!(keypair.public_key.data.len(), 640);
-            assert_eq!(keypair.secret_key.data.len(), 1376);
+            let alpha512 = DawnParameterSet::Alpha512;
+            assert_eq!(
+                keypair.public_key.data.len(),
+                alpha512.public_key_size(),
+                "public key length must match lib-q-dawn Alpha512"
+            );
+            assert_eq!(
+                keypair.secret_key.data.len(),
+                alpha512.secret_key_size(),
+                "secret key length must match lib-q-dawn Alpha512"
+            );
         }
     }
 
@@ -769,45 +780,47 @@ mod tests {
         // Test full KEM cycle for DAWN-α-512
         #[cfg(feature = "dawn")]
         {
+            use lib_q_dawn::DawnParameterSet;
+
+            let alpha512 = DawnParameterSet::Alpha512;
             let provider = LibQKemProvider::new().unwrap();
 
-            // Test full KEM cycle for DAWN-α-512
             let keypair = provider
                 .generate_keypair(Algorithm::DawnAlpha512, None)
                 .unwrap();
 
-            // Test encapsulation
             let (ciphertext, shared_secret1) = provider
                 .encapsulate(Algorithm::DawnAlpha512, &keypair.public_key, None)
                 .unwrap();
 
-            // Test decapsulation
             let shared_secret2 = provider
                 .decapsulate(Algorithm::DawnAlpha512, &keypair.secret_key, &ciphertext)
                 .unwrap();
 
-            // Verify shared secrets match
             assert_eq!(
                 shared_secret1, shared_secret2,
                 "Shared secrets should match"
             );
 
-            // Verify sizes are correct
             assert_eq!(
                 ciphertext.len(),
-                640,
-                "DAWN-α-512 ciphertext should be 640 bytes"
+                alpha512.ciphertext_size(),
+                "ciphertext length must match lib-q-dawn Alpha512"
             );
-            assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
+            assert_eq!(
+                shared_secret1.len(),
+                alpha512.shared_secret_size(),
+                "shared secret length must match lib-q-dawn Alpha512"
+            );
             assert_eq!(
                 keypair.public_key.data.len(),
-                640,
-                "Public key should be 640 bytes"
+                alpha512.public_key_size(),
+                "public key length must match lib-q-dawn Alpha512"
             );
             assert_eq!(
                 keypair.secret_key.data.len(),
-                1376,
-                "Secret key should be 1376 bytes"
+                alpha512.secret_key_size(),
+                "secret key length must match lib-q-dawn Alpha512"
             );
         }
     }
