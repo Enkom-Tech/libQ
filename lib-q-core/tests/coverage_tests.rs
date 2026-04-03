@@ -6,12 +6,18 @@ use lib_q_core::contexts::{
     KemContext,
     SignatureContext,
 };
-use lib_q_core::error::Error;
+use lib_q_core::error::{
+    Error,
+    supported_security_levels,
+};
 use lib_q_core::security::SecurityConstants;
 use lib_q_core::traits::{
     AeadKey,
+    KemKeypair,
     KemPublicKey,
+    KemSecretKey,
     Nonce,
+    SigKeypair,
     SigPublicKey,
     SigSecretKey,
 };
@@ -19,6 +25,7 @@ use lib_q_core::{
     Algorithm,
     AlgorithmCategory,
     SecurityValidator,
+    Utils,
     algorithms_by_category,
     create_hash_context,
     create_kem_context,
@@ -398,6 +405,46 @@ fn test_aead_context_coverage_paths() {
     assert!(matches!(d, Err(Error::InvalidState { .. })));
 }
 
+fn pseudo_key_bytes(len: usize, seed: u32) -> Vec<u8> {
+    (0..len)
+        .map(|i| {
+            let x = (i as u32).wrapping_add(seed);
+            (x.wrapping_mul(0x9E37_79B9) ^ (x << 13) ^ (x >> 7)) as u8
+        })
+        .collect()
+}
+
+/// Utils::hex_to_bytes / bytes_to_hex, supported_security_levels, keypair helpers, zeroize hooks.
+#[cfg(feature = "std")]
+#[test]
+fn test_utils_traits_and_security_levels_vec() {
+    assert_eq!(Utils::bytes_to_hex(&[0xAB, 0xCD]), "abcd");
+    assert!(matches!(
+        Utils::hex_to_bytes("123"),
+        Err(Error::InvalidMessageSize { .. })
+    ));
+    assert!(Utils::hex_to_bytes("g0").is_err());
+    assert_eq!(Utils::hex_to_bytes("00ff").unwrap(), vec![0, 255]);
+
+    let levels = supported_security_levels();
+    assert!(levels.contains(&1));
+
+    let kp = KemKeypair::new(pseudo_key_bytes(800, 0xA1), pseudo_key_bytes(1632, 0xA2));
+    assert_eq!(kp.public_key().as_bytes().len(), 800);
+    assert_eq!(kp.secret_key().as_bytes().len(), 1632);
+
+    let sp = SigKeypair::new(pseudo_key_bytes(1952, 0xB1), pseudo_key_bytes(4032, 0xB2));
+    assert_eq!(sp.public_key().as_bytes().len(), 1952);
+    assert_eq!(sp.secret_key().as_bytes().len(), 4032);
+
+    let mut ksk = KemSecretKey::new(pseudo_key_bytes(32, 0xC1));
+    zeroize::Zeroize::zeroize(&mut ksk);
+    let mut ssk = SigSecretKey::new(pseudo_key_bytes(32, 0xC2));
+    zeroize::Zeroize::zeroize(&mut ssk);
+    let mut ak = AeadKey::new(pseudo_key_bytes(32, 0xC3));
+    zeroize::Zeroize::zeroize(&mut ak);
+}
+
 /// Extra provider operation shapes (success and error) for hash / AEAD / KEM / signature.
 #[cfg(feature = "std")]
 #[test]
@@ -407,21 +454,77 @@ fn test_libq_provider_operation_paths() {
     use lib_q_core::traits::SigPublicKey as SPK;
 
     let provider = LibQCryptoProvider::new().unwrap();
+    let _ = provider.kem_provider();
+    let _ = provider.signature_provider();
+    let _ = provider.hash_provider();
+    let _ = provider.aead_provider();
+
     let kem = provider.kem().unwrap();
-    let pk = KemPublicKey::new(vec![0u8; 800]);
-    let enc = kem.encapsulate(Algorithm::MlKem512, &pk, None);
-    assert!(enc.is_err());
+    let pk = KemPublicKey::new(pseudo_key_bytes(800, 0x10));
+    assert!(matches!(
+        kem.encapsulate(Algorithm::MlKem512, &pk, None),
+        Err(Error::NotImplemented { .. })
+    ));
+    let sk = KemSecretKey::new(pseudo_key_bytes(1632, 0x11));
+    let ct = vec![0u8; 768];
+    assert!(matches!(
+        kem.decapsulate(Algorithm::MlKem512, &sk, &ct),
+        Err(Error::NotImplemented { .. })
+    ));
+    assert!(matches!(
+        kem.derive_public_key(Algorithm::MlKem512, &sk),
+        Err(Error::NotImplemented { .. })
+    ));
+    assert!(matches!(
+        kem.generate_keypair(Algorithm::MlKem512, None),
+        Err(Error::NotImplemented { .. })
+    ));
+    assert!(kem.generate_keypair(Algorithm::Sha3_256, None).is_err());
 
     let sig = provider.signature().unwrap();
-    let pk_sig = SPK::new(vec![0u8; 1952]);
-    let ver = sig.verify(Algorithm::MlDsa65, &pk_sig, b"m", b"sig");
-    assert!(ver.is_err());
+    let pk_sig = SPK::new(pseudo_key_bytes(1952, 0x20));
+    assert!(matches!(
+        sig.verify(
+            Algorithm::MlDsa65,
+            &pk_sig,
+            b"m",
+            &pseudo_key_bytes(3309, 0x21)
+        ),
+        Err(Error::NotImplemented { .. })
+    ));
+    let skey = SigSecretKey::new(pseudo_key_bytes(4032, 0x22));
+    assert!(matches!(
+        sig.sign(Algorithm::MlDsa65, &skey, b"msg", None),
+        Err(Error::NotImplemented { .. })
+    ));
+    assert!(matches!(
+        sig.generate_keypair(Algorithm::MlDsa65, None),
+        Err(Error::NotImplemented { .. })
+    ));
 
     let hp = provider.hash().unwrap();
     let _ = hp.hash(Algorithm::Sha3_256, b"data");
+    for alg in [
+        Algorithm::Shake128,
+        Algorithm::CShake128,
+        Algorithm::Kmac128,
+        Algorithm::TupleHash128,
+        Algorithm::ParallelHash128,
+        Algorithm::Keccak256,
+        Algorithm::KangarooTwelve,
+        Algorithm::TurboShake128,
+    ] {
+        assert!(matches!(
+            hp.hash(alg, b"x"),
+            Err(Error::NotImplemented { .. })
+        ));
+    }
 
     let ap = provider.aead().unwrap();
-    let key = AeadKey::new(vec![0u8; 32]);
-    let nonce = Nonce::new(vec![1u8; 16]);
-    let _ = ap.decrypt(Algorithm::Saturnin, &key, &nonce, b"ct", None);
+    let key = AeadKey::new(pseudo_key_bytes(32, 0x30));
+    let nonce = Nonce::new(pseudo_key_bytes(16, 0x31));
+    assert!(matches!(
+        ap.encrypt(Algorithm::Saturnin, &key, &nonce, b"pt", None),
+        Err(Error::NotImplemented { .. })
+    ));
 }

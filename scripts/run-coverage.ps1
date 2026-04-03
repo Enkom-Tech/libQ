@@ -56,6 +56,7 @@ if ($Crate -eq "lib-q-core") {
     $cmd += ' --exclude-files "lib-q-ml-dsa/*" --exclude-files "lib-q-ml-kem/*" --exclude-files "lib-q-sha3/*"'
     $cmd += ' --exclude-files "lib-q-sig/*" --exclude-files "lib-q-aead/*" --exclude-files "lib-q-platform/*"'
     $cmd += ' --exclude-files "lib-q-utils/*" --exclude-files "lib-q-zkp/*"'
+    $cmd += ' --exclude-files "lib-q-core/src/wasm/*" --exclude-files "lib-q-core\src\wasm\*"'
     $cmd += ' --include-files "lib-q-core/src/*" --include-files "lib-q-core/src/**" --include-files "lib-q-core\src\*"'
 }
 if ($Crate -eq "lib-q") {

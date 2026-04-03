@@ -23,6 +23,9 @@ use alloc::{
     vec::Vec,
 };
 
+#[cfg(feature = "wasm")]
+use crate::wasm::conversions::WASM_SIGNATURE_ALGORITHM_IDS;
+
 /// Generate cryptographically secure random bytes for WASM
 ///
 /// This function provides secure random generation in WASM environments:
@@ -198,19 +201,8 @@ pub fn get_supported_algorithms() -> String {
     }
     algorithms.insert("kem", kem_algorithms);
 
-    // Signature algorithms
-    let mut sig_algorithms = Vec::new();
-    sig_algorithms.extend(&["ml-dsa-44", "ml-dsa-65", "ml-dsa-87"]);
-    sig_algorithms.push("fn-dsa");
-    sig_algorithms.extend(&[
-        "slh-dsa-sha256-128f-robust",
-        "slh-dsa-sha256-192f-robust",
-        "slh-dsa-sha256-256f-robust",
-        "slh-dsa-shake256-128f-robust",
-        "slh-dsa-shake256-192f-robust",
-        "slh-dsa-shake256-256f-robust",
-    ]);
-    algorithms.insert("signature", sig_algorithms);
+    // Signature algorithms (single source: `conversions::WASM_SIGNATURE_ALGORITHM_IDS`)
+    algorithms.insert("signature", WASM_SIGNATURE_ALGORITHM_IDS.to_vec());
 
     // Hash algorithms
     let hash_algorithms = alloc::vec![

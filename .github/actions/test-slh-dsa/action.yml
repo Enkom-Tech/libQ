@@ -153,6 +153,16 @@ runs:
         cd ..
         cargo test --features "slh-dsa" --package lib-q
         echo "Security validation tests completed"
+
+    - name: lib-q-sig SLH implicit-RNG integration tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running lib-q-sig SLH-DSA e2e (slh-dsa-std)..."
+        cd ${{ inputs.working-directory }}
+        cd ..
+        cargo test -p lib-q-sig --features slh-dsa-std
+        echo "lib-q-sig SLH-DSA std integration tests completed"
     
     - name: Run constant-time validation
       if: inputs.run-constant-time == 'true'

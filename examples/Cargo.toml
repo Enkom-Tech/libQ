@@ -8,7 +8,8 @@ description = "Examples for lib-Q post-quantum cryptography library"
 license.workspace = true
 
 [dependencies]
-libq = { path = "../lib-q", package = "lib-q" }
+# Match typical umbrella usage: registry, signatures, and CB-KEM examples (`cb-kem` feature below).
+libq = { path = "../lib-q", package = "lib-q", features = ["ml-dsa", "slh-dsa"] }
 lib-q-hash = { path = "../lib-q-hash" }
 lib-q-core = { path = "../lib-q-core" }
 lib-q-kem = { path = "../lib-q-kem", features = ["ml-kem"] }
@@ -16,6 +17,10 @@ lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa"] }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", default-features = false, features = ["std", "mldsa44", "mldsa65", "mldsa87"] }
 lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
 lib-q-cb-kem = { path = "../lib-q-cb-kem" }
+
+[features]
+default = ["cb-kem"]
+cb-kem = ["libq/cb-kem"]
 
 [[example]]
 name = "hash_example"

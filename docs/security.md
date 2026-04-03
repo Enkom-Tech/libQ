@@ -142,15 +142,17 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **Ed448**: Broken by Shor's algorithm
 
 #### Forbidden Hash Functions
-- **SHA-1**: Collision attacks
-- **SHA-256**: Quantum attacks
-- **SHA-512**: Quantum attacks
-- **MD5**: Multiple attacks
+- **MD5**: Completely broken (collision and preimage attacks)
+- **SHA-1**: Practically broken (collision attacks)
+- **SHA-256 / SHA-512** (SHA-2 family): Grover's algorithm halves the effective security level — SHA-256 is reduced to 128-bit security against quantum adversaries, which falls below the required margin for new designs. lib-Q uses the SHA-3 / Keccak family exclusively for hash-based constructions.
+
+  Note: SHA-2 may still appear inside third-party crates as part of TLS record MAC or HKDF where no lib-Q-controlled path is involved. Those usages are not sanctioned for security-critical lib-Q operations.
 
 #### Forbidden Symmetric Ciphers
-- **AES-128**: Quantum attacks
-- **ChaCha20**: Quantum attacks (when used alone)
-- **Poly1305**: Quantum attacks (when used alone)
+- **AES-128**: Grover's algorithm reduces security to approximately 64 bits — not acceptable for post-quantum use.
+- **ChaCha20 / Poly1305** (standalone): 256-bit key variants survive Grover with ~128-bit quantum security, but these primitives are not part of the lib-Q algorithm set, which centers on Saturnin and SHA-3 family constructions. Do not substitute them for lib-Q primitives.
+
+  Note: AES-256 is not used in lib-Q primitives but retains ~128-bit quantum security per Grover analysis and may appear in transport layers outside lib-Q's scope.
 
 ## Implementation Security Guidelines
 

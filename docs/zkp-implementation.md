@@ -190,34 +190,51 @@ pub fn prove_computation_result(
 
 ## Testing Strategy
 
+This section tracks **what is automated in the repo and CI** versus **partial coverage** or **deferred** work. Primary test locations: `lib-q-zkp/tests/`, `lib-q-stark/tests/`, and (for fuzzing) `lib-q-zkp/fuzz/`.
+
 ### Unit Testing
-- [ ] Individual component testing
-- [ ] Circuit correctness testing
-- [ ] Proof generation/verification testing
-- [ ] Error handling testing
-- [ ] Memory management testing
+
+| Item | Status | Where |
+|------|--------|--------|
+| Individual component testing | **Implemented** | STARK stack: [lib-q-stark/tests/](../lib-q-stark/tests/) (see [lib-q-stark/tests/README.md](../lib-q-stark/tests/README.md)). ZKP crate: [lib-q-zkp/tests/](../lib-q-zkp/tests/) (`merkle_*`, `security_parameter_tests`, `stub_tests`, `ip_soundness_tests`, etc.). |
+| Circuit correctness testing | **Implemented** | [lib-q-zkp/tests/air_integration.rs](../lib-q-zkp/tests/air_integration.rs) (`CircuitBuilder`, `ArithmeticCircuit`, wrong-public rejection). |
+| Proof generation / verification testing | **Implemented** | [lib-q-zkp/tests/air_integration.rs](../lib-q-zkp/tests/air_integration.rs), [zero_knowledge_tests.rs](../lib-q-zkp/tests/zero_knowledge_tests.rs), [aggregation_tests.rs](../lib-q-zkp/tests/aggregation_tests.rs); unit tests in [lib-q-zkp/src/lib.rs](../lib-q-zkp/src/lib.rs). |
+| Error handling testing | **Partial** | Validation and `AirError` paths covered in integration tests; not every public error variant has a dedicated test. |
+| Memory management / DoS limits | **Implemented** | [lib-q-zkp/tests/dos_limits_tests.rs](../lib-q-zkp/tests/dos_limits_tests.rs) exercises `MAX_OPERATIONS`, `MAX_TRACE_WIDTH`, `MAX_TRACE_HEIGHT`, and related `AirError::ExceedsMaxSize` paths; STARK-layer DoS: [lib-q-stark/tests/dos_protection_tests.rs](../lib-q-stark/tests/dos_protection_tests.rs). |
 
 ### Integration Testing
-- [ ] End-to-end proof workflows
-- [ ] Integration with post-quantum crypto
-- [ ] WASM compatibility testing
-- [ ] Cross-platform testing
-- [ ] Performance regression testing
+
+| Item | Status | Where |
+|------|--------|--------|
+| End-to-end proof workflows | **Implemented** | Prove/verify across AIRs in `lib-q-zkp` tests; CI job **ZKP Recursive Aggregation** (`.github/workflows/ci.yml`, `zkp-recursive`): release prove → aggregate → verify. |
+| Integration with post-quantum crypto | **Implemented** | [lib-q-zkp/tests/ml_kem_session_key_integration.rs](../lib-q-zkp/tests/ml_kem_session_key_integration.rs): ML-KEM encaps/decaps consistency, then STARK prove/verify on `ArithmeticAir` with witness derived from the shared secret bytes (`cargo test -p lib-q-zkp --features zkp,std`). `SessionKeyDerivationAir` trace generation is unit-tested in [session_key.rs](../lib-q-zkp/src/air/session_key.rs); a full STARK prove path for that AIR is not yet enabled. |
+| WASM compatibility testing | **Implemented** | CI **WASM Validation** matrix: `lib-q-zkp` with `wasm,zkp` (`check-only`). |
+| Cross-platform testing | **Partial** | Linux CI matrix includes `zkp` (`lib-q`, `lib-q-zkp`). **Cross-Platform Builds** job compiles `lib-q` with `all-algorithms` (includes `zkp`) on multiple OSes; ZKP tests are not executed on every platform in CI. |
+| Performance regression testing | **Implemented** | Criterion bench [lib-q-zkp/benches/stark_arithmetic_bench.rs](../lib-q-zkp/benches/stark_arithmetic_bench.rs); CI **Performance & Benchmarks** runs `cargo bench -p lib-q-zkp --features zkp --bench stark_arithmetic_bench` (non-PR workflow). |
 
 ### Security Testing
-- [ ] Constant-time verification
-- [ ] Side-channel analysis
-- [ ] Fuzzing of proof generation
-- [ ] Fuzzing of proof verification
-- [ ] Formal verification of critical components
+
+| Item | Status | Notes |
+|------|--------|--------|
+| Constant-time verification | **Partial (workspace)** | ZKP verifier paths are written with constant-time intent (see module docs in `lib-q-zkp/src/air/*`). CI **Constant-Time Verification** job targets `lib-q-sha3` / `lib-q-k12`, not ZKP-specific statistical timing gates. |
+| Side-channel analysis | **Deferred** | No automated lab harness; design/review only. |
+| Fuzzing of proof generation | **Implemented** | `cargo fuzz run zkp_prove_arithmetic` in [lib-q-zkp/fuzz/](../lib-q-zkp/fuzz/) (bounded `ArithmeticAir` inputs). |
+| Fuzzing of proof verification | **Implemented** | `cargo fuzz run zkp_verify_bytes` in [lib-q-zkp/fuzz/](../lib-q-zkp/fuzz/) (deserialization + verify). |
+| Formal verification of critical components | **Deferred** | Not wired for the ZKP pipeline in this repository. |
+
+Scheduled fuzzing: [.github/workflows/zkp-fuzz-scheduled.yml](../.github/workflows/zkp-fuzz-scheduled.yml) (weekly `workflow_dispatch` / cron).
 
 ## Future Enhancements
 
 ### Advanced ZKP Types
-- [ ] zk-SNARKs for smaller proof sizes
-- [ ] Bulletproofs for range proofs
-- [ ] Plonk for universal circuits
-- [ ] Halo2 for recursive proofs
+
+The current ZKP stack is zk-STARK based (SHAKE256 / SHA-3 family), which is inherently post-quantum secure. Classical ZKP systems that rely on elliptic-curve pairings or discrete-logarithm hardness (e.g. zk-SNARKs, Bulletproofs, Plonk, Halo2) are **not in scope** for this library — they depend on classical asymmetric assumptions and are broken by quantum adversaries.
+
+Planned post-quantum-safe enhancements:
+- [ ] Recursive STARK composition (hash-based, no trusted setup)
+- [ ] Batch proof aggregation via FRI-based accumulation
+- [ ] Post-quantum range proofs built on STARK arithmetic circuits
+- [ ] Lattice-based commitments as an optional Merkle-tree alternative
 
 ### Performance Optimizations
 - [ ] GPU acceleration for proof generation
@@ -239,10 +256,3 @@ pub fn prove_computation_result(
 - [ ] Memory usage < target limits
 - [ ] WASM compatibility verified
 - [ ] Zero security vulnerabilities
-
-### Adoption Metrics
-- [ ] Integration with blockchain projects
-- [ ] Privacy-preserving application adoption
-- [ ] Academic research usage
-- [ ] Industry standard compliance
-- [ ] Community contributions

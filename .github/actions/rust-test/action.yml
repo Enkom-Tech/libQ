@@ -38,6 +38,12 @@ inputs:
     description: Minimum coverage threshold percentage
     default: "95"
     required: false
+  coverage-branch-threshold:
+    description: >-
+      Optional minimum branch coverage from cobertura.xml when the toolchain emits
+      branch data (branches-valid > 0). Empty string skips the branch check.
+    default: ""
+    required: false
 
 runs:
   using: composite
@@ -275,19 +281,17 @@ runs:
       run: |
         echo "Checking coverage threshold..."
         cd ${{ inputs.working-directory }}
-        EXTRACT="${{ github.workspace }}/scripts/extract-coverage-percent.sh"
-        if [[ ! -f "$EXTRACT" ]]; then
-          echo "ERROR: Missing $EXTRACT"
+        CHECK="${{ github.workspace }}/scripts/check-coverage-metrics.sh"
+        if [[ ! -f "$CHECK" ]]; then
+          echo "ERROR: Missing $CHECK"
           exit 1
         fi
-        if ! COVERAGE=$(bash "$EXTRACT" coverage); then
-          echo "ERROR: Could not determine coverage from coverage/ (see directory listing below)"
+        BRANCH_ARGS=()
+        if [[ -n "${{ inputs.coverage-branch-threshold }}" ]]; then
+          BRANCH_ARGS=(--branch-min "${{ inputs.coverage-branch-threshold }}")
+        fi
+        if ! bash "$CHECK" --dir coverage --line-min "${{ inputs.coverage-threshold }}" "${BRANCH_ARGS[@]}"; then
+          echo "ERROR: Coverage check failed (see messages above)"
           ls -la coverage/ || echo "Coverage directory does not exist"
           exit 1
         fi
-        echo "Coverage: ${COVERAGE}%"
-        if awk -v c="${COVERAGE}" -v t="${{ inputs.coverage-threshold }}" 'BEGIN { exit !(c + 0 < t) }'; then
-          echo "ERROR: Coverage ${COVERAGE}% is below ${{ inputs.coverage-threshold }}% threshold"
-          exit 1
-        fi
-        echo "Coverage threshold check passed"

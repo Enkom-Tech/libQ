@@ -115,10 +115,10 @@ jobs:
           
           echo "package=$AFFECTED" >> $GITHUB_OUTPUT
           echo "Testing package: $AFFECTED"
-          # Per-crate gates: lib-q-core is measured with a narrow src-only slice (~52% today); others stay at 60%.
+          # Per-crate gates (ratcheted as coverage improves; see docs/coverage-scope.md).
           case "$AFFECTED" in
-            lib-q-core) echo "coverage-threshold=52" >> $GITHUB_OUTPUT ;;
-            *) echo "coverage-threshold=60" >> $GITHUB_OUTPUT ;;
+            lib-q-core) echo "coverage-threshold=78" >> $GITHUB_OUTPUT ;;
+            *) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
           esac
       
       - name: Run coverage tests

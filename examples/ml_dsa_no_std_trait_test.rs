@@ -3,7 +3,7 @@
 //! This example shows that the Signature trait now properly supports no_std
 //! with the correct return types based on feature flags.
 //!
-//! Run with: cargo run --example ml_dsa_no_std_trait_test --features "lib-q-sig/ml-dsa"
+//! Run: `cargo run -p lib-q-examples --example ml_dsa_no_std_trait_test`
 
 use lib_q_core::Signature;
 use lib_q_sig::ml_dsa::MlDsa;

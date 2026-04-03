@@ -1,7 +1,6 @@
 //! Working example demonstrating ML-DSA usage in no_std environments
 //!
-//! This example shows how to use ML-DSA without std by using the low-level API directly,
-//! bypassing the flawed trait definition in lib-q-core.
+//! This example shows how to use ML-DSA without std via the low-level `lib-q-ml-dsa` API.
 
 use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,

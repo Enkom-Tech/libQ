@@ -2,7 +2,7 @@
 //!
 //! This is a minimal example to test CB-KEM functionality without hanging.
 //!
-//! Run with: cargo run --example cb_kem_simple_example --features "cb-kem"
+//! Run: `cargo run -p lib-q-examples --example cb_kem_simple_example` (package default enables `cb-kem`).
 
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
@@ -16,7 +16,8 @@ fn main() {
     #[cfg(not(feature = "cb-kem"))]
     {
         println!("❌ CB-KEM feature not enabled!");
-        println!("Run with: cargo run --example cb_kem_simple_example --features \"cb-kem\"");
+        println!("Enable the package `cb-kem` feature (on by default), e.g.:");
+        println!("  cargo run -p lib-q-examples --example cb_kem_simple_example --features cb-kem");
     }
 
     #[cfg(feature = "cb-kem")]

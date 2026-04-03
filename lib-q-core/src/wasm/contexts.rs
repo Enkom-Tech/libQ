@@ -43,6 +43,7 @@ use crate::traits::{
     Nonce,
 };
 // Import secure error handling
+use crate::wasm::conversions::WASM_SIGNATURE_ALGORITHM_IDS;
 use crate::wasm::error::{
     convert_result,
     error_to_js_value,
@@ -307,9 +308,22 @@ pub struct WasmSignatureContext {
 
 impl WasmSignatureContext {
     /// Create a new WASM Signature context with default provider
+    ///
+    /// Prefer [`Self::from_signature_context`] when building from the `lib-q` crate so that
+    /// real signature implementations (e.g. `lib-q-sig`) are wired in instead of the core stub.
     pub fn new() -> WasmSignatureContext {
         WasmSignatureContext {
             inner: SignatureContext::with_default_provider(),
+            security_validator: SecurityValidator::new()
+                .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
+        }
+    }
+
+    /// Wrap a Rust [`SignatureContext`] (for example one built with
+    /// `SignatureContext::with_provider(Box::new(lib_q_sig::LibQSignatureProvider::new()?))`).
+    pub fn from_signature_context(inner: SignatureContext) -> WasmSignatureContext {
+        WasmSignatureContext {
+            inner,
             security_validator: SecurityValidator::new()
                 .unwrap_or_else(|_| SecurityValidator::new().unwrap()),
         }
@@ -332,6 +346,16 @@ impl WasmSignatureContext {
         }
     }
 
+    /// Parse signature algorithm from string
+    fn parse_signature_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
+        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
+            algorithm: "Invalid algorithm name",
+        })
+    }
+}
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+impl WasmSignatureContext {
     /// Generate a keypair for the specified algorithm
     pub fn generate_keypair(
         &mut self,
@@ -441,7 +465,7 @@ impl WasmSignatureContext {
 
         // Validate signature size (simplified)
         if signature.length() == 0 {
-            return Err(JsValue::from_str("Invalid message size: empty data"));
+            return Err(JsValue::from_str("Invalid signature: empty data"));
         }
 
         // Create public key using proper constructor
@@ -472,22 +496,15 @@ impl WasmSignatureContext {
 
     /// Get supported algorithms
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = alloc::vec!["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"];
         #[cfg(feature = "wasm")]
         {
-            serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
+            serde_json::to_string(&WASM_SIGNATURE_ALGORITHM_IDS)
+                .unwrap_or_else(|_| "[]".to_string())
         }
         #[cfg(not(feature = "wasm"))]
         {
             "[]".to_string()
         }
-    }
-
-    /// Parse signature algorithm from string
-    fn parse_signature_algorithm(&self, algorithm: &str) -> Result<Algorithm, crate::error::Error> {
-        parse_algorithm_wasm(algorithm).map_err(|_| crate::error::Error::InvalidAlgorithm {
-            algorithm: "Invalid algorithm name",
-        })
     }
 }
 
@@ -877,7 +894,7 @@ impl WasmCryptoProvider {
             }
             let algorithms = serde_json::json!({
                 "kem": kem_algorithms,
-                "signature": ["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"],
+                "signature": WASM_SIGNATURE_ALGORITHM_IDS,
                 "hash": ["sha3-224", "sha3-256", "sha3-384", "sha3-512", "shake128", "shake256"],
                 "aead": ["saturnin", "shake256-aead", "kem-aead"]
             });

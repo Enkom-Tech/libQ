@@ -19,11 +19,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ ML-DSA algorithms are properly integrated!");
 
-    // Test that we can create a signature context
-    let mut sig_ctx = SignatureContext::new();
+    // Use the default LibQCryptoProvider so signature ops hit the core stub (NotImplemented),
+    // not ProviderNotConfigured from an empty context.
+    let mut sig_ctx = SignatureContext::with_default_provider();
 
     // Note: The core provider returns NotImplemented for signature operations
-    // Users should use LibQSignatureProvider directly for actual operations
+    // Users should use `lib_q_sig::LibQSignatureProvider` (or the `libq` re-export when
+    // the `ml-dsa` / `slh-dsa` features are enabled) for real implementations.
     println!("ℹ️  Core provider correctly returns NotImplemented for signature operations");
 
     // This demonstrates the correct architecture - core provider doesn't implement algorithms
@@ -39,7 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("🎉 ML-DSA integration test completed successfully!");
-    println!("📝 Note: For actual ML-DSA operations, use LibQSignatureProvider directly");
+    println!(
+        "📝 Note: For real ML-DSA operations use `lib_q_sig::LibQSignatureProvider` or `libq::LibQSignatureProvider` (enabled here via `ml-dsa` on the `lib-q` dependency)."
+    );
 
     Ok(())
 }

@@ -4,7 +4,7 @@
 //! - High-level API (std): Automatic randomness generation
 //! - Low-level API (no_std): External randomness provision
 //!
-//! Run with: cargo run --example ml_dsa_full_integration_test --features "lib-q-sig/ml-dsa"
+//! Run: `cargo run -p lib-q-examples --example ml_dsa_full_integration_test`
 
 use lib_q_core::Signature;
 use lib_q_ml_dsa::constants::{

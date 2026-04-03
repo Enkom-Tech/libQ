@@ -20,9 +20,11 @@ A comprehensive Rust testing action that supports:
   with:
     features: "all-algorithms"
     run-coverage: "true"
-    coverage-threshold: "80"
+    coverage-threshold: "78"
     package: "lib-q-core"
 ```
+
+`pr.yml` sets `coverage-threshold` per affected package (see `docs/coverage-scope.md`); the default below is only the action default when callers omit the input.
 
 #### Parameters
 
@@ -34,7 +36,8 @@ A comprehensive Rust testing action that supports:
 | `rust-version` | Rust toolchain version | `stable` |
 | `run-release-tests` | Whether to run release tests | `true` |
 | `run-coverage` | Whether to run coverage tests | `false` |
-| `coverage-threshold` | Minimum coverage threshold percentage | `95` |
+| `coverage-threshold` | Minimum **line** coverage (Cobertura `line-rate`) | `95` |
+| `coverage-branch-threshold` | Optional minimum **branch** coverage when `branches-valid > 0` | `""` (skip) |
 
 ### `rust-build`
 
@@ -70,3 +73,5 @@ Coverage analysis is performed in two ways:
    - Configured in `coverage.yml`
    - Runs on main branch and scheduled weekly
    - Generates coverage badges
+
+3. **Security-critical scoped coverage**: `security-critical-coverage.yml` runs tarpaulin with `include-files` on facade paths listed in `docs/coverage-scope.md`

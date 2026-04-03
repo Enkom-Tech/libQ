@@ -176,7 +176,7 @@ pub use lib_q_random::{
     register_custom_entropy_source,
     unregister_custom_entropy_source,
 };
-#[cfg(feature = "ml-dsa")]
+#[cfg(any(feature = "ml-dsa", feature = "fn-dsa", feature = "slh-dsa"))]
 pub use lib_q_sig::{
     LibQSignatureProvider,
     available_algorithms as sig_available_algorithms,
@@ -306,10 +306,15 @@ pub mod wasm {
         WasmKemContext::new()
     }
 
-    /// Create a new Signature context for WASM
+    /// Create a new Signature context for WASM backed by `lib-q-sig` (same wiring as native
+    /// `SignatureContext` with [`LibQSignatureProvider`](lib_q_sig::LibQSignatureProvider)).
     #[wasm_bindgen]
     pub fn create_signature_context() -> WasmSignatureContext {
-        WasmSignatureContext::new()
+        let provider = lib_q_sig::LibQSignatureProvider::new()
+            .expect("lib-q-sig LibQSignatureProvider / SecurityValidator initialization");
+        WasmSignatureContext::from_signature_context(lib_q_core::SignatureContext::with_provider(
+            Box::new(provider),
+        ))
     }
 
     /// Create a new Hash context for WASM

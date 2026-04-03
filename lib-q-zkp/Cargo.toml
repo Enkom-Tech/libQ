@@ -56,6 +56,16 @@ trace-debug = []
 name = "lib_q_zkp"
 path = "src/lib.rs"
 
+[[bench]]
+name = "stark_arithmetic_bench"
+harness = false
+required-features = ["zkp"]
+
+[dev-dependencies]
+criterion = { workspace = true }
+lib-q-ml-kem = { path = "../lib-q-ml-kem" }
+lib-q-random = { path = "../lib-q-random", features = ["std"] }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

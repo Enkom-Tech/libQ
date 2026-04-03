@@ -54,12 +54,13 @@ use lib_q_core::error::{
 };
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
+#[cfg(all(feature = "alloc", any(feature = "ml-dsa", feature = "fn-dsa")))]
+use lib_q_core::traits::Signature;
 #[cfg(feature = "alloc")]
 use lib_q_core::traits::{
     SigKeypair,
     SigPublicKey,
     SigSecretKey,
-    Signature,
 };
 
 #[cfg(feature = "fn-dsa")]

@@ -86,6 +86,14 @@ pids
 coverage/
 *.lcov
 
+# Rust tarpaulin / CI: output dirs other than plain coverage/ (e.g. scripts/run-coverage.sh, coverage.yml)
+coverage-*/
+cov-*/
+combined-coverage/
+
+# Tarpaulin HTML when written to cwd or a crate root
+tarpaulin-report.html
+
 # nyc test coverage
 .nyc_output
 
@@ -201,9 +209,14 @@ rust-project.json
 # Cargo audit
 Cargo.audit.toml
 
+# SBOM / CycloneDX (e.g. cargo-cyclonedx beside a manifest; target/ already ignored)
+*bom.cdx.json
+*bom.cdx.xml
+cyclonedx-bom.json
+
 # Local configuration
 .cargo/config.toml
 
 /reference
-/Plonky3-main
 .cursor/
+hooks.json

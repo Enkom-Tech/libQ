@@ -72,6 +72,12 @@ Fixes are delivered through:
 
 Subscribe to repository notifications or advisories if you depend on published crates.
 
+### Published `pkg/` API vs current `wasm-bindgen` surface
+
+Checked-in or older `pkg/` artifacts may expose a monolithic `LibQ` type with `sig_verify`. The maintained bindings are **`WasmSignatureContext`** (via `create_signature_context` in the `lib-q` WASM module), which copies `Uint8Array` inputs into Rust (`to_vec()`) for verification—callers should not rely on long-lived borrows of JavaScript memory inside WASM.
+
+**Semver / migration:** regenerate bindings with `wasm-pack` from this repository and migrate from legacy `LibQ.sig_verify` to `create_signature_context()` + `WasmSignatureContext.verify`, passing canonical algorithm strings such as `ml-dsa-65` or aliases accepted by the parser (e.g. `mldsa65`, case-insensitive hyphenated forms).
+
 ## Contact
 
 - **Email:** [github@enkom.dev](mailto:github@enkom.dev)

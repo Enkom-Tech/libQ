@@ -181,6 +181,24 @@ For a full member list, see the `[workspace].members` table in [Cargo.toml](Carg
 - **Assurance**: expanded fuzzing, constant-time verification where feasible, and third-party security review
 - **ZKP**: documentation, API stability, and production-oriented hardening of the STARK pipeline
 
+## Testing
+
+### `lib-q-sig` and SLH-DSA features
+
+`lib-q-sig` separates **algorithm enablement** from **who supplies randomness**:
+
+- **`slh-dsa`**: SLH-DSA with caller-supplied randomness (suitable for `no_std` and tests that pass explicit buffers).
+- **`slh-dsa-std`**: The above plus OS-backed entropy when APIs use `None` for randomness on std targets.
+
+Run crate integration tests accordingly:
+
+```bash
+cargo test -p lib-q-sig --features slh-dsa
+cargo test -p lib-q-sig --features slh-dsa-std
+```
+
+The second command includes end-to-end tests that rely on implicit RNG wiring (`lib-q-random`); the first is appropriate when you only need explicit-randomness coverage.
+
 ## Documentation
 
 - [ROADMAP](ROADMAP.md)
@@ -191,7 +209,8 @@ For a full member list, see the `[workspace].members` table in [Cargo.toml](Carg
 - [HPKE Architecture](docs/hpke-architecture.md)
 - [Memory Architecture](docs/memory-architecture.md)
 - [Interoperability](docs/interoperability.md)
-- [Architecture Summary](docs/architecture-summary.md)
+- [Entropy Validation](docs/entropy-validation.md)
+- [Test Coverage](docs/test-coverage.md)
 - [AI-Generated Wiki](https://deepwiki.com/Enkom-Tech/libQ)
 
 ## License

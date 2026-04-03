@@ -189,16 +189,10 @@ impl WasmProviderManager {
 
     /// Get signature algorithms
     pub fn get_signature_algorithms(&self) -> Vec<String> {
-        let mut algorithms = alloc::vec![
-            "ml-dsa-44".to_string(),
-            "ml-dsa-65".to_string(),
-            "ml-dsa-87".to_string(),
-        ];
-
-        // Add optional algorithms based on features
-        algorithms.push("fn-dsa".to_string());
-
-        algorithms
+        crate::wasm::conversions::WASM_SIGNATURE_ALGORITHM_IDS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect()
     }
 
     /// Get hash algorithms

@@ -27,7 +27,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  COVERAGE_THRESHOLD: "60"
+  COVERAGE_THRESHOLD: "65"
 
 jobs:
   coverage:

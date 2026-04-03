@@ -15,7 +15,10 @@ fn main() {
     #[cfg(not(feature = "cb-kem"))]
     {
         println!("❌ CB-KEM feature not enabled!");
-        println!("Run with: cargo run --example cb_kem_production_example --features \"cb-kem\"");
+        println!("Enable the package `cb-kem` feature (on by default), e.g.:");
+        println!(
+            "  cargo run -p lib-q-examples --example cb_kem_production_example --features cb-kem"
+        );
     }
 
     #[cfg(feature = "cb-kem")]

@@ -451,6 +451,12 @@ jobs:
           cargo bench --features "alloc,hqc128,simd-avx2" --bench simd_benchmarks --verbose
           echo "✅ HQC SIMD benchmarks completed"
 
+      - name: Run lib-q-zkp STARK benchmarks
+        run: |
+          echo "Running lib-q-zkp STARK arithmetic benchmarks..."
+          cargo bench -p lib-q-zkp --features "zkp,std" --bench stark_arithmetic_bench --verbose
+          echo "✅ lib-q-zkp STARK benchmarks completed"
+
   # Documentation generation - lightweight job
   documentation:
     name: Documentation

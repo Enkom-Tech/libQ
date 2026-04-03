@@ -91,6 +91,26 @@ impl WasmConversions {
             "mldsa87" | "ml-dsa-87" => Ok(Algorithm::MlDsa87),
             "fndsa" | "fn-dsa" => Ok(Algorithm::FnDsa),
 
+            // SLH-DSA (hyphenated IDs, NIST-style names, and PascalCase `SlhDsa*` lowercased)
+            "slh-dsa-sha256-128f-robust" |
+            "slh-dsa-sha2-128f-robust" |
+            "slhdsasha256128frobust" => Ok(Algorithm::SlhDsaSha256128fRobust),
+            "slh-dsa-sha256-192f-robust" |
+            "slh-dsa-sha2-192f-robust" |
+            "slhdsasha256192frobust" => Ok(Algorithm::SlhDsaSha256192fRobust),
+            "slh-dsa-sha256-256f-robust" |
+            "slh-dsa-sha2-256f-robust" |
+            "slhdsasha256256frobust" => Ok(Algorithm::SlhDsaSha256256fRobust),
+            "slh-dsa-shake256-128f-robust" | "slhdsashake256128frobust" => {
+                Ok(Algorithm::SlhDsaShake256128fRobust)
+            }
+            "slh-dsa-shake256-192f-robust" | "slhdsashake256192frobust" => {
+                Ok(Algorithm::SlhDsaShake256192fRobust)
+            }
+            "slh-dsa-shake256-256f-robust" | "slhdsashake256256frobust" => {
+                Ok(Algorithm::SlhDsaShake256256fRobust)
+            }
+
             // Hash algorithms
             "sha3_224" | "sha3-224" => Ok(Algorithm::Sha3_224),
             "sha3_256" | "sha3-256" => Ok(Algorithm::Sha3_256),
@@ -133,6 +153,13 @@ impl WasmConversions {
             Algorithm::MlDsa65 => "ml-dsa-65".to_string(),
             Algorithm::MlDsa87 => "ml-dsa-87".to_string(),
             Algorithm::FnDsa => "fn-dsa".to_string(),
+
+            Algorithm::SlhDsaSha256128fRobust => "slh-dsa-sha256-128f-robust".to_string(),
+            Algorithm::SlhDsaSha256192fRobust => "slh-dsa-sha256-192f-robust".to_string(),
+            Algorithm::SlhDsaSha256256fRobust => "slh-dsa-sha256-256f-robust".to_string(),
+            Algorithm::SlhDsaShake256128fRobust => "slh-dsa-shake256-128f-robust".to_string(),
+            Algorithm::SlhDsaShake256192fRobust => "slh-dsa-shake256-192f-robust".to_string(),
+            Algorithm::SlhDsaShake256256fRobust => "slh-dsa-shake256-256f-robust".to_string(),
 
             // Hash algorithms
             Algorithm::Sha3_224 => "sha3-224".to_string(),
@@ -229,6 +256,22 @@ impl WasmConversions {
     }
 }
 
+/// Canonical WASM signature algorithm id strings for listings (`WasmSignatureContext`,
+/// `WasmProviderManager`, JSON summaries). Matches [`WasmConversions::algorithm_to_string`] for SLH.
+#[cfg(feature = "wasm")]
+pub const WASM_SIGNATURE_ALGORITHM_IDS: &[&str] = &[
+    "ml-dsa-44",
+    "ml-dsa-65",
+    "ml-dsa-87",
+    "fn-dsa",
+    "slh-dsa-sha256-128f-robust",
+    "slh-dsa-sha256-192f-robust",
+    "slh-dsa-sha256-256f-robust",
+    "slh-dsa-shake256-128f-robust",
+    "slh-dsa-shake256-192f-robust",
+    "slh-dsa-shake256-256f-robust",
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,6 +303,27 @@ mod tests {
         assert_eq!(
             WasmConversions::algorithm_to_string(Algorithm::Sha3_256),
             "sha3-256"
+        );
+
+        assert_eq!(
+            WasmConversions::string_to_algorithm("slh-dsa-shake256-128f-robust").unwrap(),
+            Algorithm::SlhDsaShake256128fRobust
+        );
+        assert_eq!(
+            WasmConversions::string_to_algorithm("SLH-DSA-SHAKE256-128f-Robust").unwrap(),
+            Algorithm::SlhDsaShake256128fRobust
+        );
+        assert_eq!(
+            WasmConversions::string_to_algorithm("SlhDsaShake256128fRobust").unwrap(),
+            Algorithm::SlhDsaShake256128fRobust
+        );
+        assert_eq!(
+            WasmConversions::string_to_algorithm("slh-dsa-sha256-128f-robust").unwrap(),
+            Algorithm::SlhDsaSha256128fRobust
+        );
+        assert_eq!(
+            WasmConversions::algorithm_to_string(Algorithm::SlhDsaShake256128fRobust),
+            "slh-dsa-shake256-128f-robust"
         );
     }
 

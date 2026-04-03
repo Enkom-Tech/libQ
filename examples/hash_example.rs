@@ -1,6 +1,6 @@
 //! Hash Example for lib-Q
 //!
-//! This example demonstrates the usage of SHA-3 hash functions.
+//! Demonstrates cSHAKE128/cSHAKE256 via `lib-q-hash` and an optional `HashContext` call.
 
 use lib_q_core::{
     Algorithm,
@@ -78,12 +78,12 @@ fn main() {
     println!("   Different: {}", hash1 != hash2);
     println!();
 
-    // Hash Context Example
-    println!("7. Hash Context Example:");
-    let mut ctx = HashContext::new();
+    // Hash context with default core provider (stub returns NotImplemented; real hashing above).
+    println!("7. Hash Context Example (core stub):");
+    let mut ctx = HashContext::with_default_provider();
     match ctx.hash(Algorithm::Shake256, data) {
         Ok(result) => println!("   Context hash: {}", bytes_to_hex(&result)),
-        Err(e) => println!("   Context error: {e:?}"),
+        Err(e) => println!("   Context (expected stub): {e:?}"),
     }
     println!();
 

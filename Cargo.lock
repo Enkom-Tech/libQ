@@ -1787,8 +1787,10 @@ dependencies = [
 name = "lib-q-zkp"
 version = "0.0.2"
 dependencies = [
+ "criterion",
  "digest 0.11.2",
  "lib-q-core",
+ "lib-q-ml-kem",
  "lib-q-plonky",
  "lib-q-poseidon",
  "lib-q-random",

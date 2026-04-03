@@ -2,7 +2,7 @@
 //!
 //! This example shows how to use ML-DSA without std by providing randomness externally
 //!
-//! Run with: cargo run --example ml_dsa_no_std_example --features "lib-q-sig/ml-dsa"
+//! Run: `cargo run -p lib-q-examples --example ml_dsa_no_std_example`
 
 use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,

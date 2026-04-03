@@ -57,6 +57,8 @@ members = [
     "lib-q-plonky",
     "examples"
 ]
+# Standalone cargo-fuzz harness (not a workspace member)
+exclude = ["lib-q-zkp/fuzz"]
 resolver = "3"
 
 # Workspace package defaults for inherited properties

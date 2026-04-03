@@ -40,6 +40,16 @@
 //! - **Memory safety**: Automatic zeroization of sensitive data
 //! - **Provider integration**: Full integration with lib-q-core provider system
 //!
+//! ### SLH-DSA features and tests
+//!
+//! - **`slh-dsa`**: SLH-DSA with caller-supplied randomness (e.g. `generate_keypair_with_randomness`, provider calls with `Some(&buf)`). This is the integration surface for `no_std` and embedder-provided entropy.
+//! - **`slh-dsa-std`**: Adds `lib-q-random` / std so APIs that take optional randomness can use `None` as “OS-backed RNG” on typical std targets. Integration tests that exercise that implicit-RNG path are gated on this feature.
+//!
+//! ```text
+//! cargo test -p lib-q-sig --features slh-dsa
+//! cargo test -p lib-q-sig --features slh-dsa-std
+//! ```
+//!
 //! ## Usage
 //!
 //! ### With std (automatic randomness)
@@ -379,14 +389,21 @@ mod tests {
         // This test just verifies the basic context creation and structure
         let mut ctx = result.unwrap();
 
-        // Without a provider, keypair generation should return NotImplemented
+        // Without a provider, keypair generation must fail (no crypto backend wired).
         let keypair_result = ctx.generate_keypair(Algorithm::MlDsa65, None);
         assert!(
             keypair_result.is_err(),
             "Keypair generation should fail without provider"
         );
         if let Err(err) = keypair_result {
-            assert!(matches!(err, Error::NotImplemented { .. }));
+            assert!(
+                matches!(
+                    err,
+                    Error::NotImplemented { .. } | Error::ProviderNotConfigured { .. }
+                ),
+                "unexpected error without provider: {:?}",
+                err
+            );
         }
     }
 

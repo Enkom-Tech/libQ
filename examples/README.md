@@ -6,7 +6,7 @@ This directory contains examples demonstrating the usage of lib-Q post-quantum c
 
 ### Running ML-DSA Examples
 
-When building from the workspace root, specify the examples package with `-p lib-q-examples`. The package already depends on `lib-q-ml-dsa` and `lib-q-sig` with ml-dsa; no extra feature flags are required.
+When building from the workspace root, use `-p lib-q-examples`. The package depends on `lib-q-ml-dsa` and `lib-q-sig` with ML-DSA enabled, enables `ml-dsa` / `slh-dsa` on the umbrella `lib-q` crate, and **defaults** to the `cb-kem` feature (pass `--no-default-features` if you want to omit CB-KEM and `lib-q`’s CB-KEM wiring).
 
 ```bash
 # From workspace root (libQ/)
@@ -44,9 +44,9 @@ Working example using lib_q_ml_dsa directly:
 - Shows proper no_std usage patterns
 
 #### `ml_dsa_integration_test.rs`
-Integration test using the main libq crate:
-- Tests algorithm availability
-- Tests signature context functionality
+Integration test using the main `libq` crate (with `ml-dsa` / `slh-dsa` features on the examples’ `lib-q` dependency):
+- Confirms ML-DSA entries in the algorithm registry
+- Uses `SignatureContext::with_default_provider()` so the core stub returns `NotImplemented` for `generate_keypair` (real signing lives in `lib-q-sig`)
 
 ### Features
 
@@ -68,7 +68,28 @@ Integration test using the main libq crate:
 ### Hash Example
 
 ```bash
-cargo run --example hash_example
+cargo run -p lib-q-examples --example hash_example
 ```
 
-Demonstrates various hash functions including SHA-3, Keccak, and cSHAKE.
+Demonstrates cSHAKE128/cSHAKE256 (and a `HashContext` / SHAKE256 path where applicable).
+
+### CB-KEM examples
+
+```bash
+cargo run -p lib-q-examples --example cb_kem_example
+cargo run -p lib-q-examples --example cb_kem_simple_example
+cargo run -p lib-q-examples --example cb_kem_production_example
+cargo run -p lib-q-examples --example cb_kem_testing_example
+```
+
+### Keccak permutation smoke test
+
+Runs `lib_q_keccak::f1600` on the documented zero-state vector (same check as the `lib-q-keccak` crate docs).
+
+```bash
+cargo run -p lib-q-examples --example keccak_no_std_test
+```
+
+### Signature algorithms in the registry
+
+The umbrella registry lists ML-DSA, FN-DSA, and SLH-DSA variants among signature algorithms; runtime signing still uses `lib-q-sig` (or `libq::LibQSignatureProvider` with the right `lib-q` features), not the core stub provider.

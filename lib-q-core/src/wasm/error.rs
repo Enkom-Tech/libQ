@@ -30,24 +30,24 @@ pub fn error_to_js_value(error: Error) -> JsValue {
         Error::InvalidSecurityLevel { .. } => "Invalid security level",
         Error::NotImplemented { .. } => "Feature not implemented",
         Error::ProviderNotConfigured { .. } => "Provider not configured",
-        Error::VerificationFailed { .. } => "Security violation detected",
-        Error::EncryptionFailed { .. } => "Timing attack detected",
-        Error::DecryptionFailed { .. } => "Memory error",
-        Error::KeyGenerationFailed { .. } => "Cryptographic error",
-        Error::RandomGenerationFailed { .. } => "Validation error",
-        Error::SigningFailed { .. } => "Serialization error",
-        Error::MemoryAllocationFailed { .. } => "Deserialization error",
-        Error::InternalError { .. } => "Configuration error",
-        Error::UnsupportedOperation { .. } => "Provider error",
-        Error::InvalidState { .. } => "Context error",
-        Error::PluginDependencyError { .. } => "Algorithm error",
-        Error::PluginVersionIncompatible { .. } => "Key error",
-        Error::InvalidKey { .. } => "Signature error",
-        Error::UnsupportedAlgorithm { .. } => "Hash error",
-        Error::AuthenticationFailed { .. } => "AEAD error",
-        Error::InvalidAssociatedDataSize { .. } => "KEM error",
-        Error::InvalidTagSize { .. } => "Unknown error",
-        Error::InvalidHashSize { .. } => "Hash size error",
+        Error::VerificationFailed { .. } => "Verification failed",
+        Error::EncryptionFailed { .. } => "Encryption failed",
+        Error::DecryptionFailed { .. } => "Decryption failed",
+        Error::KeyGenerationFailed { .. } => "Key generation failed",
+        Error::RandomGenerationFailed { .. } => "Random generation failed",
+        Error::SigningFailed { .. } => "Signing failed",
+        Error::MemoryAllocationFailed { .. } => "Memory allocation failed",
+        Error::InternalError { .. } => "Internal error",
+        Error::UnsupportedOperation { .. } => "Unsupported operation",
+        Error::InvalidState { .. } => "Invalid context state",
+        Error::PluginDependencyError { .. } => "Plugin dependency error",
+        Error::PluginVersionIncompatible { .. } => "Plugin version incompatible",
+        Error::InvalidKey { .. } => "Invalid key",
+        Error::UnsupportedAlgorithm { .. } => "Unsupported algorithm",
+        Error::AuthenticationFailed { .. } => "Authentication failed",
+        Error::InvalidAssociatedDataSize { .. } => "Invalid associated data size",
+        Error::InvalidTagSize { .. } => "Invalid tag size",
+        Error::InvalidHashSize { .. } => "Invalid hash size",
         Error::InvalidRandomnessSize { .. } => "Invalid randomness size",
     };
 
@@ -78,48 +78,16 @@ pub fn parse_algorithm_wasm(algorithm: &str) -> Result<crate::api::Algorithm, Js
         return Err(JsValue::from_str("Algorithm name too long"));
     }
 
-    // Security: Validate input contains only allowed characters
-    if !algorithm
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-    {
+    // Reject control characters; allow Unicode so names like `dawn-α-512` match
+    // [`crate::wasm::conversions::WasmConversions::string_to_algorithm`].
+    if algorithm.chars().any(|c| c.is_control()) {
         return Err(JsValue::from_str("Invalid algorithm name format"));
     }
 
-    match algorithm {
-        // KEM algorithms
-        "ml-kem-512" => Ok(crate::api::Algorithm::MlKem512),
-        "ml-kem-768" => Ok(crate::api::Algorithm::MlKem768),
-        "ml-kem-1024" => Ok(crate::api::Algorithm::MlKem1024),
-        "dawn-alpha-512" | "dawn-α-512" => Ok(crate::api::Algorithm::DawnAlpha512),
-        "dawn-beta-512" | "dawn-β-512" => Ok(crate::api::Algorithm::DawnBeta512),
-        "dawn-alpha-1024" | "dawn-α-1024" => Ok(crate::api::Algorithm::DawnAlpha1024),
-        "dawn-beta-1024" | "dawn-β-1024" => Ok(crate::api::Algorithm::DawnBeta1024),
-
-        // Signature algorithms
-        "ml-dsa-44" => Ok(crate::api::Algorithm::MlDsa44),
-        "ml-dsa-65" => Ok(crate::api::Algorithm::MlDsa65),
-        "ml-dsa-87" => Ok(crate::api::Algorithm::MlDsa87),
-        "fn-dsa" => Ok(crate::api::Algorithm::FnDsa),
-
-        // Hash algorithms
-        "sha3-224" => Ok(crate::api::Algorithm::Sha3_224),
-        "sha3-256" => Ok(crate::api::Algorithm::Sha3_256),
-        "sha3-384" => Ok(crate::api::Algorithm::Sha3_384),
-        "sha3-512" => Ok(crate::api::Algorithm::Sha3_512),
-        "shake128" => Ok(crate::api::Algorithm::Shake128),
-        "shake256" => Ok(crate::api::Algorithm::Shake256),
-
-        // AEAD algorithms
-        "saturnin" => Ok(crate::api::Algorithm::Saturnin),
-        "shake256-aead" => Ok(crate::api::Algorithm::Shake256Aead),
-        "kem-aead" => Ok(crate::api::Algorithm::KemAead),
-        "duplex-sponge-aead" | "duplexspongeaead" => Ok(crate::api::Algorithm::DuplexSpongeAead),
-        "tweak-aead" | "tweakaead" => Ok(crate::api::Algorithm::TweakAead),
-        "romulus-n" | "romulusn" => Ok(crate::api::Algorithm::RomulusN),
-        "romulus-m" | "romulusm" => Ok(crate::api::Algorithm::RomulusM),
-
-        _ => Err(JsValue::from_str("Unsupported algorithm")),
+    match crate::wasm::conversions::WasmConversions::string_to_algorithm(algorithm) {
+        Ok(a) => Ok(a),
+        Err(Error::UnsupportedAlgorithm { .. }) => Err(JsValue::from_str("Unsupported algorithm")),
+        Err(_) => Err(JsValue::from_str("Invalid algorithm specified")),
     }
 }
 
@@ -199,6 +167,22 @@ mod tests {
     #[cfg(target_arch = "wasm32")]
     fn test_algorithm_parsing() {
         assert!(parse_algorithm_wasm("sha3-256").is_ok());
+        assert_eq!(
+            parse_algorithm_wasm("mldsa65").unwrap(),
+            crate::api::Algorithm::MlDsa65
+        );
+        assert_eq!(
+            parse_algorithm_wasm("ML-DSA-65").unwrap(),
+            crate::api::Algorithm::MlDsa65
+        );
+        assert_eq!(
+            parse_algorithm_wasm("slh-dsa-shake256-128f-robust").unwrap(),
+            crate::api::Algorithm::SlhDsaShake256128fRobust
+        );
+        assert_eq!(
+            parse_algorithm_wasm("SlhDsaShake256128fRobust").unwrap(),
+            crate::api::Algorithm::SlhDsaShake256128fRobust
+        );
         assert!(parse_algorithm_wasm("invalid").is_err());
         assert!(parse_algorithm_wasm(&"a".repeat(100)).is_err());
     }

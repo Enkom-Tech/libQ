@@ -386,7 +386,7 @@ pub fn derive_keys(shared_secret: &SharedSecret, contexts: &[&[u8]]) -> Result<V
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let (pk, sk) = kem::keygen(KemAlgorithm::MlKem5)?;
+/// let (pk, sk) = kem::keygen(KemAlgorithm::MlKem1024)?;
 /// ```
 pub fn keygen(algorithm: KemAlgorithm) -> Result<(KemPublicKey, KemSecretKey)>;
 
@@ -405,7 +405,7 @@ pub fn keygen(algorithm: KemAlgorithm) -> Result<(KemPublicKey, KemSecretKey)>;
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let (shared, enc) = kem::encaps(KemAlgorithm::MlKem5, &pk)?;
+/// let (shared, enc) = kem::encaps(KemAlgorithm::MlKem1024, &pk)?;
 /// ```
 pub fn encaps(algorithm: KemAlgorithm, public_key: &KemPublicKey) -> Result<(SharedSecret, EncapsulatedKey)>;
 
@@ -425,7 +425,7 @@ pub fn encaps(algorithm: KemAlgorithm, public_key: &KemPublicKey) -> Result<(Sha
 /// ```rust
 /// use lib-q::kem;
 /// 
-/// let shared = kem::decaps(KemAlgorithm::MlKem5, &sk, &enc)?;
+/// let shared = kem::decaps(KemAlgorithm::MlKem1024, &sk, &enc)?;
 /// ```
 pub fn decaps(algorithm: KemAlgorithm, secret_key: &KemSecretKey, encapsulated_key: &EncapsulatedKey) -> Result<SharedSecret>;
 ```
@@ -447,7 +447,7 @@ pub fn decaps(algorithm: KemAlgorithm, secret_key: &KemSecretKey, encapsulated_k
 /// ```rust
 /// use lib-q::sig;
 /// 
-/// let (pk, sk) = sig::keygen(SigAlgorithm::Dilithium5)?;
+/// let (pk, sk) = sig::keygen(SigAlgorithm::MlDsa87)?;
 /// ```
 pub fn keygen(algorithm: SigAlgorithm) -> Result<(SigPublicKey, SigSecretKey)>;
 
@@ -467,7 +467,7 @@ pub fn keygen(algorithm: SigAlgorithm) -> Result<(SigPublicKey, SigSecretKey)>;
 /// ```rust
 /// use lib-q::sig;
 /// 
-/// let signature = sig::sign(SigAlgorithm::Dilithium5, &sk, message)?;
+/// let signature = sig::sign(SigAlgorithm::MlDsa87, &sk, message)?;
 /// ```
 pub fn sign(algorithm: SigAlgorithm, secret_key: &SigSecretKey, message: &[u8]) -> Result<Signature>;
 
@@ -488,7 +488,7 @@ pub fn sign(algorithm: SigAlgorithm, secret_key: &SigSecretKey, message: &[u8]) 
 /// ```rust
 /// use lib-q::sig;
 /// 
-/// let is_valid = sig::verify(SigAlgorithm::Dilithium5, &pk, message, &signature)?;
+/// let is_valid = sig::verify(SigAlgorithm::MlDsa87, &pk, message, &signature)?;
 /// ```
 pub fn verify(algorithm: SigAlgorithm, public_key: &SigPublicKey, message: &[u8], signature: &Signature) -> Result<bool>;
 ```
@@ -500,26 +500,37 @@ pub fn verify(algorithm: SigAlgorithm, public_key: &SigPublicKey, message: &[u8]
 ```rust
 /// Supported KEM algorithms
 pub enum KemAlgorithm {
-    MlKem1,
-    MlKem3,
-    MlKem5,
-    CbKem1,
-    CbKem3,
-    CbKem4,
-    CbKem5,
-    Hqc1,
-    Hqc3,
-    Hqc4,
-    Hqc5,
+    /// ML-KEM (FIPS 203) — security levels 512, 768, 1024
+    MlKem512,
+    MlKem768,
+    MlKem1024,
+    /// CB-KEM (Classic McEliece family) — five NIST parameter sets
+    CbKem348864,
+    CbKem460896,
+    CbKem6688128,
+    CbKem6960119,
+    CbKem8192128,
+    /// HQC (NIST-standardized) — parameter sets 128, 192, 256
+    Hqc128,
+    Hqc192,
+    Hqc256,
+    /// DAWN (NTRU-based) — parameter sets α-512, α-1024, β-512, β-1024
+    DawnAlpha512,
+    DawnAlpha1024,
+    DawnBeta512,
+    DawnBeta1024,
 }
 
 /// Supported signature algorithms
 pub enum SigAlgorithm {
-    Dilithium1,
-    Dilithium3,
-    Dilithium5,
-    FnDsa1,
-    FnDsa5,
+    /// ML-DSA (FIPS 204) — security levels 44, 65, 87
+    MlDsa44,
+    MlDsa65,
+    MlDsa87,
+    /// FN-DSA (FIPS 206) — security levels 512, 1024
+    FnDsa512,
+    FnDsa1024,
+    /// SLH-DSA (FIPS 205) — security levels 1, 3, 5
     SlhDsa1,
     SlhDsa3,
     SlhDsa5,
@@ -527,9 +538,9 @@ pub enum SigAlgorithm {
 
 /// Security tiers for HPKE
 pub enum SecurityTier {
-    UltraSecure,  // Pure post-quantum
-    Balanced,     // Hybrid PQ + classical
-    Performance,  // PQ + optimized classical
+    UltraSecure,  // Pure post-quantum with SHAKE256-based AEAD
+    Balanced,     // Post-quantum KEM + Saturnin AEAD
+    Performance,  // Post-quantum KEM + optimized Saturnin (smaller key sizes)
 }
 ```
 
@@ -552,25 +563,25 @@ pub const MLKEM5_SECRET_KEY_SIZE: usize = 3168;
 pub const MLKEM5_CIPHERTEXT_SIZE: usize = 1568;
 pub const MLKEM5_SHARED_SECRET_SIZE: usize = 32;
 
-// Signature key sizes (in bytes)
-pub const DILITHIUM1_PUBLIC_KEY_SIZE: usize = 1952;
-pub const DILITHIUM1_SECRET_KEY_SIZE: usize = 4000;
-pub const DILITHIUM1_SIGNATURE_SIZE: usize = 3366;
+// Signature key sizes (in bytes) — ML-DSA (FIPS 204)
+pub const ML_DSA_44_PUBLIC_KEY_SIZE: usize = 1312;
+pub const ML_DSA_44_SECRET_KEY_SIZE: usize = 2560;
+pub const ML_DSA_44_SIGNATURE_SIZE: usize = 2420;
 
-pub const DILITHIUM3_PUBLIC_KEY_SIZE: usize = 2976;
-pub const DILITHIUM3_SECRET_KEY_SIZE: usize = 4864;
-pub const DILITHIUM3_SIGNATURE_SIZE: usize = 4978;
+pub const ML_DSA_65_PUBLIC_KEY_SIZE: usize = 1952;
+pub const ML_DSA_65_SECRET_KEY_SIZE: usize = 4032;
+pub const ML_DSA_65_SIGNATURE_SIZE: usize = 3309;
 
-pub const DILITHIUM5_PUBLIC_KEY_SIZE: usize = 3936;
-pub const DILITHIUM5_SECRET_KEY_SIZE: usize = 6096;
-pub const DILITHIUM5_SIGNATURE_SIZE: usize = 6590;
+pub const ML_DSA_87_PUBLIC_KEY_SIZE: usize = 2592;
+pub const ML_DSA_87_SECRET_KEY_SIZE: usize = 4896;
+pub const ML_DSA_87_SIGNATURE_SIZE: usize = 4627;
 
 // Maximum sizes for dynamic operations
-pub const MAX_PUBLIC_KEY_SIZE: usize = 3936;  // Largest Dilithium5 public key
-pub const MAX_SECRET_KEY_SIZE: usize = 6096;  // Largest Dilithium5 secret key
-pub const MAX_SIGNATURE_SIZE: usize = 6590;   // Largest Dilithium5 signature
+pub const MAX_PUBLIC_KEY_SIZE: usize = 2592;  // Largest ML-DSA-87 public key
+pub const MAX_SECRET_KEY_SIZE: usize = 4896;  // Largest ML-DSA-87 secret key
+pub const MAX_SIGNATURE_SIZE: usize = 4627;   // Largest ML-DSA-87 signature
 pub const MAX_SHARED_SECRET_SIZE: usize = 32; // All KEMs use 32 bytes
-pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest MlKem5 ciphertext
+pub const MAX_CIPHERTEXT_SIZE: usize = 1568;  // Largest ML-KEM-1024 ciphertext
 pub const MAX_MESSAGE_SIZE: usize = 65536;    // 64KB max message size
 ```
 
@@ -858,17 +869,17 @@ fn main() -> lib-q::Result<()> {
     lib-q::init()?;
     
     // Use specific KEM algorithm
-    let (pk, sk) = kem::keygen(KemAlgorithm::MlKem5)?;
-    let (shared, enc) = kem::encaps(KemAlgorithm::MlKem5, &pk)?;
-    let recovered = kem::decaps(KemAlgorithm::MlKem5, &sk, &enc)?;
+    let (pk, sk) = kem::keygen(KemAlgorithm::MlKem1024)?;
+    let (shared, enc) = kem::encaps(KemAlgorithm::MlKem1024, &pk)?;
+    let recovered = kem::decaps(KemAlgorithm::MlKem1024, &sk, &enc)?;
     
     assert_eq!(shared.as_ref(), recovered.as_ref());
     
-    // Use specific signature algorithm
-    let (sig_pk, sig_sk) = sig::keygen(SigAlgorithm::Dilithium5)?;
+    // Use specific signature algorithm (ML-DSA, FIPS 204)
+    let (sig_pk, sig_sk) = sig::keygen(SigAlgorithm::MlDsa87)?;
     let message = b"Message to sign";
-    let signature = sig::sign(SigAlgorithm::Dilithium5, &sig_sk, message)?;
-    let is_valid = sig::verify(SigAlgorithm::Dilithium5, &sig_pk, message, &signature)?;
+    let signature = sig::sign(SigAlgorithm::MlDsa87, &sig_sk, message)?;
+    let is_valid = sig::verify(SigAlgorithm::MlDsa87, &sig_pk, message, &signature)?;
     
     assert!(is_valid);
     println!("Algorithm-specific operations successful!");

@@ -22,7 +22,7 @@ use lib_q_sig::fn_dsa::{
     FnDsa1024,
 };
 use lib_q_sig::ml_dsa::MlDsa;
-#[cfg(feature = "slh-dsa")]
+#[cfg(all(feature = "slh-dsa-std", feature = "std"))]
 use lib_q_sig::slh_dsa::SlhDsa;
 
 /// Generate test randomness for cryptographic operations
@@ -216,9 +216,8 @@ mod ml_dsa_crypto_tests {
     }
 }
 
-/// Test end-to-end cryptographic operations for SLH-DSA
-#[cfg(feature = "slh-dsa")]
-#[cfg(feature = "std")]
+/// Test end-to-end cryptographic operations for SLH-DSA (implicit OS RNG; requires `slh-dsa-std`)
+#[cfg(all(feature = "slh-dsa-std", feature = "std"))]
 mod slh_dsa_crypto_tests {
     use lib_q_core::api::Algorithm;
 
@@ -771,10 +770,59 @@ mod security_tests {
             let message = b"Test message";
             let empty_signature = vec![];
 
-            let is_valid = ml_dsa
-                .verify(keypair.public_key(), message, &empty_signature)
-                .expect("Verification should succeed");
-            assert!(!is_valid, "Empty signature should be invalid");
+            let result = ml_dsa.verify(keypair.public_key(), message, &empty_signature);
+            assert!(
+                result.is_err(),
+                "Empty signature must be rejected with an error, not Ok(false)"
+            );
+            match result {
+                Err(lib_q_core::Error::InvalidSignatureSize { .. }) => {}
+                other => panic!("expected InvalidSignatureSize, got {:?}", other),
+            }
+        }
+    }
+
+    #[test]
+    fn test_truncated_signature_rejected_with_error() {
+        #[cfg(feature = "ml-dsa")]
+        {
+            let ml_dsa = MlDsa::ml_dsa_65();
+            let keypair = ml_dsa
+                .generate_keypair()
+                .expect("Key generation should succeed");
+            let message = b"Truncation test";
+            let mut sig = ml_dsa
+                .sign(keypair.secret_key(), message)
+                .expect("Signing should succeed");
+            sig.truncate(sig.len().saturating_sub(1));
+            let result = ml_dsa.verify(keypair.public_key(), message, &sig);
+            assert!(
+                matches!(result, Err(lib_q_core::Error::InvalidSignatureSize { .. })),
+                "truncated signature must yield InvalidSignatureSize, got {:?}",
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn test_oversized_signature_rejected_with_error() {
+        #[cfg(feature = "ml-dsa")]
+        {
+            let ml_dsa = MlDsa::ml_dsa_65();
+            let keypair = ml_dsa
+                .generate_keypair()
+                .expect("Key generation should succeed");
+            let message = b"Oversize test";
+            let mut sig = ml_dsa
+                .sign(keypair.secret_key(), message)
+                .expect("Signing should succeed");
+            sig.push(0u8);
+            let result = ml_dsa.verify(keypair.public_key(), message, &sig);
+            assert!(
+                matches!(result, Err(lib_q_core::Error::InvalidSignatureSize { .. })),
+                "oversized signature must yield InvalidSignatureSize, got {:?}",
+                result
+            );
         }
     }
 

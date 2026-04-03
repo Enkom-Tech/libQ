@@ -426,6 +426,8 @@ impl Signature for MlDsa {
         })
     }
 
+    /// `signature` must equal the fixed ML-DSA serialized length for this variant. Shorter or longer
+    /// inputs must not be padded or truncated; they are rejected with [`InvalidSignatureSize`](lib_q_core::Error::InvalidSignatureSize).
     fn verify(&self, public_key: &SigPublicKey, message: &[u8], signature: &[u8]) -> Result<bool> {
         use lib_q_ml_dsa::types::{
             MLDSASignature,
@@ -448,6 +450,18 @@ impl Signature for MlDsa {
             });
         }
 
+        let expected_sig_size = match self.variant {
+            MlDsaVariant::MlDsa44 => MLDSA44_SIGNATURE_SIZE,
+            MlDsaVariant::MlDsa65 => MLDSA65_SIGNATURE_SIZE,
+            MlDsaVariant::MlDsa87 => MLDSA87_SIGNATURE_SIZE,
+        };
+        if signature.len() != expected_sig_size {
+            return Err(lib_q_core::Error::InvalidSignatureSize {
+                expected: expected_sig_size,
+                actual: signature.len(),
+            });
+        }
+
         // Create verification key and verify for the specific variant
         let result = match self.variant {
             MlDsaVariant::MlDsa44 => {
@@ -456,7 +470,7 @@ impl Signature for MlDsa {
                 let verification_key = MLDSAVerificationKey::new(vk_bytes);
 
                 let mut sig_bytes = [0u8; MLDSA44_SIGNATURE_SIZE];
-                sig_bytes[..signature.len().min(MLDSA44_SIGNATURE_SIZE)].copy_from_slice(signature);
+                sig_bytes.copy_from_slice(signature);
                 let ml_dsa_signature = MLDSASignature::new(sig_bytes);
 
                 ml_dsa_44::portable::verify(
@@ -473,7 +487,7 @@ impl Signature for MlDsa {
                 let verification_key = MLDSAVerificationKey::new(vk_bytes);
 
                 let mut sig_bytes = [0u8; MLDSA65_SIGNATURE_SIZE];
-                sig_bytes[..signature.len().min(MLDSA65_SIGNATURE_SIZE)].copy_from_slice(signature);
+                sig_bytes.copy_from_slice(signature);
                 let ml_dsa_signature = MLDSASignature::new(sig_bytes);
 
                 ml_dsa_65::portable::verify(
@@ -490,7 +504,7 @@ impl Signature for MlDsa {
                 let verification_key = MLDSAVerificationKey::new(vk_bytes);
 
                 let mut sig_bytes = [0u8; MLDSA87_SIGNATURE_SIZE];
-                sig_bytes[..signature.len().min(MLDSA87_SIGNATURE_SIZE)].copy_from_slice(signature);
+                sig_bytes.copy_from_slice(signature);
                 let ml_dsa_signature = MLDSASignature::new(sig_bytes);
 
                 ml_dsa_87::portable::verify(

@@ -1,25 +1,43 @@
-//! No_std test example for lib-q-keccak
+//! Smoke test for `lib-q-keccak` (no_std–friendly crate; this example runs with std for the workspace).
 //!
-//! This example demonstrates that the keccak library works correctly in no_std mode
-//! by running the same test vectors that are used in the unit tests.
+//! Run from the workspace root:
+//! `cargo run -p lib-q-examples --example keccak_no_std_test`
 //!
-//! Run with: cargo run --example keccak_no_std_test --no-default-features
-
-// NOTE: This example is currently disabled because the low-level keccak functions
-// (f200, f400, f800, f1600) are not part of the public API in the current architecture.
-// These functions may be available in the lib-q-hash crate but are not re-exported
-// through the main lib-q crate.
+//! Vector matches the KeccakCodePackage-style test used in `lib-q-keccak` crate documentation.
 
 fn main() {
-    println!("This example is currently disabled due to API changes.");
-    println!(
-        "The low-level keccak functions (f200, f400, f800, f1600) are not part of the public API."
-    );
-    println!("These functions may be available in the lib-q-hash crate but are not re-exported");
-    println!("through the main lib-q crate.");
-    println!();
-    println!("To use keccak functions, use the hash context API instead:");
-    println!("  use libq::{{create_hash_context, Algorithm}};");
-    println!("  let mut hash_ctx = create_hash_context();");
-    println!("  let result = hash_ctx.hash(Algorithm::Keccak256, data);");
+    let mut data = [0u64; 25];
+
+    lib_q_keccak::f1600(&mut data);
+
+    let expected = [
+        0xF1258F7940E1DDE7,
+        0x84D5CCF933C0478A,
+        0xD598261EA65AA9EE,
+        0xBD1547306F80494D,
+        0x8B284E056253D057,
+        0xFF97A42D7F8E6FD4,
+        0x90FEE5A0A44647C4,
+        0x8C5BDA0CD6192E76,
+        0xAD30A6F71B19059C,
+        0x30935AB7D08FFC64,
+        0xEB5AA93F2317D635,
+        0xA9A6E6260D712103,
+        0x81A57C16DBCF555F,
+        0x43B831CD0347C826,
+        0x01F22F1A11A5569F,
+        0x05E5635A21D9AE61,
+        0x64BEFEF28CC970F2,
+        0x613670957BC46611,
+        0xB87C5A554FD00ECB,
+        0x8C3EE88A1CCF32C8,
+        0x940C7922AE3A2614,
+        0x1841F924A2C509E4,
+        0x16F53526E70465C2,
+        0x75F644E97F30A13B,
+        0xEAF1FF7B5CECA249,
+    ];
+
+    assert_eq!(data, expected, "f1600 zero-state vector mismatch");
+    println!("keccak_no_std_test: f1600 zero-state vector OK");
 }

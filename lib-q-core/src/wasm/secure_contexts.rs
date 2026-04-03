@@ -35,6 +35,7 @@ use crate::traits::{
     Nonce,
     // SigPublicKey,
 };
+use crate::wasm::conversions::WASM_SIGNATURE_ALGORITHM_IDS;
 use crate::wasm::error::{
     convert_result,
     // error_to_js_value,
@@ -410,8 +411,7 @@ impl SecureWasmSignatureContext {
 
     /// Get supported algorithms
     pub fn get_supported_algorithms(&self) -> Result<JsValue, JsValue> {
-        let algorithms = alloc::vec!["ml-dsa-44", "ml-dsa-65", "ml-dsa-87", "fn-dsa"];
-        match secure_serialize(&algorithms) {
+        match secure_serialize(&WASM_SIGNATURE_ALGORITHM_IDS) {
             Ok(value) => Ok(value),
             Err(error) => Err(error),
         }
