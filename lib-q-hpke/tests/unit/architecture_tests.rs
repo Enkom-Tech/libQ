@@ -172,6 +172,8 @@ fn test_provider_traits() {
 
         assert!(algorithms.aeads.contains(&HpkeAead::Saturnin256));
         assert!(algorithms.aeads.contains(&HpkeAead::Shake256));
+        #[cfg(feature = "duplex-sponge-aead")]
+        assert!(algorithms.aeads.contains(&HpkeAead::DuplexSpongeAead));
         assert!(algorithms.aeads.contains(&HpkeAead::Export));
     }
 

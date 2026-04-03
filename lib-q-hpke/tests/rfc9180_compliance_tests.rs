@@ -115,6 +115,11 @@ fn test_aead_properties() {
     assert_eq!(HpkeAead::Shake256.nonce_len(), 16);
     assert_eq!(HpkeAead::Shake256.tag_len(), 16);
 
+    // Duplex-sponge AEAD (lib-Q extension)
+    assert_eq!(HpkeAead::DuplexSpongeAead.key_len(), 32);
+    assert_eq!(HpkeAead::DuplexSpongeAead.nonce_len(), 16);
+    assert_eq!(HpkeAead::DuplexSpongeAead.tag_len(), 32);
+
     // Test Export mode
     assert_eq!(HpkeAead::Export.key_len(), 0);
     assert_eq!(HpkeAead::Export.nonce_len(), 0);

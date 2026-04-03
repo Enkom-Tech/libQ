@@ -1,4 +1,4 @@
-//! Supporting Traits for the pqcrypto crates.
+//! Shared traits for post-quantum KEM and signature types used by lib-Q HQC tooling.
 
 #![no_std]
 

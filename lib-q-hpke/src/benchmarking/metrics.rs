@@ -82,6 +82,8 @@ pub enum AlgorithmType {
     Saturnin256,
     /// SHAKE256 AEAD
     Shake256Aead,
+    /// Duplex-sponge AEAD (Keccak-f[1600])
+    DuplexSpongeAead,
     /// Export-only
     ExportOnly,
 }
@@ -265,6 +267,7 @@ impl From<HpkeAead> for AlgorithmType {
         match aead {
             HpkeAead::Saturnin256 => AlgorithmType::Saturnin256,
             HpkeAead::Shake256 => AlgorithmType::Shake256Aead,
+            HpkeAead::DuplexSpongeAead => AlgorithmType::DuplexSpongeAead,
             HpkeAead::Export => AlgorithmType::ExportOnly,
         }
     }

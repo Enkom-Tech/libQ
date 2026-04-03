@@ -1,14 +1,20 @@
 [package]
-name = "traits"
-version = "0.3.5"
-authors = ["Thom Wiggers <thom@thomwiggers.nl>"]
-edition = "2024"
+name = "lib-q-hqc-traits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 description = "Shared traits for post-quantum cryptographic primitives"
-license = "MIT OR Apache-2.0"
-homepage = "https://github.com/rustpq/"
-repository = "https://github.com/rustpq/pqclean/"
-keywords = ["cryptography", "post-quantum", "security"]
+keywords.workspace = true
 categories = ["cryptography", "no-std"]
+
+[lib]
+name = "lib_q_hqc_traits"
+path = "src/lib.rs"
 
 [dependencies]
 

@@ -411,7 +411,7 @@ mod tests {
             #[cfg(feature = "cb-kem")]
             let count = count + 5; // CB-KEM-348864, CB-KEM-460896, CB-KEM-6688128, CB-KEM-6960119, CB-KEM-8192128
             #[cfg(feature = "hqc")]
-            let count = count + 3; // HQC-128 (planned), HQC-192 (planned), HQC-256 (planned)
+            let count = count + 3; // HQC-128, HQC-192, HQC-256
             count
         };
 

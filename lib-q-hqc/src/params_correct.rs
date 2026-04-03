@@ -5,6 +5,8 @@
 
 use core::fmt;
 
+use lib_q_types::hqc;
+
 /// HQC parameter set trait
 pub trait HqcParams: Clone + fmt::Debug + PartialEq {
     /// Security level in bits
@@ -38,11 +40,11 @@ pub trait HqcParams: Clone + fmt::Debug + PartialEq {
     /// FFT exponent (2^FFT points)
     const FFT: usize;
 
-    /// Secret key size in bytes
+    /// Serialized KEM secret key size in bytes (same as `lib_q_types::hqc` for this parameter set).
     const SECRET_KEY_BYTES: usize;
-    /// Public key size in bytes
+    /// KEM public key size in bytes (same as `lib_q_types::hqc`).
     const PUBLIC_KEY_BYTES: usize;
-    /// Ciphertext size in bytes
+    /// KEM ciphertext size in bytes (same as `lib_q_types::hqc`).
     const CIPHERTEXT_BYTES: usize;
     /// Shared secret size in bytes
     const SHARED_SECRET_BYTES: usize;
@@ -101,9 +103,9 @@ impl HqcParams for Hqc1Params {
     const G: usize = 31; // Matches RS_POLY_COEFS array length
     const FFT: usize = 4;
 
-    const SECRET_KEY_BYTES: usize = 2321; // Reference: CRYPTO_SECRETKEYBYTES
-    const PUBLIC_KEY_BYTES: usize = 2241; // Reference: CRYPTO_PUBLICKEYBYTES = 32 + VEC_N_SIZE_BYTES
-    const CIPHERTEXT_BYTES: usize = 4433; // Reference: CRYPTO_CIPHERTEXTBYTES (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES)
+    const SECRET_KEY_BYTES: usize = hqc::HQC128_SECRET_KEY_BYTES;
+    const PUBLIC_KEY_BYTES: usize = hqc::HQC128_PUBLIC_KEY_BYTES;
+    const CIPHERTEXT_BYTES: usize = hqc::HQC128_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
 
     const SEED_BYTES: usize = 32;
@@ -314,9 +316,9 @@ impl HqcParams for Hqc3Params {
     const G: usize = 33;
     const FFT: usize = 5;
 
-    const SECRET_KEY_BYTES: usize = 4586; // NIST Oct 2024 specification
-    const PUBLIC_KEY_BYTES: usize = 4522; // NIST Oct 2024 specification
-    const CIPHERTEXT_BYTES: usize = 8978; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
+    const SECRET_KEY_BYTES: usize = hqc::HQC192_SECRET_KEY_BYTES;
+    const PUBLIC_KEY_BYTES: usize = hqc::HQC192_PUBLIC_KEY_BYTES;
+    const CIPHERTEXT_BYTES: usize = hqc::HQC192_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
 
     const SEED_BYTES: usize = 32;
@@ -527,9 +529,9 @@ impl HqcParams for Hqc5Params {
     const G: usize = 59;
     const FFT: usize = 5;
 
-    const SECRET_KEY_BYTES: usize = 7317; // NIST Oct 2024 specification
-    const PUBLIC_KEY_BYTES: usize = 7245; // NIST Oct 2024 specification
-    const CIPHERTEXT_BYTES: usize = 14421; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
+    const SECRET_KEY_BYTES: usize = hqc::HQC256_SECRET_KEY_BYTES;
+    const PUBLIC_KEY_BYTES: usize = hqc::HQC256_PUBLIC_KEY_BYTES;
+    const CIPHERTEXT_BYTES: usize = hqc::HQC256_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
 
     const SEED_BYTES: usize = 32;
@@ -734,6 +736,8 @@ pub const fn bitmask(a: usize, size: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_types::hqc;
+
     use super::*;
 
     #[test]
@@ -743,9 +747,9 @@ mod tests {
         assert_eq!(Hqc1Params::N2, 384); // Reference parameter
         assert_eq!(Hqc1Params::N1N2, 17664); // Reference: 46 * 384
         assert_eq!(Hqc1Params::K, 16);
-        assert_eq!(Hqc1Params::SECRET_KEY_BYTES, 2321); // Reference: CRYPTO_SECRETKEYBYTES
-        assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, 2241); // Reference: CRYPTO_PUBLICKEYBYTES
-        assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, 4433); // Reference: CRYPTO_CIPHERTEXTBYTES
+        assert_eq!(Hqc1Params::SECRET_KEY_BYTES, hqc::HQC128_SECRET_KEY_BYTES);
+        assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, hqc::HQC128_PUBLIC_KEY_BYTES);
+        assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, hqc::HQC128_CIPHERTEXT_BYTES);
         assert_eq!(Hqc1Params::SHARED_SECRET_BYTES, 32);
     }
 
@@ -756,9 +760,9 @@ mod tests {
         assert_eq!(Hqc3Params::N2, 640);
         assert_eq!(Hqc3Params::N1N2, 35840);
         assert_eq!(Hqc3Params::K, 24);
-        assert_eq!(Hqc3Params::SECRET_KEY_BYTES, 4586);
-        assert_eq!(Hqc3Params::PUBLIC_KEY_BYTES, 4522);
-        assert_eq!(Hqc3Params::CIPHERTEXT_BYTES, 8978);
+        assert_eq!(Hqc3Params::SECRET_KEY_BYTES, hqc::HQC192_SECRET_KEY_BYTES);
+        assert_eq!(Hqc3Params::PUBLIC_KEY_BYTES, hqc::HQC192_PUBLIC_KEY_BYTES);
+        assert_eq!(Hqc3Params::CIPHERTEXT_BYTES, hqc::HQC192_CIPHERTEXT_BYTES);
         assert_eq!(Hqc3Params::SHARED_SECRET_BYTES, 32);
     }
 
@@ -769,9 +773,9 @@ mod tests {
         assert_eq!(Hqc5Params::N2, 640);
         assert_eq!(Hqc5Params::N1N2, 57600);
         assert_eq!(Hqc5Params::K, 32);
-        assert_eq!(Hqc5Params::SECRET_KEY_BYTES, 7317);
-        assert_eq!(Hqc5Params::PUBLIC_KEY_BYTES, 7245);
-        assert_eq!(Hqc5Params::CIPHERTEXT_BYTES, 14421);
+        assert_eq!(Hqc5Params::SECRET_KEY_BYTES, hqc::HQC256_SECRET_KEY_BYTES);
+        assert_eq!(Hqc5Params::PUBLIC_KEY_BYTES, hqc::HQC256_PUBLIC_KEY_BYTES);
+        assert_eq!(Hqc5Params::CIPHERTEXT_BYTES, hqc::HQC256_CIPHERTEXT_BYTES);
         assert_eq!(Hqc5Params::SHARED_SECRET_BYTES, 32);
     }
 

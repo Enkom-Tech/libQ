@@ -19,13 +19,10 @@ pub trait SecretKey {
 
 /// A signed message.
 ///
-/// This object contains both the signed message and the signature on it.
-/// If you use this struct, you no longer should send the plain text along
-/// with it. The [`open`] methods make sure that you will not
-/// process invalid ciphertexts by not returning the plain text if the signature
-/// is invalid.
-///
-/// [`open`]: https://docs.rs/pqcrypto/0.7.0/pqcrypto/sign/sphincsshake256128ssimple/fn.open.html
+/// This object contains both the message and the signature. Callers should treat
+/// the authenticated payload as available only after verification: APIs that
+/// verify and return the message (often named `open` or similar) should not
+/// expose plaintext when the signature is invalid.
 pub trait SignedMessage {
     fn as_bytes(&self) -> &[u8];
     fn from_bytes(bytes: &[u8]) -> Result<Self>

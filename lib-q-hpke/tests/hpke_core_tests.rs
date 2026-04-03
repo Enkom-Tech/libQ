@@ -354,6 +354,10 @@ fn test_hpke_algorithm_support() {
     // Test AEAD support
     assert!(provider.supports_aead(HpkeAead::Saturnin256));
     assert!(provider.supports_aead(HpkeAead::Shake256));
+    #[cfg(feature = "duplex-sponge-aead")]
+    assert!(provider.supports_aead(HpkeAead::DuplexSpongeAead));
+    #[cfg(not(feature = "duplex-sponge-aead"))]
+    assert!(!provider.supports_aead(HpkeAead::DuplexSpongeAead));
     assert!(provider.supports_aead(HpkeAead::Export));
 }
 

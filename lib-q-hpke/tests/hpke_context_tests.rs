@@ -419,7 +419,12 @@ fn test_hpke_different_cipher_suites() {
     ];
 
     // Test all supported AEAD algorithms
-    let aeads = vec![HpkeAead::Saturnin256, HpkeAead::Shake256, HpkeAead::Export];
+    let aeads = vec![
+        HpkeAead::Saturnin256,
+        HpkeAead::Shake256,
+        HpkeAead::DuplexSpongeAead,
+        HpkeAead::Export,
+    ];
 
     // Test combinations
     for kem in &kems {
@@ -492,6 +497,10 @@ fn test_hpke_algorithm_properties() {
     assert_eq!(HpkeAead::Shake256.key_len(), 32);
     assert_eq!(HpkeAead::Shake256.nonce_len(), 16);
     assert_eq!(HpkeAead::Shake256.tag_len(), 16);
+
+    assert_eq!(HpkeAead::DuplexSpongeAead.key_len(), 32);
+    assert_eq!(HpkeAead::DuplexSpongeAead.nonce_len(), 16);
+    assert_eq!(HpkeAead::DuplexSpongeAead.tag_len(), 32);
 
     assert_eq!(HpkeAead::Export.key_len(), 0);
     assert_eq!(HpkeAead::Export.nonce_len(), 0);

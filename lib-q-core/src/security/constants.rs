@@ -3,6 +3,8 @@
 //! This module provides security-related constants used throughout the library
 //! for validation and configuration.
 
+use lib_q_types::hqc;
+
 use crate::api::Algorithm;
 use crate::error::Result;
 
@@ -173,6 +175,29 @@ impl SecurityConstants {
                 }
             }
 
+            // HQC KEM — sizes from `lib_q_types::hqc` (single source of truth).
+            Algorithm::Hqc128 => {
+                if is_secret {
+                    hqc::HQC128_SECRET_KEY_BYTES
+                } else {
+                    hqc::HQC128_PUBLIC_KEY_BYTES
+                }
+            }
+            Algorithm::Hqc192 => {
+                if is_secret {
+                    hqc::HQC192_SECRET_KEY_BYTES
+                } else {
+                    hqc::HQC192_PUBLIC_KEY_BYTES
+                }
+            }
+            Algorithm::Hqc256 => {
+                if is_secret {
+                    hqc::HQC256_SECRET_KEY_BYTES
+                } else {
+                    hqc::HQC256_PUBLIC_KEY_BYTES
+                }
+            }
+
             // Signature algorithms
             Algorithm::MlDsa44 => {
                 if is_secret {
@@ -299,6 +324,10 @@ impl SecurityConstants {
             Algorithm::CbKem6960119 => 194, // CB-KEM-6960119 ciphertext size
             Algorithm::CbKem8192128 => 208, // CB-KEM-8192128 ciphertext size
 
+            Algorithm::Hqc128 => hqc::HQC128_CIPHERTEXT_BYTES,
+            Algorithm::Hqc192 => hqc::HQC192_CIPHERTEXT_BYTES,
+            Algorithm::Hqc256 => hqc::HQC256_CIPHERTEXT_BYTES,
+
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {
                     algorithm: "Algorithm does not produce ciphertext",
@@ -376,6 +405,8 @@ impl SecurityConstants {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_types::hqc;
+
     use super::*;
 
     #[test]
@@ -411,6 +442,19 @@ mod tests {
             .get_expected_key_size(Algorithm::MlDsa65, true)
             .unwrap();
         assert_eq!(secret_size, 4032);
+
+        assert_eq!(
+            constants
+                .get_expected_key_size(Algorithm::Hqc128, false)
+                .unwrap(),
+            hqc::HQC128_PUBLIC_KEY_BYTES
+        );
+        assert_eq!(
+            constants
+                .get_expected_key_size(Algorithm::Hqc128, true)
+                .unwrap(),
+            hqc::HQC128_SECRET_KEY_BYTES
+        );
 
         // Test hash algorithm (should fail)
         let result = constants.get_expected_key_size(Algorithm::Sha3_256, false);
@@ -465,6 +509,25 @@ mod tests {
                 .get_expected_ciphertext_size(Algorithm::DawnBeta1024)
                 .unwrap(),
             1043
+        );
+
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::Hqc128)
+                .unwrap(),
+            hqc::HQC128_CIPHERTEXT_BYTES
+        );
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::Hqc192)
+                .unwrap(),
+            hqc::HQC192_CIPHERTEXT_BYTES
+        );
+        assert_eq!(
+            constants
+                .get_expected_ciphertext_size(Algorithm::Hqc256)
+                .unwrap(),
+            hqc::HQC256_CIPHERTEXT_BYTES
         );
 
         // Test non-KEM algorithm (should fail)

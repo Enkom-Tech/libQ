@@ -49,6 +49,7 @@ ml-dsa = ["dep:lib-q-ml-dsa"]
 hash = ["lib-q-hash/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
 shake256 = ["lib-q-aead/shake256"]
+duplex-sponge-aead = ["lib-q-aead/duplex-sponge-aead"]
 
 # WebAssembly support
 wasm = ["getrandom/wasm_js"]

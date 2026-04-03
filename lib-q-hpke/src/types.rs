@@ -145,6 +145,8 @@ pub enum HpkeAead {
     Saturnin256,
     /// SHAKE256-based construction
     Shake256,
+    /// Keccak-f[1600] duplex-sponge AEAD (lib-q; non-standard mode, 32-byte tag)
+    DuplexSpongeAead,
     /// Export-only mode
     Export,
 }
@@ -155,6 +157,7 @@ impl HpkeAead {
         match self {
             Self::Saturnin256 => 0x0004,
             Self::Shake256 => 0x0005,
+            Self::DuplexSpongeAead => 0x0006,
             Self::Export => 0xFFFF,
         }
     }
@@ -164,6 +167,7 @@ impl HpkeAead {
         match self {
             Self::Saturnin256 => 32,
             Self::Shake256 => 32,
+            Self::DuplexSpongeAead => 32,
             Self::Export => 0,
         }
     }
@@ -173,6 +177,7 @@ impl HpkeAead {
         match self {
             Self::Saturnin256 => 16,
             Self::Shake256 => 16,
+            Self::DuplexSpongeAead => 16,
             Self::Export => 0,
         }
     }
@@ -182,6 +187,7 @@ impl HpkeAead {
         match self {
             Self::Saturnin256 => 16,
             Self::Shake256 => 16,
+            Self::DuplexSpongeAead => 32,
             Self::Export => 0,
         }
     }
@@ -333,6 +339,8 @@ pub struct HpkeSenderContext {
     pub key: Vec<u8>,
     /// Base nonce
     pub nonce: Vec<u8>,
+    /// AEAD algorithm from the negotiated cipher suite
+    pub aead: HpkeAead,
     /// Encapsulated key to be sent to receiver
     pub encapsulated_key: Vec<u8>,
     /// Sequence number
@@ -351,12 +359,14 @@ impl HpkeSenderContext {
         key: Vec<u8>,
         nonce: Vec<u8>,
         encapsulated_key: Vec<u8>,
+        aead: HpkeAead,
     ) -> Self {
         Self {
             shared_secret,
             exporter_secret,
             key,
             nonce,
+            aead,
             encapsulated_key,
             sequence_number: 0,
             max_sequence_number: u32::MAX - 1, // Leave room for overflow check
@@ -406,6 +416,8 @@ pub struct HpkeReceiverContext {
     pub key: Vec<u8>,
     /// Base nonce
     pub nonce: Vec<u8>,
+    /// AEAD algorithm from the negotiated cipher suite
+    pub aead: HpkeAead,
     /// Sequence number
     pub sequence_number: u32,
     /// Maximum sequence number before context must be rekeyed
@@ -421,12 +433,14 @@ impl HpkeReceiverContext {
         exporter_secret: Vec<u8>,
         key: Vec<u8>,
         nonce: Vec<u8>,
+        aead: HpkeAead,
     ) -> Self {
         Self {
             shared_secret,
             exporter_secret,
             key,
             nonce,
+            aead,
             sequence_number: 0,
             max_sequence_number: u32::MAX - 1, // Leave room for overflow check
             state: HpkeContextState::Active,

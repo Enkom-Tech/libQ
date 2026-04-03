@@ -15,6 +15,7 @@ categories = ["cryptography", "wasm"]
 [dependencies]
 # Core libQ dependencies
 lib-q-core = { path = "../lib-q-core" }
+lib-q-types = { path = "../lib-q-types", default-features = false }
 lib-q-sha3 = { path = "../lib-q-sha3" }
 lib-q-keccak = { path = "../lib-q-keccak" }
 lib-q-random = { path = "../lib-q-random", optional = true }

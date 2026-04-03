@@ -269,6 +269,7 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
         exporter_secret,
         key,
         nonce,
+        aead: cipher_suite.aead,
         encapsulated_key: final_encapsulated_key,
         sequence_number: 0,
         max_sequence_number: u32::MAX - 1,
@@ -417,6 +418,7 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
         exporter_secret,
         key,
         nonce,
+        aead: cipher_suite.aead,
         sequence_number: 0,
         max_sequence_number: u32::MAX - 1,
         state: HpkeContextState::Active,
@@ -576,7 +578,7 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
     )?;
 
     // Encrypt the message
-    let ciphertext = seal_message(&key, &nonce, 0, aad, plaintext, provider)?;
+    let ciphertext = seal_message(cipher_suite.aead, &key, &nonce, 0, aad, plaintext, provider)?;
 
     // Combine encapsulated keys for Auth modes
     let final_encapsulated_key = if let Some(auth_encap) = auth_encapsulated_key {
@@ -650,6 +652,7 @@ pub fn open_with_mode<P: HpkeCryptoProvider>(
 
     // Decrypt the message
     open_message(
+        receiver_ctx.aead,
         &receiver_ctx.key,
         &receiver_ctx.nonce,
         0,
@@ -661,6 +664,7 @@ pub fn open_with_mode<P: HpkeCryptoProvider>(
 
 /// Seal (encrypt) a message
 pub fn seal_message<P: HpkeCryptoProvider>(
+    aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
     sequence_number: u32,
@@ -671,14 +675,14 @@ pub fn seal_message<P: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    // Use Saturnin-256 as the AEAD
     provider
-        .seal(HpkeAead::Saturnin256, key, &nonce, aad, plaintext)
+        .seal(aead, key, &nonce, aad, plaintext)
         .map_err(|e| e.into())
 }
 
 /// Open (decrypt) a message
 pub fn open_message<P: HpkeCryptoProvider>(
+    aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
     sequence_number: u32,
@@ -689,9 +693,8 @@ pub fn open_message<P: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    // Use Saturnin-256 as the AEAD
     provider
-        .open(HpkeAead::Saturnin256, key, &nonce, aad, ciphertext)
+        .open(aead, key, &nonce, aad, ciphertext)
         .map_err(|e| e.into())
 }
 

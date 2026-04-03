@@ -123,8 +123,12 @@ fn test_suite_id_all_kdfs() {
 /// Test suite ID construction with all AEAD variants
 #[test]
 fn test_suite_id_all_aeads() {
-    let aeads = [HpkeAead::Saturnin256, HpkeAead::Shake256];
-    let expected_ids = [0x0004u16, 0x0005u16];
+    let aeads = [
+        HpkeAead::Saturnin256,
+        HpkeAead::Shake256,
+        HpkeAead::DuplexSpongeAead,
+    ];
+    let expected_ids = [0x0004u16, 0x0005u16, 0x0006u16];
 
     for (aead, expected_id) in aeads.iter().zip(expected_ids.iter()) {
         let cipher_suite = HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfShake256, *aead);

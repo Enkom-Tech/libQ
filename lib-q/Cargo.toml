@@ -27,7 +27,7 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa" }
 lib-q-sig = { path = "../lib-q-sig", features = ["std", "ml-dsa", "slh-dsa"] }
 lib-q-hash = { path = "../lib-q-hash" }
 lib-q-aead = { path = "../lib-q-aead" }
-lib-q-hqc = { path = "../lib-q-hqc", optional = true }
+lib-q-hqc = { path = "../lib-q-hqc", optional = true, default-features = false }
 lib-q-hpke = { path = "../lib-q-hpke", optional = true }
 lib-q-utils = { path = "../lib-q-utils" }
 lib-q-zkp = { path = "../lib-q-zkp" }
@@ -90,7 +90,7 @@ slh-dsa = ["lib-q-sig/slh-dsa", "lib-q-core/slh-dsa"]
 slh-dsa-std = ["lib-q-sig/slh-dsa-std", "lib-q-core/slh-dsa"]
 cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
 relaxed_entropy_validation = ["lib-q-core/relaxed_entropy_validation"]
-hqc = ["lib-q-kem/hqc"]
+hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-kem/hqc"]
 fn-dsa = ["dep:lib-q-fn-dsa", "lib-q-sig/fn-dsa"]
 
 # New Post-Quantum Algorithms
@@ -102,6 +102,7 @@ dawn = ["lib-q-kem/dawn"]
 
 # Protocol implementations
 hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
+hpke-duplex-aead = ["hpke", "lib-q-hpke/duplex-sponge-aead"]
 zkp = ["lib-q-zkp/zkp"]
 
 # Random number generation features

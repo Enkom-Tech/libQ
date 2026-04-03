@@ -28,6 +28,7 @@ members = [
     "lib-q-random",
     "lib-q-dawn",
     "lib-q-hqc",
+    "lib-q-hqc/traits",
     "lib-q-stark",
     "lib-q-stark-air",
     "lib-q-stark-challenger",

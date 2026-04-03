@@ -80,6 +80,11 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(crate::error::Error::NotImplemented {
+                    feature: "HQC implementations are provided by the main lib-q crate".to_string(),
+                })
+            }
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -120,6 +125,11 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(crate::error::Error::NotImplemented {
+                    feature: "HQC implementations are provided by the main lib-q crate".to_string(),
+                })
+            }
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -159,6 +169,11 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(crate::error::Error::NotImplemented {
+                    feature: "HQC implementations are provided by the main lib-q crate".to_string(),
+                })
+            }
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -193,6 +208,11 @@ impl KemOperations for LibQKemProvider {
             Algorithm::DawnBeta1024 => Err(crate::error::Error::NotImplemented {
                 feature: "DAWN implementations are provided by the main lib-q crate".to_string(),
             }),
+            Algorithm::Hqc128 | Algorithm::Hqc192 | Algorithm::Hqc256 => {
+                Err(crate::error::Error::NotImplemented {
+                    feature: "HQC implementations are provided by the main lib-q crate".to_string(),
+                })
+            }
             _ => Err(crate::error::Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),

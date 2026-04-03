@@ -6,6 +6,8 @@
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
+pub mod hqc;
+
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 

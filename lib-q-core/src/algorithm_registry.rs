@@ -195,8 +195,8 @@ impl AlgorithmRegistry {
             algorithm: Algorithm::MlDsa44,
             category: AlgorithmCategory::Signature,
             security_level: 1,
-            name: "MlDsa44",
-            description: "ML-DSA Level 1 (128-bit security)",
+            name: "ML-DSA-44",
+            description: "CRYSTALS-ML-DSA Level 1 (128-bit security)",
             enabled: true,
         });
 
@@ -204,8 +204,8 @@ impl AlgorithmRegistry {
             algorithm: Algorithm::MlDsa65,
             category: AlgorithmCategory::Signature,
             security_level: 3,
-            name: "MlDsa65",
-            description: "ML-DSA Level 3 (192-bit security)",
+            name: "ML-DSA-65",
+            description: "CRYSTALS-ML-DSA Level 3 (192-bit security)",
             enabled: true,
         });
 
@@ -213,8 +213,8 @@ impl AlgorithmRegistry {
             algorithm: Algorithm::MlDsa87,
             category: AlgorithmCategory::Signature,
             security_level: 4,
-            name: "MlDsa87",
-            description: "ML-DSA Level 4 (256-bit security)",
+            name: "ML-DSA-87",
+            description: "CRYSTALS-ML-DSA Level 4 (256-bit security)",
             enabled: true,
         });
 
@@ -297,34 +297,6 @@ impl AlgorithmRegistry {
             security_level: 4,
             name: "SLH-DSA-SHAKE256-256f-Robust",
             description: "SLH-DSA SHAKE256 Level 4 (256-bit security)",
-            enabled: true,
-        });
-
-        // ML-DSA algorithms
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::MlDsa44,
-            category: AlgorithmCategory::Signature,
-            security_level: 1,
-            name: "ML-DSA-44",
-            description: "CRYSTALS-ML-DSA Level 1 (128-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::MlDsa65,
-            category: AlgorithmCategory::Signature,
-            security_level: 3,
-            name: "ML-DSA-65",
-            description: "CRYSTALS-ML-DSA Level 3 (192-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::MlDsa87,
-            category: AlgorithmCategory::Signature,
-            security_level: 4,
-            name: "ML-DSA-87",
-            description: "CRYSTALS-ML-DSA Level 4 (256-bit security)",
             enabled: true,
         });
 

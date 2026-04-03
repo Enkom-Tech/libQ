@@ -1132,6 +1132,7 @@ dependencies = [
  "lib-q-keccak",
  "lib-q-random",
  "lib-q-sha3",
+ "lib-q-types",
  "rand 0.10.0",
  "rand_core 0.10.0",
  "serde",
@@ -1139,6 +1140,10 @@ dependencies = [
  "wasm-bindgen",
  "zeroize",
 ]
+
+[[package]]
+name = "lib-q-hqc-traits"
+version = "0.0.2"
 
 [[package]]
 name = "lib-q-intrinsics"

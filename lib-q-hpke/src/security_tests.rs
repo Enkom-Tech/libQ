@@ -191,6 +191,10 @@ mod tests {
         assert!(provider.supports_aead(HpkeAead::Saturnin256));
         // SHAKE256 AEAD is implemented and supported
         assert!(provider.supports_aead(HpkeAead::Shake256));
+        #[cfg(feature = "duplex-sponge-aead")]
+        assert!(provider.supports_aead(HpkeAead::DuplexSpongeAead));
+        #[cfg(not(feature = "duplex-sponge-aead"))]
+        assert!(!provider.supports_aead(HpkeAead::DuplexSpongeAead));
         assert!(provider.supports_aead(HpkeAead::Export));
     }
 

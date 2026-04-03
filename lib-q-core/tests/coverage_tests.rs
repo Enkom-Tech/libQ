@@ -285,6 +285,9 @@ fn test_security_constants_extended_algorithms() {
         Algorithm::CbKem6688128,
         Algorithm::CbKem6960119,
         Algorithm::CbKem8192128,
+        Algorithm::Hqc128,
+        Algorithm::Hqc192,
+        Algorithm::Hqc256,
     ];
     for a in kem_algorithms {
         let pk = c.get_expected_key_size(a, false).unwrap();
@@ -312,7 +315,6 @@ fn test_security_constants_extended_algorithms() {
         assert!(c.get_expected_signature_size(a).unwrap() > 0);
     }
 
-    assert!(c.get_expected_key_size(Algorithm::Hqc128, false).is_err());
     assert!(c.get_expected_ciphertext_size(Algorithm::Sha3_256).is_err());
     assert!(c.get_expected_signature_size(Algorithm::MlKem512).is_err());
 }

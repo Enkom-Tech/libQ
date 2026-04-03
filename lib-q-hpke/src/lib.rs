@@ -28,6 +28,7 @@
 //! ### Authenticated Encryption (AEAD)
 //! - **Saturnin-256**: Post-quantum symmetric encryption, 32-byte keys, 16-byte nonces
 //! - **SHAKE256-based**: Custom AEAD construction using SHAKE256
+//! - **Duplex-sponge** (optional `duplex-sponge-aead` feature): Keccak-f[1600] duplex AEAD via `lib-q-aead`, 32-byte tag
 //! - **Export-only**: For key material export without encryption
 //!
 //! ## Quick Start
@@ -232,6 +233,16 @@ impl Default for HpkeContext {
 }
 
 impl HpkeContext {
+    /// Active cipher suite (KEM, KDF, AEAD) used for subsequent HPKE operations.
+    pub fn cipher_suite(&self) -> &HpkeCipherSuite {
+        &self.cipher_suite
+    }
+
+    /// Set the cipher suite before `setup_sender` / `seal` / `open`.
+    pub fn set_cipher_suite(&mut self, cipher_suite: HpkeCipherSuite) {
+        self.cipher_suite = cipher_suite;
+    }
+
     /// Setup sender with recipient's public key
     pub fn setup_sender(
         &mut self,
@@ -517,6 +528,7 @@ impl HpkeSenderContext {
         let provider = crate::providers::post_quantum::PostQuantumProvider::new();
 
         let ciphertext = hpke_core::seal_message(
+            self.aead,
             &self.key,
             &self.nonce,
             self.sequence_number,
@@ -558,6 +570,7 @@ impl HpkeReceiverContext {
         let provider = crate::providers::post_quantum::PostQuantumProvider::new();
 
         let plaintext = hpke_core::open_message(
+            self.aead,
             &self.key,
             &self.nonce,
             self.sequence_number,

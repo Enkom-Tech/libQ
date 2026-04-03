@@ -79,6 +79,18 @@ impl PostQuantumProvider {
         let algorithm = match aead {
             HpkeAead::Saturnin256 => Algorithm::Saturnin,
             HpkeAead::Shake256 => Algorithm::Shake256Aead,
+            HpkeAead::DuplexSpongeAead => {
+                #[cfg(feature = "duplex-sponge-aead")]
+                {
+                    Algorithm::DuplexSpongeAead
+                }
+                #[cfg(not(feature = "duplex-sponge-aead"))]
+                {
+                    return Err(HpkeError::feature_not_enabled(
+                        "duplex-sponge-aead (enable lib-q-hpke feature duplex-sponge-aead)",
+                    ));
+                }
+            }
             HpkeAead::Export => return Err(HpkeError::not_implemented("Export-only AEAD")),
         };
 
@@ -600,8 +612,8 @@ impl AeadProvider for PostQuantumProvider {
             ));
         }
 
-        // Security check: reject zero keys
-        if key.iter().all(|&b| b == 0) {
+        // Security check: reject zero keys (skip for empty keys, e.g. Export AEAD)
+        if !key.is_empty() && key.iter().all(|&b| b == 0) {
             return Err(HpkeError::CryptoError(
                 "Key material cannot be all zeros".to_string(),
             ));
@@ -660,7 +672,12 @@ impl HpkeCryptoProvider for PostQuantumProvider {
         }
 
         // Check AEAD support
-        for aead in [HpkeAead::Saturnin256, HpkeAead::Shake256, HpkeAead::Export] {
+        for aead in [
+            HpkeAead::Saturnin256,
+            HpkeAead::Shake256,
+            HpkeAead::DuplexSpongeAead,
+            HpkeAead::Export,
+        ] {
             if self.supports_aead(aead) {
                 aeads.push(aead);
             }
@@ -730,6 +747,7 @@ mod tests {
         // Test AEAD support
         let saturnin_supported = provider.supports_aead(HpkeAead::Saturnin256);
         let shake256_supported = provider.supports_aead(HpkeAead::Shake256);
+        let duplex_supported = provider.supports_aead(HpkeAead::DuplexSpongeAead);
         let export_supported = provider.supports_aead(HpkeAead::Export);
 
         // Export should always be supported
@@ -747,5 +765,13 @@ mod tests {
             shake256_supported,
             "SHAKE256 AEAD should be supported after migration to lib-q-aead"
         );
+
+        #[cfg(feature = "duplex-sponge-aead")]
+        assert!(
+            duplex_supported,
+            "Duplex-sponge AEAD should be supported when feature is enabled"
+        );
+        #[cfg(not(feature = "duplex-sponge-aead"))]
+        assert!(!duplex_supported);
     }
 }

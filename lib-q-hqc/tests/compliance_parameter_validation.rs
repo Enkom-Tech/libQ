@@ -4,6 +4,7 @@ use lib_q_hqc::{
     Hqc5Params,
     HqcParams,
 };
+use lib_q_types::hqc;
 
 /// Parameter validation tests to ensure all constants match the HQC specification
 ///
@@ -33,21 +34,21 @@ fn test_hqc1_parameters() {
         "HQC-1 VEC_N1N2_SIZE_64 parameter (reference)"
     );
 
-    // Verify key and ciphertext sizes (reference values from api.h)
+    // KEM object sizes: canonical `lib_q_types::hqc` (serialized KEM secret layout).
     assert_eq!(
         Hqc1Params::SECRET_KEY_BYTES,
-        2321,
-        "HQC-1 SECRET_KEY_BYTES (reference)"
+        hqc::HQC128_SECRET_KEY_BYTES,
+        "HQC-1 SECRET_KEY_BYTES"
     );
     assert_eq!(
         Hqc1Params::PUBLIC_KEY_BYTES,
-        2241,
-        "HQC-1 PUBLIC_KEY_BYTES (reference)"
+        hqc::HQC128_PUBLIC_KEY_BYTES,
+        "HQC-1 PUBLIC_KEY_BYTES"
     );
     assert_eq!(
         Hqc1Params::CIPHERTEXT_BYTES,
-        4433,
-        "HQC-1 CIPHERTEXT_BYTES (reference)"
+        hqc::HQC128_CIPHERTEXT_BYTES,
+        "HQC-1 CIPHERTEXT_BYTES"
     );
     assert_eq!(
         Hqc1Params::SHARED_SECRET_BYTES,
@@ -81,10 +82,21 @@ fn test_hqc3_parameters() {
         "HQC-3 VEC_N1N2_SIZE_64 parameter"
     );
 
-    // Verify key and ciphertext sizes
-    assert_eq!(Hqc3Params::SECRET_KEY_BYTES, 4586, "HQC-3 SECRET_KEY_BYTES");
-    assert_eq!(Hqc3Params::PUBLIC_KEY_BYTES, 4522, "HQC-3 PUBLIC_KEY_BYTES");
-    assert_eq!(Hqc3Params::CIPHERTEXT_BYTES, 8978, "HQC-3 CIPHERTEXT_BYTES");
+    assert_eq!(
+        Hqc3Params::SECRET_KEY_BYTES,
+        hqc::HQC192_SECRET_KEY_BYTES,
+        "HQC-3 SECRET_KEY_BYTES"
+    );
+    assert_eq!(
+        Hqc3Params::PUBLIC_KEY_BYTES,
+        hqc::HQC192_PUBLIC_KEY_BYTES,
+        "HQC-3 PUBLIC_KEY_BYTES"
+    );
+    assert_eq!(
+        Hqc3Params::CIPHERTEXT_BYTES,
+        hqc::HQC192_CIPHERTEXT_BYTES,
+        "HQC-3 CIPHERTEXT_BYTES"
+    );
     assert_eq!(
         Hqc3Params::SHARED_SECRET_BYTES,
         32,
@@ -117,12 +129,19 @@ fn test_hqc5_parameters() {
         "HQC-5 VEC_N1N2_SIZE_64 parameter"
     );
 
-    // Verify key and ciphertext sizes
-    assert_eq!(Hqc5Params::SECRET_KEY_BYTES, 7317, "HQC-5 SECRET_KEY_BYTES");
-    assert_eq!(Hqc5Params::PUBLIC_KEY_BYTES, 7245, "HQC-5 PUBLIC_KEY_BYTES");
+    assert_eq!(
+        Hqc5Params::SECRET_KEY_BYTES,
+        hqc::HQC256_SECRET_KEY_BYTES,
+        "HQC-5 SECRET_KEY_BYTES"
+    );
+    assert_eq!(
+        Hqc5Params::PUBLIC_KEY_BYTES,
+        hqc::HQC256_PUBLIC_KEY_BYTES,
+        "HQC-5 PUBLIC_KEY_BYTES"
+    );
     assert_eq!(
         Hqc5Params::CIPHERTEXT_BYTES,
-        14421,
+        hqc::HQC256_CIPHERTEXT_BYTES,
         "HQC-5 CIPHERTEXT_BYTES"
     );
     assert_eq!(
@@ -215,69 +234,57 @@ fn test_vector_size_calculations() {
 fn test_key_size_calculations() {
     println!("=== Key Size Calculation Validation ===");
 
-    // Verify key size calculations
-    // SECRET_KEY_BYTES = SEED_BYTES + PUBLIC_KEY_BYTES
-    // PUBLIC_KEY_BYTES = SEED_BYTES + VEC_N_SIZE_64 * 8
-    // CIPHERTEXT_BYTES = VEC_N_SIZE_64 * 8 + VEC_N1N2_SIZE_64 * 8
-
-    let hqc1_expected_pk = 2241; // Reference: CRYPTO_PUBLICKEYBYTES
-    let hqc1_expected_sk = 2321; // Reference: CRYPTO_SECRETKEYBYTES
-    let hqc1_expected_ct = 4433; // Reference: CRYPTO_CIPHERTEXTBYTES
-
+    // Public key: `seed_ek` ‖ `s`. For HQC-1, `|s| = ceil(N/8) = VEC_N_SIZE_BYTES`.
+    // For HQC-3 / HQC-5 the NIST reference KEM serialization pads `s` by 8 bytes beyond
+    // that compact length (`hqc_pke` fills `public_key_data[SEED_BYTES..]` to `PUBLIC_KEY_BYTES`).
     assert_eq!(
         Hqc1Params::PUBLIC_KEY_BYTES,
-        hqc1_expected_pk,
-        "HQC-1 PUBLIC_KEY_BYTES calculation"
+        Hqc1Params::SEED_BYTES + Hqc1Params::VEC_N_SIZE_BYTES,
+        "HQC-1 PUBLIC_KEY_BYTES"
     );
-    assert_eq!(
-        Hqc1Params::SECRET_KEY_BYTES,
-        hqc1_expected_sk,
-        "HQC-1 SECRET_KEY_BYTES calculation"
-    );
-    assert_eq!(
-        Hqc1Params::CIPHERTEXT_BYTES,
-        hqc1_expected_ct,
-        "HQC-1 CIPHERTEXT_BYTES calculation"
-    );
-
-    let hqc3_expected_pk = 4522; // NIST Oct 2024 specification
-    let hqc3_expected_sk = 4586; // NIST Oct 2024 specification
-    let hqc3_expected_ct = 8978; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
-
     assert_eq!(
         Hqc3Params::PUBLIC_KEY_BYTES,
-        hqc3_expected_pk,
-        "HQC-3 PUBLIC_KEY_BYTES calculation"
+        Hqc3Params::SEED_BYTES + Hqc3Params::VEC_N_SIZE_BYTES + 8,
+        "HQC-3 PUBLIC_KEY_BYTES"
     );
     assert_eq!(
-        Hqc3Params::SECRET_KEY_BYTES,
-        hqc3_expected_sk,
-        "HQC-3 SECRET_KEY_BYTES calculation"
+        Hqc5Params::PUBLIC_KEY_BYTES,
+        Hqc5Params::SEED_BYTES + Hqc5Params::VEC_N_SIZE_BYTES + 8,
+        "HQC-5 PUBLIC_KEY_BYTES"
+    );
+
+    // Ciphertext: (u, v) ‖ salt
+    assert_eq!(
+        Hqc1Params::CIPHERTEXT_BYTES,
+        Hqc1Params::VEC_N_SIZE_BYTES + Hqc1Params::VEC_N1N2_SIZE_BYTES + Hqc1Params::SALT_BYTES,
+        "HQC-1 CIPHERTEXT_BYTES"
     );
     assert_eq!(
         Hqc3Params::CIPHERTEXT_BYTES,
-        hqc3_expected_ct,
-        "HQC-3 CIPHERTEXT_BYTES calculation"
-    );
-
-    let hqc5_expected_pk = 7245; // NIST Oct 2024 specification
-    let hqc5_expected_sk = 7317; // NIST Oct 2024 specification
-    let hqc5_expected_ct = 14421; // VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES + SALT_BYTES
-
-    assert_eq!(
-        Hqc5Params::PUBLIC_KEY_BYTES,
-        hqc5_expected_pk,
-        "HQC-5 PUBLIC_KEY_BYTES calculation"
-    );
-    assert_eq!(
-        Hqc5Params::SECRET_KEY_BYTES,
-        hqc5_expected_sk,
-        "HQC-5 SECRET_KEY_BYTES calculation"
+        Hqc3Params::VEC_N_SIZE_BYTES + Hqc3Params::VEC_N1N2_SIZE_BYTES + Hqc3Params::SALT_BYTES,
+        "HQC-3 CIPHERTEXT_BYTES"
     );
     assert_eq!(
         Hqc5Params::CIPHERTEXT_BYTES,
-        hqc5_expected_ct,
-        "HQC-5 CIPHERTEXT_BYTES calculation"
+        Hqc5Params::VEC_N_SIZE_BYTES + Hqc5Params::VEC_N1N2_SIZE_BYTES + Hqc5Params::SALT_BYTES,
+        "HQC-5 CIPHERTEXT_BYTES"
+    );
+
+    // Serialized KEM secret: ek_pke ‖ dk_pke ‖ sigma ‖ seed_kem (see `lib_q_types::hqc`)
+    assert_eq!(
+        Hqc1Params::SECRET_KEY_BYTES,
+        hqc::kem_secret_key_serialized_len(Hqc1Params::PUBLIC_KEY_BYTES),
+        "HQC-1 SECRET_KEY_BYTES"
+    );
+    assert_eq!(
+        Hqc3Params::SECRET_KEY_BYTES,
+        hqc::kem_secret_key_serialized_len(Hqc3Params::PUBLIC_KEY_BYTES),
+        "HQC-3 SECRET_KEY_BYTES"
+    );
+    assert_eq!(
+        Hqc5Params::SECRET_KEY_BYTES,
+        hqc::kem_secret_key_serialized_len(Hqc5Params::PUBLIC_KEY_BYTES),
+        "HQC-5 SECRET_KEY_BYTES"
     );
 
     println!("✅ Key size calculations validated");

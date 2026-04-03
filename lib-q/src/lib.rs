@@ -15,7 +15,7 @@
 //! # Security Features
 //!
 //! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
-//! - **Algorithm Diversity**: ML-KEM, ML-DSA, FN-DSA, Saturnin, Romulus (N/M), and DAWN
+//! - **Algorithm Diversity**: ML-KEM, HQC, ML-DSA, FN-DSA, Saturnin, Romulus (N/M), and DAWN
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
 //!
@@ -64,10 +64,12 @@
 //! - `wasm`: Enable WebAssembly compilation support
 //! - `ml-kem`: Enable ML-KEM key encapsulation mechanism
 //! - `ml-dsa`: Enable ML-DSA digital signature algorithm
+//! - `slh-dsa`: Enable SLH-DSA (FIPS 205) algorithm metadata and shared types in `lib-q-core`
 //! - `fn-dsa`: Enable FN-DSA digital signature algorithm
 //! - `saturnin`: Enable Saturnin authenticated encryption
 //! - `romulus`: Enable Romulus-N and Romulus-M AEAD (LWC / SKINNY-128-384+)
 //! - `dawn`: Enable DAWN key encapsulation mechanism
+//! - `hqc`: Enable HQC key encapsulation mechanism (HQC-128 / HQC-192 / HQC-256)
 //! - `random`: Enable lib-q-random for secure random number generation
 //! - `random-custom-entropy`: Enable custom entropy source support
 //! - `all-algorithms`: Enable all available algorithms
@@ -140,10 +142,11 @@ pub use lib_q_core::{
     Utils,
     create_hash_context,
     create_kem_context,
-    create_signature_context,
 };
+#[cfg(feature = "hqc")]
+pub use lib_q_hqc::LibQHqcProvider;
 // Re-export from other crates for convenience
-#[cfg(feature = "ml-kem")]
+#[cfg(any(feature = "ml-kem", feature = "hqc", feature = "dawn"))]
 pub use lib_q_kem::{
     LibQKemProvider,
     available_algorithms,
@@ -176,12 +179,25 @@ pub use lib_q_random::{
     register_custom_entropy_source,
     unregister_custom_entropy_source,
 };
-#[cfg(any(feature = "ml-dsa", feature = "fn-dsa", feature = "slh-dsa"))]
 pub use lib_q_sig::{
     LibQSignatureProvider,
     available_algorithms as sig_available_algorithms,
     create_signature,
 };
+
+/// Create a [`SignatureContext`] with [`LibQSignatureProvider`](lib_q_sig::LibQSignatureProvider)
+/// already installed (ML-DSA and SLH-DSA from `lib-q-sig` defaults; FN-DSA when the `fn-dsa`
+/// feature is enabled on this crate).
+///
+/// This is the umbrella-crate entry point: [`lib_q_core::create_signature_context`] returns an
+/// empty context for composition in leaf crates; `libq::create_signature_context` wires the
+/// production signature backend used by this workspace.
+#[cfg(feature = "alloc")]
+pub fn create_signature_context() -> SignatureContext {
+    let provider = LibQSignatureProvider::new()
+        .expect("lib-q-sig LibQSignatureProvider / SecurityValidator initialization");
+    SignatureContext::with_provider(Box::new(provider))
+}
 
 #[cfg(feature = "zkp")]
 pub mod zkp {
@@ -364,6 +380,8 @@ mod tests {
         CryptoProvider,
         KemOperations, // Required for trait methods to be in scope
     };
+    #[cfg(feature = "hqc")]
+    use lib_q_hqc::HqcParams;
 
     use super::*;
     #[cfg(feature = "alloc")]
@@ -386,6 +404,52 @@ mod tests {
         assert!(
             !algorithms.is_empty(),
             "Should have at least one hash algorithm"
+        );
+    }
+
+    /// `libq::create_signature_context` must ship with `LibQSignatureProvider` wired so ML-DSA works
+    /// without callers manually calling `set_provider`.
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn test_signature_context_pre_wired_ml_dsa_roundtrip() {
+        let mut ctx = create_signature_context();
+        let keypair = ctx
+            .generate_keypair(Algorithm::MlDsa65, None)
+            .expect("ML-DSA-65 keygen with pre-wired provider");
+        let message = b"lib-q umbrella signature integration";
+        let signature = ctx
+            .sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)
+            .expect("sign");
+        assert!(
+            ctx.verify(
+                Algorithm::MlDsa65,
+                keypair.public_key(),
+                message,
+                signature.as_slice(),
+            )
+            .expect("verify")
+        );
+    }
+
+    #[cfg(all(feature = "alloc", feature = "fn-dsa"))]
+    #[test]
+    fn test_signature_context_fn_dsa512_roundtrip() {
+        let mut ctx = create_signature_context();
+        let keypair = ctx
+            .generate_keypair(Algorithm::FnDsa512, None)
+            .expect("FN-DSA-512 keygen");
+        let message = b"fn-dsa umbrella path";
+        let signature = ctx
+            .sign(Algorithm::FnDsa512, keypair.secret_key(), message, None)
+            .expect("sign");
+        assert!(
+            ctx.verify(
+                Algorithm::FnDsa512,
+                keypair.public_key(),
+                message,
+                signature.as_slice(),
+            )
+            .expect("verify")
         );
     }
 
@@ -434,6 +498,30 @@ mod tests {
             let keypair = kem_result.unwrap();
             assert!(!keypair.public_key().as_bytes().is_empty());
             assert!(!keypair.secret_key().as_bytes().is_empty());
+        }
+
+        #[cfg(feature = "hqc")]
+        {
+            let kem_provider = LibQKemProvider::new().unwrap();
+            let keypair = kem_provider
+                .generate_keypair(Algorithm::Hqc128, None)
+                .expect("HQC-128 key generation with lib-q-kem provider");
+            assert_eq!(
+                keypair.public_key().as_bytes().len(),
+                lib_q_hqc::Hqc1Params::PUBLIC_KEY_BYTES
+            );
+            assert_eq!(
+                keypair.secret_key().as_bytes().len(),
+                lib_q_hqc::Hqc1Params::SECRET_KEY_BYTES
+            );
+            let (ciphertext, shared1) = kem_provider
+                .encapsulate(Algorithm::Hqc128, &keypair.public_key, None)
+                .expect("HQC-128 encapsulate");
+            assert_eq!(ciphertext.len(), lib_q_hqc::Hqc1Params::CIPHERTEXT_BYTES);
+            let shared2 = kem_provider
+                .decapsulate(Algorithm::Hqc128, &keypair.secret_key, &ciphertext)
+                .expect("HQC-128 decapsulate");
+            assert_eq!(shared1, shared2);
         }
 
         // Test signature operations - ML-DSA requires feature flag
