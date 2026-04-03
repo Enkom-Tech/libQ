@@ -10,12 +10,16 @@ use std::time::{
 use digest::Digest;
 use lib_q_sha3::{
     Keccak256,
-    Sha3_224,
     Sha3_256,
-    Sha3_384,
     Sha3_512,
 };
+#[cfg(not(tarpaulin))]
+use lib_q_sha3::{
+    Sha3_224,
+    Sha3_384,
+};
 
+#[cfg(not(tarpaulin))]
 /// Upper bound on mean ns/op for SHA3-256-class algorithms (short input, many iterations).
 ///
 /// Debug builds and shared CI runners are often ~1.5× slower than this vs a typical dev laptop;

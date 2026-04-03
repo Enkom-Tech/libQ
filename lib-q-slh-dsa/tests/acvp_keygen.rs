@@ -1,3 +1,9 @@
+//! ACVP keyGen internal projection vectors.
+//!
+//! Parameter sets ending in `128s` / `192s` / `256s` are much slower for keygen than `*f` sets.
+//! By default those groups are skipped so `cargo test` stays fast; run with
+//! `--features all-parameter-set-tests` to execute the full projection (same policy as
+//! `known_answer_tests.rs`).
 #![allow(non_snake_case)]
 #![cfg(feature = "alloc")]
 
@@ -45,12 +51,24 @@ macro_rules! parameter_case {
     }};
 }
 
+fn skip_slow_parameter_set_without_all_sets(parameter_set: &str) -> bool {
+    if cfg!(feature = "all-parameter-set-tests") {
+        return false;
+    }
+    parameter_set.ends_with("128s") ||
+        parameter_set.ends_with("192s") ||
+        parameter_set.ends_with("256s")
+}
+
 #[test]
 fn test_keygen_cvp() {
     let mut i = 0;
     let test_file: TestFile = serde_json::from_str(KEYGEN_KAT_JSON).unwrap();
     for test_group in test_file.testGroups {
         let p = test_group.parameterSet;
+        if skip_slow_parameter_set_without_all_sets(&p) {
+            continue;
+        }
         for test_case in test_group.tests {
             match p.as_str() {
                 Shake128f::NAME => parameter_case!(Shake128f, test_case),

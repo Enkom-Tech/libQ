@@ -185,13 +185,14 @@ runs:
         cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
         echo "Cross-compilation test completed"
     
-    - name: Known answer tests (all parameter sets)
+    - name: Known answer tests and ACVP keygen (all parameter sets)
       shell: bash
       run: |
-        echo "Running full known_answer_tests suite (12 KATs; smoke pair already ran in the main cargo test step)..."
+        echo "Running full known_answer_tests (12 KATs) and ACVP keyGen projection including slow *s sets..."
         cd ${{ inputs.working-directory }}
         cargo test --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
-        echo "Full KAT suite completed"
+        cargo test --features "${{ inputs.features }},all-parameter-set-tests" --test acvp_keygen
+        echo "Full KAT and ACVP keygen suites completed"
     
     - name: Test no_std compatibility
       shell: bash
