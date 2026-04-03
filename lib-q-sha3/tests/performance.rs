@@ -16,11 +16,15 @@ use lib_q_sha3::{
     Sha3_512,
 };
 
-/// Performance baseline for SHA3-256 operations
-const BASELINE_SHA3_256_NS: u64 = 100000; // 100 microseconds baseline (more realistic)
+/// Upper bound on mean ns/op for SHA3-256-class algorithms (short input, many iterations).
+///
+/// Debug builds and shared CI runners are often ~1.5× slower than this vs a typical dev laptop;
+/// the check is only to catch large regressions, not to micro-benchmark in `cargo test`.
+const BASELINE_SHA3_256_NS: u64 = 220_000;
 
 /// Test SHA3-256 performance baseline
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_sha3_256_performance() {
     let test_input = b"test input for performance analysis";
     const ITERATIONS: usize = 10000;
@@ -56,6 +60,7 @@ fn test_sha3_256_performance() {
 
 /// Test SHA3-224 performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_sha3_224_performance() {
     let test_input = b"test input for SHA3-224 performance analysis";
     const ITERATIONS: usize = 10000;
@@ -91,6 +96,7 @@ fn test_sha3_224_performance() {
 
 /// Test SHA3-384 performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_sha3_384_performance() {
     let test_input = b"test input for SHA3-384 performance analysis";
     const ITERATIONS: usize = 10000;
@@ -126,6 +132,7 @@ fn test_sha3_384_performance() {
 
 /// Test SHA3-512 performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_sha3_512_performance() {
     let test_input = b"test input for SHA3-512 performance analysis";
     const ITERATIONS: usize = 10000;
@@ -161,6 +168,7 @@ fn test_sha3_512_performance() {
 
 /// Test Keccak256 performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_keccak256_performance() {
     let test_input = b"test input for Keccak256 performance analysis";
     const ITERATIONS: usize = 10000;

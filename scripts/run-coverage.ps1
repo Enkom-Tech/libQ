@@ -18,6 +18,68 @@ $IgnorePanics = if ($PSBoundParameters.ContainsKey('IgnorePanics')) { $IgnorePan
 
 $ScriptRoot = $PSScriptRoot
 if ([string]::IsNullOrEmpty($ScriptRoot)) { $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
+$RepoRoot = Split-Path -Parent $ScriptRoot
+Set-Location -LiteralPath $RepoRoot
+
+function Get-TarpaulinIncludeFlags {
+    param([Parameter(Mandatory)][string]$CrateName)
+    $pin = Join-Path $ScriptRoot "print-tarpaulin-include-args.sh"
+    $bash = Get-Command bash.exe -ErrorAction SilentlyContinue
+    if ($null -eq $bash) { $bash = Get-Command bash -ErrorAction SilentlyContinue }
+    if ($null -ne $bash -and (Test-Path -LiteralPath $pin)) {
+        $bashExe = $bash.Path
+        if ([string]::IsNullOrEmpty($bashExe)) { $bashExe = $bash.Source }
+        $out = & $bashExe $pin $CrateName 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host $out.Trim() -ForegroundColor Red
+            exit 1
+        }
+        return $out.Trim()
+    }
+    $metaJson = cargo metadata --format-version 1 --no-deps 2>$null | Out-String
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($metaJson)) {
+        Write-Host "cargo metadata failed (run from a workspace directory)" -ForegroundColor Red
+        exit 1
+    }
+    $meta = $metaJson | ConvertFrom-Json
+    $ws = $meta.workspace_root
+    if ([string]::IsNullOrWhiteSpace($ws)) { $ws = (Get-Location).Path }
+    $ws = (Resolve-Path -LiteralPath $ws).Path
+
+    $prel = $null
+    $exToml = [System.IO.Path]::Combine($ws, "examples", "Cargo.toml")
+    if ($CrateName -eq "lib-q-examples" -and (Test-Path -LiteralPath $exToml)) {
+        $prel = "examples"
+    }
+    elseif (Test-Path -LiteralPath ([System.IO.Path]::Combine($ws, $CrateName, "src")) -PathType Container) {
+        $prel = ($CrateName -replace '\\', '/').TrimStart('./')
+    }
+    if ($null -eq $prel) {
+        $pkgs = @($meta.packages | Where-Object { $_.name -eq $CrateName })
+        if ($pkgs.Count -eq 0) {
+            Write-Host "Unknown Cargo package: $CrateName (install Git Bash or use a path with src/)" -ForegroundColor Red
+            exit 1
+        }
+        $manDir = Split-Path -Parent $pkgs[0].manifest_path
+        $full = (Resolve-Path -LiteralPath $manDir).Path
+        if ($full.Equals($ws, [StringComparison]::OrdinalIgnoreCase)) {
+            Write-Host "Invalid package root at workspace root" -ForegroundColor Red
+            exit 1
+        }
+        if (-not $full.StartsWith($ws, [StringComparison]::OrdinalIgnoreCase)) {
+            Write-Host "Package outside workspace" -ForegroundColor Red
+            exit 1
+        }
+        $prel = $full.Substring($ws.Length).TrimStart([char]'\', [char]'/') -replace '\\', '/'
+    }
+    $bs = $prel -replace '/', '\\'
+    $prelFs = $prel -replace '/', [System.IO.Path]::DirectorySeparatorChar
+    $srcAbs = [System.IO.Path]::Combine($ws, $prelFs, "src")
+    if (Test-Path -LiteralPath $srcAbs -PathType Container) {
+        return " --include-files ""$prel/src/*"" --include-files ""$prel/src/**"" --include-files ""$bs\src\*"""
+    }
+    return " --include-files ""$prel/*.rs"" --include-files ""$prel/**/*.rs"" --include-files ""$bs\*.rs"" --include-files ""$bs\**\*.rs"""
+}
 
 if ($OutputFormat -eq "Html") {
     $OutputFormat = "Html,Xml"
@@ -56,25 +118,22 @@ if ($Crate -eq "lib-q-core") {
     $cmd += ' --exclude-files "lib-q-ml-dsa/' + '*' + '" --exclude-files "lib-q-ml-kem/' + '*' + '" --exclude-files "lib-q-sha3/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-sig/' + '*' + '" --exclude-files "lib-q-aead/' + '*' + '" --exclude-files "lib-q-platform/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-utils/' + '*' + '" --exclude-files "lib-q-zkp/' + '*' + '"'
-    $cmd += ' --exclude-files "lib-q-core/src/wasm/' + '*' + '" --exclude-files "lib-q-core/src/wasm/' + '*' + '"'
-    $cmd += ' --include-files "lib-q-core/src/' + '*' + '" --include-files "lib-q-core/src/' + '*' + '*' + '" --include-files "lib-q-core/src/' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-core/src/wasm/' + '*' + '" --exclude-files "lib-q-core\src\wasm\' + '*' + '"'
+    $cmd += ' --include-files "lib-q-core/src/' + '*' + '" --include-files "lib-q-core/src/' + '*' + '*' + '" --include-files "lib-q-core\src\' + '*' + '"'
 }
 if ($Crate -eq "lib-q") {
-    $cmd += ' --include-files "lib-q/src/' + '*' + '" --include-files "lib-q/src/' + '*' + '*' + '" --include-files "lib-q/src/' + '*' + '"'
+    $cmd += ' --include-files "lib-q/src/' + '*' + '" --include-files "lib-q/src/' + '*' + '*' + '" --include-files "lib-q\src\' + '*' + '"'
 }
 if ($Crate -eq "lib-q-keccak") {
-    $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '"'
-    $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak/src/advanced_simd.rs"'
+    $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak\src\' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak\src\advanced_simd.rs"'
 }
-$needsScopedInclude = ($null -ne $Crate) -and ($Crate.Length -gt 0) -and ($Crate -ne "lib-q-core") -and ($Crate -ne "lib-q") -and ($Crate -ne "lib-q-keccak")
-$crateSrcForScoped = Join-Path $Crate "src"
-$scopedSrcExists = Test-Path -LiteralPath $crateSrcForScoped
-if ($needsScopedInclude -and $scopedSrcExists) {
-    $patStar = '*'
-    $patGlob = $patStar + $patStar
-    $cmd += ' --include-files "' + $Crate + '/src/' + $patStar + '"'
-    $cmd += ' --include-files "' + $Crate + '/src/' + $patGlob + '"'
-    $cmd += ' --include-files "' + $Crate + '/src/' + $patStar + '"'
+if ($Crate -ne "" -and $Crate -ne "lib-q-core" -and $Crate -ne "lib-q" -and $Crate -ne "lib-q-keccak") {
+    $cmd += Get-TarpaulinIncludeFlags -CrateName $Crate
+}
+if ($Crate -ne "" -and $cmd -notmatch '--include-files') {
+    Write-Host "ERROR: tarpaulin command is missing --include-files for package $Crate" -ForegroundColor Red
+    exit 1
 }
 $outputFormatParts = $OutputFormat -split ','
 foreach ($rawOut in $outputFormatParts) {

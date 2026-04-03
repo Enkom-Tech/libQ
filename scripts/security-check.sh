@@ -131,6 +131,7 @@ fi
 # Check for test coverage
 echo "Checking for test coverage..."
 if command -v cargo-tarpaulin &> /dev/null; then
+    # Unscoped workspace tarpaulin mixes in dependency lines; for meaningful % use scripts/run-coverage.sh --crate <pkg>.
     COVERAGE=$(cargo tarpaulin --features "all-algorithms" --out Xml 2>/dev/null | grep -o 'coverage="[^"]*"' | cut -d'"' -f2 || echo "0")
     if (( $(echo "$COVERAGE >= 95" | bc -l 2>/dev/null || echo "0") )); then
         print_status "PASS" "Test coverage: ${COVERAGE}%"

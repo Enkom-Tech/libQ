@@ -45,7 +45,7 @@ jobs:
             --features std,ml-dsa \
             --ignore-tests --ignore-panics \
             --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*' \
-            --include-files 'lib-q-sig/src/*' --include-files 'lib-q-sig/src/**' \
+            --include-files 'lib-q-sig/src/*' --include-files 'lib-q-sig/src/**' --include-files 'lib-q-sig\\src\\*' \
             --out Xml --out Html --output-dir coverage-sc
 
       - name: Check thresholds

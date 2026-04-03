@@ -60,6 +60,7 @@ cargo test --features "random,acvp,mldsa44,mldsa65,mldsa87" --test cross_mode_te
 # 11. Check code coverage (if available)
 echo "11. Checking code coverage..."
 if command -v cargo-tarpaulin &> /dev/null; then
+    # Unscoped tarpaulin % mixes dependencies; from repo root use: scripts/run-coverage.sh --crate lib-q-ml-dsa
     cargo tarpaulin --features "all-algorithms" --out Html
     echo "Coverage report generated in tarpaulin-report.html"
 else

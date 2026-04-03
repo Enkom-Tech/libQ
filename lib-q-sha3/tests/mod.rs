@@ -225,10 +225,5 @@ fn keccak_256_full_kat() {
     }
 }
 
-// Additional test modules
-mod basic_functionality;
-mod constant_time;
-mod cshake;
-mod performance;
-mod security;
-mod turboshake;
+// Other integration tests live in `tests/*.rs` (one crate per file). Do not `mod` them here:
+// Cargo already builds each as its own test binary; declaring them again would run every test twice.

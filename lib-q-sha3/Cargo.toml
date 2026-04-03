@@ -53,6 +53,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
     'cfg(eurydice)',
     'cfg(doc_cfg)',
+    'cfg(tarpaulin)',
     'cfg(aarch64)',
     'cfg(x86_64)',
 ] }

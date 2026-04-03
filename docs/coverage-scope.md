@@ -10,7 +10,7 @@ This document defines how [test-coverage.md](test-coverage.md) policy maps to **
 | Other affected crates | Full package under test when a crate path appears in the PR diff | ≥80% line (policy); gates ratchet toward that | PR `test-coverage`: **65%** line for other affected packages |
 | Security-critical subset | Signing/verification entry points in `lib-q-sig` facade | ≥95% line, 100% branch when tooling emits branches | [security-critical-coverage.yml](../.github/workflows/security-critical-coverage.yml): **60%** line (ratchet toward 95%), **100%** branch when reported |
 
-For any PR package other than the umbrella `lib-q`, tarpaulin scopes `--include-files` to that crate’s `src` tree (path under the repo root, or resolved from the Cargo package name) so Cobertura `line-rate` is not dominated by dependency code. Exceptions: `lib-q-core` additionally excludes other member crates and `wasm/` under PR settings; `lib-q-keccak` also excludes `advanced_simd.rs` (nightly/simd-only). Local parity: [scripts/run-coverage.sh](../scripts/run-coverage.sh). To sweep the whole workspace: [scripts/verify-workspace-coverage.sh](../scripts/verify-workspace-coverage.sh).
+For any PR package other than the umbrella `lib-q`, tarpaulin scopes `--include-files` to that package’s own sources (conventionally `<crate>/src/**`, or `examples/*.rs` for the example-only `lib-q-examples` member) so Cobertura `line-rate` is not dominated by dependency code. Resolution is shared by [scripts/print-tarpaulin-include-args.sh](../scripts/print-tarpaulin-include-args.sh) (used from the `rust-test` action and [scripts/run-coverage.sh](../scripts/run-coverage.sh)); CI fails the coverage step if a non-empty `-p`/`--packages` target would run without `--include-files`. Exceptions: `lib-q-core` additionally excludes other member crates and `wasm/` under PR settings; `lib-q-keccak` also excludes `advanced_simd.rs` (nightly/simd-only). To sweep the whole workspace: [scripts/verify-workspace-coverage.sh](../scripts/verify-workspace-coverage.sh).
 
 ## Security-critical paths (line targets)
 
@@ -29,4 +29,5 @@ When `scripts/run-coverage.sh` or the PR coverage job passes at least **two** co
 
 - [scripts/extract-coverage-percent.sh](../scripts/extract-coverage-percent.sh) — `line` (default) or `branch` metric from `cobertura.xml`
 - [scripts/check-coverage-metrics.sh](../scripts/check-coverage-metrics.sh) — `--line-min` and optional `--branch-min` (branch skipped if no data)
+- [scripts/print-tarpaulin-include-args.sh](../scripts/print-tarpaulin-include-args.sh) — emits scoped `--include-files` for one workspace package (used by `rust-test` and `run-coverage.sh`)
 - [scripts/run-coverage.sh](../scripts/run-coverage.sh) / [scripts/run-coverage.ps1](../scripts/run-coverage.ps1) — local parity with CI flags where possible

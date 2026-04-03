@@ -71,6 +71,12 @@ runs:
         restore-keys: |
           ${{ runner.os }}-rust-
     
+    - name: Check integration test layout
+      shell: bash
+      run: |
+        ROOT="$(git rev-parse --show-toplevel)"
+        bash "$ROOT/scripts/check-integration-test-duplicates.sh"
+
     - name: Security audit
       if: inputs.run-security-audit == 'true'
       shell: bash

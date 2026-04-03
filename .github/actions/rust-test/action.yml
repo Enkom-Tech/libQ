@@ -271,23 +271,22 @@ runs:
           # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
         elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-          # Any other -p target: count only that crate's src tree (Cobertura line-rate is otherwise dominated by dependencies).
-          INCLUDE_ROOT=""
-          if [[ -d "$PACKAGE/src" ]]; then
-            INCLUDE_ROOT="$PACKAGE"
-          elif command -v jq >/dev/null 2>&1; then
-            MPATH="$(cargo metadata --format-version 1 --no-deps 2>/dev/null | jq -r --arg n "$PACKAGE" '.packages[] | select(.name == $n) | .manifest_path' | head -1)"
-            if [[ -n "$MPATH" && "$MPATH" != "null" ]]; then
-              IDIR="$(cd "$(dirname "$MPATH")" && pwd -P)"
-              WSROOT="$(pwd -P)"
-              if [[ "$IDIR" == "${WSROOT}"/* ]]; then
-                INCLUDE_ROOT="${IDIR#"${WSROOT}/"}"
-              fi
-            fi
+          PIN="${{ github.workspace }}/scripts/print-tarpaulin-include-args.sh"
+          if [[ ! -f "$PIN" ]]; then
+            echo "ERROR: Missing $PIN"
+            exit 1
           fi
-          if [[ -n "$INCLUDE_ROOT" && -d "$INCLUDE_ROOT/src" ]]; then
-            PKG_BS="${INCLUDE_ROOT//\//\\\\}"
-            TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"${INCLUDE_ROOT}/src/*\" --include-files \"${INCLUDE_ROOT}/src/**\" --include-files \"${PKG_BS}\\\\src\\\\*\""
+          if ! INC="$(bash "$PIN" "$PACKAGE")"; then
+            echo "ERROR: Could not build tarpaulin --include-files for package '$PACKAGE'"
+            exit 1
+          fi
+          TARPAULIN_CMD="$TARPAULIN_CMD ${INC}"
+        fi
+        
+        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          if ! echo "$TARPAULIN_CMD" | grep -q -- '--include-files'; then
+            echo "ERROR: Tarpaulin command has no --include-files for package '$PACKAGE' (Cobertura line-rate would be invalid)."
+            exit 1
           fi
         fi
         
