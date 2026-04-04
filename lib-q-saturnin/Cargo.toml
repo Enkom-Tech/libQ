@@ -64,6 +64,11 @@ name = "constant_time"
 path = "tests/constant_time.rs"
 required-features = ["alloc", "aead"]
 
+[[test]]
+name = "coverage_api"
+path = "tests/coverage_api.rs"
+required-features = ["alloc"]
+
 [[bench]]
 name = "saturnin_benches"
 harness = false

@@ -38,6 +38,11 @@ name = "duplex_aead"
 harness = false
 required-features = ["std"]
 
+[[test]]
+name = "coverage_api"
+path = "tests/coverage_api.rs"
+required-features = ["alloc"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
