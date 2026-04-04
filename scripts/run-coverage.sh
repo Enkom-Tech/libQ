@@ -85,6 +85,9 @@ if [[ -n "$CRATE" ]]; then
     CMD="$CMD --features all-algorithms"
   elif [[ "$CRATE" == "lib-q-cb-kem" ]]; then
     CMD="$CMD --features std,rand,getrandom,alloc,zeroize,cbkem348864"
+  elif [[ "$CRATE" == "lib-q-kem" ]]; then
+    # Default features are empty; tests and implementations are behind ml-kem/hqc/alloc.
+    CMD="$CMD --features std,alloc,ml-kem,hqc"
   fi
 fi
 
@@ -138,6 +141,9 @@ CMD="$CMD${OUT_EXTRA} --output-dir $OUTPUT_DIR"
 
 if [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
   CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality"
+elif [[ "$CRATE" == "lib-q-kem" ]]; then
+  # Serial libtest lowers load on large HQC integration tests under LLVM instrumentation.
+  CMD="$CMD -- --test-threads=1"
 fi
 
 echo "Running: $CMD"

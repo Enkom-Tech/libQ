@@ -94,6 +94,9 @@ runs:
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
         PACKAGES="${{ inputs.packages }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
@@ -159,6 +162,9 @@ runs:
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
         PACKAGES="${{ inputs.packages }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
@@ -226,6 +232,9 @@ runs:
         cd ${{ inputs.working-directory }}
         PACKAGE="${{ inputs.package }}"
         FEATURES="${{ inputs.features }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
         
         # Build tarpaulin command with appropriate options
         TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage"
@@ -248,6 +257,8 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
         elif [[ "$PACKAGE" == "lib-q-cb-kem" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,alloc,zeroize,cbkem348864\""
+        elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,alloc,ml-kem,hqc\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -294,6 +305,8 @@ runs:
         
         if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD -- keypair_generation test_basic_fn_dsa_functionality"
+        elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD -- --test-threads=1"
         fi
         
         echo "Running: $TARPAULIN_CMD"

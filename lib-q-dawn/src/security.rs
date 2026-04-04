@@ -838,7 +838,7 @@ pub fn generate_min_entropy_validation_data(length: usize) -> Result<Vec<u8>> {
     let mut frequency = [0u32; 256];
     let max_allowed_frequency = (length as f64 / 256.0 * 1.2) as u32; // Allow 20% variance
 
-    for (i, item) in data.iter_mut().enumerate() {
+    for item in data.iter_mut() {
         let mut attempts = 0;
         loop {
             let mut byte = [0u8; 1];
@@ -855,8 +855,23 @@ pub fn generate_min_entropy_validation_data(length: usize) -> Result<Vec<u8>> {
 
             attempts += 1;
             if attempts > 1000 {
-                // Fallback: use a deterministic pattern if we can't find a suitable byte
-                *item = (i % 256) as u8;
+                // RNG is unlikely to hit the few remaining allowed values (e.g. last byte of
+                // a 256-byte permutation). Pick the first value still under the frequency cap so
+                // we never introduce duplicates that would fail strict min-entropy (7.5 bits).
+                let mut picked = None;
+                for v in 0usize..256 {
+                    if frequency[v] < max_allowed_frequency {
+                        picked = Some(v as u8);
+                        frequency[v] += 1;
+                        break;
+                    }
+                }
+                *item = picked.ok_or_else(|| Error::InternalError {
+                    operation: "generate_min_entropy_validation_data".to_string(),
+                    details:
+                        "no byte value under frequency cap (length exceeds aggregate capacity)"
+                            .to_string(),
+                })?;
                 break;
             }
         }

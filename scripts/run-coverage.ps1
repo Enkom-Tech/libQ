@@ -104,6 +104,8 @@ if ($Crate -ne "") {
         $cmd += " --features all-algorithms"
     } elseif ($Crate -eq "lib-q-cb-kem") {
         $cmd += " --features std,rand,getrandom,alloc,zeroize,cbkem348864"
+    } elseif ($Crate -eq "lib-q-kem") {
+        $cmd += " --features std,alloc,ml-kem,hqc"
     }
 }
 
@@ -146,6 +148,9 @@ foreach ($rawOut in $outputFormatParts) {
     }
 }
 $cmd += " --output-dir $OutputDir"
+if ($Crate -eq "lib-q-kem") {
+    $cmd += " -- --test-threads=1"
+}
 
 Write-Host "Running: $cmd"
 Invoke-Expression $cmd

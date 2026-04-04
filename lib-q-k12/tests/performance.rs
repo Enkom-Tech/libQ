@@ -7,6 +7,8 @@
 //! These tests monitor performance characteristics and detect regressions
 //! in the KangarooTwelve implementation.
 
+#![cfg_attr(tarpaulin, allow(unused_imports, dead_code))]
+
 use std::time::{
     Duration,
     Instant,
@@ -25,6 +27,7 @@ const PERFORMANCE_TOLERANCE: f64 = 10.0; // Allow 10x performance variation
 
 /// Test baseline performance for small inputs
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_small_input_performance() {
     let data = vec![0x42u8; 1024]; // 1KB
     const ITERATIONS: usize = 1000;
@@ -58,6 +61,7 @@ fn test_small_input_performance() {
 
 /// Test that performance scales reasonably with input size
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_input_scaling_performance() {
     let sizes = [1024, 4096, 8192, 16384]; // 1KB, 4KB, 8KB, 16KB
     let mut times = Vec::new();
@@ -103,6 +107,7 @@ fn test_input_scaling_performance() {
 
 /// Test output generation performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_output_generation_performance() {
     let data = vec![0x33u8; 1000];
     let output_sizes = [32, 128, 512, 2048];
@@ -146,6 +151,7 @@ fn test_output_generation_performance() {
 
 /// Test customization processing performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_customization_performance() {
     let data = vec![0x77u8; 1000];
     let custom_sizes = [0, 10, 100, 1000];
@@ -189,6 +195,7 @@ fn test_customization_performance() {
 
 /// Test chunk boundary performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_chunk_boundary_performance() {
     const CHUNK_SIZE: usize = 8192;
     let sizes = [
@@ -241,6 +248,7 @@ fn test_chunk_boundary_performance() {
 
 /// Test incremental update performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_incremental_update_performance() {
     let total_size = 8192;
     let chunk_sizes = [1, 64, 256, 1024, total_size];
@@ -287,6 +295,7 @@ fn test_incremental_update_performance() {
 
 /// Test reset operation performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_reset_performance() {
     let data = vec![0x88u8; 5000];
     const ITERATIONS: usize = 1000;
@@ -320,6 +329,7 @@ fn test_reset_performance() {
 
 /// Test memory allocation performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_memory_allocation_performance() {
     const ITERATIONS: usize = 1000;
     let data = vec![0x99u8; 1000];
@@ -353,6 +363,7 @@ fn test_memory_allocation_performance() {
 
 /// Test cloning performance
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_cloning_performance() {
     let data = vec![0xAAu8; 2000];
     const ITERATIONS: usize = 1000;
@@ -386,6 +397,7 @@ fn test_cloning_performance() {
 
 /// Test performance consistency over multiple runs
 #[test]
+#[cfg(not(tarpaulin))]
 fn test_performance_consistency() {
     let data = vec![0xBBu8; 1000];
     const ITERATIONS: usize = 100;
