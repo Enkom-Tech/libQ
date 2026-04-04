@@ -22,7 +22,27 @@ The implementation supports four DAWN parameter sets. For Alpha512, two profiles
 | DAWN-β-1024   | —          | 1024 | 257 | 1 | —  | —  | 1152 bytes | 2400 bytes | 1152 bytes |
 
 ✅ **VERIFIED**: Spec profile matches the DAWN specification.
-⚠️ **STATUS**: All DAWN production profiles (Alpha512, Alpha1024, Beta512) remain experimental. Path A (quick sweeps with baseline decoder for Alpha1024 and Beta512) found no candidate with zero KEM mismatches; PKE histograms stayed entirely in the >4 error bucket. A decoder-enhancement phase (Path B) is required before any set can be promoted. See the DAWN specification §6.9.
+⚠️ **STATUS**: All DAWN production profiles (Alpha512, Alpha1024, Beta512) remain experimental. Path A (quick sweeps with baseline decoder for Alpha1024 and Beta512) found no candidate with zero KEM mismatches; PKE histograms stayed entirely in the >4 error bucket.
+
+### Open Issue: Decryption Algorithm Step 2 (t-multiplication)
+
+The DAWN paper (ePrint 2025/1520, Algorithm 5, step 2) specifies:
+
+> `c' ← (d_c · (x^{n/2}+1) · c · f) mod (x^n+1, Z_q)`
+
+The explicit multiplication by `t = x^{n/2}+1` is critical to the paper's claimed DFR of `2^{-133}` for Alpha512. In the paper's algebraic derivation (Section 3.2, page 14), this t-multiplication eliminates the noise term `gs + fe` when reducing modulo `(t, Z_2)`, leaving only the message-carrying term for recovery.
+
+**Finding:** When this t-multiplication is implemented literally (multiply the product `f · decompress(c)` by `t` in `Z_q[x]/(x^n+1)`, then reduce to `Z_2[x]/(x^{n/2}+1)` via centre → fold → parity), the result is identically zero for all inputs. This is algebraically forced: `(t · a)` folded mod `(x^{n/2}+1)` gives `−2 · a[i + n/2]` at each position, which is always even. Both the noise AND the message vanish.
+
+**Current implementation:** The decrypt functions omit the t-multiplication, computing `c' = f · decompress(c)` directly. This matches the codebase that passes all zero-noise round-trip tests. With nonzero noise (production parameters), the noise term `gs + fe` contributes random parity to `c_prime`, yielding ~n/4 bit errors in c2. After f2 multiplication, these propagate to m_prime, causing decryption failure.
+
+**Status:** The discrepancy between Algorithm 5's literal specification and the algebraic outcome requires expert cryptographic review. The paper's DFR estimates (Section 4.3) use a noise distribution `z = (x^{n/2}+1)gs + f(e + e_{d_c}) + (x^{n/4}+1)fm` which is NOT derivable from `t·c·f` under the standard polynomial arithmetic in `Z_q[x]/(x^n+1)`. A reference implementation from the paper's authors has not been located.
+
+**Action required before production promotion:**
+
+1. Obtain or produce a reference implementation of Algorithm 5 to clarify the correct decryption procedure.
+2. Determine whether the `(x^{n/2}+1)` factor in Algorithm 5 represents a literal polynomial multiplication, a ring-change convention, or an erratum.
+3. Once the correct decrypt is established, verify negligible DFR with the paper's spec parameters before promoting any profile.
 
 ### Security margin for production tuning (Alpha512)
 

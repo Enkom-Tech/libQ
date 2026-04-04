@@ -104,9 +104,15 @@ if [[ -n "$CRATE" ]]; then
   elif [[ "$CRATE" == "lib-q-ml-kem" ]]; then
     # ACVP integration tests (kem/pke paths) are behind `deterministic`.
     CMD="$CMD --features std,deterministic"
-  elif [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" == true ]]; then
-    # AVX2 backend + tests that need ACVP hooks (aligns with ci.yml ml-dsa-compliance).
-    CMD="$CMD --features simd256,acvp"
+  elif [[ "$CRATE" == "lib-q-ml-dsa" ]]; then
+    if [[ "$ML_DSA_SIMD256" == true ]]; then
+      # AVX2 backend + ACVP hooks (aligns with ci.yml ml-dsa-compliance simd256 job).
+      CMD="$CMD --features simd256,acvp"
+    else
+      # Default portable gate: match ci.yml feature matrix so ACVP/FIPS/hardened tests run
+      # (they are not enabled by crate default-features alone).
+      CMD="$CMD --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
+    fi
   fi
 fi
 
@@ -150,6 +156,9 @@ fi
 # measure AVX2-inclusive coverage (x86_64; informational in coverage.yml).
 # Omit backslash '**' excludes: tarpaulin's glob uses '/' as the only path separator.
 if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
+  # Module root `simd/avx2.rs` is not matched by `avx2/*` (directory globs); exclude explicitly.
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/simd/avx2.rs'"
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2.rs'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/simd/avx2/*' --exclude-files 'lib-q-ml-dsa/src/simd/avx2/**'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs'"

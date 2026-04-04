@@ -66,28 +66,6 @@ fn poly_z2_mul_mod_xm_plus1(a: &[u8], b: &[u8], m: usize) -> Vec<u8> {
     prod
 }
 
-/// Multiply a polynomial by t = x^{n/2}+1 in Z_q[x]/(x^n+1).
-///
-/// (t·a)[i] = a[i] - a[i+n/2]   for  0 <= i < n/2
-/// (t·a)[i] = a[i] + a[i-n/2]   for  n/2 <= i < n
-///
-/// All arithmetic is mod q (centred representation handled by caller).
-fn mul_by_t(a: &FieldPolynomial) -> FieldPolynomial {
-    let n = a.coefficients.len();
-    let q = a.modulus;
-    let n_half = n / 2;
-    let mut out = vec![0u32; n];
-    for i in 0..n_half {
-        // a[i] - a[i + n/2] mod q
-        out[i] = (a.coefficients[i] + q - a.coefficients[i + n_half]) % q;
-    }
-    for i in n_half..n {
-        // a[i] + a[i - n/2] mod q
-        out[i] = (a.coefficients[i] + a.coefficients[i - n_half]) % q;
-    }
-    FieldPolynomial::from_coefficients(out, q)
-}
-
 // --- PKE.Encrypt (Algorithm 4) ---
 
 /// Build polynomial w*m in Z_q[x]/(x^n+1) from message bytes (n/4 bits).
@@ -161,17 +139,13 @@ fn unpack_f2(f2_bytes: &[u8], len: usize) -> Vec<u8> {
     out
 }
 
-/// Common decrypt prefix: compute c' = t·f·decompress(c) in Z_q[x]/(x^n+1),
-/// centre, fold mod t = x^{n/2}+1, and extract c2 = c_prime mod 2.
-///
-/// Paper Algorithm 5, steps 1–2 plus the Z_2 reduction of step 3.
-/// The t-multiplication makes the noise term t·(g·s + f·e) always even
-/// after the mod-t fold, so c2 carries only the message contribution.
-fn decrypt_common(
+/// DAWN.PKE.Decrypt (Algorithm 5). Returns recovered message m.
+pub fn pke_decrypt(
     c_compressed: &FieldPolynomial,
     f: &FieldPolynomial,
+    f2: &[u8],
     encoder: &DoubleEncoder,
-) -> (Vec<i64>, Vec<u8>, usize, usize, u32) {
+) -> Result<Vec<u8>> {
     let n = encoder.zero_divisor_encoder.degree;
     let q = encoder.large_modulus;
     let n_half = n / 2;
@@ -182,15 +156,11 @@ fn decrypt_common(
     a.reduce_mod_field();
     a.reduce_mod_cyclotomic();
 
-    // Paper step 2: multiply by t = x^{n/2}+1
-    let ta = mul_by_t(&a);
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
 
-    let ta_centred = centre_poly_to_i64(&ta.coefficients, q);
-
-    // Fold mod (x^{n/2}+1): c_prime[i] = ta_centred[i] - ta_centred[i + n/2]
     let mut c_prime = vec![0i64; n_half];
     for i in 0..n_half {
-        c_prime[i] = ta_centred[i] - ta_centred[i + n_half];
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
     }
     let half = (q - 1) / 2;
     let q_i = q as i64;
@@ -210,26 +180,11 @@ fn decrypt_common(
         c2[i] = (c_prime[i].rem_euclid(2)) as u8;
     }
 
-    (c_prime, c2, n_half, n_quarter, q)
-}
+    // f2 is f^{-1} in Z_2[x]/(x^{n/2}+1); use directly for c2 * f2 in that ring.
+    let f2_poly = unpack_f2(f2, n_half);
+    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_poly, n_half);
 
-/// DAWN.PKE.Decrypt (Algorithm 5). Returns recovered message m.
-pub fn pke_decrypt(
-    c_compressed: &FieldPolynomial,
-    f: &FieldPolynomial,
-    f2: &[u8],
-    encoder: &DoubleEncoder,
-) -> Result<Vec<u8>> {
-    let n_quarter = encoder.zero_divisor_encoder.degree / 4;
-    let (c_prime, c2, n_half, _, _) = decrypt_common(c_compressed, f, encoder);
-
-    // f2 is f^{-1} mod (x^{n/4}+1, Z_2); zero-pad to n/2 for multiplication in Z_2[x]/(x^{n/2}+1).
-    let f2_poly = unpack_f2(f2, n_quarter);
-    let mut f2_padded = vec![0u8; n_half];
-    f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_padded, n_half);
-
-    simple_decoding(&m_prime, n_quarter, &c_prime, 0)
+    simple_decoding(&m_prime, n_quarter, &c_prime, q)
 }
 
 /// PKE decrypt using the reliability-bounded decoder (top-4, flip ≤2). For experiments and comparison with baseline.
@@ -239,13 +194,42 @@ pub fn pke_decrypt_reliability(
     f2: &[u8],
     encoder: &DoubleEncoder,
 ) -> Result<Vec<u8>> {
-    let n_quarter = encoder.zero_divisor_encoder.degree / 4;
-    let (c_prime, c2, n_half, _, q) = decrypt_common(c_compressed, f, encoder);
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+    let n_quarter = n / 4;
 
-    let f2_poly = unpack_f2(f2, n_quarter);
-    let mut f2_padded = vec![0u8; n_half];
-    f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_padded, n_half);
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
+
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+
+    let f2_poly = unpack_f2(f2, n_half);
+    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_poly, n_half);
 
     reliability_bounded_decoding(&m_prime, n_quarter, &c_prime, q)
 }
@@ -257,13 +241,42 @@ pub fn pke_decrypt_majority_reliability(
     f2: &[u8],
     encoder: &DoubleEncoder,
 ) -> Result<Vec<u8>> {
-    let n_quarter = encoder.zero_divisor_encoder.degree / 4;
-    let (c_prime, c2, n_half, _, q) = decrypt_common(c_compressed, f, encoder);
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+    let n_quarter = n / 4;
 
-    let f2_poly = unpack_f2(f2, n_quarter);
-    let mut f2_padded = vec![0u8; n_half];
-    f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_padded, n_half);
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
+
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+
+    let f2_poly = unpack_f2(f2, n_half);
+    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_poly, n_half);
 
     majority_reliability_decoding(&m_prime, n_quarter, &c_prime, q)
 }
@@ -513,13 +526,42 @@ pub fn pke_decrypt_chase(
     f2: &[u8],
     encoder: &DoubleEncoder,
 ) -> Result<Vec<u8>> {
-    let n_quarter = encoder.zero_divisor_encoder.degree / 4;
-    let (c_prime, c2, n_half, _, _) = decrypt_common(c_compressed, f, encoder);
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+    let n_quarter = n / 4;
 
-    let f2_poly = unpack_f2(f2, n_quarter);
-    let mut f2_padded = vec![0u8; n_half];
-    f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-    chase_decode_c2(&c2, &c_prime, &f2_padded, n_half, n_quarter)
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
+
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+
+    let f2_poly = unpack_f2(f2, n_half);
+    chase_decode_c2(&c2, &c_prime, &f2_poly, n_half, n_quarter)
 }
 
 // --- Phase 1 diagnostics: c2 error counting and f2 weight measurement ---
@@ -548,9 +590,36 @@ pub fn pke_c2_error_diagnostic(
     let q = encoder.large_modulus;
     let n_half = n / 2;
 
-    // Actual c2 from the noisy ciphertext (using the corrected t-multiplication path)
-    let (c_prime, c2_actual, _, _, _) = decrypt_common(c_compressed, f, encoder);
+    // Actual c2 from the noisy ciphertext
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
 
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let c2_actual: Vec<u8> = (0..n_half)
+        .map(|i| (c_prime[i].rem_euclid(2)) as u8)
+        .collect();
+
+    // c_prime statistics
     let mut abs_min = u64::MAX;
     let mut abs_max = 0u64;
     let mut abs_sum = 0u64;
@@ -562,19 +631,16 @@ pub fn pke_c2_error_diagnostic(
     }
     let abs_mean = abs_sum as f64 / n_half as f64;
 
-    // Ideal c2: compute t * f * (w*m) directly with no noise or compression loss.
+    // Ideal c2: compute f*(w*m) directly with no noise or compression loss.
     let wm = message_to_wm_poly(message, n, q);
     let mut a_ideal = f.clone() * wm;
     a_ideal.reduce_mod_field();
     a_ideal.reduce_mod_cyclotomic();
-    let ta_ideal = mul_by_t(&a_ideal);
 
-    let ta_ideal_centred = centre_poly_to_i64(&ta_ideal.coefficients, q);
-    let half = (q - 1) / 2;
-    let q_i = q as i64;
+    let a_ideal_centred = centre_poly_to_i64(&a_ideal.coefficients, q);
     let mut c_prime_ideal = vec![0i64; n_half];
     for i in 0..n_half {
-        c_prime_ideal[i] = ta_ideal_centred[i] - ta_ideal_centred[i + n_half];
+        c_prime_ideal[i] = a_ideal_centred[i] - a_ideal_centred[i + n_half];
     }
     for v in c_prime_ideal.iter_mut().take(n_half) {
         let mut val = *v;
@@ -1333,15 +1399,44 @@ pub(crate) fn pke_decrypt_with_trace(
     f2: &[u8],
     encoder: &DoubleEncoder,
 ) -> Result<(Vec<u8>, PkeDecryptTrace)> {
-    let n_quarter = encoder.zero_divisor_encoder.degree / 4;
-    let (c_prime, c2, n_half, _, _) = decrypt_common(c_compressed, f, encoder);
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+    let n_quarter = n / 4;
 
-    let f2_poly = unpack_f2(f2, n_quarter);
-    let mut f2_padded = vec![0u8; n_half];
-    f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_padded, n_half);
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
 
-    let recovered = simple_decoding(&m_prime, n_quarter, &c_prime, 0)?;
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for i in 0..n_half {
+        let mut v = c_prime[i];
+        while v > half as i64 {
+            v -= q_i;
+        }
+        while v < -(half as i64) {
+            v += q_i;
+        }
+        c_prime[i] = v;
+    }
+
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+
+    let f2_poly = unpack_f2(f2, n_half);
+    let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_poly, n_half);
+
+    let recovered = simple_decoding(&m_prime, n_quarter, &c_prime, q)?;
     Ok((
         recovered,
         PkeDecryptTrace {
@@ -1352,22 +1447,42 @@ pub(crate) fn pke_decrypt_with_trace(
     ))
 }
 
-/// Returns (ta_centred, c_prime, c2) for formula audit: decompress -> a = f*c' -> t*a -> centre -> fold mod t -> parity.
+/// Returns (a_centred, c_prime, c2) for formula audit: decompress -> a = f*c' -> centre -> t-reduce -> centre c_prime -> parity.
 #[cfg(test)]
 pub(crate) fn pke_decrypt_audit_intermediates(
     c_compressed: &FieldPolynomial,
     f: &FieldPolynomial,
     encoder: &DoubleEncoder,
 ) -> (Vec<i64>, Vec<i64>, Vec<u8>) {
+    let n = encoder.zero_divisor_encoder.degree;
     let q = encoder.large_modulus;
+    let n_half = n / 2;
     let decompressed = encoder.decompress(c_compressed);
     let mut a = f.clone() * decompressed;
     a.reduce_mod_field();
     a.reduce_mod_cyclotomic();
-    let ta = mul_by_t(&a);
-    let ta_centred = centre_poly_to_i64(&ta.coefficients, q);
-    let (c_prime, c2, _, _, _) = decrypt_common(c_compressed, f, encoder);
-    (ta_centred, c_prime, c2)
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for i in 0..n_half {
+        let mut v = c_prime[i];
+        while v > half as i64 {
+            v -= q_i;
+        }
+        while v < -(half as i64) {
+            v += q_i;
+        }
+        c_prime[i] = v;
+    }
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+    (a_centred, c_prime, c2)
 }
 
 /// PKE bit-error histogram over random messages with fixed keypair (for parameter tuning).
@@ -2701,11 +2816,10 @@ mod tests {
         let mut a = keypair.secret_key.clone() * wm_ideal;
         a.reduce_mod_field();
         a.reduce_mod_cyclotomic();
-        let ta = mul_by_t(&a);
-        let ta_centred = centre_poly_to_i64(&ta.coefficients, q);
+        let a_centred = centre_poly_to_i64(&a.coefficients, q);
         let mut c_prime = vec![0i64; n_half];
         for i in 0..n_half {
-            c_prime[i] = ta_centred[i] - ta_centred[i + n_half];
+            c_prime[i] = a_centred[i] - a_centred[i + n_half];
         }
         let half = (q - 1) / 2;
         let q_i = q as i64;
@@ -2723,11 +2837,9 @@ mod tests {
         for i in 0..n_half {
             c2[i] = (c_prime[i].rem_euclid(2)) as u8;
         }
-        let f2_poly = unpack_f2(&keypair.f2, n_quarter);
-        let mut f2_padded = vec![0u8; n_half];
-        f2_padded[..f2_poly.len()].copy_from_slice(&f2_poly);
-        let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_padded, n_half);
-        let recovered = simple_decoding(&m_prime, n_quarter, &c_prime, 0).expect("simple_decoding");
+        let f2_poly = unpack_f2(&keypair.f2, n_half);
+        let m_prime = poly_z2_mul_mod_xm_plus1(&c2, &f2_poly, n_half);
+        let recovered = simple_decoding(&m_prime, n_quarter, &c_prime, q).expect("simple_decoding");
         assert_eq!(
             recovered.len(),
             message.len(),
@@ -2762,14 +2874,14 @@ mod tests {
 
         let n = params.degree;
         let q = params.large_modulus;
-        let n_quarter = n / 4;
+        let n_half = n / 2;
 
-        let f_red_w = reduce_f_to_z2_mod_w(&keypair.secret_key.coefficients[..n], n, q);
-        let f2_poly = unpack_f2(&keypair.f2, n_quarter);
-        let product = poly_z2_mul_mod_xm_plus1(&f_red_w, &f2_poly, n_quarter);
+        let f_red_t = reduce_f_to_z2_mod_t(&keypair.secret_key.coefficients[..n], n, q);
+        let f2_poly = unpack_f2(&keypair.f2, n_half);
+        let product = poly_z2_mul_mod_xm_plus1(&f_red_t, &f2_poly, n_half);
 
-        assert_eq!(product.len(), n_quarter);
-        assert_eq!(product[0], 1, "f * f2 should equal 1 (mod x^(n/4)+1, Z_2)");
+        assert_eq!(product.len(), n_half);
+        assert_eq!(product[0], 1, "f * f2 should equal 1 (mod x^(n/2)+1, Z_2)");
         for (i, &c) in product.iter().enumerate().skip(1) {
             assert_eq!(c, 0, "coefficient at index {} should be 0", i);
         }

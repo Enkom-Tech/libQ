@@ -148,11 +148,13 @@ if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
         $cmd += " --features std,alloc,ml-kem,hqc"
     } elseif ($PackageArg -eq "lib-q-ml-kem") {
         $cmd += " --features std,deterministic"
+    } elseif ($PackageArg -eq $pkgLibQMldsa) {
+        if ($enableSimdAcvp) {
+            $cmd += " --features simd256,acvp"
+        } else {
+            $cmd += " --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
+        }
     }
-}
-
-if (($PackageArg -eq $pkgLibQMldsa) -and $enableSimdAcvp) {
-    $cmd += " --features simd256,acvp"
 }
 
 if ($IgnoreTests) { $cmd += " --ignore-tests" }
@@ -183,6 +185,7 @@ if ((-not [string]::IsNullOrWhiteSpace($PackageArg)) -and ($PackageArg -ne "lib-
     $cmd += Get-TarpaulinIncludeFlags -CrateName $PackageArg
 }
 if (($PackageArg -eq $pkgLibQMldsa) -and (-not $enableSimdAcvp)) {
+    $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2.rs" --exclude-files "lib-q-ml-dsa\src\simd\avx2.rs"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '" --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'

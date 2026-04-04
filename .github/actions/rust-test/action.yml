@@ -270,6 +270,13 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,alloc,ml-kem,hqc\""
         elif [[ "$PACKAGE" == "lib-q-ml-kem" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,deterministic\""
+        elif [[ "$PACKAGE" == "lib-q-ml-dsa" ]]; then
+          if [[ -n "$FEATURES" ]]; then
+            TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
+          else
+            # ACVP / FIPS / hardened tests are feature-gated; align with ci.yml + run-coverage.sh.
+            TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87\""
+          fi
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -309,6 +316,8 @@ runs:
 
         # ML-DSA: simd256/AVX2 sources are not in default coverage builds; drop from denominator (see docs/coverage-scope.md).
         if [[ "$PACKAGE" == "lib-q-ml-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/simd/avx2.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2.rs\""
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/simd/avx2/*\" --exclude-files \"lib-q-ml-dsa/src/simd/avx2/**\""
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\*\" --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\**\""
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs\""
