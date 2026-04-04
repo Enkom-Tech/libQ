@@ -172,8 +172,8 @@ runs:
       run: |
         echo "Running constant-time validation..."
         cd ${{ inputs.working-directory }}
-        # SLH-DSA operations should be constant-time
-        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for SLH-DSA"
+        cd ..
+        cargo test -p lib-q-slh-dsa --features "${{ inputs.features }}" --test constant_time
         echo "Constant-time validation completed"
     
     - name: Cross-compilation test (ARM64)
@@ -190,8 +190,9 @@ runs:
       run: |
         echo "Running full known_answer_tests (12 KATs) and ACVP keyGen projection including slow *s sets..."
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
-        cargo test --features "${{ inputs.features }},all-parameter-set-tests" --test acvp_keygen
+        # Debug builds are far too slow for *s* KATs (10 signs each); match acvp_sig policy (release-ci).
+        cargo test --profile release-ci --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
+        cargo test --profile release-ci --features "${{ inputs.features }},all-parameter-set-tests" --test acvp_keygen
         echo "Full KAT and ACVP keygen suites completed"
     
     - name: Test no_std compatibility

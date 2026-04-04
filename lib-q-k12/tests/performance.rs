@@ -400,13 +400,15 @@ fn test_cloning_performance() {
 #[cfg(not(tarpaulin))]
 fn test_performance_consistency() {
     let data = vec![0xBBu8; 1000];
-    const ITERATIONS: usize = 100;
+    // Enough work per run that a typical scheduler interrupt (~0.5–2 ms on Windows)
+    // does not dominate the aggregate timing; 100 iters was ~0.6 ms total and flaked often.
+    const ITERATIONS: usize = 2000;
     const RUNS: usize = 5;
 
     let mut run_times = Vec::new();
 
     // Warm up
-    for _ in 0..50 {
+    for _ in 0..100 {
         let mut hasher = KangarooTwelve::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);

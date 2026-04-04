@@ -4,6 +4,11 @@
 //!
 //! These tests call the `slh_*_internal` functions directly, bypassing context processing.
 //! By default only two KATs run (Shake128f, Sha2_128f). Enable `--features all-parameter-set-tests` for the full set.
+//!
+//! The `*s` (small signature) parameter sets do heavy signing work; in a **debug** build, each KAT can exceed
+//! Rust’s 60s “still running” notice and total runtime grows quickly when tests run in parallel. For the full
+//! twelve KATs locally or in CI, use the workspace `release-ci` profile, for example:
+//! `cargo test -p lib-q-slh-dsa --profile release-ci --features all-parameter-set-tests --test known_answer_tests`.
 #![cfg(feature = "alloc")]
 use core::{
     error,

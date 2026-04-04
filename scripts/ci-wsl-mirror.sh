@@ -21,7 +21,7 @@ echo "== SLH-DSA unit tests (smoke parameter sets; default) =="
 cargo test -p lib-q-slh-dsa --features alloc --verbose
 
 echo "== SLH-DSA: all 12 parameter sets (unit macros + known_answer_tests KATs; slow) =="
-cargo test -p lib-q-slh-dsa --features "alloc,all-parameter-set-tests" --verbose
+cargo test -p lib-q-slh-dsa --profile release-ci --features "alloc,all-parameter-set-tests" --verbose
 
 echo "== HQC SIMD (simd-debug-tests job) =="
 (
