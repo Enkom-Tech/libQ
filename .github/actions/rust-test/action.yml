@@ -306,6 +306,14 @@ runs:
           fi
           TARPAULIN_CMD="$TARPAULIN_CMD ${INC}"
         fi
+
+        # ML-DSA: simd256/AVX2 sources are not in default coverage builds; drop from denominator (see docs/coverage-scope.md).
+        if [[ "$PACKAGE" == "lib-q-ml-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/simd/avx2/*\" --exclude-files \"lib-q-ml-dsa/src/simd/avx2/**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\*\" --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\ml_dsa_generic\\\\instantiations\\\\avx2.rs\""
+        fi
         
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
           if ! echo "$TARPAULIN_CMD" | grep -q -- '--include-files'; then

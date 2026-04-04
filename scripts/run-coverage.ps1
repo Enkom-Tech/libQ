@@ -9,12 +9,18 @@ param (
     [switch]$IgnoreTests,
     [switch]$IgnorePanics,
     [string]$LineThreshold = "95",
-    [string]$Toolchain = "stable"
+    [string]$Toolchain = "stable",
+    [switch]$MlDsaSimd256
 )
 
 $ShowReport = if ($PSBoundParameters.ContainsKey('ShowReport')) { $ShowReport } else { $true }
 $IgnoreTests = if ($PSBoundParameters.ContainsKey('IgnoreTests')) { $IgnoreTests } else { $true }
 $IgnorePanics = if ($PSBoundParameters.ContainsKey('IgnorePanics')) { $IgnorePanics } else { $true }
+
+if ($MlDsaSimd256 -and $Crate -ne "lib-q-ml-dsa") {
+    Write-Host "ERROR: -MlDsaSimd256 requires -Crate lib-q-ml-dsa" -ForegroundColor Red
+    exit 1
+}
 
 $ScriptRoot = $PSScriptRoot
 if ([string]::IsNullOrEmpty($ScriptRoot)) { $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -108,6 +114,8 @@ if ($Crate -ne "") {
         $cmd += " --features std,alloc,ml-kem,hqc"
     } elseif ($Crate -eq "lib-q-ml-kem") {
         $cmd += " --features std,deterministic"
+    } elseif ($Crate -eq "lib-q-ml-dsa" -and $MlDsaSimd256) {
+        $cmd += " --features simd256,acvp"
     }
 }
 
@@ -137,6 +145,11 @@ if ($Crate -eq "lib-q-hash") {
 }
 if ($Crate -ne "" -and $Crate -ne "lib-q-core" -and $Crate -ne "lib-q" -and $Crate -ne "lib-q-keccak" -and $Crate -ne "lib-q-hash") {
     $cmd += Get-TarpaulinIncludeFlags -CrateName $Crate
+}
+if ($Crate -eq "lib-q-ml-dsa" -and -not $MlDsaSimd256) {
+    $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '" --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2\' + '*' + '" --exclude-files "lib-q-ml-dsa\src\simd\avx2\' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'
 }
 if ($Crate -ne "" -and $cmd -notmatch '--include-files') {
     Write-Host "ERROR: tarpaulin command is missing --include-files for package $Crate" -ForegroundColor Red

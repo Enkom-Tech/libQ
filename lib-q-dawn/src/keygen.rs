@@ -113,8 +113,12 @@ pub enum PkeDecryptKind {
     Baseline,
     /// Top-4 bounded flips using coefficient reliability.
     ReliabilityBounded,
-    /// Repetition majority with `c_prime` tie-break (Path B).
+    /// Repetition majority with `c_prime` tie-break (Path B v1).
     MajorityReliability,
+    /// Chase decoder: enumerate 2^k_chase flip patterns over least-reliable c2
+    /// positions *before* the f₂ multiplication, selecting the candidate whose
+    /// post-f₂ repetition-code syndrome weight is minimal.
+    Chase,
 }
 
 /// DAWN key generation parameters

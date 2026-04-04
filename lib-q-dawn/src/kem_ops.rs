@@ -32,6 +32,7 @@ use crate::encoding::{
     DoubleEncoder,
     ErrorCorrector,
     pke_decrypt,
+    pke_decrypt_chase,
     pke_decrypt_majority_reliability,
     pke_decrypt_reliability,
     pke_encrypt,
@@ -80,6 +81,12 @@ impl DawnKemOps {
     /// Force the Path B majority-reliability decoder regardless of `params.pke_decrypt`.
     pub fn new_with_majority_reliability_decoder(mut params: KeyGenParams) -> Self {
         params.pke_decrypt = PkeDecryptKind::MajorityReliability;
+        Self::new_from_params(params)
+    }
+
+    /// Force the Chase decoder regardless of `params.pke_decrypt`.
+    pub fn new_with_chase_decoder(mut params: KeyGenParams) -> Self {
+        params.pke_decrypt = PkeDecryptKind::Chase;
         Self::new_from_params(params)
     }
 
@@ -175,6 +182,12 @@ impl DawnKemOps {
         let compressed_c = self.decode_polynomial(ciphertext)?;
 
         let m_prime = match self.params.pke_decrypt {
+            PkeDecryptKind::Chase => pke_decrypt_chase(
+                &compressed_c,
+                &keypair.secret_key,
+                &keypair.f2,
+                &self.encoder,
+            )?,
             PkeDecryptKind::MajorityReliability => pke_decrypt_majority_reliability(
                 &compressed_c,
                 &keypair.secret_key,

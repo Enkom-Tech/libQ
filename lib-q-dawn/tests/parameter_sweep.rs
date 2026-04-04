@@ -6,7 +6,10 @@
 
 use lib_q_core::Kem;
 use lib_q_dawn::encoding::{
+    c2_error_histogram,
+    f2_hamming_weight,
     pke_failure_rate_histogram,
+    pke_failure_rate_histogram_chase,
     pke_failure_rate_histogram_majority_reliability,
     pke_failure_rate_histogram_reliability,
 };
@@ -752,6 +755,7 @@ enum PkeDecoderKind {
     Baseline,
     ReliabilityBounded,
     MajorityReliability,
+    Chase,
 }
 
 impl PkeDecoderKind {
@@ -760,6 +764,7 @@ impl PkeDecoderKind {
             PkeDecoderKind::Baseline => "baseline",
             PkeDecoderKind::ReliabilityBounded => "reliability",
             PkeDecoderKind::MajorityReliability => "majority",
+            PkeDecoderKind::Chase => "chase",
         }
     }
 }
@@ -779,6 +784,7 @@ fn pke_histogram_dispatch(
         PkeDecoderKind::MajorityReliability => {
             pke_failure_rate_histogram_majority_reliability(keypair, params, samples, seed)
         }
+        PkeDecoderKind::Chase => pke_failure_rate_histogram_chase(keypair, params, samples, seed),
     }
 }
 
@@ -864,6 +870,7 @@ fn kem_for_decoder(params: KeyGenParams, decoder: PkeDecoderKind) -> DawnKem {
         PkeDecoderKind::MajorityReliability => {
             DawnKem::new_with_params_and_majority_reliability_decoder(params)
         }
+        PkeDecoderKind::Chase => DawnKem::new_with_params_and_chase_decoder(params),
     }
 }
 
@@ -911,6 +918,9 @@ fn run_alpha512_grid_cell_csv(
         }
         PkeDecoderKind::MajorityReliability => {
             params.pke_decrypt = lib_q_dawn::keygen::PkeDecryptKind::MajorityReliability;
+        }
+        PkeDecoderKind::Chase => {
+            params.pke_decrypt = lib_q_dawn::keygen::PkeDecryptKind::Chase;
         }
     }
     let keypair = keypair_for_alpha512_dc_grid(k_s, k_e, d_c);
@@ -964,6 +974,9 @@ fn run_alpha1024_grid_cell_csv(
         }
         PkeDecoderKind::MajorityReliability => {
             params.pke_decrypt = lib_q_dawn::keygen::PkeDecryptKind::MajorityReliability;
+        }
+        PkeDecoderKind::Chase => {
+            params.pke_decrypt = lib_q_dawn::keygen::PkeDecryptKind::Chase;
         }
     }
     let keypair = keypair_for_alpha1024_dc_grid(k_s, k_e, d_c);
@@ -1079,4 +1092,247 @@ fn test_alpha512_multi_keypair_histogram_sample() {
         "multi_keypair_agg alpha512 ks={} ke={} dc={} decoder={:?} b0={} b1={} b2_4={} b_gt4={}",
         k_s, k_e, d_c, dec, b0, b1, b2_4, b_gt4
     );
+}
+
+// ===========================================================================
+// Phase 1: c2 error diagnostic + f2 weight measurement
+// ===========================================================================
+
+/// Phase 1 diagnostic: c2 error histogram over parameter grid.
+/// Measures the actual number of c2 bit errors (pre-f₂ multiplication) to determine
+/// what k_chase the Chase decoder needs.
+/// Run: cargo test -p lib-q-dawn --features random --test parameter_sweep test_phase1_c2_error_diagnostic -- --ignored --nocapture
+#[test]
+#[ignore = "Phase 1 diagnostic; run with --ignored --nocapture"]
+fn test_phase1_c2_error_diagnostic() {
+    let ks_vals = [16usize, 24, 32, 48];
+    let ke_vals = [24usize, 32, 48, 64];
+    let dc_vals = [1u32, 2, 3];
+    let max_bucket = 20usize;
+    let pke_n = 500usize;
+
+    eprintln!(
+        "profile,ks,ke,dc,c2_err_0,c2_err_1,c2_err_2,c2_err_3,c2_err_4,c2_err_5,c2_err_6,c2_err_7_plus"
+    );
+    for &k_s in &ks_vals {
+        for &k_e in &ke_vals {
+            for &d_c in &dc_vals {
+                let params = KeyGenParams::dawn_alpha_512_custom(k_s, k_e, d_c);
+                let keypair = keypair_for_alpha512_dc_grid(k_s, k_e, d_c);
+
+                let mut rng_seed = [0u8; 64];
+                rng_seed.copy_from_slice(
+                    &lib_q_dawn::security::generate_deterministic_high_entropy_data(
+                        &[
+                            b"phase1_c2_diag".as_ref(),
+                            &(k_s as u64).to_le_bytes(),
+                            &(k_e as u64).to_le_bytes(),
+                            &d_c.to_le_bytes(),
+                        ]
+                        .concat(),
+                        64,
+                    ),
+                );
+
+                let hist = c2_error_histogram(&keypair, &params, pke_n, max_bucket, &rng_seed);
+                let sum_7_plus: usize = hist[7..].iter().sum();
+                eprintln!(
+                    "alpha512,{},{},{},{},{},{},{},{},{},{},{}",
+                    k_s,
+                    k_e,
+                    d_c,
+                    hist[0],
+                    hist[1],
+                    hist[2],
+                    hist[3],
+                    hist[4],
+                    hist[5],
+                    hist[6],
+                    sum_7_plus
+                );
+            }
+        }
+    }
+}
+
+/// Phase 1 diagnostic: f2 Hamming weight distribution over multiple keypairs.
+/// Run: cargo test -p lib-q-dawn --features random --test parameter_sweep test_phase1_f2_weight_distribution -- --ignored --nocapture
+#[test]
+#[ignore = "Phase 1 diagnostic; run with --ignored --nocapture"]
+fn test_phase1_f2_weight_distribution() {
+    let num_keys = 200usize;
+    let mut weights = Vec::with_capacity(num_keys);
+
+    for i in 0..num_keys {
+        let seed = lib_q_dawn::security::generate_deterministic_high_entropy_data(
+            &[b"phase1_f2_weight".as_ref(), &(i as u64).to_le_bytes()].concat(),
+            64,
+        );
+        let params = KeyGenParams::dawn_alpha_512_custom(24, 32, 1);
+        let kp = DeterministicKeyGenerator::new(params, seed)
+            .generate_keypair()
+            .expect("keygen");
+        let w = f2_hamming_weight(&kp.f2);
+        weights.push(w);
+    }
+
+    weights.sort();
+    let n = weights.len();
+    let min = weights[0];
+    let max = weights[n - 1];
+    let median = weights[n / 2];
+    let p95 = weights[(n * 95) / 100];
+    let mean: f64 = weights.iter().map(|&w| w as f64).sum::<f64>() / n as f64;
+    let n_half = 256usize; // n/2 for Alpha512
+
+    eprintln!(
+        "--- f2 Hamming weight distribution ({} keypairs, Alpha512) ---",
+        num_keys
+    );
+    eprintln!("  n/2 = {}", n_half);
+    eprintln!(
+        "  min = {}, max = {}, median = {}, p95 = {}, mean = {:.1}",
+        min, max, median, p95, mean
+    );
+    eprintln!(
+        "  density (median/n_half) = {:.3}",
+        median as f64 / n_half as f64
+    );
+}
+
+// ===========================================================================
+// Phase 2: Chase decoder sweep
+// ===========================================================================
+
+/// Chase decoder: one candidate, return (b0, b1, b2_4, b_gt4, kem_mismatches).
+fn run_alpha512_chase_candidate_with_counts(
+    k_s: usize,
+    k_e: usize,
+    d_c: u32,
+    pke_samples: usize,
+    kem_cycles: usize,
+) -> (usize, usize, usize, usize, u64) {
+    let params = KeyGenParams::dawn_alpha_512_custom(k_s, k_e, d_c);
+    let keypair = keypair_for_alpha512_dc_grid(k_s, k_e, d_c);
+
+    let mut rng_seed = [0u8; 64];
+    rng_seed.copy_from_slice(
+        &lib_q_dawn::security::generate_deterministic_high_entropy_data(
+            &[
+                b"sweep_chase_pke".as_ref(),
+                &(k_s as u64).to_le_bytes(),
+                &(k_e as u64).to_le_bytes(),
+                &d_c.to_le_bytes(),
+            ]
+            .concat(),
+            64,
+        ),
+    );
+
+    let (b0, b1, b2_4, b_gt4) =
+        pke_failure_rate_histogram_chase(&keypair, &params, pke_samples, &rng_seed);
+
+    let kem = DawnKem::new_with_params_and_chase_decoder(params);
+    let mut mismatches = 0u64;
+    for i in 0..kem_cycles {
+        let kp = match kem.generate_keypair() {
+            Ok(k) => k,
+            Err(_) => continue,
+        };
+        let (ct, ss1) = match kem.encapsulate(&kp.public_key) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let ss2 = match kem.decapsulate(&kp.secret_key, &ct) {
+            Ok(d) => d,
+            Err(_) => {
+                mismatches += 1;
+                continue;
+            }
+        };
+        if ss1 != ss2 {
+            mismatches += 1;
+        }
+        if kem_cycles >= 100 && (i + 1) % 100 == 0 {
+            eprintln!(
+                "chase progress k_s={} k_e={} d_c={} kem_cycle={}/{} mismatches={}",
+                k_s,
+                k_e,
+                d_c,
+                i + 1,
+                kem_cycles,
+                mismatches
+            );
+        }
+    }
+    (b0, b1, b2_4, b_gt4, mismatches)
+}
+
+/// Chase decoder quick sweep for Alpha512: PKE histogram + KEM mismatch count.
+/// Run: cargo test -p lib-q-dawn --features random --test parameter_sweep test_alpha512_chase_sweep_quick -- --ignored --nocapture
+#[test]
+#[ignore = "Chase decoder quick sweep; run with --ignored --nocapture"]
+fn test_alpha512_chase_sweep_quick() {
+    let ks_vals = [16usize, 24, 32, 48];
+    let ke_vals = [24usize, 32, 48, 64];
+    let dc_vals = [1u32, 2, 3];
+
+    eprintln!("--- Alpha512 Chase decoder sweep (500 PKE, 200 KEM per cell) ---");
+    eprintln!("profile,ks,ke,dc,b0,b1,b2_4,b_gt4,kem_mismatches");
+    for &k_s in &ks_vals {
+        for &k_e in &ke_vals {
+            for &d_c in &dc_vals {
+                let (b0, b1, b2_4, b_gt4, mismatches) =
+                    run_alpha512_chase_candidate_with_counts(k_s, k_e, d_c, 500, 200);
+                eprintln!(
+                    "alpha512,{},{},{},{},{},{},{},{}",
+                    k_s, k_e, d_c, b0, b1, b2_4, b_gt4, mismatches
+                );
+            }
+        }
+    }
+}
+
+/// Chase decoder vs all decoders head-to-head comparison on one parameter set.
+/// Run: cargo test -p lib-q-dawn --features random --test parameter_sweep test_alpha512_decoder_comparison -- --ignored --nocapture
+#[test]
+#[ignore = "decoder comparison; run with --ignored --nocapture"]
+fn test_alpha512_decoder_comparison() {
+    let k_s = 32usize;
+    let k_e = 48usize;
+    let d_c = 2u32;
+    let pke_n = 1000usize;
+
+    let params = KeyGenParams::dawn_alpha_512_custom(k_s, k_e, d_c);
+    let keypair = keypair_for_alpha512_dc_grid(k_s, k_e, d_c);
+
+    let mut rng_seed = [0u8; 64];
+    rng_seed.copy_from_slice(
+        &lib_q_dawn::security::generate_deterministic_high_entropy_data(
+            b"decoder_comparison_seed",
+            64,
+        ),
+    );
+
+    eprintln!(
+        "--- Decoder comparison: Alpha512 k_s={} k_e={} d_c={} ({} samples) ---",
+        k_s, k_e, d_c, pke_n
+    );
+    for &dec in &[
+        PkeDecoderKind::Baseline,
+        PkeDecoderKind::ReliabilityBounded,
+        PkeDecoderKind::MajorityReliability,
+        PkeDecoderKind::Chase,
+    ] {
+        let (b0, b1, b2_4, b_gt4) =
+            pke_histogram_dispatch(dec, &keypair, &params, pke_n, &rng_seed);
+        eprintln!(
+            "  {:12} 0={:4} 1={:4} 2-4={:4} >4={:4}",
+            dec.as_csv(),
+            b0,
+            b1,
+            b2_4,
+            b_gt4
+        );
+    }
 }

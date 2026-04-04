@@ -19,6 +19,8 @@ on:
       # Only run full coverage on PRs that modify these critical paths
       - 'lib-q-keccak/**'
       - 'lib-q-core/**'
+      - 'lib-q-ml-dsa/**'
+      - 'scripts/run-coverage.sh'
       - '.github/workflows/coverage.yml'
   # Schedule a weekly coverage report for monitoring
   schedule:
@@ -98,6 +100,14 @@ jobs:
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/crypto/$crate"
             fi
           done
+
+          # Informational: ML-DSA with simd256 (includes AVX2 sources). x86_64 runners only; not gated.
+          if [ "${{ matrix.rust }}" = "stable" ] && [ -d "lib-q-ml-dsa" ]; then
+            echo "Running informational SIMD256 coverage for lib-q-ml-dsa"
+            bash scripts/run-coverage.sh --crate lib-q-ml-dsa --ml-dsa-simd256 --threshold 0 --output-dir "coverage-lib-q-ml-dsa-simd256" --toolchain ${{ matrix.rust }} --no-report
+            mkdir -p "combined-coverage/${{ matrix.rust }}/crypto/lib-q-ml-dsa-simd256"
+            cp -r "coverage-lib-q-ml-dsa-simd256" "combined-coverage/${{ matrix.rust }}/crypto/lib-q-ml-dsa-simd256"
+          fi
           
           # Run coverage for utility crates
           echo "Running coverage for utility crates with ${{ matrix.rust }}"

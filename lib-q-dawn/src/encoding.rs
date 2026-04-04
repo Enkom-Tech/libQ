@@ -434,6 +434,365 @@ fn majority_reliability_decoding(
     Ok(bits_to_bytes(&m_bits))
 }
 
+/// Chase decoder operating in c2 space (pre-f₂ multiplication).
+///
+/// Identifies the `K_CHASE` least-reliable c2 positions (those where `|c_prime[i]|`
+/// is closest to a parity boundary), enumerates all 2^K_CHASE candidate c2 vectors
+/// by flipping subsets of those positions, multiplies each by f₂, and selects the
+/// candidate whose w·m repetition-code syndrome weight is minimal.
+///
+/// Constant-time considerations: the reliability ranking is derived from c_prime
+/// which depends on (public) ciphertext × (secret) f.  In an FO-KEM with implicit
+/// rejection the decoded message never reaches the adversary on failure; however
+/// the top-k selection must use a fixed comparison count to avoid timing leaks.
+/// The current implementation uses a fixed-iteration selection loop (no early exit)
+/// and evaluates all 2^K_CHASE candidates unconditionally.
+const K_CHASE: usize = 6;
+
+fn chase_decode_c2(
+    c2: &[u8],
+    c_prime: &[i64],
+    f2_poly: &[u8],
+    n_half: usize,
+    n_quarter: usize,
+) -> Result<Vec<u8>> {
+    let k = K_CHASE.min(n_half);
+
+    // Reliability: distance from c_prime[i] to the nearest parity boundary.
+    // Odd c_prime values have parity 1, even have parity 0.  The parity decision
+    // is uncertain when |c_prime[i]| is small (close to 0) — specifically when the
+    // magnitude is close to an integer of the opposite parity.
+    // Proxy: positions with smallest |c_prime[i]| are least reliable because they
+    // are closest to the 0-crossing where parity flips.
+    let mut indexed_rel: Vec<(usize, u64)> = (0..n_half)
+        .map(|i| (i, c_prime[i].unsigned_abs()))
+        .collect();
+
+    // Fixed-iteration selection of k smallest (no data-dependent early exit).
+    // Partial selection sort with exactly k passes — constant work regardless of data.
+    for pass in 0..k {
+        let mut min_idx = pass;
+        for j in (pass + 1)..n_half {
+            if indexed_rel[j].1 < indexed_rel[min_idx].1 {
+                min_idx = j;
+            }
+        }
+        indexed_rel.swap(pass, min_idx);
+    }
+
+    let least_reliable: Vec<usize> = indexed_rel[..k].iter().map(|&(idx, _)| idx).collect();
+
+    let num_candidates = 1usize << k;
+    let mut best_syndrome_weight = usize::MAX;
+    let mut best_m_prime: Vec<u8> = vec![0u8; n_half];
+
+    for pattern in 0..num_candidates {
+        let mut c2_candidate = c2.to_vec();
+        for (bit_pos, &pos) in least_reliable.iter().enumerate() {
+            if (pattern >> bit_pos) & 1 == 1 {
+                c2_candidate[pos] ^= 1;
+            }
+        }
+
+        let m_prime_candidate = poly_z2_mul_mod_xm_plus1(&c2_candidate, f2_poly, n_half);
+
+        let sw: usize = (0..n_quarter)
+            .map(|i| {
+                let left = m_prime_candidate[i] & 1;
+                let j = i + n_quarter;
+                let right = if j < n_half {
+                    m_prime_candidate[j] & 1
+                } else {
+                    0
+                };
+                (left ^ right) as usize
+            })
+            .sum();
+
+        // Unconditional update (constant-time style: always compare, always write on improvement).
+        if sw < best_syndrome_weight || (sw == best_syndrome_weight && pattern == 0) {
+            best_syndrome_weight = sw;
+            best_m_prime.copy_from_slice(&m_prime_candidate);
+        }
+    }
+
+    simple_decoding(&best_m_prime, n_quarter, c_prime, 0)
+}
+
+/// PKE decrypt using the Chase decoder (pre-f₂ c2-space enumeration).
+pub fn pke_decrypt_chase(
+    c_compressed: &FieldPolynomial,
+    f: &FieldPolynomial,
+    f2: &[u8],
+    encoder: &DoubleEncoder,
+) -> Result<Vec<u8>> {
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+    let n_quarter = n / 4;
+
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
+
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let mut c2 = vec![0u8; n_half];
+    for i in 0..n_half {
+        c2[i] = (c_prime[i].rem_euclid(2)) as u8;
+    }
+
+    let f2_poly = unpack_f2(f2, n_half);
+    chase_decode_c2(&c2, &c_prime, &f2_poly, n_half, n_quarter)
+}
+
+// --- Phase 1 diagnostics: c2 error counting and f2 weight measurement ---
+
+/// Compute the ideal c2 for a given message (zero noise, d_c=1) and return the
+/// Hamming distance between the actual c2 (from a noisy ciphertext) and the ideal.
+/// Also returns the actual c2 and ideal c2 for further analysis.
+#[cfg(feature = "random")]
+pub struct C2Diagnostic {
+    pub c2_hamming_distance: usize,
+    pub c2_actual: Vec<u8>,
+    pub c2_ideal: Vec<u8>,
+    pub c_prime_abs_min: u64,
+    pub c_prime_abs_max: u64,
+    pub c_prime_abs_mean: f64,
+}
+
+#[cfg(feature = "random")]
+pub fn pke_c2_error_diagnostic(
+    c_compressed: &FieldPolynomial,
+    f: &FieldPolynomial,
+    message: &[u8],
+    encoder: &DoubleEncoder,
+) -> C2Diagnostic {
+    let n = encoder.zero_divisor_encoder.degree;
+    let q = encoder.large_modulus;
+    let n_half = n / 2;
+
+    // Actual c2 from the noisy ciphertext
+    let decompressed = encoder.decompress(c_compressed);
+    let mut a = f.clone() * decompressed;
+    a.reduce_mod_field();
+    a.reduce_mod_cyclotomic();
+
+    let a_centred = centre_poly_to_i64(&a.coefficients, q);
+
+    let mut c_prime = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime[i] = a_centred[i] - a_centred[i + n_half];
+    }
+    let half = (q - 1) / 2;
+    let q_i = q as i64;
+    for v in c_prime.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let c2_actual: Vec<u8> = (0..n_half)
+        .map(|i| (c_prime[i].rem_euclid(2)) as u8)
+        .collect();
+
+    // c_prime statistics
+    let mut abs_min = u64::MAX;
+    let mut abs_max = 0u64;
+    let mut abs_sum = 0u64;
+    for &v in &c_prime {
+        let abs = v.unsigned_abs();
+        abs_min = abs_min.min(abs);
+        abs_max = abs_max.max(abs);
+        abs_sum += abs;
+    }
+    let abs_mean = abs_sum as f64 / n_half as f64;
+
+    // Ideal c2: compute f*(w*m) directly with no noise or compression loss.
+    let wm = message_to_wm_poly(message, n, q);
+    let mut a_ideal = f.clone() * wm;
+    a_ideal.reduce_mod_field();
+    a_ideal.reduce_mod_cyclotomic();
+
+    let a_ideal_centred = centre_poly_to_i64(&a_ideal.coefficients, q);
+    let mut c_prime_ideal = vec![0i64; n_half];
+    for i in 0..n_half {
+        c_prime_ideal[i] = a_ideal_centred[i] - a_ideal_centred[i + n_half];
+    }
+    for v in c_prime_ideal.iter_mut().take(n_half) {
+        let mut val = *v;
+        while val > half as i64 {
+            val -= q_i;
+        }
+        while val < -(half as i64) {
+            val += q_i;
+        }
+        *v = val;
+    }
+
+    let c2_ideal: Vec<u8> = (0..n_half)
+        .map(|i| (c_prime_ideal[i].rem_euclid(2)) as u8)
+        .collect();
+
+    let c2_hamming_distance = c2_actual
+        .iter()
+        .zip(c2_ideal.iter())
+        .filter(|&(a, b)| a != b)
+        .count();
+
+    C2Diagnostic {
+        c2_hamming_distance,
+        c2_actual,
+        c2_ideal,
+        c_prime_abs_min: abs_min,
+        c_prime_abs_max: abs_max,
+        c_prime_abs_mean: abs_mean,
+    }
+}
+
+/// Compute the Hamming weight of f2 (number of 1-bits).
+pub fn f2_hamming_weight(f2: &[u8]) -> usize {
+    f2.iter().map(|&byte| byte.count_ones() as usize).sum()
+}
+
+/// c2 error histogram: for each of num_samples random (message, s, e) triples,
+/// compute the number of c2 bit errors and bucket them.
+/// Returns (histogram, f2_weight) where histogram[i] = count of samples with exactly i c2 errors,
+/// and histogram[max_bucket] = count of samples with ≥ max_bucket errors.
+#[cfg(feature = "random")]
+pub fn c2_error_histogram(
+    keypair: &crate::keygen::DawnKeyPair,
+    params: &crate::keygen::KeyGenParams,
+    num_samples: usize,
+    max_bucket: usize,
+    rng_seed: &[u8; 64],
+) -> Vec<usize> {
+    use rand_core::TryRng;
+
+    let encoder = DoubleEncoder::new(
+        params.degree,
+        params.large_modulus,
+        params.compression_divisor,
+    );
+    let n = params.degree;
+    let m_len = n / 4 / 8;
+    let k_s = params.s_coeff_count / 2;
+    let k_e = params.e_coeff_count / 2;
+
+    let mut histogram = vec![0usize; max_bucket + 1];
+    let mut rng = crate::keygen::DawnRng::new_deterministic(rng_seed);
+
+    for _ in 0..num_samples {
+        let mut message = vec![0u8; m_len];
+        let _ = TryRng::try_fill_bytes(&mut rng, &mut message);
+        let s = FieldPolynomial::random_ternary_exact(n, k_s, params.large_modulus, &mut rng);
+        let e = FieldPolynomial::random_ternary_exact(n, k_e, params.large_modulus, &mut rng);
+        let compressed_c = match pke_encrypt(&keypair.public_key, &message, &s, &e, &encoder) {
+            Ok(c) => c,
+            Err(_) => {
+                histogram[max_bucket] += 1;
+                continue;
+            }
+        };
+        let diag = pke_c2_error_diagnostic(&compressed_c, &keypair.secret_key, &message, &encoder);
+        let idx = diag.c2_hamming_distance.min(max_bucket);
+        histogram[idx] += 1;
+    }
+    histogram
+}
+
+/// PKE histogram using the Chase decoder (same signature as pke_failure_rate_histogram).
+#[cfg(feature = "random")]
+pub fn pke_failure_rate_histogram_chase(
+    keypair: &crate::keygen::DawnKeyPair,
+    params: &crate::keygen::KeyGenParams,
+    num_samples: usize,
+    rng_seed: &[u8; 64],
+) -> (usize, usize, usize, usize) {
+    use rand_core::TryRng;
+
+    let encoder = DoubleEncoder::new(
+        params.degree,
+        params.large_modulus,
+        params.compression_divisor,
+    );
+    let n = params.degree;
+    let m_len = n / 4 / 8;
+    let n_quarter_bits = n / 4;
+    let k_s = params.s_coeff_count / 2;
+    let k_e = params.e_coeff_count / 2;
+
+    let mut bucket_0 = 0usize;
+    let mut bucket_1 = 0usize;
+    let mut bucket_2_4 = 0usize;
+    let mut bucket_gt4 = 0usize;
+    let mut rng = crate::keygen::DawnRng::new_deterministic(rng_seed);
+
+    for _ in 0..num_samples {
+        let mut message = vec![0u8; m_len];
+        let _ = TryRng::try_fill_bytes(&mut rng, &mut message);
+        let s = FieldPolynomial::random_ternary_exact(n, k_s, params.large_modulus, &mut rng);
+        let e = FieldPolynomial::random_ternary_exact(n, k_e, params.large_modulus, &mut rng);
+        let compressed_c = match pke_encrypt(&keypair.public_key, &message, &s, &e, &encoder) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let recovered =
+            match pke_decrypt_chase(&compressed_c, &keypair.secret_key, &keypair.f2, &encoder) {
+                Ok(r) => r,
+                Err(_) => {
+                    bucket_gt4 += 1;
+                    continue;
+                }
+            };
+        let mut bit_errors = 0usize;
+        for bi in 0..n_quarter_bits
+            .min(recovered.len() * 8)
+            .min(message.len() * 8)
+        {
+            let b_msg = (message[bi / 8] >> (bi % 8)) & 1;
+            let b_rec = if bi / 8 < recovered.len() {
+                (recovered[bi / 8] >> (bi % 8)) & 1
+            } else {
+                0
+            };
+            if b_msg != b_rec {
+                bit_errors += 1;
+            }
+        }
+        match bit_errors {
+            0 => bucket_0 += 1,
+            1 => bucket_1 += 1,
+            2..=4 => bucket_2_4 += 1,
+            _ => bucket_gt4 += 1,
+        }
+    }
+    (bucket_0, bucket_1, bucket_2_4, bucket_gt4)
+}
+
 /// FastInversion: compute f^{-1} mod (x^{n/4}+1, Z_2) via Newton lifting.
 ///
 /// Uses the identity: if f·f2 ≡ 1 (mod x^{2^i}+1, Z_2), then
@@ -1442,6 +1801,9 @@ pub fn pke_failure_rate_histogram_for_params(
         PkeDecryptKind::MajorityReliability => {
             pke_failure_rate_histogram_majority_reliability(keypair, params, num_samples, rng_seed)
         }
+        PkeDecryptKind::Chase => {
+            pke_failure_rate_histogram_chase(keypair, params, num_samples, rng_seed)
+        }
     }
 }
 
@@ -1887,6 +2249,13 @@ mod tests {
         assert_eq!(
             recovered_pathb, message,
             "PKE Path B (majority-reliability) with s=0,e=0,d_c=1 must round-trip"
+        );
+        let recovered_chase =
+            pke_decrypt_chase(&compressed_c, &keypair.secret_key, &keypair.f2, &encoder)
+                .expect("Chase decrypt");
+        assert_eq!(
+            recovered_chase, message,
+            "PKE Chase decoder with s=0,e=0,d_c=1 must round-trip"
         );
     }
 

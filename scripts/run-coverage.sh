@@ -11,6 +11,8 @@ IGNORE_TESTS=true
 IGNORE_PANICS=true
 LINE_THRESHOLD="95"
 TOOLCHAIN="stable"
+# When set with --crate lib-q-ml-dsa: enable simd256+acvp and include AVX2 sources in the report (x86_64).
+ML_DSA_SIMD256=false
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -50,13 +52,24 @@ while [[ $# -gt 0 ]]; do
       TOOLCHAIN="$2"
       shift 2
       ;;
+    --ml-dsa-simd256)
+      ML_DSA_SIMD256=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--crate CRATE] [--no-report] [--output-dir DIR] [--format FORMAT] [--with-tests] [--with-panics] [--threshold THRESHOLD] [--toolchain TOOLCHAIN]"
+      echo "Usage: $0 [--crate CRATE] [--ml-dsa-simd256] [--no-report] [--output-dir DIR] [--format FORMAT] [--with-tests] [--with-panics] [--threshold THRESHOLD] [--toolchain TOOLCHAIN]"
       exit 1
       ;;
   esac
 done
+
+if [[ "$ML_DSA_SIMD256" == true ]]; then
+  if [[ "$CRATE" != "lib-q-ml-dsa" ]]; then
+    echo "ERROR: --ml-dsa-simd256 requires --crate lib-q-ml-dsa" >&2
+    exit 1
+  fi
+fi
 
 if [[ "${OUTPUT_FORMAT}" == "Html" ]]; then
   OUTPUT_FORMAT="Html,Xml"
@@ -91,6 +104,9 @@ if [[ -n "$CRATE" ]]; then
   elif [[ "$CRATE" == "lib-q-ml-kem" ]]; then
     # ACVP integration tests (kem/pke paths) are behind `deterministic`.
     CMD="$CMD --features std,deterministic"
+  elif [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" == true ]]; then
+    # AVX2 backend + tests that need ACVP hooks (aligns with ci.yml ml-dsa-compliance).
+    CMD="$CMD --features simd256,acvp"
   fi
 fi
 
@@ -126,6 +142,17 @@ elif [[ -n "$CRATE" ]]; then
     exit 1
   fi
   CMD="$CMD ${INC}"
+fi
+
+# ML-DSA: AVX2 tree and simd256-only instantiations are behind `feature = "simd256"`.
+# Default tarpaulin builds use portable paths only; excluding these files matches the
+# instrumented binary and mirrors lib-q-keccak/advanced_simd.rs. Use --ml-dsa-simd256 to
+# measure AVX2-inclusive coverage (x86_64; informational in coverage.yml).
+if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/simd/avx2/*' --exclude-files 'lib-q-ml-dsa/src/simd/avx2/**'"
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*' --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\**'"
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs'"
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
 fi
 
 if [[ -n "$CRATE" ]] && [[ "$CMD" != *"--include-files"* ]]; then

@@ -221,6 +221,20 @@ impl DawnKem {
         }
     }
 
+    /// Create a KEM instance that uses the Chase decoder in decapsulation (Path B v2: pre-f₂ c2-space enumeration).
+    pub fn new_with_params_and_chase_decoder(keygen_params: KeyGenParams) -> Self {
+        let parameter_set = keygen_params.base_parameter_set;
+        let key_generator = DawnKeyGenerator::new(keygen_params.clone());
+        let kem_ops = DawnKemOps::new_with_chase_decoder(keygen_params.clone());
+
+        Self {
+            parameter_set,
+            keygen_params,
+            key_generator,
+            kem_ops,
+        }
+    }
+
     /// Get the parameter set for this KEM instance
     pub fn parameter_set(&self) -> DawnParameterSet {
         self.parameter_set
