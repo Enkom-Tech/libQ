@@ -124,7 +124,7 @@ jobs:
       - name: Run coverage tests
         uses: ./.github/actions/rust-test
         with:
-          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || (steps.affected-packages.outputs.package == 'lib-q-kem' && 'std,alloc,ml-kem,hqc' || '') }}
+          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || (steps.affected-packages.outputs.package == 'lib-q-kem' && 'std,alloc,ml-kem,hqc' || (steps.affected-packages.outputs.package == 'lib-q-ml-kem' && 'std,deterministic' || '')) }}
           run-coverage: "true"
           coverage-threshold: ${{ steps.affected-packages.outputs.coverage-threshold }}
           package: ${{ steps.affected-packages.outputs.package }}

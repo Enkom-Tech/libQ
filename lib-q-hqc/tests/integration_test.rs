@@ -50,6 +50,11 @@ fn test_full_hqc1_integration() {
         shared_secret2.as_bytes().len(),
         Hqc1Params::SHARED_SECRET_BYTES
     );
+    assert_eq!(
+        shared_secret1.as_bytes(),
+        shared_secret2.as_bytes(),
+        "HQC-1 shared secrets must match after roundtrip"
+    );
 
     println!("✅ HQC-1 KEM integration test passed");
     println!("   Public key size: {} bytes", public_key.as_bytes().len());
@@ -94,6 +99,11 @@ fn test_full_hqc3_integration() {
         shared_secret2.as_bytes().len(),
         Hqc3Params::SHARED_SECRET_BYTES
     );
+    assert_eq!(
+        shared_secret1.as_bytes(),
+        shared_secret2.as_bytes(),
+        "HQC-3 shared secrets must match after roundtrip"
+    );
 
     println!("✅ HQC-3 KEM integration test passed");
     println!("   Public key size: {} bytes", public_key.as_bytes().len());
@@ -137,6 +147,11 @@ fn test_full_hqc5_integration() {
     assert_eq!(
         shared_secret2.as_bytes().len(),
         Hqc5Params::SHARED_SECRET_BYTES
+    );
+    assert_eq!(
+        shared_secret1.as_bytes(),
+        shared_secret2.as_bytes(),
+        "HQC-5 shared secrets must match after roundtrip"
     );
 
     println!("✅ HQC-5 KEM integration test passed");
@@ -233,15 +248,19 @@ fn test_multiple_kem_operations() {
 
     // Perform multiple encapsulate/decapsulate operations
     for i in 0..5 {
-        let (ciphertext, _shared_secret1) = kem
+        let (ciphertext, shared_secret1) = kem
             .encapsulate(&public_key, &mut rng)
             .expect("Failed to encapsulate");
-        let _shared_secret2 = kem
+        let shared_secret2 = kem
             .decapsulate(&secret_key, &ciphertext)
             .expect("Failed to decapsulate");
 
-        // Note: The shared secrets might not match due to the current implementation
-        // This is expected for a first implementation
+        assert_eq!(
+            shared_secret1.as_bytes(),
+            shared_secret2.as_bytes(),
+            "HQC-1 shared secrets must match (iteration {})",
+            i + 1
+        );
         println!(
             "   Operation {}: Encapsulation and decapsulation completed",
             i + 1

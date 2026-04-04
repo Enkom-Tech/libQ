@@ -106,6 +106,8 @@ if ($Crate -ne "") {
         $cmd += " --features std,rand,getrandom,alloc,zeroize,cbkem348864"
     } elseif ($Crate -eq "lib-q-kem") {
         $cmd += " --features std,alloc,ml-kem,hqc"
+    } elseif ($Crate -eq "lib-q-ml-kem") {
+        $cmd += " --features std,deterministic"
     }
 }
 

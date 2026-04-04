@@ -56,11 +56,8 @@ fn test_hqc192_roundtrip() {
     );
 }
 
-// HQC-256 roundtrip has been observed to fail intermittently under cargo-tarpaulin (LLVM
-// instrumentation); normal `cargo test` still runs this. HQC-256 remains covered via
-// `test_hqc_derive_public_key` and `test_hqc_create_kem_returns_ok` in coverage runs.
 #[test]
-#[cfg(all(feature = "hqc", feature = "std", feature = "alloc", not(tarpaulin)))]
+#[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
 fn test_hqc256_roundtrip() {
     let kem = create_kem("HQC-256").expect("create_kem HQC-256");
     let keypair = kem.generate_keypair().expect("generate_keypair");

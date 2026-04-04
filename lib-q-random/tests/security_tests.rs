@@ -284,34 +284,56 @@ fn test_byte_distribution(data: &[u8]) {
     }
 }
 
-/// Test autocorrelation (independence of bytes)
+/// Lag-1 sample Pearson correlation between adjacent bytes.
+///
+/// The previous check averaged `(x - 127.5)(y - 127.5)`, which is a *covariance-like*
+/// quantity with scale ~Var(U(0,255))²/√n (std dev ~40+ for n≈16k), not a correlation in
+/// [-1, 1]. A fixed threshold (e.g. 100) was only ~2–3σ, so bona fide OS RNG output could
+/// fail CI sporadically. We instead normalize to Pearson r and bound |r| using ~8/√n_pairs
+/// to allow for mild variance inflation from overlapping pairs under an i.i.d. null.
 #[cfg(feature = "alloc")]
 fn test_autocorrelation(data: &[u8]) {
-    if data.len() < 2 {
+    let n_pairs = data.len().saturating_sub(1);
+    if n_pairs < 2 {
         return;
     }
 
-    let mut correlation_sum = 0.0;
-    let mut count = 0;
+    let n = n_pairs as f64;
+    let mut sum_x = 0.0;
+    let mut sum_y = 0.0;
+    let mut sum_xx = 0.0;
+    let mut sum_yy = 0.0;
+    let mut sum_xy = 0.0;
 
-    // Test correlation between adjacent bytes
-    for i in 0..(data.len() - 1) {
-        let byte1 = data[i] as f64;
-        let byte2 = data[i + 1] as f64;
-
-        // Simple correlation test
-        correlation_sum += (byte1 - 127.5) * (byte2 - 127.5);
-        count += 1;
+    for i in 0..n_pairs {
+        let x = data[i] as f64;
+        let y = data[i + 1] as f64;
+        sum_x += x;
+        sum_y += y;
+        sum_xx += x * x;
+        sum_yy += y * y;
+        sum_xy += x * y;
     }
 
-    let correlation = correlation_sum / (count as f64);
-    let correlation_threshold = 100.0; // More realistic threshold for real entropy
+    let mean_x = sum_x / n;
+    let mean_y = sum_y / n;
+    let cov = sum_xy / n - mean_x * mean_y;
+    let var_x = sum_xx / n - mean_x * mean_x;
+    let var_y = sum_yy / n - mean_y * mean_y;
+
+    if var_x <= 1e-12 || var_y <= 1e-12 {
+        return;
+    }
+
+    let r = cov / (var_x.sqrt() * var_y.sqrt());
+    let threshold = 8.0 / n.sqrt();
 
     assert!(
-        correlation.abs() < correlation_threshold,
-        "Autocorrelation too high: {} (threshold: {})",
-        correlation,
-        correlation_threshold
+        r.abs() < threshold,
+        "Lag-1 correlation |r|={} exceeds bound {:.4} (~8/√n, n={} pairs)",
+        r,
+        threshold,
+        n_pairs
     );
 }
 

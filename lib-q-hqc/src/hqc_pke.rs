@@ -943,13 +943,13 @@ impl<P: HqcParams> HqcPkeCiphertext<P> {
         let v_bytes = &self.data[P::VEC_N_SIZE_BYTES..P::VEC_N_SIZE_BYTES + P::VEC_N1N2_SIZE_BYTES];
 
         let mut u = { vec![0u64; P::VEC_N_SIZE_64] };
-        for (i, item) in u.iter_mut().enumerate().take(P::VEC_N_SIZE_64) {
-            let start = i * 8;
-            if start + 8 <= u_bytes.len() {
-                let mut bytes = [0u8; 8];
-                bytes.copy_from_slice(&u_bytes[start..start + 8]);
-                *item = u64::from_le_bytes(bytes);
+        for (i, chunk) in u_bytes.chunks(8).enumerate() {
+            if i >= u.len() {
+                break;
             }
+            let mut bytes = [0u8; 8];
+            bytes[..chunk.len()].copy_from_slice(chunk);
+            u[i] = u64::from_le_bytes(bytes);
         }
 
         Ok((u, v_bytes.to_vec()))

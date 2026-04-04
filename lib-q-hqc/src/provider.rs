@@ -613,7 +613,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Probabilistic HQC failures - covered by integration_test.rs
     fn test_derive_public_key_round_trip_encapsulation() {
         let provider = LibQHqcProvider::new().expect("Failed to create provider");
 
@@ -645,7 +644,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Probabilistic HQC failures - covered by integration_test.rs  
     fn test_derive_public_key_multiple_round_trips() {
         let provider = LibQHqcProvider::new().expect("Failed to create provider");
 

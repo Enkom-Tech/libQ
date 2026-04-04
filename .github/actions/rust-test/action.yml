@@ -97,6 +97,9 @@ runs:
         if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
           FEATURES="std,alloc,ml-kem,hqc"
         fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
+        fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
@@ -164,6 +167,9 @@ runs:
         PACKAGES="${{ inputs.packages }}"
         if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
           FEATURES="std,alloc,ml-kem,hqc"
+        fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
         fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
@@ -235,6 +241,9 @@ runs:
         if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
           FEATURES="std,alloc,ml-kem,hqc"
         fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
+        fi
         
         # Build tarpaulin command with appropriate options
         TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage"
@@ -259,6 +268,8 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,alloc,zeroize,cbkem348864\""
         elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,alloc,ml-kem,hqc\""
+        elif [[ "$PACKAGE" == "lib-q-ml-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,deterministic\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi

@@ -211,7 +211,15 @@ impl<P: HqcParams> HqcKem<P> {
 
         let mut result = 0u8;
         result |= self.vect_compare(&c_kem_bytes, &c_kem_prime_bytes, c_kem_bytes.len());
-        result = result.wrapping_sub(1);
+        // Constant-time normalisation matching the reference implementation:
+        //   result = (uint8_t)(-((int16_t)result) >> 15)
+        // Maps 0 → 0x00, any non-zero → 0xFF.
+        let neg = (-(result as i16)) as u16;
+        result = (neg >> 15) as u8; // 0 or 1
+        result = (-(result as i8)) as u8; // 0x00 or 0xFF
+        // Invert: 0xFF = ciphertexts match (select k_prime),
+        //         0x00 = mismatch (select k_bar).
+        result = !result;
 
         // Select final shared secret
         let mut k_prime = [0u8; 32]; // SHARED_SECRET_BYTES

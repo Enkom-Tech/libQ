@@ -88,6 +88,9 @@ if [[ -n "$CRATE" ]]; then
   elif [[ "$CRATE" == "lib-q-kem" ]]; then
     # Default features are empty; tests and implementations are behind ml-kem/hqc/alloc.
     CMD="$CMD --features std,alloc,ml-kem,hqc"
+  elif [[ "$CRATE" == "lib-q-ml-kem" ]]; then
+    # ACVP integration tests (kem/pke paths) are behind `deterministic`.
+    CMD="$CMD --features std,deterministic"
   fi
 fi
 
