@@ -148,9 +148,10 @@ fi
 # Default tarpaulin builds use portable paths only; excluding these files matches the
 # instrumented binary and mirrors lib-q-keccak/advanced_simd.rs. Use --ml-dsa-simd256 to
 # measure AVX2-inclusive coverage (x86_64; informational in coverage.yml).
+# Omit backslash '**' excludes: tarpaulin's glob uses '/' as the only path separator.
 if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/simd/avx2/*' --exclude-files 'lib-q-ml-dsa/src/simd/avx2/**'"
-  CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*' --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\**'"
+  CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
 fi

@@ -56,7 +56,7 @@ prel="${prel//\\//}"
 bs="${prel//\//\\\\}"
 
 if [[ -d "$ws/${prel}/src" ]]; then
-  printf '%s' "--include-files '${prel}/src/*' --include-files '${prel}/src/**' --include-files '${bs}\\\\src\\\\*'"
+  printf '%s' " --include-files '${prel}/src/*' --include-files '${prel}/src/**' --include-files '${bs}\\\\src\\\\*'"
 else
-  printf '%s' "--include-files '${prel}/*.rs' --include-files '${prel}/**/*.rs' --include-files '${bs}\\\\*.rs' --include-files '${bs}\\\\**\\\\*.rs'"
+  printf '%s' " --include-files '${prel}/*.rs' --include-files '${prel}/**/*.rs' --include-files '${bs}\\\\*.rs'"
 fi

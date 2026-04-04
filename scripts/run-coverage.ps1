@@ -2,7 +2,8 @@
 # PowerShell script for running targeted test coverage analysis
 
 param (
-    [string]$Crate = "",
+    [Alias('Crate')]
+    [string]$PackageArg = "",
     [switch]$ShowReport,
     [string]$OutputDir = "coverage",
     [string]$OutputFormat = "Html",
@@ -10,15 +11,22 @@ param (
     [switch]$IgnorePanics,
     [string]$LineThreshold = "95",
     [string]$Toolchain = "stable",
-    [switch]$MlDsaSimd256
+    [Alias('MlDsaSimd256')]
+    [switch]$MldsaSimd
 )
 
 $ShowReport = if ($PSBoundParameters.ContainsKey('ShowReport')) { $ShowReport } else { $true }
 $IgnoreTests = if ($PSBoundParameters.ContainsKey('IgnoreTests')) { $IgnoreTests } else { $true }
 $IgnorePanics = if ($PSBoundParameters.ContainsKey('IgnorePanics')) { $IgnorePanics } else { $true }
 
-if ($MlDsaSimd256 -and $Crate -ne "lib-q-ml-dsa") {
-    Write-Host "ERROR: -MlDsaSimd256 requires -Crate lib-q-ml-dsa" -ForegroundColor Red
+$paramSimdAcvp = 'MldsaSimd'
+$pkgLibQMldsa = 'lib-q-ml-dsa'
+$enableSimdAcvp = $false
+if ($PSBoundParameters.ContainsKey($paramSimdAcvp)) {
+    $enableSimdAcvp = [bool]$PSBoundParameters[$paramSimdAcvp]
+}
+if ($enableSimdAcvp -and $PackageArg -ne $pkgLibQMldsa) {
+    Write-Host "ERROR: -MldsaSimd / -MlDsaSimd256 requires -Crate lib-q-ml-dsa" -ForegroundColor Red
     exit 1
 }
 
@@ -27,20 +35,47 @@ if ([string]::IsNullOrEmpty($ScriptRoot)) { $ScriptRoot = Split-Path -Parent $My
 $RepoRoot = Split-Path -Parent $ScriptRoot
 Set-Location -LiteralPath $RepoRoot
 
+function Get-BashExeForRepoScripts {
+    $pf86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $gitBashPaths = @(
+        [System.IO.Path]::Combine($env:ProgramFiles, "Git", "bin", "bash.exe")
+        [System.IO.Path]::Combine($pf86, "Git", "bin", "bash.exe")
+        [System.IO.Path]::Combine($env:LOCALAPPDATA, "Programs", "Git", "bin", "bash.exe")
+    )
+    foreach ($p in $gitBashPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($p) -and (Test-Path -LiteralPath $p)) {
+            return $p
+        }
+    }
+    $bashCmd = Get-Command bash.exe -ErrorAction SilentlyContinue
+    if ($null -eq $bashCmd) { $bashCmd = Get-Command bash -ErrorAction SilentlyContinue }
+    if ($null -eq $bashCmd) { return $null }
+    $candidate = $bashCmd.Path
+    if ([string]::IsNullOrEmpty($candidate)) { $candidate = $bashCmd.Source }
+    try {
+        $uname = (& $candidate -c "uname -r" 2>&1 | Out-String).Trim()
+        if ($uname -match '(?i)microsoft') {
+            return $null
+        }
+    } catch {
+        return $null
+    }
+    return $candidate
+}
+
 function Get-TarpaulinIncludeFlags {
     param([Parameter(Mandatory)][string]$CrateName)
     $pin = Join-Path $ScriptRoot "print-tarpaulin-include-args.sh"
-    $bash = Get-Command bash.exe -ErrorAction SilentlyContinue
-    if ($null -eq $bash) { $bash = Get-Command bash -ErrorAction SilentlyContinue }
-    if ($null -ne $bash -and (Test-Path -LiteralPath $pin)) {
-        $bashExe = $bash.Path
-        if ([string]::IsNullOrEmpty($bashExe)) { $bashExe = $bash.Source }
-        $out = & $bashExe $pin $CrateName 2>&1 | Out-String
+    $bashExe = Get-BashExeForRepoScripts
+    if ($null -ne $bashExe -and (Test-Path -LiteralPath $pin)) {
+        # Git Bash treats '\' as escapes in argv; use '/' so the script path is not mangled.
+        $pinForBash = $pin -replace '\\', '/'
+        $out = & $bashExe $pinForBash $CrateName 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) {
             Write-Host $out.Trim() -ForegroundColor Red
             exit 1
         }
-        return $out.Trim()
+        return $out.TrimEnd()
     }
     $metaJson = cargo metadata --format-version 1 --no-deps 2>$null | Out-String
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($metaJson)) {
@@ -56,8 +91,7 @@ function Get-TarpaulinIncludeFlags {
     $exToml = [System.IO.Path]::Combine($ws, "examples", "Cargo.toml")
     if ($CrateName -eq "lib-q-examples" -and (Test-Path -LiteralPath $exToml)) {
         $prel = "examples"
-    }
-    elseif (Test-Path -LiteralPath ([System.IO.Path]::Combine($ws, $CrateName, "src")) -PathType Container) {
+    } elseif (Test-Path -LiteralPath ([System.IO.Path]::Combine($ws, $CrateName, "src")) -PathType Container) {
         $prel = ($CrateName -replace '\\', '/').TrimStart('./')
     }
     if ($null -eq $prel) {
@@ -84,7 +118,7 @@ function Get-TarpaulinIncludeFlags {
     if (Test-Path -LiteralPath $srcAbs -PathType Container) {
         return " --include-files ""$prel/src/*"" --include-files ""$prel/src/**"" --include-files ""$bs\src\*"""
     }
-    return " --include-files ""$prel/*.rs"" --include-files ""$prel/**/*.rs"" --include-files ""$bs\*.rs"" --include-files ""$bs\**\*.rs"""
+    return " --include-files ""$prel/*.rs"" --include-files ""$prel/**/*.rs"" --include-files ""$bs\*.rs"""
 }
 
 if ($OutputFormat -eq "Html") {
@@ -100,23 +134,25 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
 
 $cmd = if ($Toolchain -eq "stable") { "cargo tarpaulin" } else { "cargo +$Toolchain tarpaulin" }
 
-if ($Crate -ne "") {
-    $cmd += " --packages $Crate"
-    if ($Crate -eq "lib-q-core") {
+if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
+    $cmd += " --packages $PackageArg"
+    if ($PackageArg -eq "lib-q-core") {
         $cmd += " --features std,rand"
-    } elseif ($Crate -eq "lib-q-fn-dsa") {
+    } elseif ($PackageArg -eq "lib-q-fn-dsa") {
         $cmd += " --features std,rand"
-    } elseif ($Crate -eq "lib-q") {
+    } elseif ($PackageArg -eq "lib-q") {
         $cmd += " --features all-algorithms"
-    } elseif ($Crate -eq "lib-q-cb-kem") {
+    } elseif ($PackageArg -eq "lib-q-cb-kem") {
         $cmd += " --features std,rand,getrandom,alloc,zeroize,cbkem348864"
-    } elseif ($Crate -eq "lib-q-kem") {
+    } elseif ($PackageArg -eq "lib-q-kem") {
         $cmd += " --features std,alloc,ml-kem,hqc"
-    } elseif ($Crate -eq "lib-q-ml-kem") {
+    } elseif ($PackageArg -eq "lib-q-ml-kem") {
         $cmd += " --features std,deterministic"
-    } elseif ($Crate -eq "lib-q-ml-dsa" -and $MlDsaSimd256) {
-        $cmd += " --features simd256,acvp"
     }
+}
+
+if (($PackageArg -eq $pkgLibQMldsa) -and $enableSimdAcvp) {
+    $cmd += " --features simd256,acvp"
 }
 
 if ($IgnoreTests) { $cmd += " --ignore-tests" }
@@ -124,36 +160,40 @@ if ($IgnorePanics) { $cmd += " --ignore-panics" }
 
 $cmd += ' --exclude-files "target/' + '*' + '" --exclude-files "benches/' + '*' + '" --exclude-files "examples/' + '*' + '"'
 
-if ($Crate -eq "lib-q-core") {
+if ($PackageArg -eq "lib-q-core") {
     $cmd += ' --exclude-files "lib-q-hash/' + '*' + '" --exclude-files "lib-q-hpke/' + '*' + '" --exclude-files "lib-q-intrinsics/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-k12/' + '*' + '" --exclude-files "lib-q-keccak/' + '*' + '" --exclude-files "lib-q-kem/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/' + '*' + '" --exclude-files "lib-q-ml-kem/' + '*' + '" --exclude-files "lib-q-sha3/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-sig/' + '*' + '" --exclude-files "lib-q-aead/' + '*' + '" --exclude-files "lib-q-platform/' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-utils/' + '*' + '" --exclude-files "lib-q-zkp/' + '*' + '"'
-    $cmd += ' --exclude-files "lib-q-core/src/wasm/' + '*' + '" --exclude-files "lib-q-core\src\wasm\' + '*' + '"'
-    $cmd += ' --include-files "lib-q-core/src/' + '*' + '" --include-files "lib-q-core/src/' + '*' + '*' + '" --include-files "lib-q-core\src\' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-core/src/wasm/' + '*' + '" --exclude-files "lib-q-core\src\wasm' + [char]92 + '*' + '"'
+    $cmd += ' --include-files "lib-q-core/src/' + '*' + '" --include-files "lib-q-core/src/' + '*' + '*' + '" --include-files "lib-q-core\src' + [char]92 + '*' + '"'
 }
-if ($Crate -eq "lib-q") {
-    $cmd += ' --include-files "lib-q/src/' + '*' + '" --include-files "lib-q/src/' + '*' + '*' + '" --include-files "lib-q\src\' + '*' + '"'
+if ($PackageArg -eq "lib-q") {
+    $cmd += ' --include-files "lib-q/src/' + '*' + '" --include-files "lib-q/src/' + '*' + '*' + '" --include-files "lib-q\src' + [char]92 + '*' + '"'
 }
-if ($Crate -eq "lib-q-keccak") {
-    $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak\src\' + '*' + '"'
+if ($PackageArg -eq "lib-q-keccak") {
+    $cmd += ' --include-files "lib-q-keccak/src/' + '*' + '" --include-files "lib-q-keccak/src/' + '*' + '*' + '" --include-files "lib-q-keccak\src' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-keccak/src/advanced_simd.rs" --exclude-files "lib-q-keccak\src\advanced_simd.rs"'
 }
-if ($Crate -eq "lib-q-hash") {
-    $cmd += ' --include-files "lib-q-hash/src/' + '*' + '" --include-files "lib-q-hash/src/' + '*' + '*' + '" --include-files "lib-q-hash\src\' + '*' + '"'
+if ($PackageArg -eq "lib-q-hash") {
+    $cmd += ' --include-files "lib-q-hash/src/' + '*' + '" --include-files "lib-q-hash/src/' + '*' + '*' + '" --include-files "lib-q-hash\src' + [char]92 + '*' + '"'
 }
-if ($Crate -ne "" -and $Crate -ne "lib-q-core" -and $Crate -ne "lib-q" -and $Crate -ne "lib-q-keccak" -and $Crate -ne "lib-q-hash") {
-    $cmd += Get-TarpaulinIncludeFlags -CrateName $Crate
+if ((-not [string]::IsNullOrWhiteSpace($PackageArg)) -and ($PackageArg -ne "lib-q-core") -and ($PackageArg -ne "lib-q") -and ($PackageArg -ne "lib-q-keccak") -and ($PackageArg -ne "lib-q-hash")) {
+    $cmd += Get-TarpaulinIncludeFlags -CrateName $PackageArg
 }
-if ($Crate -eq "lib-q-ml-dsa" -and -not $MlDsaSimd256) {
+if (($PackageArg -eq $pkgLibQMldsa) -and (-not $enableSimdAcvp)) {
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '" --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '*' + '"'
-    $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2\' + '*' + '" --exclude-files "lib-q-ml-dsa\src\simd\avx2\' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'
 }
-if ($Crate -ne "" -and $cmd -notmatch '--include-files') {
-    Write-Host "ERROR: tarpaulin command is missing --include-files for package $Crate" -ForegroundColor Red
-    exit 1
+$includeFilesArg = '--include-files'
+$includeFilesPresent = $cmd.IndexOf($includeFilesArg) -ge 0
+if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
+    if (-not $includeFilesPresent) {
+        Write-Host "ERROR: tarpaulin command is missing --include-files for package $PackageArg" -ForegroundColor Red
+        exit 1
+    }
 }
 $outputFormatParts = $OutputFormat -split ','
 foreach ($rawOut in $outputFormatParts) {
@@ -163,7 +203,7 @@ foreach ($rawOut in $outputFormatParts) {
     }
 }
 $cmd += " --output-dir $OutputDir"
-if ($Crate -eq "lib-q-kem") {
+if ($PackageArg -eq "lib-q-kem") {
     $cmd += " -- --test-threads=1"
 }
 

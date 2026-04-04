@@ -109,9 +109,9 @@ runs:
         echo "🧪 Running quick FN-DSA smoke tests (release)..."
         echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p fn-dsa-kgen -- --ignored --release --test-threads=1"
         cd "${{ github.workspace }}"
-        cargo test -p fn-dsa self_test --release -- --test-threads=1
-        cargo test -p lib-q-fn-dsa keypair_generation --release --features "${{ inputs.features }}"
-        cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --release --features "${{ inputs.features }}"
+        cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+        cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
+        cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "${{ inputs.features }}"
         echo "✅ Quick smoke tests completed"
     
     - name: Run security tests

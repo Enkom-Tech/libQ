@@ -200,7 +200,7 @@ runs:
                 pkg="${item%%@*}"
                 pfeats="${item#*@}"
                 echo "Running release tests for $pkg with features $pfeats"
-                cargo test -p "$pkg" --features "$pfeats" --release --verbose
+                cargo test -p "$pkg" --features "$pfeats" --profile release-ci --verbose
               else
                 if [[ -z "$SHARED_FLAGS" ]]; then
                   SHARED_FLAGS="-p $item"
@@ -211,21 +211,21 @@ runs:
             done
             if [[ -n "$SHARED_FLAGS" ]]; then
               echo "Running release tests with $SHARED_FLAGS and features $FEATURES"
-              cargo test $SHARED_FLAGS --features "$FEATURES" --release --verbose
+              cargo test $SHARED_FLAGS --features "$FEATURES" --profile release-ci --verbose
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
-              echo "Running quick FN-DSA smoke tests (release). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
+              echo "Running quick FN-DSA smoke tests (release-ci). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
               cd "${GITHUB_WORKSPACE:-.}"
               FN_FEAT="${FEATURES:-std,rand}"
-              cargo test -p fn-dsa self_test --release -- --test-threads=1
-              cargo test -p lib-q-fn-dsa keypair_generation --release --features "$FN_FEAT"
-              cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --release --features "$FN_FEAT"
+              cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+              cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
+              cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
             else
-              cargo test -p $PACKAGE --features "$FEATURES" --release --verbose
+              cargo test -p $PACKAGE --features "$FEATURES" --profile release-ci --verbose
             fi
           else
-            cargo test --features "$FEATURES" --release --verbose
+            cargo test --features "$FEATURES" --profile release-ci --verbose
           fi
         fi
         echo "Release tests completed"

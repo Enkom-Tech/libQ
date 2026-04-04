@@ -33,7 +33,7 @@ use crate::codec::{
 };
 use crate::encoding::{
     ZeroDivisorEncoder,
-    fast_inversion_mod_t,
+    fast_inversion,
 };
 use crate::polynomial::field::FieldPolynomial;
 
@@ -474,10 +474,10 @@ impl DawnKeyGenerator {
 
         let h = self.compute_public_key(&f, &g)?;
 
-        let f2 = fast_inversion_mod_t(&f, self.params.degree).ok_or_else(|| {
+        let f2 = fast_inversion(&f, self.params.degree).ok_or_else(|| {
             lib_q_core::Error::InternalError {
                 operation: "key generation".to_string(),
-                details: "f not invertible mod (x^{n/2}+1, Z_2); retry with fresh randomness"
+                details: "f not invertible mod (x^{n/4}+1, Z_2); retry with fresh randomness"
                     .to_string(),
             }
         })?;
@@ -580,10 +580,10 @@ impl DawnKeyGenerator {
 
         let h = self.compute_public_key(&f, &g)?;
 
-        let f2 = fast_inversion_mod_t(&f, self.params.degree).ok_or_else(|| {
+        let f2 = fast_inversion(&f, self.params.degree).ok_or_else(|| {
             lib_q_core::Error::InternalError {
                 operation: "key generation".to_string(),
-                details: "f not invertible mod (x^{n/2}+1, Z_2); retry with fresh randomness"
+                details: "f not invertible mod (x^{n/4}+1, Z_2); retry with fresh randomness"
                     .to_string(),
             }
         })?;

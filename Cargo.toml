@@ -114,6 +114,13 @@ sha2 = { version = "0.11.0-rc.5", default-features = false }
 block-buffer = "0.12.0"
 aead = { version = "0.5", default-features = false }
 
+# CI and large `cargo test` runs: keep release optimizations and security flags from `.cargo/config.toml`
+# `[profile.release]` (LTO + codegen-units=1) makes workspace test linking dominate job time.
+[profile.release-ci]
+inherits = "release"
+lto = false
+codegen-units = 256
+
 [profile.release-security]
 inherits = "release"
 panic = "abort"

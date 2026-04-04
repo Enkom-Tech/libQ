@@ -61,7 +61,7 @@ jobs:
           features: "all-algorithms"
       
       - name: Run release tests
-        run: cargo test --all-features --release
+        run: cargo test --all-features --profile release-ci
 
   # Rust crate publishing in dependency order (each tier after the previous).
   # Uses crates.io Trusted Publishing (OIDC); configure trusted publishers at

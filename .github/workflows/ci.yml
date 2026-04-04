@@ -54,7 +54,7 @@ jobs:
     name: Test Matrix
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -158,7 +158,7 @@ jobs:
 
       - name: Run recursive aggregation test (release)
         run: |
-          cargo test -p lib-q-zkp --release --features "zkp,recursive-proofs-experimental,std" \
+          cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
             --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
             -- --test-threads=1
 
@@ -404,7 +404,7 @@ jobs:
           echo "Building cross-compilation tests for ${{ matrix.name }} (execution skipped)"
           # Build tests for cross-compilation target to ensure they compile correctly
           # We skip execution since we can't run ARM binaries on x86_64 hosts
-          cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --release --no-run
+          cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --profile release-ci --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
   # Performance and benchmarks - runs after core validation
@@ -493,7 +493,7 @@ jobs:
     name: Algorithm Tests
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -558,7 +558,7 @@ jobs:
             working-directory: lib-q-slh-dsa
             features: "alloc"
             rust-version: "stable"
-            run-benchmarks: "true"
+            run-benchmarks: "false"
             run-security-tests: "true"
             run-constant-time: "true"
             test-algorithms: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
@@ -667,7 +667,8 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}
           rust-version: ${{ matrix.rust-version }}
-          run-benchmarks: ${{ matrix.run-benchmarks }}
+          # Full Criterion runs are skipped on pull requests to keep algorithm-tests within its time budget; they still run on main/schedule (performance job also benches the workspace)
+          run-benchmarks: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           run-security-tests: ${{ matrix.run-security-tests }}
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
