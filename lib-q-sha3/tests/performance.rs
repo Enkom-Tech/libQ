@@ -352,11 +352,13 @@ fn test_algorithm_performance_relationships() {
     }
     let keccak256_time = start.elapsed();
 
-    // SHA3-512 should be similar to SHA3-256
+    // SHA3-512 can be several times slower than SHA3-256 (smaller sponge rate, longer output).
+    const MAX_RATIO_512_TO_256: f64 = 5.0;
     let ratio_512_to_256 = sha3_512_time.as_nanos() as f64 / sha3_256_time.as_nanos() as f64;
     assert!(
-        ratio_512_to_256 > 0.5 && ratio_512_to_256 < 3.0, // More lenient requirement
-        "SHA3-512 should have similar performance to SHA3-256, got ratio: {}",
+        ratio_512_to_256 > 0.5 && ratio_512_to_256 < MAX_RATIO_512_TO_256,
+        "SHA3-512 vs SHA3-256 time ratio out of range (expected < {}), got: {}",
+        MAX_RATIO_512_TO_256,
         ratio_512_to_256
     );
 

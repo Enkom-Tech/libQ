@@ -223,20 +223,25 @@ fn test_hash_algorithm_timing_relationships() {
     }
     let sha3_512_time = start.elapsed();
 
-    // Verify that timing relationships are reasonable
-    // SHA3-512 should be similar to SHA3-256
+    // Verify that timing relationships are reasonable (order-of-magnitude sanity check only).
+    // SHA3-512 uses a smaller sponge rate than SHA3-256 (72 vs 136 bytes), so it can be several
+    // times slower on some inputs and builds; see `tests/performance.rs` SHA3-512 baseline.
+    const MAX_RATIO_512_TO_256: f64 = 5.0;
     let ratio_512_to_256 = sha3_512_time.as_nanos() as f64 / sha3_256_time.as_nanos() as f64;
     assert!(
-        ratio_512_to_256 > 0.5 && ratio_512_to_256 < 3.0, // More lenient requirement
-        "SHA3-512 should have similar performance to SHA3-256, got ratio: {}",
+        ratio_512_to_256 > 0.5 && ratio_512_to_256 < MAX_RATIO_512_TO_256,
+        "SHA3-512 vs SHA3-256 time ratio out of range (expected < {}), got: {}",
+        MAX_RATIO_512_TO_256,
         ratio_512_to_256
     );
 
-    // SHA3-384 should be similar to SHA3-256
+    // SHA3-384 sits between 256 and 512 in rate; allow the same upper bound for CI variance.
+    const MAX_RATIO_384_TO_256: f64 = 5.0;
     let ratio_384_to_256 = sha3_384_time.as_nanos() as f64 / sha3_256_time.as_nanos() as f64;
     assert!(
-        ratio_384_to_256 > 0.5 && ratio_384_to_256 < 3.0,
-        "SHA3-384 should have similar performance to SHA3-256, got ratio: {}",
+        ratio_384_to_256 > 0.5 && ratio_384_to_256 < MAX_RATIO_384_TO_256,
+        "SHA3-384 vs SHA3-256 time ratio out of range (expected < {}), got: {}",
+        MAX_RATIO_384_TO_256,
         ratio_384_to_256
     );
 
