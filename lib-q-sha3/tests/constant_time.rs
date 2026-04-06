@@ -17,162 +17,116 @@ use lib_q_sha3::{
     Sha3_512,
 };
 
-/// Test that SHA3-224 operations take constant time regardless of input
+const TIMING_ITERATIONS: usize = 10_000;
+const TIMING_RUNS: usize = 9;
+const TIMING_WARMUP: usize = 1_000;
+const MAX_SPREAD_PERCENT: u128 = 80; // Max allowed spread over min, e.g. 80% => 1.8x ratio.
+
+fn build_fixed_length_inputs(len: usize) -> Vec<Vec<u8>> {
+    vec![
+        vec![0u8; len],
+        vec![0xFFu8; len],
+        vec![0xA5u8; len],
+        (0..len).map(|i| (i % 251) as u8).collect::<Vec<_>>(),
+        (0..len)
+            .map(|i| ((i.wrapping_mul(73) + 19) % 256) as u8)
+            .collect::<Vec<_>>(),
+    ]
+}
+
+fn trimmed_mean_duration<F>(mut op: F) -> Duration
+where
+    F: FnMut(),
+{
+    for _ in 0..TIMING_WARMUP {
+        op();
+    }
+
+    let mut run_times = Vec::with_capacity(TIMING_RUNS);
+    for _ in 0..TIMING_RUNS {
+        let start = Instant::now();
+        for _ in 0..TIMING_ITERATIONS {
+            op();
+        }
+        run_times.push(start.elapsed());
+    }
+
+    run_times.sort_unstable();
+    let trimmed = &run_times[1..run_times.len() - 1];
+    trimmed.iter().copied().sum::<Duration>() / trimmed.len() as u32
+}
+
+fn assert_timing_spread_within_limit(label: &str, timings: &[Duration]) {
+    let min_timing = timings.iter().copied().min().expect("at least one timing");
+    let max_timing = timings.iter().copied().max().expect("at least one timing");
+    let min_ns = min_timing.as_nanos();
+    let max_ns = max_timing.as_nanos();
+
+    // `max <= min * (1 + MAX_SPREAD_PERCENT/100)`.
+    let rhs = min_ns * (100 + MAX_SPREAD_PERCENT);
+    let lhs = max_ns * 100;
+    assert!(
+        lhs <= rhs,
+        "{} timing spread too high: min={}ns max={}ns allowed_ratio<=1.{}",
+        label,
+        min_ns,
+        max_ns,
+        MAX_SPREAD_PERCENT
+    );
+}
+
+/// Test that SHA3-224 operations have similar timing for equal-length inputs.
 #[test]
 fn test_sha3_224_constant_time() {
-    let test_inputs = [
-        &[] as &[u8],   // Empty input
-        b"a",           // Single byte
-        b"ab",          // Two bytes
-        b"abc",         // Three bytes
-        b"abcd",        // Four bytes
-        b"abcde",       // Five bytes
-        b"abcdef",      // Six bytes
-        b"abcdefg",     // Seven bytes
-        b"abcdefgh",    // Eight bytes
-        b"abcdefghi",   // Nine bytes
-        b"abcdefghij",  // Ten bytes
-        &[0u8; 50],     // 50 zero bytes
-        &[0xFFu8; 50],  // 50 ones bytes
-        &[0u8; 100],    // 100 zero bytes
-        &[0xFFu8; 100], // 100 ones bytes
-    ];
-
+    let test_inputs = build_fixed_length_inputs(128);
     let mut timings = Vec::new();
-    const ITERATIONS: usize = 1000;
-
     for input in &test_inputs {
-        let start = Instant::now();
-        for _ in 0..ITERATIONS {
+        let timing = trimmed_mean_duration(|| {
             let mut hasher = Sha3_224::new();
             hasher.update(input);
             let _result = hasher.finalize();
-            // Prevent compiler from optimizing away the operation
             std::hint::black_box(_result);
-        }
-        let duration = start.elapsed();
-        timings.push(duration);
+        });
+        timings.push(timing);
     }
 
-    // Verify timing consistency (within 200% tolerance for real-world conditions)
-    let avg_time = timings.iter().sum::<Duration>() / timings.len() as u32;
-    let tolerance = avg_time * 200 / 100; // 200% tolerance
-
-    for (i, timing) in timings.iter().enumerate() {
-        let diff = (*timing).abs_diff(avg_time);
-        assert!(
-            diff <= tolerance,
-            "SHA3-224 timing varies too much for input {}: {} vs {} (tolerance: {})",
-            i,
-            timing.as_nanos(),
-            avg_time.as_nanos(),
-            tolerance.as_nanos()
-        );
-    }
+    assert_timing_spread_within_limit("SHA3-224", &timings);
 }
 
-/// Test that SHA3-256 operations are constant-time
+/// Test that SHA3-256 operations have similar timing for equal-length inputs.
 #[test]
 fn test_sha3_256_constant_time() {
-    let test_inputs = [
-        &[] as &[u8],
-        b"a",
-        b"ab",
-        b"abc",
-        b"abcd",
-        b"abcde",
-        b"abcdef",
-        b"abcdefg",
-        b"abcdefgh",
-        b"abcdefghi",
-        b"abcdefghij",
-        &[0u8; 50],
-        &[0xFFu8; 50],
-        &[0u8; 100],
-        &[0xFFu8; 100],
-    ];
-
+    let test_inputs = build_fixed_length_inputs(128);
     let mut timings = Vec::new();
-    const ITERATIONS: usize = 1000;
-
     for input in &test_inputs {
-        let start = Instant::now();
-        for _ in 0..ITERATIONS {
+        let timing = trimmed_mean_duration(|| {
             let mut hasher = Sha3_256::new();
             hasher.update(input);
             let _result = hasher.finalize();
-            let _ = std::hint::black_box(_result);
-        }
-        let duration = start.elapsed();
-        timings.push(duration);
+            std::hint::black_box(_result);
+        });
+        timings.push(timing);
     }
 
-    let avg_time = timings.iter().sum::<Duration>() / timings.len() as u32;
-    let tolerance = avg_time * 200 / 100; // 200% tolerance
-
-    for (i, timing) in timings.iter().enumerate() {
-        let diff = (*timing).abs_diff(avg_time);
-        assert!(
-            diff <= tolerance,
-            "SHA3-256 timing varies too much for input {}: {} vs {} (tolerance: {})",
-            i,
-            timing.as_nanos(),
-            avg_time.as_nanos(),
-            tolerance.as_nanos()
-        );
-    }
+    assert_timing_spread_within_limit("SHA3-256", &timings);
 }
 
-/// Test that Keccak operations are constant-time
+/// Test that Keccak operations have similar timing for equal-length inputs.
 #[test]
 fn test_keccak_256_constant_time() {
-    let test_inputs = [
-        &[] as &[u8],
-        b"a",
-        b"ab",
-        b"abc",
-        b"abcd",
-        b"abcde",
-        b"abcdef",
-        b"abcdefg",
-        b"abcdefgh",
-        b"abcdefghi",
-        b"abcdefghij",
-        &[0u8; 50],
-        &[0xFFu8; 50],
-        &[0u8; 100],
-        &[0xFFu8; 100],
-    ];
-
+    let test_inputs = build_fixed_length_inputs(128);
     let mut timings = Vec::new();
-    const ITERATIONS: usize = 1000;
-
     for input in &test_inputs {
-        let start = Instant::now();
-        for _ in 0..ITERATIONS {
+        let timing = trimmed_mean_duration(|| {
             let mut hasher = Keccak256::new();
             hasher.update(input);
             let _result = hasher.finalize();
-            let _ = std::hint::black_box(_result);
-        }
-        let duration = start.elapsed();
-        timings.push(duration);
+            std::hint::black_box(_result);
+        });
+        timings.push(timing);
     }
 
-    let avg_time = timings.iter().sum::<Duration>() / timings.len() as u32;
-    let tolerance = avg_time * 200 / 100; // 200% tolerance
-
-    for (i, timing) in timings.iter().enumerate() {
-        let diff = (*timing).abs_diff(avg_time);
-        assert!(
-            diff <= tolerance,
-            "Keccak256 timing varies too much for input {}: {} vs {} (tolerance: {})",
-            i,
-            timing.as_nanos(),
-            avg_time.as_nanos(),
-            tolerance.as_nanos()
-        );
-    }
+    assert_timing_spread_within_limit("Keccak256", &timings);
 }
 
 /// Test that different hash algorithms have consistent timing relationships

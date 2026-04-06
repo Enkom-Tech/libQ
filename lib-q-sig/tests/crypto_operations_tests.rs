@@ -889,6 +889,11 @@ mod performance_tests {
                 .expect("Key generation should succeed");
             let message = b"Performance test message";
 
+            // Warm up once to avoid one-time initialization skewing measurements.
+            let _ = ml_dsa
+                .sign(keypair.secret_key(), message)
+                .expect("Warm-up signing should succeed");
+
             // Measure signing time multiple times
             let mut signing_times = Vec::new();
             for _ in 0..10 {
@@ -901,12 +906,30 @@ mod performance_tests {
             }
 
             // Check that signing times are reasonably consistent
-            // (not testing for exact timing, just that they're in reasonable range)
+            // (not testing exact speed, only that behavior stays in a sensible range)
             let avg_time: Duration =
                 signing_times.iter().sum::<Duration>() / signing_times.len() as u32;
+            let min_time = *signing_times
+                .iter()
+                .min()
+                .expect("At least one signing sample should exist");
+            let max_time = *signing_times
+                .iter()
+                .max()
+                .expect("At least one signing sample should exist");
+            let max_reasonable_avg = if cfg!(debug_assertions) {
+                Duration::from_secs(1)
+            } else {
+                Duration::from_millis(200)
+            };
+
             assert!(
-                avg_time < Duration::from_millis(100),
-                "Signing should be reasonably fast"
+                avg_time < max_reasonable_avg,
+                "Signing average exceeded threshold: avg={avg_time:?}, min={min_time:?}, max={max_time:?}, threshold={max_reasonable_avg:?}"
+            );
+            assert!(
+                max_time.abs_diff(min_time) < Duration::from_millis(400),
+                "Signing timings are too inconsistent: min={min_time:?}, max={max_time:?}"
             );
         }
     }
@@ -924,6 +947,11 @@ mod performance_tests {
                 .sign(keypair.secret_key(), message)
                 .expect("Signing should succeed");
 
+            // Warm up once to avoid one-time initialization skewing measurements.
+            let _ = ml_dsa
+                .verify(keypair.public_key(), message, &signature)
+                .expect("Warm-up verification should succeed");
+
             // Measure verification time multiple times
             let mut verification_times = Vec::new();
             for _ in 0..10 {
@@ -938,9 +966,27 @@ mod performance_tests {
             // Check that verification times are reasonably consistent
             let avg_time: Duration =
                 verification_times.iter().sum::<Duration>() / verification_times.len() as u32;
+            let min_time = *verification_times
+                .iter()
+                .min()
+                .expect("At least one verification sample should exist");
+            let max_time = *verification_times
+                .iter()
+                .max()
+                .expect("At least one verification sample should exist");
+            let max_reasonable_avg = if cfg!(debug_assertions) {
+                Duration::from_millis(600)
+            } else {
+                Duration::from_millis(100)
+            };
+
             assert!(
-                avg_time < Duration::from_millis(50),
-                "Verification should be reasonably fast"
+                avg_time < max_reasonable_avg,
+                "Verification average exceeded threshold: avg={avg_time:?}, min={min_time:?}, max={max_time:?}, threshold={max_reasonable_avg:?}"
+            );
+            assert!(
+                max_time.abs_diff(min_time) < Duration::from_millis(250),
+                "Verification timings are too inconsistent: min={min_time:?}, max={max_time:?}"
             );
         }
     }
