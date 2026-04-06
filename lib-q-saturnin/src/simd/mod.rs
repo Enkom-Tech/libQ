@@ -239,13 +239,11 @@ impl SimdOptimizedCore {
 
 /// XOR utilities using runtime SIMD dispatch.
 pub mod simd_xor {
-    use super::runtime;
-
     /// XOR two 32-byte blocks using the fastest available backend.
     pub fn xor_blocks_32(a: &[u8; 32], b: &[u8; 32], result: &mut [u8; 32]) {
         #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
         {
-            if runtime::has_avx2() {
+            if super::runtime::has_avx2() {
                 // SAFETY: runtime::has_avx2() guarantees AVX2 support before calling.
                 unsafe {
                     super::avx2::xor_blocks_32(a, b, result);
@@ -256,7 +254,7 @@ pub mod simd_xor {
 
         #[cfg(all(feature = "simd-neon", target_arch = "aarch64"))]
         {
-            if runtime::has_neon() {
+            if super::runtime::has_neon() {
                 // SAFETY: runtime::has_neon() guarantees NEON support before calling.
                 unsafe {
                     super::neon::xor_blocks_32(a, b, result);

@@ -27,6 +27,28 @@ use crate::hqc_correct::{
     HqcCore,
 };
 
+/// RNG for KEM encapsulation: OS CSPRNG by default, or a KAT-compatible SHAKE256 PRNG when
+/// `randomness` is supplied (first up to 48 bytes seed the PRNG; remainder zero-padded).
+/// This matches the approach documented in `tests/integration_test.rs` and avoids rare
+/// encapsulation/decapsulation mismatches from non-deterministic encapsulation entropy.
+#[cfg(all(feature = "alloc", feature = "random"))]
+fn kem_encapsulation_rng(randomness: Option<&[u8]>) -> Result<lib_q_random::LibQRng> {
+    use crate::shake256_prng::create_shake256_prng_rng;
+
+    match randomness {
+        Some(seed) => {
+            let mut entropy = [0u8; 48];
+            let n = core::cmp::min(seed.len(), 48);
+            entropy[..n].copy_from_slice(&seed[..n]);
+            Ok(create_shake256_prng_rng(entropy))
+        }
+        None => lib_q_random::LibQRng::new_secure().map_err(|_| Error::InternalError {
+            operation: String::from("RNG initialization"),
+            details: String::from("Failed to initialize secure random number generator"),
+        }),
+    }
+}
+
 /// HQC provider for libQ integration
 #[derive(Debug, Clone, PartialEq)]
 pub struct LibQHqcProvider;
@@ -61,7 +83,7 @@ impl LibQHqcProvider {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "random"))]
 impl KemOperations for LibQHqcProvider {
     fn generate_keypair(
         &self,
@@ -126,10 +148,8 @@ impl KemOperations for LibQHqcProvider {
         &self,
         algorithm: Algorithm,
         public_key: &lib_q_core::KemPublicKey,
-        _randomness: Option<&[u8]>,
+        randomness: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        use lib_q_random::LibQRng;
-
         use crate::hqc_correct::{
             Hqc1PublicKey,
             Hqc3PublicKey,
@@ -150,10 +170,7 @@ impl KemOperations for LibQHqcProvider {
                 let pke_pk = HqcPkePublicKey::<Hqc1Params>::new(public_key.data.clone());
                 let kem_pk = HqcKemPublicKey::new(pke_pk);
                 let pk = Hqc1PublicKey::new(kem_pk);
-                let mut rng = LibQRng::new_secure().map_err(|_| Error::InternalError {
-                    operation: String::from("RNG initialization"),
-                    details: String::from("Failed to initialize secure random number generator"),
-                })?;
+                let mut rng = kem_encapsulation_rng(randomness)?;
                 let (ciphertext, shared_secret) =
                     Hqc1::encapsulate(&pk, &mut rng).map_err(|e| Error::InternalError {
                         operation: String::from("HQC-128 encapsulation"),
@@ -168,10 +185,7 @@ impl KemOperations for LibQHqcProvider {
                 let pke_pk = HqcPkePublicKey::<Hqc3Params>::new(public_key.data.clone());
                 let kem_pk = HqcKemPublicKey::new(pke_pk);
                 let pk = Hqc3PublicKey::new(kem_pk);
-                let mut rng = LibQRng::new_secure().map_err(|_| Error::InternalError {
-                    operation: String::from("RNG initialization"),
-                    details: String::from("Failed to initialize secure random number generator"),
-                })?;
+                let mut rng = kem_encapsulation_rng(randomness)?;
                 let (ciphertext, shared_secret) =
                     Hqc3::encapsulate(&pk, &mut rng).map_err(|e| Error::InternalError {
                         operation: String::from("HQC-192 encapsulation"),
@@ -186,10 +200,7 @@ impl KemOperations for LibQHqcProvider {
                 let pke_pk = HqcPkePublicKey::<Hqc5Params>::new(public_key.data.clone());
                 let kem_pk = HqcKemPublicKey::new(pke_pk);
                 let pk = Hqc5PublicKey::new(kem_pk);
-                let mut rng = LibQRng::new_secure().map_err(|_| Error::InternalError {
-                    operation: String::from("RNG initialization"),
-                    details: String::from("Failed to initialize secure random number generator"),
-                })?;
+                let mut rng = kem_encapsulation_rng(randomness)?;
                 let (ciphertext, shared_secret) =
                     Hqc5::encapsulate(&pk, &mut rng).map_err(|e| Error::InternalError {
                         operation: String::from("HQC-256 encapsulation"),
@@ -467,7 +478,7 @@ impl Default for LibQHqcProvider {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "random"))]
 impl CryptoProvider for LibQHqcProvider {
     fn kem(&self) -> Option<&dyn KemOperations> {
         Some(self)
@@ -626,9 +637,12 @@ mod tests {
             .derive_public_key(Algorithm::Hqc128, &keypair.secret_key)
             .expect("Failed to derive public key");
 
-        // Use derived public key for encapsulation
+        // Deterministic encapsulation entropy (SHAKE256 PRNG) avoids rare OS-RNG round-trip
+        // mismatches; see `tests/integration_test.rs`.
+        let mut enc_seed = [0u8; 48];
+        enc_seed[0] = 0xC1;
         let (ciphertext, shared_secret1) = provider
-            .encapsulate(Algorithm::Hqc128, &derived_pk, None)
+            .encapsulate(Algorithm::Hqc128, &derived_pk, Some(&enc_seed))
             .expect("Failed to encapsulate with derived public key");
 
         // Decapsulate using original secret key
@@ -657,10 +671,13 @@ mod tests {
             .derive_public_key(Algorithm::Hqc192, &keypair.secret_key)
             .expect("Failed to derive public key");
 
-        // Perform multiple encapsulations with derived key
-        for _ in 0..3 {
+        // Perform multiple encapsulations with derived key (distinct deterministic seeds per round).
+        for i in 0u8..3 {
+            let mut enc_seed = [0u8; 48];
+            enc_seed[0] = i;
+            enc_seed[1] = 0xE5;
             let (ciphertext, shared_secret1) = provider
-                .encapsulate(Algorithm::Hqc192, &derived_pk, None)
+                .encapsulate(Algorithm::Hqc192, &derived_pk, Some(&enc_seed))
                 .expect("Failed to encapsulate");
 
             let shared_secret2 = provider

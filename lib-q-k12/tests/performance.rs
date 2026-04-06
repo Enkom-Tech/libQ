@@ -403,7 +403,7 @@ fn test_performance_consistency() {
     // Enough work per run that a typical scheduler interrupt (~0.5–2 ms on Windows)
     // does not dominate the aggregate timing; 100 iters was ~0.6 ms total and flaked often.
     const ITERATIONS: usize = 2000;
-    const RUNS: usize = 5;
+    const RUNS: usize = 7;
 
     let mut run_times = Vec::new();
 
@@ -427,9 +427,14 @@ fn test_performance_consistency() {
         run_times.push(elapsed);
     }
 
-    // Calculate variance
-    let avg_time = run_times.iter().sum::<Duration>() / run_times.len() as u32;
-    let max_deviation = run_times
+    // Calculate variance on the middle runs after dropping one min and one max.
+    // This keeps the test sensitive to real regressions while reducing false positives
+    // from occasional scheduler noise on shared CI runners.
+    let mut sorted_run_times = run_times.clone();
+    sorted_run_times.sort_unstable();
+    let trimmed_run_times = &sorted_run_times[1..sorted_run_times.len() - 1];
+    let avg_time = trimmed_run_times.iter().sum::<Duration>() / trimmed_run_times.len() as u32;
+    let max_deviation = trimmed_run_times
         .iter()
         .map(|&time| time.abs_diff(avg_time))
         .max()
@@ -439,8 +444,13 @@ fn test_performance_consistency() {
     let tolerance = avg_time / 2;
     assert!(
         max_deviation <= tolerance,
-        "Performance inconsistent: max deviation {} from average {}",
+        "Performance inconsistent: max deviation {} from average {} (all runs ns: {:?}, trimmed ns: {:?})",
         max_deviation.as_nanos(),
-        avg_time.as_nanos()
+        avg_time.as_nanos(),
+        run_times.iter().map(|d| d.as_nanos()).collect::<Vec<_>>(),
+        trimmed_run_times
+            .iter()
+            .map(|d| d.as_nanos())
+            .collect::<Vec<_>>()
     );
 }

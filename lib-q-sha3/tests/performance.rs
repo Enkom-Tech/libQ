@@ -325,37 +325,49 @@ fn test_performance_consistency() {
 #[test]
 fn test_algorithm_performance_relationships() {
     let test_input = b"test input for algorithm performance relationships";
-    const ITERATIONS: usize = 1000;
+    // Enough work that `Instant` is not dominated by OS jitter; interleave timings so no
+    // algorithm is measured only after long runs (thermal scaling / preemption skew).
+    const ITERATIONS: usize = 10_000;
+    const WARMUP: usize = 500;
 
-    // Measure SHA3-256
-    let start = Instant::now();
+    for _ in 0..WARMUP {
+        let mut h = Sha3_256::new();
+        h.update(test_input);
+        std::hint::black_box(h.finalize());
+        let mut h = Sha3_512::new();
+        h.update(test_input);
+        std::hint::black_box(h.finalize());
+        let mut h = Keccak256::new();
+        h.update(test_input);
+        std::hint::black_box(h.finalize());
+    }
+
+    let mut sha3_256_time = Duration::ZERO;
+    let mut sha3_512_time = Duration::ZERO;
+    let mut keccak256_time = Duration::ZERO;
+
     for _ in 0..ITERATIONS {
+        let start = Instant::now();
         let mut hasher = Sha3_256::new();
         hasher.update(test_input);
         let _result = hasher.finalize();
         std::hint::black_box(_result);
-    }
-    let sha3_256_time = start.elapsed();
+        sha3_256_time += start.elapsed();
 
-    // Measure SHA3-512
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+        let start = Instant::now();
         let mut hasher = Sha3_512::new();
         hasher.update(test_input);
         let _result = hasher.finalize();
         std::hint::black_box(_result);
-    }
-    let sha3_512_time = start.elapsed();
+        sha3_512_time += start.elapsed();
 
-    // Measure Keccak256
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+        let start = Instant::now();
         let mut hasher = Keccak256::new();
         hasher.update(test_input);
         let _result = hasher.finalize();
         std::hint::black_box(_result);
+        keccak256_time += start.elapsed();
     }
-    let keccak256_time = start.elapsed();
 
     // SHA3-512 can be several times slower than SHA3-256 (smaller sponge rate, longer output).
     const MAX_RATIO_512_TO_256: f64 = 5.0;
