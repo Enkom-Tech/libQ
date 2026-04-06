@@ -78,7 +78,7 @@ pub fn parse_algorithm_wasm(algorithm: &str) -> Result<crate::api::Algorithm, Js
         return Err(JsValue::from_str("Algorithm name too long"));
     }
 
-    // Reject control characters; allow Unicode so names like `dawn-α-512` match
+    // Reject control characters; allow Unicode for algorithm string forms that use non-ASCII.
     // [`crate::wasm::conversions::WasmConversions::string_to_algorithm`].
     if algorithm.chars().any(|c| c.is_control()) {
         return Err(JsValue::from_str("Invalid algorithm name format"));

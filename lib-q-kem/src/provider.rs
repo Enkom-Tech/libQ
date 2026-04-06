@@ -27,7 +27,7 @@ use lib_q_core::error::{
 };
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
-#[cfg(all(feature = "alloc", any(feature = "ml-kem", feature = "dawn")))]
+#[cfg(all(feature = "alloc", feature = "ml-kem"))]
 use lib_q_core::traits::Kem;
 #[cfg(feature = "alloc")]
 use lib_q_core::traits::{
@@ -142,44 +142,6 @@ impl KemOperations for LibQKemProvider {
                 hqc_provider.generate_keypair(algorithm, randomness)
             }
 
-            // DAWN KEM algorithms
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha512);
-                kem.generate_keypair()
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta512);
-                kem.generate_keypair()
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha1024);
-                kem.generate_keypair()
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta1024);
-                kem.generate_keypair()
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -201,14 +163,6 @@ impl KemOperations for LibQKemProvider {
                     feature: String::from("HQC implementations require 'hqc' feature flag"),
                 })
             }
-            #[cfg(not(feature = "dawn"))]
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: String::from("DAWN KEM implementations require 'dawn' feature flag"),
-            }),
-
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -271,44 +225,6 @@ impl KemOperations for LibQKemProvider {
                 hqc_provider.encapsulate(algorithm, public_key, randomness)
             }
 
-            // DAWN KEM algorithms
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha512);
-                kem.encapsulate(public_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta512);
-                kem.encapsulate(public_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha1024);
-                kem.encapsulate(public_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta1024);
-                kem.encapsulate(public_key)
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -330,14 +246,6 @@ impl KemOperations for LibQKemProvider {
                     feature: String::from("HQC implementations require 'hqc' feature flag"),
                 })
             }
-            #[cfg(not(feature = "dawn"))]
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: String::from("DAWN KEM implementations require 'dawn' feature flag"),
-            }),
-
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
             }),
@@ -399,44 +307,6 @@ impl KemOperations for LibQKemProvider {
                 hqc_provider.decapsulate(algorithm, secret_key, ciphertext)
             }
 
-            // DAWN KEM algorithms
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha512);
-                kem.decapsulate(secret_key, ciphertext)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta512);
-                kem.decapsulate(secret_key, ciphertext)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha1024);
-                kem.decapsulate(secret_key, ciphertext)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta1024);
-                kem.decapsulate(secret_key, ciphertext)
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -458,13 +328,6 @@ impl KemOperations for LibQKemProvider {
                     feature: String::from("HQC implementations require 'hqc' feature flag"),
                 })
             }
-            #[cfg(not(feature = "dawn"))]
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: String::from("DAWN KEM implementations require 'dawn' feature flag"),
-            }),
 
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
@@ -522,44 +385,6 @@ impl KemOperations for LibQKemProvider {
                 hqc_provider.derive_public_key(algorithm, secret_key)
             }
 
-            // DAWN KEM algorithms
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha512);
-                kem.derive_public_key(secret_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta512 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta512);
-                kem.derive_public_key(secret_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnAlpha1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Alpha1024);
-                kem.derive_public_key(secret_key)
-            }
-            #[cfg(feature = "dawn")]
-            Algorithm::DawnBeta1024 => {
-                use lib_q_dawn::{
-                    DawnKem,
-                    DawnParameterSet,
-                };
-                let kem = DawnKem::new(DawnParameterSet::Beta1024);
-                kem.derive_public_key(secret_key)
-            }
-
             // Handle missing feature flags
             #[cfg(not(feature = "ml-kem"))]
             Algorithm::MlKem512 | Algorithm::MlKem768 | Algorithm::MlKem1024 => {
@@ -581,13 +406,6 @@ impl KemOperations for LibQKemProvider {
                     feature: String::from("HQC implementations require 'hqc' feature flag"),
                 })
             }
-            #[cfg(not(feature = "dawn"))]
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => Err(Error::NotImplemented {
-                feature: String::from("DAWN KEM implementations require 'dawn' feature flag"),
-            }),
 
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for KEM operations",
@@ -670,25 +488,6 @@ mod tests {
                 panic!("Expected NotImplemented error");
             }
         }
-
-        // Test DAWN without feature flag
-        #[cfg(not(feature = "dawn"))]
-        {
-            let result = _provider.generate_keypair(Algorithm::DawnAlpha512, None);
-            assert!(
-                result.is_err(),
-                "Should return error when feature flag is not enabled"
-            );
-
-            if let Err(Error::NotImplemented { feature }) = result {
-                assert!(
-                    feature.contains("DAWN KEM implementations require 'dawn' feature flag"),
-                    "Error should mention feature flag requirement"
-                );
-            } else {
-                panic!("Expected NotImplemented error");
-            }
-        }
     }
 
     #[test]
@@ -714,30 +513,6 @@ mod tests {
                     panic!("Unexpected error type: {:?}", e);
                 }
             }
-        }
-
-        #[cfg(feature = "dawn")]
-        {
-            use lib_q_dawn::DawnParameterSet;
-
-            let result = _provider.generate_keypair(Algorithm::DawnAlpha512, None);
-            // Should succeed with dawn feature enabled
-            assert!(
-                result.is_ok(),
-                "DAWN Alpha512 should work with dawn feature"
-            );
-            let keypair = result.unwrap();
-            let alpha512 = DawnParameterSet::Alpha512;
-            assert_eq!(
-                keypair.public_key.data.len(),
-                alpha512.public_key_size(),
-                "public key length must match lib-q-dawn Alpha512"
-            );
-            assert_eq!(
-                keypair.secret_key.data.len(),
-                alpha512.secret_key_size(),
-                "secret key length must match lib-q-dawn Alpha512"
-            );
         }
     }
 
@@ -775,53 +550,6 @@ mod tests {
                 "ML-KEM-512 ciphertext should be 768 bytes"
             );
             assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
-        }
-
-        // Test full KEM cycle for DAWN-α-512
-        #[cfg(feature = "dawn")]
-        {
-            use lib_q_dawn::DawnParameterSet;
-
-            let alpha512 = DawnParameterSet::Alpha512;
-            let provider = LibQKemProvider::new().unwrap();
-
-            let keypair = provider
-                .generate_keypair(Algorithm::DawnAlpha512, None)
-                .unwrap();
-
-            let (ciphertext, shared_secret1) = provider
-                .encapsulate(Algorithm::DawnAlpha512, &keypair.public_key, None)
-                .unwrap();
-
-            let shared_secret2 = provider
-                .decapsulate(Algorithm::DawnAlpha512, &keypair.secret_key, &ciphertext)
-                .unwrap();
-
-            assert_eq!(
-                shared_secret1, shared_secret2,
-                "Shared secrets should match"
-            );
-
-            assert_eq!(
-                ciphertext.len(),
-                alpha512.ciphertext_size(),
-                "ciphertext length must match lib-q-dawn Alpha512"
-            );
-            assert_eq!(
-                shared_secret1.len(),
-                alpha512.shared_secret_size(),
-                "shared secret length must match lib-q-dawn Alpha512"
-            );
-            assert_eq!(
-                keypair.public_key.data.len(),
-                alpha512.public_key_size(),
-                "public key length must match lib-q-dawn Alpha512"
-            );
-            assert_eq!(
-                keypair.secret_key.data.len(),
-                alpha512.secret_key_size(),
-                "secret key length must match lib-q-dawn Alpha512"
-            );
         }
     }
 }

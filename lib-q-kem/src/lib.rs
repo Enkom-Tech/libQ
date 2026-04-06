@@ -15,7 +15,6 @@
 //! ## Supported Algorithms
 //!
 //! - **ML-KEM**: CRYSTALS-ML-KEM (Levels 1, 3, 4)
-//! - **DAWN**: DAWN KEM (Level 1) - Coming soon
 //!
 //! ## Feature Support
 //!
@@ -107,9 +106,6 @@ pub mod ml_kem;
 #[cfg(feature = "hqc")]
 pub mod hqc;
 
-/// DAWN KEM implementation
-#[cfg(feature = "dawn")]
-pub use lib_q_dawn::DawnKem as DawnImpl;
 // Re-export provider
 #[cfg(feature = "alloc")]
 pub use provider::LibQKemProvider;
@@ -122,11 +118,6 @@ pub fn available_algorithms() -> Vec<&'static str> {
     #[cfg(feature = "ml-kem")]
     {
         algorithms.extend(["ML-KEM-512", "ML-KEM-768", "ML-KEM-1024"]);
-    }
-
-    #[cfg(feature = "dawn")]
-    {
-        algorithms.extend(["DAWN"]);
     }
 
     #[cfg(feature = "cb-kem")]
@@ -158,8 +149,6 @@ pub fn available_algorithms() -> &'static [&'static str] {
         "ML-KEM-768",
         #[cfg(feature = "ml-kem")]
         "ML-KEM-1024",
-        #[cfg(feature = "dawn")]
-        "DAWN",
         #[cfg(feature = "cb-kem")]
         "CB-KEM-348864",
         #[cfg(feature = "cb-kem")]
@@ -189,9 +178,6 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
         "ml-kem-768" | "ML-KEM-768" => Ok(Box::new(ml_kem::MlKem768Impl::default())),
         #[cfg(feature = "ml-kem")]
         "ml-kem-1024" | "ML-KEM-1024" => Ok(Box::new(ml_kem::MlKem1024Impl::default())),
-
-        #[cfg(feature = "dawn")]
-        "dawn" | "DAWN" => Ok(Box::new(DawnImpl::default())),
 
         #[cfg(feature = "hqc")]
         "HQC-128" | "hqc-128" => Ok(Box::new(hqc::Hqc128Impl)),
@@ -329,14 +315,6 @@ mod tests {
             );
         }
 
-        #[cfg(feature = "dawn")]
-        {
-            assert!(
-                algorithms.contains(&"DAWN"),
-                "DAWN should be available when dawn feature is enabled"
-            );
-        }
-
         #[cfg(feature = "cb-kem")]
         {
             assert!(
@@ -378,24 +356,14 @@ mod tests {
         }
 
         // Test that we have at least one algorithm when any features are enabled
-        #[cfg(any(
-            feature = "ml-kem",
-            feature = "dawn",
-            feature = "cb-kem",
-            feature = "hqc"
-        ))]
+        #[cfg(any(feature = "ml-kem", feature = "cb-kem", feature = "hqc"))]
         assert!(
             !algorithms.is_empty(),
             "Should have at least one algorithm when features are enabled"
         );
 
         // Test that we have no algorithms when no features are enabled
-        #[cfg(not(any(
-            feature = "ml-kem",
-            feature = "dawn",
-            feature = "cb-kem",
-            feature = "hqc"
-        )))]
+        #[cfg(not(any(feature = "ml-kem", feature = "cb-kem", feature = "hqc")))]
         assert!(
             algorithms.is_empty(),
             "Should have no algorithms when no features are enabled"
@@ -406,8 +374,6 @@ mod tests {
             let count = 0;
             #[cfg(feature = "ml-kem")]
             let count = count + 3; // ML-KEM-512, ML-KEM-768, ML-KEM-1024
-            #[cfg(feature = "dawn")]
-            let count = count + 1; // DAWN
             #[cfg(feature = "cb-kem")]
             let count = count + 5; // CB-KEM-348864, CB-KEM-460896, CB-KEM-6688128, CB-KEM-6960119, CB-KEM-8192128
             #[cfg(feature = "hqc")]
@@ -502,8 +468,7 @@ mod tests {
             assert!(
                 algorithm.starts_with("ML-KEM-") ||
                     algorithm.starts_with("CB-KEM-") ||
-                    algorithm.starts_with("HQC-") ||
-                    algorithm.starts_with("DAWN"),
+                    algorithm.starts_with("HQC-"),
                 "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm
             );

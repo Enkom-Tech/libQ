@@ -80,11 +80,6 @@ impl WasmConversions {
             "mlkem512" | "ml-kem-512" => Ok(Algorithm::MlKem512),
             "mlkem768" | "ml-kem-768" => Ok(Algorithm::MlKem768),
             "mlkem1024" | "ml-kem-1024" => Ok(Algorithm::MlKem1024),
-            "dawnalpha512" | "dawn-α-512" | "dawn-alpha-512" => Ok(Algorithm::DawnAlpha512),
-            "dawnbeta512" | "dawn-β-512" | "dawn-beta-512" => Ok(Algorithm::DawnBeta512),
-            "dawnalpha1024" | "dawn-α-1024" | "dawn-alpha-1024" => Ok(Algorithm::DawnAlpha1024),
-            "dawnbeta1024" | "dawn-β-1024" | "dawn-beta-1024" => Ok(Algorithm::DawnBeta1024),
-
             // Signature algorithms
             "mldsa44" | "ml-dsa-44" => Ok(Algorithm::MlDsa44),
             "mldsa65" | "ml-dsa-65" => Ok(Algorithm::MlDsa65),
@@ -164,11 +159,6 @@ impl WasmConversions {
             Algorithm::MlKem512 => "ml-kem-512".to_string(),
             Algorithm::MlKem768 => "ml-kem-768".to_string(),
             Algorithm::MlKem1024 => "ml-kem-1024".to_string(),
-            Algorithm::DawnAlpha512 => "dawn-α-512".to_string(),
-            Algorithm::DawnBeta512 => "dawn-β-512".to_string(),
-            Algorithm::DawnAlpha1024 => "dawn-α-1024".to_string(),
-            Algorithm::DawnBeta1024 => "dawn-β-1024".to_string(),
-
             // Signature algorithms
             Algorithm::MlDsa44 => "ml-dsa-44".to_string(),
             Algorithm::MlDsa65 => "ml-dsa-65".to_string(),

@@ -171,18 +171,7 @@ impl SecurityValidator {
         self.validate_key_size(algorithm, key_data, true)?;
         Self::ensure_non_trivial_key_bytes(key_data)?;
 
-        // DAWN secret keys concatenate structured polynomial encodings (including a
-        // copy of the public key); byte-level repeat heuristics misfire on valid keys.
-        let dawn_secret = matches!(
-            algorithm,
-            Algorithm::DawnAlpha512 |
-                Algorithm::DawnBeta512 |
-                Algorithm::DawnAlpha1024 |
-                Algorithm::DawnBeta1024
-        );
-        if !dawn_secret {
-            self.entropy_validator.validate_key_entropy(key_data)?;
-        }
+        self.entropy_validator.validate_key_entropy(key_data)?;
 
         Ok(())
     }

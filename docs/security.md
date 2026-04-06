@@ -29,7 +29,7 @@ lib-Q is built on the principle that all classical cryptography is broken. Our t
 lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
-- **KEMs**: ML-KEM, CB-KEM, HQC, DAWN
+- **KEMs**: ML-KEM, CB-KEM, HQC
 - **Signatures**: ML-DSA, FN-DSA, SLH-DSA
 - **Symmetric**: SHAKE256-based constructions, Saturnin
 - **HPKE**: Pure post-quantum HPKE with Saturnin AEAD
@@ -37,7 +37,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Use Case**: Maximum security, performance secondary
 
 #### Tier 2: Balanced (Hybrid Post-Quantum)
-- **KEMs**: ML-KEM, CB-KEM, HQC, DAWN
+- **KEMs**: ML-KEM, CB-KEM, HQC
 - **Signatures**: ML-DSA, FN-DSA, SLH-DSA
 - **Symmetric**: Post-quantum KEM + Saturnin AEAD
 - **HPKE**: Hybrid HPKE (PQ KEM + Saturnin)
@@ -45,7 +45,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Use Case**: Strong security with good performance
 
 #### Tier 3: Performance (Post-Quantum + Optimized)
-- **KEMs**: ML-KEM, DAWN, HQC
+- **KEMs**: ML-KEM, CB-KEM, HQC
 - **Signatures**: ML-DSA, FN-DSA
 - **Symmetric**: Post-quantum KEM + Saturnin AEAD (optimized modes)
 - **HPKE**: Performance HPKE (PQ KEM + Saturnin)
@@ -120,12 +120,6 @@ We only use algorithms that have been standardized or are in the final round of 
   - Designed for IoT and constrained devices
   - Provides authenticated encryption and hashing modes
   - Superior post-quantum security compared to classical alternatives
-- **DAWN**: NTRU-based encryption with double encoding
-  - Smaller and faster than Kyber/ML-KEM
-  - Reduced ciphertext sizes for efficient transmission
-  - Alternative KEM for performance-critical applications
-  - Suitable for high-security applications requiring defense in depth
-
 ### Forbidden Classical Algorithms
 The following classical algorithms are explicitly forbidden in lib-Q:
 

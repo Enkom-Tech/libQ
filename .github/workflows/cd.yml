@@ -126,7 +126,6 @@ jobs:
           - package: "lib-q-intrinsics"
           - package: "lib-q-hqc"
           - package: "lib-q-slh-dsa"
-          - package: "lib-q-dawn"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io

@@ -254,7 +254,7 @@ The HPKE implementation is designed to integrate seamlessly with the broader lib
 
 ### Algorithm Support
 - **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024, Saturnin-256, SHAKE256, SHA3
-- **Future**: DAWN KEM and additional post-quantum algorithms as they become available
+- **Future**: Additional post-quantum algorithms as they become available
 
 ## Usage Examples
 

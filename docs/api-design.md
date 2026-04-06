@@ -514,11 +514,6 @@ pub enum KemAlgorithm {
     Hqc128,
     Hqc192,
     Hqc256,
-    /// DAWN (NTRU-based) — parameter sets α-512, α-1024, β-512, β-1024
-    DawnAlpha512,
-    DawnAlpha1024,
-    DawnBeta512,
-    DawnBeta1024,
 }
 
 /// Supported signature algorithms

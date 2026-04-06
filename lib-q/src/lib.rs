@@ -15,7 +15,7 @@
 //! # Security Features
 //!
 //! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
-//! - **Algorithm Diversity**: ML-KEM, HQC, ML-DSA, FN-DSA, Saturnin, Romulus (N/M), and DAWN
+//! - **Algorithm Diversity**: ML-KEM, HQC, ML-DSA, FN-DSA, Saturnin, Romulus (N/M)
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
 //!
@@ -49,7 +49,6 @@
 //!     // - For ML-KEM key exchange: enable 'ml-kem' feature
 //!     // - For FN-DSA signatures: enable 'fn-dsa' feature
 //!     // - For AEAD: use `libq::aead::context()` and enable `saturnin`, `romulus`, or other AEAD features
-//!     // - For DAWN KEM: enable 'dawn' feature
 //!
 //!     Ok(())
 //! }
@@ -68,7 +67,6 @@
 //! - `fn-dsa`: Enable FN-DSA digital signature algorithm
 //! - `saturnin`: Enable Saturnin authenticated encryption
 //! - `romulus`: Enable Romulus-N and Romulus-M AEAD (LWC / SKINNY-128-384+)
-//! - `dawn`: Enable DAWN key encapsulation mechanism
 //! - `hqc`: Enable HQC key encapsulation mechanism (HQC-128 / HQC-192 / HQC-256)
 //! - `random`: Enable lib-q-random for secure random number generation
 //! - `random-custom-entropy`: Enable custom entropy source support
@@ -154,7 +152,7 @@ pub use lib_q_hash::LibQHashProvider;
 #[cfg(feature = "hqc")]
 pub use lib_q_hqc::LibQHqcProvider;
 // Re-export from other crates for convenience
-#[cfg(any(feature = "ml-kem", feature = "hqc", feature = "dawn"))]
+#[cfg(any(feature = "ml-kem", feature = "hqc"))]
 pub use lib_q_kem::{
     LibQKemProvider,
     available_algorithms,

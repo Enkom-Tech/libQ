@@ -175,15 +175,6 @@ impl WasmProviderManager {
             "ml-kem-1024".to_string(),
         ];
 
-        // Add optional algorithms based on features
-        #[cfg(feature = "dawn")]
-        {
-            algorithms.push("dawn-α-512".to_string());
-            algorithms.push("dawn-β-512".to_string());
-            algorithms.push("dawn-α-1024".to_string());
-            algorithms.push("dawn-β-1024".to_string());
-        }
-
         algorithms
     }
 

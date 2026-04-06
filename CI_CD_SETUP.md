@@ -246,7 +246,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 
 ### Rust crates (crates.io)
 
-Publishing order and membership are defined **only** in `cd.yml` (tiers 0–16). In addition to umbrella and algorithm crates, the pipeline includes **platform/intrinsics**, **HQC**, **Dawn**, **`lib-q-poseidon`**, **`lib-q-zkp`**, and the **`lib-q-stark-*`** / **`lib-q-plonky-*`** crate families. The following are representative, not exhaustive:
+Publishing order and membership are defined **only** in `cd.yml` (tiers 0–16). In addition to umbrella and algorithm crates, the pipeline includes **platform/intrinsics**, **HQC**, **`lib-q-poseidon`**, **`lib-q-zkp`**, and the **`lib-q-stark-*`** / **`lib-q-plonky-*`** crate families. The following are representative, not exhaustive:
 
 - **`lib-q`** — Meta crate re-exporting the workspace surface.
 - **`lib-q-core`**, **`lib-q-utils`**, **`lib-q-platform`**, **`lib-q-intrinsics`**, **`lib-q-random`** — Infrastructure and utilities.

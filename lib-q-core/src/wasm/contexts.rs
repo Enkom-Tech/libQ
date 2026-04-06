@@ -268,13 +268,6 @@ impl WasmKemContext {
     pub fn supported_algorithms(&self) -> String {
         #[allow(unused_mut)] // mut needed when feature flags are enabled
         let mut algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024"];
-        #[cfg(feature = "dawn")]
-        {
-            algorithms.push("dawn-α-512");
-            algorithms.push("dawn-β-512");
-            algorithms.push("dawn-α-1024");
-            algorithms.push("dawn-β-1024");
-        }
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -921,13 +914,6 @@ impl WasmCryptoProvider {
         {
             #[allow(unused_mut)] // mut needed when feature flags are enabled
             let mut kem_algorithms = alloc::vec!["ml-kem-512", "ml-kem-768", "ml-kem-1024"];
-            #[cfg(feature = "dawn")]
-            {
-                kem_algorithms.push("dawn-α-512");
-                kem_algorithms.push("dawn-β-512");
-                kem_algorithms.push("dawn-α-1024");
-                kem_algorithms.push("dawn-β-1024");
-            }
             let algorithms = serde_json::json!({
                 "kem": kem_algorithms,
                 "signature": WASM_SIGNATURE_ALGORITHM_IDS,

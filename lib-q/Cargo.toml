@@ -101,8 +101,6 @@ saturnin = ["lib-q-aead/saturnin"]
 duplex-sponge-aead = ["lib-q-aead/duplex-sponge-aead"]
 tweak-aead = ["lib-q-aead/tweak-aead"]
 romulus = ["lib-q-aead/romulus"]
-dawn = ["lib-q-kem/dawn"]
-
 # Protocol implementations
 hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
 hpke-duplex-aead = ["hpke", "lib-q-hpke/duplex-sponge-aead"]
@@ -138,7 +136,7 @@ simd256 = ["lib-q-ml-dsa/simd256"]
 security-hardened = ["zeroize", "all-algorithms"]
 
 # Convenience features
-all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "duplex-sponge-aead", "tweak-aead", "romulus", "dawn", "zkp"]
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "duplex-sponge-aead", "tweak-aead", "romulus", "zkp"]
 
 # Development and testing features
 dev = ["experimental", "tests"]

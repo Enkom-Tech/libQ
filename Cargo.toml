@@ -26,7 +26,6 @@ members = [
     "lib-q-slh-dsa",
     "lib-q-cb-kem",
     "lib-q-random",
-    "lib-q-dawn",
     "lib-q-hqc",
     "lib-q-hqc/traits",
     "lib-q-stark",
@@ -137,10 +136,6 @@ panic = "abort"
 [profile.dev-cb-kem]
 inherits = "dev"
 opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
-
-# lib-q-dawn: n=1024 KEM and PKE histogram tests are slow at workspace dev defaults; optimize this crate only.
-[profile.dev.package.lib-q-dawn]
-opt-level = 2
 
 [profile.release-cb-kem]
 inherits = "release"

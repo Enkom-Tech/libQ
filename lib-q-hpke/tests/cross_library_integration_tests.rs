@@ -1,7 +1,7 @@
 //! Cross-library integration tests for HPKE with different KEM providers
 //!
 //! These tests verify that HPKE works correctly with different KEM implementations
-//! (ML-KEM, HQC, CB-KEM, DAWN) to ensure proper cross-library interoperability.
+//! (ML-KEM, HQC, CB-KEM) to ensure proper cross-library interoperability.
 
 #![cfg(feature = "std")]
 

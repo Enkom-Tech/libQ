@@ -46,15 +46,10 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Core implementation
   - [x] Key generation
   - [x] Encapsulation/Decapsulation
-  - [ ] Performance optimization
-  - [ ] Security audit
-- [x] DAWN (NTRU-based)
-  - [x] Core implementation
-  - [x] Key generation
-  - [x] Encapsulation/Decapsulation
-  - [x] All parameter sets (α-512, α-1024, β-512, β-1024)
+  - [x] All parameter sets (ML-KEM-512, ML-KEM-768, ML-KEM-1024)
   - [x] Complete test coverage
   - [ ] Performance optimization
+  - [ ] Security audit
 - [x] CB-KEM (Classical McEliece, all five parameter sets)
   - [x] Core implementation
   - [x] Key generation

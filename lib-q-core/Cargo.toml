@@ -89,7 +89,6 @@ ml-dsa = []
 fn-dsa = []
 slh-dsa = []
 saturnin = []
-dawn = []
 
 # Security validation features
 relaxed_entropy_validation = []

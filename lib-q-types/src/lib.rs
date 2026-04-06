@@ -28,10 +28,6 @@ pub enum Algorithm {
     Hqc128,
     Hqc192,
     Hqc256,
-    DawnAlpha512,
-    DawnBeta512,
-    DawnAlpha1024,
-    DawnBeta1024,
 
     // Signature algorithms
     MlDsa44,
@@ -96,8 +92,6 @@ impl Algorithm {
             Algorithm::MlKem512 => 1,
             Algorithm::CbKem348864 => 1,
             Algorithm::Hqc128 => 1,
-            Algorithm::DawnAlpha512 => 1,
-            Algorithm::DawnBeta512 => 1,
             Algorithm::MlDsa44 => 1,
             Algorithm::FnDsa => 1,
             Algorithm::FnDsa512 => 1,
@@ -123,8 +117,6 @@ impl Algorithm {
 
             // Level 5 (256-bit security)
             Algorithm::FnDsa1024 => 5,
-            Algorithm::DawnAlpha1024 => 5,
-            Algorithm::DawnBeta1024 => 5,
 
             // Level 5 (256-bit security, higher performance)
             Algorithm::CbKem8192128 => 5,
@@ -182,11 +174,7 @@ impl Algorithm {
             Algorithm::CbKem8192128 |
             Algorithm::Hqc128 |
             Algorithm::Hqc192 |
-            Algorithm::Hqc256 |
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => AlgorithmCategory::Kem,
+            Algorithm::Hqc256 => AlgorithmCategory::Kem,
 
             Algorithm::MlDsa44 |
             Algorithm::MlDsa65 |
@@ -254,11 +242,7 @@ impl Algorithm {
             Algorithm::CbKem8192128 |
             Algorithm::Hqc128 |
             Algorithm::Hqc192 |
-            Algorithm::Hqc256 |
-            Algorithm::DawnAlpha512 |
-            Algorithm::DawnBeta512 |
-            Algorithm::DawnAlpha1024 |
-            Algorithm::DawnBeta1024 => category == AlgorithmCategory::Kem,
+            Algorithm::Hqc256 => category == AlgorithmCategory::Kem,
 
             // Pure signature algorithms
             Algorithm::MlDsa44 |
@@ -370,10 +354,6 @@ impl core::fmt::Display for Algorithm {
             Algorithm::Hqc128 => write!(f, "HQC-128"),
             Algorithm::Hqc192 => write!(f, "HQC-192"),
             Algorithm::Hqc256 => write!(f, "HQC-256"),
-            Algorithm::DawnAlpha512 => write!(f, "DAWN-α-512"),
-            Algorithm::DawnBeta512 => write!(f, "DAWN-β-512"),
-            Algorithm::DawnAlpha1024 => write!(f, "DAWN-α-1024"),
-            Algorithm::DawnBeta1024 => write!(f, "DAWN-β-1024"),
 
             // Signature algorithms
             Algorithm::MlDsa44 => write!(f, "ML-DSA-44"),

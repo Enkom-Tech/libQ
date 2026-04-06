@@ -265,7 +265,7 @@ fn test_error_display_all_variants() {
     });
 }
 
-/// Hit remaining SecurityConstants match arms (CB-KEM, DAWN, SLH-DSA) and Default.
+/// Hit remaining SecurityConstants match arms (CB-KEM, SLH-DSA) and Default.
 #[cfg(feature = "std")]
 #[test]
 fn test_security_constants_extended_algorithms() {
@@ -276,10 +276,6 @@ fn test_security_constants_extended_algorithms() {
         Algorithm::MlKem512,
         Algorithm::MlKem768,
         Algorithm::MlKem1024,
-        Algorithm::DawnAlpha512,
-        Algorithm::DawnBeta512,
-        Algorithm::DawnAlpha1024,
-        Algorithm::DawnBeta1024,
         Algorithm::CbKem348864,
         Algorithm::CbKem460896,
         Algorithm::CbKem6688128,

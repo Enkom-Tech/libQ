@@ -33,7 +33,7 @@ lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
 - **`lib-q`** - Complete library (re-exports everything)
 - **`lib-q-core`** - Core types and traits
-- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC, DAWN)
+- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC)
 - **`lib-q-sig`** - Digital Signatures (ML-DSA, SLH-DSA)
 - **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
 - **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
@@ -104,7 +104,6 @@ npm install @lib-q/utils
 - **ML-KEM** (FIPS 203; security levels 1, 3, and 5)
 - **CB-KEM** (code-based KEM in the Classic McEliece family; five NIST parameter sets, selectable via crate features)
 - **HQC** (NIST-standardized code-based KEM; parameter sets HQC-128, HQC-192, and HQC-256, corresponding to levels 1, 3, and 5)
-- **DAWN** (NTRU-based KEM; multiple parameter sets)
 
 ### Digital signatures
 - **ML-DSA** (FIPS 204; levels 1, 3, and 5)
@@ -138,7 +137,7 @@ lib-Q/   (repository root)
 ├── lib-q/              # Umbrella library (feature-gated re-exports)
 ├── lib-q-core/         # Types, traits, provider surface, validation
 ├── lib-q-kem/          # KEM façade and integrations
-├── lib-q-ml-kem/, lib-q-cb-kem/, lib-q-dawn/, lib-q-hqc/  # Concrete KEM implementations
+├── lib-q-ml-kem/, lib-q-cb-kem/, lib-q-hqc/  # Concrete KEM implementations
 ├── lib-q-sig/, lib-q-ml-dsa/, lib-q-slh-dsa/, lib-q-fn-dsa/
 ├── lib-q-hash/, lib-q-sha3/, lib-q-keccak/, lib-q-k12/
 ├── lib-q-aead/, lib-q-saturnin/
@@ -167,7 +166,6 @@ For a full member list, see the `[workspace].members` table in [Cargo.toml](Carg
 - **SLH-DSA** (FIPS 205) including all twelve SLH-DSA parameter sets
 - **ML-KEM** (FIPS 203; levels 1, 3, and 5)
 - **CB-KEM** (Classic McEliece–family; five parameter sets, feature-selected)
-- **DAWN** NTRU-based KEM (α-512, α-1024, β-512, β-1024)
 - **HQC** (HQC-128, HQC-192, HQC-256)
 - **Saturnin** (AEAD, block, hash, stream modes)
 - **HPKE** (RFC 9180) with post-quantum KEM and AEAD options

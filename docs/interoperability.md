@@ -284,7 +284,6 @@ pub mod openssl {
             "mlkem1" => simple::keygen(1),
             "mlkem3" => simple::keygen(3),
             "mlkem5" => simple::keygen(5),
-            "dawn" => simple::keygen(3), // DAWN KEM for performance
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),
@@ -300,7 +299,6 @@ pub mod openssl {
             "mlkem1" => SecurityTier::Performance,
             "mlkem3" => SecurityTier::Balanced,
             "mlkem5" => SecurityTier::Ultra,
-            "dawn" => SecurityTier::Performance,
             _ => return Err(Error::InvalidAlgorithm {
                 algorithm: algorithm.to_string(),
             }),

@@ -6,15 +6,17 @@
 
 use std::hint::black_box;
 
+#[cfg(feature = "slh-dsa")]
+use criterion::BenchmarkId;
 use criterion::{
-    BenchmarkId,
     Criterion,
     criterion_group,
     criterion_main,
 };
+#[cfg(feature = "slh-dsa")]
+use lib_q_core::SigSecretKey;
 use lib_q_core::{
     Algorithm,
-    SigSecretKey,
     SignatureOperations,
 };
 use lib_q_sig::LibQSignatureProvider;
@@ -88,13 +90,15 @@ fn benchmark_provider_key_generation(c: &mut Criterion) {
 
 /// Benchmark provider pattern signing across different message sizes
 fn benchmark_provider_signing(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("provider_signing");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("provider_signing");
 
     // Use SLH-DSA for signing benchmarks
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
         let keypair = provider
             .generate_keypair(algorithm, None)
@@ -120,13 +124,15 @@ fn benchmark_provider_signing(c: &mut Criterion) {
 
 /// Benchmark provider pattern verification across different message sizes
 fn benchmark_provider_verification(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("provider_verification");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("provider_verification");
 
     // Use SLH-DSA for verification benchmarks
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
         let keypair = provider
             .generate_keypair(algorithm, None)
@@ -156,14 +162,16 @@ fn benchmark_provider_verification(c: &mut Criterion) {
 
 /// Benchmark cross-algorithm comparison through provider
 fn benchmark_cross_algorithm_comparison(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("cross_algorithm_comparison");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
-    let message = b"Cross-algorithm comparison benchmark";
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("cross_algorithm_comparison");
 
     // Compare SLH-DSA parameter sets
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+        let message = b"Cross-algorithm comparison benchmark";
         let slh_dsa_algorithms = [
             Algorithm::SlhDsaShake256128fRobust,
             Algorithm::SlhDsaShake256192fRobust,
@@ -194,12 +202,14 @@ fn benchmark_cross_algorithm_comparison(c: &mut Criterion) {
 
 /// Benchmark security validation overhead
 fn benchmark_security_validation_overhead(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("security_validation_overhead");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("security_validation_overhead");
 
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
         // Benchmark with valid randomness (includes security validation)
@@ -233,12 +243,14 @@ fn benchmark_security_validation_overhead(c: &mut Criterion) {
 
 /// Benchmark provider error handling performance
 fn benchmark_provider_error_handling(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("provider_error_handling");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("provider_error_handling");
 
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
         // Benchmark error handling for invalid algorithm
@@ -273,12 +285,14 @@ fn benchmark_provider_error_handling(c: &mut Criterion) {
 
 /// Benchmark provider memory usage patterns
 fn benchmark_provider_memory_usage(c: &mut Criterion) {
+    #[cfg(feature = "slh-dsa")]
     let mut group = c.benchmark_group("provider_memory_usage");
-
-    let provider = LibQSignatureProvider::new().expect("Failed to create provider");
+    #[cfg(not(feature = "slh-dsa"))]
+    let group = c.benchmark_group("provider_memory_usage");
 
     #[cfg(feature = "slh-dsa")]
     {
+        let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
         // Benchmark key generation memory usage
