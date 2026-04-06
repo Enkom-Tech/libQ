@@ -19,7 +19,7 @@ let pt = aead.decrypt(&key, &nonce, &ct, Some(b"ad")).unwrap();
 
 - `std` — standard library (default with `alloc`)
 - `alloc` — heap allocations (default)
-- `simd-avx2` — optional AVX2 detection (`cpufeatures`); duplex single-session path remains scalar
+- `simd-avx2` — optional AVX2 path on x86_64 (runtime detection via `std::arch` when `std` is enabled); duplex single-session path remains scalar
 
 ## Security
 

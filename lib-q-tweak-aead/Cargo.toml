@@ -16,13 +16,12 @@ lib-q-core = { path = "../lib-q-core", default-features = false, features = ["al
 lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
 subtle = { workspace = true, default-features = false }
 zeroize = { workspace = true, default-features = false, features = ["derive"] }
-cpufeatures = { workspace = true, optional = true }
 
 [features]
 default = ["alloc", "std"]
 alloc = ["lib-q-core/alloc"]
 std = ["lib-q-core/std"]
-simd-avx2 = ["dep:cpufeatures"]
+simd-avx2 = []
 
 [lib]
 name = "lib_q_tweak_aead"

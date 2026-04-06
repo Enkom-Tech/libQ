@@ -1043,7 +1043,6 @@ dependencies = [
 name = "lib-q-duplex-aead"
 version = "0.0.2"
 dependencies = [
- "cpufeatures 0.3.0",
  "criterion",
  "hex",
  "lib-q-core",
@@ -1172,7 +1171,6 @@ name = "lib-q-keccak"
 version = "0.0.2"
 dependencies = [
  "core_affinity",
- "cpufeatures 0.3.0",
  "getrandom 0.4.2",
  "js-sys",
  "nix",
@@ -1386,7 +1384,6 @@ dependencies = [
 name = "lib-q-saturnin"
 version = "0.0.2"
 dependencies = [
- "cpufeatures 0.3.0",
  "criterion",
  "lib-q-core",
  "zeroize",
@@ -1767,7 +1764,6 @@ dependencies = [
 name = "lib-q-tweak-aead"
 version = "0.0.2"
 dependencies = [
- "cpufeatures 0.3.0",
  "criterion",
  "hex",
  "lib-q-core",

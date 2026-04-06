@@ -113,7 +113,10 @@ mod armv8;
     feature = "std",
     feature = "arm64_sha3" // Require explicit opt-in to avoid cross-compilation issues
 ))]
-cpufeatures::new!(armv8_sha3_intrinsics, "sha3");
+#[inline]
+fn armv8_sha3_runtime_available() -> bool {
+    std::arch::is_aarch64_feature_detected!("sha3")
+}
 
 #[cfg(all(target_arch = "x86_64", feature = "asm"))]
 mod x86;
@@ -272,7 +275,7 @@ impl_keccak!(p1600, f1600, u64);
     not(cross_compile) // Disable during cross-compilation
 ))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
-    if armv8_sha3_intrinsics::get() {
+    if armv8_sha3_runtime_available() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, round_count) }
     } else {
         keccak_p(state, round_count);
@@ -289,7 +292,7 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     not(cross_compile) // Disable during cross-compilation
 ))]
 pub fn f1600(state: &mut [u64; PLEN]) {
-    if armv8_sha3_intrinsics::get() {
+    if armv8_sha3_runtime_available() {
         unsafe { armv8::p1600_armv8_sha3_asm(state, 24) }
     } else {
         keccak_p(state, u64::KECCAK_F_ROUND_COUNT);

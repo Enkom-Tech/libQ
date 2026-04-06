@@ -49,7 +49,10 @@ use crate::{
 
 /// Cross-platform thread affinity implementation
 /// Sets thread affinity to a specific CPU core for optimal cache performance
-#[cfg(feature = "thread-affinity")]
+#[cfg(all(
+    feature = "thread-affinity",
+    any(target_os = "linux", target_os = "windows", target_os = "macos")
+))]
 fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
     use std::sync::OnceLock;
 
@@ -99,7 +102,14 @@ fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
     }
 }
 
-/// Fallback implementation for systems without thread affinity support
+/// `core_affinity` is not built for targets like `wasm32-unknown-unknown` (see `Cargo.toml`).
+#[cfg(all(
+    feature = "thread-affinity",
+    not(any(target_os = "linux", target_os = "windows", target_os = "macos"))
+))]
+fn set_thread_affinity(_thread_id: usize, _strategy: AffinityStrategy) {}
+
+/// Fallback when the `thread-affinity` feature is disabled
 #[cfg(not(feature = "thread-affinity"))]
 fn set_thread_affinity(_thread_id: usize, _strategy: AffinityStrategy) {
     // No-op implementation for systems without thread affinity support

@@ -36,7 +36,15 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-#[cfg(all(feature = "alloc", not(feature = "std")))]
+#[cfg(all(
+    feature = "alloc",
+    not(feature = "std"),
+    any(
+        not(feature = "ml-dsa"),
+        not(feature = "fn-dsa"),
+        not(feature = "slh-dsa"),
+    ),
+))]
 use alloc::string::ToString;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

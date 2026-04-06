@@ -3,8 +3,7 @@
 /// Returns true when AVX2 can be used.
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64", feature = "std"))]
 pub fn has_avx2() -> bool {
-    cpufeatures::new!(saturnin_avx2_check, "avx2");
-    saturnin_avx2_check::get()
+    std::arch::is_x86_feature_detected!("avx2")
 }
 
 /// no_std fallback for AVX2 detection.

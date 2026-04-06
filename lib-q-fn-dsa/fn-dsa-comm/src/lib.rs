@@ -269,14 +269,23 @@ pub trait PRNG: Copy + Clone {
 ))]
 cpufeatures::new!(cpuid_avx2, "avx2");
 
-/// Do a rutime check for AVX2 support (x86 and x86_64 only).
+/// Runtime check for AVX2 support (x86 and x86_64 only).
 ///
-/// This is a specialized subcase of the is_x86_feature_detected macro,
-/// except that this function is compatible with `no_std` builds.
+/// Uses `cpufeatures` for `no_std`-compatible runtime CPUID detection on x86/x86_64.
+/// Returns `false` on all other targets.
 #[cfg(all(
     not(feature = "no_avx2"),
     any(target_arch = "x86_64", target_arch = "x86")
 ))]
 pub fn has_avx2() -> bool {
     cpuid_avx2::get()
+}
+
+/// Fallback for non-x86 targets or when `no_avx2` feature is enabled.
+#[cfg(not(all(
+    not(feature = "no_avx2"),
+    any(target_arch = "x86_64", target_arch = "x86")
+)))]
+pub fn has_avx2() -> bool {
+    false
 }

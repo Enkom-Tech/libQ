@@ -16,7 +16,6 @@ lib-q-core = { path = "../lib-q-core" }
 
 # Optional dependencies for specific features
 zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
-cpufeatures = { workspace = true, optional = true }
 
 [features]
 default = ["aead", "block-cipher", "hash", "stream", "alloc"]
@@ -32,7 +31,7 @@ stream = []
 
 # Performance optimizations
 simd = ["simd-avx2", "simd-neon"]
-simd-avx2 = ["dep:cpufeatures", "std"]
+simd-avx2 = ["std"]
 simd-neon = []
 parallel = []
 
