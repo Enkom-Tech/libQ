@@ -511,6 +511,8 @@ impl CryptoProvider for LibQSignatureProvider {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::*;
 
     #[test]
@@ -669,5 +671,74 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_provider_sign_rejects_non_signature_algorithm() {
+        let provider = LibQSignatureProvider::new().unwrap();
+        let secret_key = SigSecretKey::new(Vec::new());
+        let result = provider.sign(Algorithm::Sha3_256, &secret_key, b"message", None);
+        assert!(
+            matches!(result, Err(Error::InvalidAlgorithm { .. })),
+            "sign should reject non-signature algorithms before key validation"
+        );
+    }
+
+    #[test]
+    fn test_provider_verify_rejects_non_signature_algorithm() {
+        let provider = LibQSignatureProvider::new().unwrap();
+        let public_key = SigPublicKey::new(Vec::new());
+        let result = provider.verify(Algorithm::Sha3_256, &public_key, b"message", b"sig");
+        assert!(
+            matches!(result, Err(Error::InvalidAlgorithm { .. })),
+            "verify should reject non-signature algorithms before key/signature validation"
+        );
+    }
+
+    #[test]
+    fn test_crypto_provider_exposes_signature_only() {
+        let provider = LibQSignatureProvider::new().unwrap();
+        assert!(provider.signature().is_some());
+        assert!(provider.kem().is_none());
+        assert!(provider.hash().is_none());
+        assert!(provider.aead().is_none());
+    }
+
+    #[cfg(feature = "ml-dsa")]
+    #[test]
+    fn test_provider_ml_dsa44_with_explicit_randomness_round_trip() {
+        use lib_q_core::Utils;
+
+        let provider = LibQSignatureProvider::new().unwrap();
+        let message = b"provider ml-dsa44 explicit randomness";
+        let key_randomness = Utils::random_bytes(32).expect("test randomness generation failed");
+        let signing_randomness =
+            Utils::random_bytes(32).expect("test randomness generation failed");
+
+        let keypair = provider
+            .generate_keypair(Algorithm::MlDsa44, Some(&key_randomness))
+            .expect("key generation with explicit randomness should succeed");
+
+        let signature = provider
+            .sign(
+                Algorithm::MlDsa44,
+                keypair.secret_key(),
+                message,
+                Some(&signing_randomness),
+            )
+            .expect("signing with explicit randomness should succeed");
+
+        let is_valid = provider
+            .verify(
+                Algorithm::MlDsa44,
+                keypair.public_key(),
+                message,
+                &signature,
+            )
+            .expect("verification should succeed");
+        assert!(
+            is_valid,
+            "provider should verify its own ML-DSA-44 signatures"
+        );
     }
 }

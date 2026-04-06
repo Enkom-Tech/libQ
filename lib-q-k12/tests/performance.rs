@@ -254,6 +254,7 @@ fn test_incremental_update_performance() {
     let chunk_sizes = [1, 64, 256, 1024, total_size];
     let mut times = Vec::new();
     const ITERATIONS: usize = 100;
+    const MEASUREMENT_RUNS: usize = 3;
 
     // Warm up
     let data = vec![0x66u8; total_size];
@@ -266,17 +267,20 @@ fn test_incremental_update_performance() {
     // Test different update patterns
     for &chunk_size in &chunk_sizes {
         let data = vec![0x66u8; total_size];
-        let start = Instant::now();
-        for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
-            for chunk in data.chunks(chunk_size) {
-                hasher.update(chunk);
+        let mut best_elapsed = Duration::MAX;
+        for _ in 0..MEASUREMENT_RUNS {
+            let start = Instant::now();
+            for _ in 0..ITERATIONS {
+                let mut hasher = KangarooTwelve::default();
+                for chunk in data.chunks(chunk_size) {
+                    hasher.update(chunk);
+                }
+                let result = hasher.finalize_boxed(32);
+                std::hint::black_box(result);
             }
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
+            best_elapsed = best_elapsed.min(start.elapsed());
         }
-        let elapsed = start.elapsed();
-        times.push(elapsed);
+        times.push(best_elapsed);
     }
 
     // Incremental updates should not be dramatically slower than bulk updates
@@ -285,10 +289,11 @@ fn test_incremental_update_performance() {
         let ratio = time.as_nanos() as f64 / bulk_time.as_nanos() as f64;
         assert!(
             ratio <= 10.0, // Allow up to 10x overhead for very small chunks
-            "Incremental update too slow: {}x slower for chunk size {} at index {}",
+            "Incremental update too slow: {}x slower for chunk size {} at index {} (times ns: {:?})",
             ratio,
             chunk_sizes[i],
-            i
+            i,
+            times.iter().map(|d| d.as_nanos()).collect::<Vec<_>>()
         );
     }
 }

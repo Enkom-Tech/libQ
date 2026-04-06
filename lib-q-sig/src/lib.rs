@@ -499,4 +499,11 @@ mod tests {
             assert!(result.is_ok(), "NIST 'ML-DSA-65' name should work");
         }
     }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_create_signature_unknown_algorithm() {
+        let result = create_signature("not-a-real-signature");
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
 }

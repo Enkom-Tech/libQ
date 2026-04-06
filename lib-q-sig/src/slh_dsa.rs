@@ -626,6 +626,76 @@ mod tests {
         assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
     }
 
+    #[cfg(feature = "slh-dsa")]
+    #[test]
+    fn test_explicit_randomness_round_trip() {
+        let slh_dsa = SlhDsa::new();
+        let algorithm = Algorithm::SlhDsaShake256128fRobust;
+        let message = b"slh-dsa explicit randomness test";
+        // Shake256-128f requires 3*N bytes for keygen and N bytes for signing (N=16).
+        let key_randomness = [11u8; 48];
+        let signing_randomness = [23u8; 16];
+
+        let keypair = slh_dsa
+            .generate_keypair_with_randomness(algorithm, &key_randomness)
+            .expect("key generation with explicit randomness should succeed");
+        let signature = slh_dsa
+            .sign_with_randomness(
+                algorithm,
+                keypair.secret_key(),
+                message,
+                &signing_randomness,
+            )
+            .expect("signing with explicit randomness should succeed");
+        let is_valid = slh_dsa
+            .verify_for_algorithm(algorithm, keypair.public_key(), message, &signature)
+            .expect("verification should succeed");
+        assert!(is_valid, "signature should verify for original message");
+    }
+
+    #[cfg(all(feature = "slh-dsa", feature = "slh-dsa-std"))]
+    #[test]
+    fn test_implicit_randomness_round_trip_with_std_rng() {
+        let slh_dsa = SlhDsa::new();
+        let algorithm = Algorithm::SlhDsaShake256128fRobust;
+        let message = b"slh-dsa implicit randomness test";
+
+        let keypair = slh_dsa
+            .generate_keypair_for_algorithm(algorithm, None)
+            .expect("key generation should use std RNG when slh-dsa-std is enabled");
+        let signature = slh_dsa
+            .sign_for_algorithm(algorithm, keypair.secret_key(), message, None)
+            .expect("signing should use std RNG when slh-dsa-std is enabled");
+        let is_valid = slh_dsa
+            .verify_for_algorithm(algorithm, keypair.public_key(), message, &signature)
+            .expect("verification should succeed");
+        assert!(is_valid, "signature should verify for original message");
+    }
+
+    #[cfg(all(feature = "slh-dsa", not(feature = "slh-dsa-std")))]
+    #[test]
+    fn test_implicit_randomness_requires_std_feature() {
+        let slh_dsa = SlhDsa::new();
+        let algorithm = Algorithm::SlhDsaShake256128fRobust;
+
+        let keypair_err = slh_dsa.generate_keypair_for_algorithm(algorithm, None);
+        assert!(
+            matches!(keypair_err, Err(Error::RandomGenerationFailed { .. })),
+            "without slh-dsa-std, implicit keygen randomness should fail"
+        );
+
+        // A valid key is still needed to exercise the implicit-signing error path.
+        let key_randomness = [7u8; 48];
+        let keypair = slh_dsa
+            .generate_keypair_with_randomness(algorithm, &key_randomness)
+            .expect("explicit key generation should succeed");
+        let sign_err = slh_dsa.sign_for_algorithm(algorithm, keypair.secret_key(), b"msg", None);
+        assert!(
+            matches!(sign_err, Err(Error::RandomGenerationFailed { .. })),
+            "without slh-dsa-std, implicit signing randomness should fail"
+        );
+    }
+
     #[cfg(not(feature = "slh-dsa"))]
     #[test]
     fn test_feature_flag_required() {

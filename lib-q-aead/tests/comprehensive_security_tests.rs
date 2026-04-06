@@ -36,6 +36,33 @@ fn create_test_nonce() -> Nonce {
     ])
 }
 
+fn median_nanos(samples: &mut [u128]) -> u128 {
+    samples.sort_unstable();
+    let mid = samples.len() / 2;
+    if samples.len().is_multiple_of(2) {
+        (samples[mid - 1] + samples[mid]) / 2
+    } else {
+        samples[mid]
+    }
+}
+
+fn collect_timing_samples_ns<F>(warmup_iters: usize, measure_iters: usize, mut op: F) -> Vec<u128>
+where
+    F: FnMut(),
+{
+    for _ in 0..warmup_iters {
+        op();
+    }
+
+    let mut samples_ns = Vec::with_capacity(measure_iters);
+    for _ in 0..measure_iters {
+        let start = Instant::now();
+        op();
+        samples_ns.push(start.elapsed().as_nanos());
+    }
+    samples_ns
+}
+
 #[cfg(feature = "shake256")]
 #[test]
 fn test_timing_attack_resistance() {
@@ -51,55 +78,55 @@ fn test_timing_attack_resistance() {
         .encrypt(&key, &nonce, plaintext, Some(aad))
         .expect("Encryption failed");
 
-    // Test timing attack resistance by measuring decryption times
-    // for valid and invalid ciphertexts.
-    //
-    // Interleave measurements and alternate which runs first each iteration so one branch
-    // does not systematically benefit from warm caches (sequential "all valid then all
-    // invalid" often makes the second block falsely appear faster).
-    let mut valid_times = Vec::new();
-    let mut invalid_times = Vec::new();
+    // Interleave valid/invalid measurements and compare medians to reduce scheduler jitter.
+    const WARMUP_ITERS: usize = 16;
+    const MEASURE_ITERS: usize = 128;
+    let mut valid_samples_ns = Vec::with_capacity(MEASURE_ITERS);
+    let mut invalid_samples_ns = Vec::with_capacity(MEASURE_ITERS);
 
-    for i in 0..100 {
+    for i in 0..(WARMUP_ITERS + MEASURE_ITERS) {
         let mut tampered = ciphertext.clone();
         tampered[0] ^= 0xFF; // Tamper with first byte
 
         let measure_valid = || {
             let start = Instant::now();
             let result = aead.decrypt(&key, &nonce, &ciphertext, Some(aad));
-            let duration = start.elapsed();
+            let duration = start.elapsed().as_nanos();
             assert!(result.is_ok(), "Valid decryption should succeed");
             duration
         };
         let measure_invalid = || {
             let start = Instant::now();
             let result = aead.decrypt(&key, &nonce, &tampered, Some(aad));
-            let duration = start.elapsed();
+            let duration = start.elapsed().as_nanos();
             assert!(result.is_err(), "Tampered decryption should fail");
             duration
         };
 
-        if i % 2 == 0 {
-            valid_times.push(measure_valid());
-            invalid_times.push(measure_invalid());
+        let valid_duration = if i % 2 == 0 {
+            let valid = measure_valid();
+            let invalid = measure_invalid();
+            (valid, invalid)
         } else {
-            invalid_times.push(measure_invalid());
-            valid_times.push(measure_valid());
+            let invalid = measure_invalid();
+            let valid = measure_valid();
+            (valid, invalid)
+        };
+
+        if i >= WARMUP_ITERS {
+            valid_samples_ns.push(valid_duration.0);
+            invalid_samples_ns.push(valid_duration.1);
         }
     }
 
-    // Calculate average times
-    let avg_valid: Duration = valid_times.iter().sum::<Duration>() / valid_times.len() as u32;
-    let avg_invalid: Duration = invalid_times.iter().sum::<Duration>() / invalid_times.len() as u32;
-
-    // The timing difference should be minimal (wide tolerance: OS scheduling / timer granularity).
-    // This is a smoke check only; it does not prove constant-time decryption.
-    let timing_ratio = avg_valid.as_nanos() as f64 / avg_invalid.as_nanos() as f64;
+    let valid_median_ns = median_nanos(&mut valid_samples_ns);
+    let invalid_median_ns = median_nanos(&mut invalid_samples_ns);
+    let timing_ratio = valid_median_ns as f64 / invalid_median_ns as f64;
     assert!(
         timing_ratio > 0.5 && timing_ratio < 2.0,
-        "Timing difference too large: valid={:?}, invalid={:?}, ratio={}",
-        avg_valid,
-        avg_invalid,
+        "Timing difference too large: valid_median={}ns, invalid_median={}ns, ratio={}",
+        valid_median_ns,
+        invalid_median_ns,
         timing_ratio
     );
 }
@@ -119,12 +146,13 @@ fn test_constant_time_operations() {
         .encrypt(&key, &nonce, plaintext, Some(aad))
         .expect("Encryption failed");
 
-    // Test constant-time tag comparison. Same interleaving as `test_timing_attack_resistance`
-    // to avoid systematic cache / scheduling bias between the two averages.
-    let mut valid_times = Vec::new();
-    let mut invalid_times = Vec::new();
+    // Interleave valid/invalid measurements and compare medians to reduce scheduler jitter.
+    const WARMUP_ITERS: usize = 16;
+    const MEASURE_ITERS: usize = 128;
+    let mut valid_samples_ns = Vec::with_capacity(MEASURE_ITERS);
+    let mut invalid_samples_ns = Vec::with_capacity(MEASURE_ITERS);
 
-    for i in 0..100 {
+    for i in 0..(WARMUP_ITERS + MEASURE_ITERS) {
         let mut tampered = ciphertext.clone();
         let last_idx = tampered.len() - 1;
         tampered[last_idx] ^= 0xFF;
@@ -132,38 +160,42 @@ fn test_constant_time_operations() {
         let measure_valid = || {
             let start = Instant::now();
             let result = aead.decrypt(&key, &nonce, &ciphertext, Some(aad));
-            let duration = start.elapsed();
+            let duration = start.elapsed().as_nanos();
             assert!(result.is_ok(), "Valid decryption should succeed");
             duration
         };
         let measure_invalid = || {
             let start = Instant::now();
             let result = aead.decrypt(&key, &nonce, &tampered, Some(aad));
-            let duration = start.elapsed();
+            let duration = start.elapsed().as_nanos();
             assert!(result.is_err(), "Tampered decryption should fail");
             duration
         };
 
-        if i % 2 == 0 {
-            valid_times.push(measure_valid());
-            invalid_times.push(measure_invalid());
+        let valid_duration = if i % 2 == 0 {
+            let valid = measure_valid();
+            let invalid = measure_invalid();
+            (valid, invalid)
         } else {
-            invalid_times.push(measure_invalid());
-            valid_times.push(measure_valid());
+            let invalid = measure_invalid();
+            let valid = measure_valid();
+            (valid, invalid)
+        };
+
+        if i >= WARMUP_ITERS {
+            valid_samples_ns.push(valid_duration.0);
+            invalid_samples_ns.push(valid_duration.1);
         }
     }
 
-    // Calculate average times
-    let avg_valid: Duration = valid_times.iter().sum::<Duration>() / valid_times.len() as u32;
-    let avg_invalid: Duration = invalid_times.iter().sum::<Duration>() / invalid_times.len() as u32;
-
-    // Wide tolerance: OS scheduling / timer granularity (smoke check only).
-    let timing_ratio = avg_valid.as_nanos() as f64 / avg_invalid.as_nanos() as f64;
+    let valid_median_ns = median_nanos(&mut valid_samples_ns);
+    let invalid_median_ns = median_nanos(&mut invalid_samples_ns);
+    let timing_ratio = valid_median_ns as f64 / invalid_median_ns as f64;
     assert!(
         timing_ratio > 0.5 && timing_ratio < 2.0,
-        "Constant-time operations failed: valid={:?}, invalid={:?}, ratio={}",
-        avg_valid,
-        avg_invalid,
+        "Constant-time operations failed: valid_median={}ns, invalid_median={}ns, ratio={}",
+        valid_median_ns,
+        invalid_median_ns,
         timing_ratio
     );
 }
@@ -422,9 +454,9 @@ fn test_side_channel_resistance() {
         .encrypt(&key, &nonce, plaintext, Some(aad))
         .expect("Encryption failed");
 
-    // Test side-channel resistance by measuring execution times
-    // for different input patterns
-    let mut timing_results = Vec::new();
+    // Test side-channel resistance by measuring execution times for different input patterns.
+    // Use warmup + repeated sampling and compare medians to reduce CI scheduler jitter.
+    let mut pattern_medians_ns = Vec::new();
 
     // Test with different plaintext patterns
     let patterns = [
@@ -435,27 +467,28 @@ fn test_side_channel_resistance() {
         (0..16).collect(), // Sequential pattern
     ];
 
+    const WARMUP_ITERS: usize = 16;
+    const MEASURE_ITERS: usize = 64;
     for pattern in &patterns {
-        let start = Instant::now();
-        let result = aead.encrypt(&key, &nonce, pattern, Some(aad));
-        let duration = start.elapsed();
-
-        assert!(result.is_ok(), "Encryption should succeed for pattern");
-        timing_results.push(duration);
+        let mut samples_ns = collect_timing_samples_ns(WARMUP_ITERS, MEASURE_ITERS, || {
+            let result = aead.encrypt(&key, &nonce, pattern, Some(aad));
+            assert!(result.is_ok(), "Encryption should succeed for pattern");
+        });
+        let median_ns = median_nanos(&mut samples_ns);
+        pattern_medians_ns.push(median_ns);
     }
 
-    // Compare spread of timings; shared CI VMs (e.g. GitHub Actions) add enough jitter that
-    // min/max ratio can exceed small constants without indicating a crypto timing leak.
-    let min_time = timing_results.iter().min().unwrap();
-    let max_time = timing_results.iter().max().unwrap();
-    let timing_ratio = max_time.as_nanos() as f64 / min_time.as_nanos() as f64;
+    let min_median_ns = *pattern_medians_ns.iter().min().unwrap();
+    let max_median_ns = *pattern_medians_ns.iter().max().unwrap();
+    let timing_ratio = max_median_ns as f64 / min_median_ns as f64;
 
     assert!(
-        timing_ratio < 8.0,
-        "Timing variation too large: min={:?}, max={:?}, ratio={}",
-        min_time,
-        max_time,
-        timing_ratio
+        timing_ratio < 3.0,
+        "Timing variation too large: min_median={}ns, max_median={}ns, ratio={}, medians={:?}",
+        min_median_ns,
+        max_median_ns,
+        timing_ratio,
+        pattern_medians_ns
     );
 }
 
