@@ -45,6 +45,8 @@ use lib_q_core::{
 
 use crate::bs32_core::SaturninBs32Core;
 use crate::core::SaturninCore;
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+use crate::simd::simd_xor;
 
 /// Saturnin hash function implementation
 ///
@@ -80,7 +82,7 @@ impl SaturninHash {
     /// # Returns
     /// 32-byte hash output
     pub fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
-        // Pre-allocate cores to avoid repeated allocation overhead
+        // Pre-allocate scalar cores to avoid repeated allocation overhead.
         let core_d1 = SaturninBs32Core::new(16, 7)?;
         let core_d2 = SaturninBs32Core::new(16, 8)?;
 
@@ -98,7 +100,7 @@ impl SaturninHash {
                 t[0..32].copy_from_slice(&data[u..u + 32]);
                 u += 32;
 
-                // Use pre-allocated core for domain 7
+                // Use pre-allocated bs32 core for domain 7.
                 m.copy_from_slice(&t);
                 core_d1.encrypt_block(&r, &mut m)?;
             } else {
@@ -107,37 +109,23 @@ impl SaturninHash {
                 t[clen] = 0x80;
                 // t[clen + 1..32] is already zero
 
-                // Use pre-allocated core for domain 8
+                // Use pre-allocated bs32 core for domain 8.
                 m.copy_from_slice(&t);
                 core_d2.encrypt_block(&r, &mut m)?;
             }
 
-            // Optimized XOR operation - process 8 bytes at a time
-            for chunk in (0..32).step_by(8) {
-                let m_chunk = u64::from_le_bytes([
-                    m[chunk],
-                    m[chunk + 1],
-                    m[chunk + 2],
-                    m[chunk + 3],
-                    m[chunk + 4],
-                    m[chunk + 5],
-                    m[chunk + 6],
-                    m[chunk + 7],
-                ]);
-                let t_chunk = u64::from_le_bytes([
-                    t[chunk],
-                    t[chunk + 1],
-                    t[chunk + 2],
-                    t[chunk + 3],
-                    t[chunk + 4],
-                    t[chunk + 5],
-                    t[chunk + 6],
-                    t[chunk + 7],
-                ]);
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            {
+                let mut out = [0u8; 32];
+                simd_xor::xor_blocks_32(&m, &t, &mut out);
+                r.copy_from_slice(&out);
+            }
 
-                let result = m_chunk ^ t_chunk;
-                let result_bytes = result.to_le_bytes();
-                r[chunk..chunk + 8].copy_from_slice(&result_bytes);
+            #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+            {
+                for i in 0..32 {
+                    r[i] = m[i] ^ t[i];
+                }
             }
 
             if clen < 32 {
@@ -173,6 +161,7 @@ mod tests {
     use std::eprintln;
 
     use super::*;
+    use crate::bs32_core::SaturninBs32Core;
 
     #[test]
     fn test_hash_creation() {

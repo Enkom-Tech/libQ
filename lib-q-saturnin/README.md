@@ -68,12 +68,16 @@ let plaintext = stream.decrypt(&key, &nonce, &ciphertext)?;
 
 ### Performance features
 
-- `simd`, `lookup-tables`, `parallel`, and `assembly` are optional performance features.
-- SIMD and assembly implementations currently delegate to the scalar implementation. The primary, KAT-validated production path is the scalar (no_std-safe) implementation in `core` and `bs32_core`.
+- `simd` enables runtime SIMD dispatch.
+- `simd-avx2` enables AVX2 backend support on `x86_64` (runtime detected).
+- `simd-neon` enables NEON backend support on `aarch64` (runtime detected).
+- `parallel` enables multi-block parallel helpers on non-WASM targets.
+
+Scalar `core` and `bs32_core` remain the audited reference implementations. SIMD paths are optimized implementations that must remain byte-for-byte equivalent to scalar outputs.
 
 ### WebAssembly
 
-The crate builds for `wasm32-unknown-unknown`. Enable the `wasm` feature so that the `getrandom` dependency (via lib-q-core) compiles with `wasm_js`; otherwise the build will fail on that target. The `parallel` feature is not available on `wasm32` (the module is omitted on that target). For WASM builds use default features plus `wasm`, or other performance options such as `lookup-tables`.
+The crate builds for `wasm32-unknown-unknown`. Enable the `wasm` feature so that the `getrandom` dependency (via lib-q-core) compiles with `wasm_js`; otherwise the build will fail on that target. The `parallel` feature is not available on `wasm32` (the module is omitted on that target).
 
 Example: `cargo build --target wasm32-unknown-unknown --features wasm`
 
@@ -98,6 +102,46 @@ Typical throughput on modern hardware:
 cargo test --all-features
 cargo bench
 ```
+
+### SIMD validation matrix
+
+```bash
+# Scalar reference path
+cargo test -p lib-q-saturnin --features "alloc,aead,aead-short,block-cipher,hash,stream"
+
+# AVX2-enabled path (x86_64)
+cargo test -p lib-q-saturnin --features "alloc,aead,aead-short,block-cipher,hash,stream,simd-avx2"
+
+# NEON-enabled path (aarch64)
+cargo test -p lib-q-saturnin --features "alloc,aead,aead-short,block-cipher,hash,stream,simd-neon"
+```
+
+### Benchmark protocol
+
+- Run on an otherwise idle machine with fixed CPU frequency governor when possible.
+- Collect scalar baseline first, then collect SIMD-enabled results on the same machine.
+- Use identical workload sizes and warmup/sample settings for all runs.
+- Report bytes/second and relative speedup (`simd / scalar`) for each workload.
+
+Recommended commands:
+
+```bash
+# Scalar baseline
+cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream"
+
+# AVX2 benchmark run
+cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream,simd-avx2"
+```
+
+### Performance acceptance gates
+
+When evaluating SIMD changes, use these minimum expected speedups against scalar baseline on the same host:
+
+- Hash throughput: `>= 1.30x`
+- Stream throughput: `>= 1.25x`
+- Block single-block encryption: `>= 1.05x`
+
+If a change does not meet these thresholds, keep it behind feature gates until further optimization or analysis is completed.
 
 ## License
 

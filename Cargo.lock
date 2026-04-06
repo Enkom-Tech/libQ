@@ -1386,6 +1386,8 @@ dependencies = [
 name = "lib-q-saturnin"
 version = "0.0.2"
 dependencies = [
+ "cpufeatures 0.3.0",
+ "criterion",
  "lib-q-core",
  "zeroize",
 ]

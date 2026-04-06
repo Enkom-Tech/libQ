@@ -46,6 +46,8 @@ use lib_q_core::{
 };
 
 use crate::core::SaturninCore;
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+use crate::simd::SimdOptimizedCore;
 
 /// Saturnin block cipher implementation
 ///
@@ -53,6 +55,8 @@ use crate::core::SaturninCore;
 /// This is the basic building block for other Saturnin modes.
 pub struct SaturninBlockCipher {
     core: SaturninCore,
+    #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+    simd_core: SimdOptimizedCore,
 }
 
 impl SaturninBlockCipher {
@@ -60,7 +64,16 @@ impl SaturninBlockCipher {
     pub fn new() -> Self {
         // Use 10 super-rounds and domain 1 for the basic block cipher
         let core = SaturninCore::new(10, 1).expect("Valid parameters");
-        Self { core }
+        #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+        let simd_core = SimdOptimizedCore::new(10, 1).expect("Valid parameters");
+        #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+        {
+            Self { core, simd_core }
+        }
+        #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+        {
+            Self { core }
+        }
     }
 
     /// Get the key size in bytes (256 bits = 32 bytes)
@@ -97,8 +110,19 @@ impl SaturninBlockCipher {
         }
 
         let mut encrypted_block = block.to_vec();
-        // Use the standard core for block cipher operations
-        self.core.encrypt_block(key, &mut encrypted_block)?;
+        #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+        {
+            let caps = self.simd_core.simd_capabilities();
+            if caps.has_simd() {
+                self.simd_core.encrypt_block(key, &mut encrypted_block)?;
+            } else {
+                self.core.encrypt_block(key, &mut encrypted_block)?;
+            }
+        }
+        #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+        {
+            self.core.encrypt_block(key, &mut encrypted_block)?;
+        }
         Ok(encrypted_block)
     }
 
@@ -126,8 +150,19 @@ impl SaturninBlockCipher {
         }
 
         let mut decrypted_block = block.to_vec();
-        // Use the standard core for block cipher operations
-        self.core.decrypt_block(key, &mut decrypted_block)?;
+        #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+        {
+            let caps = self.simd_core.simd_capabilities();
+            if caps.has_simd() {
+                self.simd_core.decrypt_block(key, &mut decrypted_block)?;
+            } else {
+                self.core.decrypt_block(key, &mut decrypted_block)?;
+            }
+        }
+        #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+        {
+            self.core.decrypt_block(key, &mut decrypted_block)?;
+        }
         Ok(decrypted_block)
     }
 

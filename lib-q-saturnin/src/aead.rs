@@ -63,6 +63,11 @@ use lib_q_core::{
 };
 
 use crate::core::SaturninCore;
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+use crate::simd::{
+    encrypt_blocks8_dispatch,
+    simd_xor,
+};
 
 /// Saturnin AEAD implementation
 ///
@@ -146,32 +151,18 @@ impl SaturninAead {
                 core_d2.encrypt_block(r, &mut m)?;
             }
 
-            // Optimized XOR operation - process 8 bytes at a time
-            for chunk in (0..32).step_by(8) {
-                let m_chunk = u64::from_le_bytes([
-                    m[chunk],
-                    m[chunk + 1],
-                    m[chunk + 2],
-                    m[chunk + 3],
-                    m[chunk + 4],
-                    m[chunk + 5],
-                    m[chunk + 6],
-                    m[chunk + 7],
-                ]);
-                let t_chunk = u64::from_le_bytes([
-                    t[chunk],
-                    t[chunk + 1],
-                    t[chunk + 2],
-                    t[chunk + 3],
-                    t[chunk + 4],
-                    t[chunk + 5],
-                    t[chunk + 6],
-                    t[chunk + 7],
-                ]);
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            {
+                let mut out = [0u8; 32];
+                simd_xor::xor_blocks_32(&m, &t, &mut out);
+                r.copy_from_slice(&out);
+            }
 
-                let result = m_chunk ^ t_chunk;
-                let result_bytes = result.to_le_bytes();
-                r[chunk..chunk + 8].copy_from_slice(&result_bytes);
+            #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+            {
+                for i in 0..32 {
+                    r[i] = m[i] ^ t[i];
+                }
             }
 
             if remaining < 32 {
@@ -191,6 +182,42 @@ impl SaturninAead {
         let mut offset = 0;
 
         while offset < data.len() {
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            if data.len() - offset >= 32 * 8 {
+                let mut keystream_blocks = [[0u8; 32]; 8];
+                for (lane, block) in keystream_blocks.iter_mut().enumerate() {
+                    let c = counter.wrapping_add(lane as u32);
+                    block[0..16].copy_from_slice(nonce);
+                    block[16] = 0x80;
+                    block[28] = (c >> 24) as u8;
+                    block[29] = (c >> 16) as u8;
+                    block[30] = (c >> 8) as u8;
+                    block[31] = c as u8;
+                }
+
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+
+                for (lane, ks) in keystream_blocks.iter().enumerate() {
+                    let start = offset + (lane * 32);
+                    let mut input = [0u8; 32];
+                    input.copy_from_slice(&data[start..start + 32]);
+                    let mut out = [0u8; 32];
+                    simd_xor::xor_blocks_32(&input, ks, &mut out);
+                    data[start..start + 32].copy_from_slice(&out);
+                }
+
+                offset += 32 * 8;
+                let (next_counter, overflowed) = counter.overflowing_add(8);
+                if overflowed {
+                    return Err(Error::InvalidMessageSize {
+                        max: usize::MAX,
+                        actual: data.len(),
+                    });
+                }
+                counter = next_counter;
+                continue;
+            }
+
             let mut keystream = [0u8; 32];
 
             // Build counter block efficiently
@@ -205,43 +232,27 @@ impl SaturninAead {
             // Encrypt to get keystream
             core.encrypt_block(key, &mut keystream)?;
 
-            // Optimized XOR with data - process 8 bytes at a time
             let remaining = data.len() - offset;
             let block_len = remaining.min(32);
-
-            for chunk in (0..block_len).step_by(8) {
-                let chunk_end = (chunk + 8).min(block_len);
-                if chunk_end - chunk == 8 {
-                    // Full 8-byte chunk
-                    let data_chunk = u64::from_le_bytes([
-                        data[offset + chunk],
-                        data[offset + chunk + 1],
-                        data[offset + chunk + 2],
-                        data[offset + chunk + 3],
-                        data[offset + chunk + 4],
-                        data[offset + chunk + 5],
-                        data[offset + chunk + 6],
-                        data[offset + chunk + 7],
-                    ]);
-                    let keystream_chunk = u64::from_le_bytes([
-                        keystream[chunk],
-                        keystream[chunk + 1],
-                        keystream[chunk + 2],
-                        keystream[chunk + 3],
-                        keystream[chunk + 4],
-                        keystream[chunk + 5],
-                        keystream[chunk + 6],
-                        keystream[chunk + 7],
-                    ]);
-
-                    let result = data_chunk ^ keystream_chunk;
-                    let result_bytes = result.to_le_bytes();
-                    data[offset + chunk..offset + chunk + 8].copy_from_slice(&result_bytes);
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            {
+                if block_len == 32 {
+                    let mut input = [0u8; 32];
+                    input.copy_from_slice(&data[offset..offset + 32]);
+                    let mut out = [0u8; 32];
+                    simd_xor::xor_blocks_32(&input, &keystream, &mut out);
+                    data[offset..offset + 32].copy_from_slice(&out);
                 } else {
-                    // Partial chunk - fallback to byte-wise XOR
-                    for i in chunk..chunk_end {
+                    for i in 0..block_len {
                         data[offset + i] ^= keystream[i];
                     }
+                }
+            }
+
+            #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+            {
+                for i in 0..block_len {
+                    data[offset + i] ^= keystream[i];
                 }
             }
 

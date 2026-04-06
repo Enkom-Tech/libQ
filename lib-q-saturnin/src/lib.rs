@@ -120,7 +120,7 @@
 //! - **Lightweight design**: Suitable for constrained environments
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![forbid(unsafe_code, unused_must_use, unstable_features)]
+#![deny(unsafe_code, unused_must_use, unstable_features)]
 #![deny(
     trivial_casts,
     trivial_numeric_casts,
@@ -157,13 +157,10 @@ pub mod bs32_core;
 pub mod core;
 
 // Performance optimizations
-#[cfg(feature = "assembly")]
-pub mod assembly;
-#[cfg(feature = "lookup-tables")]
-pub mod lookup_tables;
 #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
 pub mod parallel;
-#[cfg(feature = "simd")]
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[allow(unsafe_code)]
 pub mod simd;
 
 // Algorithm implementations

@@ -436,6 +436,12 @@ jobs:
       
       - name: Run benchmarks
         run: cargo bench --features "all-algorithms" --verbose
+
+      - name: Run Saturnin SIMD benchmarks
+        run: |
+          echo "Running Saturnin scalar vs AVX2 benchmarks..."
+          cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream,simd-avx2" --bench saturnin_criterion_benches --verbose
+          echo "✅ Saturnin SIMD benchmarks completed"
       
       - name: Run RNG performance benchmarks
         run: |
@@ -522,7 +528,7 @@ jobs:
           - name: "Saturnin"
             action: test-saturnin
             working-directory: lib-q-saturnin
-            features: "aead,aead-short,block-cipher,hash,stream,alloc"
+            features: "aead,aead-short,block-cipher,hash,stream,alloc,simd-avx2"
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: "aead,aead-short,block-cipher,hash,stream"

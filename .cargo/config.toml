@@ -74,7 +74,9 @@ rustflags = [
     "-D", "warnings",
     "-C", "overflow-checks=on",
     "-C", "control-flow-guard=checks",
-    # Opt-in for known AVX2 hosts: RUSTFLAGS="-C target-feature=+avx2,+sse4.1"
+    # Optional compile-time AVX2 codegen hint for known hosts:
+    # RUSTFLAGS="-C target-feature=+avx2,+sse4.1"
+    # Runtime-dispatched Saturnin SIMD does not require forcing target-feature flags.
 ]
 
 # Security-focused build configuration

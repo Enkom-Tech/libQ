@@ -46,6 +46,11 @@ use lib_q_core::{
 };
 
 use crate::core::SaturninCore;
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+use crate::simd::{
+    encrypt_blocks8_dispatch,
+    simd_xor,
+};
 
 /// Saturnin stream cipher implementation
 ///
@@ -129,6 +134,39 @@ impl SaturninStream {
         let mut offset = 0;
 
         while offset < data.len() {
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            if data.len() - offset >= 32 * 8 {
+                let mut keystream_blocks = [[0u8; 32]; 8];
+                for (lane, block) in keystream_blocks.iter_mut().enumerate() {
+                    let c = counter.wrapping_add(lane as u32);
+                    block[0..16].copy_from_slice(nonce);
+                    block[16] = 0x80;
+                    block[28..32].copy_from_slice(&c.to_be_bytes());
+                }
+
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+
+                for (lane, ks) in keystream_blocks.iter().enumerate() {
+                    let start = offset + (lane * 32);
+                    let mut in_block = [0u8; 32];
+                    in_block.copy_from_slice(&data[start..start + 32]);
+                    let mut out_block = [0u8; 32];
+                    simd_xor::xor_blocks_32(&in_block, ks, &mut out_block);
+                    result.extend_from_slice(&out_block);
+                }
+
+                offset += 32 * 8;
+                let (next_counter, overflowed) = counter.overflowing_add(8);
+                if overflowed {
+                    return Err(Error::InvalidMessageSize {
+                        max: usize::MAX,
+                        actual: data.len(),
+                    });
+                }
+                counter = next_counter;
+                continue;
+            }
+
             // Create counter block
             let mut counter_block = [0u8; 32];
             counter_block[0..16].copy_from_slice(nonce);
@@ -138,12 +176,29 @@ impl SaturninStream {
             // Encrypt counter block
             self.core.encrypt_block(key, &mut counter_block)?;
 
-            // XOR with data
             let remaining = data.len() - offset;
             let block_size = if remaining >= 32 { 32 } else { remaining };
 
-            for i in 0..block_size {
-                result.push(data[offset + i] ^ counter_block[i]);
+            if block_size == 32 {
+                #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+                {
+                    let mut in_block = [0u8; 32];
+                    in_block.copy_from_slice(&data[offset..offset + 32]);
+                    let mut out_block = [0u8; 32];
+                    simd_xor::xor_blocks_32(&in_block, &counter_block, &mut out_block);
+                    result.extend_from_slice(&out_block);
+                }
+
+                #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
+                {
+                    for i in 0..32 {
+                        result.push(data[offset + i] ^ counter_block[i]);
+                    }
+                }
+            } else {
+                for i in 0..block_size {
+                    result.push(data[offset + i] ^ counter_block[i]);
+                }
             }
 
             offset += block_size;
@@ -190,6 +245,33 @@ impl SaturninStream {
         let mut generated = 0;
 
         while generated < length {
+            #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+            if length - generated >= 32 * 8 {
+                let mut keystream_blocks = [[0u8; 32]; 8];
+                for (lane, block) in keystream_blocks.iter_mut().enumerate() {
+                    let c = counter.wrapping_add(lane as u32);
+                    block[0..16].copy_from_slice(nonce);
+                    block[16] = 0x80;
+                    block[28..32].copy_from_slice(&c.to_be_bytes());
+                }
+
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+
+                for ks in &keystream_blocks {
+                    keystream.extend_from_slice(ks);
+                }
+                generated += 32 * 8;
+                let (next_counter, overflowed) = counter.overflowing_add(8);
+                if overflowed {
+                    return Err(Error::InvalidMessageSize {
+                        max: usize::MAX,
+                        actual: length,
+                    });
+                }
+                counter = next_counter;
+                continue;
+            }
+
             // Create counter block
             let mut counter_block = [0u8; 32];
             counter_block[0..16].copy_from_slice(nonce);

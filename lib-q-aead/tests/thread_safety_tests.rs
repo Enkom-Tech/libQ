@@ -253,6 +253,7 @@ mod thread_safety_tests {
 
         // Test with specific known algorithms (feature-gated registrations)
         let test_algorithms = {
+            #[allow(unused_mut)]
             let mut v = vec![Algorithm::Shake256Aead];
             #[cfg(feature = "saturnin")]
             v.push(Algorithm::Saturnin);

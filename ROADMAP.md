@@ -95,7 +95,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Hash function mode
   - [x] Stream cipher mode
   - [x] Complete test coverage
-  - [ ] Performance optimization
+  - [x] Performance optimization (runtime SIMD dispatch + Criterion benchmarks + SIMD/scalar equivalence tests)
 - [x] Post-quantum AEAD construction
   - [x] Saturnin AEAD implementation
   - [x] SHAKE256 AEAD implementation
@@ -166,7 +166,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Integration with post-quantum crypto (SHAKE256, Mersenne31)
 
 ### Performance optimization
-- [ ] SIMD optimizations
+- [x] SIMD optimizations (Saturnin AVX2/NEON dispatch and kernels)
 - [ ] Parallel processing
 - [ ] Hardware acceleration
 - [ ] Memory pooling

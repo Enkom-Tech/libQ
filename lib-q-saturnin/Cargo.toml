@@ -16,6 +16,7 @@ lib-q-core = { path = "../lib-q-core" }
 
 # Optional dependencies for specific features
 zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
+cpufeatures = { workspace = true, optional = true }
 
 [features]
 default = ["aead", "block-cipher", "hash", "stream", "alloc"]
@@ -30,10 +31,10 @@ hash = []
 stream = []
 
 # Performance optimizations
-simd = []
-lookup-tables = []
+simd = ["simd-avx2", "simd-neon"]
+simd-avx2 = ["dep:cpufeatures", "std"]
+simd-neon = []
 parallel = []
-assembly = []
 
 # Security features
 zeroize = ["dep:zeroize"]
@@ -69,10 +70,18 @@ name = "coverage_api"
 path = "tests/coverage_api.rs"
 required-features = ["alloc"]
 
+[[test]]
+name = "simd_equivalence"
+path = "tests/simd_equivalence.rs"
+required-features = ["alloc"]
+
 [[bench]]
-name = "saturnin_benches"
+name = "saturnin_criterion_benches"
 harness = false
 required-features = ["alloc"]
+
+[dev-dependencies]
+criterion = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

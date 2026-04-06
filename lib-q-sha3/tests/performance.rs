@@ -268,9 +268,10 @@ fn test_performance_scaling() {
 #[test]
 fn test_performance_consistency() {
     let test_input = b"test input for performance consistency";
-    const ITERATIONS: usize = 1000;
-    const RUNS: usize = 8;
-    const WARMUP: usize = 1000;
+    // Enough work per run that `Instant` timing is not dominated by OS jitter (especially on Windows).
+    const ITERATIONS: usize = 10_000;
+    const RUNS: usize = 10;
+    const WARMUP: usize = 2000;
 
     for _ in 0..WARMUP {
         let mut hasher = Sha3_256::new();
@@ -293,16 +294,20 @@ fn test_performance_consistency() {
         run_times.push(total_time);
     }
 
-    // Calculate average and standard deviation
-    let avg_time = run_times.iter().sum::<Duration>() / run_times.len() as u32;
-    let variance = run_times
+    run_times.sort();
+    // Ignore the fastest and slowest run so a single preemption or cache cold start does not fail CI.
+    let trimmed = &run_times[1..run_times.len() - 1];
+    assert!(trimmed.len() >= 2, "need at least 4 runs to trim min/max");
+
+    let avg_time = trimmed.iter().copied().sum::<Duration>() / trimmed.len() as u32;
+    let variance = trimmed
         .iter()
         .map(|&t| {
             let diff = t.abs_diff(avg_time);
             diff.as_nanos() as f64 * diff.as_nanos() as f64
         })
         .sum::<f64>() /
-        run_times.len() as f64;
+        trimmed.len() as f64;
     let std_dev = variance.sqrt();
 
     // Coefficient of variation: lenient cap for shared CI hosts (VM timer / CPU noise).

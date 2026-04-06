@@ -25,6 +25,9 @@ use vector_type::Coefficients;
 
 use super::traits::COEFFICIENTS_IN_SIMD_UNIT;
 
+#[cfg(test)]
+mod tests;
+
 #[cfg(not(eurydice))]
 impl Repr for Coefficients {
     fn repr(&self) -> [i32; COEFFICIENTS_IN_SIMD_UNIT] {
