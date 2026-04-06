@@ -607,3 +607,92 @@ pub fn create_hpke_context_with_provider(
 ) -> HpkeContext {
     HpkeContext::with_provider(provider)
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::string::ToString;
+    use alloc::vec;
+
+    use super::*;
+
+    fn dummy_ml_kem_512_keys() -> (KemPublicKey, KemSecretKey) {
+        (
+            KemPublicKey::new(vec![1u8; HpkeKem::MlKem512.public_key_len()]),
+            KemSecretKey::new(vec![2u8; HpkeKem::MlKem512.secret_key_len()]),
+        )
+    }
+
+    #[test]
+    fn context_constructors_and_cipher_suite_accessors() {
+        let mut ctx = HpkeContext::new();
+        assert_eq!(ctx.cipher_suite().kem, HpkeKem::MlKem512);
+        assert_eq!(ctx.cipher_suite().kdf, HpkeKdf::HkdfShake256);
+        assert_eq!(ctx.cipher_suite().aead, HpkeAead::Saturnin256);
+
+        let suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfSha3_256, HpkeAead::Shake256);
+        ctx.set_cipher_suite(suite.clone());
+        assert_eq!(ctx.cipher_suite().kem, suite.kem);
+        assert_eq!(ctx.cipher_suite().kdf, suite.kdf);
+        assert_eq!(ctx.cipher_suite().aead, suite.aead);
+
+        let _default_ctx = HpkeContext::default();
+        let _created_ctx = create_hpke_context();
+    }
+
+    #[test]
+    fn hpke_setup_and_single_shot_paths_are_exercised() {
+        let (recipient_pk, recipient_sk) = dummy_ml_kem_512_keys();
+        let (sender_pk, sender_sk) = dummy_ml_kem_512_keys();
+
+        let mut ctx = HpkeContext::new();
+        let info = b"test-info";
+        let psk = b"test-psk";
+        let psk_id = b"test-psk-id";
+        let aad = b"aad";
+        let plaintext = b"plaintext";
+        let fake_enc = vec![0u8; HpkeKem::MlKem512.enc_len()];
+
+        let _ = ctx.setup_sender(&recipient_pk, info);
+        let _ = ctx.setup_receiver(&fake_enc, &recipient_sk, info);
+
+        let _ = ctx.setup_sender_psk(&recipient_pk, info, psk, psk_id);
+        let _ = ctx.setup_receiver_psk(&fake_enc, &recipient_sk, info, psk, psk_id);
+
+        let _ = ctx.setup_sender_auth(&recipient_pk, info, &sender_sk, &sender_pk);
+        let _ = ctx.setup_receiver_auth(&fake_enc, &recipient_sk, info, &sender_pk);
+
+        let _ = ctx.setup_sender_auth_psk(&recipient_pk, info, psk, psk_id, &sender_sk, &sender_pk);
+        let _ =
+            ctx.setup_receiver_auth_psk(&fake_enc, &recipient_sk, info, psk, psk_id, &sender_pk);
+
+        let _ = ctx.seal(&recipient_pk, info, aad, plaintext);
+        let _ = ctx.open(&fake_enc, &recipient_sk, info, aad, b"ciphertext");
+    }
+
+    #[test]
+    fn sender_and_receiver_context_guards_are_exercised() {
+        let mut sender = HpkeSenderContext::new(
+            vec![3u8; 32],
+            vec![4u8; 32],
+            vec![5u8; 32],
+            vec![6u8; 16],
+            vec![7u8; HpkeKem::MlKem512.enc_len()],
+            HpkeAead::Saturnin256,
+        );
+        sender.state = HpkeContextState::Closed;
+        let sender_err = sender.seal(b"aad", b"msg").unwrap_err().to_string();
+        assert!(sender_err.contains("Context cannot be used for encryption"));
+
+        let mut receiver = HpkeReceiverContext::new(
+            vec![8u8; 32],
+            vec![9u8; 32],
+            vec![10u8; 32],
+            vec![11u8; 16],
+            HpkeAead::Saturnin256,
+        );
+        receiver.state = HpkeContextState::Closed;
+        let receiver_err = receiver.open(b"aad", b"ct").unwrap_err().to_string();
+        assert!(receiver_err.contains("Context cannot be used for decryption"));
+    }
+}

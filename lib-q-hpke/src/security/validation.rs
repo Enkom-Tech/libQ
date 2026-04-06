@@ -154,3 +154,84 @@ pub fn validate_ciphertext(ciphertext: &[u8]) -> Result<(), HpkeError> {
     let validator = CryptographicValidator::with_default_policy();
     validator.validate_ciphertext(ciphertext)
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+
+    use super::*;
+
+    #[test]
+    fn validate_kem_secret_keys_accepts_expected_lengths() {
+        let validator = CryptographicValidator::with_default_policy();
+
+        assert!(
+            validator
+                .validate_kem_key(HpkeKem::MlKem512, &[1u8; 1632], true)
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_kem_key(HpkeKem::MlKem768, &[1u8; 2400], true)
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_kem_key(HpkeKem::MlKem1024, &[1u8; 3168], true)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_kem_secret_keys_reject_wrong_lengths() {
+        let validator = CryptographicValidator::with_default_policy();
+
+        let err_512 = validator
+            .validate_kem_key(HpkeKem::MlKem512, &[1u8; 1631], true)
+            .unwrap_err();
+        assert!(matches!(err_512, HpkeError::SecurityError { .. }));
+
+        let err_768 = validator
+            .validate_kem_key(HpkeKem::MlKem768, &[1u8; 2399], true)
+            .unwrap_err();
+        assert!(matches!(err_768, HpkeError::SecurityError { .. }));
+
+        let err_1024 = validator
+            .validate_kem_key(HpkeKem::MlKem1024, &[1u8; 3167], true)
+            .unwrap_err();
+        assert!(matches!(err_1024, HpkeError::SecurityError { .. }));
+    }
+
+    #[test]
+    fn validate_kdf_and_convenience_functions() {
+        let validator = CryptographicValidator::with_default_policy();
+
+        assert!(
+            validator
+                .validate_kdf_key(HpkeKdf::HkdfShake128, &[5u8; 16])
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_kdf_key(HpkeKdf::HkdfShake256, &[5u8; 32])
+                .is_ok()
+        );
+
+        assert!(validate_aead_key(HpkeAead::Saturnin256, &[7u8; 32]).is_ok());
+        assert!(validate_aead_nonce(HpkeAead::Saturnin256, &[9u8; 16]).is_ok());
+        assert!(validate_ciphertext(&[1u8; 64]).is_ok());
+        assert!(validate_kem_key(HpkeKem::MlKem512, &[2u8; 800], false).is_ok());
+    }
+
+    #[test]
+    fn input_sanitization_rejects_empty_and_huge_inputs() {
+        let validator = CryptographicValidator::with_default_policy();
+
+        let empty = validator.validate_input_sanitization(&[], "payload");
+        assert!(matches!(empty, Err(HpkeError::SecurityError { .. })));
+
+        let huge = vec![1u8; (1024 * 1024) + 1];
+        let too_large = validator.validate_input_sanitization(&huge, "payload");
+        assert!(matches!(too_large, Err(HpkeError::SecurityError { .. })));
+    }
+}

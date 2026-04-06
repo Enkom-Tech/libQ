@@ -425,4 +425,70 @@ mod tests {
         let output = _hkdf.expand(&prk, info, 1024).unwrap();
         assert_eq!(output.len(), 1024);
     }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_static_extract_expand_for_all_kdfs() {
+        let salt = b"salt";
+        let ikm = b"ikm";
+        let info = b"info";
+
+        for kdf in [
+            HpkeKdf::HkdfShake128,
+            HpkeKdf::HkdfShake256,
+            HpkeKdf::HkdfSha3_256,
+            HpkeKdf::HkdfSha3_512,
+        ] {
+            let prk = HkdfImpl::extract_static(kdf, salt, ikm).unwrap();
+            assert_eq!(prk.len(), kdf.extract_len());
+
+            let out = HkdfImpl::expand_static(kdf, &prk, info, 48).unwrap();
+            assert_eq!(out.len(), 48);
+            assert!(out.iter().any(|b| *b != 0));
+        }
+    }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_sha3_expand_rounds_beyond_digest_length() {
+        let hkdf_256 = create_hkdf(HpkeKdf::HkdfSha3_256);
+        let hkdf_512 = create_hkdf(HpkeKdf::HkdfSha3_512);
+        let salt = b"salt";
+        let ikm = b"material";
+        let info = b"rounds";
+
+        let prk256 = hkdf_256.extract(salt, ikm).unwrap();
+        let out256 = hkdf_256.expand(&prk256, info, 96).unwrap();
+        assert_eq!(out256.len(), 96);
+
+        let prk512 = hkdf_512.extract(salt, ikm).unwrap();
+        let out512 = hkdf_512.expand(&prk512, info, 160).unwrap();
+        assert_eq!(out512.len(), 160);
+    }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_kdf_trait_methods_delegate_correctly() {
+        let hkdf = create_hkdf(HpkeKdf::HkdfShake128);
+        let kdf_trait: &dyn Kdf = &hkdf;
+        let salt = b"s";
+        let ikm = b"i";
+        let info = b"x";
+
+        let prk = kdf_trait.extract(HpkeKdf::HkdfShake128, salt, ikm).unwrap();
+        assert_eq!(prk.len(), 16);
+
+        let out = kdf_trait
+            .expand(HpkeKdf::HkdfShake128, &prk, info, 24)
+            .unwrap();
+        assert_eq!(out.len(), 24);
+        assert_eq!(kdf_trait.extract_len(HpkeKdf::HkdfShake128), 16);
+    }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_expand_static_zero_length_output() {
+        let out = HkdfImpl::expand_static(HpkeKdf::HkdfSha3_256, &[1u8; 32], b"i", 0).unwrap();
+        assert!(out.is_empty());
+    }
 }

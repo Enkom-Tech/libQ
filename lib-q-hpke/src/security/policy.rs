@@ -173,3 +173,51 @@ pub fn get_strict_security_policy() -> SecurityPolicy {
 pub fn get_permissive_security_policy() -> SecurityPolicy {
     SecurityPolicy::permissive()
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+
+    use super::*;
+
+    #[test]
+    fn permissive_policy_skips_all_validation_paths() {
+        let policy = SecurityPolicy::permissive();
+
+        // Wrong length, oversized, and zero key all pass when validation is disabled.
+        assert!(policy.validate_key(&[], 32).is_ok());
+        assert!(policy.validate_key(&vec![0u8; 10_000], 32).is_ok());
+        assert!(policy.validate_key(&[0u8; 32], 32).is_ok());
+
+        assert!(policy.validate_nonce(&[], 16).is_ok());
+        assert!(policy.validate_nonce(&vec![1u8; 10_000], 16).is_ok());
+        assert!(policy.validate_ciphertext(&vec![2u8; 20_000_000]).is_ok());
+    }
+
+    #[test]
+    fn strict_policy_enforces_nonce_and_ciphertext_limits() {
+        let policy = SecurityPolicy::strict();
+
+        let nonce_too_large = vec![1u8; 17];
+        let nonce_err = policy.validate_nonce(&nonce_too_large, 17).unwrap_err();
+        assert!(matches!(
+            nonce_err,
+            HpkeError::SecurityError {
+                validation: SecurityValidation::NonceLength,
+                ..
+            }
+        ));
+
+        let ciphertext_too_large = vec![1u8; (64 * 1024) + 1];
+        let ct_err = policy
+            .validate_ciphertext(&ciphertext_too_large)
+            .unwrap_err();
+        assert!(matches!(
+            ct_err,
+            HpkeError::SecurityError {
+                validation: SecurityValidation::CiphertextLength,
+                ..
+            }
+        ));
+    }
+}

@@ -325,6 +325,171 @@ pub enum HpkeContextState {
     Closed,
 }
 
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+
+    use super::*;
+    use crate::error::HpkeError;
+
+    #[test]
+    fn hpke_mode_roundtrip_and_invalid() {
+        assert_eq!(HpkeMode::from_u8(0x00), Some(HpkeMode::Base));
+        assert_eq!(HpkeMode::from_u8(0x01), Some(HpkeMode::Psk));
+        assert_eq!(HpkeMode::from_u8(0x02), Some(HpkeMode::Auth));
+        assert_eq!(HpkeMode::from_u8(0x03), Some(HpkeMode::AuthPsk));
+        assert_eq!(HpkeMode::from_u8(0xFF), None);
+
+        assert_eq!(HpkeMode::Base.as_u8(), 0x00);
+        assert_eq!(HpkeMode::Psk.as_u8(), 0x01);
+        assert_eq!(HpkeMode::Auth.as_u8(), 0x02);
+        assert_eq!(HpkeMode::AuthPsk.as_u8(), 0x03);
+    }
+
+    #[test]
+    fn kem_lengths_and_ids() {
+        assert_eq!(HpkeKem::MlKem512.algorithm_id(), 0x0022);
+        assert_eq!(HpkeKem::MlKem768.algorithm_id(), 0x0023);
+        assert_eq!(HpkeKem::MlKem1024.algorithm_id(), 0x0024);
+
+        assert_eq!(HpkeKem::MlKem512.shared_secret_len(), 32);
+        assert_eq!(HpkeKem::MlKem768.shared_secret_len(), 32);
+        assert_eq!(HpkeKem::MlKem1024.shared_secret_len(), 32);
+
+        assert_eq!(HpkeKem::MlKem512.enc_len(), 768);
+        assert_eq!(HpkeKem::MlKem768.enc_len(), 1088);
+        assert_eq!(HpkeKem::MlKem1024.enc_len(), 1568);
+
+        assert_eq!(HpkeKem::MlKem512.public_key_len(), 800);
+        assert_eq!(HpkeKem::MlKem768.public_key_len(), 1184);
+        assert_eq!(HpkeKem::MlKem1024.public_key_len(), 1568);
+
+        assert_eq!(HpkeKem::MlKem512.secret_key_len(), 1632);
+        assert_eq!(HpkeKem::MlKem768.secret_key_len(), 2400);
+        assert_eq!(HpkeKem::MlKem1024.secret_key_len(), 3168);
+    }
+
+    #[test]
+    fn kdf_lengths_and_ids() {
+        assert_eq!(HpkeKdf::HkdfShake128.algorithm_id(), 0x0004);
+        assert_eq!(HpkeKdf::HkdfShake256.algorithm_id(), 0x0005);
+        assert_eq!(HpkeKdf::HkdfSha3_256.algorithm_id(), 0x0006);
+        assert_eq!(HpkeKdf::HkdfSha3_512.algorithm_id(), 0x0007);
+
+        assert_eq!(HpkeKdf::HkdfShake128.digest_len(), 32);
+        assert_eq!(HpkeKdf::HkdfShake256.digest_len(), 64);
+        assert_eq!(HpkeKdf::HkdfSha3_256.digest_len(), 32);
+        assert_eq!(HpkeKdf::HkdfSha3_512.digest_len(), 64);
+
+        assert_eq!(HpkeKdf::HkdfShake128.extract_len(), 16);
+        assert_eq!(HpkeKdf::HkdfShake256.extract_len(), 32);
+        assert_eq!(HpkeKdf::HkdfSha3_256.extract_len(), 32);
+        assert_eq!(HpkeKdf::HkdfSha3_512.extract_len(), 64);
+    }
+
+    #[test]
+    fn aead_lengths_and_ids() {
+        assert_eq!(HpkeAead::Saturnin256.algorithm_id(), 0x0004);
+        assert_eq!(HpkeAead::Shake256.algorithm_id(), 0x0005);
+        assert_eq!(HpkeAead::DuplexSpongeAead.algorithm_id(), 0x0006);
+        assert_eq!(HpkeAead::Export.algorithm_id(), 0xFFFF);
+
+        assert_eq!(HpkeAead::Saturnin256.key_len(), 32);
+        assert_eq!(HpkeAead::Shake256.key_len(), 32);
+        assert_eq!(HpkeAead::DuplexSpongeAead.key_len(), 32);
+        assert_eq!(HpkeAead::Export.key_len(), 0);
+
+        assert_eq!(HpkeAead::Saturnin256.nonce_len(), 16);
+        assert_eq!(HpkeAead::Shake256.nonce_len(), 16);
+        assert_eq!(HpkeAead::DuplexSpongeAead.nonce_len(), 16);
+        assert_eq!(HpkeAead::Export.nonce_len(), 0);
+
+        assert_eq!(HpkeAead::Saturnin256.tag_len(), 16);
+        assert_eq!(HpkeAead::Shake256.tag_len(), 16);
+        assert_eq!(HpkeAead::DuplexSpongeAead.tag_len(), 32);
+        assert_eq!(HpkeAead::Export.tag_len(), 0);
+    }
+
+    #[test]
+    fn cipher_suite_identifier_order() {
+        let suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfSha3_512, HpkeAead::Export);
+        let id = suite.identifier();
+        assert_eq!(id, vec![0x00, 0x23, 0x00, 0x07, 0xFF, 0xFF]);
+    }
+
+    #[test]
+    fn key_types_and_keypair_helpers() {
+        let public = HpkePublicKey::from_bytes(vec![1, 2, 3]);
+        assert_eq!(public.as_bytes(), &[1, 2, 3]);
+        assert_eq!(public.clone().to_bytes(), vec![1, 2, 3]);
+
+        let private = HpkePrivateKey::from_bytes(vec![4, 5, 6]);
+        assert_eq!(private.as_bytes(), &[4, 5, 6]);
+        assert_eq!(private.to_bytes(), vec![4, 5, 6]);
+
+        let keypair = HpkeKeyPair::from_keys(public.clone(), private.clone());
+        assert_eq!(keypair.public_key().as_bytes(), public.as_bytes());
+        assert_eq!(keypair.private_key().as_bytes(), private.as_bytes());
+
+        let (pub2, priv2) = keypair.into_keys();
+        assert_eq!(pub2.as_bytes(), public.as_bytes());
+        assert_eq!(priv2.as_bytes(), private.as_bytes());
+    }
+
+    #[test]
+    fn sender_context_state_transitions() {
+        let mut sender = HpkeSenderContext::new(
+            vec![1; 32],
+            vec![2; 32],
+            vec![3; 32],
+            vec![4; 16],
+            vec![5; 768],
+            HpkeAead::Saturnin256,
+        );
+
+        assert!(sender.can_encrypt());
+        assert_eq!(sender.encapsulated_key(), &[5; 768]);
+        assert!(sender.increment_sequence().is_ok());
+        assert_eq!(sender.sequence_number, 1);
+
+        sender.max_sequence_number = 1;
+        let overflow = sender.increment_sequence();
+        assert!(matches!(overflow, Err(HpkeError::CryptoError(_))));
+        assert_eq!(sender.state, HpkeContextState::NeedsRekey);
+        assert!(!sender.can_encrypt());
+
+        sender.close();
+        assert_eq!(sender.state, HpkeContextState::Closed);
+        assert!(!sender.can_encrypt());
+    }
+
+    #[test]
+    fn receiver_context_state_transitions() {
+        let mut receiver = HpkeReceiverContext::new(
+            vec![1; 32],
+            vec![2; 32],
+            vec![3; 32],
+            vec![4; 16],
+            HpkeAead::Shake256,
+        );
+
+        assert!(receiver.can_decrypt());
+        assert!(receiver.increment_sequence().is_ok());
+        assert_eq!(receiver.sequence_number, 1);
+
+        receiver.max_sequence_number = 1;
+        let overflow = receiver.increment_sequence();
+        assert!(matches!(overflow, Err(HpkeError::CryptoError(_))));
+        assert_eq!(receiver.state, HpkeContextState::NeedsRekey);
+        assert!(!receiver.can_decrypt());
+
+        receiver.close();
+        assert_eq!(receiver.state, HpkeContextState::Closed);
+        assert!(!receiver.can_decrypt());
+    }
+}
+
 /// HPKE sender context (no_std version)
 ///
 /// This is the core context structure that can be used in no_std environments.

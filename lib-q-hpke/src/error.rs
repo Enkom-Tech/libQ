@@ -431,3 +431,72 @@ macro_rules! protocol_err {
         HpkeError::protocol_error($stage, $msg)
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+
+    use lib_q_core::Error as CoreError;
+
+    use super::*;
+
+    #[test]
+    fn display_formats_all_error_variants() {
+        let cases = vec![
+            HpkeError::kem_error(HpkeKem::MlKem512, KemOperation::Encapsulation, "kem fail"),
+            HpkeError::kdf_error(HpkeKdf::HkdfShake256, KdfOperation::Expand, "kdf fail"),
+            HpkeError::aead_error(HpkeAead::Saturnin256, AeadOperation::Open, "aead fail"),
+            HpkeError::security_error(SecurityValidation::NonceLength, "security fail"),
+            HpkeError::protocol_error(ProtocolStage::ContextSetup, "protocol fail"),
+            HpkeError::ConfigError {
+                setting: "mode".into(),
+                cause: "bad".into(),
+            },
+            HpkeError::CryptoError("crypto fail".into()),
+            HpkeError::invalid_input("nonce", "3", "16 bytes"),
+            HpkeError::feature_not_enabled("saturnin"),
+            HpkeError::not_implemented("auth mode"),
+            HpkeError::InconsistentPsk,
+        ];
+
+        for err in cases {
+            let text = err.to_string();
+            assert!(!text.is_empty());
+        }
+    }
+
+    #[test]
+    fn conversion_to_core_error_maps_all_variants() {
+        let cases = vec![
+            HpkeError::kem_error(HpkeKem::MlKem768, KemOperation::Decapsulation, "kem"),
+            HpkeError::kdf_error(HpkeKdf::HkdfSha3_512, KdfOperation::Validation, "kdf"),
+            HpkeError::aead_error(
+                HpkeAead::DuplexSpongeAead,
+                AeadOperation::CiphertextValidation,
+                "aead",
+            ),
+            HpkeError::security_error(SecurityValidation::KeyLength, "security"),
+            HpkeError::protocol_error(ProtocolStage::MessageOpening, "protocol"),
+            HpkeError::ConfigError {
+                setting: "suite".into(),
+                cause: "unsupported".into(),
+            },
+            HpkeError::CryptoError("crypto".into()),
+            HpkeError::invalid_input("key", "short", "32 bytes"),
+            HpkeError::feature_not_enabled("ml-kem"),
+            HpkeError::not_implemented("export"),
+            HpkeError::InconsistentPsk,
+        ];
+
+        for err in cases {
+            let converted: CoreError = err.into();
+            match converted {
+                CoreError::InternalError { operation, details } => {
+                    assert!(!operation.is_empty());
+                    assert!(!details.is_empty());
+                }
+                other => panic!("unexpected conversion result: {other:?}"),
+            }
+        }
+    }
+}

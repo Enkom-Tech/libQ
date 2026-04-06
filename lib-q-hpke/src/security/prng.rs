@@ -261,4 +261,45 @@ mod tests {
         // Very unlikely to be equal
         assert_ne!(val1, val2);
     }
+
+    #[test]
+    fn test_simple_rng_fill_bytes_pattern() {
+        let mut rng = SimpleRng::from_seed(0);
+        let mut bytes = [0u8; 4];
+        rng.fill_bytes(&mut bytes).unwrap();
+        assert_eq!(bytes, [0x42, 0x43, 0x44, 0x45]);
+    }
+
+    #[test]
+    fn test_simple_rng_from_seed_u64_output() {
+        let mut rng = SimpleRng::from_seed(2);
+        let value = rng.next_u64().unwrap();
+        assert_eq!(
+            value,
+            u64::from_le_bytes([0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B])
+        );
+    }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_kmac_rng_from_seed_is_deterministic() {
+        let mut rng1 = KmacRng::from_seed(b"deterministic-seed");
+        let mut rng2 = KmacRng::from_seed(b"deterministic-seed");
+        let mut out1 = [0u8; 64];
+        let mut out2 = [0u8; 64];
+        rng1.fill_bytes(&mut out1).unwrap();
+        rng2.fill_bytes(&mut out2).unwrap();
+        assert_eq!(out1, out2);
+    }
+
+    #[cfg(feature = "hash")]
+    #[test]
+    fn test_kmac_rng_next_u32_and_u64_progress() {
+        let mut rng = KmacRng::from_seed(b"another-seed");
+        let a = rng.next_u32().unwrap();
+        let b = rng.next_u32().unwrap();
+        let c = rng.next_u64().unwrap();
+        assert_ne!(a, b);
+        assert_ne!(c, 0);
+    }
 }
