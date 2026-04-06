@@ -653,6 +653,33 @@ mod tests {
         assert!(is_valid, "signature should verify for original message");
     }
 
+    #[cfg(feature = "slh-dsa")]
+    #[test]
+    fn test_sign_and_verify_reject_non_slh_algorithm() {
+        let slh_dsa = SlhDsa::new();
+        let key_randomness = [5u8; 48];
+        let signing_randomness = [9u8; 16];
+        let keypair = slh_dsa
+            .generate_keypair_with_randomness(Algorithm::SlhDsaShake256128fRobust, &key_randomness)
+            .expect("explicit key generation should succeed");
+
+        let sign_result = slh_dsa.sign_for_algorithm(
+            Algorithm::MlDsa65,
+            keypair.secret_key(),
+            b"message",
+            Some(&signing_randomness),
+        );
+        assert!(matches!(sign_result, Err(Error::InvalidAlgorithm { .. })));
+
+        let verify_result = slh_dsa.verify_for_algorithm(
+            Algorithm::MlDsa65,
+            keypair.public_key(),
+            b"message",
+            b"signature",
+        );
+        assert!(matches!(verify_result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
     #[cfg(all(feature = "slh-dsa", feature = "slh-dsa-std"))]
     #[test]
     fn test_implicit_randomness_round_trip_with_std_rng() {

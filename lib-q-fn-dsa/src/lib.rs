@@ -605,6 +605,47 @@ mod tests {
             keypair.secret_key().as_bytes().len(),
             sign_key_size(FN_DSA_LOGN_512)
         );
+
+        // Exercise signing and verification success path.
+        let message = b"coverage keypair generation message";
+        let signature = fn_dsa.sign(&keypair.secret_key, message)?;
+        assert_eq!(signature.len(), signature_size(FN_DSA_LOGN_512));
+        assert!(fn_dsa.verify(&keypair.public_key, message, &signature)?);
+
+        // Exercise invalid signature length error branch.
+        let invalid_signature = vec![0_u8; signature.len().saturating_sub(1)];
+        let verify_err = fn_dsa.verify(&keypair.public_key, message, &invalid_signature);
+        assert!(matches!(
+            verify_err,
+            Err(Error::InvalidSignatureSize {
+                expected,
+                actual
+            }) if expected == signature_size(FN_DSA_LOGN_512) && actual + 1 == expected
+        ));
+
+        // Exercise invalid secret key length error branch.
+        let invalid_secret_key = SigSecretKey::new(vec![0_u8; sign_key_size(FN_DSA_LOGN_512) - 1]);
+        let sign_err = fn_dsa.sign(&invalid_secret_key, b"invalid secret key");
+        assert!(matches!(
+            sign_err,
+            Err(Error::InvalidKeySize {
+                expected,
+                actual
+            }) if expected == sign_key_size(FN_DSA_LOGN_512)
+                && actual == sign_key_size(FN_DSA_LOGN_512) - 1
+        ));
+
+        // Exercise invalid public key length error branch.
+        let invalid_public_key = SigPublicKey::new(vec![0_u8; vrfy_key_size(FN_DSA_LOGN_512) - 1]);
+        let verify_key_err = fn_dsa.verify(&invalid_public_key, message, &signature);
+        assert!(matches!(
+            verify_key_err,
+            Err(Error::InvalidKeySize {
+                expected,
+                actual
+            }) if expected == vrfy_key_size(FN_DSA_LOGN_512)
+                && actual == vrfy_key_size(FN_DSA_LOGN_512) - 1
+        ));
         Ok(())
     }
 

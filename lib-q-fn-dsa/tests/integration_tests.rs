@@ -18,14 +18,109 @@ type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
 #[test]
 fn test_basic_fn_dsa_functionality() -> TestResult {
     let fn_dsa = FnDsa512::new();
+    assert_eq!(fn_dsa.security_level(), FnDsaSecurityLevel::Level1);
+    assert_eq!(fn_dsa.logn(), FN_DSA_LOGN_512);
 
     let keypair = fn_dsa.generate_keypair()?;
+    let expected_sizes = FnDsaSecurityLevel::Level1.key_sizes();
+    assert_eq!(keypair.secret_key.as_bytes().len(), expected_sizes.0);
+    assert_eq!(keypair.public_key.as_bytes().len(), expected_sizes.1);
 
     let message = b"Hello, FN-DSA!";
     let signature = fn_dsa.sign(&keypair.secret_key, message)?;
+    assert_eq!(signature.len(), expected_sizes.2);
 
     let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
     assert!(is_valid, "Signature should be valid");
+
+    let wrong_message_valid = fn_dsa.verify(&keypair.public_key, b"wrong message", &signature)?;
+    assert!(
+        !wrong_message_valid,
+        "Signature should fail for wrong message"
+    );
+
+    let generic_level1 = FnDsa::level1();
+    assert_eq!(generic_level1.security_level(), FnDsaSecurityLevel::Level1);
+    assert_eq!(generic_level1.logn(), FN_DSA_LOGN_512);
+    assert!(generic_level1.verify(&keypair.public_key, message, &signature)?);
+
+    let default_fn_dsa = FnDsa::default();
+    assert_eq!(default_fn_dsa.security_level(), FnDsaSecurityLevel::Level1);
+    assert!(default_fn_dsa.verify(&keypair.public_key, message, &signature)?);
+
+    let fn_dsa_1024 = FnDsa1024::default();
+    assert_eq!(fn_dsa_1024.security_level(), FnDsaSecurityLevel::Level5);
+    assert_eq!(fn_dsa_1024.logn(), FN_DSA_LOGN_1024);
+
+    let keypair_1024 = fn_dsa_1024.generate_keypair()?;
+    let message_1024 = b"Hello, FN-DSA 1024!";
+    let signature_1024 = fn_dsa_1024.sign(&keypair_1024.secret_key, message_1024)?;
+    assert!(fn_dsa_1024.verify(&keypair_1024.public_key, message_1024, &signature_1024)?);
+
+    let generic_level5 = FnDsa::level5();
+    assert_eq!(generic_level5.security_level(), FnDsaSecurityLevel::Level5);
+    assert_eq!(generic_level5.logn(), FN_DSA_LOGN_1024);
+    assert!(generic_level5.verify(&keypair_1024.public_key, message_1024, &signature_1024)?);
+
+    let invalid_1024_sig = vec![0_u8; signature_size(FN_DSA_LOGN_1024) - 1];
+    let invalid_sig_result =
+        generic_level5.verify(&keypair_1024.public_key, message_1024, &invalid_1024_sig);
+    assert!(matches!(
+        invalid_sig_result,
+        Err(Error::InvalidSignatureSize {
+            expected,
+            actual
+        }) if expected == signature_size(FN_DSA_LOGN_1024)
+            && actual == signature_size(FN_DSA_LOGN_1024) - 1
+    ));
+
+    let invalid_sign_size = utils::validate_key_sizes(
+        FnDsaSecurityLevel::Level1,
+        expected_sizes.0 - 1,
+        expected_sizes.1,
+        expected_sizes.2,
+    );
+    assert!(matches!(
+        invalid_sign_size,
+        Err(Error::InvalidKeySize { expected, actual }) if expected == expected_sizes.0
+            && actual == expected_sizes.0 - 1
+    ));
+
+    let invalid_vrfy_size = utils::validate_key_sizes(
+        FnDsaSecurityLevel::Level1,
+        expected_sizes.0,
+        expected_sizes.1 - 1,
+        expected_sizes.2,
+    );
+    assert!(matches!(
+        invalid_vrfy_size,
+        Err(Error::InvalidKeySize { expected, actual }) if expected == expected_sizes.1
+            && actual == expected_sizes.1 - 1
+    ));
+
+    let invalid_sig_size = utils::validate_key_sizes(
+        FnDsaSecurityLevel::Level1,
+        expected_sizes.0,
+        expected_sizes.1,
+        expected_sizes.2 - 1,
+    );
+    assert!(matches!(
+        invalid_sig_size,
+        Err(Error::InvalidKeySize { expected, actual }) if expected == expected_sizes.2
+            && actual == expected_sizes.2 - 1
+    ));
+
+    let level5_sizes = utils::get_key_sizes(FnDsaSecurityLevel::Level5);
+    assert_eq!(level5_sizes.0, sign_key_size(FN_DSA_LOGN_1024));
+    assert_eq!(level5_sizes.1, vrfy_key_size(FN_DSA_LOGN_1024));
+    assert_eq!(level5_sizes.2, signature_size(FN_DSA_LOGN_1024));
+
+    utils::validate_key_sizes(
+        FnDsaSecurityLevel::Level5,
+        level5_sizes.0,
+        level5_sizes.1,
+        level5_sizes.2,
+    )?;
     Ok(())
 }
 

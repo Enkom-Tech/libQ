@@ -467,6 +467,28 @@ mod tests {
     }
 
     #[test]
+    fn test_provider_unsupported_algorithm_for_all_kem_operations() {
+        let provider = LibQKemProvider::new().unwrap();
+        let public_key = KemPublicKey::new(Vec::new());
+        let secret_key = KemSecretKey::new(Vec::new());
+
+        let encapsulate_result = provider.encapsulate(Algorithm::Sha3_256, &public_key, None);
+        assert!(matches!(
+            encapsulate_result,
+            Err(Error::InvalidAlgorithm { .. })
+        ));
+
+        let decapsulate_result = provider.decapsulate(Algorithm::Sha3_256, &secret_key, &[]);
+        assert!(matches!(
+            decapsulate_result,
+            Err(Error::InvalidAlgorithm { .. })
+        ));
+
+        let derive_result = provider.derive_public_key(Algorithm::Sha3_256, &secret_key);
+        assert!(matches!(derive_result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    #[test]
     fn test_provider_feature_flag_handling() {
         let _provider = LibQKemProvider::new().unwrap();
 
@@ -551,5 +573,15 @@ mod tests {
             );
             assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
         }
+    }
+
+    #[test]
+    fn test_crypto_provider_trait_exposes_only_kem_operations() {
+        let provider = LibQKemProvider::new().unwrap();
+        let crypto_provider: &dyn CryptoProvider = &provider;
+        assert!(crypto_provider.kem().is_some());
+        assert!(crypto_provider.signature().is_none());
+        assert!(crypto_provider.hash().is_none());
+        assert!(crypto_provider.aead().is_none());
     }
 }

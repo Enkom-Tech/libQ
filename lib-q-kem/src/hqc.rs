@@ -182,3 +182,59 @@ impl Kem for Hqc256Impl {
         })
     }
 }
+
+#[cfg(all(test, feature = "hqc", feature = "alloc", feature = "std"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hqc_impl_constructors_and_roundtrip() {
+        let hqc128 = Hqc128Impl::new();
+        let kp128 = hqc128.generate_keypair().unwrap();
+        let (ct128, ss128_a) = hqc128.encapsulate(&kp128.public_key).unwrap();
+        let ss128_b = hqc128.decapsulate(&kp128.secret_key, &ct128).unwrap();
+        assert_eq!(ss128_a, ss128_b);
+        let derived128 = hqc128.derive_public_key(&kp128.secret_key).unwrap();
+        assert_eq!(derived128.data, kp128.public_key.data);
+
+        let hqc192 = Hqc192Impl::new();
+        let kp192 = hqc192.generate_keypair().unwrap();
+        let (ct192, ss192_a) = hqc192.encapsulate(&kp192.public_key).unwrap();
+        let ss192_b = hqc192.decapsulate(&kp192.secret_key, &ct192).unwrap();
+        assert_eq!(ss192_a, ss192_b);
+        let derived192 = hqc192.derive_public_key(&kp192.secret_key).unwrap();
+        assert_eq!(derived192.data, kp192.public_key.data);
+
+        let hqc256 = Hqc256Impl::new();
+        let kp256 = hqc256.generate_keypair().unwrap();
+        let (ct256, ss256_a) = hqc256.encapsulate(&kp256.public_key).unwrap();
+        let ss256_b = hqc256.decapsulate(&kp256.secret_key, &ct256).unwrap();
+        assert_eq!(ss256_a, ss256_b);
+        let derived256 = hqc256.derive_public_key(&kp256.secret_key).unwrap();
+        assert_eq!(derived256.data, kp256.public_key.data);
+    }
+
+    #[test]
+    fn test_hqc_auth_methods_not_implemented() {
+        let hqc128 = Hqc128Impl::new();
+        let kp128 = hqc128.generate_keypair().unwrap();
+        let auth_enc_128 = hqc128.auth_encapsulate(&kp128.secret_key, &kp128.public_key);
+        assert!(matches!(auth_enc_128, Err(Error::NotImplemented { .. })));
+        let auth_dec_128 = hqc128.auth_decapsulate(&kp128.secret_key, &[0u8; 8], &kp128.public_key);
+        assert!(matches!(auth_dec_128, Err(Error::NotImplemented { .. })));
+
+        let hqc192 = Hqc192Impl::new();
+        let kp192 = hqc192.generate_keypair().unwrap();
+        let auth_enc_192 = hqc192.auth_encapsulate(&kp192.secret_key, &kp192.public_key);
+        assert!(matches!(auth_enc_192, Err(Error::NotImplemented { .. })));
+        let auth_dec_192 = hqc192.auth_decapsulate(&kp192.secret_key, &[0u8; 8], &kp192.public_key);
+        assert!(matches!(auth_dec_192, Err(Error::NotImplemented { .. })));
+
+        let hqc256 = Hqc256Impl::new();
+        let kp256 = hqc256.generate_keypair().unwrap();
+        let auth_enc_256 = hqc256.auth_encapsulate(&kp256.secret_key, &kp256.public_key);
+        assert!(matches!(auth_enc_256, Err(Error::NotImplemented { .. })));
+        let auth_dec_256 = hqc256.auth_decapsulate(&kp256.secret_key, &[0u8; 8], &kp256.public_key);
+        assert!(matches!(auth_dec_256, Err(Error::NotImplemented { .. })));
+    }
+}

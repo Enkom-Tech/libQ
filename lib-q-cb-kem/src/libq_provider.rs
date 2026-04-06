@@ -458,6 +458,12 @@ mod tests {
     }
 
     #[test]
+    fn test_provider_security_validator_mut_accessor() {
+        let mut provider = LibQCbKemProvider::new().unwrap();
+        let _validator_mut = provider.security_validator_mut();
+    }
+
+    #[test]
     fn test_provider_unsupported_algorithm() {
         let provider = LibQCbKemProvider::new().unwrap();
         let result = provider.generate_keypair(Algorithm::Sha3_256, None);
@@ -541,5 +547,23 @@ mod tests {
                 CRYPTO_BYTES
             );
         }
+    }
+
+    #[test]
+    fn test_provider_derive_public_key_is_unsupported() {
+        let provider = LibQCbKemProvider::new().unwrap();
+        let secret_key = KemSecretKey::new(Vec::new());
+        let result = provider.derive_public_key(compiled_cb_kem_algorithm(), &secret_key);
+        assert!(matches!(result, Err(Error::UnsupportedOperation { .. })));
+    }
+
+    #[test]
+    fn test_crypto_provider_trait_exposes_only_kem_operations() {
+        let provider = LibQCbKemProvider::new().unwrap();
+        let crypto_provider: &dyn CryptoProvider = &provider;
+        assert!(crypto_provider.kem().is_some());
+        assert!(crypto_provider.signature().is_none());
+        assert!(crypto_provider.hash().is_none());
+        assert!(crypto_provider.aead().is_none());
     }
 }

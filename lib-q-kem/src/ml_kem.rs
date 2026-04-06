@@ -629,4 +629,82 @@ mod tests {
             panic!("Expected NotImplemented error");
         }
     }
+
+    #[test]
+    fn test_ml_kem_768_and_1024_roundtrip_and_derive() {
+        let kem768 = MlKem768Impl::default();
+        let keypair768 = kem768.generate_keypair().unwrap();
+        let (ct768, ss768_a) = kem768.encapsulate(&keypair768.public_key).unwrap();
+        let ss768_b = kem768.decapsulate(&keypair768.secret_key, &ct768).unwrap();
+        assert_eq!(ss768_a, ss768_b);
+        assert_eq!(ct768.len(), MLKEM768_CIPHERTEXT_SIZE);
+        assert_eq!(ss768_a.len(), MLKEM_SHARED_KEY_SIZE);
+        let derived768 = kem768.derive_public_key(&keypair768.secret_key).unwrap();
+        assert_eq!(derived768.data, keypair768.public_key.data);
+
+        let kem1024 = MlKem1024Impl::default();
+        let keypair1024 = kem1024.generate_keypair().unwrap();
+        let (ct1024, ss1024_a) = kem1024.encapsulate(&keypair1024.public_key).unwrap();
+        let ss1024_b = kem1024
+            .decapsulate(&keypair1024.secret_key, &ct1024)
+            .unwrap();
+        assert_eq!(ss1024_a, ss1024_b);
+        assert_eq!(ct1024.len(), MLKEM1024_CIPHERTEXT_SIZE);
+        assert_eq!(ss1024_a.len(), MLKEM_SHARED_KEY_SIZE);
+        let derived1024 = kem1024.derive_public_key(&keypair1024.secret_key).unwrap();
+        assert_eq!(derived1024.data, keypair1024.public_key.data);
+    }
+
+    #[test]
+    fn test_ml_kem_768_and_1024_error_paths_and_auth_decapsulate() {
+        let kem768 = MlKem768Impl::default();
+        let keypair768 = kem768.generate_keypair().unwrap();
+        let bad_pk768 = KemPublicKey::new(alloc::vec![0u8; MLKEM768_PUBLIC_KEY_SIZE - 1]);
+        let encapsulate_err = kem768.encapsulate(&bad_pk768);
+        assert!(matches!(
+            encapsulate_err,
+            Err(Error::InvalidKeySize { expected, actual })
+                if expected == MLKEM768_PUBLIC_KEY_SIZE && actual == MLKEM768_PUBLIC_KEY_SIZE - 1
+        ));
+        let bad_sk768 = KemSecretKey::new(alloc::vec![0u8; MLKEM768_SECRET_KEY_SIZE - 1]);
+        let bad_ct768 = alloc::vec![0u8; MLKEM768_CIPHERTEXT_SIZE];
+        let decapsulate_err = kem768.decapsulate(&bad_sk768, &bad_ct768);
+        assert!(matches!(
+            decapsulate_err,
+            Err(Error::InvalidKeySize { expected, actual })
+                if expected == MLKEM768_SECRET_KEY_SIZE && actual == MLKEM768_SECRET_KEY_SIZE - 1
+        ));
+        let auth_decap_err_768 =
+            kem768.auth_decapsulate(&keypair768.secret_key, &bad_ct768, &keypair768.public_key);
+        assert!(matches!(
+            auth_decap_err_768,
+            Err(Error::NotImplemented { .. })
+        ));
+
+        let kem1024 = MlKem1024Impl::default();
+        let keypair1024 = kem1024.generate_keypair().unwrap();
+        let bad_pk1024 = KemPublicKey::new(alloc::vec![0u8; MLKEM1024_PUBLIC_KEY_SIZE - 1]);
+        let encapsulate_err = kem1024.encapsulate(&bad_pk1024);
+        assert!(matches!(
+            encapsulate_err,
+            Err(Error::InvalidKeySize { expected, actual })
+                if expected == MLKEM1024_PUBLIC_KEY_SIZE && actual == MLKEM1024_PUBLIC_KEY_SIZE - 1
+        ));
+        let bad_ct1024 = alloc::vec![0u8; MLKEM1024_CIPHERTEXT_SIZE - 1];
+        let decapsulate_err = kem1024.decapsulate(&keypair1024.secret_key, &bad_ct1024);
+        assert!(matches!(
+            decapsulate_err,
+            Err(Error::InvalidCiphertextSize { expected, actual })
+                if expected == MLKEM1024_CIPHERTEXT_SIZE && actual == MLKEM1024_CIPHERTEXT_SIZE - 1
+        ));
+        let auth_decap_err_1024 = kem1024.auth_decapsulate(
+            &keypair1024.secret_key,
+            &bad_ct1024,
+            &keypair1024.public_key,
+        );
+        assert!(matches!(
+            auth_decap_err_1024,
+            Err(Error::NotImplemented { .. })
+        ));
+    }
 }

@@ -165,6 +165,45 @@ mod tests {
         assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
     }
 
+    #[test]
+    fn test_provider_security_validator_accessor() {
+        let provider = LibQAeadProvider::new().unwrap();
+        let _validator = provider.security_validator();
+    }
+
+    #[test]
+    fn test_non_aead_algorithm_rejected_on_decrypt() {
+        let provider = LibQAeadProvider::new().unwrap();
+        let key = AeadKey::new(vec![0u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+        let result = provider.decrypt(Algorithm::MlKem512, &key, &nonce, b"ciphertext", None);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    #[cfg(feature = "shake256")]
+    #[test]
+    fn test_empty_ciphertext_rejected_before_backend_decrypt() {
+        let provider = LibQAeadProvider::new().unwrap();
+        let mut key_bytes = vec![0u8; 32];
+        let mut nonce_bytes = vec![0u8; 16];
+        for (i, b) in key_bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(0x17).wrapping_add(0x41);
+        }
+        for (i, b) in nonce_bytes.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(0x29).wrapping_add(0x13);
+        }
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let result = provider.decrypt(Algorithm::Shake256Aead, &key, &nonce, b"", None);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidCiphertextSize {
+                expected: 1,
+                actual: 0
+            })
+        ));
+    }
+
     #[cfg(feature = "shake256")]
     #[test]
     fn test_shake256_aead_roundtrip_via_provider() {
@@ -201,5 +240,15 @@ mod tests {
         )
         .expect("decrypt");
         assert_eq!(out.as_slice(), pt.as_slice());
+    }
+
+    #[test]
+    fn test_crypto_provider_trait_exposes_only_aead_operations() {
+        let provider = LibQAeadProvider::new().unwrap();
+        let crypto_provider: &dyn CryptoProvider = &provider;
+        assert!(crypto_provider.kem().is_none());
+        assert!(crypto_provider.signature().is_none());
+        assert!(crypto_provider.hash().is_none());
+        assert!(crypto_provider.aead().is_some());
     }
 }
