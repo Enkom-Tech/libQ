@@ -17,10 +17,25 @@ use lib_q_sha3::{
     Sha3_512,
 };
 
+#[cfg(not(tarpaulin))]
 const TIMING_ITERATIONS: usize = 10_000;
+#[cfg(tarpaulin)]
+const TIMING_ITERATIONS: usize = 500;
+
+#[cfg(not(tarpaulin))]
 const TIMING_RUNS: usize = 9;
+#[cfg(tarpaulin)]
+const TIMING_RUNS: usize = 5;
+
+#[cfg(not(tarpaulin))]
 const TIMING_WARMUP: usize = 1_000;
+#[cfg(tarpaulin)]
+const TIMING_WARMUP: usize = 100;
+
+#[cfg(not(tarpaulin))]
 const TIMING_ATTEMPTS: usize = 3;
+#[cfg(tarpaulin)]
+const TIMING_ATTEMPTS: usize = 1;
 const MAX_SPREAD_PERCENT: u128 = 80; // Max allowed spread over min, e.g. 80% => 1.8x ratio.
 
 fn build_fixed_length_inputs(len: usize) -> Vec<Vec<u8>> {
