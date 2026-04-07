@@ -22,11 +22,16 @@ impl Default for Platform {
 impl Platform {
     /// Detect the current platform
     pub fn detect() -> Self {
-        if cfg!(target_arch = "x86_64") {
+        #[cfg(target_arch = "x86_64")]
+        {
             Platform::X86_64
-        } else if cfg!(target_arch = "aarch64") {
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
             Platform::AArch64
-        } else {
+        }
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
             Platform::Unknown
         }
     }

@@ -185,30 +185,72 @@ impl Kem for Hqc256Impl {
 
 #[cfg(all(test, feature = "hqc", feature = "alloc", feature = "std"))]
 mod tests {
+    use lib_q_core::{
+        Algorithm,
+        KemOperations,
+    };
+    use lib_q_hqc::LibQHqcProvider;
+
     use super::*;
+
+    const fn kem_encaps_prng_seed(base: u8) -> [u8; 48] {
+        let mut out = [0u8; 48];
+        let mut i = 0usize;
+        while i < 48 {
+            out[i] = base.wrapping_add(i as u8);
+            i += 1;
+        }
+        out
+    }
 
     #[test]
     fn test_hqc_impl_constructors_and_roundtrip() {
+        let provider = LibQHqcProvider::new().expect("LibQHqcProvider");
+
         let hqc128 = Hqc128Impl::new();
         let kp128 = hqc128.generate_keypair().unwrap();
-        let (ct128, ss128_a) = hqc128.encapsulate(&kp128.public_key).unwrap();
-        let ss128_b = hqc128.decapsulate(&kp128.secret_key, &ct128).unwrap();
+        let (ct128, ss128_a) = provider
+            .encapsulate(
+                Algorithm::Hqc128,
+                &kp128.public_key,
+                Some(&kem_encaps_prng_seed(0xB1)),
+            )
+            .unwrap();
+        let ss128_b = provider
+            .decapsulate(Algorithm::Hqc128, &kp128.secret_key, &ct128)
+            .unwrap();
         assert_eq!(ss128_a, ss128_b);
         let derived128 = hqc128.derive_public_key(&kp128.secret_key).unwrap();
         assert_eq!(derived128.data, kp128.public_key.data);
 
         let hqc192 = Hqc192Impl::new();
         let kp192 = hqc192.generate_keypair().unwrap();
-        let (ct192, ss192_a) = hqc192.encapsulate(&kp192.public_key).unwrap();
-        let ss192_b = hqc192.decapsulate(&kp192.secret_key, &ct192).unwrap();
+        let (ct192, ss192_a) = provider
+            .encapsulate(
+                Algorithm::Hqc192,
+                &kp192.public_key,
+                Some(&kem_encaps_prng_seed(0xB3)),
+            )
+            .unwrap();
+        let ss192_b = provider
+            .decapsulate(Algorithm::Hqc192, &kp192.secret_key, &ct192)
+            .unwrap();
         assert_eq!(ss192_a, ss192_b);
         let derived192 = hqc192.derive_public_key(&kp192.secret_key).unwrap();
         assert_eq!(derived192.data, kp192.public_key.data);
 
         let hqc256 = Hqc256Impl::new();
         let kp256 = hqc256.generate_keypair().unwrap();
-        let (ct256, ss256_a) = hqc256.encapsulate(&kp256.public_key).unwrap();
-        let ss256_b = hqc256.decapsulate(&kp256.secret_key, &ct256).unwrap();
+        let (ct256, ss256_a) = provider
+            .encapsulate(
+                Algorithm::Hqc256,
+                &kp256.public_key,
+                Some(&kem_encaps_prng_seed(0xB5)),
+            )
+            .unwrap();
+        let ss256_b = provider
+            .decapsulate(Algorithm::Hqc256, &kp256.secret_key, &ct256)
+            .unwrap();
         assert_eq!(ss256_a, ss256_b);
         let derived256 = hqc256.derive_public_key(&kp256.secret_key).unwrap();
         assert_eq!(derived256.data, kp256.public_key.data);

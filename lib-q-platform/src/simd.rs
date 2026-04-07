@@ -20,6 +20,14 @@ impl Default for SimdSupport {
     }
 }
 
+fn simd128_for_platform(platform: Platform, cpu: &CpuFeatures) -> bool {
+    match platform {
+        Platform::X86_64 => cfg!(target_feature = "sse2"),
+        Platform::AArch64 => cpu.has_neon(),
+        Platform::Unknown => false,
+    }
+}
+
 impl SimdSupport {
     /// Detect available SIMD support
     pub fn new() -> Self {
@@ -27,11 +35,7 @@ impl SimdSupport {
         let platform = Platform::detect();
 
         Self {
-            simd128: match platform {
-                Platform::X86_64 => cfg!(target_feature = "sse2"),
-                Platform::AArch64 => cpu.has_neon(),
-                Platform::Unknown => false,
-            },
+            simd128: simd128_for_platform(platform, &cpu),
             simd256: cpu.has_avx2(),
             simd512: cpu.has_avx512(),
         }
@@ -93,4 +97,89 @@ pub enum SimdLevel {
     Simd256 = 2,
     /// SIMD512 support
     Simd512 = 3,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simd128_for_unknown_is_false() {
+        assert!(!simd128_for_platform(
+            Platform::Unknown,
+            &CpuFeatures::new()
+        ));
+    }
+
+    #[test]
+    fn simd128_for_aarch64_follows_neon() {
+        let cpu_off = CpuFeatures {
+            neon: false,
+            ..CpuFeatures::new()
+        };
+        let cpu_on = CpuFeatures {
+            neon: true,
+            ..CpuFeatures::new()
+        };
+        assert!(!simd128_for_platform(Platform::AArch64, &cpu_off));
+        assert!(simd128_for_platform(Platform::AArch64, &cpu_on));
+    }
+
+    #[test]
+    fn simd128_for_x86_64_matches_sse2_cfg() {
+        let want = cfg!(target_feature = "sse2");
+        assert_eq!(
+            simd128_for_platform(Platform::X86_64, &CpuFeatures::new()),
+            want
+        );
+    }
+
+    #[test]
+    fn best_simd_level_prefers_highest_set() {
+        assert_eq!(
+            SimdSupport {
+                simd128: false,
+                simd256: false,
+                simd512: false,
+            }
+            .best_simd_level(),
+            SimdLevel::None
+        );
+        assert_eq!(
+            SimdSupport {
+                simd128: true,
+                simd256: false,
+                simd512: false,
+            }
+            .best_simd_level(),
+            SimdLevel::Simd128
+        );
+        assert_eq!(
+            SimdSupport {
+                simd128: true,
+                simd256: true,
+                simd512: false,
+            }
+            .best_simd_level(),
+            SimdLevel::Simd256
+        );
+        assert_eq!(
+            SimdSupport {
+                simd128: true,
+                simd256: true,
+                simd512: true,
+            }
+            .best_simd_level(),
+            SimdLevel::Simd512
+        );
+        assert_eq!(
+            SimdSupport {
+                simd128: false,
+                simd256: false,
+                simd512: true,
+            }
+            .best_simd_level(),
+            SimdLevel::Simd512
+        );
+    }
 }
