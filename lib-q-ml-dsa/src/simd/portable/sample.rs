@@ -182,3 +182,50 @@ pub fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32
 
     sampled
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        rejection_sample_less_than_eta_equals_2,
+        rejection_sample_less_than_eta_equals_4,
+        rejection_sample_less_than_field_modulus,
+    };
+    use crate::constants::FIELD_MODULUS;
+
+    #[test]
+    fn rejection_field_modulus_accepts_and_rejects() {
+        let mut out = [0i32; 8];
+        // One triplet below modulus, one above (23-bit candidate >= FIELD_MODULUS).
+        let rnd = [1u8, 0, 0, 0xFF, 0xFF, 0x7F];
+        let n = rejection_sample_less_than_field_modulus(&rnd, &mut out);
+        assert!(n >= 1);
+        assert!(out[0] < FIELD_MODULUS);
+        let n2 = rejection_sample_less_than_field_modulus(&[0xFF, 0xFF, 0x7F], &mut out);
+        assert_eq!(n2, 0);
+    }
+
+    #[test]
+    fn rejection_eta2_nibbles_high_and_low() {
+        let mut out = [0i32; 64];
+        // 0xF0: high nibble 15 (reject), low 0 (accept path for try_0 < 15).
+        // 0x0F: low nibble 15 (reject), high 0 (accept).
+        let rnd = [0xF0u8, 0x0F, 0x11];
+        let n = rejection_sample_less_than_eta_equals_2(&rnd, &mut out);
+        assert!(n >= 2);
+        for &x in &out[..n] {
+            assert!((-2..=2).contains(&x));
+        }
+    }
+
+    #[test]
+    fn rejection_eta4_both_halves() {
+        let mut out = [0i32; 64];
+        // try_0=8 -> 4-8=-4, try_1=8 -> -4; both < 9.
+        let rnd = [0x88u8, 0xFF, 0xFF];
+        let n = rejection_sample_less_than_eta_equals_4(&rnd, &mut out);
+        assert!(n >= 2);
+        for &x in &out[..n] {
+            assert!((-4..=4).contains(&x));
+        }
+    }
+}

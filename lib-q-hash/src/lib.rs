@@ -423,4 +423,109 @@ mod tests {
         let result = algorithm_to_hash_algorithm(Algorithm::MlDsa65); // Not a hash algorithm
         assert!(result.is_err());
     }
+
+    #[test]
+    fn hash_algorithm_output_size_exhaustive() {
+        use HashAlgorithm::*;
+        let all = [
+            Sha3_224,
+            Sha3_256,
+            Sha3_384,
+            Sha3_512,
+            Shake128,
+            Shake256,
+            Cshake128,
+            Cshake256,
+            KangarooTwelve,
+            Keccak224,
+            Keccak256,
+            Keccak384,
+            Keccak512,
+            TurboShake128,
+            TurboShake256,
+            Kmac128,
+            Kmac256,
+            TupleHash128,
+            TupleHash256,
+            ParallelHash128,
+            ParallelHash256,
+            Sha224,
+            Sha256,
+            Sha384,
+            Sha512,
+            Sha512_224,
+            Sha512_256,
+        ];
+        for a in all {
+            assert!(a.output_size() > 0);
+        }
+    }
+
+    #[test]
+    fn create_hash_smoke_all_variants() {
+        use HashAlgorithm::*;
+        let variants = [
+            Sha3_224,
+            Sha3_256,
+            Sha3_384,
+            Sha3_512,
+            Shake128,
+            Shake256,
+            Cshake128,
+            Cshake256,
+            Kmac128,
+            Kmac256,
+            TupleHash128,
+            TupleHash256,
+            ParallelHash128,
+            ParallelHash256,
+            KangarooTwelve,
+            Keccak224,
+            Keccak256,
+            Keccak384,
+            Keccak512,
+            TurboShake128,
+            TurboShake256,
+            Sha224,
+            Sha256,
+            Sha384,
+            Sha512,
+            Sha512_224,
+            Sha512_256,
+        ];
+        for alg in variants {
+            let h = create_hash(alg.clone()).expect("create_hash");
+            let out = h.hash(b"coverage").expect("hash");
+            assert_eq!(out.len(), alg.output_size());
+        }
+    }
+
+    #[test]
+    fn algorithm_to_hash_algorithm_roundtrip_core() {
+        let pairs = [
+            (Algorithm::Sha3_224, HashAlgorithm::Sha3_224),
+            (Algorithm::Sha3_256, HashAlgorithm::Sha3_256),
+            (Algorithm::Shake128, HashAlgorithm::Shake128),
+            (Algorithm::CShake256, HashAlgorithm::Cshake256),
+            (Algorithm::Kmac128, HashAlgorithm::Kmac128),
+            (Algorithm::TupleHash256, HashAlgorithm::TupleHash256),
+            (Algorithm::ParallelHash128, HashAlgorithm::ParallelHash128),
+            (Algorithm::KangarooTwelve, HashAlgorithm::KangarooTwelve),
+            (Algorithm::Keccak256, HashAlgorithm::Keccak256),
+            (Algorithm::TurboShake128, HashAlgorithm::TurboShake128),
+            (Algorithm::Sha256, HashAlgorithm::Sha256),
+            (Algorithm::Sha512_256, HashAlgorithm::Sha512_256),
+        ];
+        for (core, expected) in pairs {
+            assert_eq!(algorithm_to_hash_algorithm(core).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn create_hash_context_accepts_hash_algorithms() {
+        let ctx = create_hash_context(Algorithm::Sha3_256).expect("context");
+        drop(ctx);
+        let err = create_hash_context(Algorithm::MlKem768);
+        assert!(err.is_err());
+    }
 }

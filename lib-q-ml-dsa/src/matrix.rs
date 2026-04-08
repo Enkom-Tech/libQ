@@ -132,3 +132,47 @@ pub(crate) fn compute_w_approx<SIMDUnit: Operations>(
         invert_ntt_montgomery(&mut t1[i]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::polynomial::PolynomialRingElement;
+    use crate::simd::portable::PortableSIMDUnit;
+
+    type P = PolynomialRingElement<PortableSIMDUnit>;
+
+    #[test]
+    fn compute_as1_plus_s2_2x2_zeros() {
+        let mut a = [P::zero(); 4];
+        let s1_ntt = [P::zero(); 2];
+        let s1_s2 = [P::zero(); 4];
+        let mut result = [P::zero(); 2];
+        compute_as1_plus_s2(2, 2, &mut a, &s1_ntt, &s1_s2, &mut result);
+    }
+
+    #[test]
+    fn matrix_x_mask_and_vector_ops_smoke() {
+        let matrix = [P::zero(); 4];
+        let mask = [P::zero(); 2];
+        let mut out = [P::zero(); 2];
+        compute_matrix_x_mask(2, 2, &matrix, &mask, &mut out);
+
+        let mut v = [P::zero(); 2];
+        let r = P::zero();
+        vector_times_ring_element(&mut v, &r);
+
+        let mut lhs = [P::zero(); 2];
+        let rhs = [P::zero(); 2];
+        add_vectors(2, &mut lhs, &rhs);
+        subtract_vectors(2, &mut lhs, &rhs);
+    }
+
+    #[test]
+    fn compute_w_approx_2x2_zeros() {
+        let matrix = [P::zero(); 4];
+        let signer = [P::zero(); 2];
+        let c = P::zero();
+        let mut t1 = [P::zero(); 2];
+        compute_w_approx(2, 2, &matrix, &signer, &c, &mut t1);
+    }
+}

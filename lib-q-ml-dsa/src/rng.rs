@@ -415,4 +415,22 @@ mod tests {
             "Secure RNG should not be deterministic"
         );
     }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn next_u64_secure_advances() {
+        let mut r = MLDsaRng::new_secure().expect("secure rng");
+        let a = r.next_u64().expect("next_u64");
+        let b = r.next_u64().expect("next_u64");
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn global_rng_deterministic_fill_bytes() {
+        let mut r = GlobalRng::get_deterministic(b"global_seed_xy");
+        let mut buf = [0u8; 24];
+        r.fill_bytes(&mut buf).expect("fill");
+        assert_ne!(buf, [0u8; 24]);
+    }
 }

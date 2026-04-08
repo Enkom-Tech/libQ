@@ -80,9 +80,9 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 if [[ "$TOOLCHAIN" == "stable" ]]; then
-  CMD="cargo tarpaulin"
+  CMD="cargo tarpaulin --timeout 180"
 else
-  CMD="cargo +$TOOLCHAIN tarpaulin"
+  CMD="cargo +$TOOLCHAIN tarpaulin --timeout 180"
 fi
 
 if [[ -n "$CRATE" ]]; then
@@ -113,6 +113,9 @@ if [[ -n "$CRATE" ]]; then
       # (they are not enabled by crate default-features alone).
       CMD="$CMD --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
     fi
+  elif [[ "$CRATE" == "lib-q-intrinsics" ]]; then
+    # Enable SIMD feature gates so platform helpers and arch-specific modules are built.
+    CMD="$CMD --features simd256,simd128,simd512"
   fi
 fi
 
@@ -163,6 +166,29 @@ if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
+fi
+
+# lib-q-intrinsics: only one of avx2.rs / arm64.rs is compiled per target; drop the other from
+# the Cobertura denominator so the gate matches the instrumented binary (see lib-q-ml-dsa AVX2 excludes).
+if [[ "$CRATE" == "lib-q-intrinsics" ]]; then
+  ARCH_RAW="$(uname -m 2>/dev/null || echo unknown)"
+  ARCH_CLEAN="${ARCH_RAW%%[$'\r']}"
+  case "$ARCH_CLEAN" in
+    x86_64|amd64)
+      CMD="$CMD --exclude-files 'lib-q-intrinsics/src/arm64.rs'"
+      CMD="$CMD --exclude-files 'lib-q-intrinsics\\src\\arm64.rs'"
+      ;;
+    aarch64|arm64)
+      CMD="$CMD --exclude-files 'lib-q-intrinsics/src/avx2.rs'"
+      CMD="$CMD --exclude-files 'lib-q-intrinsics\\src\\avx2.rs'"
+      ;;
+    *)
+      CMD="$CMD --exclude-files 'lib-q-intrinsics/src/arm64.rs'"
+      CMD="$CMD --exclude-files 'lib-q-intrinsics\\src\\arm64.rs'"
+      CMD="$CMD --exclude-files 'lib-q-intrinsics/src/avx2.rs'"
+      CMD="$CMD --exclude-files 'lib-q-intrinsics\\src\\avx2.rs'"
+      ;;
+  esac
 fi
 
 if [[ -n "$CRATE" ]] && [[ "$CMD" != *"--include-files"* ]]; then

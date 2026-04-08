@@ -187,6 +187,16 @@ mod tests {
         fn test_invert_ntt_montgomery() {
             test_invert_ntt_montgomery_generic::<crate::simd::portable::PortableSIMDUnit>();
         }
+
+        #[test]
+        fn ntt_multiply_montgomery_smoke() {
+            use crate::polynomial::PolynomialRingElement;
+            use crate::simd::portable::PortableSIMDUnit;
+
+            let mut lhs = PolynomialRingElement::<PortableSIMDUnit>::zero();
+            let rhs = PolynomialRingElement::<PortableSIMDUnit>::zero();
+            super::super::ntt_multiply_montgomery(&mut lhs, &rhs);
+        }
     }
 
     #[cfg(feature = "simd256")]

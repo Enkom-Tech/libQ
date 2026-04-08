@@ -419,4 +419,38 @@ mod tests {
         assert!(summary.is_success());
         assert!(summary.has_warnings());
     }
+
+    #[test]
+    fn test_security_summary_fail_branch() {
+        let mut summary = SecurityValidationSummary::new();
+        summary.add_result(&SecurityValidationResult::Fail("x".into()));
+        assert!(!summary.is_success());
+        assert_eq!(summary.failed, 1);
+    }
+
+    #[test]
+    fn test_validator_builder() {
+        let v = SecurityValidator::new()
+            .with_source_paths(vec!["a/".into()])
+            .with_exclude_paths(vec!["b/".into()]);
+        let r = v.validate();
+        assert!(r.summary.total_checks > 0);
+    }
+
+    #[test]
+    #[cfg(feature = "std")]
+    #[allow(clippy::disallowed_types)]
+    fn test_print_report_all_result_kinds() {
+        use std::collections::HashMap;
+        let mut results = HashMap::new();
+        results.insert("a".into(), SecurityValidationResult::Pass);
+        results.insert("b".into(), SecurityValidationResult::Fail("boom".into()));
+        results.insert("c".into(), SecurityValidationResult::Warning("w".into()));
+        let mut summary = SecurityValidationSummary::new();
+        for r in results.values() {
+            summary.add_result(r);
+        }
+        let report = SecurityValidationReport { results, summary };
+        print_report(&report);
+    }
 }

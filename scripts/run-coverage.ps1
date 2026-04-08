@@ -132,7 +132,7 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
     Write-Host "Created directory: $OutputDir"
 }
 
-$cmd = if ($Toolchain -eq "stable") { "cargo tarpaulin" } else { "cargo +$Toolchain tarpaulin" }
+$cmd = if ($Toolchain -eq "stable") { "cargo tarpaulin --timeout 180" } else { "cargo +$Toolchain tarpaulin --timeout 180" }
 
 if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
     $cmd += " --packages $PackageArg"
@@ -154,6 +154,8 @@ if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
         } else {
             $cmd += " --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
         }
+    } elseif ($PackageArg -eq "lib-q-intrinsics") {
+        $cmd += " --features simd256,simd128,simd512"
     }
 }
 
@@ -189,6 +191,17 @@ if (($PackageArg -eq $pkgLibQMldsa) -and (-not $enableSimdAcvp)) {
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '" --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'
+}
+if ($PackageArg -eq "lib-q-intrinsics") {
+    $pa = $env:PROCESSOR_ARCHITECTURE
+    if ($pa -eq "AMD64") {
+        $cmd += ' --exclude-files "lib-q-intrinsics/src/arm64.rs" --exclude-files "lib-q-intrinsics\src\arm64.rs"'
+    } elseif ($pa -eq "ARM64") {
+        $cmd += ' --exclude-files "lib-q-intrinsics/src/avx2.rs" --exclude-files "lib-q-intrinsics\src\avx2.rs"'
+    } else {
+        $cmd += ' --exclude-files "lib-q-intrinsics/src/arm64.rs" --exclude-files "lib-q-intrinsics\src\arm64.rs"'
+        $cmd += ' --exclude-files "lib-q-intrinsics/src/avx2.rs" --exclude-files "lib-q-intrinsics\src\avx2.rs"'
+    }
 }
 $includeFilesArg = '--include-files'
 $includeFilesPresent = $cmd.IndexOf($includeFilesArg) -ge 0

@@ -694,7 +694,10 @@ pub mod neon {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+    use super::{
+        incremental,
+        *,
+    };
 
     #[test]
     fn test_shake128_compatibility() {
@@ -1097,5 +1100,51 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn incremental_shake128_three_five_and_next_blocks() {
+        let mut st = incremental::shake128_init();
+        incremental::shake128_absorb_final(&mut st, b"incremental shake128 path");
+        let mut three = [0u8; 168 * 3];
+        incremental::shake128_squeeze_first_three_blocks(&mut st, &mut three);
+
+        let mut st2 = incremental::shake128_init();
+        incremental::shake128_absorb_final(&mut st2, b"second");
+        let mut five = [0u8; 168 * 5];
+        incremental::shake128_squeeze_first_five_blocks(&mut st2, &mut five);
+        let mut nb = [0u8; 168];
+        incremental::shake128_squeeze_next_block(&mut st2, &mut nb);
+        assert!(nb.iter().any(|&b| b != 0));
+    }
+
+    #[test]
+    fn incremental_shake256_first_and_next_block() {
+        let mut st = incremental::shake256_init();
+        incremental::shake256_absorb_final(&mut st, b"two blocks");
+        let mut b1 = [0u8; 136];
+        let mut b2 = [0u8; 136];
+        incremental::shake256_squeeze_first_block(&mut st, &mut b1);
+        incremental::shake256_squeeze_next_block(&mut st, &mut b2);
+        assert_ne!(b1, b2);
+    }
+
+    #[test]
+    fn keccak_state_absorb_then_squeeze_shake128() {
+        let mut s = KeccakState::new_shake128();
+        s.absorb(b"part1");
+        s.absorb_final(b"part2");
+        let mut out = [0u8; 64];
+        s.squeeze(&mut out);
+        assert!(out.iter().any(|&b| b != 0));
+    }
+
+    #[test]
+    fn keccak_state_shake256_multi_squeeze() {
+        let mut s = KeccakState::new_shake256();
+        s.absorb(b"y");
+        let mut out = [0u8; 300];
+        s.squeeze(&mut out);
+        assert!(out.iter().any(|&b| b != 0));
     }
 }

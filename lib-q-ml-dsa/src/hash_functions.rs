@@ -420,6 +420,77 @@ pub(crate) mod portable {
             self.state.squeeze(out)
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{
+            Shake128,
+            Shake128X4,
+            Shake256,
+            Shake256X4,
+            Shake256Xof,
+        };
+        use crate::hash_functions::shake128::{
+            self,
+            Xof as Shake128OneShot,
+            XofX4 as Shake128X4Trait,
+        };
+        use crate::hash_functions::shake256::{
+            DsaXof,
+            Xof as Shake256StreamXof,
+            XofX4 as Shake256X4Trait,
+        };
+
+        #[test]
+        fn portable_shake128_one_shot() {
+            let mut out = [0u8; 64];
+            <Shake128 as Shake128OneShot>::shake128(b"portable-shake128", &mut out);
+            assert_ne!(out, [0u8; 64]);
+        }
+
+        #[test]
+        fn portable_shake128_x4_squeeze_pipeline() {
+            let mut s = <Shake128X4 as Shake128X4Trait>::init_absorb(b"w", b"x", b"y", b"z");
+            let mut o0 = [0u8; shake128::FIVE_BLOCKS_SIZE];
+            let mut o1 = [0u8; shake128::FIVE_BLOCKS_SIZE];
+            let mut o2 = [0u8; shake128::FIVE_BLOCKS_SIZE];
+            let mut o3 = [0u8; shake128::FIVE_BLOCKS_SIZE];
+            Shake128X4Trait::squeeze_first_five_blocks(&mut s, &mut o0, &mut o1, &mut o2, &mut o3);
+            let _ = Shake128X4Trait::squeeze_next_block(&mut s);
+        }
+
+        #[test]
+        fn portable_shake256_dsa_xof_blocks() {
+            let mut digest = [0u8; 48];
+            <Shake256 as DsaXof>::shake256(b"fixed-out", &mut digest);
+            let mut st = <Shake256 as DsaXof>::init_absorb_final(b"stream");
+            let _b0 = DsaXof::squeeze_first_block(&mut st);
+            let _b1 = DsaXof::squeeze_next_block(&mut st);
+        }
+
+        #[test]
+        fn portable_shake256_x4_all_paths() {
+            let mut s = <Shake256X4 as Shake256X4Trait>::init_absorb_x4(b"a0", b"a1", b"a2", b"a3");
+            let _ = Shake256X4Trait::squeeze_first_block_x4(&mut s);
+            let _ = Shake256X4Trait::squeeze_next_block_x4(&mut s);
+            let mut o0 = [0u8; 40];
+            let mut o1 = [0u8; 40];
+            let mut o2 = [0u8; 40];
+            let mut o3 = [0u8; 40];
+            <Shake256X4 as Shake256X4Trait>::shake256_x4(
+                b"i0", b"i1", b"i2", b"i3", &mut o0, &mut o1, &mut o2, &mut o3,
+            );
+        }
+
+        #[test]
+        fn portable_shake256_xof_incremental() {
+            let mut x = <Shake256Xof as Shake256StreamXof>::init();
+            Shake256StreamXof::absorb(&mut x, b"part1");
+            Shake256StreamXof::absorb_final(&mut x, b"part2");
+            let mut buf = [0u8; 200];
+            Shake256StreamXof::squeeze(&mut x, &mut buf);
+        }
+    }
 }
 
 /// A SIMD256 implementation of [`shake128::XofX4`] and [`shake256::Xof`] for AVX2.

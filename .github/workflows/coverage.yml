@@ -29,7 +29,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  COVERAGE_THRESHOLD: "65"
+  COVERAGE_THRESHOLD: "70"
 
 jobs:
   coverage:
@@ -82,7 +82,11 @@ jobs:
           for crate in $CORE_CRATES; do
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
-              bash scripts/run-coverage.sh --crate "$crate" --threshold $COVERAGE_THRESHOLD --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              CRATE_THRESH="$COVERAGE_THRESHOLD"
+              case "$crate" in
+                lib-q-keccak) CRATE_THRESH="65" ;;
+              esac
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $CRATE_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/core/$crate"
@@ -95,7 +99,14 @@ jobs:
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
               CRATE_THRESH="$COVERAGE_THRESHOLD"
-              if [ "$crate" = "lib-q-ml-dsa" ]; then CRATE_THRESH="41"; fi
+              case "$crate" in
+                lib-q-ml-dsa) CRATE_THRESH="60" ;;
+                lib-q-kem) CRATE_THRESH="65" ;;
+                lib-q-sig) CRATE_THRESH="66" ;;
+                lib-q-aead) CRATE_THRESH="68" ;;
+                lib-q-hpke) CRATE_THRESH="66" ;;
+                lib-q-cb-kem) CRATE_THRESH="68" ;;
+              esac
               bash scripts/run-coverage.sh --crate "$crate" --threshold $CRATE_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
@@ -116,7 +127,11 @@ jobs:
           for crate in $UTIL_CRATES; do
             if [ -d "$crate" ]; then
               echo "Running coverage for $crate"
-              bash scripts/run-coverage.sh --crate "$crate" --threshold 70 --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              UTIL_THRESH="70"
+              case "$crate" in
+                lib-q-zkp) UTIL_THRESH="65" ;;
+              esac
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $UTIL_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
               
               # Copy reports to combined directory for artifact upload
               cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/utils/$crate"

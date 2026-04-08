@@ -633,12 +633,17 @@ mod provider_integration_tests {
 
         #[cfg(feature = "ml-dsa")]
         {
-            // Test ML-DSA-65 through provider
+            use lib_q_core::api::CryptoProvider;
+
+            let p = provider.signature().expect("signature ops");
+            assert!(provider.kem().is_none());
+            assert!(provider.hash().is_none());
+            assert!(provider.aead().is_none());
+
             let keypair = provider
                 .generate_keypair(Algorithm::MlDsa65, None)
                 .expect("Key generation should succeed");
 
-            // Verify key sizes are correct for ML-DSA-65
             assert_eq!(
                 keypair.public_key().as_bytes().len(),
                 1952,
@@ -650,12 +655,11 @@ mod provider_integration_tests {
                 "ML-DSA-65 secret key should be 4032 bytes"
             );
 
-            // Test signing and verification
-            let signature = provider
+            let signature = p
                 .sign(Algorithm::MlDsa65, keypair.secret_key(), message, None)
                 .expect("Signing should succeed");
 
-            let is_valid = provider
+            let is_valid = p
                 .verify(
                     Algorithm::MlDsa65,
                     keypair.public_key(),
@@ -664,6 +668,45 @@ mod provider_integration_tests {
                 )
                 .expect("Verification should succeed");
             assert!(is_valid, "Provider signature should be valid");
+
+            let mut key_rng = [0u8; 32];
+            for (i, b) in key_rng.iter_mut().enumerate() {
+                *b = (i as u8).wrapping_mul(17).wrapping_add(11);
+            }
+            for (algo, pk_len, sk_len) in [
+                (Algorithm::MlDsa44, 1312usize, 2560usize),
+                (Algorithm::MlDsa87, 2592, 4896),
+            ] {
+                let kp = provider
+                    .generate_keypair(algo, Some(&key_rng))
+                    .unwrap_or_else(|_| panic!("keygen {:?}", algo));
+                assert_eq!(kp.public_key().as_bytes().len(), pk_len);
+                assert_eq!(kp.secret_key().as_bytes().len(), sk_len);
+                let mut s_rng = [0u8; 32];
+                for (i, b) in s_rng.iter_mut().enumerate() {
+                    *b = (i as u8).wrapping_mul(19).wrapping_add(13);
+                }
+                let sig = provider
+                    .sign(algo, kp.secret_key(), message, Some(&s_rng))
+                    .unwrap_or_else(|_| panic!("sign {:?}", algo));
+                assert!(
+                    provider
+                        .verify(algo, kp.public_key(), message, &sig)
+                        .unwrap_or_else(|_| panic!("verify {:?}", algo))
+                );
+            }
+
+            let bad_sign_rng = [0u8; 16];
+            assert!(
+                provider
+                    .sign(
+                        Algorithm::MlDsa65,
+                        keypair.secret_key(),
+                        message,
+                        Some(&bad_sign_rng),
+                    )
+                    .is_err()
+            );
         }
     }
 

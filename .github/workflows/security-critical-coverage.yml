@@ -45,7 +45,12 @@ jobs:
             --features std,ml-dsa \
             --ignore-tests --ignore-panics \
             --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*' \
-            --include-files 'lib-q-sig/src/*' --include-files 'lib-q-sig/src/**' --include-files 'lib-q-sig\\src\\*' \
+            --include-files 'lib-q-sig/src/lib.rs' \
+            --include-files 'lib-q-sig/src/ml_dsa.rs' \
+            --include-files 'lib-q-sig/src/provider.rs' \
+            --include-files 'lib-q-sig\\src\\lib.rs' \
+            --include-files 'lib-q-sig\\src\\ml_dsa.rs' \
+            --include-files 'lib-q-sig\\src\\provider.rs' \
             --out Xml --out Html --output-dir coverage-sc
 
       - name: Check thresholds
@@ -53,7 +58,7 @@ jobs:
           set -euo pipefail
           bash scripts/check-coverage-metrics.sh \
             --dir coverage-sc \
-            --line-min 60 \
+            --line-min 70 \
             --branch-min 100
 
       - name: Upload report

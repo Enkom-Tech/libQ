@@ -211,3 +211,74 @@ pub(crate) fn use_hint<SIMDUnit: Operations>(
         re_vector[i] = tmp;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::constants::{
+        COEFFICIENTS_IN_RING_ELEMENT,
+        GAMMA2_V95_232,
+        GAMMA2_V261_888,
+    };
+    use crate::polynomial::PolynomialRingElement;
+    use crate::simd::portable::PortableSIMDUnit;
+
+    type P = PolynomialRingElement<PortableSIMDUnit>;
+
+    fn poly_uniform(c: i32) -> P {
+        let a = [c; 256];
+        P::from_i32_array_test(&a)
+    }
+
+    fn poly_ramp() -> P {
+        let mut a = [0i32; 256];
+        for (i, x) in a.iter_mut().enumerate() {
+            *x = ((i * 17) as i32).rem_euclid(50_000);
+        }
+        P::from_i32_array_test(&a)
+    }
+
+    #[test]
+    fn vector_infinity_norm_exceeds_true_and_false() {
+        let small = [poly_uniform(100)];
+        assert!(!vector_infinity_norm_exceeds(&small, 1_000_000));
+        let big = [poly_uniform(5_000_000)];
+        assert!(vector_infinity_norm_exceeds(&big, 1));
+    }
+
+    #[test]
+    fn shift_left_then_reduce_polynomial_smoke() {
+        let mut re = poly_uniform(10_000);
+        shift_left_then_reduce::<PortableSIMDUnit, 13>(&mut re);
+    }
+
+    #[test]
+    fn power2round_vector_two_elements() {
+        let mut t = [poly_ramp(), poly_ramp()];
+        let mut t1 = [P::zero(), P::zero()];
+        power2round_vector(&mut t, &mut t1);
+    }
+
+    #[test]
+    fn decompose_vector_two_elements_both_gamma2() {
+        let t = [poly_ramp(), poly_ramp()];
+        let mut low = [P::zero(), P::zero()];
+        let mut high = [P::zero(), P::zero()];
+        decompose_vector(2, GAMMA2_V95_232, &t, &mut low, &mut high);
+        decompose_vector(2, GAMMA2_V261_888, &t, &mut low, &mut high);
+    }
+
+    #[test]
+    fn make_hint_and_use_hint_two_elements() {
+        let low = [poly_ramp(), poly_ramp()];
+        let high = [poly_ramp(), poly_ramp()];
+        let mut hint = [[0i32; COEFFICIENTS_IN_RING_ELEMENT]; 2];
+        let n = make_hint(&low, &high, GAMMA2_V95_232, &mut hint);
+        assert!(n <= 512);
+        let _ = make_hint(&low, &high, GAMMA2_V261_888, &mut hint);
+
+        let mut re = [poly_ramp(), poly_ramp()];
+        use_hint(GAMMA2_V95_232, &hint, &mut re);
+        use_hint(GAMMA2_V261_888, &hint, &mut re);
+    }
+}

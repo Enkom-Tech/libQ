@@ -9,7 +9,7 @@
 
 set -uo pipefail
 
-THRESH="${1:-65}"
+THRESH="${1:-70}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 SKIP_RE="${VERIFY_COVERAGE_SKIP:-^$}"
@@ -26,6 +26,21 @@ fi
 
 mapfile -t NAMES < <(cargo metadata --format-version 1 --no-deps 2>/dev/null | jq -r '.packages[] | .name' | sort -u)
 
+effective_threshold_for() {
+  local pkg="$1"
+  local t="$2"
+  case "$pkg" in
+    lib-q-ml-dsa) echo 60 ;;
+    lib-q-keccak|lib-q-kem) echo 65 ;;
+    lib-q-sig) echo 66 ;;
+    lib-q-aead) echo 68 ;;
+    lib-q-hpke) echo 66 ;;
+    lib-q-cb-kem) echo 68 ;;
+    lib-q-zkp) echo 65 ;;
+    *) echo "$t" ;;
+  esac
+}
+
 failed=()
 skipped=()
 for n in "${NAMES[@]}"; do
@@ -33,10 +48,7 @@ for n in "${NAMES[@]}"; do
     skipped+=("$n")
     continue
   fi
-  eff="$THRESH"
-  if [[ "$n" == "lib-q-ml-dsa" ]] && [[ "$THRESH" =~ ^[0-9]+$ ]] && (( THRESH >= 65 )); then
-    eff="56"
-  fi
+  eff="$(effective_threshold_for "$n" "$THRESH")"
   echo ""
   echo "======== coverage: $n (min ${eff}%) ========"
   if bash scripts/run-coverage.sh --crate "$n" --threshold "$eff" --output-dir "coverage-verify-${n}" --no-report; then
@@ -60,5 +72,5 @@ fi
 
 passed=$(( ${#NAMES[@]} - ${#skipped[@]} - ${#failed[@]} ))
 echo ""
-echo "OK: ${passed} package(s) met ${THRESH}% line coverage (skipped: ${#skipped[@]})."
+echo "OK: ${passed} package(s) met per-crate line floors (default request ${THRESH}%; skipped: ${#skipped[@]})."
 exit 0

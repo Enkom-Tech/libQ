@@ -88,7 +88,7 @@ jobs:
           
           # Define all lib-q crates
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-k12"
-          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           STARK_PLONKY_CRATES="lib-q-stark lib-q-stark-air lib-q-stark-challenger lib-q-stark-commit lib-q-stark-dft lib-q-stark-field lib-q-stark-field-testing lib-q-stark-fri lib-q-stark-interpolation lib-q-stark-matrix lib-q-stark-mds lib-q-stark-merkle lib-q-stark-mersenne31 lib-q-stark-monty31 lib-q-stark-rayon lib-q-stark-symmetric lib-q-stark-util lib-q-stark-shake256 lib-q-stark-shake128 lib-q-stark-sha3-256 lib-q-poseidon lib-q-plonky-multilinear-util lib-q-plonky-keccak-air lib-q-plonky-lookup lib-q-plonky-uni-stark lib-q-plonky-batch-stark lib-q-plonky"
           ALL_CRATES="$CORE_CRATES $CRYPTO_CRATES $UTIL_CRATES $STARK_PLONKY_CRATES"
@@ -118,15 +118,21 @@ jobs:
           # Per-crate gates (ratcheted as coverage improves; see docs/coverage-scope.md).
           case "$AFFECTED" in
             lib-q-core) echo "coverage-threshold=78" >> $GITHUB_OUTPUT ;;
-            # Portable ML-DSA gate (AVX2 excluded): ~41% line with acvp/fips/hardened + all parameter sets; portable NTT/invNTT subtree is large and lightly hit by integration tests. Ratchet as targeted SIMD tests land.
-            lib-q-ml-dsa) echo "coverage-threshold=41" >> $GITHUB_OUTPUT ;;
-            *) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
+            # Portable ML-DSA (AVX2 excluded from denominator): ratchet toward 70%; see docs/coverage-scope.md.
+            lib-q-ml-dsa) echo "coverage-threshold=60" >> $GITHUB_OUTPUT ;;
+            lib-q-keccak|lib-q-kem) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
+            lib-q-sig) echo "coverage-threshold=66" >> $GITHUB_OUTPUT ;;
+            lib-q-aead) echo "coverage-threshold=68" >> $GITHUB_OUTPUT ;;
+            lib-q-hpke) echo "coverage-threshold=66" >> $GITHUB_OUTPUT ;;
+            lib-q-cb-kem) echo "coverage-threshold=68" >> $GITHUB_OUTPUT ;;
+            lib-q-zkp) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
+            *) echo "coverage-threshold=70" >> $GITHUB_OUTPUT ;;
           esac
       
       - name: Run coverage tests
         uses: ./.github/actions/rust-test
         with:
-          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || (steps.affected-packages.outputs.package == 'lib-q-kem' && 'std,alloc,ml-kem,hqc' || (steps.affected-packages.outputs.package == 'lib-q-ml-kem' && 'std,deterministic' || '')) }}
+          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || (steps.affected-packages.outputs.package == 'lib-q-kem' && 'std,alloc,ml-kem,hqc' || (steps.affected-packages.outputs.package == 'lib-q-ml-kem' && 'std,deterministic' || (steps.affected-packages.outputs.package == 'lib-q-cb-kem' && 'std,rand,getrandom,alloc,zeroize,cbkem348864' || ''))) }}
           run-coverage: "true"
           coverage-threshold: ${{ steps.affected-packages.outputs.coverage-threshold }}
           package: ${{ steps.affected-packages.outputs.package }}

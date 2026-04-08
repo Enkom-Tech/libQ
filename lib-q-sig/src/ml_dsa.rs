@@ -523,6 +523,11 @@ impl Signature for MlDsa {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_core::{
+        SigPublicKey,
+        SigSecretKey,
+    };
+
     use super::*;
 
     #[test]
@@ -611,6 +616,40 @@ mod tests {
             .verify(keypair.public_key(), message, &signature)
             .unwrap();
         assert!(is_valid);
+    }
+
+    #[test]
+    fn sign_with_randomness_rejects_wrong_secret_key_length() {
+        let dsa44 = MlDsa::ml_dsa_44();
+        let bad = SigSecretKey::new(vec![0u8; 8]);
+        let r = dsa44.sign_with_randomness(&bad, b"m", [0u8; SIGNING_RANDOMNESS_SIZE]);
+        assert!(matches!(r, Err(lib_q_core::Error::InvalidKeySize { .. })));
+
+        let dsa65 = MlDsa::ml_dsa_65();
+        let kp44 = dsa44
+            .generate_keypair_with_randomness([9u8; KEY_GENERATION_RANDOMNESS_SIZE])
+            .unwrap();
+        let r = dsa65.sign_with_randomness(kp44.secret_key(), b"m", [0u8; SIGNING_RANDOMNESS_SIZE]);
+        assert!(matches!(r, Err(lib_q_core::Error::InvalidKeySize { .. })));
+    }
+
+    #[test]
+    fn verify_rejects_bad_public_key_and_signature_sizes() {
+        let dsa = MlDsa::ml_dsa_65();
+        let kp = dsa
+            .generate_keypair_with_randomness([3u8; KEY_GENERATION_RANDOMNESS_SIZE])
+            .unwrap();
+        let sig = dsa
+            .sign_with_randomness(kp.secret_key(), b"x", [4u8; SIGNING_RANDOMNESS_SIZE])
+            .unwrap();
+        assert!(matches!(
+            dsa.verify(&SigPublicKey::new(vec![0u8; 4]), b"x", &sig),
+            Err(lib_q_core::Error::InvalidKeySize { .. })
+        ));
+        assert!(matches!(
+            dsa.verify(kp.public_key(), b"x", &[0u8; 8]),
+            Err(lib_q_core::Error::InvalidSignatureSize { .. })
+        ));
     }
 }
 

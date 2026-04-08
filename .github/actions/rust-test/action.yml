@@ -246,7 +246,7 @@ runs:
         fi
         
         # Build tarpaulin command with appropriate options
-        TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage"
+        TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage --timeout 180"
         
         # Add package filter if specified
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
@@ -277,6 +277,8 @@ runs:
             # ACVP / FIPS / hardened tests are feature-gated; align with ci.yml + run-coverage.sh.
             TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87\""
           fi
+        elif [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"simd256,simd128,simd512\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
@@ -322,6 +324,27 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\*\" --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\**\""
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs\""
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\ml_dsa_generic\\\\instantiations\\\\avx2.rs\""
+        fi
+
+        if [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
+          ARCH_RAW="$(uname -m 2>/dev/null || echo unknown)"
+          ARCH_CLEAN="${ARCH_RAW%%[$'\r']}"
+          case "$ARCH_CLEAN" in
+            x86_64|amd64)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\arm64.rs\""
+              ;;
+            aarch64|arm64)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/avx2.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\avx2.rs\""
+              ;;
+            *)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/avx2.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\avx2.rs\""
+              ;;
+          esac
         fi
         
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then

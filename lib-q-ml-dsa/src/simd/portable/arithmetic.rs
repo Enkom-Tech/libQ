@@ -822,4 +822,87 @@ mod tests {
         assert_eq!(use_one_hint(GAMMA2_V261_888, 7691572, 0), 15);
         assert_eq!(use_one_hint(GAMMA2_V261_888, 6635697, 1), 12);
     }
+
+    #[test]
+    fn get_n_least_significant_bits_smoke() {
+        assert_eq!(get_n_least_significant_bits(1, 1), 1);
+        assert_eq!(get_n_least_significant_bits(8, 0xABCD), 0xCD);
+        assert_eq!(get_n_least_significant_bits(32, 0xFFFF_FFFF), 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn add_subtract_zero() {
+        let mut a = super::super::vector_type::zero();
+        let b = super::super::vector_type::zero();
+        add(&mut a, &b);
+        subtract(&mut a, &b);
+    }
+
+    #[test]
+    fn montgomery_multiply_variants() {
+        let fer = montgomery_reduce_element(1_000_000_i64);
+        let _ = montgomery_multiply_fe_by_fer(1_000, fer);
+        let mut lhs = super::super::vector_type::zero();
+        lhs.values[0] = 100;
+        lhs.values[1] = 200;
+        let mut rhs = super::super::vector_type::zero();
+        rhs.values[0] = 300;
+        rhs.values[1] = 400;
+        montgomery_multiply(&mut lhs, &rhs);
+        let mut c = super::super::vector_type::zero();
+        c.values = [1, 2, 3, 4, 5, 6, 7, 8];
+        montgomery_multiply_by_constant(&mut c, 9);
+    }
+
+    #[test]
+    fn decompose_and_use_hint_smoke() {
+        let mut t = super::super::vector_type::zero();
+        t.values = [100, 200, 300, 400, 500, 600, 700, 800];
+        let mut low = super::super::vector_type::zero();
+        let mut high = super::super::vector_type::zero();
+        decompose(GAMMA2_V95_232, &t, &mut low, &mut high);
+        let mut hint = super::super::vector_type::zero();
+        hint.values = [0, 1, 0, 1, 0, 0, 1, 0];
+        use_hint(GAMMA2_V95_232, &t, &mut hint);
+        let mut low2 = super::super::vector_type::zero();
+        let mut high2 = super::super::vector_type::zero();
+        decompose(GAMMA2_V261_888, &t, &mut low2, &mut high2);
+        let mut hint2 = super::super::vector_type::zero();
+        hint2.values = [1; 8];
+        use_hint(GAMMA2_V261_888, &t, &mut hint2);
+    }
+
+    #[test]
+    fn compute_hint_counts_ones() {
+        let mut low = super::super::vector_type::zero();
+        let mut high = super::super::vector_type::zero();
+        low.values = [100, -200, 300, 400, 500, 600, 700, 800];
+        high.values = [1, 0, 1, 0, 0, 0, 0, 0];
+        let mut hint = super::super::vector_type::zero();
+        let n = compute_hint(&low, &high, GAMMA2_V95_232, &mut hint);
+        assert!(n <= 8);
+        let n2 = compute_hint(&low, &high, GAMMA2_V261_888, &mut hint);
+        assert!(n2 <= 8);
+    }
+
+    #[test]
+    fn shift_left_then_reduce_smoke() {
+        let mut u = super::super::vector_type::zero();
+        u.values = [1, 2, 3, 4, 5, 6, 7, 8];
+        shift_left_then_reduce::<13>(&mut u);
+    }
+
+    #[test]
+    fn use_one_hint_more_branches_95() {
+        let _ = use_one_hint(GAMMA2_V95_232, 100, 1);
+        let _ = use_one_hint(GAMMA2_V95_232, -100, 1);
+        let _ = use_one_hint(GAMMA2_V95_232, 4_000_000, 0);
+    }
+
+    #[test]
+    fn use_one_hint_more_branches_261() {
+        let _ = use_one_hint(GAMMA2_V261_888, 100, 1);
+        let _ = use_one_hint(GAMMA2_V261_888, -50, 1);
+        let _ = use_one_hint(GAMMA2_V261_888, 4_000_000, 0);
+    }
 }

@@ -60,7 +60,7 @@ Coverage is enforced in layers:
 
 - **Pull requests** ([`pr.yml`](../.github/workflows/pr.yml)): tarpaulin runs for the **affected** workspace package with package-specific **line** floors (ratcheted over time). The reusable `rust-test` action uses [`check-coverage-metrics.sh`](../scripts/check-coverage-metrics.sh). Optional input `coverage-branch-threshold` applies only when Cobertura includes branch data.
 - **Scheduled / path-triggered** ([`coverage.yml`](../.github/workflows/coverage.yml)): per-crate runs via `run-coverage.sh` and combined artifacts.
-- **Security-critical subset** ([`security-critical-coverage.yml`](../.github/workflows/security-critical-coverage.yml)): scoped `include-files` on facade modules; optional branch floor (no-op when `branches-valid=0`).
+- **Security-critical subset** ([`security-critical-coverage.yml`](../.github/workflows/security-critical-coverage.yml)): Tarpaulin `--include-files` limited to `lib-q-sig/src/lib.rs`, `ml_dsa.rs`, and `provider.rs` (the sources built under `std`+`ml-dsa`), with a **70%** line floor; optional branch floor (no-op when `branches-valid=0`).
 
 PR line floors are **lower than** the 80%/95% policy targets until every gated crate consistently meets the next milestone; then raise the numbers in `pr.yml` (and usually `COVERAGE_THRESHOLD` in `coverage.yml`) together.
 

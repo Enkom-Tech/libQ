@@ -349,4 +349,16 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_security_config_roundtrip() {
+        let orig = get_security_config();
+        set_security_config(orig);
+        assert_eq!(get_security_config(), orig);
+    }
+
+    #[test]
+    fn test_security_context_new() {
+        let _ctx = SecurityContext::new();
+    }
 }
