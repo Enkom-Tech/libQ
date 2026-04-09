@@ -3,13 +3,15 @@ use crate::simd::portable::vector_type::Coefficients;
 
 // If t0 is a signed representative, change it to an unsigned one and
 // vice versa.
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(t0 > i32::MIN + 4096)]
 fn change_t0_interval(t0: i32) -> i32 {
     (1 << (BITS_IN_LOWER_PART_OF_T - 1)) - t0
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"
     (forall i. bounded (Seq.index simd_unit.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) 13)
  /\ (Seq.length $serialized == 13)
@@ -41,7 +43,8 @@ pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
     serialized[12] = (coefficient7 >> 5) as u8;
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == 13)]
 pub fn deserialize(serialized: &[u8], simd_unit: &mut Coefficients) {
     debug_assert!(serialized.len() == 13);

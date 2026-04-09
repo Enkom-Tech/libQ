@@ -37,7 +37,8 @@ impl PreHash for SHAKE128_PH {
         SHAKE128_OID
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn hash<Shake128: hash_functions::shake128::Xof>(message: &[u8], output: &mut [u8]) {
         debug_assert_eq!(output.len(), 256);
         Shake128::shake128(message, output);

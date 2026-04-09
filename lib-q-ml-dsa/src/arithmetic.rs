@@ -5,7 +5,8 @@ use crate::constants::{
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"v $bound > 0 /\ 
         (forall i. forall j. Spec.Utils.is_i32b_array_opaque 
@@ -18,7 +19,8 @@ pub(crate) fn vector_infinity_norm_exceeds<SIMDUnit: Operations>(
     vector.iter().any(|elem| elem.infinity_norm_exceeds(bound))
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"v $SHIFT_BY == 13 /\ 
         (forall i. forall j.
@@ -40,7 +42,8 @@ pub(crate) fn shift_left_then_reduce<SIMDUnit: Operations, const SHIFT_BY: i32>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"${t.len()} == ${t1.len()} /\
     (forall i. forall j. 
@@ -86,7 +89,8 @@ pub(crate) fn power2round_vector<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
         (v $gamma2 == v ${crate::constants::GAMMA2_V261_888} \/ 
@@ -121,7 +125,8 @@ pub(crate) fn decompose_vector<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
         (v $gamma2 == v ${crate::constants::GAMMA2_V261_888} \/ 
@@ -160,7 +165,8 @@ pub(crate) fn make_hint<SIMDUnit: Operations>(
     true_hints
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
         (v $gamma2 == v ${crate::constants::GAMMA2_V261_888} \/ 

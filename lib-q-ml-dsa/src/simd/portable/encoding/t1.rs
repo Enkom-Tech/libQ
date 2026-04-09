@@ -2,7 +2,8 @@ use crate::constants::BITS_IN_UPPER_PART_OF_T;
 use crate::helper::cloop;
 use crate::simd::portable::vector_type::Coefficients;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == 10)]
 pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
     debug_assert!(serialized.len() == 10);
@@ -23,7 +24,8 @@ pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == 10)]
 pub fn deserialize(serialized: &[u8], simd_unit: &mut Coefficients) {
     debug_assert!(serialized.len() == 10);

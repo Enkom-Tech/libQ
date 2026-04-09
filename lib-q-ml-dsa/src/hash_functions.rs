@@ -115,7 +115,8 @@ pub(crate) mod portable {
         state3: KeccakState,
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake128X4 {
         let mut state0 = incremental::shake128_init();
         incremental::shake128_absorb_final(&mut state0, input0);
@@ -137,7 +138,8 @@ pub(crate) mod portable {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_five_blocks(
         state: &mut Shake128X4,
         out0: &mut [u8; shake128::FIVE_BLOCKS_SIZE],
@@ -151,7 +153,8 @@ pub(crate) mod portable {
         incremental::shake128_squeeze_first_five_blocks(&mut state.state3, out3);
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block(
         state: &mut Shake128X4,
     ) -> (
@@ -173,12 +176,14 @@ pub(crate) mod portable {
     }
 
     impl shake128::XofX4 for Shake128X4 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Self {
             init_absorb(input0, input1, input2, input3)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_five_blocks(
             &mut self,
             out0: &mut [u8; shake128::FIVE_BLOCKS_SIZE],
@@ -189,7 +194,8 @@ pub(crate) mod portable {
             squeeze_first_five_blocks(self, out0, out1, out2, out3);
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block(
             &mut self,
         ) -> (
@@ -206,13 +212,15 @@ pub(crate) mod portable {
     #[cfg_attr(hax, hax_lib::opaque)]
     pub(crate) struct Shake128 {}
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn shake128(input: &[u8], out: &mut [u8]) {
         crate::sha3_shim::portable::shake128(out, input);
     }
 
     impl shake128::Xof for Shake128 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn shake128(input: &[u8], out: &mut [u8]) {
             shake128(input, out);
         }
@@ -224,26 +232,30 @@ pub(crate) mod portable {
         state: KeccakState,
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn shake256<const OUTPUT_LENGTH: usize>(input: &[u8], out: &mut [u8; OUTPUT_LENGTH]) {
         crate::sha3_shim::portable::shake256(out, input);
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb_final_shake256(input: &[u8]) -> Shake256 {
         let mut state = incremental::shake256_init();
         incremental::shake256_absorb_final(&mut state, input);
         Shake256 { state }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_block_shake256(state: &mut Shake256) -> [u8; shake256::BLOCK_SIZE] {
         let mut out = [0u8; shake256::BLOCK_SIZE];
         incremental::shake256_squeeze_first_block(&mut state.state, &mut out);
         out
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block_shake256(state: &mut Shake256) -> [u8; shake256::BLOCK_SIZE] {
         let mut out = [0u8; shake256::BLOCK_SIZE];
         incremental::shake256_squeeze_next_block(&mut state.state, &mut out);
@@ -251,22 +263,26 @@ pub(crate) mod portable {
     }
 
     impl shake256::DsaXof for Shake256 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn shake256<const OUTPUT_LENGTH: usize>(input: &[u8], out: &mut [u8; OUTPUT_LENGTH]) {
             shake256(input, out);
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb_final(input: &[u8]) -> Self {
             init_absorb_final_shake256(input)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_block(&mut self) -> [u8; shake256::BLOCK_SIZE] {
             squeeze_first_block_shake256(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block(&mut self) -> [u8; shake256::BLOCK_SIZE] {
             squeeze_next_block_shake256(self)
         }
@@ -283,7 +299,8 @@ pub(crate) mod portable {
         state3: KeccakState,
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake256X4 {
         let mut state0 = incremental::shake256_init();
         incremental::shake256_absorb_final(&mut state0, input0);
@@ -305,7 +322,8 @@ pub(crate) mod portable {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_block_x4(
         state: &mut Shake256X4,
     ) -> (
@@ -326,7 +344,8 @@ pub(crate) mod portable {
         (out0, out1, out2, out3)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block_x4(
         state: &mut Shake256X4,
     ) -> (
@@ -348,12 +367,14 @@ pub(crate) mod portable {
     }
 
     impl shake256::XofX4 for Shake256X4 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Self {
             init_absorb_x4(input0, input1, input2, input3)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_block_x4(
             &mut self,
         ) -> (
@@ -365,7 +386,8 @@ pub(crate) mod portable {
             squeeze_first_block_x4(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block_x4(
             &mut self,
         ) -> (
@@ -377,7 +399,8 @@ pub(crate) mod portable {
             squeeze_next_block_x4(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
@@ -513,14 +536,16 @@ pub(crate) mod simd256 {
     }
 
     /// Init the state and absorb 4 blocks in parallel.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake128x4 {
         let mut state = x4::incremental::init();
         x4::incremental::shake128_absorb_final(&mut state, input0, input1, input2, input3);
         Shake128x4 { state }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_five_blocks(
         state: &mut Shake128x4,
         out0: &mut [u8; shake128::FIVE_BLOCKS_SIZE],
@@ -537,7 +562,8 @@ pub(crate) mod simd256 {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block(
         state: &mut Shake128x4,
     ) -> (
@@ -563,12 +589,14 @@ pub(crate) mod simd256 {
 
     impl shake128::XofX4 for Shake128x4 {
         /// Init the state and absorb 4 blocks in parallel.
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Self {
             init_absorb(input0, input1, input2, input3)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_five_blocks(
             &mut self,
             out0: &mut [u8; shake128::FIVE_BLOCKS_SIZE],
@@ -579,7 +607,8 @@ pub(crate) mod simd256 {
             squeeze_first_five_blocks(self, out0, out1, out2, out3);
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block(
             &mut self,
         ) -> (
@@ -598,12 +627,14 @@ pub(crate) mod simd256 {
         state: crate::sha3_shim::portable::KeccakState,
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn shake256<const OUTPUT_LENGTH: usize>(input: &[u8], out: &mut [u8; OUTPUT_LENGTH]) {
         crate::sha3_shim::portable::shake256(out, input);
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb_final_shake256(input: &[u8]) -> Shake256 {
         let mut state = crate::sha3_shim::portable::incremental::shake256_init();
         crate::sha3_shim::portable::incremental::shake256_absorb_final(&mut state, input);
@@ -611,7 +642,8 @@ pub(crate) mod simd256 {
         Shake256 { state }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_block_shake256(state: &mut Shake256) -> [u8; shake256::BLOCK_SIZE] {
         let mut out = [0u8; shake256::BLOCK_SIZE];
         crate::sha3_shim::portable::incremental::shake256_squeeze_first_block(
@@ -621,7 +653,8 @@ pub(crate) mod simd256 {
         out
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block_shake256(state: &mut Shake256) -> [u8; shake256::BLOCK_SIZE] {
         let mut out = [0u8; shake256::BLOCK_SIZE];
         crate::sha3_shim::portable::incremental::shake256_squeeze_next_block(
@@ -632,22 +665,26 @@ pub(crate) mod simd256 {
     }
 
     impl shake256::DsaXof for Shake256 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn shake256<const OUTPUT_LENGTH: usize>(input: &[u8], out: &mut [u8; OUTPUT_LENGTH]) {
             shake256(input, out)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb_final(input: &[u8]) -> Self {
             init_absorb_final_shake256(input)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_block(&mut self) -> [u8; shake256::BLOCK_SIZE] {
             squeeze_first_block_shake256(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block(&mut self) -> [u8; shake256::BLOCK_SIZE] {
             squeeze_next_block_shake256(self)
         }
@@ -659,14 +696,16 @@ pub(crate) mod simd256 {
         state: x4::incremental::KeccakStateX4,
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake256x4 {
         let mut state = x4::incremental::init();
         x4::incremental::shake256_absorb_final(&mut state, input0, input1, input2, input3);
         Shake256x4 { state }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_first_block_x4(
         state: &mut Shake256x4,
     ) -> (
@@ -690,7 +729,8 @@ pub(crate) mod simd256 {
         (out0, out1, out2, out3)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     fn squeeze_next_block_x4(
         state: &mut Shake256x4,
     ) -> (
@@ -714,7 +754,8 @@ pub(crate) mod simd256 {
         (out0, out1, out2, out3)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[allow(clippy::too_many_arguments)]
     fn shake256_x4<const OUT_LEN: usize>(
         input0: &[u8],
@@ -730,12 +771,14 @@ pub(crate) mod simd256 {
     }
 
     impl shake256::XofX4 for Shake256x4 {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Self {
             init_absorb_x4(input0, input1, input2, input3)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_first_block_x4(
             &mut self,
         ) -> (
@@ -747,7 +790,8 @@ pub(crate) mod simd256 {
             squeeze_first_block_x4(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn squeeze_next_block_x4(
             &mut self,
         ) -> (
@@ -759,7 +803,8 @@ pub(crate) mod simd256 {
             squeeze_next_block_x4(self)
         }
 
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],

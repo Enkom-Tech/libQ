@@ -2,7 +2,8 @@ use crate::constants::FIELD_MODULUS;
 #[cfg(hax)]
 use crate::specs::simd::portable::sample::*;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(rejection_sample_less_than_field_modulus_pre(randomness, out))]
 #[hax_lib::ensures(|r| rejection_sample_less_than_field_modulus_post(randomness, future(out), r))]
 pub fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i32]) -> usize {
@@ -53,7 +54,8 @@ pub fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i3
     sampled
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 800 --ext context_pruning --z3refresh")]
 #[hax_lib::requires(rejection_sample_less_than_eta_equals_2_pre(randomness, out))]
 #[hax_lib::ensures(|r| rejection_sample_less_than_eta_equals_2_post(randomness, future(out), r))]
@@ -127,7 +129,8 @@ pub fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32
     sampled
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--ext context_pruning --z3refresh")]
 #[hax_lib::requires(rejection_sample_less_than_eta_equals_4_pre(randomness, out))]
 #[hax_lib::ensures(|r| rejection_sample_less_than_eta_equals_4_post(randomness, future(out), r))]

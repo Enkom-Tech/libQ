@@ -6,7 +6,8 @@ use crate::{
     encoding,
 };
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     commitment_hash: &[u8],
@@ -53,7 +54,8 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     columns_in_a: usize,
@@ -126,7 +128,8 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
     Ok(())
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn set_hint(out_hint: &mut [[i32; 256]], i: usize, j: usize) {
     out_hint[i][j] = 1
 }

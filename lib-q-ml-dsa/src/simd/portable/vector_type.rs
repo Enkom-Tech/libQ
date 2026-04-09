@@ -9,21 +9,24 @@ pub(crate) struct Coefficients {
     pub(super) values: [FieldElement; COEFFICIENTS_IN_SIMD_UNIT],
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn zero() -> Coefficients {
     Coefficients {
         values: [0i32; COEFFICIENTS_IN_SIMD_UNIT],
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(array.len() == COEFFICIENTS_IN_SIMD_UNIT)]
 pub(crate) fn from_coefficient_array(array: &[i32], out: &mut Coefficients) {
     out.values
         .copy_from_slice(&array[0..COEFFICIENTS_IN_SIMD_UNIT])
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(out.len() == COEFFICIENTS_IN_SIMD_UNIT)]
 pub(crate) fn to_coefficient_array(
     value: &Coefficients,

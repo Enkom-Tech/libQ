@@ -6,7 +6,8 @@ use crate::ntt::ntt;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     eta: Eta,
     re: &PolynomialRingElement<SIMDUnit>,
@@ -24,7 +25,8 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn chunk_size(eta: Eta) -> usize {
     match eta {
         Eta::Two => 3,
@@ -32,7 +34,8 @@ fn chunk_size(eta: Eta) -> usize {
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn deserialize<SIMDUnit: Operations>(
     eta: Eta,
     serialized: &[u8],
@@ -49,7 +52,8 @@ fn deserialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn deserialize_to_vector_then_ntt<SIMDUnit: Operations>(
     eta: Eta,
     ring_element_size: usize,

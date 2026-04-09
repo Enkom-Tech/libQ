@@ -21,7 +21,8 @@ pub(crate) trait X4Sampler {
     );
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn matrix_flat<SIMDUnit: Operations, Shake128: shake128::XofX4>(
     columns: usize,
     seed: &[u8],
@@ -81,7 +82,8 @@ pub(crate) mod neon {
 
     pub(crate) struct NeonSampler {}
     impl X4Sampler for NeonSampler {
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         fn matrix_flat<SIMDUnit: Operations>(
             columns: usize,
             seed: &[u8],
@@ -122,7 +124,8 @@ pub(crate) mod avx2 {
 }
 
 // Not inling this causes a 10x slow-down
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn sample_s1_and_s2<SIMDUnit: Operations, Shake256X4: shake256::XofX4>(
     eta: Eta,
     seed: &[u8],

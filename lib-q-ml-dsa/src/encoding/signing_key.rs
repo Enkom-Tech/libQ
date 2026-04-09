@@ -11,7 +11,8 @@ use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     eta: Eta,

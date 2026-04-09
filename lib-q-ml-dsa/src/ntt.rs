@@ -1,25 +1,29 @@
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn ntt<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {
     SIMDUnit::ntt(&mut re.simd_units);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn invert_ntt_montgomery<SIMDUnit: Operations>(
     re: &mut PolynomialRingElement<SIMDUnit>,
 ) {
     SIMDUnit::invert_ntt_montgomery(&mut re.simd_units);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 // Barrett reduce all coefficients.
 pub(crate) fn reduce<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {
     SIMDUnit::reduce(&mut re.simd_units);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn ntt_multiply_montgomery<SIMDUnit: Operations>(
     lhs: &mut PolynomialRingElement<SIMDUnit>,
     rhs: &PolynomialRingElement<SIMDUnit>,

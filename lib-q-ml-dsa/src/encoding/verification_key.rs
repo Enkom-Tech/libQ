@@ -7,7 +7,8 @@ use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn generate_serialized<SIMDUnit: Operations>(
     seed: &[u8],
     t1: &[PolynomialRingElement<SIMDUnit>],
@@ -26,7 +27,8 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     rows_in_a: usize,
     verification_key_size: usize,

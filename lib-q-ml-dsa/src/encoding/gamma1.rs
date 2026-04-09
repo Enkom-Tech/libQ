@@ -2,7 +2,8 @@ use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [u8], // OUTPUT_BYTES
@@ -19,7 +20,8 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     gamma1_exponent: usize,
     serialized: &[u8],

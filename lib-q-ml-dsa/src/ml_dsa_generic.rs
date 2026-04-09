@@ -72,7 +72,8 @@ pub(crate) mod ml_dsa_44 {
         BITS_PER_GAMMA1_COEFFICIENT,
     );
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn generate_key_pair<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -146,7 +147,8 @@ pub(crate) mod ml_dsa_44 {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -369,7 +371,8 @@ pub(crate) mod ml_dsa_44 {
         Ok(())
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -480,7 +483,8 @@ pub(crate) mod ml_dsa_44 {
         Err(VerificationError::CommitmentHashesDontMatchError)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -516,7 +520,8 @@ pub(crate) mod ml_dsa_44 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -559,7 +564,8 @@ pub(crate) mod ml_dsa_44 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -587,7 +593,8 @@ pub(crate) mod ml_dsa_44 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -617,7 +624,8 @@ pub(crate) mod ml_dsa_44 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -643,7 +651,8 @@ pub(crate) mod ml_dsa_44 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -739,7 +748,8 @@ pub(crate) mod ml_dsa_65 {
         BITS_PER_GAMMA1_COEFFICIENT,
     );
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn generate_key_pair<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -813,7 +823,8 @@ pub(crate) mod ml_dsa_65 {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1036,7 +1047,8 @@ pub(crate) mod ml_dsa_65 {
         Ok(())
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1147,7 +1159,8 @@ pub(crate) mod ml_dsa_65 {
         Err(VerificationError::CommitmentHashesDontMatchError)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1183,7 +1196,8 @@ pub(crate) mod ml_dsa_65 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1226,7 +1240,8 @@ pub(crate) mod ml_dsa_65 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1254,7 +1269,8 @@ pub(crate) mod ml_dsa_65 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1284,7 +1300,8 @@ pub(crate) mod ml_dsa_65 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1310,7 +1327,8 @@ pub(crate) mod ml_dsa_65 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1361,7 +1379,8 @@ pub(crate) mod ml_dsa_65 {
 /// for details on the domain separation for regular ML-DSA. Line
 /// 23 of Algorithm 4 (and line 18 of Algorithm 5,resp.) describe domain separation for the HashMl-DSA
 /// variant.
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn derive_message_representative<Shake256Xof: shake256::Xof>(
     verification_key_hash: &[u8],
     domain_separation_context: &Option<DomainSeparationContext>,
@@ -1450,7 +1469,8 @@ pub(crate) mod ml_dsa_87 {
         BITS_PER_GAMMA1_COEFFICIENT,
     );
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn generate_key_pair<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1524,7 +1544,8 @@ pub(crate) mod ml_dsa_87 {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1747,7 +1768,8 @@ pub(crate) mod ml_dsa_87 {
         Ok(())
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_internal<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1858,7 +1880,8 @@ pub(crate) mod ml_dsa_87 {
         Err(VerificationError::CommitmentHashesDontMatchError)
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1894,7 +1917,8 @@ pub(crate) mod ml_dsa_87 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1937,7 +1961,8 @@ pub(crate) mod ml_dsa_87 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign_mut<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1965,7 +1990,8 @@ pub(crate) mod ml_dsa_87 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn sign<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -1995,7 +2021,8 @@ pub(crate) mod ml_dsa_87 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify<
         SIMDUnit: Operations,
         Sampler: X4Sampler,
@@ -2021,7 +2048,8 @@ pub(crate) mod ml_dsa_87 {
         )
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub(crate) fn verify_pre_hashed<
         SIMDUnit: Operations,
         Sampler: X4Sampler,

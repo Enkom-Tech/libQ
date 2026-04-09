@@ -10,7 +10,8 @@ use crate::simd::traits::Operations;
 
 const OUTPUT_BYTES_PER_SIMD_UNIT: usize = 13;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [u8], // RING_ELEMENT_OF_T0S_SIZE
@@ -22,7 +23,8 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn deserialize<SIMDUnit: Operations>(
     serialized: &[u8],
     result: &mut PolynomialRingElement<SIMDUnit>,
@@ -35,7 +37,8 @@ fn deserialize<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn deserialize_to_vector_then_ntt<SIMDUnit: Operations>(
     serialized: &[u8],
     ring_elements: &mut [PolynomialRingElement<SIMDUnit>],

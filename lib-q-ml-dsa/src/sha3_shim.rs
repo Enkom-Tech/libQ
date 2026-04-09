@@ -20,14 +20,16 @@ use lib_q_sha3::{
 };
 
 /// A portable SHAKE128 implementation compatible with libcrux API.
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub fn shake128(out: &mut [u8], input: &[u8]) {
     debug_assert!(out.len() <= u32::MAX as usize);
     Shake128::digest_xof(input, out);
 }
 
 /// A portable SHAKE256 implementation compatible with libcrux API.
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub fn shake256(out: &mut [u8], input: &[u8]) {
     debug_assert!(out.len() <= u32::MAX as usize);
     Shake256::digest_xof(input, out);
@@ -132,13 +134,15 @@ pub mod incremental {
     use super::*;
 
     /// Create a new SHAKE-128 state object.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_init() -> KeccakState {
         KeccakState::new_shake128()
     }
 
     /// Absorb final input for SHAKE-128.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_absorb_final(s: &mut KeccakState, data: &[u8]) {
         match s {
             KeccakState::Shake128 { hasher, reader } => {
@@ -153,7 +157,8 @@ pub mod incremental {
     }
 
     /// Squeeze three blocks for SHAKE-128.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[allow(dead_code)]
     pub fn shake128_squeeze_first_three_blocks(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168 * 3); // 3 blocks of 168 bytes
@@ -176,7 +181,8 @@ pub mod incremental {
 
     /// Squeeze first five blocks for SHAKE-128.
     /// This function maintains state properly by creating a reader and reading the first 5 blocks.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_squeeze_first_five_blocks(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168 * 5); // 5 blocks of 168 bytes
         match s {
@@ -198,7 +204,8 @@ pub mod incremental {
 
     /// Squeeze next block for SHAKE-128.
     /// This function should be called after squeeze_first_five_blocks to get the next block.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_squeeze_next_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168); // 1 block of 168 bytes
         match s {
@@ -219,13 +226,15 @@ pub mod incremental {
     }
 
     /// Create a new SHAKE-256 state object.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake256_init() -> KeccakState {
         KeccakState::new_shake256()
     }
 
     /// Absorb final input for SHAKE-256.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake256_absorb_final(s: &mut KeccakState, data: &[u8]) {
         match s {
             KeccakState::Shake256 { hasher, reader } => {
@@ -240,7 +249,8 @@ pub mod incremental {
     }
 
     /// Squeeze the first SHAKE-256 block.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake256_squeeze_first_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 136); // 1 block of 136 bytes
         match s {
@@ -261,7 +271,8 @@ pub mod incremental {
     }
 
     /// Squeeze the next SHAKE-256 block.
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake256_squeeze_next_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 136); // 1 block of 136 bytes
         match s {
@@ -300,7 +311,8 @@ pub mod avx2 {
 
         /// Perform 4 SHAKE256 operations in parallel using true SIMD
         #[allow(clippy::too_many_arguments)]
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         pub fn shake256(
             input0: &[u8],
             input1: &[u8],
@@ -525,7 +537,8 @@ pub mod neon {
 
         /// Perform 2 SHAKE256 operations in parallel using true SIMD
         #[allow(clippy::too_many_arguments)]
-        #[inline(always)]
+        #[cfg_attr(tarpaulin, inline(never))]
+        #[cfg_attr(not(tarpaulin), inline(always))]
         pub fn shake256(input0: &[u8], input1: &[u8], out0: &mut [u8], out1: &mut [u8]) {
             // True SIMD parallel processing using lib-q-keccak parallel functions
             let mut states = [

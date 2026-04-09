@@ -12,7 +12,8 @@ use crate::simd::traits::Operations;
 // Not inlining this makes key generation 3x slower for avx2. Only `inline` this
 // function costs 30% performance too.
 /// Compute InvertNTT(Â ◦ ŝ₁) + s₂
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn compute_as1_plus_s2<SIMDUnit: Operations>(
     rows_in_a: usize,
     columns_in_a: usize,
@@ -42,7 +43,8 @@ pub(crate) fn compute_as1_plus_s2<SIMDUnit: Operations>(
 }
 
 /// Compute InvertNTT(Â ◦ ŷ)
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn compute_matrix_x_mask<SIMDUnit: Operations>(
     rows_in_a: usize,
     columns_in_a: usize,
@@ -68,7 +70,8 @@ pub(crate) fn compute_matrix_x_mask<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn vector_times_ring_element<SIMDUnit: Operations>(
     vector: &mut [PolynomialRingElement<SIMDUnit>],
     ring_element: &PolynomialRingElement<SIMDUnit>,
@@ -79,7 +82,8 @@ pub(crate) fn vector_times_ring_element<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn add_vectors<SIMDUnit: Operations>(
     dimension: usize,
     lhs: &mut [PolynomialRingElement<SIMDUnit>],
@@ -90,7 +94,8 @@ pub(crate) fn add_vectors<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn subtract_vectors<SIMDUnit: Operations>(
     dimension: usize,
     lhs: &mut [PolynomialRingElement<SIMDUnit>],
@@ -102,7 +107,8 @@ pub(crate) fn subtract_vectors<SIMDUnit: Operations>(
 }
 
 /// Compute InvertNTT(Â ◦ ẑ - ĉ ◦ NTT(t₁2ᵈ))
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn compute_w_approx<SIMDUnit: Operations>(
     rows_in_a: usize,
     columns_in_a: usize,

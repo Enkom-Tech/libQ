@@ -4,7 +4,8 @@ use crate::simd::traits::Operations;
 
 // Each coefficient takes up 10 bits.
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [u8], // len RING_ELEMENT_OF_T1S_SIZE

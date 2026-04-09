@@ -52,7 +52,8 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         result
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::requires(fstar!(r#"v $bound > 0 /\ 
         (forall i. Spec.Utils.is_i32b_array_opaque 
             (v ${FIELD_MAX}) 
@@ -66,7 +67,8 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         result
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::requires(fstar!(r#"forall i. 
         add_pre (i0._super_4202118595671791609.f_repr (Seq.index self.f_simd_units i)) 
                 (i0._super_4202118595671791609.f_repr (Seq.index rhs.f_simd_units i))"#))]
@@ -85,7 +87,8 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::requires(fstar!(r#"forall i. 
         sub_pre (i0._super_4202118595671791609.f_repr (Seq.index self.f_simd_units i)) 
                 (i0._super_4202118595671791609.f_repr (Seq.index rhs.f_simd_units i))"#))]

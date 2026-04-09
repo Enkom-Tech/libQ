@@ -1,6 +1,7 @@
 use crate::simd::portable::vector_type::Coefficients;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r"Seq.length ${serialized} == 4 /\ (forall i. bounded (Seq.index ${simd_unit.values} i) 4)"))]
 #[hax_lib::ensures(|out| {
     let serialized_future = future(serialized);
@@ -32,7 +33,8 @@ fn serialize_4(simd_unit: &Coefficients, serialized: &mut [u8]) {
     serialized[3] = byte3;
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 300")]
 #[hax_lib::requires(fstar!(r"Seq.length ${serialized} == 6 /\ (forall i. bounded (Seq.index ${simd_unit.values} i) 6)"))]
 #[hax_lib::ensures(|out| {
@@ -72,7 +74,8 @@ pub fn serialize_6(simd_unit: &Coefficients, serialized: &mut [u8]) {
     serialized[5] = byte5;
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(
     fstar!(r"
         let d = Seq.length $serialized in

@@ -11,7 +11,8 @@ use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn rejection_sample_less_than_field_modulus<SIMDUnit: Operations>(
     randomness: &[u8],
     sampled_coefficients: &mut usize,
@@ -38,12 +39,14 @@ fn rejection_sample_less_than_field_modulus<SIMDUnit: Operations>(
     done
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn generate_domain_separator((row, column): (u8, u8)) -> u16 {
     (column as u16) | ((row as u16) << 8)
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn add_domain_separator(slice: &[u8], indices: (u8, u8)) -> [u8; 34] {
     let mut out = [0u8; 34];
 
@@ -64,7 +67,8 @@ pub(crate) fn add_domain_separator(slice: &[u8], indices: (u8, u8)) -> [u8; 34] 
 /// `tmp_stack[i]`, the ring element is written to `matrix` at the
 /// provided index in `indices[i]`.
 /// `rand_stack` is a working buffer that holds initial Shake output.
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sample_up_to_four_ring_elements_flat<
     SIMDUnit: Operations,
@@ -171,7 +175,8 @@ pub(crate) fn sample_up_to_four_ring_elements_flat<
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn rejection_sample_less_than_eta_equals_2<SIMDUnit: Operations>(
     randomness: &[u8],
     sampled_coefficients: &mut usize,
@@ -200,7 +205,8 @@ fn rejection_sample_less_than_eta_equals_2<SIMDUnit: Operations>(
     done
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn rejection_sample_less_than_eta_equals_4<SIMDUnit: Operations>(
     randomness: &[u8],
     sampled_coefficients: &mut usize,
@@ -229,7 +235,8 @@ fn rejection_sample_less_than_eta_equals_4<SIMDUnit: Operations>(
     done
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn rejection_sample_less_than_eta<SIMDUnit: Operations>(
     eta: Eta,
     randomness: &[u8],
@@ -242,7 +249,8 @@ pub(crate) fn rejection_sample_less_than_eta<SIMDUnit: Operations>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn add_error_domain_separator(slice: &[u8], domain_separator: u16) -> [u8; 66] {
     let mut out = [0u8; 66];
 
@@ -253,7 +261,8 @@ pub(crate) fn add_error_domain_separator(slice: &[u8], domain_separator: u16) ->
     out
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: shake256::XofX4>(
     eta: Eta,
     seed: &[u8],
@@ -354,7 +363,8 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn sample_mask_ring_element<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     seed: &[u8; 66],
     result: &mut PolynomialRingElement<SIMDUnit>,
@@ -375,7 +385,8 @@ fn sample_mask_ring_element<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn sample_mask_vector<
     SIMDUnit: Operations,
     Shake256: shake256::DsaXof,
@@ -437,7 +448,8 @@ pub(crate) fn sample_mask_vector<
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn inside_out_shuffle(
     randomness: &[u8],
     out_index: &mut usize,
@@ -466,7 +478,8 @@ fn inside_out_shuffle(
     done
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn sample_challenge_ring_element<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     seed: &[u8],
     number_of_ones: usize,
@@ -492,10 +505,7 @@ pub(crate) fn sample_challenge_ring_element<SIMDUnit: Operations, Shake256: shak
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::{
-        COEFFICIENTS_IN_RING_ELEMENT,
-        Eta,
-    };
+    use crate::constants::COEFFICIENTS_IN_RING_ELEMENT;
     use crate::hash_functions;
     use crate::simd::traits::Operations;
     use crate::simd::{
@@ -618,6 +628,7 @@ mod tests {
     #[cfg(not(feature = "simd256"))]
     mod portable {
         use super::*;
+        use crate::constants::Eta;
 
         #[test]
         fn test_sample_ring_element_uniform() {

@@ -1,7 +1,8 @@
 use crate::helper::cloop;
 use crate::simd::portable::vector_type::Coefficients;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"(forall i. bounded (Seq.index ${simd_unit.values} i) 17) /\ Seq.length $serialized == 18"#))]
 fn serialize_when_gamma1_is_2_pow_17(simd_unit: &Coefficients, serialized: &mut [u8]) {
     const GAMMA1: i32 = 1 << 17;
@@ -37,7 +38,8 @@ fn serialize_when_gamma1_is_2_pow_17(simd_unit: &Coefficients, serialized: &mut 
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"(forall i. bounded (Seq.index ${simd_unit.values} i) 19) /\ Seq.length $serialized == 20"#))]
 fn serialize_when_gamma1_is_2_pow_19(simd_unit: &Coefficients, serialized: &mut [u8]) {
     const GAMMA1: i32 = 1 << 19;
@@ -61,7 +63,8 @@ fn serialize_when_gamma1_is_2_pow_19(simd_unit: &Coefficients, serialized: &mut 
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"
        (v $gamma1_exponent == 17 \/ v $gamma1_exponent == 19)
     /\ (forall i. bounded (Seq.index ${simd_unit.values} i) (v $gamma1_exponent))
@@ -75,7 +78,8 @@ pub(crate) fn serialize(simd_unit: &Coefficients, serialized: &mut [u8], gamma1_
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"Seq.length $serialized == 18"#))]
 fn deserialize_when_gamma1_is_2_pow_17(serialized: &[u8], simd_unit: &mut Coefficients) {
     // Each set of 9 bytes deserializes to 4 elements, and since each PortableSIMDUnit
@@ -119,7 +123,8 @@ fn deserialize_when_gamma1_is_2_pow_17(serialized: &[u8], simd_unit: &mut Coeffi
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"Seq.length $serialized == 20"#))]
 fn deserialize_when_gamma1_is_2_pow_19(serialized: &[u8], simd_unit: &mut Coefficients) {
     // Each set of 5 bytes deserializes to 2 elements, and since each PortableSIMDUnit
@@ -148,7 +153,8 @@ fn deserialize_when_gamma1_is_2_pow_19(serialized: &[u8], simd_unit: &mut Coeffi
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"Seq.length $serialized == 1 + v $gamma1_exponent"#))]
 pub(crate) fn deserialize(serialized: &[u8], out: &mut Coefficients, gamma1_exponent: usize) {
     match gamma1_exponent {

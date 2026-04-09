@@ -2,7 +2,8 @@ use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 fn serialize<SIMDUnit: Operations>(re: &PolynomialRingElement<SIMDUnit>, serialized: &mut [u8]) {
     let output_bytes_per_simd_unit = serialized.len() / (8 * 4);
 
@@ -16,7 +17,8 @@ fn serialize<SIMDUnit: Operations>(re: &PolynomialRingElement<SIMDUnit>, seriali
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 pub(crate) fn serialize_vector<SIMDUnit: Operations>(
     ring_element_size: usize,
     vector: &[PolynomialRingElement<SIMDUnit>],

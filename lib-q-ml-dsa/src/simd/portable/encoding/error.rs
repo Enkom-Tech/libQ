@@ -2,7 +2,8 @@ use crate::constants::Eta;
 use crate::helper::cloop;
 use crate::simd::portable::vector_type::Coefficients;
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"(forall i. bounded (Seq.index ${simd_unit.values} i) 2) /\ Seq.length $serialized == 3"#))]
 fn serialize_when_eta_is_2(simd_unit: &Coefficients, serialized: &mut [u8]) {
     debug_assert!(serialized.len() == 3);
@@ -24,7 +25,8 @@ fn serialize_when_eta_is_2(simd_unit: &Coefficients, serialized: &mut [u8]) {
     serialized[2] = (coefficient7 << 5) | (coefficient6 << 2) | (coefficient5 >> 1);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"(forall i. bounded (Seq.index ${simd_unit.values} i) 4) /\ Seq.length $serialized == 4"#))]
 fn serialize_when_eta_is_4(simd_unit: &Coefficients, serialized: &mut [u8]) {
     const ETA: i32 = 4;
@@ -40,7 +42,8 @@ fn serialize_when_eta_is_4(simd_unit: &Coefficients, serialized: &mut [u8]) {
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(fstar!(r#"
     Seq.length serialized == (match eta with | Libcrux_ml_dsa.Constants.Eta_Two -> 3 | Libcrux_ml_dsa.Constants.Eta_Four -> 4)
  /\ (forall i. bounded (Seq.index simd_unit.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) (match eta with | Libcrux_ml_dsa.Constants.Eta_Two -> 2 | Libcrux_ml_dsa.Constants.Eta_Four -> 4))
@@ -53,7 +56,8 @@ pub(crate) fn serialize(eta: Eta, simd_unit: &Coefficients, serialized: &mut [u8
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == 3)]
 fn deserialize_when_eta_is_2(serialized: &[u8], simd_unit: &mut Coefficients) {
     debug_assert!(serialized.len() == 3);
@@ -78,7 +82,8 @@ fn deserialize_when_eta_is_2(serialized: &[u8], simd_unit: &mut Coefficients) {
     simd_unit.values[7] = ETA - ((byte2 >> 5) & 7);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == 4)]
 fn deserialize_when_eta_is_4(serialized: &[u8], simd_units: &mut Coefficients) {
     debug_assert!(serialized.len() == 4);
@@ -94,7 +99,8 @@ fn deserialize_when_eta_is_4(serialized: &[u8], simd_units: &mut Coefficients) {
         }
     }
 }
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::requires(serialized.len() == (match eta { Eta::Two => 3, Eta::Four => 4 }))]
 pub(crate) fn deserialize(eta: Eta, serialized: &[u8], out: &mut Coefficients) {
     // [eurydice] injects an unused variable here in the C code for some reason.

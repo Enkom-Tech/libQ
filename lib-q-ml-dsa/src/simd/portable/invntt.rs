@@ -10,7 +10,8 @@ use crate::simd::traits::{
     SIMD_UNITS_IN_RING_ELEMENT,
 };
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 300 --split_queries always")]
 #[hax_lib::fstar::before(
     r#"
@@ -44,7 +45,8 @@ fn simd_unit_inv_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize,
     simd_unit.values[index + step] = montgomery_multiply_fe_by_fer(a_minus_b, zeta);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 300 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -70,7 +72,8 @@ pub fn simd_unit_invert_ntt_at_layer_0(
     simd_unit_inv_ntt_step(simd_unit, zeta3, 6, 1);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 300 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -88,7 +91,8 @@ pub fn simd_unit_invert_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta0: i32,
     simd_unit_inv_ntt_step(simd_unit, zeta1, 5, 2);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 300 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -105,7 +109,8 @@ pub fn simd_unit_invert_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) 
     simd_unit_inv_ntt_step(simd_unit, zeta, 3, 4);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -115,7 +120,8 @@ pub fn simd_unit_invert_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) 
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (2 * v $FIELD_MAX) ${re}_future
 "#) )]
 fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::fstar::options("--z3rlimit 100")]
     #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     #[hax_lib::requires(fstar!(r#"
@@ -180,7 +186,8 @@ fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 31, 3817976, 2316500, 3407706, 2091667);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -190,7 +197,8 @@ fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (4 * v $FIELD_MAX) ${re}_future
 "#) )]
 fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::fstar::options("--z3rlimit 100")]
     #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     #[hax_lib::requires(fstar!(r#"
@@ -251,7 +259,8 @@ fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 31, -1528703, -3930395);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -261,7 +270,8 @@ fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (8 * v $FIELD_MAX) ${re}_future
 "#) )]
 fn invert_ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
-    #[inline(always)]
+    #[cfg_attr(tarpaulin, inline(never))]
+    #[cfg_attr(not(tarpaulin), inline(always))]
     #[hax_lib::fstar::options("--z3rlimit 100")]
     #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     #[hax_lib::requires(fstar!(r#"
@@ -316,7 +326,8 @@ fn invert_ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 31, 2706023);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::before(
     r#"
 let layer_bound_factor (step_by:usize) : n:nat{n <= 128} =
@@ -377,7 +388,8 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     }
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -424,7 +436,8 @@ fn invert_ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (15 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 2725464>(re);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -455,7 +468,8 @@ fn invert_ntt_at_layer_4(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (7 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 1826347>(re);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -479,7 +493,8 @@ fn invert_ntt_at_layer_5(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (3 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 237124>(re);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -498,7 +513,8 @@ fn invert_ntt_at_layer_6(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (1 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, -2608894>(re);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 400 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
@@ -515,7 +531,8 @@ fn invert_ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (0 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 25847>(re);
 }
 
-#[inline(always)]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
