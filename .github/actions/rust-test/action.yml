@@ -62,8 +62,6 @@ runs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-rust-
     
     - name: Set coverage skip flag
       id: coverage-skip
@@ -193,6 +191,9 @@ runs:
             cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
           fi
         else
+          # Avoid rustc E0460 when Actions cache restores target/: a fresh lib_q_core.rlib can pair with
+          # a stale lib_q_tweak_aead rlib (path deps share a Cargo.lock cache key across commits).
+          cargo clean -p lib-q-tweak-aead
           if [[ -n "$PACKAGES" ]]; then
             SHARED_FLAGS=""
             for item in $PACKAGES; do

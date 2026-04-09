@@ -39,6 +39,22 @@ macro_rules! instantiate {
                 }
             }
 
+            /// Generate an ML-DSA-87 Key Pair
+            pub fn generate_key_pair_mut(
+                randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+                signing_key: &mut [u8; ml_dsa_87::SIGNING_KEY_SIZE],
+                verification_key: &mut [u8; ml_dsa_87::VERIFICATION_KEY_SIZE],
+            ) {
+                crate::ml_dsa_generic::ml_dsa_87::generate_key_pair::<
+                    crate::simd::portable::PortableSIMDUnit,
+                    crate::samplex4::portable::PortableSampler,
+                    crate::hash_functions::portable::Shake128X4,
+                    crate::hash_functions::portable::Shake256,
+                    crate::hash_functions::portable::Shake256Xof,
+                    crate::hash_functions::portable::Shake256X4,
+                >(randomness, signing_key, verification_key);
+            }
+
             /// Generate an ML-DSA-87 Signature
             ///
             /// The parameter `context` is used for domain separation

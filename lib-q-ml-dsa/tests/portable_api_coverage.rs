@@ -187,7 +187,11 @@ mod p65 {
 }
 
 mod p87 {
-    use lib_q_ml_dsa::ml_dsa_87::MLDSA87Signature;
+    use lib_q_ml_dsa::ml_dsa_87::{
+        MLDSA87Signature,
+        MLDSA87SigningKey,
+        MLDSA87VerificationKey,
+    };
 
     use super::*;
 
@@ -243,5 +247,15 @@ mod p87 {
             .expect("sm");
         let sig = MLDSA87Signature::new(buf);
         ml_dsa_87::verify(&kp.verification_key, b"sm87", b"", &sig).expect("v");
+    }
+
+    #[test]
+    fn keygen_mut_matches_generate_key_pair() {
+        let mut sk = *MLDSA87SigningKey::zero().as_ref();
+        let mut vk = *MLDSA87VerificationKey::zero().as_ref();
+        ml_dsa_87::portable::generate_key_pair_mut(seed(8), &mut sk, &mut vk);
+        let kp2 = ml_dsa_87::generate_key_pair(seed(8));
+        assert_eq!(sk, *kp2.signing_key.as_ref());
+        assert_eq!(vk, *kp2.verification_key.as_ref());
     }
 }

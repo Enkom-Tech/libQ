@@ -492,7 +492,10 @@ pub(crate) fn sample_challenge_ring_element<SIMDUnit: Operations, Shake256: shak
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::COEFFICIENTS_IN_RING_ELEMENT;
+    use crate::constants::{
+        COEFFICIENTS_IN_RING_ELEMENT,
+        Eta,
+    };
     use crate::hash_functions;
     use crate::simd::traits::Operations;
     use crate::simd::{
@@ -537,86 +540,6 @@ mod tests {
 
         PolynomialRingElement::<SIMDUnit>::from_i32_array(&tmp_stack, re);
     }
-
-    // // This is just a wrapper around sample_four_ring_elements, for testing
-    // // purposes.
-    // fn sample_error_ring_element<
-    //     SIMDUnit: Operations,
-    //     Shake256X4: shake256::XofX4,
-    //     const ETA: usize,
-    // >(
-    //     seed: &[u8],
-    //     start_index: u16,
-    // ) -> PolynomialRingElement<SIMDUnit> {
-    //     let mut s = [PolynomialRingElement::ZERO(); 6];
-    //     // let start_index = ((seed[65] as u16) << 8) | (seed[64] as u16);
-    //     // std::eprintln!("start_index: {start_index}");
-    //     sample_four_error_ring_elements::<SIMDUnit, Shake256X4, ETA>(&seed, start_index, &mut s);
-
-    //     for i in 0..s.len() {
-    //         std::eprintln!("{:?}", s[i].to_i32_array());
-    //     }
-
-    //     s[start_index as usize]
-    // }
-
-    // fn test_sample_error_ring_element_generic<SIMDUnit: Operations, Shake256: shake256::XofX4>() {
-    //     // When ETA = 2
-    //     let seed: [u8; 64] = [
-    //         51, 203, 133, 235, 126, 210, 169, 81, 4, 134, 147, 168, 252, 67, 176, 99, 130, 186,
-    //         254, 103, 241, 199, 173, 78, 121, 232, 12, 244, 4, 143, 8, 174, 122, 170, 124, 35, 53,
-    //         49, 202, 94, 27, 249, 200, 186, 175, 198, 169, 116, 244, 227, 133, 111, 205, 140, 233,
-    //         110, 227, 67, 35, 226, 194, 75, 130, 105,
-    //     ];
-    //     let start_index = 5;
-
-    //     let expected_coefficients: [i32; COEFFICIENTS_IN_RING_ELEMENT] = [
-    //         1, 0, -1, 0, 1, -2, -1, 0, -2, 2, -1, -2, 1, -2, 1, -2, 1, 2, -2, 2, -2, -1, 0, -2, -1,
-    //         -2, -2, 1, 1, -1, 1, 1, 2, -2, 2, -1, 1, 2, 0, 2, -1, 0, 2, -2, -2, 2, 0, 2, 1, 1, 2,
-    //         1, 1, -2, 1, -1, 2, -2, -2, 2, -2, -2, 0, 0, -1, 0, 2, 0, 1, 2, 0, 2, -1, 2, 0, 2, 1,
-    //         -2, -2, 0, -1, -2, 2, -2, -1, 2, 1, -1, 2, 1, -2, -1, 1, -1, -1, -1, 2, -1, -2, -2, 2,
-    //         2, 0, -1, -1, -2, 0, -1, 0, 1, 2, -2, 0, 2, 2, 1, 0, -1, -1, 0, -2, 2, 2, -2, 2, 1, -1,
-    //         -2, -1, -2, -1, 1, 2, 2, -1, 0, 1, 2, -1, 0, 0, 0, 1, 1, -1, -1, -1, -2, 2, 0, -2, 0,
-    //         2, -1, 1, 1, 2, -2, 2, -2, 1, 0, -2, 1, 0, 0, -2, -2, 2, 2, -2, -1, 2, -2, 1, 0, 0, -1,
-    //         0, -2, 2, -1, -2, 2, -1, 1, -2, -1, 0, -2, 2, 1, 2, 2, 2, 0, 2, 2, 2, 0, 2, 2, 2, -1,
-    //         -2, 1, 1, 0, -2, 1, 0, 0, -2, 1, -2, -1, 2, 0, 0, 2, 0, -2, -1, -1, 2, 2, -1, -1, -1,
-    //         -2, -2, -1, -2, 2, -2, 0, 1, 0, -2, -2, 2, 0, 1, 0, 0, -2, -1, 1, -1, 1, -1, -1, -1, 2,
-    //         2, 0,
-    //     ];
-
-    //     assert_eq!(
-    //         sample_error_ring_element::<SIMDUnit, Shake256, 2>(&seed, start_index).to_i32_array(),
-    //         expected_coefficients
-    //     );
-
-    //     // When ETA = 4
-    //     let seed: [u8; 66] = [
-    //         236, 4, 148, 239, 41, 178, 188, 226, 130, 212, 6, 144, 208, 180, 180, 105, 47, 148, 75,
-    //         195, 181, 177, 5, 140, 204, 68, 24, 132, 169, 19, 68, 118, 67, 203, 13, 152, 29, 194,
-    //         235, 123, 101, 109, 162, 137, 198, 164, 97, 247, 11, 44, 34, 49, 235, 251, 243, 177,
-    //         213, 141, 65, 232, 136, 163, 85, 54, 10, 0,
-    //     ];
-
-    //     let expected_coefficients: [i32; COEFFICIENTS_IN_RING_ELEMENT] = [
-    //         2, -4, 2, -2, 1, 2, 4, 2, 4, -1, -4, 3, 2, 4, -1, 2, -3, 3, 1, -2, 0, 3, -2, 3, 4, 1,
-    //         -3, -2, 0, -4, -1, -4, 3, -4, 0, -3, -2, -3, 2, -3, -3, 3, -4, -3, -4, 1, -2, 4, -3, 4,
-    //         4, 1, -3, -3, 4, 0, -2, 2, 4, -4, 4, -4, -1, -3, 4, 3, 2, -1, 3, -2, -2, -4, -1, -1, 4,
-    //         1, 4, 0, 3, 4, -1, -3, 4, -4, 4, 1, -3, 0, -4, 2, 1, 4, -1, 0, -2, -2, -3, 3, -3, 4, 3,
-    //         2, -2, -2, -1, 2, -1, -4, 3, 0, -2, 4, -1, 0, 4, -2, 4, -3, 2, -4, 2, 3, 3, 2, -4, 2,
-    //         0, -2, 1, -4, 0, -4, -3, 2, 0, -2, -4, 1, 2, 3, 4, -4, 2, 2, 1, -4, 0, -4, -3, -2, -2,
-    //         -2, -1, 1, 4, 1, 0, -2, 2, 1, 4, -4, -1, 0, -1, -3, 2, 1, 3, 3, 4, -2, -2, 3, 1, 3, 3,
-    //         -4, -2, -1, -4, -3, 4, 1, 2, -3, -1, 3, 4, -3, 0, -1, -1, -4, -2, 1, -2, 3, -1, -2, 2,
-    //         -1, -2, 0, -2, 2, 3, 3, 2, 3, 4, 3, -3, -4, 1, 4, -3, 2, 0, -4, 4, -4, 2, 4, -2, -3,
-    //         -4, 3, 0, 1, -2, 2, -1, 4, 4, 0, -1, 1, 4, -2, -3, 2, -2, 4, 2, 1, 1, 1, -3, -2, -2, 2,
-    //         2, -4, -1, 1,
-    //     ];
-
-    //     // FIXME
-    //     // assert_eq!(
-    //     //     sample_error_ring_element::<SIMDUnit, Shake256, 4>(seed).to_i32_array(),
-    //     //     expected_coefficients
-    //     // );
-    // }
 
     fn test_sample_challenge_ring_element_generic<
         SIMDUnit: Operations,
@@ -744,13 +667,36 @@ mod tests {
             );
         }
 
-        // #[test]
-        // fn test_sample_error_ring_element() {
-        //     test_sample_error_ring_element_generic::<
-        //         simd::portable::PortableSIMDUnit,
-        //         hash_functions::portable::Shake256X4,
-        //     >();
-        // }
+        #[test]
+        fn sample_four_error_ring_elements_eta2_x4_pipeline_smoke() {
+            let seed: [u8; 64] = [
+                51, 203, 133, 235, 126, 210, 169, 81, 4, 134, 147, 168, 252, 67, 176, 99, 130, 186,
+                254, 103, 241, 199, 173, 78, 121, 232, 12, 244, 4, 143, 8, 174, 122, 170, 124, 35,
+                53, 49, 202, 94, 27, 249, 200, 186, 175, 198, 169, 116, 244, 227, 133, 111, 205,
+                140, 233, 110, 227, 67, 35, 226, 194, 75, 130, 105,
+            ];
+            let start_index = 5u16;
+            let mut buf = [PolynomialRingElement::<simd::portable::PortableSIMDUnit>::zero(); 6];
+            sample_four_error_ring_elements::<
+                simd::portable::PortableSIMDUnit,
+                hash_functions::portable::Shake256X4,
+            >(Eta::Two, &seed, start_index, &mut buf);
+            let first = buf[5].to_i32_array();
+
+            let mut buf2 = [PolynomialRingElement::<simd::portable::PortableSIMDUnit>::zero(); 6];
+            sample_four_error_ring_elements::<
+                simd::portable::PortableSIMDUnit,
+                hash_functions::portable::Shake256X4,
+            >(Eta::Two, &seed, start_index, &mut buf2);
+            assert_eq!(first, buf2[5].to_i32_array());
+
+            for &c in &first {
+                assert!(
+                    (-2..=2).contains(&c),
+                    "ETA=2 coefficients must lie in [-2, 2], got {c}"
+                );
+            }
+        }
 
         #[test]
         fn test_sample_challenge_ring_element() {
@@ -812,14 +758,6 @@ mod tests {
                 "Deterministic RNG should produce identical results for same seed"
             );
         }
-
-        // #[test]
-        // fn test_sample_error_ring_element() {
-        //     test_sample_error_ring_element_generic::<
-        //         simd::avx2::AVX2SIMDUnit,
-        //         hash_functions::simd256::Shake256x4,
-        //     >();
-        // }
 
         #[test]
         fn test_sample_challenge_ring_element() {

@@ -130,3 +130,103 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
 fn set_hint(out_hint: &mut [[i32; 256]], i: usize, j: usize) {
     out_hint[i][j] = 1
 }
+
+#[cfg(all(test, feature = "mldsa44"))]
+mod malformed_hint_coverage {
+    use super::*;
+    use crate::constants::gamma1_ring_element_size;
+    use crate::constants::ml_dsa_44::{
+        BITS_PER_GAMMA1_COEFFICIENT,
+        COLUMNS_IN_A,
+        COMMITMENT_HASH_SIZE,
+        GAMMA1_EXPONENT,
+        MAX_ONES_IN_HINT,
+        ROWS_IN_A,
+        SIGNATURE_SIZE,
+    };
+    use crate::polynomial::PolynomialRingElement;
+    use crate::simd::portable::PortableSIMDUnit;
+
+    type S = PortableSIMDUnit;
+
+    fn gamma1_re_size() -> usize {
+        gamma1_ring_element_size(BITS_PER_GAMMA1_COEFFICIENT)
+    }
+
+    fn hint_byte_offset() -> usize {
+        COMMITMENT_HASH_SIZE + gamma1_re_size() * COLUMNS_IN_A
+    }
+
+    fn deserialize_all(serialized: &[u8]) -> Result<(), VerificationError> {
+        let mut commitment = [0u8; COMMITMENT_HASH_SIZE];
+        let mut signer_response = [PolynomialRingElement::<S>::zero(); COLUMNS_IN_A];
+        let mut hint = [[0i32; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+        deserialize::<S>(
+            COLUMNS_IN_A,
+            ROWS_IN_A,
+            COMMITMENT_HASH_SIZE,
+            GAMMA1_EXPONENT,
+            gamma1_re_size(),
+            MAX_ONES_IN_HINT,
+            SIGNATURE_SIZE,
+            serialized,
+            &mut commitment,
+            &mut signer_response,
+            &mut hint,
+        )
+    }
+
+    #[test]
+    fn rejects_decreasing_per_row_hint_counts() {
+        let mut buf = [0u8; SIGNATURE_SIZE];
+        let h0 = hint_byte_offset();
+        buf[h0] = 10;
+        buf[h0 + 1] = 20;
+        buf[h0 + MAX_ONES_IN_HINT] = 2;
+        buf[h0 + MAX_ONES_IN_HINT + 1] = 1;
+        assert!(matches!(
+            deserialize_all(&buf),
+            Err(VerificationError::MalformedHintError)
+        ));
+    }
+
+    #[test]
+    fn rejects_non_monotonic_indices_within_row() {
+        let mut buf = [0u8; SIGNATURE_SIZE];
+        let h0 = hint_byte_offset();
+        buf[h0] = 50;
+        buf[h0 + 1] = 40;
+        buf[h0 + MAX_ONES_IN_HINT] = 2;
+        for r in 1..ROWS_IN_A {
+            buf[h0 + MAX_ONES_IN_HINT + r] = 2;
+        }
+        assert!(matches!(
+            deserialize_all(&buf),
+            Err(VerificationError::MalformedHintError)
+        ));
+    }
+
+    #[test]
+    fn rejects_nonzero_padding_after_hints() {
+        let mut buf = [0u8; SIGNATURE_SIZE];
+        let h0 = hint_byte_offset();
+        buf[h0 + 5] = 7;
+        for r in 0..ROWS_IN_A {
+            buf[h0 + MAX_ONES_IN_HINT + r] = 0;
+        }
+        assert!(matches!(
+            deserialize_all(&buf),
+            Err(VerificationError::MalformedHintError)
+        ));
+    }
+
+    #[test]
+    fn accepts_minimal_valid_hint_encoding() {
+        let mut buf = [0u8; SIGNATURE_SIZE];
+        let h0 = hint_byte_offset();
+        for r in 0..ROWS_IN_A {
+            buf[h0 + MAX_ONES_IN_HINT + r] = 0;
+        }
+        assert!(deserialize_all(&buf).is_ok());
+    }
+}

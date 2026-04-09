@@ -806,6 +806,62 @@ fn simd_unit_invntt_layer0_deterministic() {
 }
 
 // ──────────────────────────────────────────────────────────────────
+// PortableSIMDUnit / Operations (decompose, hints, Montgomery, encodings)
+// ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn portable_operations_decompose_both_gamma2() {
+    use crate::constants::{
+        GAMMA2_V95_232,
+        GAMMA2_V261_888,
+    };
+    use crate::simd::portable::PortableSIMDUnit;
+    use crate::simd::traits::Operations;
+
+    let t = make_coefficients(&[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000]);
+    let mut low = make_coefficients(&[0i32; 8]);
+    let mut high = make_coefficients(&[0i32; 8]);
+    PortableSIMDUnit::decompose(GAMMA2_V95_232, &t, &mut low, &mut high);
+    PortableSIMDUnit::decompose(GAMMA2_V261_888, &t, &mut low, &mut high);
+}
+
+#[test]
+fn portable_operations_hint_montgomery_power2round_t1() {
+    use crate::constants::GAMMA2_V95_232;
+    use crate::simd::portable::PortableSIMDUnit;
+    use crate::simd::traits::Operations;
+
+    let t = make_coefficients(&[12000, 24000, 36000, 48000, 60000, 72000, 84000, 96000]);
+    let mut low = make_coefficients(&[0i32; 8]);
+    let mut high = make_coefficients(&[0i32; 8]);
+    PortableSIMDUnit::decompose(GAMMA2_V95_232, &t, &mut low, &mut high);
+
+    let mut hint = make_coefficients(&[0i32; 8]);
+    let _ones = PortableSIMDUnit::compute_hint(&low, &high, GAMMA2_V95_232, &mut hint);
+    let mut hint_copy = hint;
+    PortableSIMDUnit::use_hint(GAMMA2_V95_232, &high, &mut hint_copy);
+
+    assert!(!PortableSIMDUnit::infinity_norm_exceeds(&t, 200_000));
+    assert!(PortableSIMDUnit::infinity_norm_exceeds(&t, 1));
+
+    let mut t0 = make_coefficients(&[5000, 15000, 25000, 35000, 45000, 55000, 65000, 75000]);
+    let mut t1 = make_coefficients(&[0i32; 8]);
+    PortableSIMDUnit::power2round(&mut t0, &mut t1);
+
+    let rhs = make_coefficients(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut lhs = make_coefficients(&[10, 20, 30, 40, 50, 60, 70, 80]);
+    PortableSIMDUnit::montgomery_multiply(&mut lhs, &rhs);
+
+    let mut buf10 = [0u8; 10];
+    PortableSIMDUnit::t1_serialize(&rhs, &mut buf10);
+    let mut t1d = make_coefficients(&[0i32; 8]);
+    PortableSIMDUnit::t1_deserialize(&buf10, &mut t1d);
+
+    let mut sk = make_coefficients(&[100, 200, 300, 400, 500, 600, 700, 800]);
+    PortableSIMDUnit::shift_left_then_reduce::<13>(&mut sk);
+}
+
+// ──────────────────────────────────────────────────────────────────
 // Full NTT known-answer (second independent vector)
 // ──────────────────────────────────────────────────────────────────
 

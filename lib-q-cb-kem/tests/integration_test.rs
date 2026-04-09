@@ -3,12 +3,6 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(all(
-    feature = "alloc",
-    feature = "std",
-    any(feature = "cbkem348864", feature = "cbkem348864f")
-))]
-use lib_q_cb_kem::CRYPTO_CIPHERTEXTBYTES;
 #[cfg(feature = "alloc")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "alloc")]
@@ -123,7 +117,6 @@ fn test_cb_kem_unsupported_algorithm() {
 
 #[cfg(all(
     feature = "alloc",
-    feature = "std",
     any(feature = "cbkem348864", feature = "cbkem348864f")
 ))]
 #[test]
@@ -147,6 +140,9 @@ fn test_cb_kem_full_cycle() {
         "Shared secrets should match"
     );
 
-    assert_eq!(ciphertext.len(), CRYPTO_CIPHERTEXTBYTES);
+    provider
+        .security_validator()
+        .validate_ciphertext(alg, &ciphertext)
+        .expect("ciphertext length must match algorithm");
     assert_eq!(shared_secret1.len(), 32, "Shared secret should be 32 bytes");
 }

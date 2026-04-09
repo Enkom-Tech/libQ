@@ -68,8 +68,6 @@ runs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-rust-
     
     - name: Check integration test layout
       shell: bash

@@ -1147,4 +1147,16 @@ mod tests {
         s.squeeze(&mut out);
         assert!(out.iter().any(|&b| b != 0));
     }
+
+    #[test]
+    fn keccak_state_shake128_sequential_squeezes() {
+        let mut s = KeccakState::new_shake128();
+        s.absorb_final(b"sequential shake128 output");
+        let mut first = [0u8; 400];
+        s.squeeze(&mut first);
+        let mut second = [0u8; 200];
+        s.squeeze(&mut second);
+        assert_ne!(first[..32], second[..32]);
+        assert!(first.iter().chain(second.iter()).any(|&b| b != 0));
+    }
 }
