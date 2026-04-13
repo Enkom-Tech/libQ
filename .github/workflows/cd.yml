@@ -62,6 +62,8 @@ jobs:
       
       - name: Run release tests
         run: |
+          # Avoid stale cached release-ci metadata causing E0460 crate-version mismatches.
+          cargo clean --profile release-ci
           cargo test --all-features --profile release-ci
 
   # Rust crate publishing in dependency order (each tier after the previous).

@@ -56,7 +56,11 @@ pub mod simd128_intrinsics {
 
     /// Get the platform-specific SIMD128 implementation
     pub fn get_implementation() -> &'static str {
-        match current_platform() {
+        implementation_for_platform(current_platform())
+    }
+
+    pub(super) fn implementation_for_platform(platform: Platform) -> &'static str {
+        match platform {
             Platform::X86_64 => "SSE2",
             Platform::AArch64 => "NEON",
             Platform::Unknown => "Generic",
@@ -77,7 +81,11 @@ pub mod simd256_intrinsics {
 
     /// Get the platform-specific SIMD256 implementation
     pub fn get_implementation() -> &'static str {
-        match current_platform() {
+        implementation_for_platform(current_platform())
+    }
+
+    pub(super) fn implementation_for_platform(platform: Platform) -> &'static str {
+        match platform {
             Platform::X86_64 => "AVX2",
             Platform::AArch64 => "SVE",
             Platform::Unknown => "Generic",
@@ -98,10 +106,71 @@ pub mod simd512_intrinsics {
 
     /// Get the platform-specific SIMD512 implementation
     pub fn get_implementation() -> &'static str {
-        match current_platform() {
+        implementation_for_platform(current_platform())
+    }
+
+    pub(super) fn implementation_for_platform(platform: Platform) -> &'static str {
+        match platform {
             Platform::X86_64 => "AVX-512",
             Platform::AArch64 => "SVE2",
             Platform::Unknown => "Generic",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(any(feature = "simd128", feature = "simd256", feature = "simd512"))]
+    use super::Platform;
+
+    #[cfg(feature = "simd128")]
+    #[test]
+    fn simd128_implementation_mapping_covers_all_platform_variants() {
+        assert_eq!(
+            super::simd128_intrinsics::implementation_for_platform(Platform::X86_64),
+            "SSE2"
+        );
+        assert_eq!(
+            super::simd128_intrinsics::implementation_for_platform(Platform::AArch64),
+            "NEON"
+        );
+        assert_eq!(
+            super::simd128_intrinsics::implementation_for_platform(Platform::Unknown),
+            "Generic"
+        );
+    }
+
+    #[cfg(feature = "simd256")]
+    #[test]
+    fn simd256_implementation_mapping_covers_all_platform_variants() {
+        assert_eq!(
+            super::simd256_intrinsics::implementation_for_platform(Platform::X86_64),
+            "AVX2"
+        );
+        assert_eq!(
+            super::simd256_intrinsics::implementation_for_platform(Platform::AArch64),
+            "SVE"
+        );
+        assert_eq!(
+            super::simd256_intrinsics::implementation_for_platform(Platform::Unknown),
+            "Generic"
+        );
+    }
+
+    #[cfg(feature = "simd512")]
+    #[test]
+    fn simd512_implementation_mapping_covers_all_platform_variants() {
+        assert_eq!(
+            super::simd512_intrinsics::implementation_for_platform(Platform::X86_64),
+            "AVX-512"
+        );
+        assert_eq!(
+            super::simd512_intrinsics::implementation_for_platform(Platform::AArch64),
+            "SVE2"
+        );
+        assert_eq!(
+            super::simd512_intrinsics::implementation_for_platform(Platform::Unknown),
+            "Generic"
+        );
     }
 }

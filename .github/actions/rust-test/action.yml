@@ -191,6 +191,9 @@ runs:
             cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
           fi
         else
+          # Cached target artifacts can carry stale release-ci crate metadata between jobs.
+          # Clean only this profile to avoid transient E0460/E0463 failures.
+          cargo clean --profile release-ci
           if [[ -n "$PACKAGES" ]]; then
             SHARED_FLAGS=""
             for item in $PACKAGES; do
