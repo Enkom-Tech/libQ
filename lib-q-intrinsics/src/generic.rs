@@ -198,3 +198,37 @@ pub mod crypto_ops {
         "Generic fallback implementation"
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        crypto_ops,
+        vector_ops,
+    };
+
+    #[test]
+    fn generic_vector_ops() {
+        let z = vector_ops::GenericVec256::zero();
+        let a = vector_ops::GenericVec256::splat(3);
+        let b = vector_ops::GenericVec256::splat(5);
+        let _ = a.add(b).sub(z).mul(b).and(a).or(b).xor(a);
+        let _ = a.shl(1).shr(1);
+
+        let z8 = vector_ops::GenericVec128::zero();
+        let u = vector_ops::GenericVec128::splat(2);
+        let v = vector_ops::GenericVec128::splat(7);
+        let _ = u.add(v).sub(z8).and(u).or(v).xor(u);
+    }
+
+    #[test]
+    fn generic_crypto_ops() {
+        let h = crypto_ops::generic_hash(b"lib-q-intrinsics coverage");
+        assert_ne!(h, [0u8; 32]);
+        let out = crypto_ops::generic_block_cipher(b"data", b"key");
+        assert_eq!(out[0], b'd' ^ b'k');
+        assert_eq!(
+            crypto_ops::crypto_vector_ops(),
+            "Generic fallback implementation"
+        );
+    }
+}

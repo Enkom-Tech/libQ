@@ -80,17 +80,17 @@ categories = ["cryptography", "wasm"]
 hax-lib = "0.3.6"
 blobby = "0.4.0"
 # WASM dependencies - shared across all workspace members
-wasm-bindgen = "0.2.114"
-js-sys = "0.3.91"
-web-sys = "0.3.91"
-wasm-bindgen-test = "0.3.64"
+wasm-bindgen = "0.2.118"
+js-sys = "0.3.95"
+web-sys = "0.3.95"
+wasm-bindgen-test = "0.3.68"
 # Common dependencies - shared across all workspace members
 zeroize = { version = "1.8.2", default-features = false }
 serde = { version = "1.0.228", default-features = false }
 serde_json = { version = "1.0.149", default-features = false }
 serde-wasm-bindgen = "0.6.5"
 rand_core = { version = "0.10.0", default-features = false }
-rand = { version = "0.10.0", default-features = false }
+rand = { version = "0.10.1", default-features = false }
 getrandom = { version = "0.4.2", default-features = false }
 criterion = "0.8.2"
 hex = "0.4.3"
@@ -109,9 +109,9 @@ postcard = { version = "1.1.3", default-features = false }
 rand_xoshiro = "0.8.0"
 rayon = "1.11.0"
 digest = "0.11.2"
-sha2 = { version = "0.11.0-rc.5", default-features = false }
+sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
-aead = { version = "0.5", default-features = false }
+aead = { version = "0.5.2", default-features = false }
 
 # CI and large `cargo test` runs: keep release optimizations and security flags from `.cargo/config.toml`
 # `[profile.release]` (LTO + codegen-units=1) makes workspace test linking dominate job time.

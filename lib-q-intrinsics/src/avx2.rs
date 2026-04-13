@@ -725,3 +725,144 @@ pub fn mm_packs_epi16(lhs: Vec128, rhs: Vec128) -> Vec128 {
 pub fn mm256_packs_epi32(lhs: Vec256, rhs: Vec256) -> Vec256 {
     unsafe { _mm256_packs_epi32(lhs, rhs) }
 }
+
+// Unit tests live in this module (not in `tests/`) so LLVM coverage attributes
+// `#[inline(always)]` bodies to this file on Linux; integration tests link the
+// library without `cfg(test)` and can under-report the same wrappers.
+#[cfg(all(test, feature = "simd256"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn avx2_wrappers_smoke() {
+        let mut u8buf = [0u8; 32];
+        let mut u8_16 = [0u8; 16];
+        let mut i16buf = [0i16; 16];
+        let mut i32buf = [0i32; 8];
+        let mut i32_4 = [0i32; 4];
+
+        let z = mm256_setzero_si256();
+        mm256_storeu_si256_u8(&mut u8buf, z);
+        mm256_storeu_si256_i16(&mut i16buf, z);
+        mm256_storeu_si256_i32(&mut i32buf, z);
+
+        let v128 = mm_set_epi32(4, 3, 2, 1);
+        mm_storeu_si128(&mut i16buf, v128);
+        mm_storeu_si128_i32(&mut i32_4, v128);
+        mm_storeu_bytes_si128(&mut u8_16, v128);
+
+        let loaded = mm_loadu_si128(&u8_16);
+        let _ = mm_movemask_epi8(loaded);
+
+        let from_u8 = mm256_loadu_si256_u8(&u8buf);
+        let from_i16 = mm256_loadu_si256_i16(&i16buf);
+        let from_i32 = mm256_loadu_si256_i32(&i32buf);
+
+        let a = mm256_set1_epi32(2);
+        let b = mm256_set1_epi16(3);
+        let c = mm256_set1_epi64x(-1);
+        let d = mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
+        let e = mm256_set_epi16(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        let f = mm256_set_epi8(
+            31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10,
+            9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+        );
+        let g = mm256_set_epi64x(3, 2, 1, 0);
+        let h = mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+        let i = mm_set1_epi16(9);
+        let j = mm256_set_m128i(v128, v128);
+
+        let mut acc = mm256_add_epi32(from_u8, a);
+        acc = mm256_add_epi16(acc, b);
+        acc = mm256_add_epi64(acc, c);
+        acc = mm256_sub_epi32(acc, d);
+        acc = mm256_sub_epi16(acc, e);
+        let v128b = mm_add_epi16(v128, h);
+        let _ = mm_sub_epi16(v128b, i);
+
+        acc = mm256_mullo_epi32(acc, from_i32);
+        acc = mm256_mullo_epi16(acc, f);
+        let _ = mm_mullo_epi16(v128, h);
+        acc = mm256_mul_epi32(acc, g);
+        acc = mm256_mul_epu32(acc, from_i16);
+        acc = mm256_madd_epi16(acc, j);
+        acc = mm256_mulhi_epi16(acc, a);
+        let _ = mm_mulhi_epi16(v128, v128);
+
+        acc = mm256_slli_epi32::<1>(acc);
+        acc = mm256_slli_epi16::<2>(acc);
+        acc = mm256_slli_epi64::<1>(acc);
+        acc = mm256_srai_epi32::<1>(acc);
+        acc = mm256_srai_epi16::<1>(acc);
+        acc = mm256_srli_epi32::<1>(acc);
+        acc = mm256_srli_epi16::<1>(acc);
+        acc = mm256_srli_epi64::<1>(acc);
+        let v1 = mm_srli_epi64::<8>(v128);
+        let counts = mm256_set1_epi32(1);
+        acc = mm256_srlv_epi32(acc, counts);
+        acc = mm256_srlv_epi64(acc, counts);
+        acc = mm256_sllv_epi32(acc, counts);
+        let _ = mm_sllv_epi32(v1, v1);
+
+        acc = mm256_bsrli_epi128::<1>(acc);
+        acc = mm256_bsrli_epi128::<2>(acc);
+        acc = mm256_bsrli_epi128::<3>(acc);
+        acc = mm256_bsrli_epi128::<4>(acc);
+        acc = mm256_bsrli_epi128::<5>(acc);
+        acc = mm256_bsrli_epi128::<6>(acc);
+        acc = mm256_bsrli_epi128::<7>(acc);
+        acc = mm256_bsrli_epi128::<8>(acc);
+        acc = mm256_bsrli_epi128::<99>(acc);
+
+        acc = mm256_and_si256(acc, a);
+        acc = mm256_andnot_si256(acc, b);
+        acc = mm256_or_si256(acc, c);
+        acc = mm256_xor_si256(acc, d);
+
+        let eq = mm256_cmpeq_epi32(acc, acc);
+        let gt = mm256_cmpgt_epi32(acc, z);
+        let lt = mm256_cmplt_epi32(acc, acc);
+        let ge = mm256_cmpge_epi32(acc, z);
+        let _ = mm256_testz_si256(eq, gt);
+        acc = mm256_sign_epi32(lt, ge);
+
+        let ps = mm256_castsi256_ps(acc);
+        let back = mm256_castps_si256(ps);
+        let _ = mm256_movemask_ps(ps);
+        let lo = mm256_castsi256_si128(back);
+        let wide = mm256_castsi128_si256(lo);
+        let ext = mm256_cvtepi16_epi32(lo);
+        acc = mm256_add_epi32(wide, ext);
+
+        acc = mm256_shuffle_epi32::<0x1B>(acc);
+        acc = mm256_shuffle_epi8(acc, mm256_setzero_si256());
+        let sh = mm_shuffle_epi8(lo, mm_set_epi32(0, 0, 0, 0));
+        let _ = mm_movemask_epi8(sh);
+
+        acc = mm256_blend_epi32::<0xF0>(acc, z);
+        acc = mm256_blend_epi16::<0xAA>(acc, a);
+        acc = vec256_blendv_epi32(acc, b, mm256_cmpeq_epi32(acc, acc));
+
+        acc = mm256_unpacklo_epi64(acc, b);
+        acc = mm256_unpackhi_epi64(acc, c);
+        acc = mm256_unpacklo_epi32(acc, d);
+        acc = mm256_unpackhi_epi32(acc, e);
+
+        acc = mm256_permute2x128_si256::<0x31>(acc, z);
+        acc = mm256_permute4x64_epi64::<0x4E>(acc);
+        acc = mm256_permutevar8x32_epi32(acc, mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+
+        let lane = mm256_extracti128_si256::<0>(acc);
+        acc = mm256_inserti128_si256::<1>(acc, lane);
+
+        acc = mm256_abs_epi32(acc);
+        let _ = mm_packs_epi16(lo, lo);
+        acc = mm256_packs_epi32(acc, z);
+
+        mm256_storeu_si256_u8(&mut u8buf, acc);
+
+        let _: Vec256 = acc;
+        let _: Vec128 = lane;
+        let _: Vec256Float = ps;
+    }
+}

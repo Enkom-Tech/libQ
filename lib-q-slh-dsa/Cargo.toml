@@ -13,15 +13,15 @@ categories = ["cryptography"]
 exclude = ["tests"]
 
 [dependencies]
-hybrid-array = { version = "0.4.7", features = ["extra-sizes"] }
+hybrid-array = { version = "0.4.10", features = ["extra-sizes"] }
 typenum = { version = "1.19.0", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
 lib-q-random = { path = "../lib-q-random", optional = true, features = ["signature"] }
-zerocopy = { version = "0.8.39", features = ["derive"] }
+zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0-rc.10", features = ["rand_core"] }
-hmac = "0.13.0-rc.5"
+hmac = "0.13.0"
 sha2 = { version = "0.11.0-rc.5", default-features = false }
 digest = { workspace = true }
 pkcs8 = { version = "0.11.0-rc.11", default-features = false, features = ["alloc"] }
@@ -38,9 +38,9 @@ quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
 proptest = { workspace = true }
 criterion = { workspace = true }
-aes = "0.9.0-rc.4"
+aes = "0.9.0"
 cipher = "0.5.1"
-ctr = "0.10.0-rc.4"
+ctr = "0.10.0"
 pastey = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
