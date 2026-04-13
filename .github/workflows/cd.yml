@@ -62,7 +62,6 @@ jobs:
       
       - name: Run release tests
         run: |
-          cargo clean -p lib-q-tweak-aead
           cargo test --all-features --profile release-ci
 
   # Rust crate publishing in dependency order (each tier after the previous).

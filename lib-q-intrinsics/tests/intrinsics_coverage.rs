@@ -1,5 +1,7 @@
 //! Integration tests to exercise public APIs for coverage and smoke checks.
 
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
+use lib_q_intrinsics::avx2;
 use lib_q_intrinsics::platform;
 
 #[test]
@@ -33,6 +35,32 @@ fn simd256_feature_surface() {
         lib_q_intrinsics::simd256::Simd256Ops::placeholder(),
         "SIMD256 operations - placeholder implementation"
     );
+}
+
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
+#[test]
+fn simd256_avx2_integration_smoke() {
+    if !std::is_x86_feature_detected!("avx2") {
+        return;
+    }
+
+    let mut input = [0i32; 8];
+    let mut output = [0i32; 8];
+
+    for (idx, slot) in input.iter_mut().enumerate() {
+        *slot = idx as i32;
+    }
+
+    let base = avx2::mm256_loadu_si256_i32(&input);
+    let inc = avx2::mm256_set1_epi32(1);
+    let add = avx2::mm256_add_epi32(base, inc);
+    let shl = avx2::mm256_slli_epi32::<1>(add);
+    let shr = avx2::mm256_srli_epi32::<1>(shl);
+    let mask = avx2::mm256_cmpeq_epi32(shr, add);
+    let mixed = avx2::vec256_blendv_epi32(shr, add, mask);
+    avx2::mm256_storeu_si256_i32(&mut output, mixed);
+
+    assert_eq!(output, [1, 2, 3, 4, 5, 6, 7, 8]);
 }
 
 #[cfg(feature = "simd512")]
