@@ -85,6 +85,7 @@ runs:
       shell: bash
       run: |
         echo "⚡ Running performance benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         
         # Run benchmarks with specified features

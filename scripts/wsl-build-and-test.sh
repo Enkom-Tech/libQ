@@ -69,6 +69,7 @@ for pkg in $NO_DF_PKGS; do
   cargo build -p "$pkg" --no-default-features || echo "Package $pkg failed with no default features - expected"
 done
 echo "Building lib-q-keccak (no_std)..."
+rm -rf target/dev-no-std
 run_or_fail cargo build -p lib-q-keccak --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
 
 # --- Build with features ---

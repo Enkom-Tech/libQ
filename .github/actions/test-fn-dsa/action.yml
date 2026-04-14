@@ -108,6 +108,7 @@ runs:
       run: |
         echo "🧪 Running quick FN-DSA smoke tests (release)..."
         echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p fn-dsa-kgen -- --ignored --release --test-threads=1"
+        rm -rf target/release-ci
         cd "${{ github.workspace }}"
         cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
         cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
@@ -138,6 +139,7 @@ runs:
       shell: bash
       run: |
         echo "📊 Running benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "${{ inputs.features }}"
         echo "✅ Benchmarks completed"

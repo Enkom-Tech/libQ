@@ -160,6 +160,7 @@ runs:
       shell: bash
       run: |
         echo "Running K12 benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "nightly" --bench k12 || echo "No K12 benchmarks found"
         echo "K12 benchmarks completed"

@@ -163,6 +163,7 @@ runs:
       shell: bash
       run: |
         echo "Running benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "${{ inputs.features }}"
         echo "Benchmarks completed"

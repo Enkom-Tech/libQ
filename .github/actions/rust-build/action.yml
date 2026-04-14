@@ -137,6 +137,7 @@ runs:
           for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | grep -E '^(lib-q-core|lib-q-kem|lib-q-ml-kem)$'); do
             echo "Building $pkg with no default features..."
             if [[ "$pkg" == "lib-q-core" ]]; then
+              rm -rf target/dev-no-std
               cargo build -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler"
             else
               cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
@@ -145,6 +146,7 @@ runs:
         elif [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
           echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
           echo "Building lib-q-keccak with explicit no_std panic handler"
+          rm -rf target/dev-no-std
           cargo build --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
         else
           cargo build --no-default-features

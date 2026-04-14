@@ -158,7 +158,7 @@ jobs:
 
       - name: Run recursive aggregation test (release)
         run: |
-          cargo clean --profile release-ci 2>/dev/null || true
+          rm -rf target/release-ci
           cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
             --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
             -- --test-threads=1
@@ -405,7 +405,7 @@ jobs:
           echo "Building cross-compilation tests for ${{ matrix.name }} (execution skipped)"
           # Build tests for cross-compilation target to ensure they compile correctly
           # We skip execution since we can't run ARM binaries on x86_64 hosts
-          cargo clean --profile release-ci 2>/dev/null || true
+          rm -rf target/release-ci
           cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --profile release-ci --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
@@ -437,7 +437,9 @@ jobs:
             ${{ runner.os }}-bench-
       
       - name: Run benchmarks
-        run: cargo bench --features "all-algorithms" --verbose
+        run: |
+          rm -rf target/release
+          cargo bench --features "all-algorithms" --verbose
 
       - name: Run Saturnin SIMD benchmarks
         run: |
@@ -824,6 +826,7 @@ jobs:
         run: |
           cd lib-q-core
           cargo test --features "ml-kem,rand" --verbose
+          rm -rf target/dev-no-std
           cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler"
       
       - name: Test ML-KEM with lib-q-kem

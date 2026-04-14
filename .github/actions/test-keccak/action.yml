@@ -81,6 +81,7 @@ runs:
           echo "Building lib-q-keccak with explicit no_std panic handler for CI compatibility"
           # Use explicit panic handler feature for proper no_std builds
           # This provides the required panic handler while avoiding test conflicts
+          rm -rf target/dev-no-std
           cargo build --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
         else
           cargo build --no-default-features
@@ -133,6 +134,7 @@ runs:
       shell: bash
       run: |
         echo "Running benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "nightly"
         echo "Benchmarks completed"

@@ -178,6 +178,7 @@ runs:
       shell: bash
       run: |
         echo "Running SHA3 benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "nightly" --bench sha3 || echo "No SHA3 benchmarks found"
         echo "SHA3 benchmarks completed"

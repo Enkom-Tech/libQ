@@ -157,12 +157,17 @@ runs:
       shell: bash
       run: |
         echo "Running release tests..."
-        cd ${{ inputs.working-directory }}
 
-        # Purge cached release-ci artifacts to prevent E0460/E0463 stale-metadata
-        # errors caused by cdylib crates (lib-q-core, etc.) whose .rlib outputs
-        # have no metadata hash in the filename.
-        cargo clean --profile release-ci 2>/dev/null || true
+        # Nuke the entire release-ci output tree before cd'ing into a potential
+        # subdirectory.  cdylib crates (lib-q-core, lib-q-utils, …) emit their
+        # companion .rlib WITHOUT a metadata-hash suffix, so Cargo's incremental
+        # fingerprint cache can hold stale --extern paths that point at vanished
+        # or re-hashed artefacts, causing E0460/E0463 on cache-restored CI runs.
+        # `cargo clean --profile` relies on the same fingerprints, so rm is the
+        # only reliable remedy.
+        rm -rf target/release-ci
+
+        cd ${{ inputs.working-directory }}
 
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
@@ -196,9 +201,6 @@ runs:
             cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
           fi
         else
-          # Cached target artifacts can carry stale release-ci crate metadata between jobs.
-          # Clean only this profile to avoid transient E0460/E0463 failures.
-          cargo clean --profile release-ci
           if [[ -n "$PACKAGES" ]]; then
             SHARED_FLAGS=""
             for item in $PACKAGES; do

@@ -119,6 +119,7 @@ runs:
       shell: bash
       run: |
         echo "Running ACVP (NIST test vector) tests..."
+        rm -rf target/release-ci
         cd ${{ inputs.working-directory }}
         cargo test --features "${{ inputs.features }}" --test acvp_keygen
         cargo test --features "${{ inputs.features }}" --test acvp_sig
@@ -141,6 +142,7 @@ runs:
       shell: bash
       run: |
         echo "Running benchmarks..."
+        rm -rf target/release
         cd ${{ inputs.working-directory }}
         cargo bench --features "${{ inputs.features }}"
         echo "Benchmarks completed"
@@ -189,6 +191,7 @@ runs:
       shell: bash
       run: |
         echo "Running full known_answer_tests (12 KATs) and ACVP keyGen projection including slow *s sets..."
+        rm -rf target/release-ci
         cd ${{ inputs.working-directory }}
         # Debug builds are far too slow for *s* KATs (10 signs each); match acvp_sig policy (release-ci).
         cargo test --profile release-ci --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
