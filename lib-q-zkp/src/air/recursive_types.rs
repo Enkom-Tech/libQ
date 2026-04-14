@@ -470,6 +470,12 @@ mod tests {
 
     use super::{
         COMMITMENT_HASH_SIZE,
+        MAX_FINAL_POLY_LOG_LEN,
+        MAX_FRI_ROUNDS,
+        MAX_QUOTIENT_CHUNKS,
+        MAX_TRACE_WIDTH,
+        RecursiveStarkInput,
+        SerializedFriRound,
         SerializedStarkProof,
     };
 
@@ -526,5 +532,82 @@ mod tests {
         assert_eq!(unified.degree_bits, proof.degree_bits);
         assert_eq!(unified.trace_width, proof.trace_width);
         assert!(unified.validate().is_ok());
+    }
+
+    fn valid_proof() -> SerializedStarkProof<TestField, TestField> {
+        SerializedStarkProof::<TestField, TestField> {
+            degree_bits: 4,
+            num_quotient_chunks: 1,
+            trace_width: 2,
+            is_zk: false,
+            trace_commitment_hash: [0u8; COMMITMENT_HASH_SIZE],
+            quotient_commitment_hash: [0u8; COMMITMENT_HASH_SIZE],
+            random_commitment_hash: None,
+            trace_local: alloc::vec![TestField::ZERO; 2],
+            trace_next: alloc::vec![TestField::ZERO; 2],
+            quotient_chunks: alloc::vec![alloc::vec![TestField::ZERO; 1]],
+            random_values: None,
+            fri_rounds: alloc::vec![],
+            final_poly: alloc::vec![TestField::ZERO],
+            pow_witness: alloc::vec![],
+            zeta: TestField::ZERO,
+            zeta_next: TestField::ZERO,
+            alpha: TestField::ZERO,
+            expected_public_values: alloc::vec![],
+        }
+    }
+
+    #[test]
+    fn test_validate_rejects_invalid_degree_bits() {
+        let mut proof = valid_proof();
+        proof.degree_bits = MAX_FINAL_POLY_LOG_LEN + 1;
+        assert!(proof.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_invalid_chunk_count() {
+        let mut proof = valid_proof();
+        proof.num_quotient_chunks = MAX_QUOTIENT_CHUNKS + 1;
+        assert!(proof.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_invalid_trace_width() {
+        let mut proof = valid_proof();
+        proof.trace_width = MAX_TRACE_WIDTH + 1;
+        assert!(proof.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_trace_length_mismatch() {
+        let mut local_bad = valid_proof();
+        local_bad.trace_local = alloc::vec![TestField::ZERO; 1];
+        assert!(local_bad.validate().is_err());
+
+        let mut next_bad = valid_proof();
+        next_bad.trace_next = alloc::vec![TestField::ZERO; 1];
+        assert!(next_bad.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_rejects_quotient_len_and_round_count() {
+        let mut chunks_bad = valid_proof();
+        chunks_bad.quotient_chunks = alloc::vec![];
+        assert!(chunks_bad.validate().is_err());
+
+        let mut rounds_bad = valid_proof();
+        rounds_bad.fri_rounds = (0..(MAX_FRI_ROUNDS + 1))
+            .map(|_| SerializedFriRound {
+                commitment_hash: [0u8; COMMITMENT_HASH_SIZE],
+                beta: alloc::vec![0u8; 8],
+            })
+            .collect();
+        assert!(rounds_bad.validate().is_err());
+    }
+
+    #[test]
+    fn test_recursive_stark_input_new_validates() {
+        let input = RecursiveStarkInput::new(valid_proof());
+        assert!(input.is_ok());
     }
 }

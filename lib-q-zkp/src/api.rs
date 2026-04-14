@@ -397,3 +397,81 @@ pub fn verify_preimage_nist(proof: &ZkpProof, expected_hash: &[u8]) -> Result<bo
     let verifier = ZkpVerifier::new();
     verifier.verify_secret_value_nist(proof, expected_hash)
 }
+
+#[cfg(test)]
+mod tests {
+    extern crate alloc;
+
+    use alloc::vec;
+
+    use super::*;
+    use crate::{
+        ProofMetadata,
+        ProofType,
+        ZkpProof,
+    };
+
+    fn empty_stark_proof_with_metadata(metadata: ProofMetadata) -> ZkpProof {
+        ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata,
+        }
+    }
+
+    #[test]
+    fn test_build_merkle_tree_rejects_empty() {
+        let result = build_merkle_tree(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_merkle_path_from_tree_rejects_out_of_bounds() {
+        let tree = build_merkle_tree(&[b"a".as_slice(), b"b".as_slice()]).expect("tree");
+        let result = merkle_path_from_tree(&tree, 2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_membership_rejects_missing_or_empty_proof_data() {
+        let proof_missing_metadata = empty_stark_proof_with_metadata(ProofMetadata::None);
+        assert!(!verify_membership(&proof_missing_metadata, &[0u8; 32]).unwrap());
+
+        let proof_with_metadata =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 4 });
+        assert!(!verify_membership(&proof_with_metadata, &[0u8; 32]).unwrap());
+    }
+
+    #[test]
+    fn test_verify_membership_with_depth_validates_depth_inputs() {
+        let mut proof =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 4 });
+        proof.data = vec![1u8; 8];
+
+        assert!(!verify_membership_with_depth(&proof, &[0u8; 32], 3).unwrap());
+
+        let mut zero_depth_proof =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 0 });
+        zero_depth_proof.data = vec![1u8; 8];
+        assert!(verify_membership_with_depth(&zero_depth_proof, &[0u8; 32], 0).is_err());
+
+        let mut too_deep_proof =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 65 });
+        too_deep_proof.data = vec![1u8; 8];
+        assert!(verify_membership_with_depth(&too_deep_proof, &[0u8; 32], 65).is_err());
+    }
+
+    #[test]
+    fn test_verify_membership_rejects_invalid_depth_and_root_encoding() {
+        let mut zero_depth_proof =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 0 });
+        zero_depth_proof.data = vec![1u8; 8];
+        assert!(!verify_membership(&zero_depth_proof, &[0u8; 32]).unwrap());
+
+        let mut bad_root_proof =
+            empty_stark_proof_with_metadata(ProofMetadata::MerkleInclusion { tree_depth: 4 });
+        bad_root_proof.data = vec![1u8; 8];
+        assert!(!verify_membership(&bad_root_proof, &[1u8; 4]).unwrap());
+    }
+}

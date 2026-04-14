@@ -1947,9 +1947,12 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
+
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::super::recursive_types::{
@@ -1959,6 +1962,92 @@ mod tests {
     use super::*;
 
     type TestField = Complex<Mersenne31>;
+
+    fn sample_serialized_proof() -> SerializedStarkProof<TestField, TestField> {
+        SerializedStarkProof::<TestField, TestField> {
+            degree_bits: 8,
+            num_quotient_chunks: 2,
+            trace_width: 4,
+            is_zk: false,
+            trace_commitment_hash: [0u8; 32],
+            quotient_commitment_hash: [1u8; 32],
+            random_commitment_hash: None,
+            trace_local: vec![TestField::ZERO; 4],
+            trace_next: vec![TestField::ZERO; 4],
+            quotient_chunks: vec![vec![TestField::ZERO; 1]; 2],
+            random_values: None,
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [2u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            final_poly: vec![TestField::ZERO; 2],
+            pow_witness: vec![],
+            zeta: TestField::ZERO,
+            zeta_next: TestField::ZERO,
+            alpha: TestField::ZERO,
+            expected_public_values: vec![TestField::ZERO],
+        }
+    }
+
+    fn sample_recursive_input() -> RecursiveStarkVerificationInput<TestField, TestField> {
+        let serialized = sample_serialized_proof();
+        let tree_depth = 4;
+        let zero_hash = super::super::MerkleHash::hash_data(b"z");
+        let merkle_proof = super::super::MerkleProofInput {
+            leaf: b"leaf".to_vec(),
+            leaf_hash_direct: None,
+            path_bits: vec![false; tree_depth],
+            siblings: vec![zero_hash; tree_depth],
+        };
+
+        RecursiveStarkVerificationInput {
+            serialized_proof: serialized.clone(),
+            commitment_inputs: CommitmentVerificationInput {
+                expected_roots: vec![[0u8; 32], [1u8; 32]],
+                merkle_proofs: vec![merkle_proof.clone(), merkle_proof.clone()],
+            },
+            fri_inputs: FriVerificationInput {
+                fri_rounds: serialized.fri_rounds.clone(),
+                round_betas: vec![TestField::ZERO],
+                final_poly: vec![TestField::ZERO; 2],
+                query_indices: vec![0, 0],
+                query_evaluations: vec![TestField::ZERO, TestField::ZERO],
+                round_current_evals: vec![TestField::ZERO],
+                round_sibling_evals: vec![TestField::ZERO],
+                round_domain_point_inverses: vec![TestField::ZERO],
+                round_domain_point_x0: vec![TestField::ZERO],
+                round_parity: vec![TestField::ZERO],
+                final_poly_eval_point: TestField::ZERO,
+                round_roll_ins: vec![TestField::ZERO],
+            },
+            constraint_inputs: ConstraintVerificationInput {
+                quotient_chunks: vec![TestField::ZERO; serialized.num_quotient_chunks],
+                trace_local: vec![TestField::ZERO; serialized.trace_width],
+                trace_next: vec![TestField::ZERO; serialized.trace_width],
+                zeta: TestField::ZERO,
+                alpha: TestField::ZERO,
+                public_values: serialized.expected_public_values.clone(),
+            },
+            opening_inputs: OpeningVerificationInput {
+                opened_values: vec![
+                    TestField::ZERO;
+                    serialized.trace_width * 2 + serialized.num_quotient_chunks
+                ],
+                domain_points: vec![
+                    TestField::ZERO;
+                    serialized.trace_width * 2 + serialized.num_quotient_chunks
+                ],
+                merkle_proofs: vec![
+                    merkle_proof;
+                    serialized.trace_width * 2 + serialized.num_quotient_chunks
+                ],
+                expected_roots: vec![
+                    TestField::ZERO;
+                    serialized.trace_width * 2 + serialized.num_quotient_chunks
+                ],
+            },
+        }
+    }
 
     #[test]
     fn test_stark_verifier_air_new_valid() {
@@ -2021,6 +2110,81 @@ mod tests {
             StarkVerifierAir::<TestField, TestField>::new(serialized_proof, 8, 4, 10).unwrap();
         let width = BaseAir::<TestField>::width(&air);
         assert!(width > 0);
+    }
+
+    #[test]
+    fn test_stark_verifier_air_new_rejects_invalid_tree_depth() {
+        let serialized = sample_serialized_proof();
+        let err_low = StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 0, 1, 2);
+        assert!(matches!(err_low, Err(AirError::InvalidDimensions { .. })));
+
+        let err_high = StarkVerifierAir::<TestField, TestField>::new(serialized, 33, 1, 2);
+        assert!(matches!(err_high, Err(AirError::InvalidDimensions { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_air_new_rejects_invalid_query_count() {
+        let serialized = sample_serialized_proof();
+        let err_zero = StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 0);
+        assert!(matches!(err_zero, Err(AirError::InvalidDimensions { .. })));
+
+        let err_too_many = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 1001);
+        assert!(matches!(
+            err_too_many,
+            Err(AirError::InvalidDimensions { .. })
+        ));
+    }
+
+    #[test]
+    fn test_stark_verifier_air_new_rejects_invalid_log_final_poly_len() {
+        let serialized = sample_serialized_proof();
+        let result = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 17, 2);
+        assert!(matches!(result, Err(AirError::InvalidDimensions { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_generation_and_public_values() {
+        let serialized = sample_serialized_proof();
+        let expected_public_values = serialized.expected_public_values.clone();
+        let air = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2).unwrap();
+        let input = sample_recursive_input();
+
+        let trace = air
+            .generate_trace(&input)
+            .expect("trace generation should work");
+        assert_eq!(trace.height(), 1);
+        assert_eq!(trace.width(), BaseAir::<TestField>::width(&air));
+        assert_eq!(air.public_values(&input), expected_public_values);
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_generation_rejects_degree_bits_mismatch() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.serialized_proof.degree_bits = serialized.degree_bits + 1;
+
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_width_includes_random_commitment_branch() {
+        let mut serialized = sample_serialized_proof();
+        let air_without_random =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let width_without_random = BaseAir::<TestField>::width(&air_without_random);
+
+        serialized.is_zk = true;
+        serialized.random_commitment_hash = Some([9u8; 32]);
+        serialized.random_values = Some(vec![TestField::ZERO]);
+
+        let air_with_random =
+            StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2).unwrap();
+        let width_with_random = BaseAir::<TestField>::width(&air_with_random);
+
+        assert!(width_with_random > width_without_random);
     }
 
     #[test]

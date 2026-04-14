@@ -204,3 +204,61 @@ impl core::fmt::Debug for PoseidonMerkleTree {
             .finish_non_exhaustive()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_leaves_rejects_empty_input() {
+        let result = PoseidonMerkleTree::from_leaves(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_tree_path_and_verify_path_round_trip() {
+        let leaves: Vec<&[u8]> = vec![b"a", b"b", b"c"];
+        let tree = PoseidonMerkleTree::from_leaves(&leaves).expect("tree");
+
+        let (path_bits, siblings) = tree.path(1).expect("path for index 1");
+        assert_eq!(path_bits.len(), tree.depth());
+        assert_eq!(siblings.len(), tree.depth());
+        assert_eq!(tree.num_leaves(), 3);
+        assert!(tree.root_bytes().iter().any(|b| *b != 0u8));
+
+        let is_valid =
+            PoseidonMerkleTree::verify_path(&tree.root(), leaves[1], &path_bits, &siblings);
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_tree_path_rejects_out_of_bounds_index() {
+        let leaves: Vec<&[u8]> = vec![b"x", b"y"];
+        let tree = PoseidonMerkleTree::from_leaves(&leaves).expect("tree");
+        let result = tree.path(2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_path_rejects_invalid_inputs() {
+        let leaves: Vec<&[u8]> = vec![b"left", b"right"];
+        let tree = PoseidonMerkleTree::from_leaves(&leaves).expect("tree");
+        let (path_bits, siblings) = tree.path(0).expect("path");
+
+        let mut wrong_siblings = siblings.clone();
+        wrong_siblings[0] = MerkleHash::hash_data(b"wrong");
+        assert!(!PoseidonMerkleTree::verify_path(
+            &tree.root(),
+            leaves[0],
+            &path_bits,
+            &wrong_siblings
+        ));
+
+        assert!(!PoseidonMerkleTree::verify_path(
+            &tree.root(),
+            leaves[0],
+            &path_bits[..0],
+            &siblings
+        ));
+    }
+}
