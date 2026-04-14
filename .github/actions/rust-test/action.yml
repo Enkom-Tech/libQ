@@ -159,6 +159,11 @@ runs:
         echo "Running release tests..."
         cd ${{ inputs.working-directory }}
 
+        # Purge cached release-ci artifacts to prevent E0460/E0463 stale-metadata
+        # errors caused by cdylib crates (lib-q-core, etc.) whose .rlib outputs
+        # have no metadata hash in the filename.
+        cargo clean --profile release-ci 2>/dev/null || true
+
         # Check if we're running no_std tests and adjust accordingly
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
