@@ -500,6 +500,7 @@ impl<F: Field> TraceGenerator<F, FriVerificationInput<F>> for FriVerifierAir {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
@@ -595,5 +596,34 @@ mod tests {
 
         let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
         assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_fri_trace_satisfies_constraints() {
+        let air = FriVerifierAir::new(1, 1, 1).unwrap();
+        let zero = TestField::ZERO;
+
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [0u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            round_betas: vec![zero],
+            final_poly: vec![zero; 2],
+            query_indices: vec![0],
+            query_evaluations: vec![zero],
+            round_current_evals: vec![zero],
+            round_sibling_evals: vec![zero],
+            round_domain_point_inverses: vec![zero],
+            round_domain_point_x0: vec![zero],
+            round_parity: vec![zero],
+            final_poly_eval_point: zero,
+            round_roll_ins: vec![zero],
+        };
+
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

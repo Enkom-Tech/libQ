@@ -364,6 +364,7 @@ impl<F: Field> TraceGenerator<F, ConstraintVerificationInput<F>> for ConstraintV
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
@@ -435,5 +436,25 @@ mod tests {
 
         let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
         assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_constraint_trace_satisfies_constraints() {
+        let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
+        let zero = TestField::ZERO;
+
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![zero, zero],
+            trace_local: vec![zero; 4],
+            trace_next: vec![zero; 4],
+            zeta: zero,
+            alpha: zero,
+            public_values: vec![zero],
+        };
+
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

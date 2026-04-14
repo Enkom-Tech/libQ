@@ -305,6 +305,7 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
@@ -382,5 +383,36 @@ mod tests {
 
         let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
         assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_opening_trace_satisfies_constraints() {
+        let air = OpeningVerifierAir::new(1, 4).unwrap();
+        let leaf = b"opening-check".to_vec();
+        let merkle_proof = MerkleProofInput {
+            leaf: leaf.clone(),
+            leaf_hash_direct: None,
+            path_bits: vec![false, false, true, true],
+            siblings: vec![
+                MerkleHash::hash_data(b"os0"),
+                MerkleHash::hash_data(b"os1"),
+                MerkleHash::hash_data(b"os2"),
+                MerkleHash::hash_data(b"os3"),
+            ],
+        };
+        let merkle_air = MerkleInclusionAir::new(4).unwrap();
+        let expected_root = merkle_air.public_values(&merkle_proof)[0];
+
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO],
+            domain_points: vec![TestField::ZERO],
+            merkle_proofs: vec![merkle_proof],
+            expected_roots: vec![expected_root],
+        };
+
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

@@ -391,11 +391,13 @@ pub fn debug_commitment_trace_sanity_check<F>(
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;
+    use crate::air::MerkleHash;
 
     type TestField = Complex<Mersenne31>;
 
@@ -466,5 +468,35 @@ mod tests {
 
         let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
         assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_commitment_trace_satisfies_constraints() {
+        use crate::air::merkle_root_to_bytes;
+
+        let air = CommitmentVerifierAir::new(1, 4).unwrap();
+        let merkle_proof = MerkleProofInput {
+            leaf: b"constraint_leaf".to_vec(),
+            leaf_hash_direct: None,
+            path_bits: vec![false, false, true, true],
+            siblings: vec![
+                MerkleHash::hash_data(b"c0"),
+                MerkleHash::hash_data(b"c1"),
+                MerkleHash::hash_data(b"c2"),
+                MerkleHash::hash_data(b"c3"),
+            ],
+        };
+        let merkle_air = MerkleInclusionAir::new(4).unwrap();
+        let root_field = merkle_air.public_values(&merkle_proof)[0];
+        let root_bytes = merkle_root_to_bytes(&root_field);
+
+        let input = CommitmentVerificationInput {
+            expected_roots: vec![root_bytes],
+            merkle_proofs: vec![merkle_proof],
+        };
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }
