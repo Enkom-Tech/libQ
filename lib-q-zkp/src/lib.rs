@@ -39,6 +39,7 @@
 //! ## Testing
 //!
 //! - **Recursive aggregation**: The test `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify` (in `aggregation_tests`) runs the full prove → aggregate → verify pipeline. It is slow in dev (unoptimized); run with `--release` for completion in a few minutes. CI runs this test in release with a 15-minute timeout.
+//! - **Merkle tree builder**: `tests/merkle_tree_builder_tests.rs` uses [`stark::fast_proof_config`] for prove/verify round-trips (fast FRI); wrong-root and cross-tree rejection use [`stark::default_config`] because minimal FRI is not sound for those negatives.
 //! - **Merkle tree certificates**: Create/use and security checks (wrong root, wrong depth, cross-tree) are covered by `tests/merkle_certificate_tests.rs`. Additional Merkle and group-membership tests live in `air_integration` and `ip_soundness_tests`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -116,10 +117,13 @@ pub use api::{
     MerklePath,
     build_merkle_tree,
     prove_membership,
+    prove_membership_with_config,
     prove_preimage,
     prove_preimage_nist,
     verify_membership,
+    verify_membership_with_config,
     verify_membership_with_depth,
+    verify_membership_with_depth_and_config,
     verify_preimage,
     verify_preimage_nist,
 };

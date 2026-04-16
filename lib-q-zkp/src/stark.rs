@@ -664,6 +664,42 @@ pub fn default_config() -> DefaultConfig {
     StarkConfig::new(pcs, challenger)
 }
 
+/// STARK configuration for **tests and local development only**.
+///
+/// Same construction as [`default_config`], but FRI uses
+/// [`lib_q_stark_fri::create_test_fri_params`] (2 queries, 1 proof-of-work bit) so proving
+/// and verification complete quickly. **Do not use for production**; proofs are not
+/// production-sound and are incompatible with verifiers configured for [`default_config`].
+///
+/// Soundness is far below production; do not use this config to assert that verification
+/// **rejects** wrong public inputs (e.g. wrong Merkle root). For those negative tests, use
+/// [`default_config`] on prover and verifier.
+pub fn fast_proof_config() -> DefaultConfig {
+    use lib_q_stark_fri::create_test_fri_params;
+
+    type ValMmcs = DefaultValMmcs;
+    type ChallengeMmcs = DefaultChallengeMmcs;
+    type Dft = ConfigDft;
+    type Pcs = DefaultPcs;
+    type MyHash = SerializingHasher<Shake256Hash>;
+    type MyCompress = CompressionFunctionFromHasher<Shake256Hash, 2, 32>;
+    type BaseChallenger = Shake256Challenger32<Mersenne31>;
+    type Challenger = ComplexFieldChallenger<BaseChallenger>;
+
+    let shake256 = Shake256Hash {};
+    let hash = MyHash::new(shake256);
+    let compress = MyCompress::new(shake256);
+    let val_mmcs = ValMmcs::new(hash, compress);
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = create_test_fri_params(challenge_mmcs, 0);
+    let pcs = Pcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+
+    StarkConfig::new(pcs, challenger)
+}
+
 /// STARK config that uses Poseidon-based Merkle trees (PoseidonMmcs).
 /// Use this as the outer config when producing recursive proofs so that Merkle paths
 /// are compatible with MerkleInclusionAir (Poseidon constraints in-circuit).
@@ -693,6 +729,37 @@ pub fn poseidon_config() -> PoseidonConfig {
         proof_of_work_bits: 16,
         mmcs: challenge_mmcs,
     };
+    let pcs = Pcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Same PCS and challenger construction as [`poseidon_config`], but FRI uses
+/// [`lib_q_stark_fri::create_test_fri_params`] (2 queries, 1 proof-of-work bit) so recursive
+/// aggregation tests finish quickly. **Not for production**; incompatible with verifiers
+/// expecting [`poseidon_config`] FRI parameters.
+#[cfg(feature = "recursive-proofs-experimental")]
+pub fn poseidon_test_config() -> PoseidonConfig {
+    use lib_q_stark_fri::create_test_fri_params;
+    use lib_q_stark_merkle::{
+        PoseidonMmcs,
+        poseidon_mmcs_instance,
+    };
+
+    type ValMmcs = PoseidonMmcs;
+    type ChallengeMmcs = PoseidonChallengeMmcs;
+    type Dft = ConfigDft;
+    type Pcs = PoseidonPcs;
+    type BaseChallenger = Shake256Challenger32<Mersenne31>;
+    type Challenger = ComplexFieldChallenger<BaseChallenger>;
+
+    let (hash, compress) = poseidon_mmcs_instance();
+    let val_mmcs = ValMmcs::new(hash, compress);
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = create_test_fri_params(challenge_mmcs, 0);
     let pcs = Pcs::new(dft, val_mmcs, fri_params);
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);

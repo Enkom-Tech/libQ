@@ -26,6 +26,10 @@ use lib_q_zkp::circuit::{
     Constraint,
     Wire,
 };
+use lib_q_zkp::stark::{
+    default_config,
+    fast_proof_config,
+};
 
 type TestField = Complex<Mersenne31>;
 
@@ -425,10 +429,11 @@ fn test_merkle_membership_soundness() {
     // Test that invalid Merkle proofs fail verification
     use lib_q_zkp::api::{
         MerklePath,
-        prove_membership,
-        verify_membership,
+        prove_membership_with_config,
+        verify_membership_with_config,
     };
 
+    let cfg = default_config();
     let leaf = b"test leaf";
     let path = MerklePath {
         path_bits: vec![false, true],
@@ -438,11 +443,11 @@ fn test_merkle_membership_soundness() {
         ],
     };
 
-    let proof = prove_membership(leaf, &path).unwrap();
+    let proof = prove_membership_with_config(leaf, &path, cfg.clone()).unwrap();
 
     // Test with wrong root (should fail)
     let wrong_root = b"wrong root hash";
-    let result = verify_membership(&proof, wrong_root);
+    let result = verify_membership_with_config(&proof, wrong_root, cfg);
     assert!(
         !result.unwrap_or(false),
         "Invalid Merkle proof must be rejected"
@@ -455,25 +460,27 @@ fn test_merkle_membership_roundtrip_correct_root() {
     use lib_q_zkp::api::{
         build_merkle_tree,
         merkle_path_from_tree,
-        prove_membership,
-        verify_membership,
-        verify_membership_with_depth,
+        prove_membership_with_config,
+        verify_membership_with_config,
+        verify_membership_with_depth_and_config,
     };
 
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"leaf0", b"leaf1", b"leaf2"];
     let tree = build_merkle_tree(&leaves).unwrap();
     let root_bytes = tree.root_bytes();
 
     for (i, leaf) in leaves.iter().enumerate() {
         let path = merkle_path_from_tree(&tree, i).unwrap();
-        let proof = prove_membership(leaf, &path).unwrap();
+        let proof = prove_membership_with_config(leaf, &path, cfg.clone()).unwrap();
         assert!(
-            verify_membership(&proof, &root_bytes).unwrap(),
+            verify_membership_with_config(&proof, &root_bytes, cfg.clone()).unwrap(),
             "correct root must verify for leaf {}",
             i
         );
         assert!(
-            verify_membership_with_depth(&proof, &root_bytes, tree.depth()).unwrap(),
+            verify_membership_with_depth_and_config(&proof, &root_bytes, tree.depth(), cfg.clone())
+                .unwrap(),
             "correct root with explicit depth must verify for leaf {}",
             i
         );
@@ -485,10 +492,11 @@ fn test_merkle_membership_with_explicit_depth() {
     // Test verify_membership_with_depth for explicit tree depth verification
     use lib_q_zkp::api::{
         MerklePath,
-        prove_membership,
-        verify_membership_with_depth,
+        prove_membership_with_config,
+        verify_membership_with_depth_and_config,
     };
 
+    let cfg = fast_proof_config();
     let leaf = b"test leaf";
     let path = MerklePath {
         path_bits: vec![false, true, true],
@@ -499,21 +507,21 @@ fn test_merkle_membership_with_explicit_depth() {
         ],
     };
 
-    let proof = prove_membership(leaf, &path).unwrap();
+    let proof = prove_membership_with_config(leaf, &path, cfg.clone()).unwrap();
 
     // Verify the proof has the correct tree depth in metadata
     assert_eq!(proof.merkle_tree_depth(), Some(3));
 
     // Test with wrong depth (should fail)
     let wrong_root = b"expected root";
-    let result = verify_membership_with_depth(&proof, wrong_root, 2);
+    let result = verify_membership_with_depth_and_config(&proof, wrong_root, 2, cfg.clone());
     assert!(
         !result.unwrap_or(false),
         "Proof with wrong tree depth must be rejected"
     );
 
     // Test with correct depth but wrong root (should fail verification)
-    let result = verify_membership_with_depth(&proof, wrong_root, 3);
+    let result = verify_membership_with_depth_and_config(&proof, wrong_root, 3, cfg);
     // This should pass the depth check but fail root verification
     assert!(result.is_ok());
 }
@@ -523,9 +531,10 @@ fn test_merkle_proof_depth_stored_in_metadata() {
     // Verify that prove_membership stores tree depth in proof metadata
     use lib_q_zkp::api::{
         MerklePath,
-        prove_membership,
+        prove_membership_with_config,
     };
 
+    let cfg = fast_proof_config();
     let leaf = b"leaf data";
 
     // Test with depth 4
@@ -533,7 +542,7 @@ fn test_merkle_proof_depth_stored_in_metadata() {
         path_bits: vec![false, true, false, true],
         siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 4],
     };
-    let proof4 = prove_membership(leaf, &path4).unwrap();
+    let proof4 = prove_membership_with_config(leaf, &path4, cfg.clone()).unwrap();
     assert_eq!(
         proof4.merkle_tree_depth(),
         Some(4),
@@ -545,7 +554,7 @@ fn test_merkle_proof_depth_stored_in_metadata() {
         path_bits: vec![false; 8],
         siblings: vec![MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 8],
     };
-    let proof8 = prove_membership(leaf, &path8).unwrap();
+    let proof8 = prove_membership_with_config(leaf, &path8, cfg).unwrap();
     assert_eq!(
         proof8.merkle_tree_depth(),
         Some(8),
@@ -582,8 +591,9 @@ fn test_poseidon_deterministic() {
 fn test_prove_membership() {
     use lib_q_zkp::api::{
         MerklePath,
-        prove_membership,
+        prove_membership_with_config,
     };
+    let cfg = fast_proof_config();
     let leaf = b"test leaf";
     let path = MerklePath {
         path_bits: vec![false, true],
@@ -593,7 +603,7 @@ fn test_prove_membership() {
         ],
     };
 
-    let result = prove_membership(leaf, &path);
+    let result = prove_membership_with_config(leaf, &path, cfg);
     // Proof generation should succeed
     assert!(
         result.is_ok(),

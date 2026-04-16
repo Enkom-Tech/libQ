@@ -29,6 +29,17 @@ pub type IdentityToken = [u8; 16];
 // Re-export MlDsaPrivateKey from auth module to avoid duplicate type
 pub use super::auth::MlDsaPrivateKey;
 
+#[inline]
+fn ml_dsa_level_for_private_key_len(byte_len: usize) -> MlDsaLevel {
+    if byte_len <= 2528 {
+        MlDsaLevel::Level44
+    } else if byte_len <= 4000 {
+        MlDsaLevel::Level65
+    } else {
+        MlDsaLevel::Level87
+    }
+}
+
 /// Derive the Identity Token (16 bytes) from a secret, using the same derivation
 /// as IdentityProofAir public values. Use this to obtain the correct IT for
 /// verification after proving with that secret.
@@ -86,14 +97,7 @@ pub fn identity_token_from_secret(secret: &[u8]) -> IdentityToken {
 pub fn prove_it_ownership(_it: &IdentityToken, private_key: &MlDsaPrivateKey) -> Result<ZkpProof> {
     use crate::ProofMetadata;
 
-    // Determine ML-DSA level from private key size
-    let dsa_level = if private_key.len() <= 2528 {
-        MlDsaLevel::Level44
-    } else if private_key.len() <= 4000 {
-        MlDsaLevel::Level65
-    } else {
-        MlDsaLevel::Level87
-    };
+    let dsa_level = ml_dsa_level_for_private_key_len(private_key.len());
 
     // Create identity proof AIR
     let air = IdentityProofAir::new(dsa_level).map_err(|e| lib_q_core::Error::InternalError {
@@ -209,11 +213,21 @@ pub fn verify_it_ownership(proof: &ZkpProof, it: &IdentityToken) -> Result<bool>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::air::MlDsaLevel;
     use crate::{
         ProofMetadata,
         ProofType,
         ZkpProof,
     };
+
+    #[test]
+    fn test_ml_dsa_level_for_private_key_len_buckets() {
+        assert_eq!(ml_dsa_level_for_private_key_len(1), MlDsaLevel::Level44);
+        assert_eq!(ml_dsa_level_for_private_key_len(2528), MlDsaLevel::Level44);
+        assert_eq!(ml_dsa_level_for_private_key_len(2529), MlDsaLevel::Level65);
+        assert_eq!(ml_dsa_level_for_private_key_len(4000), MlDsaLevel::Level65);
+        assert_eq!(ml_dsa_level_for_private_key_len(4001), MlDsaLevel::Level87);
+    }
 
     #[test]
     fn test_prove_it_ownership() {
@@ -259,19 +273,16 @@ mod tests {
     #[test]
     fn test_prove_it_ownership_sets_identity_level_metadata() {
         let it = [42u8; 16];
-        let proof_44 = prove_it_ownership(&it, &vec![0u8; 128]).expect("44");
-        let proof_65 = prove_it_ownership(&it, &vec![0u8; 2600]).expect("65");
+        // One small-key STARK is enough to exercise metadata + verify; larger ML-DSA buckets are
+        // covered by `test_ml_dsa_level_for_private_key_len_buckets` without multi-minute traces.
+        let proof_44 = prove_it_ownership(&it, &vec![0u8; 1]).expect("prove");
 
         assert!(matches!(
             proof_44.metadata,
             ProofMetadata::Identity { dsa_level: 44 }
         ));
-        assert!(matches!(
-            proof_65.metadata,
-            ProofMetadata::Identity { dsa_level: 65 }
-        ));
 
-        let mut level_87_metadata_proof = proof_65.clone();
+        let mut level_87_metadata_proof = proof_44.clone();
         level_87_metadata_proof.metadata = ProofMetadata::Identity { dsa_level: 87 };
         assert!(!verify_it_ownership(&level_87_metadata_proof, &it).unwrap());
     }

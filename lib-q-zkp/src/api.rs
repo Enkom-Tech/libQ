@@ -91,20 +91,30 @@ pub fn merkle_path_from_tree(
 /// // Tree depth (3) is stored in proof.metadata
 /// ```
 pub fn prove_membership(leaf: &[u8], path: &MerklePath) -> Result<ZkpProof> {
+    prove_membership_with_config(leaf, path, crate::stark::default_config())
+}
+
+/// Prove Merkle membership with an explicit STARK configuration.
+///
+/// [`prove_membership`] uses production [`crate::stark::default_config`]. For integration
+/// tests, use [`crate::stark::fast_proof_config`] so proving stays within a reasonable time.
+/// The verifier must be constructed with the **same** configuration type and FRI parameters.
+pub fn prove_membership_with_config(
+    leaf: &[u8],
+    path: &MerklePath,
+    config: crate::stark::DefaultConfig,
+) -> Result<ZkpProof> {
     use crate::ProofMetadata;
     use crate::air::{
         MerkleInclusionAir,
         MerkleProofInput,
         TraceGenerator,
     };
-    use crate::stark::{
-        StarkProver,
-        default_config,
-    };
+    use crate::stark::StarkProver;
 
     if path.path_bits.len() > 64 {
         return Err(lib_q_core::Error::InvalidState {
-            operation: "prove_membership".into(),
+            operation: "prove_membership_with_config".into(),
             reason: "Tree depth exceeds maximum of 64".into(),
         });
     }
@@ -112,7 +122,7 @@ pub fn prove_membership(leaf: &[u8], path: &MerklePath) -> Result<ZkpProof> {
     let tree_depth = path.path_bits.len();
     let air =
         MerkleInclusionAir::new(tree_depth).map_err(|e| lib_q_core::Error::InternalError {
-            operation: "prove_membership".into(),
+            operation: "prove_membership_with_config".into(),
             details: e.to_string(),
         })?;
 
@@ -126,13 +136,12 @@ pub fn prove_membership(leaf: &[u8], path: &MerklePath) -> Result<ZkpProof> {
     let trace = air
         .generate_trace(&input)
         .map_err(|e| lib_q_core::Error::InternalError {
-            operation: "prove_membership".into(),
+            operation: "prove_membership_with_config".into(),
             details: e.to_string(),
         })?;
 
     let public_values = air.public_values(&input);
 
-    let config = default_config();
     let prover = StarkProver::new(config);
     let proof = prover.prove(&air, trace, &public_values).map_err(|e| {
         lib_q_core::Error::InternalError {
@@ -183,15 +192,28 @@ pub fn verify_membership_with_depth(
     root: &[u8],
     expected_tree_depth: usize,
 ) -> Result<bool> {
+    verify_membership_with_depth_and_config(
+        proof,
+        root,
+        expected_tree_depth,
+        crate::stark::default_config(),
+    )
+}
+
+/// Same as [`verify_membership_with_depth`], but uses the given STARK configuration (must
+/// match the prover configuration used to create `proof`).
+pub fn verify_membership_with_depth_and_config(
+    proof: &ZkpProof,
+    root: &[u8],
+    expected_tree_depth: usize,
+    config: crate::stark::DefaultConfig,
+) -> Result<bool> {
     use crate::ProofMetadata;
     use crate::air::{
         MerkleInclusionAir,
         poseidon_slice_to_field,
     };
-    use crate::stark::{
-        StarkVerifier,
-        default_config,
-    };
+    use crate::stark::StarkVerifier;
 
     if proof.proof_type != crate::ProofType::Stark {
         return Ok(false);
@@ -212,7 +234,7 @@ pub fn verify_membership_with_depth(
     // Validate tree depth bounds
     if expected_tree_depth == 0 || expected_tree_depth > 64 {
         return Err(lib_q_core::Error::InvalidState {
-            operation: "verify_membership_with_depth".into(),
+            operation: "verify_membership_with_depth_and_config".into(),
             reason: "Tree depth must be between 1 and 64".into(),
         });
     }
@@ -220,7 +242,7 @@ pub fn verify_membership_with_depth(
     // Create AIR with the specified depth
     let air = MerkleInclusionAir::new(expected_tree_depth).map_err(|e| {
         lib_q_core::Error::InternalError {
-            operation: "verify_membership_with_depth".into(),
+            operation: "verify_membership_with_depth_and_config".into(),
             details: e.to_string(),
         }
     })?;
@@ -228,14 +250,13 @@ pub fn verify_membership_with_depth(
     // Deserialize root bytes to the single PoseidonField (no extra hash)
     let root_poseidon =
         crate::air::merkle_root_from_bytes(root).map_err(|e| lib_q_core::Error::InternalError {
-            operation: "verify_membership_with_depth".into(),
+            operation: "verify_membership_with_depth_and_config".into(),
             details: e.to_string(),
         })?;
     let expected_public_values = poseidon_slice_to_field(&[root_poseidon]);
 
     // Deserialize and verify the STARK proof
     let stark_proof = proof.to_stark_proof()?;
-    let config = default_config();
     let verifier = StarkVerifier::new(config);
 
     match verifier.verify(&air, &stark_proof, &expected_public_values) {
@@ -274,15 +295,22 @@ pub fn verify_membership_with_depth(
 /// let is_valid = verify_membership(&proof, root)?;
 /// ```
 pub fn verify_membership(proof: &ZkpProof, root: &[u8]) -> Result<bool> {
+    verify_membership_with_config(proof, root, crate::stark::default_config())
+}
+
+/// Same as [`verify_membership`], but uses the given STARK configuration (must match the
+/// prover configuration used to create `proof`).
+pub fn verify_membership_with_config(
+    proof: &ZkpProof,
+    root: &[u8],
+    config: crate::stark::DefaultConfig,
+) -> Result<bool> {
     use crate::ProofMetadata;
     use crate::air::{
         MerkleInclusionAir,
         poseidon_slice_to_field,
     };
-    use crate::stark::{
-        StarkVerifier,
-        default_config,
-    };
+    use crate::stark::StarkVerifier;
 
     if proof.proof_type != crate::ProofType::Stark {
         return Ok(false);
@@ -314,13 +342,12 @@ pub fn verify_membership(proof: &ZkpProof, root: &[u8]) -> Result<bool> {
 
     // Create AIR with the metadata depth
     let air = MerkleInclusionAir::new(depth).map_err(|e| lib_q_core::Error::InternalError {
-        operation: "verify_membership".into(),
+        operation: "verify_membership_with_config".into(),
         details: e.to_string(),
     })?;
 
     // Deserialize and verify the STARK proof
     let stark_proof = proof.to_stark_proof()?;
-    let config = default_config();
     let verifier = StarkVerifier::new(config);
 
     match verifier.verify(&air, &stark_proof, &expected_public_values) {

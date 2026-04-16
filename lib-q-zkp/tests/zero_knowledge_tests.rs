@@ -147,12 +147,17 @@ fn test_zk_mode_all_5_proofs_verify() {
     }
 }
 
+/// How many independent ZK proofs we check for distinct trace commitments.
+/// Full STARK proving is expensive; a modest sample still catches broken ZK randomization.
+const STATISTICAL_ZK_DISTINCT_COMMITMENT_SAMPLES: usize = 24;
+
 #[test]
-fn test_statistical_zk_no_repeated_commitments_100_proofs() {
+fn test_statistical_zk_no_repeated_commitments_many_proofs() {
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
+    let n = STATISTICAL_ZK_DISTINCT_COMMITMENT_SAMPLES;
 
-    let hashes: BTreeSet<[u8; 32]> = (0..100)
+    let hashes: BTreeSet<[u8; 32]> = (0u64..n as u64)
         .map(|i| {
             let proof = StarkProver::new(zk_config_with_seeds(i, i + 100))
                 .prove(&air, trace.clone(), &pv)
@@ -164,8 +169,8 @@ fn test_statistical_zk_no_repeated_commitments_100_proofs() {
 
     assert_eq!(
         hashes.len(),
-        100,
-        "100 ZK proofs must yield 100 distinct trace commitments"
+        n,
+        "each ZK proof must yield a distinct trace commitment (ZK randomization)"
     );
 }
 

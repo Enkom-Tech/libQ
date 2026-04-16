@@ -287,6 +287,10 @@ mod input_validation_tests {
 mod cryptographic_strength_tests {
     use super::*;
 
+    /// ML-DSA keygen and signing are costly; keep sample counts high enough to
+    /// catch accidental reuse bugs but low enough for normal `cargo test` runs.
+    const UNIQUENESS_SAMPLES: usize = 64;
+
     #[test]
     fn test_key_uniqueness() {
         #[cfg(feature = "ml-dsa")]
@@ -297,7 +301,7 @@ mod cryptographic_strength_tests {
             let mut public_keys = Vec::new();
             let mut secret_keys = Vec::new();
 
-            for _ in 0..1000 {
+            for _ in 0..UNIQUENESS_SAMPLES {
                 let keypair = ml_dsa
                     .generate_keypair()
                     .expect("Key generation should succeed");
@@ -334,7 +338,7 @@ mod cryptographic_strength_tests {
             // Generate many signatures and ensure they're all unique
             let mut signatures = Vec::new();
 
-            for _ in 0..1000 {
+            for _ in 0..UNIQUENESS_SAMPLES {
                 let signature = ml_dsa
                     .sign(keypair.secret_key(), message)
                     .expect("Signing should succeed");

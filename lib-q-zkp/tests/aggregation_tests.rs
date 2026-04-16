@@ -1,9 +1,12 @@
 //! Aggregation tests: single proof, batch aggregation, Merkle root, and rejection of invalid batches.
 //!
-//! Several tests run full Poseidon STARK proving; the harness may print that a test “has been running
-//! for over 60 seconds” and many of them execute in parallel by default. If you see flaky failures,
-//! timeouts, or one slow test failing while others pass (e.g. under heavy CPU or memory pressure),
-//! run this crate’s tests serially:
+//! Recursive Poseidon tests use [`lib_q_zkp::stark::poseidon_test_config`] with a matching
+//! [`AggregationConfig`] (2 FRI queries) so the suite finishes quickly. Triple-inner aggregation
+//! plus [`verify_aggregated_proof`] is covered by `test_aggregate_merkle_root_covers_all_proofs`
+//! (one expensive pass instead of a duplicate). The ignored
+//! `test_aggregate_two_poseidon_proofs_verifies` still uses production-like FRI (100 queries).
+//!
+//! If you see flaky failures under load, run serially:
 //! `cargo test -p lib-q-zkp --all-features --test aggregation_tests -- --test-threads=1`
 
 #![cfg(feature = "zkp")]
@@ -53,17 +56,32 @@ use lib_q_zkp::api::{
 use lib_q_zkp::check_constraints;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::stark::FriQueryParams;
-#[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_zkp::stark::poseidon_config;
 use lib_q_zkp::stark::{
     StarkProver,
     StarkVerifier,
     default_config,
 };
+#[cfg(feature = "recursive-proofs-experimental")]
+use lib_q_zkp::stark::{
+    poseidon_config,
+    poseidon_test_config,
+};
 
 type Val = lib_q_stark_field::extension::Complex<Mersenne31>;
 
 const MIN_TRACE_ROWS: usize = 64;
+
+/// Must match FRI parameters from [`lib_q_zkp::stark::poseidon_test_config`].
+#[cfg(feature = "recursive-proofs-experimental")]
+fn aggregation_poseidon_test_match() -> AggregationConfig {
+    AggregationConfig {
+        merkle_tree_depth: 8,
+        log_final_poly_len: 0,
+        num_fri_queries: 2,
+        fri_log_blowup: 2,
+        fri_proof_of_work_bits: 1,
+    }
+}
 
 fn make_arithmetic_trace_and_pv(
     a: u32,
@@ -150,7 +168,8 @@ fn test_verify_batch_rejects_invalid_second_proof() {
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_single_proof_verifies() {
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_cfg = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
     let proof = StarkProver::new(config.clone())
@@ -160,45 +179,10 @@ fn test_aggregate_single_proof_verifies() {
 
     let agg = ProofAggregator::new(vec![proof], config.clone())
         .unwrap()
-        .aggregate_single(&verifier, &air, &[pv.clone()], AggregationConfig::default())
+        .aggregate_single(&verifier, &air, &[pv.clone()], agg_cfg)
         .unwrap();
 
     assert_eq!(agg.num_proofs, 1);
-    assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
-}
-
-#[test]
-#[cfg(feature = "recursive-proofs-experimental")]
-fn test_aggregate_three_proofs_all_pass() {
-    let config = poseidon_config();
-    let air = ArithmeticAir::new(1).unwrap();
-    let verifier = StarkVerifier::new(config.clone());
-
-    let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
-    let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
-    let (trace3, pv3) = make_arithmetic_trace_and_pv(7, 8);
-
-    let p1 = StarkProver::new(config.clone())
-        .prove(&air, trace1, &pv1)
-        .expect("prove");
-    let p2 = StarkProver::new(config.clone())
-        .prove(&air, trace2, &pv2)
-        .expect("prove");
-    let p3 = StarkProver::new(config.clone())
-        .prove(&air, trace3, &pv3)
-        .expect("prove");
-
-    let agg = ProofAggregator::new(vec![p1, p2, p3], config.clone())
-        .unwrap()
-        .aggregate_single(
-            &verifier,
-            &air,
-            &[pv1, pv2, pv3],
-            AggregationConfig::default(),
-        )
-        .unwrap();
-
-    assert_eq!(agg.num_proofs, 3);
     assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
 }
 
@@ -237,7 +221,8 @@ fn test_aggregate_two_poseidon_proofs_verifies() {
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_rejects_invalid_second_proof() {
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_cfg = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let verifier = StarkVerifier::new(config.clone());
 
@@ -256,12 +241,13 @@ fn test_aggregate_rejects_invalid_second_proof() {
     p2.commitments.trace = lib_q_stark_symmetric::Hash::from(arr);
 
     let aggregator = ProofAggregator::new(vec![p1, p2], config).unwrap();
-    let result =
-        aggregator.aggregate_single(&verifier, &air, &[pv1, pv2], AggregationConfig::default());
+    let result = aggregator.aggregate_single(&verifier, &air, &[pv1, pv2], agg_cfg);
 
     assert!(result.is_err());
 }
 
+/// Three inner Poseidon proofs: Merkle binding over serialized commitments, `aggregate_single`,
+/// and aggregated outer proof verification (same coverage as the former `test_aggregate_three_proofs_all_pass`).
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_merkle_root_covers_all_proofs() {
@@ -272,7 +258,8 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
         XofReader,
     };
 
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_cfg = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let verifier = StarkVerifier::new(config.clone());
 
@@ -334,17 +321,14 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
     let mut expected_root = [0u8; 32];
     hasher.finalize_xof().read(&mut expected_root);
 
-    let agg = ProofAggregator::new(vec![p1, p2, p3], config)
+    let agg = ProofAggregator::new(vec![p1, p2, p3], config.clone())
         .unwrap()
-        .aggregate_single(
-            &verifier,
-            &air,
-            &[pv1, pv2, pv3],
-            AggregationConfig::default(),
-        )
+        .aggregate_single(&verifier, &air, &[pv1, pv2, pv3], agg_cfg)
         .unwrap();
 
+    assert_eq!(agg.num_proofs, 3);
     assert_eq!(agg.proofs_root, expected_root);
+    assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
 }
 
 /// Regression test: build recursive verification input, generate verifier trace,
@@ -352,7 +336,8 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_config = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_and_pv(3, 4);
     let proof = StarkProver::new(config.clone())
@@ -363,8 +348,6 @@ fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
     let (zeta, zeta_next, alpha, betas) = verifier.derive_challenges(&air, &proof, &pv).unwrap();
     let serialized =
         serialize_stark_proof(&proof, pv.clone(), zeta, zeta_next, alpha, &betas).unwrap();
-
-    let agg_config = AggregationConfig::default();
     let fri_params = FriQueryParams {
         num_queries: agg_config.num_fri_queries,
         log_blowup: agg_config.fri_log_blowup,
@@ -497,7 +480,7 @@ fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
     assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
 }
 
-/// Merkle-inclusion proof with poseidon_config: create and verify. Validates that Merkle certificates
+/// Merkle-inclusion proof with [`lib_q_zkp::stark::poseidon_test_config`]: create and verify. Validates that Merkle certificates
 /// can be produced with the same config used by the recursive pipeline (Poseidon FRI commitments).
 /// Full recursive input building (and thus aggregate_single) for Merkle-inclusion inner proofs
 /// is a follow-up when FRI opening extraction supports this AIR shape.
@@ -529,14 +512,14 @@ fn test_merkle_inclusion_proof_with_poseidon_config_creates_and_verifies() {
     let trace = lib_q_stark_matrix::dense::RowMajorMatrix::new(padded_values, width);
     let pv = merkle_air.public_values(&merkle_input);
 
-    let config = poseidon_config();
+    let config = poseidon_test_config();
     let proof = StarkProver::new(config.clone())
         .prove(&merkle_air, trace, &pv)
         .expect("prove");
     let verifier = StarkVerifier::new(config);
     verifier
         .verify(&merkle_air, &proof, &pv)
-        .expect("Merkle-inclusion proof with poseidon_config must verify");
+        .expect("Merkle-inclusion proof with poseidon_test_config must verify");
 }
 
 #[test]
@@ -548,7 +531,8 @@ fn test_aggregate_rejects_empty_batch() {
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_rejects_public_values_length_mismatch_for_batch() {
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_cfg = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let verifier = StarkVerifier::new(config.clone());
     let (t1, pv1) = make_arithmetic_trace_and_pv(2, 3);
@@ -560,7 +544,7 @@ fn test_aggregate_rejects_public_values_length_mismatch_for_batch() {
         .prove(&air, t2, &pv2)
         .expect("prove");
     let agg = ProofAggregator::new(vec![p1, p2], config).unwrap();
-    let err = match agg.aggregate(&verifier, &air, &[pv1], AggregationConfig::default()) {
+    let err = match agg.aggregate(&verifier, &air, &[pv1], agg_cfg) {
         Ok(_) => panic!("expected length mismatch"),
         Err(e) => e,
     };
@@ -575,7 +559,8 @@ fn test_aggregate_rejects_public_values_length_mismatch_for_batch() {
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_single_rejects_public_values_length_mismatch() {
-    let config = poseidon_config();
+    let config = poseidon_test_config();
+    let agg_cfg = aggregation_poseidon_test_match();
     let air = ArithmeticAir::new(1).unwrap();
     let verifier = StarkVerifier::new(config.clone());
     let (t1, pv1) = make_arithmetic_trace_and_pv(2, 3);
@@ -587,7 +572,7 @@ fn test_aggregate_single_rejects_public_values_length_mismatch() {
         .prove(&air, t2, &pv2)
         .expect("prove");
     let agg = ProofAggregator::new(vec![p1, p2], config).unwrap();
-    let err = match agg.aggregate_single(&verifier, &air, &[pv1], AggregationConfig::default()) {
+    let err = match agg.aggregate_single(&verifier, &air, &[pv1], agg_cfg) {
         Ok(_) => panic!("expected length mismatch"),
         Err(e) => e,
     };

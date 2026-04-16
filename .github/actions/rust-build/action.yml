@@ -59,6 +59,17 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src
+
+    - name: Toolchain fingerprint (cache)
+      id: toolchain-fp
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v sha256sum >/dev/null 2>&1; then
+          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        else
+          echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        fi
     
     - name: Cache dependencies
       uses: actions/cache@v5
@@ -67,7 +78,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-rust-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ inputs.features }}-${{ inputs.package }}
     
     - name: Check integration test layout
       shell: bash

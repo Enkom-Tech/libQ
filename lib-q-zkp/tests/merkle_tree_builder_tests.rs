@@ -7,28 +7,34 @@ use lib_q_zkp::air::MerkleHash;
 use lib_q_zkp::api::{
     build_merkle_tree,
     merkle_path_from_tree,
-    prove_membership,
-    verify_membership,
-    verify_membership_with_depth,
+    prove_membership_with_config,
+    verify_membership_with_config,
+    verify_membership_with_depth_and_config,
 };
 use lib_q_zkp::merkle::PoseidonMerkleTree;
+use lib_q_zkp::stark::{
+    default_config,
+    fast_proof_config,
+};
 
 #[test]
 fn test_build_tree_roundtrip_prove_verify() {
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"leaf0", b"leaf1", b"leaf2", b"leaf3"];
     let tree = build_merkle_tree(&leaves).unwrap();
     let root_bytes = tree.root_bytes();
 
     for (i, leaf) in leaves.iter().enumerate() {
         let path = merkle_path_from_tree(&tree, i).unwrap();
-        let proof = prove_membership(leaf, &path).unwrap();
+        let proof = prove_membership_with_config(leaf, &path, cfg.clone()).unwrap();
         assert!(
-            verify_membership(&proof, &root_bytes).unwrap(),
+            verify_membership_with_config(&proof, &root_bytes, cfg.clone()).unwrap(),
             "leaf {} must verify against tree root",
             i
         );
         assert!(
-            verify_membership_with_depth(&proof, &root_bytes, tree.depth()).unwrap(),
+            verify_membership_with_depth_and_config(&proof, &root_bytes, tree.depth(), cfg.clone())
+                .unwrap(),
             "leaf {} must verify with explicit depth",
             i
         );
@@ -68,14 +74,15 @@ fn test_path_correctness_depth_and_siblings() {
 
 #[test]
 fn test_wrong_root_rejected() {
+    let cfg = default_config();
     let leaves: Vec<&[u8]> = vec![b"leaf0", b"leaf1"];
     let tree = build_merkle_tree(&leaves).unwrap();
     let path = merkle_path_from_tree(&tree, 0).unwrap();
-    let proof = prove_membership(leaves[0], &path).unwrap();
+    let proof = prove_membership_with_config(leaves[0], &path, cfg.clone()).unwrap();
 
     let wrong_root = [0xFFu8; 32];
     assert!(
-        !verify_membership(&proof, &wrong_root).unwrap_or(false),
+        !verify_membership_with_config(&proof, &wrong_root, cfg).unwrap_or(false),
         "wrong root must be rejected"
     );
 }
@@ -91,22 +98,24 @@ fn test_tampered_leaf_different_root() {
 
 #[test]
 fn test_cross_tree_rejected() {
+    let cfg = default_config();
     let leaves_a: Vec<&[u8]> = vec![b"a0", b"a1"];
     let leaves_b: Vec<&[u8]> = vec![b"b0", b"b1"];
     let tree_a = build_merkle_tree(&leaves_a).unwrap();
     let tree_b = build_merkle_tree(&leaves_b).unwrap();
 
     let path_a = merkle_path_from_tree(&tree_a, 0).unwrap();
-    let proof_a = prove_membership(leaves_a[0], &path_a).unwrap();
+    let proof_a = prove_membership_with_config(leaves_a[0], &path_a, cfg.clone()).unwrap();
 
     assert!(
-        !verify_membership(&proof_a, &tree_b.root_bytes()).unwrap_or(false),
+        !verify_membership_with_config(&proof_a, &tree_b.root_bytes(), cfg).unwrap_or(false),
         "proof from tree A must not verify against tree B root"
     );
 }
 
 #[test]
 fn test_single_leaf_depth_one() {
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"only"];
     let tree = build_merkle_tree(&leaves).unwrap();
     assert_eq!(tree.depth(), 1);
@@ -116,25 +125,27 @@ fn test_single_leaf_depth_one() {
     assert_eq!(siblings.len(), 1);
 
     let path = merkle_path_from_tree(&tree, 0).unwrap();
-    let proof = prove_membership(leaves[0], &path).unwrap();
-    assert!(verify_membership(&proof, &tree.root_bytes()).unwrap());
+    let proof = prove_membership_with_config(leaves[0], &path, cfg.clone()).unwrap();
+    assert!(verify_membership_with_config(&proof, &tree.root_bytes(), cfg).unwrap());
 }
 
 #[test]
 fn test_two_leaves() {
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"left", b"right"];
     let tree = build_merkle_tree(&leaves).unwrap();
     assert_eq!(tree.depth(), 1);
     assert_eq!(tree.num_leaves(), 2);
     for i in 0..2 {
         let path = merkle_path_from_tree(&tree, i).unwrap();
-        let proof = prove_membership(leaves[i], &path).unwrap();
-        assert!(verify_membership(&proof, &tree.root_bytes()).unwrap());
+        let proof = prove_membership_with_config(leaves[i], &path, cfg.clone()).unwrap();
+        assert!(verify_membership_with_config(&proof, &tree.root_bytes(), cfg.clone()).unwrap());
     }
 }
 
 #[test]
 fn test_three_leaves_padded_to_four() {
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"1", b"2", b"3"];
     let tree = build_merkle_tree(&leaves).unwrap();
     assert_eq!(tree.depth(), 2);
@@ -142,13 +153,14 @@ fn test_three_leaves_padded_to_four() {
 
     for i in 0..3 {
         let path = merkle_path_from_tree(&tree, i).unwrap();
-        let proof = prove_membership(leaves[i], &path).unwrap();
-        assert!(verify_membership(&proof, &tree.root_bytes()).unwrap());
+        let proof = prove_membership_with_config(leaves[i], &path, cfg.clone()).unwrap();
+        assert!(verify_membership_with_config(&proof, &tree.root_bytes(), cfg.clone()).unwrap());
     }
 }
 
 #[test]
 fn test_five_leaves_padded_to_eight() {
+    let cfg = fast_proof_config();
     let leaves: Vec<&[u8]> = vec![b"a", b"b", b"c", b"d", b"e"];
     let tree = build_merkle_tree(&leaves).unwrap();
     assert_eq!(tree.depth(), 3);
@@ -156,8 +168,8 @@ fn test_five_leaves_padded_to_eight() {
 
     for i in 0..5 {
         let path = merkle_path_from_tree(&tree, i).unwrap();
-        let proof = prove_membership(leaves[i], &path).unwrap();
-        assert!(verify_membership(&proof, &tree.root_bytes()).unwrap());
+        let proof = prove_membership_with_config(leaves[i], &path, cfg.clone()).unwrap();
+        assert!(verify_membership_with_config(&proof, &tree.root_bytes(), cfg.clone()).unwrap());
     }
 }
 

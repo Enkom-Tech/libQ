@@ -866,7 +866,7 @@ mod tests {
     #[cfg(feature = "recursive-proofs-experimental")]
     use crate::stark::{
         FriQueryParams,
-        poseidon_config,
+        poseidon_test_config,
     };
     use crate::stark::{
         StarkProver,
@@ -1112,7 +1112,7 @@ mod tests {
             (trace, pv)
         }
 
-        let config = poseidon_config();
+        let config = poseidon_test_config();
         let air = ArithmeticAir::new(1).expect("air");
         let verifier = StarkVerifier::new(config.clone());
 
@@ -1126,7 +1126,13 @@ mod tests {
             .prove(&air, trace2, &pv2)
             .expect("prove");
 
-        let agg_config = AggregationConfig::default();
+        let agg_config = AggregationConfig {
+            merkle_tree_depth: 8,
+            log_final_poly_len: 0,
+            num_fri_queries: 2,
+            fri_log_blowup: 2,
+            fri_proof_of_work_bits: 1,
+        };
         let fri_params = FriQueryParams {
             num_queries: agg_config.num_fri_queries,
             log_blowup: agg_config.fri_log_blowup,
