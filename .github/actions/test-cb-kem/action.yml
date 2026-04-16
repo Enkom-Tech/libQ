@@ -91,7 +91,9 @@ runs:
       run: |
         echo "Building with no default features..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features --features "cbkem348864"
+        # Keep `alloc`/`zeroize` with algorithm features so the library matches integration tests
+        # (`LibQCbKemProvider` is `alloc`-gated) and CI does not build empty test harnesses.
+        cargo build --no-default-features --features "cbkem348864,alloc,zeroize"
         echo "Build completed"
     
     - name: Build with all features
@@ -107,7 +109,7 @@ runs:
       run: |
         echo "Running tests with no default features..."
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features --features "cbkem348864"
+        cargo test --no-default-features --features "cbkem348864,alloc,zeroize"
         echo "Tests completed"
     
     - name: Run tests with all features
@@ -176,11 +178,7 @@ runs:
         # Test each variant individually (includes 8192128f for NIST AES RNG / nist_aes_rng)
         for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128 cbkem8192128f; do
           echo "Testing $variant..."
-          if [ "$variant" = "cbkem8192128f" ]; then
-            cargo test --no-default-features --features "$variant,alloc,zeroize"
-          else
-            cargo test --no-default-features --features "$variant"
-          fi
+          cargo test --no-default-features --features "$variant,alloc,zeroize"
         done
         
         echo "All CB-KEM variants tested successfully"

@@ -18,6 +18,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Avoid incremental-cache races that surface as E0460/E0463 with shared `target/` on CI.
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   # Core validation pipeline - runs first and fastest

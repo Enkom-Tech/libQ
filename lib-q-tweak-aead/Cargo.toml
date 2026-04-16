@@ -30,7 +30,6 @@ path = "src/lib.rs"
 [dev-dependencies]
 hex = { workspace = true }
 criterion = { workspace = true, features = ["html_reports"] }
-lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc", "std"] }
 
 [[bench]]
 name = "tweak_aead"

@@ -1,5 +1,13 @@
 //! Integration tests for Classical McEliece KEM with libQ
 
+// Unconditional edge into `lib_q_cb_kem` so this integration-test binary always links the crate.
+use lib_q_cb_kem::LibQRng;
+
+#[test]
+fn integration_harness_links_lib_q_cb_kem() {
+    assert!(core::mem::size_of::<LibQRng>() > 0);
+}
+
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
