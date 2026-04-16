@@ -474,4 +474,64 @@ mod tests {
         bad_root_proof.data = vec![1u8; 8];
         assert!(!verify_membership(&bad_root_proof, &[1u8; 4]).unwrap());
     }
+
+    #[test]
+    fn test_prove_membership_rejects_depth_over_64() {
+        let path = MerklePath {
+            path_bits: vec![false; 65],
+            siblings: vec![crate::air::MerkleHash::from_bytes(&[0u8; 32]).unwrap(); 65],
+        };
+        let result = prove_membership(b"leaf", &path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_membership_rejects_empty_stark_data() {
+        let proof = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::None,
+        };
+        assert!(!verify_membership(&proof, &[0u8; 32]).unwrap());
+        assert!(!verify_membership_with_depth(&proof, &[0u8; 32], 4).unwrap());
+    }
+
+    #[test]
+    fn test_preimage_api_roundtrip_and_mismatch() {
+        let secret = b"api-preimage-secret";
+        let proof = prove_preimage(secret).expect("proof");
+
+        let ok = verify_preimage(&proof, secret).expect("verify");
+        assert!(ok);
+
+        let bad = verify_preimage(&proof, b"wrong-secret").expect("verify wrong");
+        assert!(!bad);
+    }
+
+    #[test]
+    fn test_preimage_nist_api_roundtrip_and_mismatch() {
+        use digest::{
+            ExtendableOutput,
+            Update,
+        };
+        use lib_q_sha3::CShake256;
+
+        use crate::air::hash_preimage_nist::CSHAKE_DOMAIN;
+
+        let secret = b"api-preimage-secret-nist";
+        let proof = prove_preimage_nist(secret).expect("proof");
+        let mut expected_hash = [0u8; 32];
+        {
+            let mut hasher = CShake256::new_with_function_name(&[], CSHAKE_DOMAIN);
+            hasher.update(secret);
+            hasher.finalize_xof_into(&mut expected_hash);
+        }
+
+        let ok = verify_preimage_nist(&proof, &expected_hash).expect("verify");
+        assert!(ok);
+
+        let bad = verify_preimage_nist(&proof, &[0u8; 32]).expect("verify wrong");
+        assert!(!bad);
+    }
 }

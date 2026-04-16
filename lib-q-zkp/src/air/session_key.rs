@@ -400,6 +400,7 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKe
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_matrix::Matrix;
@@ -438,5 +439,91 @@ mod tests {
         let trace = trace.unwrap();
         assert_eq!(trace.width(), row_width());
         assert!(trace.height().is_power_of_two());
+    }
+
+    #[test]
+    fn test_session_key_air_rejects_invalid_output_length() {
+        let zero_len = SessionKeyDerivationAir::new(KdfParams {
+            output_length: 0,
+            ..Default::default()
+        });
+        assert!(matches!(zero_len, Err(AirError::InvalidDimensions { .. })));
+
+        let too_large = SessionKeyDerivationAir::new(KdfParams {
+            output_length: MAX_SESSION_KEY_SIZE + 1,
+            ..Default::default()
+        });
+        assert!(matches!(too_large, Err(AirError::ExceedsMaxSize { .. })));
+    }
+
+    #[test]
+    fn test_session_key_trace_generation_rejects_invalid_inputs() {
+        let params = KdfParams {
+            output_length: 32,
+            ..Default::default()
+        };
+        let air = SessionKeyDerivationAir::new(params).unwrap();
+
+        let empty_secret = SessionKeyInput {
+            shared_secret: vec![],
+            session_keys: vec![1u8; 32],
+        };
+        assert!(matches!(
+            air.generate_trace(&empty_secret),
+            Err(AirError::InvalidInput { .. })
+        ));
+
+        let oversized_secret = SessionKeyInput {
+            shared_secret: vec![1u8; MAX_SHARED_SECRET_SIZE + 1],
+            session_keys: vec![1u8; 32],
+        };
+        assert!(matches!(
+            air.generate_trace(&oversized_secret),
+            Err(AirError::ExceedsMaxSize { .. })
+        ));
+
+        let wrong_key_len = SessionKeyInput {
+            shared_secret: vec![1u8; 4],
+            session_keys: vec![1u8; 31],
+        };
+        assert!(matches!(
+            air.generate_trace(&wrong_key_len),
+            Err(AirError::InvalidInput { .. })
+        ));
+    }
+
+    #[test]
+    fn test_session_key_public_values_deterministic() {
+        let params = KdfParams {
+            output_length: 32,
+            ..Default::default()
+        };
+        let air = SessionKeyDerivationAir::new(params).unwrap();
+        let input = SessionKeyInput {
+            shared_secret: vec![9, 8, 7, 6],
+            session_keys: vec![5u8; 32],
+        };
+        let pv_a = air.public_values(&input);
+        let pv_b = air.public_values(&input);
+        assert_eq!(pv_a, pv_b);
+        assert_eq!(pv_a.len(), 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_session_key_trace_satisfies_constraints() {
+        let params = KdfParams {
+            output_length: 32,
+            ..Default::default()
+        };
+        let air = SessionKeyDerivationAir::new(params).unwrap();
+        let input = SessionKeyInput {
+            shared_secret: vec![1, 2, 3, 4],
+            session_keys: vec![5u8; 32],
+        };
+        let trace = air.generate_trace(&input).expect("trace");
+        let public_values = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

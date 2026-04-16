@@ -439,6 +439,51 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_trace_rejects_trace_local_length_mismatch() {
+        let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![TestField::ZERO; 2],
+            trace_local: vec![TestField::ZERO; 3],
+            trace_next: vec![TestField::ZERO; 4],
+            zeta: TestField::ZERO,
+            alpha: TestField::ZERO,
+            public_values: vec![],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_trace_next_length_mismatch() {
+        let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![TestField::ZERO; 2],
+            trace_local: vec![TestField::ZERO; 4],
+            trace_next: vec![TestField::ZERO; 3],
+            zeta: TestField::ZERO,
+            alpha: TestField::ZERO,
+            public_values: vec![],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_constraint_public_values_passthrough() {
+        let air = ConstraintVerifierAir::new(1, 2, 4).unwrap();
+        let input = ConstraintVerificationInput::<TestField> {
+            quotient_chunks: vec![TestField::ZERO],
+            trace_local: vec![TestField::ZERO; 2],
+            trace_next: vec![TestField::ZERO; 2],
+            zeta: TestField::ZERO,
+            alpha: TestField::ZERO,
+            public_values: vec![TestField::ONE, TestField::ZERO],
+        };
+        let public_values = air.public_values(&input);
+        assert_eq!(public_values, vec![TestField::ONE, TestField::ZERO]);
+    }
+
+    #[test]
     fn test_constraint_trace_satisfies_constraints() {
         let air = ConstraintVerifierAir::new(2, 4, 8).unwrap();
         let zero = TestField::ZERO;

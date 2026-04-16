@@ -340,6 +340,11 @@ mod tests {
     use alloc::vec;
 
     use super::*;
+    use crate::{
+        ProofMetadata,
+        ProofType,
+        ZkpProof,
+    };
 
     #[test]
     fn test_prove_credential_attributes() {
@@ -412,5 +417,101 @@ mod tests {
         let result = verify_credential_proof(&proof, &commitment, &wrong_revealed)
             .expect("verify should not error");
         assert!(!result, "wrong revealed attribute must fail verification");
+    }
+
+    #[test]
+    fn test_prove_credential_attributes_rejects_empty_credential() {
+        let credential = IpCredential { attributes: vec![] };
+        let result = prove_credential_attributes(&credential, &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prove_credential_attributes_rejects_reveal_mask_length_mismatch() {
+        let credential = IpCredential {
+            attributes: vec![b"A".to_vec(), b"B".to_vec()],
+        };
+        let result = prove_credential_attributes(&credential, &[true]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_empty_data() {
+        let proof = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Credential {
+                attribute_sizes: vec![1],
+                reveal_mask: vec![true],
+            },
+        };
+        let result = verify_credential_proof(&proof, &[0u8; 8], &[b"A".to_vec()]).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_non_credential_metadata() {
+        let proof = ZkpProof {
+            data: vec![1u8; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::None,
+        };
+        let result = verify_credential_proof(&proof, &[0u8; 8], &[]).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_inconsistent_metadata_lengths() {
+        let proof = ZkpProof {
+            data: vec![1u8; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Credential {
+                attribute_sizes: vec![4, 4],
+                reveal_mask: vec![true],
+            },
+        };
+        let result = verify_credential_proof(&proof, &[0u8; 8], &[b"A".to_vec()]).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_revealed_count_mismatch() {
+        let proof = ZkpProof {
+            data: vec![1u8; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Credential {
+                attribute_sizes: vec![4, 4],
+                reveal_mask: vec![true, false],
+            },
+        };
+        let result = verify_credential_proof(&proof, &[0u8; 8], &[]).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_short_expected_commitment() {
+        let credential = IpCredential {
+            attributes: vec![b"Alice".to_vec(), b"42".to_vec()],
+        };
+        let reveal_mask = vec![true, false];
+        let proof = prove_credential_attributes(&credential, &reveal_mask).expect("proof");
+        let result = verify_credential_proof(&proof, &[1u8; 7], &[b"Alice".to_vec()]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_credential_proof_rejects_revealed_attribute_too_long() {
+        let credential = IpCredential {
+            attributes: vec![b"A".to_vec(), b"42".to_vec()],
+        };
+        let reveal_mask = vec![true, false];
+        let commitment = compute_credential_commitment(&credential.attributes).expect("commitment");
+        let proof = prove_credential_attributes(&credential, &reveal_mask).expect("proof");
+        let result = verify_credential_proof(&proof, &commitment, &[b"TOO-LONG".to_vec()]).unwrap();
+        assert!(!result);
     }
 }

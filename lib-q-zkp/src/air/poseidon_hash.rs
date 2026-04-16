@@ -239,8 +239,12 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, PoseidonHashInpu
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
+    use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
+    use lib_q_stark_matrix::dense::RowMajorMatrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;
@@ -261,9 +265,53 @@ mod tests {
     }
 
     #[test]
+    fn test_poseidon_hash_air_new_rejects_oversized_input_capacity() {
+        let result = PoseidonHashAir::new(MAX_PREIMAGE_SIZE + 1);
+        assert!(matches!(result, Err(AirError::ExceedsMaxSize { .. })));
+    }
+
+    #[test]
     fn test_poseidon_hash_air_width() {
         let air = PoseidonHashAir::new(16).unwrap();
         // 16 preimage + 3 state + 1 output = 20
         assert_eq!(BaseAir::<TestField>::width(&air), 20);
+    }
+
+    #[test]
+    fn test_poseidon_hash_generate_trace_rejects_empty_preimage() {
+        let air = PoseidonHashAir::new(4).unwrap();
+        let input: PoseidonHashInput = vec![];
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_poseidon_hash_generate_trace_rejects_oversized_preimage() {
+        let air = PoseidonHashAir::new(2).unwrap();
+        let input: PoseidonHashInput = vec![TestField::ONE, TestField::ONE, TestField::ONE];
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_poseidon_hash_trace_output_matches_public_values() {
+        let air = PoseidonHashAir::new(4).unwrap();
+        let input: PoseidonHashInput = vec![TestField::ONE, TestField::ONE];
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        assert_eq!(public_values.len(), 1);
+        let output_col = 4 + 3;
+        assert_eq!(trace.get(0, output_col), Some(public_values[0]));
+    }
+
+    #[test]
+    fn test_poseidon_hash_trace_satisfies_constraints() {
+        let air = PoseidonHashAir::new(4).unwrap();
+        let input: PoseidonHashInput = vec![TestField::ONE, TestField::ONE];
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let public_values: Vec<TestField> = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

@@ -371,6 +371,7 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, Credentia
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_matrix::Matrix;
@@ -428,5 +429,76 @@ mod tests {
         };
         let trace = air.generate_trace(&input).unwrap();
         assert_eq!(trace.width(), COLS_PER_BLOCK);
+    }
+
+    #[test]
+    fn test_credential_schema_rejects_invalid_dimensions() {
+        let empty = CredentialSchema::new(vec![]);
+        assert!(matches!(empty, Err(AirError::InvalidDimensions { .. })));
+
+        let too_many = CredentialSchema::new(vec![1usize; MAX_ATTRIBUTES + 1]);
+        assert!(matches!(too_many, Err(AirError::ExceedsMaxSize { .. })));
+
+        let mut sizes = vec![8usize; 2];
+        sizes[1] = MAX_ATTRIBUTE_SIZE + 1;
+        let oversized_attr = CredentialSchema::new(sizes);
+        assert!(matches!(
+            oversized_attr,
+            Err(AirError::ExceedsMaxSize { .. })
+        ));
+    }
+
+    #[test]
+    fn test_credential_air_rejects_mask_length_mismatch() {
+        let schema = CredentialSchema::new(vec![8, 8]).unwrap();
+        let result = CredentialAir::new(schema, vec![true]);
+        assert!(matches!(result, Err(AirError::InvalidDimensions { .. })));
+    }
+
+    #[test]
+    fn test_credential_trace_generation_rejects_invalid_inputs() {
+        let schema = CredentialSchema::new(vec![4, 4]).unwrap();
+        let air = CredentialAir::new(schema, vec![true, false]).unwrap();
+
+        let wrong_count = CredentialInput {
+            attributes: vec![b"one".to_vec()],
+        };
+        assert!(matches!(
+            air.generate_trace(&wrong_count),
+            Err(AirError::InvalidInput { .. })
+        ));
+
+        let oversized_attr = CredentialInput {
+            attributes: vec![b"12345".to_vec(), b"ok".to_vec()],
+        };
+        assert!(matches!(
+            air.generate_trace(&oversized_attr),
+            Err(AirError::InvalidInput { .. })
+        ));
+    }
+
+    #[test]
+    fn test_credential_public_values_include_commitment_and_revealed_hashes() {
+        let schema = CredentialSchema::new(vec![8, 8, 8]).unwrap();
+        let air = CredentialAir::new(schema, vec![true, false, true]).unwrap();
+        let input = CredentialInput {
+            attributes: vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec()],
+        };
+
+        let public_values = air.public_values(&input);
+        assert_eq!(public_values.len(), 3);
+    }
+
+    #[test]
+    fn test_credential_trace_satisfies_constraints() {
+        let schema = CredentialSchema::new(vec![8, 8]).unwrap();
+        let air = CredentialAir::new(schema, vec![true, false]).unwrap();
+        let input = CredentialInput {
+            attributes: vec![b"attr1".to_vec(), b"attr2".to_vec()],
+        };
+        let trace = air.generate_trace(&input).expect("trace");
+        let public_values = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 }

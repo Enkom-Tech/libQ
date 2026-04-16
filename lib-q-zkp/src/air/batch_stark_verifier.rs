@@ -38,6 +38,38 @@ use super::{
 pub type BatchRecursiveStarkVerificationInput<F: Field, Ch: Field> =
     Vec<RecursiveStarkVerificationInput<F, Ch>>;
 
+/// Outer public values for [`BatchStarkVerifierAir`]: `Poseidon128` over all inner
+/// `expected_public_values` concatenated (same as [`TraceGenerator::public_values`]).
+///
+/// Used when verifying an outer recursive proof without rebuilding full
+/// [`RecursiveStarkVerificationInput`] witnesses.
+pub fn batch_recursive_verifier_public_values<F, Ch>(
+    serialized: &[SerializedStarkProof<F, Ch>],
+) -> Vec<F>
+where
+    F: Field
+        + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mersenne31>
+        + From<lib_q_poseidon::PoseidonField>
+        + Into<lib_q_poseidon::PoseidonField>,
+    Ch: Field,
+{
+    let flattened: Vec<F> = serialized
+        .iter()
+        .flat_map(|s| s.expected_public_values.iter().cloned())
+        .collect();
+    if flattened.is_empty() {
+        return vec![F::ZERO];
+    }
+    use lib_q_poseidon::{
+        Poseidon,
+        Poseidon128,
+        PoseidonField,
+    };
+    let hash_input: Vec<PoseidonField> = flattened.into_iter().map(|f| f.into()).collect();
+    let hash_output = Poseidon128.hash(&hash_input);
+    vec![hash_output[0].into()]
+}
+
 /// AIR that verifies N inner STARK proofs. Each row independently verifies one proof.
 /// Public value is Poseidon128(flatten(inner_public_values)).
 #[derive(Debug, Clone)]
@@ -156,21 +188,11 @@ where
     }
 
     fn public_values(&self, inputs: &BatchRecursiveStarkVerificationInput<F, Ch>) -> Vec<F> {
-        let flattened: Vec<F> = inputs
+        let serialized: Vec<SerializedStarkProof<F, Ch>> = inputs
             .iter()
-            .flat_map(|inp| inp.serialized_proof.expected_public_values.iter().cloned())
+            .map(|inp| inp.serialized_proof.clone())
             .collect();
-        if flattened.is_empty() {
-            return vec![F::ZERO];
-        }
-        use lib_q_poseidon::{
-            Poseidon,
-            Poseidon128,
-            PoseidonField,
-        };
-        let hash_input: Vec<PoseidonField> = flattened.into_iter().map(|f| f.into()).collect();
-        let hash_output = Poseidon128.hash(&hash_input);
-        vec![hash_output[0].into()]
+        batch_recursive_verifier_public_values(&serialized)
     }
 }
 
@@ -178,6 +200,7 @@ where
 mod tests {
     use alloc::vec;
 
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
@@ -194,6 +217,10 @@ mod tests {
         SerializedFriRound,
     };
     use super::*;
+    use crate::air::{
+        MerkleInclusionAir,
+        merkle_root_to_bytes,
+    };
 
     type TestField = Complex<Mersenne31>;
 
@@ -235,10 +262,14 @@ mod tests {
             siblings: vec![zero_hash; tree_depth],
         };
 
+        let merkle_air = MerkleInclusionAir::new(tree_depth).expect("MerkleInclusionAir");
+        let root_field = merkle_air.public_values(&merkle_proof)[0];
+        let root_bytes = merkle_root_to_bytes(&root_field);
+
         RecursiveStarkVerificationInput {
             serialized_proof: serialized.clone(),
             commitment_inputs: CommitmentVerificationInput {
-                expected_roots: vec![[0u8; 32], [1u8; 32]],
+                expected_roots: vec![root_bytes, root_bytes],
                 merkle_proofs: vec![merkle_proof.clone(), merkle_proof.clone()],
             },
             fri_inputs: FriVerificationInput {
@@ -334,5 +365,26 @@ mod tests {
 
         let public_values = batch_air.public_values(&vec![input]);
         assert_eq!(public_values, vec![TestField::ZERO]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_batch_constraints_detect_placeholder_trace() {
+        let proof_a = sample_serialized_proof();
+        let mut proof_b = sample_serialized_proof();
+        proof_b.expected_public_values = vec![TestField::ONE];
+
+        let input_a = sample_recursive_input(&proof_a);
+        let input_b = sample_recursive_input(&proof_b);
+        let batch_air =
+            BatchStarkVerifierAir::<TestField, TestField>::new(vec![proof_a, proof_b], 4, 1, 2)
+                .unwrap();
+
+        let trace = batch_air
+            .generate_trace(&vec![input_a.clone(), input_b.clone()])
+            .expect("batch trace should generate");
+        let public_values = batch_air.public_values(&vec![input_a, input_b]);
+
+        check_constraints(&batch_air, &trace, &public_values);
     }
 }

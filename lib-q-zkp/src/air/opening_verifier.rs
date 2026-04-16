@@ -386,6 +386,89 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_trace_rejects_domain_points_length_mismatch() {
+        let air = OpeningVerifierAir::new(2, 4).unwrap();
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO; 2],
+            domain_points: vec![TestField::ZERO],
+            merkle_proofs: vec![],
+            expected_roots: vec![TestField::ZERO; 2],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_merkle_proofs_length_mismatch() {
+        let air = OpeningVerifierAir::new(2, 4).unwrap();
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO; 2],
+            domain_points: vec![TestField::ZERO; 2],
+            merkle_proofs: vec![MerkleProofInput {
+                leaf: b"leaf".to_vec(),
+                leaf_hash_direct: None,
+                path_bits: vec![false; 4],
+                siblings: vec![MerkleHash::hash_data(b"s"); 4],
+            }],
+            expected_roots: vec![TestField::ZERO; 2],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_expected_roots_length_mismatch() {
+        let air = OpeningVerifierAir::new(2, 4).unwrap();
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO; 2],
+            domain_points: vec![TestField::ZERO; 2],
+            merkle_proofs: vec![
+                MerkleProofInput {
+                    leaf: b"leaf0".to_vec(),
+                    leaf_hash_direct: None,
+                    path_bits: vec![false; 4],
+                    siblings: vec![MerkleHash::hash_data(b"s0"); 4],
+                },
+                MerkleProofInput {
+                    leaf: b"leaf1".to_vec(),
+                    leaf_hash_direct: None,
+                    path_bits: vec![true; 4],
+                    siblings: vec![MerkleHash::hash_data(b"s1"); 4],
+                },
+            ],
+            expected_roots: vec![TestField::ZERO],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_opening_public_values_passthrough() {
+        let air = OpeningVerifierAir::new(2, 4).unwrap();
+        let input = OpeningVerificationInput::<TestField> {
+            opened_values: vec![TestField::ZERO; 2],
+            domain_points: vec![TestField::ZERO; 2],
+            merkle_proofs: vec![
+                MerkleProofInput {
+                    leaf: b"leaf0".to_vec(),
+                    leaf_hash_direct: None,
+                    path_bits: vec![false; 4],
+                    siblings: vec![MerkleHash::hash_data(b"s0"); 4],
+                },
+                MerkleProofInput {
+                    leaf: b"leaf1".to_vec(),
+                    leaf_hash_direct: None,
+                    path_bits: vec![true; 4],
+                    siblings: vec![MerkleHash::hash_data(b"s1"); 4],
+                },
+            ],
+            expected_roots: vec![TestField::ONE, TestField::ZERO],
+        };
+        let public_values = air.public_values(&input);
+        assert_eq!(public_values, vec![TestField::ONE, TestField::ZERO]);
+    }
+
+    #[test]
     fn test_opening_trace_satisfies_constraints() {
         let air = OpeningVerifierAir::new(1, 4).unwrap();
         let leaf = b"opening-check".to_vec();

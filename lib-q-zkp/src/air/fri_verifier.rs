@@ -503,6 +503,7 @@ mod tests {
     use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::super::recursive_types::SerializedFriRound;
@@ -530,6 +531,18 @@ mod tests {
 
         let result = FriVerifierAir::new(8, MAX_FINAL_POLY_LOG_LEN + 1, 10);
         assert!(matches!(result, Err(AirError::InvalidDimensions { .. })));
+
+        let result = FriVerifierAir::new(8, 4, 0);
+        assert!(matches!(result, Err(AirError::InvalidDimensions { .. })));
+
+        let result = FriVerifierAir::new(8, 4, MAX_FRI_QUERIES + 1);
+        assert!(matches!(result, Err(AirError::InvalidDimensions { .. })));
+    }
+
+    #[test]
+    fn test_fri_verifier_air_accepts_max_queries() {
+        let air = FriVerifierAir::new(1, 0, MAX_FRI_QUERIES).unwrap();
+        assert_eq!(air.num_queries(), MAX_FRI_QUERIES);
     }
 
     #[test]
@@ -599,6 +612,131 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_trace_rejects_round_beta_length_mismatch() {
+        let air = FriVerifierAir::new(2, 1, 1).unwrap();
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![
+                SerializedFriRound {
+                    commitment_hash: [0u8; 32],
+                    beta: vec![0u8; 8],
+                };
+                2
+            ],
+            round_betas: vec![TestField::ZERO],
+            final_poly: vec![TestField::ZERO; 2],
+            query_indices: vec![0],
+            query_evaluations: vec![TestField::ZERO],
+            round_current_evals: vec![TestField::ZERO; 2],
+            round_sibling_evals: vec![TestField::ZERO; 2],
+            round_domain_point_inverses: vec![TestField::ZERO; 2],
+            round_domain_point_x0: vec![TestField::ZERO; 2],
+            round_parity: vec![TestField::ZERO; 2],
+            final_poly_eval_point: TestField::ZERO,
+            round_roll_ins: vec![TestField::ZERO; 2],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_final_poly_length_mismatch() {
+        let air = FriVerifierAir::new(1, 2, 1).unwrap();
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [0u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            round_betas: vec![TestField::ZERO],
+            final_poly: vec![TestField::ZERO; 3],
+            query_indices: vec![0],
+            query_evaluations: vec![TestField::ZERO],
+            round_current_evals: vec![TestField::ZERO],
+            round_sibling_evals: vec![TestField::ZERO],
+            round_domain_point_inverses: vec![TestField::ZERO],
+            round_domain_point_x0: vec![TestField::ZERO],
+            round_parity: vec![TestField::ZERO],
+            final_poly_eval_point: TestField::ZERO,
+            round_roll_ins: vec![TestField::ZERO],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_query_index_length_mismatch() {
+        let air = FriVerifierAir::new(1, 1, 2).unwrap();
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [0u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            round_betas: vec![TestField::ZERO],
+            final_poly: vec![TestField::ZERO; 2],
+            query_indices: vec![0],
+            query_evaluations: vec![TestField::ZERO],
+            round_current_evals: vec![TestField::ZERO],
+            round_sibling_evals: vec![TestField::ZERO],
+            round_domain_point_inverses: vec![TestField::ONE],
+            round_domain_point_x0: vec![TestField::ZERO],
+            round_parity: vec![TestField::ZERO],
+            final_poly_eval_point: TestField::ONE,
+            round_roll_ins: vec![TestField::ZERO],
+        };
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_fri_public_values_truncates_to_expected_poly_len() {
+        let air = FriVerifierAir::new(1, 1, 1).unwrap();
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [0u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            round_betas: vec![TestField::ZERO],
+            final_poly: vec![TestField::ZERO, TestField::ONE, TestField::ONE],
+            query_indices: vec![0],
+            query_evaluations: vec![TestField::ZERO],
+            round_current_evals: vec![],
+            round_sibling_evals: vec![],
+            round_domain_point_inverses: vec![],
+            round_domain_point_x0: vec![],
+            round_parity: vec![],
+            final_poly_eval_point: TestField::ZERO,
+            round_roll_ins: vec![],
+        };
+        let public_values = air.public_values(&input);
+        assert_eq!(public_values.len(), 2);
+        assert_eq!(public_values[0], TestField::ZERO);
+        assert_eq!(public_values[1], TestField::ONE);
+    }
+
+    #[test]
+    fn test_fri_trace_generation_uses_default_zero_for_missing_round_vectors() {
+        let air = FriVerifierAir::new(1, 1, 1).unwrap();
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [0u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            round_betas: vec![TestField::ZERO],
+            final_poly: vec![TestField::ZERO; 2],
+            query_indices: vec![0],
+            query_evaluations: vec![],
+            round_current_evals: vec![],
+            round_sibling_evals: vec![],
+            round_domain_point_inverses: vec![],
+            round_domain_point_x0: vec![],
+            round_parity: vec![],
+            final_poly_eval_point: TestField::ZERO,
+            round_roll_ins: vec![],
+        };
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        assert_eq!(trace.height(), 1);
+    }
+
+    #[test]
     fn test_fri_trace_satisfies_constraints() {
         let air = FriVerifierAir::new(1, 1, 1).unwrap();
         let zero = TestField::ZERO;
@@ -625,5 +763,93 @@ mod tests {
         let public_values: Vec<TestField> = air.public_values(&input);
 
         check_constraints(&air, &trace, &public_values);
+    }
+
+    #[test]
+    fn test_fri_trace_populates_commitment_folding_horner_and_queries() {
+        let air = FriVerifierAir::new(2, 2, 2).unwrap();
+        let one = TestField::ONE;
+        let two = one + one;
+        let three = two + one;
+
+        let input = FriVerificationInput::<TestField> {
+            fri_rounds: vec![
+                SerializedFriRound {
+                    commitment_hash: [5u8; 32],
+                    beta: vec![1u8; 8],
+                },
+                SerializedFriRound {
+                    commitment_hash: [7u8; 32],
+                    beta: vec![2u8; 8],
+                },
+            ],
+            round_betas: vec![three, two],
+            final_poly: vec![one, two, three, TestField::ZERO],
+            query_indices: vec![3, 9],
+            query_evaluations: vec![three],
+            round_current_evals: vec![two, one],
+            round_sibling_evals: vec![one, three],
+            round_domain_point_inverses: vec![one, one],
+            round_domain_point_x0: vec![one, one],
+            round_parity: vec![TestField::ZERO, one],
+            final_poly_eval_point: two,
+            round_roll_ins: vec![one, TestField::ZERO],
+        };
+
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        assert_eq!(trace.height(), 1);
+
+        let per_round = 32 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1;
+        let round0_start = 0;
+        let round1_start = per_round;
+        let round0_beta_col = round0_start + 32;
+        let round1_beta_col = round1_start + 32;
+
+        // commitment bytes are mapped directly to field elements in the first 32 columns.
+        assert_eq!(
+            trace.get(0, round0_start),
+            Some(TestField::new_real(Mersenne31::new(5)))
+        );
+        assert_eq!(
+            trace.get(0, round1_start),
+            Some(TestField::new_real(Mersenne31::new(7)))
+        );
+
+        // folded value is materialized from the configured verifier formula inputs.
+        let folded0 = trace.get(0, round0_beta_col + 1);
+        let expected_folded0 = two + (three - one) * (one - two) * one + three * three * one;
+        assert_eq!(folded0, Some(expected_folded0));
+        assert_eq!(trace.get(0, round0_beta_col + 2), Some(one));
+        assert_eq!(trace.get(0, round0_beta_col + 3), Some(two));
+        assert_eq!(trace.get(0, round0_beta_col + 7), Some(one));
+
+        let folded1 = trace.get(0, round1_beta_col + 1);
+        let expected_folded1 = three + (two - one) * (one - three) * one;
+        assert_eq!(folded1, Some(expected_folded1));
+
+        let final_poly_start = 2 * per_round;
+        let eval_point_col = final_poly_start + 4;
+        let horner_start = eval_point_col + 1;
+        assert_eq!(trace.get(0, eval_point_col), Some(two));
+        assert_eq!(trace.get(0, horner_start), Some(TestField::ZERO));
+        assert_eq!(trace.get(0, horner_start + 1), Some(three));
+        assert_eq!(trace.get(0, horner_start + 2), Some(three * two + two));
+        assert_eq!(
+            trace.get(0, horner_start + 3),
+            Some((three * two + two) * two + one)
+        );
+
+        let queries_start = horner_start + 4;
+        assert_eq!(
+            trace.get(0, queries_start),
+            Some(TestField::new_real(Mersenne31::new(3)))
+        );
+        assert_eq!(trace.get(0, queries_start + 1), Some(three));
+        assert_eq!(
+            trace.get(0, queries_start + 2),
+            Some(TestField::new_real(Mersenne31::new(9)))
+        );
+        // Missing second evaluation defaults to zero.
+        assert_eq!(trace.get(0, queries_start + 3), Some(TestField::ZERO));
     }
 }

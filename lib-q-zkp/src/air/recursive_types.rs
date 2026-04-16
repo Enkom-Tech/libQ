@@ -464,9 +464,13 @@ where
 #[cfg(test)]
 mod tests {
     extern crate alloc;
+    use alloc::string::ToString;
+    use alloc::vec::Vec;
+
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
+    use serde::Serialize;
 
     use super::{
         COMMITMENT_HASH_SIZE,
@@ -477,6 +481,18 @@ mod tests {
         RecursiveStarkInput,
         SerializedFriRound,
         SerializedStarkProof,
+        hash_commitment,
+        recursive_stark_input_from_proof,
+        serialize_stark_proof,
+    };
+    use crate::air::{
+        ArithmeticAir,
+        TraceGenerator,
+    };
+    use crate::stark::{
+        StarkProver,
+        StarkVerifier,
+        default_config,
     };
 
     type TestField = Complex<Mersenne31>;
@@ -609,5 +625,142 @@ mod tests {
     fn test_recursive_stark_input_new_validates() {
         let input = RecursiveStarkInput::new(valid_proof());
         assert!(input.is_ok());
+    }
+
+    #[test]
+    fn test_recursive_stark_input_new_rejects_invalid_proof() {
+        let mut proof = valid_proof();
+        proof.degree_bits = MAX_FINAL_POLY_LOG_LEN + 1;
+        let input = RecursiveStarkInput::new(proof);
+        assert!(input.is_err());
+    }
+
+    #[test]
+    fn test_hash_commitment_is_deterministic_and_nonzero_for_valid_data() {
+        let commitment = alloc::vec![1u8, 2u8, 3u8, 4u8];
+        let hash_a = hash_commitment(&commitment);
+        let hash_b = hash_commitment(&commitment);
+        assert_eq!(hash_a, hash_b);
+        assert_ne!(hash_a, [0u8; COMMITMENT_HASH_SIZE]);
+    }
+
+    #[test]
+    fn test_hash_commitment_returns_zero_hash_on_serialize_failure() {
+        struct FailingSerialize;
+
+        impl Serialize for FailingSerialize {
+            fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                Err(serde::ser::Error::custom(
+                    "forced serialize failure".to_string(),
+                ))
+            }
+        }
+
+        let hash = hash_commitment(&FailingSerialize);
+        assert_eq!(hash, [0u8; COMMITMENT_HASH_SIZE]);
+    }
+
+    fn sample_proof_and_challenges() -> (
+        ArithmeticAir,
+        lib_q_stark::Proof<crate::stark::DefaultConfig>,
+        Vec<crate::stark::ConfigVal>,
+        crate::stark::ConfigVal,
+        crate::stark::ConfigVal,
+        crate::stark::ConfigVal,
+        Vec<crate::stark::ConfigVal>,
+    ) {
+        let air = ArithmeticAir::new(1).expect("air");
+        let input = alloc::vec![(crate::stark::ConfigVal::ONE, crate::stark::ConfigVal::ONE,)];
+        let trace = air.generate_trace(&input).expect("trace");
+        let public_values = air.public_values(&input);
+        let proof = StarkProver::new(default_config())
+            .prove(&air, trace, &public_values)
+            .expect("proof");
+        let verifier = StarkVerifier::new(default_config());
+        let (zeta, zeta_next, alpha, betas) = verifier
+            .derive_challenges(&air, &proof, &public_values)
+            .expect("challenges");
+        (air, proof, public_values, zeta, zeta_next, alpha, betas)
+    }
+
+    #[test]
+    fn test_serialize_stark_proof_from_real_proof_succeeds() {
+        let (_air, proof, public_values, zeta, zeta_next, alpha, betas) =
+            sample_proof_and_challenges();
+
+        let serialized = serialize_stark_proof(
+            &proof,
+            public_values.clone(),
+            zeta,
+            zeta_next,
+            alpha,
+            &betas,
+        )
+        .expect("serialize");
+
+        assert_eq!(serialized.expected_public_values, public_values);
+        assert_eq!(serialized.trace_local.len(), serialized.trace_width);
+        assert_eq!(serialized.trace_next.len(), serialized.trace_width);
+    }
+
+    #[test]
+    fn test_serialize_stark_proof_rejects_beta_length_mismatch() {
+        let (_air, proof, public_values, zeta, zeta_next, alpha, mut betas) =
+            sample_proof_and_challenges();
+        betas.push(crate::stark::ConfigVal::ONE);
+
+        let result = serialize_stark_proof(&proof, public_values, zeta, zeta_next, alpha, &betas);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_recursive_stark_input_from_proof_roundtrip() {
+        let (_air, proof, public_values, zeta, zeta_next, alpha, betas) =
+            sample_proof_and_challenges();
+
+        let input =
+            recursive_stark_input_from_proof(&proof, public_values, zeta, zeta_next, alpha, &betas)
+                .expect("recursive input");
+
+        assert!(input.serialized_proof.validate().is_ok());
+    }
+
+    #[test]
+    fn test_serialize_stark_proof_rejects_excessive_degree_bits() {
+        let (_air, mut proof, public_values, zeta, zeta_next, alpha, betas) =
+            sample_proof_and_challenges();
+        proof.degree_bits = MAX_FINAL_POLY_LOG_LEN + 1;
+
+        let result = serialize_stark_proof(&proof, public_values, zeta, zeta_next, alpha, &betas);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_serialize_stark_proof_rejects_excessive_quotient_chunks() {
+        let (_air, mut proof, public_values, zeta, zeta_next, alpha, betas) =
+            sample_proof_and_challenges();
+        let chunk = proof
+            .opened_values
+            .quotient_chunks
+            .first()
+            .cloned()
+            .unwrap_or_else(|| alloc::vec![crate::stark::ConfigVal::ZERO]);
+        proof.opened_values.quotient_chunks = alloc::vec![chunk; MAX_QUOTIENT_CHUNKS + 1];
+
+        let result = serialize_stark_proof(&proof, public_values, zeta, zeta_next, alpha, &betas);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_serialize_stark_proof_rejects_trace_local_next_length_mismatch() {
+        let (_air, mut proof, public_values, zeta, zeta_next, alpha, betas) =
+            sample_proof_and_challenges();
+        let _ = proof.opened_values.trace_next.pop();
+
+        let result = serialize_stark_proof(&proof, public_values, zeta, zeta_next, alpha, &betas);
+        assert!(result.is_err());
     }
 }

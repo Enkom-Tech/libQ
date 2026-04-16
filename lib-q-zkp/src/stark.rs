@@ -753,7 +753,25 @@ pub fn zk_config_with_seeds(val_mmcs_seed: u64, pcs_seed: u64) -> ZkConfig {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::vec;
+
     use super::*;
+    use crate::air::{
+        ArithmeticAir,
+        TraceGenerator,
+    };
+
+    fn sample_arithmetic_proof() -> (ArithmeticAir, StarkProof<DefaultConfig>, Vec<ConfigVal>) {
+        let air = ArithmeticAir::new(1).expect("ArithmeticAir");
+        let input = vec![(ConfigVal::ONE, ConfigVal::ONE)];
+        let trace = air.generate_trace(&input).expect("trace");
+        let public_values = air.public_values(&input);
+        let proof = StarkProver::new(default_config())
+            .prove(&air, trace, &public_values)
+            .expect("proof generation");
+        (air, proof, public_values)
+    }
 
     #[test]
     fn test_stark_prover_creation() {
@@ -773,5 +791,231 @@ mod tests {
     fn test_default_config() {
         let _config = default_config();
         // Just verify that config creation doesn't panic
+    }
+
+    #[test]
+    fn test_default_fri_params_for_tests_values() {
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        assert_eq!(log_blowup, 2);
+        assert_eq!(num_queries, 100);
+        assert_eq!(proof_of_work_bits, 16);
+    }
+
+    #[test]
+    fn test_zk_config_builders_create_zk_configs() {
+        let zk_a = zk_config();
+        let zk_b = zk_config_with_seeds(11, 29);
+        assert_eq!(zk_a.is_zk(), 1);
+        assert_eq!(zk_b.is_zk(), 1);
+    }
+
+    #[test]
+    fn test_prover_and_verifier_config_accessors() {
+        let prover = StarkProver::new(default_config());
+        let verifier = StarkVerifier::new(default_config());
+        assert_eq!(prover.config().is_zk(), 0);
+        assert_eq!(verifier.config().is_zk(), 0);
+    }
+
+    #[test]
+    fn test_stark_prove_and_verify_roundtrip() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        verifier
+            .verify(&air, &proof, &public_values)
+            .expect("proof should verify");
+    }
+
+    #[test]
+    fn test_derive_challenges_and_query_positions() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        let (_zeta, _zeta_next, _alpha, betas) = verifier
+            .derive_challenges(&air, &proof, &public_values)
+            .expect("derive_challenges");
+
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        assert!(betas.len() <= num_queries);
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+        let positions = verifier
+            .derive_query_positions(&air, &proof, &public_values, &fri_params)
+            .expect("derive_query_positions");
+        assert_eq!(positions.len(), num_queries);
+    }
+
+    #[test]
+    fn test_derive_query_positions_rejects_wrong_public_values_shape() {
+        let (air, proof, _public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+        let wrong_public_values = vec![ConfigVal::ZERO; 2];
+        let result =
+            verifier.derive_query_positions(&air, &proof, &wrong_public_values, &fri_params);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_derive_challenges_rejects_random_commitment_mismatch() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        proof.commitments.random = Some(proof.commitments.trace.clone());
+        let result = verifier.derive_challenges(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    #[test]
+    fn test_derive_challenges_rejects_random_values_mismatch() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        proof.opened_values.random = Some(vec![ConfigVal::ZERO]);
+        let result = verifier.derive_challenges(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    #[test]
+    fn test_derive_challenges_rejects_invalid_trace_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        let _ = proof.opened_values.trace_local.pop();
+        let result = verifier.derive_challenges(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_derive_challenges_rejects_invalid_quotient_chunk_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        proof.opened_values.quotient_chunks.clear();
+        let result = verifier.derive_challenges(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_derive_query_positions_rejects_random_commitment_mismatch() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+
+        proof.commitments.random = Some(proof.commitments.trace.clone());
+        let result = verifier.derive_query_positions(&air, &proof, &public_values, &fri_params);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    #[test]
+    fn test_derive_query_positions_rejects_random_values_without_commitment() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+
+        proof.opened_values.random = Some(vec![ConfigVal::ZERO]);
+        let result = verifier.derive_query_positions(&air, &proof, &public_values, &fri_params);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    #[test]
+    fn test_derive_query_positions_rejects_invalid_trace_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+
+        let _ = proof.opened_values.trace_next.pop();
+        let result = verifier.derive_query_positions(&air, &proof, &public_values, &fri_params);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_derive_query_positions_rejects_invalid_pow_witness() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, _proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            // Tighten PoW bits while staying in-field (<= 30 for Mersenne31).
+            proof_of_work_bits: 30,
+        };
+
+        let result = verifier.derive_query_positions(&air, &proof, &public_values, &fri_params);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_verify_rejects_invalid_trace_local_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let _ = proof.opened_values.trace_local.pop();
+        let result = verifier.verify(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_verify_rejects_invalid_trace_next_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let _ = proof.opened_values.trace_next.pop();
+        let result = verifier.verify(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_verify_rejects_invalid_quotient_chunk_shape() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        proof.opened_values.quotient_chunks.clear();
+        let result = verifier.verify(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    #[test]
+    fn test_verify_rejects_random_commitment_mismatch() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        proof.commitments.random = Some(proof.commitments.trace.clone());
+        let result = verifier.verify(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    #[test]
+    fn test_verify_rejects_random_values_mismatch() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        proof.opened_values.random = Some(vec![ConfigVal::ZERO]);
+        let result = verifier.verify(&air, &proof, &public_values);
+        assert!(matches!(result, Err(VerificationError::RandomizationError)));
     }
 }

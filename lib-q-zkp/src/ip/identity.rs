@@ -209,6 +209,11 @@ pub fn verify_it_ownership(proof: &ZkpProof, it: &IdentityToken) -> Result<bool>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        ProofMetadata,
+        ProofType,
+        ZkpProof,
+    };
 
     #[test]
     fn test_prove_it_ownership() {
@@ -225,5 +230,49 @@ mod tests {
         let proof = prove_it_ownership(&it, &private_key).unwrap();
         let result = verify_it_ownership(&proof, &it);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_identity_token_from_secret_is_deterministic() {
+        let a = identity_token_from_secret(b"deterministic-secret");
+        let b = identity_token_from_secret(b"deterministic-secret");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_verify_it_ownership_rejects_empty_or_wrong_metadata() {
+        let it = [7u8; 16];
+        let empty = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Identity { dsa_level: 44 },
+        };
+        assert!(!verify_it_ownership(&empty, &it).unwrap());
+
+        let mut wrong_metadata =
+            prove_it_ownership(&it, &b"test-private-key".to_vec()).expect("valid proof");
+        wrong_metadata.metadata = ProofMetadata::None;
+        assert!(!verify_it_ownership(&wrong_metadata, &it).unwrap());
+    }
+
+    #[test]
+    fn test_prove_it_ownership_sets_identity_level_metadata() {
+        let it = [42u8; 16];
+        let proof_44 = prove_it_ownership(&it, &vec![0u8; 128]).expect("44");
+        let proof_65 = prove_it_ownership(&it, &vec![0u8; 2600]).expect("65");
+
+        assert!(matches!(
+            proof_44.metadata,
+            ProofMetadata::Identity { dsa_level: 44 }
+        ));
+        assert!(matches!(
+            proof_65.metadata,
+            ProofMetadata::Identity { dsa_level: 65 }
+        ));
+
+        let mut level_87_metadata_proof = proof_65.clone();
+        level_87_metadata_proof.metadata = ProofMetadata::Identity { dsa_level: 87 };
+        assert!(!verify_it_ownership(&level_87_metadata_proof, &it).unwrap());
     }
 }

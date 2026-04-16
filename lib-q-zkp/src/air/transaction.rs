@@ -228,6 +228,10 @@ impl
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
+    use lib_q_stark_mersenne31::Mersenne31;
+
     use super::*;
 
     #[test]
@@ -269,5 +273,52 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_transaction_trace_generation_rejects_oversized_transaction_data() {
+        let air = TransactionAir::new(TransactionType::Payment, SignatureMode::MlDsa);
+        let input = TransactionInput {
+            transaction_data: vec![0u8; MAX_TRANSACTION_SIZE + 1],
+            signatures: vec![],
+        };
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::ExceedsMaxSize { .. })));
+    }
+
+    #[test]
+    fn test_transaction_trace_sets_tx_type_column_for_all_variants() {
+        type Val = Complex<Mersenne31>;
+        let input = TransactionInput {
+            transaction_data: vec![],
+            signatures: vec![],
+        };
+        let cases = [
+            (TransactionType::Payment, 0u32),
+            (TransactionType::ContractCall, 1u32),
+            (TransactionType::StateUpdate, 2u32),
+        ];
+
+        for (tx_type, expected) in cases {
+            let air = TransactionAir::new(tx_type, SignatureMode::None);
+            let trace = air.generate_trace(&input).expect("trace");
+            assert_eq!(trace.get(0, 0), Some(Val::from_u32(expected)));
+        }
+    }
+
+    #[test]
+    fn test_transaction_trace_writes_signature_bytes_and_stops_at_signature_window() {
+        type Val = Complex<Mersenne31>;
+        let air = TransactionAir::new(TransactionType::Payment, SignatureMode::MlDsa);
+        let input = TransactionInput {
+            transaction_data: vec![],
+            signatures: vec![vec![5u8; 5000]],
+        };
+        let trace = air.generate_trace(&input).expect("trace");
+
+        let sig_start = 1 + MAX_TRANSACTION_SIZE;
+        assert_eq!(trace.get(0, sig_start), Some(Val::from_u32(5)));
+        assert_eq!(trace.get(0, sig_start + 4095), Some(Val::from_u32(5)));
+        assert_eq!(trace.get(0, sig_start + 4096), Some(Val::ZERO));
     }
 }

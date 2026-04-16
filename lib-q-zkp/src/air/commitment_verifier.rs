@@ -393,7 +393,9 @@ pub fn debug_commitment_trace_sanity_check<F>(
 mod tests {
     use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
+    use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;
@@ -468,6 +470,65 @@ mod tests {
 
         let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
         assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_generate_trace_rejects_merkle_proof_count_mismatch() {
+        let air = CommitmentVerifierAir::new(2, 4).unwrap();
+        let input = CommitmentVerificationInput {
+            expected_roots: vec![[0u8; COMMITMENT_HASH_SIZE], [1u8; COMMITMENT_HASH_SIZE]],
+            merkle_proofs: vec![MerkleProofInput {
+                leaf: b"leaf".to_vec(),
+                leaf_hash_direct: None,
+                path_bits: vec![false; 4],
+                siblings: vec![MerkleHash::hash_data(b"s"); 4],
+            }],
+        };
+
+        let result: Result<RowMajorMatrix<TestField>, _> = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_commitment_public_values_expands_roots_to_bytes() {
+        let air = CommitmentVerifierAir::new(1, 4).unwrap();
+        let input = CommitmentVerificationInput {
+            expected_roots: vec![[7u8; COMMITMENT_HASH_SIZE]],
+            merkle_proofs: vec![MerkleProofInput {
+                leaf: b"leaf".to_vec(),
+                leaf_hash_direct: None,
+                path_bits: vec![false; 4],
+                siblings: vec![MerkleHash::hash_data(b"s"); 4],
+            }],
+        };
+
+        let public_values: Vec<TestField> = air.public_values(&input);
+        assert_eq!(public_values.len(), COMMITMENT_HASH_SIZE);
+    }
+
+    #[test]
+    fn test_commitment_trace_records_nonzero_equality_for_wrong_root() {
+        let air = CommitmentVerifierAir::new(1, 4).unwrap();
+        let merkle_proof = MerkleProofInput {
+            leaf: b"constraint_leaf".to_vec(),
+            leaf_hash_direct: None,
+            path_bits: vec![false, false, true, true],
+            siblings: vec![
+                MerkleHash::hash_data(b"c0"),
+                MerkleHash::hash_data(b"c1"),
+                MerkleHash::hash_data(b"c2"),
+                MerkleHash::hash_data(b"c3"),
+            ],
+        };
+        let input = CommitmentVerificationInput {
+            expected_roots: vec![[9u8; COMMITMENT_HASH_SIZE]],
+            merkle_proofs: vec![merkle_proof],
+        };
+
+        let trace: RowMajorMatrix<TestField> = air.generate_trace(&input).expect("trace");
+        let equality_col = BaseAir::<TestField>::width(&air) - 1;
+        let eq_val = trace.get(0, equality_col).unwrap_or(TestField::ZERO);
+        assert_ne!(eq_val, TestField::ZERO);
     }
 
     #[test]

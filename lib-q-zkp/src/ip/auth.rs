@@ -179,6 +179,10 @@ mod tests {
     use super::*;
     use crate::air::MerkleHash;
     use crate::api::MerklePath;
+    use crate::{
+        ProofMetadata,
+        ProofType,
+    };
 
     #[test]
     fn test_prove_group_membership() {
@@ -193,5 +197,75 @@ mod tests {
         };
         let result = prove_group_membership(&member_key, &group_root, &path);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_verify_group_membership_rejects_empty_data_or_wrong_metadata() {
+        let root = [0u8; 32];
+        let empty = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::MerkleInclusion { tree_depth: 2 },
+        };
+        assert!(!verify_group_membership(&empty, &root).unwrap());
+
+        let wrong_metadata = ZkpProof {
+            data: vec![1u8; 8],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Identity { dsa_level: 44 },
+        };
+        assert!(!verify_group_membership(&wrong_metadata, &root).unwrap());
+    }
+
+    #[test]
+    fn test_verify_group_membership_wrong_root_fails() {
+        let member_key = b"member-key".to_vec();
+        let group_root = [0u8; 32];
+        let path = MerklePath {
+            path_bits: vec![false, true],
+            siblings: vec![
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+            ],
+        };
+        let proof = prove_group_membership(&member_key, &group_root, &path).expect("proof");
+        let wrong_root = [1u8; 32];
+        assert!(!verify_group_membership(&proof, &wrong_root).unwrap());
+    }
+
+    #[test]
+    fn test_verify_group_membership_rejects_invalid_tree_depth_metadata() {
+        let member_key = b"member-key".to_vec();
+        let group_root = [0u8; 32];
+        let path = MerklePath {
+            path_bits: vec![false, true],
+            siblings: vec![
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+            ],
+        };
+        let mut proof = prove_group_membership(&member_key, &group_root, &path).expect("proof");
+        proof.metadata = ProofMetadata::MerkleInclusion { tree_depth: 0 };
+
+        let result = verify_group_membership(&proof, &group_root);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prove_group_membership_rejects_bad_membership_path_lengths() {
+        let member_key = b"member-key".to_vec();
+        let group_root = [0u8; 32];
+        let bad_path = MerklePath {
+            path_bits: vec![false, true, false],
+            siblings: vec![
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+                MerkleHash::from_bytes(&[0u8; 32]).unwrap(),
+            ],
+        };
+
+        let result = prove_group_membership(&member_key, &group_root, &bad_path);
+        assert!(result.is_err());
     }
 }

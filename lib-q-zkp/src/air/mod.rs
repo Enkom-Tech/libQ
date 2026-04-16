@@ -87,6 +87,7 @@ pub use arithmetic::ArithmeticAir;
 pub use batch_stark_verifier::{
     BatchRecursiveStarkVerificationInput,
     BatchStarkVerifierAir,
+    batch_recursive_verifier_public_values,
 };
 #[cfg(all(feature = "recursive-proofs-experimental", feature = "std"))]
 pub use commitment_verifier::debug_commitment_trace_sanity_check;

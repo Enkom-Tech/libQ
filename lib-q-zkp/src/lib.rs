@@ -1243,4 +1243,98 @@ mod tests {
             "batch_verify must not accept a forged proof"
         );
     }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_prove_secret_value_rejects_empty_and_oversized_input() {
+        let mut prover = ZkpProver::new();
+        let empty = prover.prove_secret_value(b"", b"");
+        assert!(empty.is_err());
+
+        let oversized = vec![0u8; air::hash_preimage::MAX_PREIMAGE_SIZE + 1];
+        let too_large = prover.prove_secret_value(&oversized, b"");
+        assert!(too_large.is_err());
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_prove_secret_value_nist_rejects_empty_and_oversized_input() {
+        let mut prover = ZkpProver::new();
+        let empty = prover.prove_secret_value_nist(b"", b"");
+        assert!(empty.is_err());
+
+        let oversized = vec![0u8; air::hash_preimage_nist::MAX_PREIMAGE_SIZE + 1];
+        let too_large = prover.prove_secret_value_nist(&oversized, b"");
+        assert!(too_large.is_err());
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_verify_secret_value_rejects_invalid_proof_shape_inputs() {
+        let verifier = ZkpVerifier::new();
+        let non_stark = ZkpProof {
+            data: vec![1u8; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::HashPreimageNist { output_size: 32 },
+        };
+        assert!(!verifier.verify_secret_value(&non_stark, b"hash").unwrap());
+
+        let empty = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::HashPreimage { output_size: 1 },
+        };
+        assert!(!verifier.verify_secret_value(&empty, b"hash").unwrap());
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_verify_secret_value_nist_rejects_wrong_metadata_and_bad_bytes() {
+        let verifier = ZkpVerifier::new();
+        let wrong_meta = ZkpProof {
+            data: vec![1u8; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::HashPreimage { output_size: 1 },
+        };
+        assert!(
+            !verifier
+                .verify_secret_value_nist(&wrong_meta, &[0u8; 32])
+                .unwrap()
+        );
+
+        let malformed_stark = ZkpProof {
+            data: vec![0xAA; 16],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::HashPreimageNist { output_size: 32 },
+        };
+        assert!(
+            !verifier
+                .verify_secret_value_nist(&malformed_stark, &[0u8; 32])
+                .unwrap()
+        );
+    }
+
+    #[cfg(feature = "zkp")]
+    #[test]
+    fn test_verify_computation_rejects_empty_or_non_stark_data() {
+        use crate::circuit::CircuitBuilder;
+
+        let verifier = ZkpVerifier::new();
+        let circuit = CircuitBuilder::<ZkpField>::new(1, 0).build();
+
+        let empty = ZkpProof {
+            data: vec![],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::Circuit {
+                num_witnesses: 1,
+                num_public: 0,
+            },
+        };
+        assert!(!verifier.verify_computation(&empty, &circuit, &[]).unwrap());
+    }
 }

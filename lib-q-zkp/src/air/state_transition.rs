@@ -322,6 +322,7 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, StateTran
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::extension::Complex;
+    use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;
@@ -428,5 +429,64 @@ mod tests {
         });
 
         assert_eq!(vals_empty, vals_data);
+    }
+
+    #[test]
+    fn test_state_transition_trace_generation_rejects_oversized_transaction_data() {
+        let air = StateTransitionAir::new(
+            [0u8; STATE_HASH_SIZE],
+            [1u8; STATE_HASH_SIZE],
+            TransitionConstraints::default(),
+        );
+        let input = StateTransitionInput {
+            transaction_data: vec![0u8; MAX_TRANSACTION_SIZE + 1],
+        };
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::ExceedsMaxSize { .. })));
+    }
+
+    #[test]
+    fn test_state_transition_trace_writes_signature_commitment_when_enabled() {
+        type Val = Complex<Mersenne31>;
+        let commitment = [9u8; STATE_HASH_SIZE];
+        let constraints = TransitionConstraints {
+            verify_signatures: true,
+            verify_balances: false,
+            verify_nonces: false,
+            signature_commitment: Some(commitment),
+        };
+        let air =
+            StateTransitionAir::new([0u8; STATE_HASH_SIZE], [1u8; STATE_HASH_SIZE], constraints);
+        let trace = air
+            .generate_trace(&StateTransitionInput {
+                transaction_data: vec![],
+            })
+            .expect("trace");
+
+        let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
+        assert_eq!(trace.get(0, proof_start), Some(Val::from_u32(9)));
+        assert_eq!(trace.get(0, proof_start + 31), Some(Val::from_u32(9)));
+    }
+
+    #[test]
+    fn test_state_transition_trace_ignores_signature_commitment_when_disabled() {
+        type Val = Complex<Mersenne31>;
+        let constraints = TransitionConstraints {
+            verify_signatures: false,
+            verify_balances: false,
+            verify_nonces: false,
+            signature_commitment: Some([7u8; STATE_HASH_SIZE]),
+        };
+        let air =
+            StateTransitionAir::new([0u8; STATE_HASH_SIZE], [1u8; STATE_HASH_SIZE], constraints);
+        let trace = air
+            .generate_trace(&StateTransitionInput {
+                transaction_data: vec![],
+            })
+            .expect("trace");
+
+        let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
+        assert_eq!(trace.get(0, proof_start), Some(Val::ZERO));
+        assert_eq!(trace.get(0, proof_start + 31), Some(Val::ZERO));
     }
 }

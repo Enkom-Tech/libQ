@@ -1,4 +1,10 @@
 //! Aggregation tests: single proof, batch aggregation, Merkle root, and rejection of invalid batches.
+//!
+//! Several tests run full Poseidon STARK proving; the harness may print that a test “has been running
+//! for over 60 seconds” and many of them execute in parallel by default. If you see flaky failures,
+//! timeouts, or one slow test failing while others pass (e.g. under heavy CPU or memory pressure),
+//! run this crate’s tests serially:
+//! `cargo test -p lib-q-zkp --all-features --test aggregation_tests -- --test-threads=1`
 
 #![cfg(feature = "zkp")]
 #![allow(clippy::assign_op_pattern)]
@@ -22,11 +28,10 @@ use lib_q_zkp::aggregation::{
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::recursive_types::serialize_stark_proof;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_zkp::air::stark_verifier::debug_one_fri_round;
-#[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::stark_verifier::{
     StarkVerifierAir,
     build_recursive_verification_input_from_proof_with_poseidon,
+    debug_one_fri_round,
 };
 use lib_q_zkp::air::{
     ArithmeticAir,
@@ -194,6 +199,38 @@ fn test_aggregate_three_proofs_all_pass() {
         .unwrap();
 
     assert_eq!(agg.num_proofs, 3);
+    assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
+}
+
+/// Full batch aggregation (`aggregate`): recursive proof over `BatchStarkVerifierAir` with Poseidon inner proofs.
+///
+/// Ignored in the default suite: outer batch recursive prove + verify can take many minutes (100 FRI queries).
+/// Run: `cargo test -p lib-q-zkp --all-features --test aggregation_tests test_aggregate_two_poseidon_proofs_verifies -- --ignored`
+#[test]
+#[ignore = "slow: batch recursive STARK prove+verify (many minutes)"]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_aggregate_two_poseidon_proofs_verifies() {
+    let config = poseidon_config();
+    let air = ArithmeticAir::new(1).unwrap();
+    let verifier = StarkVerifier::new(config.clone());
+
+    let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
+    let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
+
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, trace1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(config.clone())
+        .prove(&air, trace2, &pv2)
+        .expect("prove");
+
+    let agg = ProofAggregator::new(vec![p1, p2], config.clone())
+        .unwrap()
+        .aggregate(&verifier, &air, &[pv1, pv2], AggregationConfig::default())
+        .unwrap();
+
+    assert_eq!(agg.num_proofs, 2);
+    assert!(agg.all_inner_serialized_proofs.is_some());
     assert!(verify_aggregated_proof(&agg, agg.agg_config.clone(), config).unwrap());
 }
 
@@ -506,4 +543,90 @@ fn test_merkle_inclusion_proof_with_poseidon_config_creates_and_verifies() {
 fn test_aggregate_rejects_empty_batch() {
     let result = ProofAggregator::new(vec![], default_config());
     assert!(result.is_err());
+}
+
+#[test]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_aggregate_rejects_public_values_length_mismatch_for_batch() {
+    let config = poseidon_config();
+    let air = ArithmeticAir::new(1).unwrap();
+    let verifier = StarkVerifier::new(config.clone());
+    let (t1, pv1) = make_arithmetic_trace_and_pv(2, 3);
+    let (t2, pv2) = make_arithmetic_trace_and_pv(4, 5);
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, t1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(config.clone())
+        .prove(&air, t2, &pv2)
+        .expect("prove");
+    let agg = ProofAggregator::new(vec![p1, p2], config).unwrap();
+    let err = match agg.aggregate(&verifier, &air, &[pv1], AggregationConfig::default()) {
+        Ok(_) => panic!("expected length mismatch"),
+        Err(e) => e,
+    };
+    let msg = format!("{}", err);
+    assert!(
+        msg.contains("aggregate") && msg.contains("length"),
+        "unexpected error: {}",
+        msg
+    );
+}
+
+#[test]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_aggregate_single_rejects_public_values_length_mismatch() {
+    let config = poseidon_config();
+    let air = ArithmeticAir::new(1).unwrap();
+    let verifier = StarkVerifier::new(config.clone());
+    let (t1, pv1) = make_arithmetic_trace_and_pv(2, 3);
+    let (t2, pv2) = make_arithmetic_trace_and_pv(4, 5);
+    let p1 = StarkProver::new(config.clone())
+        .prove(&air, t1, &pv1)
+        .expect("prove");
+    let p2 = StarkProver::new(config.clone())
+        .prove(&air, t2, &pv2)
+        .expect("prove");
+    let agg = ProofAggregator::new(vec![p1, p2], config).unwrap();
+    let err = match agg.aggregate_single(&verifier, &air, &[pv1], AggregationConfig::default()) {
+        Ok(_) => panic!("expected length mismatch"),
+        Err(e) => e,
+    };
+    let msg = format!("{}", err);
+    assert!(
+        msg.contains("aggregate_single") && msg.contains("length"),
+        "unexpected error: {}",
+        msg
+    );
+}
+
+#[test]
+#[cfg(feature = "recursive-proofs-experimental")]
+fn test_debug_one_fri_round_returns_early_when_round_index_invalid() {
+    let rounds = [Val::ZERO];
+    debug_one_fri_round(
+        99,
+        0,
+        1,
+        1,
+        &rounds,
+        &rounds,
+        &rounds,
+        &rounds,
+        None,
+        &[],
+        Val::ZERO,
+    );
+    debug_one_fri_round(
+        0,
+        0,
+        1,
+        1,
+        &[],
+        &rounds,
+        &rounds,
+        &rounds,
+        None,
+        &[Val::ZERO],
+        Val::ZERO,
+    );
 }

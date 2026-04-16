@@ -30,6 +30,7 @@ use crate::air::TraceGenerator;
 use crate::air::batch_stark_verifier::{
     BatchRecursiveStarkVerificationInput,
     BatchStarkVerifierAir,
+    batch_recursive_verifier_public_values,
 };
 use crate::air::recursive_types::{
     SerializedStarkProof,
@@ -41,7 +42,6 @@ use crate::air::stark_verifier::{
     FriProofInputProofExtractor,
     MerklePathExtractable,
     build_recursive_verification_input,
-    build_recursive_verification_input_from_proof,
     build_recursive_verification_input_from_proof_with_poseidon,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
@@ -171,6 +171,9 @@ pub struct AggregatedProof<C: StarkGenericConfig> {
     pub num_proofs: usize,
     /// First serialized proof and config used to reconstruct the outer AIR for verification
     pub first_serialized_proof: SerializedStarkProof<Val<C>, C::Challenge>,
+    /// Set when the outer proof was produced by [`ProofAggregator::aggregate`]: all inner
+    /// serializations in order (needed to verify the batch recursive proof).
+    pub all_inner_serialized_proofs: Option<Vec<SerializedStarkProof<Val<C>, C::Challenge>>>,
     /// Aggregation configuration used during aggregation
     pub agg_config: AggregationConfig,
 }
@@ -403,6 +406,7 @@ where
             proofs_root,
             num_proofs: self.proofs.len(),
             first_serialized_proof: first_serialized,
+            all_inner_serialized_proofs: None,
             agg_config,
         })
     }
@@ -424,6 +428,8 @@ where
         C::Challenge: Into<Val<C>>,
         Val<C>: lib_q_stark_field::Field
             + lib_q_stark_field::BasedVectorSpace<Mersenne31>
+            + lib_q_stark_field::TwoAdicField
+            + From<C::Challenge>
             + From<lib_q_poseidon::PoseidonField>
             + Into<lib_q_poseidon::PoseidonField>,
         StarkVerifierAir<Val<C>, Val<C>>: Air<SymbolicAirBuilder<Val<C>>>
@@ -431,7 +437,13 @@ where
         <<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
             <C as StarkGenericConfig>::Challenge,
             <C as StarkGenericConfig>::Challenger,
-        >>::Proof: lib_q_stark_fri::FriDataExtractor<Challenge = C::Challenge>,
+        >>::Proof: lib_q_stark_fri::FriDataExtractor<Challenge = C::Challenge>
+            + FriProofInputProofExtractor,
+        <<<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
+            <C as StarkGenericConfig>::Challenge,
+            <C as StarkGenericConfig>::Challenger,
+        >>::Proof as lib_q_stark_fri::FriDataExtractor>::CommitPhaseStep: MerklePathExtractable
+            + lib_q_stark_fri::SiblingValueRef<Challenge = Val<C>>,
         <<<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
             <C as StarkGenericConfig>::Challenge,
             <C as StarkGenericConfig>::Challenger,
@@ -451,6 +463,21 @@ where
                     <C as StarkGenericConfig>::Challenger,
                 >>::Proof as lib_q_stark_fri::FriDataExtractor>::Witness,
             >,
+        <C as StarkGenericConfig>::Pcs: lib_q_stark_fri::FriInitialEval<
+                <C as StarkGenericConfig>::Challenge,
+                Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+                Error = lib_q_stark::PcsError<C>,
+                Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+                Domain = lib_q_stark::Domain<C>,
+            > + lib_q_stark_fri::FriReducedOpenings<
+                <C as StarkGenericConfig>::Challenge,
+                Proof = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Proof,
+                Error = lib_q_stark::PcsError<C>,
+                Commitment = <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment,
+                Domain = lib_q_stark::Domain<C>,
+            >,
+        <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment:
+            crate::air::PoseidonCommitmentRoot,
     {
         if public_values_per_proof.len() != self.proofs.len() {
             return Err(lib_q_core::Error::InvalidState {
@@ -516,7 +543,7 @@ where
                 log_final_poly_len: agg_config.log_final_poly_len,
                 proof_of_work_bits: agg_config.fri_proof_of_work_bits,
             };
-            let recursive_input = build_recursive_verification_input_from_proof(
+            let recursive_input = build_recursive_input_with_poseidon(
                 verifier,
                 air,
                 proof,
@@ -555,6 +582,7 @@ where
             proofs_root,
             num_proofs: self.proofs.len(),
             first_serialized_proof: serialized_proofs[0].clone(),
+            all_inner_serialized_proofs: Some(serialized_proofs.clone()),
             agg_config,
         })
     }
@@ -704,10 +732,40 @@ where
     C::Challenge: Into<Val<C>> + serde::Serialize,
     Val<C>: lib_q_stark_field::Field
         + lib_q_stark_field::BasedVectorSpace<Mersenne31>
-        + serde::Serialize,
+        + serde::Serialize
+        + From<lib_q_poseidon::PoseidonField>
+        + Into<lib_q_poseidon::PoseidonField>,
     StarkVerifierAir<Val<C>, Val<C>>:
         Air<SymbolicAirBuilder<Val<C>>> + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
+    BatchStarkVerifierAir<Val<C>, Val<C>>:
+        Air<SymbolicAirBuilder<Val<C>>> + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
 {
+    if let Some(inner) = aggregated.all_inner_serialized_proofs.as_ref() {
+        let serialized_unified: Vec<SerializedStarkProof<Val<C>, Val<C>>> = inner
+            .iter()
+            .map(|p| p.clone().with_challenge_as_base())
+            .collect();
+        let batch_air = BatchStarkVerifierAir::new(
+            serialized_unified.clone(),
+            aggregated.agg_config.merkle_tree_depth,
+            aggregated.agg_config.log_final_poly_len,
+            aggregated.agg_config.num_fri_queries,
+        )
+        .map_err(|e: crate::air::AirError| lib_q_core::Error::InternalError {
+            operation: "verify_aggregated_proof".to_string(),
+            details: e.to_string(),
+        })?;
+        let public_values = batch_recursive_verifier_public_values(&serialized_unified);
+        let verifier = StarkVerifier::new(stark_config);
+        return verifier
+            .verify(&batch_air, &aggregated.proof, &public_values)
+            .map(|()| true)
+            .map_err(|e| lib_q_core::Error::InternalError {
+                operation: "verify_aggregated_proof".to_string(),
+                details: alloc::format!("{:?}", e),
+            });
+    }
+
     let first_serialized_unified: SerializedStarkProof<Val<C>, Val<C>> = aggregated
         .first_serialized_proof
         .clone()
@@ -788,7 +846,50 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::vec;
+
+    use lib_q_stark_field::PrimeCharacteristicRing;
+
     use super::*;
+    #[cfg(feature = "recursive-proofs-experimental")]
+    use crate::air::stark_verifier::build_recursive_verification_input_from_proof_with_poseidon;
+    use crate::air::{
+        ArithmeticAir,
+        TraceGenerator,
+    };
+    #[cfg(not(feature = "recursive-proofs-experimental"))]
+    use crate::stark::{
+        FriQueryParams,
+        default_fri_params_for_tests,
+    };
+    #[cfg(feature = "recursive-proofs-experimental")]
+    use crate::stark::{
+        FriQueryParams,
+        poseidon_config,
+    };
+    use crate::stark::{
+        StarkProver,
+        default_config,
+    };
+
+    fn sample_arithmetic_proof() -> (
+        ArithmeticAir,
+        StarkProof<crate::stark::DefaultConfig>,
+        Vec<Val<crate::stark::DefaultConfig>>,
+    ) {
+        let air = ArithmeticAir::new(1).expect("air");
+        let input = vec![(
+            Val::<crate::stark::DefaultConfig>::ONE,
+            Val::<crate::stark::DefaultConfig>::ONE,
+        )];
+        let trace = air.generate_trace(&input).expect("trace");
+        let public_values = air.public_values(&input);
+        let proof = StarkProver::new(default_config())
+            .prove(&air, trace, &public_values)
+            .expect("proof");
+        (air, proof, public_values)
+    }
 
     #[test]
     fn test_aggregation_config_default() {
@@ -798,5 +899,259 @@ mod tests {
         assert_eq!(config.num_fri_queries, 100);
         assert_eq!(config.fri_log_blowup, 2);
         assert_eq!(config.fri_proof_of_work_bits, 16);
+    }
+
+    #[test]
+    fn test_proof_aggregator_new_rejects_empty() {
+        let result = ProofAggregator::new(vec![], default_config());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_proof_aggregator_num_proofs_matches_input() {
+        let (_air, proof, _pv) = sample_arithmetic_proof();
+        let aggregator = ProofAggregator::new(vec![proof], default_config()).expect("aggregator");
+        assert_eq!(aggregator.num_proofs(), 1);
+    }
+
+    #[test]
+    fn test_verify_batch_rejects_public_values_length_mismatch() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let proofs = vec![proof];
+        let pvs = vec![public_values.clone(), public_values];
+        let result = verify_batch(&proofs, &verifier, &air, &pvs);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_batch_accepts_valid_inputs() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let result = verify_batch(&[proof], &verifier, &air, &[public_values]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_verify_batch_rejects_invalid_public_values() {
+        let (air, proof, _public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let wrong_public_values = vec![Val::<crate::stark::DefaultConfig>::ZERO; 2];
+        let result = verify_batch(&[proof], &verifier, &air, &[wrong_public_values]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_batch_accepts_empty_batches() {
+        let air = ArithmeticAir::new(1).expect("air");
+        let verifier = StarkVerifier::new(default_config());
+        let result = verify_batch::<crate::stark::DefaultConfig, _>(&[], &verifier, &air, &[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_serialize_all_proofs_single_returns_expected_shape() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let aggregator = ProofAggregator::new(vec![proof], default_config()).expect("aggregator");
+
+        let serialized = aggregator
+            .serialize_all_proofs(&verifier, &air, core::slice::from_ref(&public_values))
+            .expect("serialize");
+        assert_eq!(serialized.len(), 1);
+        assert_eq!(serialized[0].expected_public_values, public_values);
+    }
+
+    #[test]
+    fn test_compute_proofs_merkle_root_depends_on_commitments() {
+        let (_air, proof, public_values) = sample_arithmetic_proof();
+        let aggregator = ProofAggregator::new(vec![proof], default_config()).expect("aggregator");
+        let verifier = StarkVerifier::new(default_config());
+        let mut serialized = aggregator
+            .serialize_all_proofs(
+                &verifier,
+                &ArithmeticAir::new(1).expect("air"),
+                core::slice::from_ref(&public_values),
+            )
+            .expect("serialize");
+
+        let root_a = aggregator
+            .compute_proofs_merkle_root(&serialized)
+            .expect("root a");
+
+        serialized[0].trace_commitment_hash[0] ^= 0xAA;
+        let root_b = aggregator
+            .compute_proofs_merkle_root(&serialized)
+            .expect("root b");
+
+        assert_ne!(root_a, root_b);
+    }
+
+    #[test]
+    fn test_compute_proofs_merkle_root_depends_on_random_commitment_hash() {
+        let (_air, proof, public_values) = sample_arithmetic_proof();
+        let aggregator = ProofAggregator::new(vec![proof], default_config()).expect("aggregator");
+        let verifier = StarkVerifier::new(default_config());
+        let mut serialized = aggregator
+            .serialize_all_proofs(
+                &verifier,
+                &ArithmeticAir::new(1).expect("air"),
+                core::slice::from_ref(&public_values),
+            )
+            .expect("serialize");
+
+        let root_without_random = aggregator
+            .compute_proofs_merkle_root(&serialized)
+            .expect("root without random");
+        serialized[0].random_commitment_hash = Some([7u8; 32]);
+        let root_with_random = aggregator
+            .compute_proofs_merkle_root(&serialized)
+            .expect("root with random");
+
+        assert_ne!(root_without_random, root_with_random);
+    }
+
+    #[test]
+    fn test_serialize_all_proofs_preserves_supplied_public_values() {
+        let (air, proof, _public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let aggregator = ProofAggregator::new(vec![proof], default_config()).expect("aggregator");
+        let wrong_public_values = vec![Val::<crate::stark::DefaultConfig>::ZERO; 2];
+
+        let serialized = aggregator
+            .serialize_all_proofs(&verifier, &air, core::slice::from_ref(&wrong_public_values))
+            .expect("serialize");
+        assert_eq!(serialized.len(), 1);
+        assert_eq!(serialized[0].expected_public_values, wrong_public_values);
+    }
+
+    #[test]
+    #[cfg(not(feature = "recursive-proofs-experimental"))]
+    fn test_verify_aggregated_proof_without_recursive_feature_errors() {
+        let (air, proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+        let challenges = verifier
+            .derive_challenges(&air, &proof, &public_values)
+            .expect("derive challenges");
+        let _query_positions = verifier
+            .derive_query_positions(&air, &proof, &public_values, &fri_params)
+            .expect("query positions");
+        let (zeta, zeta_next, alpha, betas) = challenges;
+        let serialized = serialize_stark_proof(
+            &proof,
+            public_values.clone(),
+            zeta,
+            zeta_next,
+            alpha,
+            &betas,
+        )
+        .expect("serialize proof");
+
+        let aggregated = AggregatedProof {
+            proof,
+            proofs_root: [0u8; 32],
+            num_proofs: 1,
+            first_serialized_proof: serialized,
+            all_inner_serialized_proofs: None,
+            agg_config: AggregationConfig::default(),
+        };
+
+        let result =
+            verify_aggregated_proof(&aggregated, AggregationConfig::default(), default_config());
+        assert!(result.is_err());
+    }
+
+    /// Two distinct Poseidon inner proofs: Poseidon recursive inputs must build for each (batch `aggregate` prerequisite).
+    /// Full prove + `verify_aggregated_proof` is covered in `tests/aggregation_tests.rs` (`test_aggregate_two_poseidon_proofs_verifies`).
+    #[test]
+    #[cfg(feature = "recursive-proofs-experimental")]
+    fn test_poseidon_recursive_input_builds_for_two_inner_proofs() {
+        use lib_q_stark_field::extension::Complex;
+        use lib_q_stark_matrix::Matrix;
+        use lib_q_stark_matrix::dense::RowMajorMatrix;
+
+        type PvVal = Complex<Mersenne31>;
+        const MIN_TRACE_ROWS: usize = 64;
+
+        fn make_arithmetic_trace_and_pv(a: u32, b: u32) -> (RowMajorMatrix<PvVal>, Vec<PvVal>) {
+            let air = ArithmeticAir::new(1).expect("air");
+            let product = a * b;
+            let inputs = vec![(
+                PvVal::from(Mersenne31::new(a)),
+                PvVal::from(Mersenne31::new(b)),
+            )];
+            let trace = air.generate_trace(&inputs).expect("trace");
+            let width = trace.width();
+            let current_height = trace.height();
+            let mut padded_values = trace.values.clone();
+            if current_height < MIN_TRACE_ROWS {
+                let row: Vec<PvVal> = (0..width)
+                    .map(|i| {
+                        if i % 3 == 0 {
+                            PvVal::from(Mersenne31::new(a))
+                        } else if i % 3 == 1 {
+                            PvVal::from(Mersenne31::new(b))
+                        } else {
+                            PvVal::from(Mersenne31::new(product))
+                        }
+                    })
+                    .collect();
+                for _ in current_height..MIN_TRACE_ROWS {
+                    padded_values.extend_from_slice(&row);
+                }
+            }
+            let trace = RowMajorMatrix::new(padded_values, width);
+            let pv = vec![PvVal::from(Mersenne31::new(product))];
+            (trace, pv)
+        }
+
+        let config = poseidon_config();
+        let air = ArithmeticAir::new(1).expect("air");
+        let verifier = StarkVerifier::new(config.clone());
+
+        let (trace1, pv1) = make_arithmetic_trace_and_pv(3, 4);
+        let (trace2, pv2) = make_arithmetic_trace_and_pv(5, 6);
+
+        let p1 = StarkProver::new(config.clone())
+            .prove(&air, trace1, &pv1)
+            .expect("prove");
+        let p2 = StarkProver::new(config.clone())
+            .prove(&air, trace2, &pv2)
+            .expect("prove");
+
+        let agg_config = AggregationConfig::default();
+        let fri_params = FriQueryParams {
+            num_queries: agg_config.num_fri_queries,
+            log_blowup: agg_config.fri_log_blowup,
+            log_final_poly_len: agg_config.log_final_poly_len,
+            proof_of_work_bits: agg_config.fri_proof_of_work_bits,
+        };
+
+        for (proof, pv) in [(p1, pv1), (p2, pv2)] {
+            let (zeta, zeta_next, alpha, betas) = verifier
+                .derive_challenges(&air, &proof, &pv)
+                .expect("challenges");
+            let serialized =
+                serialize_stark_proof(&proof, pv.clone(), zeta, zeta_next, alpha, &betas)
+                    .expect("serialize")
+                    .with_challenge_as_base();
+            build_recursive_verification_input_from_proof_with_poseidon(
+                &verifier,
+                &air,
+                &proof,
+                &pv,
+                &serialized,
+                agg_config.merkle_tree_depth,
+                &fri_params,
+            )
+            .expect("recursive input from proof");
+        }
     }
 }

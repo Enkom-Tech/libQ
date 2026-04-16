@@ -1181,8 +1181,9 @@ where
     query_indices_vec.resize(num_fri_queries, 0);
 
     let mut query_evaluations: Vec<F> = alloc::vec![F::ZERO; num_fri_queries];
-    for (q, &idx) in query_indices.iter().take(num_fri_queries).enumerate() {
-        if let Some(steps) = opening_proof.commit_phase_openings(idx) {
+    // `commit_phase_openings` indexes `query_proofs` (0..num_queries), not FRI domain indices.
+    for (q, _) in query_indices.iter().take(num_fri_queries).enumerate() {
+        if let Some(steps) = opening_proof.commit_phase_openings(q) {
             if let Some(last) = steps.last() {
                 if let Ok(mh) = last.sibling_as_merkle_hash() {
                     query_evaluations[q] = super::poseidon_to_field(mh.as_field());
@@ -1200,8 +1201,9 @@ where
         round_roll_ins,
     ) = if let Some(init) = first_query_initial_eval {
         let query_idx0 = *query_indices.first().unwrap_or(&0);
+        // Match `initial_fri_eval_for_query(..., query_proof_index: 0, domain_index: query_idx0, ...)`.
         let steps = opening_proof
-            .commit_phase_openings(query_idx0)
+            .commit_phase_openings(0)
             .ok_or_else(|| AirError::MissingFriCommitPhaseOpenings)?;
         if steps.len() != num_rounds {
             return Err(AirError::FriRoundCountMismatch);
@@ -1949,6 +1951,7 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
 mod tests {
     use alloc::vec;
 
+    use lib_q_stark::check_constraints;
     use lib_q_stark_air::BaseAir;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
@@ -1960,6 +1963,12 @@ mod tests {
         SerializedStarkProof,
     };
     use super::*;
+    use crate::air::{
+        MerkleHash,
+        MerkleInclusionAir,
+        MerkleProofInput,
+        merkle_root_to_bytes,
+    };
 
     type TestField = Complex<Mersenne31>;
 
@@ -1992,18 +2001,22 @@ mod tests {
     fn sample_recursive_input() -> RecursiveStarkVerificationInput<TestField, TestField> {
         let serialized = sample_serialized_proof();
         let tree_depth = 4;
-        let zero_hash = super::super::MerkleHash::hash_data(b"z");
-        let merkle_proof = super::super::MerkleProofInput {
+        let zero_hash = MerkleHash::hash_data(b"z");
+        let merkle_proof = MerkleProofInput {
             leaf: b"leaf".to_vec(),
             leaf_hash_direct: None,
             path_bits: vec![false; tree_depth],
             siblings: vec![zero_hash; tree_depth],
         };
 
+        let merkle_air = MerkleInclusionAir::new(tree_depth).expect("MerkleInclusionAir");
+        let root_field = merkle_air.public_values(&merkle_proof)[0];
+        let root_bytes = merkle_root_to_bytes(&root_field);
+
         RecursiveStarkVerificationInput {
             serialized_proof: serialized.clone(),
             commitment_inputs: CommitmentVerificationInput {
-                expected_roots: vec![[0u8; 32], [1u8; 32]],
+                expected_roots: vec![root_bytes, root_bytes],
                 merkle_proofs: vec![merkle_proof.clone(), merkle_proof.clone()],
             },
             fri_inputs: FriVerificationInput {
@@ -2143,6 +2156,36 @@ mod tests {
     }
 
     #[test]
+    fn test_stark_verifier_air_new_rejects_excessive_fri_rounds() {
+        let mut serialized = sample_serialized_proof();
+        serialized.fri_rounds = vec![
+            SerializedFriRound {
+                commitment_hash: [2u8; 32],
+                beta: vec![0u8; 8],
+            };
+            MAX_FRI_ROUNDS + 1
+        ];
+        let result = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_stark_verifier_air_new_rejects_excessive_quotient_chunks() {
+        let mut serialized = sample_serialized_proof();
+        serialized.num_quotient_chunks = MAX_QUOTIENT_CHUNKS + 1;
+        let result = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_stark_verifier_air_new_rejects_excessive_trace_width() {
+        let mut serialized = sample_serialized_proof();
+        serialized.trace_width = MAX_TRACE_WIDTH + 1;
+        let result = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_stark_verifier_trace_generation_and_public_values() {
         let serialized = sample_serialized_proof();
         let expected_public_values = serialized.expected_public_values.clone();
@@ -2170,6 +2213,67 @@ mod tests {
     }
 
     #[test]
+    fn test_stark_verifier_trace_generation_rejects_invalid_commitment_inputs() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.commitment_inputs.expected_roots.push([9u8; 32]);
+
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_generation_rejects_invalid_fri_inputs() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.fri_inputs.round_betas.clear();
+
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_generation_rejects_invalid_constraint_inputs() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.constraint_inputs.trace_local.pop();
+
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_generation_rejects_invalid_opening_inputs() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.opening_inputs.domain_points.pop();
+
+        let result = air.generate_trace(&input);
+        assert!(matches!(result, Err(AirError::InvalidInput { .. })));
+    }
+
+    #[test]
+    fn test_stark_verifier_public_values_come_from_serialized_proof() {
+        let mut serialized = sample_serialized_proof();
+        serialized.expected_public_values = vec![TestField::ONE, TestField::ZERO];
+        let expected = serialized.expected_public_values.clone();
+        let air = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2).unwrap();
+        let mut input = sample_recursive_input();
+        input.serialized_proof.expected_public_values = vec![TestField::ZERO];
+
+        let public_values = air.public_values(&input);
+        assert_eq!(public_values, expected);
+    }
+
+    #[test]
     fn test_stark_verifier_width_includes_random_commitment_branch() {
         let mut serialized = sample_serialized_proof();
         let air_without_random =
@@ -2185,6 +2289,81 @@ mod tests {
         let width_with_random = BaseAir::<TestField>::width(&air_with_random);
 
         assert!(width_with_random > width_without_random);
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_metadata_columns_reflect_serialized_proof() {
+        let serialized = sample_serialized_proof();
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let input = sample_recursive_input();
+        let trace = air.generate_trace(&input).expect("trace");
+
+        assert_eq!(
+            trace.get(0, 0),
+            Some(TestField::from_u32(serialized.degree_bits as u32))
+        );
+        assert_eq!(
+            trace.get(0, 1),
+            Some(TestField::from_u32(serialized.num_quotient_chunks as u32))
+        );
+        assert_eq!(
+            trace.get(0, 2),
+            Some(TestField::from_u32(serialized.trace_width as u32))
+        );
+        assert_eq!(trace.get(0, 3), Some(TestField::ZERO));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_metadata_is_zk_column_set_when_enabled() {
+        let mut serialized = sample_serialized_proof();
+        serialized.is_zk = true;
+        serialized.random_commitment_hash = Some([9u8; 32]);
+        serialized.random_values = Some(vec![TestField::ZERO]);
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+
+        let mut input = sample_recursive_input();
+        input.serialized_proof = serialized;
+        let third_root = input.commitment_inputs.expected_roots[0];
+        input.commitment_inputs.expected_roots.push(third_root);
+        let extra_proof = input.commitment_inputs.merkle_proofs[0].clone();
+        input.commitment_inputs.merkle_proofs.push(extra_proof);
+
+        let trace = air.generate_trace(&input).expect("trace");
+        assert_eq!(trace.get(0, 3), Some(TestField::ONE));
+    }
+
+    #[test]
+    fn test_stark_verifier_trace_public_values_written_as_expected_actual_pairs() {
+        let mut serialized = sample_serialized_proof();
+        serialized.expected_public_values = vec![TestField::ONE, TestField::ZERO];
+        let air =
+            StarkVerifierAir::<TestField, TestField>::new(serialized.clone(), 4, 1, 2).unwrap();
+        let input = sample_recursive_input();
+        let trace = air.generate_trace(&input).expect("trace");
+        let width = BaseAir::<TestField>::width(&air);
+        let start = width - serialized.expected_public_values.len() * 2;
+
+        assert_eq!(trace.get(0, start), Some(TestField::ONE));
+        assert_eq!(trace.get(0, start + 1), Some(TestField::ONE));
+        assert_eq!(trace.get(0, start + 2), Some(TestField::ZERO));
+        assert_eq!(trace.get(0, start + 3), Some(TestField::ZERO));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_stark_verifier_constraints_detect_placeholder_trace() {
+        let serialized = sample_serialized_proof();
+        let air = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2).unwrap();
+        let input = sample_recursive_input();
+
+        let trace = air
+            .generate_trace(&input)
+            .expect("trace generation should work");
+        let public_values = air.public_values(&input);
+
+        check_constraints(&air, &trace, &public_values);
     }
 
     #[test]
@@ -2261,5 +2440,41 @@ mod tests {
         assert_eq!(input.fri_inputs.query_indices.len(), 10);
         assert_eq!(input.constraint_inputs.quotient_chunks.len(), 2);
         assert_eq!(input.opening_inputs.opened_values.len(), 4 * 2 + 2);
+    }
+
+    #[test]
+    #[cfg(feature = "recursive-proofs-experimental")]
+    fn test_build_recursive_verification_input_includes_random_commitment_root() {
+        use super::build_recursive_verification_input;
+
+        let serialized_proof = SerializedStarkProof::<TestField, TestField> {
+            degree_bits: 8,
+            num_quotient_chunks: 2,
+            trace_width: 4,
+            is_zk: true,
+            trace_commitment_hash: [1u8; 32],
+            quotient_commitment_hash: [2u8; 32],
+            random_commitment_hash: Some([3u8; 32]),
+            trace_local: vec![TestField::ZERO; 4],
+            trace_next: vec![TestField::ZERO; 4],
+            quotient_chunks: vec![vec![TestField::ZERO; 1]; 2],
+            random_values: Some(vec![TestField::ZERO]),
+            fri_rounds: vec![SerializedFriRound {
+                commitment_hash: [4u8; 32],
+                beta: vec![0u8; 8],
+            }],
+            final_poly: vec![TestField::ZERO; 16],
+            pow_witness: vec![],
+            zeta: TestField::ZERO,
+            zeta_next: TestField::ZERO,
+            alpha: TestField::ZERO,
+            expected_public_values: vec![],
+        };
+
+        let result = build_recursive_verification_input(&serialized_proof, 4, 4, 10);
+        assert!(result.is_ok());
+        let input = result.unwrap();
+        assert_eq!(input.commitment_inputs.expected_roots.len(), 3);
+        assert_eq!(input.commitment_inputs.merkle_proofs.len(), 3);
     }
 }
