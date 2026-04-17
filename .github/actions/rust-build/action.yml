@@ -71,6 +71,26 @@ runs:
           echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
         fi
     
+    - name: Compute cache-key fragment
+      id: cache-frag
+      shell: bash
+      env:
+        FEATURES: ${{ inputs.features }}
+        PACKAGE: ${{ inputs.package }}
+        # Bump this literal to invalidate every restored target/ tree at once.
+        CACHE_EPOCH: "v2"
+      run: |
+        set -euo pipefail
+        # SHA-256 of a canonical, newline-delimited join — immune to commas, spaces, @, etc.
+        # actions/cache rejects keys containing commas, and feature lists are comma-separated.
+        payload=$(printf '%s\n%s\n%s\n' "$FEATURES" "$PACKAGE" "$CACHE_EPOCH")
+        if command -v sha256sum >/dev/null 2>&1; then
+          hash=$(printf '%s' "$payload" | sha256sum | awk '{print $1}')
+        else
+          hash=$(printf '%s' "$payload" | shasum -a 256 | awk '{print $1}')
+        fi
+        echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
     - name: Cache dependencies
       uses: actions/cache@v5
       with:
@@ -78,7 +98,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-rust-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ inputs.features }}-${{ inputs.package }}
+        key: ${{ runner.os }}-rust-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ steps.cache-frag.outputs.hash }}
     
     - name: Check integration test layout
       shell: bash
