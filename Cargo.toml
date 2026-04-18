@@ -89,7 +89,7 @@ zeroize = { version = "1.8.2", default-features = false }
 serde = { version = "1.0.228", default-features = false }
 serde_json = { version = "1.0.149", default-features = false }
 serde-wasm-bindgen = "0.6.5"
-rand_core = { version = "0.10.0", default-features = false }
+rand_core = { version = "0.10.1", default-features = false }
 rand = { version = "0.10.1", default-features = false }
 getrandom = { version = "0.4.2", default-features = false }
 criterion = "0.8.2"
@@ -107,7 +107,7 @@ subtle = { version = "2.6.1", default-features = false }
 transpose = "0.2.3"
 postcard = { version = "1.1.3", default-features = false }
 rand_xoshiro = "0.8.0"
-rayon = "1.11.0"
+rayon = "1.12.0"
 digest = "0.11.2"
 sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
@@ -119,6 +119,10 @@ aead = { version = "0.5.2", default-features = false }
 inherits = "release"
 lto = false
 codegen-units = 256
+# `.cargo/config.toml` sets `[profile.release] panic = "abort"`. `cargo test --profile release-ci`
+# must use unwind so the lib test harness can link crates that also build as `cdylib` (e.g.
+# `lib-q-utils`, `lib-q-core`); abort in dependencies is rejected when the test crate is unwind.
+panic = "unwind"
 # Avoid incremental + `lib-q-core` (`cdylib` + `rlib`) fingerprint races that surface as E0460
 # ("possibly newer version of crate `lib_q_core`") when downstream rlibs link the unsuffixed
 # `liblib_q_core.rlib` companion artefact.
@@ -165,5 +169,23 @@ codegen-units = 1
 panic = "abort"
 strip = true
 debug = false
+
+# `cargo test` builds path dependencies with the dev profile. FN-DSA signing and
+# keygen at high logn are unusably slow without LLVM optimization (multi-minute
+# KAT/self tests in debug). Match the practical cost of `cargo test -p fn-dsa --release`.
+[profile.dev.package."fn-dsa"]
+opt-level = 2
+[profile.dev.package."fn-dsa-comm"]
+opt-level = 2
+[profile.dev.package."fn-dsa-kgen"]
+opt-level = 2
+[profile.dev.package."fn-dsa-sign"]
+opt-level = 2
+[profile.dev.package."fn-dsa-vrfy"]
+opt-level = 2
+
+# Root crate of `cargo test -p fn-dsa` uses the test profile for the library.
+[profile.test.package."fn-dsa"]
+opt-level = 2
 
 # Additional security hardening options can be added here
