@@ -186,9 +186,13 @@ jobs:
           tool: cargo-outdated
       
       - name: Check for outdated dependencies
+        # Informational only; the step already tolerates cargo failure, and the runner is
+        # occasionally reclaimed mid-`cargo outdated` (registry traversal is slow on 280+ deps).
+        continue-on-error: true
+        timeout-minutes: 5
         run: |
           echo "🔍 Checking for outdated dependencies..."
-          cargo outdated || echo "⚠️  Some dependencies may be outdated"
+          cargo outdated --root-deps-only --depth 1 || echo "⚠️  Some dependencies may be outdated"
           echo "✅ Outdated dependency check completed"
       
       - name: Validate dependency sources
