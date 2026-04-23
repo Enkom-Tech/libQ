@@ -6,6 +6,7 @@
 #   ./scripts/simulate-ci-wsl.sh pr        # same: audit, fmt, clippy, lib-q tests + wasm check
 #   ./scripts/simulate-ci-wsl.sh full      # full matrix + builds (~matches push CI test matrix)
 #   ./scripts/simulate-ci-wsl.sh mirror    # deep checks: SLH-12-param, ZKP recursive, docs, integration
+#   ./scripts/simulate-ci-wsl.sh non-pr    # jobs skipped on PRs: ZKP recursive, cross Linux/ARM, benches, SIMD debug, constant-time
 #
 # Prefer a clone on the WSL native filesystem (e.g. ~/libQ) for speed; /mnt/c/... is much slower.
 set -euo pipefail
@@ -60,12 +61,15 @@ case "$mode" in
   mirror)
     exec "$ROOT/scripts/ci-wsl-mirror.sh"
     ;;
+  non-pr | skipped-ci)
+    exec "$ROOT/scripts/run-non-pr-ci-jobs-wsl.sh"
+    ;;
   help | -h | --help)
-    head -n 18 "$0"
+    head -n 20 "$0"
     exit 0
     ;;
   *)
-    echo "Unknown mode: $mode (use pr, full, mirror, or help)" >&2
+    echo "Unknown mode: $mode (use pr, full, mirror, non-pr, or help)" >&2
     exit 2
     ;;
 esac

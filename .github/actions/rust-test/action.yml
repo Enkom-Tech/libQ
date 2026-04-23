@@ -52,7 +52,7 @@ runs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ inputs.rust-version }}
-        components: rustfmt, clippy, rust-src
+        components: rustfmt, clippy, rust-src, llvm-tools-preview
 
     # `target/` must not be shared across rustc builds or matrix feature sets: stale or
     # mixed rlibs cause E0460 (newer dependency) and E0463 (missing crate) under --profile release-ci.
@@ -298,7 +298,7 @@ runs:
         fi
         
         # Build tarpaulin command with appropriate options
-        TARPAULIN_CMD="cargo tarpaulin --out Html --out Xml --output-dir coverage --timeout 180"
+        TARPAULIN_CMD="cargo tarpaulin --engine llvm --out Html --out Xml --output-dir coverage --timeout 180"
         
         # Add package filter if specified
         if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then

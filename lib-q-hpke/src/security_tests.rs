@@ -137,25 +137,6 @@ mod tests {
         );
     }
 
-    /// Test that feature flags work correctly
-    #[test]
-    #[cfg(not(feature = "saturnin"))]
-    fn test_saturnin_feature_disabled() {
-        let provider = PostQuantumProvider::new();
-        let key = vec![0u8; 32];
-        let nonce = vec![0u8; 16];
-        let plaintext = b"test message";
-
-        let result = provider.seal(HpkeAead::Saturnin256, &key, &nonce, b"", plaintext);
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Saturnin feature not enabled")
-        );
-    }
-
     /// Test that ciphertext length validation works for decryption
     #[test]
     fn test_ciphertext_length_validation() {
@@ -238,20 +219,13 @@ mod tests {
         let error1 = result1.unwrap_err().to_string();
         assert!(error1.contains("Key material cannot be all zeros"));
 
-        // Second operation should either succeed (if saturnin enabled) or fail with feature error
+        // Non-zero key: HPKE always builds lib-q-aead with the `saturnin` plugin, so this should
+        // succeed regardless of the optional `lib-q-hpke` `saturnin` (lib-q-saturnin) feature.
         let result2 = provider.seal(HpkeAead::Saturnin256, &key2, &nonce, b"", plaintext);
-
-        #[cfg(feature = "saturnin")]
-        {
-            // With saturnin feature enabled, non-zero key should succeed
-            assert!(result2.is_ok());
-        }
-        #[cfg(not(feature = "saturnin"))]
-        {
-            // Without saturnin feature, should fail with feature error
-            assert!(result2.is_err());
-            let error2 = result2.unwrap_err().to_string();
-            assert!(error2.contains("Saturnin feature not enabled"));
-        }
+        assert!(
+            result2.is_ok(),
+            "expected seal with non-zero key to succeed: {:?}",
+            result2
+        );
     }
 }

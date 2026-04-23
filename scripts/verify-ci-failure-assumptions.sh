@@ -4,11 +4,13 @@
 #
 # Coverage workflow (verified against GitHub run 24593929379, 2026-04-18):
 # - Wall time ~1h17m; failed step: "Run coverage for entire workspace" on both stable and nightly matrix legs.
-# - Root symptom: cargo-tarpaulin reports Error: "Test failed during run" with exit 1 after lib_q_core unit
-#   tests completed successfully (91 passed); the failing child process did not emit a further "running …deps"
-#   line in the captured log, so use `gh api …/jobs/<id>/logs` and search for the last test binary before the error.
-# - Per-crate tarpaulin passes in the same job completed with threshold OK; the failure is specific to the final
-#   workspace-wide tarpaulin invocation (see .github/workflows/coverage.yml and scripts/run-coverage.sh).
+# - Root symptom: cargo-tarpaulin (Linux default ptrace engine) can report Error: "Test failed during run"
+#   even when libtest prints all tests passed (e.g. after fn_dsa_comm or lib_q_core). Mitigation: run with
+#   `--engine llvm` (see scripts/run-coverage.sh, rust-test action, coverage.yml llvm-tools-preview).
+# - If triaging an older log: the failing child may not emit a further "running …deps" line; use
+#   `gh api …/jobs/<id>/logs` and search for the last test binary before the error.
+# - Historically, per-crate tarpaulin sometimes passed while the final workspace-wide invocation failed;
+#   LLVM engine reduces ptrace/signal false failures on the full workspace run.
 
 set -euo pipefail
 

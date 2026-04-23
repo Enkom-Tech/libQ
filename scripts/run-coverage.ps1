@@ -132,7 +132,8 @@ if (-not (Test-Path -LiteralPath $OutputDir)) {
     Write-Host "Created directory: $OutputDir"
 }
 
-$cmd = if ($Toolchain -eq "stable") { "cargo tarpaulin --timeout 180" } else { "cargo +$Toolchain tarpaulin --timeout 180" }
+# Match run-coverage.sh: LLVM engine avoids Linux ptrace false failures in CI.
+$cmd = if ($Toolchain -eq "stable") { "cargo tarpaulin --engine llvm --timeout 180" } else { "cargo +$Toolchain tarpaulin --engine llvm --timeout 180" }
 
 if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
     $cmd += " --packages $PackageArg"

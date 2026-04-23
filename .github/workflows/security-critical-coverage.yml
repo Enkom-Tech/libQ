@@ -24,7 +24,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rust-src
+          components: rust-src, llvm-tools-preview
 
       - name: Cache cargo
         uses: actions/cache@v5
@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p coverage-sc
-          cargo tarpaulin -p lib-q-sig \
+          cargo tarpaulin --engine llvm -p lib-q-sig \
             --features std,ml-dsa \
             --ignore-tests --ignore-panics \
             --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*' \

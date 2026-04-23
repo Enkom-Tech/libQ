@@ -49,7 +49,8 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          components: rustfmt, clippy
+          # llvm-tools-preview: LLVM coverage merge (tarpaulin --engine llvm on Linux)
+          components: rustfmt, clippy, llvm-tools-preview
 
       - name: Toolchain fingerprint (cache)
         id: toolchain-fp

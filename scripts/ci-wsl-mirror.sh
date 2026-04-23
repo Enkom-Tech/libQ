@@ -41,8 +41,9 @@ cargo check --target wasm32-unknown-unknown --features "wasm,all-algorithms,ml-k
 ( cd lib-q-core && cargo check --target wasm32-unknown-unknown --features "wasm,ml-kem,rand" --lib )
 ( cd lib-q-zkp && cargo check --target wasm32-unknown-unknown --features "wasm,zkp" --lib )
 
-echo "== ZKP recursive aggregation (release, slow) =="
-cargo test -p lib-q-zkp --release --features "zkp,recursive-proofs-experimental,std" \
+echo "== ZKP recursive aggregation (release-ci profile; matches CI zkp-recursive job) =="
+rm -rf target/release-ci
+cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
   --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
   -- --test-threads=1
 

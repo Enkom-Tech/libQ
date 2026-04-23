@@ -79,10 +79,13 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+# Linux default is ptrace; it can spuriously fail after successful libtest runs
+# (e.g. AVX2-heavy crates). LLVM instrumentation matches macOS/Windows and is
+# recommended in tarpaulin TROUBLESHOOTING.md for Linux CI.
 if [[ "$TOOLCHAIN" == "stable" ]]; then
-  CMD="cargo tarpaulin --timeout 180"
+  CMD="cargo tarpaulin --engine llvm --timeout 180"
 else
-  CMD="cargo +$TOOLCHAIN tarpaulin --timeout 180"
+  CMD="cargo +$TOOLCHAIN tarpaulin --engine llvm --timeout 180"
 fi
 
 if [[ -n "$CRATE" ]]; then

@@ -295,13 +295,13 @@ mod provider_tests {
             // Wall-clock bounds are smoke checks for hangs only. SLH-DSA signing cost grows
             // with the parameter set; shared CI runners (e.g. GitHub Actions) often land well
             // above a flat 10s cap for 192f/256f.
-            let max_keygen_ms: u128 = 60_000;
-            let max_verify_ms: u128 = 60_000;
+            let max_keygen_ms: u128 = 300_000;
+            let max_verify_ms: u128 = 300_000;
             let max_sign_ms: u128 = match algorithm {
-                Algorithm::SlhDsaShake256128fRobust => 30_000,
-                Algorithm::SlhDsaShake256192fRobust => 120_000,
-                Algorithm::SlhDsaShake256256fRobust => 180_000,
-                _ => 60_000,
+                Algorithm::SlhDsaShake256128fRobust => 120_000,
+                Algorithm::SlhDsaShake256192fRobust => 300_000,
+                Algorithm::SlhDsaShake256256fRobust => 420_000,
+                _ => 120_000,
             };
 
             assert!(is_valid, "Signature should be valid");
