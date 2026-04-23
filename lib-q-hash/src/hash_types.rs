@@ -18,13 +18,14 @@ use lib_q_core::{
 use crate::{
     CShake128,
     CShake256,
-    KangarooTwelve,
     Keccak224,
     Keccak256,
     Keccak384,
     Keccak512,
     Kmac128,
     Kmac256,
+    Kt128,
+    Kt256,
     ParallelHash128,
     ParallelHash256,
     Sha3_224,
@@ -71,9 +72,13 @@ pub struct Sha3_384Hash(Sha3_384);
 #[derive(Debug, Clone)]
 pub struct Sha3_512Hash(Sha3_512);
 
-/// Wrapper for KangarooTwelve that implements lib-q-core Hash trait
+/// Wrapper for RFC 9861 KT128 (`TurboSHAKE128` tree) implementing [`Hash`](lib_q_core::Hash).
 #[derive(Debug, Clone)]
-pub struct KangarooTwelveHash(KangarooTwelve<'static>);
+pub struct Kt128Hash(Kt128<'static>);
+
+/// Wrapper for RFC 9861 KT256 (`TurboSHAKE256` tree) implementing [`Hash`](lib_q_core::Hash).
+#[derive(Debug, Clone)]
+pub struct Kt256Hash(Kt256<'static>);
 
 /// Wrapper for Keccak-224 that implements lib-q-core Hash trait
 #[derive(Debug, Clone)]
@@ -208,15 +213,27 @@ impl Sha3_512Hash {
 }
 
 // Constructor implementations for new hash types
-impl KangarooTwelveHash {
-    /// Creates a new KangarooTwelve hash instance
+impl Kt128Hash {
+    /// Creates a new KT128 hash instance
     pub fn new() -> Self {
-        Self(KangarooTwelve::new(b""))
+        Self(Kt128::new(b""))
     }
 
-    /// Creates a new KangarooTwelve hash instance with customization
+    /// Creates a new KT128 hash instance with customization
     pub fn new_customized(customization: &'static [u8]) -> Self {
-        Self(KangarooTwelve::new(customization))
+        Self(Kt128::new(customization))
+    }
+}
+
+impl Kt256Hash {
+    /// Creates a new KT256 hash instance
+    pub fn new() -> Self {
+        Self(Kt256::new(b""))
+    }
+
+    /// Creates a new KT256 hash instance with customization
+    pub fn new_customized(customization: &'static [u8]) -> Self {
+        Self(Kt256::new(customization))
     }
 }
 
@@ -374,11 +391,11 @@ impl Hash for Sha3_512Hash {
 }
 
 // Implement lib_q_core::Hash trait for new hash types
-impl Hash for KangarooTwelveHash {
+impl Hash for Kt128Hash {
     fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
         let mut hasher = self.0.clone();
         Update::update(&mut hasher, data);
-        let mut output = [0u8; 32]; // Default output size
+        let mut output = [0u8; 32];
         let mut reader = hasher.finalize_xof();
         reader.read(&mut output);
         Ok(output.to_vec())
@@ -386,6 +403,21 @@ impl Hash for KangarooTwelveHash {
 
     fn output_size(&self) -> usize {
         32
+    }
+}
+
+impl Hash for Kt256Hash {
+    fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let mut hasher = self.0.clone();
+        Update::update(&mut hasher, data);
+        let mut output = [0u8; 64];
+        let mut reader = hasher.finalize_xof();
+        reader.read(&mut output);
+        Ok(output.to_vec())
+    }
+
+    fn output_size(&self) -> usize {
+        64
     }
 }
 
@@ -492,7 +524,13 @@ impl Default for Sha3_512Hash {
 }
 
 // Default implementations for new hash types
-impl Default for KangarooTwelveHash {
+impl Default for Kt128Hash {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for Kt256Hash {
     fn default() -> Self {
         Self::new()
     }
@@ -800,9 +838,12 @@ mod hash_type_tests {
         assert_hash(&Sha3_512Hash::new(), data);
         assert_hash(&Sha3_512Hash::default(), data);
 
-        assert_hash(&KangarooTwelveHash::new(), data);
-        assert_hash(&KangarooTwelveHash::new_customized(b"custom"), data);
-        assert_hash(&KangarooTwelveHash::default(), data);
+        assert_hash(&Kt128Hash::new(), data);
+        assert_hash(&Kt128Hash::new_customized(b"custom"), data);
+        assert_hash(&Kt128Hash::default(), data);
+        assert_hash(&Kt256Hash::new(), data);
+        assert_hash(&Kt256Hash::new_customized(b"custom"), data);
+        assert_hash(&Kt256Hash::default(), data);
 
         assert_hash(&Keccak224Hash::new(), data);
         assert_hash(&Keccak224Hash::default(), data);

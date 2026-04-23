@@ -93,8 +93,8 @@ impl HashOperations for LibQHashProvider {
             Algorithm::Keccak512 => Err(crate::error::Error::NotImplemented {
                 feature: "Keccak implementations are provided by the main lib-q crate".to_string(),
             }),
-            Algorithm::KangarooTwelve => Err(crate::error::Error::NotImplemented {
-                feature: "KangarooTwelve implementation is provided by the main lib-q crate"
+            Algorithm::Kt128 | Algorithm::Kt256 => Err(crate::error::Error::NotImplemented {
+                feature: "KT128/KT256 (lib-q-k12) is provided by the lib-q-hash / lib-q meta crate"
                     .to_string(),
             }),
             Algorithm::TurboShake128 | Algorithm::TurboShake256 => {

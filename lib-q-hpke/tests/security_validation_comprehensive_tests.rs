@@ -23,7 +23,7 @@ use lib_q_hpke::providers::{
 };
 use lib_q_hpke::security::prng::{
     CryptoRng,
-    KangarooTwelveRng,
+    Kt128Rng,
 };
 use lib_q_hpke::{
     HpkeAead,
@@ -143,7 +143,7 @@ fn _test_authentication_proof_security() {
     let sender_pk_obj = KemPublicKey::new(sender_pk.clone());
     let recipient_pk_obj = KemPublicKey::new(recipient_pk.clone());
 
-    let mut rng = KangarooTwelveRng::new().expect("K12 RNG");
+    let mut rng = Kt128Rng::new().expect("K12 RNG");
 
     // Test authentication proof creation
     let proof_result = provider.create_auth_proof(

@@ -1,6 +1,6 @@
 {
-  "algorithm": "KangarooTwelve-KT128",
-  "source": "XKCP (eXtended Keccak Code Package) - Official Implementation",
+  "algorithm": "KT128",
+  "source": "RFC 9861 / official KangarooTwelve test vectors (same as RustCrypto k12 / XKCP)",
   "version": "1.0",
   "description": "KT128 test vectors using TurboSHAKE128",
   "vectors": [
@@ -109,13 +109,5 @@
       "output_length": 32,
       "expected": "75d2f86a2e644566726b4fbcfc5657b9dbcf070c7b0dca06450ab291d7443bcf"
     }
-  ],
-  "checksums": {
-    "kt128_mode0_nosqueeze": "614d7af8d5ccd0e102537d215e3905ed",
-    "kt128_mode1_nosqueeze": "609c95becedccd5843f24ddf15f391db",
-    "kt128_mode2_nosqueeze": "cb8d23f4bdfc2a5a27b16afa653a76be",
-    "kt128_mode0_squeeze": "5aacd72d467a4fa6f3c2a8e610028dc5",
-    "kt128_mode1_squeeze": "609c95becedccd5843f24ddf15f391db",
-    "kt128_mode2_squeeze": "5aacd72d467a4fa6f3c2a8e610028dc5"
-  }
+  ]
 }

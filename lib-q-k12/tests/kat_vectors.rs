@@ -10,8 +10,8 @@ use lib_q_k12::digest::{
     Update,
 };
 use lib_q_k12::{
-    KangarooTwelve,
-    KangarooTwelve256,
+    Kt128,
+    Kt256,
 };
 use serde::{
     Deserialize,
@@ -107,7 +107,7 @@ impl K12TestVector {
         let message = self.get_message_bytes();
         let customization = self.get_customization_bytes();
 
-        let mut hasher = KangarooTwelve::new(&customization);
+        let mut hasher = Kt128::new(&customization);
         hasher.update(&message);
         let result = hasher.finalize_boxed(self.output_length);
 
@@ -147,7 +147,7 @@ impl K12TestVector {
         let message = self.get_message_bytes();
         let customization = self.get_customization_bytes();
 
-        let mut hasher = KangarooTwelve256::new(&customization);
+        let mut hasher = Kt256::new(&customization);
         hasher.update(&message);
         let result = hasher.finalize_boxed(self.output_length);
 

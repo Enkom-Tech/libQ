@@ -15,12 +15,12 @@ pub trait CryptoRng {
     fn next_u64(&mut self) -> Result<u64, HpkeError>;
 }
 
-// Use the unified KangarooTwelveRng from lib-q-random
-pub use lib_q_random::KangarooTwelveRng;
+// Use the unified Kt128Rng (KangarooTwelve KT128) from lib-q-random
+pub use lib_q_random::Kt128Rng;
 
-// Implement HPKE-specific CryptoRng trait for KangarooTwelveRng
+// Implement HPKE-specific CryptoRng trait for Kt128Rng
 #[cfg(feature = "hash")]
-impl CryptoRng for KangarooTwelveRng {
+impl CryptoRng for Kt128Rng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
         let mut remaining = dest.len();
         let mut offset = 0;

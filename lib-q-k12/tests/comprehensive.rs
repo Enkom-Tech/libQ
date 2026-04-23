@@ -1,4 +1,4 @@
-//! Comprehensive Test Suite for KangarooTwelve
+//! Comprehensive Test Suite for Kt128
 //!
 //! This test suite covers all aspects of the K12 implementation including:
 //! - Basic functionality tests
@@ -16,8 +16,8 @@ use lib_q_k12::digest::{
     Update,
 };
 use lib_q_k12::{
-    KangarooTwelve,
-    KangarooTwelve256,
+    Kt128,
+    Kt256,
 };
 
 // ============================================================================
@@ -27,7 +27,7 @@ use lib_q_k12::{
 #[test]
 fn test_basic_kt128_functionality() {
     // Test basic KT128 functionality
-    let mut hasher = KangarooTwelve::new(b"test");
+    let mut hasher = Kt128::new(b"test");
     hasher.update(b"hello");
     let result = hasher.finalize_boxed(32);
 
@@ -39,7 +39,7 @@ fn test_basic_kt128_functionality() {
 #[test]
 fn test_basic_kt256_functionality() {
     // Test basic KT256 functionality
-    let mut hasher = KangarooTwelve256::new(b"test");
+    let mut hasher = Kt256::new(b"test");
     hasher.update(b"hello");
     let result = hasher.finalize_boxed(64);
 
@@ -51,7 +51,7 @@ fn test_basic_kt256_functionality() {
 #[test]
 fn test_empty_input_kt128() {
     // Test empty input for KT128
-    let mut hasher = KangarooTwelve::new(&[]);
+    let mut hasher = Kt128::new(&[]);
     hasher.update(&[]);
     let result = hasher.finalize_boxed(32);
 
@@ -63,7 +63,7 @@ fn test_empty_input_kt128() {
 #[test]
 fn test_empty_input_kt256() {
     // Test empty input for KT256
-    let mut hasher = KangarooTwelve256::new(&[]);
+    let mut hasher = Kt256::new(&[]);
     hasher.update(&[]);
     let result = hasher.finalize_boxed(64);
 
@@ -81,11 +81,11 @@ fn test_empty_input_kt256() {
 #[test]
 fn test_customization_kt128() {
     // Test that different customizations produce different outputs
-    let mut hasher1 = KangarooTwelve::new(b"custom1");
+    let mut hasher1 = Kt128::new(b"custom1");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"custom2");
+    let mut hasher2 = Kt128::new(b"custom2");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(32);
 
@@ -95,11 +95,11 @@ fn test_customization_kt128() {
 #[test]
 fn test_customization_kt256() {
     // Test that different customizations produce different outputs
-    let mut hasher1 = KangarooTwelve256::new(b"custom1");
+    let mut hasher1 = Kt256::new(b"custom1");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"custom2");
+    let mut hasher2 = Kt256::new(b"custom2");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -109,11 +109,11 @@ fn test_customization_kt256() {
 #[test]
 fn test_empty_customization_kt128() {
     // Test empty customization
-    let mut hasher1 = KangarooTwelve::new(&[]);
+    let mut hasher1 = Kt128::new(&[]);
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"");
+    let mut hasher2 = Kt128::new(b"");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(32);
 
@@ -123,11 +123,11 @@ fn test_empty_customization_kt128() {
 #[test]
 fn test_empty_customization_kt256() {
     // Test empty customization
-    let mut hasher1 = KangarooTwelve256::new(&[]);
+    let mut hasher1 = Kt256::new(&[]);
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"");
+    let mut hasher2 = Kt256::new(b"");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -141,11 +141,11 @@ fn test_empty_customization_kt256() {
 #[test]
 fn test_xof_consistency_kt128() {
     // Test that XOF produces consistent output
-    let mut hasher1 = KangarooTwelve::new(b"test");
+    let mut hasher1 = Kt128::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve::new(b"test");
+    let mut hasher2 = Kt128::new(b"test");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -155,11 +155,11 @@ fn test_xof_consistency_kt128() {
 #[test]
 fn test_xof_consistency_kt256() {
     // Test that XOF produces consistent output
-    let mut hasher1 = KangarooTwelve256::new(b"test");
+    let mut hasher1 = Kt256::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(128);
 
-    let mut hasher2 = KangarooTwelve256::new(b"test");
+    let mut hasher2 = Kt256::new(b"test");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(128);
 
@@ -169,15 +169,15 @@ fn test_xof_consistency_kt256() {
 #[test]
 fn test_xof_output_sizes_kt128() {
     // Test different output sizes for KT128
-    let mut hasher1 = KangarooTwelve::new(b"test");
+    let mut hasher1 = Kt128::new(b"test");
     hasher1.update(b"message");
     let result32 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"test");
+    let mut hasher2 = Kt128::new(b"test");
     hasher2.update(b"message");
     let result64 = hasher2.finalize_boxed(64);
 
-    let mut hasher3 = KangarooTwelve::new(b"test");
+    let mut hasher3 = Kt128::new(b"test");
     hasher3.update(b"message");
     let result128 = hasher3.finalize_boxed(128);
 
@@ -193,15 +193,15 @@ fn test_xof_output_sizes_kt128() {
 #[test]
 fn test_xof_output_sizes_kt256() {
     // Test different output sizes for KT256
-    let mut hasher1 = KangarooTwelve256::new(b"test");
+    let mut hasher1 = Kt256::new(b"test");
     hasher1.update(b"message");
     let result64 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"test");
+    let mut hasher2 = Kt256::new(b"test");
     hasher2.update(b"message");
     let result128 = hasher2.finalize_boxed(128);
 
-    let mut hasher3 = KangarooTwelve256::new(b"test");
+    let mut hasher3 = Kt256::new(b"test");
     hasher3.update(b"message");
     let result256 = hasher3.finalize_boxed(256);
 
@@ -221,12 +221,12 @@ fn test_xof_output_sizes_kt256() {
 #[test]
 fn test_incremental_update_kt128() {
     // Test incremental updates
-    let mut hasher1 = KangarooTwelve::new(b"test");
+    let mut hasher1 = Kt128::new(b"test");
     hasher1.update(b"hello");
     hasher1.update(b"world");
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"test");
+    let mut hasher2 = Kt128::new(b"test");
     hasher2.update(b"helloworld");
     let result2 = hasher2.finalize_boxed(32);
 
@@ -236,12 +236,12 @@ fn test_incremental_update_kt128() {
 #[test]
 fn test_incremental_update_kt256() {
     // Test incremental updates
-    let mut hasher1 = KangarooTwelve256::new(b"test");
+    let mut hasher1 = Kt256::new(b"test");
     hasher1.update(b"hello");
     hasher1.update(b"world");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"test");
+    let mut hasher2 = Kt256::new(b"test");
     hasher2.update(b"helloworld");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -256,7 +256,7 @@ fn test_incremental_update_kt256() {
 fn test_large_input_kt128() {
     // Test with large input
     let large_data = vec![0x42u8; 10000];
-    let mut hasher = KangarooTwelve::new(b"test");
+    let mut hasher = Kt128::new(b"test");
     hasher.update(&large_data);
     let result = hasher.finalize_boxed(32);
 
@@ -268,7 +268,7 @@ fn test_large_input_kt128() {
 fn test_large_input_kt256() {
     // Test with large input
     let large_data = vec![0x42u8; 10000];
-    let mut hasher = KangarooTwelve256::new(b"test");
+    let mut hasher = Kt256::new(b"test");
     hasher.update(&large_data);
     let result = hasher.finalize_boxed(64);
 
@@ -283,7 +283,7 @@ fn test_large_input_kt256() {
 #[test]
 fn test_zero_length_output_kt128() {
     // Test zero length output
-    let mut hasher = KangarooTwelve::new(b"test");
+    let mut hasher = Kt128::new(b"test");
     hasher.update(b"message");
     let result = hasher.finalize_boxed(0);
 
@@ -293,7 +293,7 @@ fn test_zero_length_output_kt128() {
 #[test]
 fn test_zero_length_output_kt256() {
     // Test zero length output
-    let mut hasher = KangarooTwelve256::new(b"test");
+    let mut hasher = Kt256::new(b"test");
     hasher.update(b"message");
     let result = hasher.finalize_boxed(0);
 
@@ -303,7 +303,7 @@ fn test_zero_length_output_kt256() {
 #[test]
 fn test_very_large_output_kt128() {
     // Test very large output
-    let mut hasher = KangarooTwelve::new(b"test");
+    let mut hasher = Kt128::new(b"test");
     hasher.update(b"message");
     let result = hasher.finalize_boxed(10000);
 
@@ -314,7 +314,7 @@ fn test_very_large_output_kt128() {
 #[test]
 fn test_very_large_output_kt256() {
     // Test very large output
-    let mut hasher = KangarooTwelve256::new(b"test");
+    let mut hasher = Kt256::new(b"test");
     hasher.update(b"message");
     let result = hasher.finalize_boxed(10000);
 
@@ -329,11 +329,11 @@ fn test_very_large_output_kt256() {
 #[test]
 fn test_avalanche_effect_kt128() {
     // Test avalanche effect - small input changes should produce large output changes
-    let mut hasher1 = KangarooTwelve::new(b"test");
+    let mut hasher1 = Kt128::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"test");
+    let mut hasher2 = Kt128::new(b"test");
     hasher2.update(b"message\x00");
     let result2 = hasher2.finalize_boxed(32);
 
@@ -350,11 +350,11 @@ fn test_avalanche_effect_kt128() {
 #[test]
 fn test_avalanche_effect_kt256() {
     // Test avalanche effect - small input changes should produce large output changes
-    let mut hasher1 = KangarooTwelve256::new(b"test");
+    let mut hasher1 = Kt256::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"test");
+    let mut hasher2 = Kt256::new(b"test");
     hasher2.update(b"message\x00");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -371,11 +371,11 @@ fn test_avalanche_effect_kt256() {
 #[test]
 fn test_determinism_kt128() {
     // Test that same input produces same output
-    let mut hasher1 = KangarooTwelve::new(b"test");
+    let mut hasher1 = Kt128::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(b"test");
+    let mut hasher2 = Kt128::new(b"test");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(32);
 
@@ -385,11 +385,11 @@ fn test_determinism_kt128() {
 #[test]
 fn test_determinism_kt256() {
     // Test that same input produces same output
-    let mut hasher1 = KangarooTwelve256::new(b"test");
+    let mut hasher1 = Kt256::new(b"test");
     hasher1.update(b"message");
     let result1 = hasher1.finalize_boxed(64);
 
-    let mut hasher2 = KangarooTwelve256::new(b"test");
+    let mut hasher2 = Kt256::new(b"test");
     hasher2.update(b"message");
     let result2 = hasher2.finalize_boxed(64);
 
@@ -408,7 +408,7 @@ fn test_performance_kt128() {
 
     let start = Instant::now();
     for _ in 0..iterations {
-        let mut hasher = KangarooTwelve::new(b"test");
+        let mut hasher = Kt128::new(b"test");
         hasher.update(&data);
         let _result = hasher.finalize_boxed(32);
     }
@@ -426,7 +426,7 @@ fn test_performance_kt256() {
 
     let start = Instant::now();
     for _ in 0..iterations {
-        let mut hasher = KangarooTwelve256::new(b"test");
+        let mut hasher = Kt256::new(b"test");
         hasher.update(&data);
         let _result = hasher.finalize_boxed(64);
     }
@@ -443,11 +443,11 @@ fn test_performance_kt256() {
 #[test]
 fn test_variant_differences() {
     // Test that KT128 and KT256 produce different outputs
-    let mut hasher128 = KangarooTwelve::new(b"test");
+    let mut hasher128 = Kt128::new(b"test");
     hasher128.update(b"message");
     let result128 = hasher128.finalize_boxed(32);
 
-    let mut hasher256 = KangarooTwelve256::new(b"test");
+    let mut hasher256 = Kt256::new(b"test");
     hasher256.update(b"message");
     let result256 = hasher256.finalize_boxed(32);
 
@@ -458,11 +458,11 @@ fn test_variant_differences() {
 #[test]
 fn test_variant_output_sizes() {
     // Test that variants produce appropriate output sizes
-    let mut hasher128 = KangarooTwelve::new(b"test");
+    let mut hasher128 = Kt128::new(b"test");
     hasher128.update(b"message");
     let result128 = hasher128.finalize_boxed(64);
 
-    let mut hasher256 = KangarooTwelve256::new(b"test");
+    let mut hasher256 = Kt256::new(b"test");
     hasher256.update(b"message");
     let result256 = hasher256.finalize_boxed(64);
 
@@ -477,7 +477,7 @@ fn test_variant_output_sizes() {
 #[test]
 fn test_stress_kt128() {
     // Stress test with many small updates
-    let mut hasher = KangarooTwelve::new(b"test");
+    let mut hasher = Kt128::new(b"test");
     for i in 0..1000 {
         hasher.update(&[i as u8]);
     }
@@ -490,7 +490,7 @@ fn test_stress_kt128() {
 #[test]
 fn test_stress_kt256() {
     // Stress test with many small updates
-    let mut hasher = KangarooTwelve256::new(b"test");
+    let mut hasher = Kt256::new(b"test");
     for i in 0..1000 {
         hasher.update(&[i as u8]);
     }
@@ -507,7 +507,7 @@ fn test_stress_kt256() {
 #[test]
 fn test_integration_scenario_kt128() {
     // Test a realistic integration scenario
-    let mut hasher = KangarooTwelve::new(b"session_key");
+    let mut hasher = Kt128::new(b"session_key");
     hasher.update(b"user_id:12345");
     hasher.update(b"timestamp:1640995200");
     hasher.update(b"nonce:abcdef123456");
@@ -520,7 +520,7 @@ fn test_integration_scenario_kt128() {
 #[test]
 fn test_integration_scenario_kt256() {
     // Test a realistic integration scenario
-    let mut hasher = KangarooTwelve256::new(b"session_key");
+    let mut hasher = Kt256::new(b"session_key");
     hasher.update(b"user_id:12345");
     hasher.update(b"timestamp:1640995200");
     hasher.update(b"nonce:abcdef123456");

@@ -20,7 +20,7 @@ lib-q-random = { path = "../lib-q-random", features = ["classical-mceliece"] }
 lib-q-sha3 = { path = "../lib-q-sha3" }
 
 # External dependencies
-aes = { version = "0.8", default-features = false, optional = true }
+aes = { workspace = true, default-features = false, optional = true }
 rand = { workspace = true, default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }

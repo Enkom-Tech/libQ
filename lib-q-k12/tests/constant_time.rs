@@ -2,9 +2,9 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-//! Constant-time verification tests for KangarooTwelve
+//! Constant-time verification tests for Kt128
 //!
-//! These tests verify that KangarooTwelve operations execute in constant time
+//! These tests verify that Kt128 operations execute in constant time
 //! to prevent timing-based side-channel attacks.
 
 use std::time::{
@@ -12,7 +12,7 @@ use std::time::{
     Instant,
 };
 
-use lib_q_k12::KangarooTwelve;
+use lib_q_k12::Kt128;
 use lib_q_k12::digest::{
     ExtendableOutput,
     Reset,
@@ -39,7 +39,7 @@ fn test_hash_constant_time() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&zeros);
         let _ = hasher.finalize_boxed(32);
     }
@@ -48,7 +48,7 @@ fn test_hash_constant_time() {
     for input in &inputs {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(input);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -92,7 +92,7 @@ fn test_customization_constant_time() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::new(b"test");
+        let mut hasher = Kt128::new(b"test");
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -101,7 +101,7 @@ fn test_customization_constant_time() {
     for custom in &customizations {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::new(custom);
+            let mut hasher = Kt128::new(custom);
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -146,7 +146,7 @@ fn test_chunk_boundary_constant_time() {
     // Warm up
     let test_data = vec![0x55u8; 10000];
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&test_data[..1000]);
         let _ = hasher.finalize_boxed(32);
     }
@@ -157,7 +157,7 @@ fn test_chunk_boundary_constant_time() {
         let start = Instant::now();
         for _ in 0..ITERATIONS / 2 {
             // Fewer iterations for larger data
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -192,7 +192,7 @@ fn test_xof_output_constant_time() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(64);
     }
@@ -201,7 +201,7 @@ fn test_xof_output_constant_time() {
     for &size in &output_sizes {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(size);
             std::hint::black_box(result);
@@ -238,7 +238,7 @@ fn test_reset_constant_time() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data1);
         hasher.reset();
     }
@@ -247,7 +247,7 @@ fn test_reset_constant_time() {
     for data in &datasets {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(data);
             hasher.reset();
             std::hint::black_box(&hasher);
@@ -309,7 +309,7 @@ fn test_memory_access_constant_time() {
     // Warm up
     let test_data = vec![0x77u8; 2000];
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&test_data[..1000]);
         let _ = hasher.finalize_boxed(32);
     }
@@ -319,7 +319,7 @@ fn test_memory_access_constant_time() {
         let data: Vec<u8> = (0..size).map(|i| (i * 17) as u8).collect();
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);

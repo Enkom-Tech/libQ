@@ -22,7 +22,7 @@ zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0-rc.10", features = ["rand_core"] }
 hmac = "0.13.0"
-sha2 = { version = "0.11.0-rc.5", default-features = false }
+sha2 = { version = "0.11.0", default-features = false }
 digest = { workspace = true }
 pkcs8 = { version = "0.11.0-rc.11", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.2", features = ["db"] }
@@ -38,7 +38,7 @@ quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
 proptest = { workspace = true }
 criterion = { workspace = true }
-aes = "0.9.0"
+aes = { workspace = true }
 cipher = "0.5.1"
 ctr = "0.10.0"
 pastey = { workspace = true }

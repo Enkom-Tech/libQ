@@ -14,7 +14,7 @@ use lib_q_hpke::providers::{
     AeadProvider,
     KemProvider,
 };
-use lib_q_hpke::security::prng::KangarooTwelveRng;
+use lib_q_hpke::security::prng::Kt128Rng;
 use lib_q_hpke::{
     HpkeAead,
     HpkeKem,
@@ -208,7 +208,7 @@ fn test_timing_consistency_auth_encapsulate() {
     let recipient_pk = vec![1u8; kem.public_key_len()];
     let invalid_sender_sk = vec![1u8; kem.secret_key_len().saturating_sub(1)];
 
-    let mut rng = KangarooTwelveRng::new().expect("K12 RNG");
+    let mut rng = Kt128Rng::new().expect("K12 RNG");
 
     let mut valid_times = Vec::new();
     for _ in 0..50 {

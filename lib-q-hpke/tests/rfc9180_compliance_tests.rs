@@ -371,7 +371,7 @@ fn test_psk_mode() {
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
-    use lib_q_hpke::security::prng::KangarooTwelveRng;
+    use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
         HpkeCipherSuite,
@@ -381,7 +381,7 @@ fn test_psk_mode() {
     };
 
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite {
@@ -434,7 +434,7 @@ fn test_auth_mode() {
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
-    use lib_q_hpke::security::prng::KangarooTwelveRng;
+    use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
         HpkeCipherSuite,
@@ -444,7 +444,7 @@ fn test_auth_mode() {
     };
 
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite {
@@ -507,7 +507,7 @@ fn test_auth_psk_mode() {
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
-    use lib_q_hpke::security::prng::KangarooTwelveRng;
+    use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
         HpkeCipherSuite,
@@ -517,7 +517,7 @@ fn test_auth_psk_mode() {
     };
 
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite {

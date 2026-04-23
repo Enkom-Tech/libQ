@@ -595,12 +595,18 @@ impl NistAes256CtrDrbg {
     /// Encrypts a 128-bit plaintext using AES256-ECB mode.
     fn aes256_ecb(key: &[u8; 32], ctr: &[u8; 16], buffer: &mut [u8; 16]) {
         use aes::cipher::{
-            BlockEncrypt,
+            BlockCipherEncrypt,
             KeyInit,
         };
-        let cipher = aes::Aes256::new(key.into());
+        use aes::{
+            Aes256,
+            Block,
+        };
+        let cipher = Aes256::new_from_slice(key).expect("32-byte key");
         buffer.copy_from_slice(ctr);
-        cipher.encrypt_block(buffer.into());
+        let mut block = Block::from(*buffer);
+        cipher.encrypt_block(&mut block);
+        *buffer = block.into();
     }
 
     /// Update key and v with provided data by running one round of AES in counter mode

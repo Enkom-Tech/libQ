@@ -10,6 +10,7 @@ repository.workspace = true
 keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
 categories = ["cryptography"]
 readme.workspace = true
+autobenches = false
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc"] }
@@ -58,6 +59,11 @@ path = "src/lib.rs"
 
 [[bench]]
 name = "stark_arithmetic_bench"
+harness = false
+required-features = ["zkp"]
+
+[[bench]]
+name = "zkp_benchmarks"
 harness = false
 required-features = ["zkp"]
 

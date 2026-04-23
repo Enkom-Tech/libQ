@@ -509,7 +509,8 @@ fn test_libq_provider_operation_paths() {
         Algorithm::TupleHash128,
         Algorithm::ParallelHash128,
         Algorithm::Keccak256,
-        Algorithm::KangarooTwelve,
+        Algorithm::Kt128,
+        Algorithm::Kt256,
         Algorithm::TurboShake128,
     ] {
         assert!(matches!(

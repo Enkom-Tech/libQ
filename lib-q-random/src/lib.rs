@@ -197,7 +197,7 @@ pub use specialized::ClassicalMcElieceRng;
 #[cfg(feature = "fn-dsa")]
 pub use specialized::FnDsaRng;
 #[cfg(feature = "hpke")]
-pub use specialized::KangarooTwelveRng;
+pub use specialized::Kt128Rng;
 #[cfg(feature = "alloc")]
 pub use traits::RngProvider;
 pub use traits::{

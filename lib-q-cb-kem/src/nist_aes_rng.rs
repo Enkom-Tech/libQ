@@ -20,7 +20,7 @@
 use core::fmt;
 
 use aes::cipher::{
-    BlockEncrypt,
+    BlockCipherEncrypt,
     KeyInit,
 };
 use rand_core::{
@@ -118,9 +118,11 @@ impl AesState {
     }
 
     fn aes256_ecb(key: &[u8; 32], ctr: &[u8; 16], buffer: &mut [u8; 16]) {
-        let cipher = aes::Aes256::new(key.into());
+        let cipher = aes::Aes256::new_from_slice(key).expect("32-byte key");
         buffer.copy_from_slice(ctr);
-        cipher.encrypt_block(buffer.into());
+        let mut block = aes::Block::from(*buffer);
+        cipher.encrypt_block(&mut block);
+        *buffer = block.into();
     }
 
     fn aes256_ctr_update(

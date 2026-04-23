@@ -15,7 +15,7 @@ use lib_q_hpke::providers::{
     KdfProvider,
     KemProvider,
 };
-use lib_q_hpke::security::prng::KangarooTwelveRng;
+use lib_q_hpke::security::prng::Kt128Rng;
 use lib_q_hpke::types::{
     HpkeAead,
     HpkeCipherSuite,
@@ -29,7 +29,7 @@ use lib_q_kem::LibQKemProvider;
 #[test]
 fn test_comprehensive_algorithm_agnostic_design() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test all combinations of KEM, KDF, and AEAD algorithms
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
@@ -78,7 +78,7 @@ fn test_comprehensive_algorithm_agnostic_design() {
 /// Test a specific combination of algorithms
 fn test_algorithm_combination(
     provider: &PostQuantumProvider,
-    rng: &mut KangarooTwelveRng,
+    rng: &mut Kt128Rng,
     kem: HpkeKem,
     kdf: HpkeKdf,
     aead: HpkeAead,
@@ -276,7 +276,7 @@ fn test_algorithm_validation() {
 #[test]
 fn test_algorithm_differentiation() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test that different KEM algorithms produce different key sizes
     let kem_512_keypair = provider
@@ -327,7 +327,7 @@ fn test_algorithm_differentiation() {
 #[test]
 fn test_unsupported_algorithm_handling() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test that all current algorithms are supported
     assert!(provider.supports_kem(HpkeKem::MlKem512));
@@ -396,7 +396,7 @@ fn test_unsupported_algorithm_handling() {
 #[test]
 fn test_security_properties() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test that the same input produces different outputs with different algorithms
     let test_data = b"security-test-data";

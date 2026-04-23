@@ -19,10 +19,10 @@ use lib_q_hpke::{
     HpkeKem,
     HpkeMode,
 };
-use lib_q_hpke::security::prng::{CryptoRng, KangarooTwelveRng};
+use lib_q_hpke::security::prng::{CryptoRng, Kt128Rng};
 use lib_q_kem::LibQKemProvider;
 
-fn random_bytes(rng: &mut KangarooTwelveRng, n: usize) -> Vec<u8> {
+fn random_bytes(rng: &mut Kt128Rng, n: usize) -> Vec<u8> {
     let mut v = vec![0u8; n];
     rng.fill_bytes(&mut v).unwrap();
     v
@@ -31,7 +31,7 @@ fn random_bytes(rng: &mut KangarooTwelveRng, n: usize) -> Vec<u8> {
 /// Fuzzing test for authentication proof validation
 #[test]
 fn fuzz_auth_proof_validation() {
-    let mut rng = KangarooTwelveRng::from_seed(&[0u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[0u8; 32]);
     
     for _ in 0..1000 {
         // Generate random but valid key sizes
@@ -96,7 +96,7 @@ fn fuzz_auth_proof_validation() {
 /// Fuzzing test for invalid authentication proof detection
 #[test]
 fn fuzz_invalid_auth_proof_detection() {
-    let mut rng = KangarooTwelveRng::from_seed(&[1u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[1u8; 32]);
     
     for _ in 0..1000 {
         let kem = HpkeKem::MlKem512; // Use consistent KEM for this test
@@ -133,7 +133,7 @@ fn fuzz_invalid_auth_proof_detection() {
 /// Fuzzing test for key validation edge cases
 #[test]
 fn fuzz_key_validation_edge_cases() {
-    let mut rng = KangarooTwelveRng::from_seed(&[2u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[2u8; 32]);
     
     for _ in 0..1000 {
         let kem = HpkeKem::MlKem512;
@@ -161,7 +161,7 @@ fn fuzz_key_validation_edge_cases() {
 /// Fuzzing test for zero key rejection
 #[test]
 fn fuzz_zero_key_rejection() {
-    let _rng = KangarooTwelveRng::from_seed(&[3u8; 32]);
+    let _rng = Kt128Rng::from_seed(&[3u8; 32]);
     
     for _ in 0..100 {
         let kem = HpkeKem::MlKem512;
@@ -183,7 +183,7 @@ fn fuzz_zero_key_rejection() {
 /// Fuzzing test for AEAD key validation
 #[test]
 fn fuzz_aead_key_validation() {
-    let mut rng = KangarooTwelveRng::from_seed(&[4u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[4u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -211,7 +211,7 @@ fn fuzz_aead_key_validation() {
 /// Fuzzing test for nonce validation
 #[test]
 fn fuzz_nonce_validation() {
-    let mut rng = KangarooTwelveRng::from_seed(&[5u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[5u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -239,7 +239,7 @@ fn fuzz_nonce_validation() {
 /// Fuzzing test for ciphertext length validation
 #[test]
 fn fuzz_ciphertext_length_validation() {
-    let mut rng = KangarooTwelveRng::from_seed(&[6u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[6u8; 32]);
     
     for _ in 0..1000 {
         let aead = HpkeAead::Saturnin256;
@@ -264,7 +264,7 @@ fn fuzz_ciphertext_length_validation() {
 /// Fuzzing test for HPKE context state transitions
 #[test]
 fn fuzz_hpke_context_state_transitions() {
-    let mut rng = KangarooTwelveRng::from_seed(&[7u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[7u8; 32]);
     
     for _ in 0..100 {
         let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
@@ -352,7 +352,7 @@ fn fuzz_sequence_number_overflow() {
 /// Fuzzing test for memory safety with large inputs
 #[test]
 fn fuzz_memory_safety_large_inputs() {
-    let mut rng = KangarooTwelveRng::from_seed(&[8u8; 32]);
+    let mut rng = Kt128Rng::from_seed(&[8u8; 32]);
     
     for _ in 0..10 {
         let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));

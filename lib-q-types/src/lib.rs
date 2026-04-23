@@ -56,7 +56,8 @@ pub enum Algorithm {
     Keccak256,
     Keccak384,
     Keccak512,
-    KangarooTwelve,
+    Kt128,
+    Kt256,
     TurboShake128,
     TurboShake256,
     Kmac128,
@@ -134,7 +135,8 @@ impl Algorithm {
             Algorithm::Keccak256 |
             Algorithm::Keccak384 |
             Algorithm::Keccak512 |
-            Algorithm::KangarooTwelve |
+            Algorithm::Kt128 |
+            Algorithm::Kt256 |
             Algorithm::TurboShake128 |
             Algorithm::TurboShake256 |
             Algorithm::Kmac128 |
@@ -201,7 +203,8 @@ impl Algorithm {
             Algorithm::Keccak256 |
             Algorithm::Keccak384 |
             Algorithm::Keccak512 |
-            Algorithm::KangarooTwelve |
+            Algorithm::Kt128 |
+            Algorithm::Kt256 |
             Algorithm::TurboShake128 |
             Algorithm::TurboShake256 |
             Algorithm::Kmac128 |
@@ -271,7 +274,8 @@ impl Algorithm {
             Algorithm::Keccak256 |
             Algorithm::Keccak384 |
             Algorithm::Keccak512 |
-            Algorithm::KangarooTwelve |
+            Algorithm::Kt128 |
+            Algorithm::Kt256 |
             Algorithm::TurboShake128 |
             Algorithm::TurboShake256 |
             Algorithm::Kmac128 |
@@ -399,7 +403,8 @@ impl core::fmt::Display for Algorithm {
             Algorithm::RomulusM => write!(f, "Romulus-M"),
 
             // Additional algorithms
-            Algorithm::KangarooTwelve => write!(f, "KangarooTwelve"),
+            Algorithm::Kt128 => write!(f, "KT128"),
+            Algorithm::Kt256 => write!(f, "KT256"),
             Algorithm::TurboShake128 => write!(f, "TurboShake128"),
             Algorithm::TurboShake256 => write!(f, "TurboShake256"),
             Algorithm::Kmac128 => write!(f, "KMAC128"),

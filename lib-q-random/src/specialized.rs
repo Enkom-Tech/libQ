@@ -228,13 +228,13 @@ impl TryRng for ClassicalMcElieceRng {
 
 impl TryCryptoRng for ClassicalMcElieceRng {}
 
-/// HPKE-compatible RNG using `KangarooTwelve`
+/// HPKE-compatible RNG using RFC 9861 **KT128** (`KangarooTwelve` / `TurboSHAKE128`)
 ///
 /// This implementation provides cryptographically secure random number generation
-/// using libQ's fastest native primitive - `KangarooTwelve`. K12 is significantly
+/// using libQ's **KT128** (`KangarooTwelve`) primitive. K12 is significantly
 /// faster than SHAKE256 while maintaining the same security properties.
 #[cfg(feature = "hash")]
-pub struct KangarooTwelveRng {
+pub struct Kt128Rng {
     /// Internal buffer for K12 output
     pub buffer: [u8; 32], // K12 output size
     /// Current position in the buffer
@@ -243,7 +243,7 @@ pub struct KangarooTwelveRng {
 }
 
 #[cfg(feature = "hash")]
-impl KangarooTwelveRng {
+impl Kt128Rng {
     /// Create a new secure RNG with system entropy
     ///
     /// # Errors
@@ -279,7 +279,7 @@ impl KangarooTwelveRng {
             XofReader,
         };
 
-        let mut k12 = lib_q_hash::KangarooTwelve::new(b"HPKE-RNG");
+        let mut k12 = lib_q_hash::Kt128::new(b"HPKE-RNG");
         k12.update(seed);
         let mut reader = k12.finalize_xof();
 
@@ -303,7 +303,7 @@ impl KangarooTwelveRng {
         };
 
         // Use current buffer + counter as seed for next generation
-        let mut k12 = lib_q_hash::KangarooTwelve::new(b"HPKE-RNG");
+        let mut k12 = lib_q_hash::Kt128::new(b"HPKE-RNG");
         k12.update(&self.buffer);
         k12.update(&self.counter.to_le_bytes());
         let mut reader = k12.finalize_xof();
@@ -314,7 +314,7 @@ impl KangarooTwelveRng {
 }
 
 #[cfg(feature = "hash")]
-impl TryRng for KangarooTwelveRng {
+impl TryRng for Kt128Rng {
     type Error = core::convert::Infallible;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
@@ -353,7 +353,7 @@ impl TryRng for KangarooTwelveRng {
 }
 
 #[cfg(feature = "hash")]
-impl TryCryptoRng for KangarooTwelveRng {}
+impl TryCryptoRng for Kt128Rng {}
 
 // HPKE-specific trait implementation for compatibility
 // This will be implemented in the HPKE crate itself to avoid circular dependencies

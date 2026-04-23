@@ -99,7 +99,7 @@ cpufeatures = "0.3.0"
 # STARK dependencies
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
-pastey = "0.2.1"
+pastey = "0.2.2"
 spin = "0.10.0"
 thiserror = { version = "2.0.18", default-features = false }
 tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
@@ -112,6 +112,7 @@ digest = "0.11.2"
 sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
 aead = { version = "0.5.2", default-features = false }
+aes = { version = "0.9.0", default-features = false }
 
 # CI and large `cargo test` runs: keep release optimizations and security flags from `.cargo/config.toml`
 # `[profile.release]` (LTO + codegen-units=1) makes workspace test linking dominate job time.

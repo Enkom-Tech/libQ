@@ -30,8 +30,10 @@ pub use lib_q_core::{
 };
 // Re-export external hash implementations (explicit to avoid ambiguity)
 pub use lib_q_k12::{
-    KangarooTwelve,
-    KangarooTwelveReader,
+    Kt128,
+    Kt128Reader,
+    Kt256,
+    Kt256Reader,
 };
 pub use lib_q_sha3::{
     Keccak224,
@@ -117,13 +119,14 @@ pub use turbo_shake::{
 pub use crate::hash_types::{
     CShake128Hash,
     CShake256Hash,
-    KangarooTwelveHash,
     Keccak224Hash,
     Keccak256Hash,
     Keccak384Hash,
     Keccak512Hash,
     Kmac128Hash,
     Kmac256Hash,
+    Kt128Hash,
+    Kt256Hash,
     ParallelHash128Hash,
     ParallelHash256Hash,
     Sha3_224Hash,
@@ -173,8 +176,10 @@ pub enum HashAlgorithm {
     Cshake128,
     /// cSHAKE256
     Cshake256,
-    /// KangarooTwelve
-    KangarooTwelve,
+    /// KT128 (KangarooTwelve with TurboSHAKE128)
+    Kt128,
+    /// KT256 (KangarooTwelve with TurboSHAKE256)
+    Kt256,
     /// Keccak-224
     Keccak224,
     /// Keccak-256
@@ -225,7 +230,8 @@ impl HashAlgorithm {
             HashAlgorithm::Shake256 => 32,
             HashAlgorithm::Cshake128 => 16,
             HashAlgorithm::Cshake256 => 32,
-            HashAlgorithm::KangarooTwelve => 32, // Default output size
+            HashAlgorithm::Kt128 => 32,
+            HashAlgorithm::Kt256 => 64,
             HashAlgorithm::Keccak224 => 28,
             HashAlgorithm::Keccak256 => 32,
             HashAlgorithm::Keccak384 => 48,
@@ -259,6 +265,8 @@ pub fn available_algorithms() -> Vec<&'static str> {
         "shake256",
         "cshake128",
         "cshake256",
+        "kt128",
+        "kt256",
         "kangarootwelve",
         "keccak224",
         "keccak256",
@@ -292,7 +300,8 @@ pub fn algorithm_to_hash_algorithm(algorithm: Algorithm) -> Result<HashAlgorithm
         Algorithm::Shake256 => Ok(HashAlgorithm::Shake256),
         Algorithm::CShake128 => Ok(HashAlgorithm::Cshake128),
         Algorithm::CShake256 => Ok(HashAlgorithm::Cshake256),
-        Algorithm::KangarooTwelve => Ok(HashAlgorithm::KangarooTwelve),
+        Algorithm::Kt128 => Ok(HashAlgorithm::Kt128),
+        Algorithm::Kt256 => Ok(HashAlgorithm::Kt256),
         Algorithm::Keccak224 => Ok(HashAlgorithm::Keccak224),
         Algorithm::Keccak256 => Ok(HashAlgorithm::Keccak256),
         Algorithm::Keccak384 => Ok(HashAlgorithm::Keccak384),
@@ -334,7 +343,8 @@ pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn lib_q_core::Hash>
         HashAlgorithm::TupleHash256 => Ok(Box::new(TupleHash256Hash::new())),
         HashAlgorithm::ParallelHash128 => Ok(Box::new(ParallelHash128Hash::new())),
         HashAlgorithm::ParallelHash256 => Ok(Box::new(ParallelHash256Hash::new())),
-        HashAlgorithm::KangarooTwelve => Ok(Box::new(KangarooTwelveHash::new())),
+        HashAlgorithm::Kt128 => Ok(Box::new(Kt128Hash::new())),
+        HashAlgorithm::Kt256 => Ok(Box::new(Kt256Hash::new())),
         HashAlgorithm::Keccak224 => Ok(Box::new(Keccak224Hash::new())),
         HashAlgorithm::Keccak256 => Ok(Box::new(Keccak256Hash::new())),
         HashAlgorithm::Keccak384 => Ok(Box::new(Keccak384Hash::new())),
@@ -377,6 +387,8 @@ mod tests {
         assert!(algorithms.contains(&"shake128"));
         assert!(algorithms.contains(&"shake256"));
         assert!(algorithms.contains(&"cshake256"));
+        assert!(algorithms.contains(&"kt128"));
+        assert!(algorithms.contains(&"kt256"));
         assert!(algorithms.contains(&"kangarootwelve"));
         assert!(algorithms.contains(&"keccak224"));
         assert!(algorithms.contains(&"keccak256"));
@@ -436,7 +448,8 @@ mod tests {
             Shake256,
             Cshake128,
             Cshake256,
-            KangarooTwelve,
+            Kt128,
+            Kt256,
             Keccak224,
             Keccak256,
             Keccak384,
@@ -479,7 +492,8 @@ mod tests {
             TupleHash256,
             ParallelHash128,
             ParallelHash256,
-            KangarooTwelve,
+            Kt128,
+            Kt256,
             Keccak224,
             Keccak256,
             Keccak384,
@@ -510,7 +524,8 @@ mod tests {
             (Algorithm::Kmac128, HashAlgorithm::Kmac128),
             (Algorithm::TupleHash256, HashAlgorithm::TupleHash256),
             (Algorithm::ParallelHash128, HashAlgorithm::ParallelHash128),
-            (Algorithm::KangarooTwelve, HashAlgorithm::KangarooTwelve),
+            (Algorithm::Kt128, HashAlgorithm::Kt128),
+            (Algorithm::Kt256, HashAlgorithm::Kt256),
             (Algorithm::Keccak256, HashAlgorithm::Keccak256),
             (Algorithm::TurboShake128, HashAlgorithm::TurboShake128),
             (Algorithm::Sha256, HashAlgorithm::Sha256),

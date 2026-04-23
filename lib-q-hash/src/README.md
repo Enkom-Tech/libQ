@@ -17,7 +17,7 @@ Rust implementation of post-quantum cryptographic hash functions based on SHA-3 
 - **Keccak256Full** - CryptoNight variant with 200-byte output
 
 ### Modern Functions
-- **KangarooTwelve** - Fast parallel hash function
+- **KT128 / KT256** (RFC 9861 KangarooTwelve) — fast parallel XOF
 - **KMAC128** and **KMAC256** - Keyed Message Authentication Code
 - **TupleHash128** and **TupleHash256** - Tuple-based hashing
 - **ParallelHash128** and **ParallelHash256** - Parallel processing
@@ -94,12 +94,12 @@ let mut output = [0u8; 32];
 parallelhash.finalize(&mut output);
 ```
 
-### KangarooTwelve
+### KT128 (KangarooTwelve, TurboSHAKE128)
 
 ```rust
-use lib_q_hash::{KangarooTwelve, digest::{Update, ExtendableOutput, XofReader}};
+use lib_q_hash::{Kt128, digest::{Update, ExtendableOutput, XofReader}};
 
-let mut hasher = KangarooTwelve::new(b"customization");
+let mut hasher = Kt128::new(b"customization");
 hasher.update(b"Hello, World!");
 let mut reader = hasher.finalize_xof();
 

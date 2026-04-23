@@ -432,13 +432,22 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
-        // KangarooTwelve algorithm
+        // RFC 9861 KangarooTwelve instances
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::KangarooTwelve,
+            algorithm: Algorithm::Kt128,
             category: AlgorithmCategory::Hash,
             security_level: 0,
-            name: "KangarooTwelve",
-            description: "KangarooTwelve hash function (KT128 variant)",
+            name: "KT128",
+            description: "KangarooTwelve with TurboSHAKE128 (RFC 9861)",
+            enabled: true,
+        });
+
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::Kt256,
+            category: AlgorithmCategory::Hash,
+            security_level: 0,
+            name: "KT256",
+            description: "KangarooTwelve with TurboSHAKE256 (RFC 9861)",
             enabled: true,
         });
 

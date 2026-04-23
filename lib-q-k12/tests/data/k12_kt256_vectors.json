@@ -1,6 +1,6 @@
 {
-  "algorithm": "KangarooTwelve-KT256",
-  "source": "XKCP (eXtended Keccak Code Package) - Official Implementation",
+  "algorithm": "KT256",
+  "source": "RFC 9861 (KangarooTwelve / TurboSHAKE) — test vectors as in Appendix A.5",
   "version": "1.0",
   "description": "KT256 test vectors using TurboSHAKE256",
   "vectors": [
@@ -71,7 +71,7 @@
       "message_length": 83521,
       "customization": "",
       "output_length": 64,
-      "expected": "0224bbb3dfa3ba49ee3d13409745cc4443fb812594d1f2ffbca3f46bd65d80747b149af89fcb5ad2e6d0f80d0144da0d42afe89f335a9a7d1d3f9975731be651"
+      "expected": "b06275d284cd1cf205bcbe57dccd3ec1ff6686e3ed15776383e1f2fa3c6ac8f08bf8a162829db1a44b2a43ff83dd89c3cf1ceb61ede659766d5ccf817a62ba8d"
     },
     {
       "count": 8,
@@ -107,15 +107,7 @@
       "customization_pattern": "range_mod_251",
       "customization_length": 68921,
       "output_length": 64,
-      "expected": "40e41816a6c710f3105e91392646936e0e7866af93eff921633458d6ef7909d41904fbceac298e53f8d50a7884b48cea27eb13c4c3b1f9afd8bd71ea4321b616"
+      "expected": "e0911cc00025e1540831e266d94add9b98712142b80d2629e643aac4efaf5a3a30a88cbf4ac2a91a2432743054fbcc9897670e86ba8cec2fc2ace9c966369724"
     }
-  ],
-  "checksums": {
-    "kt256_mode0_nosqueeze": "03ff7bfc968077f64e192ec6b673e45b",
-    "kt256_mode1_nosqueeze": "924523338f38e87e8a5a2d350136fa3e",
-    "kt256_mode2_nosqueeze": "94b4a82e9e70e7cd661f84f2c6cc9702",
-    "kt256_mode0_squeeze": "83e2a25c0f24dd584684ab7ce4d903bd",
-    "kt256_mode1_squeeze": "924523338f38e87e8a5a2d350136fa3e",
-    "kt256_mode2_squeeze": "83e2a25c0f24dd584684ab7ce4d903bd"
-  }
+  ]
 }

@@ -4,9 +4,9 @@
 //! as a replacement for the BearSSL C implementation, maintaining the same interface.
 
 use aes::Aes256;
-use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{
-    BlockEncrypt,
+    Array,
+    BlockCipherEncrypt,
     KeyInit,
 };
 
@@ -19,13 +19,13 @@ pub struct Aes256CtxPure {
 impl Aes256CtxPure {
     /// Create a new AES-256 context with the given key
     pub fn new(key: &[u8; 32]) -> Self {
-        let cipher = Aes256::new(GenericArray::from_slice(key));
+        let cipher = Aes256::new(&Array::from(*key));
         Self { cipher }
     }
 
     /// Encrypt a single 16-byte block using AES-256-ECB
     pub fn encrypt_block(&self, input: &[u8; 16]) -> [u8; 16] {
-        let mut block = GenericArray::clone_from_slice(input);
+        let mut block = Array::from(*input);
         self.cipher.encrypt_block(&mut block);
         block.into()
     }
@@ -38,7 +38,7 @@ impl Aes256CtxPure {
             let input_block = &input[start..end];
             let output_block = &mut output[start..end];
 
-            let mut block = GenericArray::clone_from_slice(input_block);
+            let mut block = Array::from(<[u8; 16]>::try_from(input_block).expect("16-byte block"));
             self.cipher.encrypt_block(&mut block);
             output_block.copy_from_slice(&block);
         }

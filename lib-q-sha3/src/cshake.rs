@@ -1,5 +1,6 @@
 use core::fmt;
 
+use block_buffer::LazyBuffer;
 use digest::block_api::{
     AlgorithmName,
     Block,
@@ -71,21 +72,21 @@ macro_rules! impl_cshake {
                     &b[i..]
                 }
 
-                let mut buffer = Buffer::<Self>::default();
+                // `LazyBuffer` (not `Eager`) for init: when byte-pad output is block-aligned,
+                // an extra full zero block must not be absorbed (RustCrypto/hashes#834).
+                let mut buffer: LazyBuffer<$rate> = Default::default();
                 let mut b = [0u8; 9];
                 buffer.digest_blocks(left_encode($rate::to_u64(), &mut b), |blocks| {
                     state.update_blocks(blocks)
                 });
-                buffer.digest_blocks(
-                    left_encode(8 * (function_name.len() as u64), &mut b),
-                    |blocks| state.update_blocks(blocks),
-                );
-                buffer.digest_blocks(function_name, |blocks| state.update_blocks(blocks));
-                buffer.digest_blocks(
-                    left_encode(8 * (customization.len() as u64), &mut b),
-                    |blocks| state.update_blocks(blocks),
-                );
-                buffer.digest_blocks(customization, |blocks| state.update_blocks(blocks));
+                let mut encode_str = |str: &[u8]| {
+                    let str_bits_len = 8 * (str.len() as u64);
+                    let encoded_len = left_encode(str_bits_len, &mut b);
+                    buffer.digest_blocks(encoded_len, |blocks| state.update_blocks(blocks));
+                    buffer.digest_blocks(str, |blocks| state.update_blocks(blocks));
+                };
+                encode_str(function_name);
+                encode_str(customization);
                 state.update_blocks(&[buffer.pad_with_zeros()]);
                 state.initial_state = state.state;
                 state

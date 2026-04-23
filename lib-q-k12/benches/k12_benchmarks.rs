@@ -24,7 +24,7 @@ fn kangarootwelve(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &data, |b, data| {
             b.iter(|| {
-                let mut h = lib_q_k12::KangarooTwelve::default();
+                let mut h = lib_q_k12::Kt128::default();
                 h.update(black_box(data.as_slice()));
                 let mut out = [0u8; 32];
                 h.finalize_xof_into(&mut out);

@@ -2,19 +2,19 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-//! Security property tests for KangarooTwelve
+//! Security property tests for Kt128
 //!
 //! These tests use HashSet for collision detection and output validation,
 //! which is acceptable in test code for security verification purposes.
 
 #![allow(clippy::disallowed_types)]
 //!
-//! These tests verify that KangarooTwelve maintains essential cryptographic
+//! These tests verify that Kt128 maintains essential cryptographic
 //! security properties and handles edge cases correctly.
 
 use std::collections::HashSet;
 
-use lib_q_k12::KangarooTwelve;
+use lib_q_k12::Kt128;
 use lib_q_k12::digest::{
     ExtendableOutput,
     Reset,
@@ -30,7 +30,7 @@ fn test_determinism() {
     // Hash the same data multiple times
     let mut results = Vec::new();
     for _ in 0..10 {
-        let mut hasher = KangarooTwelve::new(customization);
+        let mut hasher = Kt128::new(customization);
         hasher.update(test_data);
         let result = hasher.finalize_boxed(64);
         results.push(result);
@@ -67,7 +67,7 @@ fn test_collision_resistance() {
     ];
 
     for input in &test_inputs {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(input);
         let result = hasher.finalize_boxed(output_size);
 
@@ -95,7 +95,7 @@ fn test_customization_separation() {
     let mut results = HashSet::new();
 
     for custom in &customizations {
-        let mut hasher = KangarooTwelve::new(custom);
+        let mut hasher = Kt128::new(custom);
         hasher.update(test_data);
         let result = hasher.finalize_boxed(32);
 
@@ -111,7 +111,7 @@ fn test_customization_separation() {
 #[test]
 fn test_avalanche_effect() {
     let base_input = vec![0x42u8; 100];
-    let mut base_hasher = KangarooTwelve::default();
+    let mut base_hasher = Kt128::default();
     base_hasher.update(&base_input);
     let base_result = base_hasher.finalize_boxed(64);
 
@@ -121,7 +121,7 @@ fn test_avalanche_effect() {
             let mut modified_input = base_input.clone();
             modified_input[byte_pos] ^= 1 << bit_pos;
 
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&modified_input);
             let result = hasher.finalize_boxed(64);
 
@@ -152,7 +152,7 @@ fn test_output_distribution() {
 
     for i in 0..num_samples {
         let input = vec![i as u8; 10];
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&input);
         let result = hasher.finalize_boxed(1);
 
@@ -187,11 +187,11 @@ fn test_xof_consistency() {
     let customization = b"xof_test";
 
     // Generate outputs of different lengths
-    let mut hasher1 = KangarooTwelve::new(customization);
+    let mut hasher1 = Kt128::new(customization);
     hasher1.update(test_data);
     let short_output = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::new(customization);
+    let mut hasher2 = Kt128::new(customization);
     hasher2.update(test_data);
     let long_output = hasher2.finalize_boxed(64);
 
@@ -203,7 +203,7 @@ fn test_xof_consistency() {
     );
 
     // Test with even longer output
-    let mut hasher3 = KangarooTwelve::new(customization);
+    let mut hasher3 = Kt128::new(customization);
     hasher3.update(test_data);
     let very_long_output = hasher3.finalize_boxed(128);
 
@@ -221,14 +221,14 @@ fn test_reset_security() {
     let data2 = b"second data";
 
     // Hash data1, reset, then hash data2
-    let mut hasher = KangarooTwelve::default();
+    let mut hasher = Kt128::default();
     hasher.update(data1);
     hasher.reset();
     hasher.update(data2);
     let result1 = hasher.finalize_boxed(32);
 
     // Hash data2 directly
-    let mut hasher2 = KangarooTwelve::default();
+    let mut hasher2 = Kt128::default();
     hasher2.update(data2);
     let result2 = hasher2.finalize_boxed(32);
 
@@ -244,7 +244,7 @@ fn test_input_size_edge_cases() {
 
     for &size in &sizes {
         let input: Vec<u8> = (0..size).map(|i| (i % 256) as u8).collect();
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&input);
         let result = hasher.finalize_boxed(32);
 
@@ -262,7 +262,7 @@ fn test_large_customization() {
     let test_data = b"test data";
     let large_custom = vec![0x55u8; 10000]; // Large customization
 
-    let mut hasher = KangarooTwelve::new(&large_custom);
+    let mut hasher = Kt128::new(&large_custom);
     hasher.update(test_data);
     let result = hasher.finalize_boxed(32);
 
@@ -274,7 +274,7 @@ fn test_large_customization() {
     );
 
     // Should be different from no customization
-    let mut hasher2 = KangarooTwelve::default();
+    let mut hasher2 = Kt128::default();
     hasher2.update(test_data);
     let result2 = hasher2.finalize_boxed(32);
 
@@ -288,12 +288,12 @@ fn test_incremental_updates() {
     let customization = b"incremental_test";
 
     // Hash all at once
-    let mut hasher1 = KangarooTwelve::new(customization);
+    let mut hasher1 = Kt128::new(customization);
     hasher1.update(&data);
     let result1 = hasher1.finalize_boxed(32);
 
     // Hash incrementally
-    let mut hasher2 = KangarooTwelve::new(customization);
+    let mut hasher2 = Kt128::new(customization);
     for chunk in data.chunks(100) {
         hasher2.update(chunk);
     }
@@ -310,7 +310,7 @@ fn test_incremental_updates() {
 fn test_zero_length_output() {
     let test_data = b"test for zero output";
 
-    let mut hasher = KangarooTwelve::default();
+    let mut hasher = Kt128::default();
     hasher.update(test_data);
     let result = hasher.finalize_boxed(0);
 
@@ -323,7 +323,7 @@ fn test_large_output() {
     let test_data = b"test for large output";
     let output_size = 10000;
 
-    let mut hasher = KangarooTwelve::default();
+    let mut hasher = Kt128::default();
     hasher.update(test_data);
     let result = hasher.finalize_boxed(output_size);
 
@@ -346,7 +346,7 @@ fn test_large_output() {
 fn test_cloning() {
     let test_data = b"cloning test data";
 
-    let mut hasher1 = KangarooTwelve::default();
+    let mut hasher1 = Kt128::default();
     hasher1.update(test_data);
 
     let hasher2 = hasher1.clone();
@@ -366,12 +366,12 @@ fn test_chunk_independence() {
     let data1 = vec![0x11u8; chunk_size * 2];
     let data2 = vec![0x22u8; chunk_size * 2];
 
-    let mut hasher1 = KangarooTwelve::default();
+    let mut hasher1 = Kt128::default();
     hasher1.update(&data1[..chunk_size]);
     hasher1.update(&data1[chunk_size..]);
     let result1 = hasher1.finalize_boxed(32);
 
-    let mut hasher2 = KangarooTwelve::default();
+    let mut hasher2 = Kt128::default();
     hasher2.update(&data2[..chunk_size]);
     hasher2.update(&data2[chunk_size..]);
     let result2 = hasher2.finalize_boxed(32);

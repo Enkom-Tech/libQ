@@ -2,10 +2,10 @@
 // Copyright 2025 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
-//! Performance regression tests for KangarooTwelve
+//! Performance regression tests for Kt128
 //!
 //! These tests monitor performance characteristics and detect regressions
-//! in the KangarooTwelve implementation.
+//! in the Kt128 implementation.
 
 #![cfg_attr(tarpaulin, allow(unused_imports, dead_code))]
 
@@ -14,7 +14,7 @@ use std::time::{
     Instant,
 };
 
-use lib_q_k12::KangarooTwelve;
+use lib_q_k12::Kt128;
 use lib_q_k12::digest::{
     ExtendableOutput,
     Reset,
@@ -34,7 +34,7 @@ fn test_small_input_performance() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -42,7 +42,7 @@ fn test_small_input_performance() {
     // Measure performance
     let start = Instant::now();
     for _ in 0..ITERATIONS {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let result = hasher.finalize_boxed(32);
         std::hint::black_box(result);
@@ -70,7 +70,7 @@ fn test_input_scaling_performance() {
     // Warm up
     let test_data = vec![0x55u8; 16384];
     for _ in 0..50 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&test_data[..1024]);
         let _ = hasher.finalize_boxed(32);
     }
@@ -80,7 +80,7 @@ fn test_input_scaling_performance() {
         let data = vec![0x55u8; size];
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -116,7 +116,7 @@ fn test_output_generation_performance() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -125,7 +125,7 @@ fn test_output_generation_performance() {
     for &size in &output_sizes {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(size);
             std::hint::black_box(result);
@@ -160,7 +160,7 @@ fn test_customization_performance() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -170,7 +170,7 @@ fn test_customization_performance() {
         let custom = vec![0x99u8; size];
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::new(&custom);
+            let mut hasher = Kt128::new(&custom);
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -211,7 +211,7 @@ fn test_chunk_boundary_performance() {
     // Warm up
     let test_data = vec![0x44u8; CHUNK_SIZE * 3];
     for _ in 0..50 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&test_data[..CHUNK_SIZE]);
         let _ = hasher.finalize_boxed(32);
     }
@@ -221,7 +221,7 @@ fn test_chunk_boundary_performance() {
         let data = vec![0x44u8; size];
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);
@@ -259,7 +259,7 @@ fn test_incremental_update_performance() {
     // Warm up
     let data = vec![0x66u8; total_size];
     for _ in 0..50 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -271,7 +271,7 @@ fn test_incremental_update_performance() {
         for _ in 0..MEASUREMENT_RUNS {
             let start = Instant::now();
             for _ in 0..ITERATIONS {
-                let mut hasher = KangarooTwelve::default();
+                let mut hasher = Kt128::default();
                 for chunk in data.chunks(chunk_size) {
                     hasher.update(chunk);
                 }
@@ -307,7 +307,7 @@ fn test_reset_performance() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         hasher.reset();
     }
@@ -315,7 +315,7 @@ fn test_reset_performance() {
     // Measure reset performance
     let start = Instant::now();
     for _ in 0..ITERATIONS {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         hasher.reset();
         std::hint::black_box(&hasher);
@@ -341,7 +341,7 @@ fn test_memory_allocation_performance() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -349,7 +349,7 @@ fn test_memory_allocation_performance() {
     // Measure hasher creation and basic operation
     let start = Instant::now();
     for _ in 0..ITERATIONS {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let result = hasher.finalize_boxed(32);
         std::hint::black_box(result);
@@ -374,7 +374,7 @@ fn test_cloning_performance() {
     const ITERATIONS: usize = 1000;
 
     // Create a hasher with some state
-    let mut base_hasher = KangarooTwelve::default();
+    let mut base_hasher = Kt128::default();
     base_hasher.update(&data);
 
     // Warm up
@@ -414,7 +414,7 @@ fn test_performance_consistency() {
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = KangarooTwelve::default();
+        let mut hasher = Kt128::default();
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -423,7 +423,7 @@ fn test_performance_consistency() {
     for _ in 0..RUNS {
         let start = Instant::now();
         for _ in 0..ITERATIONS {
-            let mut hasher = KangarooTwelve::default();
+            let mut hasher = Kt128::default();
             hasher.update(&data);
             let result = hasher.finalize_boxed(32);
             std::hint::black_box(result);

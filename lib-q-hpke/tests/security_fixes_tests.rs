@@ -18,17 +18,17 @@ use lib_q_hpke::{
 };
 use lib_q_kem::LibQKemProvider;
 
-/// Test that KangarooTwelve-based RNG is available and working
+/// Test that KT128-based RNG is available and working
 #[test]
 fn test_kangaroo_twelve_rng_availability() {
     #[cfg(feature = "hash")]
     {
-        use lib_q_hpke::security::prng::KangarooTwelveRng;
+        use lib_q_hpke::security::prng::Kt128Rng;
 
-        let rng = KangarooTwelveRng::new();
+        let rng = Kt128Rng::new();
         assert!(
             rng.is_ok(),
-            "KangarooTwelve RNG should be available with hash feature"
+            "KT128 RNG should be available with hash feature"
         );
 
         let mut rng = rng.unwrap();
@@ -47,8 +47,8 @@ fn test_kangaroo_twelve_rng_availability() {
 
         // Test deterministic behavior with same seed
         let seed = b"test seed for K12 RNG";
-        let mut rng1 = KangarooTwelveRng::from_seed(seed);
-        let mut rng2 = KangarooTwelveRng::from_seed(seed);
+        let mut rng1 = Kt128Rng::from_seed(seed);
+        let mut rng2 = Kt128Rng::from_seed(seed);
 
         let mut bytes1 = [0u8; 16];
         let mut bytes2 = [0u8; 16];

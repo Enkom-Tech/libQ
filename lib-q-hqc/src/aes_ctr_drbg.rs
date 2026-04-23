@@ -38,9 +38,9 @@ use alloc::string::String;
 use aes::Aes256;
 #[cfg(feature = "aes-drbg")]
 use aes::cipher::{
-    BlockEncrypt,
+    Array,
+    BlockCipherEncrypt,
     KeyInit,
-    generic_array::GenericArray,
 };
 use rand_core::{
     TryCryptoRng,
@@ -94,8 +94,8 @@ impl Aes256CtrDrbg {
     /// # Returns
     /// 16-byte encrypted output block
     pub fn aes256_ecb(key: &[u8; 32], input: &[u8; 16]) -> [u8; 16] {
-        let cipher = Aes256::new(GenericArray::from_slice(key));
-        let mut block = GenericArray::clone_from_slice(input);
+        let cipher = Aes256::new(&Array::from(*key));
+        let mut block = Array::from(*input);
         cipher.encrypt_block(&mut block);
         block.into()
     }

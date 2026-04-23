@@ -11,7 +11,7 @@ use lib_q_hpke::hpke_core::{
 };
 use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
-use lib_q_hpke::security::prng::KangarooTwelveRng;
+use lib_q_hpke::security::prng::Kt128Rng;
 use lib_q_hpke::types::{
     HpkeAead,
     HpkeCipherSuite,
@@ -25,7 +25,7 @@ use lib_q_kem::LibQKemProvider;
 #[test]
 fn test_hpke_with_different_kem_algorithms() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test with ML-KEM-512
     test_kem_algorithm(&provider, &mut rng, HpkeKem::MlKem512, "ML-KEM-512");
@@ -39,7 +39,7 @@ fn test_hpke_with_different_kem_algorithms() {
 
 fn test_kem_algorithm(
     provider: &PostQuantumProvider,
-    rng: &mut KangarooTwelveRng,
+    rng: &mut Kt128Rng,
     kem: HpkeKem,
     kem_name: &str,
 ) {
@@ -149,7 +149,7 @@ fn test_kem_algorithm(
 
 fn test_hpke_mode(
     provider: &PostQuantumProvider,
-    rng: &mut KangarooTwelveRng,
+    rng: &mut Kt128Rng,
     cipher_suite: &HpkeCipherSuite,
     recipient_pk: &KemPublicKey,
     recipient_sk: &KemSecretKey,
@@ -240,7 +240,7 @@ fn test_hpke_mode(
 #[test]
 fn test_hpke_with_different_kdf_algorithms() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
     let kdfs = [
@@ -324,7 +324,7 @@ fn test_hpke_with_different_kdf_algorithms() {
 #[test]
 fn test_hpke_with_different_aead_algorithms() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
     let aeads = [HpkeAead::Saturnin256];
@@ -403,7 +403,7 @@ fn test_hpke_with_different_aead_algorithms() {
 #[test]
 fn test_cross_algorithm_compatibility() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test that different KEM algorithms produce different key sizes
     let kem_512_keypair = provider
@@ -459,7 +459,7 @@ fn test_cross_algorithm_compatibility() {
 #[test]
 fn test_provider_kem_algorithm_handling() {
     let provider = PostQuantumProvider::new();
-    let mut rng = KangarooTwelveRng::new().expect("Failed to create RNG");
+    let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
 
