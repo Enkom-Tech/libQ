@@ -61,10 +61,7 @@ impl SecureWasmKemContext {
     /// Create a new secure WASM KEM context
     #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
     pub fn new() -> Result<SecureWasmKemContext, JsValue> {
-        let provider = match LibQCryptoProvider::new() {
-            Ok(provider) => Box::new(provider),
-            Err(error) => return Err(error.into()),
-        };
+        let provider = Box::new(LibQCryptoProvider::new()?);
         let inner = KemContext::with_provider(provider);
         let security_validator = SecurityValidator::new()?;
 
@@ -236,10 +233,7 @@ impl SecureWasmSignatureContext {
     /// Create a new secure WASM signature context
     #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
     pub fn new() -> Result<SecureWasmSignatureContext, JsValue> {
-        let provider = match LibQCryptoProvider::new() {
-            Ok(provider) => Box::new(provider),
-            Err(error) => return Err(error.into()),
-        };
+        let provider = Box::new(LibQCryptoProvider::new()?);
         let inner = SignatureContext::with_provider(provider);
         let security_validator = SecurityValidator::new()?;
 
@@ -428,10 +422,7 @@ impl SecureWasmHashContext {
     /// Create a new secure WASM hash context
     #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
     pub fn new() -> Result<SecureWasmHashContext, JsValue> {
-        let provider = match LibQCryptoProvider::new() {
-            Ok(provider) => Box::new(provider),
-            Err(error) => return Err(error.into()),
-        };
+        let provider = Box::new(LibQCryptoProvider::new()?);
         let inner = HashContext::with_provider(provider);
         let security_validator = SecurityValidator::new()?;
 
@@ -504,10 +495,7 @@ impl SecureWasmAeadContext {
     /// Create a new secure WASM AEAD context
     #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
     pub fn new() -> Result<SecureWasmAeadContext, JsValue> {
-        let provider = match LibQCryptoProvider::new() {
-            Ok(provider) => Box::new(provider),
-            Err(error) => return Err(error.into()),
-        };
+        let provider = Box::new(LibQCryptoProvider::new()?);
         let inner = AeadContext::with_provider(provider);
         let security_validator = SecurityValidator::new()?;
 

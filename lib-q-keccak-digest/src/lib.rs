@@ -3,6 +3,7 @@
 //! # Types
 //!
 //! - [`Keccak224`] … [`Keccak512`], [`Keccak256Full`] (200-byte output).
+//! - One-shot: [`keccak_224`], [`keccak_256`], [`keccak_384`], [`keccak_512`], [`keccak_256_full`].
 //!
 //! # Security
 //!
@@ -58,6 +59,16 @@ digest::buffer_fixed!(
     pub struct Keccak512(SpongeHasherCore<U72, U64, KECCAK_DIGEST_PAD>);
     impl: FixedHashTraits;
 );
+
+mod one_shot;
+
+pub use one_shot::{
+    keccak_224,
+    keccak_256,
+    keccak_256_full,
+    keccak_384,
+    keccak_512,
+};
 
 #[cfg(test)]
 mod tests {
