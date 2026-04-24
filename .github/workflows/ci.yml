@@ -241,6 +241,13 @@ jobs:
           toolchain: stable
           targets: wasm32-unknown-unknown,thumbv7em-none-eabi
 
+      # `rust-toolchain.toml` forces nightly; dtolnay only augments `stable`, so install std for
+      # the directory override (see targets in rust-toolchain.toml) before cross builds.
+      - name: Install wasm/thumb std for override toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup target add thumbv7em-none-eabi
+
       - name: lib-q-k12 (no alloc, host + thumb)
         run: |
           cargo check -p lib-q-k12 --no-default-features

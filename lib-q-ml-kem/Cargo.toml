@@ -37,7 +37,8 @@ js-sys = { workspace = true, optional = true }
 [lib]
 name = "lib_q_ml_kem"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+# no_std: avoid cdylib on native (no allocator/panic runtime for the dylib link step).
+crate-type = ["rlib"]
 
 [dev-dependencies]
 criterion = { workspace = true }
