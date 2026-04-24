@@ -13,8 +13,8 @@ keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", features = ["alloc"], optional = true }
-lib-q-hash = { path = "../lib-q-hash", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }

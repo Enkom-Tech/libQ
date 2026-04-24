@@ -108,13 +108,13 @@ runs:
         fi
         echo "Algorithm-specific tests completed"
     
-    - name: Test SHA3 implementations
+    - name: Test SHA3 crate (FIPS-202 + SP-800-185; Keccak *types* are in lib-q-keccak-digest)
       shell: bash
       run: |
-        echo "Testing SHA3 implementations..."
+        echo "Testing lib-q-sha3 (SHA-3 / SHAKE / cSHAKE / TurboSHAKE)..."
         cd ${{ inputs.working-directory }}
-        cargo test test_sha3_implementations --features "${{ inputs.features }}"
-        echo "SHA3 implementation tests completed"
+        cargo test -p lib-q-sha3 --features "${{ inputs.features }}"
+        echo "lib-q-sha3 tests completed"
     
     - name: Constant-time operation verification
       shell: bash
@@ -125,21 +125,22 @@ runs:
         cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-sha3
         echo "Constant-time verification completed"
     
-    - name: Test Keccak implementations
+    - name: Test Keccak digests (lib-q-keccak-digest)
       shell: bash
       run: |
-        echo "Testing Keccak implementations..."
+        echo "Testing pre-FIPS Keccak digests (moved from lib-q-sha3)..."
         cd ${{ inputs.working-directory }}
-        cargo test test_keccak_implementations --features "${{ inputs.features }}"
-        echo "Keccak implementation tests completed"
+        # KATs and integration tests for Keccak224–512 / Keccak256Full live in this crate
+        cargo test -p lib-q-keccak-digest
+        echo "lib-q-keccak-digest tests completed"
     
-    - name: Test hash creation by name
+    - name: Test lib-q-hash (create_hash for SHA-3, Keccak, and other algorithms)
       shell: bash
       run: |
-        echo "Testing hash creation by name..."
+        echo "Testing lib-q-hash (provider + create_hash smoke)..."
         cd ${{ inputs.working-directory }}
-        cargo test test_create_hash_by_name --features "${{ inputs.features }}"
-        echo "Hash creation tests completed"
+        cargo test --features "${{ inputs.features }}" create_hash_smoke_all_variants
+        echo "lib-q-hash create_hash tests completed"
     
     - name: Cross-compilation test (ARM64)
       shell: bash

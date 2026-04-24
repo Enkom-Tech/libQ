@@ -10,8 +10,8 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field" }
-lib-q-keccak = { path = "../lib-q-keccak" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2" }
 
 itertools = { workspace = true }
 serde = { workspace = true, features = ["alloc"], default-features = false }
@@ -23,7 +23,7 @@ alloc = []
 no_std = []
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

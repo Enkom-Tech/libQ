@@ -28,11 +28,11 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [dependencies]
-lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", optional = true }
-lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", optional = true }
-lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", optional = true }
-lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", optional = true }
-lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", optional = true }
+lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", version = "0.0.2", optional = true }
+lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.2", optional = true }
+lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.2", optional = true }
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.2", optional = true }
+lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.2", optional = true }
 
 [features]
 default = ["alloc"]

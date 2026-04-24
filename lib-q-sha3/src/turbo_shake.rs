@@ -1,3 +1,7 @@
+//! TurboSHAKE-128 and TurboSHAKE-256: Keccak-`p` with a **domain byte** `DS` (`0x01`..=`0x7F`) and 12 rounds (see [RFC 9861](https://www.rfc-editor.org/rfc/rfc9861.html) and the KangarooTwelve document). Used as the leaf primitive in [`lib_q_k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12).
+//!
+//! Use **distinct** `DS` values for independent protocols. [`TurboShake128`](crate::TurboShake128) and [`TurboShake256`](crate::TurboShake256) are re-exported at the crate root.
+
 use core::fmt;
 
 use digest::block_api::{
@@ -29,8 +33,8 @@ use digest::{
 };
 
 use crate::{
-    Sha3HasherCore,
-    Sha3ReaderCore,
+    SpongeHasherCore,
+    SpongeReaderCore,
 };
 
 const TURBO_SHAKE_ROUND_COUNT: usize = 12;
@@ -43,7 +47,7 @@ macro_rules! impl_turbo_shake {
         #[doc = " hasher."]
         #[derive(Clone)]
         pub struct $name<const DS: u8> {
-            core: Sha3HasherCore<$rate, U0, DS, TURBO_SHAKE_ROUND_COUNT>,
+            core: SpongeHasherCore<$rate, U0, DS, TURBO_SHAKE_ROUND_COUNT>,
             buffer: EagerBuffer<$rate>,
         }
 
@@ -114,6 +118,7 @@ macro_rules! impl_turbo_shake {
             }
         }
 
+        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl<const DS: u8> digest::zeroize::ZeroizeOnDrop for $name<DS> {}
 
@@ -121,7 +126,7 @@ macro_rules! impl_turbo_shake {
         #[doc = " XOF reader."]
         #[derive(Clone)]
         pub struct $reader_name {
-            core: Sha3ReaderCore<$rate, TURBO_SHAKE_ROUND_COUNT>,
+            core: SpongeReaderCore<$rate, TURBO_SHAKE_ROUND_COUNT>,
             buffer: ReadBuffer<$rate>,
         }
 

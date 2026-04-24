@@ -1,3 +1,9 @@
+//! cSHAKE-128 and cSHAKE-256 per [NIST SP 800-185](https://csrc.nist.gov/pubs/sp/800/185/final).
+//!
+//! The **function name** and **customization string** (NIST “N” and “S”) are encoded in the sponge state before message data. If both are empty, cSHAKE reduces to SHAKE for that rate (per the standard). The high-level types [`CShake128`](crate::CShake128) and [`CShake256`](crate::CShake256) are re-exported at the crate root.
+//!
+//! Internal **core** types (`CShake128Core`, `CShake256Core`) support [`digest::common::hazmat::SerializableState`](https://docs.rs/digest/latest/digest/common/hazmat/trait.SerializableState.html) for advanced use; prefer the façade types for normal hashing.
+
 use core::fmt;
 
 use block_buffer::LazyBuffer;
@@ -37,7 +43,7 @@ use crate::{
     DEFAULT_ROUND_COUNT as ROUNDS,
     PLEN,
     SHAKE_PAD,
-    Sha3ReaderCore,
+    SpongeReaderCore,
 };
 
 macro_rules! impl_cshake {
@@ -121,7 +127,7 @@ macro_rules! impl_cshake {
         }
 
         impl ExtendableOutputCore for $name {
-            type ReaderCore = Sha3ReaderCore<$rate>;
+            type ReaderCore = SpongeReaderCore<$rate>;
 
             #[inline]
             fn finalize_xof_core(&mut self, buffer: &mut Buffer<Self>) -> Self::ReaderCore {
@@ -139,7 +145,7 @@ macro_rules! impl_cshake {
                 xor_block(&mut self.state, &block);
                 lib_q_keccak::p1600(&mut self.state, ROUNDS);
 
-                Sha3ReaderCore::new(&self.state)
+                SpongeReaderCore::new(&self.state)
             }
         }
 
@@ -173,6 +179,7 @@ macro_rules! impl_cshake {
             }
         }
 
+        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl digest::zeroize::ZeroizeOnDrop for $name {}
 
@@ -213,11 +220,15 @@ macro_rules! impl_cshake {
             #[doc = $alg_name]
             #[doc = " hasher."]
             pub struct $full_name($name);
-            // TODO: Use `XofHasherTraits CustomizedInit` after serialization for buffers is fixed
+            // `XofHasherTraits`+`CustomizedInit` is not used here: digest’s wrapper `SerializableState`
+            // for that path includes the `block_buffer` queue and **does not** match the
+            // core-only `U400` layout that downstream crates (e.g. `lib-q-hash` KMAC / ParallelHash)
+            // expect when they delegate `serialize` to `CShake*`. See RustCrypto/hashes#834 and the
+            // `LazyBuffer` / `Eager` split in `new_with_function_name` above.
             impl: Debug AlgorithmName Clone Default BlockSizeUser CoreProxy HashMarker Update Reset ExtendableOutputReset CustomizedInit;
             #[doc = $alg_name]
             #[doc = " XOF reader."]
-            pub struct $reader_name(Sha3ReaderCore<$rate>);
+            pub struct $reader_name(SpongeReaderCore<$rate>);
             impl: XofReaderTraits;
         );
 
@@ -238,6 +249,46 @@ macro_rules! impl_cshake {
 
 impl_cshake!(CShake128Core, CShake128, CShake128Reader, U168, "cSHAKE128");
 impl_cshake!(CShake256Core, CShake256, CShake256Reader, U136, "cSHAKE256");
+
+/// Core-only [`SerializedState`](SerializableState) for the public types: the `block_buffer` is
+/// cleared on deserialize. **Do not** use this to snapshot mid-stream if the rate buffer holds
+/// unprocessed bytes (finish a full rate block or use the core type). Layout matches
+/// `lib-q-hash` KMAC / ParallelHash delegation (`U400`).
+impl SerializableState for CShake128 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake128Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}
+
+impl SerializableState for CShake256 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake256Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}
 
 impl CollisionResistance for CShake128 {
     // https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf#[{"num":68,"gen":0},{"name":"XYZ"},108,440,null]

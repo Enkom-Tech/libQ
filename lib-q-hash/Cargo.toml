@@ -13,13 +13,14 @@ readme.workspace = true
 
 [dependencies]
 block-buffer = { workspace = true }
-lib-q-core = { path = "../lib-q-core" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
 zeroize = { workspace = true }
 digest = { workspace = true }
 sha2 = { workspace = true, default-features = false }
-lib-q-keccak = { path = "../lib-q-keccak" }
-lib-q-k12 = { path = "../lib-q-k12" }
-lib-q-sha3 = { path = "../lib-q-sha3" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2" }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.2" }
+lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.2" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 rayon = { workspace = true, optional = true }
 
 [dev-dependencies]

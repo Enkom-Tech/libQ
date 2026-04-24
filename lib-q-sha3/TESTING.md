@@ -194,7 +194,7 @@ The tests are integrated into the CI/CD pipeline through:
 
 - **SHA3**: `data/sha3_*.blb` files containing official NIST test vectors
 - **SHAKE**: `data/shake*.blb` files containing official NIST test vectors
-- **Keccak**: `data/keccak_*.blb` files containing official test vectors
+- **Keccak (pre–FIPS fixed digests)**: not in this crate; see `lib-q-keccak-digest/tests/data/keccak_*.blb`
 - **CSHAKE**: `data/cshake*.blb` files containing official test vectors
 - **TurboSHAKE**: `data/turboshake*.blb` files containing official test vectors
 

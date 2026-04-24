@@ -88,7 +88,7 @@ jobs:
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
           
           # Define all lib-q crates
-          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-k12"
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-keccak-digest lib-q-k12"
           CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           STARK_PLONKY_CRATES="lib-q-stark lib-q-stark-air lib-q-stark-challenger lib-q-stark-commit lib-q-stark-dft lib-q-stark-field lib-q-stark-field-testing lib-q-stark-fri lib-q-stark-interpolation lib-q-stark-matrix lib-q-stark-mds lib-q-stark-merkle lib-q-stark-mersenne31 lib-q-stark-monty31 lib-q-stark-rayon lib-q-stark-symmetric lib-q-stark-util lib-q-stark-shake256 lib-q-stark-shake128 lib-q-stark-sha3-256 lib-q-poseidon lib-q-plonky-multilinear-util lib-q-plonky-keccak-air lib-q-plonky-lookup lib-q-plonky-uni-stark lib-q-plonky-batch-stark lib-q-plonky"

@@ -4,8 +4,8 @@
 //! input validation, error handling, and cryptographic properties.
 
 use digest::Digest;
+use lib_q_keccak_digest::Keccak256;
 use lib_q_sha3::{
-    Keccak256,
     Sha3_224,
     Sha3_256,
     Sha3_384,

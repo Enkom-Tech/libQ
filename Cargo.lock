@@ -1051,6 +1051,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-k12",
  "lib-q-keccak",
+ "lib-q-keccak-digest",
  "lib-q-sha3",
  "rayon",
  "sha2 0.11.0",
@@ -1133,6 +1134,15 @@ dependencies = [
  "nix",
  "num_cpus",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "lib-q-keccak-digest"
+version = "0.0.2"
+dependencies = [
+ "blobby",
+ "digest 0.11.2",
+ "lib-q-sha3",
 ]
 
 [[package]]
@@ -1356,6 +1366,7 @@ dependencies = [
  "digest 0.11.2",
  "hex-literal",
  "lib-q-keccak",
+ "lib-q-keccak-digest",
 ]
 
 [[package]]

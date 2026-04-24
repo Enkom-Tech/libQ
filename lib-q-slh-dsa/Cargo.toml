@@ -15,9 +15,9 @@ exclude = ["tests"]
 [dependencies]
 hybrid-array = { version = "0.4.10", features = ["extra-sizes"] }
 typenum = { version = "1.19.0", features = ["const-generics"] }
-lib-q-core = { path = "../lib-q-core", features = ["alloc"] }
-lib-q-sha3 = { path = "../lib-q-sha3", default-features = false }
-lib-q-random = { path = "../lib-q-random", optional = true, features = ["signature"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, features = ["signature"] }
 zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0-rc.10", features = ["rand_core"] }
@@ -32,7 +32,7 @@ getrandom = { workspace = true, optional = true, default-features = false }
 [dev-dependencies]
 hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }
-lib-q-random = { path = "../lib-q-random", features = ["std", "signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "signature"] }
 num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"

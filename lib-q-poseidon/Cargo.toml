@@ -12,10 +12,10 @@ keywords = ["cryptography", "post-quantum", "poseidon", "zkp", "hash"]
 categories = ["cryptography"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", default-features = false, features = ["alloc"] }
-lib-q-sha3 = { path = "../lib-q-sha3", default-features = false, features = ["alloc"] }
-lib-q-stark-field = { path = "../lib-q-stark-field" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
 digest = { workspace = true }
 zeroize = { workspace = true, default-features = false }
 

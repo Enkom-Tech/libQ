@@ -10,17 +10,17 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft" }
-lib-q-stark-field = { path = "../lib-q-stark-field" }
-lib-q-stark-interpolation = { path = "../lib-q-stark-interpolation" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon" }
-lib-q-stark-util = { path = "../lib-q-stark-util" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.2" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.2" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-interpolation = { path = "../lib-q-stark-interpolation", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
 
 itertools = { workspace = true }
-lib-q-random = { path = "../lib-q-random", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
 rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 subtle = { workspace = true }
@@ -35,11 +35,11 @@ alloc = []
 no_std = []
 
 [dev-dependencies]
-lib-q-stark-dft = { path = "../lib-q-stark-dft" }
-lib-q-stark-merkle = { path = "../lib-q-stark-merkle" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", features = ["test-utils"] }
-lib-q-stark-shake256 = { path = "../lib-q-stark-shake256" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
 
 criterion = { workspace = true }
 

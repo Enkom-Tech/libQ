@@ -1,6 +1,6 @@
 # lib-q-hash: Post-Quantum Hash Functions
 
-Rust implementation of post-quantum cryptographic hash functions based on SHA-3 and related algorithms.
+Rust implementation of post-quantum cryptographic hash functions based on SHA-3 and related algorithms. NIST-aligned SHA-3 / SHAKE / cSHAKE / TurboSHAKE are from [`lib-q-sha3`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sha3); pre–FIPS **Keccak** fixed digests (`Keccak224` …, `Keccak256Full`) are from [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest). This crate integrates them with [`lib-q-core`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-core) [`Hash`](https://docs.rs/lib-q-core) traits and algorithm identifiers.
 
 ## Supported Algorithms
 

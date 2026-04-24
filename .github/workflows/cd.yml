@@ -69,9 +69,26 @@ jobs:
   # Rust crate publishing in dependency order (each tier after the previous).
   # Uses crates.io Trusted Publishing (OIDC); configure trusted publishers at
   # https://crates.io/settings/publishing for this repo and workflow.
+  # lib-q-core depends on lib-q-types; publish types first.
+  publish-rust-lib-q-types:
+    name: Publish lib-q-types
+    needs: pre-release-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-types
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-tier-0:
     name: Publish Rust (tier 0)
-    needs: pre-release-validation
+    needs: [publish-rust-lib-q-types]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -90,15 +107,33 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  # lib-q-sha3 must be on crates.io before lib-q-keccak-digest (and before other tier-1 crates that need it).
+  # Matrix jobs are parallel: do not put lib-q-keccak-digest in the same matrix as lib-q-sha3.
+  publish-rust-lib-q-sha3:
+    name: Publish lib-q-sha3
+    needs: [publish-rust-tier-0]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-sha3
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-tier-1:
     name: Publish Rust (tier 1)
-    needs: [publish-rust-tier-0]
+    needs: [publish-rust-lib-q-sha3]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         include:
-          - package: "lib-q-sha3"
+          - package: "lib-q-keccak-digest"
           - package: "lib-q-utils"
           - package: "lib-q-platform"
           - package: "lib-q-saturnin"

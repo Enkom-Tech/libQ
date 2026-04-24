@@ -2,9 +2,7 @@
 name = "lib-q-sha3"
 version.workspace = true
 description = """
-Pure Rust implementation of SHA-3, a family of Keccak-based hash functions
-including the SHAKE family of eXtendable-Output Functions (XOFs), as well as
-the accelerated variant TurboSHAKE for lib-Q
+lib-Q: SHA-3 (FIPS 202), SHAKE, cSHAKE (SP 800-185), TurboSHAKE; no_std-friendly. Raw Keccak digests: lib-q-keccak-digest
 """
 authors.workspace = true
 license.workspace = true
@@ -13,7 +11,7 @@ edition.workspace = true
 rust-version.workspace = true
 documentation = "https://docs.rs/lib-q-sha3"
 repository.workspace = true
-keywords = ["crypto", "sha3", "keccak", "hash", "digest", "lib-q"]
+keywords = ["crypto", "sha3", "keccak", "hash", "digest"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
@@ -21,7 +19,7 @@ block-buffer = { workspace = true }
 digest = { workspace = true }
 # `default-features = false` avoids pulling `lib-q-keccak` `std` (e.g. `num_cpus`) for dependents
 # that are `no_std` / `wasm` / `thumb*`. The `asm` feature still enables `lib-q-keccak/asm` when set.
-lib-q-keccak = { path = "../lib-q-keccak", default-features = false }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
 
 [dev-dependencies]
 digest = { workspace = true, features = ["dev"] }
@@ -29,6 +27,7 @@ criterion = { workspace = true, features = ["html_reports"] }
 blobby = { workspace = true, features = ["alloc"] }
 hex-literal = "1.1.0"
 base16ct = { version = "1.0.0", features = ["alloc"] }
+lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.2" }
 
 [[bench]]
 name = "sha3_benchmarks"

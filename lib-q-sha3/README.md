@@ -1,29 +1,56 @@
-# RustCrypto: SHA-3
+# lib-q-sha3
 
-[![crate][crate-image]][crate-link]
-[![Docs][docs-image]][docs-link]
-![Apache2/MIT licensed][license-image]
-![Rust Version][rustc-image]
-[![Project Chat][chat-image]][chat-link]
-[![Build Status][build-image]][build-link]
+NIST-aligned **SHA-3** (FIPS 202), **SHAKE**, **cSHAKE** (SP 800-185), and **TurboSHAKE** (12-round Keccak as in [RFC 9861](https://www.rfc-editor.org/rfc/rfc9861.html) KangarooTwelve) for **lib-Q**. Pre–FIPS **raw Keccak** fixed digests (`Keccak224` … `Keccak512`, `Keccak256Full`) are in the separate crate [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) (see [ADR 001](https://github.com/Enkom-Tech/libQ/blob/main/lib-q-sha3/docs/adr/001-keccak-nonfips-surface.md)).
 
-Pure Rust implementation of the [SHA-3] cryptographic hash algorithms.
+- **Repository:** <https://github.com/Enkom-Tech/libQ>
+- **API reference:** <https://docs.rs/lib-q-sha3>
+- **Related crates:** [`lib-q-keccak`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak) (Keccak-`p` permutation), [`lib-q-k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12) (KangarooTwelve), [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) (raw Keccak / non–FIPS-202 digests)
 
-There are 6 standard algorithms specified in the SHA-3 standard:
+## Algorithms
 
-- `SHA3-224`, `SHA3-256`, `SHA3-384`, `SHA3-512`
-- `SHAKE128` and `SHAKE256` (an extendable output function (XOF))
+| Family | Types (crate root) | Normative reference |
+|--------|-------------------|----------------------|
+| SHA-3 (224–512) | `Sha3_224` … `Sha3_512` | [FIPS 202](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf) |
+| SHAKE XOF | `Shake128`, `Shake256` + readers | FIPS 202 |
+| cSHAKE XOF | `CShake128`, `CShake256` + readers | [SP 800-185](https://csrc.nist.gov/pubs/sp/800/185/final) |
+| TurboSHAKE XOF | `TurboShake128<DS>`, `TurboShake256<DS>` (domain byte `DS`) | IRTF / RFC 9861 (K12); collision strength in type impls |
+| Raw Keccak (not this crate) | `Keccak224` … / `Keccak256Full` | See [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) (pre-FIPS padding; not interoperable with SHA-3) |
 
-Additionally, this crate supports:
-- `cSHAKE128` and `cSHAKE256` the customizable XOFs as defined in the NIST [SHA-3 Derived Functions]
-- `TurboSHAKE` XOF variant
-- CryptoNight variant of SHA-3
-- `Keccak224`, `Keccak256`, `Keccak384`, `Keccak512` (NIST submission without padding changes)
+## Which traits to use
+
+- **Fixed-length digest** (`SHA3-*`): implement [`Digest`](https://docs.rs/digest/latest/digest/trait.Digest.html) — `update`, `finalize` into a fixed `Output`.
+- **XOFs** (`SHAKE`, `cSHAKE`, `TurboSHAKE`): do **not** use `Digest`. Use [`Update`](https://docs.rs/digest/latest/digest/trait.Update.html), [`ExtendableOutput`](https://docs.rs/digest/latest/digest/trait.ExtendableOutput.html) (or `ExtendableOutputReset` where implemented), and [`XofReader`](https://docs.rs/digest/latest/digest/trait.XofReader.html). These traits are re-exported at the crate root (`use lib_q_sha3::{Update, ExtendableOutput, XofReader}`). If you also import [`Digest`](https://docs.rs/digest/latest/digest/trait.Digest.html) in the same module, qualify [`Digest::update`](https://docs.rs/digest/latest/digest/trait.Digest.html#tymethod.update) or [`Update::update`](https://docs.rs/digest/latest/digest/trait.Update.html#tymethod.update) to avoid method-name ambiguity.
+- **cSHAKE customization only** (NIST “S” string, empty function name): [`CustomizedInit::new_customized`](https://docs.rs/digest/latest/digest/trait.CustomizedInit.html) or the `CShake*` constructors.
+
+`Digest` is not implemented for XOFs by design (the `digest` crate splits fixed vs extendable output APIs).
+
+## Prelude
+
+This crate **does not** provide a `prelude` module. Imports are kept explicit so security reviews can see exactly which algorithms and traits are in scope. Use the re-exports documented below or `use lib_q_sha3::digest::{...}` for additional `digest` traits.
+
+## Feature flags
+
+| Feature | Effect |
+|---------|--------|
+| `alloc` (default) | Enables `digest/alloc` (e.g. `finalize_boxed` on XOFs where applicable). |
+| `oid` (default) | OID support for fixed-output types where defined. |
+| `zeroize` | Zeroizes dropped sponge state for supported types (see `digest` + this crate’s `ZeroizeOnDrop` impls). |
+| `asm` | ARMv8 Keccak acceleration via `lib-q-keccak` (not all targets). |
+
+`no_std`: supported with `default-features = false`; you may need to disable `alloc` for the leanest build.
+
+## Security
+
+- **Output length (XOF):** security depends on how many bytes you read; use enough bytes for your collision and preimage profile (see FIPS 202 / SP 800-185 and `CollisionResistance` on each type in rustdoc).
+- **cSHAKE:** use distinct function-name and/or customization strings for distinct protocols: both empty degrades to SHAKE (SP 800-185).
+- **TurboSHAKE:** the const generic `DS` (domain separator, `0x01`–`0x7F`) must differ across independent uses to avoid cross-protocol output collisions (see RFC 9861 / Turbot documentation).
+- **Keccak vs SHA-3:** use [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) for pre-FIPS `Keccak256` types; they are **different** from `Sha3_256` (different padding).
+- **Implementation status:** the code targets **correct** sponge semantics per the referenced standards. Constant-time or side-channel **guarantees** are not claimed here unless supported by your platform and analysis.
+- **Architecture:** whether to split non–FIPS-202 Keccak surfaces is recorded in [docs/adr/001-keccak-nonfips-surface.md](https://github.com/Enkom-Tech/libQ/blob/main/lib-q-sha3/docs/adr/001-keccak-nonfips-surface.md).
 
 ## Examples
 
-Output size of SHA3-256 is fixed, so its functionality is usually
-accessed via the `Digest` trait:
+### SHA3-256 (`Digest`)
 
 ```rust
 use hex_literal::hex;
@@ -32,22 +59,14 @@ use lib_q_sha3::{Digest, Sha3_256};
 let mut hasher = Sha3_256::new();
 hasher.update(b"abc");
 let hash = hasher.finalize();
-
 assert_eq!(hash, hex!("3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
-
-// Hex-encode hash using https://docs.rs/base16ct
-let hex_hash = base16ct::lower::encode_string(&hash);
-assert_eq!(hex_hash, "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
 ```
 
-SHAKE functions have an extendable output, so finalization method returns
-XOF reader from which results of arbitrary length can be read. Note that
-these functions do not implement `Digest`, so lower-level traits have to
-be imported:
+### SHAKE128 (XOF)
 
 ```rust
-use lib_q_sha3::{Shake128, digest::{Update, ExtendableOutput, XofReader}};
 use hex_literal::hex;
+use lib_q_sha3::{ExtendableOutput, Shake128, Update, XofReader};
 
 let mut hasher = Shake128::default();
 hasher.update(b"abc");
@@ -57,38 +76,32 @@ reader.read(&mut buf);
 assert_eq!(buf, hex!("5881092dd818bf5cf8a3"));
 ```
 
-Also, see the [examples section] in the RustCrypto/hashes readme.
+### cSHAKE256 with customization
+
+```rust
+use lib_q_sha3::{CShake256, CustomizedInit, ExtendableOutput, Update, XofReader};
+
+let mut h = CShake256::new_customized(b"my application");
+h.update(b"message");
+let mut out = [0u8; 64];
+h.finalize_xof().read(&mut out);
+```
+
+### TurboSHAKE128 with domain byte (RFC 9861 style)
+
+```rust
+use lib_q_sha3::{ExtendableOutput, TurboShake128, Update, XofReader};
+
+const D: u8 = 0x07; // distinct per protocol; see RFC 9861
+let mut h = TurboShake128::<D>::default();
+h.update(b"data");
+let mut out = [0u8; 32];
+h.finalize_xof().read(&mut out);
+```
 
 ## License
 
-The crate is licensed under either of:
+Licensed under **Apache License, Version 2.0**; see the [workspace `LICENSE` file](https://github.com/Enkom-Tech/libQ/blob/main/LICENSE).
 
-* [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
-* [MIT license](http://opensource.org/licenses/MIT)
-
-at your option.
-
-### Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
-
-[//]: # (badges)
-
-[crate-image]: https://img.shields.io/crates/v/sha3.svg
-[crate-link]: https://crates.io/crates/sha3
-[docs-image]: https://docs.rs/sha3/badge.svg
-[docs-link]: https://docs.rs/sha3/
-[license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[rustc-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
-[chat-image]: https://img.shields.io/badge/zulip-join_chat-blue.svg
-[chat-link]: https://rustcrypto.zulipchat.com/#narrow/stream/260041-hashes
-[build-image]: https://github.com/RustCrypto/hashes/actions/workflows/sha3.yml/badge.svg?branch=master
-[build-link]: https://github.com/RustCrypto/hashes/actions/workflows/sha3.yml?query=branch:master
-
-[//]: # (general links)
-
-[examples section]: https://github.com/RustCrypto/hashes#Examples
 [SHA-3]: https://en.wikipedia.org/wiki/SHA-3
 [SHA-3 Derived Functions]: https://csrc.nist.gov/pubs/sp/800/185/final

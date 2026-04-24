@@ -10,15 +10,15 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-dft = { path = "../lib-q-stark-dft" }
-lib-q-stark-field = { path = "../lib-q-stark-field" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric" }
-lib-q-stark-util = { path = "../lib-q-stark-util" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
 
 rand = { workspace = true }
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
 
 criterion = { workspace = true }
 rand = { workspace = true, default-features = false, features = ["std"] }

@@ -1,3 +1,11 @@
+//! Low-level Keccak / SHA-3 **core** state and cSHAKE **cores** re-exported for composition.
+//!
+//! - [`SpongeHasherCore`]: generic sponge core (rate, output width, padding nibble, round count) backing SHA-3, SHAKE, cSHAKE, TurboSHAKE in this crate; pre-FIPS Keccak digests use the same core via [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest).
+//! - [`SpongeReaderCore`]: XOF output phase for Keccak-based XOFs.
+//! - `CShake128Core` / `CShake256Core` (re-exported from the [`cshake`](crate::cshake) module): cSHAKE without the `buffer_xof!` wrapper—only needed for trees or custom plumbing.
+//!
+//! For normal hashing, use the crate-root types ([`Sha3_256`], [`Shake128`], [`CShake128`](crate::CShake128)) or the separate [`lib-q-k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12) crate for KangarooTwelve. Manipulating cores directly is a **hazmat**-style API: incorrect padding or rate breaks security.
+
 use core::fmt;
 use core::marker::PhantomData;
 
@@ -42,9 +50,13 @@ use crate::{
     PLEN,
 };
 
-/// Core Sha3 fixed output hasher state.
+/// Pre-FIPS Keccak **padding nibble** for raw Keccak *fixed* digests (not FIPS 202 SHA-3 padding).
+/// Used by the `lib-q-keccak-digest` crate with [`SpongeHasherCore`]; do not substitute SHA-3 padding in protocols.
+pub const KECCAK_DIGEST_PAD: u8 = 0x01;
+
+/// Sponge (Keccak-`p`) hasher core: rate, output width, padding nibble, round count.
 #[derive(Clone)]
-pub struct Sha3HasherCore<
+pub struct SpongeHasherCore<
     Rate,
     OutputSize,
     const PAD: u8,
@@ -58,7 +70,7 @@ pub struct Sha3HasherCore<
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> HashMarker
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -66,7 +78,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> BlockSizeUser
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -75,7 +87,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> BufferKindUser
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -84,7 +96,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> OutputSizeUser
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -93,7 +105,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> UpdateCore
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -108,7 +120,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> FixedOutputCore
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -131,11 +143,11 @@ where
 }
 
 impl<Rate, const PAD: u8, const ROUNDS: usize> ExtendableOutputCore
-    for Sha3HasherCore<Rate, U0, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, U0, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
-    type ReaderCore = Sha3ReaderCore<Rate, ROUNDS>;
+    type ReaderCore = SpongeReaderCore<Rate, ROUNDS>;
 
     #[inline]
     fn finalize_xof_core(&mut self, buffer: &mut Buffer<Self>) -> Self::ReaderCore {
@@ -148,12 +160,12 @@ where
         xor_block(&mut self.state, &block);
         lib_q_keccak::p1600(&mut self.state, ROUNDS);
 
-        Sha3ReaderCore::new(&self.state)
+        SpongeReaderCore::new(&self.state)
     }
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> Default
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -168,7 +180,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> Reset
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -180,18 +192,19 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> AlgorithmName
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
 {
     fn write_alg_name(f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Sha3") // TODO
+        // One generic `SpongeHasherCore` name; concrete algorithms use wrapper `AlgorithmName` impls.
+        f.write_str("SpongeHasherCore")
     }
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> fmt::Debug
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -202,7 +215,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> Drop
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -216,9 +229,10 @@ where
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 #[cfg(feature = "zeroize")]
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -226,7 +240,7 @@ where
 }
 
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> SerializableState
-    for Sha3HasherCore<Rate, OutputSize, PAD, ROUNDS>
+    for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
@@ -261,7 +275,7 @@ where
 
 /// Core Sha3 XOF reader.
 #[derive(Clone)]
-pub struct Sha3ReaderCore<Rate, const ROUNDS: usize = DEFAULT_ROUND_COUNT>
+pub struct SpongeReaderCore<Rate, const ROUNDS: usize = DEFAULT_ROUND_COUNT>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
@@ -269,7 +283,7 @@ where
     _pd: PhantomData<Rate>,
 }
 
-impl<Rate, const ROUNDS: usize> Sha3ReaderCore<Rate, ROUNDS>
+impl<Rate, const ROUNDS: usize> SpongeReaderCore<Rate, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
@@ -281,14 +295,14 @@ where
     }
 }
 
-impl<Rate, const ROUNDS: usize> BlockSizeUser for Sha3ReaderCore<Rate, ROUNDS>
+impl<Rate, const ROUNDS: usize> BlockSizeUser for SpongeReaderCore<Rate, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
     type BlockSize = Rate;
 }
 
-impl<Rate, const ROUNDS: usize> XofReaderCore for Sha3ReaderCore<Rate, ROUNDS>
+impl<Rate, const ROUNDS: usize> XofReaderCore for SpongeReaderCore<Rate, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
@@ -303,7 +317,7 @@ where
     }
 }
 
-impl<Rate, const ROUNDS: usize> Drop for Sha3ReaderCore<Rate, ROUNDS>
+impl<Rate, const ROUNDS: usize> Drop for SpongeReaderCore<Rate, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
@@ -316,17 +330,18 @@ where
     }
 }
 
-impl<Rate, const ROUNDS: usize> fmt::Debug for Sha3ReaderCore<Rate, ROUNDS>
+impl<Rate, const ROUNDS: usize> fmt::Debug for SpongeReaderCore<Rate, ROUNDS>
 where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Sha3ReaderCore { ... }")
+        f.write_str("SpongeReaderCore { ... }")
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 #[cfg(feature = "zeroize")]
-impl<Rate, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop for Sha3ReaderCore<Rate, ROUNDS> where
+impl<Rate, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop for SpongeReaderCore<Rate, ROUNDS> where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>
 {
 }

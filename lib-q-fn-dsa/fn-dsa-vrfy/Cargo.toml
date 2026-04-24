@@ -15,8 +15,8 @@ rust-version.workspace = true
 fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
 
 [dev-dependencies]
-fn-dsa-kgen = { path = "../fn-dsa-kgen" }
-fn-dsa-sign = { path = "../fn-dsa-sign" }
+fn-dsa-kgen = { path = "../fn-dsa-kgen", version = "0.0.2" }
+fn-dsa-sign = { path = "../fn-dsa-sign", version = "0.0.2" }
 hex = { workspace = true }
 
 [features]

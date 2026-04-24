@@ -12,7 +12,7 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", features = ["rand"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["rand"] }
 
 [features]
 default = ["std"]

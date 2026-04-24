@@ -8,15 +8,14 @@ use std::time::{
 };
 
 use digest::Digest;
-use lib_q_sha3::{
-    Keccak256,
-    Sha3_256,
-    Sha3_512,
-};
 #[cfg(not(tarpaulin))]
 use lib_q_sha3::{
     Sha3_224,
     Sha3_384,
+};
+use lib_q_sha3::{
+    Sha3_256,
+    Sha3_512,
 };
 
 #[cfg(not(tarpaulin))]
@@ -170,42 +169,6 @@ fn test_sha3_512_performance() {
     );
 }
 
-/// Test Keccak256 performance
-#[test]
-#[cfg(not(tarpaulin))]
-fn test_keccak256_performance() {
-    let test_input = b"test input for Keccak256 performance analysis";
-    const ITERATIONS: usize = 10000;
-
-    // Warm up
-    for _ in 0..1000 {
-        let mut hasher = Keccak256::new();
-        hasher.update(test_input);
-        let _result = hasher.finalize();
-        std::hint::black_box(_result);
-    }
-
-    // Measure performance
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
-        let mut hasher = Keccak256::new();
-        hasher.update(test_input);
-        let _result = hasher.finalize();
-        std::hint::black_box(_result);
-    }
-    let total_time = start.elapsed();
-
-    let avg_time_ns = total_time.as_nanos() / ITERATIONS as u128;
-
-    // Keccak256 should be similar to SHA3-256
-    assert!(
-        avg_time_ns < BASELINE_SHA3_256_NS as u128,
-        "Keccak256 too slow: {} ns per operation (baseline: {} ns)",
-        avg_time_ns,
-        BASELINE_SHA3_256_NS
-    );
-}
-
 /// Test performance scaling with input size
 #[test]
 fn test_performance_scaling() {
@@ -353,14 +316,10 @@ fn test_algorithm_performance_relationships() {
         let mut h = Sha3_512::new();
         h.update(test_input);
         std::hint::black_box(h.finalize());
-        let mut h = Keccak256::new();
-        h.update(test_input);
-        std::hint::black_box(h.finalize());
     }
 
     let mut sha3_256_time = Duration::ZERO;
     let mut sha3_512_time = Duration::ZERO;
-    let mut keccak256_time = Duration::ZERO;
 
     for _ in 0..ITERATIONS {
         let start = Instant::now();
@@ -376,13 +335,6 @@ fn test_algorithm_performance_relationships() {
         let _result = hasher.finalize();
         std::hint::black_box(_result);
         sha3_512_time += start.elapsed();
-
-        let start = Instant::now();
-        let mut hasher = Keccak256::new();
-        hasher.update(test_input);
-        let _result = hasher.finalize();
-        std::hint::black_box(_result);
-        keccak256_time += start.elapsed();
     }
 
     // SHA3-512 can be several times slower than SHA3-256 (smaller sponge rate, longer output).
@@ -393,13 +345,5 @@ fn test_algorithm_performance_relationships() {
         "SHA3-512 vs SHA3-256 time ratio out of range (expected < {}), got: {}",
         MAX_RATIO_512_TO_256,
         ratio_512_to_256
-    );
-
-    // Keccak256 should be similar to SHA3-256
-    let ratio_keccak_to_256 = keccak256_time.as_nanos() as f64 / sha3_256_time.as_nanos() as f64;
-    assert!(
-        ratio_keccak_to_256 > 0.5 && ratio_keccak_to_256 < 2.0,
-        "Keccak256 should have similar performance to SHA3-256, got ratio: {}",
-        ratio_keccak_to_256
     );
 }

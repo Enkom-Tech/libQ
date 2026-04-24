@@ -35,12 +35,14 @@ pub use lib_q_k12::{
     Kt256,
     Kt256Reader,
 };
-pub use lib_q_sha3::{
+pub use lib_q_keccak_digest::{
     Keccak224,
     Keccak256,
     Keccak256Full,
     Keccak384,
     Keccak512,
+};
+pub use lib_q_sha3::{
     Sha3_224,
     Sha3_256,
     Sha3_384,

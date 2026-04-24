@@ -189,6 +189,7 @@ macro_rules! impl_cshake {
             }
         }
 
+        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl digest::zeroize::ZeroizeOnDrop for $name {}
 
@@ -229,7 +230,8 @@ macro_rules! impl_cshake {
             #[doc = $alg_name]
             #[doc = " hasher."]
             pub struct $full_name($name);
-            // TODO: Use `XofHasherTraits CustomizedInit` after serialization for buffers is fixed
+            // Keep `CoreProxy` (not `XofHasherTraits` alone): serialized state for this façade must
+            // stay compatible with manual `SerializableState` below and with KMAC/ParallelHash/TupleHash.
             impl: Debug AlgorithmName Clone Default BlockSizeUser CoreProxy HashMarker Update Reset ExtendableOutputReset CustomizedInit;
             #[doc = $alg_name]
             #[doc = " XOF reader."]
@@ -265,6 +267,8 @@ impl CollisionResistance for CShake256 {
     type CollisionResistance = U32;
 }
 
+/// `SerializedState` for the public `CShake*` types is **core-only** (plus empty buffer) so
+/// [SP-800-185] helpers in this crate (KMAC, etc.) can delegate safely.
 impl SerializableState for CShake128 {
     type SerializedStateSize = U400;
 

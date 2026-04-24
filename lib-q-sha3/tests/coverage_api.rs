@@ -14,9 +14,9 @@ use digest::{
     Digest,
     ExtendableOutput,
     ExtendableOutputReset,
-    Update,
     XofReader,
 };
+use lib_q_sha3::Update;
 use lib_q_sha3::block_api::{
     CShake128Core,
     CShake256Core,
@@ -46,7 +46,10 @@ fn sha256_matches_sha3_256_digest() {
 fn sha3_256_alg_name_and_debug() {
     let hasher = lib_q_sha3::Sha3_256::new();
     let name = alg_name_string::<lib_q_sha3::Sha3_256>();
-    assert!(name.contains("Sha3"), "unexpected name: {name}");
+    assert!(
+        name.contains("Sponge") || name.contains("Sha3"),
+        "unexpected name: {name}"
+    );
 
     let dbg = format!("{hasher:?}");
     assert!(!dbg.is_empty());
@@ -126,6 +129,83 @@ fn cshake128_non_empty_function_name_path() {
     let mut out2 = [0u8; 32];
     h2.finalize_xof_into(&mut out2);
     assert_eq!(out, out2);
+}
+
+#[test]
+fn cshake128_serializable_state_roundtrip() {
+    // `CShake*::serialize` is **core-only**; any bytes still in the `block_buffer` are not
+    // preserved. Use a full rate block (168 B) so the buffer is empty after `update`.
+    let mut h = lib_q_sha3::CShake128::new_customized(b"Email Signature");
+    h.update(&[0u8; 168]);
+    let state = h.serialize();
+    let mut h2 = lib_q_sha3::CShake128::deserialize(&state).unwrap();
+    h2.update(b"tail");
+    h.update(b"tail");
+    let mut o1 = [0u8; 32];
+    let mut o2 = [0u8; 32];
+    h.finalize_xof_into(&mut o1);
+    h2.finalize_xof_into(&mut o2);
+    assert_eq!(o1, o2);
+}
+
+/// Two full rate blocks (2×168 B) — boundary around block multiples.
+#[test]
+fn cshake128_serializable_state_roundtrip_after_two_rate_blocks() {
+    let mut h = lib_q_sha3::CShake128::new_customized(b"two blocks");
+    h.update(&[1u8; 336]);
+    let state = h.serialize();
+    let mut h2 = lib_q_sha3::CShake128::deserialize(&state).unwrap();
+    h2.update(b"more");
+    h.update(b"more");
+    let mut o1 = [0u8; 48];
+    let mut o2 = [0u8; 48];
+    h.finalize_xof_into(&mut o1);
+    h2.finalize_xof_into(&mut o2);
+    assert_eq!(o1, o2);
+}
+
+/// cSHAKE-256 rate 136 B: full block, then round-trip and tail (mirrors 128 test).
+#[test]
+fn cshake256_serializable_state_roundtrip() {
+    let mut h = lib_q_sha3::CShake256::new_customized(b"domain 256");
+    h.update(&[0u8; 136]);
+    let state = h.serialize();
+    let mut h2 = lib_q_sha3::CShake256::deserialize(&state).unwrap();
+    h2.update(b"tail");
+    h.update(b"tail");
+    let mut o1 = [0u8; 32];
+    let mut o2 = [0u8; 32];
+    h.finalize_xof_into(&mut o1);
+    h2.finalize_xof_into(&mut o2);
+    assert_eq!(o1, o2);
+}
+
+/// One byte short of a full 168 B block — rate buffer is non-empty; serialized façade must not
+/// be treated as equivalent to mid-stream (documented: core-only snapshot; buffer cleared).
+#[test]
+fn cshake128_serialize_at_rate_minus_one_does_not_match_continued_uninterrupted() {
+    let customization = b"block boundary check";
+    let input167 = [7u8; 167];
+    let tail = b"Z";
+
+    let mut uninterrupted = lib_q_sha3::CShake128::new_customized(customization);
+    uninterrupted.update(&input167);
+    uninterrupted.update(tail);
+    let mut out_full = [0u8; 32];
+    uninterrupted.finalize_xof_into(&mut out_full);
+
+    let mut snap = lib_q_sha3::CShake128::new_customized(customization);
+    snap.update(&input167);
+    let st = snap.serialize();
+    let mut h2 = lib_q_sha3::CShake128::deserialize(&st).unwrap();
+    h2.update(tail);
+    let mut out_snap = [0u8; 32];
+    h2.finalize_xof_into(&mut out_snap);
+
+    assert_ne!(
+        out_full, out_snap,
+        "core-only snapshot omits 167 B still in the buffer"
+    );
 }
 
 #[test]

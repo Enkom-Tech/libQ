@@ -87,7 +87,7 @@ jobs:
             "combined-coverage/${{ matrix.rust }}/full"
           
           # Define critical cryptographic crates
-          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-k12"
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-keccak-digest lib-q-k12"
           CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
           
