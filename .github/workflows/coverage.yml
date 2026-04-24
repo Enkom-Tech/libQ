@@ -184,10 +184,15 @@ jobs:
             echo "color=red" >> $GITHUB_OUTPUT
           fi
           
-      - name: Generate badge
-        uses: emibcn/badge-action@v1
-        with:
-          label: 'coverage'
-          status: '${{ steps.extract-coverage.outputs.percentage }}%'
-          color: '${{ steps.extract-coverage.outputs.color }}'
-          path: '.github/badges/coverage.svg'
+      - name: Download coverage badge (Shields.io)
+        env:
+          COVERAGE_PCT: ${{ steps.extract-coverage.outputs.percentage }}
+          COVERAGE_COLOR: ${{ steps.extract-coverage.outputs.color }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github/badges
+          # https://shields.io/ — static/v1 avoids path parsing issues with "66.32%".
+          # Network fetch at CI time (unlike a locally rendered SVG).
+          MSG=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['COVERAGE_PCT'] + '%', safe=''))")
+          curl -fsSL "https://img.shields.io/static/v1?label=coverage&message=${MSG}&color=${COVERAGE_COLOR}" \
+            -o .github/badges/coverage.svg

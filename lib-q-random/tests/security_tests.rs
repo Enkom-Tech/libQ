@@ -402,10 +402,9 @@ fn test_rng_edge_cases() {
         let mut empty = [];
         rng.fill_bytes(&mut empty);
 
-        // Test filling single byte
+        // Test filling single byte (0 is a valid output with probability 1/256)
         let mut single = [0u8; 1];
         rng.fill_bytes(&mut single);
-        assert_ne!(single[0], 0, "Single byte should not be zero");
 
         // Test filling large buffer
         let mut large = vec![0u8; 1024];
@@ -427,10 +426,9 @@ fn test_rng_edge_cases() {
         let mut empty = [];
         rng.fill_bytes(&mut empty);
 
-        // Test filling single byte
+        // Test filling single byte (0 is a valid output with probability 1/256)
         let mut single = [0u8; 1];
         rng.fill_bytes(&mut single);
-        assert_ne!(single[0], 0, "Single byte should not be zero");
 
         // Test filling large buffer (using array instead of vec)
         let mut large = [0u8; 1024];
