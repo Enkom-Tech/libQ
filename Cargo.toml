@@ -21,7 +21,7 @@ crate-type = ["cdylib", "rlib"]
 # Core cryptographic dependencies
 getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
-rand = "0.9.2"
+rand = "0.9.4"
 rand_core = "0.9.3"
 
 # Zeroize for secure memory clearing
