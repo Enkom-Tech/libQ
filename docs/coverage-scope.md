@@ -16,6 +16,7 @@ For any PR package other than the umbrella `lib-q`, tarpaulin scopes `--include-
 
 These are the first scoped paths used for the dedicated workflow; extend the list in that workflow when new stable entry points warrant it.
 
+- `lib-q-sig/src/lib.rs` — façade entry points re-exported by `lib-q-sig`
 - `lib-q-sig/src/ml_dsa.rs` — ML-DSA sign/verify and key-handling surfaced through `lib-q-sig`
 - `lib-q-sig/src/provider.rs` — algorithm routing and `SignatureOperations` bridge
 

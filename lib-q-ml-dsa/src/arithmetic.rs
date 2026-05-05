@@ -102,6 +102,9 @@ pub(crate) fn power2round_vector<SIMDUnit: Operations>(
             Spec.Utils.is_i32b_array_opaque 
             (v ${crate::simd::traits::specs::FIELD_MAX}) 
             (i0._super_4202118595671791609.f_repr (Seq.index (Seq.index t i).f_simd_units j)))"#))]
+/// With feature `hardened`, the portable SIMD unit routes `Decompose` through `subtle` for the
+/// high-`r₁` corner cases (GHSA-hcp2-x6j4-29j7); AVX2 already applies vector compare-and-mask for
+/// the same corners. Hint updates use the constant-time `use_one_hint` / `use_hint` paths.
 pub(crate) fn decompose_vector<SIMDUnit: Operations>(
     dimension: usize,
     gamma2: Gamma2,

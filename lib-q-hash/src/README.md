@@ -150,6 +150,10 @@ let algorithms = available_algorithms();
 - `parallelhash` - Rayon-based parallel processing
 - `asm` - ARMv8 assembly optimizations
 
+## Workspace
+
+This file documents the `lib-q-hash` integration layer; algorithm implementations live in `lib-q-sha3`, `lib-q-keccak`, `lib-q-k12`, and `lib-q-keccak-digest`. See the [crate README](../README.md) and [repository README](../../README.md).
+
 ## License
 
 Apache License, Version 2.0

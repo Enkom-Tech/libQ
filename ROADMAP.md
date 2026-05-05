@@ -27,7 +27,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 ### Security foundation
 - [x] Security audit framework (`cargo audit`, NIST compliance validation, scheduled security workflow)
 - [ ] Constant-time verification tooling (targeted work in HQC; broader coverage TBD)
-- [ ] Side-channel analysis tooling and methodology
+- [x] Side-channel analysis tooling and methodology (`lib-q-sca-test` TVLA/dudect-style harnesses)
 - [x] Fuzzing infrastructure (e.g. HPKE harness, property-based tests; expand coverage over time)
 - [ ] Formal verification setup where cost-effective
 
@@ -66,12 +66,14 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Core implementation
   - [x] Key generation
   - [x] Signing/Verification
+  - [x] Shared ring / NTT layer (`lib-q-ring`) for portable `R_q` arithmetic
   - [ ] Performance optimization
 - [x] FN-DSA (FIPS 206, Level 1, 5)
   - [x] Core implementation
   - [x] Key generation
   - [x] Signing/Verification
   - [x] All parameter sets
+  - [ ] CAVP `.rsp` parser harness (blocked until NIST publishes redistributable FN-DSA vectors; see `lib-q-fn-dsa/docs/KAT_VERIFICATION.md`)
   - [ ] Performance optimization
 - [x] SLH-DSA (FIPS 205, Level 1, 3, 5)
   - [x] Core implementation
@@ -159,6 +161,8 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Proof generation and verification
   - [x] WASM compatibility (lib-q-zkp wasm feature)
   - [x] Integration with post-quantum crypto (SHAKE256, Mersenne31)
+- [x] Module-lattice / sigma ZKP research path (`lib-q-lattice-zkp` on `lib-q-ring`; algebraic lattice relations, not the STARK AIR stack)
+  - [ ] Protocol-level hardening, parameter audit, and API stability (research-grade today)
 
 ### Performance optimization
 - [x] SIMD optimizations (Saturnin AVX2/NEON dispatch and kernels)
@@ -168,7 +172,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 
 ### Security enhancements
 - [ ] Formal verification
-- [ ] Side-channel resistance
+- [x] Side-channel resistance baseline (hardened ML-KEM/ML-DSA paths with masking and shuffled processing)
 - [ ] Quantum-resistant randomness
 
 ## Phase 5: Ecosystem
@@ -209,6 +213,25 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 - [ ] Long-term support (LTS)
 - [ ] Security update process
 - [ ] Vulnerability disclosure
+
+## Phase 7: Privacy protocols (anonymous credentials)
+
+Engineering trackers for Phase 7 “deferred” items. Implementations are **not** wired as `lib-q-core` KEM/signature providers; identifiers live in `AlgorithmCategory::PrivacyProtocol` ([`lib-q-types`](lib-q-types/README.md)).
+
+- [x] **Lattice ZKP** ([`lib-q-lattice-zkp`](../lib-q-lattice-zkp/))
+  - [x] `BlindIssuance` / blind bundle verification; pilot `BlindIssuerKeypair` + `BlindSignature` path (`BLIND_ISSUANCE.md`).
+  - [x] `AnonymousToken` + spending proofs.
+  - [x] Commitment nullifier openings (`NullifierOpeningProof`) + witness nullifier openings (`WitnessNullifierOpeningProof`); `Algorithm::LatticeWitnessNullifier` in `lib-q-types`.
+  - [x] Uniqueness batch labels for `amortise`.
+  - [x] Hierarchical `HierarchicalAuthProof` (Merkle + opening) + pilot `prove_private_membership` / `verify_private_membership`.
+- [x] **PRF building blocks** ([`lib-q-prf`](../lib-q-prf/)) — Legendre / Gold PRFs over safe-prime fields for optional `dualring-prf` transcripts in [`lib-q-ring-sig`](../lib-q-ring-sig/).
+- [x] **Federation / ring-sig** ([`lib-q-ring-sig`](../lib-q-ring-sig/))
+  - [x] Fiat–Shamir opening proofs with ring digest; legacy scan verifier behind `federation-opening`.
+  - [x] DualRing-LB–oriented pilot (`dualring_lb`, constant-time full-ring verify); `Algorithm::LatticeDualRingLb`.
+  - [x] `CredentialPresentation` default path uses `verify_dualring_lb`.
+- [x] **Fuzzing** — `lib-q-lattice-zkp/fuzz` (opening, nullifier, blind bundle, blind signature, witness nullifier, private membership), `lib-q-ring-sig/fuzz` (federation, dualring PRF, dualring LB).
+- [x] **Integration smoke** — [`lib-q/tests/privacy_protocol_integration_tests.rs`](../lib-q/tests/privacy_protocol_integration_tests.rs) (blind signature, witness nullifier, DualRing-LB, private membership, credentials).
+- [x] **SCA hooks** — [`lib-q-sca-test`](../lib-q-sca-test/) `privacy` feature: `touch_dualring_lb_verify`, `touch_witness_nullifier`, `touch_blind_signature_verify`, `touch_private_membership`.
 
 ## Ongoing development
 

@@ -17,6 +17,8 @@ extern crate std;
 mod arithmetic;
 pub mod constants;
 mod encoding;
+#[cfg(feature = "hardened")]
+mod hardened;
 mod hash_functions;
 mod helper;
 mod matrix;

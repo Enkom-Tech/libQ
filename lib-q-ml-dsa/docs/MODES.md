@@ -7,7 +7,7 @@ This document describes the different operating modes available in the ML-DSA im
 The ML-DSA implementation supports two distinct operating modes:
 
 1. **FIPS Mode** (`fips-mode` feature) - For NIST FIPS 204 compliance
-2. **Hardened Mode** (`hardened-mode` feature) - For enhanced security deployments
+2. **Hardened Mode** (`hardened` feature) - For enhanced security deployments
 
 ## FIPS Mode (`fips-mode` feature)
 
@@ -42,7 +42,7 @@ FIPS mode uses the exact algorithms specified in FIPS 204:
 lib-q-ml-dsa = { version = "0.0.2", features = ["fips-mode", "mldsa44"] }
 ```
 
-## Hardened Mode (`hardened-mode` feature)
+## Hardened Mode (`hardened` feature)
 
 ### When to Use
 
@@ -71,11 +71,24 @@ Hardened mode includes additional security measures:
 - Enhanced entropy quality validation
 - Protection against timing attacks
 
+**NIST signature KATs (`tests/nistkats.rs`):** with feature `hardened`, the signing key is still wired
+through the dual-share control-flow, but the secondary share is currently the **zero** ring element so
+intermediate values match the reference implementation and **byte-for-byte KAT hashes hold**. SHAKE256
+material is still squeezed for that staged share to keep the absorb/squeeze pattern amenable to
+timing analysis; replacing the zero share with a real time-domain split is future masked-`skDecode`
+work.
+
+**`Decompose` / `MakeHint`:** the portable path uses `subtle`-based comparisons for the high-`r₁`
+branches implicated by GHSA-hcp2-x6j4-29j7, and hint application routes through the constant-time
+`use_one_hint` implementation. Polynomials fed to `make_hint` are the combined (`·_a` + `·_b`) values
+from the signing loop; arithmetic masking of `w0` itself is not claimed—only branch/data-path
+hardening at the SIMD decomposition and hint primitives.
+
 ### Usage
 
 ```toml
 [dependencies]
-lib-q-ml-dsa = { version = "0.0.2", features = ["hardened-mode", "mldsa44"] }
+lib-q-ml-dsa = { version = "0.0.2", features = ["hardened", "mldsa44"] }
 ```
 
 ## Feature Dependencies
@@ -89,9 +102,9 @@ fips-mode = []  # No additional dependencies
 ### Hardened Mode Dependencies
 
 ```toml
-hardened-mode = ["random", "zeroize", "constant-time"]
-zeroize = ["dep:zeroize"]        # Automatic memory clearing
-constant-time = ["dep:subtle"]   # Constant-time operations
+# Atomic gate (do not enable piecemeal):
+hardened = ["random", "zeroize", "dep:subtle", "dep:getrandom"]
+zeroize = ["dep:zeroize"]
 ```
 
 ## Migration Guide
@@ -104,7 +117,7 @@ constant-time = ["dep:subtle"]   # Constant-time operations
    features = ["fips-mode", "mldsa44"]
    
    # After
-   features = ["hardened-mode", "mldsa44"]
+   features = ["hardened", "mldsa44"]
    ```
 
 2. **API remains identical** - no code changes required
@@ -116,7 +129,7 @@ constant-time = ["dep:subtle"]   # Constant-time operations
 1. **Update Cargo.toml**:
    ```toml
    # Before
-   features = ["hardened-mode", "mldsa44"]
+   features = ["hardened", "mldsa44"]
    
    # After
    features = ["fips-mode", "mldsa44"]
@@ -169,13 +182,13 @@ cargo test --features "fips-mode,acvp" --test acvp
 
 ```bash
 # Test hardened security features
-cargo test --features "hardened-mode,mldsa44,mldsa65,mldsa87"
+cargo test --features "hardened,mldsa44,mldsa65,mldsa87"
 
 # Test entropy quality
-cargo test --features "hardened-mode,random" --test entropy_quality
+cargo test --features "hardened,random" --test entropy_quality
 
 # Test determinism
-cargo test --features "hardened-mode,random,acvp" --test determinism
+cargo test --features "hardened,random,acvp" --test determinism
 ```
 
 ## Best Practices

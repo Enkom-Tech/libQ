@@ -1,15 +1,19 @@
 # lib-Q KEM - Post-Quantum Key Encapsulation Mechanisms
 
-A secure implementation of post-quantum key encapsulation mechanisms (KEMs) for the lib-Q cryptographic library.
+Post-quantum **KEM façade** for lib-Q. Algorithms are enabled with Cargo features so you only compile what you need.
+
+## Algorithms
+
+- **ML-KEM (FIPS 203)** — feature `ml-kem`; implementation in [**lib-q-ml-kem**](../lib-q-ml-kem).
+- **CB-KEM (Classic McEliece–family)** — feature `cb-kem`; implementation in [**lib-q-cb-kem**](../lib-q-cb-kem).
+- **HQC** — feature `hqc`; implementation in [**lib-q-hqc**](../lib-q-hqc).
 
 ## Features
 
-- **ML-KEM (FIPS 203)**: Complete implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
-  - ML-KEM 512 (Level 1 security)
-  - ML-KEM 768 (Level 3 security) 
-  - ML-KEM 1024 (Level 5 security)
-- **Secure by Design**: Implements secure development practices with infallible operations
-- **Production Ready**: Comprehensive test coverage and security validation
+- **ML-KEM (FIPS 203)**: ML-KEM-512, ML-KEM-768, ML-KEM-1024 (via `ml-kem`)
+- **Code-based KEMs**: Classic McEliece parameter sets (via `cb-kem`) and HQC-128/192/256 (via `hqc`)
+- **WASM** — feature `wasm` (ML-KEM-oriented wiring; see `Cargo.toml`)
+- **Design** — infallible-style public APIs and strict sizing where the façade enforces it
 
 ## Quick Start
 
@@ -17,7 +21,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-kem = { version = "0.0.1", features = ["ml-kem"] }
+lib-q-kem = { version = "0.0.2", features = ["ml-kem"] }
 ```
 
 Basic usage:
@@ -91,14 +95,21 @@ pub trait Kem {
 }
 ```
 
-## Features
+## Cargo features
 
-### ml-kem
-Enables ML-KEM (FIPS 203) implementations. This is the default and recommended feature.
+| Feature | Enables |
+|---------|---------|
+| `ml-kem` | `lib-q-ml-kem` + SHAKE / RNG deps used by the façade |
+| `cb-kem` | `lib-q-cb-kem` |
+| `hqc` | `lib-q-hqc` |
+| `wasm` | WASM bindings (see `Cargo.toml`) |
+| `std` / `alloc` | Compatibility / collection support |
+
+Example:
 
 ```toml
 [dependencies]
-lib-q-kem = { version = "0.0.1", features = ["ml-kem"] }
+lib-q-kem = { version = "0.0.2", features = ["ml-kem"] }
 ```
 
 ## Testing
@@ -166,8 +177,9 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](../../LICENSE) for
 
 ## Changelog
 
+### 0.0.2 (workspace)
+- CB-KEM and HQC feature gates
+- Version aligned with the lib-Q workspace; see git history for details
+
 ### 0.0.1
-- Initial release with ML-KEM (FIPS 203) support
-- Secure implementation with infallible operations
-- Comprehensive test coverage
-- Production-ready security features
+- Initial ML-KEM (FIPS 203) façade

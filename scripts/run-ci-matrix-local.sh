@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Mirrors .github/workflows/ci.yml test-matrix + critical follow-on jobs (local Linux).
 # Not invoked by CI; for developer parity checks.
+#
+# Windows: use Git Bash so `cargo` resolves to the Windows rustup install (prepend
+# %USERPROFILE%\.cargo\bin to PATH). Avoid `bash` from System32 if it launches WSL,
+# which may use a separate rustup tree or fail mid-update.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
@@ -10,6 +14,9 @@ export CARGO_TERM_COLOR=always
 nuke_release_ci() {
   rm -rf "${ROOT}/target/release-ci"
 }
+
+echo "========== crate/npm CI guards =========="
+bash "$ROOT/scripts/ci-guard-new-crates-and-npm.sh" "$ROOT"
 
 run_packages_matrix() {
   local features="$1"
@@ -117,9 +124,9 @@ cargo test -p lib-q-ml-dsa --features std,fips-mode,mldsa44,mldsa65,mldsa87,acvp
 
 echo "========== CI matrix: ml-dsa-hardened =========="
 nuke_release_ci
-cargo test -p lib-q-ml-dsa --features std,hardened-mode,mldsa44,mldsa65,mldsa87,zeroize,constant-time --verbose
+cargo test -p lib-q-ml-dsa --features std,hardened,mldsa44,mldsa65,mldsa87 --verbose
 nuke_release_ci
-cargo test -p lib-q-ml-dsa --features std,hardened-mode,mldsa44,mldsa65,mldsa87,zeroize,constant-time --profile release-ci --verbose
+cargo test -p lib-q-ml-dsa --features std,hardened,mldsa44,mldsa65,mldsa87 --profile release-ci --verbose
 
 echo "========== CI matrix: ml-dsa-cross-mode =========="
 nuke_release_ci
@@ -169,6 +176,42 @@ cargo test -p lib-q-stark-dft --features alloc,parallel --verbose
 nuke_release_ci
 cargo test -p lib-q-stark-dft --features alloc,parallel --profile release-ci --verbose
 
+echo "========== CI matrix: lib-q-ring =========="
+nuke_release_ci
+cargo test -p lib-q-ring --features alloc --verbose
+nuke_release_ci
+cargo test -p lib-q-ring --features alloc --profile release-ci --verbose
+
+echo "========== CI matrix: lib-q-prf =========="
+echo "Running: cargo test -p lib-q-prf --features alloc --verbose"
+cargo test -p lib-q-prf --features alloc --verbose
+echo "Running: cargo test -p lib-q-prf --features alloc --profile release-ci --verbose"
+cargo test -p lib-q-prf --features alloc --profile release-ci --verbose
+
+echo "========== CI matrix: lib-q-ring-sig (dualring-prf) =========="
+echo "Running: cargo test -p lib-q-ring-sig --features dualring-prf --verbose"
+cargo test -p lib-q-ring-sig --features dualring-prf --verbose
+echo "Running: cargo test -p lib-q-ring-sig --features dualring-prf --profile release-ci --verbose"
+cargo test -p lib-q-ring-sig --features dualring-prf --profile release-ci --verbose
+
+echo "========== CI matrix: lib-q-lattice-zkp =========="
+nuke_release_ci
+cargo test -p lib-q-lattice-zkp --features alloc --verbose
+nuke_release_ci
+cargo test -p lib-q-lattice-zkp --features alloc --profile release-ci --verbose
+
+echo "========== CI matrix: lib-q-ring-sig default =========="
+nuke_release_ci
+cargo test -p lib-q-ring-sig --verbose
+nuke_release_ci
+cargo test -p lib-q-ring-sig --profile release-ci --verbose
+
+echo "========== CI matrix: lib-q privacy_protocol_integration_tests =========="
+nuke_release_ci
+cargo test -p lib-q --test privacy_protocol_integration_tests --verbose
+nuke_release_ci
+cargo test -p lib-q --test privacy_protocol_integration_tests --profile release-ci --verbose
+
 echo "========== test-matrix: OK =========="
 
 # --- wasm-validation (ci.yml): compile for wasm32; same RUSTFLAGS as wasm-build action ---
@@ -190,6 +233,16 @@ wasm_check lib-q-kem "wasm,ml-kem"
 wasm_check lib-q-core "wasm,ml-kem,rand"
 wasm_check lib-q-zkp "wasm,zkp"
 wasm_check lib-q-romulus ""
+wasm_check lib-q-prf ""
+wasm_check lib-q-lattice-zkp ""
+wasm_check lib-q-ring-sig ""
+wasm_check lib-q-sca-test ""
+wasm_check lib-q-plonky ""
+unset CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS
+
+echo "========== wasm-workspace-gate (ci.yml) =========="
+export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C panic=abort'
+cargo check --workspace --exclude lib-q-examples --target wasm32-unknown-unknown
 unset CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS
 
 # --- romulus-no-std-wasm (ci.yml) ---
@@ -209,15 +262,17 @@ echo "========== ml-dsa-compliance (PR-focused) =========="
   cargo test --features "simd256,random,acvp" --test determinism
   cargo test --no-default-features --features "std,mldsa44" --test interoperability_tests --test wire_format_tests
   cargo test --features "random,mldsa44" --test interoperability_tests --test wire_format_tests
-  cargo test --features "hardened-mode,mldsa44" --test interoperability_tests --test wire_format_tests
+  cargo test --features "hardened,mldsa44" --test interoperability_tests --test wire_format_tests
   cargo test --test wire_format_tests test_against_saved_interop_vectors
 )
 
 # --- ml-kem-tests (ci.yml) ---
 echo "========== ml-kem-tests =========="
 ( cd lib-q-ml-kem && cargo test --verbose )
+( cd lib-q-ml-kem && cargo test --features "hardened,random" --lib --verbose )
 ( cd lib-q-core && cargo test --features "ml-kem,rand" --verbose && rm -rf target/dev-no-std && cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler" )
 ( cd lib-q-kem && cargo test --features "ml-kem" --verbose )
+( cargo test -p lib-q-sca-test --verbose )
 
 # --- integration-tests (ci.yml) ---
 echo "========== integration-tests =========="

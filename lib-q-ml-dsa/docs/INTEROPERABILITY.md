@@ -6,7 +6,7 @@ The lib-q-ml-dsa implementation guarantees wire-format compatibility across all 
 
 - Compliance Mode (no `random` feature)
 - Production Mode (`random` feature enabled)
-- Hardened Mode (`hardened-mode`, `zeroize`, `constant-time`)
+- Hardened Mode (`hardened`, `zeroize`)
 
 ### Guarantee
 

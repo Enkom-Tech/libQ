@@ -2,6 +2,8 @@
 
 Poseidon hash function optimized for zero-knowledge proofs in lib-Q.
 
+Used on selected ZKP paths (for example where documented in `lib-q-zkp`); the default STARK pipeline is SHAKE256-oriented. See [docs/zkp-implementation.md](../docs/zkp-implementation.md).
+
 ## Overview
 
 Poseidon is an algebraic hash function designed specifically for efficient implementation in zero-knowledge proof systems. Unlike traditional hashes like SHA-3, Poseidon operates directly on field elements, making it orders of magnitude more efficient in circuit constraints.

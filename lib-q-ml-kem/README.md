@@ -10,24 +10,14 @@ Originally developed as [CRYSTALS-Kyber] (a.k.a. "Kyber"), ML-KEM is a refinemen
 
 In summary, ML-KEM stands at the forefront of post-quantum cryptography, offering enhanced security and efficiency in key encapsulation mechanisms to safeguard sensitive communications in an era where quantum computers potentially pose a looming threat.
 
-## Security Implementation
+## Security implementation
 
-This implementation follows secure development practices recommended by cryptographic experts:
+- **Infallible operations** on public paths where the design allows it, plus strict size checks on wire objects.
+- **Constant-time intent** on sensitive comparisons and decapsulation logic; full guarantees require target-specific review.
+- **Optional hardening** — feature `hardened` (see `Cargo.toml`): atomic gate enabling masking, NTT randomisation, and `subtle` comparisons; pairs with `random`, `zeroize`, and `getrandom`. Do not split the feature set.
+- **Screening** — workspace crate [**lib-q-sca-test**](../lib-q-sca-test) can run TVLA/timing-style checks against `hardened` code paths (lab / CI smoke, not a certification).
 
-### Secure Features
-
-- **Infallible Operations**: All cryptographic operations use infallible methods to prevent information leakage
-- **Constant-Time Execution**: Maintains constant-time operations for all cryptographic work
-- **Runtime Validation**: Secure size validation with fail-safe behavior
-- **No Fallible Parsing**: Eliminated dangerous fallible parsing that could leak secret information
-- **Fail-Safe Design**: Cryptographic operations fail safely without exposing sensitive data
-
-### Security Best Practices
-
-- **Verifiable Decapsulation**: All decapsulation operations are verifiable and secure
-- **Comprehensive Testing**: Extensive test coverage including security validation tests
-- **Production Ready**: Follows secure development practices recommended by cryptographic experts
-- **Zero Information Leakage**: Eliminated fallible parsing that could leak secret key information
+This crate has **not** been independently audited; see the warning below.
 
 ## Usage
 
@@ -55,9 +45,14 @@ All algorithms produce a 32-byte shared secret.
 
 ## Features
 
-- `deterministic`: Enables deterministic encapsulation for testing
-- `zeroize`: Enables zeroization of sensitive data in memory
-- `std`: Enables standard library features (default)
+- `deterministic` — deterministic encapsulation for testing.
+- `zeroize` — zeroization helpers for sensitive buffers.
+- `random` — wiring to `lib-q-random` for implementations that need it.
+- `std` — compatibility flag (the crate is already usable with `std` without it).
+- `wasm` — `wasm-bindgen` exports where enabled.
+- `hardened` — side-channel-oriented hardening (see above); enable only as a complete feature set.
+
+Default feature set is empty; enable what your integration needs (CI often uses `std` and/or `random`).
 
 ## Testing
 
@@ -78,11 +73,12 @@ The implementation contained in this crate has never been independently audited!
 
 USE AT YOUR OWN RISK!
 
-However, this implementation follows secure development practices:
-- No fallible parsing that could leak information
-- Constant-time operations maintained
-- Fail-safe cryptographic operations
-- Comprehensive security testing
+However, this implementation follows the practices outlined above.
+
+## Related crates
+
+- [**lib-q-kem**](../lib-q-kem) — façade over ML-KEM, CB-KEM, and HQC.
+- [**lib-q-sca-test**](../lib-q-sca-test) — optional statistical leakage harness.
 
 ## License
 

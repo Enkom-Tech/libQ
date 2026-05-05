@@ -2,6 +2,8 @@
 
 Rust implementation of the Saturnin post-quantum symmetric algorithm suite.
 
+Saturnin is the primary symmetric suite for HPKE/AEAD tiers in this workspace (see [`lib-q-hpke`](../lib-q-hpke), [`lib-q-aead`](../lib-q-aead)).
+
 ## Overview
 
 Saturnin is a lightweight block cipher designed for post-quantum security. This implementation provides AEAD, block cipher, hash, and stream cipher modes.

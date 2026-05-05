@@ -588,6 +588,72 @@ impl AlgorithmRegistry {
             description: "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
             enabled: true,
         });
+
+        // Privacy-oriented protocol identifiers (implementations: lib-q-lattice-zkp, lib-q-ring-sig)
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeRingSignature,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice federation ring signature",
+            description: "Federation ring-style opening proofs over Ajtai commitments (lib-q-ring-sig)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeBlindIssuance,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice blind issuance",
+            description: "CRS blind issuance plumbing and issuer attestation (lib-q-lattice-zkp/blind)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeAnonymousToken,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice anonymous token",
+            description: "Commitment-backed anonymous token and spending proof (lib-q-lattice-zkp/token)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeNullifierRegistry,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice nullifier registry",
+            description: "SHAKE256 nullifier binding for Sybil-evidence style proofs (lib-q-lattice-zkp/sigma/uniqueness)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeWitnessNullifier,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice witness nullifier",
+            description: "Witness-derived SHAKE256 nullifier and opening binding (lib-q-lattice-zkp/sigma/uniqueness)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::LatticeDualRingLb,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Lattice DualRing-LB pilot",
+            description: "DualRing-LB–oriented federation transcript with full-ring verify (lib-q-ring-sig/dualring_lb)",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::MixOnionRouting,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Mix-layer onion routing",
+            description: "ML-KEM-768 layered encapsulation with Saturnin AEAD per hop",
+            enabled: true,
+        });
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::SessionResumptionBinding,
+            category: AlgorithmCategory::PrivacyProtocol,
+            security_level: 3,
+            name: "Session resumption binding",
+            description: "SHAKE256 session token and stateless retry-cookie derivation",
+            enabled: true,
+        });
     }
 
     /// Register an algorithm
@@ -666,6 +732,16 @@ impl AlgorithmRegistry {
                 Algorithm::RomulusN,
                 Algorithm::RomulusM,
             ],
+            AlgorithmCategory::PrivacyProtocol => &[
+                Algorithm::LatticeRingSignature,
+                Algorithm::LatticeBlindIssuance,
+                Algorithm::LatticeAnonymousToken,
+                Algorithm::LatticeNullifierRegistry,
+                Algorithm::LatticeWitnessNullifier,
+                Algorithm::LatticeDualRingLb,
+                Algorithm::MixOnionRouting,
+                Algorithm::SessionResumptionBinding,
+            ],
         }
     }
 
@@ -693,7 +769,18 @@ impl AlgorithmRegistry {
                 Algorithm::RomulusN,
                 Algorithm::RomulusM,
             ],
-            3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
+            3 => &[
+                Algorithm::MlKem768,
+                Algorithm::MlDsa65,
+                Algorithm::LatticeRingSignature,
+                Algorithm::LatticeBlindIssuance,
+                Algorithm::LatticeAnonymousToken,
+                Algorithm::LatticeNullifierRegistry,
+                Algorithm::LatticeWitnessNullifier,
+                Algorithm::LatticeDualRingLb,
+                Algorithm::MixOnionRouting,
+                Algorithm::SessionResumptionBinding,
+            ],
             4 => &[
                 Algorithm::MlKem1024,
                 Algorithm::MlDsa87,
@@ -843,6 +930,16 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
             Algorithm::RomulusN,
             Algorithm::RomulusM,
         ],
+        AlgorithmCategory::PrivacyProtocol => &[
+            Algorithm::LatticeRingSignature,
+            Algorithm::LatticeBlindIssuance,
+            Algorithm::LatticeAnonymousToken,
+            Algorithm::LatticeNullifierRegistry,
+            Algorithm::LatticeWitnessNullifier,
+            Algorithm::LatticeDualRingLb,
+            Algorithm::MixOnionRouting,
+            Algorithm::SessionResumptionBinding,
+        ],
     }
 }
 
@@ -871,7 +968,18 @@ pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
             Algorithm::RomulusN,
             Algorithm::RomulusM,
         ],
-        3 => &[Algorithm::MlKem768, Algorithm::MlDsa65],
+        3 => &[
+            Algorithm::MlKem768,
+            Algorithm::MlDsa65,
+            Algorithm::LatticeRingSignature,
+            Algorithm::LatticeBlindIssuance,
+            Algorithm::LatticeAnonymousToken,
+            Algorithm::LatticeNullifierRegistry,
+            Algorithm::LatticeWitnessNullifier,
+            Algorithm::LatticeDualRingLb,
+            Algorithm::MixOnionRouting,
+            Algorithm::SessionResumptionBinding,
+        ],
         4 => &[
             Algorithm::MlKem1024,
             Algorithm::MlDsa87,

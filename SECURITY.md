@@ -42,6 +42,19 @@ lib-Q intentionally avoids classical public-key schemes (RSA, ECC, etc.) and non
 3. **Side channels** — implementation is written with timing and cache awareness; we do not claim completed independent side-channel evaluation for all targets.
 4. **Correct use** — calling the right API with the right parameter set, domain separation, and protocol context.
 
+### Random Oracle Model vs Quantum Random Oracle Model
+
+Components using the **Fiat–Shamir transform** for non-interactive proofs (`lib-q-lattice-zkp` sigma protocols and `lib-q-ring-sig` DualRing-LB–oriented pilot ring verification) have security proofs in the **Random Oracle Model (ROM)**, not the **Quantum Random Oracle Model (QROM)**. This means:
+
+- Classical adversaries must treat the hash function (SHAKE256) as a black box, which is standard for Fiat–Shamir.
+- A quantum adversary with oracle access to the hash function could apply Simon's or Grover's algorithm to extract information beyond the classical proof bounds.
+
+**Impact assessment:** The QROM gap is real but bounded. Exploiting it requires a cryptographically relevant quantum computer capable of running structured oracle queries—at which point the entire lib-Q parameter landscape would require revision. More importantly, **this limitation is consistent across the stack**: accepting ROM in one zero-knowledge component (`lib-q-lattice-zkp`) and demanding QROM in another (`lib-q-ring-sig`) would create an inconsistent security model without strengthening the overall system.
+
+**Alternatives considered:** The optional `dualring-prf` feature on [`lib-q-ring-sig`](lib-q-ring-sig/) composes [`lib-q-prf`](lib-q-prf/) Legendre and Gold (power-residue) PRFs over large safe primes into a **QROM-oriented** Fiat–Shamir transcript. That path trades Module-LWE/SIS-only assumptions for **algebraic PRF hardness** in \(\mathbb{F}_p\) and is marked **research-grade** alongside the DualRing-LB pilot. For federation rings of modest size, the ROM-only opening-based path may still be preferable when a single Module-SIS/LWE assumption family is desired.
+
+**Upgrade path:** Both constructions are pre-production. QROM-secure lattice ring signatures with comparable engineering cost remain future work; callers needing QROM-style hashing assumptions today can evaluate `dualring-prf` under its documented limits (see [`lib-q-ring-sig/DESIGN.md`](lib-q-ring-sig/DESIGN.md) and [`lib-q-prf/DESIGN.md`](lib-q-prf/DESIGN.md)).
+
 ## Implementation practices
 
 - **Constant-time intent** on sensitive paths; validation via tooling and review is ongoing.

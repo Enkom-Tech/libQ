@@ -97,7 +97,7 @@ fn test_mode_specific_feature_availability() {
         println!("✓ FIPS mode features available");
     }
 
-    #[cfg(feature = "hardened-mode")]
+    #[cfg(feature = "hardened")]
     {
         println!("✓ Hardened mode features available");
 
@@ -106,13 +106,13 @@ fn test_mode_specific_feature_availability() {
             println!("✓ Zeroization feature available");
         }
 
-        #[cfg(feature = "constant-time")]
+        #[cfg(feature = "hardened")]
         {
             println!("✓ Constant-time feature available");
         }
     }
 
-    #[cfg(not(any(feature = "fips-mode", feature = "hardened-mode")))]
+    #[cfg(not(any(feature = "fips-mode", feature = "hardened")))]
     {
         println!("✓ Default mode active");
     }

@@ -31,3 +31,7 @@ All integration tests have been migrated from raw `Mersenne31` to `Complex<Merse
 ### Circle STARKs
 
 Circle STARK tests (`prove_m31_circle_deg2`, `prove_m31_circle_deg3`) remain commented out; Circle STARKs are not integrated.
+
+### Workspace context
+
+These tests exercise `lib-q-stark` in isolation. For how this crate relates to `lib-q-zkp`, `lib-q-plonky`, and the module-lattice path `lib-q-lattice-zkp`, see [docs/zkp-implementation.md](../../docs/zkp-implementation.md).

@@ -44,6 +44,7 @@ fn test_algorithm_registry_coverage() {
     // Test algorithm categories
     assert_eq!(AlgorithmCategory::Kem as u32, 0);
     assert_eq!(AlgorithmCategory::Signature as u32, 1);
+    assert_eq!(AlgorithmCategory::PrivacyProtocol as u32, 4);
 
     // Test algorithms by category
     let kem_algorithms = registry.algorithms_by_category(AlgorithmCategory::Kem);

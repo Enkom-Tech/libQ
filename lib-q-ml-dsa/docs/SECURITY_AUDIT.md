@@ -21,7 +21,7 @@
 ## Side-Channel Resistance (Hardened Mode)
 
 - [ ] Sensitive data zeroized after use (when zeroize feature enabled)
-- [ ] Constant-time operations where possible (when constant-time enabled)
+- [ ] Constant-time operations where possible (in `hardened` mode)
 - [ ] No timing variations based on secret values
 - [ ] No branching on secret data in critical paths
 
@@ -95,7 +95,7 @@ The following automated checks are available:
 ./scripts/security_audit.sh
 
 # Run specific security tests
-cargo test --package lib-q-ml-dsa --features "hardened-mode,zeroize,constant-time" --test hardened_mode_tests
+cargo test --package lib-q-ml-dsa --features "hardened,zeroize" --test hardened_mode_tests
 
 # Run compliance tests
 cargo test --package lib-q-ml-dsa --features "fips-mode,acvp" --test fips_mode_tests

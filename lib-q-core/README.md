@@ -91,9 +91,9 @@ let random_bytes = Utils::random_bytes(32); // Returns error
 - HQC: HQC-128, HQC-192, HQC-256
 
 ### Digital Signatures
-- ML-DSA (Dilithium): ML-DSA-44, ML-DSA-65, ML-DSA-87
-- FN-DSA: FN-DSA-1, FN-DSA-5
-- SLH-DSA: Multiple variants with SHA-256 and SHAKE-256
+- ML-DSA (FIPS 204): ML-DSA-44, ML-DSA-65, ML-DSA-87 (see `lib-q-ml-dsa`, `lib-q-ring`)
+- FN-DSA (FIPS 206): FN-DSA-1, FN-DSA-5
+- SLH-DSA (FIPS 205): SHA-2 and SHAKE parameter families (`lib-q-slh-dsa`, `lib-q-sig`)
 
 ### Hash Functions
 - SHA-3 family: SHA3-224, SHA3-256, SHA3-384, SHA3-512
@@ -132,6 +132,10 @@ All cryptographic operations are implemented following NIST standards and best p
 - Secure memory handling with automatic zeroization
 - Side-channel resistance considerations
 - Comprehensive input validation
+
+## Workspace
+
+This crate is part of the [lib-Q workspace](../README.md). Related pieces include `lib-q-kem`, `lib-q-sig`, `lib-q-hpke`, `lib-q-zkp`, `lib-q-ring`, and tooling crates such as `lib-q-sca-test`.
 
 ## License
 

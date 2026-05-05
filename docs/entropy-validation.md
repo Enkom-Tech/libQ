@@ -2,7 +2,7 @@
 
 ## Overview
 
-lib-Q implements comprehensive entropy validation to ensure the quality of randomness used in cryptographic operations. This document explains the entropy validation system and how to configure it for different use cases.
+Entropy validation guards **optional deterministic seeds** and similar inputs in paths that use `lib-q-core`’s `SecurityValidator` / `EntropyValidator` (for example the **CB-KEM** `LibQCbKemProvider`). This document summarizes behavior and safe testing patterns; authoritative APIs are in `lib-q-core/src/security/`.
 
 ## Security Architecture
 
@@ -52,18 +52,16 @@ let test_seed = b"deterministic_test_seed_for_reproducible_testing";
 let keypair = provider.generate_keypair(Algorithm::CbKem348864, Some(test_seed))?;
 ```
 
-### Method 2: Feature Flag Configuration
+### Method 2: Feature flag on `lib-q-core`
 
-```rust
-// In Cargo.toml
-[features]
-relaxed_entropy_validation = []
+Relaxed validation is implemented **inside `lib-q-core`** behind the feature flag **`relaxed_entropy_validation`** (see `lib-q-core/src/security/entropy.rs`). Enable it from the crate that depends on `lib-q-core`, for example:
 
-// Build with relaxed validation
-cargo build --features "relaxed_entropy_validation"
+```toml
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["relaxed_entropy_validation"] }
 ```
 
-When the `relaxed_entropy_validation` feature is enabled, the entropy validator automatically uses relaxed validation logic.
+There is **no** separate `relaxed_entropy_validation` feature on `lib-q-cb-kem` itself—wire `lib-q-core` features through your dependency edge when you need compile-time relaxed checks in CI or tests.
 
 ## Usage Guidelines
 
@@ -173,6 +171,4 @@ impl SecurityValidator {
 2. **For Production**: Ensure system entropy sources are available
 3. **For CI/CD**: Use consistent deterministic seeds with relaxed validation
 
-## Conclusion
-
-The entropy validation system in lib-Q provides a robust foundation for secure cryptographic operations while maintaining flexibility for testing scenarios. By following the guidelines in this document, developers can ensure both security and testability in their applications.
+Treat entropy controls as **part of the integration surface**: keep validation on in production paths, and restrict deterministic seeds and `set_entropy_validation(false)` to tests and tooling.

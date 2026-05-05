@@ -1,6 +1,6 @@
 # lib-Q Examples
 
-This directory contains examples demonstrating the usage of lib-Q post-quantum cryptography library.
+This directory contains examples demonstrating the usage of lib-Q post-quantum cryptography library. For the module-lattice ZKP research crate, see [`lib-q-lattice-zkp/README.md`](../lib-q-lattice-zkp/README.md) (not covered by these examples).
 
 ## ML-DSA Examples
 
@@ -33,10 +33,9 @@ Simple example showing ML-DSA usage in no_std environments:
 - Demonstrates rejection of invalid signatures
 
 #### `ml_dsa_no_std_trait_test.rs`
-Tests the Signature trait implementation in no_std environments:
-- Verifies trait works with alloc feature
-- Verifies trait behavior without alloc feature
-- Tests proper return types based on feature flags
+Exercises `lib-q-sig`’s ML-DSA wrapper with the `Signature` trait from `lib-q-core` **in this package’s default configuration** (`lib-q-sig` built with `std`):
+- `generate_keypair` / `sign` / `verify` using automatic RNG
+- `generate_keypair_with_randomness` / `sign_with_randomness` (the path to use on **no_std** when the trait’s RNG helpers are unavailable)
 
 #### `ml_dsa_working_no_std.rs`
 Working example using lib_q_ml_dsa directly:

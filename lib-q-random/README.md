@@ -33,7 +33,7 @@ lib-q-random = { version = "0.0.2", features = ["custom-entropy"] }
 ### Basic Usage
 
 ```rust
-use lib_q_rng::{LibQRng, new_secure_rng, new_deterministic_rng};
+use lib_q_random::{LibQRng, new_secure_rng, new_deterministic_rng};
 
 // Create a secure RNG for production use
 let mut rng = new_secure_rng()?;
@@ -50,7 +50,7 @@ test_rng.fill_bytes(&mut bytes);
 ### Advanced Usage
 
 ```rust
-use lib_q_rng::{
+use lib_q_random::{
     LibQRng, EntropyValidator, EntropyQuality,
     entropy::{EntropySourceFactory, UserEntropySource},
     traits::{RngConfig, SecurityLevel}
@@ -195,7 +195,7 @@ The crate is organized into several key components:
 ### Basic Random Generation
 
 ```rust
-use lib_q_rng::new_secure_rng;
+use lib_q_random::new_secure_rng;
 
 let mut rng = new_secure_rng()?;
 let mut key = [0u8; 32];
@@ -205,7 +205,7 @@ rng.fill_bytes(&mut key);
 ### Deterministic Testing
 
 ```rust
-use lib_q_rng::new_deterministic_rng;
+use lib_q_random::new_deterministic_rng;
 
 let seed = [1, 2, 3, 4, 5, 6, 7, 8];
 let mut rng = new_deterministic_rng(&seed);
@@ -217,7 +217,7 @@ rng.fill_bytes(&mut bytes);
 ### Custom Entropy Source
 
 ```rust
-use lib_q_rng::{LibQRng, entropy::UserEntropySource};
+use lib_q_random::{LibQRng, entropy::UserEntropySource};
 
 let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
 let entropy_source = UserEntropySource::new(entropy_data);
@@ -227,7 +227,7 @@ let mut rng = LibQRng::new_custom(entropy_source);
 ### Entropy Validation
 
 ```rust
-use lib_q_rng::{EntropyValidator, validation::quick_entropy_check};
+use lib_q_random::{EntropyValidator, validation::quick_entropy_check};
 
 let validator = EntropyValidator::new();
 let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];

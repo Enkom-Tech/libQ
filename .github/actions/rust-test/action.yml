@@ -141,6 +141,10 @@ runs:
         if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
           FEATURES="std,deterministic"
         fi
+        FEAT_ARGS=()
+        if [[ -n "$FEATURES" ]]; then
+          FEAT_ARGS=(--features "$FEATURES")
+        fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
@@ -180,17 +184,17 @@ runs:
               fi
             done
             if [[ -n "$SHARED_FLAGS" ]]; then
-              echo "Running dev tests with $SHARED_FLAGS and features $FEATURES"
-              cargo test $SHARED_FLAGS --features "$FEATURES" --verbose
+              echo "Running dev tests with $SHARED_FLAGS and features ${FEATURES:-<crate defaults>}"
+              cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --verbose
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
               echo "Skipping full dev test suite for lib-q-fn-dsa (quick smoke runs in release step only)"
             else
-              cargo test -p $PACKAGE --features "$FEATURES" --verbose
+              cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --verbose
             fi
           else
-            cargo test --features "$FEATURES" --verbose
+            cargo test "${FEAT_ARGS[@]}" --verbose
           fi
         fi
         echo "Tests completed"
@@ -222,6 +226,10 @@ runs:
         fi
         if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
           FEATURES="std,deterministic"
+        fi
+        FEAT_ARGS=()
+        if [[ -n "$FEATURES" ]]; then
+          FEAT_ARGS=(--features "$FEATURES")
         fi
         if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
@@ -262,8 +270,8 @@ runs:
               fi
             done
             if [[ -n "$SHARED_FLAGS" ]]; then
-              echo "Running release tests with $SHARED_FLAGS and features $FEATURES"
-              cargo test $SHARED_FLAGS --features "$FEATURES" --profile release-ci --verbose
+              echo "Running release tests with $SHARED_FLAGS and features ${FEATURES:-<crate defaults>}"
+              cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --profile release-ci --verbose
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
@@ -274,10 +282,10 @@ runs:
               cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
               cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
             else
-              cargo test -p $PACKAGE --features "$FEATURES" --profile release-ci --verbose
+              cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --profile release-ci --verbose
             fi
           else
-            cargo test --features "$FEATURES" --profile release-ci --verbose
+            cargo test "${FEAT_ARGS[@]}" --profile release-ci --verbose
           fi
         fi
         echo "Release tests completed"
@@ -327,7 +335,7 @@ runs:
             TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
           else
             # ACVP / FIPS / hardened tests are feature-gated; align with ci.yml + run-coverage.sh.
-            TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87\""
+            TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened,mldsa44,mldsa65,mldsa87\""
           fi
         elif [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"simd256,simd128,simd512\""

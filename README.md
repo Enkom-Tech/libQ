@@ -1,6 +1,6 @@
 # lib-Q - Post-Quantum Cryptography Library
 
-A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. WASM builds are supported for selected crates and features.
+A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **entire publishable workspace** compiles for the WebAssembly target; npm bundles are still produced only for the JS-facing crates listed below.
 
 ## Mission
 
@@ -29,26 +29,84 @@ lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitiv
 
 lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
-### Rust crates (crates.io)
+### Rust workspace crates
 
-- **`lib-q`** - Complete library (re-exports everything)
-- **`lib-q-core`** - Core types and traits
-- **`lib-q-kem`** - Key Encapsulation Mechanisms (ML-KEM, CB-KEM, HQC)
-- **`lib-q-sig`** - Digital Signatures (ML-DSA, SLH-DSA)
-- **`lib-q-fn-dsa`** - FN-DSA Digital Signatures (FIPS 206)
-- **`lib-q-hash`** - Hash Functions (SHAKE256, SHAKE128, cSHAKE256)
-- **`lib-q-aead`** - Authenticated Encryption
-- **`lib-q-utils`** - Utility functions
-- **`lib-q-zkp`** - Zero-Knowledge Proofs
+Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/cd.yml`](.github/workflows/cd.yml) in dependency order. The workspace has **60** publishable members (the `examples` crate is a harness only and is excluded from crates.io and from the workspace-wide wasm gate). Order below matches `[workspace].members` in [Cargo.toml](Cargo.toml).
+
+| Crate | Role |
+|-------|------|
+| **`lib-q`** | Umbrella library (feature-gated re-exports) |
+| **`lib-q-types`** | Shared type definitions |
+| **`lib-q-core`** | Core types, traits, provider surface, validation |
+| **`lib-q-keccak`** | Keccak-f / sponge building blocks |
+| **`lib-q-k12`** | KangarooTwelve (K12) |
+| **`lib-q-sha3`** | SHA-3 / SHAKE / cSHAKE core |
+| **`lib-q-keccak-digest`** | Digest adapter over Keccak |
+| **`lib-q-kem`** | KEM façade (ML-KEM, CB-KEM, HQC integration) |
+| **`lib-q-ml-kem`** | ML-KEM (FIPS 203) |
+| **`lib-q-ml-dsa`** | ML-DSA (FIPS 204) |
+| **`lib-q-ring`** | Negacyclic ring / NTT layer for ML-DSA |
+| **`lib-q-sca-test`** | Statistical side-channel harness (TVLA-style) |
+| **`lib-q-lattice-zkp`** | Module-lattice commitments / sigma research |
+| **`lib-q-ring-sig`** | Ring-style openings / DualRing pilots |
+| **`lib-q-prf`** | Legendre / Gold PRF building blocks |
+| **`lib-q-platform`** | Platform helpers |
+| **`lib-q-intrinsics`** | SIMD / intrinsics helpers |
+| **`lib-q-sig`** | Signature façade (ML-DSA, SLH-DSA) |
+| **`lib-q-hash`** | Hash façade (SHAKE, KMAC, TupleHash, etc.) |
+| **`lib-q-aead`** | AEAD façade (Saturnin, Romulus, duplex, tweak) |
+| **`lib-q-saturnin`** | Saturnin suite |
+| **`lib-q-duplex-aead`** | Duplex-sponge AEAD |
+| **`lib-q-tweak-aead`** | Tweakable CTR AEAD over Keccak |
+| **`lib-q-romulus`** | Romulus AEAD (Skinny-based) |
+| **`lib-q-hpke`** | HPKE (RFC 9180) |
+| **`lib-q-utils`** | Shared utilities |
+| **`lib-q-zkp`** | ZKP public API (STARK-backed) |
+| **`lib-q-fn-dsa`** | FN-DSA (FIPS 206) |
+| **`lib-q-slh-dsa`** | SLH-DSA (FIPS 205) |
+| **`lib-q-cb-kem`** | Classic McEliece–family CB-KEM |
+| **`lib-q-random`** | Randomness / entropy helpers |
+| **`lib-q-hqc`** | HQC KEM |
+| **`lib-q-hqc-traits`** | HQC shared traits (`lib-q-hqc/traits`) |
+| **`lib-q-stark`** | STARK prover stack (top-level) |
+| **`lib-q-stark-air`** | AIR definitions |
+| **`lib-q-stark-challenger`** | Fiat–Shamir challenger |
+| **`lib-q-stark-commit`** | Commitment layer |
+| **`lib-q-stark-dft`** | DFT / NTT for STARKs |
+| **`lib-q-stark-field`** | Field arithmetic |
+| **`lib-q-stark-field-testing`** | Field test helpers |
+| **`lib-q-stark-fri`** | FRI |
+| **`lib-q-stark-interpolation`** | Interpolation |
+| **`lib-q-stark-matrix`** | Matrix ops |
+| **`lib-q-stark-mds`** | MDS layer |
+| **`lib-q-stark-merkle`** | Merkle trees |
+| **`lib-q-stark-mersenne31`** | Mersenne-31 field |
+| **`lib-q-stark-monty31`** | Monty-31 field |
+| **`lib-q-stark-rayon`** | Optional Rayon parallelism |
+| **`lib-q-stark-symmetric`** | Symmetric primitives for STARKs |
+| **`lib-q-stark-util`** | STARK utilities |
+| **`lib-q-stark-shake256`** | SHAKE256 bindings |
+| **`lib-q-stark-shake128`** | SHAKE128 bindings |
+| **`lib-q-stark-sha3-256`** | SHA3-256 bindings |
+| **`lib-q-poseidon`** | Poseidon permutation |
+| **`lib-q-plonky-multilinear-util`** | Plonky3 multilinear utilities |
+| **`lib-q-plonky-keccak-air`** | Keccak AIR |
+| **`lib-q-plonky-lookup`** | Lookup argument support |
+| **`lib-q-plonky-uni-stark`** | Univariate STARK |
+| **`lib-q-plonky-batch-stark`** | Batch STARK |
+| **`lib-q-plonky`** | Plonky3-derived integration |
 
 ### npm packages (npmjs.com)
 
-- **`@lib-q/core`** - Complete library for Node.js
-- **`@lib-q/kem`** - KEM-only package
-- **`@lib-q/sig`** - Signature-only package
-- **`@lib-q/fn-dsa`** - FN-DSA signature-only package
-- **`@lib-q/hash`** - Hash-only package
-- **`@lib-q/utils`** - Utilities-only package
+These packages are built with `wasm-pack` in CD and correspond to stable JS entry points; other crates are **Rust-only** on crates.io but still participate in the workspace wasm compile gate.
+
+- **`@lib-q/core`** — Umbrella WASM bundle (all algorithms path used in CD)
+- **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
+- **`@lib-q/kem`** — Post-quantum KEM façade
+- **`@lib-q/sig`** — Post-quantum signatures (ML-DSA path in CD)
+- **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206)
+- **`@lib-q/hash`** — SHA-3–family hash façade
+- **`@lib-q/utils`** — Utilities
 
 ## Installation
 
@@ -82,6 +140,9 @@ npm install @lib-q/core
 
 ### Node.js (Individual Packages)
 ```bash
+# For ML-KEM only
+npm install @lib-q/ml-kem
+
 # For KEM operations only
 npm install @lib-q/kem
 
@@ -138,7 +199,11 @@ lib-Q/   (repository root)
 ├── lib-q-core/         # Types, traits, provider surface, validation
 ├── lib-q-kem/          # KEM façade and integrations
 ├── lib-q-ml-kem/, lib-q-cb-kem/, lib-q-hqc/  # Concrete KEM implementations
+├── lib-q-ring/         # ML-DSA field / NTT shared layer
+├── lib-q-prf/, lib-q-ring-sig/  # PRF pilots + lattice-backed ring-style openings (research)
 ├── lib-q-sig/, lib-q-ml-dsa/, lib-q-slh-dsa/, lib-q-fn-dsa/
+├── lib-q-lattice-zkp/  # Module-lattice ZKP research (sigma, commitments)
+├── lib-q-sca-test/     # SCA screening tooling
 ├── lib-q-hash/, lib-q-sha3/, lib-q-keccak/, lib-q-k12/
 ├── lib-q-aead/, lib-q-saturnin/
 ├── lib-q-hpke/
@@ -147,11 +212,12 @@ lib-Q/   (repository root)
 └── examples/
 ```
 
-For a full member list, see the `[workspace].members` table in [Cargo.toml](Cargo.toml).
+The table above is the authoritative crate list; the `[workspace].members` table in [Cargo.toml](Cargo.toml) is the same set plus the non-published `examples` member.
 
 ## Security model
 
-- **Post-quantum only**: No reliance on classical public-key or symmetric primitives outside the stated SHA-3 family and PQC standards.
+- **Post-quantum asymmetric**: No classical public-key schemes (RSA, ECC, etc.) for those roles; asymmetric modules track NIST PQC (see [SECURITY.md](SECURITY.md)).
+- **Hashes / XOFs**: Cryptographic design targets the SHA-3 family; symmetric constructions center on Saturnin and SHAKE-based options as documented per crate.
 - **Constant-time intent**: Critical paths are written for constant-time behavior; full guarantees require platform-specific review and tooling (see [ROADMAP.md](ROADMAP.md)).
 - **Secure memory**: Sensitive buffers use explicit zeroization where the type system allows.
 - **Side-channel awareness**: Design and review target timing and cache behavior; formal side-channel certification is not yet claimed.
@@ -171,6 +237,9 @@ For a full member list, see the `[workspace].members` table in [Cargo.toml](Carg
 - **HPKE** (RFC 9180) with post-quantum KEM and AEAD options
 - **Hash and XOF suite** (SHA-3 family, including SHAKE and cSHAKE, as exposed by workspace crates)
 - **ZKP / STARK stack** (`lib-q-zkp` and supporting `lib-q-stark*` / `lib-q-plonky*` crates)
+- **Lattice infrastructure** (`lib-q-ring` for ML-DSA field arithmetic; `lib-q-lattice-zkp` for research-grade module-lattice proofs, separate from STARKs)
+- **PRF and ring-style opening pilots** (`lib-q-prf`, `lib-q-ring-sig`; research crates layered on lattice commitments—see per-crate READMEs)
+- **Side-channel tooling** (`lib-q-sca-test` for statistical leakage screening, not a certification claim)
 - **WASM** build paths for core scenarios (see CI and scripts referenced in the [no_std and WASM](#no_std-embedded-and-webassembly) section)
 - **Engineering**: consistent error types, security validation utilities, and GitHub Actions for build, test, coverage, and security checks
 
@@ -202,7 +271,7 @@ The second command includes end-to-end tests that rely on implicit RNG wiring (`
 - [ROADMAP](ROADMAP.md)
 - [Security policy](SECURITY.md)
 - [Security model (technical)](docs/security.md)
-- [ZKP Implementation and Library Layout](docs/zkp-implementation.md)
+- [ZKP Implementation and Library Layout](docs/zkp-implementation.md) (includes STARK stack and `lib-q-lattice-zkp`)
 - [API Design](docs/api-design.md)
 - [HPKE Architecture](docs/hpke-architecture.md)
 - [Memory Architecture](docs/memory-architecture.md)

@@ -23,3 +23,5 @@ let pt = aead.decrypt(&key, &nonce, &ct, Some(b"ad")).unwrap();
 ## Security
 
 Uses the SHA-3 permutation only (no AES/ChaCha). The **mode** is custom; review before production use.
+
+Part of the [lib-Q workspace](../README.md); pairs with `lib-q-core` AEAD traits.

@@ -114,7 +114,7 @@ if [[ -n "$CRATE" ]]; then
     else
       # Default portable gate: match ci.yml feature matrix so ACVP/FIPS/hardened tests run
       # (they are not enabled by crate default-features alone).
-      CMD="$CMD --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
+      CMD="$CMD --features std,random,acvp,fips-mode,hardened,mldsa44,mldsa65,mldsa87"
     fi
   elif [[ "$CRATE" == "lib-q-intrinsics" ]]; then
     # Enable SIMD feature gates so platform helpers and arch-specific modules are built.
@@ -169,6 +169,17 @@ if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\simd\\avx2\\*'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs'"
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
+fi
+
+# lib-q-zkp: recursive verifier internals are experimental and currently covered by dedicated
+# long-running integration suites. Exclude them from the default crate gate so coverage tracks
+# the stable high-level API and production paths.
+if [[ "$CRATE" == "lib-q-zkp" ]]; then
+  CMD="$CMD --exclude-files 'lib-q-zkp/src/aggregation.rs'"
+  CMD="$CMD --exclude-files 'lib-q-zkp/src/air/stark_verifier.rs'"
+  CMD="$CMD --exclude-files 'lib-q-zkp/src/air/fri_verifier.rs'"
+  CMD="$CMD --exclude-files 'lib-q-zkp/src/air/commitment_verifier.rs'"
+  CMD="$CMD --exclude-files 'lib-q-zkp/src/air/constraint_verifier.rs'"
 fi
 
 # lib-q-intrinsics: only one of avx2.rs / arm64.rs is compiled per target; drop the other from

@@ -15,6 +15,7 @@ use crate::crypto::{
     PrfOutput,
     XOF,
 };
+#[cfg(not(feature = "hardened"))]
 use crate::encode::Encode;
 use crate::param::{
     ArraySize,
@@ -75,6 +76,54 @@ impl FieldElement {
         let c0 = Self::barrett_reduce(a0 * b0 + a1 * b1g);
         let c1 = Self::barrett_reduce(a0 * b1 + a1 * b0);
         (Self(c0), Self(c1))
+    }
+
+    /// Reduce `v` into the prime field (used by hardened-path RNG plumbing).
+    #[cfg(feature = "hardened")]
+    #[allow(clippy::integer_division_remainder_used)]
+    pub(crate) fn from_u16_reduced(v: u16) -> Self {
+        Self(v % Self::Q)
+    }
+
+    /// Modular inverse mod `Q` (3329). Returns `None` if `self == 0`.
+    #[cfg(feature = "hardened")]
+    pub(crate) fn inv(self) -> Option<Self> {
+        if self.0 == 0 {
+            return None;
+        }
+        Some(self.pow_mod_u32(u32::from(Self::Q) - 2))
+    }
+
+    #[cfg(feature = "hardened")]
+    fn pow_mod_u32(self, mut e: u32) -> Self {
+        let mut acc = Self(1);
+        let mut base = self;
+        while e > 0 {
+            if e & 1 != 0 {
+                acc = acc * base;
+            }
+            base = base * base;
+            e >>= 1;
+        }
+        acc
+    }
+
+    /// Sample a uniform non-zero element from `Z_q` using `rng` (rejection sampling).
+    ///
+    /// Used by hardened NTT blinding and masked dot-product paths. Placing this on `FieldElement`
+    /// avoids both a circular import (masking → algebra) and a duplicate free function in each
+    /// call site.
+    #[cfg(feature = "hardened")]
+    #[allow(clippy::integer_division_remainder_used)]
+    pub(crate) fn random_nonzero<R: rand_core::Rng>(rng: &mut R) -> Self {
+        let mut buf = [0u8; 2];
+        loop {
+            rng.fill_bytes(&mut buf);
+            let fe = Self::from_u16_reduced(u16::from_le_bytes(buf));
+            if fe.0 != 0 {
+                return fe;
+            }
+        }
     }
 }
 
@@ -151,12 +200,22 @@ impl Polynomial {
     // To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
     // ByteDecode.  We decode the PRF output into integers with eta bits, then use
     // `count_ones` to perform the summation described in the algorithm.
+    #[cfg(not(feature = "hardened"))]
     pub fn sample_cbd<Eta>(B: &PrfOutput<Eta>) -> Self
     where
         Eta: CbdSamplingSize,
     {
         let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
         Self(vals.0.iter().map(|val| Eta::ONES[val.0 as usize]).collect())
+    }
+
+    /// Hardened build uses constant-time table lookup for `Eta::ONES` (feature `hardened`).
+    #[cfg(feature = "hardened")]
+    pub fn sample_cbd<Eta>(B: &PrfOutput<Eta>) -> Self
+    where
+        Eta: CbdSamplingSize,
+    {
+        crate::masking::sample_poly_cbd_ct::<Eta>(B)
     }
 }
 
@@ -380,12 +439,23 @@ impl From<NttPolynomial> for Array<FieldElement, U256> {
     }
 }
 
+/// Wraps `crate::hardened_rng::shuffle_indices` for a fixed-size `[usize; 128]` scratch buffer.
+///
+/// Each NTT layer shuffles up to 128 independent butterfly pairs. We pass a `&mut [usize]`
+/// slice of the active length so the Fisher-Yates implementation stays in one place.
+#[cfg(feature = "hardened")]
+fn ntt_shuffle_layer<R: rand_core::Rng>(rng: &mut R, scratch: &mut [usize; 128], len: usize) {
+    crate::hardened_rng::shuffle_indices(rng, len, &mut scratch[..len]);
+}
+
 // Algorithm 8. NTT
 impl Polynomial {
+    #[allow(clippy::many_single_char_names)]
     pub fn ntt(&self) -> NttPolynomial {
         let mut k = 1;
 
         let mut f = self.0;
+        #[cfg(not(feature = "hardened"))]
         for len in [128, 64, 32, 16, 8, 4, 2] {
             for start in (0..256).step_by(2 * len) {
                 let zeta = ZETA_POW_BITREV[k];
@@ -398,6 +468,36 @@ impl Polynomial {
                 }
             }
         }
+        #[cfg(feature = "hardened")]
+        {
+            #[allow(clippy::needless_range_loop)]
+            {
+                let mut rng = crate::hardened_rng::OsRngFill;
+                let r = FieldElement::random_nonzero(&mut rng);
+                let r_inv = r.inv().expect("random_nonzero returns nonzero element");
+                for x in &mut f {
+                    *x = *x * r;
+                }
+                let mut scratch = [0usize; 128];
+                for len in [128, 64, 32, 16, 8, 4, 2] {
+                    for start in (0..256).step_by(2 * len) {
+                        let zeta = ZETA_POW_BITREV[k];
+                        k += 1;
+                        ntt_shuffle_layer(&mut rng, &mut scratch, len);
+                        for ii in 0..len {
+                            let o = scratch[ii];
+                            let j = start + o;
+                            let t = zeta * f[j + len];
+                            f[j + len] = f[j] - t;
+                            f[j] = f[j] + t;
+                        }
+                    }
+                }
+                for x in &mut f {
+                    *x = *x * r_inv;
+                }
+            }
+        }
 
         f.into()
     }
@@ -405,24 +505,56 @@ impl Polynomial {
 
 // Algorithm 9. NTT^{-1}
 impl NttPolynomial {
+    #[allow(clippy::many_single_char_names)]
     pub fn ntt_inverse(&self) -> Polynomial {
         let mut f: Array<FieldElement, U256> = self.0.clone();
 
         let mut k = 127;
-        for len in [2, 4, 8, 16, 32, 64, 128] {
-            for start in (0..256).step_by(2 * len) {
-                let zeta = ZETA_POW_BITREV[k];
-                k -= 1;
+        #[cfg(not(feature = "hardened"))]
+        {
+            for len in [2, 4, 8, 16, 32, 64, 128] {
+                for start in (0..256).step_by(2 * len) {
+                    let zeta = ZETA_POW_BITREV[k];
+                    k -= 1;
 
-                for j in start..(start + len) {
-                    let t = f[j];
-                    f[j] = t + f[j + len];
-                    f[j + len] = zeta * (f[j + len] - t);
+                    for j in start..(start + len) {
+                        let t = f[j];
+                        f[j] = t + f[j + len];
+                        f[j + len] = zeta * (f[j + len] - t);
+                    }
                 }
             }
+            FieldElement(3303) * &Polynomial(f)
         }
-
-        FieldElement(3303) * &Polynomial(f)
+        #[cfg(feature = "hardened")]
+        {
+            #[allow(clippy::needless_range_loop)]
+            {
+                let mut rng = crate::hardened_rng::OsRngFill;
+                let r = FieldElement::random_nonzero(&mut rng);
+                let r_inv = r.inv().expect("random_nonzero returns nonzero element");
+                for x in &mut f {
+                    *x = *x * r;
+                }
+                let mut scratch = [0usize; 128];
+                for len in [2, 4, 8, 16, 32, 64, 128] {
+                    for start in (0..256).step_by(2 * len) {
+                        let zeta = ZETA_POW_BITREV[k];
+                        k -= 1;
+                        ntt_shuffle_layer(&mut rng, &mut scratch, len);
+                        for ii in 0..len {
+                            let o = scratch[ii];
+                            let j = start + o;
+                            let t = f[j];
+                            f[j] = t + f[j + len];
+                            f[j + len] = zeta * (f[j + len] - t);
+                        }
+                    }
+                }
+                let poly = FieldElement(3303) * &Polynomial(f);
+                r_inv * &poly
+            }
+        }
     }
 }
 
@@ -510,6 +642,13 @@ impl<K: ArraySize> NttMatrix<K> {
         }))
     }
 
+    #[cfg(feature = "hardened")]
+    #[allow(clippy::inline_always)]
+    #[inline(always)]
+    pub(crate) fn row(&self, i: usize) -> &NttVector<K> {
+        &self.0[i]
+    }
+
     pub fn transpose(&self) -> Self {
         Self(Array::from_fn(|i| {
             NttVector(Array::from_fn(|j| self.0[j].0[i].clone()))
@@ -590,6 +729,26 @@ mod test {
         let f_hat_g_hat = &f_hat * &g_hat;
         let fg_unhat = f_hat_g_hat.ntt_inverse();
         assert_eq!(fg, fg_unhat);
+    }
+
+    /// Kyber NTT is \\(\\mathbb{Z}_q\\)-linear; a global coefficient scaling commutes with the
+    /// transform. This property underpins multiplicative twiddle pre/post scaling strategies.
+    #[test]
+    #[cfg(feature = "hardened")]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::integer_division_remainder_used
+    )]
+    fn ntt_scalar_linearity() {
+        let f = Polynomial(Array::from_fn(|i| {
+            FieldElement(((i as u32 * 7) % u32::from(FieldElement::Q)) as u16)
+        }));
+        let s = FieldElement(13);
+        let scaled = s * &f;
+        let left = scaled.ntt();
+        let f_hat = f.ntt();
+        let right = NttPolynomial(f_hat.0.iter().map(|&c| c * s).collect());
+        assert_eq!(left, right);
     }
 
     #[test]

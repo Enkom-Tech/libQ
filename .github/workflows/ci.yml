@@ -31,10 +31,18 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Setup Node.js (npm guards)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       
       - name: Generate cache key
         id: cache-key
         run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+      - name: Guard workspace membership, crates.io publish list, and npm packages
+        run: bash ./scripts/ci-guard-new-crates-and-npm.sh
       
       - name: Core validation
         uses: ./.github/actions/rust-build
@@ -93,7 +101,7 @@ jobs:
             features: "std,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-hardened"
-            features: "std,hardened-mode,mldsa44,mldsa65,mldsa87,zeroize,constant-time"
+            features: "std,hardened,mldsa44,mldsa65,mldsa87"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-cross-mode"
             features: "std,random,acvp,mldsa44,mldsa65,mldsa87"
@@ -119,6 +127,24 @@ jobs:
           - name: "lib-q-stark-dft parallel"
             features: "alloc,parallel"
             package: "lib-q-stark-dft"
+          - name: "lib-q-ring"
+            features: "alloc"
+            package: "lib-q-ring"
+          - name: "lib-q-lattice-zkp"
+            features: "alloc"
+            package: "lib-q-lattice-zkp"
+          - name: "lib-q-prf"
+            features: "alloc"
+            package: "lib-q-prf"
+          - name: "lib-q-ring-sig dualring-prf"
+            features: "dualring-prf"
+            package: "lib-q-ring-sig"
+          - name: "lib-q-ring-sig default"
+            features: ""
+            package: "lib-q-ring-sig"
+          - name: "lib-q privacy_protocol_integration_tests"
+            features: ""
+            package: "lib-q"
     
     steps:
       - uses: actions/checkout@v5
@@ -189,6 +215,21 @@ jobs:
           - working-directory: "lib-q-romulus"
             features: ""
             check-only: "true"
+          - working-directory: "lib-q-prf"
+            features: ""
+            check-only: "true"
+          - working-directory: "lib-q-lattice-zkp"
+            features: ""
+            check-only: "true"
+          - working-directory: "lib-q-ring-sig"
+            features: ""
+            check-only: "true"
+          - working-directory: "lib-q-sca-test"
+            features: ""
+            check-only: "true"
+          - working-directory: "lib-q-plonky"
+            features: ""
+            check-only: "true"
     
     steps:
       - uses: actions/checkout@v5
@@ -200,6 +241,27 @@ jobs:
           features: ${{ matrix.features }}
           targets: "web,nodejs"
           check-only: ${{ matrix.check-only }}
+
+  # Full workspace wasm32 compile (default features; excludes examples crate).
+  wasm-workspace-gate:
+    name: WASM workspace gate (wasm32-unknown-unknown)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: cargo check --workspace (wasm32)
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo check --workspace --exclude lib-q-examples --target wasm32-unknown-unknown
 
   # Romulus: pure no_std crypto core + registry wiring without forcing lib-q-romulus/std
   romulus-no-std-wasm:
@@ -270,6 +332,11 @@ jobs:
           cargo check -p lib-q-k12
           cargo check -p lib-q-k12 --no-default-features --target wasm32-unknown-unknown
           cargo check -p lib-q-k12 --target wasm32-unknown-unknown
+
+      - name: lib-q-ring + lib-q-lattice-zkp (alloc, thumbv7em)
+        run: |
+          cargo check -p lib-q-ring --no-default-features --features alloc --target thumbv7em-none-eabi
+          cargo check -p lib-q-lattice-zkp --no-default-features --features alloc --target thumbv7em-none-eabi
 
   # Cross-platform builds - parallel execution
   cross-platform:
@@ -825,8 +892,10 @@ jobs:
             --test interoperability_tests --test wire_format_tests
           cargo test --features "random,mldsa44" \
             --test interoperability_tests --test wire_format_tests
-          cargo test --features "hardened-mode,mldsa44" \
+          cargo test --features "hardened,mldsa44" \
             --test interoperability_tests --test wire_format_tests
+          cargo test -p lib-q-ml-dsa --features "hardened,random,mldsa44" --lib --verbose
+          cargo test --features "hardened,random,mldsa44,mldsa65,mldsa87" --test nistkats --verbose
           cargo test --test wire_format_tests test_against_saved_interop_vectors
 
       # Push / schedule / manual: full script (tests, clippy, audit from workspace root, etc.).
@@ -867,6 +936,24 @@ jobs:
         run: |
           cd lib-q-ml-kem
           cargo test --verbose
+
+      - name: Test ML-KEM hardened (lib KATs / unit)
+        run: |
+          cd lib-q-ml-kem
+          cargo test --features "hardened,random" --lib --verbose
+
+      - name: Test ML-KEM ACVP vectors (hardened + deterministic)
+        run: |
+          cd lib-q-ml-kem
+          cargo test --features "hardened,random,deterministic" --test key-gen --test encap-decap --verbose
+
+      - name: Test ML-DSA NIST KATs (hardened, all parameter sets)
+        run: |
+          cd lib-q-ml-dsa
+          cargo test --features "hardened,random,mldsa44,mldsa65,mldsa87" --test nistkats --verbose
+
+      - name: SCA test harness crate
+        run: cargo test -p lib-q-sca-test --verbose
       
       - name: Test ML-KEM integration
         run: |
@@ -952,7 +1039,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, wasm-workspace-gate, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -964,6 +1051,7 @@ jobs:
           # Check if any required jobs failed
           if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.wasm-workspace-gate.result }}" == "failure" ]] || \
              [[ "${{ needs.romulus-no-std-wasm.result }}" == "failure" ]] || \
              [[ "${{ needs.ml-dsa-compliance.result }}" == "failure" ]] || \
              [[ "${{ needs.constant-time.result }}" == "failure" ]] || \

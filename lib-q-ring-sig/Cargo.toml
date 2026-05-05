@@ -1,0 +1,38 @@
+[package]
+name = "lib-q-ring-sig"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+description = "Federation-style ring openings over Ajtai commitments (DualRing-LB-oriented scaffolding)"
+keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true, default-features = false }
+crypto-bigint = { workspace = true, optional = true, default-features = false, features = ["zeroize"] }
+subtle = { workspace = true, default-features = false }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+rand_chacha = { version = "0.10", default-features = false, features = ["std"] }
+
+[features]
+default = []
+dualring-prf = ["dep:lib-q-prf", "dep:crypto-bigint"]
+federation-opening = []
+
+[[test]]
+name = "dualring_prf_tests"
+path = "tests/dualring_prf_tests.rs"
+required-features = ["dualring-prf"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(ring_sig_docs)',
+    'cfg(feature, values("dualring-prf", "federation-opening"))',
+] }

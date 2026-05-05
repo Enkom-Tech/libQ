@@ -17,6 +17,7 @@ rust-version.workspace = true
 bench = false
 
 [dependencies]
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.2" }
 lib-q-platform = { path = "../lib-q-platform", version = "0.0.2" }
@@ -26,6 +27,7 @@ hax-lib.workspace = true
 hex = { workspace = true }
 zeroize = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
@@ -58,9 +60,9 @@ nist-drbg = ["random", "lib-q-random/nist-drbg"]  # NIST SP 800-90A DRBG for KAT
 
 # Security hardening
 fips-mode = []                                      # Strict FIPS 204 compliance, minimal overhead
-hardened-mode = ["random", "zeroize", "constant-time"]  # Enhanced security features
+# Atomic gate: RNG + zeroize + subtle + masked/constant-time signing paths. Do not enable piecemeal.
+hardened = ["random", "zeroize", "dep:subtle", "dep:getrandom"]
 zeroize = ["dep:zeroize"]                           # Automatic zeroization of sensitive material
-constant-time = ["dep:subtle"]                      # Constant-time operations where possible
 
 # Testing and validation
 acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing

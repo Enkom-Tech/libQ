@@ -576,6 +576,49 @@ pub(super) fn compute_hint(
 // - α/2 ≤ r₀ < 0.
 //
 // Note that 0 ≤ r₁ < (q-1)/α.
+//
+/// GHSA-hcp2-x6j4-29j7: `Decompose` must not branch on secret intermediates. The legacy
+/// portable path already avoids secret-dependent control flow; under `hardened` we express
+/// the two high-`r₁` corner normalisations with `subtle` so the implementation matches the
+/// audited AVX2 compare-and-mask style and does not rely on shift/xor idioms for equality tests.
+#[cfg(feature = "hardened")]
+#[inline(always)]
+fn decompose_element_subtle(gamma2: Gamma2, mut r: i32) -> (i32, i32) {
+    use subtle::{
+        ConditionallySelectable,
+        ConstantTimeEq,
+    };
+
+    r += (r >> 31) & FIELD_MODULUS;
+
+    let ceil_of_r_by_128 = (r + 127) >> 7;
+
+    let r1 = match gamma2 {
+        GAMMA2_V95_232 => {
+            let result = ((ceil_of_r_by_128 * 11_275) + (1 << 23)) >> 24;
+            i32::conditional_select(&result, &0i32, result.ct_eq(&44i32))
+        }
+        GAMMA2_V261_888 => {
+            let result = (ceil_of_r_by_128 * 1025 + (1 << 21)) >> 22;
+            i32::conditional_select(&(result & 15i32), &0i32, result.ct_eq(&16i32))
+        }
+        _ => unreachable!(),
+    };
+
+    let alpha = gamma2 * 2;
+    let mut r0 = r - (r1 * alpha);
+    r0 -= (((FIELD_MODULUS - 1) / 2 - r0) >> 31) & FIELD_MODULUS;
+
+    (r0, r1)
+}
+
+#[cfg(feature = "hardened")]
+#[inline(always)]
+fn decompose_element(gamma2: Gamma2, r: i32) -> (i32, i32) {
+    decompose_element_subtle(gamma2, r)
+}
+
+#[cfg(not(feature = "hardened"))]
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options(
@@ -702,6 +745,7 @@ fn decompose_element(gamma2: Gamma2, r: i32) -> (i32, i32) {
 #[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--ext context_pruning --z3refresh --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[cfg(not(feature = "hardened"))]
 #[hax_lib::requires(fstar!(r#"(v $gamma2 == v $GAMMA2_V261_888 \/ v $gamma2 == v $GAMMA2_V95_232) /\
     Spec.Utils.is_i32b (v $FIELD_MODULUS - 1) $r /\
     (v $hint == 0 \/ v $hint == 1)"#))]
@@ -738,6 +782,46 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
 
         _ => unreachable!(),
     }
+}
+
+/// Constant-time variant (GHSA-hcp2-x6j4-29j7 style branching elimination) for feature `hardened`.
+#[cfg(feature = "hardened")]
+pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
+    use subtle::{
+        Choice,
+        ConditionallySelectable,
+        ConstantTimeEq,
+    };
+
+    #[inline(always)]
+    fn ct_i32_gt(a: i32, b: i32) -> Choice {
+        let x = a.wrapping_sub(b);
+        let sign_bit = ((x >> 31) as u8) & 1;
+        let nonzero = !x.ct_eq(&0);
+        let positive = !Choice::from(sign_bit);
+        nonzero & positive
+    }
+
+    let (r0, r1) = decompose_element(gamma2, r);
+    let h0 = hint.ct_eq(&0i32);
+    let res_nonzero_hint = match gamma2 {
+        GAMMA2_V95_232 => {
+            let a = ct_i32_gt(r0, 0);
+            let r1_eq_43 = r1.ct_eq(&43);
+            let r1_eq_0 = r1.ct_eq(&0);
+            let branch_pos = i32::conditional_select(&(r1.wrapping_add(hint)), &0i32, r1_eq_43);
+            let branch_neg = i32::conditional_select(&(r1.wrapping_sub(hint)), &43i32, r1_eq_0);
+            i32::conditional_select(&branch_neg, &branch_pos, a)
+        }
+        GAMMA2_V261_888 => {
+            let a = ct_i32_gt(r0, 0);
+            let tp = (r1.wrapping_add(hint)) & 15;
+            let tm = (r1.wrapping_sub(hint)) & 15;
+            i32::conditional_select(&tm, &tp, a)
+        }
+        _ => unreachable!(),
+    };
+    i32::conditional_select(&res_nonzero_hint, &r1, h0)
 }
 
 #[cfg_attr(tarpaulin, inline(never))]
@@ -922,5 +1006,39 @@ mod tests {
         let _ = use_one_hint(GAMMA2_V261_888, 100, 1);
         let _ = use_one_hint(GAMMA2_V261_888, -50, 1);
         let _ = use_one_hint(GAMMA2_V261_888, 4_000_000, 0);
+    }
+
+    /// Portable `Decompose` under `hardened` must stay bit-identical to the legacy branchless
+    /// formulation (AVX2 already used compare-and-mask for the same corner cases).
+    #[cfg(feature = "hardened")]
+    #[test]
+    fn decompose_subtle_matches_legacy_formulas() {
+        fn reference_decompose_element(gamma2: Gamma2, mut r: i32) -> (i32, i32) {
+            r += (r >> 31) & FIELD_MODULUS;
+            let ceil_of_r_by_128 = (r + 127) >> 7;
+            let r1 = match gamma2 {
+                GAMMA2_V95_232 => {
+                    let result = ((ceil_of_r_by_128 * 11_275) + (1 << 23)) >> 24;
+                    (result ^ (43 - result) >> 31) & result
+                }
+                GAMMA2_V261_888 => {
+                    let result = (ceil_of_r_by_128 * 1025 + (1 << 21)) >> 22;
+                    result & 15
+                }
+                _ => unreachable!(),
+            };
+            let alpha = gamma2 * 2;
+            let mut r0 = r - (r1 * alpha);
+            r0 -= (((FIELD_MODULUS - 1) / 2 - r0) >> 31) & FIELD_MODULUS;
+            (r0, r1)
+        }
+
+        for gamma2 in [GAMMA2_V95_232, GAMMA2_V261_888] {
+            for r in 0..FIELD_MODULUS {
+                let got = decompose_element(gamma2, r);
+                let want = reference_decompose_element(gamma2, r);
+                assert_eq!(got, want, "gamma2={gamma2:?} r={r}");
+            }
+        }
     }
 }

@@ -1,0 +1,31 @@
+[package]
+name = "lib-q-prf-fuzz"
+version = "0.0.2"
+edition = "2024"
+rust-version = "1.94.1"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+lib-q-prf = { path = "..", default-features = false }
+libfuzzer-sys = "0.4.12"
+
+[[bin]]
+name = "legendre_prf_u256"
+path = "fuzz_targets/legendre_prf_u256.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "gold_prf_u256"
+path = "fuzz_targets/gold_prf_u256.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
+resolver = "3"

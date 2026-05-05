@@ -11,7 +11,7 @@ lib-q-hpke
 ├── PostQuantumProvider
 │   ├── KEM: ML-KEM-512, ML-KEM-768, ML-KEM-1024
 │   ├── KDF: HKDF-SHAKE128, HKDF-SHAKE256, HKDF-SHA3-256, HKDF-SHA3-512
-│   └── AEAD: Saturnin-256, SHAKE256, Export-only
+│   └── AEAD: Saturnin-256, SHAKE256, duplex-sponge AEAD, Export-only
 ├── Security Layer
 │   ├── Side-channel protection
 │   ├── Memory safety
@@ -26,9 +26,9 @@ lib-q-hpke
 
 The implementation supports different security levels through algorithm selection:
 
-- **Level 1 Security**: ML-KEM-512 (AES-128 equivalent)
-- **Level 3 Security**: ML-KEM-768 (AES-192 equivalent)  
-- **Level 5 Security**: ML-KEM-1024 (AES-256 equivalent)
+- **Level 1 (NIST category 1)**: ML-KEM-512 — FIPS 203 parameter set ML-KEM-512
+- **Level 3 (NIST category 3)**: ML-KEM-768 — FIPS 203 parameter set ML-KEM-768
+- **Level 5 (NIST category 5)**: ML-KEM-1024 — FIPS 203 parameter set ML-KEM-1024
 
 ## Core Components
 
@@ -143,71 +143,15 @@ Sender authentication using asymmetric keys. Implements AuthEncap/AuthDecap for 
 ### AuthPSK Mode
 Combined PSK and sender authentication. Provides maximum security with both shared secret and sender verification.
 
-### Authentication Implementation
+### Authentication implementation
 
-The HPKE authentication modes (Auth and AuthPSK) implement RFC 9180 compliant authentication using a second KEM operation. This provides cryptographic authentication of the sender's identity.
+Auth / AuthPSK modes follow **RFC 9180** key schedules and use the same ML-KEM KEM id (`HpkeKem`) as base mode, with sender key material mixed into the HPKE context (see `lib-q-hpke/src/hpke_core/` and `auth_mode_tests.rs`). The repository previously included illustrative pseudocode here that did not match the checked-in implementation; read the crate sources and RFC for precise encap/decap ordering.
 
-```rust
-/// Authenticated encapsulation (RFC 9180 AuthEncap)
-/// This performs a second KEM operation using the sender's secret key
-/// to authenticate the sender's identity to the recipient.
-fn auth_encapsulate(
-    &self,
-    kem: HpkeKem,
-    sender_sk: &[u8],
-    recipient_pk: &[u8],
-    rng: &mut dyn CryptoRng,
-) -> Result<(Vec<u8>, Vec<u8>), HpkeError> {
-    // 1. Perform standard encapsulation to recipient's public key
-    let (encapsulated_key, shared_secret) = self.encapsulate(kem, recipient_pk, rng)?;
-    
-    // 2. Perform second KEM operation for authentication
-    // This uses the sender's secret key to create an authentication proof
-    let (auth_encapsulated_key, auth_shared_secret) = self.encapsulate(kem, sender_pk, rng)?;
-    
-    // 3. Combine shared secrets using HKDF
-    let combined_shared_secret = self.combine_shared_secrets(
-        &shared_secret,
-        &auth_shared_secret,
-        b"HPKE Auth",
-    )?;
-    
-    Ok((encapsulated_key, combined_shared_secret))
-}
+**Key security properties (intent):**
 
-/// Authenticated decapsulation (RFC 9180 AuthDecap)
-/// This verifies the sender's authentication by performing the corresponding
-/// decapsulation operation using the sender's public key.
-fn auth_decapsulate(
-    &self,
-    kem: HpkeKem,
-    encapsulated_key: &[u8],
-    recipient_sk: &[u8],
-    sender_pk: &[u8],
-) -> Result<Vec<u8>, HpkeError> {
-    // 1. Perform standard decapsulation
-    let shared_secret = self.decapsulate(kem, encapsulated_key, recipient_sk)?;
-    
-    // 2. Perform authentication decapsulation using sender's public key
-    // This verifies that the sender possesses the corresponding secret key
-    let auth_shared_secret = self.auth_decapsulate_verify(kem, sender_pk)?;
-    
-    // 3. Combine shared secrets using HKDF
-    let combined_shared_secret = self.combine_shared_secrets(
-        &shared_secret,
-        &auth_shared_secret,
-        b"HPKE Auth",
-    )?;
-    
-    Ok(combined_shared_secret)
-}
-```
-
-**Key Security Properties:**
-- **Cryptographic Authentication**: Uses a second KEM operation to prove sender identity
-- **RFC 9180 Compliance**: Implements the standard HPKE authentication mechanism
-- **Forward Secrecy**: Authentication doesn't compromise forward secrecy
-- **Non-Repudiation**: Sender cannot deny sending the message
+- **Sender authentication (Auth modes)** — Recipient can cryptographically verify that the sender used the claimed KEM secret key material, per RFC 9180.
+- **RFC 9180 alignment** — Mode bits and suite IDs are exercised by `rfc9180_compliance_tests` and related tests in `lib-q-hpke/tests/`.
+- **Forward secrecy** — Still governed by the ephemeral KEM half of the HPKE key schedule; see RFC 9180 security analysis for your deployment profile.
 
 ## Security Guarantees
 
@@ -253,7 +197,7 @@ The HPKE implementation is designed to integrate seamlessly with the broader lib
 - **lib-q-aead**: Uses `create_aead()` for algorithm-agnostic authenticated encryption
 
 ### Algorithm Support
-- **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024, Saturnin-256, SHAKE256, SHA3
+- **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024; KDFs `HKDF-SHAKE128/256`, `HKDF-SHA3-256/512`; AEADs **Saturnin-256**, **SHAKE256**, **duplex-sponge AEAD**, **export-only** (see `lib-q-hpke/src/types.rs` `HpkeKdf` / `HpkeAead`)
 - **Future**: Additional post-quantum algorithms as they become available
 
 ## Usage Examples
@@ -272,11 +216,11 @@ use libq::LibQCryptoProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create HPKE context with the same provider used for key generation
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
     // Generate recipient key pair using the same provider
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
@@ -349,11 +293,11 @@ use lib_q_hpke::{HpkeContext, HpkeMode};
 use libq::LibQCryptoProvider;
 
 fn authenticated_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     
     // Generate key pairs for both sender and recipient
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let sender_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     
@@ -394,11 +338,11 @@ fn authenticated_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 fn psk_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     
     // Generate recipient key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -440,11 +384,11 @@ fn psk_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 fn export_only_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     
     // Generate key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -488,15 +432,17 @@ fn export_only_example() -> Result<(), Box<dyn std::error::Error>> {
 4. **Key Validation**: Always validate key material before use
 
 ```rust
-use lib_q_hpke::security::{SecureKey, validate_kem_key};
+use lib_q_hpke::security::{validate_kem_key, KeyType, SecureKey};
 
-// Secure key storage
-let mut secret_key = SecureKey::new(key_data);
-// Key automatically zeroized when dropped
+// Secure key storage (length must match `KeyType::expected_length()`)
+let secret_key = SecureKey::new(vec![1u8; 32], KeyType::AeadKey)?;
+// Key material is zeroized on drop (`memory_safety::SecureKey`)
 
-// Key validation
-validate_kem_key(HpkeKem::MlKem512, &public_key, false)?;
-validate_kem_key(HpkeKem::MlKem512, &secret_key.as_slice(), true)?;
+// KEM wire validation (inputs must match `HpkeKem::public_key_len` / `secret_key_len`)
+let pk = [0u8; 800]; // ML-KEM-512 public key length
+let sk = [1u8; 1632]; // ML-KEM-512 secret key length
+validate_kem_key(HpkeKem::MlKem512, &pk, false)?;
+validate_kem_key(HpkeKem::MlKem512, &sk, true)?;
 ```
 
 ### Context Management
@@ -506,15 +452,14 @@ validate_kem_key(HpkeKem::MlKem512, &secret_key.as_slice(), true)?;
 3. **Rekeying**: Implement proper rekeying when sequence numbers approach limits
 
 ```rust
-// Check context state
-if sender_ctx.state() == HpkeContextState::NeedsRekey {
-    // Rekey the context
+use lib_q_hpke::HpkeContextState;
+
+// `HpkeSenderContext` exposes `state` and `sequence_number` fields (see `lib-q-hpke/src/types.rs`)
+if sender_ctx.state == HpkeContextState::NeedsRekey {
     sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"new-session")?;
 }
-
-// Monitor sequence numbers
-if sender_ctx.sequence_number() > 1000000 {
-    // Consider rekeying for long sessions
+if sender_ctx.sequence_number > 1_000_000 {
+    // Application policy: consider rekeying long sessions
 }
 ```
 
@@ -559,4 +504,4 @@ for message in messages {
 
 ## API Documentation
 
-For detailed API reference, see [API_REFERENCE.md](lib-q-hpke/docs/API_REFERENCE.md).
+For detailed API reference, see [API_REFERENCE.md](../lib-q-hpke/docs/API_REFERENCE.md).

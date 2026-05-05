@@ -10,10 +10,10 @@ pub(crate) const COEFFICIENTS_IN_SIMD_UNIT: usize = 8;
 //COEFFICIENTS_IN_RING_ELEMENT / COEFFICIENTS_IN_SIMD_UNIT;
 pub(crate) const SIMD_UNITS_IN_RING_ELEMENT: usize = 32;
 
-pub const FIELD_MODULUS: i32 = 8_380_417;
-
-// FIELD_MODULUS^{-1} mod MONTGOMERY_R
-pub const INVERSE_OF_MODULUS_MOD_MONTGOMERY_R: u64 = 58_728_449;
+pub use lib_q_ring::constants::{
+    FIELD_MODULUS,
+    INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
+};
 
 /// If 'x' denotes a value of type `fe`, values having this type hold a
 /// representative y ≡ x·MONTGOMERY_R (mod FIELD_MODULUS).

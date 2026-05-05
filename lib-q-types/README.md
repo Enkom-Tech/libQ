@@ -5,7 +5,7 @@ Shared **algorithm identifiers** and **classification types** for the lib-Q work
 ## Contents
 
 - `Algorithm` — discriminant for all supported algorithms
-- `AlgorithmCategory` — KEM, signature, hash, AEAD
+- `AlgorithmCategory` — KEM, signature, hash, AEAD, privacy protocol (anonymous-credential / mix-layer IDs)
 - `SecurityLevel` — coarse security tier metadata
 
 ## `no_std`
@@ -38,3 +38,5 @@ Downstream crates that enable WASM on `lib-q-core` typically enable `lib-q-types
 ## Relationship to `lib-q-core`
 
 `lib-q-core` re-exports `Algorithm`, `AlgorithmCategory`, and `SecurityLevel` from this crate. Richer error types and context APIs remain in `lib-q-core` for now; a future pass may move a minimal shared error surface here if it stays free of heavy dependencies.
+
+Implementation crates (`lib-q-kem`, `lib-q-ml-dsa`, `lib-q-ring`, etc.) do **not** need to depend on `lib-q-types` unless they intentionally share these IDs without pulling in `lib-q-core`.

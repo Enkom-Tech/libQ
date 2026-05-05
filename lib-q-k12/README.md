@@ -23,6 +23,8 @@ KangarooTwelve applies a Sakura tree mode on top of TurboSHAKE. This crate expos
 - For **`core` only**, use `default-features = false` and `finalize_xof` / `finalize_xof_into` with a fixed-size buffer instead of `finalize_boxed`.
 - CI runs `cargo check` for this crate on `wasm32-unknown-unknown` and `thumbv7em-none-eabi` with and without default features.
 
+Integrated into [`lib-q-hash`](../lib-q-hash) for KangarooTwelve; see the [workspace README](../README.md) for the full dependency graph.
+
 ## Usage
 
 ### Basic hashing (KT128)

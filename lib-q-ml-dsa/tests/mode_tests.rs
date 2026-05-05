@@ -92,7 +92,7 @@ mod fips_mode_tests {
     }
 }
 
-#[cfg(feature = "hardened-mode")]
+#[cfg(feature = "hardened")]
 mod hardened_mode_tests {
     use super::*;
 
@@ -247,7 +247,7 @@ fn test_mode_compatibility() {
     // Test that both modes can verify each other's signatures
     // (This test only runs when both modes are available)
 
-    #[cfg(all(feature = "fips-mode", feature = "hardened-mode"))]
+    #[cfg(all(feature = "fips-mode", feature = "hardened"))]
     {
         let seed = [0x42; 32];
         let message = b"compatibility test message";
@@ -265,7 +265,7 @@ fn test_mode_compatibility() {
     }
 
     // If only one mode is available, just test basic functionality
-    #[cfg(not(all(feature = "fips-mode", feature = "hardened-mode")))]
+    #[cfg(not(all(feature = "fips-mode", feature = "hardened")))]
     {
         let seed = [0x42; 32];
         let keys = ml_dsa_44::generate_key_pair(seed);

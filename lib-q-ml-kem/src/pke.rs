@@ -45,6 +45,16 @@ where
     }
 }
 
+#[cfg(all(test, feature = "hardened"))]
+impl<P> DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    pub(crate) fn test_s_hat(&self) -> &crate::algebra::NttVector<P::K> {
+        &self.s_hat
+    }
+}
+
 impl<P> DecryptionKey<P>
 where
     P: PkeParams,
@@ -86,6 +96,12 @@ where
         v.decompress::<P::Dv>();
 
         let u_hat = u.ntt();
+        #[cfg(feature = "hardened")]
+        let sTu = {
+            let mut rng = crate::masking::OsRngFill;
+            crate::masking::ntt_vector_dot_masked(&self.s_hat, &u_hat, &mut rng).ntt_inverse()
+        };
+        #[cfg(not(feature = "hardened"))]
         let sTu = (&self.s_hat * &u_hat).ntt_inverse();
         let mut w = &v - &sTu;
         Encode::<U1>::encode(w.compress::<U1>())
@@ -129,12 +145,24 @@ where
 
         let A_hat_t = NttMatrix::<P::K>::sample_uniform(&self.rho, true);
         let r_hat: NttVector<P::K> = r.ntt();
+        #[cfg(feature = "hardened")]
+        let ATr: PolynomialVector<P::K> = {
+            let mut rng = crate::masking::OsRngFill;
+            crate::masking::ntt_matrix_vector_masked(&A_hat_t, &r_hat, &mut rng).ntt_inverse()
+        };
+        #[cfg(not(feature = "hardened"))]
         let ATr: PolynomialVector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
         let mut u = ATr + e1;
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
+        #[cfg(feature = "hardened")]
+        let tTr: Polynomial = {
+            let mut rng = crate::masking::OsRngFill;
+            crate::masking::ntt_vector_dot_masked(&self.t_hat, &r_hat, &mut rng).ntt_inverse()
+        };
+        #[cfg(not(feature = "hardened"))]
         let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
         let mut v = &(&tTr + &e2) + &mu;
 

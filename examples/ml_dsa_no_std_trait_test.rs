@@ -1,111 +1,79 @@
-//! Test demonstrating the fixed Signature trait working in no_std environments
+//! ML-DSA via the `Signature` trait (`lib-q-sig`) and the external-randomness API.
 //!
-//! This example shows that the Signature trait now properly supports no_std
-//! with the correct return types based on feature flags.
+//! This package links `lib-q-sig` with **`std`** (see `examples/Cargo.toml`), so
+//! [`Signature::generate_keypair`] and [`Signature::sign`] use the built-in RNG.
+//!
+//! For **no_std** targets, disable default features on `lib-q-sig` and enable `alloc` + `ml-dsa`:
+//! `generate_keypair` / `sign` on the trait then return errors; use
+//! [`MlDsa::generate_keypair_with_randomness`] and [`MlDsa::sign_with_randomness`] instead.
 //!
 //! Run: `cargo run -p lib-q-examples --example ml_dsa_no_std_trait_test`
 
 use lib_q_core::Signature;
+use lib_q_ml_dsa::constants::{
+    KEY_GENERATION_RANDOMNESS_SIZE,
+    SIGNING_RANDOMNESS_SIZE,
+};
 use lib_q_sig::ml_dsa::MlDsa;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔐 ML-DSA no_std Trait Test");
-    println!("============================\n");
+    println!("ML-DSA: Signature trait (std build) + external randomness API");
+    println!("============================================================\n");
 
-    // Test 1: Verify trait implementation works with alloc feature
-    println!("1. Testing Signature trait with alloc feature...");
-    test_trait_with_alloc()?;
+    println!("1. Signature trait with automatic RNG (requires `std` on lib-q-sig)...");
+    test_signature_trait_with_std_rng()?;
 
-    // Test 2: Verify trait implementation works without alloc feature
-    println!("\n2. Testing Signature trait without alloc feature...");
-    test_trait_without_alloc()?;
-
-    println!("\n🎉 All trait tests passed! Signature trait is properly implemented.");
-    Ok(())
-}
-
-fn test_trait_with_alloc() -> Result<(), Box<dyn std::error::Error>> {
-    let ml_dsa = MlDsa::ml_dsa_65();
-
-    // Test key generation
-    let keypair = ml_dsa.generate_keypair()?;
-    println!("   ✅ Keypair generation works");
-
-    // Test signing (should return Vec<u8> with alloc feature)
-    let message = b"Test message";
-    let signature = ml_dsa.sign(keypair.secret_key(), message)?;
     println!(
-        "   ✅ Signing works (returned Vec<u8> with {} bytes)",
-        signature.len()
+        "\n2. Explicit randomness (`generate_keypair_with_randomness` / `sign_with_randomness`)..."
     );
+    test_external_randomness_path()?;
 
-    // Test verification
-    let is_valid = ml_dsa.verify(keypair.public_key(), message, &signature)?;
-    if is_valid {
-        println!("   ✅ Verification works");
-    } else {
-        return Err("Verification failed".into());
-    }
-
+    println!("\nDone.");
     Ok(())
 }
 
-fn test_trait_without_alloc() -> Result<(), Box<dyn std::error::Error>> {
+fn test_signature_trait_with_std_rng() -> Result<(), Box<dyn std::error::Error>> {
     let ml_dsa = MlDsa::ml_dsa_65();
 
-    // Test key generation (should work)
     let keypair = ml_dsa.generate_keypair()?;
-    println!("   ✅ Keypair generation works");
+    println!("   Keypair generated.");
 
-    // Test signing (should return error in no_std mode)
-    let message = b"Test message";
-    let result = ml_dsa.sign(keypair.secret_key(), message);
-    match result {
-        Ok(_) => {
-            println!("   ❌ Signing unexpectedly succeeded in no_std mode");
-            return Err("Signing should fail in no_std mode".into());
-        }
-        Err(e) => {
-            println!("   ✅ Signing correctly failed in no_std mode: {}", e);
-        }
-    }
+    let message = b"trait path with std RNG";
+    let signature = ml_dsa.sign(keypair.secret_key(), message)?;
+    println!("   Signed ({} bytes).", signature.len());
 
-    // Test verification (should still work)
-    let dummy_signature = [0u8; 100]; // Dummy signature for testing
-    let is_valid = ml_dsa.verify(keypair.public_key(), message, &dummy_signature)?;
-    println!("   ✅ Verification works (returned {})", is_valid);
-
+    assert!(ml_dsa.verify(keypair.public_key(), message, &signature)?);
+    println!("   Verify OK.");
     Ok(())
 }
 
-// Test that demonstrates the proper trait signature
+fn test_external_randomness_path() -> Result<(), Box<dyn std::error::Error>> {
+    let ml_dsa = MlDsa::ml_dsa_65();
+
+    let keypair_randomness = [7u8; KEY_GENERATION_RANDOMNESS_SIZE];
+    let signing_randomness = [11u8; SIGNING_RANDOMNESS_SIZE];
+
+    let keypair = ml_dsa.generate_keypair_with_randomness(keypair_randomness)?;
+    let message = b"embedded-style path";
+    let signature =
+        ml_dsa.sign_with_randomness(keypair.secret_key(), message, signing_randomness)?;
+
+    assert!(ml_dsa.verify(keypair.public_key(), message, &signature)?);
+    println!("   Keygen + sign with supplied randomness; verify OK.");
+    Ok(())
+}
+
 #[cfg(test)]
-mod trait_tests {
+mod tests {
     use super::*;
 
     #[test]
-    fn test_trait_signature_with_alloc() {
-        // This test verifies that the trait signature is correct with alloc feature
-        let ml_dsa = MlDsa::ml_dsa_65();
-
-        // The trait should return Vec<u8> with alloc feature
-        let keypair = ml_dsa.generate_keypair().unwrap();
-        let signature = ml_dsa.sign(keypair.secret_key(), b"test").unwrap();
-
-        // Verify the signature is Vec<u8>
-        assert!(std::any::type_name::<Vec<u8>>() == std::any::type_name_of_val(&signature));
+    fn std_rng_round_trip() {
+        test_signature_trait_with_std_rng().unwrap();
     }
 
     #[test]
-    fn test_trait_signature_without_alloc() {
-        // This test verifies that the trait signature is correct without alloc feature
-        let ml_dsa = MlDsa::ml_dsa_65();
-
-        // The trait should return &'static [u8] without alloc feature
-        let keypair = ml_dsa.generate_keypair().unwrap();
-        let result = ml_dsa.sign(keypair.secret_key(), b"test");
-
-        // In no_std mode, signing should fail with an error
-        assert!(result.is_err());
+    fn external_randomness_round_trip() {
+        test_external_randomness_path().unwrap();
     }
 }

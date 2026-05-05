@@ -81,6 +81,10 @@ kmac2.update(b"more data");
 - `parallelhash` - Rayon-based parallel processing
 - `asm` - ARMv8 assembly optimizations
 
+## Workspace
+
+[`lib-q-sha3`](../lib-q-sha3), [`lib-q-keccak`](../lib-q-keccak), and [`lib-q-k12`](../lib-q-k12) supply the Keccak/SHA-3 family implementations this crate integrates (see also [`lib-q-keccak-digest`](../lib-q-keccak-digest)). ML-DSA and lattice crates consume the same XOF stack via those dependencies. Index: [repository README](../README.md).
+
 ## License
 
 Apache-2.0

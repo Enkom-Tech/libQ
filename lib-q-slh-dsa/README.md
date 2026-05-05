@@ -2,6 +2,8 @@
 
 This crate provides a complete implementation of SLH-DSA (Stateless Hash-based Digital Signature Algorithm) based on the finalized NIST FIPS-205 standard. SLH-DSA is a post-quantum digital signature scheme designed to be resistant to quantum computers.
 
+For provider-style integration, see [`lib-q-sig`](../lib-q-sig) (features `slh-dsa` / `slh-dsa-std` / `slh-dsa-wasm`).
+
 ## Features
 
 - **NIST FIPS-205 Compliant**: Implements all 12 standardized parameter sets

@@ -21,6 +21,8 @@ SHA-3 cryptographic hash algorithms standardized in FIPS 202.
 For high-level SHA-3 hash functions and SHAKE XOFs, see the [`lib-q-sha3`] crate,
 which is built on this crate.
 
+See the [lib-Q workspace README](https://github.com/Enkom-Tech/libQ/blob/main/README.md) for how Keccak/SHA-3 crates connect to ML-DSA (`lib-q-ring`, `lib-q-sha3`).
+
 ## Features
 
 - **no_std compatible**: Works in embedded and WebAssembly environments

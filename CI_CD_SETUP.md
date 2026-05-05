@@ -9,7 +9,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **Triggers**: `push` / `pull_request` on `main` and `develop`, `workflow_dispatch`, and a weekly schedule (`cron: 0 5 * * 0`).
 - **PR vs full runs**: Pull requests run a slimmer set of jobs to save minutes. Pushes to `main`/`develop`, the weekly schedule, and manual dispatch also run heavier jobs (e.g. cross-platform builds, valgrind, HQC SIMD debug, full ML-DSA audit script, ZKP recursive aggregation, extended benchmarks where enabled).
 - **Core validation**: Fast gate (15 min timeout)—format, security audit, workspace Clippy with all features (`rust-build`).
-- **Test matrix**: Feature and package combinations via `rust-test` (e.g. `std`, `all-algorithms`, ML-KEM, ML-DSA modes, `no_std`, WASM, ZKP, `lib-q-random`, STARK crates).
+- **Test matrix**: Feature and package combinations via `rust-test` (e.g. `std`, `all-algorithms`, ML-KEM, ML-DSA modes, `no_std`, WASM, ZKP, `lib-q-random`, `lib-q-ring`, `lib-q-lattice-zkp`, STARK crates). Non-PR runs also `cargo check` both ring crates for `thumbv7em-none-eabi` and execute `lib-q-sca-test` (see `ci.yml`).
 - **WASM validation**: `wasm-build` across several crates; additional Romulus `no_std` / `wasm32` smoke checks.
 - **Cross-platform builds**: Non-PR only; multiple OS/target combinations.
 - **Algorithm tests**: Composite `test-*` actions for Keccak, SHA3, K12 (in `lib-q-hash`), Saturnin, FN-DSA, RNG (`lib-q-random`), CB-KEM, SLH-DSA, HPKE, and HQC (see [Composite actions](#composite-actions)).
@@ -21,8 +21,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **Pre-release validation**: Workspace `Cargo.toml` version must match the tag; `rust-build` + `cargo test --all-features --release`.
 - **Rust publishing**: Crates publish in dependency order across **tiers 0–16** via `rust-lang/crates-io-auth-action` (crates.io **Trusted Publishing** / OIDC) and `./.github/actions/crate-publish`. Exact package lists per tier are defined only in `cd.yml`.
 - **WASM / npm**: `wasm-build` then `./.github/actions/npm-publish` for scoped `@lib-q/*` packages (requires `NPM_TOKEN`).
-- **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable).
-- **Note**: The summary job in `cd.yml` still references an older tier in its status lines; full Rust publishing continues through tier 16 (`lib-q-zkp`). Prefer the job graph in `cd.yml` as source of truth.
+- **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable). **`post-release` and `cd-summary` wait on `publish-rust-tier-16`** so the GitHub release is cut after the last crates.io tier (including `lib-q-zkp`).
 
 ### Security Pipeline (`.github/workflows/security.yml`)
 
@@ -247,6 +246,8 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 ### Rust crates (crates.io)
 
 Publishing order and membership are defined **only** in `cd.yml` (tiers 0–16). In addition to umbrella and algorithm crates, the pipeline includes **platform/intrinsics**, **HQC**, **`lib-q-poseidon`**, **`lib-q-zkp`**, and the **`lib-q-stark-*`** / **`lib-q-plonky-*`** crate families. The following are representative, not exhaustive:
+
+**Workspace-only (not in `cd.yml` publish tiers):** examples package, **`lib-q-ring`**, **`lib-q-lattice-zkp`**, **`lib-q-ring-sig`**, **`lib-q-prf`**, **`lib-q-sca-test`**, and other tooling crates—built and tested in CI but not released through this CD graph unless added to `cd.yml`.
 
 - **`lib-q`** — Meta crate re-exporting the workspace surface.
 - **`lib-q-core`**, **`lib-q-utils`**, **`lib-q-platform`**, **`lib-q-intrinsics`**, **`lib-q-random`** — Infrastructure and utilities.

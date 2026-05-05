@@ -106,6 +106,7 @@ impl WasmProviderManager {
             crate::api::AlgorithmCategory::Signature => self.provider.signature().is_some(),
             crate::api::AlgorithmCategory::Hash => self.provider.hash().is_some(),
             crate::api::AlgorithmCategory::Aead => self.provider.aead().is_some(),
+            crate::api::AlgorithmCategory::PrivacyProtocol => false,
         }
     }
 
@@ -133,7 +134,8 @@ impl WasmProviderManager {
                     "kem": algorithm.category() == crate::api::AlgorithmCategory::Kem,
                     "signature": algorithm.category() == crate::api::AlgorithmCategory::Signature,
                     "hash": algorithm.category() == crate::api::AlgorithmCategory::Hash,
-                    "aead": algorithm.category() == crate::api::AlgorithmCategory::Aead
+                    "aead": algorithm.category() == crate::api::AlgorithmCategory::Aead,
+                    "privacy_protocol": algorithm.category() == crate::api::AlgorithmCategory::PrivacyProtocol
                 }
             });
 

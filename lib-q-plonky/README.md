@@ -21,12 +21,14 @@ Use the `full` feature to enable all of the above.
 Add to `Cargo.toml`:
 
 ```toml
-lib-q-plonky = { path = "..", features = ["full"] }
-# or specific features, e.g. ["uni-stark", "batch-stark"]
+# From another workspace member, use a path dependency:
+lib-q-plonky = { path = "../lib-q-plonky", features = ["full"] }
+# or crates.io once published:
+# lib-q-plonky = { version = "0.0.2", features = ["full"] }
 ```
 
-All components are built on the lib-q-stark-* primitives (NIST, SHAKE256).
+All components are built on the `lib-q-stark-*` primitives (SHAKE256-oriented pipeline).
 
 ## Architecture
 
-For the overall ZKP/STARK/Plonky architecture and when to use which stack, see [docs/zkp-implementation.md](../docs/zkp-implementation.md) (section "Library layout and implementation status").
+For the overall ZKP/STARK/Plonky architecture, when to use **`lib-q-zkp`**, and how this differs from [**lib-q-lattice-zkp**](../lib-q-lattice-zkp), see [docs/zkp-implementation.md](../docs/zkp-implementation.md) (section "Library layout and implementation status").

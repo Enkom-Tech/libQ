@@ -197,3 +197,7 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 ## Security
 
 For security issues, please see the main libQ repository's security policy.
+
+## Workspace
+
+Exposes Saturnin and SHAKE-based AEAD integrations for [`lib-q-hpke`](../lib-q-hpke) and the umbrella stack. See the [workspace README](../README.md) for the full crate graph.

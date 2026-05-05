@@ -1,6 +1,6 @@
 # Test Coverage Requirements
 
-lib-Q maintains strict test coverage requirements as a NIST-approved quantum-resistant cryptographic library:
+lib-Q uses layered **test coverage gates** (policy targets versus measured CI floors) for the post-quantum cryptographic workspace:
 
 - **80% line coverage** for core cryptographic functionality (library code under test, not the whole workspace aggregate)
 - **95% line coverage** for designated **security-critical** paths (see [coverage-scope.md](coverage-scope.md))
@@ -19,6 +19,9 @@ Scoped paths, scripts, and ratcheting policy are described in [coverage-scope.md
 
 # Run coverage with custom threshold
 .\scripts\run-coverage.ps1 -LineThreshold 90
+
+# ML-DSA AVX2/simd256 denominator (requires -Crate lib-q-ml-dsa; matches CI auxiliary pass)
+.\scripts\run-coverage.ps1 -Crate "lib-q-ml-dsa" -MldsaSimd
 ```
 
 ### Linux/macOS

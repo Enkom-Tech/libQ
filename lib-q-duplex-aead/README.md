@@ -24,3 +24,5 @@ let pt = aead.decrypt(&key, &nonce, &ct, Some(b"ad")).unwrap();
 ## Security
 
 The permutation is NIST-standardized; the **AEAD mode** defined in this crate is custom. Obtain independent review before production deployment.
+
+Part of the [lib-Q workspace](../README.md); pairs with `lib-q-core` AEAD traits.

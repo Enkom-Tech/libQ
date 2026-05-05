@@ -83,6 +83,20 @@ pub enum Algorithm {
     TweakAead,
     RomulusN,
     RomulusM,
+
+    /// Privacy-protocol identifiers (not standalone KEM/sig/hash providers).
+    LatticeRingSignature,
+    LatticeBlindIssuance,
+    LatticeAnonymousToken,
+    LatticeNullifierRegistry,
+    /// Witness-derived nullifier mode (SHAKE256 over opening witness wire; see `lib-q-lattice-zkp`).
+    LatticeWitnessNullifier,
+    /// DualRing-LB–style federation transcript / constant-time ring verify (`lib-q-ring-sig`).
+    LatticeDualRingLb,
+    /// ML-KEM-768 layered encapsulation with Saturnin AEAD per hop (mix-layer transport).
+    MixOnionRouting,
+    /// SHAKE256 session token and stateless retry-cookie derivation for resumption handshakes.
+    SessionResumptionBinding,
 }
 
 impl Algorithm {
@@ -160,6 +174,15 @@ impl Algorithm {
             Algorithm::TweakAead => 4,
             Algorithm::RomulusN => 1,
             Algorithm::RomulusM => 1,
+
+            Algorithm::LatticeRingSignature |
+            Algorithm::LatticeBlindIssuance |
+            Algorithm::LatticeAnonymousToken |
+            Algorithm::LatticeNullifierRegistry |
+            Algorithm::LatticeWitnessNullifier |
+            Algorithm::LatticeDualRingLb |
+            Algorithm::MixOnionRouting |
+            Algorithm::SessionResumptionBinding => 3,
         }
     }
 
@@ -228,6 +251,15 @@ impl Algorithm {
             Algorithm::TweakAead |
             Algorithm::RomulusN |
             Algorithm::RomulusM => AlgorithmCategory::Aead, // Multi-category algorithms
+
+            Algorithm::LatticeRingSignature |
+            Algorithm::LatticeBlindIssuance |
+            Algorithm::LatticeAnonymousToken |
+            Algorithm::LatticeNullifierRegistry |
+            Algorithm::LatticeWitnessNullifier |
+            Algorithm::LatticeDualRingLb |
+            Algorithm::MixOnionRouting |
+            Algorithm::SessionResumptionBinding => AlgorithmCategory::PrivacyProtocol,
         }
     }
 
@@ -299,6 +331,15 @@ impl Algorithm {
             Algorithm::TweakAead |
             Algorithm::RomulusN |
             Algorithm::RomulusM => category == AlgorithmCategory::Aead, // Multi-category algorithms
+
+            Algorithm::LatticeRingSignature |
+            Algorithm::LatticeBlindIssuance |
+            Algorithm::LatticeAnonymousToken |
+            Algorithm::LatticeNullifierRegistry |
+            Algorithm::LatticeWitnessNullifier |
+            Algorithm::LatticeDualRingLb |
+            Algorithm::MixOnionRouting |
+            Algorithm::SessionResumptionBinding => category == AlgorithmCategory::PrivacyProtocol,
         }
     }
 }
@@ -312,6 +353,8 @@ pub enum AlgorithmCategory {
     Signature,
     Hash,
     Aead,
+    /// Anonymous credentials, mix-layer transport helpers, and related ZKP-adjacent protocols.
+    PrivacyProtocol,
 }
 
 /// Security levels for cryptographic algorithms
@@ -413,6 +456,15 @@ impl core::fmt::Display for Algorithm {
             Algorithm::TupleHash256 => write!(f, "TupleHash256"),
             Algorithm::ParallelHash128 => write!(f, "ParallelHash128"),
             Algorithm::ParallelHash256 => write!(f, "ParallelHash256"),
+
+            Algorithm::LatticeRingSignature => write!(f, "Lattice-Ring-Signature"),
+            Algorithm::LatticeBlindIssuance => write!(f, "Lattice-Blind-Issuance"),
+            Algorithm::LatticeAnonymousToken => write!(f, "Lattice-Anonymous-Token"),
+            Algorithm::LatticeNullifierRegistry => write!(f, "Lattice-Nullifier-Registry"),
+            Algorithm::LatticeWitnessNullifier => write!(f, "Lattice-Witness-Nullifier"),
+            Algorithm::LatticeDualRingLb => write!(f, "Lattice-DualRing-LB"),
+            Algorithm::MixOnionRouting => write!(f, "Mix-Onion-Routing"),
+            Algorithm::SessionResumptionBinding => write!(f, "Session-Resumption-Binding"),
         }
     }
 }
@@ -424,6 +476,7 @@ impl core::fmt::Display for AlgorithmCategory {
             AlgorithmCategory::Signature => write!(f, "Signature"),
             AlgorithmCategory::Hash => write!(f, "Hash"),
             AlgorithmCategory::Aead => write!(f, "AEAD"),
+            AlgorithmCategory::PrivacyProtocol => write!(f, "Privacy protocol"),
         }
     }
 }
@@ -436,5 +489,9 @@ mod tests {
     fn test_algorithm_categories() {
         assert_eq!(Algorithm::MlKem512.category(), AlgorithmCategory::Kem);
         assert_eq!(Algorithm::Shake256Aead.category(), AlgorithmCategory::Aead);
+        assert_eq!(
+            Algorithm::LatticeAnonymousToken.category(),
+            AlgorithmCategory::PrivacyProtocol
+        );
     }
 }

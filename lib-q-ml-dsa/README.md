@@ -1,47 +1,59 @@
-# ML-DSA
+# lib-q-ml-dsa
 
-This crate implements all three ML-DSA ([FIPS 204](https://csrc.nist.gov/pubs/fips/204/final)) variants 44, 65, and 87, and includes
-both a portable implementation and an optimized SIMD implementation for Intel AVX2-enabled platforms.
+Rust implementation of **ML-DSA** (Module-Lattice Digital Signature Algorithm), [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final), for all three parameter sets: ML-DSA-44, ML-DSA-65, and ML-DSA-87.
+
+Ring arithmetic and NTT live in the shared workspace crate [**lib-q-ring**](../lib-q-ring) (`R_q = Z_q[X]/(X^{256}+1)` at `q = 8_380_417`). This crate wires FIPS 204 logic, SIMD paths, serialization, and optional hardening.
 
 ## Verification
-![verified]
 
-The portable and AVX2 code for field arithmetic, NTT polynomial arithmetic, and serialization is formally verified using [hax](https://cryspen.com/hax) and
- [F*](https://fstar-lang.org).
+Parts of the portable and AVX2 field/NTT and related paths are amenable to formal verification with [hax](https://cryspen.com/hax) and [F\*](https://fstar-lang.org); see crate metadata and CI for the current `hax` configuration.
 
-## Usage
+## Features
 
-```Rust
- use rand::{rngs::OsRng, RngCore};
+| Feature | Purpose |
+|--------|---------|
+| `mldsa44`, `mldsa65`, `mldsa87` | Enable parameter sets (default enables all three). |
+| `std` | Standard library (default). |
+| `random` | OS-backed / integration RNG via `lib-q-random` (default). |
+| `nist-drbg` | NIST SP 800-90A DRBG wiring for KAT-style runs. |
+| `simd128` / `simd256` | NEON / AVX2 acceleration (`lib-q-intrinsics`). |
+| `hardened` | **Atomic** gate: masking / shuffled processing and constant-time-oriented signing paths; requires `random`, `zeroize`, `subtle`, `getrandom`. Do not enable piecemeal. |
+| `zeroize` | Zeroization of sensitive buffers where supported. |
+| `fips-mode` | Stricter FIPS-oriented behavior flag (see source/docs). |
 
- // Ensure you use good randomness.
- // It is not recommended to use OsRng directly!
- // Instead it is highly encouraged to use RNGs like NISTs DRBG to account for
- // bad system entropy.
- fn random_array<const L: usize>() -> [u8; L] {
-     let mut rng = OsRng;
-     let mut seed = [0; L];
-     rng.try_fill_bytes(&mut seed).unwrap();
-     seed
- }
+## Related workspace crates
 
- use libcrux_ml_dsa::*;
+- [**lib-q-ring**](../lib-q-ring) — negacyclic NTT / polynomial layer.
+- [**lib-q-lattice-zkp**](../lib-q-lattice-zkp) — research module-lattice proofs that reuse the same ring (not a replacement for this signature API).
+- [**lib-q-sca-test**](../lib-q-sca-test) — optional TVLA/timing harness for `hardened` paths (screening, not certification).
 
- // This example uses ML-DSA-65. The other variants can be used the same way.
+## Documentation in this crate
 
- // Generate a key pair.
- let randomness = random_array();
- let key_pair = ml_dsa_65::generate_key_pair(randomness);
+- [docs/MODES.md](docs/MODES.md) — operational modes (including hardened).
+- [docs/INTEROPERABILITY.md](docs/INTEROPERABILITY.md) — wire formats and integration notes.
+- [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) — audit-oriented notes.
 
- // Generate a random message.
- let message = random_array::<1024>();
+## Usage sketch
 
- // Sign this random message
- let randomness = random_array();
- let signature = ml_dsa_65::sign(key_pair.signing_key, &message, randomness);
+Enable the parameter sets you need and depend on `lib-q-ml-dsa` from the workspace or crates.io (version aligned with the workspace `version` in the root `Cargo.toml`).
 
- // Verify the signature and assert that it is indeed valid
- assert!(ml_dsa_65::verify(key_pair.verification_key, &message, signature).is_ok());
+```rust
+use lib_q_ml_dsa::ml_dsa_65::{generate_key_pair, sign, verify};
+
+// Supply cryptographically strong randomness (see FIPS 204 and project RNG guidance).
+let seed = [0u8; lib_q_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE];
+let key_pair = generate_key_pair(seed);
+
+let msg = b"message";
+let context = b"";
+let sig_seed = [0u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
+let sig = sign(&key_pair.signing_key, msg, context, sig_seed).expect("sign");
+
+assert!(verify(&key_pair.verification_key, msg, context, &sig).is_ok());
 ```
 
-[verified]: https://img.shields.io/badge/verified-brightgreen.svg?style=for-the-badge&logo=data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz48IS0tIFVwbG9hZGVkIHRvOiBTVkcgUmVwbywgd3d3LnN2Z3JlcG8uY29tLCBHZW5lcmF0b3I6IFNWRyBSZXBvIE1peGVyIFRvb2xzIC0tPg0KPHN2ZyB3aWR0aD0iODAwcHgiIGhlaWdodD0iODAwcHgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4NCjxwYXRoIGQ9Ik05IDEyTDExIDE0TDE1IDkuOTk5OTlNMjAgMTJDMjAgMTYuNDYxMSAxNC41NCAxOS42OTM3IDEyLjY0MTQgMjAuNjgzQzEyLjQzNjEgMjAuNzkgMTIuMzMzNCAyMC44NDM1IDEyLjE5MSAyMC44NzEyQzEyLjA4IDIwLjg5MjggMTEuOTIgMjAuODkyOCAxMS44MDkgMjAuODcxMkMxMS42NjY2IDIwLjg0MzUgMTEuNTYzOSAyMC43OSAxMS4zNTg2IDIwLjY4M0M5LjQ1OTk2IDE5LjY5MzcgNCAxNi40NjExIDQgMTJWOC4yMTc1OUM0IDcuNDE4MDggNCA3LjAxODMzIDQuMTMwNzYgNi42NzQ3QzQuMjQ2MjcgNi4zNzExMyA0LjQzMzk4IDYuMTAwMjcgNC42Nzc2NiA1Ljg4NTUyQzQuOTUzNSA1LjY0MjQzIDUuMzI3OCA1LjUwMjA3IDYuMDc2NCA1LjIyMTM0TDExLjQzODIgMy4yMTA2N0MxMS42NDYxIDMuMTMyNzEgMTEuNzUgMy4wOTM3MyAxMS44NTcgMy4wNzgyN0MxMS45NTE4IDMuMDY0NTcgMTIuMDQ4MiAzLjA2NDU3IDEyLjE0MyAzLjA3ODI3QzEyLjI1IDMuMDkzNzMgMTIuMzUzOSAzLjEzMjcxIDEyLjU2MTggMy4yMTA2N0wxNy45MjM2IDUuMjIxMzRDMTguNjcyMiA1LjUwMjA3IDE5LjA0NjUgNS42NDI0MyAxOS4zMjIzIDUuODg1NTJDMTkuNTY2IDYuMTAwMjcgMTkuNzUzNyA2LjM3MTEzIDE5Ljg2OTIgNi42NzQ3QzIwIDcuMDE4MzMgMjAgNy40MTgwOCAyMCA4LjIxNzU5VjEyWiIgc3Ryb2tlPSIjMDAwMDAwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPg0KPC9zdmc+
+For provider-style use through the umbrella stack, see [**lib-q-sig**](../lib-q-sig) and [**lib-q**](../lib-q).
+
+## License
+
+Apache-2.0 — see [LICENSE](../LICENSE).

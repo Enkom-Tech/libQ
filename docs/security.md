@@ -1,10 +1,10 @@
 # Security Model
 
-lib-Q is built on the principle that all classical cryptography is broken. Our threat model assumes:
+lib-Q targets **post-quantum asymmetric** cryptography and **SHA-3–family** hashing for its stated APIs, with **Saturnin** and **SHAKE-based** symmetric options as the design center (see [SECURITY.md](../SECURITY.md)). Our threat model assumes:
 
-1. **Quantum computers exist** and can break classical algorithms
-2. **Adversaries have unlimited computational power** (both classical and quantum)
-3. **Side-channel attacks are real** and must be prevented
+1. **Quantum-capable adversaries** can break classical **public-key** schemes (RSA, ECC, and similar)
+2. **Adversaries are computationally strong** (classical and quantum where relevant)
+3. **Side-channel attacks are real** and must be mitigated in implementation
 4. **Memory safety is critical** for cryptographic implementations
 
 ## Threat Model
@@ -64,10 +64,43 @@ All tiers support post-quantum zero-knowledge proofs:
 
 lib-Q implements zk-STARKs via its own NIST-adapted stack (lib-q-stark) and a full Plonky3-derived stack (lib-q-plonky); see [ZKP Implementation](zkp-implementation.md) (section "Library layout and implementation status") for the library layout.
 
-#### Implementation Options
-1. **OpenZKP**: Open-source Rust implementation with simple interface
-2. **Winterfell**: Meta's general-purpose STARK prover/verifier
-3. **zkp-stark**: Lightweight Rust library with straightforward API
+#### Other ZKP work in-tree
+- **`lib-q-lattice-zkp`**: Research crate for **module-lattice** commitments and sigma-style proofs on `lib-q-ring`; not an AIR/STARK pipeline. See [zkp-implementation.md](zkp-implementation.md).
+
+#### Privacy-oriented protocols (registry metadata only)
+These components use **NIST PQC** primitives (ML-KEM, ML-DSA-field-compatible rings, Saturnin, SHAKE256) but are **not** drop-in replacements for the `lib-q-core` KEM/signature providers. They are labeled under `AlgorithmCategory::PrivacyProtocol` in `lib-q-types` for policy and documentation.
+
+| Component | Crate / module | Security notes |
+|-----------|----------------|----------------|
+| Blind issuance + anonymous tokens | `lib-q-lattice-zkp` (`blind`, `token`) | CRS Ajtai model; see [`BLIND_ISSUANCE.md`](../lib-q-lattice-zkp/BLIND_ISSUANCE.md). Issuer attestation binds blinded commitments; not Chaum blind RSA. `SpendingProof` carries the token serial; double-spends are rejected at the application layer by serial-set membership (verifier-tracked registry, not in-protocol). |
+| Nullifier + batch amortisation | `lib-q-lattice-zkp` (`sigma/uniqueness`, `sigma/amortise`) | Deterministic nullifiers for registries; opening proofs bind nullifiers into Fiat–Shamir contexts. Uniqueness amortisation labels enable single-batch verification across multiple commitments under one realm. |
+| Hierarchical Merkle + opening | `lib-q-lattice-zkp` (`sigma/hierarchical`) — `prove_level_membership` / `verify_level_membership` | Leaf payload is **revealed** (clearance level, role tag, parent digest). The verifier learns the path position. Full position-and-attribute-hiding PVTN ZK is **future work**; this construction is a Merkle path certificate composed with an Ajtai opening tied to the leaf. |
+| Federation ring openings | `lib-q-ring-sig` | Opening proofs over a shared CRS; linear-scan verification is not issuer-hiding toward the verifier (see [crate DESIGN](../lib-q-ring-sig/DESIGN.md)). DualRing-LB upgrade is tracked in the same document. |
+| Credential presentation | `lib-q-ring-sig` (`credential`) | Default path verifies with **`verify_dualring_lb`** (full-ring aggregate). A **legacy** API remains that uses **`verify_federation_opening_scan`** (linear cost; see module docs). The verifier does not receive the signer index on the default path. |
+
+##### Constant-time scope (Phase 7 paths)
+
+The following paths are wired for statistical timing / TVLA-style harnesses via
+[`lib-q-sca-test` `privacy_workloads`](../lib-q-sca-test/src/privacy_workloads.rs)
+(scaffold only; not a certification claim):
+
+- `BlindIssuance::verify` — blind issuance bundle verification.
+- `verify_federation_opening` — federation opening at a **known** signer index.
+- `verify_dualring_lb` — DualRing-LB pilot (full-ring aggregate verify).
+- `BlindSignature::verify_blind_signature` — pilot blind-signature bundle verify.
+- `verify_private_membership` — private-membership pilot verifier.
+- `registry_nullifier`, `witness_nullifier`, `federation_digest` — public transcript / registry digests (SHAKE256).
+
+Prover-side rejection-sampling paths (`BlindIssuance::request`/`issuer_sign`,
+`sign_federation_message`, `prove_opening`, `amortise`) are **intentionally excluded**:
+their timing is data-dependent by construction (loop count of the abort), and they
+must be invoked only on attacker-independent secrets.
+
+##### Replay model
+
+| Asset | Replay defence | Where enforced |
+|-------|----------------|----------------|
+| Anonymous token (`AnonymousToken::spend`) | Application-layer registry of spent serials | Verifier maintains a per-realm `serial → seen` set; `SpendingProof::verify` rejects mismatched serials. |
 
 #### ZKP Features
 - **Proof Generation**: Create zero-knowledge proofs of computation
@@ -111,9 +144,8 @@ We only use algorithms that have been standardized or are in the final round of 
   - Compact signature sizes for bandwidth-constrained applications
   - Suitable for root and intermediate certificates in PKI systems
 
-#### Final Round Candidates
-- **CB-KEM**: Final round candidate, strong security
-- **HQC**: Final round candidate, good performance
+#### Code-based KEMs (workspace implementations)
+- **CB-KEM** (Classic McEliece–family parameter sets) and **HQC** are implemented as **post-quantum KEMs** in this repository; track each crate’s README and NIST publications for the exact standardization status of the parameter sets you enable.
 
 #### Emerging Post-Quantum Algorithms
 - **Saturnin**: Lightweight symmetric algorithm suite with 256-bit block cipher
@@ -146,7 +178,7 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **AES-128**: Grover's algorithm reduces security to approximately 64 bits — not acceptable for post-quantum use.
 - **ChaCha20 / Poly1305** (standalone): 256-bit key variants survive Grover with ~128-bit quantum security, but these primitives are not part of the lib-Q algorithm set, which centers on Saturnin and SHA-3 family constructions. Do not substitute them for lib-Q primitives.
 
-  Note: AES-256 is not used in lib-Q primitives but retains ~128-bit quantum security per Grover analysis and may appear in transport layers outside lib-Q's scope.
+  Note: **AES-256** may appear **inside reviewed implementations** where a standard or interoperability layer requires it (for example certain RNG or KEM-adjacent paths). That is not an invitation to add AES-GCM or ChaCha20-Poly1305 as general-purpose user-facing substitutes for the Saturnin / SHAKE-centered AEAD story without maintainer review.
 
 ## Implementation Security Guidelines
 

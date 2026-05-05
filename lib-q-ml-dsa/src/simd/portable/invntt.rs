@@ -119,6 +119,7 @@ pub fn simd_unit_invert_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) 
 #[hax_lib::ensures(|_| fstar!(r#"
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (2 * v $FIELD_MAX) ${re}_future
 "#) )]
+#[cfg_attr(feature = "hardened", allow(dead_code))]
 fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
@@ -535,6 +536,7 @@ fn invert_ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 #[cfg_attr(not(tarpaulin), inline(always))]
 #[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[cfg(not(feature = "hardened"))]
 #[hax_lib::requires(fstar!(r#"
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (v $FIELD_MAX) ${re}
 "#))]
@@ -551,6 +553,103 @@ pub(crate) fn invert_ntt_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_E
     invert_ntt_at_layer_6(re);
     invert_ntt_at_layer_7(re);
 
+    invert_ntt_montgomery_finish(re);
+}
+
+#[cfg(feature = "hardened")]
+mod inv_ntt_layer0_shuffle {
+    use super::super::vector_type::Coefficients;
+    use super::simd_unit_invert_ntt_at_layer_0;
+    use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT;
+
+    const ROUNDS: [(usize, i32, i32, i32, i32); 32] = [
+        (0, 1976782, -846154, 1400424, 3937738),
+        (1, -1362209, -48306, 3919660, -554416),
+        (2, -3545687, 1612842, -976891, 183443),
+        (3, -2286327, -420899, -2235985, -2939036),
+        (4, -3833893, -260646, -1104333, -1667432),
+        (5, 1910376, -1803090, 1723600, -426683),
+        (6, 472078, 1717735, -975884, 2213111),
+        (7, 269760, 3866901, 3523897, -3038916),
+        (8, -1799107, -3694233, 1652634, 810149),
+        (9, 3014001, 1616392, 162844, -3183426),
+        (10, -1207385, 185531, 3369112, 1957272),
+        (11, -164721, 2454455, 2432395, -2013608),
+        (12, -3776993, 594136, -3724270, -2584293),
+        (13, -1846953, -1671176, -2831860, -542412),
+        (14, 3406031, 2235880, 777191, 1500165),
+        (15, -1374803, -2546312, 1917081, -1279661),
+        (16, -1962642, 3306115, 1312455, -451100),
+        (17, -1430225, -3318210, 1237275, -1333058),
+        (18, -1050970, 1903435, 1869119, -2994039),
+        (19, -3548272, 2635921, 1250494, -3767016),
+        (20, 1595974, 2486353, 1247620, 4055324),
+        (21, 1265009, -2590150, 2691481, 2842341),
+        (22, 203044, 1735879, -3342277, 3437287),
+        (23, 4108315, -2437823, 286988, 342297),
+        (24, -3595838, -768622, -525098, -3556995),
+        (25, 3207046, 2031748, -3122442, -655327),
+        (26, -522500, -43260, -1613174, 495491),
+        (27, 819034, 909542, 1859098, 900702),
+        (28, -3193378, -1197226, -3759364, -3520352),
+        (29, 3513181, -1235728, 2434439, 266997),
+        (30, -3562462, -2446433, 2244091, -3342478),
+        (31, 3817976, 2316500, 3407706, 2091667),
+    ];
+
+    fn fy_perm32(perm: &mut [usize; 32]) {
+        for i in 0..32 {
+            perm[i] = i;
+        }
+        for i in (1..32).rev() {
+            let mut b = [0u8; 8];
+            let _ = getrandom::fill(&mut b);
+            let j = usize::try_from(u64::from_le_bytes(b) % (i as u64 + 1))
+                .expect("shuffle index fits in usize (perm length 32)");
+            perm.swap(i, j);
+        }
+    }
+
+    fn round(
+        re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
+        index: usize,
+        zeta_0: i32,
+        zeta_1: i32,
+        zeta_2: i32,
+        zeta_3: i32,
+    ) {
+        simd_unit_invert_ntt_at_layer_0(&mut re[index], zeta_0, zeta_1, zeta_2, zeta_3);
+    }
+
+    pub(super) fn invert_ntt_at_layer_0_shuffled(
+        re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
+    ) {
+        let mut perm = [0usize; 32];
+        fy_perm32(&mut perm);
+        for t in 0..32 {
+            let i = perm[t];
+            let (index, z0, z1, z2, z3) = ROUNDS[i];
+            round(re, index, z0, z1, z2, z3);
+        }
+    }
+}
+
+#[cfg(feature = "hardened")]
+pub(crate) fn invert_ntt_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
+    inv_ntt_layer0_shuffle::invert_ntt_at_layer_0_shuffled(re);
+    invert_ntt_at_layer_1(re);
+    invert_ntt_at_layer_2(re);
+    invert_ntt_at_layer_3(re);
+    invert_ntt_at_layer_4(re);
+    invert_ntt_at_layer_5(re);
+    invert_ntt_at_layer_6(re);
+    invert_ntt_at_layer_7(re);
+
+    invert_ntt_montgomery_finish(re);
+}
+
+#[inline(always)]
+fn invert_ntt_montgomery_finish(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[allow(clippy::needless_range_loop)]
     for i in 0..re.len() {
         hax_lib::loop_invariant!(|i: usize| fstar!(

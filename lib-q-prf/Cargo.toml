@@ -1,0 +1,30 @@
+[package]
+name = "lib-q-prf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+description = "Legendre and Gold (power-residue) PRFs over large prime fields (Fiat-Shamir / DualRing-PRF building blocks)"
+keywords = ["cryptography", "post-quantum", "prf", "legendre", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+rand_core = { workspace = true }
+subtle = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
+hex = { workspace = true }
+sha2 = { workspace = true }
+
+[features]
+default = ["alloc"]
+alloc = ["lib-q-sha3/alloc"]
+std = ["alloc"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lib_q_prf_docs)'] }

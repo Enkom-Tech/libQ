@@ -51,7 +51,7 @@ cargo test --features "fips-mode,acvp" --test fips_mode_tests
 
 # 9. Run hardened mode tests
 echo "9. Running hardened mode tests..."
-cargo test --features "hardened-mode,zeroize,constant-time" --test hardened_mode_tests
+cargo test --features "hardened,zeroize" --test hardened_mode_tests
 
 # 10. Run cross-mode compatibility tests
 echo "10. Running cross-mode compatibility tests..."
@@ -69,7 +69,7 @@ fi
 
 # 12. Run security-focused tests
 echo "12. Running security-focused tests..."
-cargo test --features "hardened-mode,zeroize,constant-time" --test hardened_mode_tests
+cargo test --features "hardened,zeroize" --test hardened_mode_tests
 
 echo "Security audit complete!"
 echo ""

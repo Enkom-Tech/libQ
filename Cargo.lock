@@ -387,6 +387,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
+name = "crypto-bigint"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96272c2ff28b807e09250b180ad1fb7889a3258f7455759b5c3c58b719467130"
+dependencies = [
+ "num-traits",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -825,9 +836,9 @@ dependencies = [
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3944cf8cf766b40e2a1a333ee5e9b563f854d5fa49d6a8ca2764e97c6eddb214"
+checksum = "08d46837a0ed51fe95bd3b05de33cd64a1ee88fc797477ca48446872504507c5"
 dependencies = [
  "typenum",
  "zeroize",
@@ -926,12 +937,19 @@ dependencies = [
  "lib-q-hqc",
  "lib-q-keccak",
  "lib-q-kem",
+ "lib-q-lattice-zkp",
  "lib-q-ml-dsa",
+ "lib-q-ml-kem",
+ "lib-q-prf",
  "lib-q-random",
+ "lib-q-ring",
+ "lib-q-ring-sig",
  "lib-q-sig",
  "lib-q-utils",
  "lib-q-zkp",
  "proptest",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web-sys",
@@ -1159,17 +1177,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-lattice-zkp"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-ring",
+ "lib-q-sha3",
+ "proptest",
+ "rand_core 0.10.1",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-ml-dsa"
 version = "0.0.2"
 dependencies = [
  "criterion",
  "fips204",
+ "getrandom 0.4.2",
  "hax-lib",
  "hex",
  "lib-q-intrinsics",
  "lib-q-keccak",
  "lib-q-platform",
  "lib-q-random",
+ "lib-q-ring",
  "lib-q-sha3",
  "rand_core 0.10.1",
  "serde",
@@ -1184,6 +1218,7 @@ version = "0.0.2"
 dependencies = [
  "criterion",
  "crypto-common 0.2.1",
+ "getrandom 0.4.2",
  "hex",
  "hex-literal",
  "hybrid-array",
@@ -1194,6 +1229,7 @@ dependencies = [
  "rand_core 0.10.1",
  "serde",
  "serde_json",
+ "subtle",
  "wasm-bindgen",
  "zeroize",
 ]
@@ -1318,6 +1354,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-prf"
+version = "0.0.2"
+dependencies = [
+ "crypto-bigint",
+ "hex",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "sha2 0.11.0",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-random"
 version = "0.0.2"
 dependencies = [
@@ -1333,6 +1382,33 @@ dependencies = [
  "signature",
  "wasm-bindgen",
  "zeroize",
+]
+
+[[package]]
+name = "lib-q-ring"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-sha3",
+ "proptest",
+ "rand_core 0.10.1",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-ring-sig"
+version = "0.0.2"
+dependencies = [
+ "crypto-bigint",
+ "lib-q-lattice-zkp",
+ "lib-q-prf",
+ "lib-q-ring",
+ "lib-q-sha3",
+ "rand_chacha 0.10.0",
+ "rand_core 0.10.1",
+ "subtle",
 ]
 
 [[package]]
@@ -1353,6 +1429,19 @@ dependencies = [
  "criterion",
  "lib-q-core",
  "zeroize",
+]
+
+[[package]]
+name = "lib-q-sca-test"
+version = "0.0.2"
+dependencies = [
+ "lib-q-lattice-zkp",
+ "lib-q-ml-dsa",
+ "lib-q-ml-kem",
+ "lib-q-random",
+ "lib-q-ring",
+ "lib-q-ring-sig",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -2057,7 +2146,7 @@ dependencies = [
  "bitflags 2.11.0",
  "num-traits",
  "rand 0.9.3",
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_xorshift",
  "regex-syntax",
  "rusty-fork",
@@ -2120,7 +2209,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
 dependencies = [
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_core 0.9.5",
 ]
 
@@ -2143,6 +2232,16 @@ checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
 dependencies = [
  "ppv-lite86",
  "rand_core 0.9.5",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e6af7f3e25ded52c41df4e0b1af2d047e45896c2f3281792ed68a1c243daedb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -2535,9 +2634,9 @@ dependencies = [
 
 [[package]]
 name = "typenum"
-version = "1.19.0"
+version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
 
 [[package]]
 name = "unarray"

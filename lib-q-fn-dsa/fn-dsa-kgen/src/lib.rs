@@ -34,16 +34,13 @@
 //! functions yield the sizes of the signing and verifying keys (in
 //! bytes).
 //!
-//! ## WARNING
+//! ## Standards alignment
 //!
-//! **The FN-DSA standard is currently being drafted, but no version has
-//! been published yet. When published, it may differ from the exact
-//! scheme implemented in this crate, in particular with regard to key
-//! encodings, message pre-hashing, and domain separation. Key pairs
-//! generated with this crate MAY fail to be interoperable with the final
-//! FN-DSA standard. This implementation is expected to be adjusted to
-//! the FN-DSA standard when published (before the 1.0 version
-//! release).**
+//! This crate targets **NIST FIPS 206** (FN-DSA). Key encodings, message
+//! pre-hashing, and domain separation follow the published standard. If NIST
+//! publishes errata or CAVP test-vector updates that affect wire
+//! interoperability, releases of this crate may adjust accordingly; consult
+//! release notes when upgrading.
 //!
 //! ## Example usage
 //!

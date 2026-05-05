@@ -1,6 +1,6 @@
 # lib-q-intrinsics
 
-A comprehensive SIMD intrinsics library for lib-Q cryptographic operations, designed as a replacement for external intrinsics libraries like libcrux-intrinsics.
+A comprehensive SIMD intrinsics library for lib-Q cryptographic operations. Sections below that mention **libcrux-intrinsics** describe historical migration and API familiarity only; this repository ships **`lib-q-intrinsics`** as the supported crate.
 
 ## Overview
 

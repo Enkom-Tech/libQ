@@ -60,6 +60,15 @@ mod encode;
 /// Section 5. The K-PKE Component Scheme
 mod pke;
 
+/// Centralised OS entropy adapter for the hardened path (feature `hardened`).
+/// Single location that calls `getrandom` directly; all other hardened code imports from here.
+#[cfg(feature = "hardened")]
+mod hardened_rng;
+
+/// Side-channel hardening (feature `hardened`).
+#[cfg(feature = "hardened")]
+mod masking;
+
 /// Section 6. The ML-KEM Key-Encapsulation Mechanism
 pub mod kem;
 

@@ -128,6 +128,7 @@ pub fn simd_unit_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) {
 #[hax_lib::ensures(|_| fstar!(r#"
     is_i32b_polynomial (v $NTT_BASE_BOUND + 8 * v $FIELD_MAX) ${re}_future
 "#) )]
+#[cfg_attr(feature = "hardened", allow(dead_code))]
 fn ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
@@ -563,6 +564,7 @@ fn ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 #[hax_lib::ensures(|_| fstar!(r#"
     is_i32b_polynomial (v $NTT_BASE_BOUND + 8 * v $FIELD_MAX) ${re}_future
 "#) )]
+#[cfg(not(feature = "hardened"))]
 pub(crate) fn ntt(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     ntt_at_layer_7(re);
     ntt_at_layer_6(re);
@@ -572,4 +574,92 @@ pub(crate) fn ntt(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     ntt_at_layer_2(re);
     ntt_at_layer_1(re);
     ntt_at_layer_0(re);
+}
+
+#[cfg(feature = "hardened")]
+mod ntt_layer0_shuffle {
+    use super::super::vector_type::Coefficients;
+    use super::simd_unit_ntt_at_layer_0;
+    use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT;
+
+    const ROUNDS: [(usize, i32, i32, i32, i32); 32] = [
+        (0, 2091667, 3407706, 2316500, 3817976),
+        (1, -3342478, 2244091, -2446433, -3562462),
+        (2, 266997, 2434439, -1235728, 3513181),
+        (3, -3520352, -3759364, -1197226, -3193378),
+        (4, 900702, 1859098, 909542, 819034),
+        (5, 495491, -1613174, -43260, -522500),
+        (6, -655327, -3122442, 2031748, 3207046),
+        (7, -3556995, -525098, -768622, -3595838),
+        (8, 342297, 286988, -2437823, 4108315),
+        (9, 3437287, -3342277, 1735879, 203044),
+        (10, 2842341, 2691481, -2590150, 1265009),
+        (11, 4055324, 1247620, 2486353, 1595974),
+        (12, -3767016, 1250494, 2635921, -3548272),
+        (13, -2994039, 1869119, 1903435, -1050970),
+        (14, -1333058, 1237275, -3318210, -1430225),
+        (15, -451100, 1312455, 3306115, -1962642),
+        (16, -1279661, 1917081, -2546312, -1374803),
+        (17, 1500165, 777191, 2235880, 3406031),
+        (18, -542412, -2831860, -1671176, -1846953),
+        (19, -2584293, -3724270, 594136, -3776993),
+        (20, -2013608, 2432395, 2454455, -164721),
+        (21, 1957272, 3369112, 185531, -1207385),
+        (22, -3183426, 162844, 1616392, 3014001),
+        (23, 810149, 1652634, -3694233, -1799107),
+        (24, -3038916, 3523897, 3866901, 269760),
+        (25, 2213111, -975884, 1717735, 472078),
+        (26, -426683, 1723600, -1803090, 1910376),
+        (27, -1667432, -1104333, -260646, -3833893),
+        (28, -2939036, -2235985, -420899, -2286327),
+        (29, 183443, -976891, 1612842, -3545687),
+        (30, -554416, 3919660, -48306, -1362209),
+        (31, 3937738, 1400424, -846154, 1976782),
+    ];
+
+    fn fy_perm32(perm: &mut [usize; 32]) {
+        for i in 0..32 {
+            perm[i] = i;
+        }
+        for i in (1..32).rev() {
+            let mut b = [0u8; 8];
+            let _ = getrandom::fill(&mut b);
+            let j = usize::try_from(u64::from_le_bytes(b) % (i as u64 + 1))
+                .expect("shuffle index fits in usize (perm length 32)");
+            perm.swap(i, j);
+        }
+    }
+
+    fn round(
+        re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
+        index: usize,
+        zeta_0: i32,
+        zeta_1: i32,
+        zeta_2: i32,
+        zeta_3: i32,
+    ) {
+        simd_unit_ntt_at_layer_0(&mut re[index], zeta_0, zeta_1, zeta_2, zeta_3);
+    }
+
+    pub(super) fn ntt_at_layer_0_shuffled(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
+        let mut perm = [0usize; 32];
+        fy_perm32(&mut perm);
+        for t in 0..32 {
+            let i = perm[t];
+            let (index, z0, z1, z2, z3) = ROUNDS[i];
+            round(re, index, z0, z1, z2, z3);
+        }
+    }
+}
+
+#[cfg(feature = "hardened")]
+pub(crate) fn ntt(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
+    ntt_at_layer_7(re);
+    ntt_at_layer_6(re);
+    ntt_at_layer_5(re);
+    ntt_at_layer_4(re);
+    ntt_at_layer_3(re);
+    ntt_at_layer_2(re);
+    ntt_at_layer_1(re);
+    ntt_layer0_shuffle::ntt_at_layer_0_shuffled(re);
 }

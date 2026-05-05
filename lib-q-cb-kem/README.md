@@ -1,4 +1,10 @@
-# classic-mceliece-rust
+# lib-q-cb-kem (Classic McEliece–family CB-KEM)
+
+This directory is the **`lib-q-cb-kem`** workspace crate (see `Cargo.toml`). It vendors/adapts the **classic-mceliece-rust**-style implementation below for use behind the **`cb-kem`** feature of [**lib-q-kem**](../lib-q-kem). In `Cargo.toml`, depend on `lib-q-cb-kem`, not the crates.io name shown in the historical sections of this file.
+
+---
+
+## Upstream-oriented documentation (Classic McEliece)
 
 This is a pure-rust safe-rust implementation of the Classic McEliece post-quantum scheme.
 
@@ -35,14 +41,14 @@ Anyone, how wants to use Classic McEliece to negotiate a key between two parties
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-classic-mceliece-rust = "3.0"
+lib-q-cb-kem = { version = "0.0.2", path = "../lib-q-cb-kem" }  # from workspace root
 ```
 
 To use a specific Classic McEliece variant, you need to import it with the corresponding feature flag:
 
 ```toml
 [dependencies]
-classic-mceliece-rust = { version = "3.0", features = ["mceliece6960119"] }
+lib-q-cb-kem = { version = "0.0.2", features = ["mceliece6960119"] }
 ```
 
 Assuming this dependency, the simplest and most ergonomic way of using the library

@@ -32,12 +32,12 @@ use lib_q_hpke::HpkeContext;
 use libq::LibQCryptoProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create HPKE context
-    let provider = Box::new(LibQCryptoProvider::new());
+    // Create HPKE context (umbrella `lib-q` crate, Rust name `libq`)
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     
     // Generate key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
@@ -152,7 +152,7 @@ Performance characteristics for different security levels:
 - `lib-q-kem` - Key encapsulation mechanism implementations
 - `lib-q-hash` - Hash function implementations
 - `lib-q-aead` - Authenticated encryption implementations
-- `libq` - Unified lib-q provider
+- `lib-q` (Rust import `libq`) — `LibQCryptoProvider` for demos; production integrations may use narrower providers
 
 ## License
 

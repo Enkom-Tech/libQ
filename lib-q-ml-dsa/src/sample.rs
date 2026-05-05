@@ -625,6 +625,42 @@ mod tests {
         assert_eq!(re.to_i32_array(), expected_coefficients);
     }
 
+    fn sample_in_ball_matches_lib_q_ring_generic<
+        SIMDUnit: Operations,
+        Shake256: shake256::DsaXof,
+    >() {
+        let seeds = [
+            (
+                [
+                    3, 9, 159, 119, 236, 6, 207, 7, 103, 108, 187, 137, 222, 35, 37, 30, 79, 224,
+                    204, 186, 41, 38, 148, 188, 201, 50, 105, 155, 129, 217, 124, 57,
+                ],
+                39usize,
+            ),
+            (
+                [
+                    147, 7, 165, 152, 200, 20, 4, 38, 107, 110, 111, 176, 108, 84, 109, 201, 232,
+                    125, 52, 83, 160, 120, 106, 44, 76, 41, 76, 144, 8, 184, 4, 74,
+                ],
+                49usize,
+            ),
+            (
+                [
+                    188, 193, 17, 175, 172, 179, 13, 23, 90, 238, 237, 230, 143, 113, 24, 65, 250,
+                    86, 234, 229, 251, 57, 199, 158, 9, 4, 102, 249, 11, 68, 140, 107,
+                ],
+                60usize,
+            ),
+        ];
+
+        for (seed, tau) in seeds {
+            let mut re = PolynomialRingElement::zero();
+            sample_challenge_ring_element::<SIMDUnit, Shake256>(&seed, tau, &mut re);
+            let ring = lib_q_ring::sample_in_ball(&seed, tau);
+            assert_eq!(re.to_i32_array(), ring.coeffs);
+        }
+    }
+
     #[cfg(not(feature = "simd256"))]
     mod portable {
         use super::*;
@@ -716,6 +752,14 @@ mod tests {
                 hash_functions::portable::Shake256,
             >();
         }
+
+        #[test]
+        fn sample_in_ball_matches_lib_q_ring() {
+            sample_in_ball_matches_lib_q_ring_generic::<
+                simd::portable::PortableSIMDUnit,
+                hash_functions::portable::Shake256,
+            >();
+        }
     }
 
     #[cfg(feature = "simd256")]
@@ -773,6 +817,14 @@ mod tests {
         #[test]
         fn test_sample_challenge_ring_element() {
             test_sample_challenge_ring_element_generic::<
+                simd::avx2::AVX2SIMDUnit,
+                hash_functions::portable::Shake256,
+            >();
+        }
+
+        #[test]
+        fn sample_in_ball_matches_lib_q_ring() {
+            sample_in_ball_matches_lib_q_ring_generic::<
                 simd::avx2::AVX2SIMDUnit,
                 hash_functions::portable::Shake256,
             >();

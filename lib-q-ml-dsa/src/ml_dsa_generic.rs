@@ -22,6 +22,8 @@ pub(crate) mod ml_dsa_44 {
         shake128,
         shake256,
     };
+    #[cfg(feature = "hardened")]
+    use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
         add_vectors,
         compute_as1_plus_s2,
@@ -194,6 +196,26 @@ pub(crate) mod ml_dsa_44 {
         );
         encoding::t0::deserialize_to_vector_then_ntt::<SIMDUnit>(t0_serialized, &mut t0_as_ntt);
 
+        #[cfg(feature = "hardened")]
+        let mut s1_as_ntt_b = [PolynomialRingElement::zero(); COLUMNS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut s2_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut t0_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        {
+            crate::hardened::split_signing_key_ntt_three::<SIMDUnit, Shake256Xof>(
+                &mut s1_as_ntt,
+                &mut s1_as_ntt_b,
+                &mut s2_as_ntt,
+                &mut s2_as_ntt_b,
+                &mut t0_as_ntt,
+                &mut t0_as_ntt_b,
+                seed_for_signing,
+                &randomness,
+            );
+        }
+
         // Sample matrix A.
         let mut matrix = [PolynomialRingElement::<SIMDUnit>::zero(); ROW_X_COLUMN];
         Sampler::matrix_flat::<SIMDUnit>(COLUMNS_IN_A, seed_for_a, &mut matrix);
@@ -292,49 +314,143 @@ pub(crate) mod ml_dsa_44 {
             );
             ntt(&mut verifier_challenge);
 
-            // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
-            // another iteration of the loop.
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s1 = s1_as_ntt.clone();
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s2 = s2_as_ntt.clone();
-
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
-
-            add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
-            subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
-
-            #[allow(clippy::if_same_then_else)]
-            if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else {
-                // We need to clone here in case we need t0_as_ntt again in another iteration
-                // of the loop.
+            #[cfg(not(feature = "hardened"))]
+            {
+                // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
+                // another iteration of the loop.
                 #[allow(clippy::clone_on_copy)]
-                let mut challenge_times_t0 = t0_as_ntt.clone();
-                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_t0, &verifier_challenge);
-                if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
+                let mut challenge_times_s1 = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2 = s2_as_ntt.clone();
+
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
+
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
                     // XXX: https://github.com/hacspec/hax/issues/1171
                     // continue;
                 } else {
-                    add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
-                    let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
-                    let ones_in_hint =
-                        make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
-
-                    if ones_in_hint > MAX_ONES_IN_HINT {
+                    // We need to clone here in case we need t0_as_ntt again in another iteration
+                    // of the loop.
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0 = t0_as_ntt.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0,
+                        &verifier_challenge,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
                         // XXX: https://github.com/hacspec/hax/issues/1171
                         // continue;
                     } else {
-                        attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
-                        commitment_hash = Some(commitment_hash_candidate);
-                        signer_response = Some(mask);
-                        hint = Some(hint_candidate);
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
+                    }
+                }
+            }
+
+            #[cfg(feature = "hardened")]
+            {
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_a = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_b = s1_as_ntt_b.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_a = s2_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_b = s2_as_ntt_b.clone();
+
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_b,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_b,
+                    &verifier_challenge,
+                );
+
+                merge_masked_ntt_products::<SIMDUnit>(
+                    COLUMNS_IN_A,
+                    &mut challenge_times_s1_a,
+                    &challenge_times_s1_b,
+                );
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1_a);
+                merge_masked_ntt_products::<SIMDUnit>(
+                    ROWS_IN_A,
+                    &mut challenge_times_s2_a,
+                    &challenge_times_s2_b,
+                );
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2_a);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else {
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_a = t0_as_ntt.clone();
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_b = t0_as_ntt_b.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_a,
+                        &verifier_challenge,
+                    );
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_b,
+                        &verifier_challenge,
+                    );
+                    merge_masked_ntt_products::<SIMDUnit>(
+                        ROWS_IN_A,
+                        &mut challenge_times_t0_a,
+                        &challenge_times_t0_b,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0_a, GAMMA2) {
+                        // XXX: https://github.com/hacspec/hax/issues/1171
+                        // continue;
+                    } else {
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0_a);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
                     }
                 }
             }
@@ -698,6 +814,8 @@ pub(crate) mod ml_dsa_65 {
         shake128,
         shake256,
     };
+    #[cfg(feature = "hardened")]
+    use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
         add_vectors,
         compute_as1_plus_s2,
@@ -870,6 +988,26 @@ pub(crate) mod ml_dsa_65 {
         );
         encoding::t0::deserialize_to_vector_then_ntt::<SIMDUnit>(t0_serialized, &mut t0_as_ntt);
 
+        #[cfg(feature = "hardened")]
+        let mut s1_as_ntt_b = [PolynomialRingElement::zero(); COLUMNS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut s2_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut t0_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        {
+            crate::hardened::split_signing_key_ntt_three::<SIMDUnit, Shake256Xof>(
+                &mut s1_as_ntt,
+                &mut s1_as_ntt_b,
+                &mut s2_as_ntt,
+                &mut s2_as_ntt_b,
+                &mut t0_as_ntt,
+                &mut t0_as_ntt_b,
+                seed_for_signing,
+                &randomness,
+            );
+        }
+
         // Sample matrix A.
         let mut matrix = [PolynomialRingElement::<SIMDUnit>::zero(); ROW_X_COLUMN];
         Sampler::matrix_flat::<SIMDUnit>(COLUMNS_IN_A, seed_for_a, &mut matrix);
@@ -968,49 +1106,143 @@ pub(crate) mod ml_dsa_65 {
             );
             ntt(&mut verifier_challenge);
 
-            // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
-            // another iteration of the loop.
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s1 = s1_as_ntt.clone();
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s2 = s2_as_ntt.clone();
-
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
-
-            add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
-            subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
-
-            #[allow(clippy::if_same_then_else)]
-            if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else {
-                // We need to clone here in case we need t0_as_ntt again in another iteration
-                // of the loop.
+            #[cfg(not(feature = "hardened"))]
+            {
+                // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
+                // another iteration of the loop.
                 #[allow(clippy::clone_on_copy)]
-                let mut challenge_times_t0 = t0_as_ntt.clone();
-                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_t0, &verifier_challenge);
-                if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
+                let mut challenge_times_s1 = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2 = s2_as_ntt.clone();
+
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
+
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
                     // XXX: https://github.com/hacspec/hax/issues/1171
                     // continue;
                 } else {
-                    add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
-                    let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
-                    let ones_in_hint =
-                        make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
-
-                    if ones_in_hint > MAX_ONES_IN_HINT {
+                    // We need to clone here in case we need t0_as_ntt again in another iteration
+                    // of the loop.
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0 = t0_as_ntt.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0,
+                        &verifier_challenge,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
                         // XXX: https://github.com/hacspec/hax/issues/1171
                         // continue;
                     } else {
-                        attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
-                        commitment_hash = Some(commitment_hash_candidate);
-                        signer_response = Some(mask);
-                        hint = Some(hint_candidate);
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
+                    }
+                }
+            }
+
+            #[cfg(feature = "hardened")]
+            {
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_a = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_b = s1_as_ntt_b.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_a = s2_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_b = s2_as_ntt_b.clone();
+
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_b,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_b,
+                    &verifier_challenge,
+                );
+
+                merge_masked_ntt_products::<SIMDUnit>(
+                    COLUMNS_IN_A,
+                    &mut challenge_times_s1_a,
+                    &challenge_times_s1_b,
+                );
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1_a);
+                merge_masked_ntt_products::<SIMDUnit>(
+                    ROWS_IN_A,
+                    &mut challenge_times_s2_a,
+                    &challenge_times_s2_b,
+                );
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2_a);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else {
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_a = t0_as_ntt.clone();
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_b = t0_as_ntt_b.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_a,
+                        &verifier_challenge,
+                    );
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_b,
+                        &verifier_challenge,
+                    );
+                    merge_masked_ntt_products::<SIMDUnit>(
+                        ROWS_IN_A,
+                        &mut challenge_times_t0_a,
+                        &challenge_times_t0_b,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0_a, GAMMA2) {
+                        // XXX: https://github.com/hacspec/hax/issues/1171
+                        // continue;
+                    } else {
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0_a);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
                     }
                 }
             }
@@ -1419,6 +1651,8 @@ pub(crate) mod ml_dsa_87 {
         shake128,
         shake256,
     };
+    #[cfg(feature = "hardened")]
+    use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
         add_vectors,
         compute_as1_plus_s2,
@@ -1591,6 +1825,26 @@ pub(crate) mod ml_dsa_87 {
         );
         encoding::t0::deserialize_to_vector_then_ntt::<SIMDUnit>(t0_serialized, &mut t0_as_ntt);
 
+        #[cfg(feature = "hardened")]
+        let mut s1_as_ntt_b = [PolynomialRingElement::zero(); COLUMNS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut s2_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        let mut t0_as_ntt_b = [PolynomialRingElement::zero(); ROWS_IN_A];
+        #[cfg(feature = "hardened")]
+        {
+            crate::hardened::split_signing_key_ntt_three::<SIMDUnit, Shake256Xof>(
+                &mut s1_as_ntt,
+                &mut s1_as_ntt_b,
+                &mut s2_as_ntt,
+                &mut s2_as_ntt_b,
+                &mut t0_as_ntt,
+                &mut t0_as_ntt_b,
+                seed_for_signing,
+                &randomness,
+            );
+        }
+
         // Sample matrix A.
         let mut matrix = [PolynomialRingElement::<SIMDUnit>::zero(); ROW_X_COLUMN];
         Sampler::matrix_flat::<SIMDUnit>(COLUMNS_IN_A, seed_for_a, &mut matrix);
@@ -1689,49 +1943,143 @@ pub(crate) mod ml_dsa_87 {
             );
             ntt(&mut verifier_challenge);
 
-            // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
-            // another iteration of the loop.
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s1 = s1_as_ntt.clone();
-            #[allow(clippy::clone_on_copy)]
-            let mut challenge_times_s2 = s2_as_ntt.clone();
-
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
-            vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
-
-            add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
-            subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
-
-            #[allow(clippy::if_same_then_else)]
-            if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
-                // XXX: https://github.com/hacspec/hax/issues/1171
-                // continue;
-            } else {
-                // We need to clone here in case we need t0_as_ntt again in another iteration
-                // of the loop.
+            #[cfg(not(feature = "hardened"))]
+            {
+                // We need to clone here in case we need s1_as_ntt or s2_as_ntt again in
+                // another iteration of the loop.
                 #[allow(clippy::clone_on_copy)]
-                let mut challenge_times_t0 = t0_as_ntt.clone();
-                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_t0, &verifier_challenge);
-                if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
+                let mut challenge_times_s1 = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2 = s2_as_ntt.clone();
+
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s1, &verifier_challenge);
+                vector_times_ring_element::<SIMDUnit>(&mut challenge_times_s2, &verifier_challenge);
+
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1);
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
                     // XXX: https://github.com/hacspec/hax/issues/1171
                     // continue;
                 } else {
-                    add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
-                    let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
-                    let ones_in_hint =
-                        make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
-
-                    if ones_in_hint > MAX_ONES_IN_HINT {
+                    // We need to clone here in case we need t0_as_ntt again in another iteration
+                    // of the loop.
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0 = t0_as_ntt.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0,
+                        &verifier_challenge,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0, GAMMA2) {
                         // XXX: https://github.com/hacspec/hax/issues/1171
                         // continue;
                     } else {
-                        attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
-                        commitment_hash = Some(commitment_hash_candidate);
-                        signer_response = Some(mask);
-                        hint = Some(hint_candidate);
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
+                    }
+                }
+            }
+
+            #[cfg(feature = "hardened")]
+            {
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_a = s1_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s1_b = s1_as_ntt_b.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_a = s2_as_ntt.clone();
+                #[allow(clippy::clone_on_copy)]
+                let mut challenge_times_s2_b = s2_as_ntt_b.clone();
+
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s1_b,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_a,
+                    &verifier_challenge,
+                );
+                vector_times_ring_element::<SIMDUnit>(
+                    &mut challenge_times_s2_b,
+                    &verifier_challenge,
+                );
+
+                merge_masked_ntt_products::<SIMDUnit>(
+                    COLUMNS_IN_A,
+                    &mut challenge_times_s1_a,
+                    &challenge_times_s1_b,
+                );
+                add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask, &challenge_times_s1_a);
+                merge_masked_ntt_products::<SIMDUnit>(
+                    ROWS_IN_A,
+                    &mut challenge_times_s2_a,
+                    &challenge_times_s2_b,
+                );
+                subtract_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_s2_a);
+
+                #[allow(clippy::if_same_then_else)]
+                if vector_infinity_norm_exceeds::<SIMDUnit>(&mask, (1 << GAMMA1_EXPONENT) - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else if vector_infinity_norm_exceeds::<SIMDUnit>(&w0, GAMMA2 - BETA) {
+                    // XXX: https://github.com/hacspec/hax/issues/1171
+                    // continue;
+                } else {
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_a = t0_as_ntt.clone();
+                    #[allow(clippy::clone_on_copy)]
+                    let mut challenge_times_t0_b = t0_as_ntt_b.clone();
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_a,
+                        &verifier_challenge,
+                    );
+                    vector_times_ring_element::<SIMDUnit>(
+                        &mut challenge_times_t0_b,
+                        &verifier_challenge,
+                    );
+                    merge_masked_ntt_products::<SIMDUnit>(
+                        ROWS_IN_A,
+                        &mut challenge_times_t0_a,
+                        &challenge_times_t0_b,
+                    );
+                    if vector_infinity_norm_exceeds::<SIMDUnit>(&challenge_times_t0_a, GAMMA2) {
+                        // XXX: https://github.com/hacspec/hax/issues/1171
+                        // continue;
+                    } else {
+                        add_vectors::<SIMDUnit>(ROWS_IN_A, &mut w0, &challenge_times_t0_a);
+                        let mut hint_candidate = [[0; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                        let ones_in_hint =
+                            make_hint::<SIMDUnit>(&w0, &commitment, GAMMA2, &mut hint_candidate);
+
+                        if ones_in_hint > MAX_ONES_IN_HINT {
+                            // XXX: https://github.com/hacspec/hax/issues/1171
+                            // continue;
+                        } else {
+                            attempt = REJECTION_SAMPLE_BOUND_SIGN; // exit loop now
+                            commitment_hash = Some(commitment_hash_candidate);
+                            signer_response = Some(mask);
+                            hint = Some(hint_candidate);
+                        }
                     }
                 }
             }

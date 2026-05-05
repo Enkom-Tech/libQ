@@ -3,7 +3,7 @@
 //! This module provides comprehensive tests for hardened mode security features,
 //! including RNG integration, zeroization, and constant-time operations.
 
-#![cfg(feature = "hardened-mode")]
+#![cfg(feature = "hardened")]
 
 use lib_q_ml_dsa::*;
 
@@ -61,7 +61,7 @@ fn test_hardened_mode_zeroization() {
 /// Test hardened mode constant-time operations
 #[test]
 fn test_hardened_mode_constant_time() {
-    #[cfg(feature = "constant-time")]
+    #[cfg(feature = "hardened")]
     {
         // Basic check - more rigorous timing analysis needed externally
         let seed = [0x42; 32];
@@ -79,7 +79,7 @@ fn test_hardened_mode_constant_time() {
         println!("✓ Constant-time feature enabled (requires external timing analysis)");
     }
 
-    #[cfg(not(feature = "constant-time"))]
+    #[cfg(not(feature = "hardened"))]
     {
         println!("⚠ Constant-time feature not enabled - skipping test");
     }

@@ -6,12 +6,11 @@ Thank you for your interest in contributing to lib-Q! This document outlines the
 
 lib-Q is a cryptography library, which means security is paramount. All contributions must follow these principles:
 
-### 1. **Post-Quantum Only**
-- **NEVER** use classical cryptographic algorithms (RSA, ECC, AES, SHA-256, ChaCha20, Poly1305 etc.)
-- **ONLY** use NIST-approved post-quantum algorithms
-- **ONLY** use SHA-3 family hash functions (SHAKE256, SHAKE128, cSHAKE256)
-- **ONLY** use post-quantum secure ZKP systems (zk-STARKs, not classical SNARKs)
-- All classical crypto is considered broken in our threat model
+### 1. **Post-quantum asymmetric and SHA-3–aligned design**
+- **Do not** use **classical public-key** schemes (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the library’s PQC mission; follow [SECURITY.md](SECURITY.md).
+- **Do** use **NIST-track / standardized PQC** (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, HQC, CB-KEM family, etc.) for those roles.
+- **Hashes / XOFs** in new cryptographic design should stay in the **SHA-3 family** (SHAKE, cSHAKE, and related workspace APIs). Symmetric choices follow existing crate patterns (e.g. Saturnin, SHAKE-based AEAD). Some standardized or infrastructure paths may use other primitives already under review—mirror existing crates rather than inventing new classical stacks.
+- **ZKP**: The production-facing transparent proof stack is **zk-STARK–based** (`lib-q-zkp` and related crates). **`lib-q-lattice-zkp`** is an explicit research path for module-lattice statements. Do not add pairing-based or classical-curve trusted-setup SNARKs as the primary PQ story without maintainer agreement.
 
 ### 2. **Constant-Time Operations**
 - All cryptographic operations must be constant-time
@@ -36,7 +35,7 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 For full development workflow, CI/CD pipeline, and troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### Prerequisites
-- Rust 1.94+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
+- Rust 1.94.1+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - `wasm-pack` for WASM compilation
 - `cargo-audit` for security audits
 - `cargo-tarpaulin` for code coverage
@@ -64,10 +63,10 @@ cargo build
 Before submitting, ensure there are no Clippy issues. Run from the workspace root:
 
 ```bash
-cargo clippy --all-targets --all-features
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
-Warnings are treated as errors via `.cargo/config.toml` (`-D warnings`), so the build will fail if any lints are reported.
+CI runs Clippy with `-D warnings` (see `.github/workflows/ci.yml`); use the command above locally so PRs match the gate.
 
 ### Documentation
 - All public APIs must be documented

@@ -153,7 +153,7 @@ if (-not [string]::IsNullOrWhiteSpace($PackageArg)) {
         if ($enableSimdAcvp) {
             $cmd += " --features simd256,acvp"
         } else {
-            $cmd += " --features std,random,acvp,fips-mode,hardened-mode,mldsa44,mldsa65,mldsa87"
+            $cmd += " --features std,random,acvp,fips-mode,hardened,mldsa44,mldsa65,mldsa87"
         }
     } elseif ($PackageArg -eq "lib-q-intrinsics") {
         $cmd += " --features simd256,simd128,simd512"
@@ -192,6 +192,16 @@ if (($PackageArg -eq $pkgLibQMldsa) -and (-not $enableSimdAcvp)) {
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '" --exclude-files "lib-q-ml-dsa/src/simd/avx2/' + '*' + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'
+}
+if ($PackageArg -eq "lib-q-zkp") {
+    # lib-q-zkp: recursive verifier internals are experimental and exercised by
+    # dedicated long-running integration suites; exclude them from default crate
+    # threshold gating to measure stable API/production paths.
+    $cmd += ' --exclude-files "lib-q-zkp/src/aggregation.rs"'
+    $cmd += ' --exclude-files "lib-q-zkp/src/air/stark_verifier.rs"'
+    $cmd += ' --exclude-files "lib-q-zkp/src/air/fri_verifier.rs"'
+    $cmd += ' --exclude-files "lib-q-zkp/src/air/commitment_verifier.rs"'
+    $cmd += ' --exclude-files "lib-q-zkp/src/air/constraint_verifier.rs"'
 }
 if ($PackageArg -eq "lib-q-intrinsics") {
     $pa = $env:PROCESSOR_ARCHITECTURE

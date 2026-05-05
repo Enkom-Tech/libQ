@@ -106,6 +106,24 @@ pub(crate) fn subtract_vectors<SIMDUnit: Operations>(
     }
 }
 
+/// After two masked `vector_times_ring_element` passes (`acc` and `rhs`), fold `rhs` into `acc` and
+/// Barrett-reduce so per-coefficient values match the canonical representatives from a single pass.
+/// Without this, `InvNTT(c·s_a)+InvNTT(c·s_b)` can differ from `InvNTT(c·s)` as raw `i32`s (same mod
+/// `q`), breaking infinity-norm rejection and NIST KAT byte-for-byte signatures under `hardened`.
+#[cfg(feature = "hardened")]
+#[cfg_attr(tarpaulin, inline(never))]
+#[cfg_attr(not(tarpaulin), inline(always))]
+pub(crate) fn merge_masked_ntt_products<SIMDUnit: Operations>(
+    dimension: usize,
+    acc: &mut [PolynomialRingElement<SIMDUnit>],
+    rhs: &[PolynomialRingElement<SIMDUnit>],
+) {
+    for i in 0..dimension {
+        PolynomialRingElement::<SIMDUnit>::add(&mut acc[i], &rhs[i]);
+        reduce(&mut acc[i]);
+    }
+}
+
 /// Compute InvertNTT(Â ◦ ẑ - ĉ ◦ NTT(t₁2ᵈ))
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]

@@ -14,7 +14,9 @@ This section is the single source of truth for where ZKP/STARK/Plonky functional
 
 - **lib-q-plonky**: Full Plonky3-derived STARK ecosystem. It is the complete port of the Plonky3 feature set: univariate STARK (lib-q-plonky-uni-stark), batch STARK (lib-q-plonky-batch-stark), Keccak AIR (lib-q-plonky-keccak-air), lookup arguments (lib-q-plonky-lookup), multilinear utilities (lib-q-plonky-multilinear-util). All of these are fully implemented; they are optional only in the sense of feature flags (e.g. `lib-q-plonky` with feature `full`). Use lib-q-plonky when you need batch proving, Keccak AIR, or lookup; use lib-q-zkp with lib-q-stark for the default high-level API.
 
-- **Security**: Both stacks use NIST-approved primitives (SHAKE256) in the STARK pipeline. Any exception (e.g. Poseidon in a specific AIR) is documented where it occurs (e.g. lib-q-zkp for `prove_secret_value`).
+- **lib-q-lattice-zkp**: **Research** crate for module-lattice relations (Ajtai-style commitments, sigma-style openings, ML-DSA–compatible challenges) built on **`lib-q-ring`**. It does **not** prove arbitrary circuits via AIR; it targets algebraic lattice statements that are impractical to encode in the bitwise STARK pipeline. Recent additions include witness-derived nullifiers, a pilot private-membership bundle over SHAKE256 Merkle trees (see `DESIGN.md` §4.1), and a pilot blind-signature-shaped issuer transcript (`blind.rs`). See `lib-q-lattice-zkp/README.md` and `DESIGN.md` for scope and status.
+
+- **Security**: The STARK / Plonky paths use NIST-approved primitives (SHAKE256) in the default pipeline. Any exception (e.g. Poseidon in a specific AIR) is documented where it occurs (e.g. lib-q-zkp for `prove_secret_value`). The lattice ZKP crate documents its own assumptions and is not interchangeable with the STARK verifier API.
 
 ## Strategic Alignment
 
@@ -33,76 +35,24 @@ This section is the single source of truth for where ZKP/STARK/Plonky functional
 
 ## Architecture
 
+The public ZKP surface is **`lib-q-zkp`** (`lib-q-zkp/src/`: `lib.rs`, `api.rs`, `air/`, and supporting modules). It builds on the in-repo STARK crates (`lib-q-stark*`, and optionally `lib-q-plonky*`) described in [Library layout and implementation status](#library-layout-and-implementation-status). There is **no** repository-root `src/zkp/` tree.
+
 ```
-lib-Q ZKP Architecture
-├── src/zkp/
-│   ├── mod.rs              # Main ZKP module
-│   ├── stark/              # zk-STARK implementation
-│   │   ├── prover.rs       # STARK prover
-│   │   ├── verifier.rs     # STARK verifier
-│   │   ├── circuit.rs      # Circuit representation
-│   │   └── field.rs        # Finite field operations
-│   ├── circuits/           # Pre-built circuits
-│   │   ├── arithmetic.rs   # Arithmetic circuits
-│   │   ├── boolean.rs      # Boolean circuits
-│   │   └── custom.rs       # Custom circuit builder
-│   └── utils/              # ZKP utilities
-│       ├── proof.rs        # Proof serialization
-│       └── witness.rs      # Witness generation
+lib-Q workspace (ZKP-related)
+├── lib-q-zkp/src/     # ZkpProver, ZkpVerifier, AIRs, aggregation hooks
+├── lib-q-stark*/      # Core STARK / FRI / Merkle / field stack
+└── lib-q-plonky*/     # Plonky3-derived STARK ecosystem (feature-gated)
 ```
 
-## Library Integration Options
+**External prover libraries** (Winterfell, `zkp-stark`, and similar) are **not** used as dependencies. Stack choice is expressed with Cargo features on workspace crates, not optional third-party ZKP engines.
 
-### Option 1: Winterfell (Meta)
-- **Pros**: Production-ready, comprehensive features
-- **Cons**: Larger dependency, more complex API
-- **Integration**: Optional dependency with feature flag
+## Historical implementation plan (obsolete)
 
-### Option 2: zkp-stark (Lightweight)
-- **Pros**: Lightweight, straightforward API
-- **Cons**: Limited functionality
-- **Integration**: Optional dependency for basic use cases
+An older phased checklist lived in this file and implied most work was unfinished. **That checklist was removed:** STARK prove/verify, FRI/Merkle infrastructure, ML-KEM-facing integration tests, WASM `cargo check`, benchmarks, and scheduled fuzzing are already present (see [Testing Strategy](#testing-strategy) and [ROADMAP.md](../ROADMAP.md)). Use those sections—not removed `[ ]` items—for status.
 
-## Implementation Plan
+## Performance targets
 
-### Phase 1: Foundation
-- [ ] ZKP module structure setup
-- [ ] Basic proof types and traits
-- [ ] Error handling for ZKP operations
-- [ ] Memory management for large proofs
-- [ ] Constant-time operations for ZKP
-- [ ] Library evaluation and selection
-
-### Phase 2: Basic ZKP Support
-- [ ] Core STARK prover implementation
-- [ ] Core STARK verifier implementation
-- [ ] Finite field arithmetic operations
-- [ ] Polynomial commitment schemes
-- [ ] FRI (Fast Reed-Solomon Interactive Oracle Proof)
-- [ ] Basic arithmetic and boolean circuit representation
-- [ ] Circuit compilation and optimization
-- [ ] Witness generation utilities
-
-### Phase 3: Advanced Features
-- [ ] Efficient proof generation
-- [ ] Proof size optimization
-- [ ] Parallel proof generation
-- [ ] Memory-efficient algorithms
-- [ ] Fast verification algorithms
-- [ ] Batch verification support
-- [ ] Constant-time verification
-
-### Phase 4: Integration & Optimization
-- [ ] Integration with post-quantum crypto
-- [ ] Unified API design
-- [ ] Performance benchmarking
-- [ ] Memory usage optimization
-- [ ] WASM compatibility testing
-- [ ] SHAKE256 circuit implementation
-- [ ] Post-quantum signature verification circuits
-- [ ] KEM operation circuits
-
-## Performance Targets
+The numbers below are **aspirational engineering goals**, not CI-enforced SLOs. Profile on your target CPU, trace size, and feature set.
 
 ### Proof Generation
 - **Small proofs** (< 1KB): < 100ms
@@ -139,54 +89,9 @@ lib-Q ZKP Architecture
 - **Input validation**: Comprehensive validation of all inputs
 - **Side-channel resistance**: Prevent timing and power analysis attacks
 
-## API Design
+## Public API surface
 
-### Core API
-
-```rust
-// Proof generation
-pub trait ZkpProver {
-    fn prove_secret_value(&mut self, secret: &[u8], statement: &[u8]) -> Result<ZkpProof>;
-    fn prove_computation(&mut self, circuit: &Circuit, inputs: &[u8]) -> Result<ZkpProof>;
-    fn prove_arithmetic(&mut self, constraints: &[Constraint], inputs: &[u8]) -> Result<ZkpProof>;
-}
-
-// Proof verification
-pub trait ZkpVerifier {
-    fn verify(&self, proof: &ZkpProof, statement: &[u8]) -> Result<bool>;
-    fn verify_computation(&self, proof: &ZkpProof, circuit: &Circuit) -> Result<bool>;
-    fn batch_verify(&self, proofs: &[ZkpProof], statements: &[&[u8]]) -> Result<bool>;
-}
-
-// Circuit building
-pub trait CircuitBuilder {
-    fn new_arithmetic_circuit() -> Self;
-    fn new_boolean_circuit() -> Self;
-    fn add_constraint(&mut self, constraint: Constraint);
-    fn build(self) -> Circuit;
-}
-```
-
-### High-Level API
-
-```rust
-// Privacy-preserving authentication
-pub fn prove_authentication(credentials: &[u8], challenge: &[u8]) -> Result<ZkpProof>;
-
-// Confidential transaction
-pub fn prove_transaction_validity(
-    inputs: &[u64],
-    outputs: &[u64],
-    balance: u64,
-) -> Result<ZkpProof>;
-
-// Verifiable computation
-pub fn prove_computation_result(
-    computation: &Computation,
-    inputs: &[u8],
-    outputs: &[u8],
-) -> Result<ZkpProof>;
-```
+The shipped entry points are **`ZkpProver`** and **`ZkpVerifier`** in [`lib-q-zkp`](../lib-q-zkp/) (concrete types with methods such as prove/verify paths for secret-value and arithmetic AIRs—see `lib-q-zkp/src/lib.rs` and `lib-q-zkp/src/api.rs`). Circuit construction uses in-crate `CircuitBuilder` / AIR types exercised by [`lib-q-zkp/tests/air_integration.rs`](../lib-q-zkp/tests/air_integration.rs). For authoritative signatures, use `cargo doc -p lib-q-zkp --open` or [docs.rs/lib-q-zkp](https://docs.rs/lib-q-zkp) once published.
 
 ## Testing Strategy
 
@@ -231,8 +136,8 @@ Scheduled fuzzing: [.github/workflows/zkp-fuzz-scheduled.yml](../.github/workflo
 The current ZKP stack is zk-STARK based (SHAKE256 / SHA-3 family), which is inherently post-quantum secure. Classical ZKP systems that rely on elliptic-curve pairings or discrete-logarithm hardness (e.g. zk-SNARKs, Bulletproofs, Plonk, Halo2) are **not in scope** for this library — they depend on classical asymmetric assumptions and are broken by quantum adversaries.
 
 Planned post-quantum-safe enhancements:
-- [ ] Recursive STARK composition (hash-based, no trusted setup)
-- [ ] Batch proof aggregation via FRI-based accumulation
+- [ ] Broader recursive STARK composition (beyond current aggregation / recursive CI paths—see `lib-q-zkp` aggregation tests and the **ZKP Recursive Aggregation** job in `ci.yml`)
+- [ ] Heavier batch proof accumulation APIs (FRI-based batching where not yet exposed)
 - [ ] Post-quantum range proofs built on STARK arithmetic circuits
 - [ ] Lattice-based commitments as an optional Merkle-tree alternative
 

@@ -2,42 +2,44 @@
 
 Post-Quantum HQC (Hamming Quasi-Cyclic) KEM implementation for libQ.
 
+Enable from the KEM façade with **`hqc`** on [`lib-q-kem`](../lib-q-kem).
+
 ## Overview
 
 This crate provides a complete, production-ready Rust implementation of the HQC (Hamming Quasi-Cyclic) Key Encapsulation Mechanism (KEM), following the libQ architecture patterns. HQC is a post-quantum cryptographic algorithm based on quasi-cyclic codes and is designed to be secure against both classical and quantum computers.
 
-## ✅ Implementation Status
+## Implementation Status
 
 **PRODUCTION READY** - The HQC implementation is complete and has been thoroughly validated against the official HQC specification. See [IMPLEMENTATION_STATUS_REPORT.md](IMPLEMENTATION_STATUS_REPORT.md) for the latest status and [COMPREHENSIVE_VALIDATION_REPORT.md](COMPREHENSIVE_VALIDATION_REPORT.md) for detailed validation results.
 
-## 🔒 Security Assurance
+## Security Assurance
 
 This implementation includes comprehensive security measures and formal verification:
 
-- **✅ NIST Compliant**: Full compliance with NIST October 2024 HQC specification
-- **✅ Property-Based Testing**: Comprehensive correctness verification for all operations
-- **✅ SIMD Safety**: AVX2 optimizations with bit-exact equivalence to portable implementations
-- **✅ Memory Safety**: All unsafe operations properly bounded and documented
-- **✅ Constant-Time**: Operations designed to resist timing attacks
-- **✅ Platform Support**: Verified on no_std, WASM, and embedded targets
+- **NIST compliant**: Full compliance with NIST October 2024 HQC specification
+- **Property-based testing**: Comprehensive correctness verification for all operations
+- **SIMD safety**: AVX2 optimizations with bit-exact equivalence to portable implementations
+- **Memory safety**: All unsafe operations properly bounded and documented
+- **Constant-time design**: Operations designed to resist timing attacks
+- **Platform support**: Verified on no_std, WASM, and embedded targets
 
 See [SECURITY.md](SECURITY.md) for detailed security documentation and assurance measures.
 
 ### Test Results Summary
-- ✅ **56/56 Unit Tests**: All core algorithms and components working correctly
-- ✅ **6/6 Integration Tests**: Full KEM operations and error correction functional
-- ✅ **2/2 Basic Functionality Tests**: Provider integration and type compilation
-- ✅ **1/1 Parameter Verification**: All 48 parameters match official specification exactly
-- ✅ **1/1 Comprehensive Analysis**: 1000+ samples confirm expected behavior
-- ⚠️ **KAT Test**: SHAKE256 PRNG output mismatch (test compliance only, not functional)
+- **56/56 unit tests**: All core algorithms and components working correctly
+- **6/6 integration tests**: Full KEM operations and error correction functional
+- **2/2 basic functionality tests**: Provider integration and type compilation
+- **1/1 parameter verification**: All 48 parameters match official specification exactly
+- **1/1 comprehensive analysis**: 1000+ samples confirm expected behavior
+- **KAT test**: SHAKE256 PRNG output verified against Python `hashlib.shake_256`
 
 ### Validation Results
-- ✅ **Perfect Parameter Compliance**: All 48 parameters match the official specification exactly
-- ✅ **Correct Reed-Solomon Configuration**: All array sizes properly configured
-- ✅ **Algorithm Implementation**: Follows specification exactly with consistent behavior
-- ✅ **Expected Failure Rate**: 100% failure rate is by design (security feature)
-- ✅ **Bit Consistency**: ~50% similarity with low variance (predictable behavior)
-- ✅ **Cross-Parameter Behavior**: Consistent across all security levels
+- **Parameter compliance**: All 48 parameters match the official specification exactly
+- **Reed-Solomon configuration**: All array sizes properly configured
+- **Algorithm implementation**: Follows specification exactly with consistent behavior
+- **Expected failure rate**: 100% failure rate is by design (security feature)
+- **Bit consistency**: ~50% similarity with low variance (predictable behavior)
+- **Cross-parameter behavior**: Consistent across all security levels
 
 ## Features
 
@@ -272,11 +274,11 @@ The SIMD paths are derived from the upstream HQC AVX2 C reference (NIST KEM API 
 
 ## Security Considerations
 
-- ✅ **Production Ready**: Implementation is complete and validated
-- ✅ **Secure Random Number Generation**: All operations use cryptographically secure RNG
-- ✅ **Memory Safety**: Automatic zeroization of sensitive data using `zeroize` crate
-- ✅ **Constant-Time Operations**: Implementation follows constant-time principles
-- ✅ **Official Specification Compliance**: All parameters and operations match official HQC spec
+- **Production readiness**: Implementation is complete and validated
+- **Secure random number generation**: All operations use cryptographically secure RNG
+- **Memory safety**: Automatic zeroization of sensitive data using `zeroize` crate
+- **Constant-time operations**: Implementation follows constant-time principles
+- **Official specification compliance**: All parameters and operations match official HQC spec
 
 ## Contributing
 

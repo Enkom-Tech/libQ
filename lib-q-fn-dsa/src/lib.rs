@@ -25,7 +25,7 @@
 //!
 //! # Features
 //!
-//! - **NIST-Approved**: Implements the upcoming FN-DSA standard (FIPS 206)
+//! - **NIST-Approved**: Implements NIST FIPS 206 (FN-DSA)
 //! - **High Performance**: Optimized for both x86_64 and ARM64 architectures
 //! - **Compact Signatures**: Smaller signature sizes compared to other post-quantum schemes
 //! - **Security Levels**: Supports Level 1 (128-bit) and Level 5 (256-bit) security

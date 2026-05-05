@@ -98,7 +98,8 @@ where
     }
 }
 
-// 0xff if x == y, 0x00 otherwise
+// 0xff if x == y, 0x00 otherwise (non-hardened path; hardened uses `subtle` in `masking`).
+#[cfg(not(feature = "hardened"))]
 fn constant_time_eq(x: u8, y: u8) -> u8 {
     let diff = x ^ y;
     let is_zero = !diff & diff.wrapping_sub(1);
@@ -127,16 +128,28 @@ where
         // } else {
         //     Kbar
         // }
-        let equal = cp
-            .iter()
-            .zip(encapsulated_key.iter())
-            .map(|(&x, &y)| constant_time_eq(x, y))
-            .fold(0xFF, |x, y| x & y);
-        Ok(Kp
-            .iter()
-            .zip(Kbar.iter())
-            .map(|(x, y)| (equal & x) | (!equal & y))
-            .collect())
+        #[cfg(feature = "hardened")]
+        {
+            let eq_bytes =
+                crate::masking::ciphertexts_equal_ct(cp.as_ref(), encapsulated_key.as_ref());
+            let eq_ring =
+                crate::masking::ciphertexts_equal_arithmetic_domain_ct::<P>(&cp, encapsulated_key);
+            let eq = eq_bytes & eq_ring;
+            Ok(crate::masking::select_shared_key_bytes_ct(eq, &Kp, &Kbar))
+        }
+        #[cfg(not(feature = "hardened"))]
+        {
+            let equal = cp
+                .iter()
+                .zip(encapsulated_key.iter())
+                .map(|(&x, &y)| constant_time_eq(x, y))
+                .fold(0xFF, |x, y| x & y);
+            Ok(Kp
+                .iter()
+                .zip(Kbar.iter())
+                .map(|(x, y)| (equal & x) | (!equal & y))
+                .collect())
+        }
     }
 }
 

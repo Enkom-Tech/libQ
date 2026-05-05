@@ -138,6 +138,12 @@ jobs:
           - package: "lib-q-platform"
           - package: "lib-q-saturnin"
           - package: "lib-q-random"
+          - package: "lib-q-hqc-traits"
+          - package: "lib-q-duplex-aead"
+          - package: "lib-q-tweak-aead"
+          - package: "lib-q-romulus"
+          - package: "lib-q-ring"
+          - package: "lib-q-prf"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -164,6 +170,7 @@ jobs:
           - package: "lib-q-intrinsics"
           - package: "lib-q-hqc"
           - package: "lib-q-slh-dsa"
+          - package: "lib-q-lattice-zkp"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -188,6 +195,7 @@ jobs:
           - package: "lib-q-aead"
           - package: "lib-q-kem"
           - package: "lib-q-sig"
+          - package: "lib-q-ring-sig"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -209,6 +217,7 @@ jobs:
         include:
           - package: "lib-q-hpke"
           - package: "lib-q"
+          - package: "lib-q-sca-test"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -549,7 +558,7 @@ jobs:
   # Post-release tasks - run after publishing
   post-release:
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-tier-12, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-16, publish-wasm-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -650,7 +659,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-tier-12, publish-wasm-packages, post-release, security-verification]
+    needs: [pre-release-validation, publish-rust-tier-16, publish-wasm-packages, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -661,7 +670,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-12.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-16.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY
