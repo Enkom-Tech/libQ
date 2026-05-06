@@ -6,6 +6,11 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
+#[cfg(all(feature = "parallelhash", target_arch = "wasm32"))]
+compile_error!(
+    "parallelhash feature is not supported on wasm32; do not enable 'parallelhash' for WASM builds"
+);
+
 extern crate alloc;
 
 use alloc::boxed::Box;

@@ -19,6 +19,7 @@ rand = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
+# Not supported on wasm32-unknown-unknown (see `compile_error!` in `src/lib.rs`).
 parallel = ["rayon"]
 
 [[bench]]

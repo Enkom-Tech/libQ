@@ -32,9 +32,10 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", optional = true }
 rand_core = { workspace = true, default-features = false }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 getrandom = { workspace = true, default-features = false, optional = true }
-
-# Post-quantum AEADs
 lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.2", optional = true }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [features]
 default = ["alloc", "ml-kem", "saturnin", "shake256", "hash", "secure-rng"]

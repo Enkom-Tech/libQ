@@ -224,11 +224,26 @@ jobs:
           - working-directory: "lib-q-ring-sig"
             features: ""
             check-only: "true"
-          - working-directory: "lib-q-sca-test"
-            features: ""
-            check-only: "true"
           - working-directory: "lib-q-plonky"
             features: ""
+            check-only: "true"
+          - working-directory: "lib-q-stark"
+            features: ""
+            check-only: "true"
+          - working-directory: "lib-q-ml-dsa"
+            features: "mldsa44,random"
+            check-only: "true"
+          - working-directory: "lib-q-slh-dsa"
+            features: "alloc"
+            check-only: "true"
+          - working-directory: "lib-q-fn-dsa"
+            features: "wasm"
+            check-only: "true"
+          - working-directory: "lib-q-hash"
+            features: "alloc,oid"
+            check-only: "true"
+          - working-directory: "lib-q-hpke"
+            features: "alloc,wasm"
             check-only: "true"
     
     steps:
@@ -261,7 +276,54 @@ jobs:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
         run: |
           rustup target add wasm32-unknown-unknown
-          cargo check --workspace --exclude lib-q-examples --target wasm32-unknown-unknown
+          cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown
+
+      - name: Advisory WASM size check (optional)
+        continue-on-error: true
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+        run: bash ./scripts/wasm-size-check.sh
+
+  # Execute wasm-bindgen smoke tests added for research/zkp crates.
+  wasm-bindgen-smoke:
+    name: WASM bindgen smoke tests
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - lib-q-lattice-zkp
+          - lib-q-ring-sig
+          - lib-q-prf
+          - lib-q-stark
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install wasm-pack
+        run: |
+          if ! command -v wasm-pack >/dev/null 2>&1; then
+            cargo install wasm-pack --locked
+          fi
+          wasm-pack --version
+
+      - name: Run wasm-bindgen smoke test
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+        run: |
+          cd ${{ matrix.crate }}
+          wasm-pack test --node -- --test wasm_smoke
 
   # Romulus: pure no_std crypto core + registry wiring without forcing lib-q-romulus/std
   romulus-no-std-wasm:
@@ -1039,7 +1101,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, wasm-workspace-gate, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -1052,6 +1114,7 @@ jobs:
           if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
              [[ "${{ needs.wasm-workspace-gate.result }}" == "failure" ]] || \
+             [[ "${{ needs.wasm-bindgen-smoke.result }}" == "failure" ]] || \
              [[ "${{ needs.romulus-no-std-wasm.result }}" == "failure" ]] || \
              [[ "${{ needs.ml-dsa-compliance.result }}" == "failure" ]] || \
              [[ "${{ needs.constant-time.result }}" == "failure" ]] || \

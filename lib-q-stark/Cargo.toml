@@ -42,6 +42,7 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
 postcard = { workspace = true, features = ["alloc"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
 rand = { workspace = true, default-features = false }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["alloc"]

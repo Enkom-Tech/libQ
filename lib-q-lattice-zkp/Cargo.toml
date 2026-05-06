@@ -18,6 +18,9 @@ subtle = { workspace = true }
 rand_core = { workspace = true }
 
 [dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 hex = { workspace = true }
 proptest = { workspace = true }
@@ -28,6 +31,8 @@ default = ["alloc"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-random/std"]
 random = ["dep:lib-q-random"]
+# Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
+wasm = ["random", "lib-q-random/wasm"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lattice_zkp_docs)'] }

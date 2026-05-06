@@ -4,6 +4,16 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 
 **Status:** Core algorithms and protocols are largely implemented; remaining effort skews toward performance, verification, third-party audit, and operational polish (see [README.md](README.md) and [SECURITY.md](SECURITY.md)).
 
+## WebAssembly support status
+
+| Area | Status |
+|------|--------|
+| Workspace `wasm32-unknown-unknown` gate (excluding `lib-q-examples`, `lib-q-sca-test`) | CI-enforced |
+| `getrandom` / `wasm_js` wiring | Documented in [docs/wasm-compilation.md](docs/wasm-compilation.md); target-specific manifest edges on hardened-RNG crates |
+| STARK / Plonky stack | Serial-only on WASM (`parallel` forbidden); Keccak defaults hygiene for `no_std` graphs |
+| Optional advisory WASM size script | [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh) |
+| Browser demo | [examples/wasm-browser-demo](examples/wasm-browser-demo) (ML-DSA-44 smoke API) |
+
 ## Phase 0: Foundation (mature; continuous maintenance)
 
 ### Core infrastructure

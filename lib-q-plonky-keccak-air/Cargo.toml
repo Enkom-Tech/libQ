@@ -33,7 +33,7 @@ lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
 lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
 lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
 itertools = { workspace = true }
 
 [dev-dependencies]
@@ -42,6 +42,7 @@ lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2"
 
 [features]
 default = ["alloc"]
-std = ["alloc"]
+std = ["alloc", "lib-q-keccak/std", "lib-q-stark-symmetric/std"]
 alloc = []
 no_std = []
+asm = ["lib-q-keccak/asm", "lib-q-stark-symmetric/asm"]

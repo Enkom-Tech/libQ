@@ -2,6 +2,11 @@
 
 #![no_std]
 
+#[cfg(all(feature = "parallel", target_arch = "wasm32"))]
+compile_error!(
+    "parallel feature is not supported on wasm32; do not enable 'parallel' for WASM builds"
+);
+
 extern crate alloc;
 
 use alloc::slice;

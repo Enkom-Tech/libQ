@@ -17,7 +17,7 @@ categories = ["cryptography", "wasm"]
 lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
 lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = false }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
 
 # Core cryptographic primitives

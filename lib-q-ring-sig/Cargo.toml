@@ -19,7 +19,8 @@ subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
 
 [dev-dependencies]
-rand_chacha = { version = "0.10", default-features = false, features = ["std"] }
+rand_chacha = { version = "0.10.0", default-features = false, features = ["std"] }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = []

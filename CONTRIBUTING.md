@@ -30,6 +30,10 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 - No cache timing attacks
 - Use secure random number generation
 
+### 5. **WebAssembly and parallelism**
+- Do **not** enable **`parallel`** on `lib-q-stark-rayon`, **`parallel`** on `lib-q-stark-util`, or **`parallelhash`** on `lib-q-hash` for `wasm32-unknown-unknown` builds; these combinations fail with `compile_error!` by design.
+- Prefer `cargo check --target wasm32-unknown-unknown` with the workspace `getrandom` cfg from [docs/wasm-compilation.md](docs/wasm-compilation.md) when touching RNG or feature graphs that pull `getrandom`.
+
 ## Development Setup
 
 For full development workflow, CI/CD pipeline, and troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md).

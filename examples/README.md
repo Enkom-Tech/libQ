@@ -2,6 +2,10 @@
 
 This directory contains examples demonstrating the usage of lib-Q post-quantum cryptography library. For the module-lattice ZKP research crate, see [`lib-q-lattice-zkp/README.md`](../lib-q-lattice-zkp/README.md) (not covered by these examples).
 
+## WebAssembly (`wasm-pack`)
+
+The standalone crate [`wasm-browser-demo/`](wasm-browser-demo/) builds a minimal ML-DSA-44 `cdylib` for browsers. See its [README](wasm-browser-demo/README.md) and the workspace guide [docs/wasm-compilation.md](../docs/wasm-compilation.md).
+
 ## ML-DSA Examples
 
 ### Running ML-DSA Examples

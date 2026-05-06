@@ -1,6 +1,6 @@
 # lib-Q - Post-Quantum Cryptography Library
 
-A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **entire publishable workspace** compiles for the WebAssembly target; npm bundles are still produced only for the JS-facing crates listed below.
+A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are still produced only for the JS-facing crates listed below. For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
 
 ## Mission
 
@@ -25,13 +25,25 @@ lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitiv
 
 - **`lib-q-zkp`**: Built as a normal Rust library (not a `cdylib` npm bundle). CI runs `cargo check --target wasm32-unknown-unknown` with `wasm,zkp` to guard the ZKP stack on WASM without `wasm-pack`.
 
+### Browser example
+
+The minimal browser demo in [`examples/wasm-browser-demo`](examples/wasm-browser-demo) exposes an ML-DSA-44 smoke API:
+
+```javascript
+import init, { wasm_smoke_ml_dsa_sign_verify } from "./pkg/wasm_browser_demo.js";
+
+await init();
+const ok = await wasm_smoke_ml_dsa_sign_verify();
+console.log("ML-DSA wasm smoke:", ok);
+```
+
 ## Package structure
 
 lib-Q is organized as a Rust workspace with individual crates and npm packages:
 
 ### Rust workspace crates
 
-Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/cd.yml`](.github/workflows/cd.yml) in dependency order. The workspace has **60** publishable members (the `examples` crate is a harness only and is excluded from crates.io and from the workspace-wide wasm gate). Order below matches `[workspace].members` in [Cargo.toml](Cargo.toml).
+Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/cd.yml`](.github/workflows/cd.yml) in dependency order. The `examples` umbrella and `examples/wasm-browser-demo` are integration harnesses (`publish = false` where set); other members follow `[workspace].members` in [Cargo.toml](Cargo.toml). The workspace-wide WASM compile gate excludes those example crates and `lib-q-sca-test`.
 
 | Crate | Role |
 |-------|------|

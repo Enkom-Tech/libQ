@@ -29,6 +29,9 @@ const-oid = { version = "0.10.2", features = ["db"] }
 zeroize = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
 [dev-dependencies]
 hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }

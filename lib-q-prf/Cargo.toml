@@ -20,6 +20,7 @@ zeroize = { workspace = true, features = ["derive"] }
 crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
 hex = { workspace = true }
 sha2 = { workspace = true }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["alloc"]

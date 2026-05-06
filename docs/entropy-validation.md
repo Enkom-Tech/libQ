@@ -157,6 +157,17 @@ impl SecurityValidator {
 }
 ```
 
+## WebAssembly (`wasm32-unknown-unknown`)
+
+Browser and bundler targets do not expose OS entropy APIs. When `getrandom` is used (directly or via `lib-q-random` / hardened ML-KEM / ML-DSA paths), the **JavaScript backend** (`getrandom` feature `wasm_js`) bridges to `crypto.getRandomValues()` in supported hosts.
+
+**Integration expectations**
+
+- Set the same `getrandom` backend cfg as CI: see [wasm-compilation.md](wasm-compilation.md) and `.cargo/config.toml` for `wasm32-unknown-unknown`.
+- Prefer crate features named `wasm`, `wasm_js`, or `wasm_getrandom` where documented; for optional lattice randomness, `lib-q-lattice-zkp` exposes **`wasm` → `lib-q-random/wasm`** when you need JS-backed RNG with the `random` feature.
+- `lib-q-random` classifies the WebAssembly host with a nominal entropy quality score of **0.90** (lower than typical desktop OS sources in this model); treat that as documentation of the integration model, not a substitute for your own deployment risk analysis.
+- Hardware-only entropy shortcuts (e.g. RDRAND) are not available inside WASM; high-assurance deployments may still inject additional entropy via application-controlled APIs (`custom-entropy` patterns in `lib-q-random`).
+
 ## Troubleshooting
 
 ### Common Issues

@@ -26,6 +26,9 @@ rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 zeroize = { workspace = true, default-features = false, optional = true }
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
 # WASM bindings
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }

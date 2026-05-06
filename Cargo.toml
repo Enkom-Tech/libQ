@@ -61,7 +61,8 @@ members = [
     "lib-q-plonky-uni-stark",
     "lib-q-plonky-batch-stark",
     "lib-q-plonky",
-    "examples"
+    "examples",
+    "examples/wasm-browser-demo"
 ]
 # Standalone cargo-fuzz harness (not a workspace member)
 exclude = ["lib-q-zkp/fuzz", "lib-q-lattice-zkp/fuzz", "lib-q-ring-sig/fuzz", "lib-q-prf/fuzz"]

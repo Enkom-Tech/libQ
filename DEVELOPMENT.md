@@ -42,7 +42,7 @@ cd libQ
    - Security audit and dependency scanning
    - Code quality checks (formatting, linting)
    - Comprehensive testing across platforms
-   - WASM compilation and testing
+   - WASM compilation and testing (see [docs/wasm-compilation.md](docs/wasm-compilation.md); advisory size script: [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh))
    - Performance benchmarks
    - Documentation generation
    - Cross-platform compilation
@@ -74,6 +74,13 @@ cd libQ
 7. **ZKP fuzz (`zkp-fuzz-scheduled.yml`)**: Weekly / manual bounded `cargo-fuzz` runs under `lib-q-zkp/fuzz` (does not gate PR CI)
 
 For composite actions, path triggers, and job-level detail, see [CI_CD_SETUP.md](CI_CD_SETUP.md).
+
+### WebAssembly
+
+- Build and feature guidance: [docs/wasm-compilation.md](docs/wasm-compilation.md).
+- Advisory `wasm-pack` size sweep: [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh) (skips if `wasm-pack` is not installed).
+- Example `wasm-pack` project: [examples/wasm-browser-demo](examples/wasm-browser-demo).
+- Target-specific docs (illustrative): `RUSTDOCFLAGS="--cfg docsrs" cargo doc --no-deps --target wasm32-unknown-unknown -p lib-q-core --features wasm`
 
 ### Security Checks
 

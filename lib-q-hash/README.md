@@ -13,6 +13,10 @@ Post-quantum hash functions for lib-Q.
 - **TupleHash**: Tuple-based hashing (128/256)
 - **ParallelHash**: Parallel processing for large data (128/256)
 
+## WebAssembly
+
+The `parallelhash` feature enables Rayon and **must not** be used on `wasm32-unknown-unknown`; the crate fails to compile with that feature on WASM. Use serial builds for browser targets.
+
 ## Usage
 
 ### Basic Hashing

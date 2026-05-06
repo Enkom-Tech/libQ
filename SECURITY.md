@@ -42,6 +42,17 @@ lib-Q intentionally avoids classical public-key schemes (RSA, ECC, etc.) and non
 3. **Side channels** — implementation is written with timing and cache awareness; we do not claim completed independent side-channel evaluation for all targets.
 4. **Correct use** — calling the right API with the right parameter set, domain separation, and protocol context.
 
+### WebAssembly deployment surface
+
+When libQ is compiled for `wasm32-unknown-unknown` and executed in a browser or JS runtime:
+
+- **Entropy** — Key generation and signing RNGs depend on `getrandom`’s `wasm_js` path (ultimately `crypto.getRandomValues` in typical browsers). Misconfigured bundlers, missing cfg flags, or blocked Web Crypto break randomness, not “degraded performance.”
+- **Memory** — Linear memory is sandboxed by the host; secrets still live in JS-visible memory unless you isolate workers and avoid leaking handles to the host.
+- **Side channels** — Coarse timers and different JIT pipelines change the side-channel landscape relative to native code. Existing constant-time discipline in the Rust sources remains necessary but is **not** sufficient to claim parity with server-side hardening without target-specific evaluation.
+- **Supply chain** — `wasm-bindgen`, `js-sys`, and `web-sys` are part of the trusted computing base for JS interop builds. Pin versions and run `cargo audit` on the same lockfile you ship.
+
+Threaded acceleration (`rayon` / `parallel` features in the STARK stack and `parallelhash` in `lib-q-hash`) is **rejected at compile time** on WASM; use serial feature sets.
+
 ### Random Oracle Model vs Quantum Random Oracle Model
 
 Components using the **Fiat–Shamir transform** for non-interactive proofs (`lib-q-lattice-zkp` sigma protocols and `lib-q-ring-sig` DualRing-LB–oriented pilot ring verification) have security proofs in the **Random Oracle Model (ROM)**, not the **Quantum Random Oracle Model (QROM)**. This means:

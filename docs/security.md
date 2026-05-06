@@ -213,6 +213,10 @@ pub fn constant_time_select(condition: bool, a: u32, b: u32) -> u32 {
 }
 ```
 
+### WebAssembly and constant-time discipline
+
+The same source-level rules (no secret-dependent branches, subtle-based selection where applicable, table-lookup discipline) apply when compiling for `wasm32-unknown-unknown`. LLVM may choose different instruction sequences and memory layouts than for x86_64 or AArch64; **constant-time intent in Rust is not a formal proof on any target**, and WASM adds a distinct JIT and sandbox model. Treat WASM deployments like any other high-risk environment: pin toolchains, run regression tests on the actual target, and plan dedicated side-channel review if your threat model assumes browser-grade adversaries.
+
 ### Memory Safety
 Rust's ownership model provides memory safety, but additional measures are required:
 

@@ -85,7 +85,7 @@ impl MLDsaRng {
     #[cfg(all(not(feature = "random"), not(feature = "std")))]
     pub fn new_secure() -> Result<Self> {
         // In no-std without random feature, secure RNG is not available
-        Err("Secure RNG requires either 'random' feature or 'std' feature".into())
+        Err("Secure RNG requires either 'random' feature or 'std' feature")
     }
 
     /// Fallback deterministic implementation

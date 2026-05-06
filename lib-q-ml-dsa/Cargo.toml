@@ -29,6 +29,9 @@ zeroize = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, default-features = false }
 
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 rand_core = { workspace = true }
