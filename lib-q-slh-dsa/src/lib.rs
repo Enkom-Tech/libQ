@@ -24,6 +24,9 @@ mod verifying_key;
 mod wots;
 mod xmss;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // no_std RNG implementation (requires `no_std` feature so optional `lib-q-random` is linked)
 #[cfg(all(not(feature = "std"), feature = "no_std"))]
 mod no_std_rng;

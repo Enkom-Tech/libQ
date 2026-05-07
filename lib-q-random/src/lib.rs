@@ -168,6 +168,9 @@ pub mod provider;
 pub mod traits;
 pub mod validation;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // Specialized RNG implementations for different algorithms
 pub mod secure_fallback;
 pub mod specialized;

@@ -19,6 +19,9 @@ pub mod ring;
 pub mod sign;
 pub mod verify;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 #[cfg(feature = "dualring-prf")]
 pub mod dualring_prf;
 

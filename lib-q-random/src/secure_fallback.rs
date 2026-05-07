@@ -62,14 +62,14 @@ impl SecureFallbackEntropySource {
             }
         }
 
-        // Use process ID
-        #[cfg(feature = "std")]
+        // Use process ID (not meaningful on wasm32; skip)
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             entropy ^= u64::from(std::process::id());
         }
 
-        // Use thread ID (if available)
-        #[cfg(feature = "std")]
+        // Use thread ID (not available on wasm32 single-threaded model)
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::thread;
             let thread_id = thread::current().id();

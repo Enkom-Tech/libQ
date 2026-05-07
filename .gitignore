@@ -32,6 +32,7 @@ Cargo.lock
 dist/
 build/
 out/
+sbom/
 
 # WASM build artifacts (already covered by pkg/.gitignore but good to have here too)
 pkg/*.wasm

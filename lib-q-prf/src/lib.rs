@@ -17,6 +17,9 @@ pub mod legendre;
 pub mod params;
 mod shake;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 pub use error::PrfError;
 pub use field::{
     fp_add,

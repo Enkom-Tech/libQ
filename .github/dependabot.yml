@@ -42,9 +42,9 @@ updates:
       - "github-actions"
       - "automation"
 
-  # NPM dependencies (for WASM tooling)
+  # NPM dependencies (WASM browser demo; per-crate `pkg/` trees are build artifacts, not roots)
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/examples/wasm-browser-demo"
     schedule:
       interval: "weekly"
       day: "monday"

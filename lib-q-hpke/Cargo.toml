@@ -16,7 +16,7 @@ categories = ["cryptography"]
 [lib]
 name = "lib_q_hpke"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 required-features = ["alloc"]
 
 [dependencies]
@@ -30,9 +30,16 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", optional = true }
 
 # Post-quantum dependencies only
 rand_core = { workspace = true, default-features = false }
-zeroize = { workspace = true, features = ["zeroize_derive"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc", "zeroize_derive"] }
 getrandom = { workspace = true, default-features = false, optional = true }
 lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.2", optional = true }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+hex = { workspace = true, optional = true }
+spin = { workspace = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
@@ -53,7 +60,16 @@ shake256 = ["lib-q-aead/shake256"]
 duplex-sponge-aead = ["lib-q-aead/duplex-sponge-aead"]
 
 # WebAssembly support
-wasm = ["getrandom/wasm_js"]
+wasm = [
+    "getrandom/wasm_js",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "serde",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "dep:hex",
+    "lib-q-core/wasm",
+]
 
 # Testing
 hpke-test = ["std"]
@@ -69,10 +85,19 @@ required-features = ["std"]
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 lib-q = { path = "../lib-q", version = "0.0.2", features = ["ml-kem"] }
+wasm-bindgen-test = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "alloc", "ml-kem", "saturnin", "shake256"]
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)', 'cfg(docsrs)'] }

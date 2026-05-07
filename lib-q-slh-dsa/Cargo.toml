@@ -26,13 +26,23 @@ sha2 = { version = "0.11.0", default-features = false }
 digest = { workspace = true }
 pkcs8 = { version = "0.11.0-rc.11", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.2", features = ["db"] }
-zeroize = { workspace = true, optional = true, default-features = false }
+zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 getrandom = { workspace = true, optional = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+hex = { workspace = true, optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "signature"] }
@@ -40,7 +50,6 @@ num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
 proptest = { workspace = true }
-criterion = { workspace = true }
 aes = { workspace = true }
 cipher = "0.5.1"
 ctr = "0.10.0"
@@ -51,6 +60,7 @@ pkcs8 = { version = "0.11.0-rc.11", features = ["pem"] }
 
 [lib]
 bench = false
+crate-type = ["cdylib", "rlib"]
 
 [[bench]]
 name = "sign_verify"
@@ -69,3 +79,22 @@ test = []
 zeroize = ["dep:zeroize", "hybrid-array/zeroize"]
 # Expand `test_parameter_sets!`, ACVP keygen projection, and integration KATs to all 12 FIPS parameter sets and slow `*s` vectors (slow). Default smoke uses Shake128f + Sha2_128f only and skips `*s` ACVP groups.
 all-parameter-set-tests = []
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "serde",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "dep:hex",
+    "alloc",
+    "std",
+    "zeroize",
+]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]

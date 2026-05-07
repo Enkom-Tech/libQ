@@ -24,6 +24,11 @@ lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.2", optional = true,
 once_cell = "1.21.3"
 spin = { workspace = true }
 
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+
 [features]
 default = ["alloc", "std", "shake256"]
 std = ["lib-q-core/std"]
@@ -50,14 +55,31 @@ romulus-m = [
     "lib-q-romulus/alloc",
 ]
 romulus = ["romulus-n", "romulus-m"]
+wasm = [
+    "alloc",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "lib-q-core/wasm",
+    "lib-q-core/wasm_getrandom",
+    "lib-q-saturnin/wasm",
+    "saturnin",
+    "duplex-sponge-aead",
+    "romulus",
+]
 
 [lib]
 name = "lib_q_aead"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[example]]
 name = "basic_usage"
@@ -79,9 +101,17 @@ name = "no_std_example"
 path = "examples/no_std_example.rs"
 required-features = ["shake256"]
 
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "saturnin", "alloc"]
+
 [dev-dependencies]
-criterion = { workspace = true, features = ["html_reports"] }
 hex = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

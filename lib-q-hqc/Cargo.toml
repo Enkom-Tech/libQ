@@ -28,20 +28,25 @@ hex = { workspace = true }       # Hex encoding for test vectors
 # Platform-specific dependencies
 heapless = { version = "0.9.2", optional = true }              # no_std collections
 wasm-bindgen = { workspace = true, optional = true }           # WASM bindings
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 defmt = { version = "1.0.1", optional = true }                 # no_std logging
 
 # Optional features
 serde = { workspace = true, features = ["derive"], optional = true }
 serde-big-array = { version = "0.5.1", optional = true }       # Large array serialization
-zeroize = { workspace = true, optional = true }                # Secure memory clearing
+zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] } # Secure memory clearing
 aes = { workspace = true, default-features = false, optional = true } # AES for DRBG
 
 [dev-dependencies]
 # Test dependencies
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "nist-drbg"] }
 rand = { workspace = true }
+wasm-bindgen-test = { workspace = true }
 
-# Benchmarking dependencies
+# Benchmarking dependencies (host targets only)
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 
 [[example]]
@@ -57,6 +62,11 @@ harness = false
 name = "bearssl_kat_verification_test"
 path = "tests/bearssl_kat_verification_test.rs"
 required-features = ["bearssl-aes"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "hqc", "random", "serialization"]
 
 [features]
 default = ["alloc", "random", "bearssl-aes"]
@@ -77,7 +87,16 @@ random = ["dep:lib-q-random", "lib-q-random/std"]                   # RNG suppor
 nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]         # NIST SP 800-90A DRBG
 
 # Platform support
-wasm = ["wasm-bindgen", "hqc", "lib-q-core/wasm"]                  # WebAssembly bindings
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "hqc",
+    "lib-q-core/wasm",
+    "serialization",
+    "zeroize",
+]
 serialization = ["serde", "serde-big-array"]                        # Serde serialization
 
 # Security hardening
@@ -100,7 +119,7 @@ simd-avx2 = []                                                      # AVX2 SIMD 
 [lib]
 name = "lib_q_hqc"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -116,6 +135,5 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [package.metadata.wasm-pack.profile.release]
-# Disable wasm-opt to preserve cryptographic timing characteristics
-# Enable manually if binary size is more critical than constant-time guarantees
-wasm-opt = false
+# `-Oz` reduces size; see docs/wasm-security-model.md for WASM timing caveats vs native builds.
+wasm-opt = ["-Oz", "--enable-bulk-memory"]

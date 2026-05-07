@@ -34,13 +34,28 @@ postcard = { workspace = true, features = ["alloc"] }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 zeroize = { workspace = true, default-features = false }
 lib-q-plonky = { path = "../lib-q-plonky", version = "0.0.2", optional = true }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+hex = { workspace = true, optional = true }
 
 [features]
 default = ["alloc", "zkp"]
 std = ["alloc", "lib-q-core/std", "lib-q-stark/std"]
 alloc = []
 no_std = []
-wasm = ["alloc", "lib-q-core/wasm"]
+wasm = [
+    "zkp",
+    "alloc",
+    "lib-q-core/wasm",
+    "lib-q-random/std",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "dep:hex",
+]
 parallel = ["lib-q-stark-rayon", "lib-q-stark/parallel"]
 zkp = []
 stark = []
@@ -56,6 +71,10 @@ trace-debug = []
 [lib]
 name = "lib_q_zkp"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[bench]]
 name = "stark_arithmetic_bench"
@@ -68,9 +87,17 @@ harness = false
 required-features = ["zkp"]
 
 [dev-dependencies]
-criterion = { workspace = true }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.2" }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "zkp"]
 
 [package.metadata.docs.rs]
 all-features = true

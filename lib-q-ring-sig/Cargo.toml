@@ -10,6 +10,7 @@ keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std
 categories = ["cryptography", "no-std"]
 
 [dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
 lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
@@ -17,15 +18,44 @@ lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true, default
 crypto-bigint = { workspace = true, optional = true, default-features = false, features = ["zeroize"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, features = ["std", "getrandom"] }
 
 [dev-dependencies]
 rand_chacha = { version = "0.10.0", default-features = false, features = ["std"] }
 wasm-bindgen-test = { workspace = true }
 
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
+
 [features]
 default = []
 dualring-prf = ["dep:lib-q-prf", "dep:crypto-bigint"]
 federation-opening = []
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "serde",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:hex",
+    "dep:lib-q-random",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[test]]
 name = "dualring_prf_tests"

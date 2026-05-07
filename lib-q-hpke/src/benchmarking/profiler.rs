@@ -77,7 +77,7 @@ mod timing {
             1.0 // Default calibration factor
         }
 
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             // For std, we can use actual system time for calibration
             use std::time::Instant;
@@ -98,6 +98,10 @@ mod timing {
             } else {
                 1.0
             }
+        }
+        #[cfg(all(feature = "std", target_arch = "wasm32"))]
+        {
+            1.0
         }
     }
 }

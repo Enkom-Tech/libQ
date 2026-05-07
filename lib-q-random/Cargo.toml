@@ -20,8 +20,16 @@ getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }
 zeroize = { workspace = true, features = ["derive"], default-features = false, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
 aes = { workspace = true, default-features = false, optional = true }
 signature = { version = "3.0.0-rc.5", features = ["rand_core"], optional = true }
+
+# Merge wasm_js into transitive getrandom on wasm32-unknown-unknown (same pattern as lib-q-core).
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [features]
 default = ["std", "secure", "zeroize"]
@@ -57,16 +65,36 @@ entropy-validation = []
 test-vectors = []
 
 # Platform-specific features
-wasm = ["dep:wasm-bindgen", "dep:getrandom", "getrandom/wasm_js", "custom-entropy"]
+wasm = [
+    "alloc",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:hex",
+    "dep:getrandom",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+    "getrandom/wasm_js",
+    "custom-entropy",
+]
 js = ["dep:getrandom", "getrandom/std"]
 
 # Custom entropy source features
 custom-entropy = []
 
 [dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
 
 # Secure RNG cases need the optional getrandom dependency; skip when building with --no-default-features.
 [[test]]
@@ -77,6 +105,12 @@ required-features = ["getrandom"]
 name = "rng_benchmarks"
 harness = false
 required-features = ["alloc"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [package.metadata.docs.rs]
 features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy"]

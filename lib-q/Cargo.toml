@@ -12,7 +12,7 @@ exclude = [
 ]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lib]
 name = "libq"
@@ -76,6 +76,13 @@ wasm = [
     "lib-q-sig/wasm",
     "lib-q-sig/slh-dsa-wasm",
     "lib-q-zkp/wasm",
+    "lib-q-aead/wasm",
+    "lib-q-hpke?/wasm",
+    "lib-q-hqc?/wasm",
+    "lib-q-cb-kem?/wasm",
+    "lib-q-ring-sig?/wasm",
+    "lib-q-prf?/wasm",
+    "lib-q-random?/wasm",
 ]
 # WebAssembly JavaScript integration
 wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
@@ -168,6 +175,11 @@ required-features = ["zkp-plonky"]
 [[test]]
 name = "privacy_protocol_integration_tests"
 path = "tests/privacy_protocol_integration_tests.rs"
+
+[[test]]
+name = "wasm_integration"
+path = "tests/wasm_integration.rs"
+required-features = ["wasm", "ml-kem"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

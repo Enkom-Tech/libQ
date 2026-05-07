@@ -129,6 +129,9 @@ pub mod protocol;
 pub mod providers;
 pub mod security;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // Security tests module
 #[cfg(test)]
 mod security_tests;

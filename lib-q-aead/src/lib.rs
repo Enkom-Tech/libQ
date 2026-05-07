@@ -69,6 +69,9 @@ mod provider;
 #[cfg(feature = "alloc")]
 pub use provider::LibQAeadProvider;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // Macro is exported at crate root via #[macro_export] in plugin.rs
 
 // Algorithm implementations

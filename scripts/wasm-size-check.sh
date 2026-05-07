@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Advisory WASM binary size check for selected libQ crates.
+# WASM binary size gate for libQ crates that ship wasm-pack `cdylib` artifacts.
 # Requires wasm-pack and rust wasm32-unknown-unknown target.
 set -euo pipefail
 
@@ -8,12 +8,9 @@ cd "$ROOT"
 
 export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C panic=abort'
 
-MAX_SIZE_KB="${MAX_SIZE_KB:-2048}"
-FAIL_ON_OVERSIZE="${FAIL_ON_OVERSIZE:-0}"
-
 if ! command -v wasm-pack >/dev/null 2>&1; then
-  echo "wasm-pack not found; skip wasm-size-check (install: cargo install wasm-pack)" >&2
-  exit 0
+  echo "::error::wasm-pack not found; install it before running wasm-size-check" >&2
+  exit 1
 fi
 
 rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
@@ -21,7 +18,8 @@ rustup target add wasm32-unknown-unknown >/dev/null 2>&1 || true
 check_one() {
   local dir="$1"
   local features="$2"
-  echo "==> wasm-pack: $dir (features: ${features:-none})"
+  local max_kb="$3"
+  echo "==> wasm-pack size: $dir (features: ${features:-none}, max ${max_kb} KB)"
   (
     cd "$ROOT/$dir"
     if [[ -n "$features" ]]; then
@@ -38,18 +36,25 @@ check_one() {
     local size_kb
     size_kb=$(du -k "$wasm_file" | cut -f1)
     echo "    $dir: ${size_kb} KB ($(basename "$wasm_file"))"
-    if [[ "$size_kb" -gt "$MAX_SIZE_KB" ]]; then
-      echo "    WARNING: exceeds advisory limit ${MAX_SIZE_KB} KB (set MAX_SIZE_KB to tune)" >&2
-      if [[ "$FAIL_ON_OVERSIZE" == "1" ]]; then
-        exit 2
-      fi
+    if [[ "$size_kb" -gt "$max_kb" ]]; then
+      echo "::error::WASM size ${size_kb} KB exceeds budget ${max_kb} KB for $dir (features: ${features:-none})" >&2
+      exit 2
     fi
     rm -rf pkg-size-check
   )
 }
 
-# Crates that ship wasm-pack-friendly cdylib + wasm features
-check_one "lib-q-core" "wasm,ml-kem,rand"
-check_one "lib-q" "wasm,ml-kem"
+# (directory, features, max_size_kb) — release + wasm-opt (`-Oz`); re-run locally after large dependency changes.
+check_one "lib-q-core" "wasm,ml-kem,rand" 3500
+check_one "lib-q" "wasm,ml-kem" 10400
+check_one "lib-q-zkp" "wasm,zkp" 13900
+check_one "lib-q-hpke" "wasm,alloc,ml-kem,saturnin,shake256" 10400
+check_one "lib-q-aead" "wasm,saturnin,alloc" 10400
+check_one "lib-q-hqc" "wasm,hqc,random,serialization" 10400
+check_one "lib-q-cb-kem" "wasm,cbkem348864,wasm_getrandom,alloc,zeroize" 13900
+check_one "lib-q-slh-dsa" "wasm" 13900
+check_one "lib-q-ring-sig" "wasm" 7000
+check_one "lib-q-prf" "wasm" 3500
+check_one "lib-q-random" "wasm" 1750
 
-echo "wasm-size-check: done"
+echo "wasm-size-check: OK"

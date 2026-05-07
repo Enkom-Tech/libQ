@@ -89,6 +89,35 @@ impl HashResultWasm {
     }
 }
 
+/// Stable numeric category id for programmatic `switch` in JS (FNV-1a 32-bit of `code`).
+#[cfg(feature = "wasm")]
+fn wasm_error_code_numeric(code: &str) -> u32 {
+    const OFFSET_BASIS: u32 = 0x811C_9DC5;
+    const PRIME: u32 = 0x0100_0193;
+    let mut hash = OFFSET_BASIS;
+    for b in code.as_bytes() {
+        hash ^= u32::from(*b);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    hash
+}
+
+/// Structured error for JavaScript callers: `{ "code", "codeNumeric", "message" }`.
+#[cfg(feature = "wasm")]
+pub fn wasm_js_error(code: &str, message: impl core::fmt::Display) -> JsValue {
+    use alloc::format;
+
+    let code_numeric = wasm_error_code_numeric(code);
+    let v = serde_json::json!({
+        "code": code,
+        "codeNumeric": code_numeric,
+        "message": format!("{message}"),
+    });
+    serde_wasm_bindgen::to_value(&v).unwrap_or_else(|_| {
+        JsValue::from_str("lib-q-core: failed to serialize structured WASM error")
+    })
+}
+
 /// Utility functions for WASM conversions
 #[cfg(feature = "wasm")]
 pub mod conversions {

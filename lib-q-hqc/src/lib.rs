@@ -153,6 +153,9 @@ pub use params_correct::*;
 #[cfg(feature = "alloc")]
 pub use provider::LibQHqcProvider;
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 /// Get available HQC algorithms with proper NIST naming
 #[cfg(feature = "std")]
 pub fn available_algorithms() -> Vec<&'static str> {

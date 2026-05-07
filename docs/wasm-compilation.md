@@ -70,6 +70,18 @@ CI runs a workspace-level check (excluding the examples umbrella crate and the h
 cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown
 ```
 
+## WASM size gate
+
+After the workspace check, CI runs `scripts/wasm-size-check.sh`, which performs `wasm-pack build --release` for selected `cdylib` crates and **fails the job** if the produced `.wasm` exceeds per-crate kilobyte budgets. Adjust budgets in that script when adding algorithms or changing `wasm-opt` settings.
+
+## Supply chain (SBOM)
+
+Release builds attach a CycloneDX JSON bill of materials for the `lib-q` crate resolved for `wasm32-unknown-unknown` with the same feature set used for `@lib-q/core` (see `scripts/generate-wasm-sbom.sh` and `docs/wasm-sbom.md`).
+
+## `std` + WASM footguns
+
+If you enable `std` on a crate while targeting `wasm32-unknown-unknown`, avoid unconditional `std::thread::sleep` and `std::fs` in library code; use `#[cfg(not(target_arch = "wasm32"))]` or stubs so bundlers do not pull in unsupported APIs.
+
 ## Crate-specific notes
 
 | Crate / area | Note |
@@ -88,10 +100,6 @@ Documented baselines (not a substitute for your own QA matrix):
 | Firefox | 115 | Same. |
 | Safari | 16.4 | Same. |
 | Node.js LTS | 18 | Prefer `wasm-pack` `nodejs` target; WASI uses different `getrandom` wiring (`wasm32-wasi`). |
-
-## Binary size (advisory)
-
-The script [scripts/wasm-size-check.sh](../scripts/wasm-size-check.sh) runs `wasm-pack` on selected crates and compares output size to a threshold. Treat thresholds as advisory until tuned per release.
 
 ## API documentation (WASM target)
 

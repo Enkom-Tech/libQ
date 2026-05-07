@@ -83,12 +83,28 @@ def package_name(member_path: str) -> str:
     return n.group(1)
 
 
+def is_publishable(member_path: str) -> bool:
+    """Check if a crate should be published (publish != false)."""
+    cargo = root / member_path / "Cargo.toml"
+    txt = cargo.read_text(encoding="utf-8")
+    if "[package]" not in txt:
+        return True
+    after = txt.split("[package]", 1)[1]
+    head = re.split(r"\n\[", after, maxsplit=1)[0]
+    # Check for `publish = false`
+    pub = re.search(r"^publish\s*=\s*(false|true)", head, re.MULTILINE)
+    if pub and pub.group(1) == "false":
+        return False
+    return True
+
+
 expected: set[str] = set()
 for mem in members:
     if not (root / mem / "Cargo.toml").is_file():
         print(f"ERROR: workspace member has no Cargo.toml: {mem}", file=sys.stderr)
         sys.exit(1)
-    expected.add(package_name(mem))
+    if is_publishable(mem):
+        expected.add(package_name(mem))
 
 cd_text = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8")
 published: set[str] = set()
@@ -115,7 +131,7 @@ print("crates.io publish manifest guard: OK")
 PY
 
 npm_dirs=()
-for p in "$ROOT"/*/package.json; do
+for p in "$ROOT"/*/package.json "$ROOT"/npm/*/package.json; do
   [[ -f "$p" ]] || continue
   npm_dirs+=("$p")
 done
@@ -141,3 +157,64 @@ done
 
 echo "npm package guard: OK"
 fi
+
+python3 - <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(".")
+cd = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8")
+block = cd.split("publish-wasm-packages:", 1)[1] if "publish-wasm-packages:" in cd else ""
+# Matrix entries under publish-wasm-packages use `working-directory: "lib-q-..."` plus "." for lib-q.
+wasm_dirs = set(m.group(1) for m in re.finditer(r"working-directory:\s*\"([^\"]+)\"", block))
+workspace_toml = (root / "Cargo.toml").read_text(encoding="utf-8")
+members_match = re.search(r"members\s*=\s*\[(.*?)\]", workspace_toml, re.DOTALL)
+members = [] if not members_match else [m for m in re.findall(r'"([^"]+)"', members_match.group(1)) if m != "examples"]
+
+
+def has_wasm_feature(txt: str) -> bool:
+    return bool(re.search(r"^wasm\s*=\s*\[", txt, re.MULTILINE))
+
+
+def has_cdylib(txt: str) -> bool:
+    sec = re.search(r"\[lib\](.*?)(?:\n\[|\Z)", txt, re.DOTALL)
+    if not sec:
+        return False
+    ct = re.search(r"crate-type\s*=\s*\[(.*?)\]", sec.group(1), re.DOTALL)
+    if not ct:
+        return False
+    return "cdylib" in ct.group(1)
+
+
+required = set()
+for mem in members:
+    cargo = root / mem / "Cargo.toml"
+    if not cargo.is_file():
+        continue
+    txt = cargo.read_text(encoding="utf-8")
+    if has_wasm_feature(txt) and has_cdylib(txt):
+        required.add(mem)
+
+# lib-q-core exposes lower-level Rust/WASM internals but is not an npm package root.
+required.discard("lib-q-core")
+present = set(wasm_dirs)
+if "." in present:
+    present.add("lib-q")
+
+missing = sorted(required - present)
+if missing:
+    print(
+        "ERROR: crates with wasm feature + cdylib are missing from cd.yml publish-wasm-packages matrix:",
+        file=sys.stderr,
+    )
+    for mem in missing:
+        print(f"  - {mem}", file=sys.stderr)
+    print(
+        "Add each crate to publish-wasm-packages (working-directory matrix entry).",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+print("WASM npm coverage guard: OK")
+PY

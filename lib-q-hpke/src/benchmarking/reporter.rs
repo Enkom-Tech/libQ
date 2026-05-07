@@ -178,8 +178,8 @@ impl PerformanceReporter {
         json
     }
 
-    /// Save report to file
-    #[cfg(feature = "std")]
+    /// Save report to file (host targets only; wasm32 has no filesystem)
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
     pub fn save_report_to_file(
         &self,
         filename: &str,
@@ -197,6 +197,19 @@ impl PerformanceReporter {
         let mut file = File::create(filename)?;
         file.write_all(content.as_bytes())?;
         Ok(())
+    }
+
+    /// Save report to file (stub on wasm32)
+    #[cfg(all(feature = "std", target_arch = "wasm32"))]
+    pub fn save_report_to_file(
+        &self,
+        _filename: &str,
+        _format: ReportFormat,
+    ) -> Result<(), std::io::Error> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "save_report_to_file is not supported on wasm32-unknown-unknown",
+        ))
     }
 
     /// Get the underlying metrics collector

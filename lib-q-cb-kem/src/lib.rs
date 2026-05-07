@@ -538,4 +538,7 @@ pub fn decapsulate_boxed(ciphertext: &Ciphertext, secret_key: &SecretKey) -> Sha
     SharedSecret(shared_secret_buf)
 }
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 // Tests may use `std` - no extern crate needed in Rust 2018+

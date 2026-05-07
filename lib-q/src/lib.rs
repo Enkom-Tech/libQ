@@ -303,7 +303,7 @@ pub mod wasm {
     /// Initialize the library for WASM usage
     #[wasm_bindgen]
     pub fn init_wasm() -> Result<(), JsValue> {
-        lib_q_core::init().map_err(|e| JsValue::from_str(&e.to_string()))
+        lib_q_core::init().map_err(|e| lib_q_core::wasm_common::wasm_js_error("LIB_Q_INIT", e))
     }
 
     /// Get the library version
@@ -395,7 +395,7 @@ pub mod wasm {
     /// Generate secure random bytes for WASM
     #[wasm_bindgen]
     pub fn generate_random_bytes(length: usize) -> Result<js_sys::Uint8Array, JsValue> {
-        random_bytes(length).map_err(|e| JsValue::from_str(&e.to_string()))
+        random_bytes(length).map_err(|e| lib_q_core::wasm_common::wasm_js_error("LIB_Q_RANDOM", e))
     }
 
     /// Convert bytes to hexadecimal string
@@ -407,7 +407,7 @@ pub mod wasm {
     /// Convert hexadecimal string to bytes
     #[wasm_bindgen]
     pub fn hex_to_bytes_wasm(hex: &str) -> Result<js_sys::Uint8Array, JsValue> {
-        hex_to_bytes(hex).map_err(|e| JsValue::from_str(&e.to_string()))
+        hex_to_bytes(hex).map_err(|e| lib_q_core::wasm_common::wasm_js_error("LIB_Q_HEX", e))
     }
 }
 

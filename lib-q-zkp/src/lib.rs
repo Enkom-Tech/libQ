@@ -127,6 +127,10 @@ pub use api::{
     verify_preimage,
     verify_preimage_nist,
 };
+
+#[cfg(feature = "wasm")]
+mod wasm;
+
 #[cfg(feature = "zkp")]
 pub use lib_q_stark::{
     Proof as StarkProof,
@@ -213,6 +217,7 @@ pub enum ProofMetadata {
 
 /// A zero-knowledge proof
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "zkp", derive(serde::Serialize, serde::Deserialize))]
 pub struct ZkpProof {
     /// The proof data (serialized STARK proof)
     pub data: Vec<u8>,
@@ -277,6 +282,7 @@ impl ZkpProof {
 /// Only NIST-approved post-quantum proof systems are included.
 /// Classical schemes (SNARKs, Bulletproofs) are intentionally excluded.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zkp", derive(serde::Serialize, serde::Deserialize))]
 pub enum ProofType {
     /// zk-STARK proof (transparent, post-quantum secure)
     Stark,

@@ -34,6 +34,12 @@ inputs:
     description: If true, run cargo check for wasm32 only (no wasm-pack); for rlib crates without JS bindings
     default: "false"
     required: false
+  dev-profile:
+    description: >-
+      If true, wasm-pack builds the debug profile. Default false: CD and wasm-size-check.sh use
+      --release so published artifacts match size gates.
+    default: "false"
+    required: false
 
 runs:
   using: composite
@@ -90,15 +96,27 @@ runs:
         echo "Building WASM for web target..."
         cd ${{ inputs.working-directory }}
         OUT_DIR="${{ inputs.out-dir }}"
+        TARGETS="${{ inputs.targets }}"
+        # Avoid overwriting glue when both web and nodejs run: use pkg/web + pkg/nodejs (matches npm conditional exports).
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs'; then
+          WEB_OUT="${OUT_DIR}/web"
+          mkdir -p "$WEB_OUT"
+        else
+          WEB_OUT="$OUT_DIR"
+        fi
+        REL_FLAGS=""
+        if [ "${{ inputs.dev-profile }}" != "true" ]; then
+          REL_FLAGS="--release"
+        fi
         if [ -n "${{ inputs.features }}" ]; then
           echo "Pre-checking with cargo for feature resolution..."
           cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
-          wasm-pack build --target web --out-dir "$OUT_DIR" -- --features "${{ inputs.features }}" --verbose
+          wasm-pack build $REL_FLAGS --target web --out-dir "$WEB_OUT" -- --features "${{ inputs.features }}" --verbose
         else
-          wasm-pack build --target web --out-dir "$OUT_DIR" --verbose
+          wasm-pack build $REL_FLAGS --target web --out-dir "$WEB_OUT" --verbose
         fi
-        echo "WASM web build completed successfully"
+        echo "WASM web build completed successfully (out-dir=$WEB_OUT)"
     
     - name: Build WASM for nodejs target
       if: ${{ contains(inputs.targets, 'nodejs') && inputs.check-only != 'true' }}
@@ -110,15 +128,26 @@ runs:
         echo "Building WASM for nodejs target..."
         cd ${{ inputs.working-directory }}
         OUT_DIR="${{ inputs.out-dir }}"
+        TARGETS="${{ inputs.targets }}"
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs'; then
+          NODE_OUT="${OUT_DIR}/nodejs"
+          mkdir -p "$NODE_OUT"
+        else
+          NODE_OUT="$OUT_DIR"
+        fi
+        REL_FLAGS=""
+        if [ "${{ inputs.dev-profile }}" != "true" ]; then
+          REL_FLAGS="--release"
+        fi
         if [ -n "${{ inputs.features }}" ]; then
           echo "Pre-checking with cargo for feature resolution..."
           cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
           echo "Building with wasm-pack..."
-          wasm-pack build --target nodejs --out-dir "$OUT_DIR" -- --features "${{ inputs.features }}" --verbose
+          wasm-pack build $REL_FLAGS --target nodejs --out-dir "$NODE_OUT" -- --features "${{ inputs.features }}" --verbose
         else
-          wasm-pack build --target nodejs --out-dir "$OUT_DIR" --verbose
+          wasm-pack build $REL_FLAGS --target nodejs --out-dir "$NODE_OUT" --verbose
         fi
-        echo "WASM nodejs build completed successfully"
+        echo "WASM nodejs build completed successfully (out-dir=$NODE_OUT)"
     
     - name: Verify WASM artifacts
       if: ${{ inputs.verify-artifacts == 'true' && inputs.check-only != 'true' }}
@@ -127,10 +156,18 @@ runs:
         echo "Verifying WASM build artifacts..."
         cd ${{ inputs.working-directory }}
         OUT_DIR="${{ inputs.out-dir }}"
-        ls -la "$OUT_DIR"/ || echo "No $OUT_DIR directory found"
-        if [ -d "$OUT_DIR" ]; then
-          echo "WASM package contents:"
-          ls -la "$OUT_DIR"/
-          echo "WASM file size:"
-          ls -lh "$OUT_DIR"/*.wasm 2>/dev/null || echo "No .wasm files found"
+        TARGETS="${{ inputs.targets }}"
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs' && [ -d "$OUT_DIR/web" ] && [ -d "$OUT_DIR/nodejs" ]; then
+          echo "Dual-target layout under $OUT_DIR:"
+          ls -la "$OUT_DIR/web" || true
+          ls -la "$OUT_DIR/nodejs" || true
+          find "$OUT_DIR" -name '*.wasm' -exec ls -lh {} \;
+        else
+          ls -la "$OUT_DIR"/ || echo "No $OUT_DIR directory found"
+          if [ -d "$OUT_DIR" ]; then
+            echo "WASM package contents:"
+            ls -la "$OUT_DIR"/
+            echo "WASM file size:"
+            ls -lh "$OUT_DIR"/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
         fi

@@ -24,17 +24,18 @@ aes = { workspace = true, default-features = false, optional = true }
 rand = { workspace = true, default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
-zeroize = { workspace = true, default-features = false, optional = true }
+zeroize = { workspace = true, default-features = false, optional = true, features = ["alloc"] }
+hex = { workspace = true, optional = true }
 
-[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
-getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
-
-# WASM bindings
+# Optional WASM bindings (`wasm` feature)
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"], default-features = false }
 serde-wasm-bindgen = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [features]
 ## When adding features or changing the default features, remember to update
@@ -51,7 +52,17 @@ zeroize = ["dep:zeroize"]
 std = []
 
 # WASM support
-wasm = ["wasm-bindgen", "js-sys", "serde", "serde-wasm-bindgen", "serde_json", "wasm_getrandom", "alloc"]
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:hex",
+    "dep:serde",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "wasm_getrandom",
+    "alloc",
+    "zeroize",
+]
 
 # Random number generation features
 rand = ["dep:rand"]
@@ -77,16 +88,24 @@ nist-aes-rng = ["dep:aes", "zeroize"]
 [lib]
 name = "lib_q_cb_kem"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [[bench]]
 name = "kem_api"
 harness = false
 
 [dev-dependencies]
+hex = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 criterion-cycles-per-byte = "0.8.0"
-hex = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "cbkem348864", "wasm_getrandom", "alloc", "zeroize"]
 
 
 [package.metadata.docs.rs]
@@ -99,7 +118,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.wasm-pack.profile.release]
 # Enable bulk memory operations to fix wasm-validator errors
-wasm-opt = ["-O", "--enable-bulk-memory"]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

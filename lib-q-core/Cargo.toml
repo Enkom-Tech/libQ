@@ -103,9 +103,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.wasm-pack.profile.release]
-# Disable wasm-opt: LLVM may emit saturating float-to-int ops that older wasm-opt
-# defaults reject without extra feature flags; matches lib-q-kem / root lib-q.
-wasm-opt = false
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

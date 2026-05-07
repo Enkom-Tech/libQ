@@ -961,6 +961,7 @@ version = "0.0.2"
 dependencies = [
  "criterion",
  "hex",
+ "js-sys",
  "lib-q-core",
  "lib-q-duplex-aead",
  "lib-q-hash",
@@ -971,7 +972,11 @@ dependencies = [
  "lib-q-tweak-aead",
  "lib-q-types",
  "once_cell",
+ "serde-wasm-bindgen",
+ "serde_json",
  "spin",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -993,6 +998,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1081,6 +1087,8 @@ name = "lib-q-hpke"
 version = "0.0.2"
 dependencies = [
  "getrandom 0.4.2",
+ "hex",
+ "js-sys",
  "lib-q",
  "lib-q-aead",
  "lib-q-core",
@@ -1091,6 +1099,12 @@ dependencies = [
  "lib-q-random",
  "lib-q-saturnin",
  "rand_core 0.10.1",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "spin",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1104,6 +1118,7 @@ dependencies = [
  "heapless",
  "hex",
  "hybrid-array",
+ "js-sys",
  "lib-q-core",
  "lib-q-keccak",
  "lib-q-random",
@@ -1113,7 +1128,10 @@ dependencies = [
  "rand_core 0.10.1",
  "serde",
  "serde-big-array",
+ "serde-wasm-bindgen",
+ "serde_json",
  "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1360,10 +1378,15 @@ version = "0.0.2"
 dependencies = [
  "crypto-bigint",
  "hex",
+ "js-sys",
+ "lib-q-core",
  "lib-q-sha3",
  "rand_core 0.10.1",
+ "serde-wasm-bindgen",
+ "serde_json",
  "sha2 0.11.0",
  "subtle",
+ "wasm-bindgen",
  "wasm-bindgen-test",
  "zeroize",
 ]
@@ -1376,13 +1399,17 @@ dependencies = [
  "criterion",
  "getrandom 0.4.2",
  "hex",
+ "js-sys",
  "lib-q-core",
  "lib-q-hash",
  "proptest",
  "rand 0.10.1",
  "rand_core 0.10.1",
+ "serde-wasm-bindgen",
+ "serde_json",
  "signature",
  "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1404,13 +1431,21 @@ name = "lib-q-ring-sig"
 version = "0.0.2"
 dependencies = [
  "crypto-bigint",
+ "hex",
+ "js-sys",
+ "lib-q-core",
  "lib-q-lattice-zkp",
  "lib-q-prf",
+ "lib-q-random",
  "lib-q-ring",
  "lib-q-sha3",
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
  "subtle",
+ "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
@@ -1495,6 +1530,7 @@ dependencies = [
  "hex-literal",
  "hmac",
  "hybrid-array",
+ "js-sys",
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
@@ -1506,10 +1542,13 @@ dependencies = [
  "quickcheck_macros",
  "rand_core 0.10.1",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "sha2 0.11.0",
  "signature",
  "typenum",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "zerocopy",
  "zeroize",
 ]
@@ -1853,6 +1892,8 @@ version = "0.0.2"
 dependencies = [
  "criterion",
  "digest 0.11.2",
+ "hex",
+ "js-sys",
  "lib-q-core",
  "lib-q-ml-kem",
  "lib-q-plonky",
@@ -1873,6 +1914,10 @@ dependencies = [
  "lib-q-stark-symmetric",
  "postcard",
  "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 

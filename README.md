@@ -1,6 +1,6 @@
 # lib-Q - Post-Quantum Cryptography Library
 
-A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are still produced only for the JS-facing crates listed below. For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
+A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are produced for the `@lib-q/*` packages listed below (see [docs/npm-packages.md](docs/npm-packages.md)). For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
 
 ## Mission
 
@@ -23,7 +23,7 @@ lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitiv
 
 - **WASM and `getrandom`**: Match CI when compiling for `wasm32-unknown-unknown`: set `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS` to `--cfg getrandom_backend="wasm_js" -C panic=abort` (see [.github/actions/wasm-build/action.yml](.github/actions/wasm-build/action.yml), [scripts/build-wasm.ps1](scripts/build-wasm.ps1), [scripts/security-check.ps1](scripts/security-check.ps1)).
 
-- **`lib-q-zkp`**: Built as a normal Rust library (not a `cdylib` npm bundle). CI runs `cargo check --target wasm32-unknown-unknown` with `wasm,zkp` to guard the ZKP stack on WASM without `wasm-pack`.
+- **`lib-q-zkp`**: Ships a `cdylib` + `wasm` feature for `wasm-pack` / `@lib-q/zkp`; CI also `cargo check`s the ZKP stack on `wasm32-unknown-unknown`.
 
 ### Browser example
 
@@ -119,6 +119,15 @@ These packages are built with `wasm-pack` in CD and correspond to stable JS entr
 - **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206)
 - **`@lib-q/hash`** — SHA-3–family hash façade
 - **`@lib-q/utils`** — Utilities
+- **`@lib-q/aead`** — Post-quantum AEAD (Saturnin, Romulus, duplex-sponge)
+- **`@lib-q/hpke`** — Post-quantum HPKE (RFC 9180)
+- **`@lib-q/zkp`** — ZKP / STARK proofs (high-level JSON API)
+- **`@lib-q/random`** — Secure random bytes (`getrandom` / wasm_js)
+- **`@lib-q/hqc`** — HQC KEM
+- **`@lib-q/slh-dsa`** — SLH-DSA (FIPS 205)
+- **`@lib-q/cb-kem`** — Classic McEliece CB-KEM (single compile-time parameter set per build)
+- **`@lib-q/ring-sig`** — Federation / DualRing-LB pilot bindings
+- **`@lib-q/prf`** — Legendre / Gold PRF pilots
 
 ## Installation
 
@@ -169,6 +178,9 @@ npm install @lib-q/hash
 
 # For utilities only
 npm install @lib-q/utils
+
+# AEAD, HPKE, ZKP, RNG, HQC, SLH-DSA, CB-KEM, ring-sig, PRF
+npm install @lib-q/aead @lib-q/hpke @lib-q/zkp @lib-q/random @lib-q/hqc @lib-q/slh-dsa @lib-q/cb-kem @lib-q/ring-sig @lib-q/prf
 ```
 
 ## Supported algorithms

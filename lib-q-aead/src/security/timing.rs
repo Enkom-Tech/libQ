@@ -337,7 +337,7 @@ impl TimingProtection {
 
     /// Sleep for the specified number of nanoseconds
     fn sleep(&self, nanoseconds: u64) {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::thread;
             if nanoseconds > 1_000_000 {
@@ -349,6 +349,13 @@ impl TimingProtection {
                 while self.get_timestamp() - start < nanoseconds {
                     core::hint::spin_loop();
                 }
+            }
+        }
+        #[cfg(all(feature = "std", target_arch = "wasm32"))]
+        {
+            let start = self.get_timestamp();
+            while self.get_timestamp().saturating_sub(start) < nanoseconds {
+                core::hint::spin_loop();
             }
         }
         #[cfg(not(feature = "std"))]
@@ -367,11 +374,17 @@ impl TimingProtection {
 
     /// Sleep for the specified number of nanoseconds (async version)
     async fn sleep_async(&self, nanoseconds: u64) {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::time::Duration;
-            // Use thread sleep for async timing protection
             std::thread::sleep(Duration::from_nanos(nanoseconds));
+        }
+        #[cfg(all(feature = "std", target_arch = "wasm32"))]
+        {
+            let start = self.get_timestamp();
+            while self.get_timestamp().saturating_sub(start) < nanoseconds {
+                core::hint::spin_loop();
+            }
         }
         #[cfg(not(feature = "std"))]
         {
