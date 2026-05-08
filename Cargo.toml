@@ -198,3 +198,9 @@ opt-level = 2
 opt-level = 2
 
 # Additional security hardening options can be added here
+
+# crates.io proc-macro-error2 2.0.1 triggers E0365 (private `proc_macro` re-export;
+# rust-lang/rust#127909). Vendored copy matches upstream 2.0.1 sources with
+# `pub extern crate proc_macro` so nested `pub use proc_macro` in `__export` is legal.
+[patch.crates-io]
+proc-macro-error2 = { path = "vendor/proc-macro-error2" }
