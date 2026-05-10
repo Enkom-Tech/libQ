@@ -50,7 +50,10 @@ wasm = [
 ]
 
 [lib]
-# wasm-pack requires `cdylib` for wasm32; `rlib` remains for normal Rust consumers. Native no_std CI uses `no_std_panic_handler` where applicable (see `src/lib.rs`).
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for normal Rust consumers. Optional
+# dependents should keep `lib-q-prf` default features enabled (`std`) so native `cdylib` links
+# include the standard allocator and panic runtime; use `default-features = false` only with
+# `no_std_panic_handler` and a firmware/global allocator if you truly need no-std `cdylib`.
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]

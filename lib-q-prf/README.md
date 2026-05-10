@@ -1,6 +1,6 @@
 # lib-q-prf
 
-Legendre and Gold (power-residue) pseudorandom functions over prime fields \(\mathbb{F}_p\), using **safe-prime** pilot moduli and constant-time arithmetic via [`crypto_bigint`](https://github.com/RustCrypto/crypto-bigint) (`MontyForm` / `MontyParams`).
+Legendre and Gold (power-residue) pseudorandom functions over prime fields \(\mathbb{F}_p\), using **safe-prime** pilot moduli and constant-time arithmetic via [`crypto_bigint`](https://github.com/RustCrypto/crypto-bigint) (`modular::FixedMontyForm` with `MontyParams<U256>` / `MontyParams<U512>`).
 
 ## Scope
 

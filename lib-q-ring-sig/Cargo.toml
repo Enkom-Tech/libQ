@@ -10,11 +10,16 @@ keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
+# With `default-features = false`, the `std` feature enables `lib-q-core/std` so the crate root can omit
+# `#![no_std]` under default features: native `cdylib`+`alloc` otherwise needs a global allocator and
+# `#[panic_handler]` (see `lib-q-prf`).
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false }
 lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true, default-features = false }
+# Default features must stay enabled: `lib-q-prf` is built as `cdylib`+`rlib`; a no-std build
+# without `std`'s allocator/panic runtime fails to link that cdylib on native targets.
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true }
 crypto-bigint = { workspace = true, optional = true, default-features = false, features = ["zeroize"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
@@ -36,10 +41,16 @@ path = "tests/wasm_smoke.rs"
 required-features = ["wasm"]
 
 [features]
-default = []
+default = ["std"]
+std = [
+    "lib-q-core/std",
+    "lib-q-lattice-zkp/std",
+    "lib-q-ring/std",
+]
 dualring-prf = ["dep:lib-q-prf", "dep:crypto-bigint"]
 federation-opening = []
 wasm = [
+    "std",
     "dep:wasm-bindgen",
     "dep:js-sys",
     "serde",
@@ -47,12 +58,13 @@ wasm = [
     "dep:serde-wasm-bindgen",
     "dep:hex",
     "dep:lib-q-random",
-    "dep:lib-q-core",
     "lib-q-core/wasm",
 ]
 
 [lib]
-# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Default `std` avoids
+# native `cdylib`+`#![no_std]`+`alloc` needing a global allocator and `#[panic_handler]` under unwind.
+# Use `--no-default-features` only with an embedded/firmware setup that supplies those (see `lib-q-prf`).
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]
@@ -66,5 +78,5 @@ required-features = ["dualring-prf"]
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(ring_sig_docs)',
-    'cfg(feature, values("dualring-prf", "federation-opening"))',
+    'cfg(feature, values("dualring-prf", "federation-opening", "std"))',
 ] }

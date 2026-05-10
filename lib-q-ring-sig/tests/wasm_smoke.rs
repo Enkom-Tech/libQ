@@ -29,10 +29,13 @@ fn ring_sig_dualring_lb_pilot_wasm() {
         seed: [0x5Du8; 32],
         params: AjtaiParameters::new(2, 1),
     };
-    let o = AjtaiOpening {
+    // Witness must be non-trivial: if `com = A·wit` is zero, `c·com` vanishes and the opening
+    // equation no longer binds the Fiat–Shamir transcript (wrong messages would still verify).
+    let mut o = AjtaiOpening {
         message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
         randomness: ModuleVec(vec![Poly::zero()]),
     };
+    o.randomness.0[0].coeffs[0] = 1;
     let com = commit(&key, &o);
     let ring = [com.clone()];
     let msg = b"wasm-smoke";

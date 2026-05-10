@@ -5,6 +5,7 @@
 //! These are algorithm-specific tests that should live in the algorithm crate.
 
 #![allow(clippy::needless_range_loop)]
+#![cfg(not(target_arch = "wasm32"))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

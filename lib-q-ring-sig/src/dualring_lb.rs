@@ -267,6 +267,30 @@ mod tests {
     }
 
     #[test]
+    fn dualring_lb_wrong_message_rejected() {
+        let key = pilot_crs();
+        let tau = 39;
+        let z = 20_000_000;
+        let max = 512;
+        let mut o = AjtaiOpening {
+            message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
+            randomness: ModuleVec(vec![Poly::zero()]),
+        };
+        o.randomness.0[0].coeffs[0] = 1;
+        let com = lib_q_lattice_zkp::commit(&key, &o);
+        let ring = [com.clone()];
+        let msg = b"signed-once";
+        let mut rng = TestRng(0xC0FFEE_u64);
+        let sig =
+            sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, tau, z, max).expect("sign");
+        verify_dualring_lb(&key, &ring, msg, &sig, tau, z).expect("verify");
+        assert!(
+            verify_dualring_lb(&key, &ring, b"other-msg", &sig, tau, z).is_err(),
+            "verify must reject wrong message when commitment is non-zero"
+        );
+    }
+
+    #[test]
     fn dualring_lb_wrong_ring_member_rejected() {
         let key = pilot_crs();
         let tau = 39;

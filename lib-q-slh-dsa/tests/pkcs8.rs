@@ -1,4 +1,5 @@
 #![cfg(feature = "alloc")]
+#![cfg(not(target_arch = "wasm32"))]
 
 use std::ops::Deref;
 

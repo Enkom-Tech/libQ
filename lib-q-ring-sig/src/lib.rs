@@ -7,7 +7,7 @@
 //! verifier. [`dualring_lb`] ships a **pilot** DualRing-LB–oriented transcript with
 //! constant-time full-ring verification; see [`DESIGN.md`](./DESIGN.md) for limits vs the CCS 2021 paper.
 #![forbid(unsafe_code)]
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 

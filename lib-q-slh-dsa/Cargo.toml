@@ -13,18 +13,18 @@ categories = ["cryptography"]
 exclude = ["tests"]
 
 [dependencies]
-hybrid-array = { version = "0.4.10", features = ["extra-sizes"] }
-typenum = { version = "1.19.0", features = ["const-generics"] }
+hybrid-array = { version = "0.4.12", features = ["extra-sizes"] }
+typenum = { version = "1.20.0", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, default-features = false, features = ["signature"] }
 zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
-signature = { version = "3.0.0-rc.10", features = ["rand_core"] }
+signature = { version = "3.0.0", features = ["rand_core"] }
 hmac = "0.13.0"
 sha2 = { version = "0.11.0", default-features = false }
 digest = { workspace = true }
-pkcs8 = { version = "0.11.0-rc.11", default-features = false, features = ["alloc"] }
+pkcs8 = { version = "0.11.0", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.2", features = ["db"] }
 zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 getrandom = { workspace = true, optional = true, default-features = false }
@@ -40,10 +40,11 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
+hex-literal = "1.1.0"
+pastey = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-hex-literal = "1.1.0"
 hex = { workspace = true, features = ["serde"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "signature"] }
 num-bigint = { workspace = true }
@@ -53,7 +54,6 @@ proptest = { workspace = true }
 aes = { workspace = true }
 cipher = "0.5.1"
 ctr = "0.10.0"
-pastey = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 pkcs8 = { version = "0.11.0", features = ["pem"] }

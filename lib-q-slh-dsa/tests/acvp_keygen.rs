@@ -6,6 +6,7 @@
 //! `known_answer_tests.rs`).
 #![allow(non_snake_case)]
 #![cfg(feature = "alloc")]
+#![cfg(not(target_arch = "wasm32"))]
 
 use lib_q_slh_dsa::*;
 use serde::Deserialize;

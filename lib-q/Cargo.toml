@@ -37,7 +37,7 @@ lib-q-fn-dsa = { path = "../lib-q-fn-dsa", version = "0.0.2", optional = true }
 lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.2", optional = true }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
 lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.2", optional = true, default-features = false }
-lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true, default-features = false }
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { workspace = true, optional = true }
@@ -145,7 +145,7 @@ random = ["dep:lib-q-random", "lib-q-random/std"]
 random-custom-entropy = ["dep:lib-q-random", "lib-q-random/custom-entropy"]
 
 # Federation ring openings + optional DualRing-PRF (Legendre/Gold PRF transcript)
-ring-sig = ["dep:lib-q-ring-sig"]
+ring-sig = ["dep:lib-q-ring-sig", "lib-q-ring-sig/std"]
 prf = ["dep:lib-q-prf"]
 dualring-prf = ["ring-sig", "prf", "lib-q-ring-sig/dualring-prf"]
 

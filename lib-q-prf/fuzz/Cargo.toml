@@ -9,7 +9,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-lib-q-prf = { path = "..", default-features = false }
+lib-q-prf = { path = "..", features = ["std"] }
 libfuzzer-sys = "0.4.12"
 
 [[bin]]

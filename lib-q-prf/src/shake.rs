@@ -1,6 +1,7 @@
 //! SHAKE256 helpers for domain-separated key derivation.
 
 use crypto_bigint::{
+    CtEq,
     NonZero,
     U256,
     U512,
@@ -10,7 +11,6 @@ use lib_q_sha3::{
     Update,
     XofReader,
 };
-use subtle::ConstantTimeEq;
 
 use crate::error::PrfError;
 

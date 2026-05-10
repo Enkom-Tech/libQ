@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
 #![warn(clippy::pedantic)] // Be pedantic by default
 //#![allow(non_snake_case)] // Allow notation matching the spec

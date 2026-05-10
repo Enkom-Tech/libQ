@@ -17,7 +17,7 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 
 [features]
 default = []
-std = [] # When enabled, the crate is not `#![no_std]` (optional; host builds use `rlib` only — see `build.rs`).
+std = [] # When enabled, the crate is not `#![no_std]` (optional). For a host `cdylib` link of this crate alone, pass `--features std` (see `.github/actions/rust-build`).
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 random = ["dep:lib-q-random", "lib-q-random/std"]
@@ -52,6 +52,8 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 [lib]
 name = "lib_q_ml_kem"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` in this manifest; `rlib` remains for Rust consumers. The workspace no-default-features build enables `std` for this crate so the host `cdylib` link succeeds (see `.github/actions/rust-build`).
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]

@@ -170,6 +170,8 @@ runs:
             if [[ "$pkg" == "lib-q-core" ]]; then
               rm -rf target/dev-no-std
               cargo build -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom"
+            elif [[ "$pkg" == "lib-q-ml-kem" ]]; then
+              cargo build -p lib-q-ml-kem --no-default-features --features "std"
             else
               cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
             fi
@@ -179,6 +181,11 @@ runs:
           echo "Building lib-q-keccak with explicit no_std panic handler"
           rm -rf target/dev-no-std
           cargo build --profile dev-no-std --no-default-features --features "alloc"
+        elif [[ "$WORKING_DIR" == "lib-q-random" ]]; then
+          echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
+          echo "Building lib-q-random with dev-no-std (panic=abort) and no_std (panic handler for cdylib)"
+          rm -rf target/dev-no-std
+          cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom"
         else
           cargo build --no-default-features
         fi

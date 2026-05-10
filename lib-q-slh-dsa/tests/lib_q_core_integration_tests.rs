@@ -4,6 +4,7 @@
 //! with lib-q-core's Signature trait and type system.
 
 #![allow(clippy::needless_range_loop)]
+#![cfg(not(target_arch = "wasm32"))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

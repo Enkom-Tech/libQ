@@ -7,6 +7,7 @@
 //! These checks mirror other lib-Q crates: exercise `lib_q_core::Utils::constant_time_compare`
 //! and ensure verification rejects altered signatures. They do not replace dedicated
 //! timing analysis or `dudect`-style measurement.
+#![cfg(not(target_arch = "wasm32"))]
 
 use lib_q_core::Utils;
 use lib_q_slh_dsa::{

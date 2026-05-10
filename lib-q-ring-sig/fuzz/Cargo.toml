@@ -9,7 +9,8 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-lib-q-ring-sig = { path = "..", default-features = false, features = ["dualring-prf"] }
+lib-q-ring-sig = { path = "..", default-features = false, features = ["std", "dualring-prf"] }
+lib-q-prf = { path = "../../lib-q-prf", version = "0.0.2" }
 lib-q-lattice-zkp = { path = "../../lib-q-lattice-zkp", default-features = false, features = ["alloc"] }
 lib-q-ring = { path = "../../lib-q-ring", default-features = false, features = ["alloc"] }
 libfuzzer-sys = "0.4.12"

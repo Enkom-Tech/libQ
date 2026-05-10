@@ -47,7 +47,7 @@ Exact feature sets vary by crate; prefer each crate’s `Cargo.toml` `[features]
 
 ### `@lib-q/ml-kem`
 
-[`lib-q-ml-kem`](../lib-q-ml-kem/) exposes ML-KEM `wasm-bindgen` entry points behind `--features wasm` (`ml_kem_generate_keypair`, `ml_kem_encapsulate`, `ml_kem_decapsulate`). A small [`build.rs`](../lib-q-ml-kem/build.rs) adds `cdylib` **only** when `TARGET` contains `wasm32`, so the default `#![no_std]` library stays `rlib`-only on the host while `wasm-pack` still receives `cdylib` for npm builds.
+[`lib-q-ml-kem`](../lib-q-ml-kem/) exposes ML-KEM `wasm-bindgen` entry points behind `--features wasm` (`ml_kem_generate_keypair`, `ml_kem_encapsulate`, `ml_kem_decapsulate`). Its manifest declares `crate-type = ["cdylib", "rlib"]` because current `wasm-pack` validates that entry for `wasm32-unknown-unknown` (the older `build.rs`-only `rustc-crate-type` hint is not sufficient).
 
 ```bash
 cd lib-q-ml-kem
@@ -107,7 +107,7 @@ If you enable `std` on a crate while targeting `wasm32-unknown-unknown`, avoid u
 |--------------|------|
 | `lib-q-stark*` / `lib-q-plonky*` | Default builds use serial `lib-q-stark-rayon` shims; do not enable `parallel` on WASM. |
 | `lib-q-keccak` | Dependents should use `default-features = false` unless they explicitly need `std` / host threading from Keccak. |
-| `lib-q-ml-kem` | `build.rs` limits `cdylib` to `wasm32` targets; host / embedded consumers link `rlib` only. Optional feature `std` disables `#![no_std]` if needed. |
+| `lib-q-ml-kem` | `Cargo.toml` lists `cdylib` + `rlib` for `wasm-pack`. Host `no_std` consumers link the `rlib` only; enable feature `std` when you need a host `cdylib` link (workspace scripts use `--no-default-features --features std` for that check). |
 | `lib-q-sca-test` | Host-oriented timing harness; excluded from the WASM workspace gate. |
 
 ## Browser baseline

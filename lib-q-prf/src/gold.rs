@@ -1,13 +1,11 @@
 //! Gold (power-residue) PRF: \(\mathrm{Gold}_k(x) = (k+x)^g \bmod p\).
 
 use crypto_bigint::{
+    CtEq,
+    CtLt,
     NonZero,
     U256,
     U512,
-};
-use subtle::{
-    ConstantTimeEq,
-    ConstantTimeLess,
 };
 use zeroize::{
     Zeroize,
@@ -89,11 +87,11 @@ pub fn gold_prf_u256(
         .into_option()
         .ok_or(PrfError::InvalidParam)?;
     let xr = x.rem_vartime(&nz);
-    let xm = to_monty(&xr, params.monty);
-    let km = to_monty(&key.k, params.monty);
+    let xm = to_monty(&xr, &params.monty);
+    let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
     let out_m = fp_pow(&sum, &params.g);
-    Ok(out_m.retrieve().to_le_bytes())
+    Ok(out_m.retrieve().to_le_bytes().into())
 }
 
 pub fn gold_prf_u512(
@@ -106,9 +104,9 @@ pub fn gold_prf_u512(
         .into_option()
         .ok_or(PrfError::InvalidParam)?;
     let xr = x.rem_vartime(&nz);
-    let xm = to_monty(&xr, params.monty);
-    let km = to_monty(&key.k, params.monty);
+    let xm = to_monty(&xr, &params.monty);
+    let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
     let out_m = fp_pow(&sum, &params.g);
-    Ok(out_m.retrieve().to_le_bytes())
+    Ok(out_m.retrieve().to_le_bytes().into())
 }

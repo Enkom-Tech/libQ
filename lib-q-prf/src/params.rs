@@ -34,7 +34,7 @@ pub struct LegendrePrfParams256 {
     /// Safe prime modulus.
     pub p: U256,
     /// Montgomery parameters for `p`.
-    pub monty: MontyParams<{ U256::LIMBS }>,
+    pub monty: MontyParams<U256>,
 }
 
 /// Parameters for the Legendre PRF at the 512-bit pilot modulus.
@@ -43,7 +43,7 @@ pub struct LegendrePrfParams512 {
     /// Safe prime modulus.
     pub p: U512,
     /// Montgomery parameters for `p`.
-    pub monty: MontyParams<{ U512::LIMBS }>,
+    pub monty: MontyParams<U512>,
 }
 
 /// Parameters for the Gold (power-residue) PRF: odd divisor `g` of `p-1` and modulus `p`.
@@ -52,7 +52,7 @@ pub struct GoldPrfParams256 {
     /// Prime modulus.
     pub p: U256,
     /// Montgomery parameters for `p`.
-    pub monty: MontyParams<{ U256::LIMBS }>,
+    pub monty: MontyParams<U256>,
     /// Gold exponent `g | (p-1)`.
     pub g: U256,
 }
@@ -63,7 +63,7 @@ pub struct GoldPrfParams512 {
     /// Prime modulus.
     pub p: U512,
     /// Montgomery parameters for `p`.
-    pub monty: MontyParams<{ U512::LIMBS }>,
+    pub monty: MontyParams<U512>,
     /// Gold exponent `g | (p-1)`.
     pub g: U512,
 }
@@ -75,14 +75,14 @@ pub const P256_BE_HEX: &str = "6f7cfe74b8a1892ed54ec11ae8141a65dad34409734641113
 pub const P512_BE_HEX: &str = "6fa0e975b4660858abfccfb1a2f3b5f8cda4239a89afa1840e62d758ae53a94059ab27f1f7833146306bf0d1c2647d9ca136b85e4c24dbdf0a4c8ef916f0094f";
 
 #[inline]
-fn monty_params_u256(p: U256) -> MontyParams<{ U256::LIMBS }> {
-    let odd = Odd::new(p).expect("pilot modulus is odd");
+fn monty_params_u256(p: U256) -> MontyParams<U256> {
+    let odd = Odd::new(p).into_option().expect("pilot modulus is odd");
     MontyParams::new_vartime(odd)
 }
 
 #[inline]
-fn monty_params_u512(p: U512) -> MontyParams<{ U512::LIMBS }> {
-    let odd = Odd::new(p).expect("pilot modulus is odd");
+fn monty_params_u512(p: U512) -> MontyParams<U512> {
+    let odd = Odd::new(p).into_option().expect("pilot modulus is odd");
     MontyParams::new_vartime(odd)
 }
 
@@ -149,13 +149,13 @@ impl GoldPrfParams512 {
 /// Encode a field element as fixed little-endian bytes (for wire formats / digests).
 #[must_use]
 pub fn u256_to_le_bytes(x: &U256) -> [u8; 32] {
-    x.to_le_bytes()
+    x.to_le_bytes().into()
 }
 
 /// Encode a `U512` as little-endian bytes.
 #[must_use]
 pub fn u512_to_le_bytes(x: &U512) -> [u8; 64] {
-    x.to_le_bytes()
+    x.to_le_bytes().into()
 }
 
 /// Parse a little-endian field element; must be `< p` for valid keys.

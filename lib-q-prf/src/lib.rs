@@ -1,6 +1,6 @@
 //! Legendre and Gold (power-residue) PRFs over prime fields \(\mathbb{F}_p\).
 //!
-//! This crate provides constant-time field arithmetic via [`crypto_bigint::modular::MontyForm`]
+//! This crate provides constant-time field arithmetic via [`crypto_bigint::modular::FixedMontyForm`]
 //! for pilot safe-prime moduli documented in [`params`]. It is intended as a building block for
 //! Fiat–Shamir protocols such as DualRing-PRF (QROM), composed at the [`lib-q-ring-sig`] layer.
 //!
@@ -8,7 +8,7 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
+#[cfg(all(not(feature = "std"), any(feature = "alloc", feature = "wasm")))]
 extern crate alloc;
 
 #[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]

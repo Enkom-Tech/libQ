@@ -10,6 +10,7 @@
 //! twelve KATs locally or in CI, use the workspace `release-ci` profile, for example:
 //! `cargo test -p lib-q-slh-dsa --profile release-ci --features all-parameter-set-tests --test known_answer_tests`.
 #![cfg(feature = "alloc")]
+#![cfg(not(target_arch = "wasm32"))]
 use core::{
     error,
     fmt,

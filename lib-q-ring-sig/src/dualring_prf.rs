@@ -14,6 +14,7 @@
 use alloc::vec::Vec;
 
 use crypto_bigint::{
+    CtEq,
     NonZero,
     U256,
 };
@@ -36,7 +37,6 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
-use subtle::ConstantTimeEq;
 
 /// Errors for the pilot DualRing-PRF transcript layer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

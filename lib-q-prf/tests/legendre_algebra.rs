@@ -1,6 +1,7 @@
 //! Deterministic checks of Legendre multiplicativity on the pilot field.
 
 use crypto_bigint::{
+    CtEq,
     NonZero,
     U256,
 };
@@ -24,8 +25,8 @@ fn legendre_multiplicative_sampled() {
         if bool::from(a.ct_eq(&U256::ZERO)) || bool::from(b.ct_eq(&U256::ZERO)) {
             continue;
         }
-        let am = to_monty(&a, params.monty);
-        let bm = to_monty(&b, params.monty);
+        let am = to_monty(&a, &params.monty);
+        let bm = to_monty(&b, &params.monty);
         let ab = am.mul(&bm);
         let la = legendre_symbol_monty(&am).expect("la");
         let lb = legendre_symbol_monty(&bm).expect("lb");
@@ -33,5 +34,3 @@ fn legendre_multiplicative_sampled() {
         assert_eq!(lab, la.wrapping_mul(lb), "seed {seed}");
     }
 }
-
-use crypto_bigint::subtle::ConstantTimeEq;

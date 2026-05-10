@@ -2,7 +2,7 @@
 
 ## Role
 
-`lib-q-prf` isolates **large-prime field** arithmetic and PRF semantics from the ML-DSA module ring \(R_q=\mathbb{Z}_q[X]/(X^{256}+1)\) in [`lib-q-ring`](../lib-q-ring/). DualRing-PRF-style protocols need \(\mathbb{F}_p\) with \(|p|\approx 2^{256}\)–\(2^{512}\); that domain is implemented here with `crypto_bigint::modular::MontyForm`.
+`lib-q-prf` isolates **large-prime field** arithmetic and PRF semantics from the ML-DSA module ring \(R_q=\mathbb{Z}_q[X]/(X^{256}+1)\) in [`lib-q-ring`](../lib-q-ring/). DualRing-PRF-style protocols need \(\mathbb{F}_p\) with \(|p|\approx 2^{256}\)–\(2^{512}\); that domain is implemented here with `crypto_bigint::modular::FixedMontyForm` and `MontyParams<U256>` / `MontyParams<U512>` (constructed via `MontyParams::new_vartime` from the odd pilot moduli in [`params.rs`](src/params.rs)).
 
 ## Parameters
 
@@ -21,7 +21,7 @@ Recent analysis shows **degree-1 Legendre PRFs over extension fields \(\mathbb{F
 
 ## Constant-time posture
 
-- Secret-dependent work uses `MontyForm` operations and `subtle` comparisons for zero tests and Legendre output mapping.
+- Secret-dependent work uses `FixedMontyForm` / `crypto_bigint::CtEq` for field steps; Legendre symbol mapping into \(\{-1,0,1\}\) bridges `crypto_bigint::Choice` into `subtle::Choice` for `ConditionallySelectable` on `i8`.
 - Modular exponentiation may leak **exponent bit length** through timing (documented upstream); exponents used here are derived from public parameters \((p-1)/2\) or public challenge-derived inputs in composed protocols.
 
 ## References

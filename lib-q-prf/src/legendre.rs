@@ -1,13 +1,11 @@
 //! Legendre PRF: \(L_K(x) = \left(\frac{x+K}{p}\right)\).
 
 use crypto_bigint::{
+    CtEq,
+    CtLt,
     NonZero,
     U256,
     U512,
-};
-use subtle::{
-    ConstantTimeEq,
-    ConstantTimeLess,
 };
 use zeroize::{
     Zeroize,
@@ -93,8 +91,8 @@ pub fn legendre_prf_u256(
     let nz = NonZero::new(params.p)
         .into_option()
         .ok_or(PrfError::InvalidParam)?;
-    let xm = to_monty(&x.rem_vartime(&nz), params.monty);
-    let km = to_monty(&key.k, params.monty);
+    let xm = to_monty(&x.rem_vartime(&nz), &params.monty);
+    let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
     let zero_sum = uint_ct_eq_zero(&sum.retrieve());
     if bool::from(zero_sum) {
@@ -113,8 +111,8 @@ pub fn legendre_prf_u512(
     let nz = NonZero::new(params.p)
         .into_option()
         .ok_or(PrfError::InvalidParam)?;
-    let xm = to_monty(&x.rem_vartime(&nz), params.monty);
-    let km = to_monty(&key.k, params.monty);
+    let xm = to_monty(&x.rem_vartime(&nz), &params.monty);
+    let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
     let zero_sum = uint_ct_eq_zero(&sum.retrieve());
     if bool::from(zero_sum) {
@@ -130,7 +128,7 @@ pub fn legendre_symbol_euler_u256(x_plus_k: &U256, params: &LegendrePrfParams256
     let nz = NonZero::new(p).into_option().expect("p non-zero");
     let e = p.wrapping_sub(&U256::ONE).shr(1);
     let reduced = x_plus_k.rem_vartime(&nz);
-    let m = to_monty(&reduced, params.monty);
+    let m = to_monty(&reduced, &params.monty);
     let y = m.pow(&e).retrieve();
     crate::field::legendre_symbol_residue(&y, &p).expect("prime field")
 }

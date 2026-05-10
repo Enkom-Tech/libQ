@@ -82,9 +82,10 @@ runs:
     - name: Build with no default features
       shell: bash
       run: |
-        echo "Building with no default features..."
+        echo "Building no_std lib profile (cdylib needs panic handler + panic=abort)..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features
+        rm -rf target/dev-no-std
+        cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom"
         echo "✅ Build completed"
     
     - name: Build with all features
@@ -95,12 +96,13 @@ runs:
         cargo build --features "${{ inputs.features }}"
         echo "✅ Build with features completed"
     
-    - name: Check all targets compile with no default features
+    - name: Check no_std library compiles (standalone cdylib + rlib)
       shell: bash
       run: |
-        echo "Checking library and tests compile with no default features..."
+        echo "Checking lib compiles with dev-no-std + no_std,getrandom (integration tests use std in other steps)..."
         cd ${{ inputs.working-directory }}
-        cargo check --all-targets --no-default-features
+        rm -rf target/dev-no-std
+        cargo check --profile dev-no-std --no-default-features --features "no_std,getrandom"
         echo "✅ Compile check completed"
     
     - name: Run tests with all features

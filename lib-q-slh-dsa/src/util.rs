@@ -100,7 +100,7 @@ pub mod macros {
     pub(crate) use test_parameter_sets;
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use num_bigint::BigUint;
     use proptest::prelude::*;
