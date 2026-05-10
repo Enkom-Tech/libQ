@@ -430,6 +430,7 @@ impl fmt::Display for CustomEntropySource {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "alloc")]
     use alloc::format;
 
     use super::*;
@@ -619,6 +620,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_entropy_source_display() {
         let context = EntropyContext::empty();
         let config = CustomEntropyConfig::default();

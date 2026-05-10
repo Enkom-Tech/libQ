@@ -129,10 +129,10 @@ inherits = "release"
 lto = false
 codegen-units = 256
 # `.cargo/config.toml` sets `[profile.release] panic = "abort"`. `cargo test --profile release-ci`
-# must use unwind so the lib test harness can link crates that also build as `cdylib` (e.g.
-# `lib-q-utils`, `lib-q-core`); abort in dependencies is rejected when the test crate is unwind.
+# must use unwind so the lib test harness can link workspace crates that use mixed rustc outputs
+# (e.g. `lib-q-utils`, `lib-q-core`); abort in dependencies is rejected when the test crate is unwind.
 panic = "unwind"
-# Avoid incremental + `lib-q-core` (`cdylib` + `rlib`) fingerprint races that surface as E0460
+# Avoid incremental + `lib-q-core` fingerprint races that surface as E0460
 # ("possibly newer version of crate `lib_q_core`") when downstream rlibs link the unsuffixed
 # `liblib_q_core.rlib` companion artefact.
 incremental = false

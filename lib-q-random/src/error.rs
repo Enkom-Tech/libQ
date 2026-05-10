@@ -13,7 +13,10 @@
 //! strategies.
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::string::String;
+use alloc::string::{
+    String,
+    ToString,
+};
 use core::fmt;
 
 /// Result type alias for lib-q-random operations
@@ -540,7 +543,7 @@ impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::format;
 
     use super::*;
@@ -554,6 +557,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn test_error_display() {
         let err = Error::insufficient_entropy(256, 128, 0.5);
         let display = format!("{}", err);

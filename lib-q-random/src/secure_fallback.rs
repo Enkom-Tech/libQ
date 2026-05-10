@@ -50,8 +50,13 @@ impl SecureFallbackEntropySource {
     fn gather_initial_entropy() -> u64 {
         let mut entropy = 0u64;
 
-        // Use system time (high precision if available)
-        #[cfg(feature = "std")]
+        // Use system time (high precision if available).
+        // wasm32-unknown-unknown is excluded because `SystemTime::now()` panics there
+        // with "time not implemented on this platform". On wasm32 the OS entropy source
+        // (getrandom + wasm_js) is the primary source; if this fallback is reached, the
+        // memory address mixed in below plus the all-zero -> fixed-seed branch keep the
+        // PRNG state non-trivial.
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::time::{
                 SystemTime,

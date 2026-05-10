@@ -6,9 +6,21 @@
 //!
 //! [`lib-q-ring-sig`]: https://github.com/Enkom-Tech/libQ/tree/main/lib-q-ring-sig
 #![forbid(unsafe_code)]
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
+}
 
 pub mod error;
 pub mod field;

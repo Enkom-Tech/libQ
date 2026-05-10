@@ -17,6 +17,7 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 [lib]
 name = "libq"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
@@ -44,9 +45,6 @@ js-sys = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = ["console"] }
 
 [dev-dependencies]
-# Testing
-criterion = { workspace = true }
-proptest = { workspace = true }
 lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp" }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", default-features = false, features = ["random"] }
 lib-q-ring = { path = "../lib-q-ring" }
@@ -56,6 +54,14 @@ rand_core = { workspace = true }
 
 # WASM testing
 wasm-bindgen-test = { workspace = true }
+
+# `criterion` / `proptest` are not used by this crate's wasm integration tests, but they
+# pull `wait-timeout` / `rand` 0.9 → `getrandom` 0.3 which does not build for
+# `wasm32-unknown-unknown` under CI's `getrandom_backend="wasm_js"` cfg unless heavily
+# patched. Keep them for native `cargo test` only.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
 
 [features]
 default = ["std"]

@@ -23,11 +23,13 @@ lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features =
 
 [dev-dependencies]
 digest = { workspace = true, features = ["dev"] }
-criterion = { workspace = true, features = ["html_reports"] }
 blobby = { workspace = true, features = ["alloc"] }
 hex-literal = "1.1.0"
 base16ct = { version = "1.0.0", features = ["alloc"] }
 lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.2" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]
 name = "sha3_benchmarks"

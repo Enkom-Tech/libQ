@@ -29,8 +29,10 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 hex = { workspace = true }
-criterion = { workspace = true, features = ["html_reports"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc", "std"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]
 name = "duplex_aead"

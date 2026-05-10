@@ -5,7 +5,7 @@
 //! the input values.
 
 use core::future::Future;
-#[cfg(not(feature = "std"))]
+#[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
 use core::sync::atomic::{
     AtomicU64,
     Ordering,
@@ -311,7 +311,7 @@ impl TimingProtection {
 
     /// Get current timestamp in nanoseconds
     fn get_timestamp(&self) -> u64 {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::time::{
                 SystemTime,
@@ -322,16 +322,18 @@ impl TimingProtection {
                 .unwrap_or_default()
                 .as_nanos() as u64
         }
-        #[cfg(not(feature = "std"))]
+        // wasm32-unknown-unknown lacks a real clock (`SystemTime::now()` panics),
+        // and no_std targets have no clock either, so both fall back to a
+        // monotonic counter. This is sufficient for the spin-loop based
+        // timing protection used by `protect`/`sleep`.
+        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
         {
-            // For no_std environments, use a simple counter-based approach
-            // This is not ideal for real timing protection but works for testing
             use core::sync::atomic::{
                 AtomicU64,
                 Ordering,
             };
             static COUNTER: AtomicU64 = AtomicU64::new(0);
-            COUNTER.fetch_add(1, Ordering::SeqCst) // Simulate 1 nanosecond increments
+            COUNTER.fetch_add(1, Ordering::SeqCst)
         }
     }
 
@@ -401,7 +403,7 @@ impl TimingProtection {
 
     /// Generate random jitter
     fn generate_jitter(&self) -> u64 {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{
@@ -426,9 +428,10 @@ impl TimingProtection {
             // Generate jitter in the range [0, jitter_range]
             hash % (self.jitter_range + 1)
         }
-        #[cfg(not(feature = "std"))]
+        // wasm32-unknown-unknown and no_std lack a real clock; use a
+        // counter-based pseudo-jitter fallback.
+        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
         {
-            // For no_std environments, use a simple counter-based approach
             static JITTER_COUNTER: AtomicU64 = AtomicU64::new(0);
             let counter = JITTER_COUNTER.fetch_add(1, Ordering::SeqCst);
             counter % (self.jitter_range + 1)

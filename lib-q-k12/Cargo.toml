@@ -18,12 +18,14 @@ lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = fal
 
 [dev-dependencies]
 digest = { workspace = true, features = ["alloc"] }
-criterion = { workspace = true, features = ["html_reports"] }
 hex-literal = "1.1.0"
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hex = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]
 name = "k12_benchmarks"

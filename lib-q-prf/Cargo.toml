@@ -34,9 +34,10 @@ path = "tests/wasm_smoke.rs"
 required-features = ["wasm"]
 
 [features]
-default = ["alloc"]
+default = ["std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc"]
+no_std_panic_handler = []
 wasm = [
     "dep:wasm-bindgen",
     "dep:js-sys",
@@ -49,10 +50,11 @@ wasm = [
 ]
 
 [lib]
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for normal Rust consumers. Native no_std CI uses `no_std_panic_handler` where applicable (see `src/lib.rs`).
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lib_q_prf_docs)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lib_q_prf_docs)', 'cfg(feature, values("alloc", "default", "no_std_panic_handler", "std", "wasm"))'] }

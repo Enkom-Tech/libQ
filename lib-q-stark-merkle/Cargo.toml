@@ -37,6 +37,7 @@ lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.2" }
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2", features = ["test-utils"] }
 lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.2" }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
 [[bench]]

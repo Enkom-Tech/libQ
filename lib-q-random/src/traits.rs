@@ -8,7 +8,11 @@
 //! for random number generation in the libQ ecosystem.
 
 #[cfg(feature = "alloc")]
-use alloc::collections::BTreeMap;
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    string::String,
+};
 use core::fmt;
 
 use rand_core::{
@@ -390,7 +394,7 @@ impl Default for ProviderCapabilities {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::format;
 
     use super::*;
@@ -402,6 +406,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn test_entropy_source_type_display() {
         assert_eq!(
             format!("{}", EntropySourceType::OperatingSystem),

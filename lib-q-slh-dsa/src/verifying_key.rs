@@ -227,7 +227,7 @@ impl<P: ParameterSet> TryFrom<pkcs8::SubjectPublicKeyInfoRef<'_>> for VerifyingK
                 .as_bytes()
                 .ok_or_else(|| der::Tag::BitString.value_error().to_error())?,
         )
-        .map_err(|_| pkcs8::Error::KeyMalformed)?)
+        .map_err(|_| pkcs8::Error::from(pkcs8::KeyError::Invalid))?)
     }
 }
 

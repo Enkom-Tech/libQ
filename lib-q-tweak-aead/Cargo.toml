@@ -29,6 +29,8 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 hex = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 
 [[bench]]

@@ -3,7 +3,7 @@
 //! This module provides key rotation mechanisms to enhance forward secrecy
 //! and limit the impact of key compromise.
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_arch = "wasm32")))]
 use std::time::{
     Duration,
     SystemTime,
@@ -229,17 +229,18 @@ fn apply_randomization(base_value: u64, randomness_factor: f64, random_u32: u32)
 
 /// Get current timestamp (seconds since UNIX epoch)
 fn current_timestamp() -> u64 {
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
     {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or(Duration::from_secs(0))
             .as_secs()
     }
-    #[cfg(not(feature = "std"))]
+    // wasm32-unknown-unknown lacks a real clock (`SystemTime::now()` panics),
+    // and no_std targets have no clock either. Both fall back to a fixed
+    // timestamp; in practice an embedder would inject one.
+    #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
     {
-        // In no_std environments, return a fixed timestamp
-        // In practice, this would need to be provided by the platform
         0
     }
 }

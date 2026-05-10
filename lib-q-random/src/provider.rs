@@ -8,6 +8,11 @@
 //! for creating and managing RNG instances with different characteristics.
 
 #[cfg(feature = "alloc")]
+use alloc::{
+    boxed::Box,
+    vec,
+};
+#[cfg(feature = "alloc")]
 use core::fmt;
 
 #[cfg(feature = "alloc")]
@@ -462,16 +467,18 @@ impl TryRng for LibQRng {
 }
 
 /// Hard stop on unrecoverable entropy failure (avoids `panic!` / `eprintln!` for strict Clippy).
+// `clippy::panic` is denied in non-test builds (see `lib.rs` lint config),
+// but the `no_std` branch of this abort path has no `std::process::abort`
+// alternative, so `panic!` is the only way out. Allow it on the function so
+// the attribute targets an item rather than a macro invocation.
 #[cfg(feature = "alloc")]
 #[inline(never)]
+#[allow(clippy::panic)]
 fn rng_abort() -> ! {
     #[cfg(feature = "std")]
     std::process::abort();
     #[cfg(not(feature = "std"))]
-    {
-        #[allow(clippy::panic)]
-        panic!("CRITICAL SECURITY FAILURE: RNG entropy unavailable");
-    }
+    panic!("CRITICAL SECURITY FAILURE: RNG entropy unavailable");
 }
 
 #[cfg(feature = "alloc")]

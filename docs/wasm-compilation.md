@@ -23,17 +23,36 @@ export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="w
 
 Use `-C panic=abort` for release `wasm-pack` / `cdylib` builds to reduce binary size. **Do not** add `panic=abort` globally if you need `cargo test --target wasm32-unknown-unknown` with the default unwind test runtime for mixed `cdylib` + test crates (see comments in the root `Cargo.toml` profiles).
 
+### Dev-dependencies and `wasm-pack test`
+
+`wasm-pack test` (and `cargo build --tests --target wasm32-unknown-unknown`) compile **dev-dependencies**. **`proptest`** pulls `rand` 0.9 → **`getrandom` 0.3** without `wasm_js`, which fails under the `getrandom_backend="wasm_js"` cfg. **`criterion`** pulls **`wait-timeout`**, which does not compile for `wasm32-unknown-unknown`. Crates that do not need those tools in WASM test builds should list them only under:
+
+```toml
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+```
+
+Bench-only crates (e.g. `fips204` next to `criterion` in `lib-q-ml-dsa`) belong in the same host-only block.
+
 ## Compilation modes
 
-### Library only (`rlib`)
+### As a Rust dependency (no `wasm-pack`)
 
-For inclusion in another Rust WASM project:
+Use `cargo check` / `cargo build` when pulling these crates into another Rust WASM binary; you do not need `cdylib` in your own crate unless you ship npm glue. Published `@lib-q/*` crates include `cdylib` for `wasm-pack`.
 
 ```bash
 cargo check -p lib-q-core --target wasm32-unknown-unknown --no-default-features --features "alloc,wasm"
 ```
 
 Exact feature sets vary by crate; prefer each crate’s `Cargo.toml` `[features]` table and README.
+
+### `@lib-q/ml-kem`
+
+[`lib-q-ml-kem`](../lib-q-ml-kem/) exposes ML-KEM `wasm-bindgen` entry points behind `--features wasm` (`ml_kem_generate_keypair`, `ml_kem_encapsulate`, `ml_kem_decapsulate`). A small [`build.rs`](../lib-q-ml-kem/build.rs) adds `cdylib` **only** when `TARGET` contains `wasm32`, so the default `#![no_std]` library stays `rlib`-only on the host while `wasm-pack` still receives `cdylib` for npm builds.
+
+```bash
+cd lib-q-ml-kem
+wasm-pack build --target web --release -- --features wasm
+```
 
 ### `wasm-pack` (browser)
 
@@ -88,6 +107,7 @@ If you enable `std` on a crate while targeting `wasm32-unknown-unknown`, avoid u
 |--------------|------|
 | `lib-q-stark*` / `lib-q-plonky*` | Default builds use serial `lib-q-stark-rayon` shims; do not enable `parallel` on WASM. |
 | `lib-q-keccak` | Dependents should use `default-features = false` unless they explicitly need `std` / host threading from Keccak. |
+| `lib-q-ml-kem` | `build.rs` limits `cdylib` to `wasm32` targets; host / embedded consumers link `rlib` only. Optional feature `std` disables `#![no_std]` if needed. |
 | `lib-q-sca-test` | Host-oriented timing harness; excluded from the WASM workspace gate. |
 
 ## Browser baseline

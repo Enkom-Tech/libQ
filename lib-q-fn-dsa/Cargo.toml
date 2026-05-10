@@ -14,7 +14,11 @@ categories = ["cryptography"]
 [lib]
 name = "lib_q_fn_dsa"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
 crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dependencies]
 # Core libQ types
@@ -50,12 +54,10 @@ shake256x4 = ["fn-dsa/shake256x4"]
 # WASM support
 wasm = ["lib-q-random/wasm", "wasm-bindgen", "js-sys", "web-sys"]
 
-[dev-dependencies]
-# Testing
+# `criterion` / `proptest` pull host-only / `getrandom` 0.3 chains; wasm CI uses `getrandom_backend="wasm_js"`.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 proptest = { workspace = true }
-
-# Test utilities
 hex = { workspace = true }
 rand = { workspace = true }
 

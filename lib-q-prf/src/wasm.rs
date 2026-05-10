@@ -2,8 +2,7 @@
 
 #![allow(missing_docs)]
 
-extern crate alloc;
-
+#[cfg(not(feature = "std"))]
 use alloc::format;
 
 use crypto_bigint::U256;

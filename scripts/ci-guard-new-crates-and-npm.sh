@@ -173,18 +173,9 @@ members_match = re.search(r"members\s*=\s*\[(.*?)\]", workspace_toml, re.DOTALL)
 members = [] if not members_match else [m for m in re.findall(r'"([^"]+)"', members_match.group(1)) if m != "examples"]
 
 
-def has_wasm_feature(txt: str) -> bool:
-    return bool(re.search(r"^wasm\s*=\s*\[", txt, re.MULTILINE))
-
-
-def has_cdylib(txt: str) -> bool:
-    sec = re.search(r"\[lib\](.*?)(?:\n\[|\Z)", txt, re.DOTALL)
-    if not sec:
-        return False
-    ct = re.search(r"crate-type\s*=\s*\[(.*?)\]", sec.group(1), re.DOTALL)
-    if not ct:
-        return False
-    return "cdylib" in ct.group(1)
+def has_wasm_pack_release_metadata(txt: str) -> bool:
+    """Crates that tune `wasm-pack` releases are expected to appear in cd.yml `publish-wasm-packages`."""
+    return "[package.metadata.wasm-pack" in txt
 
 
 required = set()
@@ -193,8 +184,12 @@ for mem in members:
     if not cargo.is_file():
         continue
     txt = cargo.read_text(encoding="utf-8")
-    if has_wasm_feature(txt) and has_cdylib(txt):
+    if has_wasm_pack_release_metadata(txt):
         required.add(mem)
+
+for mem in list(required):
+    if mem.startswith("examples/"):
+        required.discard(mem)
 
 # lib-q-core exposes lower-level Rust/WASM internals but is not an npm package root.
 required.discard("lib-q-core")
@@ -205,7 +200,7 @@ if "." in present:
 missing = sorted(required - present)
 if missing:
     print(
-        "ERROR: crates with wasm feature + cdylib are missing from cd.yml publish-wasm-packages matrix:",
+        "ERROR: crates with `[package.metadata.wasm-pack]` are missing from cd.yml publish-wasm-packages matrix:",
         file=sys.stderr,
     )
     for mem in missing:

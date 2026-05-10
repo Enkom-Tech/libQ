@@ -20,8 +20,10 @@ digest = { workspace = true }
 zeroize = { workspace = true, default-features = false }
 
 [dev-dependencies]
-criterion = { workspace = true }
 hex = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [features]
 default = ["alloc"]

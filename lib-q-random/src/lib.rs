@@ -157,9 +157,21 @@
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
-// Enable alloc crate when not using std or when alloc feature is enabled
-#[cfg(any(not(feature = "std"), feature = "alloc"))]
+// Heap-backed APIs (`Vec`, `Box`, …) require explicit `alloc` (see Cargo features). With `cdylib`,
+// standalone `cargo check` of this crate uses the `no_std` feature, which enables `no_std_panic_handler`.
+#[cfg(feature = "alloc")]
 extern crate alloc;
+
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
+}
 
 // Core modules
 pub mod entropy;

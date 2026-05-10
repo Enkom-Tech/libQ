@@ -191,7 +191,7 @@ runs:
       run: |
         echo "Testing no_std compatibility..."
         cd ${{ inputs.working-directory }}
-        cargo check --no-default-features --features "no_std,getrandom"
+        cargo check --profile dev-no-std --no-default-features --features "no_std,getrandom"
         echo "✅ no_std compatibility test completed"
     
     - name: Test entropy source availability

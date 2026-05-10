@@ -188,7 +188,7 @@ impl SecurityContext {
 
     /// Get current timestamp with high-resolution timing
     fn get_timestamp() -> u64 {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::time::{
                 SystemTime,
@@ -199,10 +199,11 @@ impl SecurityContext {
                 .unwrap_or_default()
                 .as_nanos() as u64
         }
-        #[cfg(not(feature = "std"))]
+        // wasm32-unknown-unknown has no working `SystemTime`; no_std targets
+        // have no clock at all. Both fall back to a monotonic counter that
+        // still gives consistent relative measurements.
+        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
         {
-            // For no_std environments, use a monotonic counter
-            // This provides consistent timing for relative measurements
             use core::sync::atomic::{
                 AtomicU64,
                 Ordering,

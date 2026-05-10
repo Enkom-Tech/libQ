@@ -63,6 +63,7 @@ hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-hqc/alloc", "alloc"]
 [lib]
 name = "lib_q_kem"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]

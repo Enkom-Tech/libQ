@@ -7,7 +7,7 @@ Published packages are built in release with [`wasm-pack`](https://rustwasm.gith
 | Package | Crate | Role |
 |---------|-------|------|
 | `@lib-q/core` | `lib-q` | Umbrella entry point; broad feature set in CD |
-| `@lib-q/ml-kem` | `lib-q-ml-kem` | ML-KEM (FIPS 203) |
+| `@lib-q/ml-kem` | `lib-q-ml-kem` | ML-KEM (FIPS 203); `wasm-pack` with `--features wasm` |
 | `@lib-q/kem` | `lib-q-kem` | KEM façade + ML-KEM |
 | `@lib-q/sig` | `lib-q-sig` | Signatures (ML-DSA path in CD) |
 | `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206) |

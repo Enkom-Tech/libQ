@@ -258,30 +258,48 @@ fn test_secure_rng_entropy_quality() {
     test_runs_test(&samples);
 }
 
-/// Test byte distribution uniformity
+/// Pearson χ² uniformity test over byte histogram (256 bins).
+///
+/// Requiring every bin to stay within a fixed fraction of the mean is unsound: with 256 bins,
+/// the largest multinomial count routinely exceeds ~4–5σ even when bytes are i.i.d. uniform,
+/// which made this suite flaky in CI. χ² aggregates deviation across bins with the correct null.
 #[cfg(feature = "alloc")]
 fn test_byte_distribution(data: &[u8]) {
+    let n = data.len();
+    assert!(
+        n >= 256 * 10,
+        "need enough samples for byte histogram (got {})",
+        n
+    );
+
     let mut byte_counts = [0u32; 256];
     for &byte in data {
         byte_counts[byte as usize] += 1;
     }
 
-    let expected_count = data.len() / 256;
-    let tolerance = ((expected_count as f64 * 0.6) as usize).max(15); // 60% tolerance, minimum 15
-
-    for (i, &count) in byte_counts.iter().enumerate() {
-        let count_usize = count as usize;
-        let diff = count_usize.abs_diff(expected_count);
-
-        assert!(
-            diff <= tolerance,
-            "Byte {} appears {} times, expected {} ± {}",
-            i,
-            count,
-            expected_count,
-            tolerance
-        );
+    let expected = n as f64 / 256.0;
+    let mut chi_sq = 0.0;
+    for &count in &byte_counts {
+        let o = f64::from(count);
+        let diff = o - expected;
+        chi_sq += diff * diff / expected;
     }
+
+    // Asymptotically χ²(255) under uniform i.i.d.; bound upper tail ~1e-5 via normal approx.
+    // mean = 255, sd = sqrt(2 * 255).
+    const DF: f64 = 255.0;
+    let sd = (2.0 * DF).sqrt();
+    // z ≈ 4.42 ⇒ one-sided p ≈ 5e-6; keeps CI stable while still catching strong bias.
+    const Z: f64 = 4.42;
+    let chi_sq_upper = DF + Z * sd;
+
+    assert!(
+        chi_sq <= chi_sq_upper,
+        "χ² uniformity statistic {:.2} exceeds {:.1} (possible non-uniform bytes; n={})",
+        chi_sq,
+        chi_sq_upper,
+        n
+    );
 }
 
 /// Lag-1 sample Pearson correlation between adjacent bytes.

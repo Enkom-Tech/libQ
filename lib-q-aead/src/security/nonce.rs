@@ -112,7 +112,7 @@ impl NonceManager {
         let mut nonce_data = Vec::with_capacity(self.config.nonce_size);
 
         // Generate secure random bytes
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{
@@ -145,9 +145,10 @@ impl NonceManager {
             }
         }
 
-        #[cfg(not(feature = "std"))]
+        // wasm32-unknown-unknown has no working `SystemTime`, and no_std targets
+        // have no clock at all. Both use the counter-driven LCG fallback below.
+        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
         {
-            // For no_std, use counter-based generation with better distribution
             let counter = self.counter.fetch_add(1, Ordering::SeqCst);
 
             // Use a better PRNG algorithm (LCG with good parameters)

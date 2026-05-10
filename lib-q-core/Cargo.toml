@@ -51,8 +51,11 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 default = ["std"]
 std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]
 alloc = []
-no_std = ["spin"]
-# Aborting #[panic_handler] for `cargo check` of this crate as `cdylib` in no_std (CI only).
+# `no_std` includes the aborting `#[panic_handler]` so `cargo check -p lib-q-core --no-default-features --features no_std,getrandom` works with `crate-type` cdylib+rlib.
+# On stable, also pass `--profile dev-no-std` (workspace root) or `RUSTFLAGS=-Cpanic=abort` so the root crate is built with `panic=abort` (unwinding is unavailable without std).
+# Firmware that supplies its own `#[panic_handler]` should depend with `default-features = false` and enable `spin` / `getrandom` / `alloc` explicitly without the `no_std` feature name.
+no_std = ["spin", "no_std_panic_handler"]
+# Kept as an empty alias so older manifests and CI flags that pass `no_std_panic_handler` remain valid.
 no_std_panic_handler = []
 # Random number generation - requires platform-specific configuration for no_std
 # In no_std environments, applications must provide custom entropy sources
@@ -96,6 +99,7 @@ relaxed_entropy_validation = []
 [lib]
 name = "lib_q_core"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. The `no_std` feature enables the aborting panic handler for standalone `cargo check` of this crate.
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]

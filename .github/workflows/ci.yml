@@ -215,6 +215,9 @@ jobs:
           - working-directory: "lib-q-romulus"
             features: ""
             check-only: "true"
+          - working-directory: "lib-q-ml-kem"
+            features: "wasm"
+            check-only: "false"
           - working-directory: "lib-q-prf"
             features: "wasm"
             check-only: "false"
@@ -316,6 +319,7 @@ jobs:
           - lib-q-lattice-zkp
           - lib-q-ring-sig
           - lib-q-prf
+          - lib-q-ml-kem
           - lib-q-stark
           - lib-q-aead
           - lib-q-hqc
@@ -355,6 +359,7 @@ jobs:
           case "${{ matrix.crate }}" in
             lib-q-ring-sig) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-prf) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-ml-kem) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-aead) echo "features=wasm,saturnin,alloc" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-hqc) echo "features=wasm,hqc,random,serialization" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-cb-kem) echo "features=wasm,cbkem348864,wasm_getrandom,alloc,zeroize" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
@@ -1111,7 +1116,7 @@ jobs:
           cd lib-q-core
           cargo test --features "ml-kem,rand" --verbose
           rm -rf target/dev-no-std
-          cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler"
+          cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom"
       
       - name: Test ML-KEM with lib-q-kem
         run: |

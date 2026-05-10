@@ -18,9 +18,10 @@
 //! deterministic sources for testing.
 
 #[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-#[cfg(all(not(feature = "std"), feature = "hqc"))]
-use alloc::vec::Vec;
+use alloc::{
+    boxed::Box,
+    vec::Vec,
+};
 
 use crate::traits::{
     EntropyConfig,
@@ -800,7 +801,7 @@ impl EntropySourceFactory {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::format;
     #[cfg(all(test, feature = "alloc"))]
     use alloc::vec;
@@ -1007,6 +1008,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn test_platform_specific_error_messages() {
         let mut os_source = OsEntropySource::new();
         let platform = os_source.platform();

@@ -400,7 +400,7 @@ pub fn quick_entropy_check(data: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "std"))]
+    #[cfg(feature = "alloc")]
     use alloc::vec::Vec;
 
     use super::*;
@@ -480,6 +480,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_uniformity_test() {
         let validator = EntropyValidator::new();
 
@@ -495,6 +496,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_independence_test() {
         let validator = EntropyValidator::new();
 
@@ -512,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn test_predictability_test() {
         let validator = EntropyValidator::new();
 

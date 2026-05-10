@@ -68,10 +68,14 @@ impl MLDsaRng {
         Self { rng }
     }
 
-    /// Fallback implementation when random feature is disabled (requires std)
-    #[cfg(all(not(feature = "random"), feature = "std"))]
+    /// Fallback implementation when random feature is disabled (requires std on a
+    /// target with a real clock; not cryptographically secure).
+    ///
+    /// `wasm32-unknown-unknown` is intentionally excluded: `SystemTime::now()`
+    /// panics there with "time not implemented on this platform". Wasm consumers
+    /// without `feature = "random"` get the error path below instead of a panic.
+    #[cfg(all(not(feature = "random"), feature = "std", not(target_arch = "wasm32")))]
     pub fn new_secure() -> Result<Self> {
-        // Use system time as fallback seed (not cryptographically secure)
         let seed = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -81,11 +85,15 @@ impl MLDsaRng {
         })
     }
 
-    /// Fallback for no-std without random feature
-    #[cfg(all(not(feature = "random"), not(feature = "std")))]
+    /// Fallback when no secure entropy is available: `no_std` without `random`,
+    /// or `wasm32-unknown-unknown` without `random` (which has no usable clock
+    /// for a `SystemTime`-seeded fallback).
+    #[cfg(all(
+        not(feature = "random"),
+        any(not(feature = "std"), target_arch = "wasm32")
+    ))]
     pub fn new_secure() -> Result<Self> {
-        // In no-std without random feature, secure RNG is not available
-        Err("Secure RNG requires either 'random' feature or 'std' feature")
+        Err("Secure RNG requires the 'random' feature on this target")
     }
 
     /// Fallback deterministic implementation

@@ -70,7 +70,7 @@ for pkg in $NO_DF_PKGS; do
 done
 echo "Building lib-q-keccak (no_std)..."
 rm -rf target/dev-no-std
-run_or_fail cargo build -p lib-q-keccak --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler"
+run_or_fail cargo build -p lib-q-keccak --profile dev-no-std --no-default-features --features "alloc"
 
 # --- Build with features ---
 run_or_fail cargo build --features "all-algorithms"
@@ -90,11 +90,11 @@ run_test_or_check() {
   if [[ "$use_check" -eq 1 ]]; then
     if [[ -n "$package" ]]; then
       if [[ "$package" == "lib-q-keccak" ]]; then
-        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "${features},no_std_panic_handler" --verbose
-        run_or_fail cargo check -p "$package" --profile release --no-default-features --features "${features},no_std_panic_handler" --verbose
-      elif [[ "$package" == "lib-q-core" ]]; then
-        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "${features},no_std_panic_handler" --verbose
-        run_or_fail cargo check -p "$package" --profile release-security --no-default-features --features "${features},no_std_panic_handler" --verbose
+        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "$features" --verbose
+        run_or_fail cargo check -p "$package" --profile release --no-default-features --features "$features" --verbose
+      elif [[ "$package" == "lib-q-core" || "$package" == "lib-q-random" ]]; then
+        run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "$features" --verbose
+        run_or_fail cargo check -p "$package" --profile release-security --no-default-features --features "$features" --verbose
       else
         run_or_fail cargo check -p "$package" --profile dev-no-std --no-default-features --features "$features" --verbose
         run_or_fail cargo check -p "$package" --profile release-security --no-default-features --features "$features" --verbose

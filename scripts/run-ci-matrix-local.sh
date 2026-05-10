@@ -88,9 +88,9 @@ run_packages_matrix_release "std,ml-kem,rand" "lib-q lib-q-kem lib-q-core lib-q-
 
 echo "========== CI matrix: no_std lib-q-core =========="
 nuke_release_ci
-cargo check -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler" --verbose
+cargo check -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom" --verbose
 nuke_release_ci
-cargo check -p lib-q-core --profile release-security --no-default-features --features "no_std,getrandom,no_std_panic_handler" --verbose
+cargo check -p lib-q-core --profile release-security --no-default-features --features "no_std,getrandom" --verbose
 
 echo "========== CI matrix: wasm lib-q + lib-q-core =========="
 nuke_release_ci
@@ -136,9 +136,9 @@ cargo test -p lib-q-ml-dsa --features std,random,acvp,mldsa44,mldsa65,mldsa87 --
 
 echo "========== CI matrix: lib-q-keccak no_std =========="
 nuke_release_ci
-cargo check -p lib-q-keccak --profile dev-no-std --no-default-features --features "alloc,no_std_panic_handler" --verbose
+cargo check -p lib-q-keccak --profile dev-no-std --no-default-features --features "alloc" --verbose
 nuke_release_ci
-cargo check -p lib-q-keccak --profile release --no-default-features --features "alloc,no_std_panic_handler" --verbose
+cargo check -p lib-q-keccak --profile release --no-default-features --features "alloc" --verbose
 
 echo "========== CI matrix: lib-q-random std =========="
 nuke_release_ci
@@ -270,7 +270,7 @@ echo "========== ml-dsa-compliance (PR-focused) =========="
 echo "========== ml-kem-tests =========="
 ( cd lib-q-ml-kem && cargo test --verbose )
 ( cd lib-q-ml-kem && cargo test --features "hardened,random" --lib --verbose )
-( cd lib-q-core && cargo test --features "ml-kem,rand" --verbose && rm -rf target/dev-no-std && cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom,no_std_panic_handler" )
+( cd lib-q-core && cargo test --features "ml-kem,rand" --verbose && rm -rf target/dev-no-std && cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom" )
 ( cd lib-q-kem && cargo test --features "ml-kem" --verbose )
 ( cargo test -p lib-q-sca-test --verbose )
 

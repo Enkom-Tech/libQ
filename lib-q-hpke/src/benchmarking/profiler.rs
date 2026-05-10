@@ -11,8 +11,11 @@ use crate::benchmarking::{
 };
 use crate::error::HpkeError;
 
-/// No-std timing implementation using cycle counters
-#[cfg(not(feature = "std"))]
+/// Counter-based timing implementation
+///
+/// Used for `no_std` targets and for `wasm32-unknown-unknown` (where
+/// `SystemTime::now()` panics with "time not implemented on this platform").
+#[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
 mod no_std_timing {
     use core::sync::atomic::{
         AtomicU64,
@@ -37,7 +40,7 @@ mod no_std_timing {
 }
 
 /// Std timing implementation using standard library
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", not(target_arch = "wasm32")))]
 mod std_timing {
     use std::time::{
         SystemTime,
@@ -60,9 +63,9 @@ mod std_timing {
 
 /// Unified timing interface
 mod timing {
-    #[cfg(not(feature = "std"))]
+    #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
     pub use super::no_std_timing::*;
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
     pub use super::std_timing::*;
 
     /// Calibrate timing for more accurate measurements

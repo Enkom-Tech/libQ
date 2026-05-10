@@ -17,11 +17,17 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 
 [features]
 default = []
-std = [] # Compatibility feature for CI/testing (no-op since package is already std-compatible)
+std = [] # When enabled, the crate is not `#![no_std]` (optional; host builds use `rlib` only — see `build.rs`).
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 random = ["dep:lib-q-random", "lib-q-random/std"]
-wasm = ["wasm-bindgen", "js-sys"]
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "random",
+    "getrandom",
+    "lib-q-random/wasm",
+]
 # Explicit gate for the optional `getrandom` dependency (workspace `--features getrandom`, CI, etc.).
 # Optional deps referenced only as `dep:getrandom` do not get an implicit feature name.
 getrandom = ["dep:getrandom"]
@@ -37,22 +43,20 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
 zeroize = { workspace = true, optional = true, default-features = false }
 subtle = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
-# WASM bindings
-wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
-js-sys = { workspace = true, optional = true }
-
 [lib]
 name = "lib_q_ml_kem"
 path = "src/lib.rs"
-# no_std: avoid cdylib on native (no allocator/panic runtime for the dylib link step).
-crate-type = ["rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dev-dependencies]
-criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
 hex-literal = "1.0.0"
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
@@ -60,6 +64,15 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"]
 crypto-common = { version = "0.2.1", features = ["rand_core"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
 
 [[bench]]
 name = "mlkem"
@@ -68,3 +81,9 @@ harness = false
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(docsrs)',
+    'cfg(feature, values("default", "std", "deterministic", "zeroize", "random", "wasm", "getrandom", "hardened"))',
+] }

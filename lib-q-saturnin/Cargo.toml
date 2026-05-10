@@ -79,7 +79,7 @@ name = "saturnin_criterion_benches"
 harness = false
 required-features = ["alloc"]
 
-[dev-dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
 [lints.rust]

@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
@@ -71,6 +71,10 @@ mod masking;
 
 /// Section 6. The ML-KEM Key-Encapsulation Mechanism
 pub mod kem;
+
+/// JavaScript / `wasm-bindgen` surface (feature `wasm`).
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 /// Section 7. Parameter Sets
 mod param;

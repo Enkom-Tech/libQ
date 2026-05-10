@@ -17,7 +17,7 @@ hybrid-array = { version = "0.4.10", features = ["extra-sizes"] }
 typenum = { version = "1.19.0", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, features = ["signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, default-features = false, features = ["signature"] }
 zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0-rc.10", features = ["rand_core"] }
@@ -56,10 +56,11 @@ ctr = "0.10.0"
 pastey = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-pkcs8 = { version = "0.11.0-rc.11", features = ["pem"] }
+pkcs8 = { version = "0.11.0", features = ["pem"] }
 
 [lib]
 bench = false
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Transitive `no_std` uses explicit `lib-q-random` features (not `lib-q-random/no_std`) so firmware can supply its own `#[panic_handler]`.
 crate-type = ["cdylib", "rlib"]
 
 [[bench]]
@@ -73,8 +74,21 @@ harness = false
 [features]
 default = ["alloc", "pkcs8/alloc", "std"]
 alloc = []
-std = ["alloc", "dep:lib-q-random", "lib-q-random/std"]
-no_std = ["getrandom", "alloc", "dep:lib-q-random", "lib-q-random/no_std", "lib-q-random/getrandom"]
+std = [
+    "alloc",
+    "dep:lib-q-random",
+    "lib-q-random/std",
+    "lib-q-random/secure",
+    "lib-q-random/zeroize",
+]
+no_std = [
+    "getrandom",
+    "alloc",
+    "dep:lib-q-random",
+    "lib-q-random/getrandom",
+    "lib-q-random/alloc",
+    "lib-q-random/zeroize",
+]
 test = []
 zeroize = ["dep:zeroize", "hybrid-array/zeroize"]
 # Expand `test_parameter_sets!`, ACVP keygen projection, and integration KATs to all 12 FIPS parameter sets and slow `*s` vectors (slow). Default smoke uses Shake128f + Sha2_128f only and skips `*s` ACVP groups.
@@ -86,6 +100,7 @@ wasm = [
     "dep:serde-wasm-bindgen",
     "dep:serde_json",
     "dep:hex",
+    "lib-q-core/wasm",
     "alloc",
     "std",
     "zeroize",

@@ -35,11 +35,14 @@ no_std = []
 test-utils = []
 
 [dev-dependencies]
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.2" }
+rand_xoshiro = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.2", features = [
     "criterion-bench",
 ] }
-rand_xoshiro = { workspace = true }
 
 [[bench]]
 name = "bench_field"

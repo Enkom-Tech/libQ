@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WASM binary size gate for libQ crates that ship wasm-pack `cdylib` artifacts.
+# WASM binary size gate for libQ crates that ship wasm-pack artifacts (`cdylib` + `rlib`).
 # Requires wasm-pack and rust wasm32-unknown-unknown target.
 set -euo pipefail
 
@@ -23,9 +23,9 @@ check_one() {
   (
     cd "$ROOT/$dir"
     if [[ -n "$features" ]]; then
-      wasm-pack build --target web --out-dir pkg-size-check --release -- --features "$features" --lib
+      wasm-pack build --target web --out-dir pkg-size-check --release -- --features "$features"
     else
-      wasm-pack build --target web --out-dir pkg-size-check --release -- --lib
+      wasm-pack build --target web --out-dir pkg-size-check --release
     fi
     local wasm_file
     wasm_file=$(ls pkg-size-check/*.wasm 2>/dev/null | head -1 || true)
@@ -45,6 +45,7 @@ check_one() {
 }
 
 # (directory, features, max_size_kb) — release + wasm-opt (`-Oz`); re-run locally after large dependency changes.
+check_one "lib-q-ml-kem" "wasm" 4000
 check_one "lib-q-core" "wasm,ml-kem,rand" 3500
 check_one "lib-q" "wasm,ml-kem" 10400
 check_one "lib-q-zkp" "wasm,zkp" 13900

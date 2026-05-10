@@ -119,6 +119,7 @@ simd-avx2 = []                                                      # AVX2 SIMD 
 [lib]
 name = "lib_q_hqc"
 path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
