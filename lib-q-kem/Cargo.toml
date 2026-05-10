@@ -38,22 +38,30 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"]
 
 [features]
 default = []
-std = [] # Compatibility feature for CI/testing
+# Host / `cargo test` / coverage: enable alongside algorithm features so optional deps get `std`
+# without forcing it when only `ml-kem` / `hqc` / `wasm` is used (`no_std`, wasm no-std builds).
+std = [
+    "alloc",
+    "lib-q-core/std",
+    "lib-q-ml-kem?/std",
+    "lib-q-random?/std",
+    "lib-q-hqc?/std",
+    "lib-q-cb-kem?/std",
+]
 alloc = [] # Enable alloc support for Vec and other collections
 # Enable ml-kem (FIPS 203 standard) with modern dependencies
 ml-kem = [
     "dep:lib-q-ml-kem",
     "dep:lib-q-sha3",
     "dep:lib-q-random",
-    "lib-q-random/std",
-    "lib-q-core/std",
     "alloc",
 ]
 
-# Enable WASM support
+# Enable WASM support (`lib-q-ml-kem/wasm`: RNG + `getrandom`/`wasm_js` so the ML-KEM dep links on wasm32).
 wasm = [
     "wasm-bindgen",
     "ml-kem",
+    "lib-q-ml-kem?/wasm",
     "lib-q-core/wasm",
 ]
 

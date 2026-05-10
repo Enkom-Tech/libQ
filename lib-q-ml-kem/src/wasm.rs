@@ -40,9 +40,7 @@ use crate::{
 
 #[wasm_bindgen]
 pub struct MlKemKeypair {
-    #[wasm_bindgen(skip)]
     secret_key: Vec<u8>,
-    #[wasm_bindgen(skip)]
     public_key: Vec<u8>,
 }
 
@@ -61,9 +59,7 @@ impl MlKemKeypair {
 
 #[wasm_bindgen]
 pub struct MlKemEncapsulationResult {
-    #[wasm_bindgen(skip)]
     ciphertext: Vec<u8>,
-    #[wasm_bindgen(skip)]
     shared_secret: Vec<u8>,
 }
 
