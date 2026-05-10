@@ -20,7 +20,7 @@ privacy = [
 [dependencies]
 lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", optional = true, default-features = false, features = ["alloc"] }
 lib-q-ring = { path = "../lib-q-ring", optional = true, default-features = false, features = ["alloc"] }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = false, features = ["hardened", "random"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = false, features = ["std", "hardened", "random"] }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true, default-features = false, features = ["hardened", "random", "mldsa44"] }
 lib-q-ring-sig = { path = "../lib-q-ring-sig", optional = true }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }

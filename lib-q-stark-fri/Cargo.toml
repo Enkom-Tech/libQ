@@ -20,7 +20,7 @@ lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
 lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
 
 itertools = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false, features = ["std"] }
 rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 subtle = { workspace = true }

@@ -49,9 +49,12 @@ std = [
     "lib-q-cb-kem?/std",
 ]
 alloc = [] # Enable alloc support for Vec and other collections
-# Enable ml-kem (FIPS 203 standard) with modern dependencies
+# Enable ml-kem (FIPS 203 standard) with modern dependencies.
+# `lib-q-ml-kem/std` is required because the dep declares `crate-type = ["cdylib", "rlib"]` and
+# a native cdylib needs std for the global allocator / panic handler / unwind runtime.
 ml-kem = [
     "dep:lib-q-ml-kem",
+    "lib-q-ml-kem/std",
     "dep:lib-q-sha3",
     "dep:lib-q-random",
     "alloc",

@@ -92,7 +92,7 @@ jobs:
             package: ""
             packages: "lib-q lib-q-zkp"
           - name: "lib-q-kem"
-            features: "ml-kem"
+            features: "std,ml-kem"
             package: "lib-q-kem"
           - name: "lib-q-ml-kem"
             features: "std"
@@ -1121,7 +1121,7 @@ jobs:
       - name: Test ML-KEM with lib-q-kem
         run: |
           cd lib-q-kem
-          cargo test --features "ml-kem" --verbose
+          cargo test --features "std,ml-kem" --verbose
 
   # Constant-time verification - critical for crypto
   constant-time:

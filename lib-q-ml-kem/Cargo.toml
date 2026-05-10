@@ -52,7 +52,10 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 [lib]
 name = "lib_q_ml_kem"
 path = "src/lib.rs"
-# wasm-pack requires `cdylib` in this manifest; `rlib` remains for Rust consumers. The workspace no-default-features build enables `std` for this crate so the host `cdylib` link succeeds (see `.github/actions/rust-build`).
+# wasm-pack requires `cdylib` in this manifest; `rlib` remains for Rust consumers. A native
+# cdylib needs std for the global allocator, panic handler, and unwind runtime, so every
+# dependency path and CI entry that activates this crate on native targets must include the
+# `std` feature (see lib-q-kem `ml-kem` feature and `.github/actions/rust-build`).
 crate-type = ["cdylib", "rlib"]
 
 [package.metadata.wasm-pack.profile.release]

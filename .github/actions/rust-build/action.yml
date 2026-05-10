@@ -170,8 +170,9 @@ runs:
             if [[ "$pkg" == "lib-q-core" ]]; then
               rm -rf target/dev-no-std
               cargo build -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom"
-            elif [[ "$pkg" == "lib-q-ml-kem" ]]; then
-              cargo build -p lib-q-ml-kem --no-default-features --features "std"
+            elif [[ "$pkg" == "lib-q-ml-kem" || "$pkg" == "lib-q-kem" ]]; then
+              # cdylib crate-type requires std on native targets (allocator + panic handler + unwind)
+              cargo build -p "$pkg" --no-default-features --features "std"
             else
               cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
             fi

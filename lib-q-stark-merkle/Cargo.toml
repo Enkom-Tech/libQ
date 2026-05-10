@@ -19,7 +19,7 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
 lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
 
 itertools = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false, features = ["std"] }
 rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["alloc"], default-features = false }
 thiserror = { workspace = true }
