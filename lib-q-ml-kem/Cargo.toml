@@ -16,8 +16,8 @@ keywords = ["crypto", "ml-kem", "lattice", "post-quantum", "nist"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-default = []
-std = [] # When enabled, the crate is not `#![no_std]` (optional). For a host `cdylib` link of this crate alone, pass `--features std` (see `.github/actions/rust-build`).
+default = ["std"]
+std = [] # When enabled, the crate is not `#![no_std]` (links `std`, providing the global allocator required by the `cdylib` output). `no_std` consumers must use `default-features = false`.
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 random = ["dep:lib-q-random", "lib-q-random/std"]

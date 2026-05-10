@@ -262,9 +262,7 @@ pub mod wasm {
     /// Result of encapsulation operation for WASM
     #[wasm_bindgen]
     pub struct EncapsulationResult {
-        #[wasm_bindgen(skip)]
         ciphertext: Vec<u8>,
-        #[wasm_bindgen(skip)]
         shared_secret: Vec<u8>,
     }
 
