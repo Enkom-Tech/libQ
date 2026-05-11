@@ -210,7 +210,7 @@ where
     OutputSize: ArraySize + IsLessOrEqual<U200, Output = True>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Sha3FixedCore<Rate, OutputSize, PAD, ROUNDS> { ... }")
+        f.write_str("SpongeHasherCore { ... }")
     }
 }
 

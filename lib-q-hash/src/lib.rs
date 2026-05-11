@@ -388,7 +388,28 @@ pub fn create_hash_context() -> Result<HashContext> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+    use alloc::string::String;
+    use core::fmt::{
+        self,
+        Display,
+    };
+
+    use digest::block_api::AlgorithmName;
+
     use super::*;
+
+    struct AlgName<T: AlgorithmName>(core::marker::PhantomData<T>);
+
+    impl<T: AlgorithmName> Display for AlgName<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            T::write_alg_name(f)
+        }
+    }
+
+    fn alg_name_string<T: AlgorithmName>() -> String {
+        format!("{}", AlgName::<T>(core::marker::PhantomData))
+    }
 
     #[test]
     fn test_available_algorithms() {
@@ -557,5 +578,12 @@ mod tests {
             .hash(Algorithm::Sha3_256, b"lib-q-hash context test")
             .unwrap();
         assert_eq!(digest.len(), 32);
+    }
+
+    #[test]
+    fn turboshake_hasher_alg_name_and_debug() {
+        let hasher = TurboShake128::<6>::default();
+        assert_eq!(alg_name_string::<TurboShake128<6>>(), "TurboSHAKE128");
+        assert_eq!(format!("{hasher:?}"), "TurboShake128 { ... }");
     }
 }

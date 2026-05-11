@@ -43,6 +43,13 @@ jobs:
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
 
+      - name: Compile AVX-gated Keccak paths
+        run: |
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx2" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak -p lib-q-k12 -p lib-q-hash
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx512f" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak
+
   # Security validation - parallel with core validation (audit already runs in core-validation)
   security-validation:
     name: Security Validation

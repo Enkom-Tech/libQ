@@ -104,7 +104,7 @@ macro_rules! impl_turbo_shake {
 
         impl<const DS: u8> AlgorithmName for $name<DS> {
             fn write_alg_name(f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str(stringify!($alg_name))
+                f.write_str($alg_name)
             }
         }
 

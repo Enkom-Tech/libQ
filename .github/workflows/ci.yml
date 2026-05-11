@@ -59,6 +59,13 @@ jobs:
       - name: Clippy (workspace, all targets, all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Compile AVX-gated Keccak paths
+        run: |
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx2" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak -p lib-q-k12 -p lib-q-hash
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx512f" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak
+
   # Parallel test matrix - runs after core validation
   test-matrix:
     name: Test Matrix

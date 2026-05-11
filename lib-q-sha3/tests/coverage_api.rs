@@ -9,6 +9,12 @@ use core::fmt::{
 
 use digest::block_api::AlgorithmName;
 use digest::common::hazmat::SerializableState;
+use digest::consts::{
+    U0,
+    U32,
+    U136,
+    U168,
+};
 use digest::{
     CustomizedInit,
     Digest,
@@ -20,6 +26,7 @@ use lib_q_sha3::Update;
 use lib_q_sha3::block_api::{
     CShake128Core,
     CShake256Core,
+    SpongeHasherCore,
 };
 
 struct AlgName<T: AlgorithmName>(core::marker::PhantomData<T>);
@@ -46,23 +53,41 @@ fn sha3_256_matches_sha3_256_digest() {
 fn sha3_256_alg_name_and_debug() {
     let hasher = lib_q_sha3::Sha3_256::new();
     let name = alg_name_string::<lib_q_sha3::Sha3_256>();
-    assert!(
-        name.contains("Sponge") || name.contains("Sha3"),
-        "unexpected name: {name}"
-    );
+    assert_eq!(name, "SpongeHasherCore");
 
     let dbg = format!("{hasher:?}");
-    assert!(!dbg.is_empty());
+    assert_eq!(dbg, "Sha3_256 { ... }");
 }
 
 #[test]
 fn shake128_alg_name_and_debug() {
     let hasher = lib_q_sha3::Shake128::default();
     let name = alg_name_string::<lib_q_sha3::Shake128>();
-    assert!(!name.is_empty());
+    assert_eq!(name, "SpongeHasherCore");
 
     let dbg = format!("{hasher:?}");
-    assert!(!dbg.is_empty());
+    assert_eq!(dbg, "Shake128 { ... }");
+}
+
+/// `buffer_fixed!` / `buffer_xof!` forward [`AlgorithmName`] to the core; this pins the core string.
+#[test]
+fn sponge_hasher_core_alg_name_and_debug() {
+    const SHA3_PAD: u8 = 0x06;
+    const SHAKE_PAD: u8 = 0x1F;
+
+    let fixed = SpongeHasherCore::<U136, U32, SHA3_PAD>::default();
+    assert_eq!(
+        alg_name_string::<SpongeHasherCore<U136, U32, SHA3_PAD>>(),
+        "SpongeHasherCore"
+    );
+    assert_eq!(format!("{fixed:?}"), "SpongeHasherCore { ... }");
+
+    let xof = SpongeHasherCore::<U168, U0, SHAKE_PAD>::default();
+    assert_eq!(
+        alg_name_string::<SpongeHasherCore<U168, U0, SHAKE_PAD>>(),
+        "SpongeHasherCore"
+    );
+    assert_eq!(format!("{xof:?}"), "SpongeHasherCore { ... }");
 }
 
 #[test]
@@ -260,7 +285,7 @@ fn turboshake_reader_debug() {
 fn turboshake_hasher_alg_name_and_debug() {
     let h = lib_q_sha3::TurboShake128::<6>::default();
     let name = alg_name_string::<lib_q_sha3::TurboShake128<6>>();
-    assert!(!name.is_empty());
+    assert_eq!(name, "TurboSHAKE128");
     let dbg = format!("{h:?}");
-    assert!(!dbg.is_empty());
+    assert_eq!(dbg, "TurboShake128 { ... }");
 }

@@ -2,7 +2,9 @@
 //!
 //! This module provides encoding and padding functions required by KMAC, TupleHash, and ParallelHash.
 
+#[cfg(test)]
 use alloc::vec;
+#[cfg(test)]
 use alloc::vec::Vec;
 
 /// Left encode function
@@ -17,20 +19,20 @@ use alloc::vec::Vec;
 /// # Returns
 /// Slice containing the encoded bytes
 pub fn left_encode(val: u64, buf: &mut [u8; 9]) -> &[u8] {
-    // Initialize buffer with zeros
     buf.fill(0);
+    let n = if val == 0 {
+        1usize
+    } else {
+        (64usize - val.leading_zeros() as usize).div_ceil(8)
+    };
 
-    // Convert to big-endian bytes (but store in little-endian order as per reference)
-    buf[1..].copy_from_slice(&val.to_le_bytes());
+    buf[0] = n as u8;
+    for i in 0..n {
+        let shift = (n - 1 - i) * 8;
+        buf[1 + i] = ((val >> shift) & 0xFF) as u8;
+    }
 
-    // Find the first non-zero byte
-    let i = buf[1..8].iter().take_while(|&&a| a == 0).count();
-
-    // Set the length byte
-    buf[i] = (8 - i) as u8;
-
-    // Return the encoded slice
-    &buf[i..]
+    &buf[..(n + 1)]
 }
 
 /// Right encode function
@@ -45,20 +47,20 @@ pub fn left_encode(val: u64, buf: &mut [u8; 9]) -> &[u8] {
 /// # Returns
 /// Slice containing the encoded bytes
 pub fn right_encode(val: u64, buf: &mut [u8; 9]) -> &[u8] {
-    // Initialize buffer with zeros
     buf.fill(0);
+    let n = if val == 0 {
+        1usize
+    } else {
+        (64usize - val.leading_zeros() as usize).div_ceil(8)
+    };
 
-    // Convert to big-endian bytes (but store in little-endian order as per reference)
-    buf[0..8].copy_from_slice(&val.to_le_bytes());
+    for (i, out) in buf.iter_mut().take(n).enumerate() {
+        let shift = (n - 1 - i) * 8;
+        *out = ((val >> shift) & 0xFF) as u8;
+    }
+    buf[n] = n as u8;
 
-    // Find the first non-zero byte
-    let i = buf[0..8].iter().take_while(|&&a| a == 0).count();
-
-    // Set the length byte at the end
-    buf[8] = (8 - i) as u8;
-
-    // Return the encoded slice
-    &buf[i..]
+    &buf[..(n + 1)]
 }
 
 /// Pads a byte string with zeros to make its length a multiple of the rate.
@@ -69,6 +71,7 @@ pub fn right_encode(val: u64, buf: &mut [u8; 9]) -> &[u8] {
 ///
 /// # Returns
 /// Padded byte string
+#[cfg(test)]
 pub fn bytepad(input: &[u8], rate: usize) -> Vec<u8> {
     let mut result = Vec::new();
 
@@ -95,6 +98,7 @@ pub fn bytepad(input: &[u8], rate: usize) -> Vec<u8> {
 ///
 /// # Returns
 /// Encoded string as bytes
+#[cfg(test)]
 pub fn encode_string(input: &[u8], buf: &mut [u8; 9]) -> Vec<u8> {
     let mut result = Vec::new();
 
@@ -113,7 +117,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore] // Temporarily disabled - encoding functions need fixing
     fn test_left_encode() {
         let mut buf = [0u8; 9];
 
@@ -127,7 +130,7 @@ mod tests {
 
         // Test encoding 255
         let result = left_encode(255, &mut buf);
-        assert_eq!(result, &[1, 0, 255]);
+        assert_eq!(result, &[1, 255]);
 
         // Test encoding 256
         let result = left_encode(256, &mut buf);
@@ -135,7 +138,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Temporarily disabled - encoding functions need fixing
     fn test_right_encode() {
         let mut buf = [0u8; 9];
 
@@ -149,7 +151,7 @@ mod tests {
 
         // Test encoding 255
         let result = right_encode(255, &mut buf);
-        assert_eq!(result, &[0, 255, 1]);
+        assert_eq!(result, &[255, 1]);
 
         // Test encoding 256
         let result = right_encode(256, &mut buf);
@@ -157,7 +159,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Temporarily disabled - encoding functions need fixing
     fn test_bytepad() {
         // Test with rate 168 (KMAC128)
         let input = b"test";
@@ -167,15 +168,14 @@ mod tests {
         assert_eq!(padded.len() % 168, 0);
 
         // Should start with length encoding
-        assert_eq!(padded[0], 3); // length of rate encoding
-        assert_eq!(padded[1..4], [0, 0, 168]); // rate in big-endian
+        assert_eq!(padded[0], 1); // length of rate encoding
+        assert_eq!(padded[1], 168); // rate in one byte
 
         // Should contain input
-        assert_eq!(&padded[4..8], b"test");
+        assert_eq!(&padded[2..6], b"test");
     }
 
     #[test]
-    #[ignore] // Temporarily disabled - encoding functions need fixing
     fn test_encode_string() {
         let mut buf = [0u8; 9];
 

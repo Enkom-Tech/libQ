@@ -2,6 +2,12 @@
 //!
 //! This module provides KMAC128 and KMAC256 implementations as specified in SP800-185.
 //! KMAC is a PRF and keyed hash function based on cSHAKE.
+//!
+//! # Security note
+//!
+//! KMAC initialization absorbs `bytepad(encode_string(K), rate)` directly into the sponge
+//! without heap-backed temporary buffers containing key material. This reduces key exposure
+//! in freed/reallocated heap regions and aligns with audit expectations for secret handling.
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -43,8 +49,6 @@ use crate::cshake::{
     CShake256Reader,
 };
 use crate::utils::{
-    bytepad,
-    encode_string,
     left_encode,
     right_encode,
 };
@@ -88,17 +92,31 @@ macro_rules! impl_kmac {
             }
 
             fn init(&mut self, key: &[u8], rate: usize) {
-                // Build bytepad(encode_string(K), rate) exactly as per SP800-185
+                // Stream bytepad(encode_string(K), rate) directly into the
+                // sponge so key material never lands in heap-allocated
+                // temporaries.
                 let mut enc_buf = [0u8; 9];
-                let mut to_pad = Vec::new();
-                // left_encode(rate)
-                to_pad.extend_from_slice(left_encode(rate as u64, &mut enc_buf));
-                // encode_string(K)
-                let enc_key = encode_string(key, &mut enc_buf);
-                to_pad.extend_from_slice(&enc_key);
-                // bytepad(..., rate)
-                let padded = bytepad(&to_pad, rate);
-                Update::update(&mut self.inner, &padded);
+                let mut total = 0usize;
+
+                // bytepad outer: left_encode(rate)
+                let le = left_encode(rate as u64, &mut enc_buf);
+                Update::update(&mut self.inner, le);
+                total += le.len();
+
+                // encode_string(K) = left_encode(len(K)*8) || K
+                let le = left_encode((key.len() * 8) as u64, &mut enc_buf);
+                Update::update(&mut self.inner, le);
+                total += le.len();
+
+                Update::update(&mut self.inner, key);
+                total += key.len();
+
+                // Zero-pad to a multiple of `rate` with stack memory.
+                let padding = (rate - (total % rate)) % rate;
+                if padding > 0 {
+                    const ZEROS: [u8; 168] = [0u8; 168];
+                    Update::update(&mut self.inner, &ZEROS[..padding]);
+                }
             }
 
             /// Update with data
@@ -266,7 +284,85 @@ impl SerializableState for Kmac256 {
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
+
     use super::*;
+
+    fn nist_kmac_key() -> [u8; 32] {
+        let mut key = [0u8; 32];
+        for (idx, b) in key.iter_mut().enumerate() {
+            *b = 0x40 + (idx as u8);
+        }
+        key
+    }
+
+    fn nist_kmac_short_data() -> [u8; 4] {
+        [0x00, 0x01, 0x02, 0x03]
+    }
+
+    fn nist_kmac_long_data() -> Vec<u8> {
+        (0x00..=0xC7).collect()
+    }
+
+    fn kmac128_reference(key: &[u8], custom: &[u8], data: &[u8], out_len: usize) -> Vec<u8> {
+        let mut inner = CShake128::new_with_function_name(b"KMAC", custom);
+        let mut enc_buf = [0u8; 9];
+        let mut total = 0usize;
+
+        let le = left_encode(168, &mut enc_buf);
+        inner.update(le);
+        total += le.len();
+
+        let le = left_encode((key.len() * 8) as u64, &mut enc_buf);
+        inner.update(le);
+        total += le.len();
+
+        inner.update(key);
+        total += key.len();
+
+        let padding = (168 - (total % 168)) % 168;
+        if padding > 0 {
+            const ZEROS: [u8; 168] = [0u8; 168];
+            inner.update(&ZEROS[..padding]);
+        }
+
+        inner.update(data);
+        inner.update(right_encode((out_len * 8) as u64, &mut enc_buf));
+
+        let mut out = vec![0u8; out_len];
+        inner.finalize_xof_into(&mut out);
+        out
+    }
+
+    fn kmac256_reference(key: &[u8], custom: &[u8], data: &[u8], out_len: usize) -> Vec<u8> {
+        let mut inner = CShake256::new_with_function_name(b"KMAC", custom);
+        let mut enc_buf = [0u8; 9];
+        let mut total = 0usize;
+
+        let le = left_encode(136, &mut enc_buf);
+        inner.update(le);
+        total += le.len();
+
+        let le = left_encode((key.len() * 8) as u64, &mut enc_buf);
+        inner.update(le);
+        total += le.len();
+
+        inner.update(key);
+        total += key.len();
+
+        let padding = (136 - (total % 136)) % 136;
+        if padding > 0 {
+            const ZEROS: [u8; 136] = [0u8; 136];
+            inner.update(&ZEROS[..padding]);
+        }
+
+        inner.update(data);
+        inner.update(right_encode((out_len * 8) as u64, &mut enc_buf));
+
+        let mut out = vec![0u8; out_len];
+        inner.finalize_xof_into(&mut out);
+        out
+    }
 
     #[test]
     fn test_kmac128_basic() {
@@ -395,5 +491,143 @@ mod tests {
         let mut output = [0u8; 32];
         kmac2.finalize(&mut output);
         assert_ne!(output, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_kmac128_matches_reference_construction() {
+        let key = b"auditor-sensitive-key-material";
+        let custom = b"lib-q kmac reference";
+        let data = b"input message for kmac128";
+
+        let mut kmac = Kmac128::new(key, custom);
+        kmac.update(data);
+        let mut got = [0u8; 32];
+        kmac.finalize(&mut got);
+
+        let expected = kmac128_reference(key, custom, data, 32);
+        assert_eq!(got.as_slice(), expected.as_slice());
+    }
+
+    #[test]
+    fn test_kmac256_matches_reference_construction() {
+        let key = b"auditor-sensitive-key-material";
+        let custom = b"lib-q kmac reference";
+        let data = b"input message for kmac256";
+
+        let mut kmac = Kmac256::new(key, custom);
+        kmac.update(data);
+        let mut got = [0u8; 64];
+        kmac.finalize(&mut got);
+
+        let expected = kmac256_reference(key, custom, data, 64);
+        assert_eq!(got.as_slice(), expected.as_slice());
+    }
+
+    #[test]
+    fn test_kmac128_nist_sample_1() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_short_data();
+        let custom = b"";
+        let expected = hex!(
+            "E5780B0D3EA6F7D3A429C5706AA43A00
+             FADBD7D49628839E3187243F456EE14E"
+        );
+
+        let mut kmac = Kmac128::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 32];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac128_nist_sample_2() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_short_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "3B1FBA963CD8B0B59E8C1A6D71888B71
+             43651AF8BA0A7070C0979E2811324AA5"
+        );
+
+        let mut kmac = Kmac128::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 32];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac128_nist_sample_3() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_long_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "1F5B4E6CCA02209E0DCB5CA635B89A15
+             E271ECC760071DFD805FAA38F9729230"
+        );
+
+        let mut kmac = Kmac128::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 32];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac256_nist_sample_4() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_short_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "20C570C31346F703C9AC36C61C03CB64
+             C3970D0CFC787E9B79599D273A68D2F7
+             F69D4CC3DE9D104A351689F27CF6F595
+             1F0103F33F4F24871024D9C27773A8DD"
+        );
+
+        let mut kmac = Kmac256::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 64];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac256_nist_sample_5() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_long_data();
+        let custom = b"";
+        let expected = hex!(
+            "75358CF39E41494E949707927CEE0AF2
+             0A3FF553904C86B08F21CC414BCFD691
+             589D27CF5E15369CBBFF8B9A4C2EB178
+             00855D0235FF635DA82533EC6B759B69"
+        );
+
+        let mut kmac = Kmac256::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 64];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac256_nist_sample_6() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_long_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "B58618F71F92E1D56C1B8C55DDD7CD18
+             8B97B4CA4D99831EB2699A837DA2E4D9
+             70FBACFDE50033AEA585F1A2708510C3
+             2D07880801BD182898FE476876FC8965"
+        );
+
+        let mut kmac = Kmac256::new(&key, custom);
+        kmac.update(&data);
+        let mut out = [0u8; 64];
+        kmac.finalize(&mut out);
+        assert_eq!(out, expected);
     }
 }
