@@ -193,7 +193,7 @@ pub use lib_q_sig::{
     available_algorithms as sig_available_algorithms,
 };
 
-/// Create a [`SignatureContext`] with [`LibQSignatureProvider`](lib_q_sig::LibQSignatureProvider)
+/// Create a [`SignatureContext`] with [`LibQSignatureProvider`]
 /// already installed (ML-DSA and SLH-DSA from `lib-q-sig` defaults; FN-DSA when the `fn-dsa`
 /// feature is enabled on this crate).
 ///
@@ -207,11 +207,13 @@ pub fn create_signature_context() -> SignatureContext {
     SignatureContext::with_provider(Box::new(provider))
 }
 
-/// Create a [`HashContext`] with [`LibQHashProvider`](lib_q_hash::LibQHashProvider) installed.
+/// Create a [`HashContext`] with [`LibQHashProvider`] installed.
 ///
 /// This is the umbrella entry point: [`lib_q_core::create_hash_context`] returns an empty
 /// context; `libq::create_hash_context` wires the hash implementation from `lib-q-hash` (all
-/// registered hash [`Algorithm`](Algorithm) values, `no_std` + `alloc`, and WASM-compatible).
+/// registered hash [`Algorithm`] values, `no_std` + `alloc`, and WASM-compatible).
+/// For the same wiring without panicking on setup failure, use
+/// [`lib_q_hash::create_hash_context`] and handle its [`Result`].
 #[cfg(feature = "alloc")]
 pub fn create_hash_context() -> HashContext {
     let provider = LibQHashProvider::new()

@@ -1,5 +1,5 @@
 //! Exercises public helpers and traits that are easy to miss in line coverage
-//! (`sha256`, `AlgorithmName`, `Debug`, state serialization, cSHAKE customization
+//! (`sha3_256`, `AlgorithmName`, `Debug`, state serialization, cSHAKE customization
 //! paths, TurboSHAKE reset).
 
 use core::fmt::{
@@ -35,9 +35,9 @@ fn alg_name_string<T: AlgorithmName>() -> String {
 }
 
 #[test]
-fn sha256_matches_sha3_256_digest() {
+fn sha3_256_matches_sha3_256_digest() {
     let data = b"lib-q-sha3 coverage";
-    let a = lib_q_sha3::sha256(data);
+    let a = lib_q_sha3::sha3_256(data);
     let b = lib_q_sha3::Sha3_256::digest(data);
     assert_eq!(a, b.as_slice());
 }

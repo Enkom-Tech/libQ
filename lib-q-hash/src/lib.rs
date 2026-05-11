@@ -367,16 +367,23 @@ pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn lib_q_core::Hash>
     }
 }
 
-/// Create a hash context for the specified algorithm
-pub fn create_hash_context(algorithm: Algorithm) -> Result<HashContext> {
-    // Validate that this is a hash algorithm
-    if algorithm.category() != lib_q_core::AlgorithmCategory::Hash {
-        return Err(lib_q_core::Error::InvalidAlgorithm {
-            algorithm: "Algorithm is not a hash algorithm",
-        });
-    }
-
-    Ok(HashContext::new())
+/// Create a [`HashContext`] with this crate's [`LibQHashProvider`] installed.
+///
+/// The provider is registered so [`HashContext::hash`] can dispatch every hash
+/// [`Algorithm`] supported here. The algorithm is chosen on each `hash` call; this
+/// constructor does not bind a single algorithm.
+///
+/// This matches the wiring used by the `libq` umbrella crate's infallible
+/// `create_hash_context`, except that provider initialization is returned as
+/// [`Result`] instead of panicking.
+///
+/// # Errors
+///
+/// Returns [`Err`] when [`LibQHashProvider::new`] fails (for example, if the
+/// security validator cannot be constructed).
+pub fn create_hash_context() -> Result<HashContext> {
+    let provider = LibQHashProvider::new()?;
+    Ok(HashContext::with_provider(alloc::boxed::Box::new(provider)))
 }
 
 #[cfg(test)]
@@ -544,10 +551,11 @@ mod tests {
     }
 
     #[test]
-    fn create_hash_context_accepts_hash_algorithms() {
-        let ctx = create_hash_context(Algorithm::Sha3_256).expect("context");
-        drop(ctx);
-        let err = create_hash_context(Algorithm::MlKem768);
-        assert!(err.is_err());
+    fn create_hash_context_returns_functional_context() {
+        let mut ctx = create_hash_context().expect("context");
+        let digest = ctx
+            .hash(Algorithm::Sha3_256, b"lib-q-hash context test")
+            .unwrap();
+        assert_eq!(digest.len(), 32);
     }
 }

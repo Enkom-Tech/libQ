@@ -2,7 +2,7 @@
 //!
 //! The public digest types in [`crate`] are built with `digest::buffer_fixed!`, which
 //! often produces little or no LLVM line coverage in this crate’s `lib.rs` alone.
-//! These small wrappers mirror [`lib_q_sha3::sha256`](https://docs.rs/lib-q-sha3) so
+//! These small wrappers mirror [`lib_q_sha3::sha3_256`](https://docs.rs/lib-q-sha3) so
 //! coverage and profiling see explicit call sites in this package.
 
 use digest::Digest;

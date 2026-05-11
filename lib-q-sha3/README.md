@@ -44,6 +44,7 @@ This crate **does not** provide a `prelude` module. Imports are kept explicit so
 - **Output length (XOF):** security depends on how many bytes you read; use enough bytes for your collision and preimage profile (see FIPS 202 / SP 800-185 and `CollisionResistance` on each type in rustdoc).
 - **cSHAKE:** use distinct function-name and/or customization strings for distinct protocols: both empty degrades to SHAKE (SP 800-185).
 - **TurboSHAKE:** the const generic `DS` (domain separator, `0x01`–`0x7F`) must differ across independent uses to avoid cross-protocol output collisions (see RFC 9861 / Turbot documentation).
+- **SHA3-256 vs SHA-256:** `Sha3_256` and [`sha3_256`](https://docs.rs/lib-q-sha3/latest/lib_q_sha3/fn.sha3_256.html) are **FIPS 202 SHA3-256** (Keccak sponge with SHA-3 padding). They are not FIPS 180-4 SHA-256 (Merkle–Damgård); outputs and wire formats differ.
 - **Keccak vs SHA-3:** use [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) for pre-FIPS `Keccak256` types; they are **different** from `Sha3_256` (different padding).
 - **Implementation status:** the code targets **correct** sponge semantics per the referenced standards. Constant-time or side-channel **guarantees** are not claimed here unless supported by your platform and analysis.
 - **Architecture:** whether to split non–FIPS-202 Keccak surfaces is recorded in [docs/adr/001-keccak-nonfips-surface.md](https://github.com/Enkom-Tech/libQ/blob/main/lib-q-sha3/docs/adr/001-keccak-nonfips-surface.md).
@@ -60,6 +61,18 @@ let mut hasher = Sha3_256::new();
 hasher.update(b"abc");
 let hash = hasher.finalize();
 assert_eq!(hash, hex!("3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
+```
+
+### One-shot SHA3-256
+
+For a single input slice, [`sha3_256`](https://docs.rs/lib-q-sha3/latest/lib_q_sha3/fn.sha3_256.html) hashes in one call. This is **SHA3-256** (FIPS 202); it is **not** SHA-256 (FIPS 180). Prefer [`Sha3_256`](https://docs.rs/lib-q-sha3/latest/lib_q_sha3/struct.Sha3_256.html) with [`Digest`](https://docs.rs/digest/latest/digest/trait.Digest.html) when you need incremental updates or state serialization.
+
+```rust
+use hex_literal::hex;
+use lib_q_sha3::sha3_256;
+
+let digest = sha3_256(b"abc");
+assert_eq!(digest, hex!("3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
 ```
 
 ### SHAKE128 (XOF)

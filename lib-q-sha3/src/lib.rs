@@ -20,9 +20,9 @@
 //! rustdoc feature marks APIs that require a Cargo feature. The `zeroize` feature enables
 //! [`ZeroizeOnDrop`](https://docs.rs/digest/latest/digest/trait.ZeroizeOnDrop.html) (from the `zeroize` feature) on supported types.
 //!
-//! # `sha256` vs `Sha3_256`
+//! # `sha3_256` vs `Sha3_256`
 //!
-//! [`sha256`](fn.sha256.html) is a small convenience for one-shot hashing. Prefer [`Sha3_256`] with the [`Digest`] trait when reusing a hasher or when you need serialization / OID features.
+//! [`sha3_256`](fn.sha3_256.html) is a small convenience for one-shot hashing. Prefer [`Sha3_256`] with the [`Digest`] trait when reusing a hasher or when you need serialization / OID features.
 
 #![no_std]
 #![doc = include_str!("../README.md")]
@@ -88,7 +88,7 @@ pub use turbo_shake::{
 ///
 /// Equivalent to [`Sha3_256`]`::`[`digest`](Digest::digest)`(data)` but may inline more aggressively. For incremental input or state serialization, use [`Sha3_256`] and [`Digest`].
 #[inline(always)]
-pub fn sha256(data: &[u8]) -> [u8; 32] {
+pub fn sha3_256(data: &[u8]) -> [u8; 32] {
     let mut hasher = Sha3_256::new();
     Digest::update(&mut hasher, data);
     hasher.finalize().into()

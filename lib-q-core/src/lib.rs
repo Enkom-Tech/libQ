@@ -72,7 +72,11 @@ pub fn version() -> &'static str {
     VERSION
 }
 
-/// Create a new hash context
+/// Create a new hash context with no provider installed.
+///
+/// Call [`HashContext::set_provider`] or use [`HashContext::with_provider`] before
+/// [`HashContext::hash`] will succeed. Leaf crates (for example `lib-q-hash`) and the
+/// `libq` umbrella expose factories that install a hash implementation up front.
 #[cfg(feature = "alloc")]
 pub fn create_hash_context() -> HashContext {
     HashContext::new()
