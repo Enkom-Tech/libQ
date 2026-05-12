@@ -8,7 +8,8 @@
     target_feature(enable = "sha3")
 )]
 pub unsafe fn p1600_armv8_sha3_asm(state: &mut [u64; 25], round_count: usize) {
-    core::arch::asm!("
+    unsafe {
+        core::arch::asm!("
         // Read state
         ld1.1d {{ v0- v3}}, [x0], #32
         ld1.1d {{ v4- v7}}, [x0], #32
@@ -120,7 +121,8 @@ pub unsafe fn p1600_armv8_sha3_asm(state: &mut [u64; 25], round_count: usize) {
         in("x8") round_count,
         clobber_abi("C"),
         options(nostack)
-    );
+        );
+    }
 }
 
 #[cfg(all(test, target_arch = "aarch64"))]

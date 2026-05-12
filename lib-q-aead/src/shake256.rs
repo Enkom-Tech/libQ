@@ -43,19 +43,6 @@ impl Shake256Aead {
         Ok(())
     }
 
-    /// Constant-time equality comparison
-    #[cfg(feature = "shake256")]
-    pub(crate) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-        if a.len() != b.len() {
-            return false;
-        }
-
-        let mut result = 0u8;
-        for (x, y) in a.iter().zip(b.iter()) {
-            result |= x ^ y;
-        }
-        result == 0
-    }
 }
 
 impl Aead for Shake256Aead {
@@ -245,7 +232,7 @@ impl Aead for Shake256Aead {
         mac_reader.read(&mut computed_mac);
 
         // Verify MAC using constant-time comparison
-        if !Self::constant_time_eq(&computed_mac, mac_tag) {
+        if !crate::security::constant_time::constant_time_eq(&computed_mac, mac_tag) {
             return Err(Error::VerificationFailed {
                 operation: "SHAKE256 AEAD authentication failed".to_string(),
             });
@@ -315,16 +302,17 @@ mod tests {
     #[cfg(feature = "shake256")]
     #[test]
     fn test_constant_time_eq() {
-        // Test constant-time equality comparison
+        use crate::security::constant_time::constant_time_eq;
+
         let a = [1u8, 2u8, 3u8];
         let b = [1u8, 2u8, 3u8];
         let c = [1u8, 2u8, 4u8];
         let d = [1u8, 2u8];
 
-        assert!(Shake256Aead::constant_time_eq(&a, &b));
-        assert!(!Shake256Aead::constant_time_eq(&a, &c));
-        assert!(!Shake256Aead::constant_time_eq(&a, &d));
-        assert!(!Shake256Aead::constant_time_eq(&d, &a));
+        assert!(constant_time_eq(&a, &b));
+        assert!(!constant_time_eq(&a, &c));
+        assert!(!constant_time_eq(&a, &d));
+        assert!(!constant_time_eq(&d, &a));
     }
 
     #[cfg(feature = "shake256")]

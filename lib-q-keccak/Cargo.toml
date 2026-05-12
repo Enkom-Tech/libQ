@@ -37,6 +37,7 @@ wasm_getrandom = ["getrandom", "getrandom/wasm_js"]  # WASM random number genera
 [dependencies]
 num_cpus = { version = "1.17.0", optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
+spin = { workspace = true }
 
 # WASM dependencies
 wasm-bindgen = { workspace = true, optional = true }

@@ -58,7 +58,7 @@ impl OptimizationLevel {
             feature = "arm64_sha3",
             target_feature = "sha3",
             feature = "std",
-            not(cross_compile)
+            not(target_os = "windows")
         )) {
             Self::Basic
         } else {
@@ -83,7 +83,7 @@ impl OptimizationLevel {
                     feature = "arm64_sha3",
                     target_feature = "sha3",
                     feature = "std",
-                    not(cross_compile)
+                    not(target_os = "windows")
                 )
             )),
             Self::Advanced => cfg!(all(
@@ -115,11 +115,13 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
             #[cfg(all(
                 target_arch = "aarch64",
                 feature = "asm",
+                feature = "arm64_sha3",
                 target_feature = "sha3",
-                feature = "std"
+                feature = "std",
+                not(target_os = "windows")
             ))]
             {
-                unsafe { crate::armv8::p1600(state) };
+                unsafe { crate::armv8::p1600_armv8_sha3_asm(state, 24) };
             }
             #[cfg(all(
                 target_arch = "x86_64",
@@ -134,8 +136,10 @@ pub fn p1600_optimized(state: &mut [u64; 25], level: OptimizationLevel) {
                 all(
                     target_arch = "aarch64",
                     feature = "asm",
+                    feature = "arm64_sha3",
                     target_feature = "sha3",
-                    feature = "std"
+                    feature = "std",
+                    not(target_os = "windows")
                 ),
                 all(
                     target_arch = "x86_64",

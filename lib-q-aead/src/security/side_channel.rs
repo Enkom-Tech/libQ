@@ -153,11 +153,14 @@ impl SideChannelProtection {
             return if condition { func() } else { false };
         }
 
-        // Execute both branches to maintain constant timing
         let true_result = func();
         let false_result = false;
 
-        crate::security::constant_time::constant_time_select(condition, true_result, false_result)
+        crate::security::constant_time::constant_time_select_bool(
+            condition,
+            true_result,
+            false_result,
+        )
     }
 
     /// Protected conditional execution with timing attack resistance (no return value)
@@ -384,9 +387,7 @@ impl SideChannelProtection {
     }
 
     /// Protected conditional assignment with timing attack resistance
-    pub fn secure_conditional_assign<
-        T: Copy + crate::security::constant_time::ConstantTimeBytes,
-    >(
+    pub fn secure_conditional_assign<T: subtle::ConditionallySelectable>(
         &self,
         condition: bool,
         value: &mut T,
@@ -399,7 +400,6 @@ impl SideChannelProtection {
             return;
         }
 
-        // Use constant-time conditional assignment
         *value = crate::security::constant_time::constant_time_select(condition, new_value, *value);
     }
 

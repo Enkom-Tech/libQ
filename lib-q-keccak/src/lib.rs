@@ -242,37 +242,24 @@ impl_keccak!(p200, f200, u8);
 impl_keccak!(p400, f400, u16);
 impl_keccak!(p800, f800, u32);
 
-// Use ARM64-optimized implementations when available, otherwise fallback to generic
-#[cfg(all(
+// Fallback: use generic Keccak-p/f when ARM64 SHA3 optimizations are not active.
+// When ARM64 SHA3 IS active, the manual `p1600`/`f1600` below handle runtime dispatch.
+#[cfg(not(all(
     target_arch = "aarch64",
     feature = "asm",
     not(target_os = "windows"),
     feature = "std",
-    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
-    not(cross_compile) // Disable during cross-compilation
-))]
-impl_keccak!(p1600, f1600, u64);
-
-#[cfg(any(
-    not(all(
-        target_arch = "aarch64",
-        feature = "asm",
-        not(target_os = "windows"),
-        feature = "std",
-        feature = "arm64_sha3"
-    )),
-    cross_compile // Use generic implementation during cross-compilation
-))]
+    feature = "arm64_sha3"
+)))]
 impl_keccak!(p1600, f1600, u64);
 
 /// Keccak-p[1600, rc] permutation.
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
+    not(target_os = "windows"),
     feature = "std",
-    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
-    not(cross_compile) // Disable during cross-compilation
+    feature = "arm64_sha3"
 ))]
 pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     if armv8_sha3_runtime_available() {
@@ -286,10 +273,9 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",
-    not(target_os = "windows"), // Exclude Windows ARM64 due to different ABI
+    not(target_os = "windows"),
     feature = "std",
-    feature = "arm64_sha3", // Require explicit opt-in for ARM64 optimizations
-    not(cross_compile) // Disable during cross-compilation
+    feature = "arm64_sha3"
 ))]
 pub fn f1600(state: &mut [u64; PLEN]) {
     if armv8_sha3_runtime_available() {

@@ -140,38 +140,33 @@ impl FeatureConfig {
     }
 }
 
-/// Global feature configuration
+/// Global feature configuration storage.
 ///
-/// This static configuration is used by default when no specific
-/// configuration is provided.
-static mut GLOBAL_CONFIG: Option<FeatureConfig> = None;
+/// Guarded by a [`spin::RwLock`] so concurrent readers and writers from any
+/// thread (including bare-metal `no_std` cores) observe a consistent value
+/// without resorting to `static mut`, which is undefined behaviour under
+/// concurrent access.
+static GLOBAL_CONFIG: spin::RwLock<Option<FeatureConfig>> = spin::RwLock::new(None);
 
-/// Set the global feature configuration
+/// Set the global feature configuration.
 ///
-/// This function sets the global configuration that will be used
-/// by default for all operations.
+/// Subsequent calls to [`get_global_config`] return a clone of `config` until
+/// it is overwritten or cleared by [`reset_global_config`].
 pub fn set_global_config(config: FeatureConfig) {
-    unsafe {
-        GLOBAL_CONFIG = Some(config);
-    }
+    *GLOBAL_CONFIG.write() = Some(config);
 }
 
-/// Get the global feature configuration
+/// Get the global feature configuration.
 ///
-/// This function returns the current global configuration, or a default
-/// configuration if none has been set.
+/// Returns a clone of the currently configured value, or
+/// [`FeatureConfig::default`] if none has been set.
 pub fn get_global_config() -> FeatureConfig {
-    #[allow(static_mut_refs)]
-    unsafe {
-        GLOBAL_CONFIG.clone().unwrap_or_default()
-    }
+    GLOBAL_CONFIG.read().clone().unwrap_or_default()
 }
 
-/// Reset the global feature configuration to defaults
+/// Reset the global feature configuration to its unset state.
 pub fn reset_global_config() {
-    unsafe {
-        GLOBAL_CONFIG = None;
-    }
+    *GLOBAL_CONFIG.write() = None;
 }
 
 /// Runtime feature detection utilities

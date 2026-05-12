@@ -55,16 +55,12 @@ use lib_q_stark_field::{
     mm512_mod_sub,
 };
 use lib_q_stark_util::reconstitute_from_base;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
 };
 
-use crate::{
-    Mersenne31,
-    mul_2exp_i,
-};
+use crate::Mersenne31;
 
 const WIDTH: usize = 16;
 pub(crate) const P: __m512i = unsafe { transmute::<[u32; WIDTH], _>([0x7FFFFFFF; WIDTH]) };
@@ -201,7 +197,11 @@ impl PrimeCharacteristicRing for PackedMersenne31AVX512 {
     #[inline]
     fn halve(&self) -> Self {
         // 2^{-1} = 2^30 mod P so we implement halve by multiplying by 2^30.
-        mul_2exp_i::<30, 1>(*self)
+        let v = self.to_vector();
+        unsafe {
+            // Safety: `mul_2exp_30` maps canonical Mersenne31 lanes to canonical lanes.
+            Self::from_vector(mul_2exp_30(v))
+        }
     }
 
     #[inline(always)]
@@ -346,6 +346,17 @@ fn mul(lhs: __m512i, rhs: __m512i) -> __m512i {
 
         // Standard addition of two 31-bit values.
         mm512_mod_add(prod_lo, prod_hi, P)
+    }
+}
+
+/// Per lane: `x * 2^30 mod P` (same as [`Mersenne31::mul_2exp_u64`] with `exp % 31 == 30`).
+#[inline]
+#[must_use]
+fn mul_2exp_30(v: __m512i) -> __m512i {
+    unsafe {
+        let left = x86_64::_mm512_and_si512(x86_64::_mm512_slli_epi32::<30>(v), P);
+        let right = x86_64::_mm512_srli_epi32::<1>(v);
+        x86_64::_mm512_or_si512(left, right)
     }
 }
 

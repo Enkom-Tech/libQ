@@ -27,6 +27,7 @@ fn rustc_release_is_nightly() -> bool {
 
 fn main() {
     // Get build configuration from environment
+    let host = env::var("HOST").unwrap_or_default();
     let target = env::var("TARGET").unwrap_or_default();
     let profile = env::var("PROFILE").unwrap_or_default();
 
@@ -35,6 +36,14 @@ fn main() {
     println!("cargo:rustc-check-cfg=cfg(target_os, values(\"linux\", \"windows\", \"macos\"))");
     println!("cargo:rustc-check-cfg=cfg(build_profile, values(\"debug\", \"release\"))");
     println!("cargo:rustc-check-cfg=cfg(keccak_portable_simd)");
+    println!("cargo:rustc-check-cfg=cfg(cross_compile)");
+
+    // Detect cross-compilation: host and target triples differ.
+    // Used to gate platform-specific asm paths (x86 AVX2/AVX-512) that require
+    // native hardware for runtime feature detection.
+    if host != target {
+        println!("cargo:rustc-cfg=cross_compile");
+    }
 
     let simd_requested = env::var_os("CARGO_FEATURE_SIMD").is_some();
     if simd_requested && rustc_release_is_nightly() {
@@ -50,6 +59,7 @@ fn main() {
 
     // Ensure rebuild when build script changes
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=HOST");
     println!("cargo:rerun-if-env-changed=TARGET");
     println!("cargo:rerun-if-env-changed=PROFILE");
 }

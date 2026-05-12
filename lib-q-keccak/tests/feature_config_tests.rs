@@ -267,7 +267,90 @@ fn test_global_config_set_get_reset() {
     );
 
     // Restore original config
-    set_global_config(original_config);
+    set_global_config(original_config.clone());
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn test_global_config_concurrent_access() {
+    use std::sync::{
+        Arc,
+        Barrier,
+    };
+    use std::thread;
+
+    const THREADS: usize = 8;
+    const ITERATIONS: usize = 1_000;
+
+    // Start from a known baseline and restore at the end.
+    let original_config = get_global_config();
+    reset_global_config();
+
+    let start_barrier = Arc::new(Barrier::new(THREADS + 1));
+    let mut handles = Vec::with_capacity(THREADS);
+
+    for thread_id in 0..THREADS {
+        let start_barrier = Arc::clone(&start_barrier);
+        handles.push(thread::spawn(move || {
+            start_barrier.wait();
+
+            for i in 0..ITERATIONS {
+                let config = if (thread_id + i) % 2 == 0 {
+                    FeatureConfig::performance_optimized()
+                } else {
+                    FeatureConfig::security_optimized()
+                };
+
+                set_global_config(config.clone());
+                let observed = get_global_config();
+
+                // We cannot assert identity under races, but every observed
+                // value must be a valid full config snapshot.
+                assert!(matches!(
+                    observed.optimization_level,
+                    OptimizationLevel::Reference |
+                        OptimizationLevel::Basic |
+                        OptimizationLevel::Advanced |
+                        OptimizationLevel::Maximum
+                ));
+
+                if (thread_id + i) % 17 == 0 {
+                    reset_global_config();
+                    let snapshot = get_global_config();
+                    assert!(matches!(
+                        snapshot.optimization_level,
+                        OptimizationLevel::Reference |
+                            OptimizationLevel::Basic |
+                            OptimizationLevel::Advanced |
+                            OptimizationLevel::Maximum
+                    ));
+                }
+            }
+        }));
+    }
+
+    // Release all workers at once to maximize lock contention.
+    start_barrier.wait();
+    for handle in handles {
+        handle.join().expect("worker thread should not panic");
+    }
+
+    // API remains usable after concurrent pressure.
+    set_global_config(original_config.clone());
+    let restored = get_global_config();
+    assert_eq!(
+        restored.optimization_level,
+        original_config.optimization_level
+    );
+    assert_eq!(restored.enable_parallel, original_config.enable_parallel);
+    assert_eq!(
+        restored.enable_advanced_simd,
+        original_config.enable_advanced_simd
+    );
+    assert_eq!(
+        restored.enable_platform_optimizations,
+        original_config.enable_platform_optimizations
+    );
 }
 
 #[test]

@@ -8,6 +8,10 @@
 //! KMAC initialization absorbs `bytepad(encode_string(K), rate)` directly into the sponge
 //! without heap-backed temporary buffers containing key material. This reduces key exposure
 //! in freed/reallocated heap regions and aligns with audit expectations for secret handling.
+//!
+//! For MAC equality checks, use [`Kmac128::verify`](Kmac128::verify) /
+//! [`Kmac256::verify`](Kmac256::verify) instead of comparing `finalize` output with `==`,
+//! which is not constant-time.
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -41,6 +45,11 @@ use digest::{
     Update,
     XofReader,
 };
+use subtle::{
+    Choice,
+    ConstantTimeEq,
+};
+use zeroize::Zeroize;
 
 use crate::cshake::{
     CShake128,
@@ -128,6 +137,23 @@ macro_rules! impl_kmac {
             pub fn finalize(mut self, output: &mut [u8]) {
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
+            }
+
+            /// Finalize and compare the MAC to `expected` in constant time.
+            ///
+            /// The MAC output length is `expected.len()` (same encoding as [`Self::finalize`]
+            /// with an output buffer of that length). The computed MAC is zeroized before
+            /// returning.
+            ///
+            /// Combine or inspect the result with `subtle` APIs before branching on validity if
+            /// control-flow timing is a concern.
+            pub fn verify(mut self, expected: &[u8]) -> Choice {
+                let mut mac = vec![0u8; expected.len()];
+                self.with_bitlength((mac.len() * 8) as u64);
+                ExtendableOutput::finalize_xof_into(self.inner, &mut mac);
+                let ok = mac.ct_eq(expected);
+                mac.zeroize();
+                ok
             }
 
             /// Finalize with specified output length and return as Vec
@@ -629,5 +655,55 @@ mod tests {
         let mut out = [0u8; 64];
         kmac.finalize(&mut out);
         assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_kmac128_verify_matches_finalize() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_short_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "3B1FBA963CD8B0B59E8C1A6D71888B71
+             43651AF8BA0A7070C0979E2811324AA5"
+        );
+
+        let mut kmac = Kmac128::new(&key, custom);
+        kmac.update(&data);
+        let mut finalized = [0u8; 32];
+        kmac.finalize(&mut finalized);
+        assert_eq!(finalized.as_slice(), expected.as_slice());
+
+        let mut kmac2 = Kmac128::new(&key, custom);
+        kmac2.update(&data);
+        assert!(bool::from(kmac2.verify(&expected)));
+
+        let mut wrong = expected;
+        wrong[0] ^= 0x01;
+        let mut kmac3 = Kmac128::new(&key, custom);
+        kmac3.update(&data);
+        assert!(!bool::from(kmac3.verify(&wrong)));
+    }
+
+    #[test]
+    fn test_kmac256_verify_nist() {
+        let key = nist_kmac_key();
+        let data = nist_kmac_short_data();
+        let custom = b"My Tagged Application";
+        let expected = hex!(
+            "20C570C31346F703C9AC36C61C03CB64
+             C3970D0CFC787E9B79599D273A68D2F7
+             F69D4CC3DE9D104A351689F27CF6F595
+             1F0103F33F4F24871024D9C27773A8DD"
+        );
+
+        let mut kmac = Kmac256::new(&key, custom);
+        kmac.update(&data);
+        assert!(bool::from(kmac.verify(&expected)));
+
+        let mut wrong = expected;
+        wrong[31] ^= 0x80;
+        let mut kmac2 = Kmac256::new(&key, custom);
+        kmac2.update(&data);
+        assert!(!bool::from(kmac2.verify(&wrong)));
     }
 }
