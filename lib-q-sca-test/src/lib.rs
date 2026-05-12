@@ -102,8 +102,6 @@ mod mlkem_smoke {
 
 #[cfg(all(test, feature = "privacy"))]
 mod privacy_smoke {
-    use core::convert::Infallible;
-
     use lib_q_lattice_zkp::sigma::opening::sample_random_opening;
     use lib_q_lattice_zkp::{
         AjtaiCommitmentKey,
@@ -122,10 +120,8 @@ mod privacy_smoke {
         RingSigParams,
         sign_federation_message,
     };
-    use rand_core::{
-        TryCryptoRng,
-        TryRng,
-    };
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
 
     use crate::privacy_workloads::{
         touch_blind_verify,
@@ -135,35 +131,12 @@ mod privacy_smoke {
         touch_witness_nullifier,
     };
 
-    /// Deterministic RNG so the privacy smoke test is reproducible across CI hosts.
-    #[derive(Debug)]
-    struct SmokeRng(u64);
-
-    impl TryRng for SmokeRng {
-        type Error = Infallible;
-
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-            Ok((self.0 >> 32) as u32)
-        }
-
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-        }
-
-        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-            let mut i = 0usize;
-            while i < dst.len() {
-                let v = self.try_next_u32()?.to_le_bytes();
-                let take = (dst.len() - i).min(4);
-                dst[i..i + take].copy_from_slice(&v[..take]);
-                i += take;
-            }
-            Ok(())
-        }
+    #[inline]
+    fn test_seed32(tag: u64) -> [u8; 32] {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&tag.to_le_bytes());
+        seed
     }
-
-    impl TryCryptoRng for SmokeRng {}
 
     #[test]
     fn privacy_workloads_run() {
@@ -195,7 +168,7 @@ mod privacy_smoke {
             message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
             randomness: ModuleVec(vec![Poly::zero()]),
         };
-        let mut rng = SmokeRng(0x10A5_BEEF_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x10A5_BEEF_u64));
         let (_req, st) =
             BlindIssuance::request(&mut rng, &key, user_opening).expect("blind request");
         let issuer_opening = sample_random_opening(&mut rng, &key);
@@ -226,7 +199,7 @@ mod privacy_smoke {
             params: AjtaiParameters::new(2, 1),
         };
         let p = RingSigParams::mldsa65_pilot();
-        let mut rng = SmokeRng(0xFEED_FACE_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xFEED_FACE_u64));
 
         let a = MemberIssuerKey::from_opening(
             &key,

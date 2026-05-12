@@ -174,7 +174,6 @@ pub fn verify_dualring_lb(
 #[cfg(test)]
 mod tests {
     use alloc::vec;
-    use core::convert::Infallible;
 
     use lib_q_lattice_zkp::{
         AjtaiCommitmentKey,
@@ -185,41 +184,17 @@ mod tests {
         ModuleVec,
         Poly,
     };
-    use rand_core::{
-        TryCryptoRng,
-        TryRng,
-    };
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
 
     use super::*;
 
-    #[derive(Debug)]
-    struct TestRng(u64);
-
-    impl TryRng for TestRng {
-        type Error = Infallible;
-
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-            Ok((self.0 >> 32) as u32)
-        }
-
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-        }
-
-        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-            let mut i = 0usize;
-            while i < dst.len() {
-                let v = self.try_next_u32()?.to_le_bytes();
-                let take = (dst.len() - i).min(4);
-                dst[i..i + take].copy_from_slice(&v[..take]);
-                i += take;
-            }
-            Ok(())
-        }
+    #[inline]
+    fn test_deterministic_seed32(tag: u64) -> [u8; 32] {
+        let mut s = [0u8; 32];
+        s[0..8].copy_from_slice(&tag.to_le_bytes());
+        s
     }
-
-    impl TryCryptoRng for TestRng {}
 
     fn pilot_crs() -> AjtaiCommitmentKey {
         AjtaiCommitmentKey {
@@ -260,7 +235,7 @@ mod tests {
         let com = lib_q_lattice_zkp::commit(&key, &o);
         let ring = [com.clone()];
         let msg = b"singleton";
-        let mut rng = TestRng(0x51A1_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0x51A1_u64));
         let sig =
             sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, tau, z, max).expect("sign");
         verify_dualring_lb(&key, &ring, msg, &sig, tau, z).expect("verify ring of 1");
@@ -280,7 +255,7 @@ mod tests {
         let com = lib_q_lattice_zkp::commit(&key, &o);
         let ring = [com.clone()];
         let msg = b"signed-once";
-        let mut rng = TestRng(0xC0FFEE_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xC0FFEE_u64));
         let sig =
             sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, tau, z, max).expect("sign");
         verify_dualring_lb(&key, &ring, msg, &sig, tau, z).expect("verify");
@@ -309,7 +284,7 @@ mod tests {
         let com_b = lib_q_lattice_zkp::commit(&key, &o_b);
         let ring = [com_a.clone(), com_b.clone()];
         let msg = b"fed-dual";
-        let mut rng = TestRng(0xD06_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xD06_u64));
         let sig = sign_dualring_lb(&mut rng, &key, &o_b, &com_b, &ring, msg, tau, z, max)
             .expect("sign b");
         let wrong_ring = [com_a.clone(), com_a];

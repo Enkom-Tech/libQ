@@ -215,33 +215,29 @@ impl<P: HqcParams> ReedSolomon<P> {
         }
 
         // Compute error locator polynomial using Berlekamp-Massey algorithm
-        let error_count = self.compute_elp_u16(&mut sigma, &syndromes)?;
+        let deg_sigma = self.compute_elp_u16(&mut sigma, &syndromes)?;
 
         // Find error positions using Chien search
         let found_errors =
-            self.find_error_positions_chien(&mut error_positions, &sigma, error_count)?;
-
-        if found_errors != error_count {
-            return Err(ReedSolomonError::DecodingFailed);
-        }
+            self.find_error_positions_chien(&mut error_positions, &sigma, deg_sigma)?;
 
         // Compute error evaluator polynomial (z polynomial)
-        self.compute_z_poly(&mut z_poly, &sigma, error_count, &syndromes)?;
+        self.compute_z_poly(&mut z_poly, &sigma, deg_sigma, &syndromes)?;
 
-        // Compute error values using Forney algorithm
+        // Compute error values
         self.compute_error_values_forney(
             &mut error_values,
             &z_poly,
             &error_positions,
             &sigma,
-            error_count,
+            found_errors,
         )?;
 
         // Correct the errors
         let mut corrected_codeword = [0u8; 512]; // Max n1 (HQC-1: 287)
         corrected_codeword[..n1].copy_from_slice(&codeword[..n1]);
 
-        for (i, _) in (0..error_count).enumerate() {
+        for i in 0..found_errors {
             let pos = error_positions[i] as usize;
             if pos < n1 {
                 corrected_codeword[pos] ^= error_values[i] as u8;
@@ -320,7 +316,7 @@ impl<P: HqcParams> ReedSolomon<P> {
         let delta = P::DELTA;
         let mut sigma_copy = [0u16; 64];
         let mut x_sigma_p = [0u16; 64];
-        x_sigma_p[0] = 1;
+        x_sigma_p[1] = 1;
 
         let mut deg_sigma = 0usize;
         let mut deg_sigma_p = 0usize;
@@ -332,8 +328,8 @@ impl<P: HqcParams> ReedSolomon<P> {
 
         for mu in 0..(2 * delta) {
             // Save sigma in case we need it to update X_sigma_p
-            sigma_copy[..(deg_sigma + 1)].copy_from_slice(&sigma[..(deg_sigma + 1)]);
-            // deg_sigma_copy = deg_sigma; // Removed unused variable
+            sigma_copy[..=delta].copy_from_slice(&sigma[..=delta]);
+            let deg_sigma_copy = deg_sigma;
 
             let dd = self.gf_multiply_u16(d as u8, self.gf_inverse_u16(d_p as u8)) as u16;
 
@@ -341,7 +337,7 @@ impl<P: HqcParams> ReedSolomon<P> {
                 sigma[i] ^= self.gf_multiply_u16(dd as u8, x_sigma_p[i] as u8) as u16;
             }
 
-            let deg_x = if pp == 0xFFFF { 0u16 } else { mu as u16 - pp };
+            let deg_x = (mu as u16).wrapping_sub(pp);
             let deg_x_sigma_p = deg_x + deg_sigma_p as u16;
 
             // mask1 = 0xffff if(d != 0) and 0 otherwise
@@ -368,11 +364,9 @@ impl<P: HqcParams> ReedSolomon<P> {
             for i in (1..=delta).rev() {
                 x_sigma_p[i] = (mask12 & sigma_copy[i - 1]) ^ (!mask12 & x_sigma_p[i - 1]);
             }
-            if delta > 0 {
-                x_sigma_p[0] = (mask12 & sigma_copy[0]) ^ (!mask12 & x_sigma_p[0]);
-            }
+            x_sigma_p[0] = 0;
 
-            deg_sigma_p ^= (mask12 & ((deg_sigma ^ deg_sigma_p) as u16)) as usize;
+            deg_sigma_p ^= (mask12 & ((deg_sigma_copy ^ deg_sigma_p) as u16)) as usize;
 
             d = syndromes[mu + 1];
             for i in 1..=(mu + 1).min(delta) {
@@ -419,19 +413,20 @@ impl<P: HqcParams> ReedSolomon<P> {
         let n1 = P::N1;
         let mut found_errors = 0;
 
-        // Convert sigma to u8 for processing
         let mut sigma_u8 = [0u8; 256];
         for (i, &sigma_value) in sigma.iter().enumerate().take(degree + 1) {
             sigma_u8[i] = sigma_value as u8;
         }
 
-        // Chien search: evaluate sigma at each position
-        for (i, _) in (0..n1).enumerate() {
+        // Chien search: evaluate σ(α^(-i)) for each codeword position i.
+        // Root at α^(-pos) means error at position pos.
+        for i in 0..n1 {
             let mut sum = 0u8;
+            let k = (P::GF_MUL_ORDER - i) % P::GF_MUL_ORDER;
             #[allow(clippy::needless_range_loop)]
             for j in 0..=degree {
                 if sigma_u8[j] != 0 {
-                    let alpha_power = (i * j) % P::GF_MUL_ORDER;
+                    let alpha_power = (k * j) % P::GF_MUL_ORDER;
                     let alpha_val = self.gf_exp[alpha_power];
                     sum ^= self.gf_multiply(sigma_u8[j], alpha_val);
                 }
@@ -459,20 +454,17 @@ impl<P: HqcParams> ReedSolomon<P> {
         z[0] = 1;
 
         for i in 1..=delta {
-            z[i] = if i - 1 <= degree { sigma[i] } else { 0 };
+            z[i] = if i <= degree { sigma[i] } else { 0 };
         }
 
         z[1] ^= syndromes[0];
 
         for i in 2..=delta {
-            if i - 1 <= degree {
+            if i <= degree {
                 z[i] ^= syndromes[i - 1];
 
                 for j in 1..i {
-                    if j <= degree {
-                        z[i] ^=
-                            self.gf_multiply_u16(sigma[j] as u8, syndromes[i - j - 1] as u8) as u16;
-                    }
+                    z[i] ^= self.gf_multiply_u16(sigma[j] as u8, syndromes[i - j - 1] as u8) as u16;
                 }
             }
         }
@@ -480,66 +472,52 @@ impl<P: HqcParams> ReedSolomon<P> {
         Ok(())
     }
 
-    /// Compute error values using Forney algorithm
+    /// Compute error values following the HQC reference approach.
+    /// For each error at position pos_j with β_j = α^pos_j:
+    ///   e_j = z(β_j^{-1}) / Π_{k≠j}(1 + β_j^{-1} * β_k)
     fn compute_error_values_forney(
         &self,
         error_values: &mut [u16],
         z: &[u16],
         error_positions: &[u8],
-        sigma: &[u16],
+        _sigma: &[u16],
         num_errors: usize,
     ) -> Result<(), ReedSolomonError> {
         let delta = P::DELTA;
 
-        for (i, _) in (0..num_errors).enumerate() {
-            let pos = error_positions[i] as usize;
-            let beta = self.gf_exp[pos]; // β_{j_i} = α^{position}
-            let beta_inv = self.gf_inverse(beta);
+        let mut beta = [0u8; 64];
+        for i in 0..num_errors {
+            beta[i] = self.gf_exp[error_positions[i] as usize];
+        }
 
-            // Compute numerator = Ω(β_{j_i}^{-1}) where Ω is error evaluator polynomial
-            let mut numerator = 0u16;
-            #[allow(clippy::needless_range_loop)]
-            for j in 0..=delta {
-                if z[j] != 0 {
-                    let power = self.gf_exp[(j * beta_inv as usize) % P::GF_MUL_ORDER];
-                    numerator ^= self.gf_multiply_u16(z[j] as u8, power) as u16;
+        for i in 0..num_errors {
+            let inverse = self.gf_inverse(beta[i]);
+
+            // Numerator: z(β_i^{-1}) = z[0] + z[1]*inv + z[2]*inv^2 + ...
+            let mut tmp1 = 1u16; // z[0] = 1
+            let mut inverse_power = 1u8;
+            for j in 1..=delta {
+                inverse_power = self.gf_multiply(inverse_power, inverse);
+                tmp1 ^= self.gf_multiply_u16(inverse_power, z[j] as u8) as u16;
+            }
+
+            // Denominator: Π_{k≠i}(1 + β_i^{-1} * β_k)
+            let mut tmp2 = 1u8;
+            for k in 0..num_errors {
+                if k != i {
+                    let term = 1u8 ^ self.gf_multiply(inverse, beta[k]);
+                    tmp2 = self.gf_multiply(tmp2, term);
                 }
             }
 
-            // Compute denominator = σ'(β_{j_i}^{-1}) where σ' is formal derivative of sigma
-            let sigma_prime = self.compute_formal_derivative_u16(sigma, delta);
-
-            // For single error case, denominator is just σ'(β^{-1})
-            let denominator = if sigma_prime != 0 {
-                sigma_prime as u16
+            if tmp2 != 0 {
+                error_values[i] = self.gf_multiply_u16(tmp1 as u8, self.gf_inverse(tmp2)) as u16;
             } else {
-                1u16 // Fallback for test case
-            };
-
-            // Error value = numerator / denominator
-            let error_value = if denominator != 0 {
-                self.gf_multiply_u16(numerator as u8, self.gf_inverse_u16(denominator as u8)) as u16
-            } else {
-                numerator
-            };
-
-            error_values[i] = error_value;
+                error_values[i] = tmp1;
+            }
         }
 
         Ok(())
-    }
-
-    /// Compute formal derivative of error locator polynomial (u16 version)
-    fn compute_formal_derivative_u16(&self, sigma: &[u16], degree: usize) -> u8 {
-        let mut result = 0u8;
-        #[allow(clippy::needless_range_loop)]
-        for i in 1..=degree {
-            if i % 2 == 1 {
-                // Only odd powers contribute
-                result ^= self.gf_multiply(sigma[i] as u8, self.gf_exp[i % P::GF_MUL_ORDER]);
-            }
-        }
-        result
     }
 }
 

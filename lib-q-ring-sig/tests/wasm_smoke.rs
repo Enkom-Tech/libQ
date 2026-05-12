@@ -20,44 +20,24 @@ use lib_q_ring_sig::dualring_lb::{
     verify_dualring_lb,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+use rand_chacha::ChaCha8Rng;
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use rand_core::{
-    TryCryptoRng,
+    SeedableRng,
     TryRng,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 
+/// 32-byte seed for deterministic wasm tests: first 8 bytes are `tag` (little-endian); remainder
+/// zero. Not secret. Used with [`ChaCha8Rng::from_seed`] for reproducible `sign_dualring_lb` smoke.
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-#[derive(Debug)]
-struct TestRng(u64);
-
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-impl TryRng for TestRng {
-    type Error = core::convert::Infallible;
-
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-        Ok((self.0 >> 32) as u32)
-    }
-
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-    }
-
-    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-        let mut i = 0usize;
-        while i < dst.len() {
-            let v = self.try_next_u32()?.to_le_bytes();
-            let take = (dst.len() - i).min(4);
-            dst[i..i + take].copy_from_slice(&v[..take]);
-            i += take;
-        }
-        Ok(())
-    }
+#[inline]
+fn test_deterministic_seed32(tag: u64) -> [u8; 32] {
+    let mut s = [0u8; 32];
+    s[0..8].copy_from_slice(&tag.to_le_bytes());
+    s
 }
-
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-impl TryCryptoRng for TestRng {}
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[wasm_bindgen_test]
@@ -92,7 +72,7 @@ fn ring_sig_dualring_lb_pilot_wasm() {
     let com = commit(&key, &o);
     let ring = [com.clone()];
     let msg = b"wasm-smoke";
-    let mut rng = TestRng(0xC0FFEE_u64);
+    let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xC0FFEE_u64));
     let sig =
         sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, 39, 20_000_000, 512).expect("sign");
     verify_dualring_lb(&key, &ring, msg, &sig, 39, 20_000_000).expect("verify");

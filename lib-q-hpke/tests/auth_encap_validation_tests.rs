@@ -18,6 +18,11 @@ use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::security::CryptoRng;
 use lib_q_kem::LibQKemProvider;
+use rand_chacha::ChaCha20Rng;
+use rand_core::{
+    Rng,
+    SeedableRng,
+};
 
 /// Test that AuthEncap/AuthDecap provides proper sender authentication
 #[test]
@@ -42,7 +47,7 @@ fn test_auth_encap_auth_decap_authentication() {
         HpkeKem::MlKem512,
         sender_keypair.secret_key().as_bytes(),
         recipient_keypair.public_key().as_bytes(),
-        &mut TestRng,
+        &mut TestRng::default(),
     );
 
     assert!(auth_encap_result.is_ok(), "AuthEncap should succeed");
@@ -93,7 +98,7 @@ fn test_auth_decap_fails_with_wrong_sender() {
             HpkeKem::MlKem512,
             sender_keypair.secret_key().as_bytes(),
             recipient_keypair.public_key().as_bytes(),
-            &mut TestRng,
+            &mut TestRng::default(),
         )
         .expect("AuthEncap should succeed");
 
@@ -134,7 +139,7 @@ fn test_auth_encap_auth_decap_ml_kem_variants() {
             HpkeKem::MlKem768,
             sender_keypair_768.secret_key().as_bytes(),
             recipient_keypair_768.public_key().as_bytes(),
-            &mut TestRng,
+            &mut TestRng::default(),
         )
         .expect("AuthEncap should succeed");
 
@@ -166,7 +171,7 @@ fn test_auth_encap_auth_decap_ml_kem_variants() {
             HpkeKem::MlKem1024,
             sender_keypair_1024.secret_key().as_bytes(),
             recipient_keypair_1024.public_key().as_bytes(),
-            &mut TestRng,
+            &mut TestRng::default(),
         )
         .expect("AuthEncap should succeed");
 
@@ -239,7 +244,7 @@ fn test_authentication_cryptographic_proof() {
             HpkeKem::MlKem512,
             sender_keypair.secret_key().as_bytes(),
             recipient_keypair.public_key().as_bytes(),
-            &mut TestRng,
+            &mut TestRng::default(),
         )
         .expect("AuthEncap should succeed");
 
@@ -281,29 +286,28 @@ fn test_authentication_cryptographic_proof() {
     );
 }
 
-/// Simple test RNG for testing purposes
-struct TestRng;
+/// Deterministic CSPRNG wrapper for repeatable tests.
+struct TestRng(ChaCha20Rng);
+
+impl Default for TestRng {
+    fn default() -> Self {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&0x42_u64.to_le_bytes());
+        Self(ChaCha20Rng::from_seed(seed))
+    }
+}
 
 impl CryptoRng for TestRng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), lib_q_hpke::error::HpkeError> {
-        // For testing, we don't need actual randomness
-        // The ML-KEM implementation will use its own RNG
-        // Fill with deterministic pattern for reproducible tests
-        for (i, byte) in dest.iter_mut().enumerate() {
-            *byte = (i as u8).wrapping_add(0x42);
-        }
+        self.0.fill_bytes(dest);
         Ok(())
     }
 
     fn next_u32(&mut self) -> Result<u32, lib_q_hpke::error::HpkeError> {
-        let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes)?;
-        Ok(u32::from_le_bytes(bytes))
+        Ok(self.0.next_u32())
     }
 
     fn next_u64(&mut self) -> Result<u64, lib_q_hpke::error::HpkeError> {
-        let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes)?;
-        Ok(u64::from_le_bytes(bytes))
+        Ok(self.0.next_u64())
     }
 }

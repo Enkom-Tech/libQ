@@ -617,12 +617,14 @@ mod tests {
         let mut decoded_message = [0u8; 46]; // N1 for HQC-1
         rm.decode(&codeword, &mut decoded_message).unwrap();
 
-        // For now, only verify the first 28 bytes work correctly
-        // This acknowledges the current limitation of the Reed-Muller implementation
-        assert_eq!(message[0..28], decoded_message[0..28]);
-
-        // TODO: Fix the Reed-Muller implementation to handle full N1 bytes
-        // The issue appears to be in the algorithm itself, not just the loop bounds
+        // Verify full N1 bytes roundtrip correctly
+        for i in 0..46 {
+            assert_eq!(
+                message[i], decoded_message[i],
+                "Mismatch at byte {i}: expected 0x{:02X}, got 0x{:02X}",
+                message[i], decoded_message[i]
+            );
+        }
     }
 
     #[test]

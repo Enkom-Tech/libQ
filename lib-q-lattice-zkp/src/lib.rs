@@ -111,48 +111,22 @@ pub use token::{
 
 #[cfg(test)]
 mod tests {
-    use core::convert::Infallible;
-
     use lib_q_ring::{
         ModuleVec,
         Poly,
         sample_in_ball,
     };
-    use rand_core::{
-        TryCryptoRng,
-        TryRng,
-    };
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
 
     use super::*;
 
-    #[derive(Debug)]
-    struct TestRng(u64);
-
-    impl TryRng for TestRng {
-        type Error = Infallible;
-
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-            Ok((self.0 >> 32) as u32)
-        }
-
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-        }
-
-        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-            let mut i = 0usize;
-            while i < dst.len() {
-                let v = self.try_next_u32()?.to_le_bytes();
-                let take = (dst.len() - i).min(4);
-                dst[i..i + take].copy_from_slice(&v[..take]);
-                i += take;
-            }
-            Ok(())
-        }
+    #[inline]
+    fn test_seed32(tag: u64) -> [u8; 32] {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&tag.to_le_bytes());
+        seed
     }
-
-    impl TryCryptoRng for TestRng {}
 
     #[test]
     fn commitment_homomorphic_r_and_m() {
@@ -230,7 +204,7 @@ mod tests {
             randomness: ModuleVec(randomness),
         };
         let com = commit(&key, &opening);
-        let mut rng = TestRng(0xC0FFEE);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xC0FFEE));
         let proof = prove_opening(
             &mut rng,
             &key,
@@ -258,7 +232,9 @@ mod tests {
         };
         let com = commit(&key, &opening);
         for i in 0..100u64 {
-            let mut rng = TestRng(0xC0FFEE_u64 ^ (i.wrapping_mul(0x9E3779B97F4A7C15)));
+            let mut rng = ChaCha8Rng::from_seed(test_seed32(
+                0xC0FFEE_u64 ^ (i.wrapping_mul(0x9E3779B97F4A7C15)),
+            ));
             let proof = prove_opening(
                 &mut rng,
                 &key,
@@ -287,7 +263,7 @@ mod tests {
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
         let com = commit(&key, &opening);
-        let mut rng = TestRng(0xBAD5EED);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBAD5EED));
         let mut proof = prove_opening(
             &mut rng,
             &key,
@@ -368,7 +344,7 @@ mod tests {
         let commitments = alloc::vec![c1, c2];
         let openings = alloc::vec![o1, o2];
 
-        let mut rng = TestRng(0xA5515EED);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA5515EED));
         let proof = amortise(
             &mut rng,
             &key,
@@ -397,7 +373,7 @@ mod tests {
         let commitments = alloc::vec![c];
         let openings = alloc::vec![o];
 
-        let mut rng = TestRng(0xBADB_A7C1);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBADB_A7C1));
         let mut proof = amortise(
             &mut rng,
             &key,
@@ -528,7 +504,7 @@ mod tests {
             lib_q_ring::ModuleMatrix::expand_from_seed(&[0x42u8; 32], 1, key.params.witness_len());
         let t = l.mul_vec(&ModuleVec(witness));
 
-        let mut rng = TestRng(0x1EE7_CAFE);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x1EE7_CAFE));
         let proof = prove_linear(
             &mut rng,
             &key,
@@ -568,7 +544,7 @@ mod tests {
             lib_q_ring::ModuleMatrix::expand_from_seed(&[0x33u8; 32], 1, key.params.witness_len());
 
         let bad_t = ModuleVec(alloc::vec![Poly::zero(), Poly::zero()]);
-        let mut rng = TestRng(0xA11C_0001);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_0001));
         assert_eq!(
             prove_linear(
                 &mut rng,
@@ -595,7 +571,7 @@ mod tests {
         witness.extend(opening_non_zero.message.0.clone());
         let t = l.mul_vec(&ModuleVec(witness));
         let com_non_zero = commit(&key, &opening_non_zero);
-        let mut rng = TestRng(0xA11C_0002);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_0002));
         let res = prove_linear(
             &mut rng,
             &key,

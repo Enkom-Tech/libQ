@@ -31,6 +31,7 @@ lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", optional = true }
 
 # Post-quantum dependencies only
 rand_core = { workspace = true, default-features = false }
+rand_chacha = { workspace = true }
 zeroize = { workspace = true, default-features = false, features = ["alloc", "zeroize_derive"] }
 getrandom = { workspace = true, default-features = false, optional = true }
 lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.2", optional = true }

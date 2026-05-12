@@ -123,7 +123,12 @@ pub fn prove_opening<R: Rng + CryptoRng>(
         }
 
         if module_infinity_norm(&z) <= z_inf_bound {
-            return Ok(OpeningProof { w, z: ModuleVec(z) });
+            let proof = OpeningProof { w, z: ModuleVec(z) };
+            // If the bound holds but the Schnorr check fails, keep sampling (same outer attempt
+            // budget). This matches the intended "abort until a verifying transcript" semantics.
+            if verify_opening(key, com, &proof, ctx, tau, z_inf_bound).is_ok() {
+                return Ok(proof);
+            }
         }
     }
     Err(ProofError::RejectionLimit)

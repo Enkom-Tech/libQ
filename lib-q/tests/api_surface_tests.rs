@@ -67,19 +67,9 @@ fn umbrella_hqc_provider_new() {
 fn umbrella_hqc_kem_roundtrip_via_lib_q_kem_provider() {
     use libq::LibQKemProvider;
 
-    // Deterministic keygen avoids rare PKE decode / re-encapsulation mismatches from random
-    // HQC keypairs (see `lib-q-kem` HQC tests). Encapsulation uses `None` so `LibQKemProvider`
-    // does not reject a synthetic PRNG seed under strict entropy checks.
-    const KEYGEN_SEED: [u8; 48] = [
-        0x06, 0x15, 0x50, 0x23, 0x4D, 0x15, 0x8C, 0x5E, 0xC9, 0x55, 0x95, 0xFE, 0x04, 0xEF, 0x7A,
-        0x25, 0x76, 0x7F, 0x2E, 0x24, 0xCC, 0x2B, 0xC4, 0x79, 0xD0, 0x9D, 0x86, 0xDC, 0x9A, 0xBC,
-        0xFD, 0xE7, 0x05, 0x6A, 0x8C, 0x26, 0x6F, 0x9E, 0xF9, 0x7E, 0xD0, 0x85, 0x41, 0xDB, 0xD2,
-        0xE1, 0xFF, 0xA1,
-    ];
-
     let p = LibQKemProvider::new().expect("LibQKemProvider");
     let kp = p
-        .generate_keypair(Algorithm::Hqc128, Some(&KEYGEN_SEED))
+        .generate_keypair(Algorithm::Hqc128, None)
         .expect("HQC-128 keygen");
     let (ct, s1) = p
         .encapsulate(Algorithm::Hqc128, &kp.public_key, None)

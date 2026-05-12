@@ -12,8 +12,10 @@ pub use subtle::{
 /// Constant-time byte-slice equality.
 ///
 /// Returns `true` when `a` and `b` are identical, `false` otherwise.
-/// Runs in time proportional to `min(a.len(), b.len())` regardless of
-/// where (or whether) the first difference occurs.
+/// If `a.len() != b.len()`, returns `false` immediately (standard
+/// length-reveal pattern; not constant-time across differing lengths).
+/// When lengths match, comparison runs in time proportional to that
+/// length regardless of where (or whether) the first difference occurs.
 pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
@@ -37,8 +39,15 @@ pub fn constant_time_select_bool(condition: bool, a: bool, b: bool) -> bool {
 
 /// Constant-time conditional copy: copies `src` into `dst` when
 /// `condition` is `true`, leaves `dst` unchanged otherwise.
+///
+/// If `src.len() != dst.len()`, does nothing in release builds. In debug
+/// builds, `debug_assert_eq!(src.len(), dst.len())` panics so length misuse
+/// is caught during development.
 pub fn constant_time_copy(condition: bool, src: &[u8], dst: &mut [u8]) {
-    assert_eq!(src.len(), dst.len());
+    debug_assert_eq!(src.len(), dst.len(), "constant_time_copy length mismatch");
+    if src.len() != dst.len() {
+        return;
+    }
     let choice = Choice::from(condition as u8);
     for (s, d) in src.iter().zip(dst.iter_mut()) {
         *d = u8::conditional_select(d, s, choice);
@@ -97,6 +106,24 @@ mod tests {
         let mut dst2 = [5, 6, 7, 8];
         constant_time_copy(false, &src, &mut dst2);
         assert_eq!(dst2, [5, 6, 7, 8]);
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "constant_time_copy length mismatch")]
+    fn test_constant_time_copy_length_mismatch_panics_in_debug() {
+        let src = [1, 2, 3, 4];
+        let mut dst = [9, 9, 9];
+        constant_time_copy(true, &src, &mut dst);
+    }
+
+    #[cfg(not(debug_assertions))]
+    #[test]
+    fn test_constant_time_copy_length_mismatch_is_noop_in_release() {
+        let src = [1, 2, 3, 4];
+        let mut dst = [9, 9, 9];
+        constant_time_copy(true, &src, &mut dst);
+        assert_eq!(dst, [9, 9, 9]);
     }
 
     #[test]

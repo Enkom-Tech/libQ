@@ -356,71 +356,8 @@ impl CryptoWorker {
             OptimizationLevel::Reference => {
                 keccak_p(state, 24);
             }
-            OptimizationLevel::Basic => {
-                #[cfg(all(
-                    target_arch = "x86_64",
-                    feature = "asm",
-                    target_feature = "avx2",
-                    not(cross_compile)
-                ))]
-                unsafe {
-                    crate::x86::p1600_avx2(state);
-                }
-                #[cfg(not(all(
-                    target_arch = "x86_64",
-                    target_feature = "avx2",
-                    not(cross_compile)
-                )))]
-                {
-                    keccak_p(state, 24);
-                }
-            }
-            OptimizationLevel::Advanced => {
-                #[cfg(all(
-                    target_arch = "x86_64",
-                    feature = "asm",
-                    target_feature = "avx2",
-                    not(cross_compile)
-                ))]
-                unsafe {
-                    crate::x86::p1600_avx2(state);
-                }
-                #[cfg(not(all(
-                    target_arch = "x86_64",
-                    target_feature = "avx2",
-                    not(cross_compile)
-                )))]
-                {
-                    keccak_p(state, 24);
-                }
-            }
-            OptimizationLevel::Maximum => {
-                #[cfg(all(
-                    target_arch = "x86_64",
-                    feature = "asm",
-                    target_feature = "avx512f",
-                    not(cross_compile)
-                ))]
-                unsafe {
-                    crate::x86::p1600_avx512(state);
-                }
-                #[cfg(all(
-                    target_arch = "x86_64",
-                    feature = "asm",
-                    target_feature = "avx2",
-                    not(target_feature = "avx512f"),
-                    not(cross_compile)
-                ))]
-                unsafe {
-                    crate::x86::p1600_avx2(state);
-                }
-                #[cfg(not(all(
-                    target_arch = "x86_64",
-                    any(target_feature = "avx2", target_feature = "avx512f")
-                )))]
-                {
-                    keccak_p(state, 24);
-                }
+            OptimizationLevel::Basic | OptimizationLevel::Advanced | OptimizationLevel::Maximum => {
+                crate::f1600(state)
             }
         }
     }

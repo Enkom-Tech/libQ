@@ -1101,6 +1101,7 @@ dependencies = [
  "lib-q-ml-kem",
  "lib-q-random",
  "lib-q-saturnin",
+ "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1207,6 +1208,7 @@ dependencies = [
  "lib-q-ring",
  "lib-q-sha3",
  "proptest",
+ "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "subtle",
  "wasm-bindgen-test",
@@ -1484,6 +1486,7 @@ dependencies = [
  "lib-q-random",
  "lib-q-ring",
  "lib-q-ring-sig",
+ "rand_chacha 0.10.0",
  "rand_core 0.10.1",
 ]
 
@@ -1545,6 +1548,7 @@ dependencies = [
  "proptest",
  "quickcheck",
  "quickcheck_macros",
+ "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",

@@ -237,6 +237,9 @@ pub fn uniqueness_amortisation_label(realm: &[u8], commitments: &[AjtaiCommitmen
 mod tests {
     use alloc::vec;
 
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
+
     use super::*;
     use crate::commitment::{
         AjtaiCommitmentKey,
@@ -249,34 +252,12 @@ mod tests {
         verify_aggregate,
     };
 
-    #[derive(Debug)]
-    struct TestRng(u64);
-
-    impl rand_core::TryRng for TestRng {
-        type Error = core::convert::Infallible;
-
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-            Ok((self.0 >> 32) as u32)
-        }
-
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-        }
-
-        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-            let mut i = 0usize;
-            while i < dst.len() {
-                let v = self.try_next_u32()?.to_le_bytes();
-                let take = (dst.len() - i).min(4);
-                dst[i..i + take].copy_from_slice(&v[..take]);
-                i += take;
-            }
-            Ok(())
-        }
+    #[inline]
+    fn test_seed32(tag: u64) -> [u8; 32] {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&tag.to_le_bytes());
+        seed
     }
-
-    impl rand_core::TryCryptoRng for TestRng {}
 
     #[test]
     fn nullifier_stable_for_same_commitment() {
@@ -317,7 +298,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let c = commit(&key, &o);
-        let mut rng = TestRng(0x5011_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x5011_u64));
         let proof = prove_nullifier_opening(
             &mut rng, &key, &o, &c, b"ctx-n", b"realm-x", 39, 20_000_000, 512,
         )
@@ -354,7 +335,7 @@ mod tests {
         let label = uniqueness_amortisation_label(b"realm-amort", &commitments);
         let mut ap = None;
         for attempt in 0u64..256 {
-            let mut rng = TestRng(0xA11E_u64 ^ attempt);
+            let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11E_u64 ^ attempt));
             if let Ok(p) = amortise(
                 &mut rng,
                 &key,
@@ -418,7 +399,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let c = commit(&key, &o);
-        let mut rng = TestRng(0x5012_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x5012_u64));
         let proof = prove_witness_nullifier_opening(
             &mut rng,
             &key,

@@ -1,7 +1,5 @@
 //! Cross-module federation and credential checks.
 
-use core::convert::Infallible;
-
 use lib_q_lattice_zkp::{
     AjtaiCommitmentKey,
     AjtaiOpening,
@@ -25,41 +23,18 @@ use lib_q_ring_sig::{
     verify_dualring_lb,
     verify_federation_opening_scan,
 };
-use rand_chacha::ChaCha20Rng;
-use rand_core::{
-    SeedableRng,
-    TryCryptoRng,
-    TryRng,
+use rand_chacha::{
+    ChaCha8Rng,
+    ChaCha20Rng,
 };
+use rand_core::SeedableRng;
 
-#[derive(Debug)]
-struct TestRng(u64);
-
-impl TryRng for TestRng {
-    type Error = Infallible;
-
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-        Ok((self.0 >> 32) as u32)
-    }
-
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-    }
-
-    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-        let mut i = 0usize;
-        while i < dst.len() {
-            let v = self.try_next_u32()?.to_le_bytes();
-            let take = (dst.len() - i).min(4);
-            dst[i..i + take].copy_from_slice(&v[..take]);
-            i += take;
-        }
-        Ok(())
-    }
+#[inline]
+fn interop_test_deterministic_seed32(tag: u64) -> [u8; 32] {
+    let mut s = [0u8; 32];
+    s[0..8].copy_from_slice(&tag.to_le_bytes());
+    s
 }
-
-impl TryCryptoRng for TestRng {}
 
 fn crs() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {
@@ -88,7 +63,7 @@ fn federation_scan_finds_signer() {
     let digest = federation_digest(&ring_slice);
     assert_ne!(digest, [0u8; 32]);
 
-    let mut rng = TestRng(0xC0DE_u64);
+    let mut rng = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xC0DE_u64));
     let msg = b"policy-digest";
     let proof = sign_federation_message(
         &mut rng,
@@ -118,7 +93,7 @@ fn credential_presentation_roundtrip() {
     };
     let attr_com = lib_q_lattice_zkp::commit(&key, &attr_opening);
 
-    let mut rng = TestRng(0xF00D_u64);
+    let mut rng = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xF00D_u64));
     let attr_proof = prove_opening(
         &mut rng,
         &key,
@@ -149,7 +124,7 @@ fn credential_presentation_roundtrip() {
         members: vec![other_member.commitment, issuer.commitment.clone()],
     };
     let msg = attribute_message_digest(&attr_com);
-    let mut rng2 = TestRng(0xBEEF_u64);
+    let mut rng2 = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xBEEF_u64));
     let fed_proof = sign_dualring_lb(
         &mut rng2,
         &key,

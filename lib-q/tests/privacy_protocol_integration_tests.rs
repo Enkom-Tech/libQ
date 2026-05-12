@@ -1,7 +1,5 @@
 //! Cross-crate smoke tests for privacy protocol building blocks (lattice ZKP, ring signatures).
 
-use core::convert::Infallible;
-
 use lib_q_lattice_zkp::{
     AjtaiCommitmentKey,
     AjtaiOpening,
@@ -55,40 +53,14 @@ use lib_q_ring_sig::{
     verify_federation_opening,
 };
 use rand_chacha::ChaCha20Rng;
-use rand_core::{
-    SeedableRng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::SeedableRng;
 
-#[derive(Debug)]
-struct TestRng(u64);
-
-impl TryRng for TestRng {
-    type Error = Infallible;
-
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-        Ok((self.0 >> 32) as u32)
-    }
-
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-    }
-
-    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-        let mut i = 0usize;
-        while i < dst.len() {
-            let v = self.try_next_u32()?.to_le_bytes();
-            let take = (dst.len() - i).min(4);
-            dst[i..i + take].copy_from_slice(&v[..take]);
-            i += take;
-        }
-        Ok(())
-    }
+#[inline]
+fn test_seed32(tag: u64) -> [u8; 32] {
+    let mut seed = [0u8; 32];
+    seed[0..8].copy_from_slice(&tag.to_le_bytes());
+    seed
 }
-
-impl TryCryptoRng for TestRng {}
 
 fn pilot_crs() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {
@@ -109,7 +81,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
         &[1u8; TOKEN_EPOCH_LEN],
     )
     .expect("token opening layout");
-    let mut rng = TestRng(0xB1A4_u64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB1A4_u64));
     let (_req, user_st) =
         BlindIssuance::request(&mut rng, &key, user_opening.clone()).expect("blind req");
     let issuer_opening = lib_q_lattice_zkp::sigma::opening::sample_random_opening(&mut rng, &key);
@@ -131,7 +103,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
     BlindIssuance::verify(&key, &bundle, b"integration-realm", p.tau, p.z_inf_bound)
         .expect("blind verify");
 
-    let mut fs_rng = TestRng(0x50E4_u64);
+    let mut fs_rng = ChaCha20Rng::from_seed(test_seed32(0x50E4_u64));
     let token_proof = prove_opening(
         &mut fs_rng,
         &key,
@@ -167,7 +139,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
 
     let realm = b"sybil-realm";
     let n = registry_nullifier(&bundle.com_blinded, realm);
-    let mut n_rng = TestRng(0xD06_u64);
+    let mut n_rng = ChaCha20Rng::from_seed(test_seed32(0xD06_u64));
     let np = prove_nullifier_opening(
         &mut n_rng,
         &key,
@@ -211,7 +183,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
     let mut ap_opt: Result<lib_q_lattice_zkp::AmortisedProof, ProofError> =
         Err(ProofError::RejectionLimit);
     for attempt in 0u64..128 {
-        let mut ar = TestRng(0xA_u64 ^ attempt);
+        let mut ar = ChaCha20Rng::from_seed(test_seed32(0xA_u64 ^ attempt));
         ap_opt = amortise(
             &mut ar,
             &key,
@@ -285,7 +257,7 @@ fn credential_lifecycle_end_to_end() {
         &[1u8; TOKEN_EPOCH_LEN],
     )
     .expect("token layout");
-    let mut rng = TestRng(0xB1A4_u64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB1A4_u64));
     let (_req, user_st) =
         BlindIssuance::request(&mut rng, &key, user_opening).expect("blind request");
     let issuer_blind_opening =
@@ -311,7 +283,7 @@ fn credential_lifecycle_end_to_end() {
     // Holder proves opening for the blinded token commitment under the attribute context
     // so the verifier can check it without learning the secret token fields.
     let attr_fs_ctx: &[u8] = b"credential-attribute";
-    let mut attr_rng = TestRng(0x50E4_u64);
+    let mut attr_rng = ChaCha20Rng::from_seed(test_seed32(0x50E4_u64));
     let attribute_opening_proof = prove_opening(
         &mut attr_rng,
         &key,
@@ -413,7 +385,7 @@ fn token_double_spend_detection() {
     let epoch = [0x01u8; TOKEN_EPOCH_LEN];
     let opening = opening_from_token_fields(2, 1, &serial, &origin, &epoch).expect("layout");
     let com = commit(&key, &opening);
-    let mut rng = TestRng(0xDEAD_BEEF_u64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xDEAD_BEEF_u64));
     let proof = prove_opening(
         &mut rng,
         &key,
@@ -513,7 +485,7 @@ fn hierarchical_auth_cross_crate() {
         randomness: ModuleVec(vec![Poly::zero()]),
     };
     let credential_com = commit(&key, &credential_opening);
-    let mut rng = TestRng(0xC1EA_C0DE_u64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xC1EA_C0DE_u64));
     let proof = prove_level_membership(
         &mut rng,
         &key,
@@ -577,7 +549,7 @@ fn blind_signature_pilot_integration() {
         &[3u8; TOKEN_EPOCH_LEN],
     )
     .expect("opening");
-    let mut rng = TestRng(0xB10Cu64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB10Cu64));
     let (req, user_st) = BlindIssuance::request(&mut rng, &key, user_opening).expect("request");
     let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
     let (resp, digest) = BlindIssuance::issuer_sign_message(
@@ -733,7 +705,7 @@ fn private_membership_pilot_integration() {
         randomness: ModuleVec(vec![Poly::zero()]),
     };
     let credential_com = commit(&key, &credential_opening);
-    let mut rng = TestRng(0x51A1_C0DEu64);
+    let mut rng = ChaCha20Rng::from_seed(test_seed32(0x51A1_C0DEu64));
     let proof = prove_private_membership(
         &mut rng,
         &key,

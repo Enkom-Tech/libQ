@@ -432,11 +432,20 @@ pub fn issuance_transcript_ctx(base_ctx: &[u8], label: &[u8], extra: &[u8]) -> V
 #[cfg(test)]
 mod tests {
     use lib_q_ring::Poly;
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
 
     use super::*;
     use crate::params::AjtaiParameters;
     use crate::serialize::write_module_vec;
     use crate::sigma::opening::sample_random_opening;
+
+    #[inline]
+    fn test_seed32(tag: u64) -> [u8; 32] {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&tag.to_le_bytes());
+        seed
+    }
 
     #[test]
     fn homomorphic_blind_matches_sum_commitment() {
@@ -474,42 +483,6 @@ mod tests {
 
     #[test]
     fn blind_issuance_attestation_roundtrip() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
-
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
-        }
-
-        impl TryCryptoRng for TestRng {}
-
         let params = AjtaiParameters::new(2, 1);
         let key = AjtaiCommitmentKey {
             seed: [0xCDu8; 32],
@@ -521,7 +494,7 @@ mod tests {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = TestRng(0xB10C_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xB10C_u64));
         let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
         let issuer_opening = sample_random_opening(&mut rng, &key);
         let resp = BlindIssuance::issuer_sign(
@@ -541,42 +514,6 @@ mod tests {
 
     #[test]
     fn blind_signature_message_roundtrip_and_wrong_message_fails() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
-
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
-        }
-
-        impl TryCryptoRng for TestRng {}
-
         let params = AjtaiParameters::new(2, 1);
         let key = AjtaiCommitmentKey {
             seed: [0xE1u8; 32],
@@ -588,7 +525,7 @@ mod tests {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = TestRng(0x51AE_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x51AE_u64));
         let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
         let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
         let (resp, digest) = BlindIssuance::issuer_sign_message(
@@ -626,42 +563,6 @@ mod tests {
 
     #[test]
     fn blind_signature_wrong_issuer_commitment_rejected() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
-
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
-        }
-
-        impl TryCryptoRng for TestRng {}
-
         let params = AjtaiParameters::new(2, 1);
         let key = AjtaiCommitmentKey {
             seed: [0xA7u8; 32],
@@ -673,7 +574,7 @@ mod tests {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = TestRng(0xBAD_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBAD_u64));
         let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
         let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
         let other = BlindIssuerKeypair::sample(&mut rng, &key);
@@ -693,42 +594,6 @@ mod tests {
 
     #[test]
     fn blind_signature_same_message_unlinkable_across_sessions() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
-
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
-        }
-
-        impl TryCryptoRng for TestRng {}
-
         let params = AjtaiParameters::new(2, 1);
         let key = AjtaiCommitmentKey {
             seed: [0xB2u8; 32],
@@ -740,9 +605,10 @@ mod tests {
             message: ModuleVec(mu.clone()),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let issuer = BlindIssuerKeypair::sample(&mut TestRng(1), &key);
+        let mut issuer_rng = ChaCha8Rng::from_seed(test_seed32(1));
+        let issuer = BlindIssuerKeypair::sample(&mut issuer_rng, &key);
 
-        let mut r1 = TestRng(0x111_u64);
+        let mut r1 = ChaCha8Rng::from_seed(test_seed32(0x111_u64));
         let (req1, st1) = BlindIssuance::request(&mut r1, &key, user.clone()).expect("r1");
         let (resp1, d1) = BlindIssuance::issuer_sign_message(
             &mut r1,
@@ -758,7 +624,7 @@ mod tests {
         .expect("i1");
         let b1 = BlindIssuance::finalize_message(st1, resp1, d1).expect("f1");
 
-        let mut r2 = TestRng(0x222_u64);
+        let mut r2 = ChaCha8Rng::from_seed(test_seed32(0x222_u64));
         let (req2, st2) = BlindIssuance::request(&mut r2, &key, user).expect("r2");
         let (resp2, d2) = BlindIssuance::issuer_sign_message(
             &mut r2,

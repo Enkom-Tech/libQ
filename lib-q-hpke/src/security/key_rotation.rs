@@ -343,8 +343,13 @@ mod tests {
         let randomized_policy = generate_rotation_schedule(&base_policy, 0.1, &mut rng)
             .expect("Should generate randomized policy");
 
-        // Values should be different but within reasonable range
-        assert_ne!(randomized_policy.max_messages, base_policy.max_messages);
+        // Values should stay within the configured randomization window (exact equality is valid
+        // when the sampled offset is zero).
+        let variation = ((base_policy.max_messages as f64) * 0.1) as u64;
+        let min_messages = base_policy.max_messages.saturating_sub(variation).max(1);
+        let max_messages = base_policy.max_messages.saturating_add(variation).max(1);
+        assert!(randomized_policy.max_messages >= min_messages);
+        assert!(randomized_policy.max_messages <= max_messages);
         assert!(randomized_policy.max_messages > 0);
         assert!(randomized_policy.max_duration_secs > 0);
         assert!(randomized_policy.max_data_bytes > 0);

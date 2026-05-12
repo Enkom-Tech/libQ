@@ -32,7 +32,7 @@ hex = { workspace = true, optional = true }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, features = ["std", "getrandom"] }
 
 [dev-dependencies]
-rand_chacha = { version = "0.10.0", default-features = false, features = ["std"] }
+rand_chacha = { workspace = true, features = ["std"] }
 wasm-bindgen-test = { workspace = true }
 
 [[test]]

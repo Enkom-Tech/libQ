@@ -39,10 +39,13 @@ use signature::{
 };
 use typenum::Unsigned;
 
-/// AES_CTR_DRBG - based RNG used by the SPHINCS+ reference implementation KATs
-struct KatRng(Ctr128BE<Aes256>);
+/// AES-CTR-DRBG used to reproduce SPHINCS+ reference KAT streams.
+///
+/// This is deterministic by construction (seeded from test vectors) and exists solely for KAT
+/// reproducibility.
+struct KatDeterministicDrbg(Ctr128BE<Aes256>);
 
-impl KatRng {
+impl KatDeterministicDrbg {
     fn new(entropy: &[u8; 48]) -> Self {
         let key = [0u8; 32];
         let mut iv = [0u8; 16];
@@ -60,7 +63,7 @@ impl KatRng {
     }
 }
 
-impl TryRng for KatRng {
+impl TryRng for KatDeterministicDrbg {
     type Error = core::convert::Infallible;
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
@@ -82,12 +85,15 @@ impl TryRng for KatRng {
     }
 }
 
-impl TryCryptoRng for KatRng {}
+impl TryCryptoRng for KatDeterministicDrbg {}
 
-// Mock RNG that just returns a pre-determined bytestring
-struct ConstRng(Vec<u8>);
+/// Fixed byte-stream RNG for deterministic key material replay in KATs.
+///
+/// Not an entropy source. `TryCryptoRng` is implemented only because the signature API requires a
+/// crypto RNG marker even for deterministic test harnesses.
+struct FixedKatByteStreamRng(Vec<u8>);
 
-impl TryRng for ConstRng {
+impl TryRng for FixedKatByteStreamRng {
     type Error = RandError;
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), RandError> {
         let len = dest.len();
@@ -126,7 +132,7 @@ impl fmt::Display for RandError {
 
 impl error::Error for RandError {}
 
-impl TryCryptoRng for ConstRng {}
+impl TryCryptoRng for FixedKatByteStreamRng {}
 
 const ITERS: usize = 10;
 fn test_kat<P: ParameterSet + VerifyingKeyLen>(expected: &str)
@@ -134,7 +140,7 @@ where
     Signature<P>: SignatureEncoding,
 {
     let mut resp: String = "# SPHINCS+\n\n".to_string();
-    let mut rng = KatRng::new(&from_fn(|i| i as u8));
+    let mut rng = KatDeterministicDrbg::new(&from_fn(|i| i as u8));
     let mut seeds = [[0u8; 48]; ITERS];
     let mut msgs: Vec<Vec<u8>> = (0..ITERS).map(|i| vec![0; 33 * (i + 1)]).collect();
 
@@ -144,7 +150,7 @@ where
     }
 
     for i in 0..ITERS {
-        let mut rng = KatRng::new(&seeds[i]);
+        let mut rng = KatDeterministicDrbg::new(&seeds[i]);
 
         writeln!(&mut resp, "count = {}", i).unwrap();
         writeln!(&mut resp, "seed = {}", hex::encode_upper(seeds[i])).unwrap();
@@ -156,7 +162,7 @@ where
 
         let mut seed = vec![0; (P::VkLen::USIZE * 3) / 2];
         rng.fill_bytes(&mut seed);
-        let mut seed_rng = UnwrapErr(ConstRng(seed));
+        let mut seed_rng = UnwrapErr(FixedKatByteStreamRng(seed));
 
         let sk = SigningKey::<P>::new(&mut seed_rng);
         let pk = sk.verifying_key();

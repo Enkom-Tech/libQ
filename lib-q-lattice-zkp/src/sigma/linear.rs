@@ -45,7 +45,7 @@ pub fn prove_linear<R: Rng + CryptoRng>(
     rng: &mut R,
     key: &AjtaiCommitmentKey,
     opening: &AjtaiOpening,
-    _com: &AjtaiCommitment,
+    com: &AjtaiCommitment,
     l: &ModuleMatrix,
     t: &ModuleVec,
     ctx: &[u8],
@@ -88,10 +88,14 @@ pub fn prove_linear<R: Rng + CryptoRng>(
         }
 
         if module_infinity_norm(&z) <= z_inf_bound {
-            return Ok(LinearRelationProof {
+            let proof = LinearRelationProof {
                 opening: OpeningProof { w, z: ModuleVec(z) },
                 u,
-            });
+            };
+            // Keep sampling unless the full linear verification equation accepts this transcript.
+            if verify_linear(key, com, &proof, l, t, ctx, tau, z_inf_bound).is_ok() {
+                return Ok(proof);
+            }
         }
     }
     Err(ProofError::RejectionLimit)

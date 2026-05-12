@@ -41,61 +41,16 @@ use lib_q_slh_dsa::{
     SigningKey,
     VerifyingKey,
 };
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
-use sha2::Digest;
+use rand_chacha::ChaCha8Rng;
+use rand_core::SeedableRng;
 
-/// Simple deterministic RNG for testing
-struct TestRng {
-    seed: Vec<u8>,
-    counter: u64,
+#[inline]
+fn test_rng_from_material(seed: &[u8]) -> ChaCha8Rng {
+    let mut expanded = [0u8; 32];
+    let take = seed.len().min(32);
+    expanded[..take].copy_from_slice(&seed[..take]);
+    ChaCha8Rng::from_seed(expanded)
 }
-
-impl TestRng {
-    fn new(seed: &[u8]) -> Self {
-        Self {
-            seed: seed.to_vec(),
-            counter: 0,
-        }
-    }
-}
-
-impl TryRng for TestRng {
-    type Error = core::convert::Infallible;
-
-    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
-        Ok(self.try_next_u64().unwrap() as u32)
-    }
-
-    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(&self.seed);
-        hasher.update(self.counter.to_be_bytes());
-        let hash = hasher.finalize();
-        self.counter = self.counter.wrapping_add(1);
-
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(&hash[..8]);
-        Ok(u64::from_be_bytes(bytes))
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
-        for chunk in dest.chunks_mut(8) {
-            let value = self.try_next_u64().unwrap();
-            let bytes = value.to_be_bytes();
-            let len = chunk.len().min(8);
-            chunk[..len].copy_from_slice(&bytes[..len]);
-        }
-        Ok(())
-    }
-}
-
-impl TryCryptoRng for TestRng {}
-
-// TryCryptoRng is automatically implemented by signature crate for types that implement
-// signature::rand_core::CryptoRng, so we don't need an explicit implementation
 
 /// Test type conversion between SLH-DSA and lib-q-core types
 #[test]
@@ -106,7 +61,7 @@ fn test_type_conversions() {
         randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
     }
 
-    let mut rng = TestRng::new(&randomness);
+    let mut rng = test_rng_from_material(&randomness);
     let signing_key = SigningKey::<Shake128f>::new(&mut rng);
     let verifying_key = signing_key.verifying_key();
 
@@ -206,7 +161,7 @@ fn test_signature_serialization() {
         randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
     }
 
-    let mut rng = TestRng::new(&randomness);
+    let mut rng = test_rng_from_material(&randomness);
     let signing_key = SigningKey::<Shake128f>::new(&mut rng);
 
     // Sign a message
@@ -216,7 +171,7 @@ fn test_signature_serialization() {
         signing_randomness[i] = (i as u8).wrapping_mul(0x3D).wrapping_add(0x7E);
     }
 
-    let mut signing_rng = TestRng::new(&signing_randomness);
+    let mut signing_rng = test_rng_from_material(&signing_randomness);
     let signature = signing_key
         .try_sign_with_rng(&mut signing_rng, message)
         .expect("Signing should succeed");
@@ -249,7 +204,7 @@ fn test_parameter_set_type_conversions<P: ParameterSet>(name: &str) {
         randomness[i] = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
     }
 
-    let mut rng = TestRng::new(&randomness);
+    let mut rng = test_rng_from_material(&randomness);
     let signing_key = SigningKey::<P>::new(&mut rng);
     let verifying_key = signing_key.verifying_key();
 

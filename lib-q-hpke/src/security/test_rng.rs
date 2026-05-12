@@ -2,12 +2,18 @@
 //!
 //! This module provides a deterministic RNG for testing purposes.
 
+use rand_chacha::ChaCha20Rng;
+use rand_core::{
+    Rng,
+    SeedableRng,
+};
+
 use crate::error::HpkeError;
 use crate::security::CryptoRng;
 
 /// Deterministic test RNG for reproducible testing
 pub struct TestRng {
-    state: u64,
+    inner: ChaCha20Rng,
 }
 
 impl TestRng {
@@ -18,38 +24,26 @@ impl TestRng {
 
     /// Create a new test RNG with specific seed
     pub fn with_seed(seed: u64) -> Self {
-        Self { state: seed }
-    }
-
-    /// Generate next pseudo-random u64
-    fn next_u64_internal(&mut self) -> u64 {
-        // Simple linear congruential generator
-        self.state = self.state.wrapping_mul(1103515245).wrapping_add(12345);
-        self.state
+        let mut expanded = [0u8; 32];
+        expanded[0..8].copy_from_slice(&seed.to_le_bytes());
+        Self {
+            inner: ChaCha20Rng::from_seed(expanded),
+        }
     }
 }
 
 impl CryptoRng for TestRng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
-        for chunk in dest.chunks_mut(8) {
-            let random_u64 = self.next_u64_internal();
-            let bytes = random_u64.to_le_bytes();
-
-            for (i, &byte) in bytes.iter().enumerate() {
-                if i < chunk.len() {
-                    chunk[i] = byte;
-                }
-            }
-        }
+        self.inner.fill_bytes(dest);
         Ok(())
     }
 
     fn next_u32(&mut self) -> Result<u32, HpkeError> {
-        Ok(self.next_u64()? as u32)
+        Ok(self.inner.next_u32())
     }
 
     fn next_u64(&mut self) -> Result<u64, HpkeError> {
-        Ok(self.next_u64_internal())
+        Ok(self.inner.next_u64())
     }
 }
 

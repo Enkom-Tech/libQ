@@ -49,7 +49,7 @@ lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp" }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", default-features = false, features = ["std", "random"] }
 lib-q-ring = { path = "../lib-q-ring" }
 lib-q-ring-sig = { path = "../lib-q-ring-sig" }
-rand_chacha = { version = "0.10", default-features = false }
+rand_chacha = { workspace = true }
 rand_core = { workspace = true }
 
 # WASM testing

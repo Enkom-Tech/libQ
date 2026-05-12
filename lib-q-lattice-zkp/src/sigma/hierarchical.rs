@@ -480,12 +480,8 @@ mod tests {
 
     #[test]
     fn hierarchical_auth_accepts_leaf_at_level() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
+        use rand_chacha::ChaCha8Rng;
+        use rand_core::SeedableRng;
 
         use crate::commitment::{
             AjtaiOpening,
@@ -494,34 +490,12 @@ mod tests {
         use crate::params::AjtaiParameters;
         use crate::sigma::opening::prove_opening;
 
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
+        #[inline]
+        fn test_seed32(tag: u64) -> [u8; 32] {
+            let mut seed = [0u8; 32];
+            seed[0..8].copy_from_slice(&tag.to_le_bytes());
+            seed
         }
-
-        impl TryCryptoRng for TestRng {}
 
         let role = [0xEEu8; 16];
         let parent = [0u8; 32];
@@ -547,7 +521,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let credential_com = commit(&key, &opening);
-        let mut rng = TestRng(0xCAB_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xCAB_u64));
         let ctx = hierarchical_opening_ctx(b"pvt", &leaf_payload);
         let opening_proof = prove_opening(
             &mut rng,
@@ -570,7 +544,7 @@ mod tests {
         verify_level_membership(&key, &proof, &root, 5, b"pvt", 39, 20_000_000).expect("ok");
         assert!(verify_level_membership(&key, &proof, &root, 9, b"pvt", 39, 20_000_000).is_err());
 
-        let mut rng = TestRng(0xA11C_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_u64));
         let proved = prove_level_membership(
             &mut rng,
             &key,
@@ -592,12 +566,8 @@ mod tests {
 
     #[test]
     fn private_membership_roundtrip_and_clearance_rejects_low_level() {
-        use core::convert::Infallible;
-
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
+        use rand_chacha::ChaCha8Rng;
+        use rand_core::SeedableRng;
 
         use crate::commitment::{
             AjtaiOpening,
@@ -605,34 +575,12 @@ mod tests {
         };
         use crate::params::AjtaiParameters;
 
-        #[derive(Debug)]
-        struct TestRng(u64);
-
-        impl TryRng for TestRng {
-            type Error = Infallible;
-
-            fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-                self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
-                Ok((self.0 >> 32) as u32)
-            }
-
-            fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-                Ok(((self.try_next_u32()? as u64) << 32) | u64::from(self.try_next_u32()?))
-            }
-
-            fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
-                let mut i = 0usize;
-                while i < dst.len() {
-                    let v = self.try_next_u32()?.to_le_bytes();
-                    let take = (dst.len() - i).min(4);
-                    dst[i..i + take].copy_from_slice(&v[..take]);
-                    i += take;
-                }
-                Ok(())
-            }
+        #[inline]
+        fn test_seed32(tag: u64) -> [u8; 32] {
+            let mut seed = [0u8; 32];
+            seed[0..8].copy_from_slice(&tag.to_le_bytes());
+            seed
         }
-
-        impl TryCryptoRng for TestRng {}
 
         let role = [0xC3u8; 16];
         let parent = [0x11u8; 32];
@@ -658,7 +606,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let credential_com = commit(&key, &opening);
-        let mut rng = TestRng(0x51A1_u64);
+        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x51A1_u64));
         let proof = prove_private_membership(
             &mut rng,
             &key,
