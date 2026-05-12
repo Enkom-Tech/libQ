@@ -1207,23 +1207,24 @@ jobs:
     if: always()
     steps:
       - name: Check job status
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
           echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "All jobs completed. Check individual job results above." >> $GITHUB_STEP_SUMMARY
-          
-          # Check if any required jobs failed
-          if [[ "${{ needs.test-matrix.result }}" == "failure" ]] || \
-             [[ "${{ needs.wasm-validation.result }}" == "failure" ]] || \
-             [[ "${{ needs.wasm-workspace-gate.result }}" == "failure" ]] || \
-             [[ "${{ needs.wasm-bindgen-smoke.result }}" == "failure" ]] || \
-             [[ "${{ needs.romulus-no-std-wasm.result }}" == "failure" ]] || \
-             [[ "${{ needs.ml-dsa-compliance.result }}" == "failure" ]] || \
-             [[ "${{ needs.constant-time.result }}" == "failure" ]] || \
-             [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
-            echo "❌ Critical jobs failed. Please review the failures above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job results" >> $GITHUB_STEP_SUMMARY
+          echo "$NEEDS_JSON" | jq -r 'to_entries | sort_by(.key) | .[] | "- \(.key): \(.value.result)"' >> $GITHUB_STEP_SUMMARY
+
+          # Fail if any dependency failed or was cancelled (covers every job in `needs:` — no drift).
+          FAILED=$(echo "$NEEDS_JSON" | jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key] | join(", ")')
+          if [[ -n "$FAILED" ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Critical jobs failed or were cancelled: ${FAILED}. Please review the failures above." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
-          
+
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ All critical jobs passed successfully!" >> $GITHUB_STEP_SUMMARY
 
 

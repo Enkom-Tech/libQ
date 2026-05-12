@@ -381,6 +381,7 @@ pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn lib_q_core::Hash>
 ///
 /// Returns [`Err`] when [`LibQHashProvider::new`] fails (for example, if the
 /// security validator cannot be constructed).
+#[cfg(feature = "alloc")]
 pub fn create_hash_context() -> Result<HashContext> {
     let provider = LibQHashProvider::new()?;
     Ok(HashContext::with_provider(alloc::boxed::Box::new(provider)))
@@ -571,6 +572,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "alloc")]
     #[test]
     fn create_hash_context_returns_functional_context() {
         let mut ctx = create_hash_context().expect("context");

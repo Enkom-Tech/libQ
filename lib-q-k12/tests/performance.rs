@@ -408,7 +408,11 @@ fn test_performance_consistency() {
     // Enough work per run that a typical scheduler interrupt (~0.5–2 ms on Windows)
     // does not dominate the aggregate timing; 100 iters was ~0.6 ms total and flaked often.
     const ITERATIONS: usize = 2000;
-    const RUNS: usize = 7;
+    // Eleven runs with two dropped from each end after sorting: two slow OS/scheduler
+    // outliers are common on Windows CI; trimming only one max left a second spike in
+    // the window and failed the deviation check (see trimmed mean vs. max deviation).
+    const RUNS: usize = 11;
+    const TRIM_EACH_END: usize = 2;
 
     let mut run_times = Vec::new();
 
@@ -432,12 +436,13 @@ fn test_performance_consistency() {
         run_times.push(elapsed);
     }
 
-    // Calculate variance on the middle runs after dropping one min and one max.
+    // Calculate variance on the middle runs after dropping TRIM_EACH_END minima and maxima.
     // This keeps the test sensitive to real regressions while reducing false positives
     // from occasional scheduler noise on shared CI runners.
     let mut sorted_run_times = run_times.clone();
     sorted_run_times.sort_unstable();
-    let trimmed_run_times = &sorted_run_times[1..sorted_run_times.len() - 1];
+    let trimmed_run_times =
+        &sorted_run_times[TRIM_EACH_END..sorted_run_times.len() - TRIM_EACH_END];
     let avg_time = trimmed_run_times.iter().sum::<Duration>() / trimmed_run_times.len() as u32;
     let max_deviation = trimmed_run_times
         .iter()
