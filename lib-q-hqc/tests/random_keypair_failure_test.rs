@@ -68,8 +68,8 @@ fn test_random_keypair_failures_hqc128() {
         let mut yu = vec![0u64; VEC_N_SIZE_64];
         schoolbook_vect_mul_mod_xnm1(&mut yu, &y, &u, VEC_N_SIZE_64, N).unwrap();
         // Truncate
-        for i in (N1N2 / 64)..yu.len() {
-            yu[i] = 0;
+        for value in yu.iter_mut().skip(N1N2 / 64) {
+            *value = 0;
         }
 
         let mut decoder_input = vec![0u64; VEC_N1N2_SIZE_64];

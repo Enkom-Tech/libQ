@@ -89,8 +89,8 @@ fn test_rm_block_failure_analysis() {
 
         let mut yu = vec![0u64; VEC_N_SIZE_64];
         schoolbook_vect_mul_mod_xnm1(&mut yu, &y, &u, VEC_N_SIZE_64, N).unwrap();
-        for i in (N1N2 / 64)..yu.len() {
-            yu[i] = 0;
+        for value in yu.iter_mut().skip(N1N2 / 64) {
+            *value = 0;
         }
 
         // decoder_input = v XOR Truncate(y*u) — this is what the decoder sees

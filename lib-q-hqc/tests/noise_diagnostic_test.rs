@@ -80,12 +80,12 @@ fn test_noise_level_diagnostic() {
         let n1n2_rem = N1N2 % 64;
         if n1n2_rem > 0 {
             yu[n1n2_full_words] &= (1u64 << n1n2_rem) - 1;
-            for i in (n1n2_full_words + 1)..yu.len() {
-                yu[i] = 0;
+            for value in yu.iter_mut().skip(n1n2_full_words + 1) {
+                *value = 0;
             }
         } else {
-            for i in n1n2_full_words..yu.len() {
-                yu[i] = 0;
+            for value in yu.iter_mut().skip(n1n2_full_words) {
+                *value = 0;
             }
         }
 
