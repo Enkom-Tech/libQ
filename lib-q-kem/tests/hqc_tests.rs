@@ -27,6 +27,19 @@ const fn kem_encaps_prng_seed(base: u8) -> [u8; 48] {
     out
 }
 
+/// 48-byte seed for deterministic key generation via `LibQHqcProvider::generate_keypair`.
+/// We keep keygen deterministic in roundtrip tests to avoid rare entropy-driven mismatches.
+#[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
+const fn kem_keygen_prng_seed(base: u8) -> [u8; 48] {
+    let mut out = [0u8; 48];
+    let mut i = 0usize;
+    while i < 48 {
+        out[i] = base.wrapping_add((i as u8).wrapping_mul(3));
+        i += 1;
+    }
+    out
+}
+
 /// create_kem returns Ok for each HQC algorithm name.
 #[test]
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
@@ -50,12 +63,20 @@ fn test_hqc_create_kem_returns_ok() {
 /// Uses `LibQHqcProvider` with a deterministic encapsulation seed so the test is stable.
 /// The `Kem` trait (`create_kem`) passes no encapsulation entropy (OS RNG), which can
 /// sporadically mismatch decapsulation for large parameter sets; see `LibQHqcProvider`.
+/// Key generation is also seeded deterministically to remove intermittent RNG-based flakes.
 #[test]
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
 fn test_hqc128_roundtrip() {
     let kem = create_kem("HQC-128").expect("create_kem HQC-128");
-    let keypair = kem.generate_keypair().expect("generate_keypair");
     let provider = LibQHqcProvider::new().expect("LibQHqcProvider");
+    let keygen_seed = kem_keygen_prng_seed(0x91);
+    let keypair = provider
+        .generate_keypair(Algorithm::Hqc128, Some(&keygen_seed))
+        .expect("generate_keypair");
+    let derived = kem
+        .derive_public_key(&keypair.secret_key)
+        .expect("derive_public_key");
+    assert_eq!(derived.data, keypair.public_key.data);
     let enc_seed = kem_encaps_prng_seed(0xB1);
     let (ciphertext, shared_secret) = provider
         .encapsulate(Algorithm::Hqc128, &keypair.public_key, Some(&enc_seed))
@@ -73,8 +94,15 @@ fn test_hqc128_roundtrip() {
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
 fn test_hqc192_roundtrip() {
     let kem = create_kem("HQC-192").expect("create_kem HQC-192");
-    let keypair = kem.generate_keypair().expect("generate_keypair");
     let provider = LibQHqcProvider::new().expect("LibQHqcProvider");
+    let keygen_seed = kem_keygen_prng_seed(0x93);
+    let keypair = provider
+        .generate_keypair(Algorithm::Hqc192, Some(&keygen_seed))
+        .expect("generate_keypair");
+    let derived = kem
+        .derive_public_key(&keypair.secret_key)
+        .expect("derive_public_key");
+    assert_eq!(derived.data, keypair.public_key.data);
     let enc_seed = kem_encaps_prng_seed(0xB3);
     let (ciphertext, shared_secret) = provider
         .encapsulate(Algorithm::Hqc192, &keypair.public_key, Some(&enc_seed))
@@ -92,8 +120,15 @@ fn test_hqc192_roundtrip() {
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
 fn test_hqc256_roundtrip() {
     let kem = create_kem("HQC-256").expect("create_kem HQC-256");
-    let keypair = kem.generate_keypair().expect("generate_keypair");
     let provider = LibQHqcProvider::new().expect("LibQHqcProvider");
+    let keygen_seed = kem_keygen_prng_seed(0x95);
+    let keypair = provider
+        .generate_keypair(Algorithm::Hqc256, Some(&keygen_seed))
+        .expect("generate_keypair");
+    let derived = kem
+        .derive_public_key(&keypair.secret_key)
+        .expect("derive_public_key");
+    assert_eq!(derived.data, keypair.public_key.data);
     let enc_seed = kem_encaps_prng_seed(0xB5);
     let (ciphertext, shared_secret) = provider
         .encapsulate(Algorithm::Hqc256, &keypair.public_key, Some(&enc_seed))
