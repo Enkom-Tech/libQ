@@ -6,9 +6,10 @@
 //! By default only two KATs run (Shake128f, Sha2_128f). Enable `--features all-parameter-set-tests` for the full set.
 //!
 //! The `*s` (small signature) parameter sets do heavy signing work; in a **debug** build, each KAT can exceed
-//! Rust’s 60s “still running” notice and total runtime grows quickly when tests run in parallel. For the full
+//! Rust's 60s "still running" notice and total runtime grows quickly when tests run in parallel. For the full
 //! twelve KATs locally or in CI, use the workspace `release-ci` profile, for example:
 //! `cargo test -p lib-q-slh-dsa --profile release-ci --features all-parameter-set-tests --test known_answer_tests`.
+//! The default Shake128f KAT is additionally `#[ignore]` in dev builds only (see `test_kat_shake_128f`).
 #![cfg(feature = "alloc")]
 #![cfg(not(target_arch = "wasm32"))]
 use core::{
@@ -211,6 +212,12 @@ fn test_kat_sha2_128f() {
     test_kat::<Sha2_128f>("c8fcb441611200b19349f2e7fda07c4547bef22f35af6e47a2b8c824e0c2e0be");
 }
 
+// SHAKE-128f KAT does enough signing that a dev (unoptimized) build often exceeds Rust's 60s
+// "still running" notice; CI already re-runs this suite under `--profile release-ci`.
+#[cfg_attr(
+    debug_assertions,
+    ignore = "slow in dev profile; run: cargo test -p lib-q-slh-dsa --profile release-ci --test known_answer_tests test_kat_shake_128f"
+)]
 #[test]
 fn test_kat_shake_128f() {
     test_kat::<Shake128f>("056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29");
