@@ -54,6 +54,13 @@ runs:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src, llvm-tools-preview
 
+    # Merged rustdoc doctests + incremental can leave mixed `lib_q_core` rlibs/rmeta under
+    # `target/debug/deps` (especially after cache restore) → E0460. CI does not need
+    # incremental for correctness; disabling it stabilizes doctest linking.
+    - name: Disable Cargo incremental (E0460 guard)
+      shell: bash
+      run: echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+
     # `target/` must not be shared across rustc builds or matrix feature sets: stale or
     # mixed rlibs cause E0460 (newer dependency) and E0463 (missing crate) under --profile release-ci.
     - name: Toolchain fingerprint (cache)

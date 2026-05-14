@@ -45,9 +45,7 @@ impl Aead for RomulusMAead {
         crate::security::validation::validate_plaintext(plaintext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.encrypt(key, nonce, plaintext, Some(ad))
-        })
+        self.inner.encrypt(key, nonce, plaintext, Some(ad))
     }
 
     fn decrypt(
@@ -63,9 +61,7 @@ impl Aead for RomulusMAead {
         crate::security::validation::validate_ciphertext(ciphertext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.decrypt(key, nonce, ciphertext, Some(ad))
-        })
+        self.inner.decrypt(key, nonce, ciphertext, Some(ad))
     }
 }
 

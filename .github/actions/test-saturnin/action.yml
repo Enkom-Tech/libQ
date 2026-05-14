@@ -42,6 +42,17 @@ runs:
         key: ${{ runner.os }}-saturnin-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: |
           ${{ runner.os }}-saturnin-
+
+    # Same E0460 class as rust-test: stale companion rlibs / merged doctests vs incremental.
+    - name: Nuke stale release-ci tree (E0460/E0463)
+      shell: bash
+      run: |
+        ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        rm -rf "${ROOT}/target/release-ci"
+
+    - name: Disable Cargo incremental (E0460 guard)
+      shell: bash
+      run: echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
     
     - name: Security audit
       shell: bash

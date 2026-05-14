@@ -23,10 +23,10 @@ The registry uses different synchronization primitives based on the target envir
 constructors: RwLock<BTreeMap<Algorithm, AeadConstructor>>,
 plugins: RwLock<Vec<Box<dyn AeadPlugin>>>,
 
-// For no_std environments (single-threaded)
+// For no_std environments (thread-safe without std)
 #[cfg(not(feature = "std"))]
-constructors: RefCell<BTreeMap<Algorithm, AeadConstructor>>,
-plugins: RefCell<Vec<Box<dyn AeadPlugin>>>,
+constructors: spin::RwLock<BTreeMap<Algorithm, AeadConstructor>>,
+plugins: spin::RwLock<Vec<Box<dyn AeadPlugin>>>,
 ```
 
 ### Global Registry Initialization
@@ -139,14 +139,14 @@ let _ = registry.register_algorithm(Algorithm::Shake256Aead, || {
 
 ✅ **Successfully tested**: The registry compiles and works on WASM targets
 - Uses `once_cell::sync::Lazy` for thread-safe static initialization
-- Implements `unsafe impl Sync for AeadRegistry` for WASM compatibility
+- Uses lock-based interior mutability (`RwLock`) so `Sync` is derived safely by Rust
 - Supports all major AEAD algorithms on WASM
 
 ### no_std Support
 
 ✅ **Successfully tested**: The registry works in no_std environments
-- Uses `RefCell` for single-threaded access
-- Maintains thread safety through `unsafe impl Sync`
+- Uses `spin::RwLock` for synchronization without `std`
+- Avoids `unsafe impl Sync`; thread-safety is provided by lock primitives
 - Supports dynamic algorithm registration in no_std
 
 ### Thread Safety

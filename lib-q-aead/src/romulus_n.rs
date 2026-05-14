@@ -1,6 +1,5 @@
-//! Duplex-sponge AEAD wrapper.
+//! Romulus-N AEAD — registry-facing type.
 
-#[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -17,23 +16,23 @@ use crate::metadata::{
     AeadWithMetadata,
 };
 
-/// Duplex-sponge AEAD (Keccak-f[1600]) — registry / HPKE-facing type.
-pub struct DuplexSpongeAead {
+/// Romulus-N (nonce-based AEAD) for the lib-Q AEAD registry.
+pub struct RomulusNAead {
     metadata: &'static AeadMetadata,
-    inner: lib_q_duplex_aead::DuplexSpongeAead,
+    inner: lib_q_romulus::RomulusNAead,
 }
 
-impl DuplexSpongeAead {
+impl RomulusNAead {
     pub fn new() -> Self {
         Self {
-            metadata: crate::metadata::get_metadata(Algorithm::DuplexSpongeAead)
-                .expect("DuplexSpongeAead metadata"),
-            inner: lib_q_duplex_aead::DuplexSpongeAead::new(),
+            metadata: crate::metadata::get_metadata(Algorithm::RomulusN)
+                .expect("Romulus-N metadata"),
+            inner: lib_q_romulus::RomulusNAead::new(),
         }
     }
 }
 
-impl Aead for DuplexSpongeAead {
+impl Aead for RomulusNAead {
     fn encrypt(
         &self,
         key: &AeadKey,
@@ -46,9 +45,7 @@ impl Aead for DuplexSpongeAead {
         crate::security::validation::validate_plaintext(plaintext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.encrypt(key, nonce, plaintext, Some(ad))
-        })
+        self.inner.encrypt(key, nonce, plaintext, Some(ad))
     }
 
     fn decrypt(
@@ -64,27 +61,25 @@ impl Aead for DuplexSpongeAead {
         crate::security::validation::validate_ciphertext(ciphertext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.decrypt(key, nonce, ciphertext, Some(ad))
-        })
+        self.inner.decrypt(key, nonce, ciphertext, Some(ad))
     }
 }
 
-impl AeadWithMetadata for DuplexSpongeAead {
+impl AeadWithMetadata for RomulusNAead {
     fn metadata(&self) -> &'static AeadMetadata {
         self.metadata
     }
 }
 
-impl Default for DuplexSpongeAead {
+impl Default for RomulusNAead {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl crate::plugin::AeadPlugin for DuplexSpongeAead {
+impl crate::plugin::AeadPlugin for RomulusNAead {
     fn algorithm(&self) -> Algorithm {
-        Algorithm::DuplexSpongeAead
+        Algorithm::RomulusN
     }
 
     fn create(&self) -> Result<Box<dyn AeadWithMetadata>> {
@@ -92,20 +87,19 @@ impl crate::plugin::AeadPlugin for DuplexSpongeAead {
     }
 
     fn metadata(&self) -> &'static AeadMetadata {
-        crate::metadata::get_metadata(Algorithm::DuplexSpongeAead)
-            .expect("DuplexSpongeAead metadata")
+        crate::metadata::get_metadata(Algorithm::RomulusN).expect("Romulus-N metadata")
     }
 
     fn name(&self) -> &'static str {
-        "Duplex-Sponge-AEAD"
+        "Romulus-N"
     }
 
     fn version(&self) -> &'static str {
-        "1.0.0"
+        "1.3.0"
     }
 
     fn description(&self) -> &'static str {
-        "Keccak-f[1600] duplex-sponge authenticated encryption"
+        "Romulus-N nonce-based AEAD (SKINNY-128-384+), 128-bit key/nonce/tag"
     }
 }
 
@@ -114,11 +108,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn metadata_matches() {
-        let a = DuplexSpongeAead::new();
-        assert_eq!(a.algorithm(), Algorithm::DuplexSpongeAead);
-        assert_eq!(a.key_size(), 32);
+    fn romulus_n_metadata_matches() {
+        let a = RomulusNAead::new();
+        assert_eq!(a.algorithm(), Algorithm::RomulusN);
+        assert_eq!(a.key_size(), 16);
         assert_eq!(a.nonce_size(), 16);
-        assert_eq!(a.tag_size(), 32);
+        assert_eq!(a.tag_size(), 16);
     }
 }

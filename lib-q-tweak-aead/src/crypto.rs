@@ -65,10 +65,10 @@ fn xor_body(key: &[u8; KEY_BYTES], nonce: &[u8; NONCE_BYTES], pt: &[u8], ct: &mu
     <Portable as TweakAeadStreamOps>::xor_keystream(key, nonce, pt, ct);
 }
 
-/// Decrypt `ct_in` (includes tag). Authenticates before writing plaintext.
+/// Decrypt `ct_in` (includes tag) in constant time.
 ///
-/// On success, writes plaintext to `out[..body_len]`. On authentication failure, fills that
-/// slice with zeros and returns `Err` without having XORed ciphertext into `out`.
+/// On success, writes plaintext to `out[..body_len]`. On authentication failure, zeroes
+/// `out[..body_len]` and returns `Err`. Decryption always executes regardless of tag validity.
 pub fn decrypt(
     key: &[u8; KEY_BYTES],
     nonce: &[u8; NONCE_BYTES],
@@ -88,13 +88,17 @@ pub fn decrypt(
 
     let tag_calc = compute_tag(key, nonce, ad, ct_body);
     let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| TweakCryptoError)?;
-    if tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() != 1 {
-        out[..body_len].fill(0);
-        return Err(TweakCryptoError);
-    }
+    let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
 
+    // Always perform decryption so execution time is independent of tag validity.
     xor_body(key, nonce, ct_body, &mut out[..body_len]);
-    Ok(())
+
+    if tag_ok {
+        Ok(())
+    } else {
+        out[..body_len].fill(0);
+        Err(TweakCryptoError)
+    }
 }
 
 fn compute_tag(

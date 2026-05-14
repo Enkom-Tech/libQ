@@ -4,12 +4,12 @@ A high-performance, quantum-resistant Authenticated Encryption with Associated D
 
 ## Overview
 
-lib-q-aead provides secure, post-quantum AEAD implementations using NIST-approved algorithms. The library emphasizes security-first design with comprehensive timing attack protection, constant-time operations, and robust input validation.
+lib-q-aead provides secure, post-quantum AEAD implementations using NIST-approved algorithms. The library emphasizes security-first design with constant-time primitives where implemented and robust input validation.
 
 ## Features
 
 - **Quantum-Resistant**: Implements NIST-approved post-quantum algorithms
-- **Security-First**: Comprehensive timing attack protection and constant-time operations
+- **Security-First**: Constant-time primitives and robust input validation
 - **High Performance**: Optimized implementations with minimal overhead
 - **Modular Design**: Pluggable architecture supporting multiple algorithms
 - **Production Ready**: Extensive testing and security validation
@@ -73,35 +73,31 @@ let aead = create_aead(Algorithm::Shake256Aead)?;
 let security_config = SecurityConfig::strict();
 let security_ctx = SecurityContext::with_config(security_config);
 
-// Use with timing protection
+// Security context can be used to track operation metadata
 let key = AeadKey::new(secure_random_bytes(32));
 let nonce = Nonce::new(secure_random_bytes(16));
 
-// Encrypt with security context
-let ciphertext = security_ctx.protect_timing(|| {
-    aead.encrypt(&key, &nonce, plaintext, Some(associated_data))
-})?;
+let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(associated_data))?;
 ```
 
 ## Security Features
 
-### Timing Attack Protection
+### Latency Padding Utilities
 
-The library provides comprehensive timing attack protection:
+The `timing` helpers can add minimum-duration padding and optional jitter to reduce timing signal quality in non-cryptographic workflows. They do **not** turn variable-time crypto code into constant-time code.
 
 ```rust
 use lib_q_aead::security::timing::{TimingProtection, protect_timing};
 
-// Automatic timing protection
+// Optional latency padding utility
 let result = protect_timing(|| {
-    // Your cryptographic operation
-    aead.decrypt(&key, &nonce, &ciphertext, Some(aad))
+    run_non_cryptographic_work()
 })?;
 
-// Custom timing protection configuration
+// Custom latency padding configuration
 let timing_protection = TimingProtection::strict();
 let result = timing_protection.protect(|| {
-    aead.decrypt(&key, &nonce, &ciphertext, Some(aad))
+    run_non_cryptographic_work()
 })?;
 ```
 
@@ -162,8 +158,8 @@ The library is optimized for high performance while maintaining security:
 - Consider using counter-based nonces for high-throughput scenarios
 
 ### Timing Attacks
-- The library provides timing protection, but ensure your application doesn't introduce timing leaks
-- Use the provided security contexts for sensitive operations
+- Constant-time behavior must come from the cryptographic implementation itself
+- Treat latency padding/jitter as a noise layer, not a side-channel fix
 - Test your application for timing vulnerabilities
 
 ## Examples

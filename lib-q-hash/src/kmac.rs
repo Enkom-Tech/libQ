@@ -12,6 +12,10 @@
 //! For MAC equality checks, use [`Kmac128::verify`](Kmac128::verify) /
 //! [`Kmac256::verify`](Kmac256::verify) instead of comparing `finalize` output with `==`,
 //! which is not constant-time.
+//!
+//! Fixed-length outputs from [`Kmac128::finalize`], [`Kmac128::finalize_with_length`], and peers
+//! are capped by [`crate::MAX_SP800185_FIXED_OUTPUT_BYTES`]; use [`Kmac128::xof`] for longer
+//! squeeze output.
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -58,6 +62,7 @@ use crate::cshake::{
     CShake256Reader,
 };
 use crate::utils::{
+    MAX_SP800185_FIXED_OUTPUT_BYTES,
     left_encode,
     right_encode,
 };
@@ -133,8 +138,21 @@ macro_rules! impl_kmac {
                 Update::update(&mut self.inner, data);
             }
 
-            /// Finalize with specified output length
+            /// Finalize with specified output length.
+            ///
+            /// `output.len()` must not exceed [`MAX_SP800185_FIXED_OUTPUT_BYTES`]. For longer
+            /// output, use [`Self::xof`].
+            ///
+            /// # Panics
+            ///
+            /// Panics if `output.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
             pub fn finalize(mut self, output: &mut [u8]) {
+                assert!(
+                    output.len() <= MAX_SP800185_FIXED_OUTPUT_BYTES,
+                    "KMAC finalize: output length {} exceeds MAX_SP800185_FIXED_OUTPUT_BYTES ({})",
+                    output.len(),
+                    MAX_SP800185_FIXED_OUTPUT_BYTES
+                );
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
             }
@@ -145,9 +163,16 @@ macro_rules! impl_kmac {
             /// with an output buffer of that length). The computed MAC is zeroized before
             /// returning.
             ///
+            /// If `expected.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`], this
+            /// returns a failed comparison without allocating (or finalizing with that length), so
+            /// attacker-controlled lengths cannot force large allocations.
+            ///
             /// Combine or inspect the result with `subtle` APIs before branching on validity if
             /// control-flow timing is a concern.
             pub fn verify(mut self, expected: &[u8]) -> Choice {
+                if expected.len() > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return Choice::from(0u8);
+                }
                 let mut mac = vec![0u8; expected.len()];
                 self.with_bitlength((mac.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, &mut mac);
@@ -156,15 +181,27 @@ macro_rules! impl_kmac {
                 ok
             }
 
-            /// Finalize with specified output length and return as Vec
-            pub fn finalize_with_length(mut self, output_len: usize) -> Vec<u8> {
+            /// Finalize with specified output length and return as [`Vec`].
+            ///
+            /// Returns [`None`] if `output_len` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`]
+            /// (no allocation). For longer output, use [`Self::xof`].
+            pub fn finalize_with_length(mut self, output_len: usize) -> Option<Vec<u8>> {
+                if output_len > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return None;
+                }
                 let mut output = vec![0u8; output_len];
                 self.with_bitlength((output_len * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, &mut output);
-                output
+                Some(output)
             }
 
-            /// Get XOF reader for variable-length output
+            /// Returns an XOF reader for variable-length output.
+            ///
+            /// SP 800-185 encodes XOF mode with `right_encode(0)` (output bit length zero) before
+            /// squeezing.
+            ///
+            /// This consumes `self` and finalizes the sponge; you cannot call [`Self::update`]
+            /// afterward on this value.
             pub fn xof(mut self) -> $reader_name {
                 self.with_bitlength(0);
                 $reader_name {
@@ -494,7 +531,9 @@ mod tests {
 
         let mut hasher = kmac;
         hasher.update(data);
-        let result = hasher.finalize_with_length(32);
+        let result = hasher
+            .finalize_with_length(32)
+            .expect("32-byte output within cap");
         assert_eq!(result.len(), 32);
     }
 
@@ -705,5 +744,34 @@ mod tests {
         let mut kmac2 = Kmac256::new(&key, custom);
         kmac2.update(&data);
         assert!(!bool::from(kmac2.verify(&wrong)));
+    }
+
+    #[test]
+    fn test_kmac_verify_rejects_oversized_expected_without_large_alloc() {
+        let key = b"k";
+        let data = b"d";
+        let oversized = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
+        let mut kmac = Kmac128::new(key, b"");
+        kmac.update(data);
+        assert!(!bool::from(kmac.verify(&oversized)));
+    }
+
+    #[test]
+    fn test_kmac_finalize_with_length_rejects_over_cap() {
+        let mut kmac = Kmac128::new(b"k", b"");
+        kmac.update(b"x");
+        assert!(
+            kmac.finalize_with_length(MAX_SP800185_FIXED_OUTPUT_BYTES + 1)
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds MAX_SP800185_FIXED_OUTPUT_BYTES")]
+    fn test_kmac_finalize_panics_on_over_cap_output_buffer() {
+        let mut kmac = Kmac128::new(b"k", b"");
+        kmac.update(b"x");
+        let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
+        kmac.finalize(&mut out);
     }
 }

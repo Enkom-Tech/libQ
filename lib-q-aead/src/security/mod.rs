@@ -5,7 +5,7 @@
 //! - Side-channel attack protection
 //! - Secure memory handling
 //! - Input validation and sanitization
-//! - Timing attack protection
+//! - Latency padding and jitter helpers
 //! - Fault injection resistance
 
 pub mod constant_time;
@@ -30,7 +30,7 @@ pub struct SecurityConfig {
     pub secure_memory: bool,
     /// Enable comprehensive input validation
     pub strict_validation: bool,
-    /// Enable timing attack protection
+    /// Enable latency padding/jitter wrappers (not a constant-time substitute)
     pub timing_protection: bool,
     /// Enable fault injection protection
     pub fault_injection_protection: bool,

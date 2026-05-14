@@ -139,22 +139,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Benchmark timing protection overhead
-    println!("Timing Protection Overhead");
-    println!("--------------------------");
+    // Benchmark latency padding overhead
+    println!("Latency Padding Overhead");
+    println!("------------------------");
 
     if let Ok(aead) = create_aead(Algorithm::Shake256Aead) {
         let plaintext = vec![0x42u8; 1024];
         let associated_data = b"benchmark metadata";
 
-        // Without timing protection
+        // Without latency padding wrapper
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = aead.encrypt(&key, &nonce, &plaintext, Some(associated_data))?;
         }
         let unprotected_time = start.elapsed();
 
-        // With timing protection
+        // With latency padding wrapper
         let start = Instant::now();
         for _ in 0..iterations {
             let _ =
@@ -167,8 +167,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let overhead =
             (protected_avg.as_nanos() as f64 / unprotected_avg.as_nanos() as f64 - 1.0) * 100.0;
 
-        println!("Without timing protection: {:?}", unprotected_avg);
-        println!("With timing protection: {:?}", protected_avg);
+        println!("Without latency padding wrapper: {:?}", unprotected_avg);
+        println!("With latency padding wrapper: {:?}", protected_avg);
         println!("Overhead: {:.1}%", overhead);
         println!();
     }

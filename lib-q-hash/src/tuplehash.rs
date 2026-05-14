@@ -42,6 +42,7 @@ use crate::cshake::{
     CShake256Reader,
 };
 use crate::utils::{
+    MAX_SP800185_FIXED_OUTPUT_BYTES,
     left_encode,
     right_encode,
 };
@@ -102,21 +103,46 @@ macro_rules! impl_tuplehash {
                 self.update_tuple(&tuple);
             }
 
-            /// Finalize with specified output length
+            /// Finalize with specified output length.
+            ///
+            /// `output.len()` must not exceed [`MAX_SP800185_FIXED_OUTPUT_BYTES`]. For longer
+            /// output, use [`Self::xof`].
+            ///
+            /// # Panics
+            ///
+            /// Panics if `output.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
             pub fn finalize(mut self, output: &mut [u8]) {
+                assert!(
+                    output.len() <= MAX_SP800185_FIXED_OUTPUT_BYTES,
+                    "TupleHash finalize: output length {} exceeds MAX_SP800185_FIXED_OUTPUT_BYTES ({})",
+                    output.len(),
+                    MAX_SP800185_FIXED_OUTPUT_BYTES
+                );
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
             }
 
-            /// Finalize with specified output length and return as Vec
-            pub fn finalize_with_length(mut self, output_len: usize) -> Vec<u8> {
+            /// Finalize with specified output length and return as [`Vec`].
+            ///
+            /// Returns [`None`] if `output_len` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
+            /// For longer output, use [`Self::xof`].
+            pub fn finalize_with_length(mut self, output_len: usize) -> Option<Vec<u8>> {
+                if output_len > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return None;
+                }
                 let mut output = vec![0u8; output_len];
                 self.with_bitlength((output_len * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, &mut output);
-                output
+                Some(output)
             }
 
-            /// Get XOF reader for variable-length output
+            /// Returns an XOF reader for variable-length output.
+            ///
+            /// SP 800-185 encodes XOF mode with `right_encode(0)` (output bit length zero) before
+            /// squeezing.
+            ///
+            /// This consumes `self` and finalizes the sponge; you cannot call [`Self::update`] or
+            /// [`Self::update_tuple`] afterward on this value.
             pub fn xof(mut self) -> $reader_name {
                 self.with_bitlength(0);
                 $reader_name {
@@ -461,7 +487,9 @@ mod tests {
 
         let mut hasher = tuplehash;
         hasher.update_tuple(&tuple);
-        let result = hasher.finalize_with_length(32);
+        let result = hasher
+            .finalize_with_length(32)
+            .expect("within SP800-185 output cap");
         assert_eq!(result.len(), 32);
     }
 
@@ -484,5 +512,24 @@ mod tests {
         let mut output = [0u8; 32];
         tuplehash2.finalize(&mut output);
         assert_ne!(output, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_tuplehash_finalize_with_length_rejects_over_cap() {
+        let mut h = TupleHash128::new(b"");
+        h.update(b"x");
+        assert!(
+            h.finalize_with_length(MAX_SP800185_FIXED_OUTPUT_BYTES + 1)
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds MAX_SP800185_FIXED_OUTPUT_BYTES")]
+    fn test_tuplehash_finalize_panics_on_over_cap_buffer() {
+        let mut h = TupleHash128::new(b"");
+        h.update(b"x");
+        let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
+        h.finalize(&mut out);
     }
 }

@@ -121,6 +121,7 @@ pub use turbo_shake::{
     TurboShake256,
     TurboShake256Reader,
 };
+pub use utils::MAX_SP800185_FIXED_OUTPUT_BYTES;
 
 // Re-export hash types
 pub use crate::hash_types::{

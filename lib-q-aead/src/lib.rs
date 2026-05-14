@@ -76,35 +76,35 @@ mod wasm;
 
 // Algorithm implementations
 #[cfg(feature = "duplex-sponge-aead")]
-mod duplex_aead_impl;
+mod duplex_aead;
 #[cfg(feature = "kem-aead")]
-mod kem_aead_impl;
+mod kem_aead;
 #[cfg(feature = "romulus-m")]
-mod romulus_m_impl;
+mod romulus_m;
 #[cfg(feature = "romulus-n")]
-mod romulus_n_impl;
+mod romulus_n;
 #[cfg(feature = "saturnin")]
-mod saturnin_impl;
+mod saturnin;
 #[cfg(feature = "shake256")]
-mod shake256_impl;
+mod shake256;
 #[cfg(feature = "tweak-aead")]
-mod tweak_aead_impl;
+mod tweak_aead;
 
 // Re-export implementations
 #[cfg(feature = "duplex-sponge-aead")]
-pub use duplex_aead_impl::DuplexSpongeAead;
+pub use duplex_aead::DuplexSpongeAead;
 #[cfg(feature = "kem-aead")]
-pub use kem_aead_impl::KemAead;
+pub use kem_aead::KemAead;
 #[cfg(feature = "romulus-m")]
-pub use romulus_m_impl::RomulusMAead;
+pub use romulus_m::RomulusMAead;
 #[cfg(feature = "romulus-n")]
-pub use romulus_n_impl::RomulusNAead;
+pub use romulus_n::RomulusNAead;
 #[cfg(feature = "saturnin")]
-pub use saturnin_impl::SaturninAead;
+pub use saturnin::SaturninAead;
 #[cfg(feature = "shake256")]
-pub use shake256_impl::Shake256Aead;
+pub use shake256::Shake256Aead;
 #[cfg(feature = "tweak-aead")]
-pub use tweak_aead_impl::TweakAead;
+pub use tweak_aead::TweakAead;
 
 /// Global AEAD registry instance
 ///

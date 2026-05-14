@@ -1,7 +1,7 @@
 //! Security Features Example for lib-q-aead
 //!
 //! This example demonstrates advanced security features including
-//! timing attack protection, constant-time operations, and secure memory handling.
+//! latency padding utilities, constant-time operations, and secure memory handling.
 
 use std::time::Instant;
 
@@ -48,49 +48,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let key = AeadKey::new(key_data);
     let nonce = Nonce::new(nonce_data);
-    let plaintext = b"Secure message with timing protection";
+    let plaintext = b"Secure message with constant-time primitives";
     let associated_data = b"security metadata";
 
     println!("✓ Created AEAD instance and test data");
 
-    // 1. Timing Attack Protection
-    println!("\n1. Timing Attack Protection");
-    println!("---------------------------");
+    // 1. Latency Padding Utility
+    println!("\n1. Latency Padding Utility");
+    println!("--------------------------");
 
     // Demonstrate timing protection
     let timing_protection = TimingProtection::strict();
 
     let start = Instant::now();
-    let ciphertext = timing_protection
-        .protect(|| aead.encrypt(&key, &nonce, plaintext, Some(associated_data)))?;
+    let padded_result = timing_protection.protect(|| {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        42u8
+    });
     let protected_time = start.elapsed();
-
-    println!("✓ Encryption with timing protection: {:?}", protected_time);
-
-    // Decrypt with timing protection
-    let start = Instant::now();
-    let decrypted = timing_protection
-        .protect(|| aead.decrypt(&key, &nonce, &ciphertext, Some(associated_data)))?;
-    let protected_decrypt_time = start.elapsed();
-
-    // Verify the decryption was successful
-    assert_eq!(decrypted, plaintext);
-
+    assert_eq!(padded_result, 42u8);
     println!(
-        "✓ Decryption with timing protection: {:?}",
-        protected_decrypt_time
+        "✓ Local latency padding utility elapsed: {:?}",
+        protected_time
     );
 
-    // 2. Global Timing Protection
-    println!("\n2. Global Timing Protection");
-    println!("----------------------------");
+    // 2. Global Latency Padding Utility
+    println!("\n2. Global Latency Padding Utility");
+    println!("---------------------------------");
 
     let start = Instant::now();
-    let result = protect_timing(|| aead.decrypt(&key, &nonce, &ciphertext, Some(associated_data)))?;
+    let result = protect_timing(|| {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        7u8
+    });
     let global_protected_time = start.elapsed();
+    assert_eq!(result, 7u8);
+    println!(
+        "✓ Global latency padding utility elapsed: {:?}",
+        global_protected_time
+    );
 
-    println!("✓ Global timing protection: {:?}", global_protected_time);
-    assert_eq!(result, plaintext);
+    // AEAD operations run directly; constant-time behavior must come from the algorithm.
+    let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(associated_data))?;
+    let decrypted = aead.decrypt(&key, &nonce, &ciphertext, Some(associated_data))?;
+    assert_eq!(decrypted, plaintext);
 
     // 3. Security Context
     println!("\n3. Security Context");
@@ -215,11 +216,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ctx.side_channel_protection_enabled()
         );
         println!("  - Secure memory: {}", ctx.secure_memory_enabled());
-        println!("  - Timing protection: {}", ctx.timing_protection_enabled());
+        println!(
+            "  - Latency padding enabled: {}",
+            ctx.timing_protection_enabled()
+        );
     }
 
     println!("\n🎉 All security features demonstrated successfully!");
-    println!("lib-q-aead provides comprehensive security protection for your applications.");
+    println!("lib-q-aead provides post-quantum AEAD with constant-time primitives.");
 
     Ok(())
 }

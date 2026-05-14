@@ -1,5 +1,6 @@
-//! Romulus-N AEAD — registry-facing type.
+//! Tweakable CTR AEAD wrapper.
 
+#[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -16,23 +17,23 @@ use crate::metadata::{
     AeadWithMetadata,
 };
 
-/// Romulus-N (nonce-based AEAD) for the lib-Q AEAD registry.
-pub struct RomulusNAead {
+/// Tweak AEAD — registry / HPKE-facing type.
+pub struct TweakAead {
     metadata: &'static AeadMetadata,
-    inner: lib_q_romulus::RomulusNAead,
+    inner: lib_q_tweak_aead::TweakAead,
 }
 
-impl RomulusNAead {
+impl TweakAead {
     pub fn new() -> Self {
         Self {
-            metadata: crate::metadata::get_metadata(Algorithm::RomulusN)
-                .expect("Romulus-N metadata"),
-            inner: lib_q_romulus::RomulusNAead::new(),
+            metadata: crate::metadata::get_metadata(Algorithm::TweakAead)
+                .expect("TweakAead metadata"),
+            inner: lib_q_tweak_aead::TweakAead::new(),
         }
     }
 }
 
-impl Aead for RomulusNAead {
+impl Aead for TweakAead {
     fn encrypt(
         &self,
         key: &AeadKey,
@@ -45,9 +46,7 @@ impl Aead for RomulusNAead {
         crate::security::validation::validate_plaintext(plaintext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.encrypt(key, nonce, plaintext, Some(ad))
-        })
+        self.inner.encrypt(key, nonce, plaintext, Some(ad))
     }
 
     fn decrypt(
@@ -63,27 +62,25 @@ impl Aead for RomulusNAead {
         crate::security::validation::validate_ciphertext(ciphertext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.decrypt(key, nonce, ciphertext, Some(ad))
-        })
+        self.inner.decrypt(key, nonce, ciphertext, Some(ad))
     }
 }
 
-impl AeadWithMetadata for RomulusNAead {
+impl AeadWithMetadata for TweakAead {
     fn metadata(&self) -> &'static AeadMetadata {
         self.metadata
     }
 }
 
-impl Default for RomulusNAead {
+impl Default for TweakAead {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl crate::plugin::AeadPlugin for RomulusNAead {
+impl crate::plugin::AeadPlugin for TweakAead {
     fn algorithm(&self) -> Algorithm {
-        Algorithm::RomulusN
+        Algorithm::TweakAead
     }
 
     fn create(&self) -> Result<Box<dyn AeadWithMetadata>> {
@@ -91,19 +88,19 @@ impl crate::plugin::AeadPlugin for RomulusNAead {
     }
 
     fn metadata(&self) -> &'static AeadMetadata {
-        crate::metadata::get_metadata(Algorithm::RomulusN).expect("Romulus-N metadata")
+        crate::metadata::get_metadata(Algorithm::TweakAead).expect("TweakAead metadata")
     }
 
     fn name(&self) -> &'static str {
-        "Romulus-N"
+        "Tweak-AEAD"
     }
 
     fn version(&self) -> &'static str {
-        "1.3.0"
+        "1.0.0"
     }
 
     fn description(&self) -> &'static str {
-        "Romulus-N nonce-based AEAD (SKINNY-128-384+), 128-bit key/nonce/tag"
+        "Parallel tweakable-block CTR AEAD over Keccak-f[1600]"
     }
 }
 
@@ -112,11 +109,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn romulus_n_metadata_matches() {
-        let a = RomulusNAead::new();
-        assert_eq!(a.algorithm(), Algorithm::RomulusN);
-        assert_eq!(a.key_size(), 16);
+    fn metadata_matches() {
+        let a = TweakAead::new();
+        assert_eq!(a.algorithm(), Algorithm::TweakAead);
+        assert_eq!(a.key_size(), 32);
         assert_eq!(a.nonce_size(), 16);
-        assert_eq!(a.tag_size(), 16);
+        assert_eq!(a.tag_size(), 32);
     }
 }

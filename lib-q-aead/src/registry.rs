@@ -38,8 +38,6 @@ impl Hasher for AlgorithmHasher {
 /// Uses BTreeMap for consistent cross-platform behavior and security
 /// AlgorithmHasher is available for future HashMap usage if needed
 type AlgorithmHashMap = BTreeMap<Algorithm, AeadConstructor>;
-#[cfg(not(feature = "std"))]
-use core::cell::RefCell;
 #[cfg(feature = "std")]
 use std::sync::RwLock;
 
@@ -49,6 +47,8 @@ use lib_q_core::{
     Error,
     Result,
 };
+#[cfg(not(feature = "std"))]
+use spin::RwLock;
 
 use crate::AeadWithMetadata;
 use crate::metadata::AeadMetadata;
@@ -59,32 +59,17 @@ pub type AeadConstructor = Box<dyn Fn() -> Result<Box<dyn AeadWithMetadata>> + S
 
 /// Registry for AEAD algorithms
 pub struct AeadRegistry {
-    #[cfg(feature = "std")]
     constructors: RwLock<AlgorithmHashMap>,
-    #[cfg(not(feature = "std"))]
-    constructors: RefCell<AlgorithmHashMap>,
-    #[cfg(feature = "std")]
     plugins: RwLock<Vec<Box<dyn AeadPlugin>>>,
-    #[cfg(not(feature = "std"))]
-    plugins: RefCell<Vec<Box<dyn AeadPlugin>>>,
     metadata: BTreeMap<Algorithm, &'static AeadMetadata>,
 }
-
-// Make AeadRegistry Sync for WASM targets
-unsafe impl Sync for AeadRegistry {}
 
 impl AeadRegistry {
     /// Create a new AEAD registry
     pub fn new() -> Self {
         Self {
-            #[cfg(feature = "std")]
             constructors: RwLock::new(AlgorithmHashMap::new()),
-            #[cfg(not(feature = "std"))]
-            constructors: RefCell::new(AlgorithmHashMap::new()),
-            #[cfg(feature = "std")]
             plugins: RwLock::new(Vec::new()),
-            #[cfg(not(feature = "std"))]
-            plugins: RefCell::new(Vec::new()),
             metadata: Self::create_metadata_map(),
         }
     }
@@ -92,94 +77,21 @@ impl AeadRegistry {
     /// Create the metadata map for all known algorithms
     fn create_metadata_map() -> BTreeMap<Algorithm, &'static AeadMetadata> {
         let mut metadata = BTreeMap::new();
-
-        // Saturnin metadata
-        metadata.insert(Algorithm::Saturnin, &AeadMetadata {
-            algorithm: Algorithm::Saturnin,
-            key_size: 32,
-            nonce_size: 16,
-            tag_size: 32,
-            security_level: 1,
-            name: "Saturnin",
-            description: "Lightweight post-quantum symmetric algorithm suite for IoT and constrained devices",
-        });
-
-        // SHAKE256 AEAD metadata
-        metadata.insert(
+        let known_algorithms = [
+            Algorithm::Saturnin,
             Algorithm::Shake256Aead,
-            &AeadMetadata {
-                algorithm: Algorithm::Shake256Aead,
-                key_size: 32,
-                nonce_size: 16,
-                tag_size: 32,
-                security_level: 1,
-                name: "SHAKE256-AEAD",
-                description: "SHAKE256-based AEAD construction using post-quantum hash function",
-            },
-        );
-
-        // KEM AEAD metadata
-        metadata.insert(Algorithm::KemAead, &AeadMetadata {
-            algorithm: Algorithm::KemAead,
-            key_size: 32,
-            nonce_size: 16,
-            tag_size: 32,
-            security_level: 4,
-            name: "KEM-AEAD",
-            description: "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
-        });
-
-        metadata.insert(
+            Algorithm::KemAead,
             Algorithm::DuplexSpongeAead,
-            &AeadMetadata {
-                algorithm: Algorithm::DuplexSpongeAead,
-                key_size: 32,
-                nonce_size: 16,
-                tag_size: 32,
-                security_level: 4,
-                name: "Duplex-Sponge-AEAD",
-                description: "Keccak-f[1600] duplex-sponge authenticated encryption",
-            },
-        );
-
-        metadata.insert(
             Algorithm::TweakAead,
-            &AeadMetadata {
-                algorithm: Algorithm::TweakAead,
-                key_size: 32,
-                nonce_size: 16,
-                tag_size: 32,
-                security_level: 4,
-                name: "Tweak-AEAD",
-                description: "Parallel tweakable-block CTR AEAD over Keccak-f[1600]",
-            },
-        );
-
-        metadata.insert(
             Algorithm::RomulusN,
-            &AeadMetadata {
-                algorithm: Algorithm::RomulusN,
-                key_size: 16,
-                nonce_size: 16,
-                tag_size: 16,
-                security_level: 1,
-                name: "Romulus-N",
-                description: "Romulus-N nonce-based AEAD (SKINNY-128-384+), LWC v1.3",
-            },
-        );
-
-        metadata.insert(
             Algorithm::RomulusM,
-            &AeadMetadata {
-                algorithm: Algorithm::RomulusM,
-                key_size: 16,
-                nonce_size: 16,
-                tag_size: 16,
-                security_level: 1,
-                name: "Romulus-M",
-                description: "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
-            },
-        );
+        ];
+
+        for algorithm in known_algorithms {
+            if let Some(algorithm_metadata) = crate::metadata::get_metadata(algorithm) {
+                metadata.insert(algorithm, algorithm_metadata);
+            }
+        }
 
         metadata
     }
@@ -206,7 +118,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let mut constructors = self.constructors.borrow_mut();
+            let mut constructors = self.constructors.write();
             constructors.insert(algorithm, Box::new(constructor));
         }
         Ok(())
@@ -224,7 +136,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let mut plugins = self.plugins.borrow_mut();
+            let mut plugins = self.plugins.write();
             plugins.push(plugin);
         }
         Ok(())
@@ -245,7 +157,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let constructors = self.constructors.borrow();
+            let constructors = self.constructors.read();
             if let Some(constructor) = constructors.get(&algorithm) {
                 return constructor();
             }
@@ -266,7 +178,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let plugins = self.plugins.borrow();
+            let plugins = self.plugins.read();
             for plugin in plugins.iter() {
                 if plugin.algorithm() == algorithm {
                     return plugin.create();
@@ -292,7 +204,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let constructors = self.constructors.borrow();
+            let constructors = self.constructors.read();
             algorithms.extend(constructors.keys().copied());
         }
 
@@ -310,7 +222,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let plugins = self.plugins.borrow();
+            let plugins = self.plugins.read();
             for plugin in plugins.iter() {
                 let algorithm = plugin.algorithm();
                 if !algorithms.contains(&algorithm) {
@@ -336,7 +248,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let constructors = self.constructors.borrow();
+            let constructors = self.constructors.read();
             if constructors.contains_key(&algorithm) {
                 return true;
             }
@@ -355,7 +267,7 @@ impl AeadRegistry {
         }
         #[cfg(not(feature = "std"))]
         {
-            let plugins = self.plugins.borrow();
+            let plugins = self.plugins.read();
             for plugin in plugins.iter() {
                 if plugin.algorithm() == algorithm {
                     return true;

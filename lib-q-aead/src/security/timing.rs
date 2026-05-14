@@ -1,8 +1,9 @@
-//! Timing attack protection
+//! Latency padding and jitter utilities.
 //!
-//! This module provides protection against timing attacks by ensuring
-//! that cryptographic operations take constant time regardless of
-//! the input values.
+//! This module adds post-operation delay and optional jitter to reduce
+//! timing signal quality, but it does **not** make non-constant-time
+//! code constant-time. Constant-time behavior must be implemented in the
+//! underlying cryptographic operation itself.
 
 use core::future::Future;
 #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
@@ -11,10 +12,10 @@ use core::sync::atomic::{
     Ordering,
 };
 
-/// Timing attack protection configuration
+/// Latency padding configuration for operation wrappers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TimingProtection {
-    /// Enable timing attack protection
+    /// Enable latency padding/jitter wrapper
     pub enabled: bool,
     /// Minimum execution time in nanoseconds
     pub min_execution_time: u64,
@@ -77,7 +78,7 @@ impl TimingProtection {
         }
     }
 
-    /// Protect a function with timing attack resistance
+    /// Run a function and then apply minimum-duration padding and optional jitter.
     pub fn protect<F, R>(&self, func: F) -> R
     where
         F: FnOnce() -> R,
@@ -96,11 +97,8 @@ impl TimingProtection {
             self.sleep(self.min_execution_time - execution_time);
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         if self.enable_jitter {
@@ -111,7 +109,7 @@ impl TimingProtection {
         result
     }
 
-    /// Protect a function with timing attack resistance (async version)
+    /// Async variant of `protect`.
     pub async fn protect_async<F, Fut, R>(&self, func: F) -> R
     where
         F: FnOnce() -> Fut,
@@ -132,11 +130,8 @@ impl TimingProtection {
                 .await;
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         if self.enable_jitter {
@@ -147,7 +142,7 @@ impl TimingProtection {
         result
     }
 
-    /// Protect a function with timing attack resistance and return execution time
+    /// Run a function with latency padding and return result plus elapsed time.
     pub fn protect_with_timing<F, R>(&self, func: F) -> (R, u64)
     where
         F: FnOnce() -> R,
@@ -169,11 +164,8 @@ impl TimingProtection {
             self.sleep(self.min_execution_time - execution_time);
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         if self.enable_jitter {
@@ -186,7 +178,7 @@ impl TimingProtection {
         (result, total_time)
     }
 
-    /// Protect a function with timing attack resistance and return execution time (async version)
+    /// Async variant of `protect_with_timing`.
     pub async fn protect_with_timing_async<F, Fut, R>(&self, func: F) -> (R, u64)
     where
         F: FnOnce() -> Fut,
@@ -210,11 +202,8 @@ impl TimingProtection {
                 .await;
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         if self.enable_jitter {
@@ -225,7 +214,7 @@ impl TimingProtection {
         (result, execution_time)
     }
 
-    /// Protect a function with timing attack resistance and return execution time and jitter
+    /// Run a function with latency padding and return result, elapsed time, and jitter.
     pub fn protect_with_timing_and_jitter<F, R>(&self, func: F) -> (R, u64, u64)
     where
         F: FnOnce() -> R,
@@ -247,11 +236,8 @@ impl TimingProtection {
             self.sleep(self.min_execution_time - execution_time);
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         let jitter = if self.enable_jitter {
@@ -267,7 +253,7 @@ impl TimingProtection {
         (result, total_time, jitter)
     }
 
-    /// Protect a function with timing attack resistance and return execution time and jitter (async version)
+    /// Async variant of `protect_with_timing_and_jitter`.
     pub async fn protect_with_timing_and_jitter_async<F, Fut, R>(&self, func: F) -> (R, u64, u64)
     where
         F: FnOnce() -> Fut,
@@ -291,11 +277,8 @@ impl TimingProtection {
                 .await;
         }
 
-        // Ensure maximum execution time
-        if execution_time > self.max_execution_time {
-            // Log warning or take other action
-            // For now, we just continue
-        }
+        // `max_execution_time` is informational only in this wrapper.
+        let _exceeded_max_execution_time = execution_time > self.max_execution_time;
 
         // Add jitter if enabled
         let jitter = if self.enable_jitter {
@@ -487,7 +470,7 @@ pub fn set_timing_protection(protection: TimingProtection) {
     }
 }
 
-/// Protect a function with global timing attack resistance
+/// Apply global latency padding and jitter.
 pub fn protect_timing<F, R>(func: F) -> R
 where
     F: FnOnce() -> R,
@@ -495,7 +478,7 @@ where
     get_timing_protection().protect(func)
 }
 
-/// Protect a function with global timing attack resistance (async version)
+/// Async variant of `protect_timing`.
 pub async fn protect_timing_async<F, Fut, R>(func: F) -> R
 where
     F: FnOnce() -> Fut,
@@ -504,7 +487,7 @@ where
     get_timing_protection().protect_async(func).await
 }
 
-/// Protect a function with global timing attack resistance and return execution time
+/// Apply global latency padding and return result plus elapsed time.
 pub fn protect_timing_with_timing<F, R>(func: F) -> (R, u64)
 where
     F: FnOnce() -> R,
@@ -512,7 +495,7 @@ where
     get_timing_protection().protect_with_timing(func)
 }
 
-/// Protect a function with global timing attack resistance and return execution time (async version)
+/// Async variant of `protect_timing_with_timing`.
 pub async fn protect_timing_with_timing_async<F, Fut, R>(func: F) -> (R, u64)
 where
     F: FnOnce() -> Fut,
@@ -523,7 +506,7 @@ where
         .await
 }
 
-/// Protect a function with global timing attack resistance and return execution time and jitter
+/// Apply global latency padding and return result, elapsed time, and jitter.
 pub fn protect_timing_with_timing_and_jitter<F, R>(func: F) -> (R, u64, u64)
 where
     F: FnOnce() -> R,
@@ -531,7 +514,7 @@ where
     get_timing_protection().protect_with_timing_and_jitter(func)
 }
 
-/// Protect a function with global timing attack resistance and return execution time and jitter (async version)
+/// Async variant of `protect_timing_with_timing_and_jitter`.
 pub async fn protect_timing_with_timing_and_jitter_async<F, Fut, R>(func: F) -> (R, u64, u64)
 where
     F: FnOnce() -> Fut,

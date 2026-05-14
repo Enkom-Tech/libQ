@@ -1,4 +1,4 @@
-//! Tweakable CTR AEAD wrapper.
+//! Duplex-sponge AEAD wrapper.
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -17,23 +17,23 @@ use crate::metadata::{
     AeadWithMetadata,
 };
 
-/// Tweak AEAD — registry / HPKE-facing type.
-pub struct TweakAead {
+/// Duplex-sponge AEAD (Keccak-f[1600]) — registry / HPKE-facing type.
+pub struct DuplexSpongeAead {
     metadata: &'static AeadMetadata,
-    inner: lib_q_tweak_aead::TweakAead,
+    inner: lib_q_duplex_aead::DuplexSpongeAead,
 }
 
-impl TweakAead {
+impl DuplexSpongeAead {
     pub fn new() -> Self {
         Self {
-            metadata: crate::metadata::get_metadata(Algorithm::TweakAead)
-                .expect("TweakAead metadata"),
-            inner: lib_q_tweak_aead::TweakAead::new(),
+            metadata: crate::metadata::get_metadata(Algorithm::DuplexSpongeAead)
+                .expect("DuplexSpongeAead metadata"),
+            inner: lib_q_duplex_aead::DuplexSpongeAead::new(),
         }
     }
 }
 
-impl Aead for TweakAead {
+impl Aead for DuplexSpongeAead {
     fn encrypt(
         &self,
         key: &AeadKey,
@@ -46,9 +46,7 @@ impl Aead for TweakAead {
         crate::security::validation::validate_plaintext(plaintext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.encrypt(key, nonce, plaintext, Some(ad))
-        })
+        self.inner.encrypt(key, nonce, plaintext, Some(ad))
     }
 
     fn decrypt(
@@ -64,27 +62,25 @@ impl Aead for TweakAead {
         crate::security::validation::validate_ciphertext(ciphertext)?;
         let ad = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(ad)?;
-        crate::security::timing::protect_timing(|| {
-            self.inner.decrypt(key, nonce, ciphertext, Some(ad))
-        })
+        self.inner.decrypt(key, nonce, ciphertext, Some(ad))
     }
 }
 
-impl AeadWithMetadata for TweakAead {
+impl AeadWithMetadata for DuplexSpongeAead {
     fn metadata(&self) -> &'static AeadMetadata {
         self.metadata
     }
 }
 
-impl Default for TweakAead {
+impl Default for DuplexSpongeAead {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl crate::plugin::AeadPlugin for TweakAead {
+impl crate::plugin::AeadPlugin for DuplexSpongeAead {
     fn algorithm(&self) -> Algorithm {
-        Algorithm::TweakAead
+        Algorithm::DuplexSpongeAead
     }
 
     fn create(&self) -> Result<Box<dyn AeadWithMetadata>> {
@@ -92,11 +88,12 @@ impl crate::plugin::AeadPlugin for TweakAead {
     }
 
     fn metadata(&self) -> &'static AeadMetadata {
-        crate::metadata::get_metadata(Algorithm::TweakAead).expect("TweakAead metadata")
+        crate::metadata::get_metadata(Algorithm::DuplexSpongeAead)
+            .expect("DuplexSpongeAead metadata")
     }
 
     fn name(&self) -> &'static str {
-        "Tweak-AEAD"
+        "Duplex-Sponge-AEAD"
     }
 
     fn version(&self) -> &'static str {
@@ -104,7 +101,7 @@ impl crate::plugin::AeadPlugin for TweakAead {
     }
 
     fn description(&self) -> &'static str {
-        "Parallel tweakable-block CTR AEAD over Keccak-f[1600]"
+        "Keccak-f[1600] duplex-sponge authenticated encryption"
     }
 }
 
@@ -114,8 +111,8 @@ mod tests {
 
     #[test]
     fn metadata_matches() {
-        let a = TweakAead::new();
-        assert_eq!(a.algorithm(), Algorithm::TweakAead);
+        let a = DuplexSpongeAead::new();
+        assert_eq!(a.algorithm(), Algorithm::DuplexSpongeAead);
         assert_eq!(a.key_size(), 32);
         assert_eq!(a.nonce_size(), 16);
         assert_eq!(a.tag_size(), 32);

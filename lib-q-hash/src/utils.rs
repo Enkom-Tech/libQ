@@ -5,6 +5,15 @@
 //! that pattern copies the key into `Vec` storage that can remain readable after reuse or
 //! reallocation. Production KMAC streams that construction into the sponge instead.
 
+/// Maximum fixed output length (bytes) for SP 800-185 helpers in this crate (KMAC, TupleHash,
+/// ParallelHash).
+///
+/// [`crate::Kmac128::finalize`], [`crate::TupleHash128::finalize`], and similar APIs refuse larger
+/// caller buffers (see each method). Heap-returning [`crate::Kmac128::finalize_with_length`] and
+/// peers return [`None`] when the requested length exceeds this bound. For unbounded squeeze output,
+/// use [`crate::Kmac128::xof`] (and the TupleHash / ParallelHash equivalents).
+pub const MAX_SP800185_FIXED_OUTPUT_BYTES: usize = 1024;
+
 /// Left encode function
 ///
 /// Encodes a non-negative integer x as a bit string of minimal length

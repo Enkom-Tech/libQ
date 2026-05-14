@@ -385,18 +385,20 @@ impl Aead for SaturninAead {
         // Continue cascade on ciphertext
         self.cascade(&mut tag, 4, 5, ciphertext_data)?;
 
-        // Verify tag in constant time to prevent timing side channels
-        if !lib_q_core::Utils::constant_time_compare(&tag, received_tag) {
-            return Err(Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            });
-        }
+        let tag_valid = lib_q_core::Utils::constant_time_compare(&tag, received_tag);
 
-        // Decrypt plaintext with CTR
+        // Always perform CTR decrypt so execution time is independent of tag validity.
         let mut plaintext = ciphertext_data.to_vec();
         self.ctr_encrypt(key.as_bytes(), nonce.as_bytes(), &mut plaintext)?;
 
-        Ok(plaintext)
+        if tag_valid {
+            Ok(plaintext)
+        } else {
+            plaintext.fill(0);
+            Err(Error::VerificationFailed {
+                operation: "AEAD tag verification".to_string(),
+            })
+        }
     }
 }
 

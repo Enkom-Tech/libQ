@@ -53,13 +53,11 @@ impl Aead for SaturninAead {
         let associated_data = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(associated_data)?;
 
-        // Use lib-q-saturnin for encryption with timing protection
+        // Use lib-q-saturnin for encryption.
         #[cfg(feature = "saturnin")]
         {
-            crate::security::timing::protect_timing(|| {
-                self.inner
-                    .encrypt(key, nonce, plaintext, Some(associated_data))
-            })
+            self.inner
+                .encrypt(key, nonce, plaintext, Some(associated_data))
         }
 
         #[cfg(not(feature = "saturnin"))]
@@ -86,13 +84,11 @@ impl Aead for SaturninAead {
         let associated_data = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(associated_data)?;
 
-        // Use lib-q-saturnin for decryption with timing protection
+        // Use lib-q-saturnin for decryption.
         #[cfg(feature = "saturnin")]
         {
-            crate::security::timing::protect_timing(|| {
-                self.inner
-                    .decrypt(key, nonce, ciphertext, Some(associated_data))
-            })
+            self.inner
+                .decrypt(key, nonce, ciphertext, Some(associated_data))
         }
 
         #[cfg(not(feature = "saturnin"))]

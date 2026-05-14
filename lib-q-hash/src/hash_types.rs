@@ -11,10 +11,12 @@ use digest::{
     XofReader,
 };
 use lib_q_core::{
+    Error,
     Hash,
     Result,
 };
 
+use crate::utils::MAX_SP800185_FIXED_OUTPUT_BYTES;
 use crate::{
     CShake128,
     CShake256,
@@ -638,7 +640,12 @@ impl Hash for Kmac128Hash {
     fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
         let mut hasher = self.0.clone();
         hasher.update(data);
-        let result = hasher.finalize_with_length(16);
+        let result = hasher
+            .finalize_with_length(16)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 16,
+            })?;
         Ok(result)
     }
 
@@ -651,7 +658,12 @@ impl Hash for Kmac256Hash {
     fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
         let mut hasher = self.0.clone();
         hasher.update(data);
-        let result = hasher.finalize_with_length(32);
+        let result = hasher
+            .finalize_with_length(32)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 32,
+            })?;
         Ok(result)
     }
 
@@ -666,7 +678,12 @@ impl Hash for TupleHash128Hash {
         // For TupleHash, we need to treat the data as a single tuple element
         let tuple = alloc::vec![data];
         hasher.update_tuple(&tuple);
-        let result = hasher.finalize_with_length(16);
+        let result = hasher
+            .finalize_with_length(16)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 16,
+            })?;
         Ok(result)
     }
 
@@ -681,7 +698,12 @@ impl Hash for TupleHash256Hash {
         // For TupleHash, we need to treat the data as a single tuple element
         let tuple = alloc::vec![data];
         hasher.update_tuple(&tuple);
-        let result = hasher.finalize_with_length(32);
+        let result = hasher
+            .finalize_with_length(32)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 32,
+            })?;
         Ok(result)
     }
 
@@ -694,7 +716,12 @@ impl Hash for ParallelHash128Hash {
     fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
         let mut hasher = self.0.clone();
         hasher.update(data);
-        let result = hasher.finalize_with_length(16);
+        let result = hasher
+            .finalize_with_length(16)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 16,
+            })?;
         Ok(result)
     }
 
@@ -707,7 +734,12 @@ impl Hash for ParallelHash256Hash {
     fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
         let mut hasher = self.0.clone();
         hasher.update(data);
-        let result = hasher.finalize_with_length(32);
+        let result = hasher
+            .finalize_with_length(32)
+            .ok_or(Error::InvalidMessageSize {
+                max: MAX_SP800185_FIXED_OUTPUT_BYTES,
+                actual: 32,
+            })?;
         Ok(result)
     }
 

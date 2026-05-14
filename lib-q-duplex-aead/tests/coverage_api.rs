@@ -8,6 +8,7 @@ use lib_q_core::{
 };
 use lib_q_duplex_aead::crypto::{
     DuplexCryptoError,
+    decrypt,
     encrypt,
 };
 use lib_q_duplex_aead::{
@@ -64,4 +65,24 @@ fn duplex_sponge_aead_decrypt_ciphertext_too_short_for_tag() {
     let nonce = Nonce::new(vec![8u8; NONCE_BYTES]);
     let r = aead.decrypt(&key, &nonce, &[0u8; TAG_BYTES - 1], None);
     assert!(matches!(r, Err(Error::VerificationFailed { .. })));
+}
+
+#[test]
+fn duplex_decrypt_zeroes_output_on_tag_failure() {
+    let key = [0x11u8; KEY_BYTES];
+    let nonce = [0x22u8; NONCE_BYTES];
+    let ad = b"ad";
+    let pt = b"attack at dawn";
+    let mut ct = vec![0u8; pt.len() + TAG_BYTES];
+    encrypt(&key, &nonce, ad, pt, &mut ct).expect("encryption should succeed");
+    ct[0] ^= 0x80;
+
+    let mut out = vec![0xA5u8; pt.len()];
+    let result = decrypt(&key, &nonce, ad, &ct, &mut out);
+    assert!(result.is_err(), "tampered ciphertext must fail tag check");
+    assert_eq!(
+        out,
+        vec![0u8; pt.len()],
+        "decrypt must zero output on tag failure"
+    );
 }
