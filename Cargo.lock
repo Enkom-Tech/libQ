@@ -1018,6 +1018,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "spin",
+ "subtle",
  "wasm-bindgen",
  "zeroize",
 ]
@@ -1107,6 +1108,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "spin",
+ "subtle",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "zeroize",

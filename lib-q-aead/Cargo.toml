@@ -36,7 +36,6 @@ std = ["lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
 shake256 = ["dep:lib-q-sha3", "lib-q-sha3/alloc", "dep:lib-q-random", "lib-q-random/std"]
-kem-aead = ["shake256"]  # KEM AEAD uses the same dependencies as SHAKE256
 duplex-sponge-aead = [
     "dep:lib-q-duplex-aead",
     "lib-q-duplex-aead/alloc",

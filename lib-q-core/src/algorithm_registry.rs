@@ -545,15 +545,6 @@ impl AlgorithmRegistry {
         });
 
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::KemAead,
-            category: AlgorithmCategory::Aead,
-            security_level: 4,
-            name: "KEM-AEAD",
-            description: "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
             algorithm: Algorithm::DuplexSpongeAead,
             category: AlgorithmCategory::Aead,
             security_level: 4,
@@ -726,7 +717,6 @@ impl AlgorithmRegistry {
             AlgorithmCategory::Aead => &[
                 Algorithm::Saturnin,
                 Algorithm::Shake256Aead,
-                Algorithm::KemAead,
                 Algorithm::DuplexSpongeAead,
                 Algorithm::TweakAead,
                 Algorithm::RomulusN,
@@ -784,7 +774,6 @@ impl AlgorithmRegistry {
             4 => &[
                 Algorithm::MlKem1024,
                 Algorithm::MlDsa87,
-                Algorithm::KemAead,
                 Algorithm::DuplexSpongeAead,
                 Algorithm::TweakAead,
             ],
@@ -924,7 +913,6 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
         AlgorithmCategory::Aead => &[
             Algorithm::Saturnin,
             Algorithm::Shake256Aead,
-            Algorithm::KemAead,
             Algorithm::DuplexSpongeAead,
             Algorithm::TweakAead,
             Algorithm::RomulusN,
@@ -983,7 +971,6 @@ pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
         4 => &[
             Algorithm::MlKem1024,
             Algorithm::MlDsa87,
-            Algorithm::KemAead,
             Algorithm::DuplexSpongeAead,
             Algorithm::TweakAead,
         ],

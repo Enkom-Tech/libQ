@@ -41,6 +41,7 @@ pub use lib_q_types::{
 #[cfg(any(feature = "getrandom", feature = "rand"))]
 #[allow(unused_imports)]
 use rand_core::Rng;
+use subtle::ConstantTimeEq;
 
 // Define cryptographic operation traits for dependency injection
 // This allows implementations to be provided by higher-level crates
@@ -326,12 +327,7 @@ impl Utils {
         if a.len() != b.len() {
             return false;
         }
-
-        let mut result = 0u8;
-        for (x, y) in a.iter().zip(b.iter()) {
-            result |= x ^ y;
-        }
-        result == 0
+        a.ct_eq(b).into()
     }
 }
 

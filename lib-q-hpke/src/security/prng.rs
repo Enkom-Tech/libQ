@@ -1,5 +1,8 @@
 //! Cryptographic random number generation utilities
 
+#[cfg(feature = "hash")]
+use alloc::format;
+
 #[cfg(feature = "alloc")]
 use crate::error::HpkeError;
 
@@ -75,29 +78,43 @@ impl KmacRng {
         let mut seed = [0u8; 32];
         lib_q_random::fill_entropy(&mut seed)
             .map_err(|e| HpkeError::CryptoError(alloc::format!("Entropy unavailable: {}", e)))?;
-        Ok(Self::from_seed(&seed))
+        Self::from_seed(&seed)
     }
 
-    /// Create a new KMAC-based RNG with explicit seed
-    pub fn from_seed(seed: &[u8]) -> Self {
+    /// Create a new KMAC-based RNG with explicit seed.
+    ///
+    /// Returns an error if fixed-length KMAC output cannot be produced (for example, if the
+    /// requested output length exceeds the implementation cap).
+    pub fn from_seed(seed: &[u8]) -> Result<Self, HpkeError> {
         let kmac = lib_q_hash::Kmac256::new(seed, b"HPKE-RNG");
         let mut buffer = [0u8; 32];
-        kmac.finalize(&mut buffer);
+        kmac.finalize(&mut buffer).ok_or_else(|| {
+            HpkeError::CryptoError(format!(
+                "KMAC256 finalize rejected {}-byte output (implementation output cap)",
+                buffer.len()
+            ))
+        })?;
 
-        Self {
+        Ok(Self {
             counter: 0,
             buffer,
             position: 0,
-        }
+        })
     }
 
     /// Generate next block of random data
-    fn next_block(&mut self) {
+    fn next_block(&mut self) -> Result<(), HpkeError> {
         let mut kmac = lib_q_hash::Kmac256::new(&self.buffer, b"HPKE-RNG");
         kmac.update(&self.counter.to_le_bytes());
-        kmac.finalize(&mut self.buffer);
+        kmac.finalize(&mut self.buffer).ok_or_else(|| {
+            HpkeError::CryptoError(format!(
+                "KMAC256 finalize rejected {}-byte output (implementation output cap)",
+                self.buffer.len()
+            ))
+        })?;
         self.counter = self.counter.wrapping_add(1);
         self.position = 0;
+        Ok(())
     }
 }
 
@@ -109,7 +126,7 @@ impl CryptoRng for KmacRng {
 
         while remaining > 0 {
             if self.position >= self.buffer.len() {
-                self.next_block();
+                self.next_block()?;
             }
 
             let available = self.buffer.len() - self.position;
@@ -283,8 +300,8 @@ mod tests {
     #[cfg(feature = "hash")]
     #[test]
     fn test_kmac_rng_from_seed_is_deterministic() {
-        let mut rng1 = KmacRng::from_seed(b"deterministic-seed");
-        let mut rng2 = KmacRng::from_seed(b"deterministic-seed");
+        let mut rng1 = KmacRng::from_seed(b"deterministic-seed").unwrap();
+        let mut rng2 = KmacRng::from_seed(b"deterministic-seed").unwrap();
         let mut out1 = [0u8; 64];
         let mut out2 = [0u8; 64];
         rng1.fill_bytes(&mut out1).unwrap();
@@ -295,7 +312,7 @@ mod tests {
     #[cfg(feature = "hash")]
     #[test]
     fn test_kmac_rng_next_u32_and_u64_progress() {
-        let mut rng = KmacRng::from_seed(b"another-seed");
+        let mut rng = KmacRng::from_seed(b"another-seed").unwrap();
         let a = rng.next_u32().unwrap();
         let b = rng.next_u32().unwrap();
         let c = rng.next_u64().unwrap();

@@ -191,18 +191,15 @@ macro_rules! impl_parallelhash {
             /// `output.len()` must not exceed [`MAX_SP800185_FIXED_OUTPUT_BYTES`]. For longer
             /// output, use [`Self::xof`].
             ///
-            /// # Panics
-            ///
-            /// Panics if `output.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
-            pub fn finalize(mut self, output: &mut [u8]) {
-                assert!(
-                    output.len() <= MAX_SP800185_FIXED_OUTPUT_BYTES,
-                    "ParallelHash finalize: output length {} exceeds MAX_SP800185_FIXED_OUTPUT_BYTES ({})",
-                    output.len(),
-                    MAX_SP800185_FIXED_OUTPUT_BYTES
-                );
+            /// Returns [`None`] if `output.len()` is greater than
+            /// [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
+            pub fn finalize(mut self, output: &mut [u8]) -> Option<()> {
+                if output.len() > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return None;
+                }
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
+                Some(())
             }
 
             /// Finalize with specified output length and return as [`Vec`].
@@ -477,7 +474,7 @@ mod tests {
         parallelhash.update(data);
 
         let mut output = [0u8; 32];
-        parallelhash.finalize(&mut output);
+        parallelhash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -490,7 +487,7 @@ mod tests {
         parallelhash.update(data);
 
         let mut output = [0u8; 64];
-        parallelhash.finalize(&mut output);
+        parallelhash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 64]);
     }
 
@@ -516,12 +513,12 @@ mod tests {
         let mut parallelhash1 = ParallelHash128::new(custom, 8);
         parallelhash1.update(data);
         let mut output1 = [0u8; 32];
-        parallelhash1.finalize(&mut output1);
+        parallelhash1.finalize(&mut output1).unwrap();
 
         let mut parallelhash2 = ParallelHash128::new(custom, 16);
         parallelhash2.update(data);
         let mut output2 = [0u8; 32];
-        parallelhash2.finalize(&mut output2);
+        parallelhash2.finalize(&mut output2).unwrap();
 
         // Different block sizes should produce different results
         assert_ne!(output1, output2);
@@ -534,12 +531,12 @@ mod tests {
         let mut parallelhash1 = ParallelHash128::new(b"custom1", 16);
         parallelhash1.update(data);
         let mut output1 = [0u8; 32];
-        parallelhash1.finalize(&mut output1);
+        parallelhash1.finalize(&mut output1).unwrap();
 
         let mut parallelhash2 = ParallelHash128::new(b"custom2", 16);
         parallelhash2.update(data);
         let mut output2 = [0u8; 32];
-        parallelhash2.finalize(&mut output2);
+        parallelhash2.finalize(&mut output2).unwrap();
 
         assert_ne!(output1, output2);
     }
@@ -556,7 +553,7 @@ mod tests {
         let mut parallelhash = ParallelHash128::new(custom, block_size);
         parallelhash.update(&large_data);
         let mut output = [0u8; 64];
-        parallelhash.finalize(&mut output);
+        parallelhash.finalize(&mut output).unwrap();
 
         // Verify we got a valid hash
         assert_ne!(output, [0u8; 64]);
@@ -578,7 +575,7 @@ mod tests {
         parallelhash.update(data);
 
         let mut output = [0u8; 32];
-        parallelhash.finalize(&mut output);
+        parallelhash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -589,9 +586,7 @@ mod tests {
 
         let mut hasher = parallelhash;
         hasher.update(data);
-        let result = hasher
-            .finalize_with_length(32)
-            .expect("within SP800-185 output cap");
+        let result = hasher.finalize_with_length(32).unwrap();
         assert_eq!(result.len(), 32);
     }
 
@@ -611,7 +606,7 @@ mod tests {
         parallelhash2.update(b"more_data");
 
         let mut output = [0u8; 32];
-        parallelhash2.finalize(&mut output);
+        parallelhash2.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -626,11 +621,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "exceeds MAX_SP800185_FIXED_OUTPUT_BYTES")]
-    fn test_parallelhash_finalize_panics_on_over_cap_buffer() {
+    fn test_parallelhash_finalize_rejects_over_cap_buffer() {
         let mut h = ParallelHash128::new(b"", 16);
         h.update(b"x");
         let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
-        h.finalize(&mut out);
+        assert!(h.finalize(&mut out).is_none());
     }
 }

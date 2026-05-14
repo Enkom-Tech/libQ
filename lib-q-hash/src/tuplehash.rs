@@ -108,18 +108,15 @@ macro_rules! impl_tuplehash {
             /// `output.len()` must not exceed [`MAX_SP800185_FIXED_OUTPUT_BYTES`]. For longer
             /// output, use [`Self::xof`].
             ///
-            /// # Panics
-            ///
-            /// Panics if `output.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
-            pub fn finalize(mut self, output: &mut [u8]) {
-                assert!(
-                    output.len() <= MAX_SP800185_FIXED_OUTPUT_BYTES,
-                    "TupleHash finalize: output length {} exceeds MAX_SP800185_FIXED_OUTPUT_BYTES ({})",
-                    output.len(),
-                    MAX_SP800185_FIXED_OUTPUT_BYTES
-                );
+            /// Returns [`None`] if `output.len()` is greater than
+            /// [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
+            pub fn finalize(mut self, output: &mut [u8]) -> Option<()> {
+                if output.len() > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return None;
+                }
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
+                Some(())
             }
 
             /// Finalize with specified output length and return as [`Vec`].
@@ -299,7 +296,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 32];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -313,7 +310,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 64];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 64]);
     }
 
@@ -340,12 +337,12 @@ mod tests {
         let mut tuplehash1 = TupleHash128::new(b"custom1");
         tuplehash1.update_tuple(&tuple);
         let mut output1 = [0u8; 32];
-        tuplehash1.finalize(&mut output1);
+        tuplehash1.finalize(&mut output1).unwrap();
 
         let mut tuplehash2 = TupleHash128::new(b"custom2");
         tuplehash2.update_tuple(&tuple);
         let mut output2 = [0u8; 32];
-        tuplehash2.finalize(&mut output2);
+        tuplehash2.finalize(&mut output2).unwrap();
 
         assert_ne!(output1, output2);
     }
@@ -359,7 +356,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 32];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -375,7 +372,7 @@ mod tests {
         let mut tuplehash1 = TupleHash128::new(custom);
         tuplehash1.update_tuple(&tuple1);
         let mut output1 = [0u8; 32];
-        tuplehash1.finalize(&mut output1);
+        tuplehash1.finalize(&mut output1).unwrap();
 
         // Tuple ("ab", "cd") - same concatenated string but different tuple structure
         let ab = b"ab";
@@ -384,7 +381,7 @@ mod tests {
         let mut tuplehash2 = TupleHash128::new(custom);
         tuplehash2.update_tuple(&tuple2);
         let mut output2 = [0u8; 32];
-        tuplehash2.finalize(&mut output2);
+        tuplehash2.finalize(&mut output2).unwrap();
 
         // These should produce different hashes despite having the same concatenated content
         assert_ne!(output1, output2);
@@ -402,7 +399,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 32];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -421,7 +418,7 @@ mod tests {
         tuplehash.update_tuple(&tuple2);
 
         let mut output = [0u8; 32];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -435,7 +432,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 64];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 64]);
     }
 
@@ -448,13 +445,13 @@ mod tests {
         let mut tuplehash128 = TupleHash128::new(custom);
         tuplehash128.update_tuple(&tuple);
         let mut output128 = [0u8; 32];
-        tuplehash128.finalize(&mut output128);
+        tuplehash128.finalize(&mut output128).unwrap();
 
         // TupleHash256
         let mut tuplehash256 = TupleHash256::new(custom);
         tuplehash256.update_tuple(&tuple);
         let mut output256 = [0u8; 64];
-        tuplehash256.finalize(&mut output256);
+        tuplehash256.finalize(&mut output256).unwrap();
 
         // Both should produce valid hashes
         assert_ne!(output128, [0u8; 32]);
@@ -475,7 +472,7 @@ mod tests {
         tuplehash.update_tuple(&tuple);
 
         let mut output = [0u8; 32];
-        tuplehash.finalize(&mut output);
+        tuplehash.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -487,9 +484,7 @@ mod tests {
 
         let mut hasher = tuplehash;
         hasher.update_tuple(&tuple);
-        let result = hasher
-            .finalize_with_length(32)
-            .expect("within SP800-185 output cap");
+        let result = hasher.finalize_with_length(32).unwrap();
         assert_eq!(result.len(), 32);
     }
 
@@ -510,7 +505,7 @@ mod tests {
         tuplehash2.update_tuple(&[b"more data"]);
 
         let mut output = [0u8; 32];
-        tuplehash2.finalize(&mut output);
+        tuplehash2.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -525,11 +520,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "exceeds MAX_SP800185_FIXED_OUTPUT_BYTES")]
-    fn test_tuplehash_finalize_panics_on_over_cap_buffer() {
+    fn test_tuplehash_finalize_rejects_over_cap_buffer() {
         let mut h = TupleHash128::new(b"");
         h.update(b"x");
         let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
-        h.finalize(&mut out);
+        assert!(h.finalize(&mut out).is_none());
     }
 }

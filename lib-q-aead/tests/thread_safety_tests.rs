@@ -257,8 +257,6 @@ mod thread_safety_tests {
             let mut v = vec![Algorithm::Shake256Aead];
             #[cfg(feature = "saturnin")]
             v.push(Algorithm::Saturnin);
-            #[cfg(feature = "kem-aead")]
-            v.push(Algorithm::KemAead);
             #[cfg(feature = "duplex-sponge-aead")]
             v.push(Algorithm::DuplexSpongeAead);
             #[cfg(feature = "tweak-aead")]

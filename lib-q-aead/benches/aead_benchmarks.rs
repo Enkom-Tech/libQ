@@ -63,21 +63,6 @@ fn bench_encrypt(c: &mut Criterion) {
         });
     }
 
-    // Saturnin AEAD
-    if let Ok(aead) = create_aead(Algorithm::KemAead) {
-        group.bench_function("saturnin", |b| {
-            b.iter(|| {
-                let result = aead.encrypt(
-                    black_box(&key),
-                    black_box(&nonce),
-                    black_box(&plaintext),
-                    Some(black_box(&associated_data)),
-                );
-                black_box(result)
-            })
-        });
-    }
-
     group.finish();
 }
 
@@ -94,25 +79,6 @@ fn bench_decrypt(c: &mut Criterion) {
             .expect("Encryption failed");
 
         group.bench_function("shake256", |b| {
-            b.iter(|| {
-                let result = aead.decrypt(
-                    black_box(&key),
-                    black_box(&nonce),
-                    black_box(&ciphertext),
-                    Some(black_box(&associated_data)),
-                );
-                black_box(result)
-            })
-        });
-    }
-
-    // Saturnin AEAD
-    if let Ok(aead) = create_aead(Algorithm::KemAead) {
-        let ciphertext = aead
-            .encrypt(&key, &nonce, &plaintext, Some(&associated_data))
-            .expect("Encryption failed");
-
-        group.bench_function("saturnin", |b| {
             b.iter(|| {
                 let result = aead.decrypt(
                     black_box(&key),
@@ -158,30 +124,6 @@ fn bench_round_trip(c: &mut Criterion) {
         });
     }
 
-    // Saturnin AEAD
-    if let Ok(aead) = create_aead(Algorithm::KemAead) {
-        group.bench_function("saturnin", |b| {
-            b.iter(|| {
-                let ciphertext = aead
-                    .encrypt(
-                        black_box(&key),
-                        black_box(&nonce),
-                        black_box(&plaintext),
-                        Some(black_box(&associated_data)),
-                    )
-                    .expect("Encryption failed");
-
-                let result = aead.decrypt(
-                    black_box(&key),
-                    black_box(&nonce),
-                    black_box(&ciphertext),
-                    Some(black_box(&associated_data)),
-                );
-                black_box(result)
-            })
-        });
-    }
-
     group.finish();
 }
 
@@ -194,23 +136,6 @@ fn bench_with_timing_protection(c: &mut Criterion) {
     // SHAKE256 AEAD with timing protection
     if let Ok(aead) = create_aead(Algorithm::Shake256Aead) {
         group.bench_function("shake256", |b| {
-            b.iter(|| {
-                let result = protect_timing(|| {
-                    aead.encrypt(
-                        black_box(&key),
-                        black_box(&nonce),
-                        black_box(&plaintext),
-                        Some(black_box(&associated_data)),
-                    )
-                });
-                black_box(result)
-            })
-        });
-    }
-
-    // Saturnin AEAD with timing protection
-    if let Ok(aead) = create_aead(Algorithm::KemAead) {
-        group.bench_function("saturnin", |b| {
             b.iter(|| {
                 let result = protect_timing(|| {
                     aead.encrypt(
@@ -267,20 +192,6 @@ fn bench_throughput(c: &mut Criterion) {
 
     if let Ok(aead) = create_aead(Algorithm::Shake256Aead) {
         group.bench_function("shake256", |b| {
-            b.iter(|| {
-                let result = aead.encrypt(
-                    black_box(&key),
-                    black_box(&nonce),
-                    black_box(&plaintext),
-                    Some(black_box(&associated_data)),
-                );
-                black_box(result)
-            })
-        });
-    }
-
-    if let Ok(aead) = create_aead(Algorithm::KemAead) {
-        group.bench_function("saturnin", |b| {
             b.iter(|| {
                 let result = aead.encrypt(
                     black_box(&key),

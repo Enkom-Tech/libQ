@@ -78,7 +78,6 @@ pub enum Algorithm {
     // AEAD algorithms
     Saturnin,
     Shake256Aead,
-    KemAead,
     DuplexSpongeAead,
     TweakAead,
     RomulusN,
@@ -169,7 +168,6 @@ impl Algorithm {
             // AEAD algorithms
             Algorithm::Saturnin => 1,
             Algorithm::Shake256Aead => 1,
-            Algorithm::KemAead => 4,
             Algorithm::DuplexSpongeAead => 4,
             Algorithm::TweakAead => 4,
             Algorithm::RomulusN => 1,
@@ -246,11 +244,10 @@ impl Algorithm {
             // AEAD algorithms
             Algorithm::Saturnin |
             Algorithm::Shake256Aead |
-            Algorithm::KemAead |
             Algorithm::DuplexSpongeAead |
             Algorithm::TweakAead |
             Algorithm::RomulusN |
-            Algorithm::RomulusM => AlgorithmCategory::Aead, // Multi-category algorithms
+            Algorithm::RomulusM => AlgorithmCategory::Aead,
 
             Algorithm::LatticeRingSignature |
             Algorithm::LatticeBlindIssuance |
@@ -326,11 +323,10 @@ impl Algorithm {
             // Pure AEAD algorithms
             Algorithm::Saturnin |
             Algorithm::Shake256Aead |
-            Algorithm::KemAead |
             Algorithm::DuplexSpongeAead |
             Algorithm::TweakAead |
             Algorithm::RomulusN |
-            Algorithm::RomulusM => category == AlgorithmCategory::Aead, // Multi-category algorithms
+            Algorithm::RomulusM => category == AlgorithmCategory::Aead,
 
             Algorithm::LatticeRingSignature |
             Algorithm::LatticeBlindIssuance |
@@ -439,7 +435,6 @@ impl core::fmt::Display for Algorithm {
             // AEAD algorithms
             Algorithm::Saturnin => write!(f, "Saturnin"),
             Algorithm::Shake256Aead => write!(f, "SHAKE256-AEAD"),
-            Algorithm::KemAead => write!(f, "KEM-AEAD"),
             Algorithm::DuplexSpongeAead => write!(f, "Duplex-Sponge-AEAD"),
             Algorithm::TweakAead => write!(f, "Tweak-AEAD"),
             Algorithm::RomulusN => write!(f, "Romulus-N"),

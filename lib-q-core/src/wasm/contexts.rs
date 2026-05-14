@@ -833,7 +833,7 @@ impl WasmAeadContext {
 
     /// Get supported algorithms
     pub fn supported_algorithms(&self) -> String {
-        let algorithms = alloc::vec!["saturnin", "shake256-aead", "kem-aead"];
+        let algorithms = alloc::vec!["saturnin", "shake256-aead"];
         #[cfg(feature = "wasm")]
         {
             serde_json::to_string(&algorithms).unwrap_or_else(|_| "[]".to_string())
@@ -924,7 +924,7 @@ impl WasmCryptoProvider {
                     "kangarootwelve", "turboshake128", "turboshake256", "kmac128", "kmac256",
                     "tuplehash128", "tuplehash256", "parallelhash128", "parallelhash256",
                 ],
-                "aead": ["saturnin", "shake256-aead", "kem-aead"]
+                "aead": ["saturnin", "shake256-aead"]
             });
             algorithms.to_string()
         }

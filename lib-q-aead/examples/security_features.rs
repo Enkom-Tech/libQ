@@ -1,7 +1,7 @@
 //! Security Features Example for lib-q-aead
 //!
 //! This example demonstrates advanced security features including
-//! latency padding utilities, constant-time operations, and secure memory handling.
+//! constant-time operation wrappers, constant-time primitives, and secure memory handling.
 
 use std::time::Instant;
 
@@ -53,28 +53,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✓ Created AEAD instance and test data");
 
-    // 1. Latency Padding Utility
-    println!("\n1. Latency Padding Utility");
-    println!("--------------------------");
+    // 1. Constant-Time Operation Wrapper
+    println!("\n1. Constant-Time Operation Wrapper");
+    println!("----------------------------------");
 
-    // Demonstrate timing protection
     let timing_protection = TimingProtection::strict();
 
     let start = Instant::now();
-    let padded_result = timing_protection.protect(|| {
+    let protected_result = timing_protection.protect(|| {
         std::thread::sleep(std::time::Duration::from_millis(1));
         42u8
     });
     let protected_time = start.elapsed();
-    assert_eq!(padded_result, 42u8);
+    assert_eq!(protected_result, 42u8);
     println!(
-        "✓ Local latency padding utility elapsed: {:?}",
+        "✓ Local constant-time wrapper elapsed: {:?}",
         protected_time
     );
 
-    // 2. Global Latency Padding Utility
-    println!("\n2. Global Latency Padding Utility");
-    println!("---------------------------------");
+    // 2. Global Constant-Time Wrapper
+    println!("\n2. Global Constant-Time Wrapper");
+    println!("-------------------------------");
 
     let start = Instant::now();
     let result = protect_timing(|| {
@@ -84,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let global_protected_time = start.elapsed();
     assert_eq!(result, 7u8);
     println!(
-        "✓ Global latency padding utility elapsed: {:?}",
+        "✓ Global constant-time wrapper elapsed: {:?}",
         global_protected_time
     );
 
@@ -217,7 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         println!("  - Secure memory: {}", ctx.secure_memory_enabled());
         println!(
-            "  - Latency padding enabled: {}",
+            "  - Constant-time wrapper: {}",
             ctx.timing_protection_enabled()
         );
     }

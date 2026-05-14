@@ -139,7 +139,6 @@ impl WasmConversions {
             // AEAD algorithms
             "saturnin" => Ok(Algorithm::Saturnin),
             "shake256aead" | "shake256-aead" => Ok(Algorithm::Shake256Aead),
-            "kemaead" | "kem-aead" => Ok(Algorithm::KemAead),
             "duplexspongeaead" | "duplex-sponge-aead" => Ok(Algorithm::DuplexSpongeAead),
             "tweakaead" | "tweak-aead" => Ok(Algorithm::TweakAead),
             "romulus-n" | "romulusn" => Ok(Algorithm::RomulusN),
@@ -206,7 +205,6 @@ impl WasmConversions {
             // AEAD algorithms
             Algorithm::Saturnin => "saturnin".to_string(),
             Algorithm::Shake256Aead => "shake256-aead".to_string(),
-            Algorithm::KemAead => "kem-aead".to_string(),
             Algorithm::DuplexSpongeAead => "duplex-sponge-aead".to_string(),
             Algorithm::TweakAead => "tweak-aead".to_string(),
             Algorithm::RomulusN => "romulus-n".to_string(),

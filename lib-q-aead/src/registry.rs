@@ -80,7 +80,6 @@ impl AeadRegistry {
         let known_algorithms = [
             Algorithm::Saturnin,
             Algorithm::Shake256Aead,
-            Algorithm::KemAead,
             Algorithm::DuplexSpongeAead,
             Algorithm::TweakAead,
             Algorithm::RomulusN,

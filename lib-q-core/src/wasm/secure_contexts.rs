@@ -643,7 +643,7 @@ impl SecureWasmAeadContext {
 
     /// Get supported algorithms
     pub fn get_supported_algorithms(&self) -> Result<JsValue, JsValue> {
-        let algorithms = alloc::vec!["saturnin", "shake256-aead", "kem-aead"];
+        let algorithms = alloc::vec!["saturnin", "shake256-aead"];
         match secure_serialize(&algorithms) {
             Ok(value) => Ok(value),
             Err(error) => Err(error),

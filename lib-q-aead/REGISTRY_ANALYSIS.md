@@ -74,7 +74,7 @@ if is_algorithm_available(Algorithm::Saturnin) {
 }
 
 // Get metadata
-let metadata = get_algorithm_metadata(Algorithm::KemAead);
+let metadata = get_algorithm_metadata(Algorithm::Shake256Aead);
 ```
 
 ### 3. HPKE Integration

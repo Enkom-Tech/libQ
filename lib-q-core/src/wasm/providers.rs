@@ -202,11 +202,7 @@ impl WasmProviderManager {
 
     /// Get AEAD algorithms
     pub fn get_aead_algorithms(&self) -> Vec<String> {
-        let algorithms = alloc::vec![
-            "saturnin".to_string(),
-            "shake256-aead".to_string(),
-            "kem-aead".to_string(),
-        ];
+        let algorithms = alloc::vec!["saturnin".to_string(), "shake256-aead".to_string(),];
 
         algorithms
     }

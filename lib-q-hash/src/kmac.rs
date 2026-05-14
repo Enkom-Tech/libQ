@@ -143,18 +143,15 @@ macro_rules! impl_kmac {
             /// `output.len()` must not exceed [`MAX_SP800185_FIXED_OUTPUT_BYTES`]. For longer
             /// output, use [`Self::xof`].
             ///
-            /// # Panics
-            ///
-            /// Panics if `output.len()` is greater than [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
-            pub fn finalize(mut self, output: &mut [u8]) {
-                assert!(
-                    output.len() <= MAX_SP800185_FIXED_OUTPUT_BYTES,
-                    "KMAC finalize: output length {} exceeds MAX_SP800185_FIXED_OUTPUT_BYTES ({})",
-                    output.len(),
-                    MAX_SP800185_FIXED_OUTPUT_BYTES
-                );
+            /// Returns [`None`] if `output.len()` is greater than
+            /// [`MAX_SP800185_FIXED_OUTPUT_BYTES`].
+            pub fn finalize(mut self, output: &mut [u8]) -> Option<()> {
+                if output.len() > MAX_SP800185_FIXED_OUTPUT_BYTES {
+                    return None;
+                }
                 self.with_bitlength((output.len() * 8) as u64);
                 ExtendableOutput::finalize_xof_into(self.inner, output);
+                Some(())
             }
 
             /// Finalize and compare the MAC to `expected` in constant time.
@@ -437,7 +434,7 @@ mod tests {
         kmac.update(data);
 
         let mut output = [0u8; 32];
-        kmac.finalize(&mut output);
+        kmac.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -451,7 +448,7 @@ mod tests {
         kmac.update(data);
 
         let mut output = [0u8; 64];
-        kmac.finalize(&mut output);
+        kmac.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 64]);
     }
 
@@ -478,12 +475,12 @@ mod tests {
         let mut kmac1 = Kmac128::new(b"key1", custom);
         kmac1.update(data);
         let mut output1 = [0u8; 32];
-        kmac1.finalize(&mut output1);
+        kmac1.finalize(&mut output1).unwrap();
 
         let mut kmac2 = Kmac128::new(b"key2", custom);
         kmac2.update(data);
         let mut output2 = [0u8; 32];
-        kmac2.finalize(&mut output2);
+        kmac2.finalize(&mut output2).unwrap();
 
         assert_ne!(output1, output2);
     }
@@ -496,12 +493,12 @@ mod tests {
         let mut kmac1 = Kmac128::new(key, b"custom1");
         kmac1.update(data);
         let mut output1 = [0u8; 32];
-        kmac1.finalize(&mut output1);
+        kmac1.finalize(&mut output1).unwrap();
 
         let mut kmac2 = Kmac128::new(key, b"custom2");
         kmac2.update(data);
         let mut output2 = [0u8; 32];
-        kmac2.finalize(&mut output2);
+        kmac2.finalize(&mut output2).unwrap();
 
         assert_ne!(output1, output2);
     }
@@ -520,7 +517,7 @@ mod tests {
         kmac.update(data);
 
         let mut output = [0u8; 32];
-        kmac.finalize(&mut output);
+        kmac.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -531,9 +528,7 @@ mod tests {
 
         let mut hasher = kmac;
         hasher.update(data);
-        let result = hasher
-            .finalize_with_length(32)
-            .expect("32-byte output within cap");
+        let result = hasher.finalize_with_length(32).unwrap();
         assert_eq!(result.len(), 32);
     }
 
@@ -554,7 +549,7 @@ mod tests {
         kmac2.update(b"more data");
 
         let mut output = [0u8; 32];
-        kmac2.finalize(&mut output);
+        kmac2.finalize(&mut output).unwrap();
         assert_ne!(output, [0u8; 32]);
     }
 
@@ -567,7 +562,7 @@ mod tests {
         let mut kmac = Kmac128::new(key, custom);
         kmac.update(data);
         let mut got = [0u8; 32];
-        kmac.finalize(&mut got);
+        kmac.finalize(&mut got).unwrap();
 
         let expected = kmac128_reference(key, custom, data, 32);
         assert_eq!(got.as_slice(), expected.as_slice());
@@ -582,7 +577,7 @@ mod tests {
         let mut kmac = Kmac256::new(key, custom);
         kmac.update(data);
         let mut got = [0u8; 64];
-        kmac.finalize(&mut got);
+        kmac.finalize(&mut got).unwrap();
 
         let expected = kmac256_reference(key, custom, data, 64);
         assert_eq!(got.as_slice(), expected.as_slice());
@@ -601,7 +596,7 @@ mod tests {
         let mut kmac = Kmac128::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 32];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -618,7 +613,7 @@ mod tests {
         let mut kmac = Kmac128::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 32];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -635,7 +630,7 @@ mod tests {
         let mut kmac = Kmac128::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 32];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -654,7 +649,7 @@ mod tests {
         let mut kmac = Kmac256::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 64];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -673,7 +668,7 @@ mod tests {
         let mut kmac = Kmac256::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 64];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -692,7 +687,7 @@ mod tests {
         let mut kmac = Kmac256::new(&key, custom);
         kmac.update(&data);
         let mut out = [0u8; 64];
-        kmac.finalize(&mut out);
+        kmac.finalize(&mut out).unwrap();
         assert_eq!(out, expected);
     }
 
@@ -709,7 +704,7 @@ mod tests {
         let mut kmac = Kmac128::new(&key, custom);
         kmac.update(&data);
         let mut finalized = [0u8; 32];
-        kmac.finalize(&mut finalized);
+        kmac.finalize(&mut finalized).unwrap();
         assert_eq!(finalized.as_slice(), expected.as_slice());
 
         let mut kmac2 = Kmac128::new(&key, custom);
@@ -767,11 +762,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "exceeds MAX_SP800185_FIXED_OUTPUT_BYTES")]
-    fn test_kmac_finalize_panics_on_over_cap_output_buffer() {
+    fn test_kmac_finalize_rejects_over_cap_output_buffer() {
         let mut kmac = Kmac128::new(b"k", b"");
         kmac.update(b"x");
         let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
-        kmac.finalize(&mut out);
+        assert!(kmac.finalize(&mut out).is_none());
     }
 }

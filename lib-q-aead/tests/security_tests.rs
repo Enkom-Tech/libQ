@@ -445,39 +445,18 @@ fn test_timing_attack_protection() {
     assert_eq!(result, 42);
 
     // Test protect with timing
-    let (result, timing) = protection.protect_with_timing(|| 42);
+    let (result, elapsed) = protection.protect_with_timing(|| 42);
     assert_eq!(result, 42);
-    assert!(timing > 0); // Should be positive after protection
-
-    // Test protect with timing and jitter
-    let (result, timing, jitter) = protection.protect_with_timing_and_jitter(|| 42);
-    assert_eq!(result, 42);
-    assert!(timing > 0); // Should be positive after protection
-    assert!(
-        jitter <= protection.jitter_range,
-        "jitter {jitter} exceeds protection.jitter_range {}",
-        protection.jitter_range
-    );
+    assert!(elapsed > 0);
 
     // Test global timing protection
     let result = protect_timing(|| 42);
     assert_eq!(result, 42);
 
     // Test global timing protection with timing
-    let (result, timing) = protect_timing_with_timing(|| 42);
+    let (result, elapsed) = protect_timing_with_timing(|| 42);
     assert_eq!(result, 42);
-    assert!(timing > 0); // Should be positive after protection
-
-    // Test global timing protection with timing and jitter
-    let global = get_timing_protection();
-    let (result, timing, jitter) = protect_timing_with_timing_and_jitter(|| 42);
-    assert_eq!(result, 42);
-    assert!(timing > 0); // Should be positive after protection
-    assert!(
-        jitter <= global.jitter_range,
-        "jitter {jitter} exceeds global jitter_range {}",
-        global.jitter_range
-    );
+    assert!(elapsed > 0);
 }
 
 /// Test AEAD operations with security enhancements

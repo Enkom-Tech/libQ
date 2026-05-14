@@ -199,16 +199,6 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         "SHAKE256-based AEAD construction using post-quantum hash function",
     );
 
-    static KEM_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
-        Algorithm::KemAead,
-        32, // 256-bit key
-        16, // 128-bit nonce
-        32, // 256-bit tag
-        4,  // Level 4 security
-        "KEM-AEAD",
-        "KEM-based AEAD construction combining post-quantum KEM with symmetric encryption",
-    );
-
     static DUPLEX_SPONGE_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
         Algorithm::DuplexSpongeAead,
         32,
@@ -252,7 +242,6 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
     match algorithm {
         Algorithm::Saturnin => Some(&SATURNIN_METADATA),
         Algorithm::Shake256Aead => Some(&SHAKE256_METADATA),
-        Algorithm::KemAead => Some(&KEM_AEAD_METADATA),
         Algorithm::DuplexSpongeAead => Some(&DUPLEX_SPONGE_AEAD_METADATA),
         Algorithm::TweakAead => Some(&TWEAK_AEAD_METADATA),
         Algorithm::RomulusN => Some(&ROMULUS_N_METADATA),

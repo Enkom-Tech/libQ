@@ -77,8 +77,6 @@ mod wasm;
 // Algorithm implementations
 #[cfg(feature = "duplex-sponge-aead")]
 mod duplex_aead;
-#[cfg(feature = "kem-aead")]
-mod kem_aead;
 #[cfg(feature = "romulus-m")]
 mod romulus_m;
 #[cfg(feature = "romulus-n")]
@@ -93,8 +91,6 @@ mod tweak_aead;
 // Re-export implementations
 #[cfg(feature = "duplex-sponge-aead")]
 pub use duplex_aead::DuplexSpongeAead;
-#[cfg(feature = "kem-aead")]
-pub use kem_aead::KemAead;
 #[cfg(feature = "romulus-m")]
 pub use romulus_m::RomulusMAead;
 #[cfg(feature = "romulus-n")]
@@ -125,11 +121,6 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
     #[cfg(feature = "shake256")]
     let _ = registry.register_algorithm(Algorithm::Shake256Aead, || {
         Ok(Box::new(Shake256Aead::new()) as Box<dyn AeadWithMetadata>)
-    });
-
-    #[cfg(feature = "kem-aead")]
-    let _ = registry.register_algorithm(Algorithm::KemAead, || {
-        Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
     #[cfg(feature = "duplex-sponge-aead")]
@@ -172,11 +163,6 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
     #[cfg(feature = "shake256")]
     let _ = registry.register_algorithm(Algorithm::Shake256Aead, || {
         Ok(Box::new(Shake256Aead::new()) as Box<dyn AeadWithMetadata>)
-    });
-
-    #[cfg(feature = "kem-aead")]
-    let _ = registry.register_algorithm(Algorithm::KemAead, || {
-        Ok(Box::new(KemAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
     #[cfg(feature = "duplex-sponge-aead")]

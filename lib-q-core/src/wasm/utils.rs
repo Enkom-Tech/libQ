@@ -204,7 +204,7 @@ pub fn get_supported_algorithms() -> String {
 
     // AEAD algorithms
     let mut aead_algorithms = Vec::new();
-    aead_algorithms.extend(&["saturnin", "shake256-aead", "kem-aead"]);
+    aead_algorithms.extend(&["saturnin", "shake256-aead"]);
     algorithms.insert("aead", aead_algorithms);
 
     serde_json::to_string(&algorithms).unwrap_or_else(|_| "{}".to_string())

@@ -5,6 +5,8 @@
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
+use subtle::ConstantTimeEq;
+
 use crate::error::Result;
 
 /// Timing attack prevention validator
@@ -53,12 +55,7 @@ impl TimingValidator {
         if a.len() != b.len() {
             return false;
         }
-
-        let mut result = 0u8;
-        for (x, y) in a.iter().zip(b.iter()) {
-            result |= x ^ y;
-        }
-        result == 0
+        a.ct_eq(b).into()
     }
 
     /// Constant-time selection between two values

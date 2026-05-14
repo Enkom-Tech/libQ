@@ -6,6 +6,8 @@
 #[cfg(feature = "alloc")]
 use alloc::format;
 
+use subtle::ConstantTimeEq;
+
 use crate::error::HpkeError;
 
 /// Constant-time comparison for sensitive data
@@ -13,12 +15,7 @@ pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-
-    let mut result = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) {
-        result |= x ^ y;
-    }
-    result == 0
+    a.ct_eq(b).into()
 }
 
 /// Constant-time selection between two values

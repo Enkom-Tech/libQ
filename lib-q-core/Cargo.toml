@@ -26,6 +26,9 @@ rand = { workspace = true, default-features = false, features = ["thread_rng"], 
 # Zeroize for secure memory clearing
 zeroize = { workspace = true, features = ["derive"], default-features = false }
 
+# Constant-time comparisons (volatile-fenced; avoids compiler elision)
+subtle = { workspace = true, default-features = false }
+
 # Serde for serialization (optional)
 serde = { workspace = true, optional = true, features = ["derive"], default-features = false }
 

@@ -82,22 +82,22 @@ let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(associated_data))?;
 
 ## Security Features
 
-### Latency Padding Utilities
+### Constant-Time Operation Wrapper
 
-The `timing` helpers can add minimum-duration padding and optional jitter to reduce timing signal quality in non-cryptographic workflows. They do **not** turn variable-time crypto code into constant-time code.
+The `timing` module enforces a fixed wall-clock duration for wrapped operations, preventing timing side-channels from leaking information about internal control flow. The wrapper uses `compiler_fence(SeqCst)` and `core::hint::black_box` to prevent the compiler from eliding the busy-wait or reordering results past the timing barrier.
 
 ```rust
 use lib_q_aead::security::timing::{TimingProtection, protect_timing};
 
-// Optional latency padding utility
+// Wrap an operation so it always takes at least target_duration_ns
 let result = protect_timing(|| {
-    run_non_cryptographic_work()
+    perform_sensitive_operation()
 })?;
 
-// Custom latency padding configuration
+// Custom target duration (5 µs)
 let timing_protection = TimingProtection::strict();
 let result = timing_protection.protect(|| {
-    run_non_cryptographic_work()
+    perform_sensitive_operation()
 })?;
 ```
 
@@ -136,7 +136,7 @@ The library is optimized for high performance while maintaining security:
 - **SHAKE256 AEAD**: ~2-5μs per operation (typical)
 - **Saturnin AEAD**: ~1-3μs per operation (typical)
 - **Memory Usage**: Minimal stack allocation with secure cleanup
-- **Timing Protection**: <10% overhead in protected mode
+- **Constant-Time Wrapper**: Fixed wall-clock overhead per protected call
 
 ## Feature Flags
 
@@ -158,9 +158,9 @@ The library is optimized for high performance while maintaining security:
 - Consider using counter-based nonces for high-throughput scenarios
 
 ### Timing Attacks
-- Constant-time behavior must come from the cryptographic implementation itself
-- Treat latency padding/jitter as a noise layer, not a side-channel fix
-- Test your application for timing vulnerabilities
+- The `TimingProtection` wrapper enforces a fixed wall-clock duration per call, preventing timing side-channels at the API boundary
+- Set `target_duration_ns` above the worst-case execution time of the wrapped operation
+- Constant-time algorithmic behavior (e.g. constant-time comparisons via `subtle`) is still required at the primitive level
 
 ## Examples
 
