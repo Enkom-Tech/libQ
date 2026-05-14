@@ -22,6 +22,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::api::{
     Algorithm,
+    AlgorithmCategory,
     CryptoProvider,
 };
 // use crate::error::Result;
@@ -102,11 +103,11 @@ impl WasmProviderManager {
 
         // Then check if the provider actually supports this algorithm
         match algorithm.category() {
-            crate::api::AlgorithmCategory::Kem => self.provider.kem().is_some(),
-            crate::api::AlgorithmCategory::Signature => self.provider.signature().is_some(),
-            crate::api::AlgorithmCategory::Hash => self.provider.hash().is_some(),
-            crate::api::AlgorithmCategory::Aead => self.provider.aead().is_some(),
-            crate::api::AlgorithmCategory::PrivacyProtocol => false,
+            AlgorithmCategory::Kem => self.provider.kem().is_some(),
+            AlgorithmCategory::Signature => self.provider.signature().is_some(),
+            AlgorithmCategory::Hash => self.provider.hash().is_some(),
+            AlgorithmCategory::Aead => self.provider.aead().is_some(),
+            AlgorithmCategory::PrivacyProtocol => false,
         }
     }
 
@@ -131,11 +132,11 @@ impl WasmProviderManager {
                     "max_size": 1024 * 1024 // Placeholder
                 },
                 "features": {
-                    "kem": algorithm.category() == crate::api::AlgorithmCategory::Kem,
-                    "signature": algorithm.category() == crate::api::AlgorithmCategory::Signature,
-                    "hash": algorithm.category() == crate::api::AlgorithmCategory::Hash,
-                    "aead": algorithm.category() == crate::api::AlgorithmCategory::Aead,
-                    "privacy_protocol": algorithm.category() == crate::api::AlgorithmCategory::PrivacyProtocol
+                    "kem": algorithm.category() == AlgorithmCategory::Kem,
+                    "signature": algorithm.category() == AlgorithmCategory::Signature,
+                    "hash": algorithm.category() == AlgorithmCategory::Hash,
+                    "aead": algorithm.category() == AlgorithmCategory::Aead,
+                    "privacy_protocol": algorithm.category() == AlgorithmCategory::PrivacyProtocol
                 }
             });
 
@@ -233,11 +234,17 @@ impl WasmProviderManager {
             if size == 0 {
                 return Err(JsValue::from_str("Invalid message size: empty data"));
             }
-            // Validate message size
+            // Validate message size against the limit that applies to this algorithm family.
             let test_message = (0..size).map(|_| 0u8).collect::<Vec<u8>>();
-            self.security_validator
-                .validate_message(&test_message)
-                .map_err(crate::wasm::error::error_to_js_value)?;
+            if algorithm.supports_category(AlgorithmCategory::Aead) {
+                self.security_validator
+                    .validate_aead_message(&test_message)
+                    .map_err(crate::wasm::error::error_to_js_value)?;
+            } else {
+                self.security_validator
+                    .validate_hash_input(&test_message)
+                    .map_err(crate::wasm::error::error_to_js_value)?;
+            }
         }
 
         if let Some(size) = nonce_size {

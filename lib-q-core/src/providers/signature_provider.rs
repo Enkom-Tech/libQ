@@ -110,7 +110,8 @@ impl SignatureOperations for LibQSignatureProvider {
             .validate_secret_key(algorithm, secret_key.as_bytes())?;
 
         // Validate message
-        self.security_validator.validate_message(message)?;
+        self.security_validator
+            .validate_signature_message(message)?;
 
         // Validate randomness if provided
         if let Some(rng) = randomness {
@@ -162,7 +163,8 @@ impl SignatureOperations for LibQSignatureProvider {
             .validate_public_key(algorithm, public_key.as_bytes())?;
 
         // Validate message
-        self.security_validator.validate_message(message)?;
+        self.security_validator
+            .validate_signature_message(message)?;
 
         // Validate signature
         self.security_validator

@@ -31,6 +31,8 @@ use std::sync::{
     Arc,
     OnceLock,
     RwLock,
+    RwLockReadGuard,
+    RwLockWriteGuard,
 };
 use std::thread;
 use std::time::Duration;
@@ -276,6 +278,26 @@ struct CryptoWorker {
     config: ThreadingConfig,
 }
 
+/// Exclusive access to the shared Keccak result lanes.
+///
+/// Recovers from a poisoned [`RwLock`] via [`std::sync::PoisonError::into_inner`].
+/// Workers publish disjoint index ranges; if a peer panics while holding the
+/// lock, returning `Err` here would drop locally permuted state after chunk
+/// offsets were already advanced in [`WorkDistribution`], leaving gaps that are
+/// never retried.
+fn acquire_results_write<'a>(
+    results: &'a RwLock<Vec<[u64; 25]>>,
+) -> RwLockWriteGuard<'a, Vec<[u64; 25]>> {
+    results.write().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Shared read access for returning parallel results after workers join.
+fn acquire_results_read<'a>(
+    results: &'a RwLock<Vec<[u64; 25]>>,
+) -> RwLockReadGuard<'a, Vec<[u64; 25]>> {
+    results.read().unwrap_or_else(|e| e.into_inner())
+}
+
 impl CryptoWorker {
     /// Get worker statistics for monitoring and debugging
     #[allow(dead_code)] // Used in tests and available for production monitoring
@@ -326,23 +348,22 @@ impl CryptoWorker {
                 }
             }
 
-            // Store results thread-safely with bounds checking
-            if let Ok(mut results_guard) = self.results.write() {
-                let results_len = results_guard.len();
-                let mut valid_results = 0;
+            // Store results thread-safely with bounds checking (never drop work on
+            // poisoned lock — recover the guard; each worker owns disjoint indices).
+            let mut results_guard = acquire_results_write(self.results.as_ref());
+            let results_len = results_guard.len();
+            let mut valid_results = 0;
 
-                for (i, result) in local_results.iter().enumerate() {
-                    let global_index = start + i;
-                    if global_index < results_len && global_index < states.len() {
-                        results_guard[global_index] = *result;
-                        valid_results += 1;
-                    }
+            for (i, result) in local_results.iter().enumerate() {
+                let global_index = start + i;
+                if global_index < results_len && global_index < states.len() {
+                    results_guard[global_index] = *result;
+                    valid_results += 1;
                 }
+            }
 
-                // Increment completed count only for valid results
-                if valid_results > 0 {
-                    self.work_dist.increment_completed(valid_results);
-                }
+            if valid_results > 0 {
+                self.work_dist.increment_completed(valid_results);
             }
         }
 
@@ -459,11 +480,9 @@ impl CryptoThreadPool {
             .into());
         }
 
-        // Extract results
-        match results.read() {
-            Ok(results_guard) => Ok(results_guard.clone()),
-            Err(_) => Err("Failed to read results".into()),
-        }
+        // Extract results (recover from poison so callers get the buffer workers wrote)
+        let results_guard = acquire_results_read(results.as_ref());
+        Ok(results_guard.clone())
     }
 
     /// Process states sequentially (fallback)
@@ -560,13 +579,10 @@ impl CryptoThreadPool {
 
 /// Global thread pool instance
 static GLOBAL_THREAD_POOL: OnceLock<Arc<CryptoThreadPool>> = OnceLock::new();
-static THREAD_POOL_INIT: std::sync::Once = std::sync::Once::new();
 
-/// Initialize the global thread pool
+/// Initialize the global thread pool (first call wins; later configs are ignored).
 pub fn init_global_thread_pool(config: ThreadingConfig) {
-    THREAD_POOL_INIT.call_once(|| {
-        let _ = GLOBAL_THREAD_POOL.set(Arc::new(CryptoThreadPool::new(config)));
-    });
+    GLOBAL_THREAD_POOL.get_or_init(|| Arc::new(CryptoThreadPool::new(config)));
 }
 
 /// Get the global thread pool instance
@@ -649,6 +665,31 @@ mod tests {
 
         work_dist.mark_completed();
         assert!(work_dist.is_completed());
+    }
+
+    /// Regression: workers must not drop permuted lanes when the results `RwLock`
+    /// is poisoned after another thread panicked while holding the write guard.
+    #[test]
+    #[cfg(feature = "std")]
+    fn poisoned_results_lock_still_persists_writes() {
+        let results = Arc::new(RwLock::new(vec![[0u64; 25]; 2]));
+        let results_for_panic = Arc::clone(&results);
+
+        let panicker = thread::spawn(move || {
+            let _guard = results_for_panic
+                .write()
+                .expect("lock results buffer for poison test");
+            panic!("intentional test panic while holding write lock");
+        });
+        assert!(panicker.join().is_err());
+
+        {
+            let mut guard = acquire_results_write(results.as_ref());
+            guard[1] = [42u64; 25];
+        }
+
+        let guard = acquire_results_read(results.as_ref());
+        assert_eq!(guard[1], [42u64; 25]);
     }
 
     #[test]

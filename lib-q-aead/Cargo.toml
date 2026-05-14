@@ -27,6 +27,7 @@ spin = { workspace = true }
 
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = ["Window", "Performance"] }
 serde_json = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 
@@ -59,6 +60,7 @@ wasm = [
     "alloc",
     "dep:wasm-bindgen",
     "dep:js-sys",
+    "dep:web-sys",
     "dep:serde_json",
     "dep:serde-wasm-bindgen",
     "lib-q-core/wasm",

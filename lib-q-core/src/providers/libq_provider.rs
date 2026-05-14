@@ -348,7 +348,8 @@ impl SignatureOperations for WasmSignatureProvider {
             .validate_secret_key(algorithm, secret_key.as_bytes())?;
 
         // Validate message
-        self.security_validator.validate_message(message)?;
+        self.security_validator
+            .validate_signature_message(message)?;
 
         // Validate randomness if provided
         if let Some(rng) = randomness {
@@ -380,7 +381,8 @@ impl SignatureOperations for WasmSignatureProvider {
             .validate_public_key(algorithm, public_key.as_bytes())?;
 
         // Validate message
-        self.security_validator.validate_message(message)?;
+        self.security_validator
+            .validate_signature_message(message)?;
 
         // Validate signature
         self.security_validator
@@ -419,7 +421,7 @@ impl HashOperations for WasmHashProvider {
             .validate_algorithm_category(algorithm, crate::api::AlgorithmCategory::Hash)?;
 
         // Validate data
-        self.security_validator.validate_message(data)?;
+        self.security_validator.validate_hash_input(data)?;
 
         // Return proper error indicating WASM implementation needed
         Err(crate::error::Error::NotImplemented {
@@ -468,11 +470,11 @@ impl AeadOperations for WasmAeadProvider {
         self.security_validator.validate_nonce(nonce.as_bytes())?;
 
         // Validate plaintext
-        self.security_validator.validate_message(plaintext)?;
+        self.security_validator.validate_aead_message(plaintext)?;
 
         // Validate associated data if present
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         // Return proper error indicating WASM implementation needed
@@ -509,7 +511,7 @@ impl AeadOperations for WasmAeadProvider {
 
         // Validate associated data if present
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         // Return proper error indicating WASM implementation needed

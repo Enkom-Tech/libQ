@@ -80,9 +80,9 @@ impl AeadOperations for LibQAeadProvider {
         self.security_validator
             .validate_key_material(key.as_bytes())?;
         self.security_validator.validate_nonce(nonce.as_bytes())?;
-        self.security_validator.validate_message(plaintext)?;
+        self.security_validator.validate_aead_message(plaintext)?;
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         let aead = create_aead(algorithm)?;
@@ -109,9 +109,9 @@ impl AeadOperations for LibQAeadProvider {
                 actual: 0,
             });
         }
-        self.security_validator.validate_message(ciphertext)?;
+        self.security_validator.validate_aead_message(ciphertext)?;
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         let aead = create_aead(algorithm)?;

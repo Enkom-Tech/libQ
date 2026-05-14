@@ -52,7 +52,7 @@ impl HashOperations for LibQHashProvider {
             .validate_algorithm_category(algorithm, crate::api::AlgorithmCategory::Hash)?;
 
         // Validate data
-        self.security_validator.validate_message(data)?;
+        self.security_validator.validate_hash_input(data)?;
 
         // Route to specific algorithm implementation
         // Note: Actual implementations are provided by the main lib-q crate

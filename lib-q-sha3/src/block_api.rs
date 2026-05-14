@@ -260,11 +260,12 @@ where
     fn deserialize(
         serialized_state: &SerializedState<Self>,
     ) -> Result<Self, DeserializeStateError> {
-        let mut state = [0; PLEN];
-        let chunks = serialized_state.chunks_exact(8);
-        for (val, chunk) in state.iter_mut().zip(chunks) {
-            *val = u64::from_le_bytes(chunk.try_into().unwrap());
+        let bytes: &[u8] = serialized_state.as_ref();
+        let (lanes, remainder) = bytes.as_chunks::<8>();
+        if !remainder.is_empty() || lanes.len() != PLEN {
+            return Err(DeserializeStateError);
         }
+        let state = core::array::from_fn(|i| u64::from_le_bytes(lanes[i]));
 
         Ok(Self {
             state,
@@ -351,7 +352,11 @@ pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
 
     let mut chunks = block.chunks_exact(8);
     for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        *s ^= u64::from_le_bytes(chunk.try_into().unwrap());
+        *s ^= u64::from_le_bytes(
+            *chunk
+                .first_chunk::<8>()
+                .expect("8 bytes from chunk_exact(8)"),
+        );
     }
 
     let rem = chunks.remainder();

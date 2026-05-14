@@ -79,7 +79,7 @@ impl HashOperations for LibQHashProvider {
             .validate_algorithm_category(algorithm, lib_q_core::api::AlgorithmCategory::Hash)?;
 
         // Validate input data
-        self.security_validator.validate_message(data)?;
+        self.security_validator.validate_hash_input(data)?;
 
         // Map Algorithm to HashAlgorithm and create hash instance
         let hash_algorithm = algorithm_to_hash_algorithm(algorithm)?;
@@ -123,6 +123,8 @@ impl CryptoProvider for LibQHashProvider {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
+
     use super::*;
 
     #[test]
@@ -191,5 +193,20 @@ mod tests {
         if let Ok(hash) = result {
             assert_eq!(hash.len(), 32, "SHA-256 should produce 32-byte hash");
         }
+    }
+
+    /// Hash inputs are not subject to the AEAD default binding cap (formerly 1 MiB for all payloads).
+    #[test]
+    fn hash_accepts_input_above_legacy_one_mib_policy() {
+        let provider = LibQHashProvider::new().unwrap();
+        let mut data = Vec::with_capacity(1024 * 1024 + 1);
+        data.resize(1024 * 1024 + 1, 0x5Au8);
+        let result = HashOperations::hash(&provider, Algorithm::Sha3_256, &data);
+        assert!(
+            result.is_ok(),
+            "expected SHA3-256 over >1 MiB input to succeed, got {:?}",
+            result.as_ref().err()
+        );
+        assert_eq!(result.unwrap().len(), 32);
     }
 }

@@ -105,13 +105,13 @@ fn test_message_validation() {
 
     // Test valid message
     let valid_message = vec![1u8; 1000];
-    let result = validator.validate_message(&valid_message);
-    assert!(result.is_ok(), "Should accept valid message size");
+    let result = validator.validate_aead_message(&valid_message);
+    assert!(result.is_ok(), "Should accept valid AEAD payload size");
 
     // Test oversized message
     let oversized_message = vec![1u8; 2 * 1024 * 1024]; // 2MB
-    let result = validator.validate_message(&oversized_message);
-    assert!(result.is_err(), "Should reject oversized message");
+    let result = validator.validate_aead_message(&oversized_message);
+    assert!(result.is_err(), "Should reject oversized AEAD payload");
 }
 
 /// Test nonce validation

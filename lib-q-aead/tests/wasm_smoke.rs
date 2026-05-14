@@ -3,6 +3,8 @@
 #[cfg(target_arch = "wasm32")]
 use lib_q_aead::create_aead;
 #[cfg(target_arch = "wasm32")]
+use lib_q_aead::security::timing::TimingProtection;
+#[cfg(target_arch = "wasm32")]
 use lib_q_core::{
     AeadKey,
     Algorithm,
@@ -40,6 +42,23 @@ fn aead_wasm_smoke() {
         aead.encrypt(&wrong_key, &nonce, plaintext, Some(aad))
             .is_err(),
         "invalid key length must fail"
+    );
+}
+
+/// [`TimingProtection`] must use a real high-resolution clock on wasm32+`wasm`
+/// (not the legacy tick counter), so sub-millisecond `target_duration_ns` maps
+/// to wall-clock padding.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test]
+fn timing_protection_uses_performance_clock() {
+    let protection = TimingProtection {
+        enabled: true,
+        target_duration_ns: 500_000,
+    };
+    let (_value, elapsed) = protection.protect_with_timing(|| ());
+    assert!(
+        elapsed >= 400_000,
+        "expected >=400µs wall-clock elapsed with 500µs target, got {elapsed}"
     );
 }
 

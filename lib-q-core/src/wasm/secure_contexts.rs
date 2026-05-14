@@ -313,7 +313,10 @@ impl SecureWasmSignatureContext {
         }
 
         // Validate message size
-        match convert_result(self.security_validator.validate_message(&message_bytes)) {
+        match convert_result(
+            self.security_validator
+                .validate_signature_message(&message_bytes),
+        ) {
             Ok(_) => {}
             Err(error) => return Err(error),
         }
@@ -372,7 +375,10 @@ impl SecureWasmSignatureContext {
         }
 
         // Validate message size
-        match convert_result(self.security_validator.validate_message(&message_bytes)) {
+        match convert_result(
+            self.security_validator
+                .validate_signature_message(&message_bytes),
+        ) {
             Ok(_) => {}
             Err(error) => return Err(error),
         }
@@ -450,7 +456,7 @@ impl SecureWasmHashContext {
         let data_bytes = data.to_vec();
 
         // Validate message size
-        match convert_result(self.security_validator.validate_message(&data_bytes)) {
+        match convert_result(self.security_validator.validate_hash_input(&data_bytes)) {
             Ok(_) => {}
             Err(error) => return Err(error),
         }
@@ -548,7 +554,10 @@ impl SecureWasmAeadContext {
         }
 
         // Validate message size
-        match convert_result(self.security_validator.validate_message(&plaintext_bytes)) {
+        match convert_result(
+            self.security_validator
+                .validate_aead_message(&plaintext_bytes),
+        ) {
             Ok(_) => {}
             Err(error) => return Err(error),
         }
@@ -616,7 +625,10 @@ impl SecureWasmAeadContext {
         }
 
         // Validate message size
-        match convert_result(self.security_validator.validate_message(&ciphertext_bytes)) {
+        match convert_result(
+            self.security_validator
+                .validate_aead_message(&ciphertext_bytes),
+        ) {
             Ok(_) => {}
             Err(error) => return Err(error),
         }

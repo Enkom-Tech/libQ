@@ -11,9 +11,23 @@
 //! prevent the compiler from eliding the busy-wait or reordering the result
 //! past the timing barrier.
 //!
-//! On `no_std` and `wasm32` targets the "nanosecond" unit is backed by a
-//! monotonic atomic counter rather than a real clock, so durations are
-//! approximate but the spin-loop guarantee still holds.
+//! ## Platform semantics
+//!
+//! - **Native + `std`**: [`std::time::Instant`] provides monotonic nanosecond
+//!   resolution for [`TimingProtection::target_duration_ns`].
+//! - **`wasm32` + `wasm` feature** (browser or worker with Web APIs): time is
+//!   read from [`Performance::now`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now)
+//!   on `globalThis.performance` (sub-millisecond resolution; values are
+//!   converted to nanoseconds for the same `target_duration_ns` field).
+//! - **Other `no_std` / bare-metal, or `wasm32` without `wasm`**: there is no
+//!   portable monotonic wall clock. The implementation falls back to an atomic
+//!   **call counter**, so `target_duration_ns` is **not** wall nanoseconds and
+//!   sub-microsecond padding is not meaningful. Prefer disabling the wrapper
+//!   ([`TimingProtection::permissive`]) on those targets unless you accept
+//!   tick-based (non wall-clock) pacing only.
+//!
+//! This layer does not make non-constant-time algorithms constant-time; it
+//! only pads elapsed time when a real clock (or explicit tick fallback) is used.
 
 use core::future::Future;
 use core::sync::atomic::{
@@ -26,8 +40,12 @@ use core::sync::atomic::{
 pub struct TimingProtection {
     /// Enable constant-time wrapping.
     pub enabled: bool,
-    /// Fixed wall-clock duration in nanoseconds. Every protected call takes
-    /// at least this long regardless of the wrapped operation's actual cost.
+    /// Target minimum duration for the protected call, in **nanoseconds** when
+    /// a wall-clock source is available (native `std`, or `wasm32` with the
+    /// `wasm` feature and `global.performance`).
+    ///
+    /// On platforms that use the tick counter fallback (see module docs), this
+    /// value is measured in counter ticks, not literal nanoseconds.
     pub target_duration_ns: u64,
 }
 
@@ -108,11 +126,13 @@ impl TimingProtection {
         result
     }
 
-    /// Run `func` with constant-time protection and return `(result, elapsed_ns)`.
+    /// Run `func` with constant-time protection and return `(result, elapsed)`.
     ///
-    /// `elapsed_ns` is the total wall-clock time including the busy-wait.
-    /// When the wrapper is disabled it reflects only the operation's natural
-    /// duration.
+    /// When a wall clock is available (native `std`, or `wasm32` + `wasm`), the
+    /// second value is elapsed time in nanoseconds including the busy-wait. On
+    /// tick-counter-only targets (see module docs), the delta is in counter
+    /// ticks, not literal nanoseconds. When the wrapper is disabled, the
+    /// delta reflects only the operation's natural duration in the same units.
     pub fn protect_with_timing<F, R>(&self, func: F) -> (R, u64)
     where
         F: FnOnce() -> R,
@@ -136,6 +156,9 @@ impl TimingProtection {
     }
 
     /// Async variant of [`protect_with_timing`](Self::protect_with_timing).
+    ///
+    /// See [`protect_with_timing`](Self::protect_with_timing) for semantics of
+    /// the elapsed value.
     pub async fn protect_with_timing_async<F, Fut, R>(&self, func: F) -> (R, u64)
     where
         F: FnOnce() -> Fut,
@@ -161,10 +184,10 @@ impl TimingProtection {
 
     // ---- internal helpers ------------------------------------------------
 
-    /// Monotonic timestamp in nanoseconds.
+    /// Monotonic time basis for [`spin_until`](Self::spin_until).
     ///
-    /// On `std` (non-wasm) this uses `Instant` anchored to a process-local
-    /// epoch. On `no_std` / `wasm32` it falls back to an atomic counter.
+    /// Returns nanoseconds since an arbitrary origin when a wall clock exists;
+    /// otherwise an increasing tick count (see module documentation).
     #[inline]
     fn timestamp_ns() -> u64 {
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
@@ -175,12 +198,58 @@ impl TimingProtection {
             let epoch = EPOCH.get_or_init(Instant::now);
             epoch.elapsed().as_nanos() as u64
         }
-        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
+
+        #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
         {
-            use core::sync::atomic::AtomicU64;
-            static COUNTER: AtomicU64 = AtomicU64::new(0);
-            COUNTER.fetch_add(1, Ordering::SeqCst)
+            Self::wasm_performance_now_ns()
         }
+
+        #[cfg(not(any(
+            all(feature = "std", not(target_arch = "wasm32")),
+            all(target_arch = "wasm32", feature = "wasm"),
+        )))]
+        {
+            Self::monotonic_tick_counter()
+        }
+    }
+
+    /// `Performance.now()`-based monotonic time in nanoseconds (DOMHighResTimeStamp).
+    ///
+    /// Uses `globalThis.performance` so this works in dedicated workers where
+    /// `window` is unavailable.
+    #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+    #[inline]
+    fn wasm_performance_now_ns() -> u64 {
+        use wasm_bindgen::JsCast;
+
+        let global = js_sys::global();
+        let Ok(perf_val) =
+            js_sys::Reflect::get(&global, &wasm_bindgen::JsValue::from_str("performance"))
+        else {
+            return Self::monotonic_tick_counter();
+        };
+        if perf_val.is_null() || perf_val.is_undefined() {
+            return Self::monotonic_tick_counter();
+        }
+        let Ok(perf) = perf_val.dyn_into::<web_sys::Performance>() else {
+            return Self::monotonic_tick_counter();
+        };
+        let ms = perf.now();
+        if !ms.is_finite() || ms < 0.0 {
+            return Self::monotonic_tick_counter();
+        }
+        (ms * 1_000_000.0) as u64
+    }
+
+    /// Monotonic counter used when no wall clock exists (see module docs).
+    ///
+    /// Not referenced on native `std` builds (those use [`std::time::Instant`]).
+    #[cfg_attr(all(feature = "std", not(target_arch = "wasm32")), allow(dead_code))]
+    #[inline]
+    fn monotonic_tick_counter() -> u64 {
+        use core::sync::atomic::AtomicU64;
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Ordering::SeqCst)
     }
 
     /// Spin-loop until at least `duration_ns` has elapsed since `start`.
@@ -264,7 +333,9 @@ where
     get_timing_protection().protect_async(func).await
 }
 
-/// Apply global constant-time protection and return `(result, elapsed_ns)`.
+/// Apply global constant-time protection and return `(result, elapsed)`.
+///
+/// The elapsed component follows [`TimingProtection::protect_with_timing`].
 pub fn protect_timing_with_timing<F, R>(func: F) -> (R, u64)
 where
     F: FnOnce() -> R,

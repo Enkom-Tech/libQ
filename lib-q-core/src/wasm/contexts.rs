@@ -565,7 +565,7 @@ impl WasmHashContext {
 
         // Validate data using security validator
         self.security_validator
-            .validate_message(&data.to_vec())
+            .validate_hash_input(&data.to_vec())
             .map_err(error_to_js_value)?;
 
         // Hash
@@ -736,14 +736,14 @@ impl WasmAeadContext {
 
         // Validate plaintext using security validator
         self.security_validator
-            .validate_message(&plaintext.to_vec())
+            .validate_aead_message(&plaintext.to_vec())
             .map_err(error_to_js_value)?;
 
         // Convert AAD if provided and validate
         let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
         if let Some(ref aad_data) = aad_bytes {
             self.security_validator
-                .validate_message(aad_data)
+                .validate_aead_message(aad_data)
                 .map_err(error_to_js_value)?;
         }
 
@@ -801,7 +801,7 @@ impl WasmAeadContext {
         let aad_bytes = aad.map(|aad_data| aad_data.to_vec());
         if let Some(ref aad_data) = aad_bytes {
             self.security_validator
-                .validate_message(aad_data)
+                .validate_aead_message(aad_data)
                 .map_err(error_to_js_value)?;
         }
 

@@ -46,6 +46,17 @@ use crate::{
     SpongeReaderCore,
 };
 
+#[inline]
+fn plen_little_endian_from_serialized_bytes(
+    src: &[u8],
+) -> Result<[u64; PLEN], DeserializeStateError> {
+    let (lanes, remainder) = src.as_chunks::<8>();
+    if !remainder.is_empty() || lanes.len() != PLEN {
+        return Err(DeserializeStateError);
+    }
+    Ok(core::array::from_fn(|i| u64::from_le_bytes(lanes[i])))
+}
+
 macro_rules! impl_cshake {
     (
         $name:ident, $full_name:ident, $reader_name:ident, $rate:ident, $alg_name:expr
@@ -203,16 +214,16 @@ macro_rules! impl_cshake {
             fn deserialize(
                 serialized_state: &SerializedState<Self>,
             ) -> Result<Self, DeserializeStateError> {
-                let (state_src, initial_state_src) = serialized_state.split_at(200);
-                let state = core::array::from_fn(|i| {
-                    let chunk = state_src[8 * i..][..8].try_into().unwrap();
-                    u64::from_le_bytes(chunk)
-                });
-                let initial_state = core::array::from_fn(|i| {
-                    let chunk = initial_state_src[8 * i..][..8].try_into().unwrap();
-                    u64::from_le_bytes(chunk)
-                });
-                Ok(Self{ state, initial_state })
+                let bytes: &[u8] = serialized_state.as_ref();
+                let (state_src, initial_state_src) = bytes
+                    .split_at_checked(200)
+                    .ok_or(DeserializeStateError)?;
+                Ok(Self {
+                    state: plen_little_endian_from_serialized_bytes(state_src)?,
+                    initial_state: plen_little_endian_from_serialized_bytes(
+                        initial_state_src,
+                    )?,
+                })
             }
         }
 

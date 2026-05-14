@@ -176,23 +176,41 @@ impl SecurityValidator {
         Ok(())
     }
 
-    /// Validate message size for cryptographic operations
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The message to validate
-    ///
-    /// # Returns
-    ///
-    /// Returns `Ok(())` if the message size is valid, or an error if it's not.
-    pub fn validate_message(&self, message: &[u8]) -> Result<()> {
-        if message.len() > self.constants.max_message_size() {
+    /// Validate AEAD plaintext, ciphertext, or associated data size for one operation.
+    pub fn validate_aead_message(&self, message: &[u8]) -> Result<()> {
+        if message.len() > self.constants.max_aead_message_size() {
             return Err(crate::error::Error::InvalidMessageSize {
-                max: self.constants.max_message_size(),
+                max: self.constants.max_aead_message_size(),
                 actual: message.len(),
             });
         }
         Ok(())
+    }
+
+    /// Validate hash absorb input length.
+    pub fn validate_hash_input(&self, data: &[u8]) -> Result<()> {
+        if data.len() > self.constants.max_hash_message_size() {
+            return Err(crate::error::Error::InvalidMessageSize {
+                max: self.constants.max_hash_message_size(),
+                actual: data.len(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Validate signature message preimage length (same policy as [`Self::validate_hash_input`]).
+    pub fn validate_signature_message(&self, message: &[u8]) -> Result<()> {
+        self.validate_hash_input(message)
+    }
+
+    /// Immutable access to configured security constants.
+    pub fn security_constants(&self) -> &SecurityConstants {
+        &self.constants
+    }
+
+    /// Mutable access to security constants (message size ceilings, nonce size, …).
+    pub fn security_constants_mut(&mut self) -> &mut SecurityConstants {
+        &mut self.constants
     }
 
     /// Validate nonce size and uniqueness for AEAD operations
@@ -400,18 +418,31 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_message() {
+    fn test_validate_aead_message() {
         let validator = SecurityValidator::new().unwrap();
 
-        // Test valid message
         let valid_message = vec![1u8; 1000];
-        let result = validator.validate_message(&valid_message);
-        assert!(result.is_ok(), "Should accept valid message size");
+        assert!(validator.validate_aead_message(&valid_message).is_ok());
 
-        // Test oversized message
-        let oversized_message = vec![1u8; 2 * 1024 * 1024]; // 2MB
-        let result = validator.validate_message(&oversized_message);
-        assert!(result.is_err(), "Should reject oversized message");
+        let oversized_message = vec![1u8; 2 * 1024 * 1024];
+        assert!(validator.validate_aead_message(&oversized_message).is_err());
+    }
+
+    #[test]
+    fn test_validate_hash_input_default_unbounded() {
+        let validator = SecurityValidator::new().unwrap();
+        let large = vec![1u8; 2 * 1024 * 1024];
+        assert!(validator.validate_hash_input(&large).is_ok());
+    }
+
+    #[test]
+    fn test_validate_hash_input_when_capped() {
+        let mut validator = SecurityValidator::new().unwrap();
+        validator
+            .security_constants_mut()
+            .set_max_hash_message_size(1024);
+        let oversized = vec![1u8; 2048];
+        assert!(validator.validate_hash_input(&oversized).is_err());
     }
 
     #[test]

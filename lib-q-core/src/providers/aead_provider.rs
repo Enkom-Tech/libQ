@@ -61,11 +61,11 @@ impl AeadOperations for LibQAeadStubProvider {
         self.security_validator.validate_nonce(nonce.as_bytes())?;
 
         // Validate plaintext
-        self.security_validator.validate_message(plaintext)?;
+        self.security_validator.validate_aead_message(plaintext)?;
 
         // Validate associated data if present
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         Err(crate::error::Error::NotImplemented {
@@ -99,7 +99,7 @@ impl AeadOperations for LibQAeadStubProvider {
 
         // Validate associated data if present
         if let Some(ad) = associated_data {
-            self.security_validator.validate_message(ad)?;
+            self.security_validator.validate_aead_message(ad)?;
         }
 
         Err(crate::error::Error::NotImplemented {

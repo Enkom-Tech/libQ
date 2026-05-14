@@ -124,7 +124,8 @@ fn test_factories_contexts_and_security_constants() {
     assert!(matches!(verify_wrong, Err(Error::InvalidAlgorithm { .. })));
 
     let constants = SecurityConstants::new();
-    assert!(constants.max_message_size() >= 1024);
+    assert!(constants.max_aead_message_size() >= 1024);
+    assert_eq!(constants.max_hash_message_size(), usize::MAX);
     assert_eq!(constants.standard_nonce_size(), 16);
     assert!(constants.min_randomness_size() >= 32);
     assert!(
@@ -271,7 +272,8 @@ fn test_error_display_all_variants() {
 #[test]
 fn test_security_constants_extended_algorithms() {
     let c = SecurityConstants::default();
-    assert_eq!(c.max_message_size(), 1024 * 1024);
+    assert_eq!(c.max_aead_message_size(), 1024 * 1024);
+    assert_eq!(c.max_hash_message_size(), usize::MAX);
 
     let kem_algorithms = [
         Algorithm::MlKem512,

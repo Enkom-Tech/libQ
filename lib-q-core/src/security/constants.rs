@@ -15,8 +15,17 @@ use crate::error::Result;
 #[cfg(feature = "alloc")]
 #[derive(Clone)]
 pub struct SecurityConstants {
-    // Maximum message size in bytes (1MB)
-    max_message_size: usize,
+    /// Maximum plaintext, ciphertext, or associated-data size for a single AEAD operation.
+    ///
+    /// A modest default encourages chunking and reduces accidental nonce reuse under streaming
+    /// misuse; raise via [`Self::set_max_aead_message_size`] when your deployment accepts larger
+    /// single-shot bindings.
+    max_aead_message_size: usize,
+    /// Maximum input length for hash absorb and for signature message preimages.
+    ///
+    /// Defaults to [`usize::MAX`] so digest and sign APIs are not capped by the AEAD binding
+    /// policy. Lower this in environments that need a hard resource ceiling on preimage size.
+    max_hash_message_size: usize,
     // Standard nonce size in bytes (16 bytes)
     standard_nonce_size: usize,
     // Minimum randomness size in bytes (32 bytes)
@@ -32,9 +41,10 @@ impl SecurityConstants {
     /// A new instance of SecurityConstants with default values.
     pub fn new() -> Self {
         Self {
-            max_message_size: 1024 * 1024, // 1MB
-            standard_nonce_size: 16,       // 16 bytes
-            min_randomness_size: 32,       // 32 bytes
+            max_aead_message_size: 1024 * 1024, // 1 MiB
+            max_hash_message_size: usize::MAX,
+            standard_nonce_size: 16, // 16 bytes
+            min_randomness_size: 32, // 32 bytes
         }
     }
 }
@@ -47,13 +57,14 @@ impl Default for SecurityConstants {
 }
 
 impl SecurityConstants {
-    /// Get the maximum message size
-    ///
-    /// # Returns
-    ///
-    /// Returns the maximum allowed message size in bytes.
-    pub fn max_message_size(&self) -> usize {
-        self.max_message_size
+    /// Maximum plaintext, ciphertext, or AAD size for one AEAD call.
+    pub fn max_aead_message_size(&self) -> usize {
+        self.max_aead_message_size
+    }
+
+    /// Maximum hash input length and signature message length.
+    pub fn max_hash_message_size(&self) -> usize {
+        self.max_hash_message_size
     }
 
     /// Get the standard nonce size
@@ -342,13 +353,14 @@ impl SecurityConstants {
         Ok(expected_size)
     }
 
-    /// Set the maximum message size
-    ///
-    /// # Arguments
-    ///
-    /// * `max_size` - The maximum message size in bytes
-    pub fn set_max_message_size(&mut self, max_size: usize) {
-        self.max_message_size = max_size;
+    /// Set the maximum AEAD plaintext, ciphertext, or AAD size (bytes) for one operation.
+    pub fn set_max_aead_message_size(&mut self, max_size: usize) {
+        self.max_aead_message_size = max_size;
+    }
+
+    /// Set the maximum hash input and signature message size (bytes).
+    pub fn set_max_hash_message_size(&mut self, max_size: usize) {
+        self.max_hash_message_size = max_size;
     }
 
     /// Set the standard nonce size
@@ -379,7 +391,8 @@ mod tests {
     #[test]
     fn test_security_constants_creation() {
         let constants = SecurityConstants::new();
-        assert_eq!(constants.max_message_size(), 1024 * 1024);
+        assert_eq!(constants.max_aead_message_size(), 1024 * 1024);
+        assert_eq!(constants.max_hash_message_size(), usize::MAX);
         assert_eq!(constants.standard_nonce_size(), 16);
         assert_eq!(constants.min_randomness_size(), 32);
     }
@@ -535,9 +548,11 @@ mod tests {
     fn test_set_constants() {
         let mut constants = SecurityConstants::new();
 
-        // Test setting max message size
-        constants.set_max_message_size(2048 * 1024);
-        assert_eq!(constants.max_message_size(), 2048 * 1024);
+        constants.set_max_aead_message_size(2048 * 1024);
+        assert_eq!(constants.max_aead_message_size(), 2048 * 1024);
+
+        constants.set_max_hash_message_size(4096);
+        assert_eq!(constants.max_hash_message_size(), 4096);
 
         // Test setting nonce size
         constants.set_standard_nonce_size(32);
