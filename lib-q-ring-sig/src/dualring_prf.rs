@@ -139,7 +139,9 @@ pub fn sign_dualring_prf_u256<R: Rng + CryptoRng>(
     let pk_gold = GoldKey256::from_uint(u256_from_le_bytes(&member.gold_key_le), &gold_params)
         .map_err(|_| DualRingPrfError::InvalidInput)?;
 
-    if !bool::from(leg_key.k.ct_eq(&pk_leg.k)) || !bool::from(gold_key.k.ct_eq(&pk_gold.k)) {
+    if !bool::from(leg_key.as_uint().ct_eq(pk_leg.as_uint())) ||
+        !bool::from(gold_key.as_uint().ct_eq(pk_gold.as_uint()))
+    {
         return Err(DualRingPrfError::InvalidInput);
     }
 

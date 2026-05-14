@@ -25,16 +25,25 @@ use crate::params::{
 };
 
 /// Secret key `K` for the Legendre PRF (pilot: [`U256`] field).
+///
+/// Invariant: `k` is a reduced field element in `[1, p)` for the modulus `p`
+/// carried in [`LegendrePrfParams256`]. Keys are only constructible via
+/// [`LegendreKey256::from_uint`] or [`LegendreKey256::derive_from_seed`]; use
+/// [`LegendreKey256::as_uint`] for read-only access. Evaluation APIs assume this
+/// invariant and do not re-validate on each call.
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct LegendreKey256 {
-    /// Key element in `[1, p)`.
-    pub k: U256,
+    k: U256,
 }
 
 /// Secret key for the 512-bit pilot field.
+///
+/// Same invariant as [`LegendreKey256`], with [`LegendrePrfParams512`].
+/// Construct only via [`LegendreKey512::from_uint`] / [`LegendreKey512::derive_from_seed`];
+/// read the scalar with [`LegendreKey512::as_uint`].
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct LegendreKey512 {
-    pub k: U512,
+    k: U512,
 }
 
 fn validate_key_u256(k: &U256, p: &U256) -> Result<(), PrfError> {
@@ -67,6 +76,13 @@ impl LegendreKey256 {
         let k = crate::shake::shake256_to_field_u256(seed, b"lib-q-prf/leg-k256/v1", &params.p)?;
         Self::from_uint(k, params)
     }
+
+    /// Borrow the key as a reduced field element in `[1, p)` (see type invariant).
+    #[inline]
+    #[must_use]
+    pub fn as_uint(&self) -> &U256 {
+        &self.k
+    }
 }
 
 impl LegendreKey512 {
@@ -79,15 +95,24 @@ impl LegendreKey512 {
         let k = crate::shake::shake256_to_field_u512(seed, b"lib-q-prf/leg-k512/v1", &params.p)?;
         Self::from_uint(k, params)
     }
+
+    /// Borrow the key as a reduced field element in `[1, p)` (see type invariant).
+    #[inline]
+    #[must_use]
+    pub fn as_uint(&self) -> &U512 {
+        &self.k
+    }
 }
 
 /// Reduce `x` modulo `p` (public vartime on modulus) and evaluate the Legendre PRF.
+///
+/// Assumes `key` satisfies the [`LegendreKey256`] invariant (validated when the key
+/// is built via [`LegendreKey256::from_uint`] / [`LegendreKey256::derive_from_seed`]).
 pub fn legendre_prf_u256(
     key: &LegendreKey256,
     x: &U256,
     params: &LegendrePrfParams256,
 ) -> Result<i8, PrfError> {
-    validate_key_u256(&key.k, &params.p)?;
     let nz = NonZero::new(params.p)
         .into_option()
         .ok_or(PrfError::InvalidParam)?;
@@ -102,12 +127,13 @@ pub fn legendre_prf_u256(
 }
 
 /// 512-bit field variant.
+///
+/// Assumes `key` satisfies the [`LegendreKey512`] invariant (see [`LegendreKey512::from_uint`]).
 pub fn legendre_prf_u512(
     key: &LegendreKey512,
     x: &U512,
     params: &LegendrePrfParams512,
 ) -> Result<i8, PrfError> {
-    validate_key_u512(&key.k, &params.p)?;
     let nz = NonZero::new(params.p)
         .into_option()
         .ok_or(PrfError::InvalidParam)?;

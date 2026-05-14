@@ -23,8 +23,8 @@ fn member_from_seed(seed: u8) -> (DualRingPrfMemberPublic256, LegendreKey256, Go
     let leg = LegendreKey256::derive_from_seed(&[seed, 1, 2, 3], &leg_p).expect("leg");
     let gold = GoldKey256::derive_from_seed(&[seed, 4, 5, 6], &gold_p).expect("gold");
     let m = DualRingPrfMemberPublic256 {
-        legendre_key_le: u256_to_le_bytes(&leg.k),
-        gold_key_le: u256_to_le_bytes(&gold.k),
+        legendre_key_le: u256_to_le_bytes(leg.as_uint()),
+        gold_key_le: u256_to_le_bytes(gold.as_uint()),
     };
     (m, leg, gold)
 }

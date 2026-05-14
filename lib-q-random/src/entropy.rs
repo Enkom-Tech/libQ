@@ -201,8 +201,12 @@ impl Default for OsEntropySource {
 
 /// Hardware random number generator entropy source
 ///
-/// This entropy source attempts to use hardware random number generators
-/// when available, such as Intel RDRAND or ARM TRNG.
+/// On **x86 / `x86_64`** with the **`std`** feature, this uses **RDRAND** when the
+/// CPU advertises support and a probe read succeeds. Without `std`, runtime
+/// CPUID-based detection is unavailable and this source reports as unavailable.
+///
+/// **`AArch64`** and **`PowerPC`** do not use in-process `RNDR` / `DARN` in this
+/// crate on stable Rust; use [`OsEntropySource`] for those targets.
 #[derive(Debug, Clone)]
 pub struct HardwareEntropySource {
     /// Hardware device identifier
@@ -224,19 +228,37 @@ impl HardwareEntropySource {
         }
     }
 
-    /// Detect available hardware RNG
+    /// Detect available hardware RNG (RDRAND on x86 / `x86_64` when present).
     fn detect_hardware_rng() -> (&'static str, bool) {
-        // For now, we don't have a working hardware RNG implementation
-        // so we always return false to fall back to OS entropy
-        #[cfg(target_arch = "x86_64")]
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
-            return ("Intel x86_64", false);
+            if let Some(label) = crate::hardware_rng::probe_rdrand() {
+                return (label, true);
+            }
+            #[cfg(target_arch = "x86_64")]
+            {
+                return ("x86_64 (RDRAND unavailable)", false);
+            }
+            #[cfg(target_arch = "x86")]
+            {
+                return ("x86 (RDRAND unavailable)", false);
+            }
         }
         #[cfg(target_arch = "aarch64")]
         {
-            return ("ARM TRNG", false);
+            return ("AArch64", false);
         }
-        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        #[cfg(any(target_arch = "powerpc64", target_arch = "powerpc"))]
+        {
+            return ("PowerPC", false);
+        }
+        #[cfg(not(any(
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "aarch64",
+            target_arch = "powerpc64",
+            target_arch = "powerpc"
+        )))]
         {
             return ("Unknown", false);
         }
@@ -258,14 +280,7 @@ impl EntropySource for HardwareEntropySource {
             }
         }
 
-        // This is a placeholder implementation
-        // In a real implementation, you would use platform-specific
-        // hardware RNG APIs
-        Err(Error::hardware_rng_failed_with_status(
-            self.device,
-            0,
-            "Hardware RNG not implemented",
-        ))
+        crate::hardware_rng::fill_hw_cpu(dest, self.device)
     }
 
     fn initialize(&mut self, config: &EntropyConfig) -> Result<()> {
@@ -278,7 +293,7 @@ impl EntropySource for HardwareEntropySource {
 
         // Update max_per_call if specified in config
         if let Some(max_per_call) = config.max_per_call {
-            if max_per_call > 64 {
+            if max_per_call > crate::hardware_rng::HW_RNG_MAX_PER_CALL {
                 return Err(Error::entropy_source_unavailable(
                     "Requested max_per_call exceeds hardware RNG limit",
                 ));
@@ -305,7 +320,7 @@ impl EntropySource for HardwareEntropySource {
     }
 
     fn max_entropy_per_call(&self) -> Option<usize> {
-        Some(64) // Hardware RNGs typically provide limited entropy per call
+        Some(crate::hardware_rng::HW_RNG_MAX_PER_CALL)
     }
 }
 
@@ -723,18 +738,12 @@ impl EntropySourceFactory {
             }
         }
 
-        // As a last resort, use secure fallback with relaxed quality requirements
-        let mut fallback_config = config.clone();
-        fallback_config.min_quality = 0.5; // Lower threshold for fallback
-
-        let mut fallback_source = crate::secure_fallback::SecureFallbackEntropySource::new();
-        if fallback_source.initialize(&fallback_config).is_ok() {
-            return Ok(Box::new(fallback_source));
-        }
-
-        // If even fallback fails, return an error
-        Err(Error::entropy_source_unavailable(
-            "No entropy sources available that meet the requirements, including fallback",
+        // Do not substitute non-cryptographic "fallback" RNGs when OS/hardware sources fail.
+        // Callers must fix the environment, enable `getrandom`, or register a custom entropy
+        // source (`custom-entropy` feature) for `no_std`/WASM.
+        Err(Error::entropy_source_unavailable_with_context(
+            "secure entropy",
+            "no OS or hardware entropy source satisfied the configuration; weak fallbacks are disabled",
         ))
     }
 
@@ -829,6 +838,19 @@ mod tests {
         let source = HardwareEntropySource::new();
         assert!(!source.name().is_empty());
         assert_eq!(source.source_type(), EntropySourceType::Hardware);
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", target_arch = "x86_64"))]
+    fn test_hardware_entropy_rdrand_smoke_if_cpu_supports() {
+        if !std::arch::is_x86_feature_detected!("rdrand") {
+            return;
+        }
+        let mut source = HardwareEntropySource::new();
+        assert!(source.is_available());
+        source.initialize(&EntropyConfig::default()).unwrap();
+        let mut buf = [0u8; 64];
+        source.get_entropy(&mut buf).unwrap();
     }
 
     #[test]

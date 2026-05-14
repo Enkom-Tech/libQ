@@ -1,7 +1,9 @@
 //! Poseidon sponge construction for hashing
 //!
 //! This module implements the sponge construction on top of the Poseidon
-//! permutation, providing a standard hash function interface.
+//! permutation. The API is split into an absorb phase ([`PoseidonSponge`]) and a
+//! squeeze phase ([`PoseidonSpongeSqueeze`]) so padding cannot be followed by
+//! further absorption (which would depart from the standard sponge).
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -20,12 +22,8 @@ use crate::params::{
 };
 use crate::permutation::PoseidonPermutation;
 
-/// Poseidon sponge for hashing
-///
-/// This implements the sponge construction using Poseidon permutation.
-/// It absorbs input elements and squeezes output elements.
 #[derive(Debug, Clone)]
-pub struct PoseidonSponge {
+struct SpongeState {
     permutation: PoseidonPermutation,
     state: Vec<PoseidonField>,
     rate: usize,
@@ -33,9 +31,8 @@ pub struct PoseidonSponge {
     absorbed: usize,
 }
 
-impl PoseidonSponge {
-    /// Create a new Poseidon sponge with the given parameters
-    pub fn new(params: PoseidonParams) -> Self {
+impl SpongeState {
+    fn new(params: PoseidonParams) -> Self {
         use lib_q_stark_field::PrimeCharacteristicRing;
         let state_width = params.state_width;
         Self {
@@ -47,18 +44,11 @@ impl PoseidonSponge {
         }
     }
 
-    /// Absorb field elements into the sponge
-    ///
-    /// # Arguments
-    ///
-    /// * `elements` - Field elements to absorb
-    pub fn absorb(&mut self, elements: &[PoseidonField]) {
+    fn absorb(&mut self, elements: &[PoseidonField]) {
         for &element in elements {
-            // Add element to rate part of state
             self.state[self.absorbed] += element;
             self.absorbed += 1;
 
-            // If rate is full, permute
             if self.absorbed >= self.rate {
                 self.state = self.permutation.permute(self.state.clone());
                 self.absorbed = 0;
@@ -66,13 +56,8 @@ impl PoseidonSponge {
         }
     }
 
-    /// Finish absorbing and apply padding (10*1 in rate only)
-    ///
-    /// Should be called after all input has been absorbed and before squeezing.
-    /// Standard sponge padding: add 1 at `state[absorbed]`; if that does not fill
-    /// the rate block (`absorbed + 1 < rate`), add 1 at `state[rate - 1]` to
-    /// distinguish single-block from multi-block inputs. Capacity is not written.
-    pub fn finish_absorbing(&mut self) {
+    /// Apply 10*1 padding in the rate, then permute. `absorbed` counts elements in the current rate block.
+    fn apply_padding_and_permute(mut self) -> Self {
         use lib_q_stark_field::PrimeCharacteristicRing;
 
         self.state[self.absorbed] += Complex::<Mersenne31>::ONE;
@@ -82,8 +67,105 @@ impl PoseidonSponge {
 
         self.state = self.permutation.permute(self.state.clone());
         self.absorbed = 0;
+        self
     }
 
+    fn squeeze(&mut self, num_elements: usize) -> Vec<PoseidonField> {
+        let mut output = Vec::with_capacity(num_elements);
+        let mut squeezed = 0;
+
+        while squeezed < num_elements {
+            if self.absorbed >= self.rate {
+                self.state = self.permutation.permute(self.state.clone());
+                self.absorbed = 0;
+            }
+
+            output.push(self.state[self.absorbed]);
+            self.absorbed += 1;
+            squeezed += 1;
+        }
+
+        output
+    }
+}
+
+/// Poseidon sponge in the absorb phase (before padding).
+///
+/// Call [`Self::finish_absorbing`] when all input has been absorbed to obtain a
+/// [`PoseidonSpongeSqueeze`]. Further absorption is rejected by the type system:
+/// the sponge state after padding is not a valid absorb continuation.
+#[derive(Debug, Clone)]
+pub struct PoseidonSponge(SpongeState);
+
+impl PoseidonSponge {
+    /// Create a new Poseidon sponge with the given parameters
+    pub fn new(params: PoseidonParams) -> Self {
+        Self(SpongeState::new(params))
+    }
+
+    /// Absorb field elements into the sponge
+    ///
+    /// # Arguments
+    ///
+    /// * `elements` - Field elements to absorb
+    pub fn absorb(&mut self, elements: &[PoseidonField]) {
+        self.0.absorb(elements);
+    }
+
+    /// Finish absorbing and apply padding (10*1 in rate only)
+    ///
+    /// Should be called after all input has been absorbed. Returns a value that
+    /// only supports [`PoseidonSpongeSqueeze::squeeze`], so additional [`PoseidonSponge::absorb`]
+    /// calls are impossible after padding (they would define a non-standard sponge).
+    ///
+    /// Standard sponge padding: add 1 at `state[absorbed]`; if that does not fill
+    /// the rate block (`absorbed + 1 < rate`), add 1 at `state[rate - 1]` to
+    /// distinguish single-block from multi-block inputs. Capacity is not written.
+    ///
+    /// # Compile-time safety
+    ///
+    /// After this call, [`PoseidonSponge`] is consumed; [`PoseidonSpongeSqueeze`] has no
+    /// `absorb`, so further input cannot be appended after padding:
+    ///
+    /// ```compile_fail,E0599
+    /// use lib_q_poseidon::{Poseidon128, PoseidonSponge};
+    /// let params = Poseidon128::params();
+    /// let sponge = PoseidonSponge::new(params);
+    /// let mut sponge = sponge.finish_absorbing();
+    /// sponge.absorb(&[]);
+    /// ```
+    pub fn finish_absorbing(self) -> PoseidonSpongeSqueeze {
+        PoseidonSpongeSqueeze(self.0.apply_padding_and_permute())
+    }
+
+    /// Finalize the sponge (apply padding and final permutation)
+    ///
+    /// Convenience for callers that need the full width state after padding without
+    /// squeezing. Otherwise use [`Self::finish_absorbing`] followed by
+    /// [`PoseidonSpongeSqueeze::squeeze`].
+    pub fn finalize(self) -> Vec<PoseidonField> {
+        self.finish_absorbing().into_state()
+    }
+
+    /// Get the capacity value
+    pub fn capacity(&self) -> usize {
+        self.0.capacity
+    }
+
+    /// Get the rate value
+    pub fn rate(&self) -> usize {
+        self.0.rate
+    }
+}
+
+/// Poseidon sponge after padding: squeeze output only.
+///
+/// Produced by [`PoseidonSponge::finish_absorbing`]. Absorption is complete; only
+/// [`Self::squeeze`] reads from the rate according to the sponge construction.
+#[derive(Debug, Clone)]
+pub struct PoseidonSpongeSqueeze(SpongeState);
+
+impl PoseidonSpongeSqueeze {
     /// Squeeze output elements from the sponge
     ///
     /// # Arguments
@@ -94,42 +176,22 @@ impl PoseidonSponge {
     ///
     /// Vector of squeezed field elements
     pub fn squeeze(&mut self, num_elements: usize) -> Vec<PoseidonField> {
-        let mut output = Vec::with_capacity(num_elements);
-        let mut squeezed = 0;
-
-        while squeezed < num_elements {
-            // If we've used all rate elements, permute
-            if self.absorbed >= self.rate {
-                self.state = self.permutation.permute(self.state.clone());
-                self.absorbed = 0;
-            }
-
-            // Extract from rate part
-            output.push(self.state[self.absorbed]);
-            self.absorbed += 1;
-            squeezed += 1;
-        }
-
-        output
+        self.0.squeeze(num_elements)
     }
 
-    /// Finalize the sponge (apply padding and final permutation)
-    ///
-    /// This is a convenience method that calls `finish_absorbing()` and returns the final state.
-    /// Use `finish_absorbing()` followed by `squeeze()` if you need to extract output.
-    pub fn finalize(mut self) -> Vec<PoseidonField> {
-        self.finish_absorbing();
-        self.state
+    /// Full permutation state after padding (including capacity cells).
+    pub fn into_state(self) -> Vec<PoseidonField> {
+        self.0.state
     }
 
     /// Get the capacity value
     pub fn capacity(&self) -> usize {
-        self.capacity
+        self.0.capacity
     }
 
     /// Get the rate value
     pub fn rate(&self) -> usize {
-        self.rate
+        self.0.rate
     }
 }
 
@@ -165,8 +227,8 @@ impl Poseidon for Poseidon128 {
         let params = Self::params();
         let mut sponge = PoseidonSponge::new(params);
         sponge.absorb(input);
-        sponge.finish_absorbing(); // Apply proper padding
-        sponge.squeeze(1) // Default to 1 output element
+        let mut sponge = sponge.finish_absorbing();
+        sponge.squeeze(1)
     }
 }
 
@@ -175,8 +237,8 @@ impl Poseidon for Poseidon256 {
         let params = Self::params();
         let mut sponge = PoseidonSponge::new(params);
         sponge.absorb(input);
-        sponge.finish_absorbing(); // Apply proper padding
-        sponge.squeeze(1) // Default to 1 output element
+        let mut sponge = sponge.finish_absorbing();
+        sponge.squeeze(1)
     }
 }
 
@@ -193,6 +255,7 @@ mod tests {
             Complex::<Mersenne31>::from(Mersenne31::new(2)),
         ];
         sponge.absorb(&input);
+        let mut sponge = sponge.finish_absorbing();
         let output = sponge.squeeze(1);
         assert_eq!(output.len(), 1);
     }

@@ -34,9 +34,9 @@ pub struct ClassicalMcElieceRng {
 impl ClassicalMcElieceRng {
     /// Create a new secure RNG using system entropy
     ///
-    /// This creates an RNG that uses the system's secure entropy sources.
-    /// In std environments, this uses `rand::rng()`.
-    /// In `no_std` environments, this uses getrandom.
+    /// Random output is drawn with `getrandom::fill`. The `classical-mceliece` crate feature
+    /// enables the `getrandom` dependency so non-test builds always have OS entropy available
+    /// (including `wasm_js` on `wasm32-unknown-unknown` when configured in the dependency graph).
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -151,35 +151,30 @@ impl ClassicalMcElieceRng {
 
     /// Generate secure random bytes using system entropy
     ///
-    /// This method implements a senior-level approach to secure random generation:
-    /// 1. Uses non-blocking getrandom when available
-    /// 2. Falls back to thread-local CSPRNG for std environments
-    /// 3. Implements proper reseeding for long-running operations
-    /// 4. Provides deterministic fallback only in constrained environments
+    /// If this crate was built without the `getrandom` feature, this function panics instead of
+    /// emitting predictable bytes. If `getrandom::fill` fails at runtime, this function also
+    /// panics (`TryRng` uses [`core::convert::Infallible`], so errors cannot be propagated).
     fn generate_secure_bytes(&mut self, dest: &mut [u8]) {
         #[cfg(feature = "getrandom")]
         {
-            // Primary: Use getrandom for secure random generation
-            // getrandom is non-blocking and works in both std and no_std environments
-            if let Err(_e) = getrandom::fill(dest) {
-                // If getrandom fails, fall back to thread-local CSPRNG
-                self.generate_secure_bytes(dest);
-                return;
-            }
+            // Never recurse: `TryRng` uses `Infallible`, so refuse OS RNG failure loudly.
+            assert!(
+                getrandom::fill(dest).is_ok(),
+                "lib_q_random::ClassicalMcElieceRng: getrandom::fill failed; \
+                 refusing non-OS RNG output (enable `custom-entropy` or fix the environment)"
+            );
         }
 
-        #[cfg(all(feature = "rand", not(feature = "getrandom")))]
+        #[cfg(not(feature = "getrandom"))]
         {
-            // Fallback: Use thread-local CSPRNG for std environments
-            // ThreadRng is non-blocking and periodically reseeds from OS
-            self.generate_secure_bytes_fallback(dest);
-        }
-
-        #[cfg(not(any(feature = "rand", feature = "getrandom")))]
-        {
-            // Last resort: use deterministic generation only in very constrained environments
-            // This should only happen in embedded systems without proper entropy sources
-            self.generate_deterministic_bytes(dest);
+            let _ = dest;
+            // Supported configurations that expose secure `ClassicalMcElieceRng` enable `getrandom`
+            // (see the `classical-mceliece` feature). If this path is hit, the crate was built
+            // without OS entropy support; do not substitute deterministic or PRNG output.
+            panic!(
+                "lib_q_random: ClassicalMcElieceRng requires the `getrandom` crate feature for secure output; \
+                 enable `getrandom`/`secure`/`classical-mceliece`, or use `new_deterministic` for tests"
+            );
         }
 
         self.reseed_counter = self.reseed_counter.wrapping_add(1);

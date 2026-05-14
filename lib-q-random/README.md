@@ -144,7 +144,7 @@ The crate is organized into several key components:
 
 - **`LibQRng`**: Main RNG implementation with unified interface
 - **`OsEntropySource`**: Operating system entropy source
-- **`HardwareEntropySource`**: Hardware random number generator
+- **`HardwareEntropySource`**: **RDRAND** on x86 / x86_64 when the `std` feature is enabled and the CPU supports it; otherwise unavailable (use **`OsEntropySource`** on other targets)
 - **`DeterministicEntropySource`**: Deterministic source for testing
 - **`UserEntropySource`**: User-provided entropy source
 

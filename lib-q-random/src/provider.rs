@@ -214,9 +214,6 @@ impl LibQRng {
             crate::traits::EntropySourceType::OperatingSystem => {
                 EntropyValidator::with_settings(64, 8192, 0.3, false)
             }
-            crate::traits::EntropySourceType::Fallback => {
-                EntropyValidator::with_settings(32, 4096, 0.2, false)
-            }
             _ => EntropyValidator::with_settings(64, 8192, 0.3, false),
         };
 
@@ -227,7 +224,7 @@ impl LibQRng {
                 SecurityLevel::CryptographicallySecure
             }
             crate::traits::EntropySourceType::Deterministic => SecurityLevel::Deterministic,
-            _ => SecurityLevel::CryptographicallySecure,
+            crate::traits::EntropySourceType::User => SecurityLevel::CryptographicallySecure,
         };
 
         let deterministic =

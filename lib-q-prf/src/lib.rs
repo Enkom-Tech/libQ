@@ -4,6 +4,12 @@
 //! for pilot safe-prime moduli documented in [`params`]. It is intended as a building block for
 //! Fiat–Shamir protocols such as DualRing-PRF (QROM), composed at the [`lib-q-ring-sig`] layer.
 //!
+//! Secret key material for Legendre and Gold PRFs is held in opaque key types with validated
+//! constructors ([`LegendreKey256::from_uint`], [`GoldKey256::from_uint`], and `derive_from_seed`
+//! variants); use [`LegendreKey256::as_uint`], [`LegendreKey512::as_uint`], [`GoldKey256::as_uint`],
+//! or [`GoldKey512::as_uint`] when you need the field element for serialization or constant-time
+//! equality checks.
+//!
 //! [`lib-q-ring-sig`]: https://github.com/Enkom-Tech/libQ/tree/main/lib-q-ring-sig
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]

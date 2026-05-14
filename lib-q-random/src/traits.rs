@@ -293,8 +293,6 @@ pub enum EntropySourceType {
     User,
     /// Deterministic source (for testing)
     Deterministic,
-    /// Secure fallback entropy source
-    Fallback,
 }
 
 impl fmt::Display for EntropySourceType {
@@ -304,7 +302,6 @@ impl fmt::Display for EntropySourceType {
             Self::Hardware => write!(f, "Hardware"),
             Self::User => write!(f, "User"),
             Self::Deterministic => write!(f, "Deterministic"),
-            Self::Fallback => write!(f, "Fallback"),
         }
     }
 }

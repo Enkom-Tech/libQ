@@ -79,6 +79,7 @@ pub use permutation::{
 pub use sponge::{
     Poseidon,
     PoseidonSponge,
+    PoseidonSpongeSqueeze,
 };
 
 /// Error types for Poseidon operations

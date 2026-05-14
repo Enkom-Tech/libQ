@@ -52,7 +52,9 @@ signature = ["dep:signature"]
 
 # Specialized implementations
 hash = ["dep:lib-q-hash"]
-classical-mceliece = []
+# Secure `ClassicalMcElieceRng::new()` requires OS entropy; do not allow builds that only pull
+# deterministic test paths while still exposing the non-deterministic constructor.
+classical-mceliece = ["getrandom"]
 hpke = ["hash"]
 fn-dsa = []
 hqc = ["alloc"]  # HQC reference implementation in tests (requires Vec)

@@ -31,7 +31,8 @@
 //!
 //! ## Features
 //!
-//! - **Cryptographically Secure**: Uses OS entropy sources and hardware RNGs when available
+//! - **Cryptographically Secure**: Uses OS entropy sources; on x86 / `x86_64`
+//!   with `std`, optional **RDRAND** is available through the hardware entropy source
 //! - **Multiple Providers**: Support for OS, deterministic, and hardware entropy sources
 //! - **Entropy Validation**: Comprehensive entropy quality assessment and validation
 //! - **`no_std` Support**: Works in constrained environments without standard library
@@ -151,7 +152,7 @@
 //! - Entropy validation ensures sufficient randomness
 //! - Secure memory clearing prevents key material leakage
 //! - Constant-time operations prevent timing attacks
-//! - Comprehensive error handling prevents fallback to weak randomness
+//! - When OS or hardware entropy is unavailable, APIs return an error instead of substituting weak entropy
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
@@ -173,6 +174,8 @@ mod no_std_panic_handler {
     }
 }
 
+mod hardware_rng;
+
 // Core modules
 pub mod entropy;
 pub mod error;
@@ -184,7 +187,6 @@ pub mod validation;
 mod wasm;
 
 // Specialized RNG implementations for different algorithms
-pub mod secure_fallback;
 pub mod specialized;
 
 // no_std RNG implementation
