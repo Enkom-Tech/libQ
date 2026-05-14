@@ -129,34 +129,40 @@ impl SaturninCore {
     /// * `key` - 32-byte encryption key
     /// * `block` - 32-byte block to encrypt (modified in-place)
     pub fn encrypt_block(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
-        if key.len() != 32 {
+        let key_len = key.len();
+        let block_len = block.len();
+        if key_len != 32 {
             return Err(Error::InvalidKeySize {
                 expected: 32,
-                actual: key.len(),
+                actual: key_len,
             });
         }
-
-        if block.len() != 32 {
+        if block_len != 32 {
             return Err(Error::InvalidMessageSize {
                 max: 32,
-                actual: block.len(),
+                actual: block_len,
             });
         }
+        let key: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: 32,
+            actual: key_len,
+        })?;
+        let block: &mut [u8; 32] = block.try_into().map_err(|_| Error::InvalidMessageSize {
+            max: 32,
+            actual: block_len,
+        })?;
+        self.encrypt_block_32(key, block)
+    }
 
-        // Convert to bitsliced representation
-        let mut state = self.decode_block(block);
-
-        // Apply key
+    /// Encrypt one block; caller guarantees 32-byte key and block (e.g. after AEAD size checks).
+    #[inline]
+    pub(crate) fn encrypt_block_32(&self, key: &[u8; 32], block: &mut [u8; 32]) -> Result<()> {
+        let mut state = self.decode_block(&*block);
         self.add_key(&mut state, key);
-
-        // Apply rounds
         for i in 0..self.num_rounds {
             self.apply_round(&mut state, i, key);
         }
-
-        // Convert back to byte representation
         self.encode_block(&state, block);
-
         Ok(())
     }
 
@@ -166,34 +172,40 @@ impl SaturninCore {
     /// * `key` - 32-byte decryption key
     /// * `block` - 32-byte block to decrypt (modified in-place)
     pub fn decrypt_block(&self, key: &[u8], block: &mut [u8]) -> Result<()> {
-        if key.len() != 32 {
+        let key_len = key.len();
+        let block_len = block.len();
+        if key_len != 32 {
             return Err(Error::InvalidKeySize {
                 expected: 32,
-                actual: key.len(),
+                actual: key_len,
             });
         }
-
-        if block.len() != 32 {
+        if block_len != 32 {
             return Err(Error::InvalidMessageSize {
                 max: 32,
-                actual: block.len(),
+                actual: block_len,
             });
         }
+        let key: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: 32,
+            actual: key_len,
+        })?;
+        let block: &mut [u8; 32] = block.try_into().map_err(|_| Error::InvalidMessageSize {
+            max: 32,
+            actual: block_len,
+        })?;
+        self.decrypt_block_32(key, block)
+    }
 
-        // Convert to bitsliced representation
+    /// Decrypt one block; caller guarantees 32-byte key and block.
+    #[inline]
+    pub(crate) fn decrypt_block_32(&self, key: &[u8; 32], block: &mut [u8; 32]) -> Result<()> {
         let mut state = self.decode_block(block);
-
-        // Apply inverse rounds in reverse order
         for i in (0..self.num_rounds).rev() {
             self.apply_inverse_round(&mut state, i, key);
         }
-
-        // Apply key
         self.add_key(&mut state, key);
-
-        // Convert back to byte representation
         self.encode_block(&state, block);
-
         Ok(())
     }
 
@@ -631,11 +643,11 @@ mod tests {
         let key = [0u8; 32];
         let mut block = [0u8; 32];
 
-        // Encrypt
-        core.encrypt_block(&key, &mut block)?;
+        // Encrypt (fixed-size path)
+        core.encrypt_block_32(&key, &mut block)?;
 
-        // Decrypt
-        core.decrypt_block(&key, &mut block)?;
+        // Decrypt (fixed-size path)
+        core.decrypt_block_32(&key, &mut block)?;
 
         // Should be back to original (all zeros)
         assert_eq!(block, [0u8; 32]);

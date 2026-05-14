@@ -98,18 +98,22 @@ pub fn encrypt_block_dispatch(
         }
 
         let scalar_core = crate::core::SaturninCore::new(num_super_rounds, domain)?;
-        scalar_core.encrypt_block(&key32, &mut block32)?;
+        scalar_core.encrypt_block_32(&key32, &mut block32)?;
     }
     block.copy_from_slice(&block32);
     Ok(())
 }
 
 /// Encrypts eight independent blocks with runtime SIMD dispatch when available.
+///
+/// When `reuse_scalar_core` is `Some(core)`, it must match `num_super_rounds` and `domain`;
+/// the non–bs32 scalar fallback uses that core instead of allocating a new one.
 pub fn encrypt_blocks8_dispatch(
     num_super_rounds: usize,
     domain: u8,
     key: &[u8],
     blocks: &mut [[u8; 32]; 8],
+    reuse_scalar_core: Option<&crate::core::SaturninCore>,
 ) -> Result<()> {
     if key.len() != 32 {
         return Err(Error::InvalidKeySize {
@@ -119,6 +123,11 @@ pub fn encrypt_blocks8_dispatch(
     }
 
     let key32 = to_fixed_32(key);
+
+    if let Some(c) = reuse_scalar_core {
+        debug_assert_eq!(c.num_rounds(), num_super_rounds);
+        debug_assert_eq!(c.domain(), domain);
+    }
 
     if uses_bs32_kernel(num_super_rounds, domain) {
         #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
@@ -161,9 +170,18 @@ pub fn encrypt_blocks8_dispatch(
             }
         }
 
-        let scalar_core = crate::core::SaturninCore::new(num_super_rounds, domain)?;
-        for block in blocks.iter_mut() {
-            scalar_core.encrypt_block(&key32, block)?;
+        match reuse_scalar_core {
+            Some(scalar_core) => {
+                for block in blocks.iter_mut() {
+                    scalar_core.encrypt_block_32(&key32, block)?;
+                }
+            }
+            None => {
+                let scalar_core = crate::core::SaturninCore::new(num_super_rounds, domain)?;
+                for block in blocks.iter_mut() {
+                    scalar_core.encrypt_block_32(&key32, block)?;
+                }
+            }
         }
     }
     Ok(())

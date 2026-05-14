@@ -129,6 +129,12 @@ impl SaturninStream {
             });
         }
 
+        let key_len = key.len();
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: Self::key_size(),
+            actual: key_len,
+        })?;
+
         let mut result = Vec::with_capacity(data.len());
         let mut counter = 0u32;
         let mut offset = 0;
@@ -144,7 +150,7 @@ impl SaturninStream {
                     block[28..32].copy_from_slice(&c.to_be_bytes());
                 }
 
-                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(&self.core))?;
 
                 for (lane, ks) in keystream_blocks.iter().enumerate() {
                     let start = offset + (lane * 32);
@@ -174,7 +180,7 @@ impl SaturninStream {
             counter_block[28..32].copy_from_slice(&counter.to_be_bytes());
 
             // Encrypt counter block
-            self.core.encrypt_block(key, &mut counter_block)?;
+            self.core.encrypt_block_32(key32, &mut counter_block)?;
 
             let remaining = data.len() - offset;
             let block_size = if remaining >= 32 { 32 } else { remaining };
@@ -240,6 +246,12 @@ impl SaturninStream {
             });
         }
 
+        let key_len = key.len();
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: Self::key_size(),
+            actual: key_len,
+        })?;
+
         let mut keystream = Vec::with_capacity(length);
         let mut counter = 0u32;
         let mut generated = 0;
@@ -255,7 +267,7 @@ impl SaturninStream {
                     block[28..32].copy_from_slice(&c.to_be_bytes());
                 }
 
-                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(&self.core))?;
 
                 for ks in &keystream_blocks {
                     keystream.extend_from_slice(ks);
@@ -279,7 +291,7 @@ impl SaturninStream {
             counter_block[28..32].copy_from_slice(&counter.to_be_bytes());
 
             // Encrypt counter block
-            self.core.encrypt_block(key, &mut counter_block)?;
+            self.core.encrypt_block_32(key32, &mut counter_block)?;
 
             // Add to keystream
             let remaining = length - generated;

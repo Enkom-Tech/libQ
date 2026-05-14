@@ -242,7 +242,7 @@ fn dispatch_batch_matches_scalar_core_domain1() {
     }
     let mut scalar_blocks = blocks;
 
-    encrypt_blocks8_dispatch(10, 1, &key, &mut blocks).expect("dispatch");
+    encrypt_blocks8_dispatch(10, 1, &key, &mut blocks, None).expect("dispatch");
 
     for block in &mut scalar_blocks {
         scalar.encrypt_block(&key, block).expect("scalar");

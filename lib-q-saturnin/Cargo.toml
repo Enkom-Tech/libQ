@@ -15,7 +15,7 @@ readme.workspace = true
 lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
 
 # Optional dependencies for specific features
-zeroize = { workspace = true, features = ["zeroize_derive"], optional = true }
+zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
 default = ["aead", "block-cipher", "hash", "stream", "alloc"]
@@ -23,8 +23,8 @@ std = ["alloc"]
 alloc = ["lib-q-core/alloc"]
 
 # Algorithm modes
-aead = []
-aead-short = []
+aead = ["dep:zeroize"]
+aead-short = ["dep:zeroize"]
 block-cipher = []
 hash = []
 stream = []

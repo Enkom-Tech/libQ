@@ -9,6 +9,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use subtle::ConstantTimeEq;
+use zeroize::Zeroize;
 
 use crate::params::{
     KEY_BYTES,
@@ -96,7 +97,7 @@ pub fn decrypt(
     if tag_ok {
         Ok(())
     } else {
-        out[..body_len].fill(0);
+        out[..body_len].zeroize();
         Err(TweakCryptoError)
     }
 }

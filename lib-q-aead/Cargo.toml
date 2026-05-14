@@ -22,6 +22,7 @@ lib-q-duplex-aead = { path = "../lib-q-duplex-aead", version = "0.0.2", optional
 lib-q-tweak-aead = { path = "../lib-q-tweak-aead", version = "0.0.2", optional = true }
 lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.2", optional = true, default-features = false }
 subtle = { workspace = true, default-features = false }
+zeroize = { workspace = true, default-features = false, optional = true }
 once_cell = "1.21.4"
 spin = { workspace = true }
 
@@ -36,7 +37,13 @@ default = ["alloc", "std", "shake256"]
 std = ["lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
-shake256 = ["dep:lib-q-sha3", "lib-q-sha3/alloc", "dep:lib-q-random", "lib-q-random/std"]
+shake256 = [
+    "dep:lib-q-sha3",
+    "lib-q-sha3/alloc",
+    "dep:lib-q-random",
+    "lib-q-random/std",
+    "dep:zeroize",
+]
 duplex-sponge-aead = [
     "dep:lib-q-duplex-aead",
     "lib-q-duplex-aead/alloc",

@@ -84,8 +84,11 @@ impl Aead for DuplexSpongeAead {
             k.copy_from_slice(kb);
             k
         };
-        let mut nonce_arr = [0u8; NONCE_BYTES];
-        nonce_arr.copy_from_slice(nb);
+        let nonce_arr = {
+            let mut n = Zeroizing::new([0u8; NONCE_BYTES]);
+            n.copy_from_slice(nb);
+            n
+        };
 
         let ad = associated_data.unwrap_or(&[]);
         let mut out = alloc::vec![0u8; plaintext.len() + TAG_BYTES];
@@ -129,8 +132,11 @@ impl Aead for DuplexSpongeAead {
             k.copy_from_slice(kb);
             k
         };
-        let mut nonce_arr = [0u8; NONCE_BYTES];
-        nonce_arr.copy_from_slice(nb);
+        let nonce_arr = {
+            let mut n = Zeroizing::new([0u8; NONCE_BYTES]);
+            n.copy_from_slice(nb);
+            n
+        };
 
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - TAG_BYTES;

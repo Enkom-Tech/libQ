@@ -60,6 +60,7 @@ use lib_q_core::{
     Nonce,
     Result,
 };
+use zeroize::Zeroizing;
 
 use crate::core::SaturninCore;
 
@@ -112,33 +113,40 @@ impl SaturninShortAead {
         plaintext: &[u8],
         ad: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.data.len() != Self::key_size() {
+        if key.as_bytes().len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
-                actual: key.data.len(),
+                actual: key.as_bytes().len(),
             });
         }
 
-        if nonce.data.len() != Self::nonce_size() {
+        if nonce.as_bytes().len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
-                actual: nonce.data.len(),
+                actual: nonce.as_bytes().len(),
             });
         }
+
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce_staged = Zeroizing::new([0u8; 16]);
+        nonce_staged.copy_from_slice(nonce.as_bytes());
+        let kb = key_staged.as_slice();
+        let nb = nonce_staged.as_slice();
 
         // For Saturnin-Short, we use a simple CTR mode with domain 6
         let mut ciphertext = Vec::with_capacity(plaintext.len() + Self::tag_size());
 
         // Process associated data first (if any)
         if let Some(ad_data) = ad {
-            self.process_ad(key, ad_data, &mut ciphertext)?;
+            self.process_ad(ad_data, &mut ciphertext)?;
         }
 
         // Encrypt plaintext using CTR mode
-        self.ctr_encrypt(key, nonce, plaintext, &mut ciphertext)?;
+        self.ctr_encrypt(kb, nb, plaintext, &mut ciphertext)?;
 
         // Generate authentication tag
-        let tag = self.generate_tag(key, nonce, ad, &ciphertext)?;
+        let tag = self.generate_tag(kb, nb, ad, &ciphertext)?;
         ciphertext.extend_from_slice(&tag);
 
         Ok(ciphertext)
@@ -162,17 +170,17 @@ impl SaturninShortAead {
         ciphertext: &[u8],
         ad: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.data.len() != Self::key_size() {
+        if key.as_bytes().len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
-                actual: key.data.len(),
+                actual: key.as_bytes().len(),
             });
         }
 
-        if nonce.data.len() != Self::nonce_size() {
+        if nonce.as_bytes().len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
-                actual: nonce.data.len(),
+                actual: nonce.as_bytes().len(),
             });
         }
 
@@ -183,24 +191,31 @@ impl SaturninShortAead {
             });
         }
 
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce_staged = Zeroizing::new([0u8; 16]);
+        nonce_staged.copy_from_slice(nonce.as_bytes());
+        let kb = key_staged.as_slice();
+        let nb = nonce_staged.as_slice();
+
         // Split ciphertext and tag
         let (ct, tag) = ciphertext.split_at(ciphertext.len() - Self::tag_size());
 
         // Verify authentication tag in constant time to prevent timing side channels
-        let expected_tag = self.generate_tag(key, nonce, ad, ct)?;
+        let expected_tag = self.generate_tag(kb, nb, ad, ct)?;
         if !lib_q_core::Utils::constant_time_compare(tag, &expected_tag) {
             return Err(Error::InvalidMessageSize { actual: 0, max: 0 });
         }
 
         // Decrypt using CTR mode
         let mut plaintext = Vec::with_capacity(ct.len());
-        self.ctr_encrypt(key, nonce, ct, &mut plaintext)?;
+        self.ctr_encrypt(kb, nb, ct, &mut plaintext)?;
 
         Ok(plaintext)
     }
 
     /// Process associated data
-    fn process_ad(&self, _key: &AeadKey, ad: &[u8], _output: &mut Vec<u8>) -> Result<()> {
+    fn process_ad(&self, ad: &[u8], _output: &mut Vec<u8>) -> Result<()> {
         // For Saturnin-Short, we don't process AD separately
         // The AD is incorporated into the tag generation
         if !ad.is_empty() {
@@ -210,34 +225,49 @@ impl SaturninShortAead {
         Ok(())
     }
 
-    /// Encrypt/decrypt using CTR mode
+    /// Encrypt/decrypt using CTR mode (domain 6).
+    ///
+    /// Each block uses a 32-byte input to the cipher: nonce (16) || `0x80` || zeros (11) ||
+    /// 32-bit big-endian block counter (4), matching the layout used by [`crate::SaturninStream`]
+    /// so successive blocks receive distinct inputs.
     fn ctr_encrypt(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         input: &[u8],
         output: &mut Vec<u8>,
     ) -> Result<()> {
-        let mut counter = [0u8; 16];
-        counter[..16].copy_from_slice(&nonce.data);
+        let key_len = key.len();
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: Self::key_size(),
+            actual: key_len,
+        })?;
 
-        let mut keystream = [0u8; 32];
+        let mut block_counter = 0u32;
         let mut input_offset = 0;
 
         while input_offset < input.len() {
-            // Encrypt counter to generate keystream block
-            self.core.encrypt_block(&key.data, &mut keystream)?;
+            let mut counter_block = [0u8; 32];
+            counter_block[0..16].copy_from_slice(nonce);
+            counter_block[16] = 0x80;
+            counter_block[28..32].copy_from_slice(&block_counter.to_be_bytes());
 
-            // XOR with input
+            self.core.encrypt_block_32(key32, &mut counter_block)?;
+
             let block_len = (input.len() - input_offset).min(32);
             for i in 0..block_len {
-                output.push(input[input_offset + i] ^ keystream[i]);
+                output.push(input[input_offset + i] ^ counter_block[i]);
             }
 
             input_offset += block_len;
-
-            // Increment counter
-            self.increment_counter(&mut counter);
+            let next = block_counter.wrapping_add(1);
+            if next == 0 {
+                return Err(Error::InvalidMessageSize {
+                    max: usize::MAX,
+                    actual: input.len(),
+                });
+            }
+            block_counter = next;
         }
 
         Ok(())
@@ -246,11 +276,17 @@ impl SaturninShortAead {
     /// Generate authentication tag
     fn generate_tag(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         ad: Option<&[u8]>,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
+        let key_len = key.len();
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: Self::key_size(),
+            actual: key_len,
+        })?;
+
         // For Saturnin-Short, we use a simple tag generation
         // that incorporates AD, ciphertext, and nonce
         let mut tag_input = Vec::new();
@@ -268,7 +304,7 @@ impl SaturninShortAead {
         tag_input.extend_from_slice(ciphertext);
 
         // Add nonce
-        tag_input.extend_from_slice(&nonce.data);
+        tag_input.extend_from_slice(nonce);
 
         // Pad to block size if needed
         while tag_input.len() % 32 != 0 {
@@ -279,25 +315,15 @@ impl SaturninShortAead {
         let mut tag = [0u8; 32];
         if tag_input.len() == 32 {
             tag.copy_from_slice(&tag_input);
-            self.core.encrypt_block(&key.data, &mut tag)?;
+            self.core.encrypt_block_32(key32, &mut tag)?;
         } else {
             // For longer inputs, we'd need a proper hash construction
             // For now, just use the first 32 bytes
             tag.copy_from_slice(&tag_input[..32]);
-            self.core.encrypt_block(&key.data, &mut tag)?;
+            self.core.encrypt_block_32(key32, &mut tag)?;
         }
 
         Ok(tag.to_vec())
-    }
-
-    /// Increment counter for CTR mode
-    fn increment_counter(&self, counter: &mut [u8; 16]) {
-        for i in (0..16).rev() {
-            counter[i] = counter[i].wrapping_add(1);
-            if counter[i] != 0 {
-                break;
-            }
-        }
     }
 }
 
@@ -413,5 +439,20 @@ mod tests {
 
         let result = aead.encrypt(&key, &nonce, plaintext, None);
         assert!(result.is_err());
+    }
+
+    /// CTR must change the cipher input per block; this would fail if the keystream repeated.
+    #[test]
+    fn test_saturnin_short_multiblock_ctr_round_trip() -> Result<()> {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![7u8; 32]);
+        let nonce = Nonce::new(vec![3u8; 16]);
+        let plaintext = vec![0xABu8; 100];
+        let ad: Option<&[u8]> = None;
+
+        let ciphertext = aead.encrypt(&key, &nonce, &plaintext, ad)?;
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, ad)?;
+        assert_eq!(decrypted, plaintext);
+        Ok(())
     }
 }

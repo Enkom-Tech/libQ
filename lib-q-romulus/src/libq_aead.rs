@@ -7,7 +7,6 @@ extern crate alloc;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-use aead::consts::U16;
 use aead::generic_array::GenericArray;
 use aead::{
     AeadInPlace,
@@ -20,11 +19,24 @@ use lib_q_core::{
     Nonce,
     Result,
 };
+use zeroize::{
+    Zeroize,
+    Zeroizing,
+};
 
 use crate::{
     RomulusM,
     RomulusN,
 };
+
+const KEY_NONCE_BYTES: usize = 16;
+
+/// Copy exactly 16 bytes into memory that is zeroed on drop (Romulus key and nonce size).
+fn zeroizing_copy_16(bytes: &[u8]) -> Zeroizing<[u8; KEY_NONCE_BYTES]> {
+    let mut out = Zeroizing::new([0u8; KEY_NONCE_BYTES]);
+    out.copy_from_slice(bytes);
+    out
+}
 
 /// Stateless Romulus-N facade using [`lib_q_core::Aead`].
 pub struct RomulusNAead;
@@ -76,12 +88,15 @@ impl Aead for RomulusNAead {
             });
         }
         let ad = associated_data.unwrap_or(&[]);
-        let key_arr: GenericArray<u8, U16> = *GenericArray::from_slice(kb);
-        let nonce_arr: GenericArray<u8, U16> = *GenericArray::from_slice(nb);
-        let cipher = RomulusN::new(&key_arr);
+        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let cipher = {
+            let kz = zeroizing_copy_16(kb);
+            RomulusN::new(GenericArray::from_slice(kz.as_slice()))
+        };
         let mut buf = plaintext.to_vec();
         let tag = cipher
-            .encrypt_in_place_detached(&nonce_arr, ad, &mut buf)
+            .encrypt_in_place_detached(nonce_ref, ad, &mut buf)
             .map_err(|_| Error::EncryptionFailed {
                 operation: "Romulus-N encrypt".to_string(),
             })?;
@@ -117,16 +132,23 @@ impl Aead for RomulusNAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr: GenericArray<u8, U16> = *GenericArray::from_slice(kb);
-        let nonce_arr: GenericArray<u8, U16> = *GenericArray::from_slice(nb);
-        let cipher = RomulusN::new(&key_arr);
+        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let cipher = {
+            let kz = zeroizing_copy_16(kb);
+            RomulusN::new(GenericArray::from_slice(kz.as_slice()))
+        };
         let tag = GenericArray::clone_from_slice(&ciphertext[body_len..]);
         let mut buf = ciphertext[..body_len].to_vec();
-        cipher
-            .decrypt_in_place_detached(&nonce_arr, ad, &mut buf, &tag)
-            .map_err(|_| Error::VerificationFailed {
+        if cipher
+            .decrypt_in_place_detached(nonce_ref, ad, &mut buf, &tag)
+            .is_err()
+        {
+            buf.zeroize();
+            return Err(Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
-            })?;
+            });
+        }
         Ok(buf)
     }
 }
@@ -181,12 +203,15 @@ impl Aead for RomulusMAead {
             });
         }
         let ad = associated_data.unwrap_or(&[]);
-        let key_arr: GenericArray<u8, U16> = *GenericArray::from_slice(kb);
-        let nonce_arr: GenericArray<u8, U16> = *GenericArray::from_slice(nb);
-        let cipher = RomulusM::new(&key_arr);
+        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let cipher = {
+            let kz = zeroizing_copy_16(kb);
+            RomulusM::new(GenericArray::from_slice(kz.as_slice()))
+        };
         let mut buf = plaintext.to_vec();
         let tag = cipher
-            .encrypt_in_place_detached(&nonce_arr, ad, &mut buf)
+            .encrypt_in_place_detached(nonce_ref, ad, &mut buf)
             .map_err(|_| Error::EncryptionFailed {
                 operation: "Romulus-M encrypt".to_string(),
             })?;
@@ -222,16 +247,23 @@ impl Aead for RomulusMAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr: GenericArray<u8, U16> = *GenericArray::from_slice(kb);
-        let nonce_arr: GenericArray<u8, U16> = *GenericArray::from_slice(nb);
-        let cipher = RomulusM::new(&key_arr);
+        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let cipher = {
+            let kz = zeroizing_copy_16(kb);
+            RomulusM::new(GenericArray::from_slice(kz.as_slice()))
+        };
         let tag = GenericArray::clone_from_slice(&ciphertext[body_len..]);
         let mut buf = ciphertext[..body_len].to_vec();
-        cipher
-            .decrypt_in_place_detached(&nonce_arr, ad, &mut buf, &tag)
-            .map_err(|_| Error::VerificationFailed {
+        if cipher
+            .decrypt_in_place_detached(nonce_ref, ad, &mut buf, &tag)
+            .is_err()
+        {
+            buf.zeroize();
+            return Err(Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
-            })?;
+            });
+        }
         Ok(buf)
     }
 }

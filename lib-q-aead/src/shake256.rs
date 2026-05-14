@@ -21,18 +21,15 @@ use lib_q_sha3::digest::{
     Update,
     XofReader,
 };
+use zeroize::Zeroizing;
 
 // Plugin trait implementation
 use crate::metadata::{
     AeadMetadata,
     AeadWithMetadata,
 };
-use crate::security::stack_buffer::{
-    IvBuffer,
-    KeyBuffer,
-    StackBuffer,
-    TagBuffer,
-};
+use crate::security::memory::secure_zero_slice;
+use crate::security::stack_buffer::UninitStackBuffer;
 
 /// SHAKE256 AEAD implementation with proper domain separation
 pub struct Shake256Aead {
@@ -60,7 +57,7 @@ impl Shake256Aead {
         key: &[u8],
         nonce: &[u8],
         associated_data: &[u8],
-    ) -> Result<KeyBuffer> {
+    ) -> Result<Zeroizing<[u8; 32]>> {
         use lib_q_sha3::Shake256;
         use lib_q_sha3::digest::ExtendableOutput;
 
@@ -71,13 +68,9 @@ impl Shake256Aead {
         hasher.update(associated_data);
         hasher.update(&(associated_data.len() as u64).to_le_bytes());
 
-        let mut enc_key = KeyBuffer::new();
-        enc_key.resize(32).map_err(|_| Error::InvalidKeySize {
-            expected: 32,
-            actual: 0,
-        })?;
+        let mut enc_key = Zeroizing::new([0u8; 32]);
         let mut reader = hasher.finalize_xof();
-        reader.read(enc_key.as_mut_slice());
+        reader.read(&mut enc_key[..]);
         Ok(enc_key)
     }
 
@@ -87,7 +80,7 @@ impl Shake256Aead {
         key: &[u8],
         nonce: &[u8],
         associated_data: &[u8],
-    ) -> Result<KeyBuffer> {
+    ) -> Result<Zeroizing<[u8; 32]>> {
         use lib_q_sha3::Shake256;
         use lib_q_sha3::digest::ExtendableOutput;
 
@@ -98,18 +91,19 @@ impl Shake256Aead {
         hasher.update(associated_data);
         hasher.update(&(associated_data.len() as u64).to_le_bytes());
 
-        let mut mac_key = KeyBuffer::new();
-        mac_key.resize(32).map_err(|_| Error::InvalidKeySize {
-            expected: 32,
-            actual: 0,
-        })?;
+        let mut mac_key = Zeroizing::new([0u8; 32]);
         let mut reader = hasher.finalize_xof();
-        reader.read(mac_key.as_mut_slice());
+        reader.read(&mut mac_key[..]);
         Ok(mac_key)
     }
 
     /// Generate initialization vector using domain separation
-    fn generate_iv(&self, key: &[u8], nonce: &[u8], associated_data: &[u8]) -> Result<IvBuffer> {
+    fn generate_iv(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        associated_data: &[u8],
+    ) -> Result<Zeroizing<[u8; 16]>> {
         use lib_q_sha3::Shake256;
         use lib_q_sha3::digest::ExtendableOutput;
 
@@ -120,13 +114,9 @@ impl Shake256Aead {
         hasher.update(associated_data);
         hasher.update(&(associated_data.len() as u64).to_le_bytes());
 
-        let mut iv = IvBuffer::new();
-        iv.resize(16).map_err(|_| Error::InvalidNonceSize {
-            expected: 16,
-            actual: 0,
-        })?;
+        let mut iv = Zeroizing::new([0u8; 16]);
         let mut reader = hasher.finalize_xof();
-        reader.read(iv.as_mut_slice());
+        reader.read(&mut iv[..]);
         Ok(iv)
     }
 
@@ -136,7 +126,7 @@ impl Shake256Aead {
         mac_key: &[u8],
         associated_data: &[u8],
         ciphertext: &[u8],
-    ) -> Result<TagBuffer> {
+    ) -> Result<Zeroizing<[u8; 32]>> {
         use lib_q_sha3::Shake256;
         use lib_q_sha3::digest::ExtendableOutput;
 
@@ -148,11 +138,9 @@ impl Shake256Aead {
         hasher.update(ciphertext);
         hasher.update(&(ciphertext.len() as u64).to_le_bytes());
 
-        let mut tag = TagBuffer::new();
-        tag.resize(self.tag_size())
-            .map_err(|_| Error::InvalidMessageSize { max: 0, actual: 0 })?;
+        let mut tag = Zeroizing::new([0u8; 32]);
         let mut reader = hasher.finalize_xof();
-        reader.read(tag.as_mut_slice());
+        reader.read(&mut tag[..]);
         Ok(tag)
     }
 
@@ -167,9 +155,10 @@ impl Shake256Aead {
         hasher.update(iv);
         hasher.update(&(plaintext.len() as u64).to_le_bytes());
 
-        // Use stack buffer for keystream if it fits, otherwise fall back to Vec
+        // Use uninitialized stack buffer: only the used keystream prefix is zeroed on drop
+        // (avoids wiping the full 4096-byte backing store on every small message).
         if plaintext.len() <= 4096 {
-            let mut keystream = StackBuffer::<4096>::new();
+            let mut keystream = UninitStackBuffer::<4096>::new();
             keystream
                 .resize(plaintext.len())
                 .map_err(|_| Error::InvalidMessageSize { max: 0, actual: 0 })?;
@@ -190,6 +179,7 @@ impl Shake256Aead {
             for (i, byte) in plaintext.iter_mut().enumerate() {
                 *byte ^= keystream[i];
             }
+            secure_zero_slice(&mut keystream);
         }
 
         Ok(())
@@ -240,11 +230,17 @@ impl Shake256Aead {
         // Use SHAKE256 for encryption with proper domain separation
         #[cfg(feature = "shake256")]
         {
+            let mut key_staged = Zeroizing::new([0u8; 32]);
+            key_staged.copy_from_slice(key.as_bytes());
+            let mut nonce_staged = Zeroizing::new([0u8; 16]);
+            nonce_staged.copy_from_slice(nonce.as_bytes());
+            let kb = key_staged.as_slice();
+            let nb = nonce_staged.as_slice();
+
             // Derive keys using domain separation
-            let enc_key =
-                self.derive_encryption_key(key.as_bytes(), nonce.as_bytes(), associated_data)?;
-            let mac_key = self.derive_mac_key(key.as_bytes(), nonce.as_bytes(), associated_data)?;
-            let iv = self.generate_iv(key.as_bytes(), nonce.as_bytes(), associated_data)?;
+            let enc_key = self.derive_encryption_key(kb, nb, associated_data)?;
+            let mac_key = self.derive_mac_key(kb, nb, associated_data)?;
+            let iv = self.generate_iv(kb, nb, associated_data)?;
 
             // Encrypt plaintext
             let mut ciphertext = plaintext.to_vec();
@@ -256,7 +252,6 @@ impl Shake256Aead {
             // Append tag to ciphertext
             ciphertext.extend_from_slice(tag.as_slice());
 
-            // Secure memory cleanup is automatic with stack buffers
             Ok(ciphertext)
         }
 
@@ -290,14 +285,19 @@ impl Shake256Aead {
         // Use SHAKE256 for decryption with proper domain separation
         #[cfg(feature = "shake256")]
         {
-            // Split ciphertext and tag
             let (ciphertext_data, tag) = ciphertext.split_at(ciphertext.len() - self.tag_size());
 
+            let mut key_staged = Zeroizing::new([0u8; 32]);
+            key_staged.copy_from_slice(key.as_bytes());
+            let mut nonce_staged = Zeroizing::new([0u8; 16]);
+            nonce_staged.copy_from_slice(nonce.as_bytes());
+            let kb = key_staged.as_slice();
+            let nb = nonce_staged.as_slice();
+
             // Derive keys using domain separation
-            let enc_key =
-                self.derive_encryption_key(key.as_bytes(), nonce.as_bytes(), associated_data)?;
-            let mac_key = self.derive_mac_key(key.as_bytes(), nonce.as_bytes(), associated_data)?;
-            let iv = self.generate_iv(key.as_bytes(), nonce.as_bytes(), associated_data)?;
+            let enc_key = self.derive_encryption_key(kb, nb, associated_data)?;
+            let mac_key = self.derive_mac_key(kb, nb, associated_data)?;
+            let iv = self.generate_iv(kb, nb, associated_data)?;
 
             // Verify authentication tag using constant-time comparison
             let computed_tag =

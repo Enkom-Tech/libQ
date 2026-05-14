@@ -15,7 +15,7 @@ categories = ["cryptography"]
 aead = { workspace = true, default-features = false }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
 subtle = { workspace = true, default-features = false }
-zeroize = { workspace = true, default-features = false, features = ["derive"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"] }
 
 [features]
 default = ["alloc", "std"]

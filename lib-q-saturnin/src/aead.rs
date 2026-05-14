@@ -46,7 +46,8 @@
 //! - **Nonce size**: 128 bits (16 bytes)  
 //! - **Tag size**: 256 bits (32 bytes)
 //! - **Throughput**: ~100-500 MB/s on modern hardware
-//! - **Memory usage**: Minimal, stateless design
+//! - **Memory usage**: Small fixed state (pre-built cipher cores for domains 1–5); per-message
+//!   key/nonce are staged in zeroizing buffers at the `Aead` boundary.
 
 #[cfg(feature = "alloc")]
 use alloc::{
@@ -61,6 +62,10 @@ use lib_q_core::{
     Nonce,
     Result,
 };
+use zeroize::{
+    Zeroize,
+    Zeroizing,
+};
 
 use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
@@ -69,19 +74,57 @@ use crate::simd::{
     simd_xor,
 };
 
+/// Pre-built Saturnin cores for CTR-Cascade AEAD (10 super-rounds, domains 1–5).
+///
+/// Building these once per [`SaturninAead`] avoids repeated `Vec` allocation of round constants
+/// on every encrypt/decrypt (domains 1–5 cover CTR and all cascade steps).
+struct SaturninAeadCores {
+    d1: SaturninCore,
+    d2: SaturninCore,
+    d3: SaturninCore,
+    d4: SaturninCore,
+    d5: SaturninCore,
+}
+
+impl SaturninAeadCores {
+    fn new() -> Result<Self> {
+        Ok(Self {
+            d1: SaturninCore::new(10, 1)?,
+            d2: SaturninCore::new(10, 2)?,
+            d3: SaturninCore::new(10, 3)?,
+            d4: SaturninCore::new(10, 4)?,
+            d5: SaturninCore::new(10, 5)?,
+        })
+    }
+
+    #[inline]
+    fn domain(&self, d: u8) -> &SaturninCore {
+        match d {
+            1 => &self.d1,
+            2 => &self.d2,
+            3 => &self.d3,
+            4 => &self.d4,
+            5 => &self.d5,
+            _ => unreachable!("AEAD CTR/cascade only uses domains 1–5"),
+        }
+    }
+}
+
 /// Saturnin AEAD implementation
 ///
 /// Provides authenticated encryption using the Saturnin CTR-Cascade mode.
 /// This is the full AEAD mode that supports associated data and arbitrary
 /// length plaintexts.
 pub struct SaturninAead {
-    // No state needed - all operations are stateless
+    cores: SaturninAeadCores,
 }
 
 impl SaturninAead {
     /// Create a new Saturnin AEAD instance
     pub fn new() -> Self {
-        Self {}
+        Self {
+            cores: SaturninAeadCores::new().expect("Saturnin AEAD uses fixed valid domains"),
+        }
     }
 
     /// Get the key size in bytes (256 bits = 32 bytes)
@@ -101,6 +144,11 @@ impl SaturninAead {
 
     /// Initialize the cascade state
     fn cascade_init(&self, key: &[u8], nonce: &[u8]) -> Result<[u8; 32]> {
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: 32,
+            actual: key.len(),
+        })?;
+
         let mut r = [0u8; 32];
 
         // Copy nonce to first 16 bytes
@@ -109,8 +157,7 @@ impl SaturninAead {
         // Remaining bytes are already zero
 
         // Encrypt with cascade parameters: 10 super-rounds, domain 2 (AAD1)
-        let core = SaturninCore::new(10, 2)?;
-        core.encrypt_block(key, &mut r)?;
+        self.cores.d2.encrypt_block_32(key32, &mut r)?;
 
         // XOR with nonce
         for i in 0..16 {
@@ -123,9 +170,8 @@ impl SaturninAead {
 
     /// Apply cascade construction to data (optimized)
     fn cascade(&self, r: &mut [u8; 32], d1: u8, d2: u8, data: &[u8]) -> Result<()> {
-        // Pre-allocate cores to avoid repeated allocation overhead
-        let core_d1 = SaturninCore::new(10, d1)?;
-        let core_d2 = SaturninCore::new(10, d2)?;
+        let core_d1 = self.cores.domain(d1);
+        let core_d2 = self.cores.domain(d2);
 
         let mut offset = 0;
 
@@ -140,7 +186,7 @@ impl SaturninAead {
 
                 // Use pre-allocated core for d1
                 m.copy_from_slice(&t);
-                core_d1.encrypt_block(r, &mut m)?;
+                core_d1.encrypt_block_32(&*r, &mut m)?;
             } else {
                 t[0..remaining].copy_from_slice(&data[offset..]);
                 t[remaining] = 0x80;
@@ -148,7 +194,7 @@ impl SaturninAead {
 
                 // Use pre-allocated core for d2
                 m.copy_from_slice(&t);
-                core_d2.encrypt_block(r, &mut m)?;
+                core_d2.encrypt_block_32(&*r, &mut m)?;
             }
 
             #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
@@ -175,8 +221,12 @@ impl SaturninAead {
 
     /// CTR encryption/decryption (optimized)
     fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
-        // Pre-allocate core to avoid repeated allocation overhead
-        let core = SaturninCore::new(10, 1)?; // CTR uses domain 1
+        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: 32,
+            actual: key.len(),
+        })?;
+
+        let core = &self.cores.d1;
 
         let mut counter = 1u32; // Counter starts at 1
         let mut offset = 0;
@@ -195,7 +245,7 @@ impl SaturninAead {
                     block[31] = c as u8;
                 }
 
-                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks)?;
+                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(core))?;
 
                 for (lane, ks) in keystream_blocks.iter().enumerate() {
                     let start = offset + (lane * 32);
@@ -230,7 +280,7 @@ impl SaturninAead {
             keystream[31] = counter as u8;
 
             // Encrypt to get keystream
-            core.encrypt_block(key, &mut keystream)?;
+            core.encrypt_block_32(key32, &mut keystream)?;
 
             let remaining = data.len() - offset;
             let block_len = remaining.min(32);
@@ -306,15 +356,22 @@ impl Aead for SaturninAead {
 
         let ad = associated_data.unwrap_or(&[]);
 
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce_staged = Zeroizing::new([0u8; 16]);
+        nonce_staged.copy_from_slice(nonce.as_bytes());
+        let kb = key_staged.as_slice();
+        let nb = nonce_staged.as_slice();
+
         // Initialize cascade state
-        let mut tag = self.cascade_init(key.as_bytes(), nonce.as_bytes())?;
+        let mut tag = self.cascade_init(kb, nb)?;
 
         // Process associated data
         self.cascade(&mut tag, 2, 3, ad)?;
 
         // Encrypt plaintext with CTR
         let mut ciphertext = plaintext.to_vec();
-        self.ctr_encrypt(key.as_bytes(), nonce.as_bytes(), &mut ciphertext)?;
+        self.ctr_encrypt(kb, nb, &mut ciphertext)?;
 
         // Continue cascade on ciphertext
         self.cascade(&mut tag, 4, 5, &ciphertext)?;
@@ -376,8 +433,15 @@ impl Aead for SaturninAead {
         let ciphertext_data = &ciphertext[0..plaintext_len];
         let received_tag = &ciphertext[plaintext_len..];
 
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce_staged = Zeroizing::new([0u8; 16]);
+        nonce_staged.copy_from_slice(nonce.as_bytes());
+        let kb = key_staged.as_slice();
+        let nb = nonce_staged.as_slice();
+
         // Initialize cascade state
-        let mut tag = self.cascade_init(key.as_bytes(), nonce.as_bytes())?;
+        let mut tag = self.cascade_init(kb, nb)?;
 
         // Process associated data
         self.cascade(&mut tag, 2, 3, ad)?;
@@ -389,12 +453,12 @@ impl Aead for SaturninAead {
 
         // Always perform CTR decrypt so execution time is independent of tag validity.
         let mut plaintext = ciphertext_data.to_vec();
-        self.ctr_encrypt(key.as_bytes(), nonce.as_bytes(), &mut plaintext)?;
+        self.ctr_encrypt(kb, nb, &mut plaintext)?;
 
         if tag_valid {
             Ok(plaintext)
         } else {
-            plaintext.fill(0);
+            plaintext.zeroize();
             Err(Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
             })
