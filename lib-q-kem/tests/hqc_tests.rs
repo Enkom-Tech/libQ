@@ -181,6 +181,47 @@ fn test_hqc_auth_encapsulate_not_implemented() {
     }
 }
 
+/// Stress test: 200 random HQC-256 keypair roundtrips must all succeed.
+///
+/// With 200 samples, a regression to the previously observed 11.2% failure rate
+/// would be detected with probability > 0.9999. Any rate above ~1.5% is caught
+/// with >= 95% confidence.
+#[test]
+#[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
+fn test_hqc256_random_keypair_stress() {
+    let provider = LibQHqcProvider::new().expect("LibQHqcProvider");
+
+    const TRIALS: usize = 200;
+    let mut failures = 0usize;
+
+    for i in 0..TRIALS {
+        let keygen_seed = kem_keygen_prng_seed(i as u8);
+        let keypair = provider
+            .generate_keypair(Algorithm::Hqc256, Some(&keygen_seed))
+            .expect("generate_keypair");
+
+        let enc_seed = kem_encaps_prng_seed(i as u8 ^ 0xFF);
+        let (ciphertext, shared_secret) = provider
+            .encapsulate(Algorithm::Hqc256, &keypair.public_key, Some(&enc_seed))
+            .expect("encapsulate");
+
+        let decapsulated = provider
+            .decapsulate(Algorithm::Hqc256, &keypair.secret_key, &ciphertext)
+            .expect("decapsulate");
+
+        if shared_secret != decapsulated {
+            failures += 1;
+        }
+    }
+
+    assert_eq!(
+        failures,
+        0,
+        "HQC-256 stress: {failures}/{TRIALS} mismatches ({:.2}%)",
+        failures as f64 / TRIALS as f64 * 100.0
+    );
+}
+
 /// auth_decapsulate returns Err(NotImplemented).
 #[test]
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]

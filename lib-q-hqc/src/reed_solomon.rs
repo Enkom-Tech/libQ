@@ -221,26 +221,31 @@ impl<P: HqcParams> ReedSolomon<P> {
         let found_errors =
             self.find_error_positions_chien(&mut error_positions, &sigma, deg_sigma)?;
 
-        // Compute error evaluator polynomial (z polynomial)
-        self.compute_z_poly(&mut z_poly, &sigma, deg_sigma, &syndromes)?;
-
-        // Compute error values
-        self.compute_error_values_forney(
-            &mut error_values,
-            &z_poly,
-            &error_positions,
-            &sigma,
-            found_errors,
-        )?;
-
-        // Correct the errors
         let mut corrected_codeword = [0u8; 512]; // Max n1 (HQC-1: 287)
         corrected_codeword[..n1].copy_from_slice(&codeword[..n1]);
 
-        for i in 0..found_errors {
-            let pos = error_positions[i] as usize;
-            if pos < n1 {
-                corrected_codeword[pos] ^= error_values[i] as u8;
+        // When Chien search finds fewer roots than the ELP degree, the error pattern
+        // exceeds the RS correction capacity. Applying partial corrections would corrupt
+        // the codeword further, so we skip corrections entirely and let the FO transform's
+        // re-encryption check detect the failure via implicit rejection.
+        if found_errors == deg_sigma {
+            // Compute error evaluator polynomial (z polynomial)
+            self.compute_z_poly(&mut z_poly, &sigma, deg_sigma, &syndromes)?;
+
+            // Compute error values using Forney's algorithm
+            self.compute_error_values_forney(
+                &mut error_values,
+                &z_poly,
+                &error_positions,
+                &sigma,
+                found_errors,
+            )?;
+
+            for i in 0..found_errors {
+                let pos = error_positions[i] as usize;
+                if pos < n1 {
+                    corrected_codeword[pos] ^= error_values[i] as u8;
+                }
             }
         }
 
@@ -294,8 +299,7 @@ impl<P: HqcParams> ReedSolomon<P> {
                             .gf_multiply_u16(codeword[j], P::ALPHA_IJ_POW[i][j - 1] as u8)
                             as u16;
                     } else {
-                        // Fallback: compute α^(i⋅j) manually when precomputed values are not available
-                        let alpha_power = (i * j) % P::GF_MUL_ORDER;
+                        let alpha_power = ((i + 1) * j) % P::GF_MUL_ORDER;
                         let alpha_val = self.gf_exp[alpha_power];
                         syndromes[i] ^= self.gf_multiply_u16(codeword[j], alpha_val) as u16;
                     }
