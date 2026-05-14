@@ -22,6 +22,7 @@ mod generated_ntt;
 pub mod ntt;
 pub mod params;
 pub mod poly;
+pub mod uniform;
 
 #[cfg(feature = "alloc")]
 pub mod expand;
@@ -55,4 +56,10 @@ pub use ntt::{
 pub use poly::{
     NttPoly,
     Poly,
+};
+pub use uniform::{
+    sample_uniform_coeff_mod_q,
+    sample_uniform_field_coefficient,
+    try_uniform_coeff_mod_q_from_u32,
+    uniform_mod_u32_rejection_threshold,
 };

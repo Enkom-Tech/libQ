@@ -1,8 +1,6 @@
 //! Legendre PRF: \(L_K(x) = \left(\frac{x+K}{p}\right)\).
 
 use crypto_bigint::{
-    CtEq,
-    CtLt,
     NonZero,
     U256,
     U512,
@@ -18,6 +16,10 @@ use crate::field::{
     legendre_symbol_monty,
     to_monty,
     uint_ct_eq_zero,
+};
+use crate::keys::{
+    validate_key_u256,
+    validate_key_u512,
 };
 use crate::params::{
     LegendrePrfParams256,
@@ -44,24 +46,6 @@ pub struct LegendreKey256 {
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct LegendreKey512 {
     k: U512,
-}
-
-fn validate_key_u256(k: &U256, p: &U256) -> Result<(), PrfError> {
-    let zero = k.ct_eq(&U256::ZERO);
-    let lt_p = k.ct_lt(p);
-    if bool::from(zero | !lt_p) {
-        return Err(PrfError::InvalidKey);
-    }
-    Ok(())
-}
-
-fn validate_key_u512(k: &U512, p: &U512) -> Result<(), PrfError> {
-    let zero = k.ct_eq(&U512::ZERO);
-    let lt_p = k.ct_lt(p);
-    if bool::from(zero | !lt_p) {
-        return Err(PrfError::InvalidKey);
-    }
-    Ok(())
 }
 
 impl LegendreKey256 {

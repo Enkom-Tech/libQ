@@ -14,6 +14,8 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 #[cfg(feature = "wasm")]
+use js_sys::Uint8Array;
+#[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
 /// Trait for key encapsulation mechanisms
@@ -294,9 +296,13 @@ impl KemKeypair {
         self.public_key.data.to_vec()
     }
 
-    /// Get the secret key as bytes for WASM
-    pub fn secret_key_bytes(&self) -> Vec<u8> {
-        self.secret_key.data.to_vec()
+    /// Copy the secret key into a new `Uint8Array` for WASM (avoids returning an owned non-zeroizing `Vec<u8>`).
+    pub fn secret_key_bytes(&self) -> Uint8Array {
+        let n =
+            u32::try_from(self.secret_key.data.len()).expect("KEM secret key length fits in u32");
+        let out = Uint8Array::new_with_length(n);
+        out.copy_from(&self.secret_key.data);
+        out
     }
 }
 
@@ -382,9 +388,12 @@ impl KemSecretKey {
         Self::new(data)
     }
 
-    /// Get the key data as bytes for WASM
-    pub fn bytes(&self) -> Vec<u8> {
-        self.data.to_vec()
+    /// Copy the key material into a new `Uint8Array` for WASM (avoids returning an owned non-zeroizing `Vec<u8>`).
+    pub fn bytes(&self) -> Uint8Array {
+        let n = u32::try_from(self.data.len()).expect("KEM secret key length fits in u32");
+        let out = Uint8Array::new_with_length(n);
+        out.copy_from(&self.data);
+        out
     }
 }
 

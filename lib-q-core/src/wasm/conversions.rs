@@ -1,7 +1,7 @@
-//! WASM conversion utilities
+//! WASM conversion helpers between Rust buffers and JavaScript [`js_sys::Uint8Array`].
 //!
-//! This module provides secure conversion functions between Rust types and
-//! JavaScript-compatible types for WASM bindings.
+//! These are mechanical copies: they do not infer sensitivity. Callers choose [`zeroize::Zeroizing`]
+//! or explicit clearing when handling secrets.
 
 #[cfg(feature = "wasm")]
 extern crate alloc;
@@ -27,30 +27,27 @@ use wasm_bindgen::prelude::*;
 use crate::api::Algorithm;
 use crate::error::Result;
 
-/// Secure conversion utilities for WASM
+/// Byte-array conversion helpers for WASM bindings.
 #[cfg(feature = "wasm")]
 pub struct WasmConversions;
 
 #[cfg(feature = "wasm")]
 impl WasmConversions {
-    /// Convert Rust Vec<u8> to WASM Uint8Array
+    /// Copy `data` into a new JavaScript `Uint8Array`.
     ///
-    /// This function ensures secure handling of sensitive data by:
-    /// - Zeroizing the source data after conversion
-    /// - Using secure memory allocation
-    /// - Preventing data leakage through timing attacks
+    /// The input slice is not modified; callers that need the source buffer cleared must do so
+    /// separately (for example by holding secrets in [`zeroize::Zeroizing`] and letting it drop
+    /// after this call).
     pub fn vec_to_uint8array(data: &[u8]) -> Uint8Array {
-        let array = Uint8Array::new_with_length(data.len() as u32);
+        let n = u32::try_from(data.len()).expect("length exceeds JavaScript Uint8Array maximum");
+        let array = Uint8Array::new_with_length(n);
         array.copy_from(data);
         array
     }
 
     /// Convert WASM Uint8Array to Rust Vec<u8>
     ///
-    /// This function ensures secure handling of sensitive data by:
-    /// - Validating input size to prevent DoS attacks
-    /// - Using secure memory allocation
-    /// - Proper error handling for invalid inputs
+    /// Validates input size to limit abuse; copies array contents into a new `Vec`.
     pub fn uint8array_to_vec(array: &Uint8Array) -> Result<Vec<u8>> {
         let length = array.length() as usize;
 

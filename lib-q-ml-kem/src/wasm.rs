@@ -1,11 +1,25 @@
-//! JavaScript/WASM bindings for ML-KEM (FIPS 203).
+//! `JavaScript` / WASM bindings for ML-KEM (FIPS 203).
 //!
 //! ML-KEM parameter sets are selected with `variant`: **0** = ML-KEM-512, **1** = ML-KEM-768,
 //! **2** = ML-KEM-1024.
 //!
 //! All exported functions return [`Result<_, JsError>`]: invalid inputs, RNG setup failures, and KEM
-//! operation errors surface as JavaScript exceptions via `wasm-bindgen`, rather than aborting the
+//! operation errors surface as `JavaScript` exceptions via `wasm-bindgen`, rather than aborting the
 //! module with a Rust panic.
+//!
+//! # Secret material and memory hygiene
+//!
+//! Decapsulation keys and shared secrets are stored in [`zeroize::Zeroizing`] buffers so they are
+//! cleared on drop when WASM objects are garbage-collected on the Rust side.
+//!
+//! Secret bytes are copied to `JavaScript` as [`js_sys::Uint8Array`] via `copy_from` (not as an owned
+//! non-zeroizing [`alloc::vec::Vec`] return), which avoids an extra full-size plaintext `Vec` in
+//! Rust linear memory for each getter or decapsulate call.
+//!
+//! **`JavaScript` callers** must still treat returned `Uint8Array` values as sensitive: Rust cannot
+//! erase copies on the JS heap, in `ArrayBuffer` views, or in engine internals. After use, overwrite
+//! buffers (for example `buf.fill(0)` on a mutable view, or discard references and avoid retaining
+//! slices) following your application's key-handling policy.
 
 #![allow(missing_docs)]
 #![allow(
@@ -21,7 +35,9 @@ extern crate alloc;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
+use zeroize::Zeroizing;
 
 use crate::kem::{
     DecapsulationKey,
@@ -42,17 +58,25 @@ use crate::{
     MlKem1024Params,
 };
 
+/// Copy `secret` into a new `Uint8Array` for the JS boundary without returning an owned `Vec<u8>`.
+fn secret_bytes_to_uint8_array(secret: &[u8]) -> Uint8Array {
+    let n = u32::try_from(secret.len()).expect("secret length exceeds Uint8Array maximum");
+    let out = Uint8Array::new_with_length(n);
+    out.copy_from(secret);
+    out
+}
+
 #[wasm_bindgen]
 pub struct MlKemKeypair {
-    secret_key: Vec<u8>,
+    secret_key: Zeroizing<Vec<u8>>,
     public_key: Vec<u8>,
 }
 
 #[wasm_bindgen]
 impl MlKemKeypair {
     #[wasm_bindgen(getter)]
-    pub fn secret_key(&self) -> Vec<u8> {
-        self.secret_key.clone()
+    pub fn secret_key(&self) -> Uint8Array {
+        secret_bytes_to_uint8_array(self.secret_key.as_slice())
     }
 
     #[wasm_bindgen(getter)]
@@ -64,7 +88,7 @@ impl MlKemKeypair {
 #[wasm_bindgen]
 pub struct MlKemEncapsulationResult {
     ciphertext: Vec<u8>,
-    shared_secret: Vec<u8>,
+    shared_secret: Zeroizing<Vec<u8>>,
 }
 
 #[wasm_bindgen]
@@ -75,8 +99,8 @@ impl MlKemEncapsulationResult {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn shared_secret(&self) -> Vec<u8> {
-        self.shared_secret.clone()
+    pub fn shared_secret(&self) -> Uint8Array {
+        secret_bytes_to_uint8_array(self.shared_secret.as_slice())
     }
 }
 
@@ -101,21 +125,21 @@ pub fn ml_kem_generate_keypair(variant: u8) -> Result<MlKemKeypair, JsError> {
         0 => {
             let (dk, ek) = MlKem512::generate(&mut rng);
             Ok(MlKemKeypair {
-                secret_key: dk.as_bytes().as_slice().to_vec(),
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
                 public_key: ek.as_bytes().as_slice().to_vec(),
             })
         }
         1 => {
             let (dk, ek) = MlKem768::generate(&mut rng);
             Ok(MlKemKeypair {
-                secret_key: dk.as_bytes().as_slice().to_vec(),
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
                 public_key: ek.as_bytes().as_slice().to_vec(),
             })
         }
         2 => {
             let (dk, ek) = MlKem1024::generate(&mut rng);
             Ok(MlKemKeypair {
-                secret_key: dk.as_bytes().as_slice().to_vec(),
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
                 public_key: ek.as_bytes().as_slice().to_vec(),
             })
         }
@@ -140,7 +164,7 @@ pub fn ml_kem_encapsulate(
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
             Ok(MlKemEncapsulationResult {
                 ciphertext: ct.as_slice().to_vec(),
-                shared_secret: ss.as_slice().to_vec(),
+                shared_secret: Zeroizing::new(ss.as_slice().to_vec()),
             })
         }
         1 => {
@@ -152,7 +176,7 @@ pub fn ml_kem_encapsulate(
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
             Ok(MlKemEncapsulationResult {
                 ciphertext: ct.as_slice().to_vec(),
-                shared_secret: ss.as_slice().to_vec(),
+                shared_secret: Zeroizing::new(ss.as_slice().to_vec()),
             })
         }
         2 => {
@@ -164,7 +188,7 @@ pub fn ml_kem_encapsulate(
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
             Ok(MlKemEncapsulationResult {
                 ciphertext: ct.as_slice().to_vec(),
-                shared_secret: ss.as_slice().to_vec(),
+                shared_secret: Zeroizing::new(ss.as_slice().to_vec()),
             })
         }
         _ => Err(variant_err()),
@@ -177,7 +201,7 @@ pub fn ml_kem_decapsulate(
     variant: u8,
     secret_key: &[u8],
     ciphertext: &[u8],
-) -> Result<Vec<u8>, JsError> {
+) -> Result<Uint8Array, JsError> {
     match variant {
         0 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem512Params>>::try_from(secret_key)
@@ -188,7 +212,8 @@ pub fn ml_kem_decapsulate(
             let ss = dk
                 .decapsulate(&ct_enc)
                 .map_err(|e| kem_err("ML-KEM decapsulate", e))?;
-            Ok(ss.as_slice().to_vec())
+            let bytes = Zeroizing::new(ss.as_slice().to_vec());
+            Ok(secret_bytes_to_uint8_array(bytes.as_slice()))
         }
         1 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem768Params>>::try_from(secret_key)
@@ -199,7 +224,8 @@ pub fn ml_kem_decapsulate(
             let ss = dk
                 .decapsulate(&ct_enc)
                 .map_err(|e| kem_err("ML-KEM decapsulate", e))?;
-            Ok(ss.as_slice().to_vec())
+            let bytes = Zeroizing::new(ss.as_slice().to_vec());
+            Ok(secret_bytes_to_uint8_array(bytes.as_slice()))
         }
         2 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem1024Params>>::try_from(secret_key)
@@ -210,7 +236,8 @@ pub fn ml_kem_decapsulate(
             let ss = dk
                 .decapsulate(&ct_enc)
                 .map_err(|e| kem_err("ML-KEM decapsulate", e))?;
-            Ok(ss.as_slice().to_vec())
+            let bytes = Zeroizing::new(ss.as_slice().to_vec());
+            Ok(secret_bytes_to_uint8_array(bytes.as_slice()))
         }
         _ => Err(variant_err()),
     }

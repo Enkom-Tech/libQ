@@ -18,7 +18,7 @@ lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }
-zeroize = { workspace = true, features = ["derive"], default-features = false, optional = true }
+zeroize = { workspace = true, features = ["derive", "alloc"], default-features = false, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
@@ -83,6 +83,7 @@ wasm = [
     "lib-q-core/wasm",
     "getrandom/wasm_js",
     "custom-entropy",
+    "zeroize",
 ]
 js = ["dep:getrandom", "getrandom/std"]
 

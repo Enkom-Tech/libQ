@@ -415,18 +415,40 @@ impl TryRng for FnDsaRng {
     }
 
     fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        let upper = u64::from(self.try_next_u32()?);
-        let lower = u64::from(self.try_next_u32()?);
-        Ok((upper << 32) | lower)
+        #[cfg(all(feature = "getrandom", not(feature = "rand")))]
+        {
+            let mut bytes = [0u8; 8];
+            getrandom::fill(&mut bytes).expect("Failed to get random bytes from getrandom");
+            Ok(u64::from_le_bytes(bytes))
+        }
+
+        #[cfg(not(all(feature = "getrandom", not(feature = "rand"))))]
+        {
+            let upper = u64::from(self.try_next_u32()?);
+            let lower = u64::from(self.try_next_u32()?);
+            Ok((upper << 32) | lower)
+        }
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        for chunk in dest.chunks_mut(4) {
-            let bytes = self.try_next_u32()?.to_le_bytes();
-            let len = chunk.len().min(4);
-            chunk[..len].copy_from_slice(&bytes[..len]);
+        // `rand` disabled + `getrandom` enabled (e.g. WASM with `wasm_js`): fill the whole buffer in
+        // one call. The default path uses `try_next_u32` per 4-byte chunk, which would invoke
+        // `getrandom::fill` once per chunk and amplify syscall / JS bridge overhead.
+        #[cfg(all(feature = "getrandom", not(feature = "rand")))]
+        {
+            getrandom::fill(dest).expect("Failed to get random bytes from getrandom");
+            Ok(())
         }
-        Ok(())
+
+        #[cfg(not(all(feature = "getrandom", not(feature = "rand"))))]
+        {
+            for chunk in dest.chunks_mut(4) {
+                let bytes = self.try_next_u32()?.to_le_bytes();
+                let len = chunk.len().min(4);
+                chunk[..len].copy_from_slice(&bytes[..len]);
+            }
+            Ok(())
+        }
     }
 }
 
@@ -529,5 +551,15 @@ mod tests {
         let val4 = rng.next_u64();
         // Should not panic and should be different (very high probability)
         assert_ne!(val3, val4);
+    }
+
+    /// Odd-length buffer: `getrandom`-only `try_fill_bytes` must use a single `getrandom::fill`
+    /// (not one `fill` per 4-byte chunk via `try_next_u32`).
+    #[test]
+    #[cfg(all(feature = "getrandom", not(feature = "rand")))]
+    fn test_fn_dsa_rng_fill_bytes_getrandom_only_odd_length() {
+        let mut rng = FnDsaRng::new();
+        let mut buf = [0u8; 1281];
+        rng.fill_bytes(&mut buf);
     }
 }

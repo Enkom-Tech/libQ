@@ -8,6 +8,7 @@ use lib_q_ring::{
     ModuleMatrix,
     ModuleVec,
     Poly,
+    try_uniform_coeff_mod_q_from_u32,
 };
 use lib_q_sha3::{
     ExtendableOutput,
@@ -83,7 +84,7 @@ impl BatchPresentationState {
 pub struct AmortisedProof {
     /// Full batch transcript bytes.
     pub transcript: Box<[u8]>,
-    /// Per-attribute XOF-derived scalars in `[1, q)`.
+    /// Per-attribute XOF-derived scalars, uniform in `{1, …, q − 1}` (no `u32 % q` bias).
     pub r_scalars: Vec<u32>,
     /// `Σ_i r_i · z_i` (coefficient-wise, per witness slot).
     pub agg_z: ModuleVec,
@@ -189,17 +190,27 @@ fn derive_scalars_from_transcript(transcript: &[u8], count: usize) -> Vec<u32> {
     Update::update(&mut hx, &seed);
     Update::update(&mut hx, &(count as u64).to_le_bytes());
     let mut reader = ExtendableOutput::finalize_xof(hx);
+    let q = FIELD_MODULUS as u32;
     let mut r_scalars = Vec::with_capacity(count);
     for _ in 0..count {
-        let mut rb = [0u8; 4];
-        XofReader::read(&mut reader, &mut rb);
-        r_scalars.push(u32::from_le_bytes(rb) | 1);
+        let ri = loop {
+            let mut rb = [0u8; 4];
+            XofReader::read(&mut reader, &mut rb);
+            let word = u32::from_le_bytes(rb);
+            if let Some(c) = try_uniform_coeff_mod_q_from_u32(q, word) &&
+                c != 0
+            {
+                break c as u32;
+            }
+        };
+        r_scalars.push(ri);
     }
     r_scalars
 }
 
 fn scalar_mul_poly(r: u32, p: &Poly) -> Poly {
     let q = FIELD_MODULUS as i64;
+    debug_assert!(r > 0 && (r as i64) < q);
     let rr = (r % FIELD_MODULUS as u32) as i64;
     let mut out = p.clone();
     for c in &mut out.coeffs {

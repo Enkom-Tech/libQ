@@ -43,3 +43,15 @@ CD runs `wasm-pack` twice into **`pkg/web`** (bundler / browser glue) and **`pkg
 ## Security
 
 All `@lib-q/*` packages follow the same policy as the Rust workspace: **NIST-approved post-quantum** algorithms for asymmetric cryptography; no classical RSA/ECC/X25519 as a primary security mechanism.
+
+### `@lib-q/ml-kem` WASM API (secret return types)
+
+`MlKemKeypair.secret_key`, `MlKemEncapsulationResult.shared_secret`, and the return value of `ml_kem_decapsulate` are exported as `Uint8Array` in generated TypeScript (Rust `js_sys::Uint8Array`), replacing the older wasm-bindgen path that returned owned `Vec<u8>` for those values. Update any downstream typings or wrappers that assumed `Vec<u8>`-shaped glue. Sensitive bytes must still be cleared on the JavaScript side after use (for example `fill(0)` on a mutable view).
+
+### `@lib-q/random` WASM API
+
+`secureRandomBytes` returns `Uint8Array` (same Rust projection as above); the Rust side uses `Zeroizing` for the intermediate fill buffer. Clear outputs in JS when they are no longer needed.
+
+### `@lib-q/core` WASM key material
+
+`KemKeypair::secret_key_bytes` and `KemSecretKey::bytes` return `Uint8Array` for WASM bindings (not owned `Vec<u8>`). Treat like other secret exports: clear on the JS side after use.

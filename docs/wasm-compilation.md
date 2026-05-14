@@ -49,6 +49,8 @@ Exact feature sets vary by crate; prefer each crate’s `Cargo.toml` `[features]
 
 [`lib-q-ml-kem`](../lib-q-ml-kem/) exposes ML-KEM `wasm-bindgen` entry points behind `--features wasm` (`ml_kem_generate_keypair`, `ml_kem_encapsulate`, `ml_kem_decapsulate`). Its manifest declares `crate-type = ["cdylib", "rlib"]` because current `wasm-pack` validates that entry for `wasm32-unknown-unknown` (the older `build.rs`-only `rustc-crate-type` hint is not sufficient).
 
+The `wasm` feature enables `zeroize` in that crate: decapsulation keys and shared secrets live in `Zeroizing` buffers on the Rust side, and secret-returning getters plus `ml_kem_decapsulate` hand off copies as `Uint8Array`. Applications should still clear sensitive material in JavaScript after use (`Uint8Array.prototype.fill`, or equivalent), because erasure on the JS heap is outside Rust’s control.
+
 ```bash
 cd lib-q-ml-kem
 wasm-pack build --target web --release -- --features wasm

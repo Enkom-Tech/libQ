@@ -11,6 +11,7 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+rand_core = { workspace = true, default-features = false }
 zeroize = { workspace = true, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 

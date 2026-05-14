@@ -1,4 +1,8 @@
 //! JavaScript / wasm-bindgen surface for AEAD operations (Saturnin, Duplex-Sponge, Romulus-N).
+//!
+//! Keys are taken by value and moved into [`lib_q_core::AeadKey`], which clears its backing buffer
+//! on drop. JavaScript callers should not retain or log copies of key material passed into these
+//! functions.
 
 extern crate alloc;
 

@@ -8,7 +8,7 @@
 //! constructors ([`LegendreKey256::from_uint`], [`GoldKey256::from_uint`], and `derive_from_seed`
 //! variants); use [`LegendreKey256::as_uint`], [`LegendreKey512::as_uint`], [`GoldKey256::as_uint`],
 //! or [`GoldKey512::as_uint`] when you need the field element for serialization or constant-time
-//! equality checks.
+//! equality checks. The shared scalar checks live in [`keys`].
 //!
 //! [`lib-q-ring-sig`]: https://github.com/Enkom-Tech/libQ/tree/main/lib-q-ring-sig
 #![forbid(unsafe_code)]
@@ -31,6 +31,7 @@ mod no_std_panic_handler {
 pub mod error;
 pub mod field;
 pub mod gold;
+pub mod keys;
 pub mod legendre;
 pub mod params;
 mod shake;

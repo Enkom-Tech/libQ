@@ -14,6 +14,15 @@ use lib_q_random::{
 #[cfg(not(feature = "random"))]
 type Result<T> = core::result::Result<T, &'static str>;
 
+#[cfg(not(feature = "random"))]
+use lib_q_sha3::{
+    ExtendableOutput,
+    Shake256,
+    Shake256Reader,
+    Update,
+    XofReader,
+};
+
 /// ML-DSA Random Number Generator
 ///
 /// This provides a unified interface for random number generation in ML-DSA,
@@ -21,8 +30,9 @@ type Result<T> = core::result::Result<T, &'static str>;
 pub struct MLDsaRng {
     #[cfg(feature = "random")]
     rng: LibQRng,
+    /// Deterministic byte stream when `random` is disabled: SHAKE256(seed).
     #[cfg(not(feature = "random"))]
-    fallback_seed: u64,
+    shake_reader: Shake256Reader,
 }
 
 impl MLDsaRng {
@@ -68,43 +78,21 @@ impl MLDsaRng {
         Self { rng }
     }
 
-    /// Fallback implementation when random feature is disabled (requires std on a
-    /// target with a real clock; not cryptographically secure).
-    ///
-    /// `wasm32-unknown-unknown` is intentionally excluded: `SystemTime::now()`
-    /// panics there with "time not implemented on this platform". Wasm consumers
-    /// without `feature = "random"` get the error path below instead of a panic.
-    #[cfg(all(not(feature = "random"), feature = "std", not(target_arch = "wasm32")))]
+    /// Without the `random` feature there is no wired secure entropy source;
+    /// enable `random` (and `lib-q-random`) for production signing and keygen.
+    #[cfg(not(feature = "random"))]
     pub fn new_secure() -> Result<Self> {
-        let seed = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
-        Ok(Self {
-            fallback_seed: seed,
-        })
+        Err("Secure RNG requires 'random' feature")
     }
 
-    /// Fallback when no secure entropy is available: `no_std` without `random`,
-    /// or `wasm32-unknown-unknown` without `random` (which has no usable clock
-    /// for a `SystemTime`-seeded fallback).
-    #[cfg(all(
-        not(feature = "random"),
-        any(not(feature = "std"), target_arch = "wasm32")
-    ))]
-    pub fn new_secure() -> Result<Self> {
-        Err("Secure RNG requires the 'random' feature on this target")
-    }
-
-    /// Fallback deterministic implementation
+    /// Deterministic stream for tests when `random` is disabled: SHAKE256 of `seed`
+    /// (FIPS 202). **Not** a CSPRNG for production; use `new_secure` with `random`.
     #[cfg(not(feature = "random"))]
     pub fn new_deterministic(seed: &[u8]) -> Self {
-        let mut seed_value = 0u64;
-        for (i, &byte) in seed.iter().enumerate() {
-            seed_value ^= (byte as u64) << ((i % 8) * 8);
-        }
+        let mut hasher = Shake256::default();
+        Update::update(&mut hasher, seed);
         Self {
-            fallback_seed: seed_value,
+            shake_reader: hasher.finalize_xof(),
         }
     }
 
@@ -123,17 +111,9 @@ impl MLDsaRng {
         Ok(())
     }
 
-    /// Fallback fill_bytes implementation
     #[cfg(not(feature = "random"))]
     pub fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<()> {
-        // Simple LCG fallback (NOT cryptographically secure)
-        for byte in dest.iter_mut() {
-            self.fallback_seed = self
-                .fallback_seed
-                .wrapping_mul(1103515245)
-                .wrapping_add(12345);
-            *byte = (self.fallback_seed >> 24) as u8;
-        }
+        XofReader::read(&mut self.shake_reader, dest);
         Ok(())
     }
 
@@ -219,6 +199,33 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(not(feature = "random"))]
+    fn new_secure_errors_without_random_feature() {
+        match MLDsaRng::new_secure() {
+            Err(msg) => assert_eq!(msg, "Secure RNG requires 'random' feature"),
+            Ok(_) => panic!("expected new_secure to fail without random feature"),
+        }
+    }
+
+    /// Regression: the old `i % 8` XOR folded indices 0, 8, 16, … into one lane.
+    #[test]
+    #[cfg(not(feature = "random"))]
+    fn deterministic_rng_distinguishes_byte0_vs_byte8_in_seed() {
+        let mut seed_a = [0u8; 32];
+        seed_a[0] = 1;
+        let mut seed_b = [0u8; 32];
+        seed_b[8] = 1;
+
+        let mut ra = MLDsaRng::new_deterministic(&seed_a);
+        let mut rb = MLDsaRng::new_deterministic(&seed_b);
+        let mut a = [0u8; 16];
+        let mut b = [0u8; 16];
+        ra.fill_bytes(&mut a).unwrap();
+        rb.fill_bytes(&mut b).unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
     fn test_deterministic_rng_consistency() {
         let seed = b"test_seed_12345";
         let mut rng1 = MLDsaRng::new_deterministic(seed);
@@ -258,6 +265,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_entropy_quality_no_duplicates() {
         // Test that consecutive entropy calls never produce identical output
         let mut rng = MLDsaRng::new_secure().expect("Secure RNG should be available in tests");
@@ -283,6 +291,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_entropy_quality_distribution() {
         // Test that entropy has reasonable distribution (not all zeros or all ones)
         let mut rng = MLDsaRng::new_secure().expect("Secure RNG should be available in tests");
@@ -324,6 +333,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "random")]
     fn test_deterministic_vs_secure_different() {
         // Test that deterministic and secure RNGs produce different outputs
         let seed = b"test_seed_for_comparison";

@@ -49,10 +49,14 @@ All algorithms produce a 32-byte shared secret.
 - `zeroize` — zeroization helpers for sensitive buffers.
 - `random` — wiring to `lib-q-random` for implementations that need it.
 - `std` — compatibility flag (the crate is already usable with `std` without it).
-- `wasm` — `wasm-bindgen` exports where enabled.
+- `wasm` — `wasm-bindgen` exports where enabled (also enables `zeroize` so WASM-held decapsulation keys and shared secrets are cleared on drop on the Rust side).
 - `hardened` — side-channel-oriented hardening (see above); enable only as a complete feature set.
 
 Default feature set is empty; enable what your integration needs (CI often uses `std` and/or `random`).
+
+### WASM / `JavaScript` (`wasm` feature)
+
+`ml_kem_generate_keypair`, `ml_kem_encapsulate`, and `ml_kem_decapsulate` expose decapsulation keys and shared secrets to JS as `Uint8Array` (not owned `Vec<u8>` through the bindgen boundary). Rust stores those fields in `Zeroizing` buffers. Callers must still overwrite or discard sensitive `Uint8Array` values in `JavaScript` after use (for example `fill(0)`); Rust cannot erase the JS heap once bytes have crossed the boundary.
 
 ## Testing
 

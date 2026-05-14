@@ -1,4 +1,7 @@
 //! WASM exports for high-level ZKP preimage proofs (Poseidon and NIST variants).
+//!
+//! Preimage bytes are supplied from JavaScript as `&[u8]` views; Rust cannot zero the JS backing
+//! store. Minimize preimage lifetime in JS and avoid retaining references after the call returns.
 
 #![allow(missing_docs)]
 

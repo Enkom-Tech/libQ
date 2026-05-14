@@ -46,10 +46,9 @@ pub(crate) fn witness_vec(opening: &AjtaiOpening) -> Vec<Poly> {
 }
 
 pub(crate) fn sample_uniform_poly<R: Rng + CryptoRng>(rng: &mut R) -> Poly {
-    let q = lib_q_ring::constants::FIELD_MODULUS as u32;
     let mut coeffs = [0i32; 256];
     for c in &mut coeffs {
-        *c = (rng.next_u32() % q) as i32;
+        *c = lib_q_ring::sample_uniform_field_coefficient(rng);
     }
     Poly::from_coeffs(coeffs)
 }
