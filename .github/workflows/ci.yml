@@ -71,7 +71,9 @@ jobs:
     name: Test Matrix
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Full workspace `cargo test` + `cargo test --profile release-ci` for `std,all-algorithms`
+    # routinely approaches or exceeds 35 minutes as crates/tests grow; avoid false timeouts.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
