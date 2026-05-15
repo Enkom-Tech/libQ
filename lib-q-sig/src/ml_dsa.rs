@@ -111,6 +111,7 @@ use lib_q_ml_dsa::{
 // WASM support
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
+use zeroize::Zeroize;
 
 /// CRYSTALS-ML-DSA signature implementation
 ///
@@ -195,25 +196,31 @@ impl MlDsa {
         // Generate keypair using the appropriate ML-DSA variant
         let keypair = match self.variant {
             MlDsaVariant::MlDsa44 => {
-                let kp = ml_dsa_44::portable::generate_key_pair(randomness);
-                SigKeypair::new(
+                let mut kp = ml_dsa_44::portable::generate_key_pair(randomness);
+                let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
-                )
+                );
+                kp.signing_key.as_mut_slice().zeroize();
+                pair
             }
             MlDsaVariant::MlDsa65 => {
-                let kp = ml_dsa_65::portable::generate_key_pair(randomness);
-                SigKeypair::new(
+                let mut kp = ml_dsa_65::portable::generate_key_pair(randomness);
+                let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
-                )
+                );
+                kp.signing_key.as_mut_slice().zeroize();
+                pair
             }
             MlDsaVariant::MlDsa87 => {
-                let kp = ml_dsa_87::portable::generate_key_pair(randomness);
-                SigKeypair::new(
+                let mut kp = ml_dsa_87::portable::generate_key_pair(randomness);
+                let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
-                )
+                );
+                kp.signing_key.as_mut_slice().zeroize();
+                pair
             }
         };
 
@@ -273,55 +280,61 @@ impl MlDsa {
         // Perform signing using the appropriate ML-DSA variant
         let signature = match self.variant {
             MlDsaVariant::MlDsa44 => {
-                let mut sk_bytes = [0u8; MLDSA44_SIGNING_KEY_SIZE];
-                sk_bytes.copy_from_slice(secret_key.as_bytes());
-                let signing_key = MLDSASigningKey::new(sk_bytes);
+                let mut signing_key = MLDSASigningKey::zero();
+                signing_key
+                    .as_mut_slice()
+                    .copy_from_slice(secret_key.as_bytes());
 
-                let signature = ml_dsa_44::portable::sign(
+                let sig_result = ml_dsa_44::portable::sign(
                     &signing_key,
                     message,
                     &[], // empty context
                     randomness,
-                )
-                .map_err(|_| lib_q_core::Error::SigningFailed {
-                    operation: "ml-dsa-44 signing".to_string(),
-                })?;
-
-                signature.as_slice().to_vec()
+                );
+                signing_key.as_mut_slice().zeroize();
+                sig_result
+                    .map(|signature| signature.as_slice().to_vec())
+                    .map_err(|_| lib_q_core::Error::SigningFailed {
+                        operation: "ml-dsa-44 signing".to_string(),
+                    })?
             }
             MlDsaVariant::MlDsa65 => {
-                let mut sk_bytes = [0u8; MLDSA65_SIGNING_KEY_SIZE];
-                sk_bytes.copy_from_slice(secret_key.as_bytes());
-                let signing_key = MLDSASigningKey::new(sk_bytes);
+                let mut signing_key = MLDSASigningKey::zero();
+                signing_key
+                    .as_mut_slice()
+                    .copy_from_slice(secret_key.as_bytes());
 
-                let signature = ml_dsa_65::portable::sign(
+                let sig_result = ml_dsa_65::portable::sign(
                     &signing_key,
                     message,
                     &[], // empty context
                     randomness,
-                )
-                .map_err(|_| lib_q_core::Error::SigningFailed {
-                    operation: "ml-dsa-65 signing".to_string(),
-                })?;
-
-                signature.as_slice().to_vec()
+                );
+                signing_key.as_mut_slice().zeroize();
+                sig_result
+                    .map(|signature| signature.as_slice().to_vec())
+                    .map_err(|_| lib_q_core::Error::SigningFailed {
+                        operation: "ml-dsa-65 signing".to_string(),
+                    })?
             }
             MlDsaVariant::MlDsa87 => {
-                let mut sk_bytes = [0u8; MLDSA87_SIGNING_KEY_SIZE];
-                sk_bytes.copy_from_slice(secret_key.as_bytes());
-                let signing_key = MLDSASigningKey::new(sk_bytes);
+                let mut signing_key = MLDSASigningKey::zero();
+                signing_key
+                    .as_mut_slice()
+                    .copy_from_slice(secret_key.as_bytes());
 
-                let signature = ml_dsa_87::portable::sign(
+                let sig_result = ml_dsa_87::portable::sign(
                     &signing_key,
                     message,
                     &[], // empty context
                     randomness,
-                )
-                .map_err(|_| lib_q_core::Error::SigningFailed {
-                    operation: "ml-dsa-87 signing".to_string(),
-                })?;
-
-                signature.as_slice().to_vec()
+                );
+                signing_key.as_mut_slice().zeroize();
+                sig_result
+                    .map(|signature| signature.as_slice().to_vec())
+                    .map_err(|_| lib_q_core::Error::SigningFailed {
+                        operation: "ml-dsa-87 signing".to_string(),
+                    })?
             }
         };
 

@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 readme = "README.md"
-description = "Federation-style ring openings over Ajtai commitments (DualRing-LB-oriented scaffolding)"
+description = "Federation-style ring openings over Ajtai commitments (DualRing-LB CCS 2021 aggregated verify)"
 keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std"]
 categories = ["cryptography", "no-std"]
 
@@ -47,7 +47,7 @@ std = [
     "lib-q-lattice-zkp/std",
     "lib-q-ring/std",
 ]
-dualring-prf = ["dep:lib-q-prf", "dep:crypto-bigint"]
+pilot-insecure-prf-transcript = ["dep:lib-q-prf", "dep:crypto-bigint"]
 federation-opening = []
 wasm = [
     "std",
@@ -71,12 +71,12 @@ crate-type = ["cdylib", "rlib"]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[test]]
-name = "dualring_prf_tests"
-path = "tests/dualring_prf_tests.rs"
-required-features = ["dualring-prf"]
+name = "pilot_insecure_prf_transcript_tests"
+path = "tests/pilot_insecure_prf_transcript_tests.rs"
+required-features = ["pilot-insecure-prf-transcript"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(ring_sig_docs)',
-    'cfg(feature, values("dualring-prf", "federation-opening", "std"))',
+    'cfg(feature, values("pilot-insecure-prf-transcript", "federation-opening", "std", "wasm"))',
 ] }

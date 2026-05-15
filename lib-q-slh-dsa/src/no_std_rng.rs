@@ -43,14 +43,14 @@ impl SlhDsaNoStdRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// This creates a deterministic RNG suitable for testing and
-    /// reproducible operations. **NOT CRYPTOGRAPHICALLY SECURE**.
+    /// Uses the same ChaCha20 construction as `lib_q_random::NoStdRng::new_deterministic`.
+    /// Suitable for reproducible tests only; unpredictability is bounded by the 32-byte seed.
     ///
     /// # Arguments
     ///
-    /// * `seed` - The seed value for deterministic generation
+    /// * `seed` - 32-byte ChaCha20 key
     #[must_use]
-    pub fn new_deterministic(seed: &[u8]) -> Self {
+    pub fn new_deterministic(seed: [u8; 32]) -> Self {
         let inner = lib_q_random::no_std_rng::NoStdRng::new_deterministic(seed);
         Self { inner }
     }
@@ -107,8 +107,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_rng_creation() {
-        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let rng = SlhDsaNoStdRng::new_deterministic(&seed);
+        let mut seed = [0u8; 32];
+        seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let rng = SlhDsaNoStdRng::new_deterministic(seed);
         assert!(rng.is_deterministic());
     }
 
@@ -125,9 +126,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_rng_consistency() {
-        let seed = [42u8; 16];
-        let mut rng1 = SlhDsaNoStdRng::new_deterministic(&seed);
-        let mut rng2 = SlhDsaNoStdRng::new_deterministic(&seed);
+        let seed = [42u8; 32];
+        let mut rng1 = SlhDsaNoStdRng::new_deterministic(seed);
+        let mut rng2 = SlhDsaNoStdRng::new_deterministic(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];

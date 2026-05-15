@@ -93,6 +93,7 @@ use hybrid_array::typenum::{
     Unsigned,
 };
 use rand_core::CryptoRng;
+pub use zeroize::Zeroizing;
 
 /// A value that can be encapsulated to. Often, this will just be a public key. However, it can
 /// also be a bundle of public keys, or it can include a sender's private key for authenticated
@@ -143,7 +144,10 @@ pub trait EncodedSizeUser {
     fn from_bytes(enc: &Encoded<Self>) -> Self;
 
     /// Serialize an object to its encoded form
-    fn as_bytes(&self) -> Encoded<Self>;
+    ///
+    /// The returned buffer is wrapped in [`Zeroizing`] so serialized key material is cleared
+    /// from the stack when the value is dropped.
+    fn as_bytes(&self) -> Zeroizing<Encoded<Self>>;
 }
 
 /// A byte array encoding a value the indicated size

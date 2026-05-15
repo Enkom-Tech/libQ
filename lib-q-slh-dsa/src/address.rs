@@ -1,14 +1,15 @@
 //! Hash address definitions and serialization
 //!
-//!  From FIPS-205 section 4.2:
+//! From FIPS-205 section 4.2:
 //! > An ADRS
 //! > consists of public values that indicate the position of the value being computed by the function. A
 //! > different ADRS value is used for each call to each function. In the case of PRF, this is in order
 //! > to generate a large number of different secret values from a single seed. In the case of Tℓ, H, and
 //! > F, it is used to mitigate multi-target attacks.
 //!
-//! Address fields are big-endian integers. We use zero-copyable structs to represent the addresses
-//! and serialize transparently to bytes using the `zerocopy` crate.
+//! Address fields are big-endian integers. Each 32-bit or 64-bit lane is stored as a plain **stack**
+//! byte array (`[u8; 4]` / `[u8; 8]`) so the in-memory representation matches the wire encoding without
+//! relying on typed integer endianness or extra serialization crates.
 //!
 //! Note that `tree_adrs_high` is unused in all parameter sets currently defined by FIPS-205
 //!
@@ -17,14 +18,52 @@
 
 use hybrid_array::Array;
 use typenum::U22;
-use zerocopy::byteorder::big_endian::{
-    U32,
-    U64,
-};
-use zerocopy::{
-    Immutable,
-    IntoBytes,
-};
+
+/// A single 32-bit FIPS-205 ADRS word stored as four **big-endian** bytes on the stack.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct AdrsWord32([u8; 4]);
+
+impl AdrsWord32 {
+    /// Writes `value` in big-endian form into this ADRS word.
+    #[inline]
+    pub fn set(&mut self, value: u32) {
+        self.0 = value.to_be_bytes();
+    }
+
+    /// Reads this ADRS word as a big-endian `u32`.
+    #[inline]
+    pub fn get(self) -> u32 {
+        u32::from_be_bytes(self.0)
+    }
+}
+
+impl From<u32> for AdrsWord32 {
+    #[inline]
+    fn from(value: u32) -> Self {
+        Self(value.to_be_bytes())
+    }
+}
+
+/// A single 64-bit FIPS-205 ADRS field (`tree_adrs` low half) stored as eight **big-endian** bytes.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct AdrsWord64([u8; 8]);
+
+impl AdrsWord64 {
+    /// Writes `value` in big-endian form into this ADRS field.
+    #[inline]
+    pub fn set(&mut self, value: u64) {
+        self.0 = value.to_be_bytes();
+    }
+}
+
+impl From<u64> for AdrsWord64 {
+    #[inline]
+    fn from(value: u64) -> Self {
+        Self(value.to_be_bytes())
+    }
+}
 
 /// `Address` represents a hash address as defined by FIPS-205 section 4.2
 pub trait Address: AsRef<[u8]> {
@@ -44,86 +83,94 @@ pub trait Address: AsRef<[u8]> {
     }
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[inline]
+fn adrs_as_bytes<T>(t: &T) -> &[u8; 32] {
+    debug_assert_eq!(core::mem::size_of::<T>(), 32);
+    // SAFETY: Each `T` below is `#[repr(C)]` and composed only of `AdrsWord32` / `AdrsWord64`,
+    // totalling exactly 32 bytes with no implicit padding (checked by the `debug_assert_eq` above).
+    unsafe { &*core::ptr::from_ref(t).cast::<[u8; 32]>() }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct WotsHash {
-    pub layer_adrs: U32,
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 0
-    pub key_pair_adrs: U32,
-    pub chain_adrs: U32,
-    pub hash_adrs: U32,
+    pub layer_adrs: AdrsWord32,
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 0
+    pub key_pair_adrs: AdrsWord32,
+    pub chain_adrs: AdrsWord32,
+    pub hash_adrs: AdrsWord32,
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct WotsPk {
-    pub layer_adrs: U32,
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 1
-    pub key_pair_adrs: U32,
-    padding: U64, // 0
+    pub layer_adrs: AdrsWord32,
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 1
+    pub key_pair_adrs: AdrsWord32,
+    padding: AdrsWord64, // 0
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct HashTree {
-    pub layer_adrs: U32,
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 2
-    padding: U32,    // 0
-    pub tree_height: U32,
-    pub tree_index: U32,
+    pub layer_adrs: AdrsWord32,
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 2
+    padding: AdrsWord32,    // 0
+    pub tree_height: AdrsWord32,
+    pub tree_index: AdrsWord32,
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct ForsTree {
-    layer_adrs: U32, // 0
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 3
-    pub key_pair_adrs: U32,
-    pub tree_height: U32,
-    pub tree_index: U32,
+    layer_adrs: AdrsWord32, // 0
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 3
+    pub key_pair_adrs: AdrsWord32,
+    pub tree_height: AdrsWord32,
+    pub tree_index: AdrsWord32,
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct ForsRoots {
-    layer_adrs: U32, // 0
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 4
-    pub key_pair_adrs: U32,
-    padding: U64, // 0
+    layer_adrs: AdrsWord32, // 0
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 4
+    pub key_pair_adrs: AdrsWord32,
+    padding: AdrsWord64, // 0
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct WotsPrf {
-    pub layer_adrs: U32,
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 5
-    pub key_pair_adrs: U32,
-    pub chain_adrs: U32,
-    hash_adrs: U32, // 0
+    pub layer_adrs: AdrsWord32,
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 5
+    pub key_pair_adrs: AdrsWord32,
+    pub chain_adrs: AdrsWord32,
+    hash_adrs: AdrsWord32, // 0
 }
 
-#[derive(Clone, IntoBytes, Immutable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct ForsPrf {
-    layer_adrs: U32, // 0
-    pub tree_adrs_high: U32,
-    pub tree_adrs_low: U64,
-    type_const: U32, // 6
-    pub key_pair_adrs: U32,
-    tree_height: U32, // 0
-    pub tree_index: U32,
+    layer_adrs: AdrsWord32, // 0
+    pub tree_adrs_high: AdrsWord32,
+    pub tree_adrs_low: AdrsWord64,
+    type_const: AdrsWord32, // 6
+    pub key_pair_adrs: AdrsWord32,
+    tree_height: AdrsWord32, // 0
+    pub tree_index: AdrsWord32,
 }
 
 impl Address for WotsHash {
@@ -131,7 +178,7 @@ impl Address for WotsHash {
 }
 impl AsRef<[u8]> for WotsHash {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -140,7 +187,7 @@ impl Address for WotsPk {
 }
 impl AsRef<[u8]> for WotsPk {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -149,7 +196,7 @@ impl Address for HashTree {
 }
 impl AsRef<[u8]> for HashTree {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -158,7 +205,7 @@ impl Address for ForsTree {
 }
 impl AsRef<[u8]> for ForsTree {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -167,7 +214,7 @@ impl Address for ForsRoots {
 }
 impl AsRef<[u8]> for ForsRoots {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -176,7 +223,7 @@ impl Address for WotsPrf {
 }
 impl AsRef<[u8]> for WotsPrf {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -185,7 +232,7 @@ impl Address for ForsPrf {
 }
 impl AsRef<[u8]> for ForsPrf {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        adrs_as_bytes(self).as_slice()
     }
 }
 
@@ -265,13 +312,13 @@ impl ForsTree {
 impl Default for WotsHash {
     fn default() -> Self {
         WotsHash {
-            layer_adrs: 0.into(),
-            tree_adrs_low: 0.into(),
-            tree_adrs_high: 0.into(),
+            layer_adrs: AdrsWord32::default(),
+            tree_adrs_low: AdrsWord64::default(),
+            tree_adrs_high: AdrsWord32::default(),
             type_const: 0.into(),
-            key_pair_adrs: 0.into(),
-            chain_adrs: 0.into(),
-            hash_adrs: 0.into(),
+            key_pair_adrs: AdrsWord32::default(),
+            chain_adrs: AdrsWord32::default(),
+            hash_adrs: AdrsWord32::default(),
         }
     }
 }

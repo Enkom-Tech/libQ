@@ -144,10 +144,10 @@ getrandom = ["lib-q-core/getrandom"]
 random = ["dep:lib-q-random", "lib-q-random/std"]
 random-custom-entropy = ["dep:lib-q-random", "lib-q-random/custom-entropy"]
 
-# Federation ring openings + optional DualRing-PRF (Legendre/Gold PRF transcript)
+# Federation ring openings + optional pilot insecure PRF transcript (lab only; see lib-q-ring-sig)
 ring-sig = ["dep:lib-q-ring-sig", "lib-q-ring-sig/std"]
 prf = ["dep:lib-q-prf"]
-dualring-prf = ["ring-sig", "prf", "lib-q-ring-sig/dualring-prf"]
+pilot-insecure-prf-transcript = ["ring-sig", "prf", "lib-q-ring-sig/pilot-insecure-prf-transcript"]
 
 # Security features
 # Enable memory zeroization for hash functions and their dependencies

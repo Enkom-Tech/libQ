@@ -24,7 +24,10 @@ use typenum::{
 
 use crate::address::ForsTree;
 use crate::signature_encoding::Signature;
-use crate::util::split_digest;
+use crate::util::{
+    array_u8_try_from_exact,
+    split_digest,
+};
 use crate::{
     ParameterSet,
     Sha2L1,
@@ -48,8 +51,7 @@ impl<N: ArraySize> AsRef<[u8]> for PkSeed<N> {
 }
 impl<N: ArraySize> From<&[u8]> for PkSeed<N> {
     fn from(slice: &[u8]) -> Self {
-        #[allow(deprecated)]
-        Self(Array::clone_from_slice(slice))
+        Self(array_u8_try_from_exact(slice).expect("slice length must equal public key seed size"))
     }
 }
 impl<N: ArraySize> PkSeed<N> {
@@ -162,11 +164,14 @@ impl<P: ParameterSet> From<&VerifyingKey<P>> for Array<u8, P::VkLen> {
 }
 
 impl<P: ParameterSet> From<Array<u8, P::VkLen>> for VerifyingKey<P> {
-    #[allow(deprecated)] // clone_from_slice
     fn from(bytes: Array<u8, P::VkLen>) -> VerifyingKey<P> {
         debug_assert_eq!(P::VkLen::USIZE, 2 * P::N::USIZE);
-        let pk_seed = PkSeed(Array::clone_from_slice(&bytes[..P::N::USIZE]));
-        let pk_root = Array::clone_from_slice(&bytes[P::N::USIZE..]);
+        let b = bytes.as_slice();
+        let pk_seed = PkSeed(
+            array_u8_try_from_exact(&b[..P::N::USIZE]).expect("verifying key array splits at N"),
+        );
+        let pk_root =
+            array_u8_try_from_exact(&b[P::N::USIZE..]).expect("verifying key array splits at N");
         VerifyingKey { pk_seed, pk_root }
     }
 }
@@ -174,13 +179,13 @@ impl<P: ParameterSet> From<Array<u8, P::VkLen>> for VerifyingKey<P> {
 impl<P: ParameterSet> TryFrom<&[u8]> for VerifyingKey<P> {
     type Error = Error;
 
-    #[allow(deprecated)] // clone_from_slice
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() != P::N::USIZE * 2 {
             return Err(Error::new());
         }
-        let pk_seed = PkSeed(Array::clone_from_slice(&bytes[..P::N::USIZE]));
-        let pk_root = Array::clone_from_slice(&bytes[P::N::USIZE..]);
+        let pk_seed =
+            PkSeed(array_u8_try_from_exact(&bytes[..P::N::USIZE]).map_err(|_| Error::new())?);
+        let pk_root = array_u8_try_from_exact(&bytes[P::N::USIZE..]).map_err(|_| Error::new())?;
         Ok(VerifyingKey { pk_seed, pk_root })
     }
 }

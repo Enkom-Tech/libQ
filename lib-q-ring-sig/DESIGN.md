@@ -1,11 +1,10 @@
 # Design: federation ring openings vs DualRing-LB
 
-This crate ships a **federation ring-opening** construction and a **DualRing-LB–oriented pilot**
-([`dualring_lb`](src/dualring_lb.rs)): extended Fiat–Shamir absorption plus constant-time
-full-ring verification of the same opening relation as federation signing. A full
-**DualRing-LB** scheme in the sense of Beullens, Esgin, Knapp, Sakzad, Steinfeld, and Sun
-(CCS 2021, ePrint 2021/1213) would add linked responses across members; that paper target
-remains future work. All paths share the [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) Ajtai
+This crate ships a **federation ring-opening** construction and **DualRing-LB** ring openings
+([`dualring_lb`](src/dualring_lb.rs)) following Beullens et al. (CCS 2021, ePrint 2021/1213,
+Algorithm 3), adapted to the Ajtai opening identification scheme and ML-DSA–style sparse-ball
+Fiat–Shamir challenges for the hashed aggregate (see the DualRing-LB section for the deviation from
+the paper’s mod-3 challenge space). All paths share the [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) Ajtai
 commitment reference string (CRS).
 
 ## Current construction: federation opening proofs
@@ -27,13 +26,11 @@ Two verification entry points are provided:
 |-------------|---------------------|------|---------------|
 | `verify_federation_opening` | Yes (`signer_index` argument) | One `verify_opening` call | Toward verifier: no |
 | `verify_federation_opening_scan` | No | Up to `n` `verify_opening` calls | Toward verifier: no (succeeds at exactly one index when keys are distinct) |
-| `verify_dualring_lb` | No | `n` `verify_opening` calls (no early return) | Timing-hardened scan; still not the paper’s single-response ring equation |
+| `verify_dualring_lb` | No | One aggregated `verify_dual_ring_opening` (linear in ring size, no per-member `verify_opening` OR) | Single DualRing FS equation; timing does not depend on signer index |
 
-The scan verifier's success index leaks the signer to the verifier, and the loop is
-not constant-time. `verify_dualring_lb` removes **early-exit** timing bias but still runs
-one opening check per member. Federation membership is verifiable by external auditors who hold
-the ring, but **cryptographic ring anonymity toward the verifier** still requires the CCS 2021
-aggregated verification target.
+The legacy scan verifier's success index leaks the signer to the verifier, and the loop is
+not constant-time. `verify_dualring_lb` runs the **aggregated** DualRing check from CCS 2021
+(Algorithm 3) adapted to this Ajtai opening and ML-DSA–style sparse-ball FS challenges.
 
 ### Concrete pilot parameters
 
@@ -62,10 +59,14 @@ Module-LWE / Module-SIS over the same ring used by ML-DSA-65, so the constructio
 share NTT and challenge sampling with [`lib-q-ring`](../lib-q-ring/).
 
 **Shipped today:** [`sign_dualring_lb`](src/dualring_lb.rs) / [`verify_dualring_lb`](src/dualring_lb.rs)
-reuse the federation opening witness relation with a DualRing-style extended transcript
-and constant-time aggregation of per-member `verify_opening` results. This is **not** the
-paper’s single aggregated response; treat it as a federation hardening layer until the
-full verification equation is implemented.
+implement DualRing (CCS 2021, Algorithm 3) on the federation opening relation: challenges
+`c_1, …, c_n` with `Σ_i c_i = H(ctx ‖ R)` and combined first message
+`R = A·y − Σ_{i≠j} c_i · Com_i`, plus one response `z`. Verification is a single aggregated
+linear + FS check in [`lib_q_lattice_zkp::verify_dual_ring_opening`](../lib-q-lattice-zkp/src/sigma/opening.rs).
+
+The paper’s Section 7 uses a coefficient-wise mod-3 challenge space; this codebase keeps
+[`lib_q_ring::sample_in_ball`](../lib-q-ring/) for the **aggregate** challenge derived from `H(ctx ‖ R)`.
+Decoy challenges for `i ≠ j` are independent ball samples; the adjusted `c_j` need not be sparse.
 
 ### Target parameter sketches
 
@@ -80,33 +81,48 @@ These are reference points from the literature, not bench-validated for this cod
 The `~24 B/member` term reflects the dual ring's extra commitment per slot. Remaining
 engineering toward the paper target:
 
-1. Replace per-member opening checks with the single linked DualRing-LB verification equation.
+1. Align challenge-space and norm analysis with Beullens et al., Table 4 / Section 7, if a strict mod-3 `C` is required for a deployment profile.
 2. Re-derive transcript hashes and norm bounds directly from Beullens et al., Table 4, for the
    chosen NIST category.
 
-Until then, callers who require **strong** verifier-side issuer anonymity should treat the
-pilot as timing-hardened federation rather than a drop-in anonymous ring signature.
+For deployments that require a **bit-for-bit** match to the paper’s Table 4 parameters and mod-3
+challenge analysis, re-derive `tau`, norm bounds, and transcript labels accordingly.
 
-## DualRing-PRF (optional, `dualring-prf`)
+## PRF laboratory transcript (`pilot-insecure-prf-transcript`)
 
-The `dualring-prf` Cargo feature enables [`dualring_prf`](src/dualring_prf.rs), a **pilot**
-Fiat–Shamir transcript that binds a message digest to **Legendre** and **Gold**
-(power-residue) PRF tags over safe primes from [`lib-q-prf`](../lib-q-prf/).
+The `pilot-insecure-prf-transcript` Cargo feature enables:
 
-| Aspect | DualRing-LB (target / default path) | DualRing-PRF (`dualring-prf`) |
-| ------ | ----------------------------------- | ----------------------------- |
-| FS model | ROM (SHAKE256 as random oracle) | QROM-oriented (PRF + FS literature for this class) |
-| Hardness | Module-LWE / Module-SIS in \(R_q\) | PRF / DDH-style \(\mathbb{F}_p\) assumptions + safe-prime structure |
-| Anonymity | Full ring anonymity (paper target) | **Pilot:** PRF path may require the signer index; not a drop-in anonymous ring signature yet |
+- [`dualring_prf`](src/dualring_prf.rs): **canonical** Fiat–Shamir transcript, digest labels, sign /
+  verify / **batch verify** entry points for **Legendre** and **Gold** (power-residue) PRF tags over
+  safe primes from [`lib-q-prf`](../lib-q-prf/).
+- [`pilot_insecure_prf_transcript`](src/pilot_insecure_prf_transcript.rs): legacy `pilot_prf_transcript_*`
+  names as type aliases and `#[inline]` wrappers over `dualring_prf`, preserving wire compatibility
+  with earlier pilot vectors.
+
+This surface is **not** a ring signature: verification is defined for a **known signer index**, and
+the ordered member list carries **raw PRF secret key encodings** so the verifier can recompute PRF
+outputs. Any party who sees that list can forge transcripts for any member. The API and Cargo
+feature name are intentionally explicit about that threat model.
+
+**Batch verification (`verify_dualring_prf_batch_u256`).** The batch entry point always iterates the
+full item list, folds per-item success with `subtle::Choice`, and returns a single aggregate
+`Result` (any failure maps to `Rejected`). That avoids **short-circuiting on the first failing
+batch index**, which would otherwise create a timing side channel correlated with position. It does
+not claim full constant-time equality of work across distinct single-item failure paths.
+
+| Aspect | DualRing-LB (target / default path) | PRF transcript (`dualring_prf` / pilot wrappers) |
+| ------ | ------------------------------------- | -------------------------------------------------- |
+| FS model | ROM (SHAKE256 as random oracle) | PRF-in-FS style binding for linkage tags (research / lab) |
+| Hardness | Module-LWE / Module-SIS in \(R_q\) | PRF / algebraic \(\mathbb{F}_p\) assumptions (see `lib-q-prf`) |
+| Anonymity | Full ring anonymity (paper target) | **None** toward anyone who sees the member list (secrets are in the list) |
 
 **Security notes**
 
 - Legendre PRFs over **extension fields** have known weaknesses for degree-1 constructions; `lib-q-prf` evaluates **prime fields \(\mathbb{F}_p\)** only, with that scope documented in [`lib-q-prf/DESIGN.md`](../lib-q-prf/DESIGN.md).
 - Gold / power-residue PRFs support oblivious two-party protocols in the literature; this crate wires **direct** evaluation for linkage tags only.
 
-Callers should treat `dualring-prf` as experimental protocol surface until parameters,
-transcript binding, and verifier APIs are aligned with the published DualRing-PRF
-construction.
+Callers should treat `pilot-insecure-prf-transcript` as **non-shipping** test surface until a
+construction exists that exposes only true public material and supports issuer-hiding verification.
 
 ## Credential binding
 
@@ -134,11 +150,11 @@ reveals.
 
 ## Known limitations
 
-- **Opening-based ring verify is not the CCS 2021 aggregated equation.** `verify_dualring_lb`
-  still proves the federation opening relation independently per commitment image; it
-  removes early-exit timing leaks but does not realize full ring anonymity from the paper.
+- **Challenge space vs CCS 2021 paper.** The reference mod-3 challenge group is not used; the aggregate `c` is a `sample_in_ball` output. Re-derive parameters if you need bit-for-bit paper compatibility.
 - **Pilot parameters are not production-frozen.** `mldsa65_pilot` and the `nist_security_category_*`
   helpers are smoke-test profiles; re-derive `tau` and norm bounds for deployment.
 - **Legacy scan path.** `verify_federation_opening_scan` is not constant-time across ring
   positions and reveals the signer index on success; keep it behind `federation-opening` for
   compatibility only.
+- **PRF transcript batch verify.** `verify_dualring_prf_batch_u256` removes batch-index short-circuit
+  timing; single-item `dualring_prf_verify_u256` is not uniform across all rejection reasons.

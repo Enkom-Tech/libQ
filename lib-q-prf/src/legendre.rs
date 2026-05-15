@@ -51,13 +51,14 @@ pub struct LegendreKey512 {
 impl LegendreKey256 {
     /// Construct from a reduced field element.
     pub fn from_uint(k: U256, params: &LegendrePrfParams256) -> Result<Self, PrfError> {
-        validate_key_u256(&k, &params.p)?;
+        validate_key_u256(&k, &params.p.get())?;
         Ok(Self { k })
     }
 
     /// Domain-separated expansion: `SHAKE256("lib-q-prf/leg-k256/v1" ‖ seed) → k mod p`.
     pub fn derive_from_seed(seed: &[u8], params: &LegendrePrfParams256) -> Result<Self, PrfError> {
-        let k = crate::shake::shake256_to_field_u256(seed, b"lib-q-prf/leg-k256/v1", &params.p)?;
+        let k =
+            crate::shake::shake256_to_field_u256(seed, b"lib-q-prf/leg-k256/v1", &params.p.get())?;
         Self::from_uint(k, params)
     }
 
@@ -97,10 +98,7 @@ pub fn legendre_prf_u256(
     x: &U256,
     params: &LegendrePrfParams256,
 ) -> Result<i8, PrfError> {
-    let nz = NonZero::new(params.p)
-        .into_option()
-        .ok_or(PrfError::InvalidParam)?;
-    let xm = to_monty(&x.rem_vartime(&nz), &params.monty);
+    let xm = to_monty(&x.rem_vartime(&params.p), &params.monty);
     let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
     let zero_sum = uint_ct_eq_zero(&sum.retrieve());
@@ -134,10 +132,9 @@ pub fn legendre_prf_u512(
 /// Reference Legendre symbol via Euler: `pow(x+k, (p-1)/2, p)` on **canonical** residues (test / KAT).
 #[cfg(test)]
 pub fn legendre_symbol_euler_u256(x_plus_k: &U256, params: &LegendrePrfParams256) -> i8 {
-    let p = params.p;
-    let nz = NonZero::new(p).into_option().expect("p non-zero");
+    let p = params.p.get();
     let e = p.wrapping_sub(&U256::ONE).shr(1);
-    let reduced = x_plus_k.rem_vartime(&nz);
+    let reduced = x_plus_k.rem_vartime(&params.p);
     let m = to_monty(&reduced, &params.monty);
     let y = m.pow(&e).retrieve();
     crate::field::legendre_symbol_residue(&y, &p).expect("prime field")

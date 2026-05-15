@@ -44,8 +44,11 @@ pub use norm::{
     verify_inf_norm_proof,
 };
 pub use opening::{
+    DualRingOpeningProof,
     OpeningProof,
+    prove_dual_ring_opening,
     prove_opening,
+    verify_dual_ring_opening,
     verify_opening,
 };
 pub use uniqueness::{

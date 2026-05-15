@@ -1,6 +1,3 @@
-// TODO(tarcieri): fix `hybrid-array` deprecation warnings
-#![allow(deprecated)]
-
 use core::fmt::Debug;
 
 use const_oid::db::fips205;
@@ -39,6 +36,7 @@ use crate::address::Address;
 use crate::fors::ForsParams;
 use crate::hashes::HashSuite;
 use crate::hypertree::HypertreeParams;
+use crate::util::array_u8_try_from_prefix;
 use crate::wots::WotsParams;
 use crate::xmss::XmssParams;
 use crate::{
@@ -102,7 +100,7 @@ where
             .flatten()
             .for_each(|msg_part| mac.update(msg_part.as_ref()));
         let result = mac.finalize().into_bytes();
-        Array::clone_from_slice(&result[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&result).expect("HMAC output is at least N bytes")
     }
 
     fn h_msg(
@@ -136,7 +134,7 @@ where
             .chain_update(adrs.compressed())
             .chain_update(sk_seed)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn t<L: ArraySize>(
@@ -151,7 +149,7 @@ where
             .chain_update(adrs.compressed());
         m.iter().for_each(|x| sha.update(x.as_slice()));
         let hash = sha.finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn h(
@@ -168,7 +166,7 @@ where
             .chain_update(m1)
             .chain_update(m2)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn f(
@@ -183,7 +181,7 @@ where
             .chain_update(adrs.compressed())
             .chain_update(m)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 }
 
@@ -270,7 +268,7 @@ where
             .flatten()
             .for_each(|msg_part| mac.update(msg_part.as_ref()));
         let result = mac.finalize().into_bytes();
-        Array::clone_from_slice(&result[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&result).expect("HMAC output is at least N bytes")
     }
 
     fn h_msg(
@@ -304,7 +302,7 @@ where
             .chain_update(adrs.compressed())
             .chain_update(sk_seed)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn t<L: ArraySize>(
@@ -319,7 +317,7 @@ where
             .chain_update(adrs.compressed());
         m.iter().for_each(|x| sha.update(x.as_slice()));
         let hash = sha.finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn h(
@@ -336,7 +334,7 @@ where
             .chain_update(m1)
             .chain_update(m2)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 
     fn f(
@@ -351,7 +349,7 @@ where
             .chain_update(adrs.compressed())
             .chain_update(m)
             .finalize();
-        Array::clone_from_slice(&hash[..Self::N::USIZE])
+        array_u8_try_from_prefix::<Self::N, _>(&hash).expect("hash output is at least N bytes")
     }
 }
 

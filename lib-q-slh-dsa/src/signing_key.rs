@@ -33,10 +33,10 @@ use typenum::{
     U32,
     Unsigned,
 };
-#[cfg(feature = "zeroize")]
 use zeroize::{
     Zeroize,
     ZeroizeOnDrop,
+    Zeroizing,
 };
 
 use crate::address::{
@@ -44,7 +44,10 @@ use crate::address::{
     WotsHash,
 };
 use crate::signature_encoding::Signature;
-use crate::util::split_digest;
+use crate::util::{
+    array_u8_try_from_exact,
+    split_digest,
+};
 use crate::verifying_key::VerifyingKey;
 use crate::{
     ParameterSet,
@@ -67,8 +70,7 @@ impl<N: ArraySize> AsRef<[u8]> for SkSeed<N> {
 
 impl<N: ArraySize> From<&[u8]> for SkSeed<N> {
     fn from(slice: &[u8]) -> Self {
-        #[allow(deprecated)]
-        Self(Array::clone_from_slice(slice))
+        Self(array_u8_try_from_exact(slice).expect("slice length must equal secret key seed size"))
     }
 }
 impl<N: ArraySize> SkSeed<N> {
@@ -90,8 +92,7 @@ impl<N: ArraySize> AsRef<[u8]> for SkPrf<N> {
 
 impl<N: ArraySize> From<&[u8]> for SkPrf<N> {
     fn from(slice: &[u8]) -> Self {
-        #[allow(deprecated)]
-        Self(Array::clone_from_slice(slice))
+        Self(array_u8_try_from_exact(slice).expect("slice length must equal secret PRF key size"))
     }
 }
 impl<N: ArraySize> SkPrf<N> {
@@ -192,7 +193,6 @@ pub struct SigningKey<P: ParameterSet> {
     pub(crate) verifying_key: VerifyingKey<P>,
 }
 
-#[cfg(feature = "zeroize")]
 impl<P: ParameterSet> Drop for SigningKey<P> {
     fn drop(&mut self) {
         self.sk_seed.0.zeroize();
@@ -200,7 +200,6 @@ impl<P: ParameterSet> Drop for SigningKey<P> {
     }
 }
 
-#[cfg(feature = "zeroize")]
 impl<P: ParameterSet> ZeroizeOnDrop for SigningKey<P> {}
 
 /// A trait specifying the length of a serialized signing key for a given parameter set
@@ -339,9 +338,11 @@ impl<P: ParameterSet> SigningKey<P> {
 
     /// Serialize the signing key to a new stack-allocated array
     ///
-    /// This clones the underlying fields
-    pub fn to_bytes(&self) -> Array<u8, P::SkLen> {
-        let mut bytes = Array::<u8, P::SkLen>::default();
+    /// This clones the underlying fields. The returned buffer is wrapped in
+    /// `zeroize::Zeroizing` so secret key material is cleared from the stack when the
+    /// value is dropped.
+    pub fn to_bytes(&self) -> Zeroizing<Array<u8, P::SkLen>> {
+        let mut bytes = Zeroizing::new(Array::<u8, P::SkLen>::default());
         bytes[..P::N::USIZE].copy_from_slice(&self.sk_seed.0);
         bytes[P::N::USIZE..2 * P::N::USIZE].copy_from_slice(&self.sk_prf.0);
         bytes[2 * P::N::USIZE..].copy_from_slice(&self.verifying_key.to_bytes());
@@ -349,12 +350,15 @@ impl<P: ParameterSet> SigningKey<P> {
     }
 
     /// Serialize the signing key to a new heap-allocated vector
+    ///
+    /// Like [`Self::to_bytes`], the returned `zeroize::Zeroizing` vector clears key
+    /// material on drop.
     #[cfg(feature = "alloc")]
-    pub fn to_vec(&self) -> alloc::vec::Vec<u8>
+    pub fn to_vec(&self) -> Zeroizing<alloc::vec::Vec<u8>>
     where
         P: VerifyingKeyLen,
     {
-        self.to_bytes().to_vec()
+        Zeroizing::new(alloc::vec::Vec::from(self.to_bytes().as_slice()))
     }
 }
 
@@ -451,8 +455,10 @@ where
         };
 
         let private_key = self.to_bytes();
-        let pkcs8_key =
-            pkcs8::PrivateKeyInfoRef::new(algorithm_identifier, OctetStringRef::new(&private_key)?);
+        let pkcs8_key = pkcs8::PrivateKeyInfoRef::new(
+            algorithm_identifier,
+            OctetStringRef::new(private_key.as_slice())?,
+        );
         Ok(der::SecretDocument::encode_msg(&pkcs8_key)?)
     }
 }

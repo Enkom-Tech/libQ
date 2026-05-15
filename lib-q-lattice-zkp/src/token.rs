@@ -9,6 +9,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
+use zeroize::Zeroizing;
 
 use crate::commitment::{
     AjtaiCommitment,
@@ -16,7 +17,7 @@ use crate::commitment::{
     AjtaiOpening,
 };
 use crate::error::VerifyError;
-use crate::serialize::write_module_vec;
+use crate::serialize::append_module_vec;
 use crate::sigma::opening::{
     OpeningProof,
     verify_opening,
@@ -113,15 +114,22 @@ pub struct AnonymousToken {
 
 impl AnonymousToken {
     /// Encode for wire or hash registries.
-    pub fn to_bytes(&self) -> Vec<u8> {
+    ///
+    /// The buffer includes opening-proof polynomials (`w`, `z`); the returned
+    /// [`Zeroizing`] wrapper zeroizes the `Vec` on drop so transient wire copies
+    /// do not retain those bytes in allocator-visible memory longer than needed.
+    /// Module-vector fields are appended in-place (no intermediate `write_module_vec`
+    /// allocations) so serialized opening data is not duplicated on the heap while
+    /// building the wire encoding.
+    pub fn to_bytes(&self) -> Zeroizing<Vec<u8>> {
         let mut v = Vec::new();
-        v.extend_from_slice(&write_module_vec(&self.commitment.value.0));
+        append_module_vec(&mut v, &self.commitment.value.0);
         v.extend_from_slice(&self.serial);
         v.extend_from_slice(&self.origin);
         v.extend_from_slice(&self.epoch_le);
-        v.extend_from_slice(&write_module_vec(&self.opening_proof.w.0));
-        v.extend_from_slice(&write_module_vec(&self.opening_proof.z.0));
-        v
+        append_module_vec(&mut v, &self.opening_proof.w.0);
+        append_module_vec(&mut v, &self.opening_proof.z.0);
+        Zeroizing::new(v)
     }
 
     /// Verify Fiat–Shamir opening proof for the stored commitment.
@@ -149,5 +157,50 @@ impl AnonymousToken {
             serial: self.serial,
             opening_proof: self.opening_proof.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod to_bytes_tests {
+    use alloc::vec;
+
+    use lib_q_ring::{
+        ModuleVec,
+        Poly,
+    };
+
+    use super::*;
+    use crate::serialize::write_module_vec;
+
+    #[test]
+    fn anonymous_token_to_bytes_zeroizing_roundtrip_slice() {
+        let p = Poly::zero();
+        let com = AjtaiCommitment {
+            value: ModuleVec(vec![p.clone()]),
+        };
+        let proof = OpeningProof {
+            w: ModuleVec(vec![p.clone()]),
+            z: ModuleVec(vec![p]),
+        };
+        let token = AnonymousToken {
+            commitment: com,
+            serial: [1u8; TOKEN_SERIAL_LEN],
+            origin: [2u8; TOKEN_ORIGIN_LEN],
+            epoch_le: [3u8; TOKEN_EPOCH_LEN],
+            opening_proof: proof,
+        };
+        let wire = token.to_bytes();
+        assert_eq!(wire.len(), wire.as_slice().len());
+        let slice: &[u8] = wire.as_ref();
+        assert!(!slice.is_empty());
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(&write_module_vec(&token.commitment.value.0));
+        expected.extend_from_slice(&token.serial);
+        expected.extend_from_slice(&token.origin);
+        expected.extend_from_slice(&token.epoch_le);
+        expected.extend_from_slice(&write_module_vec(&token.opening_proof.w.0));
+        expected.extend_from_slice(&write_module_vec(&token.opening_proof.z.0));
+        assert_eq!(slice, expected.as_slice());
     }
 }

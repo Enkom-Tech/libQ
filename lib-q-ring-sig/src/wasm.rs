@@ -18,7 +18,7 @@ use lib_q_lattice_zkp::{
     AjtaiCommitmentKey,
     AjtaiOpening,
     AjtaiParameters,
-    OpeningProof,
+    DualRingOpeningProof,
     commit,
 };
 use lib_q_random::new_secure_rng;
@@ -62,27 +62,27 @@ const PILOT_MAX_ATTEMPTS: usize = 512;
 
 #[derive(Serialize, Deserialize)]
 struct PilotProofWire {
-    w_hex: String,
+    challenges_hex: String,
     z_hex: String,
 }
 
 fn encode_sig(sig: &DualRingLbSignature) -> Result<JsValue, JsValue> {
-    let w = write_module_vec(&sig.opening_proof.w.0);
-    let z = write_module_vec(&sig.opening_proof.z.0);
+    let challenges = write_module_vec(&sig.proof.challenges);
+    let z = write_module_vec(&sig.proof.z.0);
     let wire = PilotProofWire {
-        w_hex: hex::encode(w),
+        challenges_hex: hex::encode(challenges),
         z_hex: hex::encode(z),
     };
     serde_wasm_bindgen::to_value(&wire).map_err(js_err)
 }
 
 fn decode_sig_from_wire(wire: PilotProofWire) -> Result<DualRingLbSignature, JsValue> {
-    let wb = hex::decode(wire.w_hex.trim()).map_err(js_err)?;
+    let chb = hex::decode(wire.challenges_hex.trim()).map_err(js_err)?;
     let zb = hex::decode(wire.z_hex.trim()).map_err(js_err)?;
-    let w = ModuleVec(read_module_vec(&wb).map_err(|e| js_err(format!("{e:?}")))?);
+    let challenges = read_module_vec(&chb).map_err(|e| js_err(format!("{e:?}")))?;
     let z = ModuleVec(read_module_vec(&zb).map_err(|e| js_err(format!("{e:?}")))?);
     Ok(DualRingLbSignature {
-        opening_proof: OpeningProof { w, z },
+        proof: DualRingOpeningProof { challenges, z },
     })
 }
 

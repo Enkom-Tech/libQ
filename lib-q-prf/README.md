@@ -8,7 +8,7 @@ Legendre and Gold (power-residue) pseudorandom functions over prime fields \(\ma
 - **Gold PRF:** \(\mathrm{Gold}_k(x)=(k+x)^g \bmod p\) with pilot \(g=(p-1)/2\) for safe primes \(p=2q+1\).
 - **Key derivation:** domain-separated `SHAKE256` expansion into \([1,p)\) (see [`shake.rs`](src/shake.rs)).
 
-This crate does **not** implement full anonymous ring signatures; [`lib-q-ring-sig`](../lib-q-ring-sig/) composes these PRFs behind the `dualring-prf` feature.
+This crate does **not** implement full anonymous ring signatures; [`lib-q-ring-sig`](../lib-q-ring-sig/) may compose these PRFs behind the `pilot-insecure-prf-transcript` feature for **non-shipping** transcript experiments (see that crate’s module docs).
 
 ## Features
 

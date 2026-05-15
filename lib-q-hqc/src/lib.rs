@@ -58,7 +58,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create deterministic RNG for testing (use hardware RNG in production)
-//!     let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+//!     let mut rng = LibQRng::new_deterministic([42u8; 32]);
 //!
 //!     // Generate keypair
 //!     let (dk, ek) = Hqc128::generate(&mut rng);

@@ -5,10 +5,10 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
-#[cfg(feature = "zeroize")]
 use zeroize::{
     Zeroize,
     ZeroizeOnDrop,
+    Zeroizing,
 };
 
 use crate::crypto::{
@@ -56,7 +56,6 @@ where
     z: B32,
 }
 
-#[cfg(feature = "zeroize")]
 impl<P> Drop for DecapsulationKey<P>
 where
     P: KemParams,
@@ -67,7 +66,6 @@ where
     }
 }
 
-#[cfg(feature = "zeroize")]
 impl<P> ZeroizeOnDrop for DecapsulationKey<P> where P: KemParams {}
 
 impl<P> EncodedSizeUser for DecapsulationKey<P>
@@ -94,10 +92,13 @@ where
         }
     }
 
-    fn as_bytes(&self) -> Encoded<Self> {
-        let dk_pke = self.dk_pke.as_bytes();
-        let ek = self.ek.as_bytes();
-        P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
+    fn as_bytes(&self) -> Zeroizing<Encoded<Self>> {
+        Zeroizing::new(P::concat_dk(
+            self.dk_pke.as_bytes(),
+            self.ek.ek_pke.as_bytes(),
+            self.ek.h.clone(),
+            self.z.clone(),
+        ))
     }
 }
 
@@ -199,7 +200,7 @@ where
     P: KemParams,
 {
     fn new(ek_pke: EncryptionKey<P>) -> Self {
-        let h = H(ek_pke.as_bytes());
+        let h = H(ek_pke.as_bytes().as_slice());
         Self { ek_pke, h }
     }
 
@@ -221,8 +222,8 @@ where
         Self::new(EncryptionKey::from_bytes(enc))
     }
 
-    fn as_bytes(&self) -> Encoded<Self> {
-        self.ek_pke.as_bytes()
+    fn as_bytes(&self) -> Zeroizing<Encoded<Self>> {
+        Zeroizing::new(self.ek_pke.as_bytes())
     }
 }
 
@@ -341,11 +342,11 @@ mod test {
         let ek_original = dk_original.encapsulation_key().clone();
 
         let dk_encoded = dk_original.as_bytes();
-        let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded);
+        let dk_decoded = DecapsulationKey::from_bytes(&*dk_encoded);
         assert_eq!(dk_original, dk_decoded);
 
         let ek_encoded = ek_original.as_bytes();
-        let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded);
+        let ek_decoded = EncapsulationKey::from_bytes(&*ek_encoded);
         assert_eq!(ek_original, ek_decoded);
     }
 

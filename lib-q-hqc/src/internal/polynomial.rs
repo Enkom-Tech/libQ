@@ -304,7 +304,7 @@ mod tests {
     #[test]
     #[cfg(feature = "random")]
     fn test_polynomial_random_fixed_weight() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         let poly = Polynomial::random_fixed_weight(100, 10, &mut rng).unwrap();
         assert_eq!(poly.degree(), 100);
         let weight = poly.coefficients().iter().filter(|&&x| x == 1).count();
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     #[cfg(feature = "random")]
     fn test_polynomial_security_validation() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
         // Test that fixed weight generation always produces the correct weight
         for _ in 0..10 {
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     #[cfg(feature = "random")]
     fn test_polynomial_error_handling() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
         // Test invalid weight (weight > degree)
         assert!(Polynomial::random_fixed_weight(10, 15, &mut rng).is_err());

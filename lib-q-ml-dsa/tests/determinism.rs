@@ -9,13 +9,23 @@
 use lib_q_ml_dsa::rng::MLDsaRng;
 use lib_q_ml_dsa::*;
 
+fn label_seed(s: &[u8]) -> [u8; 32] {
+    assert!(
+        s.len() <= 32,
+        "determinism tests use at most 32-byte labels"
+    );
+    let mut out = [0u8; 32];
+    out[..s.len()].copy_from_slice(s);
+    out
+}
+
 /// Test that key generation is deterministic across implementations
 #[test]
 fn test_keygen_determinism_portable_vs_simd() {
     let seed = b"determinism_test_seed_12345";
 
     // Generate keys with portable implementation
-    let mut rng_portable = MLDsaRng::new_deterministic(seed);
+    let mut rng_portable = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness_portable = [0u8; 32];
     rng_portable
         .fill_bytes(&mut randomness_portable)
@@ -30,7 +40,7 @@ fn test_keygen_determinism_portable_vs_simd() {
     // Generate keys with SIMD implementation (if available)
     #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     {
-        let mut rng_simd = MLDsaRng::new_deterministic(seed);
+        let mut rng_simd = MLDsaRng::new_deterministic(label_seed(seed));
         let mut randomness_simd = [0u8; 32];
         rng_simd
             .fill_bytes(&mut randomness_simd)
@@ -60,7 +70,7 @@ fn test_signing_determinism_portable_vs_simd() {
     let message = b"test message for deterministic signing";
 
     // Generate keys with portable implementation
-    let mut rng_portable = MLDsaRng::new_deterministic(seed);
+    let mut rng_portable = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness_portable = [0u8; 32];
     rng_portable
         .fill_bytes(&mut randomness_portable)
@@ -69,7 +79,7 @@ fn test_signing_determinism_portable_vs_simd() {
     let keys_portable = ml_dsa_44::portable::generate_key_pair(randomness_portable);
 
     // Sign with portable implementation
-    let mut rng_sign_portable = MLDsaRng::new_deterministic(b"signing_randomness_seed");
+    let mut rng_sign_portable = MLDsaRng::new_deterministic(label_seed(b"signing_randomness_seed"));
     let mut signing_randomness_portable = [0u8; 32];
     rng_sign_portable
         .fill_bytes(&mut signing_randomness_portable)
@@ -89,7 +99,7 @@ fn test_signing_determinism_portable_vs_simd() {
     // Sign with SIMD implementation (if available)
     #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     {
-        let mut rng_simd = MLDsaRng::new_deterministic(seed);
+        let mut rng_simd = MLDsaRng::new_deterministic(label_seed(seed));
         let mut randomness_simd = [0u8; 32];
         rng_simd
             .fill_bytes(&mut randomness_simd)
@@ -97,7 +107,7 @@ fn test_signing_determinism_portable_vs_simd() {
 
         let keys_simd = ml_dsa_44::avx2::generate_key_pair(randomness_simd);
 
-        let mut rng_sign_simd = MLDsaRng::new_deterministic(b"signing_randomness_seed");
+        let mut rng_sign_simd = MLDsaRng::new_deterministic(label_seed(b"signing_randomness_seed"));
         let mut signing_randomness_simd = [0u8; 32];
         rng_sign_simd
             .fill_bytes(&mut signing_randomness_simd)
@@ -126,7 +136,7 @@ fn test_verification_cross_implementation() {
     let message = b"test message for cross-implementation verification";
 
     // Generate keys with portable implementation
-    let mut rng_portable = MLDsaRng::new_deterministic(seed);
+    let mut rng_portable = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness_portable = [0u8; 32];
     rng_portable
         .fill_bytes(&mut randomness_portable)
@@ -135,7 +145,7 @@ fn test_verification_cross_implementation() {
     let keys_portable = ml_dsa_44::portable::generate_key_pair(randomness_portable);
 
     // Sign with portable implementation
-    let mut rng_sign_portable = MLDsaRng::new_deterministic(b"signing_randomness_seed");
+    let mut rng_sign_portable = MLDsaRng::new_deterministic(label_seed(b"signing_randomness_seed"));
     let mut signing_randomness_portable = [0u8; 32];
     rng_sign_portable
         .fill_bytes(&mut signing_randomness_portable)
@@ -183,14 +193,14 @@ fn test_deterministic_reproducibility() {
     let message = b"test message for reproducibility";
 
     // Run 1
-    let mut rng1 = MLDsaRng::new_deterministic(seed);
+    let mut rng1 = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness1 = [0u8; 32];
     rng1.fill_bytes(&mut randomness1)
         .expect("RNG should not fail");
 
     let keys1 = ml_dsa_44::generate_key_pair(randomness1);
 
-    let mut rng_sign1 = MLDsaRng::new_deterministic(b"signing_seed");
+    let mut rng_sign1 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
     let mut signing_randomness1 = [0u8; 32];
     rng_sign1
         .fill_bytes(&mut signing_randomness1)
@@ -200,14 +210,14 @@ fn test_deterministic_reproducibility() {
         .expect("Signing should succeed");
 
     // Run 2 - should produce identical results
-    let mut rng2 = MLDsaRng::new_deterministic(seed);
+    let mut rng2 = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness2 = [0u8; 32];
     rng2.fill_bytes(&mut randomness2)
         .expect("RNG should not fail");
 
     let keys2 = ml_dsa_44::generate_key_pair(randomness2);
 
-    let mut rng_sign2 = MLDsaRng::new_deterministic(b"signing_seed");
+    let mut rng_sign2 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
     let mut signing_randomness2 = [0u8; 32];
     rng_sign2
         .fill_bytes(&mut signing_randomness2)
@@ -244,7 +254,7 @@ fn test_different_seeds_produce_different_results() {
     let message = b"test message for different seeds";
 
     // Generate keys with seed1
-    let mut rng1 = MLDsaRng::new_deterministic(seed1);
+    let mut rng1 = MLDsaRng::new_deterministic(label_seed(seed1));
     let mut randomness1 = [0u8; 32];
     rng1.fill_bytes(&mut randomness1)
         .expect("RNG should not fail");
@@ -252,7 +262,7 @@ fn test_different_seeds_produce_different_results() {
     let keys1 = ml_dsa_44::generate_key_pair(randomness1);
 
     // Generate keys with seed2
-    let mut rng2 = MLDsaRng::new_deterministic(seed2);
+    let mut rng2 = MLDsaRng::new_deterministic(label_seed(seed2));
     let mut randomness2 = [0u8; 32];
     rng2.fill_bytes(&mut randomness2)
         .expect("RNG should not fail");
@@ -273,7 +283,7 @@ fn test_different_seeds_produce_different_results() {
     );
 
     // Sign with both keys
-    let mut rng_sign1 = MLDsaRng::new_deterministic(b"signing_seed");
+    let mut rng_sign1 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
     let mut signing_randomness1 = [0u8; 32];
     rng_sign1
         .fill_bytes(&mut signing_randomness1)
@@ -282,7 +292,7 @@ fn test_different_seeds_produce_different_results() {
     let signature1 = ml_dsa_44::sign_internal(&keys1.signing_key, message, signing_randomness1)
         .expect("Signing should succeed");
 
-    let mut rng_sign2 = MLDsaRng::new_deterministic(b"signing_seed");
+    let mut rng_sign2 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
     let mut signing_randomness2 = [0u8; 32];
     rng_sign2
         .fill_bytes(&mut signing_randomness2)
@@ -306,7 +316,7 @@ fn test_all_parameter_sets_deterministic() {
     let message = b"test message for all parameter sets";
 
     // Test ML-DSA-44
-    let mut rng44 = MLDsaRng::new_deterministic(seed);
+    let mut rng44 = MLDsaRng::new_deterministic(label_seed(seed));
     let mut randomness44 = [0u8; 32];
     rng44
         .fill_bytes(&mut randomness44)
@@ -314,7 +324,7 @@ fn test_all_parameter_sets_deterministic() {
 
     let keys44 = ml_dsa_44::generate_key_pair(randomness44);
 
-    let mut rng_sign44 = MLDsaRng::new_deterministic(b"signing_seed");
+    let mut rng_sign44 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
     let mut signing_randomness44 = [0u8; 32];
     rng_sign44
         .fill_bytes(&mut signing_randomness44)
@@ -333,7 +343,7 @@ fn test_all_parameter_sets_deterministic() {
     // Test ML-DSA-65
     #[cfg(feature = "mldsa65")]
     {
-        let mut rng65 = MLDsaRng::new_deterministic(seed);
+        let mut rng65 = MLDsaRng::new_deterministic(label_seed(seed));
         let mut randomness65 = [0u8; 32];
         rng65
             .fill_bytes(&mut randomness65)
@@ -341,7 +351,7 @@ fn test_all_parameter_sets_deterministic() {
 
         let keys65 = ml_dsa_65::generate_key_pair(randomness65);
 
-        let mut rng_sign65 = MLDsaRng::new_deterministic(b"signing_seed");
+        let mut rng_sign65 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
         let mut signing_randomness65 = [0u8; 32];
         rng_sign65
             .fill_bytes(&mut signing_randomness65)
@@ -362,7 +372,7 @@ fn test_all_parameter_sets_deterministic() {
     // Test ML-DSA-87
     #[cfg(feature = "mldsa87")]
     {
-        let mut rng87 = MLDsaRng::new_deterministic(seed);
+        let mut rng87 = MLDsaRng::new_deterministic(label_seed(seed));
         let mut randomness87 = [0u8; 32];
         rng87
             .fill_bytes(&mut randomness87)
@@ -370,7 +380,7 @@ fn test_all_parameter_sets_deterministic() {
 
         let keys87 = ml_dsa_87::generate_key_pair(randomness87);
 
-        let mut rng_sign87 = MLDsaRng::new_deterministic(b"signing_seed");
+        let mut rng_sign87 = MLDsaRng::new_deterministic(label_seed(b"signing_seed"));
         let mut signing_randomness87 = [0u8; 32];
         rng_sign87
             .fill_bytes(&mut signing_randomness87)
@@ -395,8 +405,8 @@ fn test_rng_state_isolation_in_ml_dsa() {
     let seed = b"isolation_test_seed";
 
     // Create two RNG instances with same seed
-    let mut rng1 = MLDsaRng::new_deterministic(seed);
-    let mut rng2 = MLDsaRng::new_deterministic(seed);
+    let mut rng1 = MLDsaRng::new_deterministic(label_seed(seed));
+    let mut rng2 = MLDsaRng::new_deterministic(label_seed(seed));
 
     // Generate randomness for key generation
     let mut randomness1 = [0u8; 32];

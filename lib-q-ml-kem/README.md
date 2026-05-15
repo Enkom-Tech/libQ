@@ -14,7 +14,7 @@ In summary, ML-KEM stands at the forefront of post-quantum cryptography, offerin
 
 - **Infallible operations** on public paths where the design allows it, plus strict size checks on wire objects.
 - **Constant-time intent** on sensitive comparisons and decapsulation logic; full guarantees require target-specific review.
-- **Optional hardening** — feature `hardened` (see `Cargo.toml`): atomic gate enabling masking, NTT randomisation, and `subtle` comparisons; pairs with `random`, `zeroize`, and `getrandom`. Do not split the feature set.
+- **Optional hardening** — feature `hardened` (see `Cargo.toml`): atomic gate enabling masking, NTT randomisation, and `subtle` comparisons; pairs with `random` and `getrandom`. Do not split the feature set.
 - **Screening** — workspace crate [**lib-q-sca-test**](../lib-q-sca-test) can run TVLA/timing-style checks against `hardened` code paths (lab / CI smoke, not a certification).
 
 This crate has **not** been independently audited; see the warning below.
@@ -46,13 +46,14 @@ All algorithms produce a 32-byte shared secret.
 ## Features
 
 - `deterministic` — deterministic encapsulation for testing.
-- `zeroize` — zeroization helpers for sensitive buffers.
 - `random` — wiring to `lib-q-random` for implementations that need it.
 - `std` — compatibility flag (the crate is already usable with `std` without it).
-- `wasm` — `wasm-bindgen` exports where enabled (also enables `zeroize` so WASM-held decapsulation keys and shared secrets are cleared on drop on the Rust side).
+- `wasm` — `wasm-bindgen` exports where enabled.
 - `hardened` — side-channel-oriented hardening (see above); enable only as a complete feature set.
 
-Default feature set is empty; enable what your integration needs (CI often uses `std` and/or `random`).
+The `zeroize` crate is always linked: `EncodedSizeUser::as_bytes` returns `zeroize::Zeroizing` stack buffers so serialized key material is cleared when the value is dropped, and ephemeral secrets such as `SecretB32` use the same mechanism.
+
+Default feature set is `std`; enable what your integration needs (CI often adds `random`).
 
 ### WASM / `JavaScript` (`wasm` feature)
 

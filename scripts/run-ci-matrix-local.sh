@@ -188,11 +188,11 @@ cargo test -p lib-q-prf --features alloc --verbose
 echo "Running: cargo test -p lib-q-prf --features alloc --profile release-ci --verbose"
 cargo test -p lib-q-prf --features alloc --profile release-ci --verbose
 
-echo "========== CI matrix: lib-q-ring-sig (dualring-prf) =========="
-echo "Running: cargo test -p lib-q-ring-sig --features dualring-prf --verbose"
-cargo test -p lib-q-ring-sig --features dualring-prf --verbose
-echo "Running: cargo test -p lib-q-ring-sig --features dualring-prf --profile release-ci --verbose"
-cargo test -p lib-q-ring-sig --features dualring-prf --profile release-ci --verbose
+echo "========== CI matrix: lib-q-ring-sig (pilot-insecure-prf-transcript) =========="
+echo "Running: cargo test -p lib-q-ring-sig --features pilot-insecure-prf-transcript --verbose"
+cargo test -p lib-q-ring-sig --features pilot-insecure-prf-transcript --verbose
+echo "Running: cargo test -p lib-q-ring-sig --features pilot-insecure-prf-transcript --profile release-ci --verbose"
+cargo test -p lib-q-ring-sig --features pilot-insecure-prf-transcript --profile release-ci --verbose
 
 echo "========== CI matrix: lib-q-lattice-zkp =========="
 nuke_release_ci

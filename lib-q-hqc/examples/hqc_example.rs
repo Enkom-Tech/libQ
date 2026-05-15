@@ -13,7 +13,7 @@ fn main() {
 
     // Create a deterministic RNG for reproducible results
     let seed = [42u8; 32];
-    let mut rng = LibQRng::new_deterministic(&seed);
+    let mut rng = LibQRng::new_deterministic(seed);
 
     // Demonstrate HQC-1 (128-bit security)
     println!("\n1. HQC-1 KEM Demo");

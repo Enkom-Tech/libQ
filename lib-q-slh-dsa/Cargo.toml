@@ -13,20 +13,19 @@ categories = ["cryptography"]
 exclude = ["tests"]
 
 [dependencies]
-hybrid-array = { version = "0.4.12", features = ["extra-sizes"] }
+hybrid-array = { workspace = true, features = ["extra-sizes"] }
 typenum = { version = "1.20.0", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, default-features = false, features = ["signature"] }
-zerocopy = { version = "0.8.48", features = ["derive"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0", features = ["rand_core"] }
 hmac = "0.13.0"
-sha2 = { version = "0.11.0", default-features = false }
+sha2 = { workspace = true, default-features = false }
 digest = { workspace = true }
 pkcs8 = { version = "0.11.0", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.2", features = ["db"] }
-zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 getrandom = { workspace = true, optional = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
@@ -40,7 +39,7 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
-hex-literal = "1.1.0"
+hex-literal = { workspace = true }
 pastey = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
@@ -91,7 +90,6 @@ no_std = [
     "lib-q-random/zeroize",
 ]
 test = []
-zeroize = ["dep:zeroize", "hybrid-array/zeroize"]
 # Expand `test_parameter_sets!`, ACVP keygen projection, and integration KATs to all 12 FIPS parameter sets and slow `*s` vectors (slow). Default smoke uses Shake128f + Sha2_128f only and skips `*s` ACVP groups.
 all-parameter-set-tests = []
 wasm = [
@@ -104,7 +102,6 @@ wasm = [
     "lib-q-core/wasm",
     "alloc",
     "std",
-    "zeroize",
 ]
 
 [[test]]

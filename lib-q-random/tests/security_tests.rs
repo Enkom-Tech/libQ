@@ -27,6 +27,13 @@ use lib_q_random::{
 };
 use rand_core::Rng;
 
+fn pad_label(s: &[u8]) -> [u8; 32] {
+    assert!(s.len() <= 32);
+    let mut out = [0u8; 32];
+    out[..s.len()].copy_from_slice(s);
+    out
+}
+
 /// Test that secure RNG never produces all zeros
 #[test]
 fn test_secure_rng_never_produces_zeros() {
@@ -156,7 +163,7 @@ fn test_different_rng_instances_produce_different_values() {
 /// Test that deterministic RNG produces consistent values
 #[test]
 fn test_deterministic_rng_consistency() {
-    let seed = b"test seed for deterministic RNG";
+    let seed = pad_label(b"test seed for deterministic RNG");
 
     #[cfg(feature = "alloc")]
     {
@@ -198,8 +205,8 @@ fn test_deterministic_rng_consistency() {
 /// Test that deterministic RNGs with different seeds produce different values
 #[test]
 fn test_deterministic_rng_different_seeds() {
-    let seed1 = b"seed 1";
-    let seed2 = b"seed 2";
+    let seed1 = pad_label(b"seed 1");
+    let seed2 = pad_label(b"seed 2");
 
     #[cfg(feature = "alloc")]
     {

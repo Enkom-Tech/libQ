@@ -5,10 +5,10 @@ use lib_q_prf::{
     LegendrePrfParams256,
     u256_from_le_bytes,
 };
-use lib_q_ring_sig::{
-    DualRingPrfMemberPublic256,
-    DualRingPrfSignature256,
-    verify_dualring_prf_u256,
+use lib_q_ring_sig::pilot_insecure_prf_transcript::{
+    PilotPrfTranscriptMemberSecrets256,
+    PilotPrfTranscriptSignature256,
+    pilot_prf_transcript_verify_u256,
 };
 use libfuzzer_sys::fuzz_target;
 
@@ -54,17 +54,17 @@ fuzz_target!(|data: &[u8]| {
     }
 
     let ring = vec![
-        DualRingPrfMemberPublic256 {
+        PilotPrfTranscriptMemberSecrets256 {
             legendre_key_le: kb0,
             gold_key_le: gb0,
         },
-        DualRingPrfMemberPublic256 {
+        PilotPrfTranscriptMemberSecrets256 {
             legendre_key_le: kb1,
             gold_key_le: gb1,
         },
     ];
 
-    let sig = DualRingPrfSignature256 {
+    let sig = PilotPrfTranscriptSignature256 {
         commitment,
         challenge,
         legendre_out,
@@ -72,5 +72,5 @@ fuzz_target!(|data: &[u8]| {
     };
 
     let msg = &data[off + 32..];
-    let _ = verify_dualring_prf_u256(&ring, idx, msg, &sig);
+    let _ = pilot_prf_transcript_verify_u256(&ring, idx, msg, &sig);
 });

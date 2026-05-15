@@ -85,7 +85,7 @@ use lib_q_random::LibQRng;
 use lib_q_hqc::hqc_core_impl::*;
 
 // Create a random number generator
-let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
 // Generate a keypair
 let keypair = Hqc128CoreImpl::generate_keypair(&mut rng);

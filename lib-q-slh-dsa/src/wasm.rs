@@ -71,7 +71,7 @@ fn keygen_for<P: ParameterSet + VerifyingKeyLen>(
     let vk = sk.verifying_key();
     let out = KeypairOut {
         algorithm: name,
-        signing_key_hex: hex::encode(sk.to_vec()),
+        signing_key_hex: hex::encode(sk.to_vec().as_slice()),
         verifying_key_hex: hex::encode(vk.to_vec()),
     };
     serde_wasm_bindgen::to_value(&out).map_err(js_err)

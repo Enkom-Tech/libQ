@@ -1,30 +1,31 @@
-//! DualRing-LB–style ring signatures over the shared Ajtai CRS.
+//! DualRing-LB ring signatures over the shared Ajtai CRS.
 //!
-//! This module implements a **pilot** integration on top of the existing Schnorr-style opening
-//! proofs from [`lib_q_lattice_zkp`]: the Fiat–Shamir transcript is extended with per-index domain
-//! labels so the verifier runs a **full-ring** check without short-circuiting on the first success
-//! (mitigating a timing channel that reveals the signer index to a local observer).
+//! This module wires the DualRing construction from Beullens et al. (CCS 2021, ePrint 2021/1213,
+//! Algorithm 3) into the opening identification scheme from [`lib_q_lattice_zkp`]: one response `z`
+//! and challenges `c_1, …, c_n` with `Σ_i c_i = H(ctx ‖ R)` and
+//! `R = A·y − Σ_{i≠j} c_i · Com_i` for signer index `j`. Verification is a **single** aggregated check
+//! ([`lib_q_lattice_zkp::verify_dual_ring_opening`]); work and control flow do not depend on which
+//! ring member signed.
 //!
-//! The transcript shape follows the DualRing idea of absorbing the whole ring into the hash
-//! before deriving the sparse challenge; a full Beullens–Yuen *et al.* (ePrint 2021/1213)
-//! `Algorithm 6` key schedule is **not** wired here—the public keys remain Ajtai commitment images
-//! under the CRS from [`crate::keygen::MemberIssuerKey`].
+//! The Fiat–Shamir context extends the federation digest with per-index domain labels (same
+//! absorption as before) so the ring and message bind into `ctx`.
 //!
-//! Cryptographic anonymity against a malicious verifier still requires the paper’s aggregated
-//! verification equation; until that lands, treat this path as **hardened federation openings**
-//! with a DualRing-oriented transcript.
+//! **Parameter note:** The paper’s Section 7 uses a coefficient-wise mod-3 challenge group; this
+//! integration keeps the ML-DSA–compatible sparse ball from [`lib_q_ring::sample_in_ball`] for the
+//! hashed aggregate `c = H(ctx ‖ R)` only. Decoy challenges `c_i` (for `i ≠ j`) are independent ball
+//! samples; the adjusted `c_j` lies in `R_q` but is not required to be sparse.
 
 use alloc::vec::Vec;
 
+pub use lib_q_lattice_zkp::DualRingOpeningProof;
 use lib_q_lattice_zkp::{
     AjtaiCommitment,
     AjtaiCommitmentKey,
     AjtaiOpening,
-    OpeningProof,
     ProofError,
     VerifyError,
-    prove_opening,
-    verify_opening,
+    prove_dual_ring_opening,
+    verify_dual_ring_opening,
 };
 use lib_q_sha3::{
     ExtendableOutput,
@@ -35,10 +36,6 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
 
 use crate::ring::federation_digest;
 use crate::sign::federation_signing_context;
@@ -47,10 +44,8 @@ const DUALRING_LB_CTX_TAG: &[u8] = b"lib-q-ring-sig/dualring-lb-v1";
 
 /// Pilot “dual challenge ring” material: per-member SHAKE256 digests bound to the federation digest.
 ///
-/// A full DualRing-LB construction (Beullens et al., CCS 2021) requires a **linked** challenge ring
-/// with a sum closure in the signing algebra; this type exposes only the **independent** per-index
-/// labels that [`dualring_lb_signing_context`] absorbs. Use it for transcript inspection, tests, and
-/// future aggregation work.
+/// The signing context [`dualring_lb_signing_context`] absorbs these labels so the Fiat–Shamir
+/// transcript binds each ring slot; see [`DualRingLbChallengeState`] for inspection and tests.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DualRingLbChallengeState {
     /// `federation_digest(ring)`.
@@ -85,22 +80,22 @@ pub fn dualring_lb_challenge_state(
     }
 }
 
-/// Serialized opening proof with a DualRing-LB-oriented Fiat–Shamir transcript.
+/// Serialized DualRing-LB opening: additive challenge ring + response `z`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DualRingLbSignature {
-    /// Inner opening proof `(w, z)`.
-    pub opening_proof: OpeningProof,
+    /// Inner DualRing opening proof (`c_1, …, c_n`, `z`).
+    pub proof: DualRingOpeningProof,
 }
 
-impl From<OpeningProof> for DualRingLbSignature {
-    fn from(opening_proof: OpeningProof) -> Self {
-        Self { opening_proof }
+impl From<DualRingOpeningProof> for DualRingLbSignature {
+    fn from(proof: DualRingOpeningProof) -> Self {
+        Self { proof }
     }
 }
 
-impl From<DualRingLbSignature> for OpeningProof {
+impl From<DualRingLbSignature> for DualRingOpeningProof {
     fn from(sig: DualRingLbSignature) -> Self {
-        sig.opening_proof
+        sig.proof
     }
 }
 
@@ -117,7 +112,7 @@ pub fn dualring_lb_signing_context(ring: &[AjtaiCommitment], message: &[u8]) -> 
     v
 }
 
-/// Sign with the DualRing-LB transcript (same witness relation as federation openings).
+/// Sign with the DualRing-LB transcript (aggregated verification).
 #[allow(clippy::too_many_arguments)]
 pub fn sign_dualring_lb<R: Rng + CryptoRng>(
     rng: &mut R,
@@ -130,26 +125,27 @@ pub fn sign_dualring_lb<R: Rng + CryptoRng>(
     z_inf_bound: i32,
     max_attempts: usize,
 ) -> Result<DualRingLbSignature, ProofError> {
+    let signer_idx = ring
+        .iter()
+        .position(|c| c == member_com)
+        .ok_or(ProofError::InvalidParameters)?;
     let ctx = dualring_lb_signing_context(ring, message);
-    let opening_proof = prove_opening(
+    let proof = prove_dual_ring_opening(
         rng,
         crs,
         member_opening,
-        member_com,
+        ring,
+        signer_idx,
         &ctx,
         tau,
         z_inf_bound,
         max_attempts,
     )?;
-    Ok(DualRingLbSignature { opening_proof })
+    Ok(DualRingLbSignature { proof })
 }
 
-/// Verify a DualRing-LB signature without short-circuiting on the signer index.
-///
-/// Every ring position is checked; the aggregate result is combined with [`Choice`] so the control
-/// flow does not return early on success. This is **not** the CCS 2021 paper’s single linked
-/// verification equation (that remains future work); it is a constant-time **OR** over per-member
-/// [`verify_opening`] checks so local timing does not reveal which index matched first.
+/// Verify a DualRing-LB signature using the aggregated DualRing equation (CCS 2021, Algorithm 3).
+#[allow(clippy::too_many_arguments)]
 pub fn verify_dualring_lb(
     crs: &AjtaiCommitmentKey,
     ring: &[AjtaiCommitment],
@@ -159,16 +155,7 @@ pub fn verify_dualring_lb(
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
     let ctx = dualring_lb_signing_context(ring, message);
-    let mut any_ok = Choice::from(0u8);
-    for com in ring {
-        let ok = verify_opening(crs, com, &sig.opening_proof, &ctx, tau, z_inf_bound).is_ok();
-        any_ok |= Choice::from(ok as u8);
-    }
-    if bool::from(any_ok.ct_eq(&Choice::from(1u8))) {
-        Ok(())
-    } else {
-        Err(VerifyError::Rejected)
-    }
+    verify_dual_ring_opening(crs, ring, &sig.proof, &ctx, tau, z_inf_bound)
 }
 
 #[cfg(test)]

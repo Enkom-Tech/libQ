@@ -37,6 +37,8 @@ use signature::{
 };
 #[cfg(feature = "alloc")]
 use typenum::Unsigned;
+#[cfg(feature = "alloc")]
+use zeroize::Zeroizing;
 
 use crate::ParameterSet;
 #[cfg(feature = "alloc")]
@@ -203,7 +205,7 @@ pub fn signing_key_to_sig_secret_key<P: ParameterSet>(
     signing_key: &SigningKey<P>,
 ) -> Result<SigSecretKey> {
     let key_bytes = signing_key.to_bytes();
-    Ok(SigSecretKey::new(key_bytes.to_vec()))
+    Ok(SigSecretKey::new(Vec::from(key_bytes.as_slice())))
 }
 
 /// Convert SLH-DSA `VerifyingKey` to `lib-q-core` `SigPublicKey`
@@ -252,7 +254,8 @@ pub fn sig_public_key_to_verifying_key<P: ParameterSet>(
 /// Convert SLH-DSA Signature to bytes
 #[cfg(feature = "alloc")]
 pub fn slh_signature_to_bytes<P: ParameterSet>(signature: &SlhSignature<P>) -> Vec<u8> {
-    signature.to_bytes().to_vec()
+    let encoded = Zeroizing::new(signature.to_bytes());
+    Vec::from(encoded.as_slice())
 }
 
 /// Convert bytes to SLH-DSA `Signature`

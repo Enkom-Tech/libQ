@@ -11,15 +11,20 @@ fn push_i32_le(buf: &mut Vec<u8>, v: i32) {
     buf.extend_from_slice(&v.to_le_bytes());
 }
 
+/// Append [`write_module_vec`] encoding of `v` to `buf` without an intermediate allocation.
+pub(crate) fn append_module_vec(buf: &mut Vec<u8>, v: &[Poly]) {
+    buf.extend_from_slice(&(v.len() as u32).to_le_bytes());
+    for p in v {
+        for &c in &p.coeffs {
+            push_i32_le(buf, c);
+        }
+    }
+}
+
 /// Serialize a module vector (polynomial count + flattened coefficients).
 pub fn write_module_vec(v: &[Poly]) -> Vec<u8> {
     let mut out = Vec::new();
-    out.extend_from_slice(&(v.len() as u32).to_le_bytes());
-    for p in v {
-        for &c in &p.coeffs {
-            push_i32_le(&mut out, c);
-        }
-    }
+    append_module_vec(&mut out, v);
     out
 }
 

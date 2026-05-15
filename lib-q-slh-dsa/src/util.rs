@@ -1,3 +1,6 @@
+use core::array::TryFromSliceError;
+use core::convert::TryFrom;
+
 use hybrid_array::typenum::Unsigned;
 use hybrid_array::{
     Array,
@@ -5,6 +8,31 @@ use hybrid_array::{
 };
 
 use crate::fors::ForsParams;
+
+/// Parse `slice` as a `N`-byte [`Array`]. `slice` must be exactly `N::USIZE` bytes.
+#[inline]
+pub(crate) fn array_u8_try_from_exact<N>(slice: &[u8]) -> Result<Array<u8, N>, TryFromSliceError>
+where
+    N: ArraySize,
+    Array<u8, N>: Clone,
+{
+    Array::try_from(slice)
+}
+
+/// Parse the first `N::USIZE` bytes of `slice` as an [`Array`].
+///
+/// Returns an error if `slice` is shorter than `N::USIZE`. Accepts any `AsRef<[u8]>`
+/// (e.g. digest or MAC output types).
+#[inline]
+pub(crate) fn array_u8_try_from_prefix<N, S>(src: S) -> Result<Array<u8, N>, TryFromSliceError>
+where
+    N: ArraySize,
+    Array<u8, N>: Clone,
+    S: AsRef<[u8]>,
+{
+    let s = src.as_ref();
+    Array::try_from(&s[..N::USIZE])
+}
 
 // Algorithm 3
 pub fn base_2b<OutLen: ArraySize, B: Unsigned>(x: &[u8]) -> Array<u16, OutLen> {
@@ -30,8 +58,8 @@ pub fn base_2b<OutLen: ArraySize, B: Unsigned>(x: &[u8]) -> Array<u16, OutLen> {
 
 /// Separates the digest into the FORS message, the Xmss tree index, and the Xmss leaf index.
 pub fn split_digest<P: ForsParams>(digest: &Array<u8, P::M>) -> (&Array<u8, P::MD>, u64, u32) {
-    #[allow(deprecated)]
-    let m = Array::from_slice(&digest[..P::MD::USIZE]);
+    let m = Array::<u8, P::MD>::slice_as_array(&digest[..P::MD::USIZE])
+        .expect("FORS message digest prefix fits in h_msg output");
     let idx_tree_size = (P::H::USIZE - P::HPrime::USIZE).div_ceil(8);
     let idx_leaf_size = P::HPrime::USIZE.div_ceil(8);
     let mut idx_tree_bytes = [0u8; 8];

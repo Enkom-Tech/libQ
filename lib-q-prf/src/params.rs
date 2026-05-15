@@ -23,6 +23,7 @@
 
 use crypto_bigint::modular::MontyParams;
 use crypto_bigint::{
+    NonZero,
     Odd,
     U256,
     U512,
@@ -31,8 +32,8 @@ use crypto_bigint::{
 /// Parameters for the Legendre PRF over \(\mathbb{F}_p\) with `p` a safe prime.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LegendrePrfParams256 {
-    /// Safe prime modulus.
-    pub p: U256,
+    /// Safe prime modulus (`p > 0`).
+    pub p: NonZero<U256>,
     /// Montgomery parameters for `p`.
     pub monty: MontyParams<U256>,
 }
@@ -90,15 +91,16 @@ impl LegendrePrfParams256 {
     /// Pilot modulus: 255-bit safe prime (`p = 2q+1`, `q` prime).
     #[must_use]
     pub fn pilot() -> Self {
-        let p = U256::from_be_hex(P256_BE_HEX);
-        let monty = monty_params_u256(p);
+        let p_uint = U256::from_be_hex(P256_BE_HEX);
+        let p = NonZero::new(p_uint).expect("pilot modulus is non-zero");
+        let monty = monty_params_u256(p.get());
         Self { p, monty }
     }
 
     /// Sophie Germain cofactor `q = (p-1)/2`.
     #[must_use]
     pub fn sophie_germain_cofactor(&self) -> U256 {
-        self.p.wrapping_sub(&U256::ONE).shr(1)
+        self.p.get().wrapping_sub(&U256::ONE).shr(1)
     }
 }
 
@@ -125,7 +127,7 @@ impl GoldPrfParams256 {
         let leg = LegendrePrfParams256::pilot();
         let g = leg.sophie_germain_cofactor();
         GoldPrfParams256 {
-            p: leg.p,
+            p: leg.p.get(),
             monty: leg.monty,
             g,
         }

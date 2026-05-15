@@ -7,7 +7,10 @@ use hybrid_array::{
 use typenum::Unsigned;
 
 use crate::hypertree::HypertreeParams;
-use crate::util::base_2b;
+use crate::util::{
+    array_u8_try_from_exact,
+    base_2b,
+};
 use crate::{
     PkSeed,
     SkSeed,
@@ -58,8 +61,7 @@ impl<P: ForsParams> TryFrom<&[u8]> for ForsMTSig<P> {
         if slice.len() != ForsMTSig::<P>::SIZE {
             return Err(());
         }
-        #[allow(deprecated)]
-        let sk = Array::clone_from_slice(&slice[..P::N::USIZE]);
+        let sk = array_u8_try_from_exact(&slice[..P::N::USIZE]).map_err(|_| ())?;
         let mut auth: Array<Array<u8, P::N>, P::A> = Array::default();
         for i in 0..P::A::USIZE {
             auth[i].copy_from_slice(

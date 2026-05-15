@@ -102,12 +102,14 @@ impl LibQRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// This method creates a deterministic RNG suitable for testing and
-    /// reproducible operations. **NOT CRYPTOGRAPHICALLY SECURE**.
+    /// Initializes a `ChaCha20` byte stream from a **256-bit** seed (same as
+    /// `rand_chacha::ChaCha20Rng::from_seed`). Suitable for KATs and regression
+    /// tests. **Unpredictability is only as strong as the seed**: this is not a
+    /// substitute for [`Self::new_secure`] in production.
     ///
     /// # Arguments
     ///
-    /// * `seed` - The seed value for deterministic generation
+    /// * `seed` - 32-byte `ChaCha20` key material; must be chosen explicitly for tests
     ///
     /// # Examples
     ///
@@ -115,11 +117,11 @@ impl LibQRng {
     /// use lib_q_random::LibQRng;
     /// use rand_core::Rng;
     ///
-    /// let mut rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+    /// let mut rng = LibQRng::new_deterministic([1; 32]);
     /// let mut bytes = [0u8; 32];
     /// rng.fill_bytes(&mut bytes);
     /// ```
-    pub fn new_deterministic(seed: &[u8]) -> Self {
+    pub fn new_deterministic(seed: [u8; 32]) -> Self {
         let entropy_source =
             crate::entropy::EntropySourceFactory::create_deterministic_entropy(seed);
         // Deterministic RNGs don't need strict validation since they're not cryptographically secure
@@ -391,8 +393,15 @@ impl SecureRng for LibQRng {
     fn initialize(&mut self, entropy: &[u8]) -> Result<()> {
         // For deterministic RNGs, we can reinitialize with new seed
         if self.deterministic {
+            let seed: [u8; 32] = entropy.try_into().map_err(|_| {
+                crate::Error::invalid_configuration(
+                    "deterministic seed",
+                    "exactly 32 bytes",
+                    "slice length is not 32",
+                )
+            })?;
             let new_source =
-                crate::entropy::EntropySourceFactory::create_deterministic_entropy(entropy);
+                crate::entropy::EntropySourceFactory::create_deterministic_entropy(seed);
             self.entropy_source = new_source;
             self.reseed_counter = 0;
             self.bytes_generated = 0;
@@ -614,8 +623,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_libq_rng_deterministic_creation() {
-        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let rng = LibQRng::new_deterministic(&seed);
+        let mut seed = [0u8; 32];
+        seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let rng = LibQRng::new_deterministic(seed);
         assert!(rng.is_deterministic());
         assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
         assert!(!rng.is_secure());
@@ -624,9 +634,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_libq_rng_deterministic_consistency() {
-        let seed = [42u8; 16];
-        let mut rng1 = LibQRng::new_deterministic(&seed);
-        let mut rng2 = LibQRng::new_deterministic(&seed);
+        let seed = [42u8; 32];
+        let mut rng1 = LibQRng::new_deterministic(seed);
+        let mut rng2 = LibQRng::new_deterministic(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -635,6 +645,29 @@ mod tests {
         rng2.fill_bytes(&mut bytes2);
 
         assert_eq!(bytes1, bytes2);
+    }
+
+    /// Regression: deterministic RNG must use the full 256-bit seed (`ChaCha20`), not a
+    /// collapsed 64-bit state where distant seed bytes could be ignored.
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_libq_rng_deterministic_seeds_differ_in_final_byte_yield_different_streams() {
+        let seed_a = [0u8; 32];
+        let mut seed_b = [0u8; 32];
+        seed_b[31] = 1;
+
+        let mut rng_a = LibQRng::new_deterministic(seed_a);
+        let mut rng_b = LibQRng::new_deterministic(seed_b);
+
+        let mut out_a = [0u8; 64];
+        let mut out_b = [0u8; 64];
+        rng_a.fill_bytes(&mut out_a);
+        rng_b.fill_bytes(&mut out_b);
+
+        assert_ne!(
+            out_a, out_b,
+            "ChaCha20 streams from different 32-byte keys must diverge immediately"
+        );
     }
 
     #[test]
@@ -689,8 +722,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_libq_rng_reseed_counter() {
-        let seed = [1, 2, 3, 4];
-        let rng = LibQRng::new_deterministic(&seed);
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let rng = LibQRng::new_deterministic(seed);
         assert_eq!(rng.reseed_counter(), 0);
         assert_eq!(rng.bytes_generated(), 0);
     }
@@ -698,8 +732,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_libq_rng_entropy_source_info() {
-        let seed = [1, 2, 3, 4];
-        let rng = LibQRng::new_deterministic(&seed);
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let rng = LibQRng::new_deterministic(seed);
         assert!(!rng.entropy_source_name().is_empty());
         assert_eq!(
             rng.entropy_source_type(),
@@ -710,8 +745,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_libq_rng_display() {
-        let seed = [1, 2, 3, 4];
-        let rng = LibQRng::new_deterministic(&seed);
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let rng = LibQRng::new_deterministic(seed);
         let display = format!("{rng}");
         assert!(display.contains("LibQRng"));
         assert!(display.contains("Deterministic"));

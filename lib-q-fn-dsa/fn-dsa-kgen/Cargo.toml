@@ -16,10 +16,10 @@ fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
-sha2 = "0.10.9"
+sha2 = { workspace = true, default-features = false }
 hex = { workspace = true }
-num-bigint = "0.4.6"
-num-traits = "0.2.19"
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
 
 [features]
 default = []

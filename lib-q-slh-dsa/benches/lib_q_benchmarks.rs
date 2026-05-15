@@ -36,7 +36,7 @@ use signature::{
 /// Helper function to create a deterministic RNG for benchmarks
 /// This ensures consistent benchmark results and proper error handling
 fn create_benchmark_rng(seed: &[u8; 32]) -> LibQRng {
-    new_deterministic_rng(seed)
+    new_deterministic_rng(*seed)
 }
 
 /// Benchmark key generation for different SLH-DSA parameter sets

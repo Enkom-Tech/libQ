@@ -19,6 +19,8 @@ use lib_q_core::{
     KemOperations,
     Result,
 };
+#[cfg(all(feature = "alloc", feature = "random"))]
+use zeroize::Zeroizing;
 
 use crate::hqc_correct::{
     Hqc1,
@@ -100,7 +102,7 @@ impl KemOperations for LibQHqcProvider {
                         details: format!("Failed to generate HQC-128 keypair: {:?}", e),
                     })?;
                 Ok(lib_q_core::KemKeypair {
-                    public_key: lib_q_core::KemPublicKey::new(public_key.as_bytes().to_vec()),
+                    public_key: lib_q_core::KemPublicKey::new(Vec::from(public_key.as_bytes())),
                     secret_key: lib_q_core::KemSecretKey::new(secret_key.as_bytes()),
                 })
             }
@@ -111,7 +113,7 @@ impl KemOperations for LibQHqcProvider {
                         details: format!("Failed to generate HQC-192 keypair: {:?}", e),
                     })?;
                 Ok(lib_q_core::KemKeypair {
-                    public_key: lib_q_core::KemPublicKey::new(public_key.as_bytes().to_vec()),
+                    public_key: lib_q_core::KemPublicKey::new(Vec::from(public_key.as_bytes())),
                     secret_key: lib_q_core::KemSecretKey::new(secret_key.as_bytes()),
                 })
             }
@@ -122,7 +124,7 @@ impl KemOperations for LibQHqcProvider {
                         details: format!("Failed to generate HQC-256 keypair: {:?}", e),
                     })?;
                 Ok(lib_q_core::KemKeypair {
-                    public_key: lib_q_core::KemPublicKey::new(public_key.as_bytes().to_vec()),
+                    public_key: lib_q_core::KemPublicKey::new(Vec::from(public_key.as_bytes())),
                     secret_key: lib_q_core::KemSecretKey::new(secret_key.as_bytes()),
                 })
             }
@@ -164,10 +166,7 @@ impl KemOperations for LibQHqcProvider {
                         operation: String::from("HQC-128 encapsulation"),
                         details: format!("Failed to encapsulate HQC-128: {:?}", e),
                     })?;
-                Ok((
-                    ciphertext.as_bytes().to_vec(),
-                    shared_secret.as_bytes().to_vec(),
-                ))
+                Ok((ciphertext.as_bytes(), Vec::from(shared_secret.as_bytes())))
             }
             Algorithm::Hqc192 => {
                 let pke_pk = HqcPkePublicKey::<Hqc3Params>::new(public_key.data.clone());
@@ -179,10 +178,7 @@ impl KemOperations for LibQHqcProvider {
                         operation: String::from("HQC-192 encapsulation"),
                         details: format!("Failed to encapsulate HQC-192: {:?}", e),
                     })?;
-                Ok((
-                    ciphertext.as_bytes().to_vec(),
-                    shared_secret.as_bytes().to_vec(),
-                ))
+                Ok((ciphertext.as_bytes(), Vec::from(shared_secret.as_bytes())))
             }
             Algorithm::Hqc256 => {
                 let pke_pk = HqcPkePublicKey::<Hqc5Params>::new(public_key.data.clone());
@@ -194,10 +190,7 @@ impl KemOperations for LibQHqcProvider {
                         operation: String::from("HQC-256 encapsulation"),
                         details: format!("Failed to encapsulate HQC-256: {:?}", e),
                     })?;
-                Ok((
-                    ciphertext.as_bytes().to_vec(),
-                    shared_secret.as_bytes().to_vec(),
-                ))
+                Ok((ciphertext.as_bytes(), Vec::from(shared_secret.as_bytes())))
             }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Unsupported algorithm",
@@ -250,17 +243,17 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc1Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = [0u8; 16];
+                let mut sigma = Zeroizing::new([0u8; 16]);
                 sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
                 let seed_kem_start = sigma_start + 16;
-                let mut seed_kem = [0u8; 48];
+                let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 
                 let ek_pke = HqcPkePublicKey::<Hqc1Params>::new(ek_pke_bytes.to_vec());
-                let mut dk_pke_array = [0u8; 32];
+                let mut dk_pke_array = Zeroizing::new([0u8; 32]);
                 dk_pke_array.copy_from_slice(dk_pke_bytes);
-                let dk_pke = HqcPkeSecretKey::new(dk_pke_array);
-                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, sigma, seed_kem);
+                let dk_pke = HqcPkeSecretKey::new(*dk_pke_array);
+                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, *sigma, *seed_kem);
                 let sk = Hqc1SecretKey::new(kem_sk);
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
@@ -272,10 +265,10 @@ impl KemOperations for LibQHqcProvider {
                     });
                 }
                 let c_pke_bytes = &ciphertext[..pke_ct_size];
-                let mut salt = [0u8; 16];
+                let mut salt = Zeroizing::new([0u8; 16]);
                 salt.copy_from_slice(&ciphertext[pke_ct_size..pke_ct_size + 16]);
                 let c_pke = HqcPkeCiphertext::<Hqc1Params>::new(c_pke_bytes.to_vec());
-                let kem_ct = HqcKemCiphertext::new(c_pke, salt);
+                let kem_ct = HqcKemCiphertext::new(c_pke, *salt);
                 let ct = Hqc1Ciphertext::new(kem_ct);
 
                 let shared_secret =
@@ -285,7 +278,7 @@ impl KemOperations for LibQHqcProvider {
                             details: format!("Failed to decapsulate HQC-128: {:?}", e),
                         }
                     })?;
-                Ok(shared_secret.as_bytes().to_vec())
+                Ok(Vec::from(shared_secret.as_bytes()))
             }
             Algorithm::Hqc192 => {
                 // Parse secret key
@@ -300,17 +293,17 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc3Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = [0u8; 16];
+                let mut sigma = Zeroizing::new([0u8; 16]);
                 sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
                 let seed_kem_start = sigma_start + 16;
-                let mut seed_kem = [0u8; 48];
+                let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 
                 let ek_pke = HqcPkePublicKey::<Hqc3Params>::new(ek_pke_bytes.to_vec());
-                let mut dk_pke_array = [0u8; 32];
+                let mut dk_pke_array = Zeroizing::new([0u8; 32]);
                 dk_pke_array.copy_from_slice(dk_pke_bytes);
-                let dk_pke = HqcPkeSecretKey::new(dk_pke_array);
-                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, sigma, seed_kem);
+                let dk_pke = HqcPkeSecretKey::new(*dk_pke_array);
+                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, *sigma, *seed_kem);
                 let sk = Hqc3SecretKey::new(kem_sk);
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
@@ -322,10 +315,10 @@ impl KemOperations for LibQHqcProvider {
                     });
                 }
                 let c_pke_bytes = &ciphertext[..pke_ct_size];
-                let mut salt = [0u8; 16];
+                let mut salt = Zeroizing::new([0u8; 16]);
                 salt.copy_from_slice(&ciphertext[pke_ct_size..pke_ct_size + 16]);
                 let c_pke = HqcPkeCiphertext::<Hqc3Params>::new(c_pke_bytes.to_vec());
-                let kem_ct = HqcKemCiphertext::new(c_pke, salt);
+                let kem_ct = HqcKemCiphertext::new(c_pke, *salt);
                 let ct = Hqc3Ciphertext::new(kem_ct);
 
                 let shared_secret =
@@ -335,7 +328,7 @@ impl KemOperations for LibQHqcProvider {
                             details: format!("Failed to decapsulate HQC-192: {:?}", e),
                         }
                     })?;
-                Ok(shared_secret.as_bytes().to_vec())
+                Ok(Vec::from(shared_secret.as_bytes()))
             }
             Algorithm::Hqc256 => {
                 // Parse secret key
@@ -350,17 +343,17 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc5Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = [0u8; 16];
+                let mut sigma = Zeroizing::new([0u8; 16]);
                 sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
                 let seed_kem_start = sigma_start + 16;
-                let mut seed_kem = [0u8; 48];
+                let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 
                 let ek_pke = HqcPkePublicKey::<Hqc5Params>::new(ek_pke_bytes.to_vec());
-                let mut dk_pke_array = [0u8; 32];
+                let mut dk_pke_array = Zeroizing::new([0u8; 32]);
                 dk_pke_array.copy_from_slice(dk_pke_bytes);
-                let dk_pke = HqcPkeSecretKey::new(dk_pke_array);
-                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, sigma, seed_kem);
+                let dk_pke = HqcPkeSecretKey::new(*dk_pke_array);
+                let kem_sk = HqcKemSecretKey::new(ek_pke, dk_pke, *sigma, *seed_kem);
                 let sk = Hqc5SecretKey::new(kem_sk);
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
@@ -372,10 +365,10 @@ impl KemOperations for LibQHqcProvider {
                     });
                 }
                 let c_pke_bytes = &ciphertext[..pke_ct_size];
-                let mut salt = [0u8; 16];
+                let mut salt = Zeroizing::new([0u8; 16]);
                 salt.copy_from_slice(&ciphertext[pke_ct_size..pke_ct_size + 16]);
                 let c_pke = HqcPkeCiphertext::<Hqc5Params>::new(c_pke_bytes.to_vec());
-                let kem_ct = HqcKemCiphertext::new(c_pke, salt);
+                let kem_ct = HqcKemCiphertext::new(c_pke, *salt);
                 let ct = Hqc5Ciphertext::new(kem_ct);
 
                 let shared_secret =
@@ -385,7 +378,7 @@ impl KemOperations for LibQHqcProvider {
                             details: format!("Failed to decapsulate HQC-256: {:?}", e),
                         }
                     })?;
-                Ok(shared_secret.as_bytes().to_vec())
+                Ok(Vec::from(shared_secret.as_bytes()))
             }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Unsupported algorithm",
@@ -421,7 +414,7 @@ impl KemOperations for LibQHqcProvider {
                 // Secret key structure: ek_pke (PUBLIC_KEY_BYTES) + dk_pke (32) + sigma (16) + seed_kem (48)
                 let ek_pke_bytes = &sk_bytes[..Hqc1Params::PUBLIC_KEY_BYTES];
 
-                Ok(lib_q_core::KemPublicKey::new(ek_pke_bytes.to_vec()))
+                Ok(lib_q_core::KemPublicKey::new(Vec::from(ek_pke_bytes)))
             }
             Algorithm::Hqc192 => {
                 // Validate secret key size
@@ -436,7 +429,7 @@ impl KemOperations for LibQHqcProvider {
                 // Extract ek_pke (public key) from first PUBLIC_KEY_BYTES of secret key
                 let ek_pke_bytes = &sk_bytes[..Hqc3Params::PUBLIC_KEY_BYTES];
 
-                Ok(lib_q_core::KemPublicKey::new(ek_pke_bytes.to_vec()))
+                Ok(lib_q_core::KemPublicKey::new(Vec::from(ek_pke_bytes)))
             }
             Algorithm::Hqc256 => {
                 // Validate secret key size
@@ -451,7 +444,7 @@ impl KemOperations for LibQHqcProvider {
                 // Extract ek_pke (public key) from first PUBLIC_KEY_BYTES of secret key
                 let ek_pke_bytes = &sk_bytes[..Hqc5Params::PUBLIC_KEY_BYTES];
 
-                Ok(lib_q_core::KemPublicKey::new(ek_pke_bytes.to_vec()))
+                Ok(lib_q_core::KemPublicKey::new(Vec::from(ek_pke_bytes)))
             }
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Unsupported algorithm for HQC derive_public_key",

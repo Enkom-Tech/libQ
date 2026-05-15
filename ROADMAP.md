@@ -234,12 +234,12 @@ Engineering trackers for Phase 7 “deferred” items. Implementations are **not
   - [x] Commitment nullifier openings (`NullifierOpeningProof`) + witness nullifier openings (`WitnessNullifierOpeningProof`); `Algorithm::LatticeWitnessNullifier` in `lib-q-types`.
   - [x] Uniqueness batch labels for `amortise`.
   - [x] Hierarchical `HierarchicalAuthProof` (Merkle + opening) + pilot `prove_private_membership` / `verify_private_membership`.
-- [x] **PRF building blocks** ([`lib-q-prf`](../lib-q-prf/)) — Legendre / Gold PRFs over safe-prime fields for optional `dualring-prf` transcripts in [`lib-q-ring-sig`](../lib-q-ring-sig/).
+- [x] **PRF building blocks** ([`lib-q-prf`](../lib-q-prf/)) — Legendre / Gold PRFs over safe-prime fields for optional `pilot-insecure-prf-transcript` laboratory wiring in [`lib-q-ring-sig`](../lib-q-ring-sig/).
 - [x] **Federation / ring-sig** ([`lib-q-ring-sig`](../lib-q-ring-sig/))
   - [x] Fiat–Shamir opening proofs with ring digest; legacy scan verifier behind `federation-opening`.
-  - [x] DualRing-LB–oriented pilot (`dualring_lb`, constant-time full-ring verify); `Algorithm::LatticeDualRingLb`.
+  - [x] DualRing-LB (`dualring_lb`, CCS 2021 Alg. 3 aggregated verify); `Algorithm::LatticeDualRingLb`.
   - [x] `CredentialPresentation` default path uses `verify_dualring_lb`.
-- [x] **Fuzzing** — `lib-q-lattice-zkp/fuzz` (opening, nullifier, blind bundle, blind signature, witness nullifier, private membership), `lib-q-ring-sig/fuzz` (federation, dualring PRF, dualring LB).
+- [x] **Fuzzing** — `lib-q-lattice-zkp/fuzz` (opening, nullifier, blind bundle, blind signature, witness nullifier, private membership), `lib-q-ring-sig/fuzz` (federation, pilot insecure PRF transcript, dualring LB).
 - [x] **Integration smoke** — [`lib-q/tests/privacy_protocol_integration_tests.rs`](../lib-q/tests/privacy_protocol_integration_tests.rs) (blind signature, witness nullifier, DualRing-LB, private membership, credentials).
 - [x] **SCA hooks** — [`lib-q-sca-test`](../lib-q-sca-test/) `privacy` feature: `touch_dualring_lb_verify`, `touch_witness_nullifier`, `touch_blind_signature_verify`, `touch_private_membership`.
 

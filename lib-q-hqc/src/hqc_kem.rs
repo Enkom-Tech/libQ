@@ -12,6 +12,13 @@ use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+#[cfg(feature = "zeroize")]
+use zeroize::{
+    Zeroize,
+    ZeroizeOnDrop,
+    Zeroizing,
+};
+
 use crate::hqc_pke::{
     HqcPke,
     HqcPkeCiphertext,
@@ -150,10 +157,29 @@ impl<P: HqcParams> HqcKem<P> {
         // Create KEM ciphertext
         let kem_ciphertext = HqcKemCiphertext::new(c_pke, salt);
 
-        // Create shared secret
-        let mut shared_secret = [0u8; 32]; // SHARED_SECRET_BYTES
-        shared_secret.copy_from_slice(&k_theta[..32]);
-        let kem_shared_secret = HqcKemSharedSecret::new(shared_secret);
+        // Create shared secret (clear transient stack buffers when zeroize is enabled)
+        #[cfg(feature = "zeroize")]
+        let kem_shared_secret = {
+            let mut shared_secret = Zeroizing::new([0u8; 32]);
+            shared_secret.copy_from_slice(&k_theta[..32]);
+            HqcKemSharedSecret::new(*shared_secret)
+        };
+        #[cfg(not(feature = "zeroize"))]
+        let kem_shared_secret = {
+            let mut shared_secret = [0u8; 32]; // SHARED_SECRET_BYTES
+            shared_secret.copy_from_slice(&k_theta[..32]);
+            HqcKemSharedSecret::new(shared_secret)
+        };
+
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            m.zeroize();
+            salt.zeroize();
+            hash_ek_kem.zeroize();
+            k_theta.zeroize();
+            theta.zeroize();
+        }
 
         Ok((kem_ciphertext, kem_shared_secret))
     }
@@ -171,7 +197,7 @@ impl<P: HqcParams> HqcKem<P> {
         let (c_pke, salt) = ciphertext.parse();
 
         // Compute message m_prime
-        let m_prime = self
+        let mut m_prime = self
             .pke
             .decrypt(&dk_pke, &c_pke)
             .map_err(HqcKemError::PkeError)?;
@@ -222,14 +248,36 @@ impl<P: HqcParams> HqcKem<P> {
         result = !result;
 
         // Select final shared secret
-        let mut k_prime = [0u8; 32]; // SHARED_SECRET_BYTES
-        k_prime.copy_from_slice(&k_theta_prime[..32]);
+        #[cfg(feature = "zeroize")]
+        let kem_shared_secret = {
+            let mut k_prime = Zeroizing::new([0u8; 32]);
+            k_prime.copy_from_slice(&k_theta_prime[..32]);
+            for i in 0..32 {
+                k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+            }
+            HqcKemSharedSecret::new(*k_prime)
+        };
+        #[cfg(not(feature = "zeroize"))]
+        let kem_shared_secret = {
+            let mut k_prime = [0u8; 32]; // SHARED_SECRET_BYTES
+            k_prime.copy_from_slice(&k_theta_prime[..32]);
+            for i in 0..32 {
+                k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+            }
+            HqcKemSharedSecret::new(k_prime)
+        };
 
-        for i in 0..32 {
-            k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            hash_ek_kem.zeroize();
+            k_theta_prime.zeroize();
+            theta_prime.zeroize();
+            k_bar.zeroize();
+            m_prime.zeroize();
         }
 
-        Ok(HqcKemSharedSecret::new(k_prime))
+        Ok(kem_shared_secret)
     }
 
     // Helper functions
@@ -456,6 +504,16 @@ impl<P: HqcParams> HqcKemSharedSecret<P> {
         &self.data
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl<P: HqcParams> Zeroize for HqcKemSharedSecret<P> {
+    fn zeroize(&mut self) {
+        self.data.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<P: HqcParams> ZeroizeOnDrop for HqcKemSharedSecret<P> {}
 
 /// HQC KEM error types
 #[derive(Debug, Clone, PartialEq, Eq)]

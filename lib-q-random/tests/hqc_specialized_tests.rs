@@ -31,7 +31,7 @@ mod hqc_tests {
     /// Test polynomial random weight generation
     #[test]
     fn test_polynomial_random_weight() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         let mut result = [0u8; 16];
         let weight = 5;
 
@@ -111,7 +111,7 @@ mod hqc_tests {
     /// Test HQC key generation
     #[test]
     fn test_hqc_keygen() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         let mut public_key = [0u8; 100];
         let mut secret_key = [0u8; 100];
 
@@ -129,7 +129,7 @@ mod hqc_tests {
     /// Test HQC encryption
     #[test]
     fn test_hqc_encrypt() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         let message = [1u8, 2, 3, 4, 5];
         let public_key = [1u8; 100];
         let mut ciphertext = [0u8; 200];
@@ -162,8 +162,8 @@ mod hqc_tests {
         let seed = [123u8; 32];
 
         // Test polynomial random weight
-        let mut rng1 = LibQRng::new_deterministic(&seed);
-        let mut rng2 = LibQRng::new_deterministic(&seed);
+        let mut rng1 = LibQRng::new_deterministic(seed);
+        let mut rng2 = LibQRng::new_deterministic(seed);
 
         let mut result1 = [0u8; 16];
         let mut result2 = [0u8; 16];
@@ -179,7 +179,7 @@ mod hqc_tests {
     /// Test error handling with invalid inputs
     #[test]
     fn test_error_handling() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
         // Test with zero weight
         let mut result = [0u8; 16];
@@ -204,8 +204,8 @@ mod hqc_tests {
         let seed1 = [1u8; 32];
         let seed2 = [2u8; 32];
 
-        let mut rng1 = LibQRng::new_deterministic(&seed1);
-        let mut rng2 = LibQRng::new_deterministic(&seed2);
+        let mut rng1 = LibQRng::new_deterministic(seed1);
+        let mut rng2 = LibQRng::new_deterministic(seed2);
 
         let mut result1 = [0u8; 16];
         let mut result2 = [0u8; 16];
@@ -221,7 +221,7 @@ mod hqc_tests {
     /// Test performance with larger inputs
     #[test]
     fn test_performance_large_inputs() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
         // Test with larger polynomial
         let mut result = [0u8; 256];
@@ -240,7 +240,7 @@ mod hqc_tests {
     /// Test edge cases
     #[test]
     fn test_edge_cases() {
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
 
         // Test with single byte
         let mut result = [0u8; 1];

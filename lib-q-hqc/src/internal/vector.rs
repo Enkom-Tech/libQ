@@ -187,7 +187,7 @@ mod tests {
     #[cfg(feature = "random")]
     fn test_vect_set_random() {
         let mut result = [0u8; 32];
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         vect_set_random(&mut result, &mut rng).unwrap();
         // Very unlikely to be all zeros
         assert!(result.iter().any(|&x| x != 0));
@@ -197,7 +197,7 @@ mod tests {
     #[cfg(feature = "random")]
     fn test_vect_fixed_weight() {
         let mut result = [0u8; 100];
-        let mut rng = LibQRng::new_deterministic(&[42u8; 32]);
+        let mut rng = LibQRng::new_deterministic([42u8; 32]);
         vect_fixed_weight(&mut result, 10, &mut rng).unwrap();
         assert_eq!(vect_hamming_weight(&result), 10);
     }

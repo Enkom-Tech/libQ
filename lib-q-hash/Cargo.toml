@@ -26,8 +26,8 @@ subtle = { workspace = true }
 
 [dev-dependencies]
 digest = { workspace = true, features = ["dev"] }
-hex-literal = "1.1.0"
-base16ct = { version = "1.0.0", features = ["alloc"] }
+hex-literal = { workspace = true }
+base16ct = { workspace = true }
 
 [features]
 default = ["alloc", "oid"]

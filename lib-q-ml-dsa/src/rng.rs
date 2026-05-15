@@ -57,9 +57,10 @@ impl MLDsaRng {
     ///
     /// # Arguments
     ///
-    /// * `seed` - The seed value for deterministic generation
+    /// * `seed` - 32-byte ChaCha20 key when `random` is enabled (via `LibQRng`).
+    ///   With `random` disabled, the same bytes initialize a SHAKE256 XOF stream.
     #[cfg(feature = "random")]
-    pub fn new_deterministic(seed: &[u8]) -> Self {
+    pub fn new_deterministic(seed: [u8; 32]) -> Self {
         let rng = LibQRng::new_deterministic(seed);
         Self { rng }
     }
@@ -86,11 +87,11 @@ impl MLDsaRng {
     }
 
     /// Deterministic stream for tests when `random` is disabled: SHAKE256 of `seed`
-    /// (FIPS 202). **Not** a CSPRNG for production; use `new_secure` with `random`.
+    /// (FIPS 202). **Not** unpredictable from a short or public seed; use `new_secure` with `random`.
     #[cfg(not(feature = "random"))]
-    pub fn new_deterministic(seed: &[u8]) -> Self {
+    pub fn new_deterministic(seed: [u8; 32]) -> Self {
         let mut hasher = Shake256::default();
-        Update::update(&mut hasher, seed);
+        Update::update(&mut hasher, &seed);
         Self {
             shake_reader: hasher.finalize_xof(),
         }
@@ -177,7 +178,7 @@ impl GlobalRng {
 
     /// Get or create a thread-local deterministic RNG
     #[cfg(feature = "random")]
-    pub fn get_deterministic(seed: &[u8]) -> MLDsaRng {
+    pub fn get_deterministic(seed: [u8; 32]) -> MLDsaRng {
         MLDsaRng::new_deterministic(seed)
     }
 
@@ -189,7 +190,7 @@ impl GlobalRng {
 
     /// Fallback deterministic RNG
     #[cfg(not(feature = "random"))]
-    pub fn get_deterministic(seed: &[u8]) -> MLDsaRng {
+    pub fn get_deterministic(seed: [u8; 32]) -> MLDsaRng {
         MLDsaRng::new_deterministic(seed)
     }
 }
@@ -197,6 +198,13 @@ impl GlobalRng {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn pad_seed(label: &[u8]) -> [u8; 32] {
+        assert!(label.len() <= 32);
+        let mut s = [0u8; 32];
+        s[..label.len()].copy_from_slice(label);
+        s
+    }
 
     #[test]
     #[cfg(not(feature = "random"))]
@@ -216,8 +224,8 @@ mod tests {
         let mut seed_b = [0u8; 32];
         seed_b[8] = 1;
 
-        let mut ra = MLDsaRng::new_deterministic(&seed_a);
-        let mut rb = MLDsaRng::new_deterministic(&seed_b);
+        let mut ra = MLDsaRng::new_deterministic(seed_a);
+        let mut rb = MLDsaRng::new_deterministic(seed_b);
         let mut a = [0u8; 16];
         let mut b = [0u8; 16];
         ra.fill_bytes(&mut a).unwrap();
@@ -228,8 +236,8 @@ mod tests {
     #[test]
     fn test_deterministic_rng_consistency() {
         let seed = b"test_seed_12345";
-        let mut rng1 = MLDsaRng::new_deterministic(seed);
-        let mut rng2 = MLDsaRng::new_deterministic(seed);
+        let mut rng1 = MLDsaRng::new_deterministic(pad_seed(seed));
+        let mut rng2 = MLDsaRng::new_deterministic(pad_seed(seed));
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -246,7 +254,7 @@ mod tests {
     #[test]
     fn test_rng_deterministic_flag() {
         let seed = b"test_seed";
-        let rng = MLDsaRng::new_deterministic(seed);
+        let rng = MLDsaRng::new_deterministic(pad_seed(seed));
         assert!(
             rng.is_deterministic(),
             "Deterministic RNG should report as deterministic"
@@ -255,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_rng_generates_different_values() {
-        let mut rng = MLDsaRng::new_deterministic(b"seed1");
+        let mut rng = MLDsaRng::new_deterministic(pad_seed(b"seed1"));
         let val1 = rng.next_u32().unwrap();
         let val2 = rng.next_u32().unwrap();
 
@@ -338,7 +346,7 @@ mod tests {
         // Test that deterministic and secure RNGs produce different outputs
         let seed = b"test_seed_for_comparison";
 
-        let mut det_rng = MLDsaRng::new_deterministic(seed);
+        let mut det_rng = MLDsaRng::new_deterministic(pad_seed(seed));
         let mut secure_rng =
             MLDsaRng::new_secure().expect("Secure RNG should be available in tests");
 
@@ -365,8 +373,8 @@ mod tests {
         let seed1 = b"seed_one_12345";
         let seed2 = b"seed_two_67890";
 
-        let mut rng1 = MLDsaRng::new_deterministic(seed1);
-        let mut rng2 = MLDsaRng::new_deterministic(seed2);
+        let mut rng1 = MLDsaRng::new_deterministic(pad_seed(seed1));
+        let mut rng2 = MLDsaRng::new_deterministic(pad_seed(seed2));
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -385,8 +393,8 @@ mod tests {
         // Test that RNG instances don't interfere with each other
         let seed = b"isolation_test_seed";
 
-        let mut rng1 = MLDsaRng::new_deterministic(seed);
-        let mut rng2 = MLDsaRng::new_deterministic(seed);
+        let mut rng1 = MLDsaRng::new_deterministic(pad_seed(seed));
+        let mut rng2 = MLDsaRng::new_deterministic(pad_seed(seed));
 
         // Generate some bytes from rng1
         let mut bytes1 = [0u8; 16];
@@ -446,7 +454,7 @@ mod tests {
     #[test]
     #[cfg(feature = "random")]
     fn global_rng_deterministic_fill_bytes() {
-        let mut r = GlobalRng::get_deterministic(b"global_seed_xy");
+        let mut r = GlobalRng::get_deterministic(pad_seed(b"global_seed_xy"));
         let mut buf = [0u8; 24];
         r.fill_bytes(&mut buf).expect("fill");
         assert_ne!(buf, [0u8; 24]);

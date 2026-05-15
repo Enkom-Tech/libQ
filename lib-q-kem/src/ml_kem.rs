@@ -20,7 +20,9 @@ use lib_q_core::{
     KemSecretKey,
     SecurityLevel,
 };
+use lib_q_ml_kem::array::Array;
 use lib_q_ml_kem::{
+    ArraySize,
     Decapsulate,
     Encapsulate,
     EncodedSizeUser,
@@ -37,12 +39,27 @@ use lib_q_ml_kem::{
     MlKem512,
     MlKem768,
     MlKem1024,
+    Zeroizing,
 };
 use lib_q_random::new_secure_rng;
 
-/// Secure helper function to create Array from slice with runtime validation
-/// This function provides proper error handling instead of panicking
-fn secure_array_from_slice<const N: usize>(slice: &[u8]) -> Result<[u8; N], Error> {
+/// Copy a [`Zeroizing`] ML-KEM wire encoding (e.g. from [`EncodedSizeUser::as_bytes`]) into a `Vec`.
+#[inline]
+fn kem_zeroizing_encoding_to_vec<S: ArraySize>(encoded: Zeroizing<Array<u8, S>>) -> Vec<u8> {
+    Vec::from(encoded.as_slice())
+}
+
+/// Copy a plain [`Array`] encoding into a `Vec`, wrapping the value in [`Zeroizing`] so the stack
+/// buffer is cleared after the copy (used for ciphertexts and shared secrets from encapsulate).
+#[inline]
+fn kem_array_soft_zero_to_vec<S: ArraySize>(encoded: Array<u8, S>) -> Vec<u8> {
+    let enc = Zeroizing::new(encoded);
+    Vec::from(enc.as_slice())
+}
+
+/// Copy validated fixed-length material into a [`Zeroizing`] stack buffer (plain `[u8; N]` does not
+/// clear on drop).
+fn secure_array_from_slice<const N: usize>(slice: &[u8]) -> Result<Zeroizing<[u8; N]>, Error> {
     if slice.len() != N {
         return Err(Error::InvalidKeySize {
             expected: N,
@@ -50,7 +67,7 @@ fn secure_array_from_slice<const N: usize>(slice: &[u8]) -> Result<[u8; N], Erro
         });
     }
 
-    let mut array = [0u8; N];
+    let mut array = Zeroizing::new([0u8; N]);
     array.copy_from_slice(slice);
     Ok(array)
 }
@@ -85,11 +102,11 @@ impl Kem for MlKem512Impl {
         let (dk, ek) = MlKem512::generate(&mut rng);
 
         let public_key = KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         };
 
         let secret_key = KemSecretKey {
-            data: dk.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(dk.as_bytes()),
         };
 
         Ok(KemKeypair {
@@ -112,8 +129,7 @@ impl Kem for MlKem512Impl {
 
         // Use the proper non-deprecated API
         let ek = <MlKem512 as KemCore>::EncapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&ek_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
@@ -125,7 +141,10 @@ impl Kem for MlKem512Impl {
                     operation: "ML-KEM 512 encapsulation".to_string(),
                 })?;
 
-        Ok((ciphertext.to_vec(), shared_secret.to_vec()))
+        Ok((
+            kem_array_soft_zero_to_vec(ciphertext),
+            kem_array_soft_zero_to_vec(shared_secret),
+        ))
     }
 
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>, Error> {
@@ -151,20 +170,18 @@ impl Kem for MlKem512Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem512 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let shared_secret = dk
             .decapsulate(
-                &lib_q_ml_kem::array::Array::try_from(&ct_array[..])
-                    .map_err(|_| Error::InvalidKeyFormat)?,
+                &Array::try_from(ct_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
             )
             .map_err(|_| Error::DecryptionFailed {
                 operation: "ML-KEM 512 decapsulation".to_string(),
             })?;
 
-        Ok(shared_secret.to_vec())
+        Ok(kem_array_soft_zero_to_vec(shared_secret))
     }
 
     fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey, Error> {
@@ -181,15 +198,14 @@ impl Kem for MlKem512Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem512 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
 
         Ok(KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         })
     }
 
@@ -251,11 +267,11 @@ impl Kem for MlKem768Impl {
         let (dk, ek) = MlKem768::generate(&mut rng);
 
         let public_key = KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         };
 
         let secret_key = KemSecretKey {
-            data: dk.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(dk.as_bytes()),
         };
 
         Ok(KemKeypair {
@@ -278,8 +294,7 @@ impl Kem for MlKem768Impl {
 
         // Use the proper non-deprecated API
         let ek = <MlKem768 as KemCore>::EncapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&ek_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
@@ -291,7 +306,10 @@ impl Kem for MlKem768Impl {
                     operation: "ML-KEM 768 encapsulation".to_string(),
                 })?;
 
-        Ok((ciphertext.to_vec(), shared_secret.to_vec()))
+        Ok((
+            kem_array_soft_zero_to_vec(ciphertext),
+            kem_array_soft_zero_to_vec(shared_secret),
+        ))
     }
 
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>, Error> {
@@ -317,20 +335,18 @@ impl Kem for MlKem768Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let shared_secret = dk
             .decapsulate(
-                &lib_q_ml_kem::array::Array::try_from(&ct_array[..])
-                    .map_err(|_| Error::InvalidKeyFormat)?,
+                &Array::try_from(ct_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
             )
             .map_err(|_| Error::DecryptionFailed {
                 operation: "ML-KEM 768 decapsulation".to_string(),
             })?;
 
-        Ok(shared_secret.to_vec())
+        Ok(kem_array_soft_zero_to_vec(shared_secret))
     }
 
     fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey, Error> {
@@ -347,15 +363,14 @@ impl Kem for MlKem768Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
 
         Ok(KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         })
     }
 
@@ -417,11 +432,11 @@ impl Kem for MlKem1024Impl {
         let (dk, ek) = MlKem1024::generate(&mut rng);
 
         let public_key = KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         };
 
         let secret_key = KemSecretKey {
-            data: dk.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(dk.as_bytes()),
         };
 
         Ok(KemKeypair {
@@ -444,8 +459,7 @@ impl Kem for MlKem1024Impl {
 
         // Use the proper non-deprecated API
         let ek = <MlKem1024 as KemCore>::EncapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&ek_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
@@ -457,7 +471,10 @@ impl Kem for MlKem1024Impl {
                     operation: "ML-KEM 1024 encapsulation".to_string(),
                 })?;
 
-        Ok((ciphertext.to_vec(), shared_secret.to_vec()))
+        Ok((
+            kem_array_soft_zero_to_vec(ciphertext),
+            kem_array_soft_zero_to_vec(shared_secret),
+        ))
     }
 
     fn decapsulate(&self, secret_key: &KemSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>, Error> {
@@ -483,20 +500,18 @@ impl Kem for MlKem1024Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem1024 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         let shared_secret = dk
             .decapsulate(
-                &lib_q_ml_kem::array::Array::try_from(&ct_array[..])
-                    .map_err(|_| Error::InvalidKeyFormat)?,
+                &Array::try_from(ct_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
             )
             .map_err(|_| Error::DecryptionFailed {
                 operation: "ML-KEM 1024 decapsulation".to_string(),
             })?;
 
-        Ok(shared_secret.to_vec())
+        Ok(kem_array_soft_zero_to_vec(shared_secret))
     }
 
     fn derive_public_key(&self, secret_key: &KemSecretKey) -> Result<KemPublicKey, Error> {
@@ -513,15 +528,14 @@ impl Kem for MlKem1024Impl {
 
         // Use the proper non-deprecated API
         let dk = <MlKem1024 as KemCore>::DecapsulationKey::from_bytes(
-            &lib_q_ml_kem::array::Array::try_from(&dk_array[..])
-                .map_err(|_| Error::InvalidKeyFormat)?,
+            &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
         );
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
 
         Ok(KemPublicKey {
-            data: ek.as_bytes().to_vec(),
+            data: kem_zeroizing_encoding_to_vec(ek.as_bytes()),
         })
     }
 
@@ -582,7 +596,7 @@ mod tests {
         let data = alloc::vec![1, 2, 3, 4];
         let result = secure_array_from_slice::<4>(&data);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), [1, 2, 3, 4]);
+        assert_eq!(result.unwrap().as_slice(), &[1, 2, 3, 4]);
 
         let result = secure_array_from_slice::<3>(&data);
         assert!(result.is_err());

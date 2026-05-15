@@ -90,7 +90,7 @@ pub enum Algorithm {
     LatticeNullifierRegistry,
     /// Witness-derived nullifier mode (SHAKE256 over opening witness wire; see `lib-q-lattice-zkp`).
     LatticeWitnessNullifier,
-    /// DualRing-LB–style federation transcript / constant-time ring verify (`lib-q-ring-sig`).
+    /// DualRing-LB (CCS 2021 Alg. 3 aggregated verify on Ajtai openings, `lib-q-ring-sig`).
     LatticeDualRingLb,
     /// ML-KEM-768 layered encapsulation with Saturnin AEAD per hop (mix-layer transport).
     MixOnionRouting,

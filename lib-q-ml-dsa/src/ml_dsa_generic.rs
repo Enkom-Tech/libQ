@@ -92,16 +92,22 @@ pub(crate) mod ml_dsa_44 {
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
 
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
-        let mut seed_expanded = [0; 128];
+        #[cfg(feature = "zeroize")]
+        let mut seed_expanded = zeroize::Zeroizing::new([0u8; 128]);
+        #[cfg(not(feature = "zeroize"))]
+        let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
             shake.absorb(&randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
-            shake.squeeze(&mut seed_expanded);
+            shake.squeeze(&mut seed_expanded[..]);
         }
 
-        let (seed_for_a, seed_expanded) = seed_expanded.split_at(SEED_FOR_A_SIZE);
+        let (seed_for_a, seed_expanded) = seed_expanded[..].split_at(SEED_FOR_A_SIZE);
         let (seed_for_error_vectors, seed_for_signing) =
             seed_expanded.split_at(SEED_FOR_ERROR_VECTORS_SIZE);
 
@@ -147,6 +153,11 @@ pub(crate) mod ml_dsa_44 {
             &t0,
             signing_key,
         );
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+        }
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
@@ -165,6 +176,9 @@ pub(crate) mod ml_dsa_44 {
         randomness: [u8; SIGNING_RANDOMNESS_SIZE],
         signature: &mut [u8; SIGNATURE_SIZE],
     ) -> Result<(), SigningError> {
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // Split the signing key into its parts.
         let (seed_for_a, remaining_serialized) = signing_key.split_at(SEED_FOR_A_SIZE);
         let (seed_for_signing, remaining_serialized) =
@@ -304,6 +318,11 @@ pub(crate) mod ml_dsa_44 {
                 shake.absorb_final(&commitment_serialized);
 
                 shake.squeeze(&mut commitment_hash_candidate);
+                #[cfg(feature = "zeroize")]
+                {
+                    use zeroize::Zeroize;
+                    commitment_serialized.zeroize();
+                }
             }
 
             let mut verifier_challenge = PolynomialRingElement::zero();
@@ -456,17 +475,52 @@ pub(crate) mod ml_dsa_44 {
             }
         }
 
-        let commitment_hash = match commitment_hash {
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+            mask_seed.zeroize();
+            message_representative.zeroize();
+            for elem in matrix.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s1_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s2_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in t0_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            #[cfg(feature = "hardened")]
+            {
+                for elem in s1_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in s2_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in t0_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+            }
+        }
+
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut commitment_hash = match commitment_hash {
             Some(commitment_hash) => commitment_hash,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let signer_response = match signer_response {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut signer_response = match signer_response {
             Some(signer_response) => signer_response,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let hint = match hint {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut hint = match hint {
             Some(hint) => hint,
             None => return Err(SigningError::RejectionSamplingError),
         };
@@ -483,6 +537,18 @@ pub(crate) mod ml_dsa_44 {
             MAX_ONES_IN_HINT,
             signature,
         );
+
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            commitment_hash.zeroize();
+            for elem in signer_response.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for row in hint.iter_mut() {
+                row.zeroize();
+            }
+        }
 
         Ok(())
     }
@@ -884,16 +950,22 @@ pub(crate) mod ml_dsa_65 {
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
 
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
-        let mut seed_expanded = [0; 128];
+        #[cfg(feature = "zeroize")]
+        let mut seed_expanded = zeroize::Zeroizing::new([0u8; 128]);
+        #[cfg(not(feature = "zeroize"))]
+        let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
             shake.absorb(&randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
-            shake.squeeze(&mut seed_expanded);
+            shake.squeeze(&mut seed_expanded[..]);
         }
 
-        let (seed_for_a, seed_expanded) = seed_expanded.split_at(SEED_FOR_A_SIZE);
+        let (seed_for_a, seed_expanded) = seed_expanded[..].split_at(SEED_FOR_A_SIZE);
         let (seed_for_error_vectors, seed_for_signing) =
             seed_expanded.split_at(SEED_FOR_ERROR_VECTORS_SIZE);
 
@@ -939,6 +1011,11 @@ pub(crate) mod ml_dsa_65 {
             &t0,
             signing_key,
         );
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+        }
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
@@ -957,6 +1034,9 @@ pub(crate) mod ml_dsa_65 {
         randomness: [u8; SIGNING_RANDOMNESS_SIZE],
         signature: &mut [u8; SIGNATURE_SIZE],
     ) -> Result<(), SigningError> {
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // Split the signing key into its parts.
         let (seed_for_a, remaining_serialized) = signing_key.split_at(SEED_FOR_A_SIZE);
         let (seed_for_signing, remaining_serialized) =
@@ -1096,6 +1176,11 @@ pub(crate) mod ml_dsa_65 {
                 shake.absorb_final(&commitment_serialized);
 
                 shake.squeeze(&mut commitment_hash_candidate);
+                #[cfg(feature = "zeroize")]
+                {
+                    use zeroize::Zeroize;
+                    commitment_serialized.zeroize();
+                }
             }
 
             let mut verifier_challenge = PolynomialRingElement::zero();
@@ -1248,17 +1333,52 @@ pub(crate) mod ml_dsa_65 {
             }
         }
 
-        let commitment_hash = match commitment_hash {
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+            mask_seed.zeroize();
+            message_representative.zeroize();
+            for elem in matrix.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s1_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s2_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in t0_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            #[cfg(feature = "hardened")]
+            {
+                for elem in s1_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in s2_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in t0_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+            }
+        }
+
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut commitment_hash = match commitment_hash {
             Some(commitment_hash) => commitment_hash,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let signer_response = match signer_response {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut signer_response = match signer_response {
             Some(signer_response) => signer_response,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let hint = match hint {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut hint = match hint {
             Some(hint) => hint,
             None => return Err(SigningError::RejectionSamplingError),
         };
@@ -1275,6 +1395,18 @@ pub(crate) mod ml_dsa_65 {
             MAX_ONES_IN_HINT,
             signature,
         );
+
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            commitment_hash.zeroize();
+            for elem in signer_response.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for row in hint.iter_mut() {
+                row.zeroize();
+            }
+        }
 
         Ok(())
     }
@@ -1721,16 +1853,22 @@ pub(crate) mod ml_dsa_87 {
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
 
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
-        let mut seed_expanded = [0; 128];
+        #[cfg(feature = "zeroize")]
+        let mut seed_expanded = zeroize::Zeroizing::new([0u8; 128]);
+        #[cfg(not(feature = "zeroize"))]
+        let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
             shake.absorb(&randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
-            shake.squeeze(&mut seed_expanded);
+            shake.squeeze(&mut seed_expanded[..]);
         }
 
-        let (seed_for_a, seed_expanded) = seed_expanded.split_at(SEED_FOR_A_SIZE);
+        let (seed_for_a, seed_expanded) = seed_expanded[..].split_at(SEED_FOR_A_SIZE);
         let (seed_for_error_vectors, seed_for_signing) =
             seed_expanded.split_at(SEED_FOR_ERROR_VECTORS_SIZE);
 
@@ -1776,6 +1914,11 @@ pub(crate) mod ml_dsa_87 {
             &t0,
             signing_key,
         );
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+        }
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
@@ -1794,6 +1937,9 @@ pub(crate) mod ml_dsa_87 {
         randomness: [u8; SIGNING_RANDOMNESS_SIZE],
         signature: &mut [u8; SIGNATURE_SIZE],
     ) -> Result<(), SigningError> {
+        #[cfg(feature = "zeroize")]
+        let mut randomness = randomness;
+
         // Split the signing key into its parts.
         let (seed_for_a, remaining_serialized) = signing_key.split_at(SEED_FOR_A_SIZE);
         let (seed_for_signing, remaining_serialized) =
@@ -1933,6 +2079,11 @@ pub(crate) mod ml_dsa_87 {
                 shake.absorb_final(&commitment_serialized);
 
                 shake.squeeze(&mut commitment_hash_candidate);
+                #[cfg(feature = "zeroize")]
+                {
+                    use zeroize::Zeroize;
+                    commitment_serialized.zeroize();
+                }
             }
 
             let mut verifier_challenge = PolynomialRingElement::zero();
@@ -2085,17 +2236,52 @@ pub(crate) mod ml_dsa_87 {
             }
         }
 
-        let commitment_hash = match commitment_hash {
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            randomness.zeroize();
+            mask_seed.zeroize();
+            message_representative.zeroize();
+            for elem in matrix.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s1_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in s2_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for elem in t0_as_ntt.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            #[cfg(feature = "hardened")]
+            {
+                for elem in s1_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in s2_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+                for elem in t0_as_ntt_b.iter_mut() {
+                    *elem = PolynomialRingElement::<SIMDUnit>::zero();
+                }
+            }
+        }
+
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut commitment_hash = match commitment_hash {
             Some(commitment_hash) => commitment_hash,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let signer_response = match signer_response {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut signer_response = match signer_response {
             Some(signer_response) => signer_response,
             None => return Err(SigningError::RejectionSamplingError),
         };
 
-        let hint = match hint {
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut hint = match hint {
             Some(hint) => hint,
             None => return Err(SigningError::RejectionSamplingError),
         };
@@ -2112,6 +2298,18 @@ pub(crate) mod ml_dsa_87 {
             MAX_ONES_IN_HINT,
             signature,
         );
+
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            commitment_hash.zeroize();
+            for elem in signer_response.iter_mut() {
+                *elem = PolynomialRingElement::<SIMDUnit>::zero();
+            }
+            for row in hint.iter_mut() {
+                row.zeroize();
+            }
+        }
 
         Ok(())
     }

@@ -278,7 +278,9 @@ mod tests {
             Shake128f,
             SigningKey,
         };
-        let mut key_rng = new_deterministic_rng(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let mut key_seed = [0u8; 32];
+        key_seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let mut key_rng = new_deterministic_rng(key_seed);
         let mut key_randomness = [0u8; 48]; // 3 * 16 bytes for Shake128f
         key_rng.fill_bytes(&mut key_randomness);
 
@@ -290,7 +292,9 @@ mod tests {
 
         let message = b"Hello, no_std SLH-DSA!";
         // Use the std RNG for this test since we're in std mode
-        let mut rng = new_deterministic_rng(&signing_randomness);
+        let mut signing_seed = [0u8; 32];
+        signing_seed[..16].copy_from_slice(&signing_randomness);
+        let mut rng = new_deterministic_rng(signing_seed);
         let sig = sk.sign_with_rng(&mut rng, message);
         assert!(vk.verify(message, &sig).is_ok());
     }
@@ -343,12 +347,12 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng:
 
 /// Create a new deterministic RNG instance for no_std environments
 ///
-/// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations in no_std environments. **NOT CRYPTOGRAPHICALLY SECURE**.
+/// ChaCha20 stream from a 32-byte seed (see `lib_q_random::NoStdRng::new_deterministic`).
+/// For production signing, use [`new_secure_rng_no_std`].
 ///
 /// # Arguments
 ///
-/// * `seed` - The seed value for deterministic generation
+/// * `seed` - 32-byte ChaCha20 key
 ///
 /// # Examples
 ///
@@ -356,12 +360,12 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng:
 /// use lib_q_slh_dsa::new_deterministic_rng_no_std;
 /// use rand_core::Rng;
 ///
-/// let mut rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+/// let mut rng = new_deterministic_rng_no_std([1; 32]);
 /// let mut bytes = [0u8; 32];
 /// rng.fill_bytes(&mut bytes);
 /// ```
 #[cfg(all(not(feature = "std"), feature = "no_std"))]
 #[must_use]
-pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::SlhDsaNoStdRng {
+pub fn new_deterministic_rng_no_std(seed: [u8; 32]) -> no_std_rng::SlhDsaNoStdRng {
     no_std_rng::SlhDsaNoStdRng::new_deterministic(seed)
 }

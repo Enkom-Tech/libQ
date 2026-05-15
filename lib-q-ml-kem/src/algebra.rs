@@ -7,7 +7,6 @@ use core::ops::{
 use hybrid_array::Array;
 use hybrid_array::typenum::U256;
 use lib_q_sha3::digest::XofReader;
-#[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
 use crate::crypto::{
@@ -33,7 +32,6 @@ pub type Integer = u16;
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct FieldElement(pub Integer);
 
-#[cfg(feature = "zeroize")]
 impl Zeroize for FieldElement {
     fn zeroize(&mut self) {
         self.0.zeroize();
@@ -254,7 +252,6 @@ impl<K: ArraySize> PolynomialVector<K> {
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NttPolynomial(pub Array<FieldElement, U256>);
 
-#[cfg(feature = "zeroize")]
 impl Zeroize for NttPolynomial {
     fn zeroize(&mut self) {
         for fe in &mut self.0 {
@@ -572,7 +569,6 @@ impl<K: ArraySize> NttVector<K> {
     }
 }
 
-#[cfg(feature = "zeroize")]
 impl<K> Zeroize for NttVector<K>
 where
     K: ArraySize,

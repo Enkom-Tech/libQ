@@ -75,7 +75,7 @@ These components use **NIST PQC** primitives (ML-KEM, ML-DSA-field-compatible ri
 | Blind issuance + anonymous tokens | `lib-q-lattice-zkp` (`blind`, `token`) | CRS Ajtai model; see [`BLIND_ISSUANCE.md`](../lib-q-lattice-zkp/BLIND_ISSUANCE.md). Issuer attestation binds blinded commitments; not Chaum blind RSA. `SpendingProof` carries the token serial; double-spends are rejected at the application layer by serial-set membership (verifier-tracked registry, not in-protocol). |
 | Nullifier + batch amortisation | `lib-q-lattice-zkp` (`sigma/uniqueness`, `sigma/amortise`) | Deterministic nullifiers for registries; opening proofs bind nullifiers into Fiat–Shamir contexts. Uniqueness amortisation labels enable single-batch verification across multiple commitments under one realm. |
 | Hierarchical Merkle + opening | `lib-q-lattice-zkp` (`sigma/hierarchical`) — `prove_level_membership` / `verify_level_membership` | Leaf payload is **revealed** (clearance level, role tag, parent digest). The verifier learns the path position. Full position-and-attribute-hiding PVTN ZK is **future work**; this construction is a Merkle path certificate composed with an Ajtai opening tied to the leaf. |
-| Federation ring openings | `lib-q-ring-sig` | Opening proofs over a shared CRS; linear-scan verification is not issuer-hiding toward the verifier (see [crate DESIGN](../lib-q-ring-sig/DESIGN.md)). DualRing-LB upgrade is tracked in the same document. |
+| Federation ring openings | `lib-q-ring-sig` | Opening proofs over a shared CRS; linear-scan verification is not issuer-hiding toward the verifier (see [crate DESIGN](../lib-q-ring-sig/DESIGN.md)). Default DualRing-LB path uses an aggregated CCS 2021–style verify (`verify_dual_ring_opening`). |
 | Credential presentation | `lib-q-ring-sig` (`credential`) | Default path verifies with **`verify_dualring_lb`** (full-ring aggregate). A **legacy** API remains that uses **`verify_federation_opening_scan`** (linear cost; see module docs). The verifier does not receive the signer index on the default path. |
 
 ##### Constant-time scope (Phase 7 paths)
@@ -86,13 +86,13 @@ The following paths are wired for statistical timing / TVLA-style harnesses via
 
 - `BlindIssuance::verify` — blind issuance bundle verification.
 - `verify_federation_opening` — federation opening at a **known** signer index.
-- `verify_dualring_lb` — DualRing-LB pilot (full-ring aggregate verify).
+- `verify_dualring_lb` — DualRing-LB (aggregated `verify_dual_ring_opening`; uniform cost across ring slots).
 - `BlindSignature::verify_blind_signature` — pilot blind-signature bundle verify.
 - `verify_private_membership` — private-membership pilot verifier.
 - `registry_nullifier`, `witness_nullifier`, `federation_digest` — public transcript / registry digests (SHAKE256).
 
 Prover-side rejection-sampling paths (`BlindIssuance::request`/`issuer_sign`,
-`sign_federation_message`, `prove_opening`, `amortise`) are **intentionally excluded**:
+`sign_federation_message`, `prove_opening`, `prove_dual_ring_opening`, `sign_dualring_lb`, `amortise`) are **intentionally excluded**:
 their timing is data-dependent by construction (loop count of the abort), and they
 must be invoked only on attacker-independent secrets.
 

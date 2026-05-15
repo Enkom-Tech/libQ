@@ -19,30 +19,28 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 default = ["std"]
 std = [] # When enabled, the crate is not `#![no_std]` (links `std`, providing the global allocator required by the `cdylib` output). `no_std` consumers must use `default-features = false`.
 deterministic = [] # Expose deterministic generation and encapsulation functions
-zeroize = ["dep:zeroize"]
 random = ["dep:lib-q-random", "lib-q-random/std"]
-# JS/WASM bindings handle decapsulation keys and shared secrets; `zeroize` is required for safe memory hygiene on the Rust side of the boundary.
+# JS/WASM bindings handle decapsulation keys and shared secrets; the `zeroize` crate is always linked for safe memory hygiene on the Rust side of the boundary.
 wasm = [
     "wasm-bindgen",
     "js-sys",
     "random",
     "getrandom",
     "lib-q-random/wasm",
-    "zeroize",
 ]
 # Explicit gate for the optional `getrandom` dependency (workspace `--features getrandom`, CI, etc.).
 # Optional deps referenced only as `dep:getrandom` do not get an implicit feature name.
 getrandom = ["dep:getrandom"]
 # Atomic side-channel hardening gate: masks decapsulation path, NTT randomisation, subtle comparisons.
 # Partial enabling is unsafe; do not split into separate CT/masking features.
-hardened = ["random", "zeroize", "dep:subtle", "getrandom"]
+hardened = ["random", "dep:subtle", "getrandom"]
 
 [dependencies]
-hybrid-array = { version = "0.4.5", features = ["extra-sizes"] }
+hybrid-array = { workspace = true, features = ["extra-sizes"] }
 rand_core = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
-zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
@@ -65,7 +63,7 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dev-dependencies]
 hex = { workspace = true, features = ["serde"] }
-hex-literal = "1.0.0"
+hex-literal = { workspace = true }
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 crypto-common = { version = "0.2.1", features = ["rand_core"] }
@@ -92,5 +90,5 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(docsrs)',
-    'cfg(feature, values("default", "std", "deterministic", "zeroize", "random", "wasm", "getrandom", "hardened"))',
+    'cfg(feature, values("default", "std", "deterministic", "random", "wasm", "getrandom", "hardened"))',
 ] }

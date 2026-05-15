@@ -42,6 +42,7 @@ use crate::hashes::{
     Shake256s,
 };
 use crate::hypertree::HypertreeSig;
+use crate::util::array_u8_try_from_exact;
 use crate::{
     ParameterSet,
     Shake128s,
@@ -95,8 +96,7 @@ impl<P: ParameterSet> TryFrom<&[u8]> for Signature<P> {
         }
 
         let (rand_bytes, rest) = bytes.split_at(P::N::USIZE);
-        #[allow(deprecated)]
-        let randomizer = Array::clone_from_slice(rand_bytes);
+        let randomizer = array_u8_try_from_exact(rand_bytes).map_err(|_| Error::new())?;
 
         let (fors_bytes, ht_bytes) = rest.split_at(ForsSignature::<P>::SIZE);
         let fors_sig = ForsSignature::try_from(fors_bytes).map_err(|()| Error::new())?;

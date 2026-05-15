@@ -102,13 +102,14 @@ rand_chacha = { version = "0.10.0", default-features = false }
 getrandom = { version = "0.4.2", default-features = false }
 criterion = "0.8.2"
 hex = "0.4.3"
+hybrid-array = { version = "0.4.12", features = ["zeroize"] }
 proptest = "1.11.0"
 cpufeatures = "0.3.0"
 # STARK dependencies
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
 pastey = "0.2.2"
-spin = "0.10.0"
+spin = "0.11.0"
 thiserror = { version = "2.0.18", default-features = false }
 tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
 subtle = { version = "2.6.1", default-features = false }
@@ -122,6 +123,9 @@ sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
 aead = { version = "0.5.2", default-features = false }
 aes = { version = "0.9.0", default-features = false }
+hex-literal = "1.1.0"
+base16ct = { version = "1.0.0", features = ["alloc"] }
+num-traits = "0.2.19"
 
 # CI and large `cargo test` runs: keep release optimizations and security flags from `.cargo/config.toml`
 # `[profile.release]` (LTO + codegen-units=1) makes workspace test linking dominate job time.

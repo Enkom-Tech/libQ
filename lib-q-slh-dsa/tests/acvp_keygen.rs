@@ -47,8 +47,8 @@ macro_rules! parameter_case {
             &$test_case.pkSeed,
         );
         let vk = sk.verifying_key();
-        assert_eq!(sk.to_vec(), $test_case.sk);
-        assert_eq!(vk.to_vec(), $test_case.pk);
+        assert_eq!(sk.to_vec().as_slice(), $test_case.sk.as_slice());
+        assert_eq!(vk.to_vec().as_slice(), $test_case.pk.as_slice());
     }};
 }
 

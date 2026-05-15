@@ -43,7 +43,7 @@ fn sha256_of_moduli_matches_reference() {
     let raw = include_str!("reference_vectors.txt");
     let leg256 = LegendrePrfParams256::pilot();
     let leg512 = LegendrePrfParams512::pilot();
-    let h256 = hex::encode(Sha256::digest(leg256.p.to_le_bytes()));
+    let h256 = hex::encode(Sha256::digest(leg256.p.get().to_le_bytes()));
     let h512 = hex::encode(Sha256::digest(leg512.p.to_le_bytes()));
     assert_eq!(h256, line_value(raw, "SHA256_P256_LE"));
     assert_eq!(h512, line_value(raw, "SHA256_P512_LE"));
@@ -96,7 +96,7 @@ fn kat_legendre_gold_512() {
 #[test]
 fn legendre_zero_input_errors() {
     let params = LegendrePrfParams256::pilot();
-    let k = params.p.wrapping_sub(&U256::ONE);
+    let k = params.p.get().wrapping_sub(&U256::ONE);
     let key = LegendreKey256::from_uint(k, &params).expect("key");
     let x = U256::ONE;
     let r = legendre_prf_u256(&key, &x, &params);

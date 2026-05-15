@@ -626,7 +626,7 @@ impl AlgorithmRegistry {
             category: AlgorithmCategory::PrivacyProtocol,
             security_level: 3,
             name: "Lattice DualRing-LB pilot",
-            description: "DualRing-LB–oriented federation transcript with full-ring verify (lib-q-ring-sig/dualring_lb)",
+            description: "DualRing-LB (CCS 2021 Alg. 3) aggregated opening verify over Ajtai ring (lib-q-ring-sig/dualring_lb)",
             enabled: true,
         });
         self.register(AlgorithmMetadata {

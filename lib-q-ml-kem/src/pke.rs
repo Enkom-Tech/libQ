@@ -2,7 +2,6 @@ use hybrid_array::typenum::{
     U1,
     Unsigned,
 };
-#[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
 use crate::algebra::{
@@ -35,7 +34,6 @@ where
     s_hat: NttVector<P::K>,
 }
 
-#[cfg(feature = "zeroize")]
 impl<P> Zeroize for DecryptionKey<P>
 where
     P: PkeParams,

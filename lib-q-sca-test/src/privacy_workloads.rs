@@ -71,7 +71,7 @@ pub fn touch_federation_verify(
     verify_federation_opening(key, ring, signer_index, msg, proof, tau, z_inf_bound)
 }
 
-/// DualRing-LB pilot: full-ring opening verification (constant-time aggregate over members).
+/// DualRing-LB pilot: aggregated opening verification (CCS 2021 Alg. 3 on Ajtai relation).
 #[allow(clippy::too_many_arguments)]
 pub fn touch_dualring_lb_verify(
     key: &AjtaiCommitmentKey,

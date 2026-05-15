@@ -272,7 +272,6 @@ if !is_valid {
 
 - `alloc`: Enable heap allocation (required for most operations)
 - `std`: Enable standard library features
-- `zeroize`: Enable automatic memory zeroization
 
 ## License
 

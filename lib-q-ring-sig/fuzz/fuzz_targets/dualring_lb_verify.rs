@@ -6,8 +6,8 @@ use lib_q_lattice_zkp::{
     AjtaiCommitmentKey,
     AjtaiOpening,
     AjtaiParameters,
+    DualRingOpeningProof,
     MlDsaCompatibleChallenge,
-    OpeningProof,
     commit,
 };
 use lib_q_ring::{
@@ -40,7 +40,8 @@ fn poly_from_stream(data: &mut &[u8]) -> Poly {
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let mut data = data;
-    if data.len() < 80 {
+    // 32-byte CRS seed + 9 polys for three commitments + 3 challenge polys + 3 witness-slot polys in `z`.
+    if data.len() < 32 + 12 * 256 * 4 {
         return;
     }
     let mut seed = [0u8; 32];
@@ -69,14 +70,16 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
         ring.push(commit(&key, &o));
     }
 
-    let w0 = poly_from_stream(&mut data);
-    let w1 = poly_from_stream(&mut data);
+    let mut challenges = Vec::with_capacity(ring.len());
+    for _ in 0..ring.len() {
+        challenges.push(poly_from_stream(&mut data));
+    }
     let z0 = poly_from_stream(&mut data);
     let z1 = poly_from_stream(&mut data);
     let z2 = poly_from_stream(&mut data);
     let sig = DualRingLbSignature {
-        opening_proof: OpeningProof {
-            w: ModuleVec(vec![w0, w1]),
+        proof: DualRingOpeningProof {
+            challenges,
             z: ModuleVec(vec![z0, z1, z2]),
         },
     };

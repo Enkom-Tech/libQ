@@ -62,8 +62,8 @@
 //!     let mut bytes = [0u8; 32];
 //!     rng.fill_bytes(&mut bytes);
 //!
-//!     // Create a deterministic RNG for testing
-//!     let mut test_rng = LibQRng::new_deterministic(&[1, 2, 3, 4]);
+//!     // Create a deterministic RNG for testing (32-byte `ChaCha20` seed)
+//!     let mut test_rng = LibQRng::new_deterministic([1; 32]);
 //! }
 //! ```
 //!
@@ -133,7 +133,7 @@
 //!     rng.fill_bytes(&mut bytes);
 //!
 //!     // Create a deterministic RNG for testing
-//!     let mut test_rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+//!     let mut test_rng = new_deterministic_rng_no_std([1; 32]);
 //! }
 //! ```
 //!
@@ -148,11 +148,14 @@
 //!
 //! ## Security Considerations
 //!
-//! - All RNGs are cryptographically secure by default
-//! - Entropy validation ensures sufficient randomness
-//! - Secure memory clearing prevents key material leakage
-//! - Constant-time operations prevent timing attacks
-//! - When OS or hardware entropy is unavailable, APIs return an error instead of substituting weak entropy
+//! - **Production randomness** comes from OS or registered hardware/custom entropy sources;
+//!   APIs return an error when secure entropy is unavailable instead of substituting weak RNGs.
+//! - **Deterministic constructors** (`LibQRng::new_deterministic`, `NoStdRng::new_deterministic`,
+//!   `new_deterministic_rng`, etc.) use a `ChaCha20` stream keyed only by the caller’s 32-byte seed.
+//!   They are for tests, KATs, and reproducible benchmarks: treat the seed like a symmetric key;
+//!   if it is guessable, the entire stream is guessable.
+//! - Entropy validation applies to non-deterministic sources.
+//! - Secure memory clearing and constant-time expectations are documented per algorithm crate.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs, clippy::all, clippy::pedantic)]
@@ -318,11 +321,13 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::NoStdRng> {
 /// Create a new deterministic RNG instance
 ///
 /// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations. **NOT CRYPTOGRAPHICALLY SECURE**.
+/// reproducible operations. Output is a `ChaCha20` stream from `seed`.
+/// **Unpredictability is only as strong as the seed**; use [`new_secure_rng`]
+/// for production cryptography.
 ///
 /// # Arguments
 ///
-/// * `seed` - The seed value for deterministic generation
+/// * `seed` - 32-byte `ChaCha20` key (same interpretation as `ChaCha20Rng::from_seed`)
 ///
 /// # Examples
 ///
@@ -330,24 +335,25 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::NoStdRng> {
 /// use lib_q_random::new_deterministic_rng;
 /// use rand_core::Rng;
 ///
-/// let mut rng = new_deterministic_rng(&[1, 2, 3, 4]);
+/// let mut rng = new_deterministic_rng([1; 32]);
 /// let mut bytes = [0u8; 32];
 /// rng.fill_bytes(&mut bytes);
 /// ```
 #[cfg(feature = "alloc")]
 #[must_use]
-pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
+pub fn new_deterministic_rng(seed: [u8; 32]) -> LibQRng {
     LibQRng::new_deterministic(seed)
 }
 
 /// Create a new deterministic RNG instance for `no_std` environments
 ///
 /// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations in `no_std` environments. **NOT CRYPTOGRAPHICALLY SECURE**.
+/// reproducible operations in `no_std` environments. `ChaCha20` stream from `seed`;
+/// **not** unpredictable unless the seed is secret and high-entropy.
 ///
 /// # Arguments
 ///
-/// * `seed` - The seed value for deterministic generation
+/// * `seed` - 32-byte `ChaCha20` key
 ///
 /// # Examples
 ///
@@ -355,13 +361,13 @@ pub fn new_deterministic_rng(seed: &[u8]) -> LibQRng {
 /// use lib_q_random::new_deterministic_rng_no_std;
 /// use rand_core::Rng;
 ///
-/// let mut rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+/// let mut rng = new_deterministic_rng_no_std([1; 32]);
 /// let mut bytes = [0u8; 32];
 /// rng.fill_bytes(&mut bytes);
 /// ```
 #[cfg(not(feature = "alloc"))]
 #[must_use]
-pub fn new_deterministic_rng_no_std(seed: &[u8]) -> no_std_rng::NoStdRng {
+pub fn new_deterministic_rng_no_std(seed: [u8; 32]) -> no_std_rng::NoStdRng {
     no_std_rng::NoStdRng::new_deterministic(seed)
 }
 
@@ -535,17 +541,18 @@ mod tests {
     #[test]
     #[cfg(not(feature = "alloc"))]
     fn test_deterministic_rng_creation() {
-        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let rng = new_deterministic_rng_no_std(&seed);
+        let mut seed = [0u8; 32];
+        seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let rng = new_deterministic_rng_no_std(seed);
         assert!(rng.is_deterministic());
     }
 
     #[test]
     #[cfg(not(feature = "alloc"))]
     fn test_deterministic_rng_consistency() {
-        let seed = [42u8; 16];
-        let mut rng1 = new_deterministic_rng_no_std(&seed);
-        let mut rng2 = new_deterministic_rng_no_std(&seed);
+        let seed = [42u8; 32];
+        let mut rng1 = new_deterministic_rng_no_std(seed);
+        let mut rng2 = new_deterministic_rng_no_std(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];

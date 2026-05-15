@@ -21,17 +21,17 @@ lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features =
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
 
 # Core cryptographic primitives
-hybrid-array = "0.4.5"           # Type-safe fixed-size arrays
+hybrid-array = { workspace = true }
 rand_core = { workspace = true } # RNG traits
 hex = { workspace = true }       # Hex encoding for test vectors
 
 # Platform-specific dependencies
-heapless = { version = "0.9.2", optional = true }              # no_std collections
+heapless = { version = "0.9.3", optional = true }              # no_std collections
 wasm-bindgen = { workspace = true, optional = true }           # WASM bindings
 js-sys = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-defmt = { version = "1.0.1", optional = true }                 # no_std logging
+defmt = { version = "1.1.0", optional = true }                 # no_std logging
 
 # Optional features
 serde = { workspace = true, features = ["derive"], optional = true }
@@ -77,13 +77,13 @@ alloc = []                          # Heap allocation support (required for std 
 no_std = ["dep:heapless"]           # Embedded/no_std with heapless collections
 
 # HQC algorithm variants (NIST security levels)
-hqc128 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)
-hqc192 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 192-bit security (Level 3)
-hqc256 = ["alloc", "random", "lib-q-core/std", "lib-q-core/alloc"]  # 256-bit security (Level 5)
+hqc128 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)
+hqc192 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 192-bit security (Level 3)
+hqc256 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 256-bit security (Level 5)
 hqc = ["hqc128", "hqc192", "hqc256"]                                # All HQC variants
 
 # Random number generation
-random = ["dep:lib-q-random", "lib-q-random/std"]                   # RNG support (required for key generation)
+random = ["dep:lib-q-random", "lib-q-random/std", "zeroize"]        # RNG + secure stack buffers in provider decapsulation
 nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]         # NIST SP 800-90A DRBG
 
 # Platform support

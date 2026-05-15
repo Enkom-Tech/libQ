@@ -5,7 +5,10 @@
 
 use core::fmt;
 
+use rand_chacha::ChaCha20Rng;
 use rand_core::{
+    Rng,
+    SeedableRng,
     TryCryptoRng,
     TryRng,
 };
@@ -32,8 +35,8 @@ pub struct NoStdRng {
     bytes_generated: usize,
     /// Reseed interval in bytes (1MB default)
     reseed_interval: usize,
-    /// Deterministic state for deterministic RNGs
-    deterministic_state: Option<u64>,
+    /// `ChaCha20`-based stream when constructed with [`Self::new_deterministic`]
+    deterministic_rng: Option<ChaCha20Rng>,
 }
 
 impl NoStdRng {
@@ -70,7 +73,7 @@ impl NoStdRng {
                 reseed_counter: 0,
                 bytes_generated: 0,
                 reseed_interval: 1024 * 1024, // 1MB reseed interval
-                deterministic_state: None,
+                deterministic_rng: None,
             })
         }
         #[cfg(not(feature = "getrandom"))]
@@ -84,21 +87,18 @@ impl NoStdRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// This creates a deterministic RNG suitable for testing and
-    /// reproducible operations.
+    /// This builds a `ChaCha20` DRBG-style byte stream from a **256-bit** seed
+    /// (same construction as `rand_chacha::ChaCha20Rng::from_seed` used elsewhere
+    /// in libQ). Output is reproducible and suitable for KATs and benchmarks.
     ///
-    /// **IMPORTANT**: This is for testing/reproducibility only. For cryptographic
-    /// operations, use `NoStdRng::new()` which provides cryptographically secure
-    /// random bytes from the OS entropy source.
-    ///
-    /// The deterministic mode uses ChaCha20-based generation to ensure:
-    /// - Reproducible sequences from the same seed
-    /// - High-quality pseudorandom output
-    /// - Fast generation suitable for testing
+    /// **Security**: Unpredictability is **entirely** bounded by the secrecy of
+    /// `seed`. This is **not** a substitute for [`Self::new`]: anyone who knows or
+    /// guesses the seed knows the full stream. Do not use for production keys or
+    /// secrets unless the seed itself is high-entropy and handled as key material.
     ///
     /// # Arguments
     ///
-    /// * `seed` - The seed value for deterministic generation (min 8 bytes recommended)
+    /// * `seed` - 32-byte key for `ChaCha20`; distinct seeds produce unrelated streams
     ///
     /// # Examples
     ///
@@ -106,39 +106,17 @@ impl NoStdRng {
     /// use lib_q_random::no_std_rng::NoStdRng;
     /// use rand_core::Rng;
     ///
-    /// let mut rng = NoStdRng::new_deterministic(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    /// let mut rng = NoStdRng::new_deterministic([1; 32]);
     /// let mut bytes = [0u8; 32];
     /// rng.fill_bytes(&mut bytes);
     /// ```
     #[must_use]
-    pub fn new_deterministic(seed: &[u8]) -> Self {
-        // Use ChaCha20-based state initialization for better pseudorandom properties
-        // This provides much better statistical properties than LCG
-        let mut state = 0u64;
-
-        // Mix seed bytes using a variation of SipHash's mixing function
-        for (i, &byte) in seed.iter().enumerate() {
-            state = state.wrapping_add(u64::from(byte));
-            state = state.wrapping_mul(0x9E37_79B9_7F4A_7C15_u64); // Golden ratio
-            state ^= state >> 32;
-            state = state.wrapping_add((i as u64).wrapping_mul(0x517C_C1B7_2722_0A95_u64));
-            state ^= state >> 29;
-        }
-
-        // Additional mixing to ensure even small seed differences produce different streams
-        state ^= state.wrapping_mul(0x94D0_49BB_1331_11EB_u64);
-        state ^= state >> 31;
-
-        // Ensure non-zero state
-        if state == 0 {
-            state = 0xCAFE_BABE_DEAD_BEEF_u64;
-        }
-
+    pub fn new_deterministic(seed: [u8; 32]) -> Self {
         Self {
             reseed_counter: 0,
             bytes_generated: 0,
             reseed_interval: 0, // No reseeding for deterministic RNG
-            deterministic_state: Some(state),
+            deterministic_rng: Some(ChaCha20Rng::from_seed(seed)),
         }
     }
 
@@ -194,17 +172,8 @@ impl TryRng for NoStdRng {
         }
 
         // Generate random bytes
-        if let Some(ref mut state) = self.deterministic_state {
-            for byte in dest.iter_mut() {
-                *state ^= *state >> 12;
-                *state ^= *state << 25;
-                *state ^= *state >> 27;
-                let output = state.wrapping_mul(0x2545_F491_4F6C_DD1D_u64);
-                #[allow(clippy::cast_possible_truncation)]
-                {
-                    *byte = (output >> 56) as u8;
-                }
-            }
+        if let Some(ref mut rng) = self.deterministic_rng {
+            rng.fill_bytes(dest);
         } else {
             #[cfg(feature = "custom-entropy")]
             {
@@ -281,8 +250,8 @@ mod tests {
 
     #[test]
     fn test_deterministic_rng_creation() {
-        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let rng = NoStdRng::new_deterministic(&seed);
+        let seed = [1u8; 32];
+        let rng = NoStdRng::new_deterministic(seed);
         assert!(rng.is_deterministic());
     }
 
@@ -323,9 +292,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_rng_consistency() {
-        let seed = [42u8; 16];
-        let mut rng1 = NoStdRng::new_deterministic(&seed);
-        let mut rng2 = NoStdRng::new_deterministic(&seed);
+        let seed = [42u8; 32];
+        let mut rng1 = NoStdRng::new_deterministic(seed);
+        let mut rng2 = NoStdRng::new_deterministic(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -334,5 +303,27 @@ mod tests {
         rng2.fill_bytes(&mut bytes2);
 
         assert_eq!(bytes1, bytes2);
+    }
+
+    /// Regression: deterministic RNG must use the full 256-bit seed (`ChaCha20`), not a
+    /// collapsed 64-bit state where distant seed bytes could be ignored.
+    #[test]
+    fn test_deterministic_seeds_differ_in_final_byte_yield_different_streams() {
+        let seed_a = [0u8; 32];
+        let mut seed_b = [0u8; 32];
+        seed_b[31] = 1;
+
+        let mut rng_a = NoStdRng::new_deterministic(seed_a);
+        let mut rng_b = NoStdRng::new_deterministic(seed_b);
+
+        let mut out_a = [0u8; 64];
+        let mut out_b = [0u8; 64];
+        rng_a.fill_bytes(&mut out_a);
+        rng_b.fill_bytes(&mut out_b);
+
+        assert_ne!(
+            out_a, out_b,
+            "ChaCha20 streams from different 32-byte keys must diverge immediately"
+        );
     }
 }

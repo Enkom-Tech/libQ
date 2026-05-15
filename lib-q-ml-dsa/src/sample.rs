@@ -504,6 +504,8 @@ pub(crate) fn sample_challenge_ring_element<SIMDUnit: Operations, Shake256: shak
 
 #[cfg(test)]
 mod tests {
+    use core::convert::TryInto;
+
     use super::*;
     use crate::constants::COEFFICIENTS_IN_RING_ELEMENT;
     use crate::hash_functions;
@@ -519,7 +521,8 @@ mod tests {
         use crate::rng::MLDsaRng;
 
         // Use deterministic RNG for reproducible testing
-        let mut rng = MLDsaRng::new_deterministic(&seed);
+        let seed32: [u8; 32] = seed[..32].try_into().expect("seed is 34 bytes");
+        let mut rng = MLDsaRng::new_deterministic(seed32);
 
         // Generate random bytes for rejection sampling
         let mut random_bytes = [0u8; 840]; // 5 blocks * 168 bytes

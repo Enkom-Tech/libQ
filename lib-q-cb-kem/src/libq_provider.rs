@@ -272,13 +272,11 @@ impl LibQCbKemProvider {
             }
         };
 
-        // Convert to libQ types
-        let kem_public_key = KemPublicKey::new(public_key.as_array().to_vec());
-        let kem_secret_key = KemSecretKey::new(secret_key.as_array().to_vec());
-
+        // Copy key material into KemKeypair-owned buffers; stack buffers are zeroed when
+        // `PublicKey` / `SecretKey` drop (zeroize feature).
         Ok(KemKeypair::new(
-            kem_public_key.as_bytes().to_vec(),
-            kem_secret_key.as_bytes().to_vec(),
+            Vec::from(public_key.as_array().as_slice()),
+            Vec::from(secret_key.as_array().as_slice()),
         ))
     }
 
@@ -321,8 +319,8 @@ impl LibQCbKemProvider {
         };
 
         Ok((
-            ciphertext.as_array().to_vec(),
-            shared_secret.as_array().to_vec(),
+            Vec::from(ciphertext.as_array().as_slice()),
+            Vec::from(shared_secret.as_array().as_slice()),
         ))
     }
 
@@ -360,7 +358,7 @@ impl LibQCbKemProvider {
         // Decapsulate
         let shared_secret = decapsulate(&ciphertext, &secret_key, &mut shared_secret_buf);
 
-        Ok(shared_secret.as_array().to_vec())
+        Ok(Vec::from(shared_secret.as_array().as_slice()))
     }
 }
 

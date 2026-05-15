@@ -31,8 +31,12 @@ fn benchmark_deterministic_rng_creation(c: &mut Criterion) {
 
     for size in [16, 32, 64, 128].iter() {
         group.bench_with_input(BenchmarkId::new("seed_size", size), size, |b, &size| {
-            let seed = vec![0u8; size];
-            b.iter(|| black_box(new_deterministic_rng(&seed)));
+            b.iter(|| {
+                let mut s = [0u8; 32];
+                let sz = u32::try_from(size).expect("benchmark sizes fit u32");
+                s[..4].copy_from_slice(&sz.to_le_bytes());
+                black_box(new_deterministic_rng(s))
+            });
         });
     }
 
@@ -52,8 +56,9 @@ fn benchmark_secure_rng_creation(c: &mut Criterion) {
 fn benchmark_rng_fill_bytes(c: &mut Criterion) {
     let mut group = c.benchmark_group("rng_fill_bytes");
 
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
 
     for size in [16, 32, 64, 128, 256, 512, 1024].iter() {
         group.bench_with_input(BenchmarkId::new("deterministic", size), size, |b, &size| {
@@ -71,8 +76,9 @@ fn benchmark_rng_fill_bytes(c: &mut Criterion) {
 fn benchmark_rng_next_u32(c: &mut Criterion) {
     let mut group = c.benchmark_group("rng_next_u32");
 
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
 
     group.bench_function("deterministic", |b| {
         b.iter(|| black_box(rng.next_u32()));
@@ -84,8 +90,9 @@ fn benchmark_rng_next_u32(c: &mut Criterion) {
 fn benchmark_rng_next_u64(c: &mut Criterion) {
     let mut group = c.benchmark_group("rng_next_u64");
 
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
 
     group.bench_function("deterministic", |b| {
         b.iter(|| black_box(rng.next_u64()));
@@ -98,8 +105,9 @@ fn benchmark_entropy_source_performance(c: &mut Criterion) {
     let mut group = c.benchmark_group("entropy_source_performance");
 
     // Benchmark deterministic entropy source
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut det_source = DeterministicEntropySource::new(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut det_source = DeterministicEntropySource::new(seed);
 
     for size in [16, 32, 64, 128].iter() {
         group.bench_with_input(BenchmarkId::new("deterministic", size), size, |b, &size| {
@@ -137,7 +145,9 @@ fn benchmark_entropy_validation(c: &mut Criterion) {
     let validator = EntropyValidator::new();
 
     // Generate test data
-    let mut rng = new_deterministic_rng(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
     let mut test_data = vec![0u8; 1024];
     rng.fill_bytes(&mut test_data);
 
@@ -155,8 +165,9 @@ fn benchmark_entropy_validation(c: &mut Criterion) {
 fn benchmark_rng_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("rng_operations");
 
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
 
     group.bench_function("fill_bytes_32", |b| {
         b.iter(|| {
@@ -207,8 +218,9 @@ fn benchmark_custom_rng_creation(c: &mut Criterion) {
 
     group.bench_function("deterministic_entropy_source", |b| {
         b.iter(|| {
-            let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-            let source = DeterministicEntropySource::new(&seed);
+            let mut s = [0u8; 32];
+            s[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+            let source = DeterministicEntropySource::new(s);
             black_box(LibQRng::new_custom(source))
         });
     });
@@ -219,11 +231,13 @@ fn benchmark_custom_rng_creation(c: &mut Criterion) {
 fn benchmark_rng_initialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("rng_initialization");
 
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rng = new_deterministic_rng(&seed);
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut rng = new_deterministic_rng(seed);
 
     group.bench_function("initialize", |b| {
-        let entropy = [9, 10, 11, 12, 13, 14, 15, 16];
+        let mut entropy = [0u8; 32];
+        entropy[..8].copy_from_slice(&[9, 10, 11, 12, 13, 14, 15, 16]);
         b.iter(|| black_box(rng.initialize(&entropy)));
     });
 

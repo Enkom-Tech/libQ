@@ -43,7 +43,7 @@ let mut bytes = [0u8; 32];
 rng.fill_bytes(&mut bytes);
 
 // Create a deterministic RNG for testing
-let mut test_rng = new_deterministic_rng(&[1, 2, 3, 4]);
+let mut test_rng = new_deterministic_rng([1; 32]);
 test_rng.fill_bytes(&mut bytes);
 ```
 
@@ -207,8 +207,9 @@ rng.fill_bytes(&mut key);
 ```rust
 use lib_q_random::new_deterministic_rng;
 
-let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-let mut rng = new_deterministic_rng(&seed);
+let mut seed = [0u8; 32];
+seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+let mut rng = new_deterministic_rng(seed);
 let mut bytes = [0u8; 16];
 rng.fill_bytes(&mut bytes);
 // bytes will be the same every time with the same seed

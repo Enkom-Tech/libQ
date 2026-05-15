@@ -251,7 +251,6 @@ impl Hqc1SecretKey {
     }
 
     #[cfg(feature = "alloc")]
-    #[cfg(feature = "alloc")]
     pub fn as_bytes(&self) -> Vec<u8> {
         self.kem_secret_key.as_bytes()
     }
@@ -269,7 +268,7 @@ impl Hqc1Ciphertext {
 
     #[cfg(feature = "alloc")]
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.kem_ciphertext.as_bytes().to_vec()
+        self.kem_ciphertext.as_bytes()
     }
 }
 
@@ -332,7 +331,7 @@ impl Hqc3Ciphertext {
 
     #[cfg(feature = "alloc")]
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.kem_ciphertext.as_bytes().to_vec()
+        self.kem_ciphertext.as_bytes()
     }
 }
 
@@ -395,7 +394,7 @@ impl Hqc5Ciphertext {
 
     #[cfg(feature = "alloc")]
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.kem_ciphertext.as_bytes().to_vec()
+        self.kem_ciphertext.as_bytes()
     }
 }
 

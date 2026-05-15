@@ -371,6 +371,26 @@ impl From<[u8; CRYPTO_CIPHERTEXTBYTES]> for Ciphertext {
     }
 }
 
+#[cfg(feature = "zeroize")]
+impl zeroize::Zeroize for Ciphertext {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl zeroize::ZeroizeOnDrop for Ciphertext {}
+
+impl Drop for Ciphertext {
+    fn drop(&mut self) {
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            self.zeroize();
+        }
+    }
+}
+
 /// The shared secret computed by the KEM. Returned from both the
 /// encapsulator and decapsulator.
 #[must_use]

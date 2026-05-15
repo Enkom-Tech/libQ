@@ -155,7 +155,7 @@ fn credential_presentation_roundtrip() {
 }
 
 #[test]
-fn dualring_lb_verify_runs_full_ring() {
+fn dualring_lb_verify_aggregated_equation_two_members() {
     let key = crs();
     let p = RingSigParams::mldsa65_pilot();
     let a = MemberIssuerKey::from_opening(

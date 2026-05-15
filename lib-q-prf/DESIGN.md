@@ -26,5 +26,5 @@ Recent analysis shows **degree-1 Legendre PRFs over extension fields \(\mathbb{F
 
 ## References
 
-- DualRing-PRF (QROM ring signatures using PRF linkage) — composed in [`lib-q-ring-sig`](../lib-q-ring-sig/) behind `dualring-prf`.
+- Published DualRing-PRF–style protocols (QROM ring signatures using PRF linkage) are **not** implemented here end-to-end; [`lib-q-ring-sig`](../lib-q-ring-sig/) exposes a `pilot-insecure-prf-transcript` **laboratory** module that binds these PRFs in a Fiat–Shamir transcript with a verifier model that carries secret key material in the ring list (see that crate’s `DESIGN.md`).
 - Gold / power-residue OPRF literature (e.g. VOLE-based two-party evaluation) is relevant for **oblivious** evaluation, not implemented here.

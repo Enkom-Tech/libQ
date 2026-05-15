@@ -13,7 +13,7 @@ categories = ["cryptography", "no-std"]
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
-zeroize = { workspace = true, features = ["derive"] }
+zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
 

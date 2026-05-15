@@ -23,6 +23,12 @@ use alloc::{
     vec::Vec,
 };
 
+use rand_chacha::ChaCha20Rng;
+use rand_core::{
+    Rng,
+    SeedableRng,
+};
+
 use crate::traits::{
     EntropyConfig,
     EntropySource,
@@ -332,8 +338,9 @@ impl Default for HardwareEntropySource {
 
 /// Deterministic entropy source for testing
 ///
-/// This entropy source provides deterministic "entropy" based on a seed,
-/// making it suitable for testing and reproducible operations.
+/// This entropy source provides deterministic bytes from a **256-bit** `ChaCha20`
+/// stream (`rand_chacha::ChaCha20Rng`), matching the construction used across
+/// libQ for reproducible tests and vectors.
 ///
 /// **USE CASE**: This is designed for:
 /// - Unit testing with reproducible outcomes
@@ -341,66 +348,28 @@ impl Default for HardwareEntropySource {
 /// - Benchmarking with consistent inputs
 ///
 /// **NOT FOR CRYPTOGRAPHIC USE**: For actual cryptographic operations,
-/// use `OsEntropySource` or other secure entropy sources.
-///
-/// The implementation uses xorshift64* which provides excellent statistical
-/// properties suitable for testing, though it is deterministic by design.
+/// use `OsEntropySource` or other secure entropy sources. Unpredictability is
+/// only as strong as the secrecy of the 32-byte seed.
 #[derive(Debug, Clone)]
 pub struct DeterministicEntropySource {
-    /// Seed for deterministic generation
-    seed: u64,
-    /// Counter for generation
-    counter: u64,
+    /// `ChaCha20` stream generator
+    rng: ChaCha20Rng,
     /// Quality estimate (0.0 for deterministic)
     quality: f64,
 }
 
 impl DeterministicEntropySource {
-    /// Create a new deterministic entropy source
-    pub fn new(seed: &[u8]) -> Self {
-        let mut seed_value = 0u64;
-
-        // Use SipHash-inspired mixing for better seed distribution
-        for (i, &byte) in seed.iter().enumerate() {
-            seed_value = seed_value.wrapping_add(u64::from(byte));
-            seed_value = seed_value.wrapping_mul(0x9E37_79B9_7F4A_7C15_u64);
-            seed_value ^= seed_value >> 32;
-            seed_value =
-                seed_value.wrapping_add((i as u64).wrapping_mul(0x517C_C1B7_2722_0A95_u64));
-        }
-
-        // Final mixing
-        seed_value ^= seed_value.wrapping_mul(0x94D0_49BB_1331_11EB_u64);
-        seed_value ^= seed_value >> 31;
-
-        // Ensure non-zero
-        if seed_value == 0 {
-            seed_value = 0xCAFE_BABE_DEAD_BEEF_u64;
-        }
-
+    /// Create a new deterministic entropy source from a 32-byte `ChaCha20` key
+    #[must_use]
+    pub fn new(seed: [u8; 32]) -> Self {
         Self {
-            seed: seed_value,
-            counter: 0,
+            rng: ChaCha20Rng::from_seed(seed),
             quality: 0.0, // Deterministic sources have no true entropy
         }
     }
 
-    /// Generate deterministic "entropy" using xorshift64*
     fn generate_deterministic_bytes(&mut self, dest: &mut [u8]) {
-        for chunk in dest.chunks_mut(8) {
-            // xorshift64* algorithm - passes BigCrush tests
-            self.seed ^= self.seed >> 12;
-            self.seed ^= self.seed << 25;
-            self.seed ^= self.seed >> 27;
-            self.counter = self.counter.wrapping_add(1);
-
-            // Mix with counter for additional stream differentiation
-            let value = self.seed.wrapping_mul(0x2545_F491_4F6C_DD1D_u64) ^ self.counter;
-            let bytes = value.to_le_bytes();
-
-            let len = chunk.len().min(8);
-            chunk[..len].copy_from_slice(&bytes[..len]);
-        }
+        self.rng.fill_bytes(dest);
     }
 }
 
@@ -635,7 +604,8 @@ impl NistAes256CtrDrbg {
 
         for tmp in &mut temp[0..3] {
             let count = u128::from_be_bytes(*v);
-            v.copy_from_slice(&(count + 1).to_be_bytes());
+            let count_next = count.wrapping_add(1);
+            v.copy_from_slice(&count_next.to_be_bytes());
 
             Self::aes256_ecb(key, v, tmp);
         }
@@ -657,7 +627,8 @@ impl NistAes256CtrDrbg {
     fn generate_bytes(&mut self, dest: &mut [u8]) {
         for chunk in dest.chunks_mut(16) {
             let count = u128::from_be_bytes(self.v);
-            self.v.copy_from_slice(&(count + 1).to_be_bytes());
+            let count_next = count.wrapping_add(1);
+            self.v.copy_from_slice(&count_next.to_be_bytes());
 
             let mut block = [0u8; 16];
             Self::aes256_ecb(&self.key, &self.v, &mut block);
@@ -781,8 +752,8 @@ impl EntropySourceFactory {
         }
     }
 
-    /// Create a deterministic entropy source
-    pub fn create_deterministic_entropy(seed: &[u8]) -> Box<dyn EntropySource> {
+    /// Create a deterministic entropy source (`ChaCha20` stream from `seed`)
+    pub fn create_deterministic_entropy(seed: [u8; 32]) -> Box<dyn EntropySource> {
         Box::new(DeterministicEntropySource::new(seed))
     }
 
@@ -855,8 +826,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_entropy_source_creation() {
-        let seed = [1, 2, 3, 4, 5, 6, 7, 8];
-        let source = DeterministicEntropySource::new(&seed);
+        let mut seed = [0u8; 32];
+        seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let source = DeterministicEntropySource::new(seed);
         assert!(!source.name().is_empty());
         assert_eq!(source.source_type(), EntropySourceType::Deterministic);
         #[allow(clippy::float_cmp)]
@@ -867,9 +839,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_entropy_consistency() {
-        let seed = [42u8; 16];
-        let mut source1 = DeterministicEntropySource::new(&seed);
-        let mut source2 = DeterministicEntropySource::new(&seed);
+        let seed = [42u8; 32];
+        let mut source1 = DeterministicEntropySource::new(seed);
+        let mut source2 = DeterministicEntropySource::new(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -923,8 +895,9 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_entropy_source_factory_deterministic() {
-        let seed = [1, 2, 3, 4];
-        let source = EntropySourceFactory::create_deterministic_entropy(&seed);
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let source = EntropySourceFactory::create_deterministic_entropy(seed);
         assert_eq!(source.source_type(), EntropySourceType::Deterministic);
     }
 

@@ -134,7 +134,8 @@ impl AesState {
 
         for tmp in &mut temp[0..3] {
             let count = u128::from_be_bytes(*v);
-            v.copy_from_slice(&(count + 1).to_be_bytes());
+            let count_next = count.wrapping_add(1);
+            v.copy_from_slice(&count_next.to_be_bytes());
             Self::aes256_ecb(key, v, tmp);
         }
 
@@ -244,7 +245,8 @@ impl AesState {
 
         for chunk in dest.chunks_mut(16) {
             let count = u128::from_be_bytes(self.v);
-            self.v.copy_from_slice(&(count + 1).to_be_bytes());
+            let count_next = count.wrapping_add(1);
+            self.v.copy_from_slice(&count_next.to_be_bytes());
             let mut block = [0u8; 16];
             Self::aes256_ecb(&self.key, &self.v, &mut block);
             chunk.copy_from_slice(&block[..chunk.len()]);

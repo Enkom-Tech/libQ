@@ -53,6 +53,7 @@ pub use sigma::{
     AmortisedProof,
     BatchPresentationState,
     CrtPackedNormProof,
+    DualRingOpeningProof,
     HierarchicalAuthProof,
     LinearRelationProof,
     MerklePath,
@@ -75,6 +76,7 @@ pub use sigma::{
     opening_ctx_with_nullifier,
     opening_ctx_with_witness_nullifier,
     private_membership_opening_ctx,
+    prove_dual_ring_opening,
     prove_inf_norm,
     prove_level_membership,
     prove_linear,
@@ -86,6 +88,7 @@ pub use sigma::{
     uniqueness,
     uniqueness_amortisation_label,
     verify_aggregate,
+    verify_dual_ring_opening,
     verify_hierarchical_membership,
     verify_inf_norm,
     verify_inf_norm_proof,
@@ -108,6 +111,7 @@ pub use token::{
     TOKEN_SERIAL_LEN,
     opening_from_token_fields,
 };
+pub use zeroize::Zeroizing;
 
 #[cfg(test)]
 mod tests {

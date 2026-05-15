@@ -62,12 +62,13 @@ fn test_no_std_rng_creation() {
 /// Test deterministic RNG functionality
 #[test]
 fn test_deterministic_rng() {
-    let seed = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    let mut seed = [0u8; 32];
+    seed[..16].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 
     #[cfg(not(feature = "alloc"))]
     {
-        let mut rng1 = new_deterministic_rng_no_std(&seed);
-        let mut rng2 = new_deterministic_rng_no_std(&seed);
+        let mut rng1 = new_deterministic_rng_no_std(seed);
+        let mut rng2 = new_deterministic_rng_no_std(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -87,8 +88,8 @@ fn test_deterministic_rng() {
 
     #[cfg(feature = "alloc")]
     {
-        let mut rng1 = new_deterministic_rng(&seed);
-        let mut rng2 = new_deterministic_rng(&seed);
+        let mut rng1 = new_deterministic_rng(seed);
+        let mut rng2 = new_deterministic_rng(seed);
 
         let mut bytes1 = [0u8; 32];
         let mut bytes2 = [0u8; 32];
@@ -208,7 +209,9 @@ fn test_no_std_specific() {
         );
 
         // Test deterministic RNG
-        let det_rng = new_deterministic_rng_no_std(&[1, 2, 3, 4]);
+        let mut det_seed = [0u8; 32];
+        det_seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let det_rng = new_deterministic_rng_no_std(det_seed);
         assert!(
             det_rng.is_deterministic(),
             "Deterministic RNG should be marked as such"

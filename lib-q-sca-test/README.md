@@ -31,7 +31,7 @@ Behind the `privacy` feature (enabled by default), [`privacy_workloads`](src/pri
 | `touch_federation_digest` | [`lib-q-ring-sig`](../lib-q-ring-sig/) `federation_digest` | SHAKE256 over ordered ring commitments |
 | `touch_blind_verify` | [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) `BlindIssuance::verify` | Fiat-Shamir verifier transcript and opening check |
 | `touch_federation_verify` | [`lib-q-ring-sig`](../lib-q-ring-sig/) `verify_federation_opening` | Federation opening proof verification |
-| `touch_dualring_lb_verify` | [`lib-q-ring-sig`](../lib-q-ring-sig/) `verify_dualring_lb` | Full-ring DualRing-LB–style opening verification |
+| `touch_dualring_lb_verify` | [`lib-q-ring-sig`](../lib-q-ring-sig/) `verify_dualring_lb` | Aggregated DualRing-LB opening verification (CCS 2021 Alg. 3 on Ajtai relation) |
 | `touch_witness_nullifier` | [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) `witness_nullifier` | SHAKE256 over witness wire and realm |
 | `touch_blind_signature_verify` | [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) `BlindSignature::verify_blind_signature` | Pilot blind-signature bundle verification |
 | `touch_private_membership` | [`lib-q-lattice-zkp`](../lib-q-lattice-zkp/) `verify_private_membership` | Private Merkle membership pilot verifier |
