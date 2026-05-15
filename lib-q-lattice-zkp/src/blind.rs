@@ -283,7 +283,7 @@ impl BlindIssuance {
         })
     }
 
-    /// [`finalize`] plus carried [`blind_message_digest`] for [`BlindSignature`] verification.
+    /// [`BlindIssuance::finalize`] plus carried [`blind_message_digest`] for [`BlindSignature`] verification.
     ///
     /// **Unblinding (pilot CRS model):** the issuer’s attestation [`BlindResponse::issuer_proof`]
     /// is unchanged, while the aggregated [`UnblindedIssuance::token_opening`] is the sum of the

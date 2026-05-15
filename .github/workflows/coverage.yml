@@ -98,6 +98,7 @@ jobs:
               echo "Running coverage for $crate"
               CRATE_THRESH="$COVERAGE_THRESHOLD"
               case "$crate" in
+                lib-q-core) CRATE_THRESH="78" ;; # match PR test-coverage (docs/coverage-scope.md)
                 lib-q-keccak) CRATE_THRESH="65" ;;
               esac
               bash scripts/run-coverage.sh --crate "$crate" --threshold $CRATE_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}

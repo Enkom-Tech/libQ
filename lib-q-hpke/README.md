@@ -1,10 +1,16 @@
 # lib-q-hpke
 
-RFC 9180 compliant Hybrid Public Key Encryption implementation using post-quantum cryptographic primitives.
+RFC 9180–aligned Hybrid Public Key Encryption using **post-quantum-only** primitives (ML-KEM family for the HPKE KEM role in the default provider path; no classical KEM or classical signatures in that path).
 
 ## Overview
 
-lib-q-hpke provides a secure, efficient implementation of HPKE (Hybrid Public Key Encryption) using NIST-approved post-quantum algorithms. The implementation follows a provider pattern that integrates with the lib-q ecosystem for algorithm-agnostic cryptographic operations.
+lib-q-hpke implements HPKE for the lib-q stack: protocol logic and types in this crate, with KEM/AEAD/hash work delegated through `lib-q-kem`, `lib-q-aead`, and `lib-q-hash`. The high-level [`HpkeContext`](src/lib.rs) holds a `lib_q_core::CryptoProvider` for `KemContext` **and** an `Arc<dyn HpkeCryptoProvider + Send + Sync>` (default [`PostQuantumProvider`](src/providers/post_quantum.rs)) for encapsulation, KDF, AEAD, and exporter operations. Use [`HpkeContext::with_hpke_crypto`](src/lib.rs) to swap the HPKE backend; `with_provider` only replaces the inner `KemContext` crypto. Today the default provider wires **ML-KEM only** for HPKE KEM (other PQ KEMs may exist in the workspace but are not in the `HpkeKem` catalog yet).
+
+## Interoperability
+
+Profiles, a mode×suite matrix, and fixture provenance are documented under the workspace [interoperability.md](../../docs/interoperability.md) and [hpke-architecture.md](../../docs/hpke-architecture.md). For code, see [`lib_q_hpke::interop`](src/interop.rs). Run the integrator-oriented example (requires `std`):
+
+`cargo run -p lib-q-hpke --example hpke_interop_negotiation --features std`
 
 ## Supported Algorithms
 
@@ -20,9 +26,10 @@ lib-q-hpke provides a secure, efficient implementation of HPKE (Hybrid Public Ke
 - HKDF-SHA3-512
 
 ### Authenticated Encryption (AEAD)
-- Saturnin-256
-- SHAKE256-based AEAD
-- Export-only mode
+- Saturnin-256 (32-byte key, 16-byte nonce, 32-byte tag)
+- SHAKE256-based AEAD (16-byte tag)
+- Keccak duplex-sponge AEAD via `lib-q-aead` — enable Cargo feature **`duplex-sponge-aead`** on this crate (when using the umbrella `lib-q` crate, enable **`hpke-duplex-aead`**)
+- Export-only mode (`HpkeAead::Export`) for exporter-secret usage without message encryption
 
 ## Quick Start
 
@@ -115,12 +122,31 @@ let mut sender_ctx = hpke_ctx.setup_sender_auth_psk(
 )?;
 ```
 
+### PSK / AuthPSK wire format
+
+For PSK and AuthPSK modes, the default is [`HpkePskWireFormat::Rfc9180`](src/types.rs) (RFC 9180 on-the-wire layout). Both peers may set [`HpkePskWireFormat::LibQCommitmentSuffix`](src/types.rs) with [`HpkeContext::set_psk_wire_format`](src/lib.rs) to reject wrong `(psk, psk_id)` or a mismatched primary KEM ciphertext before decapsulation; that suffix is **not** interoperable with strict third-party RFC 9180 implementations.
+
+## Cargo features (summary)
+
+| Feature | Purpose |
+|---------|---------|
+| `std` | Standard library support |
+| `alloc` | Required for normal operation (enforced by the crate) |
+| `ml-kem` | ML-KEM through `lib-q-kem` (default) |
+| `hash` | HKDF hash backends via `lib-q-hash` (default) |
+| `saturnin` / `shake256` | AEAD algorithms (defaults) |
+| `duplex-sponge-aead` | Duplex-sponge AEAD in `HpkeAead::DuplexSpongeAead` |
+| `wasm` | `wasm32` bindings and helpers |
+| `secure-rng` | OS-backed RNG where applicable (default) |
+
+See [`Cargo.toml`](Cargo.toml) for the full feature matrix and optional dev dependencies.
+
 ## Documentation
 
-- [Architecture Overview](docs/hpke-architecture.md) - High-level architecture and design
-- [API Reference](docs/API_REFERENCE.md) - Complete API documentation
-- [Security Considerations](docs/SECURITY_CONSIDERATIONS.md) - Security analysis and best practices
-- [Architecture Details](docs/ARCHITECTURE.md) - Detailed implementation architecture
+- [Architecture overview](../docs/hpke-architecture.md) — workspace-level HPKE design (PQ-only path, PSK wire format, interoperability)
+- [API Reference](docs/API_REFERENCE.md) — public API
+- [Security Considerations](docs/SECURITY_CONSIDERATIONS.md) — security analysis and best practices
+- [Architecture details](docs/ARCHITECTURE.md) — module layout and provider wiring in this crate
 
 ## Testing
 
@@ -136,15 +162,17 @@ cargo test --test authpsk_mode_comprehensive_tests
 cargo test --test security_validation_comprehensive_tests
 ```
 
-## Performance
+## Wire sizes (KEM)
 
-Performance characteristics for different security levels:
+Public key and encapsulated ciphertext lengths match [`HpkeKem`](src/types.rs) (`public_key_len` / `enc_len`):
 
-| Algorithm | Security Level | Key Size | Ciphertext Size | Performance |
-|-----------|---------------|----------|-----------------|-------------|
-| ML-KEM-512 | Level 1 (128-bit) | 800 bytes | 768 bytes | Fast |
-| ML-KEM-768 | Level 3 (192-bit) | 1184 bytes | 1088 bytes | Balanced |
-| ML-KEM-1024 | Level 5 (256-bit) | 1568 bytes | 1568 bytes | Secure |
+| KEM | NIST category (approx.) | Public key | Encapsulated ciphertext |
+|-----|-------------------------|------------|-------------------------|
+| ML-KEM-512 | 1 | 800 B | 768 B |
+| ML-KEM-768 | 3 | 1184 B | 1088 B |
+| ML-KEM-1024 | 5 | 1568 B | 1568 B |
+
+AEAD ciphertext expansion is plaintext length plus the AEAD tag (e.g. 32 bytes for Saturnin-256); see `HpkeAead::tag_len` in `src/types.rs`.
 
 ## Dependencies
 

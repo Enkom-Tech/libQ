@@ -1,6 +1,8 @@
 # HPKE Architecture
 
-The lib-q-hpke implementation provides RFC 9180 compliant Hybrid Public Key Encryption using post-quantum cryptographic primitives. The architecture follows a provider pattern that integrates with the lib-q ecosystem for algorithm-agnostic cryptographic operations.
+The lib-q-hpke implementation provides RFC 9180–aligned Hybrid Public Key Encryption using **post-quantum-only** primitives (no classical KEM or classical signatures in the HPKE path). The architecture follows a provider pattern that integrates with the lib-q ecosystem for algorithm-agnostic cryptographic operations.
+
+**PSK / AuthPSK wire format:** by default [`HpkePskWireFormat::Rfc9180`](../lib-q-hpke/src/types.rs) matches RFC 9180. Peers may opt into [`HpkePskWireFormat::LibQCommitmentSuffix`](../lib-q-hpke/src/types.rs) via [`HpkeContext::set_psk_wire_format`](../lib-q-hpke/src/lib.rs) for early PSK mismatch detection; that layout is **not** interoperable with strict third-party RFC 9180 stacks.
 
 ## Architecture Overview
 
@@ -9,18 +11,21 @@ The HPKE implementation uses a provider pattern that abstracts cryptographic ope
 ```
 lib-q-hpke
 ├── PostQuantumProvider
-│   ├── KEM: ML-KEM-512, ML-KEM-768, ML-KEM-1024
+│   ├── KEM: ML-KEM-512, ML-KEM-768, ML-KEM-1024 (see interoperability note below)
 │   ├── KDF: HKDF-SHAKE128, HKDF-SHAKE256, HKDF-SHA3-256, HKDF-SHA3-512
-│   └── AEAD: Saturnin-256, SHAKE256, duplex-sponge AEAD, Export-only
+│   └── AEAD: Saturnin-256, SHAKE256, duplex-sponge AEAD (optional feature), Export-only
 ├── Security Layer
 │   ├── Side-channel protection
 │   ├── Memory safety
 │   └── Input validation
 └── Integration Layer
-    ├── lib-q-core types
-    ├── lib-q-kem operations
-    └── lib-q-aead operations
+    ├── lib-q-core types (KemContext, CryptoProvider)
+    ├── lib-q-kem (LibQKemProvider)
+    ├── lib-q-hash, lib-q-aead
+    └── HpkePskWireFormat (PSK / AuthPSK on-the-wire policy)
 ```
+
+**Interoperability note:** [`PostQuantumProvider`](../lib-q-hpke/src/providers/post_quantum.rs) wires **ML-KEM only** into HPKE encapsulation/decapsulation for the public `HpkeContext` API. Other PQ KEMs (for example HQC) may exist elsewhere in the workspace but are **not** selected by the current HPKE cipher-suite / provider path (see ignored tests in `lib-q-hpke/tests/cross_library_integration_tests.rs`).
 
 ## Security Levels
 
@@ -32,59 +37,49 @@ The implementation supports different security levels through algorithm selectio
 
 ## Core Components
 
-```rust
-/// HPKE cipher suite specification
-pub struct HpkeCipherSuite {
-    /// Key encapsulation mechanism
-    pub kem: HpkeKem,
-    /// Key derivation function
-    pub kdf: HpkeKdf,
-    /// Authenticated encryption algorithm
-    pub aead: HpkeAead,
-}
+The snippets below mirror the public shapes in [`lib-q-hpke/src/types.rs`](../lib-q-hpke/src/types.rs) and [`lib-q-hpke/src/lib.rs`](../lib-q-hpke/src/lib.rs). Sensitive byte fields use [`SecretBytes`](../lib-q-hpke/src/types.rs) (`Zeroizing<Vec<u8>>`).
 
-/// HPKE context for stateful operations
+```rust
+/// HPKE context: KEM provider context, suite, PSK wire-format policy, HPKE crypto backend, RNG.
 pub struct HpkeContext {
-    /// KEM context for key operations
     kem_ctx: KemContext,
-    /// Cipher suite configuration
     cipher_suite: HpkeCipherSuite,
+    psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
+    rng: Box<dyn CryptoRng + Send>,
 }
 
 /// HPKE sender context for multiple message encryption
 pub struct HpkeSenderContext {
-    /// Shared secret from KEM
-    pub shared_secret: Vec<u8>,
-    /// Exporter secret
-    pub exporter_secret: Vec<u8>,
-    /// AEAD encryption key
-    pub key: Vec<u8>,
-    /// Base nonce
-    pub nonce: Vec<u8>,
-    /// Encapsulated key to be sent to receiver
+    pub shared_secret: SecretBytes,
+    pub exporter_secret: SecretBytes,
+    pub key: SecretBytes,
+    pub nonce: SecretBytes,
+    pub cipher_suite: HpkeCipherSuite,
+    pub aead: HpkeAead,
     pub encapsulated_key: Vec<u8>,
-    /// Sequence number
     pub sequence_number: u32,
-    /// Context state
+    pub max_sequence_number: u32,
     pub state: HpkeContextState,
+    pub(crate) hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 }
 
 /// HPKE receiver context for multiple message decryption
 pub struct HpkeReceiverContext {
-    /// Shared secret from KEM
-    pub shared_secret: Vec<u8>,
-    /// Exporter secret
-    pub exporter_secret: Vec<u8>,
-    /// AEAD decryption key
-    pub key: Vec<u8>,
-    /// Base nonce
-    pub nonce: Vec<u8>,
-    /// Sequence number
+    pub shared_secret: SecretBytes,
+    pub exporter_secret: SecretBytes,
+    pub key: SecretBytes,
+    pub nonce: SecretBytes,
+    pub cipher_suite: HpkeCipherSuite,
+    pub aead: HpkeAead,
     pub sequence_number: u32,
-    /// Context state
+    pub max_sequence_number: u32,
     pub state: HpkeContextState,
+    pub(crate) hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 }
 ```
+
+Interop profiles and deterministic negotiation primitives are published in [`lib_q_hpke::interop`](../lib-q-hpke/src/interop.rs) (`HpkeInteropProfile`, `HpkeCapabilities`, `negotiate_hpke_capabilities`). WASM rehydrates sender/receiver state with the same default [`PostQuantumProvider`](../lib-q-hpke/src/providers/post_quantum.rs) backend as native `HpkeContext::new` unless you add explicit JS-side hooks for alternate providers later.
 
 ## PostQuantumProvider Implementation
 
@@ -100,16 +95,14 @@ The PostQuantumProvider is the core provider that implements all HPKE operations
 ### Implementation
 
 ```rust
-/// Post-quantum provider implementation
+/// Post-quantum provider implementation (excerpt from `lib-q-hpke/src/providers/post_quantum.rs`)
 pub struct PostQuantumProvider;
 
 impl PostQuantumProvider {
-    /// Create a new post-quantum provider
     pub fn new() -> Self {
         Self
     }
 
-    /// Convert HPKE KEM to lib-q-core Algorithm
     fn hpke_kem_to_algorithm(kem: HpkeKem) -> Result<Algorithm, HpkeError> {
         match kem {
             HpkeKem::MlKem512 => Ok(Algorithm::MlKem512),
@@ -118,11 +111,42 @@ impl PostQuantumProvider {
         }
     }
 
-    /// Create a KEM instance using lib-q-kem abstraction
-    fn create_kem_instance(kem: HpkeKem) -> Result<Box<dyn CoreKem>, HpkeError> {
-        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
-        create_kem(algorithm)
-            .map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM instance: {}", e)))
+    fn create_kem_provider() -> Result<LibQKemProvider, HpkeError> {
+        LibQKemProvider::new()
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM provider: {}", e)))
+    }
+
+    fn create_hash_instance(kdf: HpkeKdf) -> Result<Box<dyn CoreHash>, HpkeError> {
+        let algorithm = match kdf {
+            HpkeKdf::HkdfShake128 => HashAlgorithm::Shake128,
+            HpkeKdf::HkdfShake256 => HashAlgorithm::Shake256,
+            HpkeKdf::HkdfSha3_256 => HashAlgorithm::Sha3_256,
+            HpkeKdf::HkdfSha3_512 => HashAlgorithm::Sha3_512,
+        };
+        create_hash(algorithm)
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create hash instance: {}", e)))
+    }
+
+    fn create_aead_instance(aead: HpkeAead) -> Result<Box<dyn CoreAead>, HpkeError> {
+        let algorithm = match aead {
+            HpkeAead::Saturnin256 => Algorithm::Saturnin,
+            HpkeAead::Shake256 => Algorithm::Shake256Aead,
+            HpkeAead::DuplexSpongeAead => {
+                #[cfg(feature = "duplex-sponge-aead")]
+                {
+                    Algorithm::DuplexSpongeAead
+                }
+                #[cfg(not(feature = "duplex-sponge-aead"))]
+                {
+                    return Err(HpkeError::feature_not_enabled(
+                        "duplex-sponge-aead (enable lib-q-hpke feature duplex-sponge-aead)",
+                    ));
+                }
+            }
+            HpkeAead::Export => return Err(HpkeError::not_implemented("Export-only AEAD")),
+        };
+        create_aead(algorithm)
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create AEAD instance: {}", e)))
     }
 }
 ```
@@ -135,17 +159,17 @@ The implementation supports all HPKE modes as specified in RFC 9180:
 Standard HPKE without additional authentication. Provides confidentiality through KEM encapsulation/decapsulation.
 
 ### PSK Mode
-Pre-shared key authentication mode. PSK is incorporated into the key schedule with validation.
+Pre-shared key authentication mode. PSK is incorporated into the key schedule with validation. Use [`HpkeContext::setup_sender_psk`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_psk`](../lib-q-hpke/src/lib.rs). The bytes on the wire for the encapsulated key follow [`HpkeContext::psk_wire_format`](../lib-q-hpke/src/lib.rs) (RFC 9180 by default; optional libQ suffix as described above).
 
 ### Auth Mode
-Sender authentication using asymmetric keys. Implements AuthEncap/AuthDecap for cryptographic sender verification.
+Sender authentication using asymmetric keys. Implements AuthEncap/AuthDecap for cryptographic sender verification. API: [`setup_sender_auth`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_auth`](../lib-q-hpke/src/lib.rs).
 
 ### AuthPSK Mode
-Combined PSK and sender authentication. Provides maximum security with both shared secret and sender verification.
+Combined PSK and sender authentication. API: [`setup_sender_auth_psk`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_auth_psk`](../lib-q-hpke/src/lib.rs). Encapsulated-key layout follows the same [`HpkePskWireFormat`](../lib-q-hpke/src/types.rs) policy as PSK mode.
 
 ### Authentication implementation
 
-Auth / AuthPSK modes follow **RFC 9180** key schedules and use the same ML-KEM KEM id (`HpkeKem`) as base mode, with sender key material mixed into the HPKE context (see `lib-q-hpke/src/hpke_core/` and `auth_mode_tests.rs`). The repository previously included illustrative pseudocode here that did not match the checked-in implementation; read the crate sources and RFC for precise encap/decap ordering.
+Auth / AuthPSK modes follow **RFC 9180** key schedules and use the same ML-KEM KEM id (`HpkeKem`) as base mode, with sender key material mixed into the HPKE context (see [`lib-q-hpke/src/hpke_core.rs`](../lib-q-hpke/src/hpke_core.rs) and [`lib-q-hpke/tests/auth_mode_tests.rs`](../lib-q-hpke/tests/auth_mode_tests.rs)). The repository previously included illustrative pseudocode here that did not match the checked-in implementation; read the crate sources and RFC for precise encap/decap ordering.
 
 **Key security properties (intent):**
 
@@ -158,9 +182,9 @@ Auth / AuthPSK modes follow **RFC 9180** key schedules and use the same ML-KEM K
 The HPKE implementation provides comprehensive security guarantees:
 
 ### Post-Quantum Security
-- **KEM Security**: All KEM algorithms (ML-KEM-512, ML-KEM-768, ML-KEM-1024) provide IND-CCA2 security
-- **Key Derivation**: HKDF with post-quantum hash functions (SHAKE256, SHA3) ensures secure key derivation
-- **AEAD Security**: Saturnin-256 provides authenticated encryption with post-quantum security
+- **KEM Security**: All supported KEM parameter sets (ML-KEM-512, ML-KEM-768, ML-KEM-1024) are used as specified in FIPS 203 for the HPKE KEM role
+- **Key Derivation**: HKDF with post-quantum hash functions (SHAKE128/256, SHA3-256/512) per suite selection
+- **AEAD Security**: [`HpkeAead::Saturnin256`](../lib-q-hpke/src/types.rs) uses a 32-byte authentication tag; SHAKE256 and duplex-sponge AEAD options are also available (see `HpkeAead::tag_len` in `types.rs`)
 
 ### Implementation Security
 
@@ -179,26 +203,29 @@ The HPKE implementation provides comprehensive security guarantees:
 
 ### Performance Characteristics
 
-| Algorithm | Security Level | Key Size | Ciphertext Size | Performance |
-|-----------|---------------|----------|-----------------|-------------|
-| ML-KEM-512 | Level 1 (128-bit) | 800 bytes | 768 bytes | Fast |
-| ML-KEM-768 | Level 3 (192-bit) | 1184 bytes | 1088 bytes | Balanced |
-| ML-KEM-1024 | Level 5 (256-bit) | 1568 bytes | 1568 bytes | Secure |
-| Saturnin-256 | Post-quantum | 32 bytes | 16 bytes | Fast |
+Wire sizes for the **KEM** role (public key length / encapsulated ciphertext length) match [`HpkeKem`](../lib-q-hpke/src/types.rs):
+
+| KEM | Approx. NIST category | Public key | Encapsulated ciphertext |
+|-----|------------------------|------------|-------------------------|
+| ML-KEM-512 | 1 | 800 B | 768 B |
+| ML-KEM-768 | 3 | 1184 B | 1088 B |
+| ML-KEM-1024 | 5 | 1568 B | 1568 B |
+
+**AEAD (Saturnin-256):** 32-byte key, 16-byte base nonce, **32-byte tag** (ciphertext expands by plaintext length plus tag; there is no fixed “ciphertext size” independent of the message).
 
 ## Integration with lib-Q Ecosystem
 
 The HPKE implementation is designed to integrate seamlessly with the broader lib-Q ecosystem:
 
 ### Provider Pattern Integration
-- **lib-q-core**: Uses `KemContext`, `KemPublicKey`, `KemSecretKey` for consistent key management
-- **lib-q-kem**: Leverages `create_kem()` for algorithm-agnostic KEM operations
-- **lib-q-hash**: Uses `create_hash()` for algorithm-agnostic hash functions
-- **lib-q-aead**: Uses `create_aead()` for algorithm-agnostic authenticated encryption
+- **lib-q-core**: Uses `KemContext`, `KemPublicKey`, `KemSecretKey`, and `CryptoProvider` for keying and HPKE entry points
+- **lib-q-kem**: `PostQuantumProvider` builds a [`LibQKemProvider`](../lib-q-kem) and drives ML-KEM encapsulation/decapsulation (including AuthEncap/AuthDecap)
+- **lib-q-hash**: `create_hash()` for HKDF extract/expand
+- **lib-q-aead**: `create_aead()` for encrypt/decrypt in the data plane
 
 ### Algorithm Support
-- **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024; KDFs `HKDF-SHAKE128/256`, `HKDF-SHA3-256/512`; AEADs **Saturnin-256**, **SHAKE256**, **duplex-sponge AEAD**, **export-only** (see `lib-q-hpke/src/types.rs` `HpkeKdf` / `HpkeAead`)
-- **Future**: Additional post-quantum algorithms as they become available
+- **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024; KDFs `HKDF-SHAKE128/256`, `HKDF-SHA3-256/512`; AEADs **Saturnin-256**, **SHAKE256**, **duplex-sponge AEAD** (enable crate feature `duplex-sponge-aead` on `lib-q-hpke`, and when using the `lib-q` metacrate the `hpke-duplex-aead` feature), **export-only** (see [`HpkeKdf`](../lib-q-hpke/src/types.rs) / [`HpkeAead`](../lib-q-hpke/src/types.rs))
+- **Future**: Additional post-quantum algorithms as they become available and are wired through the HPKE provider
 
 ## Usage Examples
 
@@ -432,6 +459,7 @@ fn export_only_example() -> Result<(), Box<dyn std::error::Error>> {
 4. **Key Validation**: Always validate key material before use
 
 ```rust
+use lib_q_hpke::HpkeKem;
 use lib_q_hpke::security::{validate_kem_key, KeyType, SecureKey};
 
 // Secure key storage (length must match `KeyType::expected_length()`)
@@ -454,7 +482,7 @@ validate_kem_key(HpkeKem::MlKem512, &sk, true)?;
 ```rust
 use lib_q_hpke::HpkeContextState;
 
-// `HpkeSenderContext` exposes `state` and `sequence_number` fields (see `lib-q-hpke/src/types.rs`)
+// `HpkeSenderContext` exposes `state` and `sequence_number` fields (see `../lib-q-hpke/src/types.rs`)
 if sender_ctx.state == HpkeContextState::NeedsRekey {
     sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"new-session")?;
 }
@@ -470,18 +498,19 @@ if sender_ctx.sequence_number > 1_000_000 {
 3. **Graceful Degradation**: Implement fallback mechanisms for critical operations
 
 ```rust
+use lib_q_core::Error;
+
 match hpke_ctx.seal(&recipient_pk, info, aad, message) {
     Ok((encapsulated_key, ciphertext)) => {
         // Success - proceed with encrypted data
     }
-    Err(HpkeError::CryptoError(msg)) => {
-        // Log error without sensitive details
-        eprintln!("HPKE encryption failed: {}", msg);
+    Err(Error::InternalError { operation, details }) => {
+        // HPKE maps most failures to InternalError (see lib-q-hpke `From<HpkeError>`)
+        eprintln!("HPKE encryption failed: {} — {}", operation, details);
         return Err("Encryption failed".into());
     }
     Err(e) => {
-        // Handle other error types
-        return Err(format!("HPKE error: {}", e).into());
+        return Err(format!("lib-q error: {}", e).into());
     }
 }
 ```

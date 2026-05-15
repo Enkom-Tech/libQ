@@ -3,6 +3,8 @@
 #![cfg(feature = "std")]
 #![allow(unused_variables)]
 
+use std::sync::Arc;
+
 use lib_q_core::{
     Algorithm,
     KemContext,
@@ -14,6 +16,7 @@ use lib_q_hpke::hpke_core::{
     setup_sender_with_mode,
 };
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::types::{
     HpkeAead,
     HpkeCipherSuite,
@@ -31,7 +34,8 @@ fn test_psk_mode_context_setup() {
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -56,7 +60,7 @@ fn test_psk_mode_context_setup() {
         recipient_keypair.public_key(),
         b"test-info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -64,6 +68,7 @@ fn test_psk_mode_context_setup() {
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("PSK mode sender setup should work");
 
@@ -81,12 +86,13 @@ fn test_psk_mode_context_setup() {
         recipient_keypair.secret_key(),
         b"test-info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk),
         Some(psk_id),
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("PSK mode receiver setup should work");
 
@@ -109,7 +115,8 @@ fn test_psk_mode_single_shot() {
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -141,7 +148,7 @@ fn test_psk_mode_single_shot() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -166,12 +173,13 @@ fn test_psk_mode_single_shot() {
         aad,
         &ciphertext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk),
         Some(psk_id),
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("PSK mode decryption should work");
 
@@ -186,7 +194,8 @@ fn test_psk_mode_different_psks() {
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -225,7 +234,7 @@ fn test_psk_mode_different_psks() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk1),
@@ -244,7 +253,7 @@ fn test_psk_mode_different_psks() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk2),
@@ -268,12 +277,13 @@ fn test_psk_mode_different_psks() {
         aad,
         &ciphertext1,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk1),
         Some(psk_id1),
         None,
         psk_wire,
+        hpke_crypto.clone(),
     )
     .expect("PSK 1 decryption should work");
 
@@ -286,12 +296,13 @@ fn test_psk_mode_different_psks() {
         aad,
         &ciphertext2,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk2),
         Some(psk_id2),
         None,
         psk_wire,
+        hpke_crypto.clone(),
     )
     .expect("PSK 2 decryption should work");
 
@@ -308,12 +319,13 @@ fn test_psk_mode_different_psks() {
         aad,
         &ciphertext1,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk2), // Wrong PSK
         Some(psk_id1),
         None,
         psk_wire,
+        hpke_crypto.clone(),
     );
 
     assert_eq!(
@@ -330,7 +342,8 @@ fn test_psk_mode_parameter_validation() {
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -354,7 +367,7 @@ fn test_psk_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         None, // Missing PSK
@@ -362,6 +375,7 @@ fn test_psk_mode_parameter_validation() {
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(result.is_err(), "Missing PSK should cause error");
 
@@ -371,7 +385,7 @@ fn test_psk_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -379,6 +393,7 @@ fn test_psk_mode_parameter_validation() {
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(result.is_err(), "Missing PSK ID should cause error");
 
@@ -392,7 +407,7 @@ fn test_psk_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -400,6 +415,7 @@ fn test_psk_mode_parameter_validation() {
         Some(sender_keypair.secret_key()), // Invalid for PSK mode
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(
         result.is_err(),
@@ -414,7 +430,8 @@ fn test_psk_mode_different_cipher_suites() {
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
@@ -442,7 +459,7 @@ fn test_psk_mode_different_cipher_suites() {
         aad,
         plaintext,
         &suite1,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -461,12 +478,13 @@ fn test_psk_mode_different_cipher_suites() {
         aad,
         &cipher1,
         &suite1,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk),
         Some(psk_id),
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Suite 1 decryption should work");
 
@@ -491,7 +509,7 @@ fn test_psk_mode_different_cipher_suites() {
         aad,
         plaintext,
         &suite2,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -510,12 +528,13 @@ fn test_psk_mode_different_cipher_suites() {
         aad,
         &cipher2,
         &suite2,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Psk,
         Some(psk),
         Some(psk_id),
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Suite 2 decryption should work");
 

@@ -32,7 +32,7 @@ use crate::params::{
     TAG_BYTES,
 };
 
-/// Keccak-f[1600] duplex-sponge AEAD (136-byte rate, 32-byte tag).
+/// Keccak-f\[1600\] duplex-sponge AEAD (136-byte rate, 32-byte tag).
 pub struct DuplexSpongeAead;
 
 impl DuplexSpongeAead {

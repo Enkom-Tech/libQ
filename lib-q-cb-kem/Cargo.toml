@@ -84,7 +84,8 @@ cbkem8192128 = []
 cbkem8192128f = ["nist-aes-rng"]
 
 # NIST AES256-CTR RNG for KATs and deterministic testing (includes zeroize for uninstantiate)
-nist-aes-rng = ["dep:aes", "zeroize"]
+aes = ["dep:aes"]
+nist-aes-rng = ["aes", "zeroize"]
 
 [lib]
 name = "lib_q_cb_kem"

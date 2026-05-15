@@ -195,7 +195,7 @@ pub fn compute_credential_commitment(attributes: &[Vec<u8>]) -> Result<Vec<u8>> 
     Ok(commitment_field_to_bytes(commitment_field))
 }
 
-/// Serialize a Complex<Mersenne31> to 8 LE bytes (4 real + 4 imag).
+/// Serialize a `Complex<Mersenne31>` to 8 LE bytes (4 real + 4 imag).
 fn commitment_field_to_bytes(f: lib_q_poseidon::PoseidonField) -> Vec<u8> {
     use lib_q_stark_field::{
         BasedVectorSpace,
@@ -209,7 +209,7 @@ fn commitment_field_to_bytes(f: lib_q_poseidon::PoseidonField) -> Vec<u8> {
     bytes
 }
 
-/// Deserialize 8 LE bytes into a Complex<Mersenne31>.
+/// Deserialize 8 LE bytes into a `Complex<Mersenne31>`.
 fn commitment_field_from_bytes(bytes: &[u8]) -> Option<lib_q_poseidon::PoseidonField> {
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;

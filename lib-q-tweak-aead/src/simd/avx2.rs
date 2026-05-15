@@ -1,4 +1,4 @@
-//! AVX2 fast path: batched Keccak-f[1600] for four consecutive block counters.
+//! AVX2 fast path: batched Keccak-f\[1600\] for four consecutive block counters.
 #![allow(unsafe_code)]
 #![allow(unsafe_op_in_unsafe_fn)]
 

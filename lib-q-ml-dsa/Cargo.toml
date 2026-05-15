@@ -65,8 +65,11 @@ nist-drbg = ["random", "lib-q-random/nist-drbg"]  # NIST SP 800-90A DRBG for KAT
 
 # Security hardening
 fips-mode = []                                      # Strict FIPS 204 compliance, minimal overhead
+# Optional `subtle` / `getrandom` use `dep:`; name features for workspace `cargo metadata --features` / tooling.
+subtle = ["dep:subtle"]
+getrandom = ["dep:getrandom"]
 # Atomic gate: RNG + zeroize + subtle + masked/constant-time signing paths. Do not enable piecemeal.
-hardened = ["random", "zeroize", "dep:subtle", "dep:getrandom"]
+hardened = ["random", "zeroize", "subtle", "getrandom"]
 zeroize = ["dep:zeroize"]                           # Automatic zeroization of sensitive material
 
 # Testing and validation

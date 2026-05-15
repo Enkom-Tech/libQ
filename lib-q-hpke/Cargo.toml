@@ -85,9 +85,15 @@ required-features = ["std"]
 name = "advanced_usage"
 required-features = ["std"]
 
+[[example]]
+name = "hpke_interop_negotiation"
+required-features = ["std"]
+
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
 lib-q = { path = "../lib-q", version = "0.0.2", features = ["ml-kem"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 
 [[test]]

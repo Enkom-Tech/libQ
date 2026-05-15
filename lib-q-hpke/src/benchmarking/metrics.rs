@@ -82,7 +82,7 @@ pub enum AlgorithmType {
     Saturnin256,
     /// SHAKE256 AEAD
     Shake256Aead,
-    /// Duplex-sponge AEAD (Keccak-f[1600])
+    /// Duplex-sponge AEAD (Keccak-f\[1600\])
     DuplexSpongeAead,
     /// Export-only
     ExportOnly,

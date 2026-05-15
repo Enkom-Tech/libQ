@@ -1,4 +1,4 @@
-//! Portable duplex AEAD (scalar Keccak-f[1600]).
+//! Portable duplex AEAD (scalar Keccak-f\[1600\]).
 
 use crate::crypto::{
     decrypt as core_decrypt,

@@ -10,7 +10,7 @@
 //!
 //! ## Field Configuration
 //!
-//! The implementation uses **Complex<Mersenne31>** as the base field, which provides:
+//! The implementation uses **`Complex<Mersenne31>`** as the base field, which provides:
 //! - **TWO_ADICITY = 32**: Sufficient for FRI protocol and efficient FFT operations
 //! - **Post-quantum security**: All operations use NIST-approved primitives
 //! - **Efficient arithmetic**: Optimized field operations for STARK proofs
@@ -162,7 +162,7 @@ use crate::air::TraceGenerator;
 
 /// The field type used for ZKP operations
 ///
-/// Uses Complex<Mersenne31> which provides TWO_ADICITY = 32, sufficient for
+/// Uses `Complex<Mersenne31>` which provides TWO_ADICITY = 32, sufficient for
 /// FRI protocol and efficient FFT operations.
 #[cfg(feature = "zkp")]
 pub type ZkpField = Complex<Mersenne31>;

@@ -8,7 +8,13 @@ From this directory:
 
 ```bash
 rustup target add wasm32-unknown-unknown
-export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C panic=abort'
+wasm-pack build --target web --release
+```
+
+The workspace [`.cargo/config.toml`](../../.cargo/config.toml) already sets `--cfg getrandom_backend="wasm_js"` for `wasm32-unknown-unknown`. For CI parity you can still export explicit flags (see [docs/wasm-compilation.md](../../docs/wasm-compilation.md)); on PowerShell:
+
+```powershell
+$env:CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS='--cfg getrandom_backend="wasm_js" -C panic=abort'
 wasm-pack build --target web --release
 ```
 

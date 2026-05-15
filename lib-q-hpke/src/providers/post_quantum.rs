@@ -4,7 +4,8 @@
 //! (Layer A only). For **Layer B** semantic decrypt (`decrypt_semantic`), use the concrete HPKE
 //! AEAD modules where implemented ([`crate::aead::saturnin::SaturninAeadImpl`],
 //! [`crate::aead::shake256::Shake256AeadImpl`]), or the concrete registry types in `lib-q-aead`
-//! (including [`lib_q_aead::DuplexSpongeAead`] when the `duplex-sponge-aead` feature is enabled).
+//! (including the duplex-sponge AEAD registered in `lib-q-aead` when the `duplex-sponge-aead`
+//! feature is enabled).
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -114,13 +115,11 @@ impl PostQuantumProvider {
 }
 
 impl KemProvider for PostQuantumProvider {
-    type Error = HpkeError;
-
     fn generate_keypair(
         &self,
         kem: HpkeKem,
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let keypair = provider
@@ -137,7 +136,7 @@ impl KemProvider for PostQuantumProvider {
         kem: HpkeKem,
         public_key: &[u8],
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let pk = lib_q_core::KemPublicKey::new(public_key.to_vec());
@@ -152,7 +151,7 @@ impl KemProvider for PostQuantumProvider {
         kem: HpkeKem,
         secret_key: &[u8],
         ciphertext: &[u8],
-    ) -> Result<Zeroizing<Vec<u8>>, Self::Error> {
+    ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let sk = lib_q_core::KemSecretKey::new(secret_key.to_vec());
@@ -162,7 +161,7 @@ impl KemProvider for PostQuantumProvider {
         Ok(Zeroizing::new(ss))
     }
 
-    fn validate_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), Self::Error> {
+    fn validate_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), HpkeError> {
         let expected_len = if is_secret {
             kem.secret_key_len()
         } else {
@@ -186,7 +185,7 @@ impl KemProvider for PostQuantumProvider {
         Ok(())
     }
 
-    fn derive_public_key(&self, kem: HpkeKem, secret_key: &[u8]) -> Result<Vec<u8>, Self::Error> {
+    fn derive_public_key(&self, kem: HpkeKem, secret_key: &[u8]) -> Result<Vec<u8>, HpkeError> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let secret_key_obj = lib_q_core::KemSecretKey::new(secret_key.to_vec());
@@ -217,7 +216,7 @@ impl KemProvider for PostQuantumProvider {
         sender_sk: &[u8],
         recipient_pk: &[u8],
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
         // AuthEncap implementation according to RFC 9180 Section 5.1.3
         // For ML-KEM, AuthEncap is implemented using regular KEM operations:
         // 1. Use the sender's secret key to derive the sender's public key
@@ -297,7 +296,7 @@ impl KemProvider for PostQuantumProvider {
         encapsulated_key: &[u8],
         recipient_sk: &[u8],
         sender_pk: &[u8],
-    ) -> Result<Zeroizing<Vec<u8>>, Self::Error> {
+    ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
         // AuthDecap implementation according to RFC 9180 Section 5.1.3
         // For ML-KEM, AuthDecap is implemented using regular KEM operations:
         // 1. Use the recipient's secret key to decapsulate the shared secret
@@ -518,9 +517,7 @@ impl PostQuantumProvider {
 }
 
 impl KdfProvider for PostQuantumProvider {
-    type Error = HpkeError;
-
-    fn extract(&self, kdf: HpkeKdf, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, Self::Error> {
+    fn extract(&self, kdf: HpkeKdf, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, HpkeError> {
         // Use the existing HKDF implementation which is already algorithm-agnostic
         // The HKDF implementation uses lib-q-hash internally
         let hkdf_impl = HkdfImpl::new(kdf);
@@ -533,7 +530,7 @@ impl KdfProvider for PostQuantumProvider {
         prk: &[u8],
         info: &[u8],
         output_len: usize,
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Vec<u8>, HpkeError> {
         // Use the existing HKDF implementation which is already algorithm-agnostic
         // The HKDF implementation uses lib-q-hash internally
         let hkdf_impl = HkdfImpl::new(kdf);
@@ -554,8 +551,6 @@ impl KdfProvider for PostQuantumProvider {
 }
 
 impl AeadProvider for PostQuantumProvider {
-    type Error = HpkeError;
-
     fn seal(
         &self,
         aead: HpkeAead,
@@ -563,7 +558,7 @@ impl AeadProvider for PostQuantumProvider {
         nonce: &[u8],
         aad: &[u8],
         plaintext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Vec<u8>, HpkeError> {
         // Validate inputs
         <Self as AeadProvider>::validate_key(self, aead, key)?;
         self.validate_nonce(aead, nonce)?;
@@ -597,7 +592,7 @@ impl AeadProvider for PostQuantumProvider {
         nonce: &[u8],
         aad: &[u8],
         ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Vec<u8>, HpkeError> {
         // Validate inputs
         <Self as AeadProvider>::validate_key(self, aead, key)?;
         self.validate_nonce(aead, nonce)?;
@@ -624,7 +619,7 @@ impl AeadProvider for PostQuantumProvider {
         }
     }
 
-    fn validate_key(&self, aead: HpkeAead, key: &[u8]) -> Result<(), Self::Error> {
+    fn validate_key(&self, aead: HpkeAead, key: &[u8]) -> Result<(), HpkeError> {
         let expected_len = aead.key_len();
         if key.len() != expected_len {
             return Err(HpkeError::invalid_input(
@@ -644,7 +639,7 @@ impl AeadProvider for PostQuantumProvider {
         Ok(())
     }
 
-    fn validate_nonce(&self, aead: HpkeAead, nonce: &[u8]) -> Result<(), Self::Error> {
+    fn validate_nonce(&self, aead: HpkeAead, nonce: &[u8]) -> Result<(), HpkeError> {
         let expected_len = aead.nonce_len();
         if nonce.len() != expected_len {
             return Err(HpkeError::invalid_input(

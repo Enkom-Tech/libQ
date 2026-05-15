@@ -251,9 +251,9 @@ where
 /// Proves multiple AIR instances in a single batch proof.
 ///
 /// For zeroization of sensitive trace data, wrap each instance's trace in a type that zeroizes
-/// on drop before calling. When using `lib-q-stark`, use [`lib_q_stark::secret::SecretWitness`]:
+/// on drop before calling. When using `lib-q-stark`, use `lib_q_stark::secret::SecretWitness`:
 ///
-/// ```ignore
+/// ```text
 /// use lib_q_stark::secret::SecretWitness;
 /// let secret_trace = SecretWitness::new(trace);
 /// let instance = StarkInstance { air, trace: secret_trace.trace(), ... };

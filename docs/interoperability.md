@@ -19,6 +19,31 @@ There is **no** maintained compatibility shim for **classical** public-key ecosy
 
 HPKE interop follows **RFC 9180** with lib-Q’s **PQ-only** KEM and KDF/AEAD catalog (`lib-q-hpke`); see [hpke-architecture.md](hpke-architecture.md) and [lib-q-hpke/docs/API_REFERENCE.md](../lib-q-hpke/docs/API_REFERENCE.md).
 
+### Profiles (PQ HPKE)
+
+Integrators should pick an explicit **interop profile** before exchanging bytes:
+
+| Profile | Meaning | PSK / AuthPSK wire | Algorithm IDs |
+|--------|---------|-------------------|----------------|
+| **RfcStrictPq** | RFC 9180 schedule; default PSK encapsulation matches RFC 9180. | [`HpkePskWireFormat::Rfc9180`](../lib-q-hpke/src/types.rs) only in this profile’s negotiation matrix. | ML-KEM + HKDF catalog from `HpkeKem` / `HpkeKdf`; AEAD IDs are lib-Q–assigned where not yet on an IANA registry—treat third-party interop as **profile-gated**, not “generic RFC 9180 DHKEM”. |
+| **LibQExtensions** | Same RFC schedule where applicable, plus lib-Q–specific wire and algorithms. | Optional [`HpkePskWireFormat::LibQCommitmentSuffix`](../lib-q-hpke/src/types.rs) (bilateral opt-in). | Includes non-IANA AEAD such as duplex-sponge (`duplex-sponge-aead` feature); document `LIBQ_HPKE_INTEROP_PROFILE_DOC` (`CARGO_PKG_VERSION`) alongside your on-wire version. |
+
+Deterministic suite selection lives in `lib_q_hpke::interop` (`HpkeCapabilities`, `negotiate_hpke_capabilities`). Bind the serialized capability bytes into an **application-authenticated** transcript (handshake, MLS, or your own MAC’d blob); the crate does not provide transport security.
+
+### Mode × suite matrix (representative)
+
+Rows use shorthand `KEM/KDF/AEAD`. Columns: **cross_release** (stable within documented semver for that cell), **third_party** (possible only with a matching profile-aware peer), **libq_only**, **stability** (`stable` vs `experimental` for algorithm IDs on the wire).
+
+| Mode | Suite (example) | PSK wire | `duplex-sponge-aead` | cross_release | third_party | libq_only | stability |
+|------|-----------------|----------|----------------------|----------------|-------------|-----------|-----------|
+| Base | ML-KEM-512 / HKDF-SHAKE256 / Saturnin-256 | n/a | off | yes | profile-gated | no | stable (suite IDs as shipped) |
+| Psk | same | Rfc9180 | off | yes | profile-gated | no | stable |
+| Auth / AuthPsk | same | Rfc9180 | off | yes | profile-gated | no | stable; sender `sk`/`pk` binding is enforced before encapsulation |
+| Psk / AuthPsk | same | LibQCommitmentSuffix | off | yes | no | yes | experimental wire |
+| Base / Psk / … | same | any | duplex AEAD on | feature-gated | no | yes | experimental unless/until IDs are standardized and aliased |
+
+Frozen negotiation fixtures for CI live under [`lib-q-hpke/tests/fixtures/`](../lib-q-hpke/tests/fixtures/README.md).
+
 ## Where to look next
 
 | Topic | Location |

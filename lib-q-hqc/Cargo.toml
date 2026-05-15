@@ -74,7 +74,8 @@ default = ["alloc", "random", "bearssl-aes"]
 # Core features
 std = []                            # Standard library support (compatibility feature)
 alloc = []                          # Heap allocation support (required for std builds)
-no_std = ["dep:heapless"]           # Embedded/no_std with heapless collections
+heapless = ["dep:heapless"]         # Named feature for optional dep (workspace `cargo metadata --features heapless`).
+no_std = ["heapless"]               # Embedded/no_std with heapless collections
 
 # HQC algorithm variants (NIST security levels)
 hqc128 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)

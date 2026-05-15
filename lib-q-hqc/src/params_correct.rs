@@ -78,7 +78,7 @@ pub trait HqcParams: Clone + fmt::Debug + PartialEq {
     const RS_POLY_COEFS: &'static [u8];
 
     /// Precomputed Galois‐field powers for Reed–Solomon operations
-    /// alpha_ij_pow[i][j] = α^(i⋅j) for i in [0…31], j in [0…54]
+    /// `alpha_ij_pow[i][j] = α^(i⋅j)` for i in [0…31], j in [0…54]
     const ALPHA_IJ_POW: &'static [[u16; 55]; 32];
 }
 

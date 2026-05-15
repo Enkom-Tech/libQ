@@ -36,19 +36,19 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum security, performance secondary
 
-#### Tier 2: Balanced (Hybrid Post-Quantum)
+#### Tier 2: Balanced (Post-Quantum)
 - **KEMs**: ML-KEM, CB-KEM, HQC
 - **Signatures**: ML-DSA, FN-DSA, SLH-DSA
-- **Symmetric**: Post-quantum KEM + Saturnin AEAD
-- **HPKE**: Hybrid HPKE (PQ KEM + Saturnin)
+- **Symmetric**: Saturnin, SHAKE-based AEAD options
+- **HPKE**: PQ-only HPKE (ML-KEM suite + Saturnin / SHAKE256 / optional duplex-sponge AEAD)
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Strong security with good performance
 
 #### Tier 3: Performance (Post-Quantum + Optimized)
 - **KEMs**: ML-KEM, CB-KEM, HQC
 - **Signatures**: ML-DSA, FN-DSA
-- **Symmetric**: Post-quantum KEM + Saturnin AEAD (optimized modes)
-- **HPKE**: Performance HPKE (PQ KEM + Saturnin)
+- **Symmetric**: Saturnin, SHAKE-based AEAD options (optimized modes where applicable)
+- **HPKE**: PQ-only HPKE with the same primitive set; tiering is primarily about parameter sets and AEAD choice, not a classical “hybrid” KEM
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum performance, strong security
 
@@ -56,13 +56,15 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 All tiers support post-quantum zero-knowledge proofs:
 
 #### zk-STARKs (Primary)
-- **Scalable**: Proof size grows logarithmically with computation
-- **Transparent**: No trusted setup required
-- **Post-quantum secure**: Based on collision-resistant hash functions
-- **WASM compatible**: Full browser and Node.js support
-- **Use Cases**: Blockchain privacy, scalable computation, verifiable computation
+- **Scalable**: Proof size grows roughly logarithmically with trace size for the parameters chosen (FRI blowup, query count).
+- **Transparent**: No trusted setup required.
+- **Post-quantum secure (default pipeline)**: Soundness is argued from **collision resistance of the transcript layer** (default **SHAKE256** challenger and Merkle hashing in `lib-q-zkp::stark::default_config`) together with **FRI** and query repetition—not from a classical discrete-log or pairing assumption.
+- **Trace field**: The default native field for STARK traces is **`Complex<Mersenne31>`** (`ZkpField` in `lib-q-zkp`). It is chosen for FFT/FRI efficiency; security margins must be set via FRI parameters and the hash-backed transcript, not by treating the field as a 256-bit secrecy container.
+- **Poseidon inside some AIRs**: For constraint efficiency, several shipped paths use **Poseidon-128** *inside the AIR* (for example default secret-preimage proofs, Merkle inclusion, and `SessionKeyDerivationAir` commitments). **Transcript binding** for those proofs still uses the STARK challenger configuration (SHAKE256 by default). If your policy requires **NIST-only** hash commitments *inside* the proved statement, use the documented NIST variants (for example `prove_secret_value_nist` / `HashPreimageNistAir` and the NIST preimage APIs in `lib-q-zkp::api`).
+- **WASM**: `lib-q-zkp` and `lib-q-lattice-zkp` are exercised in CI for `wasm32-unknown-unknown` and wasm-bindgen smoke tests; see [ZKP Implementation](zkp-implementation.md#testing-strategy).
+- **Use cases**: Verifiable computation, privacy-preserving proofs of statements encoded as AIRs, and protocol-adjacent demos—always match the proof type to your assurance target.
 
-lib-Q implements zk-STARKs via its own NIST-adapted stack (lib-q-stark) and a full Plonky3-derived stack (lib-q-plonky); see [ZKP Implementation](zkp-implementation.md) (section "Library layout and implementation status") for the library layout.
+lib-Q implements zk-STARKs via its own NIST-adapted stack (`lib-q-stark` and satellite crates) and an optional full Plonky3-derived stack (`lib-q-plonky`); see [ZKP Implementation](zkp-implementation.md#library-layout-and-implementation-status) for layout, features, and CI.
 
 #### Other ZKP work in-tree
 - **`lib-q-lattice-zkp`**: Research crate for **module-lattice** commitments and sigma-style proofs on `lib-q-ring`; not an AIR/STARK pipeline. See [zkp-implementation.md](zkp-implementation.md).
@@ -103,13 +105,12 @@ must be invoked only on attacker-independent secrets.
 | Anonymous token (`AnonymousToken::spend`) | Application-layer registry of spent serials | Verifier maintains a per-realm `serial → seen` set; `SpendingProof::verify` rejects mismatched serials. |
 
 #### ZKP Features
-- **Proof Generation**: Create zero-knowledge proofs of computation
-- **Proof Verification**: Verify proofs without revealing inputs
-- **Privacy-Preserving**: Hide sensitive data while proving statements
-- **Scalable Verification**: Efficient verification of complex computations
+- **Proof generation / verification**: `ZkpProver` / `ZkpVerifier` and lower-level `StarkProver` / `StarkVerifier` over configured AIRs (see [ZKP Implementation](zkp-implementation.md#public-api-surface)).
+- **Privacy-preserving statements**: Depends on what is public in the AIR (public inputs, Merkle roots, metadata); not every API hides all witness bits—read the AIR and proof-type docs.
+- **Scalable verification**: Verifier cost is dominated by Merkle openings and FRI checks at the chosen security parameters.
 
 ### Post-Quantum Hash Functions
-We use only SHA-3 family hash functions, which are quantum-resistant:
+For **general-purpose** hashing and XOFs in KEM, signature, and AEAD-facing APIs, the design center is the **SHA-3 family** (quantum-resistant in the usual hash security model):
 
 1. **SHAKE256** (Primary)
    - Variable output length
@@ -128,6 +129,8 @@ We use only SHA-3 family hash functions, which are quantum-resistant:
    - Domain separation capabilities
    - Used for specific applications requiring customization
    - NIST standardized
+
+**STARK / ZKP note:** `lib-q-zkp` also uses **Poseidon-128** inside specific AIR and Merkle gadgets where documented. That is an **in-circuit** primitive for arithmetization efficiency; it does not replace SHAKE256 as the default **Fiat-Shamir / Merkle** transcript hash in the recommended STARK configuration. Integrators with a strict "NIST-only inside the proved commitment" requirement should select the NIST preimage and NIST-hash AIR paths described in [ZKP Implementation](zkp-implementation.md).
 
 ### NIST PQC Standardization
 We only use algorithms that have been standardized or are in the final round of NIST's Post-Quantum Cryptography standardization process:

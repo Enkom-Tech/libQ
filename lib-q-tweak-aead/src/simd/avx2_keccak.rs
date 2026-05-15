@@ -1,4 +1,4 @@
-//! Four-way parallel Keccak-f[1600] over `__m256i` lanes (AVX2).
+//! Four-way parallel Keccak-f\[1600\] over `__m256i` lanes (AVX2).
 #![allow(unsafe_code)]
 #![allow(unsafe_op_in_unsafe_fn)]
 
@@ -78,7 +78,7 @@ unsafe fn rotl64x4(v: __m256i, n: u32) -> __m256i {
     }
 }
 
-/// 24-round Keccak-f[1600] on four interleaved states (`state[w]` holds lane `j` = word `w` of instance `j`).
+/// 24-round Keccak-f\[1600\] on four interleaved states (`state[w]` holds lane `j` = word `w` of instance `j`).
 ///
 /// # Safety
 ///

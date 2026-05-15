@@ -137,7 +137,7 @@ impl AeadContext {
 
     /// Decrypt data using the specified algorithm.
     ///
-    /// Dispatches through [`AeadOperations::decrypt`](crate::api::AeadOperations::decrypt) (**Layer A**
+    /// Dispatches through [`AeadOperations::decrypt`] (**Layer A**
     /// `Result` only). Semantic decrypt ([`crate::AeadDecryptSemantic`]) is not part of this
     /// context; see ADR `docs/adr/003-aead-decrypt-layers.md`.
     pub fn decrypt(

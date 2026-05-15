@@ -1,5 +1,9 @@
 #![cfg(feature = "std")]
 
+use std::sync::Arc;
+
+use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::{
     HpkeAead,
     HpkeCipherSuite,
@@ -320,7 +324,6 @@ fn test_key_schedule_export_aead_zero_key_and_nonce() {
 #[test]
 fn test_setup_sender_with_cipher_suite() {
     use lib_q_core::KemContext;
-    use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 
     // Create a test key pair
     let mut kem_ctx = KemContext::with_provider(Box::new(
@@ -339,15 +342,17 @@ fn test_setup_sender_with_cipher_suite() {
     );
 
     let mut kem_ctx_for_setup = KemContext::new();
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
     let result = hpke_core::setup_sender(
         &mut kem_ctx_for_setup,
         &recipient_pk,
         info,
         &cipher_suite,
-        &provider,
+        hpke_crypto.as_ref(),
         &mut rng,
+        hpke_crypto.clone(),
     )
     .expect("Setup sender should work");
 
@@ -364,7 +369,6 @@ fn test_setup_sender_with_cipher_suite() {
 #[test]
 fn test_setup_receiver_with_cipher_suite() {
     use lib_q_core::KemContext;
-    use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 
     // Create a test key pair
     let mut kem_ctx = KemContext::with_provider(Box::new(
@@ -385,14 +389,16 @@ fn test_setup_receiver_with_cipher_suite() {
     );
 
     let mut kem_ctx_for_setup = KemContext::new();
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let result = hpke_core::setup_receiver(
         &mut kem_ctx_for_setup,
         &encapsulated_key,
         &recipient_sk,
         info,
         &cipher_suite,
-        &provider,
+        hpke_crypto.as_ref(),
+        hpke_crypto.clone(),
     )
     .expect("Setup receiver should work");
 

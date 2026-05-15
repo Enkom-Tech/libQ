@@ -1,7 +1,7 @@
 //! Poseidon hash function optimized for zero-knowledge proofs
 //!
 //! This crate provides a field-native implementation of the Poseidon hash function,
-//! specifically optimized for use in STARK proof systems with Complex<Mersenne31>.
+//! specifically optimized for use in STARK proof systems with `Complex<Mersenne31>`.
 //!
 //! # Design
 //!

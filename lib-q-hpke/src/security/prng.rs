@@ -201,6 +201,26 @@ impl CryptoRng for SimpleRng {
     }
 }
 
+/// Cryptographic RNG backed by [`fill_random_bytes`] (OS / platform entropy via `lib-q-random`).
+///
+/// This is the default RNG for [`crate::HpkeContext`] production paths (setup and single-shot seal).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct EntropyCryptoRng;
+
+impl CryptoRng for EntropyCryptoRng {
+    fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
+        fill_random_bytes(dest)
+    }
+
+    fn next_u32(&mut self) -> Result<u32, HpkeError> {
+        random_u32()
+    }
+
+    fn next_u64(&mut self) -> Result<u64, HpkeError> {
+        random_u64()
+    }
+}
+
 /// Fill a buffer with random bytes using system entropy.
 ///
 /// Uses lib-q-random's entropy source. Returns an error if secure entropy

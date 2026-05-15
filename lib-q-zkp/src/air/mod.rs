@@ -6,10 +6,10 @@
 //!
 //! # Available AIRs
 //!
-//! - [`ArithmeticAir`] - Basic arithmetic operations (multiplication constraints)
-//! - [`RangeProofAir`] - Proves a value is within a specified range
-//! - [`HashPreimageAir`] - Proves knowledge of a Poseidon-128 preimage (industry-standard for STARK constraint encoding)
-//! - [`MerkleInclusionAir`] - Proves membership in a Merkle tree
+//! - [`crate::air::arithmetic::ArithmeticAir`] - Basic arithmetic operations (multiplication constraints)
+//! - [`crate::air::range_proof::RangeProofAir`] - Proves a value is within a specified range
+//! - [`crate::air::hash_preimage::HashPreimageAir`] - Proves knowledge of a Poseidon-128 preimage (industry-standard for STARK constraint encoding)
+//! - [`crate::air::merkle_inclusion::MerkleInclusionAir`] - Proves membership in a Merkle tree
 //!
 //! # Security
 //!
@@ -410,12 +410,12 @@ pub fn next_power_of_two(n: usize) -> usize {
 
 /// Convert PoseidonField to any Field F that supports u32 conversion
 ///
-/// Converts PoseidonField (Complex<Mersenne31>) to the target field type,
+/// Converts PoseidonField (`Complex<Mersenne31>`) to the target field type,
 /// preserving both real and imaginary parts via basis decomposition.
 ///
 /// # Arguments
 ///
-/// * `pf` - The PoseidonField (Complex<Mersenne31>) to convert
+/// * `pf` - The PoseidonField (`Complex<Mersenne31>`) to convert
 ///
 /// # Returns
 ///
@@ -431,7 +431,7 @@ pub fn poseidon_to_field<F: Field + BasedVectorSpace<Mersenne31>>(pf: &PoseidonF
     })
 }
 
-/// Convert slice of PoseidonField to Vec<F>
+/// Convert slice of PoseidonField to `Vec<F>`
 ///
 /// # Arguments
 ///
@@ -448,7 +448,7 @@ pub fn poseidon_slice_to_field<F: Field + BasedVectorSpace<Mersenne31>>(
 
 /// Convert PoseidonField hash output to bytes
 ///
-/// Uses RawDataSerializable to convert Complex<Mersenne31> elements to bytes.
+/// Uses RawDataSerializable to convert `Complex<Mersenne31>` elements to bytes.
 /// Each Complex element produces 8 bytes (4 for real, 4 for imag).
 ///
 /// # Arguments
@@ -598,7 +598,7 @@ pub fn compute_poseidon_row(
 /// Convert bytes to PoseidonField elements
 ///
 /// This is a helper function to consistently convert byte slices to PoseidonField
-/// (Complex<Mersenne31>) elements. Each byte is converted to a field element.
+/// (`Complex<Mersenne31>`) elements. Each byte is converted to a field element.
 ///
 /// # Arguments
 ///
@@ -618,7 +618,7 @@ pub fn bytes_to_poseidon_field(bytes: &[u8]) -> Vec<PoseidonField> {
 
 /// Decode the first 8 bytes of an Identity Token (IT) to the expected public value.
 /// The IT is the first 16 bytes of the encoding of the Poseidon hash output; the first 8 bytes
-/// encode one Complex<Mersenne31> (4 bytes real + 4 bytes imag, little-endian).
+/// encode one `Complex<Mersenne31>` (4 bytes real + 4 bytes imag, little-endian).
 pub fn it_bytes_to_public_value<F: Field + BasedVectorSpace<Mersenne31>>(it: &[u8; 16]) -> F {
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;

@@ -1,6 +1,6 @@
 //! SHAKE256 AEAD for HPKE (`HpkeAead::Shake256`).
 //!
-//! Wraps concrete [`lib_q_aead::Shake256Aead`]. HPKE [`Aead::open`](crate::aead::traits::Aead::open)
+//! Wraps concrete [`lib_q_aead::Shake256Aead`]. HPKE [`crate::aead::traits::Aead::open`]
 //! is a thin wrapper over [`Shake256AeadImpl::decrypt_semantic`] (Layer B), mirroring
 //! [`super::saturnin::SaturninAeadImpl`].
 

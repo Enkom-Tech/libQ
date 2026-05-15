@@ -29,7 +29,6 @@ path = "hash_example.rs"
 [[example]]
 name = "keccak_no_std_test"
 path = "keccak_no_std_test.rs"
-required-features = []
 
 [[example]]
 name = "cb_kem_example"

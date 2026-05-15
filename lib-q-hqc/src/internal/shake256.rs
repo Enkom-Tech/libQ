@@ -140,7 +140,7 @@ impl Shake256Xof {
         Ok(())
     }
 
-    /// Keccak-f[1600] permutation
+    /// Keccak-f\[1600\] permutation
     fn keccak_f(&mut self) {
         // Use the proper Keccak-f implementation from lib-q-keccak
         lib_q_keccak::f1600(&mut self.state);

@@ -2,7 +2,7 @@
 //! delegating to a base field challenger and using algebra element methods.
 //!
 //! Used so that STARK prover/verifier can use a single extension-field challenger
-//! (Complex<Mersenne31>) for transcript consistency while the underlying hash
+//! (`Complex<Mersenne31>`) for transcript consistency while the underlying hash
 //! operates on the base field.
 
 extern crate alloc;

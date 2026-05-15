@@ -19,7 +19,7 @@ use crate::metadata::{
     AeadWithMetadata,
 };
 
-/// Duplex-sponge AEAD (Keccak-f[1600]) — registry / HPKE-facing type.
+/// Duplex-sponge AEAD (Keccak-f\[1600\]) — registry / HPKE-facing type.
 pub struct DuplexSpongeAead {
     metadata: &'static AeadMetadata,
     inner: lib_q_duplex_aead::DuplexSpongeAead,

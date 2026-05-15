@@ -26,7 +26,8 @@ arm64_sha3 = [] # Enable ARM64 SHA3 hardware acceleration (requires native ARM64
 alloc = []     # Enable alloc support for no_std environments
 std = ["alloc", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
 multithreading = ["std", "thread-affinity", "simd"]  # Enable multi-threading support with thread affinity
-thread-affinity = ["dep:core_affinity"]  # Enable thread affinity support
+core_affinity = ["dep:core_affinity"]                 # Named feature for optional dep (workspace metadata / `dep:`).
+thread-affinity = ["core_affinity"]                   # Enable thread affinity support
 no_std_panic_handler = []  # Enable panic handler for pure no_std builds only
 
 # WebAssembly support

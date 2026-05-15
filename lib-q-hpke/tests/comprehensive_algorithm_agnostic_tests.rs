@@ -1,5 +1,7 @@
 //! Comprehensive tests for algorithm-agnostic design across all cryptographic primitives
 
+use std::sync::Arc;
+
 use lib_q_core::{
     KemContext,
     KemPublicKey,
@@ -10,6 +12,7 @@ use lib_q_hpke::hpke_core::{
     seal_with_mode,
 };
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::providers::{
     AeadProvider,
     KdfProvider,
@@ -29,7 +32,8 @@ use lib_q_kem::LibQKemProvider;
 /// Test comprehensive algorithm-agnostic design across all primitives
 #[test]
 fn test_comprehensive_algorithm_agnostic_design() {
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test all combinations of KEM, KDF, and AEAD algorithms
@@ -54,7 +58,7 @@ fn test_comprehensive_algorithm_agnostic_design() {
                     kem, kdf, aead
                 );
 
-                if test_algorithm_combination(&provider, &mut rng, *kem, *kdf, *aead) {
+                if test_algorithm_combination(&hpke_crypto, &mut rng, *kem, *kdf, *aead) {
                     success_count += 1;
                     println!("  ✓ Success");
                 } else {
@@ -78,7 +82,7 @@ fn test_comprehensive_algorithm_agnostic_design() {
 
 /// Test a specific combination of algorithms
 fn test_algorithm_combination(
-    provider: &PostQuantumProvider,
+    hpke_crypto: &Arc<dyn HpkeCryptoProvider + Send + Sync>,
     rng: &mut Kt128Rng,
     kem: HpkeKem,
     kdf: HpkeKdf,
@@ -86,6 +90,7 @@ fn test_algorithm_combination(
 ) -> bool {
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite { kem, kdf, aead };
+    let provider = hpke_crypto.as_ref();
 
     // Test 1: Provider support verification
     if !provider.supports_kem(kem) {
@@ -239,6 +244,7 @@ fn test_algorithm_combination(
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     ) {
         Ok(decrypted) => decrypted,
         Err(e) => {

@@ -1,92 +1,79 @@
 //! # lib-Q HPKE - Hybrid Public Key Encryption
 //!
-//! This crate provides a complete RFC 9180 compliant HPKE (Hybrid Public Key Encryption)
-//! implementation for lib-q, using exclusively post-quantum cryptographic algorithms.
+//! RFC 9180–aligned HPKE for lib-q using **post-quantum-only** primitives (ML-KEM for `HpkeKem::*`
+//! in the default internal provider path; Saturnin / SHAKE256 / optional duplex-sponge AEAD; SHAKE
+//! / SHA3 HKDF backends). There is no classical KEM in this stack.
 //!
 //! ## Features
 //!
-//! - **RFC 9180 compliant** HPKE implementation (modes, key schedule, labeled KDF; default PSK /
-//!   AuthPSK wire format is strict RFC 9180; optional libQ PSK commitment suffix when both peers opt in)
-//! - **Post-quantum algorithms only**: ML-KEM, Saturnin, SHAKE/SHA3
-//! - **Provider pattern integration** with lib-q-core
-//! - **Comprehensive test suite** with 95+ tests
-//! - **Security validation** and constant-time properties
-//! - **No-std support** for embedded environments
+//! - **RFC 9180–aligned** modes, key schedule, and labeled KDF; default PSK / AuthPSK encapsulated-key
+//!   wire format is RFC 9180; optional [`HpkePskWireFormat::LibQCommitmentSuffix`]
+//!   when both peers call [`HpkeContext::set_psk_wire_format`]
+//! - **Post-quantum algorithms**: ML-KEM, Saturnin, SHAKE/SHA3; optional **duplex-sponge AEAD** via
+//!   Cargo feature `duplex-sponge-aead` (umbrella `lib-q` crate: `hpke-duplex-aead`)
+//! - **Provider integration**: [`HpkeContext`] holds a `lib_q_core::KemContext`
+//!   from [`HpkeContext::with_provider`] (`Box<dyn CryptoProvider>`);
+//!   HPKE protocol steps use [`PostQuantumProvider`]
+//!   implementing [`crate::providers::KemProvider`], [`crate::providers::KdfProvider`],
+//!   and [`crate::providers::AeadProvider`] (see also [`crate::providers::HpkeCryptoProvider`])
+//! - **Comprehensive tests** (RFC 9180 suites, modes, integration)
+//! - **Security helpers** (validation, constant-time utilities, secure buffers)
+//! - **No-std** with `alloc` (required by this crate)
 //!
-//! ## Supported Algorithms
+//! ## Supported algorithms
 //!
-//! ### Key Encapsulation Mechanisms (KEM)
-//! - **ML-KEM-512**: NIST PQC standard, 800-byte public keys, 768-byte ciphertexts
-//! - **ML-KEM-768**: NIST PQC standard, 1184-byte public keys, 1088-byte ciphertexts  
-//! - **ML-KEM-1024**: NIST PQC standard, 1568-byte public keys, 1568-byte ciphertexts
+//! ### Key encapsulation (KEM)
+//! - **ML-KEM-512**, **ML-KEM-768**, **ML-KEM-1024** — wire sizes per [`HpkeKem`]
 //!
-//! ### Key Derivation Functions (KDF)
-//! - **HKDF-SHAKE128**: 16-byte output, suitable for lightweight applications
-//! - **HKDF-SHAKE256**: 32-byte output, recommended for most use cases
-//! - **HKDF-SHA3-256**: 32-byte output, NIST standard hash function
-//! - **HKDF-SHA3-512**: 64-byte output, high-security applications
+//! ### Key derivation (KDF)
+//! - **HKDF-SHAKE128**, **HKDF-SHAKE256**, **HKDF-SHA3-256**, **HKDF-SHA3-512** — lengths per [`HpkeKdf`]
 //!
-//! ### Authenticated Encryption (AEAD)
-//! - **Saturnin-256**: Post-quantum symmetric encryption, 32-byte keys, 16-byte nonces, 32-byte tag
-//! - **SHAKE256-based**: Custom AEAD construction using SHAKE256
-//! - **Duplex-sponge** (optional `duplex-sponge-aead` feature): Keccak-f[1600] duplex AEAD via `lib-q-aead`, 32-byte tag
-//! - **Export-only**: For key material export without encryption
+//! ### Authenticated encryption (AEAD)
+//! - **Saturnin-256** — 32-byte key, 16-byte nonce, 32-byte tag
+//! - **SHAKE256** AEAD — per [`HpkeAead::tag_len`]
+//! - **Duplex-sponge** (feature `duplex-sponge-aead`) — 32-byte tag via `lib-q-aead`
+//! - **Export-only** — exporter secret usage without message AEAD
 //!
-//! ## Quick Start
+//! ## Quick start
 //!
 //! ```rust
 //! use lib_q_hpke::HpkeContext;
 //!
-//! // Create HPKE context with default provider
+//! // Default `KemContext` inside (no custom CryptoProvider).
 //! let hpke_ctx = HpkeContext::new();
 //!
-//! // Note: For full functionality including key generation and encryption/decryption,
-//! // you need to use the main lib-q crate which provides the complete ML-KEM implementation.
-//! // This example shows how to create the HPKE context.
+//! // For ML-KEM key generation and `seal`/`open`, supply a `CryptoProvider` (e.g. `libq::LibQCryptoProvider`)
+//! // via `HpkeContext::with_provider` and use `lib_q_core::KemContext` with the same provider for keypairs.
 //! ```
 //!
 //! ## Architecture
 //!
-//! The HPKE implementation follows lib-q's provider pattern for modular algorithm integration.
-//! All cryptographic operations are abstracted through the `HpkeCryptoProvider` trait,
-//! allowing for flexible backend implementations and easy testing.
+//! - **[`HpkeContext`]**: cipher suite ([`HpkeCipherSuite`]),
+//!   PSK wire policy ([`HpkePskWireFormat`]), single-shot and multi-shot APIs
+//! - **[`HpkeSenderContext`] / [`HpkeReceiverContext`]**:
+//!   multi-message encrypt/decrypt and export
+//! - **`hpke_core`**: RFC 9180 schedule, setup, seal/open
+//! - **[`PostQuantumProvider`]**: ML-KEM via `lib-q-kem`,
+//!   HKDF via `lib-q-hash`, AEAD via `lib-q-aead`
 //!
-//! ### Key Components
+//! Public `HpkeContext` methods return `lib_q_core::Result`; see `From<HpkeError>` for `lib_q_core::Error`
+//! in this crate’s `error` module. More detail: `docs/API_REFERENCE.md` in the crate tree and
+//! `docs/hpke-architecture.md` at the workspace root.
 //!
-//! - **`HpkeContext`**: Main interface for HPKE operations
-//! - **`HpkeSenderContext`**: Context for encrypting multiple messages
-//! - **`HpkeReceiverContext`**: Context for decrypting multiple messages
-//! - **`HpkeCipherSuite`**: Algorithm combination specification
-//! - **`PostQuantumProvider`**: Default post-quantum crypto provider
+//! ## Security considerations
 //!
-//! ## Security Considerations
-//!
-//! This implementation provides several security guarantees:
-//!
-//! - **Post-quantum security**: All algorithms are resistant to quantum attacks
-//! - **Authenticated encryption**: All messages are authenticated
-//! - **Key validation**: Invalid keys are rejected with appropriate errors
-//! - **Constant-time operations**: Timing attacks are mitigated where possible
-//! - **Secure key derivation**: HKDF with post-quantum hash functions
+//! - Post-quantum primitives for the stated HPKE path; validate keys and suite agreement between peers
+//! - Authenticated encryption for application payloads (except export-only suite)
+//! - Constant-time helpers and zeroization where implemented; see `security` module and `docs/SECURITY_CONSIDERATIONS.md`
 //!
 //! ## Performance
 //!
-//! The implementation is optimized for performance while maintaining security:
-//!
-//! - **Efficient key generation**: ML-KEM key pairs generated in ~1ms
-//! - **Fast encryption**: Single-shot operations complete in ~2ms
-//! - **Memory efficient**: Minimal allocations during operations
-//! - **Scalable**: Supports messages up to 64KB efficiently
+//! Throughput and latency depend on suite, platform, and features. Profile under your target configuration.
 //!
 //! ## Testing
 //!
-//! The implementation includes comprehensive test coverage:
-//!
-//! - **RFC 9180 compliance tests**: Verify specification adherence
-//! - **Security validation tests**: Check security properties
-//! - **Performance tests**: Ensure acceptable performance
-//! - **Edge case tests**: Handle unusual inputs gracefully
-//! - **Integration tests**: Verify end-to-end functionality
+//! Run `cargo test -p lib-q-hpke` (with the feature set you ship). Compliance and mode coverage live under
+//! `tests/` (e.g. `rfc9180_compliance_tests`, PSK/Auth/AuthPSK suites).
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code, unused_must_use, unstable_features)]
@@ -109,6 +96,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{
     boxed::Box,
+    sync::Arc,
     vec::Vec,
 };
 
@@ -119,7 +107,10 @@ pub use types::*;
 // Internal modules
 pub mod error;
 pub mod hpke_core;
+pub mod hpke_session;
+pub mod interop;
 pub mod kdf;
+pub mod providers;
 pub mod types;
 
 // New modular architecture
@@ -127,8 +118,12 @@ pub mod aead;
 pub mod benchmarking;
 pub mod kem;
 pub mod protocol;
-pub mod providers;
 pub mod security;
+
+pub use hpke_session::{
+    HpkeReceiverContext,
+    HpkeSenderContext,
+};
 
 #[cfg(feature = "wasm")]
 mod wasm;
@@ -146,7 +141,15 @@ use lib_q_core::{
     Result,
 };
 #[allow(unused_imports)]
-use providers::post_quantum::PostQuantumProvider;
+use providers::{
+    post_quantum::PostQuantumProvider,
+    traits::HpkeCryptoProvider,
+};
+
+use crate::security::{
+    CryptoRng,
+    EntropyCryptoRng,
+};
 
 /// HPKE Context that integrates with lib-q's provider pattern
 ///
@@ -154,23 +157,20 @@ use providers::post_quantum::PostQuantumProvider;
 /// both single-shot encryption/decryption and context-based operations for
 /// encrypting multiple messages with the same key material.
 ///
-/// # Example
+/// Cryptography for encapsulation, KDF, and AEAD uses [`HpkeCryptoProvider`] (default:
+/// [`PostQuantumProvider`]). [`HpkeContext::with_provider`] configures only the inner
+/// [`KemContext`] for ML-KEM key validation and key-generation checks; use
+/// [`HpkeContext::with_hpke_crypto`] to replace the HPKE crypto backend.
 ///
-/// ```rust
-/// use lib_q_hpke::HpkeContext;
-///
-/// // Create HPKE context with default provider
-/// let hpke_ctx = HpkeContext::new();
-///
-/// // Note: For full functionality including key generation and encryption/decryption,
-/// // you need to use the main lib-q crate which provides the complete ML-KEM implementation.
-/// // This example shows how to create the HPKE context.
-/// ```
+/// Randomness for setup and single-shot `seal` uses [`crate::security::EntropyCryptoRng`] by default
+/// (OS-backed entropy via `lib-q-random`). Override with [`HpkeContext::set_rng`] for tests.
 pub struct HpkeContext {
     kem_ctx: KemContext,
     cipher_suite: HpkeCipherSuite,
     /// PSK / AuthPSK encapsulated-key wire format (ignored for Base and Auth).
     psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
+    rng: Box<dyn CryptoRng + Send>,
 }
 
 /// Create a KEM context for internal use
@@ -180,19 +180,10 @@ fn create_kem_context() -> KemContext {
 }
 
 impl HpkeContext {
-    /// Create a new HPKE context with default provider
-    ///
-    /// This creates an HPKE context using the default cryptographic provider.
-    /// The default provider supports all post-quantum algorithms available in lib-q.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lib_q_hpke::HpkeContext;
-    ///
-    /// let hpke_ctx = HpkeContext::new();
-    /// ```
+    /// Create a new HPKE context with default [`PostQuantumProvider`] and OS-backed RNG.
     pub fn new() -> Self {
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
         Self {
             kem_ctx: create_kem_context(),
             cipher_suite: HpkeCipherSuite::new(
@@ -201,27 +192,32 @@ impl HpkeContext {
                 HpkeAead::Saturnin256,
             ),
             psk_wire_format: HpkePskWireFormat::default(),
+            hpke_crypto,
+            rng: Box::new(EntropyCryptoRng),
         }
     }
 
-    /// Create HPKE context with custom provider
+    /// Build an HPKE context with a custom [`HpkeCryptoProvider`] (for example tests or an alternate PQ backend).
+    pub fn with_hpke_crypto(hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>) -> Self {
+        Self {
+            kem_ctx: create_kem_context(),
+            cipher_suite: HpkeCipherSuite::new(
+                HpkeKem::MlKem512,
+                HpkeKdf::HkdfShake256,
+                HpkeAead::Saturnin256,
+            ),
+            psk_wire_format: HpkePskWireFormat::default(),
+            hpke_crypto,
+            rng: Box::new(EntropyCryptoRng),
+        }
+    }
+
+    /// Configure the inner [`KemContext`] with a [`lib_q_core::CryptoProvider`] for key validation and ML-KEM keygen.
     ///
-    /// This creates an HPKE context using a custom cryptographic provider.
-    /// The provider must implement the `HpkeCryptoProvider` trait.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use lib_q_hpke::HpkeContext;
-    /// use libq::LibQCryptoProvider;
-    ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let provider = Box::new(LibQCryptoProvider::new()?);
-    /// let hpke_ctx = HpkeContext::with_provider(provider);
-    /// # Ok(())
-    /// # }
-    /// ```
+    /// HPKE encapsulation/KDF/AEAD still use [`Self::hpke_crypto`] (default [`PostQuantumProvider`]).
     pub fn with_provider(provider: Box<dyn lib_q_core::CryptoProvider>) -> Self {
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
         Self {
             kem_ctx: KemContext::with_provider(provider),
             cipher_suite: HpkeCipherSuite::new(
@@ -230,7 +226,42 @@ impl HpkeContext {
                 HpkeAead::Saturnin256,
             ),
             psk_wire_format: HpkePskWireFormat::default(),
+            hpke_crypto,
+            rng: Box::new(EntropyCryptoRng),
         }
+    }
+
+    /// Full wiring: custom [`KemContext`] provider and custom HPKE crypto backend.
+    pub fn with_kem_and_hpke_crypto(
+        kem_provider: Box<dyn lib_q_core::CryptoProvider>,
+        hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
+    ) -> Self {
+        Self {
+            kem_ctx: KemContext::with_provider(kem_provider),
+            cipher_suite: HpkeCipherSuite::new(
+                HpkeKem::MlKem512,
+                HpkeKdf::HkdfShake256,
+                HpkeAead::Saturnin256,
+            ),
+            psk_wire_format: HpkePskWireFormat::default(),
+            hpke_crypto,
+            rng: Box::new(EntropyCryptoRng),
+        }
+    }
+
+    /// Replace the HPKE crypto backend (multi-shot `seal`/`open` on derived contexts use the snapshot from setup).
+    pub fn set_hpke_crypto(&mut self, hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>) {
+        self.hpke_crypto = hpke_crypto;
+    }
+
+    /// Active HPKE crypto provider reference.
+    pub fn hpke_crypto(&self) -> &(dyn HpkeCryptoProvider + Send + Sync) {
+        self.hpke_crypto.as_ref()
+    }
+
+    /// Replace the RNG used for encapsulation and single-shot `seal` (tests may use [`crate::security::prng::SimpleRng`]).
+    pub fn set_rng(&mut self, rng: Box<dyn CryptoRng + Send>) {
+        self.rng = rng;
     }
 }
 
@@ -274,21 +305,14 @@ impl HpkeContext {
         recipient_pk: &KemPublicKey,
         info: &[u8],
     ) -> Result<HpkeSenderContext> {
-        use crate::security::prng::SimpleRng;
-
-        // Create provider and RNG instances
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-        let mut rng = SimpleRng::new();
-
-        // Use the underlying KEM to establish shared secret
-        // This is where we bridge to the actual HPKE implementation
         hpke_core::setup_sender(
             &mut self.kem_ctx,
             recipient_pk,
             info,
             &self.cipher_suite,
-            &provider,
-            &mut rng,
+            self.hpke_crypto.as_ref(),
+            self.rng.as_mut(),
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -300,16 +324,14 @@ impl HpkeContext {
         recipient_sk: &KemSecretKey,
         info: &[u8],
     ) -> Result<HpkeReceiverContext> {
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::setup_receiver(
             &mut self.kem_ctx,
             encapsulated_key,
             recipient_sk,
             info,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -327,24 +349,20 @@ impl HpkeContext {
         psk: &[u8],
         psk_id: &[u8],
     ) -> Result<HpkeSenderContext> {
-        use crate::security::prng::SimpleRng;
-
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-        let mut rng = SimpleRng::new();
-
         hpke_core::setup_sender_with_mode(
             &mut self.kem_ctx,
             recipient_pk,
             info,
             &self.cipher_suite,
-            &provider,
-            &mut rng,
+            self.hpke_crypto.as_ref(),
+            self.rng.as_mut(),
             HpkeMode::Psk,
             Some(psk),
             Some(psk_id),
             None,
             None,
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -357,24 +375,20 @@ impl HpkeContext {
         sender_sk: &KemSecretKey,
         sender_pk: &KemPublicKey,
     ) -> Result<HpkeSenderContext> {
-        use crate::security::prng::SimpleRng;
-
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-        let mut rng = SimpleRng::new();
-
         hpke_core::setup_sender_with_mode(
             &mut self.kem_ctx,
             recipient_pk,
             info,
             &self.cipher_suite,
-            &provider,
-            &mut rng,
+            self.hpke_crypto.as_ref(),
+            self.rng.as_mut(),
             HpkeMode::Auth,
             None,
             None,
             Some(sender_sk),
             Some(sender_pk),
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -392,24 +406,20 @@ impl HpkeContext {
         sender_sk: &KemSecretKey,
         sender_pk: &KemPublicKey,
     ) -> Result<HpkeSenderContext> {
-        use crate::security::prng::SimpleRng;
-
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-        let mut rng = SimpleRng::new();
-
         hpke_core::setup_sender_with_mode(
             &mut self.kem_ctx,
             recipient_pk,
             info,
             &self.cipher_suite,
-            &provider,
-            &mut rng,
+            self.hpke_crypto.as_ref(),
+            self.rng.as_mut(),
             HpkeMode::AuthPsk,
             Some(psk),
             Some(psk_id),
             Some(sender_sk),
             Some(sender_pk),
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -429,20 +439,19 @@ impl HpkeContext {
         psk: &[u8],
         psk_id: &[u8],
     ) -> Result<HpkeReceiverContext> {
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::setup_receiver_with_mode(
             &mut self.kem_ctx,
             encapsulated_key,
             recipient_sk,
             info,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
             HpkeMode::Psk,
             Some(psk),
             Some(psk_id),
             None,
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -455,20 +464,19 @@ impl HpkeContext {
         info: &[u8],
         sender_pk: &KemPublicKey,
     ) -> Result<HpkeReceiverContext> {
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::setup_receiver_with_mode(
             &mut self.kem_ctx,
             encapsulated_key,
             recipient_sk,
             info,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
             HpkeMode::Auth,
             None,
             None,
             Some(sender_pk),
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -485,20 +493,19 @@ impl HpkeContext {
         psk_id: &[u8],
         sender_pk: &KemPublicKey,
     ) -> Result<HpkeReceiverContext> {
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::setup_receiver_with_mode(
             &mut self.kem_ctx,
             encapsulated_key,
             recipient_sk,
             info,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
             HpkeMode::AuthPsk,
             Some(psk),
             Some(psk_id),
             Some(sender_pk),
             self.psk_wire_format,
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -511,12 +518,6 @@ impl HpkeContext {
         aad: &[u8],
         plaintext: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        use crate::security::prng::SimpleRng;
-
-        // Create provider and RNG instances
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-        let mut rng = SimpleRng::new();
-
         hpke_core::seal(
             &mut self.kem_ctx,
             recipient_pk,
@@ -524,8 +525,8 @@ impl HpkeContext {
             aad,
             plaintext,
             &self.cipher_suite,
-            &provider,
-            &mut rng,
+            self.hpke_crypto.as_ref(),
+            self.rng.as_mut(),
         )
         .map_err(|e| e.into())
     }
@@ -539,9 +540,6 @@ impl HpkeContext {
         aad: &[u8],
         ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::open(
             &mut self.kem_ctx,
             encapsulated_key,
@@ -550,7 +548,8 @@ impl HpkeContext {
             aad,
             ciphertext,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
+            self.hpke_crypto.clone(),
         )
         .map_err(|e| e.into())
     }
@@ -571,17 +570,14 @@ impl HpkeSenderContext {
             });
         }
 
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         let ciphertext = hpke_core::seal_message(
             self.aead,
-            &self.key,
-            &self.nonce,
+            self.key.as_slice(),
+            self.nonce.as_slice(),
             self.sequence_number,
             aad,
             plaintext,
-            &provider,
+            self.hpke_crypto.as_ref(),
         )
         .map_err(lib_q_core::Error::from)?;
 
@@ -593,15 +589,12 @@ impl HpkeSenderContext {
 
     /// Export key material
     pub fn export(&self, exporter_context: &[u8], length: usize) -> Result<Vec<u8>> {
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::export(
             self.exporter_secret.as_slice(),
             exporter_context,
             length,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
         )
         .map_err(|e| e.into())
     }
@@ -619,17 +612,14 @@ impl HpkeReceiverContext {
             });
         }
 
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         let plaintext = hpke_core::open_message(
             self.aead,
-            &self.key,
-            &self.nonce,
+            self.key.as_slice(),
+            self.nonce.as_slice(),
             self.sequence_number,
             aad,
             ciphertext,
-            &provider,
+            self.hpke_crypto.as_ref(),
         )
         .map_err(lib_q_core::Error::from)?;
 
@@ -641,15 +631,12 @@ impl HpkeReceiverContext {
 
     /// Export key material
     pub fn export(&self, exporter_context: &[u8], length: usize) -> Result<Vec<u8>> {
-        // Create provider instance
-        let provider = crate::providers::post_quantum::PostQuantumProvider::new();
-
         hpke_core::export(
             self.exporter_secret.as_slice(),
             exporter_context,
             length,
             &self.cipher_suite,
-            &provider,
+            self.hpke_crypto.as_ref(),
         )
         .map_err(|e| e.into())
     }
@@ -670,6 +657,7 @@ pub fn create_hpke_context_with_provider(
 #[cfg(test)]
 mod tests {
     use alloc::string::ToString;
+    use alloc::sync::Arc;
     use alloc::vec;
 
     use super::*;
@@ -731,6 +719,8 @@ mod tests {
 
     #[test]
     fn sender_and_receiver_context_guards_are_exercised() {
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
         let mut sender = HpkeSenderContext::new(
             vec![3u8; 32].into(),
             vec![4u8; 32].into(),
@@ -743,6 +733,7 @@ mod tests {
                 HpkeAead::Saturnin256,
             ),
             HpkeAead::Saturnin256,
+            hpke_crypto.clone(),
         );
         sender.state = HpkeContextState::Closed;
         let sender_err = sender.seal(b"aad", b"msg").unwrap_err().to_string();
@@ -759,6 +750,7 @@ mod tests {
                 HpkeAead::Saturnin256,
             ),
             HpkeAead::Saturnin256,
+            hpke_crypto,
         );
         receiver.state = HpkeContextState::Closed;
         let receiver_err = receiver.open(b"aad", b"ct").unwrap_err().to_string();

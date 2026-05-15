@@ -23,7 +23,7 @@ This crate has **not** been independently audited; see the warning below.
 
 This crate is primarily used as a dependency for `lib-q-kem`. For direct usage:
 
-```rust,ignore
+```text
 // Doctest temporarily disabled due to complex trait import resolution
 // The functionality works correctly as demonstrated by unit tests
 //

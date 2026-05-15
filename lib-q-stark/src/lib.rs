@@ -9,7 +9,7 @@
 //! ## Post-Quantum Security
 //! This implementation uses only NIST-approved post-quantum cryptographic primitives:
 //! - **SHAKE256** for all hash operations (FIPS 202, NIST-approved)
-//! - **Complex<Mersenne31>** field for efficient arithmetic (TWO_ADICITY = 32)
+//! - **`Complex<Mersenne31>`** field for efficient arithmetic (TWO_ADICITY = 32)
 //! - **ethSTARK** protocol for strong security guarantees
 //!
 //! ## Constant-Time Operations

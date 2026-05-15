@@ -1,7 +1,7 @@
 //! CB-KEM Example for lib-Q
 //!
-//! This example demonstrates the usage of Classical McEliece CB-KEM with SHA3 hash function.
-//! This is the default implementation using SHAKE256.
+//! This example demonstrates CB-KEM (Classic McEliece family, code-based KEM) with SHA-3
+//! (SHAKE256) in the default `lib-q-cb-kem` configuration.
 
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
@@ -180,6 +180,6 @@ fn main() {
         println!();
 
         println!("=== CB-KEM Example Complete ===");
-        println!("🔐 Classical McEliece CB-KEM with SHA3 is working correctly!");
+        println!("🔐 Classic McEliece CB-KEM (code-based) with SHAKE256 is working correctly!");
     }
 }

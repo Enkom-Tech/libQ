@@ -1,38 +1,58 @@
 # HPKE API Reference
 
-## Overview
+This document summarizes the **public** surface of `lib-q-hpke`. For design intent, PSK wire formats, and interoperability notes, see [hpke-architecture.md](../../docs/hpke-architecture.md). For module layout, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
-The lib-q-hpke API provides RFC 9180 compliant Hybrid Public Key Encryption operations using post-quantum cryptographic primitives. The API is designed around a provider pattern that integrates with the lib-q ecosystem.
+## Conventions
 
-## Core Types
+- **Post-quantum only:** The shipped HPKE path uses ML-KEM for `HpkeKem::*` and PQ-friendly KDF/AEAD choices. There is no classical KEM in this stack.
+- **Result type:** `HpkeContext` methods return `lib_q_core::Result<T>` (alias for `Result<T, lib_q_core::Error>`). Lower-level helpers may use `HpkeResult<T>` (`Result<T, HpkeError>`). `HpkeError` converts into `lib_q_core::Error` via `impl From<HpkeError> for lib_q_core::Error` in `src/error.rs`.
+- **KEM `CryptoProvider` vs HPKE crypto backend:** `HpkeContext::with_provider` configures only the inner `KemContext`. HPKE encapsulation, KDF, AEAD, and export use `Arc<dyn HpkeCryptoProvider + Send + Sync>` (default `PostQuantumProvider`). Replace the latter with `HpkeContext::with_hpke_crypto` / `set_hpke_crypto`.
 
-### HpkeContext
+## `lib_q_hpke::interop`
 
-Main context for HPKE operations.
+Deterministic intersection of peer advertisements:
 
-```rust
-pub struct HpkeContext {
-    // Private fields
-}
-```
+- `HpkeInteropProfile` — `RfcStrictPq` (RFC 9180 PSK wire; no lib-Q–only PSK suffix in strict mode) vs `LibQExtensions` (optional commitment suffix and feature-gated AEAD).
+- `HpkeCapabilities` — ordered suite list, supported modes, ordered PSK wire preferences.
+- `negotiate_hpke_capabilities(&local, &remote)` — returns `NegotiatedHpkeParams` or `HpkeNegotiationError` (no silent downgrade).
+- `cipher_suite_supported_by_build` — rejects suites that need missing Cargo features (for example duplex-sponge AEAD).
 
-**Methods:**
+Bind serialized capability bytes into an application-level authenticated transcript; this crate does not implement a transport protocol.
+
+## `HpkeContext`
+
+Main entry point: holds a `KemContext`, the active [`HpkeCipherSuite`](../src/types.rs), [`HpkePskWireFormat`](../src/types.rs) for PSK / AuthPSK encapsulated-key layout, an `Arc<dyn HpkeCryptoProvider + Send + Sync>` for HPKE crypto, and a `Box<dyn CryptoRng + Send>` for setup/single-shot RNG (default OS-backed when `secure-rng` is enabled).
+
+### Constructors and suite
 
 ```rust
 impl HpkeContext {
-    /// Create a new HPKE context with the specified provider
-    pub fn with_provider(provider: Box<dyn HpkeCryptoProvider>) -> Self
-    
-    /// Single-shot encryption (Base mode)
+    pub fn new() -> Self;
+    pub fn with_provider(provider: Box<dyn lib_q_core::CryptoProvider>) -> Self;
+    pub fn with_hpke_crypto(hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>) -> Self;
+    pub fn set_hpke_crypto(&mut self, hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>);
+    pub fn set_rng(&mut self, rng: Box<dyn CryptoRng + Send>);
+
+    pub fn cipher_suite(&self) -> &HpkeCipherSuite;
+    pub fn set_cipher_suite(&mut self, cipher_suite: HpkeCipherSuite);
+
+    pub fn psk_wire_format(&self) -> HpkePskWireFormat;
+    pub fn set_psk_wire_format(&mut self, format: HpkePskWireFormat);
+}
+```
+
+### Single-shot (Base schedule)
+
+```rust
+impl HpkeContext {
     pub fn seal(
         &mut self,
         recipient_pk: &KemPublicKey,
         info: &[u8],
         aad: &[u8],
         plaintext: &[u8],
-    ) -> Result<(Vec<u8>, Vec<u8>), HpkeError>
-    
-    /// Single-shot decryption (Base mode)
+    ) -> lib_q_core::Result<(Vec<u8>, Vec<u8>)>;
+
     pub fn open(
         &mut self,
         encapsulated_key: &[u8],
@@ -40,39 +60,37 @@ impl HpkeContext {
         info: &[u8],
         aad: &[u8],
         ciphertext: &[u8],
-    ) -> Result<Vec<u8>, HpkeError>
+    ) -> lib_q_core::Result<Vec<u8>>;
 }
 ```
 
-### Context Setup Methods
+### Multi-shot setup (all modes)
+
+All setup methods return `lib_q_core::Result<…>`.
 
 ```rust
 impl HpkeContext {
-    /// Setup sender context for Base mode
     pub fn setup_sender(
         &mut self,
         recipient_pk: &KemPublicKey,
         info: &[u8],
-    ) -> Result<HpkeSenderContext, HpkeError>
-    
-    /// Setup receiver context for Base mode
+    ) -> lib_q_core::Result<HpkeSenderContext>;
+
     pub fn setup_receiver(
         &mut self,
         encapsulated_key: &[u8],
         recipient_sk: &KemSecretKey,
         info: &[u8],
-    ) -> Result<HpkeReceiverContext, HpkeError>
-    
-    /// Setup sender context for PSK mode
+    ) -> lib_q_core::Result<HpkeReceiverContext>;
+
     pub fn setup_sender_psk(
         &mut self,
         recipient_pk: &KemPublicKey,
         info: &[u8],
         psk: &[u8],
         psk_id: &[u8],
-    ) -> Result<HpkeSenderContext, HpkeError>
-    
-    /// Setup receiver context for PSK mode
+    ) -> lib_q_core::Result<HpkeSenderContext>;
+
     pub fn setup_receiver_psk(
         &mut self,
         encapsulated_key: &[u8],
@@ -80,27 +98,24 @@ impl HpkeContext {
         info: &[u8],
         psk: &[u8],
         psk_id: &[u8],
-    ) -> Result<HpkeReceiverContext, HpkeError>
-    
-    /// Setup sender context for Auth mode
+    ) -> lib_q_core::Result<HpkeReceiverContext>;
+
     pub fn setup_sender_auth(
         &mut self,
         recipient_pk: &KemPublicKey,
         info: &[u8],
         sender_sk: &KemSecretKey,
         sender_pk: &KemPublicKey,
-    ) -> Result<HpkeSenderContext, HpkeError>
-    
-    /// Setup receiver context for Auth mode
+    ) -> lib_q_core::Result<HpkeSenderContext>;
+
     pub fn setup_receiver_auth(
         &mut self,
         encapsulated_key: &[u8],
         recipient_sk: &KemSecretKey,
         info: &[u8],
         sender_pk: &KemPublicKey,
-    ) -> Result<HpkeReceiverContext, HpkeError>
-    
-    /// Setup sender context for AuthPSK mode
+    ) -> lib_q_core::Result<HpkeReceiverContext>;
+
     pub fn setup_sender_auth_psk(
         &mut self,
         recipient_pk: &KemPublicKey,
@@ -109,9 +124,8 @@ impl HpkeContext {
         psk_id: &[u8],
         sender_sk: &KemSecretKey,
         sender_pk: &KemPublicKey,
-    ) -> Result<HpkeSenderContext, HpkeError>
-    
-    /// Setup receiver context for AuthPSK mode
+    ) -> lib_q_core::Result<HpkeSenderContext>;
+
     pub fn setup_receiver_auth_psk(
         &mut self,
         encapsulated_key: &[u8],
@@ -120,71 +134,69 @@ impl HpkeContext {
         psk: &[u8],
         psk_id: &[u8],
         sender_pk: &KemPublicKey,
-    ) -> Result<HpkeReceiverContext, HpkeError>
+    ) -> lib_q_core::Result<HpkeReceiverContext>;
 }
 ```
 
-## Context Types
+## `HpkeSenderContext` / `HpkeReceiverContext`
 
-### HpkeSenderContext
+Defined in [`types.rs`](../src/types.rs). Sensitive fields use [`SecretBytes`](../src/types.rs) (`Zeroizing<Vec<u8>>`). Important **public** fields:
 
-Context for multiple message encryption.
+| Field | Meaning |
+|--------|---------|
+| `shared_secret`, `exporter_secret`, `key`, `nonce` | Schedule-derived material (zeroized on drop) |
+| `cipher_suite` | Active suite for export / labels |
+| `aead` | AEAD algorithm for this context |
+| `encapsulated_key` | Sender only: wire bytes for the receiver |
+| `sequence_number`, `max_sequence_number` | Base nonce XOR counter |
+| `state` | `HpkeContextState` (`Active`, `NeedsRekey`, `Closed`) |
+
+### Methods (`impl` blocks in `lib.rs`)
 
 ```rust
-pub struct HpkeSenderContext {
-    // Private fields
-}
-
 impl HpkeSenderContext {
-    /// Encrypt a message
-    pub fn seal(&mut self, aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, HpkeError>
-    
-    /// Export key material
-    pub fn export(&self, context: &[u8], length: usize) -> Result<Vec<u8>, HpkeError>
-    
-    /// Get the encapsulated key
-    pub fn encapsulated_key(&self) -> &[u8]
-    
-    /// Get current sequence number
-    pub fn sequence_number(&self) -> u32
-    
-    /// Get context state
-    pub fn state(&self) -> HpkeContextState
-}
-```
-
-### HpkeReceiverContext
-
-Context for multiple message decryption.
-
-```rust
-pub struct HpkeReceiverContext {
-    // Private fields
+    pub fn seal(&mut self, aad: &[u8], plaintext: &[u8]) -> lib_q_core::Result<Vec<u8>>;
+    pub fn export(&self, exporter_context: &[u8], length: usize) -> lib_q_core::Result<Vec<u8>>;
+    pub fn encapsulated_key(&self) -> &[u8];
+    pub fn can_encrypt(&self) -> bool;
+    pub fn increment_sequence(&mut self) -> Result<(), HpkeError>;
+    pub fn close(&mut self);
 }
 
 impl HpkeReceiverContext {
-    /// Decrypt a message
-    pub fn open(&mut self, aad: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, HpkeError>
-    
-    /// Export key material
-    pub fn export(&self, context: &[u8], length: usize) -> Result<Vec<u8>, HpkeError>
-    
-    /// Get current sequence number
-    pub fn sequence_number(&self) -> u32
-    
-    /// Get context state
-    pub fn state(&self) -> HpkeContextState
+    pub fn open(&mut self, aad: &[u8], ciphertext: &[u8]) -> lib_q_core::Result<Vec<u8>>;
+    pub fn export(&self, exporter_context: &[u8], length: usize) -> lib_q_core::Result<Vec<u8>>;
+    pub fn can_decrypt(&self) -> bool;
+    pub fn increment_sequence(&mut self) -> Result<(), HpkeError>;
+    pub fn close(&mut self);
 }
 ```
 
-## Algorithm Types
+`seal` / `open` on these contexts return `lib_q_core::Error` on state misuse (for example `Closed` or sequence overflow), not always `HpkeError`.
 
-### HpkeKem
-
-Key Encapsulation Mechanism algorithms.
+## Mode and PSK wire enums
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HpkeMode {
+    Base = 0x00,
+    Psk = 0x01,
+    Auth = 0x02,
+    AuthPsk = 0x03,
+}
+
+pub enum HpkePskWireFormat {
+    Rfc9180,
+    LibQCommitmentSuffix,
+}
+```
+
+See doc comments on `HpkePskWireFormat` in `types.rs` for interoperability rules.
+
+## Algorithm identifiers (`types.rs`)
+
+### `HpkeKem`
+
+```rust
 pub enum HpkeKem {
     MlKem512,
     MlKem768,
@@ -192,26 +204,17 @@ pub enum HpkeKem {
 }
 
 impl HpkeKem {
-    /// Get algorithm identifier
-    pub fn algorithm_id(&self) -> u16
-    
-    /// Get public key length
-    pub fn public_key_len(&self) -> usize
-    
-    /// Get secret key length
-    pub fn secret_key_len(&self) -> usize
-    
-    /// Get encapsulated key length
-    pub fn encapsulated_key_len(&self) -> usize
+    pub fn algorithm_id(self) -> u16;
+    pub fn shared_secret_len(self) -> usize;
+    pub fn enc_len(self) -> usize;
+    pub fn public_key_len(self) -> usize;
+    pub fn secret_key_len(self) -> usize;
 }
 ```
 
-### HpkeKdf
-
-Key Derivation Function algorithms.
+### `HpkeKdf`
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeKdf {
     HkdfShake128,
     HkdfShake256,
@@ -220,47 +223,34 @@ pub enum HpkeKdf {
 }
 
 impl HpkeKdf {
-    /// Get algorithm identifier
-    pub fn algorithm_id(&self) -> u16
-    
-    /// Get extract output length
-    pub fn extract_output_len(&self) -> usize
+    pub fn algorithm_id(self) -> u16;
+    pub fn digest_len(self) -> usize;
+    pub fn extract_len(self) -> usize;
 }
 ```
 
-### HpkeAead
-
-Authenticated Encryption with Associated Data algorithms.
+### `HpkeAead`
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HpkeAead {
     Saturnin256,
     Shake256,
+    DuplexSpongeAead, // requires crate feature `duplex-sponge-aead`
     Export,
 }
 
 impl HpkeAead {
-    /// Get algorithm identifier
-    pub fn algorithm_id(&self) -> u16
-    
-    /// Get key length
-    pub fn key_len(&self) -> usize
-    
-    /// Get nonce length
-    pub fn nonce_len(&self) -> usize
-    
-    /// Get tag length
-    pub fn tag_len(&self) -> usize
+    pub fn algorithm_id(self) -> u16;
+    pub fn key_len(self) -> usize;
+    pub fn nonce_len(self) -> usize;
+    pub fn tag_len(self) -> usize;
 }
 ```
 
-### HpkeCipherSuite
-
-Complete cipher suite specification.
+### `HpkeCipherSuite`
 
 ```rust
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HpkeCipherSuite {
     pub kem: HpkeKem,
     pub kdf: HpkeKdf,
@@ -268,211 +258,52 @@ pub struct HpkeCipherSuite {
 }
 
 impl HpkeCipherSuite {
-    /// Create a new cipher suite
-    pub fn new(kem: HpkeKem, kdf: HpkeKdf, aead: HpkeAead) -> Self
-    
-    /// Get suite identifier
-    pub fn suite_id(&self) -> Vec<u8>
+    pub fn new(kem: HpkeKem, kdf: HpkeKdf, aead: HpkeAead) -> Self;
+    pub fn identifier(&self) -> Vec<u8>;
 }
 ```
 
-## Error Handling
-
-### HpkeError
-
-Comprehensive error type for HPKE operations.
+## `HpkeError`
 
 ```rust
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HpkeError {
-    KemError {
-        algorithm: HpkeKem,
-        operation: KemOperation,
-        cause: String,
-    },
-    KdfError {
-        algorithm: HpkeKdf,
-        operation: KdfOperation,
-        cause: String,
-    },
-    AeadError {
-        algorithm: HpkeAead,
-        operation: AeadOperation,
-        cause: String,
-    },
+    KemError { algorithm: HpkeKem, operation: KemOperation, cause: String },
+    KdfError { algorithm: HpkeKdf, operation: KdfOperation, cause: String },
+    AeadError { algorithm: HpkeAead, operation: AeadOperation, cause: String },
+    SecurityError { validation: SecurityValidation, cause: String },
+    ProtocolError { stage: ProtocolStage, cause: String },
+    ConfigError { setting: String, cause: String },
     CryptoError(String),
-    InvalidInput {
-        parameter: String,
-        value: String,
-        expected: String,
-    },
-    ProtocolError {
-        stage: ProtocolStage,
-        cause: String,
-    },
-}
-
-impl HpkeError {
-    /// Create a KEM error
-    pub fn kem_error(algorithm: HpkeKem, operation: KemOperation, cause: impl Into<String>) -> Self
-    
-    /// Create a KDF error
-    pub fn kdf_error(algorithm: HpkeKdf, operation: KdfOperation, cause: impl Into<String>) -> Self
-    
-    /// Create an AEAD error
-    pub fn aead_error(algorithm: HpkeAead, operation: AeadOperation, cause: impl Into<String>) -> Self
-    
-    /// Create a crypto error
-    pub fn crypto_error(cause: impl Into<String>) -> Self
-    
-    /// Create an invalid input error
-    pub fn invalid_input(parameter: impl Into<String>, value: impl Into<String>, expected: impl Into<String>) -> Self
+    InvalidInput { parameter: String, value: String, expected: String },
+    FeatureNotEnabled { feature: String },
+    NotImplemented { feature: String },
+    InconsistentPsk,
 }
 ```
 
-## Provider Interface
+Constructors such as `HpkeError::kem_error`, `kdf_error`, `aead_error`, `security_error`, `protocol_error`, `invalid_input`, `feature_not_enabled`, and `not_implemented` are defined on `HpkeError` in `src/error.rs`.
 
-### HpkeCryptoProvider
+## Provider traits
 
-Trait for cryptographic operations.
+HPKE crypto inside the crate is expressed through split traits in [`providers/traits.rs`](../src/providers/traits.rs):
 
-```rust
-pub trait HpkeCryptoProvider {
-    type Error: Into<HpkeError>;
-    
-    /// Generate a key pair
-    fn generate_keypair(
-        &self,
-        kem: HpkeKem,
-        rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    
-    /// Encapsulate a shared secret
-    fn encapsulate(
-        &self,
-        kem: HpkeKem,
-        public_key: &[u8],
-        rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    
-    /// Decapsulate a shared secret
-    fn decapsulate(
-        &self,
-        kem: HpkeKem,
-        secret_key: &[u8],
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
-    
-    /// Authenticated encapsulation
-    fn auth_encapsulate(
-        &self,
-        kem: HpkeKem,
-        sender_sk: &[u8],
-        recipient_pk: &[u8],
-        rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
-    
-    /// Authenticated decapsulation
-    fn auth_decapsulate(
-        &self,
-        kem: HpkeKem,
-        encapsulated_key: &[u8],
-        recipient_sk: &[u8],
-        sender_pk: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
-    
-    /// Extract key material
-    fn extract(
-        &self,
-        kdf: HpkeKdf,
-        salt: &[u8],
-        ikm: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
-    
-    /// Expand key material
-    fn expand(
-        &self,
-        kdf: HpkeKdf,
-        prk: &[u8],
-        info: &[u8],
-        output_len: usize,
-    ) -> Result<Vec<u8>, Self::Error>;
-    
-    /// Encrypt with AEAD
-    fn seal(
-        &self,
-        aead: HpkeAead,
-        key: &[u8],
-        nonce: &[u8],
-        aad: &[u8],
-        plaintext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
-    
-    /// Decrypt with AEAD
-    fn open(
-        &self,
-        aead: HpkeAead,
-        key: &[u8],
-        nonce: &[u8],
-        aad: &[u8],
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
-}
-```
+- **`KemProvider`** — encapsulate, decapsulate, `auth_encapsulate` / `auth_decapsulate`, key validation, ML-KEM-oriented helpers.
+- **`KdfProvider`** — extract / expand for `HpkeKdf`.
+- **`AeadProvider`** — AEAD seal/open and key/nonce validation.
+- **`HpkeCryptoProvider`** — `KemProvider + KdfProvider + AeadProvider` plus `name()` and `supported_algorithms()`.
 
-## Security Types
+The default implementation is [`PostQuantumProvider`](../src/providers/post_quantum.rs) (`LibQKemProvider`, `create_hash`, `create_aead`).
 
-### SecureKey
+## Security helpers (`security::memory_safety`)
 
-Secure key storage with automatic zeroization.
+[`SecureKey`](../src/security/memory_safety.rs) and [`SecureBytes`](../src/security/memory_safety.rs) wrap sensitive buffers with explicit zeroization. `SecureKey::new(data, key_type)` requires `data.len() == key_type.expected_length()` and rejects all-zero keys.
 
-```rust
-pub struct SecureKey {
-    // Private fields
-}
+Use [`validate_kem_key`](../src/security/validation.rs) for wire-format KEM key length checks against `HpkeKem`.
 
-impl SecureKey {
-    /// Create a new secure key
-    pub fn new(data: Vec<u8>) -> Self
-    
-    /// Get key data as slice
-    pub fn as_slice(&self) -> &[u8]
-    
-    /// Get mutable key data
-    pub fn as_mut_slice(&mut self) -> &mut [u8]
-}
+## Usage examples
 
-impl Drop for SecureKey {
-    fn drop(&mut self) {
-        // Automatic zeroization
-    }
-}
-```
-
-### SecureBytes
-
-Secure byte storage with automatic zeroization.
-
-```rust
-pub struct SecureBytes {
-    // Private fields
-}
-
-impl SecureBytes {
-    /// Create new secure bytes
-    pub fn new(data: Vec<u8>) -> Self
-    
-    /// Get data as slice
-    pub fn as_slice(&self) -> &[u8]
-    
-    /// Get mutable data
-    pub fn as_mut_slice(&mut self) -> &mut [u8]
-}
-```
-
-## Usage Examples
-
-### Basic HPKE
+Use fallible `LibQCryptoProvider::new()` in real programs.
 
 ```rust
 use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
@@ -480,140 +311,42 @@ use lib_q_hpke::HpkeContext;
 use libq::LibQCryptoProvider;
 
 fn basic_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
+    let provider = Box::new(LibQCryptoProvider::new()?);
     let mut hpke_ctx = HpkeContext::with_provider(provider);
-    
-    // Generate key pair
-    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()));
+
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
     let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
-    
-    // Encrypt
+
     let message = b"Hello, HPKE!";
-    let (encapsulated_key, ciphertext) = hpke_ctx.seal(
-        &recipient_pk,
-        b"application-info",
-        b"additional-data",
-        message,
-    )?;
-    
-    // Decrypt
-    let decrypted = hpke_ctx.open(
-        &encapsulated_key,
-        &recipient_sk,
-        b"application-info",
-        b"additional-data",
-        &ciphertext,
-    )?;
-    
+    let (encapsulated_key, ciphertext) =
+        hpke_ctx.seal(&recipient_pk, b"info", b"aad", message)?;
+
+    let decrypted = hpke_ctx.open(&encapsulated_key, &recipient_sk, b"info", b"aad", &ciphertext)?;
     assert_eq!(decrypted, message);
     Ok(())
 }
 ```
 
-### Context-based Operations
+### Handling errors from `seal` / `open`
+
+Match on `lib_q_core::Error`, not `HpkeError`, when using `HpkeContext` directly:
 
 ```rust
-fn context_based_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut hpke_ctx = HpkeContext::with_provider(provider);
-    
-    // Setup sender context
-    let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"session-info")?;
-    
-    // Encrypt multiple messages
-    let ciphertext1 = sender_ctx.seal(b"aad1", b"message1")?;
-    let ciphertext2 = sender_ctx.seal(b"aad2", b"message2")?;
-    
-    // Export key material
-    let exported_key = sender_ctx.export(b"key-context", 32)?;
-    
-    Ok(())
-}
-```
+use lib_q_core::Error;
 
-### PSK Mode
-
-```rust
-fn psk_mode_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut hpke_ctx = HpkeContext::with_provider(provider);
-    
-    let psk = b"shared-secret-key-32-bytes-long";
-    let psk_id = b"psk-identifier";
-    
-    // Setup PSK sender
-    let mut sender_ctx = hpke_ctx.setup_sender_psk(
-        &recipient_pk,
-        b"psk-session",
-        psk,
-        psk_id,
-    )?;
-    
-    // Encrypt with PSK authentication
-    let ciphertext = sender_ctx.seal(b"metadata", b"PSK message")?;
-    
-    Ok(())
-}
-```
-
-### Auth Mode
-
-```rust
-fn auth_mode_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Box::new(LibQCryptoProvider::new());
-    let mut hpke_ctx = HpkeContext::with_provider(provider);
-    
-    // Setup authenticated sender
-    let mut sender_ctx = hpke_ctx.setup_sender_auth(
-        &recipient_pk,
-        b"auth-session",
-        &sender_sk,
-        &sender_pk,
-    )?;
-    
-    // Encrypt with sender authentication
-    let ciphertext = sender_ctx.seal(b"metadata", b"authenticated message")?;
-    
-    Ok(())
-}
-```
-
-## Error Handling
-
-```rust
-fn error_handling_example() -> Result<(), Box<dyn std::error::Error>> {
-    match hpke_ctx.seal(&recipient_pk, info, aad, message) {
-        Ok((encapsulated_key, ciphertext)) => {
-            // Success - proceed with encrypted data
-        }
-        Err(HpkeError::CryptoError(msg)) => {
-            // Log error without sensitive details
-            eprintln!("HPKE encryption failed: {}", msg);
-            return Err("Encryption failed".into());
-        }
-        Err(e) => {
-            // Handle other error types
-            return Err(format!("HPKE error: {}", e).into());
-        }
+match hpke_ctx.seal(&recipient_pk, info, aad, message) {
+    Ok(pair) => { /* use pair */ }
+    Err(Error::InternalError { operation, details }) => {
+        eprintln!("HPKE failed: {} — {}", operation, details);
     }
-    
-    Ok(())
+    Err(e) => {
+        eprintln!("Other error: {}", e);
+    }
 }
 ```
 
-## Security Considerations
+## Threading
 
-- All cryptographic operations use constant-time algorithms where possible
-- Sensitive data is automatically zeroized when dropped
-- Input validation is performed on all parameters
-- Error messages are designed to prevent information leakage
-- Context state is validated before operations
-
-## Thread Safety
-
-The HPKE implementation is designed to be thread-safe:
-- `HpkeContext` can be shared between threads using `Arc<Mutex<HpkeContext>>`
-- Context objects (`HpkeSenderContext`, `HpkeReceiverContext`) are not thread-safe and should be used by a single thread
-- Provider implementations must be thread-safe
+`HpkeContext` and the sender/receiver contexts are ordinary Rust types with interior mutation where used; treat them as **not** `Sync` unless your `CryptoProvider` / `KemContext` wrapper documents otherwise. Share across threads with `Mutex`/`RwLock` or pass owned contexts per task.

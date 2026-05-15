@@ -31,9 +31,11 @@ wasm = [
 # Explicit gate for the optional `getrandom` dependency (workspace `--features getrandom`, CI, etc.).
 # Optional deps referenced only as `dep:getrandom` do not get an implicit feature name.
 getrandom = ["dep:getrandom"]
+# Same for `subtle` (used by `hardened`); workspace `cargo metadata --features subtle` requires a named feature.
+subtle = ["dep:subtle"]
 # Atomic side-channel hardening gate: masks decapsulation path, NTT randomisation, subtle comparisons.
 # Partial enabling is unsafe; do not split into separate CT/masking features.
-hardened = ["random", "dep:subtle", "getrandom"]
+hardened = ["random", "subtle", "getrandom"]
 
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }

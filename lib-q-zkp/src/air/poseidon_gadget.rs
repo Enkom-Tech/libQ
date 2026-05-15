@@ -16,10 +16,12 @@
 //! # Constraints
 //!
 //! For each round:
+//! ```text
 //! 1. AddRoundConstants: state[i] + rc[r][i] = intermediate_after_arc[i]
 //! 2. S-box: intermediate_after_arc[i]^5 = intermediate_after_sbox[i] (full rounds)
 //!    or state[0]^5 = intermediate_after_sbox[0] (partial rounds)
 //! 3. MDS: sum(mds[i][j] * intermediate_after_sbox[j]) = next_state[i]
+//! ```
 
 extern crate alloc;
 

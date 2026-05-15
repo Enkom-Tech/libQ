@@ -110,9 +110,9 @@ where
 /// Prove a STARK with optional preprocessed columns.
 ///
 /// For zeroization of sensitive trace data, wrap the trace in a type that zeroizes on drop
-/// before calling this function. When using `lib-q-stark`, use [`lib_q_stark::secret::SecretWitness`]:
+/// before calling this function. When using `lib-q-stark`, use `lib_q_stark::secret::SecretWitness`:
 ///
-/// ```ignore
+/// ```text
 /// use lib_q_stark::secret::SecretWitness;
 /// let secret_trace = SecretWitness::new(trace);
 /// let proof = prove_with_preprocessed(config, air, secret_trace.trace(), public_values, None);

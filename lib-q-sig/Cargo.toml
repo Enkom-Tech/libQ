@@ -29,8 +29,11 @@ serde_json = { workspace = true, optional = true }
 
 [features]
 default = ["alloc", "ml-dsa", "std"]
-ml-dsa = ["lib-q-ml-dsa", "lib-q-ml-dsa/zeroize", "dep:zeroize"]
-slh-dsa = ["alloc", "lib-q-slh-dsa", "sha2", "dep:rand_core"]
+# Explicit `zeroize` feature (optional dep uses `dep:`); needed for workspace `cargo metadata --features zeroize`.
+zeroize = ["dep:zeroize"]
+rand_core = ["dep:rand_core"]
+ml-dsa = ["lib-q-ml-dsa", "lib-q-ml-dsa/zeroize", "zeroize"]
+slh-dsa = ["alloc", "lib-q-slh-dsa", "sha2", "rand_core"]
 slh-dsa-std = ["slh-dsa", "dep:lib-q-random", "lib-q-random/std", "lib-q-slh-dsa/std"]
 slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "dep:lib-q-random", "lib-q-random/wasm", "lib-q-random/getrandom", "lib-q-core/wasm_getrandom"]
 fn-dsa = ["lib-q-fn-dsa"]

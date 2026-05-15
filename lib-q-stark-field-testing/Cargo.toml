@@ -23,7 +23,8 @@ serde_json = { workspace = true, features = ["alloc"] }
 
 [features]
 default = []
-criterion-bench = ["dep:criterion"]
+criterion = ["dep:criterion"]
+criterion-bench = ["criterion"]
 
 [package.metadata.docs.rs]
 features = ["criterion-bench"]

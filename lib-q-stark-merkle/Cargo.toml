@@ -30,7 +30,8 @@ default = ["alloc"]
 std = ["alloc"]
 alloc = []
 no_std = []
-poseidon = ["dep:lib-q-poseidon", "alloc"]
+lib-q-poseidon = ["dep:lib-q-poseidon"]
+poseidon = ["lib-q-poseidon", "alloc"]
 
 [dev-dependencies]
 lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.2" }

@@ -230,7 +230,7 @@ where
     /// Commit to the quotient polynomial. We first decompose the quotient polynomial into
     /// `num_chunks` many smaller polynomials each of degree `degree / num_chunks`.
     /// These quotient polynomials are then randomized as explained in Section 4.2 of
-    /// https://eprint.iacr.org/2024/1037.pdf .
+    /// <https://eprint.iacr.org/2024/1037.pdf>.
     ///
     /// ### Arguments
     /// - `quotient_domain` the domain of the quotient polynomial.
@@ -492,7 +492,7 @@ where
 }
 
 /// Compute the normalizing constants for the Langrange selectors of the provided domains.
-/// See Section 4.2 of https://eprint.iacr.org/2024/1037.pdf for more details.
+/// See Section 4.2 of <https://eprint.iacr.org/2024/1037.pdf> for more details.
 fn get_zp_cis<D: PolynomialSpace>(qc_domains: &[D]) -> Vec<lib_q_stark_commit::Val<D>> {
     batch_multiplicative_inverse(
         &qc_domains

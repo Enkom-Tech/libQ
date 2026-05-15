@@ -2,7 +2,13 @@
 
 ## Overview
 
-The lib-q-hpke implementation follows a modular, security-first architecture for post-quantum cryptography. This document describes the architecture, design decisions, and implementation details.
+The lib-q-hpke implementation follows a modular, security-first architecture for **post-quantum-only** HPKE (RFC 9180–aligned modes, key schedule, and labeled KDF). The default internal [`PostQuantumProvider`](../src/providers/post_quantum.rs) wires **ML-KEM** (`HpkeKem::*`) into encapsulation/decapsulation via [`LibQKemProvider`](../../lib-q-kem/README.md); other PQ KEMs may exist in the wider workspace but are not selected by the HPKE cipher suite in this crate until explicitly integrated.
+
+[`HpkeContext`](../src/lib.rs) stores an active [`HpkeCipherSuite`](../src/types.rs), [`HpkePskWireFormat`](../src/types.rs) for PSK/AuthPSK on-the-wire policy, a `lib_q_core::KemContext` supplied by the caller’s `CryptoProvider` for ML-KEM key generation and validation, an `Arc<dyn HpkeCryptoProvider + Send + Sync>` (default [`PostQuantumProvider`](../src/providers/post_quantum.rs)) for HPKE encapsulation/KDF/AEAD/export, and a configurable RNG for setup and single-shot `seal` (default OS-backed when `secure-rng` is enabled).
+
+## Interoperability module
+
+[`interop.rs`](../src/interop.rs) exposes `HpkeInteropProfile`, `HpkeCapabilities`, and `negotiate_hpke_capabilities` for deterministic peer capability intersection. Workspace docs (`docs/interoperability.md`, `docs/hpke-architecture.md`) describe profile semantics and a representative mode×suite matrix.
 
 ## Architecture Principles
 
@@ -28,12 +34,15 @@ The lib-q-hpke implementation follows a modular, security-first architecture for
 
 ```
 src/
-├── lib.rs                 # Main library entry point
-├── types.rs              # Core HPKE types and enums
-├── error.rs              # Error handling
-├── hpke_core.rs          # Core HPKE protocol implementation
-├── security_tests.rs     # Security validation tests
-├── security/             # Security utilities and validation
+├── lib.rs                 # HpkeContext, sender/receiver context methods, cipher suite + PSK wire format + HPKE crypto Arc + RNG
+├── types.rs               # HpkeKem/Kdf/Aead, HpkeCipherSuite, HpkePskWireFormat, SecretBytes
+├── interop.rs             # Profiles, capabilities, deterministic negotiation
+├── hpke_session.rs        # HpkeSenderContext / HpkeReceiverContext (post-setup state)
+├── error.rs               # HpkeError and conversion to lib-q-core::Error
+├── hpke_core.rs           # Key schedule, setup/seal/open, PSK commitment parsing
+├── wasm.rs                # wasm32 bindings (feature "wasm")
+├── security_tests.rs      # Security validation tests (crate tests)
+├── security/              # Security utilities and validation
 │   ├── mod.rs
 │   ├── policy.rs         # Security policy configuration
 │   ├── validation.rs     # Cryptographic validation
@@ -54,12 +63,12 @@ src/
 │   ├── mod.rs
 │   ├── traits.rs         # KEM trait definitions
 │   └── ml_kem.rs         # ML-KEM implementation
-├── aead/                 # Authenticated Encryption implementations
+├── aead/                  # HPKE-local AEAD helpers and trait bridge
 │   ├── mod.rs
-│   ├── traits.rs         # AEAD trait definitions
-│   ├── saturnin.rs       # Saturnin AEAD implementation
-│   ├── shake256.rs       # SHAKE256 AEAD implementation
-│   └── export.rs         # Export-only AEAD implementation
+│   ├── traits.rs          # AEAD trait used inside HPKE
+│   ├── saturnin.rs        # Saturnin AEAD implementation
+│   ├── shake256.rs        # SHAKE256 AEAD implementation
+│   └── export.rs          # Export-only AEAD stub
 ├── kdf/                  # Key Derivation Function implementations
 │   ├── mod.rs
 │   ├── traits.rs         # KDF trait definitions
@@ -72,6 +81,8 @@ src/
     ├── profiler.rs       # Performance profiling
     └── reporter.rs       # Performance reporting
 ```
+
+**Duplex-sponge AEAD:** `HpkeAead::DuplexSpongeAead` is routed to `lib-q-aead` (`Algorithm::DuplexSpongeAead`) when this crate is built with Cargo feature **`duplex-sponge-aead`**; there is no separate duplex source file under `src/aead/`.
 
 ## Core Components
 
@@ -109,30 +120,31 @@ The security module provides comprehensive security utilities:
 The provider system allows pluggable cryptographic implementations with algorithm-agnostic design:
 
 #### Provider Traits (`providers/traits.rs`)
-- **HpkeCryptoProvider**: Unified trait for all cryptographic operations
-- **KEM Operations**: Key generation, encapsulation, and decapsulation
-- **KDF Operations**: Key derivation and expansion
-- **AEAD Operations**: Authenticated encryption and decryption
-- **Authentication**: Sender authentication for Auth and AuthPSK modes
+- **`KemProvider`**: encapsulation, decapsulation, key validation, AuthEncap/AuthDecap
+- **`KdfProvider`**: labeled HKDF-style extract/expand for `HpkeKdf`
+- **`AeadProvider`**: seal/open and key/nonce validation for `HpkeAead`
+- **`HpkeCryptoProvider`**: super-trait combining the three above (`KemProvider + KdfProvider + AeadProvider`) plus metadata (`name`, `supported_algorithms`)
 
 #### Post-Quantum Provider (`providers/post_quantum.rs`)
-- Implements all provider traits using lib-q abstractions
-- Integrates with `lib-q-kem`, `lib-q-hash`, and `lib-q-aead`
-- Provides algorithm-agnostic cryptographic operations
-- Supports all HPKE modes (Base, PSK, Auth, AuthPSK)
+- Implements `KemProvider`, `KdfProvider`, and `AeadProvider` using `lib-q-kem` (`LibQKemProvider`), `lib-q-hash` (`create_hash`), and `lib-q-aead` (`create_aead`)
+- KEM path is ML-KEM only (`HpkeKem` ↔ `lib_q_core::Algorithm::MlKem*`)
+- `HpkeAead::DuplexSpongeAead` is enabled only with Cargo feature **`duplex-sponge-aead`** (maps to `Algorithm::DuplexSpongeAead` in `lib-q-aead`)
+- Supports HPKE modes Base, PSK, Auth, and AuthPSK (protocol orchestration in `hpke_core.rs` + `HpkeContext` in `lib.rs`)
 
 ### 3. Error Handling (`error.rs`)
 
-The error system provides structured, context-rich error information:
+[`HpkeError`](../src/error.rs) is structured by operation area. Important variants:
 
-- **CryptoError**: General cryptographic operation errors
-- **InvalidInput**: Input validation errors with parameter details
-- **InconsistentPsk**: PSK parameter consistency errors
-- **NotImplemented**: Unimplemented functionality errors
-- **ContextError**: HPKE context state errors
-- **ExportError**: Key export operation errors
+- **`KemError`**, **`KdfError`**, **`AeadError`**: algorithm + operation + cause string
+- **`SecurityError`**: policy / validation failures (`SecurityValidation`)
+- **`ProtocolError`**: protocol-stage failures (`ProtocolStage`)
+- **`ConfigError`**: configuration issues
+- **`CryptoError`**: general cryptographic failure messages
+- **`InvalidInput`**: parameter validation with expected vs actual context
+- **`FeatureNotEnabled`**, **`NotImplemented`**: missing Cargo features or unfinished paths
+- **`InconsistentPsk`**: PSK / commitment mismatch (notably with `HpkePskWireFormat::LibQCommitmentSuffix` before decapsulation; RFC-only PSK wire typically surfaces failure at AEAD open)
 
-The error system includes comprehensive error context and supports conversion to/from lib-q-core error types.
+The `From<HpkeError>` implementation for `lib_q_core::Error` means `HpkeContext` APIs returning `lib_q_core::Result` map most HPKE failures into `lib_q_core::Error::InternalError` (see `lib-q-hpke/src/error.rs`).
 
 ### 4. Performance Benchmarking (`benchmarking/`)
 
@@ -149,9 +161,8 @@ The benchmarking system provides performance measurement capabilities:
 The HPKE implementation uses lib-q abstractions for all cryptographic primitives:
 
 #### KEM Operations
-- Uses `lib-q-kem` for algorithm-agnostic KEM operations
-- Supports ML-KEM-512, ML-KEM-768, and ML-KEM-1024
-- Integrates with `KemContext` and `KemPublicKey`/`KemSecretKey` types
+- Uses [`LibQKemProvider`](../../lib-q-kem/README.md) inside `PostQuantumProvider` for ML-KEM-512, ML-KEM-768, and ML-KEM-1024
+- Caller-facing key generation uses `KemContext` + `CryptoProvider` from `lib-q-core` (same ML-KEM parameter sets when using the default lib-q stack)
 
 #### KDF Operations
 - Uses `lib-q-hash` for hash function operations
@@ -159,9 +170,8 @@ The HPKE implementation uses lib-q abstractions for all cryptographic primitives
 - Implements labeled extract and expand functions per RFC 9180
 
 #### AEAD Operations
-- Uses `lib-q-aead` for authenticated encryption
-- Supports Saturnin-256 and SHAKE256-based AEAD
-- Includes export-only mode for key derivation
+- Uses `lib-q-aead` (`create_aead`) for Saturnin, SHAKE256 AEAD, and optionally duplex-sponge AEAD
+- Supports export-only mode (`HpkeAead::Export`) for exporter-secret-only usage (no message AEAD)
 
 ### Benefits of Algorithm-Agnostic Design
 
@@ -170,29 +180,18 @@ The HPKE implementation uses lib-q abstractions for all cryptographic primitives
 3. **Consistency**: Uses the same interfaces as other lib-q components
 4. **Testing**: Comprehensive algorithm-agnostic tests verify compatibility
 
-### Provider Implementation
-
-The `PostQuantumProvider` implements all provider traits using lib-q abstractions:
-
-- **KEM Operations**: Uses `lib-q-kem::create_kem()` for algorithm-agnostic KEM operations
-- **Hash Operations**: Uses `lib-q-hash::create_hash()` for hash function operations
-- **AEAD Operations**: Uses `lib-q-aead::create_aead()` for authenticated encryption
-- **Error Handling**: Converts between HPKE and lib-q error types
-
 ## Integration with lib-q-core
 
-The HPKE implementation integrates with the lib-q ecosystem through the provider pattern:
+The HPKE crate integrates with the rest of lib-q as follows:
 
-### Provider Integration
-- Uses `lib-q-core` types (`KemContext`, `KemPublicKey`, `KemSecretKey`)
-- Leverages `lib-q-kem` for algorithm-agnostic KEM operations
-- Integrates with `lib-q-hash` for hash function operations
-- Uses `lib-q-aead` for authenticated encryption operations
+### Provider integration
+- **`HpkeContext`** holds `KemContext` for operations that need the caller’s registered `CryptoProvider`
+- **HPKE internals** construct a fresh `PostQuantumProvider` for KEM/KDF/AEAD steps inside `hpke_core` (see call sites in [`lib.rs`](../src/lib.rs))
+- **Types**: `KemPublicKey`, `KemSecretKey`, and `lib_q_core::Result` on the public HPKE API
 
-### Algorithm Mapping
-- Maps HPKE algorithm identifiers to lib-q algorithm types
-- Provides consistent interfaces across all cryptographic primitives
-- Maintains compatibility with existing lib-q ecosystem
+### Algorithm mapping
+- Maps each `HpkeCipherSuite` component to `lib-q-core` / `lib-q-hash` / `lib-q-aead` algorithms
+- `HpkePskWireFormat` affects only PSK / AuthPSK encapsulated-key parsing and commitment verification in `hpke_core.rs`
 
 ## Security Considerations
 
@@ -235,3 +234,4 @@ The implementation includes performance measurement capabilities through the ben
 
 For comprehensive API reference and usage examples, see [API_REFERENCE.md](API_REFERENCE.md).
 
+For workspace-level HPKE design (interoperability, PSK wire format, security framing), see [hpke-architecture.md](../../docs/hpke-architecture.md) in the repository `docs/` tree.

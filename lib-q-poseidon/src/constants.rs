@@ -1,6 +1,6 @@
 //! Poseidon constants: MDS matrices and round constants
 //!
-//! These constants are generated for Complex<Mersenne31> field to ensure
+//! These constants are generated for `Complex<Mersenne31>` field to ensure
 //! cryptographic security while maintaining efficiency in STARK proofs.
 //!
 //! # Round Constant Generation
@@ -15,7 +15,7 @@
 //! 1. Seed = SHAKE256("Poseidon128_Mersenne31_v1") or "Poseidon256_Mersenne31_v1"
 //! 2. For each constant: read 8 bytes (4 for real, 4 for imag)
 //! 3. Interpret as u32 mod P (Mersenne31 prime = 2^31 - 1)
-//! 4. Construct Complex<Mersenne31> from (real, imag) pair
+//! 4. Construct `Complex<Mersenne31>` from (real, imag) pair
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -57,21 +57,21 @@ fn cauchy_mds(n: usize) -> Vec<Vec<F>> {
         .collect()
 }
 
-/// MDS matrix for state width 5 (Poseidon-128 over Complex<Mersenne31>).
+/// MDS matrix for state width 5 (Poseidon-128 over `Complex<Mersenne31>`).
 /// Cauchy construction so every square submatrix has nonzero determinant.
 #[cfg(feature = "alloc")]
 pub fn mds_matrix_5x5() -> Vec<Vec<F>> {
     cauchy_mds(5)
 }
 
-/// MDS matrix for state width 7 (Poseidon-256 over Complex<Mersenne31>).
+/// MDS matrix for state width 7 (Poseidon-256 over `Complex<Mersenne31>`).
 #[cfg(feature = "alloc")]
 pub fn mds_matrix_7x7() -> Vec<Vec<F>> {
     cauchy_mds(7)
 }
 
 /// Round constants for Poseidon-128 (64 rounds total: 8 full + 56 partial)
-/// State width 5 for 128-bit security over Complex<Mersenne31> (capacity 3 × ~62 bits ≥ 128).
+/// State width 5 for 128-bit security over `Complex<Mersenne31>` (capacity 3 × ~62 bits ≥ 128).
 ///
 /// Total constants: 64 rounds × 5 elements = 320 constants
 /// Seed: "Poseidon128_Mersenne31_v1_w5"
@@ -81,7 +81,7 @@ pub fn round_constants_128() -> Vec<F> {
 }
 
 /// Round constants for Poseidon-256 (68 rounds total: 8 full + 60 partial)
-/// State width 7 for 256-bit security over Complex<Mersenne31> (capacity 5 × ~62 bits ≥ 256).
+/// State width 7 for 256-bit security over `Complex<Mersenne31>` (capacity 5 × ~62 bits ≥ 256).
 ///
 /// Total constants: 68 rounds × 7 elements = 476 constants
 /// Seed: "Poseidon256_Mersenne31_v1_w7"
@@ -99,7 +99,7 @@ pub fn round_constants_256() -> Vec<F> {
 ///
 /// # Returns
 ///
-/// Vector of `count` Complex<Mersenne31> constants
+/// Vector of `count` `Complex<Mersenne31>` constants
 #[cfg(feature = "alloc")]
 fn generate_round_constants(seed: &str, count: usize) -> Vec<F> {
     // Initialize SHAKE256 with seed
@@ -150,7 +150,7 @@ fn generate_round_constants(seed: &str, count: usize) -> Vec<F> {
 /// S-box function: x^5
 ///
 /// This is the power function used in Poseidon's non-linear layer.
-/// For Complex<Mersenne31>, we compute x^5 efficiently.
+/// For `Complex<Mersenne31>`, we compute x^5 efficiently.
 #[inline]
 pub fn sbox(x: F) -> F {
     use lib_q_stark_field::PrimeCharacteristicRing;

@@ -62,9 +62,11 @@ pub const MAX_PREIMAGE_SIZE: usize = 64;
 /// # Constraints
 ///
 /// For each Poseidon round:
+/// ```text
 /// 1. AddRoundConstants: state[i] + round_const[i] = intermediate[i]
 /// 2. SubWords: sbox(intermediate[i]) = sbox_out[i] (for full rounds)
 /// 3. MixLayer: MDS matrix multiplication constraints
+/// ```
 #[derive(Debug, Clone)]
 pub struct PoseidonHashAir {
     /// Maximum preimage size this AIR supports

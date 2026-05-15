@@ -13,7 +13,7 @@
 //! # Security
 //!
 //! cSHAKE256 is NIST-approved (FIPS 202 / SP 800-185). Public values = 32-byte hash encoded
-//! as 4 field elements (8 bytes per Complex<Mersenne31>: real = bytes 0..4 LE, imag = bytes 4..8 LE).
+//! as 4 field elements (8 bytes per `Complex<Mersenne31>`: real = bytes 0..4 LE, imag = bytes 4..8 LE).
 
 extern crate alloc;
 
@@ -60,7 +60,7 @@ const TRACE_WIDTH: usize = HASH_OUTPUT_BYTES;
 
 /// AIR for proving knowledge of a cSHAKE256 preimage (NIST-only).
 ///
-/// Public values are the 32-byte hash encoded as 4 field elements (Complex<Mersenne31>):
+/// Public values are the 32-byte hash encoded as 4 field elements (`Complex<Mersenne31>`):
 /// each element packs 8 bytes (real = first 4 bytes LE as u32, imag = next 4 bytes LE as u32).
 #[derive(Debug, Clone, Default)]
 pub struct HashPreimageNistAir;
@@ -95,7 +95,7 @@ where
 /// Input type for HashPreimageNistAir trace generation.
 pub type HashPreimageNistInput = Vec<u8>;
 
-/// Encode 32 bytes as 4 field elements (Complex<Mersenne31>: 8 bytes per element, LE u32 for real/imag).
+/// Encode 32 bytes as 4 field elements (`Complex<Mersenne31>`: 8 bytes per element, LE u32 for real/imag).
 fn hash_bytes_to_public_values(
     bytes: &[u8; HASH_OUTPUT_BYTES],
 ) -> Vec<lib_q_stark_field::extension::Complex<Mersenne31>> {

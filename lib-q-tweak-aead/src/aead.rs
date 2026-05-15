@@ -32,7 +32,7 @@ use crate::params::{
     TAG_BYTES,
 };
 
-/// Tweakable-block CTR AEAD (32-byte blocks, Keccak-f[1600] keystream, 32-byte tag).
+/// Tweakable-block CTR AEAD (32-byte blocks, Keccak-f\[1600\] keystream, 32-byte tag).
 pub struct TweakAead;
 
 impl TweakAead {

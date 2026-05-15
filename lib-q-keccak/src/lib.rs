@@ -269,7 +269,7 @@ pub fn p1600(state: &mut [u64; PLEN], round_count: usize) {
     }
 }
 
-/// Keccak-f[1600] permutation.
+/// Keccak-f\[1600\] permutation.
 #[cfg(all(
     target_arch = "aarch64",
     feature = "asm",

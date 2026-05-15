@@ -2,24 +2,28 @@
 
 #[cfg(feature = "alloc")]
 use alloc::format;
+use alloc::sync::Arc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 use zeroize::Zeroizing;
 
-use crate::error::HpkeError;
+use crate::error::{
+    HpkeError,
+    SecurityValidation,
+};
+use crate::hpke_session::{
+    HpkeReceiverContext,
+    HpkeSenderContext,
+};
 use crate::providers::traits::*;
 use crate::security::CryptoRng;
 use crate::security::constant_time::constant_time_eq;
 use crate::types::*;
-use crate::{
-    HpkeReceiverContext,
-    HpkeSenderContext,
-};
 
 /// Outputs of [`key_schedule`]: AEAD key material and exporter secret.
 ///
-/// Each field is [`Zeroizing`] and is cleared when dropped or when moved out into
+/// Each field is a `zeroize::Zeroizing` buffer and is cleared when dropped or when moved out into
 /// an HPKE context.
 pub struct KeyScheduleSecrets {
     /// AEAD key
@@ -31,6 +35,92 @@ pub struct KeyScheduleSecrets {
 }
 
 type ParsedReceiverEncapsulatedKey = (Vec<u8>, Option<Vec<u8>>, HpkeKem);
+
+/// Reject unknown or malformed encapsulated-key lengths before decapsulation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EncapsulatedKeyLayoutError {
+    /// Total length is shorter than required for the mode and cipher suite.
+    TooShort {
+        /// Observed total length in bytes.
+        got: usize,
+        /// Minimum length required for this layout.
+        min_expected: usize,
+    },
+    /// Trailing PSK commitment suffix has wrong length for this suite's KDF.
+    InvalidPskCommitmentSuffix {
+        /// Observed suffix length in bytes.
+        got_suffix_len: usize,
+        /// Expected suffix length from [`psk_commitment_len`].
+        expected_suffix_len: usize,
+    },
+}
+
+impl core::fmt::Display for EncapsulatedKeyLayoutError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::TooShort { got, min_expected } => write!(
+                f,
+                "encapsulated key too short: got {} bytes, need at least {}",
+                got, min_expected
+            ),
+            Self::InvalidPskCommitmentSuffix {
+                got_suffix_len,
+                expected_suffix_len,
+            } => write!(
+                f,
+                "invalid PSK commitment suffix length: got {}, expected {}",
+                got_suffix_len, expected_suffix_len
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for EncapsulatedKeyLayoutError {}
+
+/// Ensure the active provider advertises support for every primitive in `cipher_suite`.
+pub(crate) fn ensure_cipher_suite_supported<P: HpkeCryptoProvider + ?Sized>(
+    cipher_suite: &HpkeCipherSuite,
+    provider: &P,
+) -> Result<(), HpkeError> {
+    let supported = provider.supported_algorithms();
+    if !supported.supports_cipher_suite(cipher_suite) {
+        return Err(HpkeError::ConfigError {
+            setting: "cipher_suite".into(),
+            cause: format!(
+                "HPKE provider `{}` does not support KEM {:?} + KDF {:?} + AEAD {:?}",
+                provider.name(),
+                cipher_suite.kem,
+                cipher_suite.kdf,
+                cipher_suite.aead
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn verify_sender_keypair_binding<P: HpkeCryptoProvider + ?Sized>(
+    provider: &P,
+    kem: HpkeKem,
+    sender_sk: &lib_q_core::KemSecretKey,
+    sender_pk: &lib_q_core::KemPublicKey,
+) -> Result<(), HpkeError> {
+    let derived = provider.derive_public_key(kem, sender_sk.as_bytes())?;
+    let pk = sender_pk.as_bytes();
+    if derived.len() != pk.len() {
+        return Err(HpkeError::security_error(
+            SecurityValidation::KeyLength,
+            "derived sender public key length does not match sender_pk",
+        ));
+    }
+    if !constant_time_eq(derived.as_slice(), pk) {
+        return Err(HpkeError::security_error(
+            SecurityValidation::ConstantTimeComparison,
+            "sender public key does not correspond to sender secret key",
+        ));
+    }
+    Ok(())
+}
 
 /// Validate PSK parameters for a given mode
 fn validate_psk_parameters(
@@ -110,7 +200,7 @@ pub fn psk_commitment_len(cipher_suite: &HpkeCipherSuite) -> usize {
 /// appends it after the KEM wire prefix and the receiver compares before decapsulation and key
 /// schedule. Binding to `enc_kem` makes the commitment specific to this HPKE instance so it
 /// cannot be replayed across sessions that reuse the same PSK.
-pub fn derive_psk_commitment<P: HpkeCryptoProvider>(
+pub fn derive_psk_commitment<P: HpkeCryptoProvider + ?Sized>(
     psk: &[u8],
     psk_id: &[u8],
     enc_kem: &[u8],
@@ -169,7 +259,7 @@ fn main_kem_ciphertext_for_psk_commitment<'a>(
     }
 }
 
-fn verify_psk_commitment<P: HpkeCryptoProvider>(
+fn verify_psk_commitment<P: HpkeCryptoProvider + ?Sized>(
     psk: &[u8],
     psk_id: &[u8],
     enc_kem: &[u8],
@@ -268,7 +358,7 @@ fn split_encapsulated_key_for_receiver(
 }
 
 #[allow(clippy::too_many_arguments)] // PSK / AuthPSK receiver parse needs full RFC parameter surface
-fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider>(
+fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider + ?Sized>(
     encapsulated_key: &[u8],
     mode: HpkeMode,
     cipher_suite: &HpkeCipherSuite,
@@ -355,7 +445,7 @@ fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider>(
     Ok((parts.main, parts.auth, kem_algorithm))
 }
 
-fn attach_psk_commitment_to_encapsulated_key<P: HpkeCryptoProvider>(
+fn attach_psk_commitment_to_encapsulated_key<P: HpkeCryptoProvider + ?Sized>(
     encapsulated_key: Vec<u8>,
     mode: HpkeMode,
     psk: Option<&[u8]>,
@@ -381,13 +471,14 @@ fn attach_psk_commitment_to_encapsulated_key<P: HpkeCryptoProvider>(
 }
 
 /// Setup sender context for Base mode
-pub fn setup_sender<P: HpkeCryptoProvider>(
+pub fn setup_sender<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
     info: &[u8],
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
     rng: &mut dyn CryptoRng,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<HpkeSenderContext, HpkeError> {
     setup_sender_with_mode(
         kem_ctx,
@@ -402,12 +493,13 @@ pub fn setup_sender<P: HpkeCryptoProvider>(
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto,
     )
 }
 
 /// Setup sender context with full mode support
 #[allow(clippy::too_many_arguments)]
-pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
+pub fn setup_sender_with_mode<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
     info: &[u8],
@@ -420,9 +512,11 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
     sender_sk: Option<&lib_q_core::KemSecretKey>,
     sender_pk: Option<&lib_q_core::KemPublicKey>,
     psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<HpkeSenderContext, HpkeError> {
     // Validate PSK parameters for the given mode
     validate_psk_parameters(mode, psk, psk_id)?;
+    ensure_cipher_suite_supported(cipher_suite, provider)?;
 
     // Validate sender authentication parameters
     match mode {
@@ -466,48 +560,47 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
         }
     }
 
+    if matches!(mode, HpkeMode::Auth | HpkeMode::AuthPsk) {
+        let sender_sk = sender_sk.expect("validated above");
+        let sender_pk = sender_pk.expect("validated above");
+        let expected_sk_len = kem_algorithm.secret_key_len();
+        let expected_pk_len = kem_algorithm.public_key_len();
+
+        if sender_sk.as_bytes().len() != expected_sk_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid sender secret key size: {} bytes (expected {})",
+                sender_sk.as_bytes().len(),
+                expected_sk_len
+            )));
+        }
+
+        if sender_pk.as_bytes().len() != expected_pk_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid sender public key size: {} bytes (expected {})",
+                sender_pk.as_bytes().len(),
+                expected_pk_len
+            )));
+        }
+
+        verify_sender_keypair_binding(provider, kem_algorithm, sender_sk, sender_pk)?;
+    }
+
     // Perform KEM encapsulation
-    let (encapsulated_key, mut main_shared_secret) = provider
-        .encapsulate(kem_algorithm, recipient_pk.as_bytes(), rng)
-        .map_err(|e| e.into())?;
+    let (encapsulated_key, mut main_shared_secret) =
+        provider.encapsulate(kem_algorithm, recipient_pk.as_bytes(), rng)?;
 
     // For Auth and AuthPSK modes, we need to perform sender authentication
     let (auth_shared_secret, auth_encapsulated_key) =
         if matches!(mode, HpkeMode::Auth | HpkeMode::AuthPsk) {
-            let sender_sk = sender_sk.unwrap(); // Safe because we validated above
-            let sender_pk = sender_pk.unwrap(); // Safe because we validated above
-
-            // Validate that sender key pair is consistent (basic validation)
-            // In a full implementation, we would verify that sender_pk corresponds to sender_sk
-            // For now, we ensure both keys have the correct sizes for the algorithm
-            let expected_sk_len = kem_algorithm.secret_key_len();
-            let expected_pk_len = kem_algorithm.public_key_len();
-
-            if sender_sk.as_bytes().len() != expected_sk_len {
-                return Err(HpkeError::CryptoError(format!(
-                    "Invalid sender secret key size: {} bytes (expected {})",
-                    sender_sk.as_bytes().len(),
-                    expected_sk_len
-                )));
-            }
-
-            if sender_pk.as_bytes().len() != expected_pk_len {
-                return Err(HpkeError::CryptoError(format!(
-                    "Invalid sender public key size: {} bytes (expected {})",
-                    sender_pk.as_bytes().len(),
-                    expected_pk_len
-                )));
-            }
+            let sender_sk = sender_sk.expect("validated above");
 
             // Perform sender authentication using AuthEncap (RFC 9180 Section 5.1.3)
-            let (auth_encapsulated_key, auth_kem_secret) = provider
-                .auth_encapsulate(
-                    kem_algorithm,
-                    sender_sk.as_bytes(),
-                    recipient_pk.as_bytes(),
-                    rng,
-                )
-                .map_err(|e| e.into())?;
+            let (auth_encapsulated_key, auth_kem_secret) = provider.auth_encapsulate(
+                kem_algorithm,
+                sender_sk.as_bytes(),
+                recipient_pk.as_bytes(),
+                rng,
+            )?;
 
             // For Auth modes, we need to combine the shared secrets
             // The auth_encapsulated_key will be concatenated with the main encapsulated key
@@ -557,17 +650,19 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
         sequence_number: 0,
         max_sequence_number: u32::MAX - 1,
         state: HpkeContextState::Active,
+        hpke_crypto,
     })
 }
 
 /// Setup receiver context for Base mode
-pub fn setup_receiver<P: HpkeCryptoProvider>(
+pub fn setup_receiver<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
     recipient_sk: &lib_q_core::KemSecretKey,
     info: &[u8],
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<HpkeReceiverContext, HpkeError> {
     setup_receiver_with_mode(
         kem_ctx,
@@ -581,12 +676,13 @@ pub fn setup_receiver<P: HpkeCryptoProvider>(
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto,
     )
 }
 
 /// Setup receiver context with full mode support
 #[allow(clippy::too_many_arguments)]
-pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
+pub fn setup_receiver_with_mode<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
     recipient_sk: &lib_q_core::KemSecretKey,
@@ -598,9 +694,11 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
     psk_id: Option<&[u8]>,
     sender_pk: Option<&lib_q_core::KemPublicKey>,
     psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<HpkeReceiverContext, HpkeError> {
     // Validate PSK parameters for the given mode
     validate_psk_parameters(mode, psk, psk_id)?;
+    ensure_cipher_suite_supported(cipher_suite, provider)?;
 
     // Validate sender authentication parameters
     match mode {
@@ -639,13 +737,11 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
     validate_kem_context_for_algorithm(kem_ctx, kem_algorithm)?;
 
     // Perform KEM decapsulation on the main encapsulated key
-    let mut main_shared_secret = provider
-        .decapsulate(
-            kem_algorithm,
-            recipient_sk.as_bytes(),
-            &main_encapsulated_key,
-        )
-        .map_err(|e| e.into())?;
+    let mut main_shared_secret = provider.decapsulate(
+        kem_algorithm,
+        recipient_sk.as_bytes(),
+        &main_encapsulated_key,
+    )?;
 
     // For Auth and AuthPSK modes, we need to perform sender authentication
     let auth_shared_secret = if matches!(mode, HpkeMode::Auth | HpkeMode::AuthPsk) {
@@ -653,14 +749,12 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
         let auth_encap = auth_encapsulated_key.unwrap(); // Safe because we set it above
 
         // Perform sender authentication using AuthDecap (RFC 9180 Section 5.1.3)
-        let auth_kem_secret = provider
-            .auth_decapsulate(
-                kem_algorithm,
-                &auth_encap,
-                recipient_sk.as_bytes(),
-                sender_pk.as_bytes(),
-            )
-            .map_err(|e| e.into())?;
+        let auth_kem_secret = provider.auth_decapsulate(
+            kem_algorithm,
+            &auth_encap,
+            recipient_sk.as_bytes(),
+            sender_pk.as_bytes(),
+        )?;
 
         // Combine shared secrets using AuthDecap
         main_shared_secret.extend_from_slice(auth_kem_secret.as_slice());
@@ -690,12 +784,13 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
         sequence_number: 0,
         max_sequence_number: u32::MAX - 1,
         state: HpkeContextState::Active,
+        hpke_crypto,
     })
 }
 
 /// Single-shot encryption for Base mode
 #[allow(clippy::too_many_arguments)]
-pub fn seal<P: HpkeCryptoProvider>(
+pub fn seal<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
     info: &[u8],
@@ -725,7 +820,7 @@ pub fn seal<P: HpkeCryptoProvider>(
 
 /// Single-shot encryption with full mode support
 #[allow(clippy::too_many_arguments)]
-pub fn seal_with_mode<P: HpkeCryptoProvider>(
+pub fn seal_with_mode<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     recipient_pk: &lib_q_core::KemPublicKey,
     info: &[u8],
@@ -783,6 +878,8 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
         }
     }
 
+    ensure_cipher_suite_supported(cipher_suite, provider)?;
+
     let kem_algorithm = cipher_suite.kem;
     let expected_pk_len = kem_algorithm.public_key_len();
     let pk_size = recipient_pk.as_bytes().len();
@@ -795,46 +892,47 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
 
     validate_kem_context_for_algorithm(kem_ctx, kem_algorithm)?;
 
+    if matches!(mode, HpkeMode::Auth | HpkeMode::AuthPsk) {
+        let sender_sk = sender_sk.expect("validated in match above");
+        let sender_pk = sender_pk.expect("validated in match above");
+        let expected_sk_len = kem_algorithm.secret_key_len();
+        let expected_pk_len = kem_algorithm.public_key_len();
+
+        if sender_sk.as_bytes().len() != expected_sk_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid sender secret key size: {} bytes (expected {})",
+                sender_sk.as_bytes().len(),
+                expected_sk_len
+            )));
+        }
+
+        if sender_pk.as_bytes().len() != expected_pk_len {
+            return Err(HpkeError::CryptoError(format!(
+                "Invalid sender public key size: {} bytes (expected {})",
+                sender_pk.as_bytes().len(),
+                expected_pk_len
+            )));
+        }
+
+        verify_sender_keypair_binding(provider, kem_algorithm, sender_sk, sender_pk)?;
+    }
+
     // Perform KEM encapsulation
-    let (encapsulated_key, mut main_shared_secret) = provider
-        .encapsulate(kem_algorithm, recipient_pk.as_bytes(), rng)
-        .map_err(|e| e.into())?;
+    let (encapsulated_key, mut main_shared_secret) =
+        provider.encapsulate(kem_algorithm, recipient_pk.as_bytes(), rng)?;
 
     // For Auth and AuthPSK modes, perform sender authentication
     let (auth_shared_secret, auth_encapsulated_key) =
         if matches!(mode, HpkeMode::Auth | HpkeMode::AuthPsk) {
-            let sender_sk = sender_sk.unwrap();
-            let sender_pk = sender_pk.unwrap();
-
-            // Validate sender key sizes
-            let expected_sk_len = kem_algorithm.secret_key_len();
-            let expected_pk_len = kem_algorithm.public_key_len();
-
-            if sender_sk.as_bytes().len() != expected_sk_len {
-                return Err(HpkeError::CryptoError(format!(
-                    "Invalid sender secret key size: {} bytes (expected {})",
-                    sender_sk.as_bytes().len(),
-                    expected_sk_len
-                )));
-            }
-
-            if sender_pk.as_bytes().len() != expected_pk_len {
-                return Err(HpkeError::CryptoError(format!(
-                    "Invalid sender public key size: {} bytes (expected {})",
-                    sender_pk.as_bytes().len(),
-                    expected_pk_len
-                )));
-            }
+            let sender_sk = sender_sk.expect("validated above");
 
             // Perform sender authentication
-            let (auth_encapsulated_key, auth_kem_secret) = provider
-                .auth_encapsulate(
-                    kem_algorithm,
-                    sender_sk.as_bytes(),
-                    recipient_pk.as_bytes(),
-                    rng,
-                )
-                .map_err(|e| e.into())?;
+            let (auth_encapsulated_key, auth_kem_secret) = provider.auth_encapsulate(
+                kem_algorithm,
+                sender_sk.as_bytes(),
+                recipient_pk.as_bytes(),
+                rng,
+            )?;
 
             main_shared_secret.extend_from_slice(auth_kem_secret.as_slice());
             (main_shared_secret, Some(auth_encapsulated_key))
@@ -887,7 +985,7 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
 
 /// Single-shot decryption for Base mode
 #[allow(clippy::too_many_arguments)]
-pub fn open<P: HpkeCryptoProvider>(
+pub fn open<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
     recipient_sk: &lib_q_core::KemSecretKey,
@@ -896,6 +994,7 @@ pub fn open<P: HpkeCryptoProvider>(
     ciphertext: &[u8],
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<Vec<u8>, HpkeError> {
     open_with_mode(
         kem_ctx,
@@ -911,12 +1010,13 @@ pub fn open<P: HpkeCryptoProvider>(
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto,
     )
 }
 
 /// Single-shot decryption with full mode support
 #[allow(clippy::too_many_arguments)]
-pub fn open_with_mode<P: HpkeCryptoProvider>(
+pub fn open_with_mode<P: HpkeCryptoProvider + ?Sized>(
     kem_ctx: &mut lib_q_core::KemContext,
     encapsulated_key: &[u8],
     recipient_sk: &lib_q_core::KemSecretKey,
@@ -930,6 +1030,7 @@ pub fn open_with_mode<P: HpkeCryptoProvider>(
     psk_id: Option<&[u8]>,
     sender_pk: Option<&lib_q_core::KemPublicKey>,
     psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 ) -> Result<Vec<u8>, HpkeError> {
     // Setup receiver context with mode support
     let receiver_ctx = setup_receiver_with_mode(
@@ -944,22 +1045,23 @@ pub fn open_with_mode<P: HpkeCryptoProvider>(
         psk_id,
         sender_pk,
         psk_wire_format,
+        hpke_crypto.clone(),
     )?;
 
     // Decrypt the message
     open_message(
         receiver_ctx.aead,
-        &receiver_ctx.key,
-        &receiver_ctx.nonce,
+        receiver_ctx.key.as_slice(),
+        receiver_ctx.nonce.as_slice(),
         0,
         aad,
         ciphertext,
-        provider,
+        receiver_ctx.hpke_crypto.as_ref(),
     )
 }
 
 /// Seal (encrypt) a message
-pub fn seal_message<P: HpkeCryptoProvider>(
+pub fn seal_message<P: HpkeCryptoProvider + ?Sized>(
     aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
@@ -971,13 +1073,11 @@ pub fn seal_message<P: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    provider
-        .seal(aead, key, nonce.as_slice(), aad, plaintext)
-        .map_err(|e| e.into())
+    provider.seal(aead, key, nonce.as_slice(), aad, plaintext)
 }
 
 /// Open (decrypt) a message
-pub fn open_message<P: HpkeCryptoProvider>(
+pub fn open_message<P: HpkeCryptoProvider + ?Sized>(
     aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
@@ -989,16 +1089,14 @@ pub fn open_message<P: HpkeCryptoProvider>(
     // Compute nonce from base_nonce and sequence number
     let nonce = compute_nonce(base_nonce, sequence_number);
 
-    provider
-        .open(aead, key, nonce.as_slice(), aad, ciphertext)
-        .map_err(|e| e.into())
+    provider.open(aead, key, nonce.as_slice(), aad, ciphertext)
 }
 
 /// Export key material (RFC 9180 Section 5.3)
 ///
 /// Per RFC 9180 Section 5.3, `L` MUST be at most `255 * Nh` for the KDFs defined in that document,
 /// where `Nh` is the Extract output length ([`HpkeKdf::extract_len`] for this implementation).
-pub fn export<P: HpkeCryptoProvider>(
+pub fn export<P: HpkeCryptoProvider + ?Sized>(
     exporter_secret: &[u8],
     exporter_context: &[u8],
     length: usize,
@@ -1059,7 +1157,7 @@ pub fn create_suite_id(cipher_suite: &HpkeCipherSuite) -> Result<Vec<u8>, HpkeEr
 }
 
 /// Key schedule implementation (RFC 9180 Section 5.1, `KeySchedule`)
-pub fn key_schedule<P: HpkeCryptoProvider>(
+pub fn key_schedule<P: HpkeCryptoProvider + ?Sized>(
     mode: HpkeMode,
     shared_secret: &[u8],
     info: &[u8],
@@ -1139,7 +1237,7 @@ pub fn key_schedule<P: HpkeCryptoProvider>(
 }
 
 /// Labeled extract function (RFC 9180 Section 4.1)
-pub fn labeled_extract<P: HpkeCryptoProvider>(
+pub fn labeled_extract<P: HpkeCryptoProvider + ?Sized>(
     kdf: HpkeKdf,
     salt: &[u8],
     suite_id: &[u8],
@@ -1156,14 +1254,12 @@ pub fn labeled_extract<P: HpkeCryptoProvider>(
     labeled_ikm.extend_from_slice(label.as_bytes());
     labeled_ikm.extend_from_slice(ikm);
 
-    let prk = provider
-        .extract(kdf, salt, labeled_ikm.as_slice())
-        .map_err(|e| e.into())?;
+    let prk = provider.extract(kdf, salt, labeled_ikm.as_slice())?;
     Ok(Zeroizing::new(prk))
 }
 
 /// Labeled expand function (RFC 9180 Section 4.1)
-pub fn labeled_expand<P: HpkeCryptoProvider>(
+pub fn labeled_expand<P: HpkeCryptoProvider + ?Sized>(
     kdf: HpkeKdf,
     prk: &[u8],
     suite_id: &[u8],
@@ -1188,9 +1284,7 @@ pub fn labeled_expand<P: HpkeCryptoProvider>(
     labeled_info.extend_from_slice(label.as_bytes());
     labeled_info.extend_from_slice(info);
 
-    let okm = provider
-        .expand(kdf, prk, labeled_info.as_slice(), length)
-        .map_err(|e| e.into())?;
+    let okm = provider.expand(kdf, prk, labeled_info.as_slice(), length)?;
     Ok(Zeroizing::new(okm))
 }
 

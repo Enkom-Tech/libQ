@@ -6,10 +6,10 @@
 //! ## Context factories
 //!
 //! Core does not provide factories that depend on algorithm implementation crates (no cycles).
-//! For [`AeadContext`](crate::contexts::AeadContext), use [`AeadContext::new`](crate::contexts::AeadContext::new),
-//! [`with_aead_operations`](crate::contexts::AeadContext::with_aead_operations), or
-//! [`with_provider`](crate::contexts::AeadContext::with_provider). The `lib-q-aead` crate supplies
-//! `LibQAeadProvider` for [`with_aead_operations`](crate::contexts::AeadContext::with_aead_operations); the umbrella `lib-q` crate exposes `libq::aead::context()` wired to that provider.
+//! For [`AeadContext`], use [`AeadContext::new`](crate::contexts::AeadContext::new),
+//! [`AeadContext::with_aead_operations`](crate::contexts::AeadContext::with_aead_operations), or
+//! [`AeadContext::with_provider`](crate::contexts::AeadContext::with_provider). The `lib-q-aead` crate supplies
+//! `LibQAeadProvider` for [`AeadContext::with_aead_operations`](crate::contexts::AeadContext::with_aead_operations); the umbrella `lib-q` crate exposes `libq::aead::context()` wired to that provider.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]

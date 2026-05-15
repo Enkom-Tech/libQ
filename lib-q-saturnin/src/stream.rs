@@ -258,7 +258,7 @@ impl SaturninStream {
     /// * `length` - Length of keystream to generate
     ///
     /// # Returns
-    /// Generated keystream in a [`Zeroizing`](zeroize::Zeroizing) buffer (zeroed on drop).
+    /// Generated keystream in a [`zeroize::Zeroizing`] buffer (zeroed on drop).
     pub fn generate_keystream(
         &self,
         key: &[u8],

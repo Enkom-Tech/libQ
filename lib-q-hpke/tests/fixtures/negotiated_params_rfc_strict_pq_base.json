@@ -1,0 +1,24 @@
+{
+  "profile": "RfcStrictPq",
+  "local": {
+    "suite_preferences": [
+      { "kem": "MlKem512", "kdf": "HkdfShake256", "aead": "Saturnin256" }
+    ],
+    "supported_modes": ["Base", "Psk", "Auth", "AuthPsk"],
+    "psk_wire_preferences": ["Rfc9180"]
+  },
+  "remote": {
+    "suite_preferences": [
+      { "kem": "MlKem512", "kdf": "HkdfShake256", "aead": "Saturnin256" }
+    ],
+    "supported_modes": ["Base", "Psk"],
+    "psk_wire_preferences": ["Rfc9180"]
+  },
+  "expected": {
+    "kem": "MlKem512",
+    "kdf": "HkdfShake256",
+    "aead": "Saturnin256",
+    "mode": "Base",
+    "psk_wire": "Rfc9180"
+  }
+}

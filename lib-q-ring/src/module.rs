@@ -52,7 +52,7 @@ impl ModuleMatrix {
         ModuleVec(out)
     }
 
-    /// [`mul_vec_ntt`] with automatic `NTT` on each input [`Poly`].
+    /// [`ModuleMatrix::mul_vec_ntt`] with automatic `NTT` on each input [`Poly`].
     #[must_use]
     pub fn mul_vec(&self, v: &ModuleVec) -> ModuleVec {
         let v_ntt: Vec<NttPoly> = v.0.iter().map(Poly::to_ntt).collect();

@@ -24,12 +24,20 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
+# Guard: optional deps enabled only via `dep:` do not get implicit workspace feature names.
+# `cargo-tarpaulin` / `cargo metadata --features zeroize` must resolve for every workspace member.
+if ! cargo metadata --format-version 1 --features zeroize -q >/dev/null; then
+  echo "ERROR: cargo metadata --features zeroize failed (see messages above)." >&2
+  exit 1
+fi
+
 mapfile -t NAMES < <(cargo metadata --format-version 1 --no-deps 2>/dev/null | jq -r '.packages[] | .name' | sort -u)
 
 effective_threshold_for() {
   local pkg="$1"
   local t="$2"
   case "$pkg" in
+    lib-q-core) echo 78 ;; # match .github/workflows/pr.yml + coverage.yml
     lib-q-ml-dsa) echo 60 ;;
     lib-q-keccak|lib-q-kem) echo 65 ;;
     lib-q-sig) echo 66 ;;

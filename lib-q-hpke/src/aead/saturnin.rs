@@ -1,12 +1,13 @@
 //! Saturnin AEAD for HPKE (`HpkeAead::Saturnin256`).
 //!
-//! This module wraps [`SaturninAead`](lib_q_saturnin::SaturninAead) from `lib-q-saturnin`.
+//! This module wraps [`SaturninAead`] from `lib-q-saturnin`.
 //! Decryption follows that crate’s verification discipline (constant-time tag comparison and
 //! symmetric decrypt scheduling as documented there and in `lib-q-saturnin/SECURITY.md`).
 //!
-//! HPKE’s [`Aead::open`](crate::aead::traits::Aead::open) remains **Layer A** [`Result`]-first;
+//! HPKE’s [`crate::aead::traits::Aead::open`] remains **Layer A** [`Result`]-first;
 //! it delegates to [`SaturninAeadImpl::decrypt_semantic`] (Layer B) for consistent mapping.
-//! [`PostQuantumProvider`](crate::providers::post_quantum::PostQuantumProvider) / [`AeadProvider`](crate::providers::traits::AeadProvider) `open` stays `Result`-only; use this concrete type for semantic outcomes.
+//! [`crate::providers::PostQuantumProvider`] / [`crate::providers::AeadProvider`] `open` stays
+//! `Result`-only; use this concrete type for semantic outcomes.
 
 #[cfg(all(feature = "alloc", feature = "saturnin"))]
 use alloc::format;
@@ -191,7 +192,7 @@ impl crate::aead::traits::Aead for SaturninAeadImpl {
         }
     }
 
-    /// Decrypt and verify using [`SaturninAead`](lib_q_saturnin::SaturninAead).
+    /// Decrypt and verify using [`SaturninAead`].
     ///
     /// Thin wrapper over [`SaturninAeadImpl::decrypt_semantic`]: maps
     /// [`DecryptSemanticOutcome::Success`] to `Ok` and authentication failure to `Err`.

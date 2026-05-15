@@ -160,7 +160,7 @@ impl Default for AggregationConfig {
 /// Contains a recursive STARK proof for the first inner proof only,
 /// plus a Merkle root over all N serialized proofs and metadata.
 ///
-/// Note: This struct doesn't derive Debug/Clone because StarkProof<C> doesn't
+/// Note: This struct doesn't derive Debug/Clone because `StarkProof<C>` doesn't
 /// implement these traits (it contains generic commitment/PCS types).
 pub struct AggregatedProof<C: StarkGenericConfig> {
     /// Recursive STARK proof attesting only to proof\[0\]
@@ -171,7 +171,7 @@ pub struct AggregatedProof<C: StarkGenericConfig> {
     pub num_proofs: usize,
     /// First serialized proof and config used to reconstruct the outer AIR for verification
     pub first_serialized_proof: SerializedStarkProof<Val<C>, C::Challenge>,
-    /// Set when the outer proof was produced by [`ProofAggregator::aggregate`]: all inner
+    /// Set when the outer proof was produced by `ProofAggregator::aggregate`: all inner
     /// serializations in order (needed to verify the batch recursive proof).
     pub all_inner_serialized_proofs: Option<Vec<SerializedStarkProof<Val<C>, C::Challenge>>>,
     /// Aggregation configuration used during aggregation

@@ -55,10 +55,10 @@
 //! `Ok(plaintext)` versus `Err(Error::VerificationFailed)` (Layer A) for a failed tag after that
 //! schedule, or `Ok(DecryptSemanticOutcome::AuthenticationFailed)` (Layer B). Ciphertext shorter
 //! than the tag is rejected up front as `Err(Error::InvalidCiphertextSize)` (operational). Failed
-//! plaintext buffers are zeroized. This matches the [`Aead`](lib_q_core::Aead) contract in
+//! plaintext buffers are zeroized. This matches the [`lib_q_core::Aead`] contract in
 //! `lib-q-core`: bulk symmetric work is not skipped on auth failure; the public `Result` / outcome
 //! still discriminates at the boundary. For semantic decrypt without plaintext on authentication
-//! failure, see [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic). See this crate’s
+//! failure, see [`lib_q_core::AeadDecryptSemantic`]. See this crate’s
 //! `SECURITY.md` for Saturnin-Short specifics.
 
 #[cfg(feature = "alloc")]
@@ -468,7 +468,7 @@ impl Aead for SaturninAead {
         Ok(ciphertext)
     }
 
-    /// Decrypt and verify data (Layer A); shares one decrypt core with [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic).
+    /// Decrypt and verify data (Layer A); shares one decrypt core with [`lib_q_core::AeadDecryptSemantic`].
     fn decrypt(
         &self,
         key: &AeadKey,

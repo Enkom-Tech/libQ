@@ -398,12 +398,15 @@ fn test_labeled_functions() {
 /// Test PSK mode
 #[test]
 fn test_psk_mode() {
+    use std::sync::Arc;
+
     use lib_q_core::{
         Algorithm,
         KemContext,
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+    use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
@@ -414,7 +417,8 @@ fn test_psk_mode() {
         HpkePskWireFormat,
     };
 
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
@@ -442,7 +446,7 @@ fn test_psk_mode() {
         &recipient_pk,
         info,
         &cipher_suite,
-        &provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Psk,
         Some(psk),
@@ -450,6 +454,7 @@ fn test_psk_mode() {
         None,
         None,
         HpkePskWireFormat::Rfc9180,
+        hpke_crypto.clone(),
     )
     .unwrap();
 
@@ -463,12 +468,15 @@ fn test_psk_mode() {
 /// Test Auth mode
 #[test]
 fn test_auth_mode() {
+    use std::sync::Arc;
+
     use lib_q_core::{
         Algorithm,
         KemContext,
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+    use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
@@ -479,7 +487,8 @@ fn test_auth_mode() {
         HpkePskWireFormat,
     };
 
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
@@ -517,7 +526,7 @@ fn test_auth_mode() {
         &recipient_pk,
         info,
         &cipher_suite,
-        &provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -525,6 +534,7 @@ fn test_auth_mode() {
         Some(&sender_sk),
         Some(&sender_pk),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .unwrap();
 
@@ -538,12 +548,15 @@ fn test_auth_mode() {
 /// Test AuthPSK mode
 #[test]
 fn test_auth_psk_mode() {
+    use std::sync::Arc;
+
     use lib_q_core::{
         Algorithm,
         KemContext,
     };
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+    use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
         HpkeAead,
@@ -554,7 +567,8 @@ fn test_auth_psk_mode() {
         HpkePskWireFormat,
     };
 
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Create cipher suite
@@ -595,7 +609,7 @@ fn test_auth_psk_mode() {
         &recipient_pk,
         info,
         &cipher_suite,
-        &provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::AuthPsk,
         Some(psk),
@@ -603,6 +617,7 @@ fn test_auth_psk_mode() {
         Some(&sender_sk),
         Some(&sender_pk),
         HpkePskWireFormat::Rfc9180,
+        hpke_crypto.clone(),
     )
     .unwrap();
 

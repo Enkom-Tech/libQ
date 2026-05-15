@@ -76,7 +76,7 @@ pub fn shift_xor_cyclic_bytes(dest: &mut [u8], source: &[u8], distance: usize, n
     }
 }
 
-/// Portable sparse-dense polynomial multiplication in GF(2)[x]/(x^n - 1).
+/// Portable sparse-dense polynomial multiplication in GF(2)\[x\]/(x^n - 1).
 ///
 /// For each set coefficient at position `p` in `sparse`, XORs `x^p * dense` (cyclic) into `output`.
 #[cfg(feature = "alloc")]

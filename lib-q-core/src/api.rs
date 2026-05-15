@@ -296,7 +296,7 @@ impl Utils {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::HexDecode`] with a [`crate::error::HexDecodeError`] reason when the
+    /// Returns [`crate::error::Error::HexDecode`] with a [`crate::error::HexDecodeError`] reason when the
     /// trimmed input is not valid hexadecimal (odd length or non-hex digit).
     #[cfg(feature = "alloc")]
     pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {

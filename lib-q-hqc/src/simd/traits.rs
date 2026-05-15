@@ -6,7 +6,7 @@
 
 /// Operations required for HQC polynomial arithmetic
 pub trait PolynomialOps {
-    /// Sparse-dense polynomial multiplication in GF(2)[x]/(x^n - 1)
+    /// Sparse-dense polynomial multiplication in GF(2)\[x\]/(x^n - 1)
     ///
     /// This is the primary performance bottleneck in HQC operations.
     /// The sparse polynomial has a fixed weight (number of non-zero coefficients).
@@ -16,7 +16,7 @@ pub trait PolynomialOps {
     /// * `sparse` - First operand (bit-packed, same byte length as `dense` typical)
     /// * `dense` - Second operand (full representation)
     /// * `weight` - Hint for preallocating position lists (actual bits used are all set bits in `sparse`)
-    /// * `n_bits` - Ring dimension `N` for GF(2)[x]/(x^n - 1); operations wrap modulo `n_bits`
+    /// * `n_bits` - Ring dimension `N` for GF(2)\[x\]/(x^n - 1); operations wrap modulo `n_bits`
     fn sparse_dense_mul(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32, n_bits: usize);
 
     /// Vector XOR operation with shift

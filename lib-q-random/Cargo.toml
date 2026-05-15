@@ -59,7 +59,8 @@ classical-mceliece = ["getrandom"]
 hpke = ["hash"]
 fn-dsa = []
 hqc = ["alloc"]  # HQC reference implementation in tests (requires Vec)
-nist-drbg = ["dep:aes", "alloc"]  # NIST AES256-CTR-DRBG for KAT compliance
+aes = ["dep:aes"]
+nist-drbg = ["aes", "alloc"]  # NIST AES256-CTR-DRBG for KAT compliance
 
 # Additional features for specialized implementations
 rand = ["dep:rand"]

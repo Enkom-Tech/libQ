@@ -114,7 +114,7 @@ pub trait Hash {
 /// this API boundary. Callers that must hide verification outcome from remote observers
 /// need a higher layer (fixed-latency envelope, scheduling isolation, or a non-`Result`
 /// cryptographic API designed for that threat model). When the `alloc` feature is enabled,
-/// see also `crate::security::timing` for related utilities, and [`AeadDecryptSemantic`] /
+/// see also `crate::security::timing` for related utilities, and [`crate::AeadDecryptSemantic`] /
 /// [`DecryptSemanticOutcome`](crate::DecryptSemanticOutcome) for **Layer B** (semantic
 /// outcome without plaintext on `AuthenticationFailed`; see `docs/adr/003-aead-decrypt-layers.md`).
 pub trait Aead {

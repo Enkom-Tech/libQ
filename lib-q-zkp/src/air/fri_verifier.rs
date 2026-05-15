@@ -320,9 +320,9 @@ pub struct FriVerificationInput<F: Field> {
     pub round_current_evals: Vec<F>,
     /// Per-round sibling evaluations for folding constraint. Length num_rounds; use F::ZERO if missing.
     pub round_sibling_evals: Vec<F>,
-    /// Per-round domain point inverse (xs[1]-xs[0])^{-1} for verifier fold formula. Length num_rounds; use F::ZERO if missing.
+    /// Per-round domain point inverse `(xs[1]-xs[0])^{-1}` for verifier fold formula. Length num_rounds; use F::ZERO if missing.
     pub round_domain_point_inverses: Vec<F>,
-    /// Per-round first domain point xs[0] for verifier fold formula. Length num_rounds; use F::ZERO if missing.
+    /// Per-round first domain point `xs[0]` for verifier fold formula. Length num_rounds; use F::ZERO if missing.
     pub round_domain_point_x0: Vec<F>,
     /// Per-round query parity (query_idx0 >> i) & 1 for e0/e1 ordering. Length num_rounds; 0 or 1.
     pub round_parity: Vec<F>,

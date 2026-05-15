@@ -1,4 +1,4 @@
-//! Sizes for tweakable CTR AEAD (32-byte blocks, Keccak-f[1600] rate 136).
+//! Sizes for tweakable CTR AEAD (32-byte blocks, Keccak-f\[1600\] rate 136).
 
 /// Sponge rate in bytes.
 pub const RATE_BYTES: usize = 136;

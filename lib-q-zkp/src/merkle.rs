@@ -131,7 +131,7 @@ impl PoseidonMerkleTree {
 
     /// Extract authentication path for a leaf index.
     ///
-    /// Returns `(path_bits, siblings)` where path_bits[level] is true when
+    /// Returns `(path_bits, siblings)` where `path_bits[level]` is true when
     /// the leaf is on the right at that level. Use these to build
     /// `MerklePath { path_bits, siblings }` for `prove_membership`.
     ///

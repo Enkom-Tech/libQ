@@ -1,4 +1,4 @@
-//! Keccak-f[1600] permutation wrapper for STARK symmetric primitives.
+//! Keccak-f\[1600\] permutation wrapper for STARK symmetric primitives.
 //!
 //! This provides a NIST-approved permutation (Keccak-f is the core of SHA-3)
 //! for use in sponge constructions and Merkle tree hashing.
@@ -10,7 +10,7 @@ use crate::permutation::{
     Permutation,
 };
 
-/// Keccak-f[1600] permutation over 25 u64 lanes (200 bytes total state).
+/// Keccak-f\[1600\] permutation over 25 u64 lanes (200 bytes total state).
 ///
 /// This is the core permutation used in SHA-3 and is NIST-approved.
 /// It operates on a state of 25 u64 values (1600 bits total).

@@ -1,4 +1,4 @@
-//! Tweakable-block CTR AEAD using Keccak-f[1600] (SHA-3 permutation).
+//! Tweakable-block CTR AEAD using Keccak-f\[1600\] (SHA-3 permutation).
 //!
 //! Each 32-byte block uses an independent sponge evaluation (key, nonce, block counter),
 //! enabling SIMD-parallel permutation. The tag is derived by absorbing

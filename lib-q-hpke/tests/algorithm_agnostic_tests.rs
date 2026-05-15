@@ -1,5 +1,7 @@
 #![allow(clippy::expect_fun_call, clippy::too_many_arguments)]
 
+use std::sync::Arc;
+
 use lib_q_core::{
     KemContext,
     KemPublicKey,
@@ -11,6 +13,7 @@ use lib_q_hpke::hpke_core::{
 };
 use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::security::prng::Kt128Rng;
 use lib_q_hpke::types::{
     HpkeAead,
@@ -25,21 +28,22 @@ use lib_q_kem::LibQKemProvider;
 /// Test that HPKE works with different KEM algorithms
 #[test]
 fn test_hpke_with_different_kem_algorithms() {
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     // Test with ML-KEM-512
-    test_kem_algorithm(&provider, &mut rng, HpkeKem::MlKem512, "ML-KEM-512");
+    test_kem_algorithm(&hpke_crypto, &mut rng, HpkeKem::MlKem512, "ML-KEM-512");
 
     // Test with ML-KEM-768
-    test_kem_algorithm(&provider, &mut rng, HpkeKem::MlKem768, "ML-KEM-768");
+    test_kem_algorithm(&hpke_crypto, &mut rng, HpkeKem::MlKem768, "ML-KEM-768");
 
     // Test with ML-KEM-1024
-    test_kem_algorithm(&provider, &mut rng, HpkeKem::MlKem1024, "ML-KEM-1024");
+    test_kem_algorithm(&hpke_crypto, &mut rng, HpkeKem::MlKem1024, "ML-KEM-1024");
 }
 
 fn test_kem_algorithm(
-    provider: &PostQuantumProvider,
+    hpke_crypto: &Arc<dyn HpkeCryptoProvider + Send + Sync>,
     rng: &mut Kt128Rng,
     kem: HpkeKem,
     kem_name: &str,
@@ -54,7 +58,8 @@ fn test_kem_algorithm(
     };
 
     // Generate keypair using the provider
-    let (public_key_bytes, secret_key_bytes) = provider
+    let (public_key_bytes, secret_key_bytes) = hpke_crypto
+        .as_ref()
         .generate_keypair(kem, rng)
         .expect(&format!("Failed to generate keypair for {}", kem_name));
 
@@ -68,7 +73,7 @@ fn test_kem_algorithm(
 
     // Test Base mode
     test_hpke_mode(
-        provider,
+        hpke_crypto,
         rng,
         &cipher_suite,
         &recipient_pk,
@@ -88,7 +93,7 @@ fn test_kem_algorithm(
     let psk = b"test-psk";
     let psk_id = b"test-psk-id";
     test_hpke_mode(
-        provider,
+        hpke_crypto,
         rng,
         &cipher_suite,
         &recipient_pk,
@@ -105,15 +110,18 @@ fn test_kem_algorithm(
     );
 
     // Test Auth mode
-    let (sender_pk_bytes, sender_sk_bytes) = provider.generate_keypair(kem, rng).expect(&format!(
-        "Failed to generate sender keypair for {}",
-        kem_name
-    ));
+    let (sender_pk_bytes, sender_sk_bytes) = hpke_crypto
+        .as_ref()
+        .generate_keypair(kem, rng)
+        .expect(&format!(
+            "Failed to generate sender keypair for {}",
+            kem_name
+        ));
     let sender_pk = KemPublicKey::new(sender_pk_bytes);
     let sender_sk = KemSecretKey::new(sender_sk_bytes.to_vec());
 
     test_hpke_mode(
-        provider,
+        hpke_crypto,
         rng,
         &cipher_suite,
         &recipient_pk,
@@ -131,7 +139,7 @@ fn test_kem_algorithm(
 
     // Test AuthPSK mode
     test_hpke_mode(
-        provider,
+        hpke_crypto,
         rng,
         &cipher_suite,
         &recipient_pk,
@@ -149,7 +157,7 @@ fn test_kem_algorithm(
 }
 
 fn test_hpke_mode(
-    provider: &PostQuantumProvider,
+    hpke_crypto: &Arc<dyn HpkeCryptoProvider + Send + Sync>,
     rng: &mut Kt128Rng,
     cipher_suite: &HpkeCipherSuite,
     recipient_pk: &KemPublicKey,
@@ -178,7 +186,7 @@ fn test_hpke_mode(
         aad,
         plaintext,
         cipher_suite,
-        provider,
+        hpke_crypto.as_ref(),
         rng,
         mode,
         psk,
@@ -220,12 +228,13 @@ fn test_hpke_mode(
         aad,
         &ciphertext,
         cipher_suite,
-        provider,
+        hpke_crypto.as_ref(),
         mode,
         psk,
         psk_id,
         sender_pk,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect(&format!("Failed to decrypt in {}", test_name));
 
@@ -242,7 +251,8 @@ fn test_hpke_mode(
 /// Test that HPKE works with different KDF algorithms
 #[test]
 fn test_hpke_with_different_kdf_algorithms() {
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
@@ -262,7 +272,8 @@ fn test_hpke_with_different_kdf_algorithms() {
             };
 
             // Generate keypair
-            let (public_key_bytes, secret_key_bytes) = provider
+            let (public_key_bytes, secret_key_bytes) = hpke_crypto
+                .as_ref()
                 .generate_keypair(*kem, &mut rng)
                 .expect("Failed to generate keypair");
 
@@ -285,7 +296,7 @@ fn test_hpke_with_different_kdf_algorithms() {
                 aad,
                 plaintext,
                 &cipher_suite,
-                &provider,
+                hpke_crypto.as_ref(),
                 &mut rng,
                 HpkeMode::Base,
                 None,
@@ -307,12 +318,13 @@ fn test_hpke_with_different_kdf_algorithms() {
                 aad,
                 &ciphertext,
                 &cipher_suite,
-                &provider,
+                hpke_crypto.as_ref(),
                 HpkeMode::Base,
                 None,
                 None,
                 None,
                 HpkePskWireFormat::default(),
+                hpke_crypto.clone(),
             )
             .expect("Failed to decrypt");
 
@@ -328,7 +340,8 @@ fn test_hpke_with_different_kdf_algorithms() {
 /// Test that HPKE works with different AEAD algorithms
 #[test]
 fn test_hpke_with_different_aead_algorithms() {
-    let provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     let mut rng = Kt128Rng::new().expect("Failed to create RNG");
 
     let kems = [HpkeKem::MlKem512, HpkeKem::MlKem768, HpkeKem::MlKem1024];
@@ -343,7 +356,8 @@ fn test_hpke_with_different_aead_algorithms() {
             };
 
             // Generate keypair
-            let (public_key_bytes, secret_key_bytes) = provider
+            let (public_key_bytes, secret_key_bytes) = hpke_crypto
+                .as_ref()
                 .generate_keypair(*kem, &mut rng)
                 .expect("Failed to generate keypair");
 
@@ -366,7 +380,7 @@ fn test_hpke_with_different_aead_algorithms() {
                 aad,
                 plaintext,
                 &cipher_suite,
-                &provider,
+                hpke_crypto.as_ref(),
                 &mut rng,
                 HpkeMode::Base,
                 None,
@@ -388,12 +402,13 @@ fn test_hpke_with_different_aead_algorithms() {
                 aad,
                 &ciphertext,
                 &cipher_suite,
-                &provider,
+                hpke_crypto.as_ref(),
                 HpkeMode::Base,
                 None,
                 None,
                 None,
                 HpkePskWireFormat::default(),
+                hpke_crypto.clone(),
             )
             .expect("Failed to decrypt");
 

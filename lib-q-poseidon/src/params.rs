@@ -1,7 +1,7 @@
 //! Poseidon parameter sets for different security levels
 //!
 //! This module defines standard Poseidon parameter configurations optimized
-//! for Complex<Mersenne31> field.
+//! for `Complex<Mersenne31>` field.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -25,8 +25,8 @@ pub type PoseidonField = Complex<Mersenne31>;
 
 /// Poseidon parameter configuration
 ///
-/// MDS matrix is stored as row-major Vec<Vec<F>> to support state widths 5 and 7
-/// (128-bit and 256-bit security over Complex<Mersenne31>).
+/// MDS matrix is stored as row-major `Vec<Vec<F>>` to support state widths 5 and 7
+/// (128-bit and 256-bit security over `Complex<Mersenne31>`).
 #[derive(Debug, Clone)]
 pub struct PoseidonParams {
     /// State width (number of field elements)
@@ -45,7 +45,7 @@ pub struct PoseidonParams {
     pub mds_matrix: Vec<Vec<PoseidonField>>,
 }
 
-/// Poseidon-128 parameters for 128-bit security over Complex<Mersenne31>
+/// Poseidon-128 parameters for 128-bit security over `Complex<Mersenne31>`
 ///
 /// Configuration:
 /// - State width: 5 (rate=2, capacity=3) for 3×62 ≥ 128 bits
@@ -80,7 +80,7 @@ impl Default for Poseidon128 {
     }
 }
 
-/// Poseidon-256 parameters for 256-bit security over Complex<Mersenne31>
+/// Poseidon-256 parameters for 256-bit security over `Complex<Mersenne31>`
 ///
 /// Configuration:
 /// - State width: 7 (rate=2, capacity=5) for 5×62 ≥ 256 bits

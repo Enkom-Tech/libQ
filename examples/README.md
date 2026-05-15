@@ -47,8 +47,8 @@ Working example using lib_q_ml_dsa directly:
 - Shows proper no_std usage patterns
 
 #### `ml_dsa_integration_test.rs`
-Integration test using the main `libq` crate (with `ml-dsa` / `slh-dsa` features on the examples’ `lib-q` dependency):
-- Confirms ML-DSA entries in the algorithm registry
+Integration test using the main `libq` crate (with `ml-dsa` / `slh-dsa` on the examples’ `lib-q` dependency; package default also enables `cb-kem` on `lib-q`):
+- Confirms ML-DSA, SLH-DSA, and FN-DSA entries in the core algorithm registry, plus ML-KEM, CB-KEM, and HQC under the KEM category (ids are registered in `lib-q-core`; implementations are gated by crate features)
 - Uses `SignatureContext::with_default_provider()` so the core stub returns `NotImplemented` for `generate_keypair` (real signing lives in `lib-q-sig`)
 
 ### Features
@@ -95,4 +95,4 @@ cargo run -p lib-q-examples --example keccak_no_std_test
 
 ### Signature algorithms in the registry
 
-The umbrella registry lists ML-DSA, FN-DSA, and SLH-DSA variants among signature algorithms; runtime signing still uses `lib-q-sig` (or `libq::LibQSignatureProvider` with the right `lib-q` features), not the core stub provider.
+The umbrella registry lists ML-DSA, FN-DSA, and SLH-DSA variants among signature algorithms, and ML-KEM / CB-KEM / HQC under KEMs; `ml_dsa_integration_test` asserts representative ids. Runtime signing still uses `lib-q-sig` (or `libq::LibQSignatureProvider` with the right `lib-q` features), not the core stub provider.

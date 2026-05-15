@@ -1,5 +1,5 @@
 //! Shared ring arithmetic for ML-DSA / module-lattice constructions over
-//! \(R_q = \mathbb{Z}_q[X]/(X^{256}+1)\), \(q = 8\,380\,417\).
+//! \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\), \(q = 8\,380\,417\).
 //!
 //! Portable NTT (Cooley–Tukey forward, Gentleman–Sande inverse with Montgomery
 //! scaling) is bit-compatible with the non-`hardened` path in `lib-q-ml-dsa`.

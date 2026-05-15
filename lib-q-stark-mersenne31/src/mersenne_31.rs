@@ -525,7 +525,7 @@ impl TwoAdicField for Mersenne31 {
     /// Actually: 2^31 - 2 = 2 * 1073741823
     /// Let's factor: 1073741823 is odd, so TWO_ADICITY = 1 for the base field.
     ///
-    /// But Complex<Mersenne31> has TWO_ADICITY = 32 according to complex.rs
+    /// But `Complex<Mersenne31>` has TWO_ADICITY = 32 according to complex.rs
     /// This is for the quadratic extension, not the base field.
     const TWO_ADICITY: usize = 1;
 

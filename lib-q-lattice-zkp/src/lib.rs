@@ -1,6 +1,6 @@
 //! Module-lattice commitments, Fiat–Shamir sigma protocols, and BLNS-style batching hooks.
 //!
-//! The construction targets the same \(R_q = \mathbb{Z}_q[X]/(X^{256}+1)\) field as ML-DSA via
+//! The construction targets the same \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\) field as ML-DSA via
 //! [`lib_q_ring`].
 #![forbid(unsafe_code)]
 #![no_std]

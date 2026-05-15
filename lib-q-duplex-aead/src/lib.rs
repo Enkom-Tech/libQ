@@ -1,4 +1,4 @@
-//! Duplex-sponge AEAD built from Keccak-f[1600] (SHA-3 family permutation).
+//! Duplex-sponge AEAD built from Keccak-f\[1600\] (SHA-3 family permutation).
 //!
 //! Rate 136 bytes, 256-bit tag, 256-bit key, 128-bit nonce. Associated data is absorbed
 //! before plaintext duplex steps; the tag is the first 32 bytes of the outer state after

@@ -85,7 +85,7 @@ pub enum HpkeError {
     },
     /// PSK parameters do not match the sender's commitment, or PSK / PSK ID pairing is invalid.
     ///
-    /// When [`crate::HpkePskWireFormat::LibQCommitmentSuffix`](crate::HpkePskWireFormat::LibQCommitmentSuffix)
+    /// When [`crate::HpkePskWireFormat::LibQCommitmentSuffix`]
     /// is used in PSK or AuthPSK mode, the receiver returns this error if the KDF-derived commitment
     /// disagrees with the local `(psk, psk_id)` before key schedule. With strict RFC 9180 PSK wire
     /// format, wrong PSK material is not detected here (typically AEAD open fails instead).

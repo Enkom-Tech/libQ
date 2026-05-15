@@ -2,6 +2,8 @@
 
 #![cfg(feature = "std")]
 
+use std::sync::Arc;
+
 use lib_q_core::{
     Algorithm,
     KemContext,
@@ -13,6 +15,7 @@ use lib_q_hpke::hpke_core::{
     setup_sender_with_mode,
 };
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::types::{
     HpkeAead,
     HpkeCipherSuite,
@@ -28,7 +31,8 @@ use lib_q_kem::LibQKemProvider;
 fn test_auth_mode_context_setup() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -54,7 +58,7 @@ fn test_auth_mode_context_setup() {
         recipient_keypair.public_key(),
         b"test-info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -62,6 +66,7 @@ fn test_auth_mode_context_setup() {
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Auth mode sender setup should work");
 
@@ -85,12 +90,13 @@ fn test_auth_mode_context_setup() {
         recipient_keypair.secret_key(),
         b"test-info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Auth mode receiver setup should work");
 
@@ -111,7 +117,8 @@ fn test_auth_mode_context_setup() {
 fn test_auth_mode_single_shot() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -144,7 +151,7 @@ fn test_auth_mode_single_shot() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -173,12 +180,13 @@ fn test_auth_mode_single_shot() {
         aad,
         &ciphertext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Auth mode decryption should work");
 
@@ -191,7 +199,8 @@ fn test_auth_mode_single_shot() {
 fn test_auth_mode_different_senders() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -228,7 +237,7 @@ fn test_auth_mode_different_senders() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -247,7 +256,7 @@ fn test_auth_mode_different_senders() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -271,12 +280,13 @@ fn test_auth_mode_different_senders() {
         aad,
         &ciphertext1,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender1_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Sender 1 decryption should work");
 
@@ -289,12 +299,13 @@ fn test_auth_mode_different_senders() {
         aad,
         &ciphertext2,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender2_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Sender 2 decryption should work");
 
@@ -311,12 +322,13 @@ fn test_auth_mode_different_senders() {
         aad,
         &ciphertext1,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender2_keypair.public_key()), // Wrong sender
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
 
     // Note: Current Auth mode implementation doesn't validate sender identity
@@ -335,7 +347,8 @@ fn test_auth_mode_different_senders() {
 fn test_auth_mode_parameter_validation() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -363,7 +376,7 @@ fn test_auth_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -371,6 +384,7 @@ fn test_auth_mode_parameter_validation() {
         None, // Missing sender secret key
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(
         result.is_err(),
@@ -383,7 +397,7 @@ fn test_auth_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -391,6 +405,7 @@ fn test_auth_mode_parameter_validation() {
         Some(sender_keypair.secret_key()),
         None, // Missing sender public key
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(
         result.is_err(),
@@ -403,7 +418,7 @@ fn test_auth_mode_parameter_validation() {
         recipient_keypair.public_key(),
         b"info",
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         Some(psk), // Invalid for Auth mode
@@ -411,6 +426,7 @@ fn test_auth_mode_parameter_validation() {
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     );
     assert!(result.is_err(), "PSK should not be allowed in Auth mode");
 }
@@ -420,7 +436,8 @@ fn test_auth_mode_parameter_validation() {
 fn test_auth_mode_different_cipher_suites() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Generate recipient key pair
     let recipient_keypair = kem_ctx
@@ -450,7 +467,7 @@ fn test_auth_mode_different_cipher_suites() {
         aad,
         plaintext,
         &suite1,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -469,12 +486,13 @@ fn test_auth_mode_different_cipher_suites() {
         aad,
         &cipher1,
         &suite1,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Suite 1 decryption should work");
 
@@ -503,7 +521,7 @@ fn test_auth_mode_different_cipher_suites() {
         aad,
         plaintext,
         &suite2,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -522,12 +540,13 @@ fn test_auth_mode_different_cipher_suites() {
         aad,
         &cipher2,
         &suite2,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender_keypair_768.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Suite 2 decryption should work");
 
@@ -543,7 +562,8 @@ fn test_auth_mode_different_cipher_suites() {
 fn test_auth_mode_vs_base_mode() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut kem_ctx = KemContext::with_provider(provider);
-    let hpke_provider = PostQuantumProvider::new();
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
 
     // Create cipher suite
     let cipher_suite = HpkeCipherSuite::new(
@@ -576,7 +596,7 @@ fn test_auth_mode_vs_base_mode() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Base,
         None,
@@ -595,7 +615,7 @@ fn test_auth_mode_vs_base_mode() {
         aad,
         plaintext,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         &mut rng,
         HpkeMode::Auth,
         None,
@@ -630,12 +650,13 @@ fn test_auth_mode_vs_base_mode() {
         aad,
         &cipher_base,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Base,
         None,
         None,
         None,
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Base mode decryption should work");
 
@@ -647,12 +668,13 @@ fn test_auth_mode_vs_base_mode() {
         aad,
         &cipher_auth,
         &cipher_suite,
-        &hpke_provider,
+        hpke_crypto.as_ref(),
         HpkeMode::Auth,
         None,
         None,
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
+        hpke_crypto.clone(),
     )
     .expect("Auth mode decryption should work");
 

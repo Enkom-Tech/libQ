@@ -4,7 +4,7 @@
 //!
 //! The STARK implementation is based on Plonky3, adapted for lib-Q's requirements:
 //! - Uses SHAKE256 (NIST-approved post-quantum hash) instead of non-NIST hashes
-//! - Supports Complex<Mersenne31> field for efficient arithmetic (TWO_ADICITY = 32)
+//! - Supports `Complex<Mersenne31>` field for efficient arithmetic (TWO_ADICITY = 32)
 //! - Implements the ethSTARK protocol for strong security guarantees
 
 extern crate alloc;
@@ -620,7 +620,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
 ///
 /// This configuration uses:
 /// - **SHAKE256** for all hash operations (NIST-approved, post-quantum secure)
-/// - **Complex<Mersenne31>** field (TWO_ADICITY = 32) for efficient arithmetic
+/// - **`Complex<Mersenne31>`** field (TWO_ADICITY = 32) for efficient arithmetic
 /// - Production FRI parameters (100 queries, 16 proof-of-work bits)
 ///
 /// # Example

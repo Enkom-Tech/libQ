@@ -47,7 +47,9 @@ std = [
     "lib-q-lattice-zkp/std",
     "lib-q-ring/std",
 ]
-pilot-insecure-prf-transcript = ["dep:lib-q-prf", "dep:crypto-bigint"]
+lib-q-prf = ["dep:lib-q-prf"]
+crypto-bigint = ["dep:crypto-bigint"]
+pilot-insecure-prf-transcript = ["lib-q-prf", "crypto-bigint"]
 federation-opening = []
 wasm = [
     "std",

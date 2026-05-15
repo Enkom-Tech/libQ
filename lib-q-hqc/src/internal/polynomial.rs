@@ -15,7 +15,7 @@ use rand_core::Rng;
 
 use crate::error::HqcError;
 
-/// Polynomial in GF(2)[x]/(x^n - 1)
+/// Polynomial in GF(2)\[x\]/(x^n - 1)
 pub struct Polynomial {
     #[cfg(feature = "alloc")]
     coefficients: Vec<u8>,

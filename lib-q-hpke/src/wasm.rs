@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem;
 
@@ -21,6 +22,8 @@ use spin::Mutex;
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
+use crate::providers::post_quantum::PostQuantumProvider;
+use crate::providers::traits::HpkeCryptoProvider;
 use crate::{
     HpkeAead,
     HpkeCipherSuite,
@@ -287,6 +290,8 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
         .get("state")
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("sender wire missing state"))?;
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     Ok(HpkeSenderContext {
         shared_secret: hex_secret("shared_secret_hex")?,
         exporter_secret: hex_secret("exporter_secret_hex")?,
@@ -299,6 +304,7 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
         max_sequence_number: u32::try_from(max_seq)
             .map_err(|_| js_err("max_sequence_number overflow"))?,
         state: state_from_str(state_s)?,
+        hpke_crypto,
     })
 }
 
@@ -411,6 +417,8 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
         .get("state")
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("receiver wire missing state"))?;
+    let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+        Arc::new(PostQuantumProvider::new());
     Ok(HpkeReceiverContext {
         shared_secret: hex_secret("shared_secret_hex")?,
         exporter_secret: hex_secret("exporter_secret_hex")?,
@@ -422,6 +430,7 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
         max_sequence_number: u32::try_from(max_seq)
             .map_err(|_| js_err("max_sequence_number overflow"))?,
         state: state_from_str(state_s)?,
+        hpke_crypto,
     })
 }
 
