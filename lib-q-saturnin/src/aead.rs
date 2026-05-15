@@ -43,7 +43,9 @@
 //! - **Tag size**: 256 bits (32 bytes)
 //! - **Throughput**: ~100-500 MB/s on modern hardware
 //! - **Memory usage**: Small fixed state (pre-built cipher cores for domains 1–5); per-message
-//!   key/nonce are staged in zeroizing buffers at the `Aead` boundary.
+//!   key/nonce are staged in zeroizing buffers at the `Aead` boundary, and the cascade running tag
+//!   plus per-iteration cascade blocks (`t`, `m`, and SIMD xor staging) are held in `Zeroizing`
+//!   buffers so they are cleared on drop.
 //!
 //! ## Verification timing
 //!
@@ -155,13 +157,13 @@ impl SaturninAead {
     }
 
     /// Initialize the cascade state
-    fn cascade_init(&self, key: &[u8], nonce: &[u8]) -> Result<[u8; 32]> {
+    fn cascade_init(&self, key: &[u8], nonce: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
         let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
             expected: 32,
             actual: key.len(),
         })?;
 
-        let mut r = [0u8; 32];
+        let mut r = Zeroizing::new([0u8; 32]);
 
         // Copy nonce to first 16 bytes
         r[0..16].copy_from_slice(nonce);
@@ -188,8 +190,8 @@ impl SaturninAead {
         let mut offset = 0;
 
         loop {
-            let mut t = [0u8; 32];
-            let mut m = [0u8; 32];
+            let mut t: Zeroizing<[u8; 32]> = Zeroizing::new([0u8; 32]);
+            let mut m: Zeroizing<[u8; 32]> = Zeroizing::new([0u8; 32]);
             let remaining = data.len() - offset;
 
             if remaining >= 32 {
@@ -197,7 +199,7 @@ impl SaturninAead {
                 offset += 32;
 
                 // Use pre-allocated core for d1
-                m.copy_from_slice(&t);
+                m.copy_from_slice(&*t);
                 core_d1.encrypt_block_32(&*r, &mut m)?;
             } else {
                 t[0..remaining].copy_from_slice(&data[offset..]);
@@ -205,15 +207,15 @@ impl SaturninAead {
                 // Remaining bytes are already zero
 
                 // Use pre-allocated core for d2
-                m.copy_from_slice(&t);
+                m.copy_from_slice(&*t);
                 core_d2.encrypt_block_32(&*r, &mut m)?;
             }
 
             #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
             {
-                let mut out = [0u8; 32];
+                let mut out: Zeroizing<[u8; 32]> = Zeroizing::new([0u8; 32]);
                 simd_xor::xor_blocks_32(&m, &t, &mut out);
-                r.copy_from_slice(&out);
+                r.copy_from_slice(&*out);
             }
 
             #[cfg(not(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon")))]
@@ -378,7 +380,7 @@ impl SaturninAead {
         self.cascade(&mut tag, 2, 3, ad)?;
         self.cascade(&mut tag, 4, 5, ciphertext_data)?;
 
-        let tag_valid = lib_q_core::Utils::constant_time_compare(&tag, received_tag);
+        let tag_valid = lib_q_core::Utils::constant_time_compare(&*tag, received_tag);
 
         let mut plaintext = ciphertext_data.to_vec();
         if let Err(e) = self.ctr_encrypt(kb, nb, &mut plaintext) {
@@ -461,7 +463,7 @@ impl Aead for SaturninAead {
         self.cascade(&mut tag, 4, 5, &ciphertext)?;
 
         // Append tag
-        ciphertext.extend_from_slice(&tag);
+        ciphertext.extend_from_slice(&*tag);
 
         Ok(ciphertext)
     }

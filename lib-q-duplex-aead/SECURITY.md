@@ -2,12 +2,12 @@
 
 ## Decrypt / verify schedule
 
-Decryption uses a **two-pass** duplex schedule over the ciphertext body (see `crypto::decrypt_core`):
+Decryption (`crypto::decrypt_core`) performs a **single** duplex walk over the ciphertext body:
 
-1. **Authentication pass:** absorb associated data, advance the duplex state over ciphertext blocks without emitting plaintext, derive the tag from the state, then **constant-time compare** the computed tag to the received tag (`subtle::ConstantTimeEq`).
-2. **Decrypt pass:** re-initialize from key/nonce, re-absorb AD, then duplex-decrypt the ciphertext body into the output buffer.
+1. Initialize from key/nonce, absorb associated data, then duplex-decrypt each body block into the output buffer (same sponge trajectory as encryption, in reverse).
+2. Derive the authentication tag from the final sponge rate and **constant-time compare** it to the trailing tag (`subtle::ConstantTimeEq`).
 
-Both passes run **regardless of tag validity** (the decrypt pass does not short-circuit on a failed comparison). Invalid tags still yield computed plaintext in the buffer; Layer A `decrypt` zeroizes that buffer before returning `Err`; Layer B `decrypt_semantic` returns `Ok(AuthenticationFailed)` after zeroizing any candidate plaintext.
+The body walk always runs to completion **regardless of tag validity** (no early exit on a failed comparison). Invalid tags still leave computed candidate plaintext in the buffer until the caller handles it: Layer A `decrypt` zeroizes that buffer before returning `Err`; Layer B `decrypt_semantic` returns `Ok(AuthenticationFailed)` after zeroizing any candidate plaintext.
 
 ## Constant-time primitives
 

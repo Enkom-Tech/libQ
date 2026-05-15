@@ -105,18 +105,24 @@ pub fn psk_commitment_len(cipher_suite: &HpkeCipherSuite) -> usize {
 
 /// Derive a PSK commitment for wire transmission (libQ PSK-mode extension).
 ///
-/// Both parties derive the same value from `(psk, psk_id)`; the sender appends it to
-/// the encapsulated key and the receiver compares before running the key schedule.
+/// Both parties derive the same value from `(psk, psk_id, enc_kem)` where `enc_kem` is the
+/// primary KEM ciphertext (the `main` KEM output, not the Auth encapsulation). The sender
+/// appends it after the KEM wire prefix and the receiver compares before decapsulation and key
+/// schedule. Binding to `enc_kem` makes the commitment specific to this HPKE instance so it
+/// cannot be replayed across sessions that reuse the same PSK.
 pub fn derive_psk_commitment<P: HpkeCryptoProvider>(
     psk: &[u8],
     psk_id: &[u8],
+    enc_kem: &[u8],
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
 ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
     let suite_id = create_suite_id(cipher_suite)?;
-    let mut psk_input = Zeroizing::new(Vec::with_capacity(psk.len() + psk_id.len()));
+    let mut psk_input =
+        Zeroizing::new(Vec::with_capacity(psk.len() + psk_id.len() + enc_kem.len()));
     psk_input.extend_from_slice(psk);
     psk_input.extend_from_slice(psk_id);
+    psk_input.extend_from_slice(enc_kem);
     labeled_extract(
         cipher_suite.kdf,
         b"",
@@ -127,14 +133,51 @@ pub fn derive_psk_commitment<P: HpkeCryptoProvider>(
     )
 }
 
+/// Primary KEM ciphertext bytes used as input to [`derive_psk_commitment`]: full primary KEM
+/// output in PSK mode, or the first `cipher_suite.kem.enc_len()` bytes in AuthPSK (before the
+/// sender-auth encapsulation blob).
+fn main_kem_ciphertext_for_psk_commitment<'a>(
+    mode: HpkeMode,
+    cipher_suite: &HpkeCipherSuite,
+    kem_and_auth_prefix: &'a [u8],
+) -> Result<&'a [u8], HpkeError> {
+    let kem_enc_len = cipher_suite.kem.enc_len();
+    match mode {
+        HpkeMode::Psk => {
+            if kem_and_auth_prefix.len() != kem_enc_len {
+                return Err(HpkeError::CryptoError(format!(
+                    "Invalid PSK mode KEM prefix length: expected {} bytes, got {}",
+                    kem_enc_len,
+                    kem_and_auth_prefix.len()
+                )));
+            }
+            Ok(kem_and_auth_prefix)
+        }
+        HpkeMode::AuthPsk => {
+            if kem_and_auth_prefix.len() < kem_enc_len {
+                return Err(HpkeError::CryptoError(format!(
+                    "Invalid AuthPsk KEM prefix: expected at least {} bytes before PSK commitment, got {}",
+                    kem_enc_len,
+                    kem_and_auth_prefix.len()
+                )));
+            }
+            Ok(&kem_and_auth_prefix[..kem_enc_len])
+        }
+        _ => Err(HpkeError::CryptoError(
+            "PSK commitment derivation requires Psk or AuthPsk mode".into(),
+        )),
+    }
+}
+
 fn verify_psk_commitment<P: HpkeCryptoProvider>(
     psk: &[u8],
     psk_id: &[u8],
+    enc_kem: &[u8],
     sender_commitment: &[u8],
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
 ) -> Result<(), HpkeError> {
-    let local_commitment = derive_psk_commitment(psk, psk_id, cipher_suite, provider)?;
+    let local_commitment = derive_psk_commitment(psk, psk_id, enc_kem, cipher_suite, provider)?;
     if !constant_time_eq(local_commitment.as_slice(), sender_commitment) {
         return Err(HpkeError::InconsistentPsk);
     }
@@ -185,7 +228,7 @@ fn split_encapsulated_key_for_receiver(
             Ok(EncapsulatedKeyParts {
                 main: kem_part.to_vec(),
                 auth: None,
-                psk_commitment: Some(commitment.to_vec()),
+                psk_commitment: (commitment_len > 0).then(|| commitment.to_vec()),
             })
         }
         HpkeMode::Auth => {
@@ -218,7 +261,7 @@ fn split_encapsulated_key_for_receiver(
             Ok(EncapsulatedKeyParts {
                 main: main_part.to_vec(),
                 auth: Some(auth_part.to_vec()),
-                psk_commitment: Some(commitment.to_vec()),
+                psk_commitment: (commitment_len > 0).then(|| commitment.to_vec()),
             })
         }
     }
@@ -241,12 +284,22 @@ fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider>(
         0
     };
 
-    let kem_enc_len = match mode {
+    let kem_algorithm = cipher_suite.kem;
+    let kem_enc_len = kem_algorithm.enc_len();
+
+    match mode {
         HpkeMode::Auth | HpkeMode::AuthPsk => {
             let sender_pk = sender_pk.ok_or_else(|| {
                 HpkeError::CryptoError("Auth and AuthPSK modes require sender public key".into())
             })?;
-            determine_kem_from_key_size(sender_pk.as_bytes().len())?.enc_len()
+            let sender_len = sender_pk.as_bytes().len();
+            let expected_pk = kem_algorithm.public_key_len();
+            if sender_len != expected_pk {
+                return Err(HpkeError::CryptoError(format!(
+                    "Invalid sender public key size: {} bytes (expected {} for this cipher suite's KEM)",
+                    sender_len, expected_pk
+                )));
+            }
         }
         HpkeMode::Psk => {
             if encapsulated_key.len() < commitment_len {
@@ -257,12 +310,23 @@ fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider>(
                 )));
             }
             let kem_wire_len = encapsulated_key.len() - commitment_len;
-            determine_kem_from_encapsulated_key_size(kem_wire_len)?.enc_len()
+            if kem_wire_len != kem_enc_len {
+                return Err(HpkeError::CryptoError(format!(
+                    "Invalid PSK mode KEM ciphertext size: {} bytes (expected {} bytes for this cipher suite)",
+                    kem_wire_len, kem_enc_len
+                )));
+            }
         }
         HpkeMode::Base => {
-            determine_kem_from_encapsulated_key_size(encapsulated_key.len())?.enc_len()
+            if encapsulated_key.len() != kem_enc_len {
+                return Err(HpkeError::CryptoError(format!(
+                    "Invalid Base mode encapsulated key size: {} bytes (expected {} bytes)",
+                    encapsulated_key.len(),
+                    kem_enc_len
+                )));
+            }
         }
-    };
+    }
 
     let parts =
         split_encapsulated_key_for_receiver(encapsulated_key, mode, kem_enc_len, commitment_len)?;
@@ -270,10 +334,24 @@ fn parse_receiver_encapsulated_key<P: HpkeCryptoProvider>(
     if let Some(sender_commitment) = parts.psk_commitment {
         let psk = psk.ok_or(HpkeError::InconsistentPsk)?;
         let psk_id = psk_id.ok_or(HpkeError::InconsistentPsk)?;
-        verify_psk_commitment(psk, psk_id, &sender_commitment, cipher_suite, provider)?;
+        verify_psk_commitment(
+            psk,
+            psk_id,
+            parts.main.as_slice(),
+            &sender_commitment,
+            cipher_suite,
+            provider,
+        )?;
     }
 
-    let kem_algorithm = determine_kem_from_encapsulated_key_size(parts.main.len())?;
+    if parts.main.len() != kem_enc_len {
+        return Err(HpkeError::CryptoError(format!(
+            "Internal error: parsed KEM ciphertext length {} does not match cipher suite (expected {})",
+            parts.main.len(),
+            kem_enc_len
+        )));
+    }
+
     Ok((parts.main, parts.auth, kem_algorithm))
 }
 
@@ -290,41 +368,16 @@ fn attach_psk_commitment_to_encapsulated_key<P: HpkeCryptoProvider>(
         return Ok(encapsulated_key);
     }
 
+    let enc_kem =
+        main_kem_ciphertext_for_psk_commitment(mode, cipher_suite, encapsulated_key.as_slice())?;
     let commitment = derive_psk_commitment(
         psk.ok_or(HpkeError::InconsistentPsk)?,
         psk_id.ok_or(HpkeError::InconsistentPsk)?,
+        enc_kem,
         cipher_suite,
         provider,
     )?;
     Ok(append_psk_commitment(encapsulated_key, commitment))
-}
-
-/// Determine the KEM algorithm from public key size
-fn determine_kem_from_key_size(key_size: usize) -> Result<HpkeKem, HpkeError> {
-    match key_size {
-        800 => Ok(HpkeKem::MlKem512),
-        1184 => Ok(HpkeKem::MlKem768),
-        1568 => Ok(HpkeKem::MlKem1024),
-        _ => Err(HpkeError::CryptoError(format!(
-            "Unsupported ML-KEM public key size: {} bytes (expected 800, 1184, or 1568)",
-            key_size
-        ))),
-    }
-}
-
-/// Determine the KEM algorithm from encapsulated key size
-fn determine_kem_from_encapsulated_key_size(
-    encapsulated_key_size: usize,
-) -> Result<HpkeKem, HpkeError> {
-    match encapsulated_key_size {
-        768 => Ok(HpkeKem::MlKem512),
-        1088 => Ok(HpkeKem::MlKem768),
-        1568 => Ok(HpkeKem::MlKem1024),
-        _ => Err(HpkeError::CryptoError(format!(
-            "Unsupported ML-KEM encapsulated key size: {} bytes (expected 768, 1088, or 1568)",
-            encapsulated_key_size
-        ))),
-    }
 }
 
 /// Setup sender context for Base mode
@@ -391,34 +444,27 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
         }
     }
 
-    // Validate key sizes and KEM context compatibility
+    let kem_algorithm = cipher_suite.kem;
     let pk_size = recipient_pk.as_bytes().len();
-    if pk_size != 800 && pk_size != 1184 && pk_size != 1568 {
+    let expected_pk_len = kem_algorithm.public_key_len();
+    if pk_size != expected_pk_len {
         return Err(HpkeError::CryptoError(format!(
-            "Invalid ML-KEM public key size: {} bytes (expected 800, 1184, or 1568)",
-            pk_size
+            "Invalid recipient public key size: {} bytes (expected {} for this cipher suite's KEM)",
+            pk_size, expected_pk_len
         )));
     }
 
-    // Validate that the KEM context supports the required algorithm
-    // This ensures compatibility between the HPKE implementation and lib-q-core
-    let kem_algorithm = determine_kem_from_key_size(pk_size)?;
-
-    // Validate KEM context compatibility and provider configuration
     validate_kem_context_for_algorithm(kem_ctx, kem_algorithm)?;
 
-    // Validate sender key sizes if provided
     if let Some(sender_pk) = sender_pk {
         let sender_pk_size = sender_pk.as_bytes().len();
-        if sender_pk_size != 800 && sender_pk_size != 1184 && sender_pk_size != 1568 {
+        if sender_pk_size != expected_pk_len {
             return Err(HpkeError::CryptoError(format!(
-                "Invalid sender ML-KEM public key size: {} bytes (expected 800, 1184, or 1568)",
-                sender_pk_size
+                "Invalid sender public key size: {} bytes (expected {})",
+                sender_pk_size, expected_pk_len
             )));
         }
     }
-
-    // Use the validated KEM algorithm from above
 
     // Perform KEM encapsulation
     let (encapsulated_key, mut main_shared_secret) = provider
@@ -473,6 +519,7 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
 
     // Run key schedule to derive keys
     let schedule = key_schedule(
+        mode,
         auth_shared_secret.as_slice(),
         info,
         psk,
@@ -504,6 +551,7 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider>(
         exporter_secret: schedule.exporter_secret,
         key: schedule.key,
         nonce: schedule.nonce,
+        cipher_suite: *cipher_suite,
         aead: cipher_suite.aead,
         encapsulated_key: final_encapsulated_key,
         sequence_number: 0,
@@ -623,6 +671,7 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
 
     // Run key schedule to derive keys
     let schedule = key_schedule(
+        mode,
         auth_shared_secret.as_slice(),
         info,
         psk,
@@ -636,6 +685,7 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider>(
         exporter_secret: schedule.exporter_secret,
         key: schedule.key,
         nonce: schedule.nonce,
+        cipher_suite: *cipher_suite,
         aead: cipher_suite.aead,
         sequence_number: 0,
         max_sequence_number: u32::MAX - 1,
@@ -733,10 +783,16 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
         }
     }
 
-    // Determine KEM algorithm from public key size
-    let kem_algorithm = determine_kem_from_key_size(recipient_pk.as_bytes().len())?;
+    let kem_algorithm = cipher_suite.kem;
+    let expected_pk_len = kem_algorithm.public_key_len();
+    let pk_size = recipient_pk.as_bytes().len();
+    if pk_size != expected_pk_len {
+        return Err(HpkeError::CryptoError(format!(
+            "Invalid recipient public key size: {} bytes (expected {} for this cipher suite's KEM)",
+            pk_size, expected_pk_len
+        )));
+    }
 
-    // Validate KEM context compatibility
     validate_kem_context_for_algorithm(kem_ctx, kem_algorithm)?;
 
     // Perform KEM encapsulation
@@ -788,6 +844,7 @@ pub fn seal_with_mode<P: HpkeCryptoProvider>(
 
     // Run key schedule to derive keys (includes PSK handling)
     let schedule = key_schedule(
+        mode,
         auth_shared_secret.as_slice(),
         info,
         psk,
@@ -937,42 +994,59 @@ pub fn open_message<P: HpkeCryptoProvider>(
         .map_err(|e| e.into())
 }
 
-/// Export key material
+/// Export key material (RFC 9180 Section 5.3)
+///
+/// Per RFC 9180 Section 5.3, `L` MUST be at most `255 * Nh` for the KDFs defined in that document,
+/// where `Nh` is the Extract output length ([`HpkeKdf::extract_len`] for this implementation).
 pub fn export<P: HpkeCryptoProvider>(
     exporter_secret: &[u8],
     exporter_context: &[u8],
     length: usize,
+    cipher_suite: &HpkeCipherSuite,
     provider: &P,
 ) -> Result<Vec<u8>, HpkeError> {
-    // Use HKDF-SHAKE256 to derive exported key material
-    let prk = Zeroizing::new(
-        provider
-            .extract(HpkeKdf::HkdfShake256, b"", exporter_secret)
-            .map_err(|e| e.into())?,
-    );
-    provider
-        .expand(
-            HpkeKdf::HkdfShake256,
-            prk.as_slice(),
-            exporter_context,
-            length,
-        )
-        .map_err(|e| e.into())
+    let nh = cipher_suite.kdf.extract_len();
+    let max_l = nh
+        .checked_mul(255)
+        .ok_or_else(|| HpkeError::CryptoError("export length bound (255*Nh) overflowed".into()))?;
+    if length > max_l {
+        return Err(HpkeError::CryptoError(format!(
+            "export length {length} exceeds RFC 9180 maximum 255*Nh ({max_l})"
+        )));
+    }
+
+    let suite_id = create_suite_id(cipher_suite)?;
+    let out = labeled_expand(
+        cipher_suite.kdf,
+        exporter_secret,
+        &suite_id,
+        "sec",
+        exporter_context,
+        length,
+        provider,
+    )?;
+    Ok(out.to_vec())
 }
 
 /// Compute nonce from base nonce and sequence number
+///
+/// RFC 9180 Section 5.2: `seq_bytes = I2OSP(seq, Nn)` then XOR into `base_nonce`.
 fn compute_nonce(base_nonce: &[u8], sequence_number: u32) -> Zeroizing<Vec<u8>> {
-    let seq_bytes = sequence_number.to_be_bytes();
     let mut nonce = Zeroizing::new(base_nonce.to_vec());
-    let nonce_len = nonce.len();
-
-    // XOR the sequence number into the nonce (RFC 9180 Section 5.2)
-    for (i, &seq_byte) in seq_bytes.iter().rev().enumerate() {
-        if i < nonce_len {
-            nonce[nonce_len - 1 - i] ^= seq_byte;
-        }
+    let n = nonce.len();
+    if n == 0 {
+        return nonce;
     }
-
+    let seq = sequence_number as u64;
+    for i in 0..n {
+        let shift = 8usize.saturating_mul(n.saturating_sub(1).saturating_sub(i));
+        let seq_byte = if shift < 64 {
+            ((seq >> shift) & 0xFF) as u8
+        } else {
+            0
+        };
+        nonce[i] ^= seq_byte;
+    }
     nonce
 }
 
@@ -984,8 +1058,9 @@ pub fn create_suite_id(cipher_suite: &HpkeCipherSuite) -> Result<Vec<u8>, HpkeEr
     Ok(suite_id)
 }
 
-/// Key schedule implementation (RFC 9180 Section 5.1)
+/// Key schedule implementation (RFC 9180 Section 5.1, `KeySchedule`)
 pub fn key_schedule<P: HpkeCryptoProvider>(
+    mode: HpkeMode,
     shared_secret: &[u8],
     info: &[u8],
     psk: Option<&[u8]>,
@@ -993,71 +1068,66 @@ pub fn key_schedule<P: HpkeCryptoProvider>(
     cipher_suite: &HpkeCipherSuite,
     provider: &P,
 ) -> Result<KeyScheduleSecrets, HpkeError> {
-    // Create suite ID for labeled functions
+    validate_psk_parameters(mode, psk, psk_id)?;
+
     let suite_id = create_suite_id(cipher_suite)?;
+    let kdf = cipher_suite.kdf;
+    let n_h = kdf.extract_len();
 
-    // Prepare PSK input according to RFC 9180 Section 5.1
-    let psk_input = match (psk, psk_id) {
-        (Some(psk), Some(psk_id)) => {
-            let mut input = Zeroizing::new(Vec::with_capacity(psk.len() + psk_id.len()));
-            input.extend_from_slice(psk);
-            input.extend_from_slice(psk_id);
-            input
-        }
-        (None, None) => Zeroizing::new(Vec::new()),
-        _ => {
-            return Err(HpkeError::InconsistentPsk);
-        }
-    };
+    let psk_id_slice = psk_id.unwrap_or(&[]);
+    let psk_slice = psk.unwrap_or(&[]);
 
-    // Extract keying material using labeled extract
-    let ikm = if psk_input.is_empty() {
-        Zeroizing::new(shared_secret.to_vec())
-    } else {
-        let mut combined = Zeroizing::new(Vec::with_capacity(
-            shared_secret.len().saturating_add(psk_input.len()),
-        ));
-        combined.extend_from_slice(shared_secret);
-        combined.extend_from_slice(psk_input.as_slice());
-        combined
-    };
+    let psk_id_hash = labeled_extract(kdf, b"", &suite_id, "psk_id_hash", psk_id_slice, provider)?;
+    if psk_id_hash.len() != n_h {
+        return Err(HpkeError::CryptoError(format!(
+            "internal HPKE error: psk_id_hash length {} (expected {})",
+            psk_id_hash.len(),
+            n_h
+        )));
+    }
 
-    // Use labeled extract for key derivation
-    let prk = labeled_extract(
-        cipher_suite.kdf,
-        b"",
-        &suite_id,
-        "eae_prk",
-        ikm.as_slice(),
-        provider,
-    )?;
+    let info_hash = labeled_extract(kdf, b"", &suite_id, "info_hash", info, provider)?;
+    if info_hash.len() != n_h {
+        return Err(HpkeError::CryptoError(format!(
+            "internal HPKE error: info_hash length {} (expected {})",
+            info_hash.len(),
+            n_h
+        )));
+    }
 
-    // Derive key, nonce, and exporter_secret using labeled expand
+    let mut key_schedule_context = Vec::with_capacity(1 + n_h + n_h);
+    key_schedule_context.push(mode.as_u8());
+    key_schedule_context.extend_from_slice(psk_id_hash.as_slice());
+    key_schedule_context.extend_from_slice(info_hash.as_slice());
+
+    let secret = labeled_extract(kdf, shared_secret, &suite_id, "secret", psk_slice, provider)?;
+    let secret_slice = secret.as_slice();
+
     let key = labeled_expand(
-        cipher_suite.kdf,
-        prk.as_slice(),
+        kdf,
+        secret_slice,
         &suite_id,
         "key",
-        info,
-        32,
+        key_schedule_context.as_slice(),
+        cipher_suite.aead.key_len(),
         provider,
     )?;
     let nonce = labeled_expand(
-        cipher_suite.kdf,
-        prk.as_slice(),
+        kdf,
+        secret_slice,
         &suite_id,
         "base_nonce",
-        info,
+        key_schedule_context.as_slice(),
         cipher_suite.aead.nonce_len(),
         provider,
     )?;
     let exporter_secret = labeled_expand(
-        cipher_suite.kdf,
-        prk.as_slice(),
+        kdf,
+        secret_slice,
         &suite_id,
         "exp",
-        info,
-        32,
+        key_schedule_context.as_slice(),
+        n_h,
         provider,
     )?;
 
@@ -1102,11 +1172,17 @@ pub fn labeled_expand<P: HpkeCryptoProvider>(
     length: usize,
     provider: &P,
 ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
+    let length_u16 = u16::try_from(length).map_err(|_| {
+        HpkeError::CryptoError(
+            "LabeledExpand length L must fit in 16 bits (RFC 9180 I2OSP(L, 2))".into(),
+        )
+    })?;
+
     // Create labeled info according to RFC 9180 Section 4.1
     let mut labeled_info = Zeroizing::new(Vec::with_capacity(
         2 + b"HPKE-v1".len() + suite_id.len() + label.len() + info.len(),
     ));
-    labeled_info.extend_from_slice(&(length as u16).to_be_bytes());
+    labeled_info.extend_from_slice(&length_u16.to_be_bytes());
     labeled_info.extend_from_slice(b"HPKE-v1");
     labeled_info.extend_from_slice(suite_id);
     labeled_info.extend_from_slice(label.as_bytes());
@@ -1218,21 +1294,40 @@ mod psk_commitment_tests {
         let suite = test_cipher_suite();
         let psk = b"test-psk";
         let psk_id = b"test-id";
+        let enc_kem = vec![0x42u8; HpkeKem::MlKem512.enc_len()];
 
-        let c1 = derive_psk_commitment(psk, psk_id, &suite, &provider).unwrap();
-        let c2 = derive_psk_commitment(psk, psk_id, &suite, &provider).unwrap();
+        let c1 = derive_psk_commitment(psk, psk_id, &enc_kem, &suite, &provider).unwrap();
+        let c2 = derive_psk_commitment(psk, psk_id, &enc_kem, &suite, &provider).unwrap();
 
         assert_eq!(c1, c2);
         assert_eq!(c1.len(), psk_commitment_len(&suite));
     }
 
     #[test]
+    fn derive_psk_commitment_differs_across_kem_ciphertexts() {
+        let provider = PostQuantumProvider::new();
+        let suite = test_cipher_suite();
+        let psk = b"test-psk";
+        let psk_id = b"test-id";
+        let enc_a = vec![0u8; HpkeKem::MlKem512.enc_len()];
+        let mut enc_b = enc_a.clone();
+        enc_b[0] = 1;
+
+        let c_a = derive_psk_commitment(psk, psk_id, &enc_a, &suite, &provider).unwrap();
+        let c_b = derive_psk_commitment(psk, psk_id, &enc_b, &suite, &provider).unwrap();
+        assert_ne!(c_a, c_b);
+    }
+
+    #[test]
     fn verify_psk_commitment_rejects_mismatch() {
         let provider = PostQuantumProvider::new();
         let suite = test_cipher_suite();
+        let enc_kem = vec![0x11u8; HpkeKem::MlKem512.enc_len()];
 
-        let sender = derive_psk_commitment(b"sender-psk", b"id", &suite, &provider).unwrap();
-        let result = verify_psk_commitment(b"receiver-psk", b"id", &sender, &suite, &provider);
+        let sender =
+            derive_psk_commitment(b"sender-psk", b"id", &enc_kem, &suite, &provider).unwrap();
+        let result =
+            verify_psk_commitment(b"receiver-psk", b"id", &enc_kem, &sender, &suite, &provider);
 
         assert_eq!(result, Err(HpkeError::InconsistentPsk));
     }

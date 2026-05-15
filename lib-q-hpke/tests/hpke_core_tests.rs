@@ -20,6 +20,7 @@ use lib_q_hpke::providers::traits::{
 use lib_q_hpke::security::prng::SimpleRng;
 use lib_q_hpke::{
     HpkeAead,
+    HpkeCipherSuite,
     HpkeContext,
     HpkeKdf,
     HpkeKem,
@@ -224,6 +225,18 @@ fn test_hpke_different_kems() {
     ];
 
     for algorithm in algorithms {
+        let hpke_kem = match algorithm {
+            Algorithm::MlKem512 => HpkeKem::MlKem512,
+            Algorithm::MlKem768 => HpkeKem::MlKem768,
+            Algorithm::MlKem1024 => HpkeKem::MlKem1024,
+            _ => panic!("Unsupported algorithm for HPKE test: {:?}", algorithm),
+        };
+        hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+            hpke_kem,
+            HpkeKdf::HkdfShake256,
+            HpkeAead::Saturnin256,
+        ));
+
         // Generate key pair using KemContext with provider
         let mut kem_ctx = KemContext::with_provider(Box::new(
             LibQKemProvider::new().expect("Failed to create KEM provider"),

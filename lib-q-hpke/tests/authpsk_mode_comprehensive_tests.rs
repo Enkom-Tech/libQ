@@ -12,7 +12,10 @@ use lib_q_core::{
     KemPublicKey,
     KemSecretKey,
 };
-use lib_q_hpke::HpkeContext;
+use lib_q_hpke::{
+    HpkeContext,
+    HpkePskWireFormat,
+};
 use lib_q_kem::LibQKemProvider;
 
 /// Test AuthPSK mode basic functionality
@@ -163,6 +166,7 @@ fn test_authpsk_mode_different_psk_values() {
 fn test_authpsk_mode_psk_authentication() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
+    hpke_ctx.set_psk_wire_format(HpkePskWireFormat::LibQCommitmentSuffix);
 
     // Generate recipient key pair
     let mut kem_ctx = KemContext::with_provider(Box::new(
@@ -323,6 +327,7 @@ fn test_authpsk_mode_sender_authentication() {
 fn test_authpsk_mode_different_psk_ids() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
+    hpke_ctx.set_psk_wire_format(HpkePskWireFormat::LibQCommitmentSuffix);
 
     // Generate recipient key pair
     let mut kem_ctx = KemContext::with_provider(Box::new(

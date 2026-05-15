@@ -2,7 +2,6 @@
 
 use core::fmt;
 
-use lib_q_keccak::f1600;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
@@ -26,41 +25,8 @@ use crate::state::{
     duplex_decrypt_chunk,
     duplex_encrypt_chunk,
     init_key_nonce,
-    rate_to_bytes,
-    set_rate_from_bytes,
     tag_from_state,
 };
-
-fn absorb_padding_only(state: &mut [u64; PLEN]) {
-    let mut rate = [0u8; RATE_BYTES];
-    rate_to_bytes(state, &mut rate);
-    rate[0] ^= 0x01;
-    rate[RATE_BYTES - 1] ^= 0x80;
-    set_rate_from_bytes(state, &rate);
-    f1600(state);
-}
-
-fn advance_decrypt_state_without_output(state: &mut [u64; PLEN], ct: &[u8]) {
-    debug_assert!(ct.len() <= RATE_BYTES);
-    let mut rate = [0u8; RATE_BYTES];
-    rate_to_bytes(state, &mut rate);
-
-    if ct.len() == RATE_BYTES {
-        let mut c_full = [0u8; RATE_BYTES];
-        c_full.copy_from_slice(ct);
-        set_rate_from_bytes(state, &c_full);
-        f1600(state);
-        absorb_padding_only(state);
-        return;
-    }
-
-    let mut c_full = rate;
-    c_full[..ct.len()].copy_from_slice(ct);
-    c_full[ct.len()] ^= 0x01;
-    c_full[RATE_BYTES - 1] ^= 0x80;
-    set_rate_from_bytes(state, &c_full);
-    f1600(state);
-}
 
 /// Encrypt/decrypt failed: buffer too small, length overflow, or (decrypt) authentication failure.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -72,8 +38,11 @@ impl fmt::Debug for DuplexCryptoError {
     }
 }
 
-/// Shared duplex decrypt: writes plaintext into `out[..body_len]` and returns whether the tag
-/// was valid. Both auth and decrypt passes always run (timing discipline).
+/// Shared duplex decrypt: one duplex walk over the ciphertext body writes plaintext into
+/// `out[..body_len]`, derives the tag from the final sponge state, and returns whether the tag
+/// was valid (`subtle::ConstantTimeEq`). The walk always runs to completion regardless of tag
+/// validity (timing discipline). A second full body pass would only duplicate `f1600` work: the
+/// tag is already fixed by this single trajectory (the inverse of [`encrypt`]).
 ///
 /// Returns `Err` if `ct_in` is shorter than `TAG_BYTES` or `out` is shorter than the body length.
 pub(crate) fn decrypt_core(
@@ -97,21 +66,6 @@ pub(crate) fn decrypt_core(
     init_key_nonce(&mut state, key, nonce);
     absorb_all(&mut state, ad);
 
-    let mut off = 0usize;
-    while off + RATE_BYTES <= body_len {
-        advance_decrypt_state_without_output(&mut state, &ct_body[off..off + RATE_BYTES]);
-        off += RATE_BYTES;
-    }
-    if off < body_len {
-        advance_decrypt_state_without_output(&mut state, &ct_body[off..]);
-    }
-
-    let tag_calc = tag_from_state(&state);
-    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| DuplexCryptoError)?;
-    let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
-
-    init_key_nonce(&mut state, key, nonce);
-    absorb_all(&mut state, ad);
     let pt = &mut out[..body_len];
     let mut off = 0usize;
     while off + RATE_BYTES <= body_len {
@@ -125,6 +79,10 @@ pub(crate) fn decrypt_core(
     if off < body_len {
         duplex_decrypt_chunk(&mut state, &ct_body[off..], &mut pt[off..]);
     }
+
+    let tag_calc = tag_from_state(&state);
+    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| DuplexCryptoError)?;
+    let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
 
     state.zeroize();
 
@@ -171,7 +129,7 @@ pub fn encrypt(
 ///
 /// On success, plaintext is written to `out` (length `ct_in.len() - TAG_BYTES`).
 /// On authentication failure, zeroes `out[..body_len]` and returns `Err`.
-/// Both authentication and decryption passes always execute regardless of tag validity.
+/// The duplex body walk always runs to completion regardless of tag validity (timing discipline).
 pub fn decrypt(
     key: &[u8; KEY_BYTES],
     nonce: &[u8; NONCE_BYTES],
@@ -192,7 +150,7 @@ pub fn decrypt(
     }
 }
 
-/// Layer B semantic decrypt: single shared [`decrypt_core`] (no duplicate sponge passes).
+/// Layer B semantic decrypt: single shared [`decrypt_core`] (one duplex walk over the body).
 #[cfg(feature = "alloc")]
 pub(crate) fn decrypt_semantic_outcome(
     key: &[u8; KEY_BYTES],

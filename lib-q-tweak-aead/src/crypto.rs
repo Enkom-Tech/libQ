@@ -11,9 +11,10 @@ use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
 use lib_q_core::DecryptSemanticOutcome;
 use subtle::ConstantTimeEq;
-use zeroize::Zeroize;
-#[cfg(feature = "alloc")]
-use zeroize::Zeroizing;
+use zeroize::{
+    Zeroize,
+    Zeroizing,
+};
 
 use crate::params::{
     KEY_BYTES,
@@ -147,7 +148,9 @@ fn compute_tag(
     ad: &[u8],
     ct: &[u8],
 ) -> [u8; TAG_BYTES] {
-    let mut v = Vec::with_capacity(KEY_BYTES + 1 + NONCE_BYTES + 8 + ad.len() + 8 + ct.len());
+    let mut v = Zeroizing::new(Vec::with_capacity(
+        KEY_BYTES + 1 + NONCE_BYTES + 8 + ad.len() + 8 + ct.len(),
+    ));
     v.extend_from_slice(key.as_slice());
     v.push(0x03);
     v.extend_from_slice(nonce.as_slice());

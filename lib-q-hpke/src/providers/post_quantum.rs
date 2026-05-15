@@ -33,7 +33,10 @@ use lib_q_hash::{
 use lib_q_kem::LibQKemProvider;
 use zeroize::Zeroizing;
 
-use crate::error::HpkeError;
+use crate::error::{
+    AeadOperation,
+    HpkeError,
+};
 use crate::kdf::hkdf::HkdfImpl;
 use crate::providers::traits::*;
 use crate::security::CryptoRng;
@@ -566,11 +569,11 @@ impl AeadProvider for PostQuantumProvider {
         self.validate_nonce(aead, nonce)?;
 
         match aead {
-            HpkeAead::Export => {
-                // Export mode: return plaintext as-is (no encryption)
-                // This is used for key export functionality in HPKE
-                Ok(plaintext.to_vec())
-            }
+            HpkeAead::Export => Err(HpkeError::aead_error(
+                HpkeAead::Export,
+                AeadOperation::Seal,
+                "Export-only AEAD (RFC 9180): no payload encryption; use HPKE export()",
+            )),
             _ => {
                 // Use lib-q-aead abstraction for AEAD operations
                 let aead_impl = Self::create_aead_instance(aead)?;
@@ -600,11 +603,11 @@ impl AeadProvider for PostQuantumProvider {
         self.validate_nonce(aead, nonce)?;
 
         match aead {
-            HpkeAead::Export => {
-                // Export mode: return ciphertext as-is (no decryption)
-                // This is used for key export functionality in HPKE
-                Ok(ciphertext.to_vec())
-            }
+            HpkeAead::Export => Err(HpkeError::aead_error(
+                HpkeAead::Export,
+                AeadOperation::Open,
+                "Export-only AEAD (RFC 9180): no payload decryption; use HPKE export()",
+            )),
             _ => {
                 // Use lib-q-aead abstraction for AEAD operations
                 let aead_impl = Self::create_aead_instance(aead)?;

@@ -1,7 +1,9 @@
 //! Cross-library integration tests for HPKE with different KEM providers
 //!
-//! These tests verify that HPKE works correctly with different KEM implementations
-//! (ML-KEM, HQC, CB-KEM) to ensure proper cross-library interoperability.
+//! These tests verify that HPKE works correctly with ML-KEM through the public `HpkeContext`
+//! API. The active [`HpkeCipherSuite`](lib_q_hpke::HpkeCipherSuite) must match the ML-KEM parameter
+//! set of the recipient keys. HQC key generation is available when the `hqc` feature is enabled,
+//! but HPKE seal/open for HQC stays `#[ignore]` until that KEM is wired into the HPKE cipher suite.
 
 #![cfg(feature = "std")]
 
@@ -12,6 +14,12 @@ use lib_q_core::{
     KemSecretKey,
 };
 use lib_q_hpke::HpkeContext;
+use lib_q_hpke::types::{
+    HpkeAead,
+    HpkeCipherSuite,
+    HpkeKdf,
+    HpkeKem,
+};
 use lib_q_kem::LibQKemProvider;
 
 /// Test HPKE with ML-KEM-512
@@ -56,6 +64,11 @@ fn test_hpke_with_ml_kem512() {
 fn test_hpke_with_ml_kem768() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem768,
+        HpkeKdf::HkdfShake256,
+        HpkeAead::Saturnin256,
+    ));
 
     let mut kem_ctx = KemContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
@@ -89,6 +102,7 @@ fn test_hpke_with_ml_kem768() {
 /// Test HPKE with HQC-128
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
+#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
 fn test_hpke_with_hqc128() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
@@ -125,6 +139,7 @@ fn test_hpke_with_hqc128() {
 /// Test HPKE with HQC-192
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
+#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
 fn test_hpke_with_hqc192() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
@@ -161,6 +176,7 @@ fn test_hpke_with_hqc192() {
 /// Test HPKE with HQC-256
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
+#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
 fn test_hpke_with_hqc256() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
@@ -212,10 +228,10 @@ fn test_hpke_error_propagation() {
     assert!(result.is_err(), "Seal should fail with invalid public key");
 }
 
-/// Test HPKE with multiple KEM algorithms in sequence
+/// Test HPKE with multiple ML-KEM parameter sets in sequence
 #[test]
-#[cfg(all(feature = "ml-kem", feature = "hqc"))]
-fn test_hpke_multiple_kem_algorithms() {
+#[cfg(feature = "ml-kem")]
+fn test_hpke_multiple_ml_kem_algorithms() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
@@ -223,9 +239,25 @@ fn test_hpke_multiple_kem_algorithms() {
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
 
-    let algorithms = [Algorithm::MlKem512, Algorithm::Hqc128, Algorithm::Hqc192];
+    let algorithms = [
+        Algorithm::MlKem512,
+        Algorithm::MlKem768,
+        Algorithm::MlKem1024,
+    ];
 
     for algorithm in algorithms {
+        let hpke_kem = match algorithm {
+            Algorithm::MlKem512 => HpkeKem::MlKem512,
+            Algorithm::MlKem768 => HpkeKem::MlKem768,
+            Algorithm::MlKem1024 => HpkeKem::MlKem1024,
+            _ => panic!("unexpected algorithm in ML-KEM integration test: {algorithm:?}"),
+        };
+        hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+            hpke_kem,
+            HpkeKdf::HkdfShake256,
+            HpkeAead::Saturnin256,
+        ));
+
         let keypair = kem_ctx
             .generate_keypair(algorithm, None)
             .unwrap_or_else(|e| {

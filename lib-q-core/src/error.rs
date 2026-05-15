@@ -16,6 +16,42 @@ use alloc::{
     vec::Vec,
 };
 
+/// Why hexadecimal decoding failed ([`Error::HexDecode`], [`crate::api::Utils::hex_to_bytes`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum HexDecodeError {
+    /// After trimming, the string has an odd number of hexadecimal characters.
+    OddLength {
+        /// Number of UTF-8 bytes in the trimmed hex string (not decoded byte length).
+        char_count: usize,
+    },
+    /// A two-character slice is not a valid hexadecimal byte.
+    InvalidDigit {
+        /// UTF-8 byte index in the trimmed string where the invalid pair starts.
+        pair_start: usize,
+        /// Total UTF-8 byte length of the trimmed hex string.
+        char_count: usize,
+    },
+}
+
+impl fmt::Display for HexDecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HexDecodeError::OddLength { char_count } => write!(
+                f,
+                "odd hex length ({char_count} characters); length must be even"
+            ),
+            HexDecodeError::InvalidDigit {
+                pair_start,
+                char_count,
+            } => write!(
+                f,
+                "invalid hex digit at index {pair_start} (trimmed length {char_count})"
+            ),
+        }
+    }
+}
+
 /// The error type for lib-Q operations
 ///
 /// This enum represents all possible errors that can occur during cryptographic operations
@@ -50,9 +86,12 @@ pub enum Error {
 
     /// Invalid message size
     ///
-    /// **When it occurs:** A message exceeds the maximum allowed size.
-    /// **Cause:** The message is too large for the operation or algorithm limits.
+    /// **When it occurs:** A caller-supplied message or payload exceeds a configured policy limit
+    /// (for example AEAD or hash absorb bounds from [`crate::security::SecurityValidator`]).
+    /// **Cause:** The input is too large for the operation under current security constants.
     /// **Resolution:** Split the message into smaller chunks or use a different approach that supports larger messages.
+    ///
+    /// For fixed internal or stack buffers, use [`Error::BufferTooSmall`] instead.
     InvalidMessageSize { max: usize, actual: usize },
 
     /// Invalid ciphertext size
@@ -276,6 +315,26 @@ pub enum Error {
 
     /// Invalid randomness size
     InvalidRandomnessSize { expected: usize, actual: usize },
+
+    /// Requested output length for [`crate::api::Utils::random_bytes`] is outside the supported range.
+    ///
+    /// **When it occurs:** `length` is zero or exceeds the platform-specific maximum for this helper.
+    /// **Resolution:** Use a length in the inclusive range given by `min` and `max`.
+    RandomBytesLengthInvalid {
+        min: usize,
+        max: usize,
+        requested: usize,
+    },
+
+    /// Hexadecimal decoding failed ([`crate::api::Utils::hex_to_bytes`]).
+    HexDecode(HexDecodeError),
+
+    /// A fixed-capacity buffer (stack or internal) cannot satisfy the requested byte length.
+    ///
+    /// **When it occurs:** An implementation uses a bounded temporary buffer and the requested
+    /// length exceeds that capacity. This is distinct from [`Error::InvalidMessageSize`], which
+    /// reflects configured cryptographic policy limits on caller-supplied payloads.
+    BufferTooSmall { capacity: usize, requested: usize },
 }
 
 impl Error {
@@ -464,6 +523,28 @@ impl fmt::Display for Error {
                     "Invalid randomness size: expected {expected}, got {actual}"
                 )
             }
+            Error::RandomBytesLengthInvalid {
+                min,
+                max,
+                requested,
+            } => {
+                write!(
+                    f,
+                    "Invalid random_bytes length: requested {requested}, allowed inclusive range [{min}, {max}]"
+                )
+            }
+            Error::HexDecode(e) => {
+                write!(f, "Hex decode failed: {e}")
+            }
+            Error::BufferTooSmall {
+                capacity,
+                requested,
+            } => {
+                write!(
+                    f,
+                    "Insufficient fixed buffer capacity: capacity {capacity}, requested {requested}"
+                )
+            }
         }
     }
 }
@@ -524,6 +605,9 @@ impl Error {
             Error::UnsupportedAlgorithm { .. } => "UnsupportedAlgorithm".to_string(),
             Error::AuthenticationFailed { .. } => "AuthenticationFailed".to_string(),
             Error::InvalidRandomnessSize { .. } => "InvalidRandomnessSize".to_string(),
+            Error::RandomBytesLengthInvalid { .. } => "RandomBytesLengthInvalid".to_string(),
+            Error::HexDecode(..) => "HexDecode".to_string(),
+            Error::BufferTooSmall { .. } => "BufferTooSmall".to_string(),
         }
     }
 }

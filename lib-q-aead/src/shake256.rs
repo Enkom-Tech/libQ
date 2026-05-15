@@ -175,7 +175,10 @@ impl Shake256Aead {
             let mut keystream = UninitStackBuffer::<4096>::new();
             keystream
                 .resize(plaintext.len())
-                .map_err(|_| Error::InvalidMessageSize { max: 0, actual: 0 })?;
+                .map_err(|_| Error::BufferTooSmall {
+                    capacity: keystream.capacity(),
+                    requested: plaintext.len(),
+                })?;
             let mut reader = hasher.finalize_xof();
             reader.read(keystream.as_mut_slice());
 

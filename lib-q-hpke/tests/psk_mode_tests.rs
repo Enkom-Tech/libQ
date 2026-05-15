@@ -213,6 +213,9 @@ fn test_psk_mode_different_psks() {
     let psk2 = b"second-psk";
     let psk_id2 = b"second-psk-id";
 
+    // libQ PSK commitment suffix: wrong PSK is rejected at setup with InconsistentPsk.
+    let psk_wire = HpkePskWireFormat::LibQCommitmentSuffix;
+
     // Encrypt with PSK 1
     let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
     let (encapsulated_key1, ciphertext1) = seal_with_mode(
@@ -229,7 +232,7 @@ fn test_psk_mode_different_psks() {
         Some(psk_id1),
         None,
         None,
-        HpkePskWireFormat::default(),
+        psk_wire,
     )
     .expect("PSK 1 encryption should work");
 
@@ -248,7 +251,7 @@ fn test_psk_mode_different_psks() {
         Some(psk_id2),
         None,
         None,
-        HpkePskWireFormat::default(),
+        psk_wire,
     )
     .expect("PSK 2 encryption should work");
 
@@ -270,7 +273,7 @@ fn test_psk_mode_different_psks() {
         Some(psk1),
         Some(psk_id1),
         None,
-        HpkePskWireFormat::default(),
+        psk_wire,
     )
     .expect("PSK 1 decryption should work");
 
@@ -288,7 +291,7 @@ fn test_psk_mode_different_psks() {
         Some(psk2),
         Some(psk_id2),
         None,
-        HpkePskWireFormat::default(),
+        psk_wire,
     )
     .expect("PSK 2 decryption should work");
 
@@ -310,7 +313,7 @@ fn test_psk_mode_different_psks() {
         Some(psk2), // Wrong PSK
         Some(psk_id1),
         None,
-        HpkePskWireFormat::default(),
+        psk_wire,
     );
 
     assert_eq!(

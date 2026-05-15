@@ -52,6 +52,11 @@ fn test_hpke_context_setup_different_keys() {
         .expect("ML-KEM-512 sender setup should work");
 
     // Test with ML-KEM-768
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem768,
+        HpkeKdf::HkdfShake256,
+        HpkeAead::Saturnin256,
+    ));
     let keypair_768 = kem_ctx
         .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 key generation should work");
@@ -62,6 +67,11 @@ fn test_hpke_context_setup_different_keys() {
         .expect("ML-KEM-768 sender setup should work");
 
     // Test with ML-KEM-1024
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem1024,
+        HpkeKdf::HkdfShake256,
+        HpkeAead::Saturnin256,
+    ));
     let keypair_1024 = kem_ctx
         .generate_keypair(Algorithm::MlKem1024, None)
         .expect("ML-KEM-1024 key generation should work");

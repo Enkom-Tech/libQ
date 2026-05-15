@@ -49,6 +49,9 @@ pub fn error_to_js_value(error: Error) -> JsValue {
         Error::InvalidTagSize { .. } => "Invalid tag size",
         Error::InvalidHashSize { .. } => "Invalid hash size",
         Error::InvalidRandomnessSize { .. } => "Invalid randomness size",
+        Error::RandomBytesLengthInvalid { .. } => "Invalid random length",
+        Error::HexDecode(..) => "Invalid hex encoding",
+        Error::BufferTooSmall { .. } => "Insufficient buffer capacity",
     };
 
     JsValue::from_str(message)

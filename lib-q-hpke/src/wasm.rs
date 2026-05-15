@@ -85,6 +85,23 @@ fn parse_suite(kem: &str, kdf: &str, aead: &str) -> Result<HpkeCipherSuite, JsVa
     ))
 }
 
+fn kem_to_str(k: HpkeKem) -> &'static str {
+    match k {
+        HpkeKem::MlKem512 => "mlkem512",
+        HpkeKem::MlKem768 => "mlkem768",
+        HpkeKem::MlKem1024 => "mlkem1024",
+    }
+}
+
+fn kdf_to_str(d: HpkeKdf) -> &'static str {
+    match d {
+        HpkeKdf::HkdfShake128 => "hkdfshake128",
+        HpkeKdf::HkdfShake256 => "hkdfshake256",
+        HpkeKdf::HkdfSha3_256 => "hkdfsha3256",
+        HpkeKdf::HkdfSha3_512 => "hkdfsha3512",
+    }
+}
+
 fn hpke_ctx() -> Result<HpkeContext, JsValue> {
     let p = LibQKemProvider::new().map_err(js_err)?;
     Ok(HpkeContext::with_provider(Box::new(p)))
@@ -203,6 +220,8 @@ struct SenderWire {
     exporter_secret_hex: String,
     key_hex: String,
     nonce_hex: String,
+    kem: &'static str,
+    kdf: &'static str,
     aead: &'static str,
     sequence_number: u32,
     max_sequence_number: u32,
@@ -216,6 +235,8 @@ fn sender_to_wire(s: &HpkeSenderContext) -> SenderWire {
         exporter_secret_hex: hex::encode(s.exporter_secret.as_slice()),
         key_hex: hex::encode(s.key.as_slice()),
         nonce_hex: hex::encode(s.nonce.as_slice()),
+        kem: kem_to_str(s.cipher_suite.kem),
+        kdf: kdf_to_str(s.cipher_suite.kdf),
         aead: aead_to_str(s.aead),
         sequence_number: s.sequence_number,
         max_sequence_number: s.max_sequence_number,
@@ -238,11 +259,22 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
             .ok_or_else(|| js_err(format!("sender wire missing string field {k}")))?;
         hex::decode(s.trim()).map_err(js_err)
     };
+    let kem_s = w
+        .get("kem")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| js_err("sender wire missing kem"))?;
+    let kdf_s = w
+        .get("kdf")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| js_err("sender wire missing kdf"))?;
+    let kem = parse_kem(kem_s)?;
+    let kdf = parse_kdf(kdf_s)?;
     let aead_s = w
         .get("aead")
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("sender wire missing aead"))?;
     let aead = parse_aead(aead_s)?;
+    let cipher_suite = HpkeCipherSuite::new(kem, kdf, aead);
     let seq = w
         .get("sequence_number")
         .and_then(|v| v.as_u64())
@@ -260,6 +292,7 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
         exporter_secret: hex_secret("exporter_secret_hex")?,
         key: hex_secret("key_hex")?,
         nonce: hex_secret("nonce_hex")?,
+        cipher_suite,
         aead,
         encapsulated_key: hex_encap("encapsulated_key_hex")?,
         sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
@@ -319,6 +352,8 @@ struct ReceiverWire {
     exporter_secret_hex: String,
     key_hex: String,
     nonce_hex: String,
+    kem: &'static str,
+    kdf: &'static str,
     aead: &'static str,
     sequence_number: u32,
     max_sequence_number: u32,
@@ -331,6 +366,8 @@ fn receiver_to_wire(r: &HpkeReceiverContext) -> ReceiverWire {
         exporter_secret_hex: hex::encode(r.exporter_secret.as_slice()),
         key_hex: hex::encode(r.key.as_slice()),
         nonce_hex: hex::encode(r.nonce.as_slice()),
+        kem: kem_to_str(r.cipher_suite.kem),
+        kdf: kdf_to_str(r.cipher_suite.kdf),
         aead: aead_to_str(r.aead),
         sequence_number: r.sequence_number,
         max_sequence_number: r.max_sequence_number,
@@ -346,11 +383,22 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
             .ok_or_else(|| js_err(format!("receiver wire missing string field {k}")))?;
         Ok(Zeroizing::new(hex::decode(s.trim()).map_err(js_err)?))
     };
+    let kem_s = w
+        .get("kem")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| js_err("receiver wire missing kem"))?;
+    let kdf_s = w
+        .get("kdf")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| js_err("receiver wire missing kdf"))?;
+    let kem = parse_kem(kem_s)?;
+    let kdf = parse_kdf(kdf_s)?;
     let aead_s = w
         .get("aead")
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("receiver wire missing aead"))?;
     let aead = parse_aead(aead_s)?;
+    let cipher_suite = HpkeCipherSuite::new(kem, kdf, aead);
     let seq = w
         .get("sequence_number")
         .and_then(|v| v.as_u64())
@@ -368,6 +416,7 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
         exporter_secret: hex_secret("exporter_secret_hex")?,
         key: hex_secret("key_hex")?,
         nonce: hex_secret("nonce_hex")?,
+        cipher_suite,
         aead,
         sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
         max_sequence_number: u32::try_from(max_seq)

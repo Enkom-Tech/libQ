@@ -46,22 +46,24 @@ impl HpkeMode {
 /// This applies only to [`HpkeMode::Psk`] and [`HpkeMode::AuthPsk`]. Base and Auth modes always
 /// use RFC 9180 layout regardless of this setting.
 ///
-/// # Security
+/// # Defaults and interoperability
 ///
-/// The default is [`Self::LibQCommitmentSuffix`], which appends a KDF commitment so the receiver
-/// can reject a wrong `(psk, psk_id)` before decapsulation and key schedule.
+/// The default is [`Self::Rfc9180`]: the encapsulated key matches RFC 9180 (KEM ciphertext only,
+/// plus the sender-auth encapsulation in AuthPSK). Use this for interoperability with other
+/// RFC 9180 implementations.
 ///
-/// [`Self::Rfc9180`] matches strict RFC 9180 (KEM ciphertext only, plus auth blob in AuthPSK) for
-/// interoperability with implementations that do not use the libQ suffix. PSK agreement is then
-/// implicit only (typically AEAD open or export mismatch on wrong PSK).
+/// [`Self::LibQCommitmentSuffix`] is a libQ extension: it appends a KDF commitment so the receiver
+/// can reject a wrong `(psk, psk_id)` or a mismatched primary KEM ciphertext before decapsulation
+/// and key schedule. Both peers must select it explicitly; it is not RFC 9180–conformant on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum HpkePskWireFormat {
-    /// libQ: append `labeled_extract(..., "psk_commitment", psk ‖ psk_id)` after the KEM output
-    /// (and after the auth encapsulation in AuthPSK).
-    #[default]
-    LibQCommitmentSuffix,
     /// RFC 9180: no PSK commitment suffix on the encapsulated key.
+    #[default]
     Rfc9180,
+    /// libQ: append `labeled_extract(..., "psk_commitment", psk ‖ psk_id ‖ enc_kem)` after the
+    /// KEM output (and after the auth encapsulation in AuthPSK), where `enc_kem` is the primary
+    /// KEM ciphertext only (session-bound; not the sender-auth encapsulation).
+    LibQCommitmentSuffix,
 }
 
 /// Post-quantum key encapsulation mechanisms
@@ -226,7 +228,7 @@ impl HpkeAead {
 }
 
 /// HPKE cipher suite specification
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HpkeCipherSuite {
     /// Key encapsulation mechanism
     pub kem: HpkeKem,
@@ -370,6 +372,8 @@ pub struct HpkeSenderContext {
     pub key: SecretBytes,
     /// Base nonce
     pub nonce: SecretBytes,
+    /// Cipher suite (KEM, KDF, AEAD) used for this session (RFC 9180 `suite_id` / export)
+    pub cipher_suite: HpkeCipherSuite,
     /// AEAD algorithm from the negotiated cipher suite
     pub aead: HpkeAead,
     /// Encapsulated key to be sent to receiver
@@ -389,6 +393,7 @@ impl fmt::Debug for HpkeSenderContext {
             .field("exporter_secret", &"<redacted>")
             .field("key", &"<redacted>")
             .field("nonce", &"<redacted>")
+            .field("cipher_suite", &self.cipher_suite)
             .field("aead", &self.aead)
             .field("encapsulated_key_len", &self.encapsulated_key.len())
             .field("sequence_number", &self.sequence_number)
@@ -406,6 +411,7 @@ impl HpkeSenderContext {
         key: SecretBytes,
         nonce: SecretBytes,
         encapsulated_key: Vec<u8>,
+        cipher_suite: HpkeCipherSuite,
         aead: HpkeAead,
     ) -> Self {
         Self {
@@ -413,6 +419,7 @@ impl HpkeSenderContext {
             exporter_secret,
             key,
             nonce,
+            cipher_suite,
             aead,
             encapsulated_key,
             sequence_number: 0,
@@ -423,7 +430,9 @@ impl HpkeSenderContext {
 
     /// Check if the context can be used for encryption
     pub fn can_encrypt(&self) -> bool {
-        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+        self.aead != HpkeAead::Export &&
+            self.state == HpkeContextState::Active &&
+            self.sequence_number < self.max_sequence_number
     }
 
     /// Increment sequence number with overflow protection
@@ -462,6 +471,8 @@ pub struct HpkeReceiverContext {
     pub key: SecretBytes,
     /// Base nonce
     pub nonce: SecretBytes,
+    /// Cipher suite (KEM, KDF, AEAD) used for this session (RFC 9180 `suite_id` / export)
+    pub cipher_suite: HpkeCipherSuite,
     /// AEAD algorithm from the negotiated cipher suite
     pub aead: HpkeAead,
     /// Sequence number
@@ -479,6 +490,7 @@ impl fmt::Debug for HpkeReceiverContext {
             .field("exporter_secret", &"<redacted>")
             .field("key", &"<redacted>")
             .field("nonce", &"<redacted>")
+            .field("cipher_suite", &self.cipher_suite)
             .field("aead", &self.aead)
             .field("sequence_number", &self.sequence_number)
             .field("max_sequence_number", &self.max_sequence_number)
@@ -494,6 +506,7 @@ impl HpkeReceiverContext {
         exporter_secret: SecretBytes,
         key: SecretBytes,
         nonce: SecretBytes,
+        cipher_suite: HpkeCipherSuite,
         aead: HpkeAead,
     ) -> Self {
         Self {
@@ -501,6 +514,7 @@ impl HpkeReceiverContext {
             exporter_secret,
             key,
             nonce,
+            cipher_suite,
             aead,
             sequence_number: 0,
             max_sequence_number: u32::MAX - 1, // Leave room for overflow check
@@ -510,7 +524,9 @@ impl HpkeReceiverContext {
 
     /// Check if the context can be used for decryption
     pub fn can_decrypt(&self) -> bool {
-        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+        self.aead != HpkeAead::Export &&
+            self.state == HpkeContextState::Active &&
+            self.sequence_number < self.max_sequence_number
     }
 
     /// Increment sequence number with overflow protection
@@ -541,11 +557,8 @@ mod tests {
     use crate::error::HpkeError;
 
     #[test]
-    fn hpke_psk_wire_format_default_is_libq_suffix() {
-        assert_eq!(
-            HpkePskWireFormat::default(),
-            HpkePskWireFormat::LibQCommitmentSuffix
-        );
+    fn hpke_psk_wire_format_default_is_rfc9180() {
+        assert_eq!(HpkePskWireFormat::default(), HpkePskWireFormat::Rfc9180);
     }
 
     #[test]
@@ -627,6 +640,32 @@ mod tests {
     }
 
     #[test]
+    fn export_only_context_disallows_payload_ops() {
+        let export_suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfShake256, HpkeAead::Export);
+        let sender = HpkeSenderContext::new(
+            Zeroizing::new(vec![1u8; 32]),
+            Zeroizing::new(vec![2u8; 32]),
+            Zeroizing::new(vec![]),
+            Zeroizing::new(vec![]),
+            vec![5u8; 768],
+            export_suite,
+            HpkeAead::Export,
+        );
+        assert!(!sender.can_encrypt());
+
+        let receiver = HpkeReceiverContext::new(
+            Zeroizing::new(vec![1u8; 32]),
+            Zeroizing::new(vec![2u8; 32]),
+            Zeroizing::new(vec![]),
+            Zeroizing::new(vec![]),
+            export_suite,
+            HpkeAead::Export,
+        );
+        assert!(!receiver.can_decrypt());
+    }
+
+    #[test]
     fn cipher_suite_identifier_order() {
         let suite =
             HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfSha3_512, HpkeAead::Export);
@@ -655,12 +694,18 @@ mod tests {
 
     #[test]
     fn sender_context_state_transitions() {
+        let suite = HpkeCipherSuite::new(
+            HpkeKem::MlKem512,
+            HpkeKdf::HkdfShake256,
+            HpkeAead::Saturnin256,
+        );
         let mut sender = HpkeSenderContext::new(
             Zeroizing::new(vec![1; 32]),
             Zeroizing::new(vec![2; 32]),
             Zeroizing::new(vec![3; 32]),
             Zeroizing::new(vec![4; 16]),
             vec![5; 768],
+            suite,
             HpkeAead::Saturnin256,
         );
 
@@ -682,11 +727,14 @@ mod tests {
 
     #[test]
     fn receiver_context_state_transitions() {
+        let suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfShake256, HpkeAead::Shake256);
         let mut receiver = HpkeReceiverContext::new(
             Zeroizing::new(vec![1; 32]),
             Zeroizing::new(vec![2; 32]),
             Zeroizing::new(vec![3; 32]),
             Zeroizing::new(vec![4; 16]),
+            suite,
             HpkeAead::Shake256,
         );
 

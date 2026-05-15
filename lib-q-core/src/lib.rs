@@ -55,6 +55,7 @@ pub use contexts::{
 };
 pub use error::{
     Error,
+    HexDecodeError,
     Result,
 };
 // Re-export new modular components

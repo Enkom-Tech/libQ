@@ -8,6 +8,7 @@ use lib_q_core::contexts::{
 };
 use lib_q_core::error::{
     Error,
+    HexDecodeError,
     supported_security_levels,
 };
 use lib_q_core::security::SecurityConstants;
@@ -265,6 +266,22 @@ fn test_error_display_all_variants() {
         expected: 32,
         actual: 4,
     });
+    check(Error::RandomBytesLengthInvalid {
+        min: 1,
+        max: 1024,
+        requested: 0,
+    });
+    check(Error::HexDecode(HexDecodeError::OddLength {
+        char_count: 3,
+    }));
+    check(Error::HexDecode(HexDecodeError::InvalidDigit {
+        pair_start: 2,
+        char_count: 4,
+    }));
+    check(Error::BufferTooSmall {
+        capacity: 4096,
+        requested: 8192,
+    });
 }
 
 /// Hit remaining SecurityConstants match arms (CB-KEM, SLH-DSA) and Default.
@@ -422,7 +439,7 @@ fn test_utils_traits_and_security_levels_vec() {
     assert_eq!(Utils::bytes_to_hex(&[0xAB, 0xCD]), "abcd");
     assert!(matches!(
         Utils::hex_to_bytes("123"),
-        Err(Error::InvalidMessageSize { .. })
+        Err(Error::HexDecode(HexDecodeError::OddLength { .. }))
     ));
     assert!(Utils::hex_to_bytes("g0").is_err());
     assert_eq!(Utils::hex_to_bytes("00ff").unwrap(), vec![0, 255]);

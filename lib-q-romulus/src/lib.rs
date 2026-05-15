@@ -41,6 +41,7 @@ mod backend;
 pub mod romulus_m;
 pub mod romulus_n;
 mod skinny;
+mod stack_secret;
 
 #[cfg(feature = "alloc")]
 mod libq_aead;

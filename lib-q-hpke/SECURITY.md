@@ -41,12 +41,17 @@ lib-q-hpke implements RFC 9180 using exclusively post-quantum algorithms:
 - ML-KEM-768: Level 3 security (AES-192 equivalent)  
 - ML-KEM-1024: Level 5 security (AES-256 equivalent)
 
-## Known Limitations
+## RFC 9180 conformance
 
-- Pre-shared key mode not implemented
-- Authenticated sender mode not implemented
-- Software-only implementations (no hardware acceleration)
-- Limited side-channel protection
+The HPKE **state machine** (modes, `SetupBaseS`/`SetupBaseR`-style key schedule, labeled extract/expand, sequence handling) follows RFC 9180. **Cipher suites** use lib-q–assigned KEM/KDF/AEAD code points for post-quantum algorithms (not the RFC’s classical DHKEM + AES-GCM/ChaCha20 suites).
+
+For **PSK** and **AuthPSK**, the default `HpkePskWireFormat` is **RFC 9180** on the wire (no extra suffix). `HpkePskWireFormat::LibQCommitmentSuffix` is an optional extension: both peers must enable it explicitly.
+
+## Known limitations
+
+- **Interop:** Peers must agree on the same cipher suite identifiers and, for PSK modes, the same `HpkePskWireFormat`.
+- **Software-only:** No mandatory hardware acceleration in this crate.
+- **Side channels:** Best-effort constant-time comparisons; full side-channel resistance depends on lower-level primitives and deployment.
 
 ## Reporting Vulnerabilities
 

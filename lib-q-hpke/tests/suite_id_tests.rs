@@ -5,6 +5,7 @@ use lib_q_hpke::{
     HpkeCipherSuite,
     HpkeKdf,
     HpkeKem,
+    HpkeMode,
     hpke_core,
 };
 
@@ -188,9 +189,16 @@ fn test_key_schedule_with_different_cipher_suites() {
         HpkeAead::Saturnin256,
     );
     let provider = PostQuantumProvider::new();
-    let result1 =
-        hpke_core::key_schedule(shared_secret, info, None, None, &cipher_suite1, &provider)
-            .expect("Key schedule should work");
+    let result1 = hpke_core::key_schedule(
+        HpkeMode::Base,
+        shared_secret,
+        info,
+        None,
+        None,
+        &cipher_suite1,
+        &provider,
+    )
+    .expect("Key schedule should work");
 
     // Test with ML-KEM-768, HKDF-SHA3-256, Saturnin256
     let cipher_suite2 = HpkeCipherSuite::new(
@@ -198,9 +206,16 @@ fn test_key_schedule_with_different_cipher_suites() {
         HpkeKdf::HkdfSha3_256,
         HpkeAead::Saturnin256,
     );
-    let result2 =
-        hpke_core::key_schedule(shared_secret, info, None, None, &cipher_suite2, &provider)
-            .expect("Key schedule should work");
+    let result2 = hpke_core::key_schedule(
+        HpkeMode::Base,
+        shared_secret,
+        info,
+        None,
+        None,
+        &cipher_suite2,
+        &provider,
+    )
+    .expect("Key schedule should work");
 
     // Results should be different due to different cipher suites
     assert_ne!(
@@ -232,13 +247,27 @@ fn test_key_schedule_determinism() {
 
     // Run key schedule twice with same parameters
     let provider = PostQuantumProvider::new();
-    let result1 =
-        hpke_core::key_schedule(shared_secret, info, None, None, &cipher_suite, &provider)
-            .expect("Key schedule should work");
+    let result1 = hpke_core::key_schedule(
+        HpkeMode::Base,
+        shared_secret,
+        info,
+        None,
+        None,
+        &cipher_suite,
+        &provider,
+    )
+    .expect("Key schedule should work");
 
-    let result2 =
-        hpke_core::key_schedule(shared_secret, info, None, None, &cipher_suite, &provider)
-            .expect("Key schedule should work");
+    let result2 = hpke_core::key_schedule(
+        HpkeMode::Base,
+        shared_secret,
+        info,
+        None,
+        None,
+        &cipher_suite,
+        &provider,
+    )
+    .expect("Key schedule should work");
 
     // Results should be identical
     assert_eq!(
@@ -253,6 +282,38 @@ fn test_key_schedule_determinism() {
         result1.exporter_secret, result2.exporter_secret,
         "Exporter secrets should be identical for same parameters"
     );
+}
+
+/// Export-only AEAD: RFC 9180 key schedule uses N_key = N_nonce = 0 (no payload key material).
+#[test]
+fn test_key_schedule_export_aead_zero_key_and_nonce() {
+    use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
+
+    let shared_secret = b"test_shared_secret_32_bytes_long!";
+    let info = b"test_info";
+    let cipher_suite =
+        HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfSha3_256, HpkeAead::Export);
+    let provider = PostQuantumProvider::new();
+    let schedule = hpke_core::key_schedule(
+        HpkeMode::Base,
+        shared_secret,
+        info,
+        None,
+        None,
+        &cipher_suite,
+        &provider,
+    )
+    .expect("Key schedule should work for Export AEAD");
+
+    assert!(
+        schedule.key.is_empty(),
+        "Export suite must derive zero-length AEAD key"
+    );
+    assert!(
+        schedule.nonce.is_empty(),
+        "Export suite must derive zero-length base nonce"
+    );
+    assert_eq!(schedule.exporter_secret.len(), 32);
 }
 
 /// Test setup_sender with different cipher suites

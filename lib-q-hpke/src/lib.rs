@@ -5,7 +5,8 @@
 //!
 //! ## Features
 //!
-//! - **RFC 9180 compliant** HPKE implementation
+//! - **RFC 9180 compliant** HPKE implementation (modes, key schedule, labeled KDF; default PSK /
+//!   AuthPSK wire format is strict RFC 9180; optional libQ PSK commitment suffix when both peers opt in)
 //! - **Post-quantum algorithms only**: ML-KEM, Saturnin, SHAKE/SHA3
 //! - **Provider pattern integration** with lib-q-core
 //! - **Comprehensive test suite** with 95+ tests
@@ -258,11 +259,11 @@ impl HpkeContext {
 
     /// Set how PSK and AuthPSK modes encode the encapsulated key on the wire.
     ///
-    /// **Default:** [`HpkePskWireFormat::LibQCommitmentSuffix`] (early PSK mismatch detection).
+    /// **Default:** [`HpkePskWireFormat::Rfc9180`] (RFC 9180 on-the-wire layout for PSK / AuthPSK).
     ///
-    /// **Interop:** set [`HpkePskWireFormat::Rfc9180`] only when talking to a strict RFC 9180 peer
-    /// that does not implement the libQ suffix. Both ends of a session must use the same format.
-    /// RFC wire restores interoperability but removes early PSK commitment verification.
+    /// **libQ extension:** set [`HpkePskWireFormat::LibQCommitmentSuffix`] when both peers support
+    /// it to get early rejection of PSK / KEM mismatch before decapsulation. This is not RFC 9180
+    /// wire format; do not use it when interoperating with a strict RFC 9180 implementation.
     pub fn set_psk_wire_format(&mut self, format: HpkePskWireFormat) {
         self.psk_wire_format = format;
     }
@@ -315,10 +316,10 @@ impl HpkeContext {
 
     /// Setup sender with PSK mode.
     ///
-    /// Uses [`HpkeContext::psk_wire_format`]. With the default ([`HpkePskWireFormat::LibQCommitmentSuffix`]),
-    /// [`HpkeSenderContext::encapsulated_key`] is the ML-KEM ciphertext plus a PSK commitment
-    /// (`hpke_core::psk_commitment_len` bytes). With [`HpkePskWireFormat::Rfc9180`], it is exactly the
-    /// KEM ciphertext for interoperability with strict RFC 9180 peers (set via [`Self::set_psk_wire_format`]).
+    /// Uses [`HpkeContext::psk_wire_format`]. With the default ([`HpkePskWireFormat::Rfc9180`]),
+    /// [`HpkeSenderContext::encapsulated_key`] is exactly the KEM ciphertext (RFC 9180). With
+    /// [`HpkePskWireFormat::LibQCommitmentSuffix`], the same ciphertext is followed by a PSK
+    /// commitment (`hpke_core::psk_commitment_len` bytes); set via [`Self::set_psk_wire_format`].
     pub fn setup_sender_psk(
         &mut self,
         recipient_pk: &KemPublicKey,
@@ -415,10 +416,11 @@ impl HpkeContext {
 
     /// Setup receiver with PSK mode.
     ///
-    /// `encapsulated_key` must match the sender's [`HpkeContext::psk_wire_format`]. With
-    /// [`HpkePskWireFormat::LibQCommitmentSuffix`], a wrong PSK or PSK ID fails with
-    /// [`HpkeError::InconsistentPsk`] before key schedule. With [`HpkePskWireFormat::Rfc9180`],
-    /// agreement is implicit (typically AEAD failure on mismatch).
+    /// `encapsulated_key` must match the sender's [`HpkeContext::psk_wire_format`]. With the
+    /// default [`HpkePskWireFormat::Rfc9180`], agreement is implicit (typically AEAD failure on
+    /// mismatch). With [`HpkePskWireFormat::LibQCommitmentSuffix`], a wrong PSK, PSK ID, or primary
+    /// KEM ciphertext relative to the commitment fails with [`HpkeError::InconsistentPsk`] before
+    /// key schedule.
     pub fn setup_receiver_psk(
         &mut self,
         encapsulated_key: &[u8],
@@ -598,6 +600,7 @@ impl HpkeSenderContext {
             self.exporter_secret.as_slice(),
             exporter_context,
             length,
+            &self.cipher_suite,
             &provider,
         )
         .map_err(|e| e.into())
@@ -645,6 +648,7 @@ impl HpkeReceiverContext {
             self.exporter_secret.as_slice(),
             exporter_context,
             length,
+            &self.cipher_suite,
             &provider,
         )
         .map_err(|e| e.into())
@@ -686,7 +690,7 @@ mod tests {
 
         let suite =
             HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfSha3_256, HpkeAead::Shake256);
-        ctx.set_cipher_suite(suite.clone());
+        ctx.set_cipher_suite(suite);
         assert_eq!(ctx.cipher_suite().kem, suite.kem);
         assert_eq!(ctx.cipher_suite().kdf, suite.kdf);
         assert_eq!(ctx.cipher_suite().aead, suite.aead);
@@ -733,6 +737,11 @@ mod tests {
             vec![5u8; 32].into(),
             vec![6u8; 16].into(),
             vec![7u8; HpkeKem::MlKem512.enc_len()],
+            HpkeCipherSuite::new(
+                HpkeKem::MlKem512,
+                HpkeKdf::HkdfShake256,
+                HpkeAead::Saturnin256,
+            ),
             HpkeAead::Saturnin256,
         );
         sender.state = HpkeContextState::Closed;
@@ -744,6 +753,11 @@ mod tests {
             vec![9u8; 32].into(),
             vec![10u8; 32].into(),
             vec![11u8; 16].into(),
+            HpkeCipherSuite::new(
+                HpkeKem::MlKem512,
+                HpkeKdf::HkdfShake256,
+                HpkeAead::Saturnin256,
+            ),
             HpkeAead::Saturnin256,
         );
         receiver.state = HpkeContextState::Closed;

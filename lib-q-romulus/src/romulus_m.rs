@@ -70,9 +70,9 @@ impl AeadInPlace for RomulusM {
         associated_data: &[u8],
         buffer: &mut [u8],
     ) -> Result<Tag<Self>, Error> {
-        let k = self.key.as_slice().try_into().map_err(|_| Error)?;
-        let n = nonce.as_slice().try_into().map_err(|_| Error)?;
-        let tag = romulus_m_encrypt(k, n, associated_data, buffer)?;
+        let k = crate::stack_secret::zeroizing_copy_16(self.key.as_slice());
+        let n = crate::stack_secret::zeroizing_copy_16(nonce.as_slice());
+        let tag = romulus_m_encrypt(&k, &n, associated_data, buffer)?;
         Ok(Tag::<Self>::from(tag))
     }
 
@@ -83,10 +83,10 @@ impl AeadInPlace for RomulusM {
         buffer: &mut [u8],
         tag: &Tag<Self>,
     ) -> Result<(), Error> {
-        let k = self.key.as_slice().try_into().map_err(|_| Error)?;
-        let n = nonce.as_slice().try_into().map_err(|_| Error)?;
-        let tg: [u8; 16] = tag.as_slice().try_into().map_err(|_| Error)?;
-        romulus_m_decrypt(k, n, associated_data, buffer, &tg)
+        let k = crate::stack_secret::zeroizing_copy_16(self.key.as_slice());
+        let n = crate::stack_secret::zeroizing_copy_16(nonce.as_slice());
+        let tg = crate::stack_secret::zeroizing_copy_16(tag.as_slice());
+        romulus_m_decrypt(&k, &n, associated_data, buffer, &tg)
     }
 }
 

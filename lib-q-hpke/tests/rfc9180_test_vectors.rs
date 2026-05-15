@@ -13,7 +13,35 @@ use lib_q_core::{
     KemSecretKey,
 };
 use lib_q_hpke::HpkeContext;
+use lib_q_hpke::types::{
+    HpkeAead,
+    HpkeCipherSuite,
+    HpkeKdf,
+    HpkeKem,
+};
 use lib_q_kem::LibQKemProvider;
+
+fn hpke_cipher_suite_from_vector(tv: &HpkeTestVector) -> HpkeCipherSuite {
+    let kem = match tv.kem.as_str() {
+        "ML-KEM-512" => HpkeKem::MlKem512,
+        "ML-KEM-768" => HpkeKem::MlKem768,
+        "ML-KEM-1024" => HpkeKem::MlKem1024,
+        other => panic!("Unsupported KEM in test vector: {other}"),
+    };
+    let kdf = match tv.kdf.as_str() {
+        "HKDF-SHA3-256" => HpkeKdf::HkdfSha3_256,
+        "HKDF-SHA3-512" => HpkeKdf::HkdfSha3_512,
+        "HKDF-SHAKE256" => HpkeKdf::HkdfShake256,
+        other => panic!("Unsupported KDF in test vector: {other}"),
+    };
+    let aead = match tv.aead.as_str() {
+        "Saturnin256" => HpkeAead::Saturnin256,
+        "Shake256" => HpkeAead::Shake256,
+        "Export" => HpkeAead::Export,
+        other => panic!("Unsupported AEAD in test vector: {other}"),
+    };
+    HpkeCipherSuite::new(kem, kdf, aead)
+}
 
 /// Test vector structure for HPKE operations
 #[derive(Debug, Clone)]
@@ -139,7 +167,8 @@ pub fn generate_test_vectors() -> Vec<HpkeTestVector> {
     tv4.aad = b"authpsk aad".to_vec();
     test_vectors.push(tv4);
 
-    // Test Vector 5: Export-only mode
+    // Test Vector 5: Export-only AEAD (RFC 9180 0xFFFF). N_key = N_nonce = 0—no payload AEAD;
+    // the harness exercises only HPKE-Export after receiver context is ready.
     let mut tv5 = HpkeTestVector::new(
         "TV-005".to_string(),
         "Base".to_string(),
@@ -148,9 +177,7 @@ pub fn generate_test_vectors() -> Vec<HpkeTestVector> {
         "Export".to_string(),
     );
     tv5.info = b"HPKE export test".to_vec();
-    tv5.plaintext = b"export test message".to_vec();
-    tv5.aad = b"export aad".to_vec();
-    tv5.expected_exported_key = Some(vec![0u8; 32]); // 32-byte exported key
+    tv5.expected_exported_key = Some(Vec::new()); // marker: run HPKE-Export checks (no golden bytes)
     test_vectors.push(tv5);
 
     test_vectors
@@ -165,6 +192,8 @@ fn test_hpke_rfc9180_compliance() {
 
     for test_vector in test_vectors {
         println!("Testing vector: {}", test_vector.id);
+
+        hpke_ctx.set_cipher_suite(hpke_cipher_suite_from_vector(&test_vector));
 
         // Generate key pairs for this test vector
         let mut kem_ctx = KemContext::with_provider(Box::new(
@@ -237,17 +266,7 @@ fn test_hpke_rfc9180_compliance() {
 
         let mut sender_ctx = sender_ctx_result.unwrap();
 
-        // Test encryption
-        let ciphertext_result = sender_ctx.seal(&test_vector.aad, &test_vector.plaintext);
-        assert!(
-            ciphertext_result.is_ok(),
-            "Encryption should succeed for test vector {}",
-            test_vector.id
-        );
-
-        let ciphertext = ciphertext_result.unwrap();
-
-        // Test receiver setup
+        // Receiver context does not depend on ciphertext.
         let receiver_ctx_result = match test_vector.mode.as_str() {
             "Base" => hpke_ctx.setup_receiver(
                 sender_ctx.encapsulated_key(),
@@ -298,7 +317,45 @@ fn test_hpke_rfc9180_compliance() {
 
         let mut receiver_ctx = receiver_ctx_result.unwrap();
 
-        // Test decryption
+        if test_vector.aead.as_str() == "Export" {
+            // TV-005: Export-only suite—receiver is ready; seal/open are skipped (no payload AEAD).
+            assert!(
+                test_vector.expected_exported_key.is_some(),
+                "Export test vector should enable HPKE-Export checks: {}",
+                test_vector.id
+            );
+            assert!(
+                !sender_ctx.can_encrypt() && !receiver_ctx.can_decrypt(),
+                "Export AEAD must not advertise payload AEAD for {}",
+                test_vector.id
+            );
+            let export_context = b"export-context";
+            let export_length = 32;
+            let receiver_exported = receiver_ctx
+                .export(export_context, export_length)
+                .expect("Receiver HPKE-Export should succeed");
+            assert_eq!(receiver_exported.len(), export_length);
+            let sender_exported = sender_ctx
+                .export(export_context, export_length)
+                .expect("Sender HPKE-Export should succeed");
+            assert_eq!(
+                receiver_exported, sender_exported,
+                "HPKE-Export output must match sender/receiver for {}",
+                test_vector.id
+            );
+            println!("✓ Test vector {} passed", test_vector.id);
+            continue;
+        }
+
+        let ciphertext_result = sender_ctx.seal(&test_vector.aad, &test_vector.plaintext);
+        assert!(
+            ciphertext_result.is_ok(),
+            "Encryption should succeed for test vector {}",
+            test_vector.id
+        );
+
+        let ciphertext = ciphertext_result.unwrap();
+
         let decrypted_result = receiver_ctx.open(&test_vector.aad, &ciphertext);
         assert!(
             decrypted_result.is_ok(),
@@ -313,7 +370,7 @@ fn test_hpke_rfc9180_compliance() {
             test_vector.id
         );
 
-        // Test key export if applicable
+        // Optional HPKE-Export parity for suites that also define payload AEAD
         if test_vector.expected_exported_key.is_some() {
             let export_context = b"export-context";
             let export_length = 32;
@@ -332,7 +389,6 @@ fn test_hpke_rfc9180_compliance() {
                 test_vector.id
             );
 
-            // Verify that receiver can export the same key
             let receiver_exported_key_result = receiver_ctx.export(export_context, export_length);
             assert!(
                 receiver_exported_key_result.is_ok(),

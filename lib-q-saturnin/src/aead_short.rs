@@ -7,7 +7,9 @@
 //!
 //! ## Limits
 //!
-//! - **Plaintext**: strictly less than 128 bits (at most 15 bytes)
+//! - **Plaintext**: 0 to 15 bytes (`MAX_PLAINTEXT_LEN`); cannot equal 16. The 16-byte padded
+//!   tail reserves at least one byte for the `0x80` terminator, so plaintext is strictly under
+//!   128 bits (15 bytes max), not 16 bytes (= 128 bits).
 //! - **Nonce**: 128 bits (16 bytes)
 //! - **Associated data**: not supported
 //! - **Ciphertext**: always 32 bytes

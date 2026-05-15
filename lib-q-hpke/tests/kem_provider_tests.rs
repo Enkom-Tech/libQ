@@ -7,7 +7,13 @@ use lib_q_core::{
     KemPublicKey,
     KemSecretKey,
 };
-use lib_q_hpke::HpkeContext;
+use lib_q_hpke::{
+    HpkeAead,
+    HpkeCipherSuite,
+    HpkeContext,
+    HpkeKdf,
+    HpkeKem,
+};
 use lib_q_kem::LibQKemProvider;
 
 /// Test that HPKE context can be created with proper KEM provider
@@ -222,6 +228,11 @@ fn test_cipher_suite_kem_compatibility() {
     assert!(result.is_ok(), "HPKE should work with ML-KEM-512");
 
     // Test with ML-KEM-768
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem768,
+        HpkeKdf::HkdfShake256,
+        HpkeAead::Saturnin256,
+    ));
     let keypair_768 = kem_ctx
         .generate_keypair(Algorithm::MlKem768, None)
         .expect("ML-KEM-768 key generation should work");
@@ -231,6 +242,11 @@ fn test_cipher_suite_kem_compatibility() {
     assert!(result.is_ok(), "HPKE should work with ML-KEM-768");
 
     // Test with ML-KEM-1024
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem1024,
+        HpkeKdf::HkdfShake256,
+        HpkeAead::Saturnin256,
+    ));
     let keypair_1024 = kem_ctx
         .generate_keypair(Algorithm::MlKem1024, None)
         .expect("ML-KEM-1024 key generation should work");

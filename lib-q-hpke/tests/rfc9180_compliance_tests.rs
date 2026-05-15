@@ -126,6 +126,39 @@ fn test_aead_properties() {
     assert_eq!(HpkeAead::Export.tag_len(), 0);
 }
 
+/// Export-only AEAD (RFC 9180 0xFFFF): single-shot `seal` must fail (bypasses `can_encrypt` on contexts).
+#[test]
+#[cfg(feature = "ml-kem")]
+fn test_export_only_suite_rejects_single_shot_seal() {
+    let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
+    hpke_ctx.set_cipher_suite(HpkeCipherSuite::new(
+        HpkeKem::MlKem512,
+        HpkeKdf::HkdfSha3_256,
+        HpkeAead::Export,
+    ));
+
+    let mut kem_ctx = KemContext::with_provider(Box::new(
+        LibQKemProvider::new().expect("Failed to create KEM provider"),
+    ));
+    let recipient_keypair = kem_ctx
+        .generate_keypair(Algorithm::MlKem512, None)
+        .expect("Key generation should work");
+    let recipient_pk =
+        lib_q_core::KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
+
+    let seal_result = hpke_ctx.seal(
+        &recipient_pk,
+        test_vectors::TEST_INFO,
+        test_vectors::TEST_AAD,
+        test_vectors::TEST_PLAINTEXT,
+    );
+    assert!(
+        seal_result.is_err(),
+        "Export-only cipher suite must not allow single-shot payload encryption"
+    );
+}
+
 /// Test HPKE context creation
 #[test]
 fn test_hpke_context_creation() {

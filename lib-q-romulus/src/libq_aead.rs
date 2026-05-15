@@ -29,16 +29,8 @@ use zeroize::{
 use crate::{
     RomulusM,
     RomulusN,
+    stack_secret,
 };
-
-const KEY_NONCE_BYTES: usize = 16;
-
-/// Copy exactly 16 bytes into memory that is zeroed on drop (Romulus key and nonce size).
-fn zeroizing_copy_16(bytes: &[u8]) -> Zeroizing<[u8; KEY_NONCE_BYTES]> {
-    let mut out = Zeroizing::new([0u8; KEY_NONCE_BYTES]);
-    out.copy_from_slice(bytes);
-    out
-}
 
 /// Stateless Romulus-N facade using [`lib_q_core::Aead`].
 pub struct RomulusNAead;
@@ -90,10 +82,10 @@ impl Aead for RomulusNAead {
             });
         }
         let ad = associated_data.unwrap_or(&[]);
-        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
         let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
         let cipher = {
-            let kz = zeroizing_copy_16(kb);
+            let kz = stack_secret::zeroizing_copy_16(kb);
             RomulusN::new(GenericArray::from_slice(kz.as_slice()))
         };
         let mut buf = plaintext.to_vec();
@@ -135,22 +127,16 @@ impl Aead for RomulusNAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr = <[u8; KEY_NONCE_BYTES]>::try_from(kb).map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: kb.len(),
-        })?;
-        let nonce_arr =
-            <[u8; KEY_NONCE_BYTES]>::try_from(nb).map_err(|_| Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nb.len(),
+        let key_z = stack_secret::zeroizing_copy_16(kb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
+        let tag_arr =
+            <[u8; stack_secret::LEN]>::try_from(&ciphertext[body_len..]).map_err(|_| {
+                Error::VerificationFailed {
+                    operation: "AEAD tag verification".to_string(),
+                }
             })?;
-        let tag_arr = <[u8; KEY_NONCE_BYTES]>::try_from(&ciphertext[body_len..]).map_err(|_| {
-            Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            }
-        })?;
         let mut buf = ciphertext[..body_len].to_vec();
-        crate::romulus_n::romulus_n_decrypt(&key_arr, &nonce_arr, ad, &mut buf, &tag_arr).map_err(
+        crate::romulus_n::romulus_n_decrypt(&key_z, &nonce_z, ad, &mut buf, &tag_arr).map_err(
             |_| Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
             },
@@ -189,22 +175,16 @@ impl AeadDecryptSemantic for RomulusNAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr = <[u8; KEY_NONCE_BYTES]>::try_from(kb).map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: kb.len(),
-        })?;
-        let nonce_arr =
-            <[u8; KEY_NONCE_BYTES]>::try_from(nb).map_err(|_| Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nb.len(),
+        let key_z = stack_secret::zeroizing_copy_16(kb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
+        let tag_arr =
+            <[u8; stack_secret::LEN]>::try_from(&ciphertext[body_len..]).map_err(|_| {
+                Error::VerificationFailed {
+                    operation: "AEAD tag verification".to_string(),
+                }
             })?;
-        let tag_arr = <[u8; KEY_NONCE_BYTES]>::try_from(&ciphertext[body_len..]).map_err(|_| {
-            Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            }
-        })?;
         let mut buf = ciphertext[..body_len].to_vec();
-        if crate::romulus_n::romulus_n_decrypt_core(&key_arr, &nonce_arr, ad, &mut buf, &tag_arr) {
+        if crate::romulus_n::romulus_n_decrypt_core(&key_z, &nonce_z, ad, &mut buf, &tag_arr) {
             Ok(DecryptSemanticOutcome::Success(Zeroizing::new(buf)))
         } else {
             buf.zeroize();
@@ -263,10 +243,10 @@ impl Aead for RomulusMAead {
             });
         }
         let ad = associated_data.unwrap_or(&[]);
-        let nonce_z = zeroizing_copy_16(nb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
         let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
         let cipher = {
-            let kz = zeroizing_copy_16(kb);
+            let kz = stack_secret::zeroizing_copy_16(kb);
             RomulusM::new(GenericArray::from_slice(kz.as_slice()))
         };
         let mut buf = plaintext.to_vec();
@@ -308,22 +288,16 @@ impl Aead for RomulusMAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr = <[u8; KEY_NONCE_BYTES]>::try_from(kb).map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: kb.len(),
-        })?;
-        let nonce_arr =
-            <[u8; KEY_NONCE_BYTES]>::try_from(nb).map_err(|_| Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nb.len(),
+        let key_z = stack_secret::zeroizing_copy_16(kb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
+        let tag_arr =
+            <[u8; stack_secret::LEN]>::try_from(&ciphertext[body_len..]).map_err(|_| {
+                Error::VerificationFailed {
+                    operation: "AEAD tag verification".to_string(),
+                }
             })?;
-        let tag_arr = <[u8; KEY_NONCE_BYTES]>::try_from(&ciphertext[body_len..]).map_err(|_| {
-            Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            }
-        })?;
         let mut buf = ciphertext[..body_len].to_vec();
-        crate::romulus_m::romulus_m_decrypt(&key_arr, &nonce_arr, ad, &mut buf, &tag_arr).map_err(
+        crate::romulus_m::romulus_m_decrypt(&key_z, &nonce_z, ad, &mut buf, &tag_arr).map_err(
             |_| Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
             },
@@ -362,22 +336,16 @@ impl AeadDecryptSemantic for RomulusMAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let body_len = ciphertext.len() - Self::tag_size();
-        let key_arr = <[u8; KEY_NONCE_BYTES]>::try_from(kb).map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: kb.len(),
-        })?;
-        let nonce_arr =
-            <[u8; KEY_NONCE_BYTES]>::try_from(nb).map_err(|_| Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nb.len(),
+        let key_z = stack_secret::zeroizing_copy_16(kb);
+        let nonce_z = stack_secret::zeroizing_copy_16(nb);
+        let tag_arr =
+            <[u8; stack_secret::LEN]>::try_from(&ciphertext[body_len..]).map_err(|_| {
+                Error::VerificationFailed {
+                    operation: "AEAD tag verification".to_string(),
+                }
             })?;
-        let tag_arr = <[u8; KEY_NONCE_BYTES]>::try_from(&ciphertext[body_len..]).map_err(|_| {
-            Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            }
-        })?;
         let mut buf = ciphertext[..body_len].to_vec();
-        if crate::romulus_m::romulus_m_decrypt_core(&key_arr, &nonce_arr, ad, &mut buf, &tag_arr) {
+        if crate::romulus_m::romulus_m_decrypt_core(&key_z, &nonce_z, ad, &mut buf, &tag_arr) {
             Ok(DecryptSemanticOutcome::Success(Zeroizing::new(buf)))
         } else {
             buf.zeroize();

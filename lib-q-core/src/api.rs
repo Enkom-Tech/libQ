@@ -178,15 +178,13 @@ impl Utils {
     /// - In no_std environments without getrandom: Returns an error
     #[cfg(feature = "rand")]
     pub fn random_bytes(length: usize) -> Result<Vec<u8>> {
-        if length == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
-        }
-
+        const MIN_RANDOM_SIZE: usize = 1;
         const MAX_RANDOM_SIZE: usize = 1024 * 1024; // 1MB limit
-        if length > MAX_RANDOM_SIZE {
-            return Err(crate::error::Error::InvalidMessageSize {
+        if !(MIN_RANDOM_SIZE..=MAX_RANDOM_SIZE).contains(&length) {
+            return Err(crate::error::Error::RandomBytesLengthInvalid {
+                min: MIN_RANDOM_SIZE,
                 max: MAX_RANDOM_SIZE,
-                actual: length,
+                requested: length,
             });
         }
 
@@ -203,15 +201,13 @@ impl Utils {
     #[cfg(all(feature = "getrandom", not(feature = "rand")))]
     #[cfg(feature = "alloc")]
     pub fn random_bytes(length: usize) -> Result<Vec<u8>> {
-        if length == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
-        }
-
+        const MIN_RANDOM_SIZE: usize = 1;
         const MAX_RANDOM_SIZE: usize = 1024 * 1024; // 1MB limit
-        if length > MAX_RANDOM_SIZE {
-            return Err(crate::error::Error::InvalidMessageSize {
+        if !(MIN_RANDOM_SIZE..=MAX_RANDOM_SIZE).contains(&length) {
+            return Err(crate::error::Error::RandomBytesLengthInvalid {
+                min: MIN_RANDOM_SIZE,
                 max: MAX_RANDOM_SIZE,
-                actual: length,
+                requested: length,
             });
         }
 
@@ -233,15 +229,13 @@ impl Utils {
     #[cfg(all(feature = "getrandom", not(feature = "rand")))]
     #[cfg(not(feature = "alloc"))]
     pub fn random_bytes(length: usize) -> Result<&'static [u8]> {
-        if length == 0 {
-            return Err(crate::error::Error::InvalidMessageSize { max: 0, actual: 0 });
-        }
-
+        const MIN_RANDOM_SIZE: usize = 1;
         const MAX_RANDOM_SIZE: usize = 1024; // Limit for no_std without alloc
-        if length > MAX_RANDOM_SIZE {
-            return Err(crate::error::Error::InvalidMessageSize {
+        if !(MIN_RANDOM_SIZE..=MAX_RANDOM_SIZE).contains(&length) {
+            return Err(crate::error::Error::RandomBytesLengthInvalid {
+                min: MIN_RANDOM_SIZE,
                 max: MAX_RANDOM_SIZE,
-                actual: length,
+                requested: length,
             });
         }
 
@@ -299,21 +293,31 @@ impl Utils {
     }
 
     /// Convert hex string to bytes
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::HexDecode`] with a [`crate::error::HexDecodeError`] reason when the
+    /// trimmed input is not valid hexadecimal (odd length or non-hex digit).
     #[cfg(feature = "alloc")]
     pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>> {
+        use crate::error::HexDecodeError;
+
         let hex = hex.trim();
 
         if !hex.len().is_multiple_of(2) {
-            return Err(crate::error::Error::InvalidMessageSize {
-                max: 0,
-                actual: hex.len(),
-            });
+            return Err(crate::error::Error::HexDecode(HexDecodeError::OddLength {
+                char_count: hex.len(),
+            }));
         }
 
         let mut bytes = Vec::with_capacity(hex.len() / 2);
         for i in (0..hex.len()).step_by(2) {
-            let byte = u8::from_str_radix(&hex[i..i + 2], 16)
-                .map_err(|_| crate::error::Error::InvalidMessageSize { max: 0, actual: i })?;
+            let byte = u8::from_str_radix(&hex[i..i + 2], 16).map_err(|_| {
+                crate::error::Error::HexDecode(HexDecodeError::InvalidDigit {
+                    pair_start: i,
+                    char_count: hex.len(),
+                })
+            })?;
             bytes.push(byte);
         }
 
@@ -583,21 +587,32 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "getrandom")]
+    #[cfg(any(feature = "rand", all(feature = "getrandom", feature = "alloc")))]
     #[test]
     fn test_random_bytes_size_limits() {
-        // Test size limit enforcement
-        assert!(Utils::random_bytes(0).is_err(), "Should reject zero length");
-
-        // Test maximum size limit
         const MAX_SIZE: usize = 1024 * 1024; // 1MB
+        assert_eq!(
+            Utils::random_bytes(0),
+            Err(crate::error::Error::RandomBytesLengthInvalid {
+                min: 1,
+                max: MAX_SIZE,
+                requested: 0,
+            }),
+            "zero length"
+        );
+
         assert!(
             Utils::random_bytes(MAX_SIZE).is_ok(),
             "Should accept maximum size"
         );
-        assert!(
-            Utils::random_bytes(MAX_SIZE + 1).is_err(),
-            "Should reject size exceeding limit"
+        assert_eq!(
+            Utils::random_bytes(MAX_SIZE + 1),
+            Err(crate::error::Error::RandomBytesLengthInvalid {
+                min: 1,
+                max: MAX_SIZE,
+                requested: MAX_SIZE + 1,
+            }),
+            "oversized request"
         );
 
         // Test reasonable sizes
@@ -605,5 +620,26 @@ mod tests {
             let bytes = Utils::random_bytes(size).expect("Should generate random bytes");
             assert_eq!(bytes.len(), size, "Should generate exactly {} bytes", size);
         }
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_hex_to_bytes_decode_errors() {
+        use crate::error::{
+            Error,
+            HexDecodeError,
+        };
+
+        assert_eq!(
+            Utils::hex_to_bytes("123").unwrap_err(),
+            Error::HexDecode(HexDecodeError::OddLength { char_count: 3 })
+        );
+        assert_eq!(
+            Utils::hex_to_bytes("12g3").unwrap_err(),
+            Error::HexDecode(HexDecodeError::InvalidDigit {
+                pair_start: 2,
+                char_count: 4,
+            })
+        );
     }
 }
