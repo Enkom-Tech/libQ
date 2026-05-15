@@ -117,12 +117,11 @@ fn test_aead_kat() -> Result<()> {
     Ok(())
 }
 
-/// Official LWC KAT file for `saturninshortv2` (NIST API; AD always empty).
+/// Official LWC KAT file for `saturninshortv2` (NIST LWC round-2 submission; AD always empty).
+/// Vendored under `tests/fixtures/`.
 #[cfg(all(feature = "alloc", feature = "aead-short"))]
-const SATURNIN_SHORT_LWC_KAT: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../reference/saturnin/Implementations/crypto_aead/saturninshortv2/LWC_AEAD_KAT_256_128.txt"
-));
+const SATURNIN_SHORT_LWC_KAT: &str =
+    include_str!("fixtures/LWC_AEAD_KAT_256_128_saturninshortv2.txt");
 
 /// One official KAT case: key, nonce, plaintext, expected ciphertext (32 bytes).
 #[cfg(all(feature = "alloc", feature = "aead-short"))]
