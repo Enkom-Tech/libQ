@@ -204,15 +204,15 @@ fn test_key_schedule_with_different_cipher_suites() {
 
     // Results should be different due to different cipher suites
     assert_ne!(
-        result1.0, result2.0,
+        result1.key, result2.key,
         "Keys should be different for different cipher suites"
     );
     assert_ne!(
-        result1.1, result2.1,
+        result1.nonce, result2.nonce,
         "Nonces should be different for different cipher suites"
     );
     assert_ne!(
-        result1.2, result2.2,
+        result1.exporter_secret, result2.exporter_secret,
         "Exporter secrets should be different for different cipher suites"
     );
 }
@@ -242,15 +242,15 @@ fn test_key_schedule_determinism() {
 
     // Results should be identical
     assert_eq!(
-        result1.0, result2.0,
+        result1.key, result2.key,
         "Keys should be identical for same parameters"
     );
     assert_eq!(
-        result1.1, result2.1,
+        result1.nonce, result2.nonce,
         "Nonces should be identical for same parameters"
     );
     assert_eq!(
-        result1.2, result2.2,
+        result1.exporter_secret, result2.exporter_secret,
         "Exporter secrets should be identical for same parameters"
     );
 }

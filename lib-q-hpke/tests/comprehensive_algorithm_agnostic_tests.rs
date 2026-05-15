@@ -22,6 +22,7 @@ use lib_q_hpke::types::{
     HpkeKdf,
     HpkeKem,
     HpkeMode,
+    HpkePskWireFormat,
 };
 use lib_q_kem::LibQKemProvider;
 
@@ -110,7 +111,7 @@ fn test_algorithm_combination(
     };
 
     let recipient_pk = KemPublicKey::new(public_key_bytes);
-    let recipient_sk = KemSecretKey::new(secret_key_bytes);
+    let recipient_sk = KemSecretKey::new(secret_key_bytes.to_vec());
 
     // Test 3: KEM operations (encapsulation/decapsulation)
     let (encapsulated_key, shared_secret) =
@@ -211,6 +212,7 @@ fn test_algorithm_combination(
         None,
         None,
         None,
+        HpkePskWireFormat::default(),
     ) {
         Ok(result) => result,
         Err(e) => {
@@ -236,6 +238,7 @@ fn test_algorithm_combination(
         None,
         None,
         None,
+        HpkePskWireFormat::default(),
     ) {
         Ok(decrypted) => decrypted,
         Err(e) => {

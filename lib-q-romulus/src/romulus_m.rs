@@ -190,6 +190,8 @@ pub(crate) fn romulus_m_encrypt(
 }
 
 /// Decrypt ciphertext in `buffer` in place; verify `tag`.
+///
+/// On failure, `buffer` is zeroized. For Layer B semantic mapping, see [`romulus_m_decrypt_core`].
 pub(crate) fn romulus_m_decrypt(
     key: &[u8; 16],
     nonce: &[u8; 16],
@@ -197,6 +199,23 @@ pub(crate) fn romulus_m_decrypt(
     ct: &mut [u8],
     tag: &[u8; 16],
 ) -> Result<(), Error> {
+    let ok = romulus_m_decrypt_core(key, nonce, ad, ct, tag);
+    if ok {
+        Ok(())
+    } else {
+        ct.zeroize();
+        Err(Error)
+    }
+}
+
+/// In-place Romulus-M decrypt; returns whether `tag` matches after the decrypt schedule.
+pub(crate) fn romulus_m_decrypt_core(
+    key: &[u8; 16],
+    nonce: &[u8; 16],
+    ad: &[u8],
+    ct: &mut [u8],
+    tag: &[u8; 16],
+) -> bool {
     let body_len = ct.len();
     let xlen = body_len as u64;
 
@@ -279,10 +298,5 @@ pub(crate) fn romulus_m_decrypt(
 
     let mut calc = [0u8; 16];
     g8a(&s, &mut calc);
-    let ok = bool::from(calc.ct_eq(tag));
-    if !ok {
-        ct.zeroize();
-        return Err(Error);
-    }
-    Ok(())
+    bool::from(calc.ct_eq(tag))
 }

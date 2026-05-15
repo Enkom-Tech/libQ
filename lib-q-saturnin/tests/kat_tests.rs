@@ -117,6 +117,100 @@ fn test_aead_kat() -> Result<()> {
     Ok(())
 }
 
+/// Official LWC KAT file for `saturninshortv2` (NIST API; AD always empty).
+#[cfg(all(feature = "alloc", feature = "aead-short"))]
+const SATURNIN_SHORT_LWC_KAT: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../reference/saturnin/Implementations/crypto_aead/saturninshortv2/LWC_AEAD_KAT_256_128.txt"
+));
+
+/// One official KAT case: key, nonce, plaintext, expected ciphertext (32 bytes).
+#[cfg(all(feature = "alloc", feature = "aead-short"))]
+type ShortKatCase = (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>);
+
+/// Parse `LWC_AEAD_KAT_256_128.txt` blocks into `(key, nonce, plaintext, expected_ct)` tuples.
+#[cfg(all(feature = "alloc", feature = "aead-short"))]
+fn parse_saturnin_short_lwc_kat(data: &str) -> Vec<ShortKatCase> {
+    let mut out = Vec::new();
+    let mut key = Vec::new();
+    let mut nonce = Vec::new();
+    let mut pt = Vec::new();
+    let mut ad = String::new();
+    let mut ct = Vec::new();
+    let mut have_block = false;
+
+    for line in data.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            if have_block && key.len() == 32 && nonce.len() == 16 && ct.len() == 32 {
+                assert!(
+                    ad.is_empty(),
+                    "Saturnin-Short KAT must have empty AD, got {ad:?}"
+                );
+                out.push((key.clone(), nonce.clone(), pt.clone(), ct.clone()));
+            }
+            key.clear();
+            nonce.clear();
+            pt.clear();
+            ad.clear();
+            ct.clear();
+            have_block = false;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("Key = ") {
+            key = hex_to_bytes(rest);
+            have_block = true;
+        } else if let Some(rest) = line.strip_prefix("Nonce = ") {
+            nonce = hex_to_bytes(rest);
+        } else if let Some(rest) = line.strip_prefix("PT = ") {
+            pt = hex_to_bytes(rest);
+        } else if let Some(rest) = line.strip_prefix("AD = ") {
+            ad = rest.to_string();
+        } else if let Some(rest) = line.strip_prefix("CT = ") {
+            ct = hex_to_bytes(rest);
+        }
+    }
+    if have_block && key.len() == 32 && nonce.len() == 16 && ct.len() == 32 {
+        assert!(
+            ad.is_empty(),
+            "Saturnin-Short KAT must have empty AD, got {ad:?}"
+        );
+        out.push((key, nonce, pt, ct));
+    }
+    out
+}
+
+/// All 16 vectors from reference `LWC_AEAD_KAT_256_128.txt` (plaintext lengths 0..=15 bytes).
+#[cfg(all(feature = "alloc", feature = "aead-short"))]
+#[test]
+fn test_aead_short_kat() -> Result<()> {
+    let aead = SaturninShortAead::new();
+    let cases = parse_saturnin_short_lwc_kat(SATURNIN_SHORT_LWC_KAT);
+    assert_eq!(
+        cases.len(),
+        16,
+        "expected 16 official Saturnin-Short KAT cases"
+    );
+
+    for (key_bytes, nonce_bytes, plaintext, expected_ciphertext) in cases {
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+
+        let ciphertext = aead.encrypt(&key, &nonce, &plaintext, None)?;
+        assert_eq!(
+            ciphertext,
+            expected_ciphertext,
+            "encrypt mismatch for {}-byte plaintext",
+            plaintext.len()
+        );
+
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
+        assert_eq!(decrypted, plaintext);
+    }
+
+    Ok(())
+}
+
 /// Test Hash KAT vectors
 #[cfg(all(feature = "alloc", feature = "hash"))]
 #[test]

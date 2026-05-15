@@ -1,6 +1,15 @@
 //! Timing attack prevention utilities
 //!
 //! This module provides utilities to prevent timing attacks in cryptographic operations.
+//!
+//! ## AEAD decrypt and verification
+//!
+//! For authenticated decryption, see the implementor contract on [`crate::traits::Aead`]:
+//! symmetric work should precede verification branches where required by the threat model,
+//! while the public [`Result`](crate::Result) API still exposes success versus failure at the
+//! boundary unless a higher layer mediates timing. For an opt-in semantic decrypt surface
+//! (`Ok` versus `AuthenticationFailed` without plaintext on failure), see
+//! [`crate::AeadDecryptSemantic`] and workspace ADR `docs/adr/003-aead-decrypt-layers.md`.
 
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;

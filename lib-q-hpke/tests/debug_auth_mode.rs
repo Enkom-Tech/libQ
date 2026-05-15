@@ -17,6 +17,7 @@ use lib_q_hpke::types::{
     HpkeKdf,
     HpkeKem,
     HpkeMode,
+    HpkePskWireFormat,
 };
 use lib_q_kem::LibQKemProvider;
 
@@ -75,6 +76,7 @@ fn debug_auth_mode() {
         None,
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode sender setup should work");
 
@@ -101,6 +103,7 @@ fn debug_auth_mode() {
         None,
         None,
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode receiver setup should work");
 

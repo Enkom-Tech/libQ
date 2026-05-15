@@ -103,7 +103,12 @@ pub trait HashOperations {
     fn hash(&self, algorithm: Algorithm, data: &[u8]) -> Result<Vec<u8>>;
 }
 
-/// AEAD operations
+/// AEAD operations (Layer A — `Result` only)
+///
+/// This trait mirrors [`crate::traits::Aead`] at the algorithm-dispatch boundary: `decrypt`
+/// returns [`Result`] only. Semantic decrypt ([`crate::AeadDecryptSemantic`],
+/// [`crate::DecryptSemanticOutcome`]) is **not** part of this object-safe surface; use a
+/// concrete AEAD type when Layer B is required. See `docs/adr/003-aead-decrypt-layers.md`.
 #[cfg(feature = "alloc")]
 pub trait AeadOperations {
     fn encrypt(

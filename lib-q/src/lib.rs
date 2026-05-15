@@ -18,6 +18,7 @@
 //! - **Algorithm Diversity**: ML-KEM, HQC, ML-DSA, FN-DSA, Saturnin, Romulus (N/M)
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
+//! - **AEAD Layer B:** The `libq::aead::context()` / WASM AEAD context path stays **Layer A** (`Result` only). For `lib_q_core::AeadDecryptSemantic::decrypt_semantic`, depend on concrete types from `lib-q-aead`, `lib-q-saturnin`, `lib-q-duplex-aead`, `lib-q-tweak-aead`, or `lib-q-romulus` (see `docs/adr/003-aead-decrypt-layers.md`).
 //!
 //! # Example Usage
 //!
@@ -120,8 +121,10 @@ pub use lib_q_cb_kem::LibQCbKemProvider;
 pub use lib_q_core::{
     // Context types
     AeadContext,
+    AeadDecryptSemantic,
     Algorithm,
     AlgorithmCategory,
+    DecryptSemanticOutcome,
     Error,
     HashContext,
     KemContext,

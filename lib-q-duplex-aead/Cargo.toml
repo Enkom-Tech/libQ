@@ -15,7 +15,7 @@ categories = ["cryptography"]
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
 subtle = { workspace = true, default-features = false }
-zeroize = { workspace = true, default-features = false, features = ["derive"] }
+zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 
 [features]
 default = ["alloc", "std"]

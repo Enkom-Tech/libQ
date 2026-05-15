@@ -99,7 +99,24 @@ pub trait Hash {
     fn output_size(&self) -> usize;
 }
 
-/// Trait for authenticated encryption
+/// Trait for authenticated encryption with associated data (AEAD).
+///
+/// # Verification timing and the `Result` API
+///
+/// Implementations **should** complete symmetric decryption (or an equivalent fixed
+/// schedule) before branching on authentication success, so bulk **cryptographic** cost does
+/// not depend on whether the tag or equivalent check passes. Tag and MAC comparisons
+/// **must** use constant-time equality on secret material (for example
+/// [`Utils::constant_time_compare`](crate::Utils::constant_time_compare)).
+///
+/// A normal Rust [`Result`] still maps verification to [`Result::Ok`] versus
+/// [`Result::Err`]: that discriminant is visible to control flow and wall-clock timing at
+/// this API boundary. Callers that must hide verification outcome from remote observers
+/// need a higher layer (fixed-latency envelope, scheduling isolation, or a non-`Result`
+/// cryptographic API designed for that threat model). When the `alloc` feature is enabled,
+/// see also `crate::security::timing` for related utilities, and [`AeadDecryptSemantic`] /
+/// [`DecryptSemanticOutcome`](crate::DecryptSemanticOutcome) for **Layer B** (semantic
+/// outcome without plaintext on `AuthenticationFailed`; see `docs/adr/003-aead-decrypt-layers.md`).
 pub trait Aead {
     /// Encrypt data
     #[cfg(feature = "alloc")]

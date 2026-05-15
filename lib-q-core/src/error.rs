@@ -278,6 +278,21 @@ pub enum Error {
     InvalidRandomnessSize { expected: usize, actual: usize },
 }
 
+impl Error {
+    /// AEAD ciphertext is shorter than the minimum length required to hold an authentication tag.
+    ///
+    /// This is an **operational** input error (Layer A / pre-decrypt validation). It must not be
+    /// used for tag mismatch after the decrypt/verify schedule; that path uses
+    /// [`Error::VerificationFailed`] or [`DecryptSemanticOutcome::AuthenticationFailed`](crate::DecryptSemanticOutcome::AuthenticationFailed).
+    #[must_use]
+    pub const fn aead_ciphertext_shorter_than_tag(tag_len: usize, actual_len: usize) -> Self {
+        Self::InvalidCiphertextSize {
+            expected: tag_len,
+            actual: actual_len,
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

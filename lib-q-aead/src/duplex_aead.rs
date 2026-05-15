@@ -6,8 +6,10 @@ use alloc::vec::Vec;
 
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
     Algorithm,
+    DecryptSemanticOutcome,
     Nonce,
     Result,
 };
@@ -66,6 +68,25 @@ impl Aead for DuplexSpongeAead {
     }
 }
 
+impl AeadDecryptSemantic for DuplexSpongeAead {
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        self.validate_key(key)?;
+        self.validate_nonce(nonce)?;
+        self.validate_ciphertext_size(ciphertext.len())?;
+        crate::security::validation::validate_ciphertext(ciphertext)?;
+        let ad = associated_data.unwrap_or(&[]);
+        crate::security::validation::validate_associated_data(ad)?;
+        self.inner
+            .decrypt_semantic(key, nonce, ciphertext, Some(ad))
+    }
+}
+
 impl AeadWithMetadata for DuplexSpongeAead {
     fn metadata(&self) -> &'static AeadMetadata {
         self.metadata
@@ -108,6 +129,7 @@ impl crate::plugin::AeadPlugin for DuplexSpongeAead {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metadata::AeadWithMetadata;
 
     #[test]
     fn metadata_matches() {
@@ -116,5 +138,6 @@ mod tests {
         assert_eq!(a.key_size(), 32);
         assert_eq!(a.nonce_size(), 16);
         assert_eq!(a.tag_size(), 32);
+        assert!(a.supports_semantic_decrypt());
     }
 }

@@ -2,6 +2,18 @@
 //!
 //! This module provides a cryptographically secure SHAKE256-based AEAD implementation
 //! using proper domain separation and authenticated encryption modes.
+//!
+//! # Layer A vs Layer B error mapping
+//!
+//! After inputs pass size and policy validation, the decrypt schedule derives keys, verifies
+//! the tag (constant-time compare), always runs CTR decrypt, then applies
+//! [`crate::security::constant_time::constant_time_zero`] on the candidate plaintext when the
+//! tag is wrong. **Layer A** [`Aead::decrypt`] maps a bad tag to [`Error::AuthenticationFailed`].
+//! **Layer B** [`AeadDecryptSemantic::decrypt_semantic`] maps the same condition to
+//! [`DecryptSemanticOutcome::AuthenticationFailed`] inside [`Ok`]. Operational problems
+//! (wrong key/nonce length, ciphertext too short for the tag, policy limits) remain [`Err`];
+//! ciphertext-length checks that reject inputs before the tag split use [`Error::VerificationFailed`]
+//! where historical tests expect that variant.
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -11,8 +23,10 @@ use alloc::vec::Vec;
 
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
     Algorithm,
+    DecryptSemanticOutcome,
     Error,
     Nonce,
     Result,
@@ -263,15 +277,15 @@ impl Shake256Aead {
         }
     }
 
-    /// Internal decrypt implementation with constant-time execution
-    fn decrypt_internal(
+    /// Shared decrypt body: same tag derive, CT compare, CTR decrypt, and `constant_time_zero`
+    /// schedule as Layer A [`decrypt_internal`].
+    fn decrypt_semantic_core(
         &self,
         key: &AeadKey,
         nonce: &Nonce,
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        // Validate inputs using security modules
+    ) -> Result<DecryptSemanticOutcome> {
         self.validate_key(key)?;
         self.validate_nonce(nonce)?;
         self.validate_ciphertext_size(ciphertext.len())?;
@@ -282,7 +296,6 @@ impl Shake256Aead {
         let associated_data = associated_data.unwrap_or(&[]);
         crate::security::validation::validate_associated_data(associated_data)?;
 
-        // Use SHAKE256 for decryption with proper domain separation
         #[cfg(feature = "shake256")]
         {
             let (ciphertext_data, tag) = ciphertext.split_at(ciphertext.len() - self.tag_size());
@@ -294,31 +307,24 @@ impl Shake256Aead {
             let kb = key_staged.as_slice();
             let nb = nonce_staged.as_slice();
 
-            // Derive keys using domain separation
             let enc_key = self.derive_encryption_key(kb, nb, associated_data)?;
             let mac_key = self.derive_mac_key(kb, nb, associated_data)?;
             let iv = self.generate_iv(kb, nb, associated_data)?;
 
-            // Verify authentication tag using constant-time comparison
             let computed_tag =
                 self.generate_tag(mac_key.as_slice(), associated_data, ciphertext_data)?;
             let tag_valid =
                 crate::security::constant_time::constant_time_eq(tag, computed_tag.as_slice());
 
-            // Always perform decryption to maintain constant-time execution
             let mut plaintext = ciphertext_data.to_vec();
             self.ctr_decrypt(enc_key.as_slice(), iv.as_slice(), &mut plaintext)?;
 
-            // Zero plaintext when tag is invalid; the condition-based zero is
-            // itself constant-time so it does not reveal the tag verdict.
             crate::security::constant_time::constant_time_zero(!tag_valid, &mut plaintext);
 
             if tag_valid {
-                Ok(plaintext)
+                Ok(DecryptSemanticOutcome::Success(Zeroizing::new(plaintext)))
             } else {
-                Err(Error::AuthenticationFailed {
-                    operation: "Tag verification failed".to_string(),
-                })
+                Ok(DecryptSemanticOutcome::AuthenticationFailed)
             }
         }
 
@@ -327,6 +333,22 @@ impl Shake256Aead {
             Err(Error::NotImplemented {
                 feature: "SHAKE256 AEAD implementation requires 'shake256' feature",
             })
+        }
+    }
+
+    /// Internal decrypt implementation with constant-time execution
+    fn decrypt_internal(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        match self.decrypt_semantic_core(key, nonce, ciphertext, associated_data)? {
+            DecryptSemanticOutcome::Success(pt) => Ok(Vec::clone(&*pt)),
+            DecryptSemanticOutcome::AuthenticationFailed => Err(Error::AuthenticationFailed {
+                operation: "Tag verification failed".to_string(),
+            }),
         }
     }
 }
@@ -350,6 +372,18 @@ impl Aead for Shake256Aead {
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
         self.decrypt_internal(key, nonce, ciphertext, associated_data)
+    }
+}
+
+impl AeadDecryptSemantic for Shake256Aead {
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        self.decrypt_semantic_core(key, nonce, ciphertext, associated_data)
     }
 }
 
@@ -395,6 +429,11 @@ impl crate::plugin::AeadPlugin for Shake256Aead {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_core::{
+        AeadDecryptSemantic,
+        DecryptSemanticOutcome,
+    };
+
     use super::*;
 
     /// Generate a proper test key with good entropy
@@ -429,6 +468,41 @@ mod tests {
             0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
             0xFF, 0x00,
         ])
+    }
+
+    #[cfg(feature = "shake256")]
+    #[test]
+    fn test_shake256_decrypt_semantic_matches_decrypt() {
+        let aead = Shake256Aead::new();
+        let key = create_test_key();
+        let nonce = create_test_nonce();
+        let ad = b"metadata";
+        let pt = b"semantic path";
+        let ct = aead.encrypt(&key, &nonce, pt, Some(ad)).expect("encrypt");
+        let layer_a = aead.decrypt(&key, &nonce, &ct, Some(ad)).expect("decrypt");
+        match aead
+            .decrypt_semantic(&key, &nonce, &ct, Some(ad))
+            .expect("decrypt_semantic")
+        {
+            DecryptSemanticOutcome::Success(got) => {
+                assert_eq!(got.as_slice(), layer_a.as_slice())
+            }
+            DecryptSemanticOutcome::AuthenticationFailed => {
+                panic!("expected Success")
+            }
+        }
+    }
+
+    #[cfg(feature = "shake256")]
+    #[test]
+    fn test_shake256_decrypt_semantic_tampered_tag() {
+        let aead = Shake256Aead::new();
+        let key = create_test_key();
+        let nonce = create_test_nonce();
+        let mut ct = aead.encrypt(&key, &nonce, b"x", None).unwrap();
+        *ct.last_mut().unwrap() ^= 1;
+        let out = aead.decrypt_semantic(&key, &nonce, &ct, None).unwrap();
+        assert_eq!(out, DecryptSemanticOutcome::AuthenticationFailed);
     }
 
     #[test]

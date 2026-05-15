@@ -19,7 +19,8 @@ lib-q-hpke implements RFC 9180 using exclusively post-quantum algorithms:
 
 - **Constant-Time Operations**: Key comparisons and cryptographic operations use constant-time algorithms where possible
 - **Memory Safety**: Sensitive data is zeroed after use; bounded allocations prevent DoS
-- **Error Handling**: Error messages don't leak sensitive information; consistent timing characteristics
+- **Error Handling**: Error messages avoid secret-bearing payloads; AEAD `open` surfaces authentication through `Result` and inherits the underlying AEAD’s verification discipline (see `lib-q-core` `Aead` trait documentation and `lib-q-saturnin` security notes where applicable). **Layer B:** `SaturninAeadImpl::decrypt_semantic` and `Shake256AeadImpl::decrypt_semantic` expose semantic outcomes; HPKE `PostQuantumProvider` / `AeadProvider` `open` stays **Layer A** (`Result`-first) over `Box<dyn Aead>`. For duplex-sponge HPKE (`HpkeAead::DuplexSpongeAead`), use concrete `lib_q_aead::DuplexSpongeAead` or `lib_q_duplex_aead::DuplexSpongeAead` for `decrypt_semantic`—the provider does not surface that trait on the boxed handle.
+- **Saturnin-256 tag size**: The HPKE identifier `Saturnin256` uses `lib-q-saturnin` full AEAD with a **32-byte** tag; `HpkeAead::Saturnin256.tag_len()` matches `SaturninAead::tag_size()` for correct minimum ciphertext sizing
 
 ## Best Practices
 

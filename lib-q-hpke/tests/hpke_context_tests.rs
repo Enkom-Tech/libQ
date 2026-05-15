@@ -492,7 +492,7 @@ fn test_hpke_algorithm_properties() {
     // Test AEAD properties
     assert_eq!(HpkeAead::Saturnin256.key_len(), 32);
     assert_eq!(HpkeAead::Saturnin256.nonce_len(), 16);
-    assert_eq!(HpkeAead::Saturnin256.tag_len(), 16);
+    assert_eq!(HpkeAead::Saturnin256.tag_len(), 32);
 
     assert_eq!(HpkeAead::Shake256.key_len(), 32);
     assert_eq!(HpkeAead::Shake256.nonce_len(), 16);

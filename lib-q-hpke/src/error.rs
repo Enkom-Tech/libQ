@@ -83,7 +83,11 @@ pub enum HpkeError {
         /// The feature name
         feature: String,
     },
-    /// Inconsistent PSK usage
+    /// PSK parameters do not match the sender's commitment, or PSK / PSK ID pairing is invalid.
+    ///
+    /// In PSK and AuthPSK modes, libQ appends a KDF-derived commitment to the encapsulated key;
+    /// the receiver returns this error when that commitment disagrees with the local `(psk, psk_id)`
+    /// before key schedule (so mismatches are detected without relying on AEAD open).
     InconsistentPsk,
 }
 

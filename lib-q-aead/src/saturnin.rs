@@ -8,8 +8,10 @@ use alloc::vec::Vec;
 
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
     Algorithm,
+    DecryptSemanticOutcome,
     Nonce,
     Result,
 };
@@ -89,6 +91,37 @@ impl Aead for SaturninAead {
         {
             self.inner
                 .decrypt(key, nonce, ciphertext, Some(associated_data))
+        }
+
+        #[cfg(not(feature = "saturnin"))]
+        {
+            Err(lib_q_core::Error::NotImplemented {
+                feature: "Saturnin AEAD implementation requires 'saturnin' feature",
+            })
+        }
+    }
+}
+
+impl AeadDecryptSemantic for SaturninAead {
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        self.validate_key(key)?;
+        self.validate_nonce(nonce)?;
+        self.validate_ciphertext_size(ciphertext.len())?;
+        crate::security::validation::validate_ciphertext(ciphertext)?;
+
+        let associated_data = associated_data.unwrap_or(&[]);
+        crate::security::validation::validate_associated_data(associated_data)?;
+
+        #[cfg(feature = "saturnin")]
+        {
+            self.inner
+                .decrypt_semantic(key, nonce, ciphertext, Some(associated_data))
         }
 
         #[cfg(not(feature = "saturnin"))]

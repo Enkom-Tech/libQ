@@ -1,4 +1,10 @@
 //! Post-quantum provider implementation
+//!
+//! AEAD instances used internally by this provider are [`lib_q_core::Aead`] as `Box<dyn Aead>`
+//! (Layer A only). For **Layer B** semantic decrypt (`decrypt_semantic`), use the concrete HPKE
+//! AEAD modules where implemented ([`crate::aead::saturnin::SaturninAeadImpl`],
+//! [`crate::aead::shake256::Shake256AeadImpl`]), or the concrete registry types in `lib-q-aead`
+//! (including [`lib_q_aead::DuplexSpongeAead`] when the `duplex-sponge-aead` feature is enabled).
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -25,6 +31,7 @@ use lib_q_hash::{
     create_hash,
 };
 use lib_q_kem::LibQKemProvider;
+use zeroize::Zeroizing;
 
 use crate::error::HpkeError;
 use crate::kdf::hkdf::HkdfImpl;
@@ -110,7 +117,7 @@ impl KemProvider for PostQuantumProvider {
         &self,
         kem: HpkeKem,
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let keypair = provider
@@ -118,7 +125,7 @@ impl KemProvider for PostQuantumProvider {
             .map_err(|e| HpkeError::CryptoError(format!("KEM key generation failed: {}", e)))?;
         Ok((
             keypair.public_key().as_bytes().to_vec(),
-            keypair.secret_key().as_bytes().to_vec(),
+            Zeroizing::new(keypair.secret_key().as_bytes().to_vec()),
         ))
     }
 
@@ -127,13 +134,14 @@ impl KemProvider for PostQuantumProvider {
         kem: HpkeKem,
         public_key: &[u8],
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let pk = lib_q_core::KemPublicKey::new(public_key.to_vec());
-        provider
+        let (ct, ss) = provider
             .encapsulate(algorithm, &pk, None)
-            .map_err(|e| HpkeError::CryptoError(format!("KEM encapsulation failed: {}", e)))
+            .map_err(|e| HpkeError::CryptoError(format!("KEM encapsulation failed: {}", e)))?;
+        Ok((ct, Zeroizing::new(ss)))
     }
 
     fn decapsulate(
@@ -141,13 +149,14 @@ impl KemProvider for PostQuantumProvider {
         kem: HpkeKem,
         secret_key: &[u8],
         ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Zeroizing<Vec<u8>>, Self::Error> {
         let provider = Self::create_kem_provider()?;
         let algorithm = Self::hpke_kem_to_algorithm(kem)?;
         let sk = lib_q_core::KemSecretKey::new(secret_key.to_vec());
-        provider
+        let ss = provider
             .decapsulate(algorithm, &sk, ciphertext)
-            .map_err(|e| HpkeError::CryptoError(format!("KEM decapsulation failed: {}", e)))
+            .map_err(|e| HpkeError::CryptoError(format!("KEM decapsulation failed: {}", e)))?;
+        Ok(Zeroizing::new(ss))
     }
 
     fn validate_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), Self::Error> {
@@ -205,7 +214,7 @@ impl KemProvider for PostQuantumProvider {
         sender_sk: &[u8],
         recipient_pk: &[u8],
         _rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error> {
+    ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), Self::Error> {
         // AuthEncap implementation according to RFC 9180 Section 5.1.3
         // For ML-KEM, AuthEncap is implemented using regular KEM operations:
         // 1. Use the sender's secret key to derive the sender's public key
@@ -252,11 +261,15 @@ impl KemProvider for PostQuantumProvider {
         let (encapsulated_key, shared_secret) = provider
             .encapsulate(algorithm, &recipient_pk_obj, None)
             .map_err(|e| HpkeError::CryptoError(format!("AuthEncap failed: {}", e)))?;
+        let shared_secret = Zeroizing::new(shared_secret);
 
         // Create an authentication tag using the shared secret and sender's public key
         // This provides stronger authentication than a simple commitment scheme
-        let auth_tag =
-            self.create_auth_tag(&shared_secret, sender_pk_obj.as_bytes(), &encapsulated_key)?;
+        let auth_tag = self.create_auth_tag(
+            shared_secret.as_slice(),
+            sender_pk_obj.as_bytes(),
+            &encapsulated_key,
+        )?;
 
         // Also create a sender commitment for additional authentication
         let _sender_commitment = self.create_sender_commitment_with_pk(
@@ -281,7 +294,7 @@ impl KemProvider for PostQuantumProvider {
         encapsulated_key: &[u8],
         recipient_sk: &[u8],
         sender_pk: &[u8],
-    ) -> Result<Vec<u8>, Self::Error> {
+    ) -> Result<Zeroizing<Vec<u8>>, Self::Error> {
         // AuthDecap implementation according to RFC 9180 Section 5.1.3
         // For ML-KEM, AuthDecap is implemented using regular KEM operations:
         // 1. Use the recipient's secret key to decapsulate the shared secret
@@ -360,9 +373,15 @@ impl KemProvider for PostQuantumProvider {
         let shared_secret = provider
             .decapsulate(algorithm, &recipient_sk_obj, main_encapsulated_key)
             .map_err(|e| HpkeError::CryptoError(format!("AuthDecap failed: {}", e)))?;
+        let shared_secret = Zeroizing::new(shared_secret);
 
         // Verify the authentication tag using the shared secret and sender's public key
-        self.verify_auth_tag(&shared_secret, sender_pk, main_encapsulated_key, auth_tag)?;
+        self.verify_auth_tag(
+            shared_secret.as_slice(),
+            sender_pk,
+            main_encapsulated_key,
+            auth_tag,
+        )?;
 
         // Validate the commitment length for additional security
         let _commitment_len = self.get_commitment_length()?;

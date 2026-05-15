@@ -41,10 +41,20 @@ pub struct AeadMetadata {
     pub name: &'static str,
     /// Algorithm description
     pub description: &'static str,
+    /// Whether the canonical `lib-q-aead` / leaf types for this algorithm implement
+    /// [`lib_q_core::AeadDecryptSemantic`] (Layer B semantic decrypt).
+    ///
+    /// This reflects the **algorithm** capability table, not runtime guarantees for arbitrary
+    /// `dyn AeadWithMetadata` test doubles; those may override `AeadWithMetadata::supports_semantic_decrypt`.
+    pub supports_semantic_decrypt: bool,
 }
 
 impl AeadMetadata {
-    /// Create new metadata
+    /// Create new metadata.
+    ///
+    /// `supports_semantic_decrypt` is explicit per static table row (rather than inferred) so
+    /// capability stays auditable next to the numeric sizes in `get_metadata`.
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         algorithm: Algorithm,
         key_size: usize,
@@ -53,6 +63,7 @@ impl AeadMetadata {
         security_level: u32,
         name: &'static str,
         description: &'static str,
+        supports_semantic_decrypt: bool,
     ) -> Self {
         Self {
             algorithm,
@@ -62,6 +73,7 @@ impl AeadMetadata {
             security_level,
             name,
             description,
+            supports_semantic_decrypt,
         }
     }
 
@@ -142,6 +154,15 @@ pub trait AeadWithMetadata: Aead {
         self.metadata().description
     }
 
+    /// Whether this algorithm’s reference stack implements [`lib_q_core::AeadDecryptSemantic`]
+    /// (Layer B), per [`AeadMetadata::supports_semantic_decrypt`].
+    ///
+    /// Custom `dyn AeadWithMetadata` implementations that are not full algorithm facades should
+    /// override this to return `false` when they do not implement semantic decrypt.
+    fn supports_semantic_decrypt(&self) -> bool {
+        self.metadata().supports_semantic_decrypt
+    }
+
     /// Validate key size
     fn validate_key(&self, key: &AeadKey) -> Result<()> {
         if !self.metadata().validate_key_size(key.as_bytes().len()) {
@@ -187,6 +208,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         1,  // Level 1 security
         "Saturnin",
         "Lightweight post-quantum symmetric algorithm suite for IoT and constrained devices",
+        true,
     );
 
     static SHAKE256_METADATA: AeadMetadata = AeadMetadata::new(
@@ -197,6 +219,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         1,  // Level 1 security
         "SHAKE256-AEAD",
         "SHAKE256-based AEAD construction using post-quantum hash function",
+        true,
     );
 
     static DUPLEX_SPONGE_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
@@ -207,6 +230,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         4,
         "Duplex-Sponge-AEAD",
         "Keccak-f[1600] duplex-sponge authenticated encryption",
+        true,
     );
 
     static TWEAK_AEAD_METADATA: AeadMetadata = AeadMetadata::new(
@@ -217,6 +241,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         4,
         "Tweak-AEAD",
         "Parallel tweakable-block CTR AEAD over Keccak-f[1600]",
+        true,
     );
 
     static ROMULUS_N_METADATA: AeadMetadata = AeadMetadata::new(
@@ -227,6 +252,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         1,
         "Romulus-N",
         "Romulus-N nonce-based AEAD (SKINNY-128-384+), LWC v1.3",
+        true,
     );
 
     static ROMULUS_M_METADATA: AeadMetadata = AeadMetadata::new(
@@ -237,6 +263,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         1,
         "Romulus-M",
         "Romulus-M misuse-resistant AEAD (SKINNY-128-384+), LWC v1.3",
+        true,
     );
 
     match algorithm {
@@ -264,6 +291,7 @@ mod tests {
             1,
             "Saturnin",
             "Test algorithm",
+            true,
         );
 
         assert_eq!(metadata.algorithm, Algorithm::Saturnin);
@@ -273,26 +301,27 @@ mod tests {
         assert_eq!(metadata.security_level, 1);
         assert_eq!(metadata.name, "Saturnin");
         assert_eq!(metadata.description, "Test algorithm");
+        assert!(metadata.supports_semantic_decrypt);
     }
 
     #[test]
     fn test_performance_tier() {
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test", false);
         assert_eq!(metadata.performance_tier(), PerformanceTier::Performance);
 
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 3, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 3, "Test", "Test", false);
         assert_eq!(metadata.performance_tier(), PerformanceTier::Balanced);
 
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 4, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 4, "Test", "Test", false);
         assert_eq!(metadata.performance_tier(), PerformanceTier::UltraSecure);
 
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 5, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 5, "Test", "Test", false);
         assert_eq!(metadata.performance_tier(), PerformanceTier::Hybrid);
     }
 
     #[test]
     fn test_security_level_suitability() {
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 3, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 3, "Test", "Test", false);
 
         assert!(metadata.is_suitable_for_security_level(1));
         assert!(metadata.is_suitable_for_security_level(3));
@@ -302,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_size_validation() {
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test", false);
 
         assert!(metadata.validate_key_size(32));
         assert!(!metadata.validate_key_size(16));
@@ -319,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_total_overhead() {
-        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test");
+        let metadata = AeadMetadata::new(Algorithm::Saturnin, 32, 16, 32, 1, "Test", "Test", false);
 
         assert_eq!(metadata.total_overhead(), 48); // 16 + 32
     }
@@ -336,5 +365,20 @@ mod tests {
 
         let metadata = get_metadata(Algorithm::MlKem512);
         assert!(metadata.is_none());
+    }
+
+    #[test]
+    fn registered_aead_metadata_marks_semantic_decrypt() {
+        for alg in [
+            Algorithm::Saturnin,
+            Algorithm::Shake256Aead,
+            Algorithm::DuplexSpongeAead,
+            Algorithm::TweakAead,
+            Algorithm::RomulusN,
+            Algorithm::RomulusM,
+        ] {
+            let m = get_metadata(alg).expect("AEAD metadata");
+            assert!(m.supports_semantic_decrypt, "{alg:?}");
+        }
     }
 }

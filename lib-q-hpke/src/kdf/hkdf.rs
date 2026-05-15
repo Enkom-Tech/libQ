@@ -25,6 +25,8 @@ use crate::types::*;
 
 /// HKDF implementation using lib-q-hash
 pub struct HkdfImpl {
+    /// Selected KDF variant; only read when the `hash` feature is enabled.
+    #[cfg_attr(not(feature = "hash"), allow(dead_code))]
     kdf: HpkeKdf,
 }
 
@@ -38,7 +40,8 @@ impl HkdfImpl {
     pub fn extract_static(kdf: HpkeKdf, salt: &[u8], ikm: &[u8]) -> Result<Vec<u8>, HpkeError> {
         #[cfg(not(feature = "hash"))]
         {
-            return Err(HpkeError::feature_not_enabled("Hash support"));
+            let _ = (kdf, salt, ikm);
+            Err(HpkeError::feature_not_enabled("Hash support"))
         }
 
         #[cfg(feature = "hash")]
@@ -90,7 +93,8 @@ impl HkdfImpl {
     ) -> Result<Vec<u8>, HpkeError> {
         #[cfg(not(feature = "hash"))]
         {
-            return Err(HpkeError::feature_not_enabled("Hash support"));
+            let _ = (kdf, prk, info, output_len);
+            Err(HpkeError::feature_not_enabled("Hash support"))
         }
 
         #[cfg(feature = "hash")]
@@ -177,6 +181,7 @@ impl HkdfImpl {
 
         #[cfg(not(feature = "hash"))]
         {
+            let _ = (salt, ikm);
             Err(HpkeError::feature_not_enabled("Hash feature not enabled"))
         }
     }
@@ -269,6 +274,7 @@ impl HkdfImpl {
 
         #[cfg(not(feature = "hash"))]
         {
+            let _ = (prk, info, output_len);
             Err(HpkeError::feature_not_enabled("Hash feature not enabled"))
         }
     }

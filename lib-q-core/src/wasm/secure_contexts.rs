@@ -582,7 +582,7 @@ impl SecureWasmAeadContext {
         }
     }
 
-    /// Decrypt data
+    /// Decrypt data (Layer A `Result` ABI only; see [`crate::AeadDecryptSemantic`] for Layer B).
     pub fn decrypt(
         &self,
         algorithm: &str,

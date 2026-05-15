@@ -763,7 +763,12 @@ impl WasmAeadContext {
         Ok(ciphertext)
     }
 
-    /// Decrypt data using the specified algorithm
+    /// Decrypt data using the specified algorithm.
+    ///
+    /// This WASM binding stays on **Layer A** ([`crate::traits::Aead`] / [`crate::api::AeadOperations`]):
+    /// only `Result`-style success versus error is exposed. Semantic decrypt
+    /// ([`crate::AeadDecryptSemantic`]) is not wired here to avoid silent ABI changes; use Rust
+    /// types directly when Layer B is required.
     pub fn decrypt(
         &self,
         algorithm: &str,

@@ -265,7 +265,8 @@ fn test_authentication_cryptographic_proof() {
 
     // The shared secrets should be different (authentication modifies the shared secret)
     assert_ne!(
-        shared_secret, standard_shared_secret,
+        shared_secret.as_slice(),
+        standard_shared_secret.as_slice(),
         "Authenticated shared secret should be different from standard shared secret"
     );
 

@@ -23,77 +23,85 @@
 //!
 //! ### AEAD (Authenticated Encryption)
 //! ```rust
-//! use lib_q_saturnin::{
-//!     Aead,
-//!     AeadKey,
-//!     Nonce,
-//!     SaturninAead,
-//! };
+//! #[cfg(feature = "aead")]
+//! fn main() {
+//!     use lib_q_saturnin::{
+//!         Aead,
+//!         AeadKey,
+//!         Nonce,
+//!         SaturninAead,
+//!     };
 //!
-//! let aead = SaturninAead::new();
-//! let key = AeadKey {
-//!     data: vec![0u8; 32],
-//! };
-//! let nonce = Nonce {
-//!     data: vec![0u8; 16],
-//! };
-//! let plaintext = b"Hello, World!";
-//! let associated_data = b"metadata";
+//!     let aead = SaturninAead::new();
+//!     let key = AeadKey::new(vec![0u8; 32]);
+//!     let nonce = Nonce::new(vec![0u8; 16]);
+//!     let plaintext = b"Hello, World!";
+//!     let associated_data = b"metadata";
 //!
-//! // Encrypt with associated data
-//! let ciphertext = aead
-//!     .encrypt(&key, &nonce, plaintext, Some(associated_data))
-//!     .unwrap();
+//!     let ciphertext = aead
+//!         .encrypt(&key, &nonce, plaintext, Some(associated_data))
+//!         .unwrap();
 //!
-//! // Decrypt and verify
-//! let decrypted = aead
-//!     .decrypt(&key, &nonce, &ciphertext, Some(associated_data))
-//!     .unwrap();
-//! assert_eq!(decrypted, plaintext);
+//!     let decrypted = aead
+//!         .decrypt(&key, &nonce, &ciphertext, Some(associated_data))
+//!         .unwrap();
+//!     assert_eq!(decrypted, plaintext);
+//! }
+//! #[cfg(not(feature = "aead"))]
+//! fn main() {}
 //! ```
 //!
 //! ### Hash Function
 //! ```rust
-//! use lib_q_saturnin::SaturninHash;
+//! #[cfg(feature = "hash")]
+//! fn main() {
+//!     use lib_q_saturnin::SaturninHash;
 //!
-//! let hash = SaturninHash::new();
-//! let data = b"Hello, World!";
+//!     let hash = SaturninHash::new();
+//!     let data = b"Hello, World!";
 //!
-//! let hash_output = hash.hash(data).unwrap();
-//! assert_eq!(hash_output.len(), 32); // 256-bit output
+//!     let hash_output = hash.hash(data).unwrap();
+//!     assert_eq!(hash_output.len(), 32); // 256-bit output
+//! }
+//! #[cfg(not(feature = "hash"))]
+//! fn main() {}
 //! ```
 //!
 //! ### Block Cipher
 //! ```rust
-//! use lib_q_saturnin::SaturninBlockCipher;
+//! #[cfg(feature = "block-cipher")]
+//! fn main() {
+//!     use lib_q_saturnin::SaturninBlockCipher;
 //!
-//! let cipher = SaturninBlockCipher::new();
-//! let key = vec![0u8; 32];
-//! let block = vec![0u8; 32];
+//!     let cipher = SaturninBlockCipher::new();
+//!     let key = vec![0u8; 32];
+//!     let block = vec![0u8; 32];
 //!
-//! // Encrypt block
-//! let encrypted = cipher.encrypt_block(&key, &block).unwrap();
-//!
-//! // Decrypt block
-//! let decrypted = cipher.decrypt_block(&key, &encrypted).unwrap();
-//! assert_eq!(decrypted, block);
+//!     let encrypted = cipher.encrypt_block(&key, &block).unwrap();
+//!     let decrypted = cipher.decrypt_block(&key, &encrypted).unwrap();
+//!     assert_eq!(decrypted, block);
+//! }
+//! #[cfg(not(feature = "block-cipher"))]
+//! fn main() {}
 //! ```
 //!
 //! ### Stream Cipher
 //! ```rust
-//! use lib_q_saturnin::SaturninStream;
+//! #[cfg(feature = "stream")]
+//! fn main() {
+//!     use lib_q_saturnin::SaturninStream;
 //!
-//! let stream = SaturninStream::new();
-//! let key = vec![0u8; 32];
-//! let nonce = vec![0u8; 16];
-//! let plaintext = b"Hello, World!";
+//!     let stream = SaturninStream::new();
+//!     let key = vec![0u8; 32];
+//!     let nonce = vec![0u8; 16];
+//!     let plaintext = b"Hello, World!";
 //!
-//! // Encrypt arbitrary-length data
-//! let ciphertext = stream.encrypt(&key, &nonce, plaintext).unwrap();
-//!
-//! // Decrypt
-//! let decrypted = stream.decrypt(&key, &nonce, &ciphertext).unwrap();
-//! assert_eq!(decrypted, plaintext);
+//!     let ciphertext = stream.encrypt(&key, &nonce, plaintext).unwrap();
+//!     let decrypted = stream.decrypt(&key, &nonce, &ciphertext).unwrap();
+//!     assert_eq!(decrypted, plaintext);
+//! }
+//! #[cfg(not(feature = "stream"))]
+//! fn main() {}
 //! ```
 //!
 //! ## Performance Characteristics
@@ -146,7 +154,9 @@ use alloc::{
 // Re-export core types for public use
 pub use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
+    DecryptSemanticOutcome,
     Error,
     Nonce,
     Result,
@@ -189,7 +199,10 @@ pub use block_cipher::SaturninBlockCipher;
 #[cfg(feature = "hash")]
 pub use hash::SaturninHash;
 #[cfg(feature = "stream")]
-pub use stream::SaturninStream;
+pub use stream::{
+    SaturninKeystream,
+    SaturninStream,
+};
 
 /// Get available Saturnin algorithm modes
 #[allow(clippy::vec_init_then_push, unused_mut)] // Can't use vec![] due to feature-gated content

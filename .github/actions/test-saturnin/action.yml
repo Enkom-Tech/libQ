@@ -109,16 +109,17 @@ runs:
         fi
         echo "Build with features completed"
     
-    - name: Run tests with no default features
+    - name: Run tests (minimal / harness-friendly)
       shell: bash
       run: |
-        echo "Running tests with no default features..."
+        echo "Running tests (Saturnin: default features + alloc,std for harness; others: --no-default-features)..."
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-saturnin" ]]; then
-          echo "Running tests for lib-q-saturnin - using std for test harness compatibility"
-          # For no_std crates, we run tests with std enabled because the test harness requires std
-          # The no_std compatibility is verified by the build step above
+          echo "lib-q-saturnin: doctest + lib tests need alloc; std satisfies the default test harness"
+          # Narrow no-default-feature coverage is done locally via:
+          #   cargo test -p lib-q-saturnin --no-default-features --features stream,alloc
+          # The build step above still verifies `cargo build --no-default-features --features alloc`.
           cargo test --features "alloc,std"
         else
           cargo test --no-default-features

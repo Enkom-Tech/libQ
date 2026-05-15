@@ -1,14 +1,27 @@
-//! Saturnin AEAD implementation using lib-q-saturnin
+//! Saturnin AEAD for HPKE (`HpkeAead::Saturnin256`).
+//!
+//! This module wraps [`SaturninAead`](lib_q_saturnin::SaturninAead) from `lib-q-saturnin`.
+//! Decryption follows that crate’s verification discipline (constant-time tag comparison and
+//! symmetric decrypt scheduling as documented there and in `lib-q-saturnin/SECURITY.md`).
+//!
+//! HPKE’s [`Aead::open`](crate::aead::traits::Aead::open) remains **Layer A** [`Result`]-first;
+//! it delegates to [`SaturninAeadImpl::decrypt_semantic`] (Layer B) for consistent mapping.
+//! [`PostQuantumProvider`](crate::providers::post_quantum::PostQuantumProvider) / [`AeadProvider`](crate::providers::traits::AeadProvider) `open` stays `Result`-only; use this concrete type for semantic outcomes.
 
 #[cfg(all(feature = "alloc", feature = "saturnin"))]
 use alloc::format;
 #[cfg(feature = "alloc")]
-use alloc::vec::Vec;
+use alloc::{
+    string::ToString,
+    vec::Vec,
+};
 
 #[cfg(feature = "saturnin")]
 use lib_q_saturnin::{
     Aead as LibQAead,
+    AeadDecryptSemantic,
     AeadKey,
+    DecryptSemanticOutcome,
     Nonce,
     SaturninAead,
 };
@@ -39,6 +52,79 @@ impl SaturninAeadImpl {
         {
             Err(HpkeError::feature_not_enabled("Saturnin AEAD support"))
         }
+    }
+
+    /// Validate key, nonce, and minimum ciphertext length for Saturnin HPKE paths.
+    #[cfg(feature = "saturnin")]
+    fn prepare_saturnin_open(
+        key: &[u8],
+        nonce: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<(AeadKey, Nonce), HpkeError> {
+        if key.len() != 32 {
+            return Err(HpkeError::aead_error(
+                HpkeAead::Saturnin256,
+                AeadOperation::KeyValidation,
+                format!(
+                    "Invalid key length for Saturnin: expected 32 bytes, got {}",
+                    key.len()
+                ),
+            ));
+        }
+
+        if key.iter().all(|&b| b == 0) {
+            return Err(HpkeError::aead_error(
+                HpkeAead::Saturnin256,
+                AeadOperation::KeyValidation,
+                "Key material cannot be all zeros",
+            ));
+        }
+
+        if nonce.len() != 16 {
+            return Err(HpkeError::aead_error(
+                HpkeAead::Saturnin256,
+                AeadOperation::NonceValidation,
+                format!(
+                    "Invalid nonce length for Saturnin: expected 16 bytes, got {}",
+                    nonce.len()
+                ),
+            ));
+        }
+
+        if ciphertext.len() < SaturninAead::tag_size() {
+            return Err(HpkeError::aead_error(
+                HpkeAead::Saturnin256,
+                AeadOperation::CiphertextValidation,
+                format!(
+                    "Ciphertext too short: need at least {} bytes for Saturnin AEAD tag",
+                    SaturninAead::tag_size()
+                ),
+            ));
+        }
+
+        Ok((AeadKey::new(key.to_vec()), Nonce::new(nonce.to_vec())))
+    }
+
+    /// Layer B decrypt: operational failures are [`Err`]; authentication failure is
+    /// [`DecryptSemanticOutcome::AuthenticationFailed`] in the [`Ok`] arm.
+    #[cfg(feature = "saturnin")]
+    pub fn decrypt_semantic(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        aad: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<DecryptSemanticOutcome, HpkeError> {
+        let (aead_key, aead_nonce) = Self::prepare_saturnin_open(key, nonce, ciphertext)?;
+        self.aead
+            .decrypt_semantic(&aead_key, &aead_nonce, ciphertext, Some(aad))
+            .map_err(|e| {
+                HpkeError::aead_error(
+                    HpkeAead::Saturnin256,
+                    AeadOperation::Open,
+                    format!("Saturnin semantic decrypt failed: {}", e),
+                )
+            })
     }
 }
 
@@ -85,10 +171,8 @@ impl crate::aead::traits::Aead for SaturninAeadImpl {
                 ));
             }
 
-            let aead_key = AeadKey { data: key.to_vec() };
-            let aead_nonce = Nonce {
-                data: nonce.to_vec(),
-            };
+            let aead_key = AeadKey::new(key.to_vec());
+            let aead_nonce = Nonce::new(nonce.to_vec());
 
             self.aead
                 .encrypt(&aead_key, &aead_nonce, plaintext, Some(aad))
@@ -107,6 +191,10 @@ impl crate::aead::traits::Aead for SaturninAeadImpl {
         }
     }
 
+    /// Decrypt and verify using [`SaturninAead`](lib_q_saturnin::SaturninAead).
+    ///
+    /// Thin wrapper over [`SaturninAeadImpl::decrypt_semantic`]: maps
+    /// [`DecryptSemanticOutcome::Success`] to `Ok` and authentication failure to `Err`.
     fn open(
         &self,
         key: &[u8],
@@ -116,62 +204,14 @@ impl crate::aead::traits::Aead for SaturninAeadImpl {
     ) -> Result<Vec<u8>, HpkeError> {
         #[cfg(feature = "saturnin")]
         {
-            // Validate key length (Saturnin requires 32 bytes)
-            if key.len() != 32 {
-                return Err(HpkeError::aead_error(
+            match self.decrypt_semantic(key, nonce, aad, ciphertext)? {
+                DecryptSemanticOutcome::Success(p) => Ok(Vec::clone(&*p)),
+                DecryptSemanticOutcome::AuthenticationFailed => Err(HpkeError::aead_error(
                     HpkeAead::Saturnin256,
-                    AeadOperation::KeyValidation,
-                    format!(
-                        "Invalid key length for Saturnin: expected 32 bytes, got {}",
-                        key.len()
-                    ),
-                ));
+                    AeadOperation::Open,
+                    "Saturnin authentication failed".to_string(),
+                )),
             }
-
-            // Security validation: reject zero keys
-            if key.iter().all(|&b| b == 0) {
-                return Err(HpkeError::aead_error(
-                    HpkeAead::Saturnin256,
-                    AeadOperation::KeyValidation,
-                    "Key material cannot be all zeros",
-                ));
-            }
-
-            // Validate nonce length (Saturnin requires 16 bytes)
-            if nonce.len() != 16 {
-                return Err(HpkeError::aead_error(
-                    HpkeAead::Saturnin256,
-                    AeadOperation::NonceValidation,
-                    format!(
-                        "Invalid nonce length for Saturnin: expected 16 bytes, got {}",
-                        nonce.len()
-                    ),
-                ));
-            }
-
-            // Validate ciphertext length (must be at least tag length)
-            if ciphertext.len() < 16 {
-                return Err(HpkeError::aead_error(
-                    HpkeAead::Saturnin256,
-                    AeadOperation::CiphertextValidation,
-                    "Ciphertext too short",
-                ));
-            }
-
-            let aead_key = AeadKey { data: key.to_vec() };
-            let aead_nonce = Nonce {
-                data: nonce.to_vec(),
-            };
-
-            self.aead
-                .decrypt(&aead_key, &aead_nonce, ciphertext, Some(aad))
-                .map_err(|e| {
-                    HpkeError::aead_error(
-                        HpkeAead::Saturnin256,
-                        AeadOperation::Open,
-                        format!("Saturnin decryption failed: {}", e),
-                    )
-                })
         }
 
         #[cfg(not(feature = "saturnin"))]
@@ -242,6 +282,20 @@ mod tests {
         // Decrypt
         let decrypted = aead.open(&key, &nonce, aad, &ciphertext).unwrap();
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[cfg(feature = "saturnin")]
+    #[test]
+    fn test_saturnin_decrypt_semantic_auth_failure() {
+        let aead = SaturninAeadImpl::new().unwrap();
+        let key = vec![3u8; 32];
+        let nonce = vec![4u8; 16];
+        let aad = b"aad";
+        let plaintext = b"payload";
+        let mut ct = aead.seal(&key, &nonce, aad, plaintext).unwrap();
+        *ct.last_mut().expect("tag byte") ^= 1;
+        let out = aead.decrypt_semantic(&key, &nonce, aad, &ct).unwrap();
+        assert_eq!(out, DecryptSemanticOutcome::AuthenticationFailed);
     }
 
     #[cfg(feature = "saturnin")]

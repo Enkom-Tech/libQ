@@ -8,8 +8,12 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+#[cfg(feature = "alloc")]
+use lib_q_core::DecryptSemanticOutcome;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
+#[cfg(feature = "alloc")]
+use zeroize::Zeroizing;
 
 use crate::params::{
     KEY_BYTES,
@@ -66,17 +70,15 @@ fn xor_body(key: &[u8; KEY_BYTES], nonce: &[u8; NONCE_BYTES], pt: &[u8], ct: &mu
     <Portable as TweakAeadStreamOps>::xor_keystream(key, nonce, pt, ct);
 }
 
-/// Decrypt `ct_in` (includes tag) in constant time.
-///
-/// On success, writes plaintext to `out[..body_len]`. On authentication failure, zeroes
-/// `out[..body_len]` and returns `Err`. Decryption always executes regardless of tag validity.
-pub fn decrypt(
+/// Shared tweak decrypt: writes plaintext into `out[..body_len]` and returns whether the tag
+/// was valid. XOR decrypt always runs regardless of tag validity.
+pub(crate) fn decrypt_core(
     key: &[u8; KEY_BYTES],
     nonce: &[u8; NONCE_BYTES],
     ad: &[u8],
     ct_in: &[u8],
     out: &mut [u8],
-) -> Result<(), TweakCryptoError> {
+) -> Result<bool, TweakCryptoError> {
     if ct_in.len() < TAG_BYTES {
         return Err(TweakCryptoError);
     }
@@ -91,14 +93,51 @@ pub fn decrypt(
     let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| TweakCryptoError)?;
     let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
 
-    // Always perform decryption so execution time is independent of tag validity.
     xor_body(key, nonce, ct_body, &mut out[..body_len]);
 
+    Ok(tag_ok)
+}
+
+/// Decrypt `ct_in` (includes tag) in constant time.
+///
+/// On success, writes plaintext to `out[..body_len]`. On authentication failure, zeroes
+/// `out[..body_len]` and returns `Err`. Decryption always executes regardless of tag validity.
+pub fn decrypt(
+    key: &[u8; KEY_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ad: &[u8],
+    ct_in: &[u8],
+    out: &mut [u8],
+) -> Result<(), TweakCryptoError> {
+    let tag_ok = decrypt_core(key, nonce, ad, ct_in, out)?;
+    let body_len = ct_in.len() - TAG_BYTES;
     if tag_ok {
         Ok(())
     } else {
         out[..body_len].zeroize();
         Err(TweakCryptoError)
+    }
+}
+
+/// Layer B semantic decrypt: single shared [`decrypt_core`].
+#[cfg(feature = "alloc")]
+pub(crate) fn decrypt_semantic_outcome(
+    key: &[u8; KEY_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ad: &[u8],
+    ct_in: &[u8],
+) -> Result<DecryptSemanticOutcome, TweakCryptoError> {
+    if ct_in.len() < TAG_BYTES {
+        return Err(TweakCryptoError);
+    }
+    let body_len = ct_in.len() - TAG_BYTES;
+    let mut pt = vec![0u8; body_len];
+    let tag_ok = decrypt_core(key, nonce, ad, ct_in, &mut pt)?;
+    if tag_ok {
+        Ok(DecryptSemanticOutcome::Success(Zeroizing::new(pt)))
+    } else {
+        pt.zeroize();
+        Ok(DecryptSemanticOutcome::AuthenticationFailed)
     }
 }
 

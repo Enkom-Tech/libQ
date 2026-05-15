@@ -6,6 +6,14 @@ use lib_q_keccak::f1600;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
+use lib_q_core::DecryptSemanticOutcome;
+#[cfg(feature = "alloc")]
+use zeroize::Zeroizing;
+
 use crate::params::{
     KEY_BYTES,
     NONCE_BYTES,
@@ -64,6 +72,65 @@ impl fmt::Debug for DuplexCryptoError {
     }
 }
 
+/// Shared duplex decrypt: writes plaintext into `out[..body_len]` and returns whether the tag
+/// was valid. Both auth and decrypt passes always run (timing discipline).
+///
+/// Returns `Err` if `ct_in` is shorter than `TAG_BYTES` or `out` is shorter than the body length.
+pub(crate) fn decrypt_core(
+    key: &[u8; KEY_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ad: &[u8],
+    ct_in: &[u8],
+    out: &mut [u8],
+) -> Result<bool, DuplexCryptoError> {
+    if ct_in.len() < TAG_BYTES {
+        return Err(DuplexCryptoError);
+    }
+    let body_len = ct_in.len() - TAG_BYTES;
+    if out.len() < body_len {
+        return Err(DuplexCryptoError);
+    }
+    let ct_body = &ct_in[..body_len];
+    let tag_recv = &ct_in[body_len..body_len + TAG_BYTES];
+
+    let mut state = [0u64; PLEN];
+    init_key_nonce(&mut state, key, nonce);
+    absorb_all(&mut state, ad);
+
+    let mut off = 0usize;
+    while off + RATE_BYTES <= body_len {
+        advance_decrypt_state_without_output(&mut state, &ct_body[off..off + RATE_BYTES]);
+        off += RATE_BYTES;
+    }
+    if off < body_len {
+        advance_decrypt_state_without_output(&mut state, &ct_body[off..]);
+    }
+
+    let tag_calc = tag_from_state(&state);
+    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| DuplexCryptoError)?;
+    let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
+
+    init_key_nonce(&mut state, key, nonce);
+    absorb_all(&mut state, ad);
+    let pt = &mut out[..body_len];
+    let mut off = 0usize;
+    while off + RATE_BYTES <= body_len {
+        duplex_decrypt_chunk(
+            &mut state,
+            &ct_body[off..off + RATE_BYTES],
+            &mut pt[off..off + RATE_BYTES],
+        );
+        off += RATE_BYTES;
+    }
+    if off < body_len {
+        duplex_decrypt_chunk(&mut state, &ct_body[off..], &mut pt[off..]);
+    }
+
+    state.zeroize();
+
+    Ok(tag_ok)
+}
+
 /// Encrypt: `ciphertext` is `pt.len() + TAG_BYTES`; `ct` must hold at least that.
 pub fn encrypt(
     key: &[u8; KEY_BYTES],
@@ -116,54 +183,33 @@ pub fn decrypt(
         return Err(DuplexCryptoError);
     }
     let body_len = ct_in.len() - TAG_BYTES;
-    if out.len() < body_len {
-        return Err(DuplexCryptoError);
-    }
-    let ct_body = &ct_in[..body_len];
-    let tag_recv = &ct_in[body_len..body_len + TAG_BYTES];
-
-    let mut state = [0u64; PLEN];
-    init_key_nonce(&mut state, key, nonce);
-    absorb_all(&mut state, ad);
-
-    // First pass: authenticate without touching caller output.
-    let mut off = 0usize;
-    while off + RATE_BYTES <= body_len {
-        advance_decrypt_state_without_output(&mut state, &ct_body[off..off + RATE_BYTES]);
-        off += RATE_BYTES;
-    }
-    if off < body_len {
-        advance_decrypt_state_without_output(&mut state, &ct_body[off..]);
-    }
-
-    let tag_calc = tag_from_state(&state);
-    let tag_recv_arr: [u8; TAG_BYTES] = tag_recv.try_into().map_err(|_| DuplexCryptoError)?;
-    let tag_ok = tag_calc.ct_eq(&tag_recv_arr).unwrap_u8() == 1;
-
-    // Always perform the second (decryption) pass so execution time is
-    // independent of tag validity.
-    init_key_nonce(&mut state, key, nonce);
-    absorb_all(&mut state, ad);
-    let pt = &mut out[..body_len];
-    let mut off = 0usize;
-    while off + RATE_BYTES <= body_len {
-        duplex_decrypt_chunk(
-            &mut state,
-            &ct_body[off..off + RATE_BYTES],
-            &mut pt[off..off + RATE_BYTES],
-        );
-        off += RATE_BYTES;
-    }
-    if off < body_len {
-        duplex_decrypt_chunk(&mut state, &ct_body[off..], &mut pt[off..]);
-    }
-
-    state.zeroize();
-
+    let tag_ok = decrypt_core(key, nonce, ad, ct_in, out)?;
     if tag_ok {
         Ok(())
     } else {
-        pt.zeroize();
+        out[..body_len].zeroize();
         Err(DuplexCryptoError)
+    }
+}
+
+/// Layer B semantic decrypt: single shared [`decrypt_core`] (no duplicate sponge passes).
+#[cfg(feature = "alloc")]
+pub(crate) fn decrypt_semantic_outcome(
+    key: &[u8; KEY_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ad: &[u8],
+    ct_in: &[u8],
+) -> Result<DecryptSemanticOutcome, DuplexCryptoError> {
+    if ct_in.len() < TAG_BYTES {
+        return Err(DuplexCryptoError);
+    }
+    let body_len = ct_in.len() - TAG_BYTES;
+    let mut pt = vec![0u8; body_len];
+    let tag_ok = decrypt_core(key, nonce, ad, ct_in, &mut pt)?;
+    if tag_ok {
+        Ok(DecryptSemanticOutcome::Success(Zeroizing::new(pt)))
+    } else {
+        pt.zeroize();
+        Ok(DecryptSemanticOutcome::AuthenticationFailed)
     }
 }

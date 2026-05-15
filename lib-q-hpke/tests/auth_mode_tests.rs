@@ -19,6 +19,7 @@ use lib_q_hpke::types::{
     HpkeKdf,
     HpkeKem,
     HpkeMode,
+    HpkePskWireFormat,
 };
 use lib_q_kem::LibQKemProvider;
 
@@ -60,6 +61,7 @@ fn test_auth_mode_context_setup() {
         None,
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode sender setup should work");
 
@@ -88,6 +90,7 @@ fn test_auth_mode_context_setup() {
         None,
         None,
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode receiver setup should work");
 
@@ -148,6 +151,7 @@ fn test_auth_mode_single_shot() {
         None,
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode encryption should work");
 
@@ -174,6 +178,7 @@ fn test_auth_mode_single_shot() {
         None,
         None,
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode decryption should work");
 
@@ -230,6 +235,7 @@ fn test_auth_mode_different_senders() {
         None,
         Some(sender1_keypair.secret_key()),
         Some(sender1_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Sender 1 encryption should work");
 
@@ -248,6 +254,7 @@ fn test_auth_mode_different_senders() {
         None,
         Some(sender2_keypair.secret_key()),
         Some(sender2_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Sender 2 encryption should work");
 
@@ -269,6 +276,7 @@ fn test_auth_mode_different_senders() {
         None,
         None,
         Some(sender1_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Sender 1 decryption should work");
 
@@ -286,6 +294,7 @@ fn test_auth_mode_different_senders() {
         None,
         None,
         Some(sender2_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Sender 2 decryption should work");
 
@@ -307,6 +316,7 @@ fn test_auth_mode_different_senders() {
         None,
         None,
         Some(sender2_keypair.public_key()), // Wrong sender
+        HpkePskWireFormat::default(),
     );
 
     // Note: Current Auth mode implementation doesn't validate sender identity
@@ -360,6 +370,7 @@ fn test_auth_mode_parameter_validation() {
         None,
         None, // Missing sender secret key
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     );
     assert!(
         result.is_err(),
@@ -379,6 +390,7 @@ fn test_auth_mode_parameter_validation() {
         None,
         Some(sender_keypair.secret_key()),
         None, // Missing sender public key
+        HpkePskWireFormat::default(),
     );
     assert!(
         result.is_err(),
@@ -398,6 +410,7 @@ fn test_auth_mode_parameter_validation() {
         Some(psk_id),
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     );
     assert!(result.is_err(), "PSK should not be allowed in Auth mode");
 }
@@ -444,6 +457,7 @@ fn test_auth_mode_different_cipher_suites() {
         None,
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 1 encryption should work");
 
@@ -460,6 +474,7 @@ fn test_auth_mode_different_cipher_suites() {
         None,
         None,
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 1 decryption should work");
 
@@ -495,6 +510,7 @@ fn test_auth_mode_different_cipher_suites() {
         None,
         Some(sender_keypair_768.secret_key()),
         Some(sender_keypair_768.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 2 encryption should work");
 
@@ -511,6 +527,7 @@ fn test_auth_mode_different_cipher_suites() {
         None,
         None,
         Some(sender_keypair_768.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 2 decryption should work");
 
@@ -566,6 +583,7 @@ fn test_auth_mode_vs_base_mode() {
         None,
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Base mode encryption should work");
 
@@ -584,6 +602,7 @@ fn test_auth_mode_vs_base_mode() {
         None,
         Some(sender_keypair.secret_key()),
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode encryption should work");
 
@@ -616,6 +635,7 @@ fn test_auth_mode_vs_base_mode() {
         None,
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Base mode decryption should work");
 
@@ -632,6 +652,7 @@ fn test_auth_mode_vs_base_mode() {
         None,
         None,
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     )
     .expect("Auth mode decryption should work");
 

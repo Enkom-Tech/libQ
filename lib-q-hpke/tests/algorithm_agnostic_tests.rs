@@ -18,6 +18,7 @@ use lib_q_hpke::types::{
     HpkeKdf,
     HpkeKem,
     HpkeMode,
+    HpkePskWireFormat,
 };
 use lib_q_kem::LibQKemProvider;
 
@@ -58,7 +59,7 @@ fn test_kem_algorithm(
         .expect(&format!("Failed to generate keypair for {}", kem_name));
 
     let recipient_pk = KemPublicKey::new(public_key_bytes);
-    let recipient_sk = KemSecretKey::new(secret_key_bytes);
+    let recipient_sk = KemSecretKey::new(secret_key_bytes.to_vec());
 
     // Test data
     let info = b"test info";
@@ -109,7 +110,7 @@ fn test_kem_algorithm(
         kem_name
     ));
     let sender_pk = KemPublicKey::new(sender_pk_bytes);
-    let sender_sk = KemSecretKey::new(sender_sk_bytes);
+    let sender_sk = KemSecretKey::new(sender_sk_bytes.to_vec());
 
     test_hpke_mode(
         provider,
@@ -184,6 +185,7 @@ fn test_hpke_mode(
         psk_id,
         sender_sk,
         sender_pk,
+        HpkePskWireFormat::default(),
     )
     .expect(&format!("Failed to encrypt in {}", test_name));
 
@@ -223,6 +225,7 @@ fn test_hpke_mode(
         psk,
         psk_id,
         sender_pk,
+        HpkePskWireFormat::default(),
     )
     .expect(&format!("Failed to decrypt in {}", test_name));
 
@@ -264,7 +267,7 @@ fn test_hpke_with_different_kdf_algorithms() {
                 .expect("Failed to generate keypair");
 
             let recipient_pk = KemPublicKey::new(public_key_bytes);
-            let recipient_sk = KemSecretKey::new(secret_key_bytes);
+            let recipient_sk = KemSecretKey::new(secret_key_bytes.to_vec());
 
             // Test data
             let info = b"test info";
@@ -289,6 +292,7 @@ fn test_hpke_with_different_kdf_algorithms() {
                 None,
                 None,
                 None,
+                HpkePskWireFormat::default(),
             )
             .expect("Failed to encrypt");
 
@@ -308,6 +312,7 @@ fn test_hpke_with_different_kdf_algorithms() {
                 None,
                 None,
                 None,
+                HpkePskWireFormat::default(),
             )
             .expect("Failed to decrypt");
 
@@ -343,7 +348,7 @@ fn test_hpke_with_different_aead_algorithms() {
                 .expect("Failed to generate keypair");
 
             let recipient_pk = KemPublicKey::new(public_key_bytes);
-            let recipient_sk = KemSecretKey::new(secret_key_bytes);
+            let recipient_sk = KemSecretKey::new(secret_key_bytes.to_vec());
 
             // Test data
             let info = b"test info";
@@ -368,6 +373,7 @@ fn test_hpke_with_different_aead_algorithms() {
                 None,
                 None,
                 None,
+                HpkePskWireFormat::default(),
             )
             .expect("Failed to encrypt");
 
@@ -387,6 +393,7 @@ fn test_hpke_with_different_aead_algorithms() {
                 None,
                 None,
                 None,
+                HpkePskWireFormat::default(),
             )
             .expect("Failed to decrypt");
 
@@ -470,7 +477,7 @@ fn test_provider_kem_algorithm_handling() {
             .expect(&format!("Failed to generate keypair for {:?}", kem));
 
         let recipient_pk = KemPublicKey::new(public_key_bytes);
-        let recipient_sk = KemSecretKey::new(secret_key_bytes);
+        let recipient_sk = KemSecretKey::new(secret_key_bytes.to_vec());
 
         // Test encapsulation
         let (encapsulated_key, shared_secret) = provider

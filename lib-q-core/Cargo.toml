@@ -24,7 +24,7 @@ rand = { workspace = true, default-features = false, features = ["thread_rng"], 
 # Implementation crates depend on lib-q-core, and the main lib-q crate provides concrete implementations
 
 # Zeroize for secure memory clearing
-zeroize = { workspace = true, features = ["derive"], default-features = false }
+zeroize = { workspace = true, features = ["derive", "alloc"], default-features = false }
 
 # Constant-time comparisons (volatile-fenced; avoids compiler elision)
 subtle = { workspace = true, default-features = false }

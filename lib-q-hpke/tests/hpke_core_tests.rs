@@ -293,7 +293,7 @@ fn test_hpke_error_propagation() {
         .generate_keypair(HpkeKem::MlKem512, &mut SimpleRng::new())
         .expect("Key generation should work");
 
-    let recipient_sk = KemSecretKey::new(secret_key);
+    let recipient_sk = KemSecretKey::new(secret_key.to_vec());
     let wrong_size_enc_key = vec![0u8; 1000]; // Wrong size for ML-KEM-512
 
     let result = hpke_ctx.setup_receiver(&wrong_size_enc_key, &recipient_sk, b"info");

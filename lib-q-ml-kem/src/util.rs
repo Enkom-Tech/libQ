@@ -1,5 +1,6 @@
 use core::mem::ManuallyDrop;
 use core::ops::{
+    Deref,
     Div,
     Mul,
     Rem,
@@ -22,6 +23,67 @@ use hybrid_array::{
 
 /// A 32-byte array, defined here for brevity because it is used several times
 pub type B32 = Array<u8, U32>;
+
+/// Stack-local 32-byte secret cleared on [`Drop`].
+///
+/// [`hybrid_array::Array`] does not implement the optional `zeroize` crate's `Zeroize` trait, so
+/// ML-KEM uses this wrapper for ephemeral values (decoded messages, KEM coins, implicit-rejection
+/// keys, PKE randomness) that must not remain in stack slots after the enclosing operation
+/// returns.
+///
+/// When the `zeroize` feature is enabled, clearing uses that crate. Otherwise the buffer is
+/// overwritten with volatile stores followed by a compiler fence (best-effort without pulling in
+/// `zeroize` for minimal dependency sets).
+pub(crate) struct SecretB32(B32);
+
+impl SecretB32 {
+    #[must_use]
+    pub(crate) fn new(inner: B32) -> Self {
+        Self(inner)
+    }
+}
+
+impl Deref for SecretB32 {
+    type Target = B32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl zeroize::Zeroize for SecretB32 {
+    fn zeroize(&mut self) {
+        zeroize::Zeroize::zeroize(self.0.as_mut_slice());
+    }
+}
+
+impl Drop for SecretB32 {
+    fn drop(&mut self) {
+        #[cfg(feature = "zeroize")]
+        {
+            zeroize::Zeroize::zeroize(self);
+        }
+        #[cfg(not(feature = "zeroize"))]
+        {
+            use core::sync::atomic::{
+                self,
+                Ordering,
+            };
+
+            let bytes = self.0.as_mut_slice();
+            for i in 0..bytes.len() {
+                unsafe {
+                    ptr::write_volatile(bytes.as_mut_ptr().add(i), 0);
+                }
+            }
+            atomic::compiler_fence(Ordering::SeqCst);
+        }
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl zeroize::ZeroizeOnDrop for SecretB32 {}
 
 /// Safely truncate an unsigned integer value to shorter representation
 pub trait Truncate<T> {

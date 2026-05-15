@@ -1,9 +1,31 @@
 //! Saturnin-Short AEAD implementation
 //!
-//! This module implements the Saturnin-Short authenticated encryption with associated data.
-//! Saturnin-Short uses 10 super-rounds with domain 6, providing a simpler and faster
-//! alternative to Saturnin-CTR-Cascade for applications that don't need the full security
-//! margin of the cascade mode.
+//! Saturnin-Short is the encode-then-encrypt mode from the Saturnin specification
+//! (Section 2.3): a single `Saturnin^6` block cipher call over `pad(nonce || plaintext)`.
+//! Confidentiality and integrity are provided together in one 32-byte ciphertext; there is
+//! no separate tag and no associated data.
+//!
+//! ## Limits
+//!
+//! - **Plaintext**: strictly less than 128 bits (at most 15 bytes)
+//! - **Nonce**: 128 bits (16 bytes)
+//! - **Associated data**: not supported
+//! - **Ciphertext**: always 32 bytes
+//!
+//! ## Side-channel and API contract
+//!
+//! Decrypt performs exactly one inverse block (`decrypt_block_32`) before any verification
+//! outcome can influence returned plaintext. Nonce binding and padding checks walk fixed
+//! layouts; the candidate plaintext is assembled in a fixed number of steps using masks
+//! derived from an accumulated authentication byte (no early exit that skips that
+//! assembly). As with the full Saturnin AEAD path in `aead.rs` (constant-time tag check over
+//! the binding, then full CTR on the ciphertext, then map the outcome), the closing step maps
+//! the verification result to `Ok` versus
+//! `Err(Error::VerificationFailed)`; [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic)
+//! exposes `Ok(AuthenticationFailed)` instead for Layer B. A public `Result` API cannot
+//! expose both outcomes without that discriminant. Treat verification timing under the same
+//! remote-adversary assumptions as full AEAD unless a higher layer enforces additional timing
+//! mediation.
 //!
 //! ## Usage Example
 //!
@@ -15,97 +37,243 @@
 //!     SaturninShortAead,
 //! };
 //!
-//! // Create AEAD-Short instance
 //! let aead = SaturninShortAead::new();
+//! let key = AeadKey::new(vec![0u8; 32]);
+//! let nonce = Nonce::new(vec![0u8; 16]);
+//! let plaintext = b"Quick";
 //!
-//! // Generate key and nonce (in practice, use secure random generation)
-//! let key = AeadKey {
-//!     data: vec![0u8; 32],
-//! };
-//! let nonce = Nonce {
-//!     data: vec![0u8; 16],
-//! };
+//! let ciphertext = aead.encrypt(&key, &nonce, plaintext, None).unwrap();
+//! assert_eq!(ciphertext.len(), 32);
 //!
-//! let plaintext = b"Quick message";
-//! let associated_data = b"metadata";
-//!
-//! // Encrypt with associated data (faster than full AEAD)
-//! let ciphertext = aead
-//!     .encrypt(&key, &nonce, plaintext, Some(associated_data))
-//!     .unwrap();
-//!
-//! // Decrypt and verify authenticity
-//! let decrypted = aead
-//!     .decrypt(&key, &nonce, &ciphertext, Some(associated_data))
-//!     .unwrap();
+//! let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None).unwrap();
 //! assert_eq!(decrypted, plaintext);
 //! ```
-//!
-//! ## Performance Notes
-//!
-//! - **Key size**: 256 bits (32 bytes)
-//! - **Nonce size**: 128 bits (16 bytes)
-//! - **Tag size**: 256 bits (32 bytes)
-//! - **Rounds**: 10 super-rounds (vs 16 for full AEAD)
-//! - **Throughput**: ~150-600 MB/s on modern hardware (faster than full AEAD)
-//! - **Security**: Reduced security margin but still post-quantum secure
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
+    DecryptSemanticOutcome,
     Error,
     Nonce,
     Result,
 };
-use zeroize::Zeroizing;
+use zeroize::{
+    Zeroize,
+    Zeroizing,
+};
 
 use crate::core::SaturninCore;
 
-/// Saturnin-Short AEAD implementation
-///
-/// This provides authenticated encryption with associated data using the Saturnin-Short
-/// mode, which uses 10 super-rounds with domain 6.
+/// Maximum plaintext length in bytes (`< 128` bits per the Saturnin specification).
+const MAX_PLAINTEXT_LEN: usize = 15;
+
+/// Fixed ciphertext length: one 256-bit Saturnin block.
+const CIPHERTEXT_LEN: usize = 32;
+
+/// `0xff` if `x == 0`, else `0` (constant-time classification for an OR-reduced `u8` status).
+#[inline]
+fn ct_u8_is_zero(x: u8) -> u8 {
+    (x.wrapping_sub(1) & !x) >> 7
+}
+
+/// `0xff` if `i < len`, else `0` (constant-time; `len` may be secret-derived).
+#[inline]
+fn ct_usize_lt(i: usize, len: usize) -> u8 {
+    let x = i.wrapping_sub(len);
+    ((x >> (usize::BITS - 1)) as u8).wrapping_neg()
+}
+
+/// Mask applied to candidate plaintext bytes when authentication succeeds (`auth_or == 0`).
+const SHORT_AUTH_OK_MASK: u8 = 0xFF;
+
+#[inline]
+fn short_auth_ok_mask(auth_or: u8) -> u8 {
+    ct_u8_is_zero(auth_or).wrapping_neg()
+}
+
+/// Nonce check and padding parse (reference `decrypt.c`); `auth_or == 0` iff valid under `nonce`.
+fn short_parse_auth_and_padding(decrypted: &[u8; 32], nonce: &[u8; 16]) -> (u8, usize) {
+    let mut auth_or = 0u8;
+
+    for (stored, expected) in decrypted[..16].iter().zip(nonce.iter()) {
+        auth_or |= stored ^ expected;
+    }
+
+    let mut notfound = 0xFFu8;
+    let mut plaintext_len = 0usize;
+
+    for i in (0..16).rev() {
+        let byte = decrypted[16 + i];
+        let hit = u16::from(byte ^ 0x80) + 0xFF;
+        let is_pad_byte = 1u8.wrapping_sub((hit >> 8) as u8);
+        let found = notfound & is_pad_byte.wrapping_neg();
+
+        plaintext_len |= (found as usize) & i;
+        notfound &= !found;
+        let nonzero = u16::from(byte) + 0xFF;
+        auth_or |= notfound & ((nonzero >> 8) as u8);
+    }
+    auth_or |= notfound;
+
+    (auth_or, plaintext_len)
+}
+
+/// Fixed-length candidate plaintext (`<= MAX_PLAINTEXT_LEN` pushes); selection uses `auth_ok_mask` only.
+fn short_materialize_plaintext_candidate(
+    auth_ok_mask: u8,
+    plaintext_len: usize,
+    tail: &[u8; 16],
+) -> Vec<u8> {
+    let len_for_mask = plaintext_len.min(MAX_PLAINTEXT_LEN);
+    let mut out = Vec::with_capacity(MAX_PLAINTEXT_LEN);
+    for (i, &byte) in tail[..MAX_PLAINTEXT_LEN].iter().enumerate() {
+        let take = auth_ok_mask & ct_usize_lt(i, len_for_mask);
+        out.push(byte & take);
+    }
+    out
+}
+
+/// Saturnin-Short AEAD (`Saturnin^6`, 10 super-rounds).
 pub struct SaturninShortAead {
     core: SaturninCore,
 }
 
 impl SaturninShortAead {
-    /// Create a new Saturnin-Short AEAD instance
+    /// Create a new Saturnin-Short AEAD instance.
     pub fn new() -> Self {
-        // Saturnin-Short uses 10 super-rounds and domain 6
-        let core = SaturninCore::new(10, 6).expect("Failed to create Saturnin core");
+        let core = SaturninCore::new(10, 6).expect("Saturnin-Short uses domain 6");
         Self { core }
     }
 
-    /// Get the key size in bytes (32 bytes for Saturnin)
-    pub fn key_size() -> usize {
+    /// Key size in bytes.
+    pub const fn key_size() -> usize {
         32
     }
 
-    /// Get the nonce size in bytes (16 bytes for Saturnin)
-    pub fn nonce_size() -> usize {
+    /// Nonce size in bytes.
+    pub const fn nonce_size() -> usize {
         16
     }
 
-    /// Get the tag size in bytes (32 bytes for Saturnin)
-    pub fn tag_size() -> usize {
-        32
+    /// Authenticated ciphertext size in bytes (fixed 32-byte block).
+    pub const fn tag_size() -> usize {
+        CIPHERTEXT_LEN
     }
 
-    /// Encrypt plaintext with associated data
-    ///
-    /// # Arguments
-    /// * `key` - The encryption key (32 bytes)
-    /// * `nonce` - The nonce (16 bytes)
-    /// * `plaintext` - The plaintext to encrypt
-    /// * `ad` - Associated data (optional)
-    ///
-    /// # Returns
-    /// * `Ok(Vec<u8>)` - The ciphertext with authentication tag appended
-    /// * `Err(Error)` - If encryption fails
+    /// Maximum supported plaintext length in bytes.
+    pub const fn max_plaintext_len() -> usize {
+        MAX_PLAINTEXT_LEN
+    }
+
+    fn validate_key(key: &[u8]) -> Result<[u8; 32]> {
+        key.try_into().map_err(|_| Error::InvalidKeySize {
+            expected: Self::key_size(),
+            actual: key.len(),
+        })
+    }
+
+    fn validate_nonce(nonce: &[u8]) -> Result<[u8; 16]> {
+        nonce.try_into().map_err(|_| Error::InvalidNonceSize {
+            expected: Self::nonce_size(),
+            actual: nonce.len(),
+        })
+    }
+
+    fn reject_associated_data(ad: Option<&[u8]>) -> Result<()> {
+        if ad.is_some_and(|data| !data.is_empty()) {
+            return Err(Error::InvalidAssociatedDataSize {
+                max: 0,
+                actual: ad.map_or(0, |data| data.len()),
+            });
+        }
+        Ok(())
+    }
+
+    fn reject_plaintext_len(plaintext_len: usize) -> Result<()> {
+        if plaintext_len > MAX_PLAINTEXT_LEN {
+            return Err(Error::InvalidMessageSize {
+                max: MAX_PLAINTEXT_LEN,
+                actual: plaintext_len,
+            });
+        }
+        Ok(())
+    }
+
+    /// Build `pad(nonce || plaintext)` into a 32-byte block (reference `encrypt.c`).
+    fn encode_block(nonce: &[u8; 16], plaintext: &[u8]) -> [u8; 32] {
+        let mut block = [0u8; 32];
+        block[..16].copy_from_slice(nonce);
+        let pt_len = plaintext.len();
+        if pt_len > 0 {
+            block[16..16 + pt_len].copy_from_slice(plaintext);
+        }
+        block[16 + pt_len] = 0x80;
+        block
+    }
+
+    /// Semantic verify outcome for Saturnin-Short (no plaintext bytes on failure).
+    fn short_decrypt_semantic_inner(
+        decrypted: &[u8; 32],
+        nonce: &[u8; 16],
+    ) -> DecryptSemanticOutcome {
+        let (auth_or, plaintext_len) = short_parse_auth_and_padding(decrypted, nonce);
+        let auth_ok_mask = short_auth_ok_mask(auth_or);
+
+        let mut tail = [0u8; 16];
+        tail.copy_from_slice(&decrypted[16..32]);
+
+        let mut candidate =
+            short_materialize_plaintext_candidate(auth_ok_mask, plaintext_len, &tail);
+        if auth_ok_mask != SHORT_AUTH_OK_MASK {
+            candidate.zeroize();
+            return DecryptSemanticOutcome::AuthenticationFailed;
+        }
+        candidate.truncate(plaintext_len.min(MAX_PLAINTEXT_LEN));
+        DecryptSemanticOutcome::Success(Zeroizing::new(candidate))
+    }
+
+    fn decrypt_semantic_core(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        ad: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        Self::reject_associated_data(ad)?;
+
+        if ciphertext.len() != CIPHERTEXT_LEN {
+            return Err(Error::InvalidCiphertextSize {
+                expected: CIPHERTEXT_LEN,
+                actual: ciphertext.len(),
+            });
+        }
+
+        let key32 = Self::validate_key(key.as_bytes())?;
+        let nonce16 = Self::validate_nonce(nonce.as_bytes())?;
+
+        let mut block: [u8; 32] =
+            ciphertext
+                .try_into()
+                .map_err(|_| Error::InvalidCiphertextSize {
+                    expected: CIPHERTEXT_LEN,
+                    actual: ciphertext.len(),
+                })?;
+
+        if let Err(e) = self.core.decrypt_block_32(&key32, &mut block) {
+            block.zeroize();
+            return Err(e);
+        }
+
+        let outcome = Self::short_decrypt_semantic_inner(&block, &nonce16);
+        block.zeroize();
+        Ok(outcome)
+    }
+
+    /// Encrypt plaintext with associated data.
     pub fn encrypt(
         &self,
         key: &AeadKey,
@@ -113,56 +281,19 @@ impl SaturninShortAead {
         plaintext: &[u8],
         ad: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.as_bytes().len() != Self::key_size() {
-            return Err(Error::InvalidKeySize {
-                expected: Self::key_size(),
-                actual: key.as_bytes().len(),
-            });
-        }
+        Self::reject_associated_data(ad)?;
+        Self::reject_plaintext_len(plaintext.len())?;
 
-        if nonce.as_bytes().len() != Self::nonce_size() {
-            return Err(Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nonce.as_bytes().len(),
-            });
-        }
+        let key32 = Self::validate_key(key.as_bytes())?;
+        let nonce16 = Self::validate_nonce(nonce.as_bytes())?;
 
-        let mut key_staged = Zeroizing::new([0u8; 32]);
-        key_staged.copy_from_slice(key.as_bytes());
-        let mut nonce_staged = Zeroizing::new([0u8; 16]);
-        nonce_staged.copy_from_slice(nonce.as_bytes());
-        let kb = key_staged.as_slice();
-        let nb = nonce_staged.as_slice();
+        let mut block = Self::encode_block(&nonce16, plaintext);
+        self.core.encrypt_block_32(&key32, &mut block)?;
 
-        // For Saturnin-Short, we use a simple CTR mode with domain 6
-        let mut ciphertext = Vec::with_capacity(plaintext.len() + Self::tag_size());
-
-        // Process associated data first (if any)
-        if let Some(ad_data) = ad {
-            self.process_ad(ad_data, &mut ciphertext)?;
-        }
-
-        // Encrypt plaintext using CTR mode
-        self.ctr_encrypt(kb, nb, plaintext, &mut ciphertext)?;
-
-        // Generate authentication tag
-        let tag = self.generate_tag(kb, nb, ad, &ciphertext)?;
-        ciphertext.extend_from_slice(&tag);
-
-        Ok(ciphertext)
+        Ok(block.to_vec())
     }
 
-    /// Decrypt ciphertext with associated data
-    ///
-    /// # Arguments
-    /// * `key` - The decryption key (32 bytes)
-    /// * `nonce` - The nonce (16 bytes)
-    /// * `ciphertext` - The ciphertext with tag (must be at least 32 bytes)
-    /// * `ad` - Associated data (optional)
-    ///
-    /// # Returns
-    /// * `Ok(Vec<u8>)` - The decrypted plaintext
-    /// * `Err(Error)` - If decryption or authentication fails
+    /// Decrypt ciphertext with associated data.
     pub fn decrypt(
         &self,
         key: &AeadKey,
@@ -170,160 +301,12 @@ impl SaturninShortAead {
         ciphertext: &[u8],
         ad: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.as_bytes().len() != Self::key_size() {
-            return Err(Error::InvalidKeySize {
-                expected: Self::key_size(),
-                actual: key.as_bytes().len(),
-            });
+        match self.decrypt_semantic_core(key, nonce, ciphertext, ad)? {
+            DecryptSemanticOutcome::Success(p) => Ok(Vec::clone(&*p)),
+            DecryptSemanticOutcome::AuthenticationFailed => Err(Error::VerificationFailed {
+                operation: "Saturnin-Short authentication".into(),
+            }),
         }
-
-        if nonce.as_bytes().len() != Self::nonce_size() {
-            return Err(Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nonce.as_bytes().len(),
-            });
-        }
-
-        if ciphertext.len() < Self::tag_size() {
-            return Err(Error::InvalidMessageSize {
-                actual: ciphertext.len(),
-                max: ciphertext.len(),
-            });
-        }
-
-        let mut key_staged = Zeroizing::new([0u8; 32]);
-        key_staged.copy_from_slice(key.as_bytes());
-        let mut nonce_staged = Zeroizing::new([0u8; 16]);
-        nonce_staged.copy_from_slice(nonce.as_bytes());
-        let kb = key_staged.as_slice();
-        let nb = nonce_staged.as_slice();
-
-        // Split ciphertext and tag
-        let (ct, tag) = ciphertext.split_at(ciphertext.len() - Self::tag_size());
-
-        // Verify authentication tag in constant time to prevent timing side channels
-        let expected_tag = self.generate_tag(kb, nb, ad, ct)?;
-        if !lib_q_core::Utils::constant_time_compare(tag, &expected_tag) {
-            return Err(Error::InvalidMessageSize { actual: 0, max: 0 });
-        }
-
-        // Decrypt using CTR mode
-        let mut plaintext = Vec::with_capacity(ct.len());
-        self.ctr_encrypt(kb, nb, ct, &mut plaintext)?;
-
-        Ok(plaintext)
-    }
-
-    /// Process associated data
-    fn process_ad(&self, ad: &[u8], _output: &mut Vec<u8>) -> Result<()> {
-        // For Saturnin-Short, we don't process AD separately
-        // The AD is incorporated into the tag generation
-        if !ad.is_empty() {
-            // In a full implementation, we would process the AD here
-            // For now, we'll handle it in tag generation
-        }
-        Ok(())
-    }
-
-    /// Encrypt/decrypt using CTR mode (domain 6).
-    ///
-    /// Each block uses a 32-byte input to the cipher: nonce (16) || `0x80` || zeros (11) ||
-    /// 32-bit big-endian block counter (4), matching the layout used by [`crate::SaturninStream`]
-    /// so successive blocks receive distinct inputs.
-    fn ctr_encrypt(
-        &self,
-        key: &[u8],
-        nonce: &[u8],
-        input: &[u8],
-        output: &mut Vec<u8>,
-    ) -> Result<()> {
-        let key_len = key.len();
-        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: key_len,
-        })?;
-
-        let mut block_counter = 0u32;
-        let mut input_offset = 0;
-
-        while input_offset < input.len() {
-            let mut counter_block = [0u8; 32];
-            counter_block[0..16].copy_from_slice(nonce);
-            counter_block[16] = 0x80;
-            counter_block[28..32].copy_from_slice(&block_counter.to_be_bytes());
-
-            self.core.encrypt_block_32(key32, &mut counter_block)?;
-
-            let block_len = (input.len() - input_offset).min(32);
-            for i in 0..block_len {
-                output.push(input[input_offset + i] ^ counter_block[i]);
-            }
-
-            input_offset += block_len;
-            let next = block_counter.wrapping_add(1);
-            if next == 0 {
-                return Err(Error::InvalidMessageSize {
-                    max: usize::MAX,
-                    actual: input.len(),
-                });
-            }
-            block_counter = next;
-        }
-
-        Ok(())
-    }
-
-    /// Generate authentication tag
-    fn generate_tag(
-        &self,
-        key: &[u8],
-        nonce: &[u8],
-        ad: Option<&[u8]>,
-        ciphertext: &[u8],
-    ) -> Result<Vec<u8>> {
-        let key_len = key.len();
-        let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
-            expected: Self::key_size(),
-            actual: key_len,
-        })?;
-
-        // For Saturnin-Short, we use a simple tag generation
-        // that incorporates AD, ciphertext, and nonce
-        let mut tag_input = Vec::new();
-
-        // Add associated data length and data
-        if let Some(ad_data) = ad {
-            tag_input.extend_from_slice(&(ad_data.len() as u64).to_le_bytes());
-            tag_input.extend_from_slice(ad_data);
-        } else {
-            tag_input.extend_from_slice(&0u64.to_le_bytes());
-        }
-
-        // Add ciphertext length and data
-        tag_input.extend_from_slice(&(ciphertext.len() as u64).to_le_bytes());
-        tag_input.extend_from_slice(ciphertext);
-
-        // Add nonce
-        tag_input.extend_from_slice(nonce);
-
-        // Pad to block size if needed
-        while tag_input.len() % 32 != 0 {
-            tag_input.push(0);
-        }
-
-        // Use the core to generate a tag by encrypting the input
-        let mut tag = [0u8; 32];
-        if tag_input.len() == 32 {
-            tag.copy_from_slice(&tag_input);
-            self.core.encrypt_block_32(key32, &mut tag)?;
-        } else {
-            // For longer inputs, we'd need a proper hash construction
-            // For now, just use the first 32 bytes
-            tag.copy_from_slice(&tag_input[..32]);
-            self.core.encrypt_block_32(key32, &mut tag)?;
-        }
-
-        Ok(tag.to_vec())
     }
 }
 
@@ -333,9 +316,9 @@ impl Aead for SaturninShortAead {
         key: &AeadKey,
         nonce: &Nonce,
         plaintext: &[u8],
-        ad: Option<&[u8]>,
+        associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        self.encrypt(key, nonce, plaintext, ad)
+        self.encrypt(key, nonce, plaintext, associated_data)
     }
 
     fn decrypt(
@@ -343,9 +326,21 @@ impl Aead for SaturninShortAead {
         key: &AeadKey,
         nonce: &Nonce,
         ciphertext: &[u8],
-        ad: Option<&[u8]>,
+        associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        self.decrypt(key, nonce, ciphertext, ad)
+        self.decrypt(key, nonce, ciphertext, associated_data)
+    }
+}
+
+impl AeadDecryptSemantic for SaturninShortAead {
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        self.decrypt_semantic_core(key, nonce, ciphertext, associated_data)
     }
 }
 
@@ -360,6 +355,26 @@ mod tests {
     use alloc::vec;
 
     use super::*;
+    use crate::{
+        Error,
+        Result,
+    };
+
+    #[test]
+    fn test_ct_u8_is_zero() {
+        assert_eq!(ct_u8_is_zero(0), 1);
+        assert_eq!(ct_u8_is_zero(1), 0);
+        assert_eq!(ct_u8_is_zero(0xFF), 0);
+    }
+
+    #[test]
+    fn test_ct_usize_lt() {
+        assert_eq!(ct_usize_lt(0, 1), 0xFF);
+        assert_eq!(ct_usize_lt(0, 0), 0);
+        assert_eq!(ct_usize_lt(5, 5), 0);
+        assert_eq!(ct_usize_lt(4, 5), 0xFF);
+        assert_eq!(ct_usize_lt(14, 15), 0xFF);
+    }
 
     #[test]
     fn test_saturnin_short_creation() {
@@ -367,13 +382,7 @@ mod tests {
         assert_eq!(SaturninShortAead::key_size(), 32);
         assert_eq!(SaturninShortAead::nonce_size(), 16);
         assert_eq!(SaturninShortAead::tag_size(), 32);
-    }
-
-    #[test]
-    fn test_saturnin_short_constants() {
-        assert_eq!(SaturninShortAead::key_size(), 32);
-        assert_eq!(SaturninShortAead::nonce_size(), 16);
-        assert_eq!(SaturninShortAead::tag_size(), 32);
+        assert_eq!(SaturninShortAead::max_plaintext_len(), 15);
     }
 
     #[test]
@@ -382,39 +391,164 @@ mod tests {
         let key = AeadKey::new(vec![0u8; 32]);
         let nonce = Nonce::new(vec![0u8; 16]);
         let plaintext = b"test";
-        let ad: Option<&[u8]> = None;
 
-        // Test encryption
-        let ciphertext = aead.encrypt(&key, &nonce, plaintext, ad)?;
-        assert_eq!(ciphertext.len(), plaintext.len() + 32); // plaintext + 32-byte tag
+        let ciphertext = aead.encrypt(&key, &nonce, plaintext, None)?;
+        assert_eq!(ciphertext.len(), 32);
 
-        // Test decryption
-        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, ad)?;
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
         assert_eq!(decrypted, plaintext);
 
         Ok(())
     }
 
     #[test]
-    fn test_saturnin_short_with_ad() -> Result<()> {
+    fn test_saturnin_short_empty_plaintext() -> Result<()> {
         let aead = SaturninShortAead::new();
         let key = AeadKey::new(vec![1u8; 32]);
         let nonce = Nonce::new(vec![2u8; 16]);
-        let plaintext = b"hello world";
-        let ad = b"associated data";
 
-        // Test encryption with AD
-        let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(ad))?;
-        assert_eq!(ciphertext.len(), plaintext.len() + 32);
+        let ciphertext = aead.encrypt(&key, &nonce, b"", None)?;
+        assert_eq!(ciphertext.len(), 32);
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
+        assert_eq!(decrypted, b"");
 
-        // Test decryption with AD
-        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, Some(ad))?;
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_short_wrong_ciphertext_length_is_invalid_ciphertext_size() {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![0u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+
+        let short = vec![0u8; 31];
+        let err = aead
+            .decrypt(&key, &nonce, &short, None)
+            .expect_err("31-byte input must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidCiphertextSize {
+                expected: 32,
+                actual: 31
+            }
+        ));
+
+        let long = vec![0u8; 33];
+        let err = aead
+            .decrypt(&key, &nonce, &long, None)
+            .expect_err("33-byte input must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidCiphertextSize {
+                expected: 32,
+                actual: 33
+            }
+        ));
+    }
+
+    #[test]
+    fn test_saturnin_short_integrity_failure_is_verification_failed() -> Result<()> {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![5u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+        let ct = aead.encrypt(&key, &nonce, b"hi", None)?;
+
+        let mut tampered = ct;
+        tampered[20] ^= 1;
+
+        let err = aead
+            .decrypt(&key, &nonce, &tampered, None)
+            .expect_err("tampered ciphertext must fail authentication");
+        assert!(matches!(
+            &err,
+            Error::VerificationFailed { operation }
+                if operation == "Saturnin-Short authentication"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_short_decrypt_semantic_auth_failure() -> Result<()> {
+        use lib_q_core::AeadDecryptSemantic;
+
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![5u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+        let ct = aead.encrypt(&key, &nonce, b"hi", None)?;
+
+        let mut tampered = ct.clone();
+        tampered[20] ^= 1;
+
+        let out = aead.decrypt_semantic(&key, &nonce, &tampered, None)?;
+        assert_eq!(out, DecryptSemanticOutcome::AuthenticationFailed);
+
+        match aead.decrypt_semantic(&key, &nonce, &ct, None)? {
+            DecryptSemanticOutcome::Success(pt) => assert_eq!(pt.as_slice(), b"hi"),
+            DecryptSemanticOutcome::AuthenticationFailed => {
+                panic!("unexpected auth failure on good ciphertext");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_short_rejects_associated_data() {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![0u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+
+        let result = aead.encrypt(&key, &nonce, b"x", Some(b"ad"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_saturnin_short_rejects_long_plaintext() {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![0u8; 32]);
+        let nonce = Nonce::new(vec![0u8; 16]);
+        let plaintext = vec![0xABu8; 16];
+
+        let result = aead.encrypt(&key, &nonce, &plaintext, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_saturnin_short_max_plaintext_round_trip() -> Result<()> {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![7u8; 32]);
+        let nonce = Nonce::new(vec![3u8; 16]);
+        let plaintext = vec![0xCDu8; 15];
+
+        let ciphertext = aead.encrypt(&key, &nonce, &plaintext, None)?;
+        assert_eq!(ciphertext.len(), 32);
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
         assert_eq!(decrypted, plaintext);
 
-        // Test that wrong AD fails
-        let wrong_ad = b"wrong ad";
-        let result = aead.decrypt(&key, &nonce, &ciphertext, Some(wrong_ad));
-        assert!(result.is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_short_binds_nonce_and_plaintext() -> Result<()> {
+        let aead = SaturninShortAead::new();
+        let key = AeadKey::new(vec![9u8; 32]);
+        let nonce = Nonce::new(vec![1u8; 16]);
+        let wrong_nonce = Nonce::new(vec![2u8; 16]);
+        let prefix = b"shared-prefix!";
+        let mut msg_a = prefix.to_vec();
+        msg_a.push(0x00);
+        let mut msg_b = prefix.to_vec();
+        msg_b.push(0x01);
+
+        let ct_a = aead.encrypt(&key, &nonce, &msg_a, None)?;
+        let ct_b = aead.encrypt(&key, &nonce, &msg_b, None)?;
+        assert_ne!(ct_a, ct_b);
+        assert_eq!(aead.decrypt(&key, &nonce, &ct_a, None)?, msg_a);
+        assert_eq!(aead.decrypt(&key, &nonce, &ct_b, None)?, msg_b);
+        assert!(aead.decrypt(&key, &wrong_nonce, &ct_a, None).is_err());
+
+        let mut tampered = ct_a.clone();
+        tampered[31] ^= 1;
+        assert!(aead.decrypt(&key, &nonce, &tampered, None).is_err());
 
         Ok(())
     }
@@ -422,11 +556,10 @@ mod tests {
     #[test]
     fn test_saturnin_short_invalid_key_size() {
         let aead = SaturninShortAead::new();
-        let key = AeadKey::new(vec![0u8; 16]); // Wrong size
+        let key = AeadKey::new(vec![0u8; 16]);
         let nonce = Nonce::new(vec![0u8; 16]);
-        let plaintext = b"test";
 
-        let result = aead.encrypt(&key, &nonce, plaintext, None);
+        let result = aead.encrypt(&key, &nonce, b"test", None);
         assert!(result.is_err());
     }
 
@@ -434,25 +567,62 @@ mod tests {
     fn test_saturnin_short_invalid_nonce_size() {
         let aead = SaturninShortAead::new();
         let key = AeadKey::new(vec![0u8; 32]);
-        let nonce = Nonce::new(vec![0u8; 8]); // Wrong size
-        let plaintext = b"test";
+        let nonce = Nonce::new(vec![0u8; 8]);
 
-        let result = aead.encrypt(&key, &nonce, plaintext, None);
+        let result = aead.encrypt(&key, &nonce, b"test", None);
         assert!(result.is_err());
     }
 
-    /// CTR must change the cipher input per block; this would fail if the keystream repeated.
     #[test]
-    fn test_saturnin_short_multiblock_ctr_round_trip() -> Result<()> {
+    fn test_saturnin_short_reference_kat_vectors() -> Result<()> {
         let aead = SaturninShortAead::new();
-        let key = AeadKey::new(vec![7u8; 32]);
-        let nonce = Nonce::new(vec![3u8; 16]);
-        let plaintext = vec![0xABu8; 100];
-        let ad: Option<&[u8]> = None;
+        let key = AeadKey::new(vec![
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+            0x1C, 0x1D, 0x1E, 0x1F,
+        ]);
+        let nonce = Nonce::new(vec![
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ]);
 
-        let ciphertext = aead.encrypt(&key, &nonce, &plaintext, ad)?;
-        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, ad)?;
-        assert_eq!(decrypted, plaintext);
+        let cases: &[(&[u8], &[u8])] = &[
+            (
+                b"",
+                &[
+                    0xEF, 0x14, 0x2F, 0xC8, 0x10, 0xCE, 0x92, 0x83, 0x97, 0x26, 0xD6, 0x00, 0xFC,
+                    0xCF, 0xD7, 0x11, 0x90, 0x50, 0xDA, 0x25, 0xA3, 0xEC, 0x55, 0x86, 0xC7, 0xC4,
+                    0x3C, 0xA6, 0x68, 0xE3, 0xC8, 0xC0,
+                ],
+            ),
+            (
+                &[0x00],
+                &[
+                    0x1E, 0xFF, 0x91, 0x3C, 0x60, 0x7D, 0xB0, 0x32, 0xC8, 0xF1, 0x72, 0x6D, 0x51,
+                    0x40, 0x1C, 0xA1, 0x3C, 0x54, 0x36, 0x5D, 0xBC, 0x40, 0x74, 0xEF, 0x81, 0x48,
+                    0xE0, 0xC2, 0x16, 0x0A, 0xD6, 0x56,
+                ],
+            ),
+            (
+                &[
+                    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C,
+                    0x0D, 0x0E,
+                ],
+                &[
+                    0xF8, 0xB7, 0xDB, 0xF8, 0x0E, 0x51, 0x9C, 0xF8, 0x0E, 0x03, 0xA2, 0x07, 0xA4,
+                    0x79, 0x8A, 0x5A, 0x01, 0x44, 0xF9, 0x39, 0x21, 0x69, 0xFA, 0xEB, 0xF7, 0x81,
+                    0xBF, 0x4D, 0xA9, 0xBD, 0xB0, 0xE4,
+                ],
+            ),
+        ];
+
+        for (plaintext, expected_ct) in cases {
+            let ciphertext = aead.encrypt(&key, &nonce, plaintext, None)?;
+            assert_eq!(ciphertext.as_slice(), *expected_ct);
+            let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
+            assert_eq!(decrypted.as_slice(), *plaintext);
+        }
+
         Ok(())
     }
 }

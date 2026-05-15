@@ -212,10 +212,10 @@ struct SenderWire {
 fn sender_to_wire(s: &HpkeSenderContext) -> SenderWire {
     SenderWire {
         encapsulated_key_hex: hex::encode(&s.encapsulated_key),
-        shared_secret_hex: hex::encode(&s.shared_secret),
-        exporter_secret_hex: hex::encode(&s.exporter_secret),
-        key_hex: hex::encode(&s.key),
-        nonce_hex: hex::encode(&s.nonce),
+        shared_secret_hex: hex::encode(s.shared_secret.as_slice()),
+        exporter_secret_hex: hex::encode(s.exporter_secret.as_slice()),
+        key_hex: hex::encode(s.key.as_slice()),
+        nonce_hex: hex::encode(s.nonce.as_slice()),
         aead: aead_to_str(s.aead),
         sequence_number: s.sequence_number,
         max_sequence_number: s.max_sequence_number,
@@ -224,13 +224,19 @@ fn sender_to_wire(s: &HpkeSenderContext) -> SenderWire {
 }
 
 fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue> {
-    let hex_bytes = |k: &str| -> Result<Vec<u8>, JsValue> {
+    let hex_secret = |k: &str| -> Result<Zeroizing<Vec<u8>>, JsValue> {
         let s = w
             .get(k)
             .and_then(|v| v.as_str())
             .ok_or_else(|| js_err(format!("sender wire missing string field {k}")))?;
-        let mut z = Zeroizing::new(hex::decode(s.trim()).map_err(js_err)?);
-        Ok(mem::take(&mut *z))
+        Ok(Zeroizing::new(hex::decode(s.trim()).map_err(js_err)?))
+    };
+    let hex_encap = |k: &str| -> Result<Vec<u8>, JsValue> {
+        let s = w
+            .get(k)
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| js_err(format!("sender wire missing string field {k}")))?;
+        hex::decode(s.trim()).map_err(js_err)
     };
     let aead_s = w
         .get("aead")
@@ -250,12 +256,12 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("sender wire missing state"))?;
     Ok(HpkeSenderContext {
-        shared_secret: hex_bytes("shared_secret_hex")?,
-        exporter_secret: hex_bytes("exporter_secret_hex")?,
-        key: hex_bytes("key_hex")?,
-        nonce: hex_bytes("nonce_hex")?,
+        shared_secret: hex_secret("shared_secret_hex")?,
+        exporter_secret: hex_secret("exporter_secret_hex")?,
+        key: hex_secret("key_hex")?,
+        nonce: hex_secret("nonce_hex")?,
         aead,
-        encapsulated_key: hex_bytes("encapsulated_key_hex")?,
+        encapsulated_key: hex_encap("encapsulated_key_hex")?,
         sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
         max_sequence_number: u32::try_from(max_seq)
             .map_err(|_| js_err("max_sequence_number overflow"))?,
@@ -321,10 +327,10 @@ struct ReceiverWire {
 
 fn receiver_to_wire(r: &HpkeReceiverContext) -> ReceiverWire {
     ReceiverWire {
-        shared_secret_hex: hex::encode(&r.shared_secret),
-        exporter_secret_hex: hex::encode(&r.exporter_secret),
-        key_hex: hex::encode(&r.key),
-        nonce_hex: hex::encode(&r.nonce),
+        shared_secret_hex: hex::encode(r.shared_secret.as_slice()),
+        exporter_secret_hex: hex::encode(r.exporter_secret.as_slice()),
+        key_hex: hex::encode(r.key.as_slice()),
+        nonce_hex: hex::encode(r.nonce.as_slice()),
         aead: aead_to_str(r.aead),
         sequence_number: r.sequence_number,
         max_sequence_number: r.max_sequence_number,
@@ -333,13 +339,12 @@ fn receiver_to_wire(r: &HpkeReceiverContext) -> ReceiverWire {
 }
 
 fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsValue> {
-    let hex_bytes = |k: &str| -> Result<Vec<u8>, JsValue> {
+    let hex_secret = |k: &str| -> Result<Zeroizing<Vec<u8>>, JsValue> {
         let s = w
             .get(k)
             .and_then(|v| v.as_str())
             .ok_or_else(|| js_err(format!("receiver wire missing string field {k}")))?;
-        let mut z = Zeroizing::new(hex::decode(s.trim()).map_err(js_err)?);
-        Ok(mem::take(&mut *z))
+        Ok(Zeroizing::new(hex::decode(s.trim()).map_err(js_err)?))
     };
     let aead_s = w
         .get("aead")
@@ -359,10 +364,10 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
         .and_then(|v| v.as_str())
         .ok_or_else(|| js_err("receiver wire missing state"))?;
     Ok(HpkeReceiverContext {
-        shared_secret: hex_bytes("shared_secret_hex")?,
-        exporter_secret: hex_bytes("exporter_secret_hex")?,
-        key: hex_bytes("key_hex")?,
-        nonce: hex_bytes("nonce_hex")?,
+        shared_secret: hex_secret("shared_secret_hex")?,
+        exporter_secret: hex_secret("exporter_secret_hex")?,
+        key: hex_secret("key_hex")?,
+        nonce: hex_secret("nonce_hex")?,
         aead,
         sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
         max_sequence_number: u32::try_from(max_seq)

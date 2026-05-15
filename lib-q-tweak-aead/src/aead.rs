@@ -12,7 +12,9 @@ use alloc::{
 #[cfg(feature = "alloc")]
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
+    DecryptSemanticOutcome,
     Error,
     Nonce,
     Result,
@@ -21,6 +23,7 @@ use zeroize::Zeroizing;
 
 use crate::crypto::{
     decrypt as tweak_decrypt,
+    decrypt_semantic_outcome,
     encrypt as tweak_encrypt,
 };
 use crate::params::{
@@ -123,9 +126,10 @@ impl Aead for TweakAead {
             });
         }
         if ciphertext.len() < TAG_BYTES {
-            return Err(Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            });
+            return Err(Error::aead_ciphertext_shorter_than_tag(
+                TAG_BYTES,
+                ciphertext.len(),
+            ));
         }
         let key_arr = {
             let mut k = Zeroizing::new([0u8; KEY_BYTES]);
@@ -147,5 +151,54 @@ impl Aead for TweakAead {
             }
         })?;
         Ok(pt)
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl AeadDecryptSemantic for TweakAead {
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        let kb = key.as_bytes();
+        if kb.len() != KEY_BYTES {
+            return Err(Error::InvalidKeySize {
+                expected: KEY_BYTES,
+                actual: kb.len(),
+            });
+        }
+        let nb = nonce.as_bytes();
+        if nb.len() != NONCE_BYTES {
+            return Err(Error::InvalidNonceSize {
+                expected: NONCE_BYTES,
+                actual: nb.len(),
+            });
+        }
+        if ciphertext.len() < TAG_BYTES {
+            return Err(Error::aead_ciphertext_shorter_than_tag(
+                TAG_BYTES,
+                ciphertext.len(),
+            ));
+        }
+        let key_arr = {
+            let mut k = Zeroizing::new([0u8; KEY_BYTES]);
+            k.copy_from_slice(kb);
+            k
+        };
+        let nonce_arr = {
+            let mut n = Zeroizing::new([0u8; NONCE_BYTES]);
+            n.copy_from_slice(nb);
+            n
+        };
+
+        let ad = associated_data.unwrap_or(&[]);
+        decrypt_semantic_outcome(&key_arr, &nonce_arr, ad, ciphertext).map_err(|_| {
+            Error::VerificationFailed {
+                operation: "AEAD tag verification".to_string(),
+            }
+        })
     }
 }

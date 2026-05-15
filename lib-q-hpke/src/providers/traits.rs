@@ -7,25 +7,38 @@ use crate::error::HpkeError;
 use crate::security::CryptoRng;
 use crate::types::*;
 
+/// Public KEM material (e.g. ciphertext or public key) paired with zeroized secret bytes
+/// (shared secret or secret key), as returned by [`KemProvider`].
+pub type KemPublicAndSecretBytes = (Vec<u8>, SecretBytes);
+
 /// Trait for Key Encapsulation Mechanism (KEM) providers
+///
+/// Shared secrets and secret keys are returned in [`Zeroizing`] buffers so callers
+/// clear them on drop. Implementations should move underlying `Vec` material into
+/// [`SecretBytes`] (for example via [`zeroize::Zeroizing::new`]) at the boundary (as
+/// [`PostQuantumProvider`](crate::providers::post_quantum::PostQuantumProvider) does).
 pub trait KemProvider {
     /// Error type for KEM operations
     type Error: Into<HpkeError>;
 
-    /// Generate a key pair for the given KEM algorithm
+    /// Generate a key pair for the given KEM algorithm.
+    ///
+    /// Returns `(public_key, secret_key)` with the secret key in [`SecretBytes`].
     fn generate_keypair(
         &self,
         kem: HpkeKem,
         rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
+    ) -> Result<KemPublicAndSecretBytes, Self::Error>;
 
-    /// Encapsulate a shared secret using the public key
+    /// Encapsulate a shared secret using the public key.
+    ///
+    /// Returns `(ciphertext, shared_secret)`; shared secret material is zeroized on drop.
     fn encapsulate(
         &self,
         kem: HpkeKem,
         public_key: &[u8],
         rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
+    ) -> Result<KemPublicAndSecretBytes, Self::Error>;
 
     /// Decapsulate a shared secret using the secret key
     fn decapsulate(
@@ -33,7 +46,7 @@ pub trait KemProvider {
         kem: HpkeKem,
         secret_key: &[u8],
         ciphertext: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
+    ) -> Result<SecretBytes, Self::Error>;
 
     /// Validate a KEM key
     fn validate_key(&self, kem: HpkeKem, key: &[u8], is_secret: bool) -> Result<(), Self::Error>;
@@ -45,14 +58,15 @@ pub trait KemProvider {
     fn supports_kem(&self, kem: HpkeKem) -> bool;
 
     /// Authenticated encapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3)
-    /// Returns (encapsulated_key, shared_secret)
+    ///
+    /// Returns `(encapsulated_key, shared_secret)` with shared secret in [`SecretBytes`].
     fn auth_encapsulate(
         &self,
         kem: HpkeKem,
         sender_sk: &[u8],
         recipient_pk: &[u8],
         rng: &mut dyn CryptoRng,
-    ) -> Result<(Vec<u8>, Vec<u8>), Self::Error>;
+    ) -> Result<KemPublicAndSecretBytes, Self::Error>;
 
     /// Authenticated decapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3)
     fn auth_decapsulate(
@@ -61,7 +75,7 @@ pub trait KemProvider {
         encapsulated_key: &[u8],
         recipient_sk: &[u8],
         sender_pk: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
+    ) -> Result<SecretBytes, Self::Error>;
 }
 
 /// Trait for Key Derivation Function (KDF) providers
@@ -86,6 +100,11 @@ pub trait KdfProvider {
 }
 
 /// Trait for Authenticated Encryption with Associated Data (AEAD) providers
+///
+/// `open` / `seal` remain **Layer A** [`Result`] APIs. Semantic decrypt
+/// ([`lib_q_core::AeadDecryptSemantic`]) is not part of this trait; callers that need
+/// [`lib_q_core::DecryptSemanticOutcome`] must use a concrete AEAD implementation type
+/// (for example [`crate::aead::saturnin::SaturninAeadImpl`] when the `saturnin` feature is enabled).
 pub trait AeadProvider {
     /// Error type for AEAD operations
     type Error: Into<HpkeError>;

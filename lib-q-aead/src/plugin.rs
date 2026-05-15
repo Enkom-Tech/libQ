@@ -379,6 +379,8 @@ mod tests {
         }
     }
 
+    /// Minimal AEAD stub for plugin/registry unit tests (**Layer A only**).
+    /// Does not implement [`lib_q_core::AeadDecryptSemantic`]; use real algorithm types for Layer B tests.
     struct MockAead;
 
     impl Aead for MockAead {
@@ -406,6 +408,10 @@ mod tests {
     impl AeadWithMetadata for MockAead {
         fn metadata(&self) -> &'static AeadMetadata {
             crate::metadata::get_metadata(Algorithm::Saturnin).expect("Metadata not found")
+        }
+
+        fn supports_semantic_decrypt(&self) -> bool {
+            false
         }
     }
 
@@ -461,6 +467,19 @@ mod tests {
 
         let aead = registry.create_aead(Algorithm::Saturnin);
         assert!(aead.is_ok());
+    }
+
+    #[test]
+    fn test_mock_aead_disclaims_semantic_decrypt_capability() {
+        let mut registry = PluginRegistry::new();
+        registry
+            .register_plugin(Box::new(MockPlugin::new(Algorithm::Saturnin)))
+            .unwrap();
+        let aead = registry.create_aead(Algorithm::Saturnin).unwrap();
+        assert!(
+            !aead.supports_semantic_decrypt(),
+            "Layer A test stub must not claim Layer B via metadata defaults"
+        );
     }
 
     #[test]

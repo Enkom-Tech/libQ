@@ -27,7 +27,7 @@ aead = ["dep:zeroize"]
 aead-short = ["dep:zeroize"]
 block-cipher = []
 hash = []
-stream = []
+stream = ["dep:zeroize"]
 
 # Performance optimizations
 simd = ["simd-avx2", "simd-neon"]

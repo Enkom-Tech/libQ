@@ -18,12 +18,8 @@
 //! let aead = SaturninAead::new();
 //!
 //! // Generate key and nonce (in practice, use secure random generation)
-//! let key = AeadKey {
-//!     data: vec![0u8; 32],
-//! };
-//! let nonce = Nonce {
-//!     data: vec![0u8; 16],
-//! };
+//! let key = AeadKey::new(vec![0u8; 32]);
+//! let nonce = Nonce::new(vec![0u8; 16]);
 //!
 //! let plaintext = b"Secret message";
 //! let associated_data = b"metadata";
@@ -48,6 +44,20 @@
 //! - **Throughput**: ~100-500 MB/s on modern hardware
 //! - **Memory usage**: Small fixed state (pre-built cipher cores for domains 1–5); per-message
 //!   key/nonce are staged in zeroizing buffers at the `Aead` boundary.
+//!
+//! ## Verification timing
+//!
+//! Decrypt computes the expected tag over AAD and ciphertext (cascade), compares it to the
+//! appended tag with [`lib_q_core::Utils::constant_time_compare`](lib_q_core::Utils::constant_time_compare),
+//! then **always** runs full CTR on the ciphertext body. Only after that does the API return
+//! `Ok(plaintext)` versus `Err(Error::VerificationFailed)` (Layer A) for a failed tag after that
+//! schedule, or `Ok(DecryptSemanticOutcome::AuthenticationFailed)` (Layer B). Ciphertext shorter
+//! than the tag is rejected up front as `Err(Error::InvalidCiphertextSize)` (operational). Failed
+//! plaintext buffers are zeroized. This matches the [`Aead`](lib_q_core::Aead) contract in
+//! `lib-q-core`: bulk symmetric work is not skipped on auth failure; the public `Result` / outcome
+//! still discriminates at the boundary. For semantic decrypt without plaintext on authentication
+//! failure, see [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic). See this crate’s
+//! `SECURITY.md` for Saturnin-Short specifics.
 
 #[cfg(feature = "alloc")]
 use alloc::{
@@ -57,7 +67,9 @@ use alloc::{
 
 use lib_q_core::{
     Aead,
+    AeadDecryptSemantic,
     AeadKey,
+    DecryptSemanticOutcome,
     Error,
     Nonce,
     Result,
@@ -312,6 +324,75 @@ impl SaturninAead {
 
         Ok(())
     }
+
+    /// Shared decrypt core for Layer A ([`Aead::decrypt`](lib_q_core::Aead::decrypt)) and Layer B
+    /// ([`AeadDecryptSemantic::decrypt_semantic`](lib_q_core::AeadDecryptSemantic::decrypt_semantic)).
+    fn decrypt_core(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        if key.as_bytes().len() != Self::key_size() {
+            return Err(Error::InvalidKeySize {
+                expected: Self::key_size(),
+                actual: key.as_bytes().len(),
+            });
+        }
+
+        if nonce.as_bytes().len() != Self::nonce_size() {
+            return Err(Error::InvalidNonceSize {
+                expected: Self::nonce_size(),
+                actual: nonce.as_bytes().len(),
+            });
+        }
+
+        if (ciphertext.len() >> 5) >= 0xFFFFFFFE {
+            return Err(Error::InvalidMessageSize {
+                max: 0xFFFFFFFE << 5,
+                actual: ciphertext.len(),
+            });
+        }
+
+        if ciphertext.len() < Self::tag_size() {
+            return Err(Error::aead_ciphertext_shorter_than_tag(
+                Self::tag_size(),
+                ciphertext.len(),
+            ));
+        }
+
+        let ad = associated_data.unwrap_or(&[]);
+        let plaintext_len = ciphertext.len() - 32;
+        let ciphertext_data = &ciphertext[0..plaintext_len];
+        let received_tag = &ciphertext[plaintext_len..];
+
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce_staged = Zeroizing::new([0u8; 16]);
+        nonce_staged.copy_from_slice(nonce.as_bytes());
+        let kb = key_staged.as_slice();
+        let nb = nonce_staged.as_slice();
+
+        let mut tag = self.cascade_init(kb, nb)?;
+        self.cascade(&mut tag, 2, 3, ad)?;
+        self.cascade(&mut tag, 4, 5, ciphertext_data)?;
+
+        let tag_valid = lib_q_core::Utils::constant_time_compare(&tag, received_tag);
+
+        let mut plaintext = ciphertext_data.to_vec();
+        if let Err(e) = self.ctr_encrypt(kb, nb, &mut plaintext) {
+            plaintext.zeroize();
+            return Err(e);
+        }
+
+        if tag_valid {
+            Ok(DecryptSemanticOutcome::Success(Zeroizing::new(plaintext)))
+        } else {
+            plaintext.zeroize();
+            Ok(DecryptSemanticOutcome::AuthenticationFailed)
+        }
+    }
 }
 
 impl Aead for SaturninAead {
@@ -371,7 +452,10 @@ impl Aead for SaturninAead {
 
         // Encrypt plaintext with CTR
         let mut ciphertext = plaintext.to_vec();
-        self.ctr_encrypt(kb, nb, &mut ciphertext)?;
+        if let Err(e) = self.ctr_encrypt(kb, nb, &mut ciphertext) {
+            ciphertext.zeroize();
+            return Err(e);
+        }
 
         // Continue cascade on ciphertext
         self.cascade(&mut tag, 4, 5, &ciphertext)?;
@@ -382,16 +466,7 @@ impl Aead for SaturninAead {
         Ok(ciphertext)
     }
 
-    /// Decrypt and verify data
-    ///
-    /// # Arguments
-    /// * `key` - 256-bit decryption key
-    /// * `nonce` - 128-bit nonce
-    /// * `ciphertext` - Encrypted data with authentication tag
-    /// * `associated_data` - Additional authenticated data
-    ///
-    /// # Returns
-    /// Decrypted plaintext if authentication succeeds
+    /// Decrypt and verify data (Layer A); shares one decrypt core with [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic).
     fn decrypt(
         &self,
         key: &AeadKey,
@@ -399,70 +474,26 @@ impl Aead for SaturninAead {
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.as_bytes().len() != Self::key_size() {
-            return Err(Error::InvalidKeySize {
-                expected: Self::key_size(),
-                actual: key.as_bytes().len(),
-            });
-        }
-
-        if nonce.as_bytes().len() != Self::nonce_size() {
-            return Err(Error::InvalidNonceSize {
-                expected: Self::nonce_size(),
-                actual: nonce.as_bytes().len(),
-            });
-        }
-
-        // Check length limits
-        if (ciphertext.len() >> 5) >= 0xFFFFFFFE {
-            return Err(Error::InvalidMessageSize {
-                max: 0xFFFFFFFE << 5,
-                actual: ciphertext.len(),
-            });
-        }
-
-        // Check that there's enough room for the tag
-        if ciphertext.len() < 32 {
-            return Err(Error::VerificationFailed {
+        match self.decrypt_core(key, nonce, ciphertext, associated_data) {
+            Ok(DecryptSemanticOutcome::Success(p)) => Ok(Vec::clone(&*p)),
+            Ok(DecryptSemanticOutcome::AuthenticationFailed) => Err(Error::VerificationFailed {
                 operation: "AEAD tag verification".to_string(),
-            });
+            }),
+            Err(e) => Err(e),
         }
+    }
+}
 
-        let ad = associated_data.unwrap_or(&[]);
-        let plaintext_len = ciphertext.len() - 32;
-        let ciphertext_data = &ciphertext[0..plaintext_len];
-        let received_tag = &ciphertext[plaintext_len..];
-
-        let mut key_staged = Zeroizing::new([0u8; 32]);
-        key_staged.copy_from_slice(key.as_bytes());
-        let mut nonce_staged = Zeroizing::new([0u8; 16]);
-        nonce_staged.copy_from_slice(nonce.as_bytes());
-        let kb = key_staged.as_slice();
-        let nb = nonce_staged.as_slice();
-
-        // Initialize cascade state
-        let mut tag = self.cascade_init(kb, nb)?;
-
-        // Process associated data
-        self.cascade(&mut tag, 2, 3, ad)?;
-
-        // Continue cascade on ciphertext
-        self.cascade(&mut tag, 4, 5, ciphertext_data)?;
-
-        let tag_valid = lib_q_core::Utils::constant_time_compare(&tag, received_tag);
-
-        // Always perform CTR decrypt so execution time is independent of tag validity.
-        let mut plaintext = ciphertext_data.to_vec();
-        self.ctr_encrypt(kb, nb, &mut plaintext)?;
-
-        if tag_valid {
-            Ok(plaintext)
-        } else {
-            plaintext.zeroize();
-            Err(Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            })
-        }
+impl AeadDecryptSemantic for SaturninAead {
+    /// Layer B semantic decrypt; see `docs/adr/003-aead-decrypt-layers.md`.
+    fn decrypt_semantic(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        self.decrypt_core(key, nonce, ciphertext, associated_data)
     }
 }
 
@@ -509,6 +540,32 @@ mod tests {
         let decrypted = aead.decrypt(&key, &nonce, &ciphertext, ad)?;
         assert_eq!(decrypted, plaintext);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_decrypt_semantic_bad_tag() -> Result<()> {
+        use lib_q_core::AeadDecryptSemantic;
+
+        let aead = SaturninAead::new();
+        let key = AeadKey::new(vec![7u8; 32]);
+        let nonce = Nonce::new(vec![8u8; 16]);
+        let ad: Option<&[u8]> = Some(b"ad");
+        let ct = aead.encrypt(&key, &nonce, b"m", ad)?;
+        let mut bad = ct.clone();
+        *bad.last_mut().expect("tag") ^= 0x40;
+        let out = aead.decrypt_semantic(&key, &nonce, &bad, ad)?;
+        assert_eq!(out, DecryptSemanticOutcome::AuthenticationFailed);
+        assert!(matches!(
+            aead.decrypt(&key, &nonce, &bad, ad),
+            Err(Error::VerificationFailed { .. })
+        ));
+        match aead.decrypt_semantic(&key, &nonce, &ct, ad)? {
+            DecryptSemanticOutcome::Success(pt) => assert_eq!(pt.as_slice(), b"m"),
+            DecryptSemanticOutcome::AuthenticationFailed => {
+                panic!("unexpected auth failure on good ciphertext")
+            }
+        }
         Ok(())
     }
 }

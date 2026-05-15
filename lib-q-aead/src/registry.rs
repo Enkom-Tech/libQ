@@ -308,7 +308,7 @@ mod tests {
 
     use super::*;
 
-    // Mock AEAD implementation for testing
+    // Test-only stub: Layer A + metadata only (no `AeadDecryptSemantic`); mirrors `plugin` tests.
     struct MockAead {
         algorithm: Algorithm,
     }
@@ -338,6 +338,10 @@ mod tests {
     impl AeadWithMetadata for MockAead {
         fn metadata(&self) -> &'static AeadMetadata {
             crate::metadata::get_metadata(self.algorithm).expect("Metadata not found")
+        }
+
+        fn supports_semantic_decrypt(&self) -> bool {
+            false
         }
     }
 

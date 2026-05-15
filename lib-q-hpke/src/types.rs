@@ -2,6 +2,12 @@
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+use core::fmt;
+
+use zeroize::Zeroizing;
+
+/// Sensitive byte buffer that is cleared on drop (KEM IKM, AEAD keys, exporter secret, etc.).
+pub type SecretBytes = Zeroizing<Vec<u8>>;
 
 /// HPKE modes as defined in RFC 9180 Section 5.1
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,6 +39,29 @@ impl HpkeMode {
     pub fn as_u8(self) -> u8 {
         self as u8
     }
+}
+
+/// How the PSK-related HPKE modes encode the encapsulated key on the wire.
+///
+/// This applies only to [`HpkeMode::Psk`] and [`HpkeMode::AuthPsk`]. Base and Auth modes always
+/// use RFC 9180 layout regardless of this setting.
+///
+/// # Security
+///
+/// The default is [`Self::LibQCommitmentSuffix`], which appends a KDF commitment so the receiver
+/// can reject a wrong `(psk, psk_id)` before decapsulation and key schedule.
+///
+/// [`Self::Rfc9180`] matches strict RFC 9180 (KEM ciphertext only, plus auth blob in AuthPSK) for
+/// interoperability with implementations that do not use the libQ suffix. PSK agreement is then
+/// implicit only (typically AEAD open or export mismatch on wrong PSK).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HpkePskWireFormat {
+    /// libQ: append `labeled_extract(..., "psk_commitment", psk ‖ psk_id)` after the KEM output
+    /// (and after the auth encapsulation in AuthPSK).
+    #[default]
+    LibQCommitmentSuffix,
+    /// RFC 9180: no PSK commitment suffix on the encapsulated key.
+    Rfc9180,
 }
 
 /// Post-quantum key encapsulation mechanisms
@@ -182,10 +211,13 @@ impl HpkeAead {
         }
     }
 
-    /// Authentication tag length in bytes
+    /// Authentication tag length in bytes.
+    ///
+    /// For [`HpkeAead::Saturnin256`], this is **32** bytes, matching `lib-q-saturnin`
+    /// `SaturninAead::tag_size` (full CTR-cascade AEAD).
     pub fn tag_len(self) -> usize {
         match self {
-            Self::Saturnin256 => 16,
+            Self::Saturnin256 => 32,
             Self::Shake256 => 16,
             Self::DuplexSpongeAead => 32,
             Self::Export => 0,
@@ -325,12 +357,196 @@ pub enum HpkeContextState {
     Closed,
 }
 
+/// HPKE sender context (no_std version)
+///
+/// This is the core context structure that can be used in no_std environments.
+/// The std version in lib.rs wraps this structure with additional functionality.
+pub struct HpkeSenderContext {
+    /// Shared secret from KEM
+    pub shared_secret: SecretBytes,
+    /// Exporter secret
+    pub exporter_secret: SecretBytes,
+    /// AEAD encryption key
+    pub key: SecretBytes,
+    /// Base nonce
+    pub nonce: SecretBytes,
+    /// AEAD algorithm from the negotiated cipher suite
+    pub aead: HpkeAead,
+    /// Encapsulated key to be sent to receiver
+    pub encapsulated_key: Vec<u8>,
+    /// Sequence number
+    pub sequence_number: u32,
+    /// Maximum sequence number before context must be rekeyed
+    pub max_sequence_number: u32,
+    /// Context state
+    pub state: HpkeContextState,
+}
+
+impl fmt::Debug for HpkeSenderContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HpkeSenderContext")
+            .field("shared_secret", &"<redacted>")
+            .field("exporter_secret", &"<redacted>")
+            .field("key", &"<redacted>")
+            .field("nonce", &"<redacted>")
+            .field("aead", &self.aead)
+            .field("encapsulated_key_len", &self.encapsulated_key.len())
+            .field("sequence_number", &self.sequence_number)
+            .field("max_sequence_number", &self.max_sequence_number)
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
+impl HpkeSenderContext {
+    /// Create a new sender context
+    pub fn new(
+        shared_secret: SecretBytes,
+        exporter_secret: SecretBytes,
+        key: SecretBytes,
+        nonce: SecretBytes,
+        encapsulated_key: Vec<u8>,
+        aead: HpkeAead,
+    ) -> Self {
+        Self {
+            shared_secret,
+            exporter_secret,
+            key,
+            nonce,
+            aead,
+            encapsulated_key,
+            sequence_number: 0,
+            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
+            state: HpkeContextState::Active,
+        }
+    }
+
+    /// Check if the context can be used for encryption
+    pub fn can_encrypt(&self) -> bool {
+        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+    }
+
+    /// Increment sequence number with overflow protection
+    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
+        if self.sequence_number >= self.max_sequence_number {
+            self.state = HpkeContextState::NeedsRekey;
+            return Err(crate::error::HpkeError::CryptoError(
+                "Sequence number overflow: context needs rekeying".into(),
+            ));
+        }
+        self.sequence_number = self.sequence_number.wrapping_add(1);
+        Ok(())
+    }
+
+    /// Close the context
+    pub fn close(&mut self) {
+        self.state = HpkeContextState::Closed;
+    }
+
+    /// Get the encapsulated key to send to the receiver
+    pub fn encapsulated_key(&self) -> &[u8] {
+        &self.encapsulated_key
+    }
+}
+
+/// HPKE receiver context (no_std version)
+///
+/// This is the core context structure that can be used in no_std environments.
+/// The std version in lib.rs wraps this structure with additional functionality.
+pub struct HpkeReceiverContext {
+    /// Shared secret from KEM
+    pub shared_secret: SecretBytes,
+    /// Exporter secret
+    pub exporter_secret: SecretBytes,
+    /// AEAD decryption key
+    pub key: SecretBytes,
+    /// Base nonce
+    pub nonce: SecretBytes,
+    /// AEAD algorithm from the negotiated cipher suite
+    pub aead: HpkeAead,
+    /// Sequence number
+    pub sequence_number: u32,
+    /// Maximum sequence number before context must be rekeyed
+    pub max_sequence_number: u32,
+    /// Context state
+    pub state: HpkeContextState,
+}
+
+impl fmt::Debug for HpkeReceiverContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HpkeReceiverContext")
+            .field("shared_secret", &"<redacted>")
+            .field("exporter_secret", &"<redacted>")
+            .field("key", &"<redacted>")
+            .field("nonce", &"<redacted>")
+            .field("aead", &self.aead)
+            .field("sequence_number", &self.sequence_number)
+            .field("max_sequence_number", &self.max_sequence_number)
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
+impl HpkeReceiverContext {
+    /// Create a new receiver context
+    pub fn new(
+        shared_secret: SecretBytes,
+        exporter_secret: SecretBytes,
+        key: SecretBytes,
+        nonce: SecretBytes,
+        aead: HpkeAead,
+    ) -> Self {
+        Self {
+            shared_secret,
+            exporter_secret,
+            key,
+            nonce,
+            aead,
+            sequence_number: 0,
+            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
+            state: HpkeContextState::Active,
+        }
+    }
+
+    /// Check if the context can be used for decryption
+    pub fn can_decrypt(&self) -> bool {
+        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
+    }
+
+    /// Increment sequence number with overflow protection
+    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
+        if self.sequence_number >= self.max_sequence_number {
+            self.state = HpkeContextState::NeedsRekey;
+            return Err(crate::error::HpkeError::CryptoError(
+                "Sequence number overflow: context needs rekeying".into(),
+            ));
+        }
+        self.sequence_number = self.sequence_number.wrapping_add(1);
+        Ok(())
+    }
+
+    /// Close the context
+    pub fn close(&mut self) {
+        self.state = HpkeContextState::Closed;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::vec;
 
+    use zeroize::Zeroizing;
+
     use super::*;
     use crate::error::HpkeError;
+
+    #[test]
+    fn hpke_psk_wire_format_default_is_libq_suffix() {
+        assert_eq!(
+            HpkePskWireFormat::default(),
+            HpkePskWireFormat::LibQCommitmentSuffix
+        );
+    }
 
     #[test]
     fn hpke_mode_roundtrip_and_invalid() {
@@ -404,7 +620,7 @@ mod tests {
         assert_eq!(HpkeAead::DuplexSpongeAead.nonce_len(), 16);
         assert_eq!(HpkeAead::Export.nonce_len(), 0);
 
-        assert_eq!(HpkeAead::Saturnin256.tag_len(), 16);
+        assert_eq!(HpkeAead::Saturnin256.tag_len(), 32);
         assert_eq!(HpkeAead::Shake256.tag_len(), 16);
         assert_eq!(HpkeAead::DuplexSpongeAead.tag_len(), 32);
         assert_eq!(HpkeAead::Export.tag_len(), 0);
@@ -440,10 +656,10 @@ mod tests {
     #[test]
     fn sender_context_state_transitions() {
         let mut sender = HpkeSenderContext::new(
-            vec![1; 32],
-            vec![2; 32],
-            vec![3; 32],
-            vec![4; 16],
+            Zeroizing::new(vec![1; 32]),
+            Zeroizing::new(vec![2; 32]),
+            Zeroizing::new(vec![3; 32]),
+            Zeroizing::new(vec![4; 16]),
             vec![5; 768],
             HpkeAead::Saturnin256,
         );
@@ -467,10 +683,10 @@ mod tests {
     #[test]
     fn receiver_context_state_transitions() {
         let mut receiver = HpkeReceiverContext::new(
-            vec![1; 32],
-            vec![2; 32],
-            vec![3; 32],
-            vec![4; 16],
+            Zeroizing::new(vec![1; 32]),
+            Zeroizing::new(vec![2; 32]),
+            Zeroizing::new(vec![3; 32]),
+            Zeroizing::new(vec![4; 16]),
             HpkeAead::Shake256,
         );
 
@@ -487,150 +703,5 @@ mod tests {
         receiver.close();
         assert_eq!(receiver.state, HpkeContextState::Closed);
         assert!(!receiver.can_decrypt());
-    }
-}
-
-/// HPKE sender context (no_std version)
-///
-/// This is the core context structure that can be used in no_std environments.
-/// The std version in lib.rs wraps this structure with additional functionality.
-#[derive(Debug)]
-pub struct HpkeSenderContext {
-    /// Shared secret from KEM
-    pub shared_secret: Vec<u8>,
-    /// Exporter secret
-    pub exporter_secret: Vec<u8>,
-    /// AEAD encryption key
-    pub key: Vec<u8>,
-    /// Base nonce
-    pub nonce: Vec<u8>,
-    /// AEAD algorithm from the negotiated cipher suite
-    pub aead: HpkeAead,
-    /// Encapsulated key to be sent to receiver
-    pub encapsulated_key: Vec<u8>,
-    /// Sequence number
-    pub sequence_number: u32,
-    /// Maximum sequence number before context must be rekeyed
-    pub max_sequence_number: u32,
-    /// Context state
-    pub state: HpkeContextState,
-}
-
-impl HpkeSenderContext {
-    /// Create a new sender context
-    pub fn new(
-        shared_secret: Vec<u8>,
-        exporter_secret: Vec<u8>,
-        key: Vec<u8>,
-        nonce: Vec<u8>,
-        encapsulated_key: Vec<u8>,
-        aead: HpkeAead,
-    ) -> Self {
-        Self {
-            shared_secret,
-            exporter_secret,
-            key,
-            nonce,
-            aead,
-            encapsulated_key,
-            sequence_number: 0,
-            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
-            state: HpkeContextState::Active,
-        }
-    }
-
-    /// Check if the context can be used for encryption
-    pub fn can_encrypt(&self) -> bool {
-        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
-    }
-
-    /// Increment sequence number with overflow protection
-    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
-        if self.sequence_number >= self.max_sequence_number {
-            self.state = HpkeContextState::NeedsRekey;
-            return Err(crate::error::HpkeError::CryptoError(
-                "Sequence number overflow: context needs rekeying".into(),
-            ));
-        }
-        self.sequence_number = self.sequence_number.wrapping_add(1);
-        Ok(())
-    }
-
-    /// Close the context
-    pub fn close(&mut self) {
-        self.state = HpkeContextState::Closed;
-    }
-
-    /// Get the encapsulated key to send to the receiver
-    pub fn encapsulated_key(&self) -> &[u8] {
-        &self.encapsulated_key
-    }
-}
-
-/// HPKE receiver context (no_std version)
-///
-/// This is the core context structure that can be used in no_std environments.
-/// The std version in lib.rs wraps this structure with additional functionality.
-#[derive(Debug)]
-pub struct HpkeReceiverContext {
-    /// Shared secret from KEM
-    pub shared_secret: Vec<u8>,
-    /// Exporter secret
-    pub exporter_secret: Vec<u8>,
-    /// AEAD decryption key
-    pub key: Vec<u8>,
-    /// Base nonce
-    pub nonce: Vec<u8>,
-    /// AEAD algorithm from the negotiated cipher suite
-    pub aead: HpkeAead,
-    /// Sequence number
-    pub sequence_number: u32,
-    /// Maximum sequence number before context must be rekeyed
-    pub max_sequence_number: u32,
-    /// Context state
-    pub state: HpkeContextState,
-}
-
-impl HpkeReceiverContext {
-    /// Create a new receiver context
-    pub fn new(
-        shared_secret: Vec<u8>,
-        exporter_secret: Vec<u8>,
-        key: Vec<u8>,
-        nonce: Vec<u8>,
-        aead: HpkeAead,
-    ) -> Self {
-        Self {
-            shared_secret,
-            exporter_secret,
-            key,
-            nonce,
-            aead,
-            sequence_number: 0,
-            max_sequence_number: u32::MAX - 1, // Leave room for overflow check
-            state: HpkeContextState::Active,
-        }
-    }
-
-    /// Check if the context can be used for decryption
-    pub fn can_decrypt(&self) -> bool {
-        self.state == HpkeContextState::Active && self.sequence_number < self.max_sequence_number
-    }
-
-    /// Increment sequence number with overflow protection
-    pub fn increment_sequence(&mut self) -> Result<(), crate::error::HpkeError> {
-        if self.sequence_number >= self.max_sequence_number {
-            self.state = HpkeContextState::NeedsRekey;
-            return Err(crate::error::HpkeError::CryptoError(
-                "Sequence number overflow: context needs rekeying".into(),
-            ));
-        }
-        self.sequence_number = self.sequence_number.wrapping_add(1);
-        Ok(())
-    }
-
-    /// Close the context
-    pub fn close(&mut self) {
-        self.state = HpkeContextState::Closed;
     }
 }

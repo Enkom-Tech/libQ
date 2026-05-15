@@ -34,8 +34,8 @@ fn create_saturnin_short_roundtrip() -> lib_q_core::Result<()> {
     let aead = create_saturnin("aead-short").expect("aead-short mode");
     let key = AeadKey::new(vec![0u8; 32]);
     let nonce = Nonce::new(vec![0u8; 16]);
-    let ct = Aead::encrypt(&*aead, &key, &nonce, b"q", Some(b"ad"))?;
-    let pt = Aead::decrypt(&*aead, &key, &nonce, &ct, Some(b"ad"))?;
+    let ct = Aead::encrypt(&*aead, &key, &nonce, b"q", None)?;
+    let pt = Aead::decrypt(&*aead, &key, &nonce, &ct, None)?;
     assert_eq!(pt, b"q");
     Ok(())
 }

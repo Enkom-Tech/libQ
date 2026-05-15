@@ -199,7 +199,7 @@ fn test_authpsk_mode_psk_authentication() {
         .seal(b"aad", message)
         .expect("Encryption should succeed");
 
-    // Try to setup receiver with wrong PSK - setup should succeed but decryption should fail
+    // Try to setup receiver with wrong PSK - commitment mismatch fails at setup
     let wrong_receiver_ctx_result = hpke_ctx.setup_receiver_auth_psk(
         sender_ctx.encapsulated_key(),
         &recipient_sk,
@@ -210,16 +210,8 @@ fn test_authpsk_mode_psk_authentication() {
     );
 
     assert!(
-        wrong_receiver_ctx_result.is_ok(),
-        "Setup should succeed even with wrong PSK (RFC 9180 compliant)"
-    );
-    let mut wrong_receiver_ctx = wrong_receiver_ctx_result.unwrap();
-
-    // Decryption with wrong PSK should fail
-    let wrong_decrypt_result = wrong_receiver_ctx.open(b"aad", &ciphertext);
-    assert!(
-        wrong_decrypt_result.is_err(),
-        "Decryption should fail with wrong PSK"
+        wrong_receiver_ctx_result.is_err(),
+        "Setup should reject wrong PSK via commitment verification"
     );
 
     // Setup receiver with correct PSK - should succeed
@@ -367,7 +359,7 @@ fn test_authpsk_mode_different_psk_ids() {
         .seal(b"aad", message)
         .expect("Encryption should succeed");
 
-    // Try to setup receiver with different PSK ID - setup should succeed but decryption should fail
+    // Try to setup receiver with different PSK ID - commitment mismatch fails at setup
     let wrong_receiver_ctx_result = hpke_ctx.setup_receiver_auth_psk(
         sender_ctx.encapsulated_key(),
         &recipient_sk,
@@ -378,16 +370,8 @@ fn test_authpsk_mode_different_psk_ids() {
     );
 
     assert!(
-        wrong_receiver_ctx_result.is_ok(),
-        "Setup should succeed even with different PSK ID (RFC 9180 compliant)"
-    );
-    let mut wrong_receiver_ctx = wrong_receiver_ctx_result.unwrap();
-
-    // Decryption with different PSK ID should fail
-    let wrong_decrypt_result = wrong_receiver_ctx.open(b"aad", &ciphertext);
-    assert!(
-        wrong_decrypt_result.is_err(),
-        "Decryption should fail with different PSK ID"
+        wrong_receiver_ctx_result.is_err(),
+        "Setup should reject mismatched PSK ID via commitment verification"
     );
 
     // Setup receiver with correct PSK ID - should succeed

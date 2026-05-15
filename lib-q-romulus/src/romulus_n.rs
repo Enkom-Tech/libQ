@@ -166,6 +166,9 @@ pub(crate) fn romulus_n_encrypt(
 }
 
 /// Decrypt ciphertext in `buffer` to plaintext in place; verify `tag`.
+///
+/// On failure, `buffer` is zeroized. For Layer B semantic outcomes without double decryption,
+/// use [`romulus_n_decrypt_core`] and map the `bool` yourself.
 pub(crate) fn romulus_n_decrypt(
     key: &[u8; 16],
     nonce: &[u8; 16],
@@ -173,6 +176,23 @@ pub(crate) fn romulus_n_decrypt(
     ct: &mut [u8],
     tag: &[u8; 16],
 ) -> Result<(), Error> {
+    let ok = romulus_n_decrypt_core(key, nonce, ad, ct, tag);
+    if ok {
+        Ok(())
+    } else {
+        ct.zeroize();
+        Err(Error)
+    }
+}
+
+/// In-place Romulus-N decrypt; returns whether `tag` matches after the decrypt schedule.
+pub(crate) fn romulus_n_decrypt_core(
+    key: &[u8; 16],
+    nonce: &[u8; 16],
+    ad: &[u8],
+    ct: &mut [u8],
+    tag: &[u8; 16],
+) -> bool {
     let mut s = [0u8; 16];
     let mut cnt = [0u8; 7];
     reset_lfsr_gf56(&mut cnt);
@@ -242,10 +262,5 @@ pub(crate) fn romulus_n_decrypt(
 
     let mut calc = [0u8; 16];
     g8a(&s, &mut calc);
-    let ok = bool::from(calc.ct_eq(tag));
-    if !ok {
-        ct.zeroize();
-        return Err(Error);
-    }
-    Ok(())
+    bool::from(calc.ct_eq(tag))
 }

@@ -26,6 +26,8 @@ pub mod wasm_common;
 
 // New modular architecture
 #[cfg(feature = "alloc")]
+pub mod aead_semantic;
+#[cfg(feature = "alloc")]
 pub mod contexts;
 #[cfg(feature = "alloc")]
 pub mod providers;
@@ -37,6 +39,11 @@ pub mod security;
 pub mod wasm;
 
 // Re-exports
+#[cfg(feature = "alloc")]
+pub use aead_semantic::{
+    AeadDecryptSemantic,
+    DecryptSemanticOutcome,
+};
 pub use algorithm_registry::*;
 pub use api::*;
 #[cfg(feature = "alloc")]

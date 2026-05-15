@@ -67,7 +67,7 @@ fn test_aead_accepts_valid_tag() -> Result<()> {
     Ok(())
 }
 
-/// Test that SaturninShortAead decrypt rejects invalid tag.
+/// Test that SaturninShortAead decrypt rejects a tampered ciphertext (32-byte block; no separate tag).
 #[cfg(all(feature = "alloc", feature = "aead-short"))]
 #[test]
 fn test_aead_short_rejects_invalid_tag() -> Result<()> {
@@ -77,18 +77,17 @@ fn test_aead_short_rejects_invalid_tag() -> Result<()> {
     let plaintext = b"test";
 
     let ciphertext = aead.encrypt(&key, &nonce, plaintext, None)?;
-    assert!(ciphertext.len() >= 32);
+    assert_eq!(ciphertext.len(), 32);
 
     let mut tampered = ciphertext.clone();
-    let tag_start = tampered.len() - 32;
-    tampered[tag_start] ^= 1;
+    tampered[0] ^= 1;
 
     let result = aead.decrypt(&key, &nonce, &tampered, None);
     assert!(result.is_err());
     Ok(())
 }
 
-/// Test that SaturninShortAead decrypt accepts valid tag.
+/// Test that SaturninShortAead decrypt accepts a valid 32-byte ciphertext.
 #[cfg(all(feature = "alloc", feature = "aead-short"))]
 #[test]
 fn test_aead_short_accepts_valid_tag() -> Result<()> {

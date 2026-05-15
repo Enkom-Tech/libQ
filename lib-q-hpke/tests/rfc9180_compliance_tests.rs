@@ -108,7 +108,7 @@ fn test_aead_properties() {
     // Test Saturnin-256
     assert_eq!(HpkeAead::Saturnin256.key_len(), 32);
     assert_eq!(HpkeAead::Saturnin256.nonce_len(), 16);
-    assert_eq!(HpkeAead::Saturnin256.tag_len(), 16);
+    assert_eq!(HpkeAead::Saturnin256.tag_len(), 32);
 
     // Test SHAKE256
     assert_eq!(HpkeAead::Shake256.key_len(), 32);
@@ -378,6 +378,7 @@ fn test_psk_mode() {
         HpkeKdf,
         HpkeKem,
         HpkeMode,
+        HpkePskWireFormat,
     };
 
     let provider = PostQuantumProvider::new();
@@ -415,6 +416,7 @@ fn test_psk_mode() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::Rfc9180,
     )
     .unwrap();
 
@@ -441,6 +443,7 @@ fn test_auth_mode() {
         HpkeKdf,
         HpkeKem,
         HpkeMode,
+        HpkePskWireFormat,
     };
 
     let provider = PostQuantumProvider::new();
@@ -488,6 +491,7 @@ fn test_auth_mode() {
         None,
         Some(&sender_sk),
         Some(&sender_pk),
+        HpkePskWireFormat::default(),
     )
     .unwrap();
 
@@ -514,6 +518,7 @@ fn test_auth_psk_mode() {
         HpkeKdf,
         HpkeKem,
         HpkeMode,
+        HpkePskWireFormat,
     };
 
     let provider = PostQuantumProvider::new();
@@ -564,6 +569,7 @@ fn test_auth_psk_mode() {
         Some(psk_id),
         Some(&sender_sk),
         Some(&sender_pk),
+        HpkePskWireFormat::Rfc9180,
     )
     .unwrap();
 

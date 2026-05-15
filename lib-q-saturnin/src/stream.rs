@@ -24,7 +24,7 @@
 //! let decrypted = stream.decrypt(&key, &nonce, &ciphertext).unwrap();
 //! assert_eq!(decrypted, plaintext);
 //!
-//! // Generate keystream for custom use
+//! // Generate keystream for custom use (returned in a zeroizing buffer)
 //! let keystream = stream.generate_keystream(&key, &nonce, 100).unwrap();
 //! assert_eq!(keystream.len(), 100);
 //! ```
@@ -36,6 +36,21 @@
 //! - **Throughput**: ~100-400 MB/s on modern hardware
 //! - **Memory usage**: Constant, independent of data size
 //! - **Security level**: 256-bit post-quantum security
+//!
+//! ## Secret material handling
+//!
+//! CTR staging buffers (counter blocks, SIMD batch keystream lanes, and 32-byte XOR
+//! operands) are held in [`zeroize::Zeroizing`] wrappers so their backing storage is
+//! cleared on drop. [`SaturninStream::generate_keystream`] returns [`SaturninKeystream`],
+//! a [`zeroize::Zeroizing`] vector, so the returned keystream is zeroized when the value
+//! is dropped.
+//!
+//! [`SaturninStream::encrypt`] and [`SaturninStream::decrypt`] return ordinary [`Vec`]
+//! allocations; those buffers are not automatically zeroized. Prefer wrapping or
+//! clearing at the call site when plaintext or ciphertext must leave memory promptly.
+//!
+//! Clearing on drop reduces the window for accidental retention; it does not prove the
+//! absence of compiler-generated temporaries or register spills.
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -44,6 +59,13 @@ use lib_q_core::{
     Error,
     Result,
 };
+use zeroize::Zeroizing;
+
+/// Keystream bytes from [`SaturninStream::generate_keystream`].
+///
+/// The backing allocation is zeroized on drop to reduce exposure of raw keystream
+/// material in memory and on the stack of callers that copy or process fragments.
+pub type SaturninKeystream = Zeroizing<Vec<u8>>;
 
 use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
@@ -87,6 +109,11 @@ impl SaturninStream {
     ///
     /// # Returns
     /// Encrypted data
+    ///
+    /// # Secret material
+    ///
+    /// The returned [`Vec`] is not zeroized on drop. Internal CTR staging buffers are
+    /// cleared as described under [Secret material handling](crate::stream#secret-material-handling).
     pub fn encrypt(&self, key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
         self.ctr_mode(key, nonce, plaintext)
     }
@@ -100,6 +127,11 @@ impl SaturninStream {
     ///
     /// # Returns
     /// Decrypted data
+    ///
+    /// # Secret material
+    ///
+    /// The returned [`Vec`] is not zeroized on drop. Internal CTR staging buffers are
+    /// cleared as described under [Secret material handling](crate::stream#secret-material-handling).
     pub fn decrypt(&self, key: &[u8], nonce: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>> {
         // CTR mode is symmetric - encryption and decryption are the same
         self.ctr_mode(key, nonce, ciphertext)
@@ -141,7 +173,7 @@ impl SaturninStream {
 
         while offset < data.len() {
             #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
-            if data.len() - offset >= 32 * 8 {
+            if data.len() - offset >= 32 * 8 && counter.checked_add(7).is_some() {
                 let mut keystream_blocks = [[0u8; 32]; 8];
                 for (lane, block) in keystream_blocks.iter_mut().enumerate() {
                     let c = counter.wrapping_add(lane as u32);
@@ -208,15 +240,11 @@ impl SaturninStream {
             }
 
             offset += block_size;
-            counter += 1;
-
-            // Prevent counter overflow (safety check)
-            if counter == 0 {
-                return Err(Error::InvalidMessageSize {
-                    max: usize::MAX,
-                    actual: data.len(),
-                });
-            }
+            let next = counter.checked_add(1).ok_or(Error::InvalidMessageSize {
+                max: usize::MAX,
+                actual: data.len(),
+            })?;
+            counter = next;
         }
 
         Ok(result)
@@ -230,8 +258,13 @@ impl SaturninStream {
     /// * `length` - Length of keystream to generate
     ///
     /// # Returns
-    /// Generated keystream
-    pub fn generate_keystream(&self, key: &[u8], nonce: &[u8], length: usize) -> Result<Vec<u8>> {
+    /// Generated keystream in a [`Zeroizing`](zeroize::Zeroizing) buffer (zeroed on drop).
+    pub fn generate_keystream(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        length: usize,
+    ) -> Result<SaturninKeystream> {
         if key.len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
@@ -252,13 +285,13 @@ impl SaturninStream {
             actual: key_len,
         })?;
 
-        let mut keystream = Vec::with_capacity(length);
+        let mut keystream = Zeroizing::new(Vec::with_capacity(length));
         let mut counter = 0u32;
         let mut generated = 0;
 
         while generated < length {
             #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
-            if length - generated >= 32 * 8 {
+            if length - generated >= 32 * 8 && counter.checked_add(7).is_some() {
                 let mut keystream_blocks = [[0u8; 32]; 8];
                 for (lane, block) in keystream_blocks.iter_mut().enumerate() {
                     let c = counter.wrapping_add(lane as u32);
@@ -269,7 +302,7 @@ impl SaturninStream {
 
                 encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(&self.core))?;
 
-                for ks in &keystream_blocks {
+                for ks in keystream_blocks.iter() {
                     keystream.extend_from_slice(ks);
                 }
                 generated += 32 * 8;
@@ -299,15 +332,11 @@ impl SaturninStream {
 
             keystream.extend_from_slice(&counter_block[0..block_size]);
             generated += block_size;
-            counter += 1;
-
-            // Prevent counter overflow (safety check)
-            if counter == 0 {
-                return Err(Error::InvalidMessageSize {
-                    max: usize::MAX,
-                    actual: length,
-                });
-            }
+            let next = counter.checked_add(1).ok_or(Error::InvalidMessageSize {
+                max: usize::MAX,
+                actual: length,
+            })?;
+            counter = next;
         }
 
         Ok(keystream)

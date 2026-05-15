@@ -20,49 +20,76 @@ lib-q-saturnin = "0.0.2"
 ### AEAD
 
 ```rust
-use lib_q_saturnin::{SaturninAead, Aead, AeadKey, Nonce};
+use lib_q_saturnin::{
+    Aead,
+    AeadKey,
+    Nonce,
+    Result,
+    SaturninAead,
+};
 
-let aead = SaturninAead::new();
-let key = AeadKey { data: vec![0u8; 32] };
-let nonce = Nonce { data: vec![0u8; 16] };
+fn main() -> Result<()> {
+    let aead = SaturninAead::new();
+    let key = AeadKey::new(vec![0u8; 32]);
+    let nonce = Nonce::new(vec![0u8; 16]);
 
-let ciphertext = aead.encrypt(&key, &nonce, b"data", Some(b"ad"))?;
-let plaintext = aead.decrypt(&key, &nonce, &ciphertext, Some(b"ad"))?;
+    let ciphertext = aead.encrypt(&key, &nonce, b"data", Some(b"ad"))?;
+    let plaintext = aead.decrypt(&key, &nonce, &ciphertext, Some(b"ad"))?;
+    assert_eq!(plaintext, b"data");
+    Ok(())
+}
 ```
 
 ### Hash
 
 ```rust
-use lib_q_saturnin::SaturninHash;
+use lib_q_saturnin::{Result, SaturninHash};
 
-let hash = SaturninHash::new();
-let output = hash.hash(b"data")?;
+fn main() -> Result<()> {
+    let hash = SaturninHash::new();
+    let output = hash.hash(b"data")?;
+    assert_eq!(output.len(), 32);
+    Ok(())
+}
 ```
 
 ### Block Cipher
 
 ```rust
-use lib_q_saturnin::SaturninBlockCipher;
+use lib_q_saturnin::{Result, SaturninBlockCipher};
 
-let cipher = SaturninBlockCipher::new();
-let encrypted = cipher.encrypt_block(&key, &block)?;
-let decrypted = cipher.decrypt_block(&key, &encrypted)?;
+fn main() -> Result<()> {
+    let cipher = SaturninBlockCipher::new();
+    let key = vec![0u8; 32];
+    let block = vec![0u8; 32];
+    let encrypted = cipher.encrypt_block(&key, &block)?;
+    let decrypted = cipher.decrypt_block(&key, &encrypted)?;
+    assert_eq!(decrypted, block);
+    Ok(())
+}
 ```
 
 ### Stream Cipher
 
 ```rust
-use lib_q_saturnin::SaturninStream;
+use lib_q_saturnin::{Result, SaturninStream};
 
-let stream = SaturninStream::new();
-let ciphertext = stream.encrypt(&key, &nonce, plaintext)?;
-let plaintext = stream.decrypt(&key, &nonce, &ciphertext)?;
+fn main() -> Result<()> {
+    let stream = SaturninStream::new();
+    let key = vec![0u8; 32];
+    let nonce = vec![0u8; 16];
+    let plaintext = b"Hello, World!";
+    let ciphertext = stream.encrypt(&key, &nonce, plaintext)?;
+    let decrypted = stream.decrypt(&key, &nonce, &ciphertext)?;
+    assert_eq!(decrypted, plaintext);
+    Ok(())
+}
 ```
 
 ## Features
 
 - `aead` - Authenticated encryption (default)
-- `aead-short` - Faster AEAD variant (10 rounds vs 16)
+- `aead-short` — **Saturnin-Short** (spec section 2.3): single `Saturnin^6` block over `pad(nonce ‖ plaintext)`; fixed 32-byte ciphertext, no associated data, plaintext strictly under 128 bits. This is not CTR-Cascade (`aead`).
 - `block-cipher` - Block cipher operations
 - `hash` - Hash function
 - `stream` - Stream cipher

@@ -29,7 +29,11 @@ lib-q-aead provides secure, post-quantum AEAD implementations using NIST-approve
 - **Security Level**: 128-bit post-quantum security
 - **Key Size**: 256 bits (32 bytes)
 - **Nonce Size**: 128 bits (16 bytes)
-- **Tag Size**: 128 bits (16 bytes)
+- **Tag Size**: 256 bits (32 bytes) (full Saturnin AEAD; matches `lib-q-saturnin::SaturninAead`)
+
+### Semantic decrypt (Layer B)
+
+Factory-returned handles use the **Layer A** `decrypt` → `Result` path via `lib-q-core` traits and contexts. The concrete registry types in this crate (`SaturninAead`, `Shake256Aead`, `DuplexSpongeAead`, `TweakAead`, `RomulusNAead`, `RomulusMAead`) implement `lib_q_core::AeadDecryptSemantic` where the underlying algorithm does—call `decrypt_semantic` on those **concrete** types (not on `Box<dyn AeadWithMetadata>`). **Discoverability:** `AeadMetadata::supports_semantic_decrypt` and `AeadWithMetadata::supports_semantic_decrypt` report whether Layer B is available for the canonical algorithm row; registry test stubs override the trait method to `false` (see `docs/adr/003-aead-decrypt-layers.md`). **Test-only** `MockAead` in `plugin.rs` tests is Layer A + metadata only.
 
 ## Quick Start
 

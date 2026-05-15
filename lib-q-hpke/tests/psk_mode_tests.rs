@@ -20,6 +20,7 @@ use lib_q_hpke::types::{
     HpkeKdf,
     HpkeKem,
     HpkeMode,
+    HpkePskWireFormat,
 };
 use lib_q_kem::LibQKemProvider;
 
@@ -62,6 +63,7 @@ fn test_psk_mode_context_setup() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK mode sender setup should work");
 
@@ -84,6 +86,7 @@ fn test_psk_mode_context_setup() {
         Some(psk),
         Some(psk_id),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK mode receiver setup should work");
 
@@ -145,6 +148,7 @@ fn test_psk_mode_single_shot() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK mode encryption should work");
 
@@ -167,6 +171,7 @@ fn test_psk_mode_single_shot() {
         Some(psk),
         Some(psk_id),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK mode decryption should work");
 
@@ -224,6 +229,7 @@ fn test_psk_mode_different_psks() {
         Some(psk_id1),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK 1 encryption should work");
 
@@ -242,6 +248,7 @@ fn test_psk_mode_different_psks() {
         Some(psk_id2),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK 2 encryption should work");
 
@@ -263,6 +270,7 @@ fn test_psk_mode_different_psks() {
         Some(psk1),
         Some(psk_id1),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK 1 decryption should work");
 
@@ -280,6 +288,7 @@ fn test_psk_mode_different_psks() {
         Some(psk2),
         Some(psk_id2),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("PSK 2 decryption should work");
 
@@ -287,7 +296,7 @@ fn test_psk_mode_different_psks() {
     assert_eq!(decrypted1, plaintext);
     assert_eq!(decrypted2, plaintext);
 
-    // Verify that wrong PSK fails
+    // Verify that wrong PSK fails during receiver setup (commitment verification)
     let wrong_decrypt = open_with_mode(
         &mut kem_ctx,
         &encapsulated_key1,
@@ -301,11 +310,13 @@ fn test_psk_mode_different_psks() {
         Some(psk2), // Wrong PSK
         Some(psk_id1),
         None,
+        HpkePskWireFormat::default(),
     );
 
-    assert!(
-        wrong_decrypt.is_err(),
-        "Wrong PSK should cause decryption failure"
+    assert_eq!(
+        wrong_decrypt,
+        Err(lib_q_hpke::HpkeError::InconsistentPsk),
+        "Wrong PSK should be rejected at setup via commitment verification"
     );
 }
 
@@ -347,6 +358,7 @@ fn test_psk_mode_parameter_validation() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::default(),
     );
     assert!(result.is_err(), "Missing PSK should cause error");
 
@@ -363,6 +375,7 @@ fn test_psk_mode_parameter_validation() {
         None, // Missing PSK ID
         None,
         None,
+        HpkePskWireFormat::default(),
     );
     assert!(result.is_err(), "Missing PSK ID should cause error");
 
@@ -383,6 +396,7 @@ fn test_psk_mode_parameter_validation() {
         Some(psk_id),
         Some(sender_keypair.secret_key()), // Invalid for PSK mode
         Some(sender_keypair.public_key()),
+        HpkePskWireFormat::default(),
     );
     assert!(
         result.is_err(),
@@ -432,6 +446,7 @@ fn test_psk_mode_different_cipher_suites() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 1 encryption should work");
 
@@ -448,6 +463,7 @@ fn test_psk_mode_different_cipher_suites() {
         Some(psk),
         Some(psk_id),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 1 decryption should work");
 
@@ -479,6 +495,7 @@ fn test_psk_mode_different_cipher_suites() {
         Some(psk_id),
         None,
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 2 encryption should work");
 
@@ -495,6 +512,7 @@ fn test_psk_mode_different_cipher_suites() {
         Some(psk),
         Some(psk_id),
         None,
+        HpkePskWireFormat::default(),
     )
     .expect("Suite 2 decryption should work");
 

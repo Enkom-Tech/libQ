@@ -27,7 +27,10 @@ use crate::pke::{
     DecryptionKey,
     EncryptionKey,
 };
-use crate::util::B32;
+use crate::util::{
+    B32,
+    SecretB32,
+};
 // Re-export traits from our own implementation
 pub use crate::{
     Decapsulate,
@@ -116,9 +119,11 @@ where
         &self,
         encapsulated_key: &EncodedCiphertext<P>,
     ) -> Result<SharedKey, Self::Error> {
-        let mp = self.dk_pke.decrypt(encapsulated_key);
-        let (Kp, rp) = G(&[&mp, &self.ek.h]);
-        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
+        let mp = SecretB32::new(self.dk_pke.decrypt(encapsulated_key));
+        let (kp, rp_raw) = G(&[&*mp, &self.ek.h]);
+        let Kp = SecretB32::new(kp);
+        let rp = SecretB32::new(rp_raw);
+        let Kbar = SecretB32::new(J(&[self.z.as_slice(), encapsulated_key.as_ref()]));
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
 
         // Constant-time version of:
@@ -200,6 +205,7 @@ where
 
     fn encapsulate_deterministic_inner(&self, m: &B32) -> (EncodedCiphertext<P>, SharedKey) {
         let (K, r) = G(&[m, &self.h]);
+        let r = SecretB32::new(r);
         let c = self.ek_pke.encrypt(m, &r);
         (c, K)
     }
@@ -230,7 +236,7 @@ where
         &self,
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        let m: B32 = rand(rng);
+        let m = SecretB32::new(rand(rng));
         Ok(self.encapsulate_deterministic_inner(&m))
     }
 }

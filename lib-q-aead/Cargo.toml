@@ -36,6 +36,8 @@ serde-wasm-bindgen = { workspace = true, optional = true }
 default = ["alloc", "std", "shake256"]
 std = ["lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
+# Enables optional `zeroize` without `shake256`; also satisfies workspace `cargo metadata --features zeroize`.
+zeroize = ["dep:zeroize"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
 shake256 = [
     "dep:lib-q-sha3",

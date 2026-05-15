@@ -26,7 +26,7 @@
 //! - **HKDF-SHA3-512**: 64-byte output, high-security applications
 //!
 //! ### Authenticated Encryption (AEAD)
-//! - **Saturnin-256**: Post-quantum symmetric encryption, 32-byte keys, 16-byte nonces
+//! - **Saturnin-256**: Post-quantum symmetric encryption, 32-byte keys, 16-byte nonces, 32-byte tag
 //! - **SHAKE256-based**: Custom AEAD construction using SHAKE256
 //! - **Duplex-sponge** (optional `duplex-sponge-aead` feature): Keccak-f[1600] duplex AEAD via `lib-q-aead`, 32-byte tag
 //! - **Export-only**: For key material export without encryption
@@ -168,6 +168,8 @@ use providers::post_quantum::PostQuantumProvider;
 pub struct HpkeContext {
     kem_ctx: KemContext,
     cipher_suite: HpkeCipherSuite,
+    /// PSK / AuthPSK encapsulated-key wire format (ignored for Base and Auth).
+    psk_wire_format: HpkePskWireFormat,
 }
 
 /// Create a KEM context for internal use
@@ -197,6 +199,7 @@ impl HpkeContext {
                 HpkeKdf::HkdfShake256,
                 HpkeAead::Saturnin256,
             ),
+            psk_wire_format: HpkePskWireFormat::default(),
         }
     }
 
@@ -225,6 +228,7 @@ impl HpkeContext {
                 HpkeKdf::HkdfShake256,
                 HpkeAead::Saturnin256,
             ),
+            psk_wire_format: HpkePskWireFormat::default(),
         }
     }
 }
@@ -244,6 +248,23 @@ impl HpkeContext {
     /// Set the cipher suite before `setup_sender` / `seal` / `open`.
     pub fn set_cipher_suite(&mut self, cipher_suite: HpkeCipherSuite) {
         self.cipher_suite = cipher_suite;
+    }
+
+    /// PSK-mode encapsulated key wire format used for subsequent PSK / AuthPSK operations.
+    #[must_use]
+    pub fn psk_wire_format(&self) -> HpkePskWireFormat {
+        self.psk_wire_format
+    }
+
+    /// Set how PSK and AuthPSK modes encode the encapsulated key on the wire.
+    ///
+    /// **Default:** [`HpkePskWireFormat::LibQCommitmentSuffix`] (early PSK mismatch detection).
+    ///
+    /// **Interop:** set [`HpkePskWireFormat::Rfc9180`] only when talking to a strict RFC 9180 peer
+    /// that does not implement the libQ suffix. Both ends of a session must use the same format.
+    /// RFC wire restores interoperability but removes early PSK commitment verification.
+    pub fn set_psk_wire_format(&mut self, format: HpkePskWireFormat) {
+        self.psk_wire_format = format;
     }
 
     /// Setup sender with recipient's public key
@@ -292,7 +313,12 @@ impl HpkeContext {
         .map_err(|e| e.into())
     }
 
-    /// Setup sender with PSK mode
+    /// Setup sender with PSK mode.
+    ///
+    /// Uses [`HpkeContext::psk_wire_format`]. With the default ([`HpkePskWireFormat::LibQCommitmentSuffix`]),
+    /// [`HpkeSenderContext::encapsulated_key`] is the ML-KEM ciphertext plus a PSK commitment
+    /// (`hpke_core::psk_commitment_len` bytes). With [`HpkePskWireFormat::Rfc9180`], it is exactly the
+    /// KEM ciphertext for interoperability with strict RFC 9180 peers (set via [`Self::set_psk_wire_format`]).
     pub fn setup_sender_psk(
         &mut self,
         recipient_pk: &KemPublicKey,
@@ -317,6 +343,7 @@ impl HpkeContext {
             Some(psk_id),
             None,
             None,
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
@@ -346,11 +373,15 @@ impl HpkeContext {
             None,
             Some(sender_sk),
             Some(sender_pk),
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
 
-    /// Setup sender with AuthPSK mode
+    /// Setup sender with AuthPSK mode.
+    ///
+    /// Wire layout follows [`HpkeContext::psk_wire_format`]: either RFC 9180 (KEM ‖ auth) or the
+    /// same with a libQ PSK commitment suffix when using [`HpkePskWireFormat::LibQCommitmentSuffix`].
     pub fn setup_sender_auth_psk(
         &mut self,
         recipient_pk: &KemPublicKey,
@@ -377,11 +408,17 @@ impl HpkeContext {
             Some(psk_id),
             Some(sender_sk),
             Some(sender_pk),
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
 
-    /// Setup receiver with PSK mode
+    /// Setup receiver with PSK mode.
+    ///
+    /// `encapsulated_key` must match the sender's [`HpkeContext::psk_wire_format`]. With
+    /// [`HpkePskWireFormat::LibQCommitmentSuffix`], a wrong PSK or PSK ID fails with
+    /// [`HpkeError::InconsistentPsk`] before key schedule. With [`HpkePskWireFormat::Rfc9180`],
+    /// agreement is implicit (typically AEAD failure on mismatch).
     pub fn setup_receiver_psk(
         &mut self,
         encapsulated_key: &[u8],
@@ -403,6 +440,7 @@ impl HpkeContext {
             Some(psk),
             Some(psk_id),
             None,
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
@@ -428,11 +466,14 @@ impl HpkeContext {
             None,
             None,
             Some(sender_pk),
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
 
-    /// Setup receiver with AuthPSK mode
+    /// Setup receiver with AuthPSK mode.
+    ///
+    /// `encapsulated_key` layout must match [`HpkeContext::psk_wire_format`] on both peers.
     pub fn setup_receiver_auth_psk(
         &mut self,
         encapsulated_key: &[u8],
@@ -455,6 +496,7 @@ impl HpkeContext {
             Some(psk),
             Some(psk_id),
             Some(sender_pk),
+            self.psk_wire_format,
         )
         .map_err(|e| e.into())
     }
@@ -552,8 +594,13 @@ impl HpkeSenderContext {
         // Create provider instance
         let provider = crate::providers::post_quantum::PostQuantumProvider::new();
 
-        hpke_core::export(&self.exporter_secret, exporter_context, length, &provider)
-            .map_err(|e| e.into())
+        hpke_core::export(
+            self.exporter_secret.as_slice(),
+            exporter_context,
+            length,
+            &provider,
+        )
+        .map_err(|e| e.into())
     }
 }
 
@@ -594,8 +641,13 @@ impl HpkeReceiverContext {
         // Create provider instance
         let provider = crate::providers::post_quantum::PostQuantumProvider::new();
 
-        hpke_core::export(&self.exporter_secret, exporter_context, length, &provider)
-            .map_err(|e| e.into())
+        hpke_core::export(
+            self.exporter_secret.as_slice(),
+            exporter_context,
+            length,
+            &provider,
+        )
+        .map_err(|e| e.into())
     }
 }
 
@@ -676,10 +728,10 @@ mod tests {
     #[test]
     fn sender_and_receiver_context_guards_are_exercised() {
         let mut sender = HpkeSenderContext::new(
-            vec![3u8; 32],
-            vec![4u8; 32],
-            vec![5u8; 32],
-            vec![6u8; 16],
+            vec![3u8; 32].into(),
+            vec![4u8; 32].into(),
+            vec![5u8; 32].into(),
+            vec![6u8; 16].into(),
             vec![7u8; HpkeKem::MlKem512.enc_len()],
             HpkeAead::Saturnin256,
         );
@@ -688,10 +740,10 @@ mod tests {
         assert!(sender_err.contains("Context cannot be used for encryption"));
 
         let mut receiver = HpkeReceiverContext::new(
-            vec![8u8; 32],
-            vec![9u8; 32],
-            vec![10u8; 32],
-            vec![11u8; 16],
+            vec![8u8; 32].into(),
+            vec![9u8; 32].into(),
+            vec![10u8; 32].into(),
+            vec![11u8; 16].into(),
             HpkeAead::Saturnin256,
         );
         receiver.state = HpkeContextState::Closed;

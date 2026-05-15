@@ -137,6 +137,14 @@ All cryptographic operations are implemented following NIST standards and best p
 
 This crate is part of the [lib-Q workspace](../README.md). Related pieces include `lib-q-kem`, `lib-q-sig`, `lib-q-hpke`, `lib-q-zkp`, `lib-q-ring`, and tooling crates such as `lib-q-sca-test`.
 
+## AEAD decrypt layers (0.0.2+)
+
+- **Layer A (default):** `lib_q_core::Aead::decrypt` and `lib_q_core::api::AeadOperations::decrypt` return `Result` only. Existing callers keep using this; behavior of `decrypt` is unchanged for algorithms that only extended Layer B alongside it.
+- **Layer B (opt-in):** `lib_q_core::AeadDecryptSemantic::decrypt_semantic` returns `lib_q_core::Result<DecryptSemanticOutcome>` (i.e. `Result<DecryptSemanticOutcome, lib_q_core::Error>`); authentication failure is `Ok(DecryptSemanticOutcome::AuthenticationFailed)` with no plaintext bytes in that arm. Operational errors (sizes, keys, nonces, unsupported AD) stay `Err`. Ciphertext shorter than the AEAD tag is `Err(Error::InvalidCiphertextSize)` (use `Error::aead_ciphertext_shorter_than_tag` at AEAD boundaries for consistent construction).
+- **Migration:** import `AeadDecryptSemantic` and match on `DecryptSemanticOutcome`; do not collapse the outcome to a secret-derived `bool` without a reviewed threat model. Concrete types implement the trait where shipped: `lib_q_saturnin::SaturninAead`, `lib_q_saturnin::SaturninShortAead`, `lib_q_aead::Shake256Aead`, `lib_q_duplex_aead::DuplexSpongeAead`, `lib_q_tweak_aead::TweakAead`, `lib_q_romulus::{RomulusNAead, RomulusMAead}`, and the corresponding `lib-q-aead` registry wrappers (`SaturninAead`, `DuplexSpongeAead`, …). For `dyn AeadWithMetadata` or metadata-driven dispatch, read `AeadMetadata::supports_semantic_decrypt` / `AeadWithMetadata::supports_semantic_decrypt` before assuming Layer B. HPKE exposes semantic decrypt on `SaturninAeadImpl` and `Shake256AeadImpl`.
+- **Layer A `Err` variant names** after a failed integrity check are **not** unified across algorithms (`AuthenticationFailed` vs `VerificationFailed`); see `docs/adr/003-aead-decrypt-layers.md` for the mapping table. Layer B uses `AuthenticationFailed` in the `Ok` arm consistently.
+- Full specification: `docs/adr/003-aead-decrypt-layers.md`. WASM `AeadContext` bindings remain Layer A unless extended deliberately.
+
 ## License
 
 Licensed under the Apache License, Version 2.0.
