@@ -1,0 +1,79 @@
+[package]
+name = "lib-q-sig"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Post-quantum Digital Signatures for lib-Q"
+keywords = ["cryptography", "post-quantum", "signatures", "digital-signatures"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", optional = true }
+lib-q-fn-dsa = { path = "../lib-q-fn-dsa", version = "0.0.2", optional = true }
+lib-q-slh-dsa = { path = "../lib-q-slh-dsa", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+rand_core = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true, default-features = false }
+zeroize = { workspace = true, default-features = false, optional = true }
+
+# WASM support
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[features]
+default = ["alloc", "ml-dsa", "std"]
+# Explicit `zeroize` feature (optional dep uses `dep:`); needed for workspace `cargo metadata --features zeroize`.
+zeroize = ["dep:zeroize"]
+rand_core = ["dep:rand_core"]
+ml-dsa = ["lib-q-ml-dsa", "lib-q-ml-dsa/zeroize", "zeroize"]
+slh-dsa = ["alloc", "lib-q-slh-dsa", "sha2", "rand_core"]
+slh-dsa-std = ["slh-dsa", "dep:lib-q-random", "lib-q-random/std", "lib-q-slh-dsa/std"]
+slh-dsa-wasm = ["slh-dsa", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "dep:lib-q-random", "lib-q-random/wasm", "lib-q-random/getrandom", "lib-q-core/wasm_getrandom"]
+fn-dsa = ["lib-q-fn-dsa"]
+std = ["alloc", "lib-q-core/std"]
+alloc = []
+no_std = []
+wasm = ["alloc", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm"]
+
+[lib]
+name = "lib_q_sig"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+name = "signature_benchmarks"
+harness = false
+required-features = ["std"]
+
+[[bench]]
+name = "integration_benchmarks"
+harness = false
+required-features = ["std"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

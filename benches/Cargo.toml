@@ -1,0 +1,19 @@
+[package]
+name = "lib-q-benches"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Benchmarks for lib-q post-quantum cryptography library"
+
+[[bench]]
+name = "lib"
+harness = false
+
+[dependencies]
+lib-q = { path = "../lib-q", version = "0.0.2", features = ["full"] }
+
+[dev-dependencies]
+criterion = { workspace = true }

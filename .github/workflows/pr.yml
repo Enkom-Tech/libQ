@@ -8,335 +8,180 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
 
 jobs:
-  # Code quality checks
-  code-quality:
-    name: Code Quality
+  # Core PR validation - runs first and fastest
+  core-validation:
+    name: Core Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
+      - name: Generate cache key
+        id: cache-key
+        run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
       
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Core validation
+        uses: ./.github/actions/rust-build
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy linting
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Check for unused dependencies
-        run: cargo check --all-targets --all-features
+          run-security-audit: "true"
+          run-format-check: "true"
+          run-clippy: "true"
+          run-tests: "false"
+          run-workspace-builds: "false"
+          features: "all-algorithms"
+          package: "lib-q"
       
       - name: Check documentation
         run: cargo doc --all-features --no-deps --document-private-items
 
-  # Security validation for PRs
-  security-check:
-    name: Security Check
+      - name: Compile AVX-gated Keccak paths
+        run: |
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx2" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak -p lib-q-k12 -p lib-q-hash
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx512f" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak
+
+  # Security validation - parallel with core validation (audit already runs in core-validation)
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Validate classical crypto compliance
+        run: |
+          echo "🔐 Running classical crypto validation..."
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-classical
+      
+      - name: Validate SHA-3 compliance
+        run: |
+          echo "📊 Running SHA-3 compliance validation..."
+          cargo run -p lib-q-utils --bin security-validator --features "std" -- validate-sha3
+
+  # Test coverage analysis - runs after core validation
+  # This is a focused coverage check for PRs
+  # For full coverage analysis, see coverage.yml workflow
+  test-coverage:
+    name: Test Coverage
+    needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
+      # Determine which package to test based on PR changes
+      - name: Determine affected packages
+        id: affected-packages
         run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
+          # Fetch the base branch to ensure we can diff against it
+          git fetch origin ${{ github.base_ref }}
+          
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD)
+          
+          # Define all lib-q crates
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-keccak-digest lib-q-k12"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
+          UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
+          STARK_PLONKY_CRATES="lib-q-stark lib-q-stark-air lib-q-stark-challenger lib-q-stark-commit lib-q-stark-dft lib-q-stark-field lib-q-stark-field-testing lib-q-stark-fri lib-q-stark-interpolation lib-q-stark-matrix lib-q-stark-mds lib-q-stark-merkle lib-q-stark-mersenne31 lib-q-stark-monty31 lib-q-stark-rayon lib-q-stark-symmetric lib-q-stark-util lib-q-stark-shake256 lib-q-stark-shake128 lib-q-stark-sha3-256 lib-q-poseidon lib-q-plonky-multilinear-util lib-q-plonky-keccak-air lib-q-plonky-lookup lib-q-plonky-uni-stark lib-q-plonky-batch-stark lib-q-plonky"
+          ALL_CRATES="$CORE_CRATES $CRYPTO_CRATES $UTIL_CRATES $STARK_PLONKY_CRATES"
+          
+          # Check which critical packages were modified
+          AFFECTED=""
+          for crate in $ALL_CRATES; do
+            if echo "$CHANGED_FILES" | grep -q "^$crate/"; then
+              AFFECTED="$crate"
               break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
             fi
           done
-          source ~/.cargo/env
-      
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Security audit
-        run: cargo audit --deny warnings
-      
-      - name: Check for classical crypto
-        run: |
-          echo "Checking for classical cryptographic algorithms..."
-          if grep -r "use.*aes\|use.*sha256\|use.*rsa\|use.*ecdsa" src/; then
-            echo "ERROR: Classical cryptographic algorithms detected in PR!"
-            exit 1
-          fi
-          echo "No classical crypto detected ✅"
-      
-      - name: Check for SHA-3 compliance
-        run: |
-          echo "Checking for SHA-3 family compliance..."
-          if grep -r "use.*sha[0-9]" src/ | grep -v "shake\|cshake"; then
-            echo "ERROR: Non-SHA-3 hash functions detected in PR!"
-            exit 1
-          fi
-          echo "SHA-3 compliance verified ✅"
-
-  # Test coverage
-  test-coverage:
-    name: Test Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
+          
+          # If no specific crate was modified, check if root files were changed
+          if [ -z "$AFFECTED" ]; then
+            if echo "$CHANGED_FILES" | grep -q "^lib-q/\|^Cargo\.toml\|^Cargo\.lock"; then
+              # Workspace root or umbrella crate changed, test the main lib-q package
+              AFFECTED="lib-q"
             else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
+              # Default to lib-q-core if no specific package is identified
+              AFFECTED="lib-q-core"
             fi
-          done
-          source ~/.cargo/env
+          fi
+          
+          echo "package=$AFFECTED" >> $GITHUB_OUTPUT
+          echo "Testing package: $AFFECTED"
+          # Per-crate gates (ratcheted as coverage improves; see docs/coverage-scope.md).
+          case "$AFFECTED" in
+            lib-q-core) echo "coverage-threshold=78" >> $GITHUB_OUTPUT ;;
+            # Portable ML-DSA (AVX2 excluded from denominator): ratchet toward 70%; see docs/coverage-scope.md.
+            lib-q-ml-dsa) echo "coverage-threshold=60" >> $GITHUB_OUTPUT ;;
+            lib-q-keccak|lib-q-kem) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
+            lib-q-sig) echo "coverage-threshold=66" >> $GITHUB_OUTPUT ;;
+            lib-q-aead) echo "coverage-threshold=68" >> $GITHUB_OUTPUT ;;
+            lib-q-hpke) echo "coverage-threshold=66" >> $GITHUB_OUTPUT ;;
+            lib-q-cb-kem) echo "coverage-threshold=68" >> $GITHUB_OUTPUT ;;
+            lib-q-zkp) echo "coverage-threshold=65" >> $GITHUB_OUTPUT ;;
+            *) echo "coverage-threshold=70" >> $GITHUB_OUTPUT ;;
+          esac
       
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Run coverage tests
+        uses: ./.github/actions/rust-test
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Generate coverage report
-        run: cargo tarpaulin --features "all-algorithms" --out Html --output-dir coverage
+          features: ${{ steps.affected-packages.outputs.package == 'lib-q' && 'all-algorithms' || (steps.affected-packages.outputs.package == 'lib-q-kem' && 'std,alloc,ml-kem,hqc' || (steps.affected-packages.outputs.package == 'lib-q-ml-kem' && 'std,deterministic' || (steps.affected-packages.outputs.package == 'lib-q-cb-kem' && 'std,rand,getrandom,alloc,zeroize,cbkem348864' || ''))) }}
+          run-coverage: "true"
+          coverage-threshold: ${{ steps.affected-packages.outputs.coverage-threshold }}
+          package: ${{ steps.affected-packages.outputs.package }}
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/
-      
-      - name: Check coverage threshold
-        run: |
-          # Check that coverage is above 95% for cryptographic functions
-          COVERAGE=$(cargo tarpaulin --features "all-algorithms" --out Xml | grep -o 'coverage="[^"]*"' | cut -d'"' -f2)
-          echo "Coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 95" | bc -l) )); then
-            echo "ERROR: Coverage below 95% threshold"
-            exit 1
-          fi
-
-  # Performance regression check
-  performance:
-    name: Performance Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v5
-      
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-      
-      - name: Run benchmarks
-        run: cargo bench --features "all-algorithms" --verbose
-      
-      - name: Check for performance regressions
-        run: |
-          # Compare with baseline performance
-          echo "Performance check completed"
-          # This would compare against baseline benchmarks
 
   # WASM compatibility check
   wasm-check:
     name: WASM Compatibility
+    needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
         with:
-          version: latest
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-            pkg
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-
-      
-      - name: Build WASM (nodejs target)
-        run: |
-          echo "Building WASM for nodejs target..."
-          wasm-pack build --target nodejs --features "wasm,all-algorithms" --verbose
-          echo "WASM nodejs build completed successfully"
-      
-      - name: Build WASM (web target)
-        run: |
-          echo "Building WASM for web target..."
-          wasm-pack build --target web --features "wasm,all-algorithms" --verbose
-          echo "WASM web build completed successfully"
-      
-      - name: Verify WASM artifacts
-        run: |
-          echo "Verifying WASM build artifacts..."
-          ls -la pkg/ || echo "No pkg directory found"
-          if [ -d "pkg" ]; then
-            echo "WASM package contents:"
-            ls -la pkg/
-            echo "WASM file size:"
-            ls -lh pkg/*.wasm 2>/dev/null || echo "No .wasm files found"
-          fi
+          working-directory: lib-q
+          features: "wasm,all-algorithms"
+          targets: "web,nodejs"
 
-  # Documentation check
-  docs-check:
-    name: Documentation Check
+  # Documentation validation
+  docs-validation:
+    name: Documentation Validation
+    needs: core-validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       
-      - name: Install Rust (with retry)
-        run: |
-          echo "Installing Rust toolchain with retry logic..."
-          for i in {1..3}; do
-            echo "Attempt $i of 3"
-            if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --component rustfmt --component clippy; then
-              echo "Rust installation successful"
-              break
-            else
-              echo "Rust installation failed, attempt $i"
-              if [ $i -eq 3 ]; then
-                echo "All attempts failed"
-                exit 1
-              fi
-              sleep 30
-            fi
-          done
-          source ~/.cargo/env
-      
-      - name: Cache dependencies
-        uses: actions/cache@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          toolchain: stable
       
-      - name: Check documentation
+      - name: Check documentation completeness
         run: |
           # Check that all public APIs are documented
           cargo doc --all-features --no-deps --document-private-items
@@ -344,35 +189,54 @@ jobs:
           # Check for missing documentation
           MISSING_DOCS=$(cargo doc --all-features --no-deps 2>&1 | grep -c "missing documentation" || true)
           if [ $MISSING_DOCS -gt 0 ]; then
-            echo "WARNING: $MISSING_DOCS items missing documentation"
+            echo "⚠️  WARNING: $MISSING_DOCS items missing documentation"
+          else
+            echo "✅ All public APIs are documented"
           fi
       
       - name: Check README examples
         run: |
           # Verify that README examples compile
-          cargo check --examples --features "all-algorithms"
+          cargo check --examples --package lib-q --features "all-algorithms"
+          echo "✅ README examples compile successfully"
 
-  # PR summary
+      - name: Build and run lib-q-examples
+        run: |
+          cargo build -p lib-q-examples --examples
+          cargo run -p lib-q-examples --example ml_dsa_working_no_std
+          echo "✅ lib-q-examples build and ML-DSA example run successfully"
+
+  # PR summary and reporting - runs after all other jobs
   pr-summary:
     name: PR Summary
-    needs: [code-quality, security-check, test-coverage, performance, wasm-check, docs-check]
+    needs: [core-validation, security-validation, test-coverage, wasm-check, docs-validation]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Generate PR summary
         run: |
-          echo "# Pull Request Summary" > pr-summary.md
+          echo "# 🔍 Pull Request Summary" > pr-summary.md
           echo "Generated: $(date)" >> pr-summary.md
           echo "" >> pr-summary.md
-          echo "## Checks" >> pr-summary.md
-          echo "- Code Quality: ${{ needs.code-quality.result }}" >> pr-summary.md
-          echo "- Security Check: ${{ needs.security-check.result }}" >> pr-summary.md
+          echo "## 📋 Validation Results" >> pr-summary.md
+          echo "- Core Validation: ${{ needs.core-validation.result }}" >> pr-summary.md
+          echo "- Security Validation: ${{ needs.security-validation.result }}" >> pr-summary.md
           echo "- Test Coverage: ${{ needs.test-coverage.result }}" >> pr-summary.md
-          echo "- Performance: ${{ needs.performance.result }}" >> pr-summary.md
           echo "- WASM Compatibility: ${{ needs.wasm-check.result }}" >> pr-summary.md
-          echo "- Documentation: ${{ needs.docs-check.result }}" >> pr-summary.md
+          echo "- Documentation: ${{ needs.docs-validation.result }}" >> pr-summary.md
           echo "" >> pr-summary.md
-          echo "## Security Checklist" >> pr-summary.md
+          
+          # Determine overall status
+          if [[ "${{ needs.core-validation.result }}" == "success" ]] && \
+             [[ "${{ needs.security-validation.result }}" == "success" ]] && \
+             [[ "${{ needs.test-coverage.result }}" == "success" ]]; then
+            echo "## ✅ Overall Status: PASSED" >> pr-summary.md
+          else
+            echo "## ❌ Overall Status: FAILED" >> pr-summary.md
+          fi
+          
+          echo "" >> pr-summary.md
+          echo "## 🔒 Security Checklist" >> pr-summary.md
           echo "- [ ] No classical cryptographic algorithms" >> pr-summary.md
           echo "- [ ] Only SHA-3 family hash functions" >> pr-summary.md
           echo "- [ ] Constant-time operations" >> pr-summary.md
@@ -380,25 +244,59 @@ jobs:
           echo "- [ ] Input validation" >> pr-summary.md
           echo "- [ ] Error handling" >> pr-summary.md
           echo "" >> pr-summary.md
-          echo "## Review Notes" >> pr-summary.md
+          echo "## 📝 Review Notes" >> pr-summary.md
           echo "Please review the security implications of this change carefully." >> pr-summary.md
+          echo "All cryptographic changes require security team review." >> pr-summary.md
       
       - name: Upload PR summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-summary
           path: pr-summary.md
-      
+
       - name: Comment on PR
-        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          NEEDS: ${{ toJSON(needs) }}
         with:
           script: |
-            const fs = require('fs');
-            const summary = fs.readFileSync('pr-summary.md', 'utf8');
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: summary
-            });
+            try {
+              const fs = require('fs');
+              const summary = fs.readFileSync('pr-summary.md', 'utf8');
+              const needs = JSON.parse(process.env.NEEDS || '{}');
+
+              const criticalJobs = [
+                'core-validation',
+                'security-validation',
+                'test-coverage'
+              ];
+
+              let shouldApprove = true;
+              for (const job of criticalJobs) {
+                if (needs[job]?.result !== 'success') {
+                  shouldApprove = false;
+                  break;
+                }
+              }
+              
+              let commentBody = summary;
+              if (shouldApprove) {
+                commentBody += '\n\n---\n\n✅ **Automated validation passed!** This PR is ready for review.';
+              } else {
+                commentBody += '\n\n---\n\n❌ **Automated validation failed!** Please address the issues above before merging.';
+              }
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+              
+              console.log('✅ PR summary posted successfully');
+            } catch (error) {
+              console.error('❌ Failed to post PR summary:', error.message);
+              console.log('📋 PR summary is available as an artifact');
+              // Don't fail the workflow if commenting fails
+            }

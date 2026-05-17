@@ -1,0 +1,348 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Rust Build
+description: Reusable Rust build action with security validation and quality checks
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for building
+    default: ""
+    required: false
+  package:
+    description: Specific package to build/test
+    default: ""
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-security-audit:
+    description: Whether to run security audit
+    default: "true"
+    required: false
+  run-format-check:
+    description: Whether to run format check
+    default: "true"
+    required: false
+  run-clippy:
+    description: Whether to run clippy linting
+    default: "true"
+    required: false
+  run-tests:
+    description: Whether to run tests
+    default: "true"
+    required: false
+  run-workspace-builds:
+    description: Whether to run workspace build steps (no-default-features, feature build, all-features)
+    default: "true"
+    required: false
+  run-wasm-check:
+    description: Whether to run WASM compilation check
+    default: "false"
+    required: false
+  run-cross-compilation:
+    description: Whether to run cross-compilation tests
+    default: "false"
+    required: false
+  target:
+    description: Cross-compilation target (if enabled)
+    default: "aarch64-unknown-linux-gnu"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+
+    - name: Toolchain fingerprint (cache)
+      id: toolchain-fp
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v sha256sum >/dev/null 2>&1; then
+          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        else
+          echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        fi
+    
+    - name: Compute cache-key fragment
+      id: cache-frag
+      shell: bash
+      env:
+        FEATURES: ${{ inputs.features }}
+        PACKAGE: ${{ inputs.package }}
+        # Bump this literal to invalidate every restored target/ tree at once.
+        CACHE_EPOCH: "v2"
+      run: |
+        set -euo pipefail
+        # SHA-256 of a canonical, newline-delimited join — immune to commas, spaces, @, etc.
+        # actions/cache rejects keys containing commas, and feature lists are comma-separated.
+        payload=$(printf '%s\n%s\n%s\n' "$FEATURES" "$PACKAGE" "$CACHE_EPOCH")
+        if command -v sha256sum >/dev/null 2>&1; then
+          hash=$(printf '%s' "$payload" | sha256sum | awk '{print $1}')
+        else
+          hash=$(printf '%s' "$payload" | shasum -a 256 | awk '{print $1}')
+        fi
+        echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-rust-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ steps.cache-frag.outputs.hash }}
+    
+    - name: Check integration test layout
+      shell: bash
+      run: |
+        ROOT="$(git rev-parse --show-toplevel)"
+        bash "$ROOT/scripts/check-integration-test-duplicates.sh"
+
+    - name: Security audit
+      if: inputs.run-security-audit == 'true'
+      shell: bash
+      run: |
+        echo "Running security audit..."
+        cd ${{ inputs.working-directory }}
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      if: inputs.run-format-check == 'true'
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      if: inputs.run-clippy == 'true'
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build the clippy command
+        CLIPPY_CMD="cargo clippy --all-targets"
+        
+        # Add package if specified
+        if [ -n "$PACKAGE" ]; then
+          CLIPPY_CMD="$CLIPPY_CMD -p $PACKAGE"
+        fi
+        
+        # Add features if specified
+        if [ -n "$FEATURES" ]; then
+          CLIPPY_CMD="$CLIPPY_CMD --features \"$FEATURES\""
+        fi
+        
+        # Add warning flags
+        CLIPPY_CMD="$CLIPPY_CMD -- -D warnings"
+        
+        echo "Running: $CLIPPY_CMD"
+        eval "$CLIPPY_CMD"
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      if: inputs.run-workspace-builds == 'true'
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        WORKING_DIR="${{ inputs.working-directory }}"
+        if [[ "$WORKING_DIR" == "." ]]; then
+          echo "Building workspace with no default features - skipping problematic packages"
+          # For workspace builds, we need to handle packages that require special features
+          # Build individual packages that can handle no_std
+          for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | grep -E '^(lib-q-core|lib-q-kem|lib-q-ml-kem)$'); do
+            echo "Building $pkg with no default features..."
+            if [[ "$pkg" == "lib-q-core" ]]; then
+              rm -rf target/dev-no-std
+              cargo build -p lib-q-core --profile dev-no-std --no-default-features --features "no_std,getrandom"
+            elif [[ "$pkg" == "lib-q-ml-kem" || "$pkg" == "lib-q-kem" ]]; then
+              # cdylib crate-type requires std on native targets (allocator + panic handler + unwind)
+              cargo build -p "$pkg" --no-default-features --features "std"
+            else
+              cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
+            fi
+          done
+        elif [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then
+          echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
+          echo "Building lib-q-keccak with explicit no_std panic handler"
+          rm -rf target/dev-no-std
+          cargo build --profile dev-no-std --no-default-features --features "alloc"
+        elif [[ "$WORKING_DIR" == "lib-q-random" ]]; then
+          echo "DEBUG: Building no_std package in working directory: '$WORKING_DIR'"
+          echo "Building lib-q-random with dev-no-std (panic=abort) and no_std (panic handler for cdylib)"
+          rm -rf target/dev-no-std
+          cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom"
+        else
+          cargo build --no-default-features
+        fi
+        echo "Build completed"
+    
+    - name: Build with features
+      if: inputs.run-workspace-builds == 'true' && inputs.features != ''
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        
+        # Build the command
+        BUILD_CMD="cargo build"
+        
+        # Add package if specified
+        if [ -n "$PACKAGE" ]; then
+          BUILD_CMD="$BUILD_CMD -p $PACKAGE"
+        fi
+        
+        # Add features
+        BUILD_CMD="$BUILD_CMD --features \"$FEATURES\""
+        
+        echo "Running: $BUILD_CMD"
+        eval "$BUILD_CMD"
+        echo "Build with features completed"
+    
+    - name: Build with all features
+      if: inputs.run-workspace-builds == 'true'
+      shell: bash
+      run: |
+        echo "Building with all features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --all-features
+        echo "Build with all features completed"
+    
+    - name: Run tests
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running tests..."
+        cd ${{ inputs.working-directory }}
+
+        # Check if we're running no_std tests and adjust accordingly
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        WORKING_DIR="${{ inputs.working-directory }}"
+        
+        if [[ "$FEATURES" == *"no_std"* || "$WORKING_DIR" == *"lib-q-keccak"* ]]; then
+          echo "Running no_std or no_std-compatible compilation check"
+          echo "Cannot run tests in no_std mode or for no_std-compatible packages"
+          
+          # Build the check command
+          CHECK_CMD="cargo check --no-default-features"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            CHECK_CMD="$CHECK_CMD -p $PACKAGE"
+          fi
+          
+          # Add features if specified
+          if [ -n "$FEATURES" ]; then
+            CHECK_CMD="$CHECK_CMD --features \"$FEATURES\""
+          fi
+          
+          CHECK_CMD="$CHECK_CMD --verbose"
+          
+          echo "Running: $CHECK_CMD"
+          eval "$CHECK_CMD"
+        else
+          # Build the test command
+          TEST_CMD="cargo test"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            TEST_CMD="$TEST_CMD -p $PACKAGE"
+          fi
+          
+          # Add features if specified
+          if [ -n "$FEATURES" ]; then
+            TEST_CMD="$TEST_CMD --features \"$FEATURES\""
+          fi
+          
+          echo "Running: $TEST_CMD"
+          eval "$TEST_CMD"
+        fi
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running tests with all features..."
+        cd ${{ inputs.working-directory }}
+
+        # Check if we're running no_std tests and adjust accordingly
+        PACKAGE="${{ inputs.package }}"
+        WORKING_DIR="${{ inputs.working-directory }}"
+        
+        if [[ "$WORKING_DIR" == *"lib-q-keccak"* ]]; then
+          echo "Running no_std-compatible compilation check with all features"
+          echo "Cannot run tests for no_std-compatible packages"
+          
+          # Build the check command
+          CHECK_CMD="cargo check --all-features --verbose"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            CHECK_CMD="$CHECK_CMD -p $PACKAGE"
+          fi
+          
+          echo "Running: $CHECK_CMD"
+          eval "$CHECK_CMD"
+        else
+          # Build the test command
+          TEST_CMD="cargo test --all-features"
+          
+          # Add package if specified
+          if [ -n "$PACKAGE" ]; then
+            TEST_CMD="$TEST_CMD -p $PACKAGE"
+          fi
+          
+          echo "Running: $TEST_CMD"
+          eval "$TEST_CMD"
+        fi
+        echo "Tests with all features completed"
+    
+    - name: WASM compilation check
+      if: inputs.run-wasm-check == 'true'
+      shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js"'
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        else
+          cargo check --target wasm32-unknown-unknown --lib
+        fi
+        echo "WASM compilation check completed"
+    
+    - name: Cross-compilation test
+      if: inputs.run-cross-compilation == 'true'
+      shell: bash
+      run: |
+        echo "Testing cross-compilation to ${{ inputs.target }}..."
+        cd ${{ inputs.working-directory }}
+        rustup target add ${{ inputs.target }}
+        if [ -n "${{ inputs.features }}" ]; then
+          cargo check --target ${{ inputs.target }} --features "${{ inputs.features }}"
+        else
+          cargo check --target ${{ inputs.target }}
+        fi
+        echo "Cross-compilation test completed"

@@ -1,0 +1,44 @@
+[package]
+name = "lib-q-utils"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Utility functions for lib-Q post-quantum cryptography library"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "post-quantum", "utilities", "helpers"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["rand"] }
+
+[features]
+default = ["std"]
+std = ["lib-q-core/std"]
+wasm_js = []
+
+[lib]
+name = "lib_q_utils"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[bin]]
+name = "security-validator"
+path = "src/bin/security-validator.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

@@ -1,0 +1,71 @@
+[package]
+name = "lib-q-hash"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Post-quantum Hash Functions for lib-Q"
+keywords = ["cryptography", "post-quantum", "hash", "shake"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+block-buffer = { workspace = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
+zeroize = { workspace = true }
+digest = { workspace = true }
+sha2 = { workspace = true, default-features = false }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.2" }
+lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.2" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+rayon = { workspace = true, optional = true }
+subtle = { workspace = true }
+
+[dev-dependencies]
+digest = { workspace = true, features = ["dev"] }
+hex-literal = { workspace = true }
+base16ct = { workspace = true }
+
+[features]
+default = ["alloc", "oid"]
+alloc = ["digest/alloc"]
+oid = ["digest/oid"]
+zeroize = ["digest/zeroize"]
+asm = ["lib-q-keccak/asm"] # ARMv8 only
+simd = ["lib-q-keccak/simd"] # Enable SIMD optimizations
+nightly = ["lib-q-keccak/nightly"] # Enable nightly Rust features
+advanced-simd = ["lib-q-keccak/advanced-simd"] # Enable advanced SIMD features
+multithreading = ["lib-q-keccak/multithreading"] # Enable multi-threading support
+parallelhash = ["rayon"] # Enable parallel processing for ParallelHash
+
+# WASM-specific configuration (enables `getrandom` JS backend for `wasm32-unknown-unknown`, matching CI RUSTFLAGS)
+wasm_js = ["lib-q-core/wasm_getrandom"]
+# Declared for CI / `cargo test -p lib-q-hash --features alloc,oid,getrandom` (K12 job); RNG is via `lib-q-core` defaults.
+getrandom = []
+
+[lib]
+name = "lib_q_hash"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

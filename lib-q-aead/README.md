@@ -1,0 +1,203 @@
+# lib-q-aead
+
+A high-performance, quantum-resistant Authenticated Encryption with Associated Data (AEAD) library for Rust, designed for the libQ cryptographic ecosystem.
+
+## Overview
+
+lib-q-aead provides secure, post-quantum AEAD implementations using NIST-approved algorithms. The library emphasizes security-first design with constant-time primitives where implemented and robust input validation.
+
+## Features
+
+- **Quantum-Resistant**: Implements NIST-approved post-quantum algorithms
+- **Security-First**: Constant-time primitives and robust input validation
+- **High Performance**: Optimized implementations with minimal overhead
+- **Modular Design**: Pluggable architecture supporting multiple algorithms
+- **Production Ready**: Extensive testing and security validation
+- **No-Std Support**: Works in embedded and no-std environments
+
+## Supported Algorithms
+
+### SHAKE256 AEAD
+- **Algorithm**: SHAKE256-based AEAD construction
+- **Security Level**: 128-bit post-quantum security
+- **Key Size**: 256 bits (32 bytes)
+- **Nonce Size**: 128 bits (16 bytes)
+- **Tag Size**: 256 bits (32 bytes)
+
+### Saturnin AEAD
+- **Algorithm**: Saturnin block cipher in AEAD mode
+- **Security Level**: 128-bit post-quantum security
+- **Key Size**: 256 bits (32 bytes)
+- **Nonce Size**: 128 bits (16 bytes)
+- **Tag Size**: 256 bits (32 bytes) (full Saturnin AEAD; matches `lib-q-saturnin::SaturninAead`)
+
+### Semantic decrypt (Layer B)
+
+Factory-returned handles use the **Layer A** `decrypt` → `Result` path via `lib-q-core` traits and contexts. The concrete registry types in this crate (`SaturninAead`, `Shake256Aead`, `DuplexSpongeAead`, `TweakAead`, `RomulusNAead`, `RomulusMAead`) implement `lib_q_core::AeadDecryptSemantic` where the underlying algorithm does—call `decrypt_semantic` on those **concrete** types (not on `Box<dyn AeadWithMetadata>`). **Discoverability:** `AeadMetadata::supports_semantic_decrypt` and `AeadWithMetadata::supports_semantic_decrypt` report whether Layer B is available for the canonical algorithm row; registry test stubs override the trait method to `false` (see `docs/adr/003-aead-decrypt-layers.md`). **Test-only** `MockAead` in `plugin.rs` tests is Layer A + metadata only.
+
+## Quick Start
+
+### Basic Usage
+
+```rust
+use lib_q_aead::{create_aead, Algorithm, AeadKey, Nonce};
+
+// Create an AEAD instance
+let aead = create_aead(Algorithm::Shake256Aead)?;
+
+// Generate or load your key and nonce
+let key = AeadKey::new(vec![0x01; 32]); // In practice, use secure random generation
+let nonce = Nonce::new(vec![0x02; 16]); // In practice, use secure random generation
+
+// Your data to encrypt
+let plaintext = b"Hello, World!";
+let associated_data = b"metadata";
+
+// Encrypt
+let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(associated_data))?;
+
+// Decrypt
+let decrypted = aead.decrypt(&key, &nonce, &ciphertext, Some(associated_data))?;
+
+assert_eq!(decrypted, plaintext);
+```
+
+### Advanced Usage with Security Configuration
+
+```rust
+use lib_q_aead::{
+    create_aead, Algorithm, AeadKey, Nonce,
+    security::{SecurityConfig, SecurityContext}
+};
+
+// Create AEAD with custom security configuration
+let aead = create_aead(Algorithm::Shake256Aead)?;
+
+// Configure security settings
+let security_config = SecurityConfig::strict();
+let security_ctx = SecurityContext::with_config(security_config);
+
+// Security context can be used to track operation metadata
+let key = AeadKey::new(secure_random_bytes(32));
+let nonce = Nonce::new(secure_random_bytes(16));
+
+let ciphertext = aead.encrypt(&key, &nonce, plaintext, Some(associated_data))?;
+```
+
+## Security Features
+
+### Constant-Time Operation Wrapper
+
+The `timing` module enforces a fixed wall-clock duration for wrapped operations, preventing timing side-channels from leaking information about internal control flow. The wrapper uses `compiler_fence(SeqCst)` and `core::hint::black_box` to prevent the compiler from eliding the busy-wait or reordering results past the timing barrier.
+
+```rust
+use lib_q_aead::security::timing::{TimingProtection, protect_timing};
+
+// Wrap an operation so it always takes at least target_duration_ns
+let result = protect_timing(|| {
+    perform_sensitive_operation()
+})?;
+
+// Custom target duration (5 µs)
+let timing_protection = TimingProtection::strict();
+let result = timing_protection.protect(|| {
+    perform_sensitive_operation()
+})?;
+```
+
+### Constant-Time Operations
+
+All critical operations are implemented in constant time:
+
+```rust
+use lib_q_aead::security::constant_time::constant_time_eq;
+
+// Secure comparison
+let is_equal = constant_time_eq(&tag1, &tag2);
+
+// Secure selection
+let result = constant_time_select(condition, &value1, &value2);
+```
+
+### Input Validation
+
+Comprehensive input validation prevents common security issues:
+
+```rust
+use lib_q_aead::security::validation::{validate_key, validate_nonce};
+
+// Validate key material
+validate_key(key_bytes)?;
+
+// Validate nonce
+validate_nonce(nonce_bytes)?;
+```
+
+## Performance
+
+The library is optimized for high performance while maintaining security:
+
+- **SHAKE256 AEAD**: ~2-5μs per operation (typical)
+- **Saturnin AEAD**: ~1-3μs per operation (typical)
+- **Memory Usage**: Minimal stack allocation with secure cleanup
+- **Constant-Time Wrapper**: Fixed wall-clock overhead per protected call
+
+## Feature Flags
+
+- `shake256`: Enable SHAKE256 AEAD implementation (default)
+- `saturnin`: Enable Saturnin AEAD implementation
+- `std`: Enable standard library features (default)
+- `no-std`: Disable standard library for embedded environments
+
+## Security Considerations
+
+### Key Management
+- Always use cryptographically secure random number generation for keys
+- Never reuse keys across different contexts
+- Implement proper key rotation policies
+
+### Nonce Management
+- Never reuse nonces with the same key
+- Use cryptographically secure random number generation for nonces
+- Consider using counter-based nonces for high-throughput scenarios
+
+### Timing Attacks
+- The `TimingProtection` wrapper enforces a fixed wall-clock duration per call, preventing timing side-channels at the API boundary
+- Set `target_duration_ns` above the worst-case execution time of the wrapped operation
+- Constant-time algorithmic behavior (e.g. constant-time comparisons via `subtle`) is still required at the primitive level
+
+## Examples
+
+See the `examples/` directory for comprehensive usage examples:
+
+- `basic_usage.rs`: Basic encryption/decryption
+- `security_features.rs`: Advanced security features
+- `performance_benchmarks.rs`: Performance testing
+- `no_std_example.rs`: Embedded usage
+
+## Testing
+
+The library includes comprehensive tests:
+
+```bash
+# Run all tests
+cargo test
+
+# Run security tests
+cargo test --test comprehensive_security_tests
+
+# Run performance benchmarks
+cargo bench
+```
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+
+## Security
+
+For security issues, please see the main libQ repository's security policy.
+
+## Workspace
+
+Exposes Saturnin and SHAKE-based AEAD integrations for [`lib-q-hpke`](../lib-q-hpke) and the umbrella stack. See the [workspace README](../README.md) for the full crate graph.

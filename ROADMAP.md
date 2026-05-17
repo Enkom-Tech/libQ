@@ -1,274 +1,275 @@
-# lib-Q Development Roadmap
+# lib-Q development roadmap
 
-This roadmap outlines the development phases for lib-Q, a post-quantum cryptography library equivalent to libsodium. The roadmap is driven by security requirements, NIST standardization progress, and community needs.
+This document sequences engineering and assurance work for lib-Q: a Rust workspace for post-quantum key establishment, signatures, symmetric constructions, HPKE, and a STARK-based ZKP stack. Priorities follow cryptographic risk, standards evolution, and what integrators need to ship safely.
 
-## Phase 0: Foundation (Current)
+**Status:** Core algorithms and protocols are largely implemented; remaining effort skews toward performance, verification, third-party audit, and operational polish (see [README.md](README.md) and [SECURITY.md](SECURITY.md)).
 
-### Core Infrastructure
+## WebAssembly support status
+
+| Area | Status |
+|------|--------|
+| Workspace `wasm32-unknown-unknown` gate (excluding `lib-q-examples`, `lib-q-sca-test`) | CI-enforced |
+| `getrandom` / `wasm_js` wiring | Documented in [docs/wasm-compilation.md](docs/wasm-compilation.md); target-specific manifest edges on hardened-RNG crates |
+| STARK / Plonky stack | Serial-only on WASM (`parallel` forbidden); Keccak defaults hygiene for `no_std` graphs |
+| Optional advisory WASM size script | [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh) |
+| Browser demo | [examples/wasm-browser-demo](examples/wasm-browser-demo) (ML-DSA-44 smoke API) |
+
+## Phase 0: Foundation (mature; continuous maintenance)
+
+### Core infrastructure
 - [x] Project structure and configuration
 - [x] Error handling system
 - [x] Security documentation and guidelines
 - [x] Development workflow setup
-- [ ] Basic utility functions
-- [ ] Random number generation
-- [ ] Memory management utilities
-- [ ] Constant-time operations
+- [x] Basic utility functions
+- [x] Random number generation
+- [x] Memory management utilities (zeroization, secure key traits)
+- [x] Constant-time operations
 
-### Development Tools
-- [ ] CI/CD pipeline setup
-- [ ] Security scanning integration
-- [ ] Code coverage requirements
-- [ ] Performance benchmarking framework
-- [ ] WASM compilation pipeline
-- [ ] Documentation generation
+### Development tools
+- [x] CI/CD pipeline setup
+- [x] Security scanning integration (`cargo audit`, NIST validation utilities, dedicated security workflow)
+- [x] Code coverage requirements
+- [x] Performance benchmarking framework
+- [x] WASM compilation pipeline
+- [x] Documentation generation
 
-### Security Foundation
-- [ ] Security audit framework
-- [ ] Constant-time verification tools
-- [ ] Side-channel analysis tools
-- [ ] Fuzzing infrastructure
-- [ ] Formal verification setup
+### Security foundation
+- [x] Security audit framework (`cargo audit`, NIST compliance validation, scheduled security workflow)
+- [ ] Constant-time verification tooling (targeted work in HQC; broader coverage TBD)
+- [x] Side-channel analysis tooling and methodology (`lib-q-sca-test` TVLA/dudect-style harnesses)
+- [x] Fuzzing infrastructure (e.g. HPKE harness, property-based tests; expand coverage over time)
+- [ ] Formal verification setup where cost-effective
 
-## Phase 1: Core Algorithms
+## Phase 1: Core algorithms
 
-### Hash Functions
-- [ ] SHAKE256 implementation
-- [ ] SHAKE128 implementation
-- [ ] cSHAKE256 implementation
-- [ ] Hash-based signature support
+### Hash functions
+- [x] SHAKE256 implementation
+- [x] SHAKE128 implementation
+- [x] cSHAKE256 implementation
+- [x] Hash-based signature support
 - [ ] Performance optimizations
 - [ ] Constant-time verification
 
-### Key Encapsulation Mechanisms (KEMs)
-- [ ] CRYSTALS-Kyber (Level 1, 3, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
+### Key encapsulation mechanisms (KEMs)
+- [x] ML-KEM (FIPS 203, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
+  - [x] All parameter sets (ML-KEM-512, ML-KEM-768, ML-KEM-1024)
+  - [x] Complete test coverage
   - [ ] Performance optimization
   - [ ] Security audit
-- [ ] Classic McEliece (Level 1, 3, 4, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
+- [x] CB-KEM (Classical McEliece, all five parameter sets)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
   - [ ] Performance optimization
-- [ ] HQC (Level 1, 3, 4, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Encapsulation/Decapsulation
-
-### Digital Signatures
-- [ ] CRYSTALS-Dilithium (Level 1, 3, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
+- [x] HQC (Level 1, 3, 5 — HQC-128, HQC-192, HQC-256)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Encapsulation/Decapsulation
   - [ ] Performance optimization
-- [ ] Falcon (Level 1, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
-- [ ] SPHINCS+ (Level 1, 3, 5)
-  - [ ] Core implementation
-  - [ ] Key generation
-  - [ ] Signing/Verification
 
-## Phase 2: High-Level APIs
+### Digital signatures
+- [x] ML-DSA (FIPS 204, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [x] Shared ring / NTT layer (`lib-q-ring`) for portable `R_q` arithmetic
+  - [ ] Performance optimization
+- [x] FN-DSA (FIPS 206, Level 1, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [x] All parameter sets
+  - [ ] CAVP `.rsp` parser harness (blocked until NIST publishes redistributable FN-DSA vectors; see `lib-q-fn-dsa/docs/KAT_VERIFICATION.md`)
+  - [ ] Performance optimization
+- [x] SLH-DSA (FIPS 205, Level 1, 3, 5)
+  - [x] Core implementation
+  - [x] Key generation
+  - [x] Signing/Verification
+  - [x] All 12 parameter sets (SHA2-128f/s, SHA2-192f/s, SHA2-256f/s, SHAKE-128f/s, SHAKE-192f/s, SHAKE-256f/s)
+  - [x] Complete test coverage
+  - [ ] Performance optimization
 
-### Authenticated Encryption
-- [ ] Post-quantum AEAD construction
-- [ ] KEM-based encryption
-- [ ] Hybrid classical/post-quantum encryption
-- [ ] Streaming encryption support
-- [ ] Nonce management
+## Phase 2: High-level APIs
 
-### Hybrid Public Key Encryption (HPKE)
-- [ ] PQ-HPKE implementation (Tier 1: Pure post-quantum)
-- [ ] Hybrid HPKE implementation (Tier 2: PQ KEM + classical symmetric)
-- [ ] Performance HPKE implementation (Tier 3: PQ KEM + optimized classical)
-- [ ] HPKE with CRYSTALS-Kyber KEM
-- [ ] HPKE with Classic McEliece KEM
-- [ ] HPKE with HQC KEM
+### Authenticated encryption
+- [x] Saturnin AEAD implementation
+  - [x] Core AEAD mode
+  - [x] Block cipher mode
+  - [x] Hash function mode
+  - [x] Stream cipher mode
+  - [x] Complete test coverage
+  - [x] Performance optimization (runtime SIMD dispatch + Criterion benchmarks + SIMD/scalar equivalence tests)
+- [x] Post-quantum AEAD construction
+  - [x] Saturnin AEAD implementation
+  - [x] SHAKE256 AEAD implementation
+  - [x] KEM-based AEAD construction
+  - [x] HPKE AEAD integration
+- [x] KEM-based encryption
+  - [x] HPKE (RFC 9180) implementation
+  - [x] KEM-AEAD direct encryption
+  - [x] Provider pattern integration
+- [x] Streaming encryption support
+  - [x] Saturnin stream cipher
+  - [x] SHAKE256 stream mode
+  - [x] CTR mode streaming
+- [x] Nonce management
+  - [x] Secure nonce generation
+  - [x] Uniqueness checking and collision detection
+  - [x] Global nonce manager with thread safety
+  - [x] Counter-based and random nonce support
+
+### Hybrid public-key encryption (HPKE)
+- [x] RFC 9180 compliant HPKE implementation
+  - [x] ML-KEM integration (512, 768, 1024)
+  - [x] SHAKE256 and SHA3 KDF support
+  - [x] Saturnin and SHAKE256 AEAD support
+  - [x] Complete test suite (95+ tests)
+  - [x] Provider pattern integration
+- [x] Tier 1: Ultra-Secure HPKE (Pure post-quantum with SHAKE256-based AEAD)
+- [x] Tier 2: Balanced HPKE (Post-quantum KEM + Saturnin AEAD)
+- [x] Tier 3: Performance HPKE (Post-quantum KEM + optimized Saturnin)
 - [ ] HPKE performance benchmarking
 - [ ] HPKE constant-time verification
 
-### Key Exchange
-- [ ] Post-quantum key exchange protocols
-- [ ] Hybrid key exchange
-- [ ] Forward secrecy guarantees
-- [ ] Session key derivation
-- [ ] Key confirmation
+### Key exchange and sessions
+- [ ] Higher-level session protocols on top of existing KEMs (where distinct from HPKE)
+- [ ] Documented forward-secrecy patterns for integrators
+- [ ] Session key derivation guidance and reference patterns
 
-### Sealed Boxes
-- [ ] Anonymous encryption
-- [ ] Public key encryption
-- [ ] Deterministic encryption
-- [ ] Metadata protection
+## Phase 3: Platform support
 
-## Phase 3: Platform Support
-
-### WASM Support
-- [ ] Full WASM compilation
-- [ ] Browser compatibility
-- [ ] Node.js compatibility
+### WASM support
+- [x] Basic WASM compilation
+- [x] WASM feature support across core crates (core, hash, KEM, sig, AEAD, HPKE, random, etc.)
+- [x] CI WASM validation (wasm32-unknown-unknown check for algorithm crates)
+- [x] Browser compatibility (wasm-pack `--target web` in CI/CD)
+- [x] Node.js compatibility (wasm-pack `--target nodejs` in CI/CD)
 - [ ] Performance optimization
 - [ ] Memory management
-- [ ] Threading support
 
-### Cross-Platform
+### Cross-platform
 - [ ] ARM optimization (NEON)
 - [ ] x86 optimization (AVX2, AVX512)
 - [ ] RISC-V support
 - [ ] Mobile platforms
 - [ ] Embedded systems
 
-### Language Bindings
-- [ ] JavaScript/TypeScript
+### Language bindings
+- [x] JavaScript / TypeScript (WASM and published `@lib-q/*` packages where released)
 - [ ] Python
-- [ ] Go
-- [ ] C/C++
-- [ ] Java
-- [ ] .NET
+- [ ] C / C++
 
-## Phase 4: Advanced Features
+## Phase 4: Advanced features
 
-### Advanced Cryptography
-- [ ] Threshold signatures
-- [ ] Multi-party computation
-- [ ] Zero-knowledge proofs (zk-STARKs)
-  - [ ] Core STARK implementation
-  - [ ] Proof generation and verification
-  - [ ] WASM compatibility
-  - [ ] Privacy-preserving computation
-  - [ ] Integration with post-quantum crypto
-- [ ] Homomorphic encryption
-- [ ] Attribute-based encryption
+### Advanced cryptography
+- [x] Zero-knowledge proofs (zk-STARKs)
+  - [x] Core STARK implementation
+  - [x] Proof generation and verification
+  - [x] WASM compatibility (lib-q-zkp wasm feature)
+  - [x] Integration with post-quantum crypto (SHAKE256, Mersenne31)
+- [x] Module-lattice / sigma ZKP research path (`lib-q-lattice-zkp` on `lib-q-ring`; algebraic lattice relations, not the STARK AIR stack)
+  - [ ] Protocol-level hardening, parameter audit, and API stability (research-grade today)
 
-### Performance Optimization
-- [ ] SIMD optimizations
+### Performance optimization
+- [x] SIMD optimizations (Saturnin AVX2/NEON dispatch and kernels)
 - [ ] Parallel processing
 - [ ] Hardware acceleration
 - [ ] Memory pooling
-- [ ] Cache optimization
 
-### Security Enhancements
+### Security enhancements
 - [ ] Formal verification
-- [ ] Side-channel resistance
-- [ ] Fault injection resistance
+- [x] Side-channel resistance baseline (hardened ML-KEM/ML-DSA paths with masking and shuffled processing)
 - [ ] Quantum-resistant randomness
-- [ ] Post-quantum PRNG
 
 ## Phase 5: Ecosystem
 
-### Documentation & Education
+### Documentation and education
 - [ ] Comprehensive API documentation
 - [ ] Migration guides
 - [ ] Security best practices
 - [ ] Performance guides
-- [ ] Tutorial series
 
-### Tools & Utilities
+### Tools and utilities
 - [ ] Command-line tools
 - [ ] Key management utilities
 - [ ] Performance benchmarking tools
 - [ ] Security analysis tools
-- [ ] Migration assistance tools
 
 ### Integration
 - [ ] TLS/SSL integration
 - [ ] SSH integration
-- [ ] PGP/GPG compatibility
-- [ ] Blockchain integration
 - [ ] IoT protocols
 
-## Phase 6: Production Ready
+## Phase 6: Production readiness
 
-### Security Certification
+### Security certification
 - [ ] Third-party security audit
 - [ ] Formal verification completion
 - [ ] Side-channel analysis
 - [ ] Penetration testing
-- [ ] Compliance certification
 
-### Performance Validation
+### Performance validation
 - [ ] Performance benchmarking
 - [ ] Memory usage analysis
-- [ ] Power consumption analysis
 - [ ] Scalability testing
 - [ ] Stress testing
 
-### Production Deployment
+### Production deployment
 - [ ] Production-ready releases
 - [ ] Long-term support (LTS)
 - [ ] Security update process
 - [ ] Vulnerability disclosure
-- [ ] Community support
 
-## Ongoing Development
+## Phase 7: Privacy protocols (anonymous credentials)
 
-### Continuous Improvement
+Engineering trackers for Phase 7 “deferred” items. Implementations are **not** wired as `lib-q-core` KEM/signature providers; identifiers live in `AlgorithmCategory::PrivacyProtocol` ([`lib-q-types`](lib-q-types/README.md)).
+
+- [x] **Lattice ZKP** ([`lib-q-lattice-zkp`](../lib-q-lattice-zkp/))
+  - [x] `BlindIssuance` / blind bundle verification; pilot `BlindIssuerKeypair` + `BlindSignature` path (`BLIND_ISSUANCE.md`).
+  - [x] `AnonymousToken` + spending proofs.
+  - [x] Commitment nullifier openings (`NullifierOpeningProof`) + witness nullifier openings (`WitnessNullifierOpeningProof`); `Algorithm::LatticeWitnessNullifier` in `lib-q-types`.
+  - [x] Uniqueness batch labels for `amortise`.
+  - [x] Hierarchical `HierarchicalAuthProof` (Merkle + opening) + pilot `prove_private_membership` / `verify_private_membership`.
+- [x] **PRF building blocks** ([`lib-q-prf`](../lib-q-prf/)) — Legendre / Gold PRFs over safe-prime fields for optional `pilot-insecure-prf-transcript` laboratory wiring in [`lib-q-ring-sig`](../lib-q-ring-sig/).
+- [x] **Federation / ring-sig** ([`lib-q-ring-sig`](../lib-q-ring-sig/))
+  - [x] Fiat–Shamir opening proofs with ring digest; legacy scan verifier behind `federation-opening`.
+  - [x] DualRing-LB (`dualring_lb`, CCS 2021 Alg. 3 aggregated verify); `Algorithm::LatticeDualRingLb`.
+  - [x] `CredentialPresentation` default path uses `verify_dualring_lb`.
+- [x] **Fuzzing** — `lib-q-lattice-zkp/fuzz` (opening, nullifier, blind bundle, blind signature, witness nullifier, private membership), `lib-q-ring-sig/fuzz` (federation, pilot insecure PRF transcript, dualring LB).
+- [x] **Integration smoke** — [`lib-q/tests/privacy_protocol_integration_tests.rs`](../lib-q/tests/privacy_protocol_integration_tests.rs) (blind signature, witness nullifier, DualRing-LB, private membership, credentials).
+- [x] **SCA hooks** — [`lib-q-sca-test`](../lib-q-sca-test/) `privacy` feature: `touch_dualring_lb_verify`, `touch_witness_nullifier`, `touch_blind_signature_verify`, `touch_private_membership`.
+
+## Ongoing development
+
+### Continuous improvement
 - [ ] Algorithm updates based on NIST progress
 - [ ] Performance optimizations
 - [ ] Security enhancements
 - [ ] Platform support expansion
 - [ ] Documentation updates
 
-### Research & Development
+### Research and development
 - [ ] New post-quantum algorithms
 - [ ] Advanced cryptographic protocols
 - [ ] Quantum-resistant protocols
-- [ ] Post-quantum blockchain
-- [ ] Quantum internet protocols
 
-## Success Metrics
+## Success metrics
 
 ### Security
-- [ ] Zero classical crypto usage
-- [ ] 100% constant-time operations
-- [ ] Zero memory safety issues
-- [ ] Comprehensive security audit
-- [ ] Formal verification completion
+- [x] No classical cryptographic primitives in the project’s stated PQC / SHA-3 / Saturnin threat model
+- [ ] Demonstrated constant-time behavior on supported targets (measured, not asserted)
+- [x] Memory safety via Rust’s model; `unsafe` only where justified and reviewed
+- [ ] Independent security audit with published results
+- [ ] Formal verification only where ROI is clear
 
 ### Performance
-- [ ] Competitive with classical crypto
-- [ ] Acceptable WASM performance
-- [ ] Low memory footprint
-- [ ] Fast key generation
-- [ ] Efficient encryption/decryption
+- [ ] Competitive operational cost versus comparable PQC stacks (not versus pre-quantum RSA/ECC, which are out of scope)
+- [ ] WASM performance characterized for supported call paths
+- [ ] Documented memory footprint for primary parameter sets
+- [ ] Key generation and encapsulation/signing latencies acceptable for stated use cases
+- [ ] Efficient encryption, decryption, and verification on hot paths
 
-### Adoption
-- [ ] libsodium migration path
-- [ ] Industry adoption
-- [ ] Academic recognition
-- [ ] Community contributions
-- [ ] Security community acceptance
-
-## Risk Mitigation
-
-### Technical Risks
-- **Algorithm changes**: Monitor NIST progress closely
-- **Performance issues**: Continuous optimization
-- **Security vulnerabilities**: Regular audits
-- **Platform compatibility**: Extensive testing
-
-### Project Risks
-- **Resource constraints**: Community involvement
-- **Timeline delays**: Agile development
-- **Scope creep**: Clear priorities
-- **Quality issues**: Comprehensive testing
-
-## Community Involvement
-
-### Open Source
-- [ ] Open development process
-- [ ] Community code reviews
-- [ ] Public security discussions
-- [ ] Transparent decision making
-- [ ] Regular community updates
-
-### Collaboration
-- [ ] Academic partnerships
-- [ ] Industry collaboration
-- [ ] Standards body participation
-- [ ] Research community engagement
-- [ ] Open source ecosystem integration
-
-This roadmap is a living document that will be updated based on NIST progress, community feedback, and technical developments. Priorities may shift based on emerging threats and opportunities.

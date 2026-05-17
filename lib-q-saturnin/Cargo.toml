@@ -1,0 +1,91 @@
+[package]
+name = "lib-q-saturnin"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Saturnin post-quantum symmetric algorithm suite for lib-Q"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "post-quantum", "saturnin", "symmetric", "aead", "block-cipher"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
+
+# Optional dependencies for specific features
+zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
+
+[features]
+default = ["aead", "block-cipher", "hash", "stream", "alloc"]
+std = ["alloc"]
+alloc = ["lib-q-core/alloc"]
+
+# Algorithm modes
+aead = ["dep:zeroize"]
+aead-short = ["dep:zeroize"]
+block-cipher = []
+hash = []
+stream = ["dep:zeroize"]
+
+# Performance optimizations
+simd = ["simd-avx2", "simd-neon"]
+simd-avx2 = ["std"]
+simd-neon = []
+parallel = []
+
+# Security features
+zeroize = ["dep:zeroize"]
+
+# WASM: enable getrandom/wasm_js so lib-q-core (and getrandom) compile for wasm32-unknown-unknown
+wasm = ["lib-q-core/wasm_getrandom"]
+
+[lib]
+name = "lib_q_saturnin"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "kat_tests"
+path = "tests/kat_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "constant_time"
+path = "tests/constant_time.rs"
+required-features = ["alloc", "aead"]
+
+[[test]]
+name = "coverage_api"
+path = "tests/coverage_api.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "simd_equivalence"
+path = "tests/simd_equivalence.rs"
+required-features = ["alloc"]
+
+[[bench]]
+name = "saturnin_criterion_benches"
+harness = false
+required-features = ["alloc"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(target_arch, values("wasm32"))',
+] }

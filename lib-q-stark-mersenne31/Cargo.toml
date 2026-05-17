@@ -1,0 +1,60 @@
+[package]
+name = "lib-q-stark-mersenne31"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "An implementation of the Mersenne31 prime field F_p, where p = 2^31 - 1."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+# Note: poseidon2 removed - non-NIST hash
+
+itertools = { workspace = true }
+num-bigint = { workspace = true }
+pastey = { workspace = true }
+rand = { workspace = true, default-features = false, features = ["std"] }
+serde = { workspace = true, features = ["derive"], default-features = false }
+subtle = { workspace = true }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
+# Feature to enable TestPermutation for benches and test utilities
+test-utils = []
+
+[dev-dependencies]
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.2" }
+rand_xoshiro = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.2", features = [
+    "criterion-bench",
+] }
+
+[[bench]]
+name = "bench_field"
+harness = false
+
+[[bench]]
+name = "extension"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

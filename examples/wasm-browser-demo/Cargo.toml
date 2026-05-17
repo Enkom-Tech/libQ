@@ -1,0 +1,22 @@
+[package]
+name = "wasm-browser-demo"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Minimal ML-DSA-44 wasm-pack demo for libQ browser integration"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+wasm-bindgen = { workspace = true }
+lib-q-ml-dsa = { path = "../../lib-q-ml-dsa", default-features = false, features = ["mldsa44"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

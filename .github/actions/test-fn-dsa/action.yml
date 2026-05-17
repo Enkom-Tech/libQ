@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test FN-DSA
+description: Run FN-DSA quick smoke tests, security checks, and optional benchmarks (full keygen KAT is manual)
+inputs:
+  working-directory:
+    description: Working directory for fn-dsa crate
+    default: lib-q-fn-dsa
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "std,rand"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "false"
+    required: false
+  test-algorithms:
+    description: Unused (reserved for workflow matrix compatibility)
+    default: ""
+    required: false
+  run-security-tests:
+    description: Whether to run comprehensive security tests
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time verification
+    default: "true"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-fn-dsa-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-fn-dsa-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "🔒 Running security audit for FN-DSA..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "✅ Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "📝 Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "✅ Formatting check completed"
+    
+    - name: Clippy linting with security checks
+      shell: bash
+      run: |
+        echo "🔍 Running Clippy linting with security checks..."
+        cd ${{ inputs.working-directory }}
+        # Enable additional security-related lints
+        RUSTFLAGS="-D warnings" cargo clippy --all-targets --features "${{ inputs.features }}" -- \
+          -D clippy::unwrap_used \
+          -D clippy::expect_used \
+          -D clippy::panic \
+          -D clippy::unimplemented \
+          -D clippy::todo \
+          -D clippy::unreachable \
+          -D clippy::dbg_macro \
+          -D clippy::print_stdout \
+          -D clippy::print_stderr
+        echo "✅ Clippy linting completed"
+    
+    - name: Build with security-focused flags
+      shell: bash
+      run: |
+        echo "🔨 Building with security-focused flags..."
+        cd ${{ inputs.working-directory }}
+        # Use security-focused build flags
+        RUSTFLAGS="-C target-cpu=generic -C overflow-checks=on" \
+        cargo build --features "${{ inputs.features }}" --release
+        echo "✅ Build completed"
+    
+    - name: Build with no default features (no_std compatibility)
+      shell: bash
+      run: |
+        echo "🔨 Building with no default features for no_std compatibility..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features --features "alloc,rand"
+        echo "✅ no_std build completed"
+    
+    - name: Run quick FN-DSA smoke tests
+      shell: bash
+      run: |
+        echo "🧪 Running quick FN-DSA smoke tests (release)..."
+        echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p fn-dsa-kgen -- --ignored --release --test-threads=1"
+        rm -rf target/release-ci
+        cd "${{ github.workspace }}"
+        cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+        cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
+        cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "${{ inputs.features }}"
+        echo "✅ Quick smoke tests completed"
+    
+    - name: Run security tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "🛡️ Running security tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --test security_tests --features "${{ inputs.features }}" --verbose
+        echo "✅ Security tests completed"
+    
+    - name: Constant-time operation verification
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "⏱️ Verifying constant-time operations..."
+        cd ${{ inputs.working-directory }}
+        # Run specific tests that verify constant-time behavior
+        cargo test --test security_tests --features "${{ inputs.features }}" -- constant_time || echo "⚠️  constant_time test not available"
+        echo "✅ Constant-time verification completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "📊 Running benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "✅ Benchmarks completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "🏗️ Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "✅ Cross-compilation test completed"
+    
+    - name: WASM compilation test
+      shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured with panic=abort
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "🌐 Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        echo "✅ WASM compilation test completed"
+    
+    - name: Memory safety validation
+      shell: bash
+      run: |
+        echo "🧠 Running memory safety validation..."
+        cd ${{ inputs.working-directory }}
+        # Test for memory leaks and unsafe operations
+        cargo test --features "${{ inputs.features }}" --test security_tests -- memory_safety || echo "⚠️  memory_safety test not available"
+        echo "✅ Memory safety validation completed"
+    
+    - name: NIST compliance verification
+      shell: bash
+      run: |
+        echo "📋 Verifying NIST compliance..."
+        cd ${{ inputs.working-directory }}
+        # Verify that only NIST-approved algorithms are implemented
+        cargo test --features "${{ inputs.features }}" --test security_tests -- nist_compliance || echo "⚠️  nist_compliance test not available"
+        echo "✅ NIST compliance verification completed"

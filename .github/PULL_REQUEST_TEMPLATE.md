@@ -49,7 +49,7 @@ Brief description of changes made in this PR.
 ## Code Quality
 - [ ] Code follows Rust style guidelines
 - [ ] `cargo fmt` run
-- [ ] `cargo clippy` passes with no warnings
+- [ ] `cargo clippy --all-targets --all-features` passes with no warnings
 - [ ] No unsafe code added (or thoroughly justified)
 - [ ] Error handling is comprehensive
 - [ ] Logging is appropriate (no sensitive data)

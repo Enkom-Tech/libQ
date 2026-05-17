@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>libQ wasm-browser-demo</title>
+  </head>
+  <body>
+    <h1>libQ wasm-browser-demo</h1>
+    <p id="out">Loading…</p>
+    <script type="module">
+      import init, { wasm_smoke_ml_dsa_sign_verify } from "./pkg/wasm_browser_demo.js";
+      const out = document.getElementById("out");
+      try {
+        await init();
+        const ok = wasm_smoke_ml_dsa_sign_verify();
+        out.textContent = ok ? "ML-DSA-44 sign/verify: OK" : "Unexpected result";
+      } catch (e) {
+        out.textContent = "Error: " + e;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,312 @@
+//! cSHAKE-128 and cSHAKE-256 per [NIST SP 800-185](https://csrc.nist.gov/pubs/sp/800/185/final).
+//!
+//! The **function name** and **customization string** (NIST “N” and “S”) are encoded in the sponge state before message data. If both are empty, cSHAKE reduces to SHAKE for that rate (per the standard). The high-level types [`CShake128`](crate::CShake128) and [`CShake256`](crate::CShake256) are re-exported at the crate root.
+//!
+//! Internal **core** types (`CShake128Core`, `CShake256Core`) support [`digest::common::hazmat::SerializableState`](https://docs.rs/digest/latest/digest/common/hazmat/trait.SerializableState.html) for advanced use; prefer the façade types for normal hashing.
+
+use core::fmt;
+
+use block_buffer::LazyBuffer;
+use digest::block_api::{
+    AlgorithmName,
+    Block,
+    BlockSizeUser,
+    Buffer,
+    BufferKindUser,
+    Eager,
+    ExtendableOutputCore,
+    UpdateCore,
+};
+use digest::common::hazmat::{
+    DeserializeStateError,
+    SerializableState,
+    SerializedState,
+};
+use digest::consts::{
+    U16,
+    U32,
+    U136,
+    U168,
+    U400,
+};
+use digest::typenum::Unsigned;
+use digest::{
+    CollisionResistance,
+    CustomizedInit,
+    HashMarker,
+    Reset,
+};
+
+use crate::block_api::xor_block;
+use crate::{
+    CSHAKE_PAD,
+    DEFAULT_ROUND_COUNT as ROUNDS,
+    PLEN,
+    SHAKE_PAD,
+    SpongeReaderCore,
+};
+
+#[inline]
+fn plen_little_endian_from_serialized_bytes(
+    src: &[u8],
+) -> Result<[u64; PLEN], DeserializeStateError> {
+    let (lanes, remainder) = src.as_chunks::<8>();
+    if !remainder.is_empty() || lanes.len() != PLEN {
+        return Err(DeserializeStateError);
+    }
+    Ok(core::array::from_fn(|i| u64::from_le_bytes(lanes[i])))
+}
+
+macro_rules! impl_cshake {
+    (
+        $name:ident, $full_name:ident, $reader_name:ident, $rate:ident, $alg_name:expr
+    ) => {
+        #[doc = $alg_name]
+        #[doc = " core hasher."]
+        #[derive(Clone, Default)]
+        pub struct $name {
+            state: [u64; PLEN],
+            initial_state: [u64; PLEN],
+        }
+
+        impl $name {
+            /// Creates a new CSHAKE instance with the given function name and customization.
+            ///
+            /// Note that the function name is intended for use by NIST and should only be set to
+            /// values defined by NIST. You probably don't need to use this function.
+            pub fn new_with_function_name(function_name: &[u8], customization: &[u8]) -> Self {
+                let mut state = Self::default();
+
+                if function_name.is_empty() && customization.is_empty() {
+                    return state;
+                }
+
+                #[inline(always)]
+                pub(crate) fn left_encode(val: u64, b: &mut [u8; 9]) -> &[u8] {
+                    b[1..].copy_from_slice(&val.to_be_bytes());
+                    let i = b[1..8].iter().take_while(|&&a| a == 0).count();
+                    b[i] = (8 - i) as u8;
+                    &b[i..]
+                }
+
+                // `LazyBuffer` (not `Eager`) for init: when byte-pad output is block-aligned,
+                // an extra full zero block must not be absorbed (RustCrypto/hashes#834).
+                let mut buffer: LazyBuffer<$rate> = Default::default();
+                let mut b = [0u8; 9];
+                buffer.digest_blocks(left_encode($rate::to_u64(), &mut b), |blocks| {
+                    state.update_blocks(blocks)
+                });
+                let mut encode_str = |str: &[u8]| {
+                    let str_bits_len = 8 * (str.len() as u64);
+                    let encoded_len = left_encode(str_bits_len, &mut b);
+                    buffer.digest_blocks(encoded_len, |blocks| state.update_blocks(blocks));
+                    buffer.digest_blocks(str, |blocks| state.update_blocks(blocks));
+                };
+                encode_str(function_name);
+                encode_str(customization);
+                state.update_blocks(&[buffer.pad_with_zeros()]);
+                state.initial_state = state.state;
+                state
+            }
+        }
+
+        impl CustomizedInit for $name {
+            #[inline]
+            fn new_customized(customization: &[u8]) -> Self {
+                Self::new_with_function_name(&[], customization)
+            }
+        }
+
+        impl BufferKindUser for $name {
+            type BufferKind = Eager;
+        }
+
+        impl HashMarker for $name {}
+
+        impl BlockSizeUser for $name {
+            type BlockSize = $rate;
+        }
+
+        impl UpdateCore for $name {
+            #[inline]
+            fn update_blocks(&mut self, blocks: &[Block<Self>]) {
+                for block in blocks {
+                    xor_block(&mut self.state, block);
+                    lib_q_keccak::p1600(&mut self.state, ROUNDS);
+                }
+            }
+        }
+
+        impl ExtendableOutputCore for $name {
+            type ReaderCore = SpongeReaderCore<$rate>;
+
+            #[inline]
+            fn finalize_xof_core(&mut self, buffer: &mut Buffer<Self>) -> Self::ReaderCore {
+                let pos = buffer.get_pos();
+                let mut block = buffer.pad_with_zeros();
+                let pad = if self.initial_state == [0; PLEN] {
+                    SHAKE_PAD
+                } else {
+                    CSHAKE_PAD
+                };
+                block[pos] = pad;
+                let n = block.len();
+                block[n - 1] |= 0x80;
+
+                xor_block(&mut self.state, &block);
+                lib_q_keccak::p1600(&mut self.state, ROUNDS);
+
+                SpongeReaderCore::new(&self.state)
+            }
+        }
+
+        impl Reset for $name {
+            #[inline]
+            fn reset(&mut self) {
+                self.state = self.initial_state;
+            }
+        }
+
+        impl AlgorithmName for $name {
+            fn write_alg_name(f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str($alg_name)
+            }
+        }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(concat!(stringify!($name), " { ... }"))
+            }
+        }
+
+        impl Drop for $name {
+            fn drop(&mut self) {
+                #[cfg(feature = "zeroize")]
+                {
+                    use digest::zeroize::Zeroize;
+                    self.state.zeroize();
+                    self.initial_state.zeroize();
+                }
+            }
+        }
+
+        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
+        #[cfg(feature = "zeroize")]
+        impl digest::zeroize::ZeroizeOnDrop for $name {}
+
+        impl SerializableState for $name {
+            type SerializedStateSize = U400;
+
+            fn serialize(&self) -> SerializedState<Self> {
+                let mut serialized_state = SerializedState::<Self>::default();
+                let mut chunks = serialized_state.chunks_exact_mut(8);
+
+                for (val, chunk) in self.state.iter().zip(&mut chunks) {
+                    chunk.copy_from_slice(&val.to_le_bytes());
+                }
+                for (val, chunk) in self.initial_state.iter().zip(&mut chunks) {
+                    chunk.copy_from_slice(&val.to_le_bytes());
+                }
+
+                serialized_state
+            }
+
+            fn deserialize(
+                serialized_state: &SerializedState<Self>,
+            ) -> Result<Self, DeserializeStateError> {
+                let bytes: &[u8] = serialized_state.as_ref();
+                let (state_src, initial_state_src) = bytes
+                    .split_at_checked(200)
+                    .ok_or(DeserializeStateError)?;
+                Ok(Self {
+                    state: plen_little_endian_from_serialized_bytes(state_src)?,
+                    initial_state: plen_little_endian_from_serialized_bytes(
+                        initial_state_src,
+                    )?,
+                })
+            }
+        }
+
+        digest::buffer_xof!(
+            #[doc = $alg_name]
+            #[doc = " hasher."]
+            pub struct $full_name($name);
+            // `XofHasherTraits`+`CustomizedInit` is not used here: digest’s wrapper `SerializableState`
+            // for that path includes the `block_buffer` queue and **does not** match the
+            // core-only `U400` layout that downstream crates (e.g. `lib-q-hash` KMAC / ParallelHash)
+            // expect when they delegate `serialize` to `CShake*`. See RustCrypto/hashes#834 and the
+            // `LazyBuffer` / `Eager` split in `new_with_function_name` above.
+            impl: Debug AlgorithmName Clone Default BlockSizeUser CoreProxy HashMarker Update Reset ExtendableOutputReset CustomizedInit;
+            #[doc = $alg_name]
+            #[doc = " XOF reader."]
+            pub struct $reader_name(SpongeReaderCore<$rate>);
+            impl: XofReaderTraits;
+        );
+
+        impl $full_name {
+            /// Creates a new cSHAKE instance with the given function name and customization.
+            ///
+            /// Note that the function name is intended for use by NIST and should only be set to
+            /// values defined by NIST. You probably don't need to use this function.
+            pub fn new_with_function_name(function_name: &[u8], customization: &[u8]) -> Self {
+                Self {
+                    core: $name::new_with_function_name(function_name, customization),
+                    buffer: Default::default(),
+                }
+            }
+        }
+    };
+}
+
+impl_cshake!(CShake128Core, CShake128, CShake128Reader, U168, "cSHAKE128");
+impl_cshake!(CShake256Core, CShake256, CShake256Reader, U136, "cSHAKE256");
+
+/// Core-only [`SerializedState`](SerializableState) for the public types: the `block_buffer` is
+/// cleared on deserialize. **Do not** use this to snapshot mid-stream if the rate buffer holds
+/// unprocessed bytes (finish a full rate block or use the core type). Layout matches
+/// `lib-q-hash` KMAC / ParallelHash delegation (`U400`).
+impl SerializableState for CShake128 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake128Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}
+
+impl SerializableState for CShake256 {
+    type SerializedStateSize = U400;
+
+    fn serialize(&self) -> SerializedState<Self> {
+        self.core.serialize()
+    }
+
+    fn deserialize(
+        serialized_state: &SerializedState<Self>,
+    ) -> Result<Self, DeserializeStateError> {
+        let core = CShake256Core::deserialize(serialized_state)?;
+        Ok(Self {
+            core,
+            buffer: Default::default(),
+        })
+    }
+}
+
+impl CollisionResistance for CShake128 {
+    // https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf#[{"num":68,"gen":0},{"name":"XYZ"},108,440,null]
+    type CollisionResistance = U16;
+}
+
+impl CollisionResistance for CShake256 {
+    // https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf#[{"num":68,"gen":0},{"name":"XYZ"},108,440,null]
+    type CollisionResistance = U32;
+}

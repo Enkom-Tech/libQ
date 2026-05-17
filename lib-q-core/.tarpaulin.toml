@@ -1,0 +1,7 @@
+# Tarpaulin: top-level options must be under a named table (e.g. [lib-q-core]).
+
+[lib-q-core]
+packages = ["lib-q-core"]
+features = "std rand"
+ignore-tests = true
+ignore-panics = true

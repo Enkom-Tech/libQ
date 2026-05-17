@@ -1,12 +1,12 @@
 # lib-Q Development Guide
 
-This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to lib-Q.
+This guide covers the development setup, CI/CD pipeline, security practices, and workflow for contributing to lib-Q. For the contribution process, security checklist, and PR template, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Rust 1.70+** (latest stable recommended)
+- **Rust 1.94.1+** (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - **Git** with proper signing setup
 - **Node.js 18+** (for WASM development)
 - **Development tools** (see installation below)
@@ -22,12 +22,11 @@ source ~/.cargo/env
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 # Clone repository
-git clone https://github.com/lib-q/lib-q.git
-cd lib-q
+git clone https://github.com/Enkom-Tech/libQ.git
+cd libQ
 
-# Install pre-commit hooks
-cargo install pre-commit
-pre-commit install
+# Optional: install pre-commit hooks (Python; use pip or conda)
+# pip install pre-commit && pre-commit install
 
 # Verify setup
 ./scripts/security-check.sh  # Linux/macOS
@@ -43,7 +42,7 @@ pre-commit install
    - Security audit and dependency scanning
    - Code quality checks (formatting, linting)
    - Comprehensive testing across platforms
-   - WASM compilation and testing
+   - WASM compilation and testing (see [docs/wasm-compilation.md](docs/wasm-compilation.md); advisory size script: [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh))
    - Performance benchmarks
    - Documentation generation
    - Cross-platform compilation
@@ -67,6 +66,21 @@ pre-commit install
    - Test coverage analysis
    - Performance regression detection
    - Documentation validation
+
+5. **Coverage (`coverage.yml`)**: Code coverage reporting
+
+6. **Security-critical coverage (`security-critical-coverage.yml`)**: Scheduled / manual tarpaulin on high-risk façade paths (thresholds via `scripts/check-coverage-metrics.sh`)
+
+7. **ZKP fuzz (`zkp-fuzz-scheduled.yml`)**: Weekly / manual bounded `cargo-fuzz` runs under `lib-q-zkp/fuzz` (does not gate PR CI)
+
+For composite actions, path triggers, and job-level detail, see [CI_CD_SETUP.md](CI_CD_SETUP.md).
+
+### WebAssembly
+
+- Build and feature guidance: [docs/wasm-compilation.md](docs/wasm-compilation.md).
+- Advisory `wasm-pack` size sweep: [scripts/wasm-size-check.sh](scripts/wasm-size-check.sh) (skips if `wasm-pack` is not installed).
+- Example `wasm-pack` project: [examples/wasm-browser-demo](examples/wasm-browser-demo).
+- Target-specific docs (illustrative): `RUSTDOCFLAGS="--cfg docsrs" cargo doc --no-deps --target wasm32-unknown-unknown -p lib-q-core --features wasm`
 
 ### Security Checks
 
@@ -92,7 +106,7 @@ git checkout -b feature/amazing-feature
 # Run local checks
 cargo fmt
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-features
+cargo test --workspace --all-features
 ./scripts/security-check.sh
 
 # Commit with proper message
@@ -125,11 +139,12 @@ Every change must pass security review:
 
 ### Cryptographic Requirements
 
-- **NO classical algorithms**: RSA, ECC, AES, SHA-256, etc.
-- **ONLY NIST-approved post-quantum algorithms**
-- **ONLY SHA-3 family hash functions** (SHAKE256, SHAKE128, cSHAKE256)
-- **Constant-time operations** for all cryptographic functions
-- **Proper memory zeroization** using the `zeroize` crate
+Align with [SECURITY.md](SECURITY.md): **no classical public-key cryptography** (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the project’s PQC threat model. **Hashing and XOFs** in the cryptographic design target the **SHA-3 family** (SHAKE, cSHAKE, and related APIs exposed by workspace crates). **Post-quantum asymmetric** constructions follow NIST-standardized modules (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, HQC, CB-KEM family, etc.).
+
+Symmetric and ancillary primitives may appear inside **reviewed, standards-aligned paths** (for example Saturnin and SHAKE-based AEAD in HPKE tiers, or components required by specific NIST PQC or RNG constructions). Do not introduce classical asymmetric schemes as the primary security mechanism.
+
+- **Constant-time intent** on sensitive cryptographic paths (full guarantees need target-specific review)
+- **Proper memory zeroization** using the `zeroize` crate where types permit
 
 ### Code Security
 
@@ -160,8 +175,9 @@ fn encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, Error> {
     // ... encryption logic
 }
 
-// ❌ Bad: Classical crypto
-use sha2::Sha256;  // Not allowed!
+// ❌ Bad: Classical public-key or forbidden hash families for security guarantees
+// (Do not use RSA/ECC/classical signatures for those roles; avoid non–SHA-3 hashes
+//  as the primary design hash where SECURITY.md applies.)
 
 // ❌ Bad: Timing attack vulnerable
 fn verify_signature(sig: &[u8], expected: &[u8]) -> bool {
@@ -226,8 +242,8 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ### Publishing Targets
 
-- **Rust Crate**: `crates.io` (automated)
-- **NPM Package**: `@lib-q/core` (automated)
+- **Rust crates**: Every workspace member except the `examples` harness is published to `crates.io` in dependency order (see `.github/workflows/cd.yml`; CI guards that new members are included).
+- **NPM packages** (WASM bundles via `wasm-pack` in CD): `@lib-q/core`, `@lib-q/ml-kem`, `@lib-q/kem`, `@lib-q/sig`, `@lib-q/fn-dsa`, `@lib-q/hash`, `@lib-q/utils`.
 - **GitHub Release**: With changelog (automated)
 
 ## Development Tools
@@ -238,9 +254,7 @@ We follow [Semantic Versioning](https://semver.org/):
 # Install development tools
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
-# Install pre-commit hooks
-cargo install pre-commit
-pre-commit install
+# Optional: pre-commit hooks (Python — pip install pre-commit && pre-commit install)
 ```
 
 ### Useful Scripts
@@ -276,15 +290,17 @@ pre-commit install
 
 1. **WASM Build Failures**
    ```bash
-   # Clean and rebuild
+   # Clean and rebuild; match CI getrandom + panic settings for wasm32-unknown-unknown
+   # (see README "no_std, embedded, and WebAssembly" and .github/actions/wasm-build/action.yml).
    cargo clean
    wasm-pack build --target nodejs --features "wasm,all-algorithms"
    ```
 
 2. **Security Check Failures**
    ```bash
-   # Run with verbose output
-   ./scripts/security-check.sh --verbose
+   # The script has no --verbose flag; trace shell steps if needed:
+   bash -x ./scripts/security-check.sh
+   # Or run individual checks (cargo audit, wasm-pack, tarpaulin) from the script body.
    ```
 
 3. **Test Failures**
@@ -337,16 +353,16 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 For security issues:
 
 1. **DO NOT** create public issues
-2. **Email** security@lib-q.org
+2. **Email** github@enkom.dev
 3. **Use** the security report template
 4. **Follow** responsible disclosure
 
 ## Support
 
 - **Documentation**: [docs.rs/lib-q](https://docs.rs/lib-q)
-- **Issues**: [GitHub Issues](https://github.com/lib-q/lib-q/issues)
-- **Security**: security@lib-q.org
-- **Discussions**: [GitHub Discussions](https://github.com/lib-q/lib-q/discussions)
+- **Issues**: [GitHub Issues](https://github.com/Enkom-Tech/libQ/issues)
+- **Security**: github@enkom.dev
+- **Discussions**: [GitHub Discussions](https://github.com/Enkom-Tech/libQ/discussions)
 
 ## License
 

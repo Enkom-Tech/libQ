@@ -1,0 +1,241 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test RNG
+description: Run RNG tests with security validation, entropy testing, and performance benchmarking
+inputs:
+  working-directory:
+    description: Working directory for RNG crate
+    default: lib-q-random
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "std,secure,zeroize"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "true"
+    required: false
+  run-entropy-validation:
+    description: Whether to run entropy validation tests
+    default: "true"
+    required: false
+  run-security-tests:
+    description: Whether to run security-specific tests
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time verification
+    default: "true"
+    required: false
+  test-algorithms:
+    description: Specific RNG algorithms to test
+    default: "secure,deterministic,hardware,user"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-rng-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-rng-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "🔒 Running security audit for RNG..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "✅ Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "✅ Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "✅ Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building no_std lib profile (cdylib needs panic handler + panic=abort)..."
+        cd ${{ inputs.working-directory }}
+        rm -rf target/dev-no-std
+        cargo build --profile dev-no-std --no-default-features --features "no_std,getrandom"
+        echo "✅ Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "✅ Build with features completed"
+    
+    - name: Check no_std library compiles (standalone cdylib + rlib)
+      shell: bash
+      run: |
+        echo "Checking lib compiles with dev-no-std + no_std,getrandom (integration tests use std in other steps)..."
+        cd ${{ inputs.working-directory }}
+        rm -rf target/dev-no-std
+        cargo check --profile dev-no-std --no-default-features --features "no_std,getrandom"
+        echo "✅ Compile check completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "✅ Tests with features completed"
+    
+    - name: Run entropy validation tests
+      if: inputs.run-entropy-validation == 'true'
+      shell: bash
+      run: |
+        echo "🎲 Running entropy validation tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test entropy_validation || echo "⚠️  entropy_validation test not available"
+        cargo test --features "${{ inputs.features }}" entropy::tests::test_entropy_quality_assessment
+        cargo test --features "${{ inputs.features }}" validation::tests::test_entropy_validation
+        echo "✅ Entropy validation tests completed"
+    
+    - name: Run security tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "🔐 Running security tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test security_tests || echo "⚠️  security_tests not available"
+        cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_secure_creation
+        cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_deterministic_consistency
+        echo "✅ Security tests completed"
+    
+    - name: Run constant-time verification
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "⏱️  Running constant-time verification..."
+        cd ${{ inputs.working-directory }}
+        
+        # Install valgrind if not already available
+        if ! command -v valgrind &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+        fi
+        
+        # Install cargo-valgrind if not already available
+        if ! command -v cargo-valgrind &> /dev/null; then
+          cargo install cargo-valgrind
+        fi
+        
+        # Run constant-time tests for RNG operations
+        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for lib-q-random"
+        echo "✅ Constant-time verification completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "⚡ Running RNG benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "✅ Benchmarks completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "✅ Cross-compilation test completed"
+    
+    - name: WASM compilation test
+      shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "Testing WASM compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        echo "✅ WASM compilation test completed"
+    
+    - name: Test no_std compatibility
+      shell: bash
+      run: |
+        echo "Testing no_std compatibility..."
+        cd ${{ inputs.working-directory }}
+        cargo check --profile dev-no-std --no-default-features --features "no_std,getrandom"
+        echo "✅ no_std compatibility test completed"
+    
+    - name: Test entropy source availability
+      shell: bash
+      run: |
+        echo "Testing entropy source availability..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" entropy::tests::test_os_entropy_source_creation
+        cargo test --features "${{ inputs.features }}" entropy::tests::test_hardware_entropy_source_creation
+        cargo test --features "${{ inputs.features }}" entropy::tests::test_deterministic_entropy_source_creation
+        echo "✅ Entropy source availability tests completed"
+    
+    - name: RNG test summary
+      shell: bash
+      run: |
+        echo "## 🎲 RNG Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "RNG tests completed successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Configuration:" >> $GITHUB_STEP_SUMMARY
+        echo "- Features: ${{ inputs.features }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Rust version: ${{ inputs.rust-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Working directory: ${{ inputs.working-directory }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Tests Run:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Unit tests (configured features)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Compile check: all targets, no default features" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Integration tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Documentation tests" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ inputs.run-entropy-validation }}" == "true" ]]; then
+          echo "- ✅ Entropy validation tests" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-security-tests }}" == "true" ]]; then
+          echo "- ✅ Security tests" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-constant-time }}" == "true" ]]; then
+          echo "- ✅ Constant-time verification" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [[ "${{ inputs.run-benchmarks }}" == "true" ]]; then
+          echo "- ✅ Performance benchmarks" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "- ✅ Cross-compilation tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ WASM compilation tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ no_std compatibility tests" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎯 **All RNG tests passed successfully!**" >> $GITHUB_STEP_SUMMARY

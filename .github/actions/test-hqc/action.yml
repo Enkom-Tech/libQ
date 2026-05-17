@@ -1,0 +1,208 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test HQC
+description: Comprehensive testing for lib-q-hqc with SIMD optimizations and security validation
+inputs:
+  working-directory:
+    description: Working directory for HQC crate
+    default: lib-q-hqc
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "alloc,hqc128,simd-avx2"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "true"
+    required: false
+  run-security-tests:
+    description: Whether to run security tests
+    default: "true"
+    required: false
+  run-simd-tests:
+    description: Whether to run SIMD correctness tests
+    default: "true"
+    required: false
+  test-algorithms:
+    description: Algorithm variants to test
+    default: "hqc128,hqc192,hqc256"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-hqc-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-hqc-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for HQC..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features --features "alloc,hqc128"
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features --features "alloc,hqc128"
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Test no_std compatibility
+      shell: bash
+      run: |
+        echo "Testing no_std compatibility..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features --features "alloc,hqc128"
+        cargo build --no-default-features --features "aes-drbg,hqc128"
+        cargo build --no-default-features --features "bearssl-aes,hqc128"
+        echo "no_std compatibility test completed"
+    
+    - name: Test WASM compatibility
+      shell: bash
+      run: |
+        echo "Testing WASM compatibility..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "alloc,hqc128,wasm" --lib
+        echo "WASM compatibility test completed"
+    
+    - name: Run SIMD correctness tests
+      if: inputs.run-simd-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running SIMD correctness tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "simd-avx2,alloc,hqc128" --test simd_correctness
+        echo "SIMD correctness tests completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "Benchmarks completed"
+    
+    - name: Run SIMD benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "Running SIMD performance benchmarks..."
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "simd-avx2,alloc,hqc128" --bench simd_benchmarks
+        echo "SIMD benchmarks completed"
+    
+    - name: Run security validation tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running security validation tests..."
+        cd ${{ inputs.working-directory }}
+        # Test KAT (Known Answer Tests)
+        cargo test --features "alloc,hqc128" --test kat_test
+        # Test libQ integration
+        cd ..
+        cargo test --features "hqc" --package lib-q
+        echo "Security validation tests completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "alloc,hqc128"
+        echo "Cross-compilation test completed"
+    
+    - name: Test all HQC parameter sets
+      shell: bash
+      run: |
+        echo "Testing all HQC parameter sets..."
+        cd ${{ inputs.working-directory }}
+        
+        # Test each parameter set individually
+        for params in hqc128 hqc192 hqc256; do
+          echo "Testing $params..."
+          cargo test --no-default-features --features "alloc,$params"
+          cargo test --no-default-features --features "aes-drbg,$params"
+          cargo test --no-default-features --features "bearssl-aes,$params"
+        done
+        
+        echo "All HQC parameter sets tested successfully"
+    
+    - name: Test SIMD with all parameter sets
+      if: inputs.run-simd-tests == 'true'
+      shell: bash
+      run: |
+        echo "Testing SIMD with all parameter sets..."
+        cd ${{ inputs.working-directory }}
+        
+        # Test SIMD with each parameter set
+        for params in hqc128 hqc192 hqc256; do
+          echo "Testing SIMD with $params..."
+          cargo test --features "simd-avx2,alloc,$params" --test simd_correctness
+        done
+        
+        echo "SIMD tests with all parameter sets completed"

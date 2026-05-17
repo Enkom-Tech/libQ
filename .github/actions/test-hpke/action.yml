@@ -1,0 +1,228 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test HPKE
+description: Run HPKE tests with security validation and algorithm testing
+inputs:
+  working-directory:
+    description: Working directory for HPKE crate
+    default: lib-q-hpke
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "ml-kem,saturnin,shake256,hash,secure-rng"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "false"
+    required: false
+  run-security-tests:
+    description: Whether to run security validation tests
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time validation
+    default: "true"
+    required: false
+  test-algorithms:
+    description: Specific HPKE algorithms to test
+    default: "ml-kem512,saturnin256,shake256"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-hpke-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-hpke-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for HPKE..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    # HPKE requires alloc (and hash/KEM/AEAD features for a buildable library). Bare
+    # --no-default-features disables alloc and fails compile_error! in lib.rs.
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features (explicit minimal features)..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features (explicit minimal features)..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Run documentation tests
+      shell: bash
+      run: |
+        echo "Running documentation tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --doc
+        echo "Documentation tests completed"
+    
+    - name: Run unit tests
+      shell: bash
+      run: |
+        echo "Running unit tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test unit
+        echo "Unit tests completed"
+    
+    - name: Run integration tests
+      shell: bash
+      run: |
+        echo "Running integration tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test integration
+        echo "Integration tests completed"
+    
+    - name: Run RFC 9180 compliance tests
+      shell: bash
+      run: |
+        echo "Running RFC 9180 compliance tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test rfc9180_compliance_tests
+        echo "RFC 9180 compliance tests completed"
+    
+    - name: Run security validation tests
+      shell: bash
+      run: |
+        echo "Running security validation tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test security_validation_comprehensive_tests
+        echo "Security validation tests completed"
+    
+    - name: Test WASM compatibility
+      shell: bash
+      run: |
+        echo "Testing WASM compatibility..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }},wasm" --lib
+        echo "WASM compatibility test completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "Benchmarks completed"
+    
+    - name: Run security validation tests (lib-Q integration)
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running security validation tests (lib-Q integration)..."
+        cd ${{ inputs.working-directory }}
+        # Test libQ integration
+        cd ..
+        cargo test --features "hpke" --package lib-q
+        echo "Security validation tests (lib-Q integration) completed"
+    
+    - name: Run constant-time validation
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "Running constant-time validation..."
+        cd ${{ inputs.working-directory }}
+        # HPKE operations should be constant-time
+        cargo test --features "${{ inputs.features }}" --test side_channel
+        echo "Constant-time validation completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: Test HPKE modes
+      shell: bash
+      run: |
+        echo "Testing HPKE modes..."
+        cd ${{ inputs.working-directory }}
+        
+        # Test different HPKE modes
+        cargo test --features "${{ inputs.features }}" --test psk_mode_tests
+        cargo test --features "${{ inputs.features }}" --test auth_mode_tests
+        cargo test --features "${{ inputs.features }}" --test authpsk_mode_comprehensive_tests
+        echo "HPKE modes tested successfully"
+    
+    - name: Test algorithm agnostic functionality
+      shell: bash
+      run: |
+        echo "Testing algorithm agnostic functionality..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test algorithm_agnostic_tests
+        cargo test --features "${{ inputs.features }}" --test comprehensive_algorithm_agnostic_tests
+        echo "Algorithm agnostic tests completed"
+    
+    - name: Test thread safety
+      shell: bash
+      run: |
+        echo "Testing thread safety..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test thread_safety_tests
+        echo "Thread safety tests completed"

@@ -1,0 +1,36 @@
+[package]
+name = "lib-q-types"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Algorithm identifiers and categories shared across lib-Q crates"
+keywords = ["cryptography", "post-quantum"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+serde = { workspace = true, optional = true, features = ["derive"], default-features = false }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+
+[features]
+default = []
+serde = ["dep:serde"]
+wasm = ["dep:wasm-bindgen", "serde"]
+
+[lib]
+name = "lib_q_types"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

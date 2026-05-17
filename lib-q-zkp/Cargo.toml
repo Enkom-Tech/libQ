@@ -1,0 +1,112 @@
+[package]
+name = "lib-q-zkp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
+categories = ["cryptography"]
+readme.workspace = true
+autobenches = false
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-stark = { path = "../lib-q-stark", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.2" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.2" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.2" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.2", default-features = false, features = ["alloc"] }
+digest = { workspace = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
+postcard = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
+zeroize = { workspace = true, default-features = false }
+lib-q-plonky = { path = "../lib-q-plonky", version = "0.0.2", optional = true }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+hex = { workspace = true, optional = true }
+
+[features]
+default = ["alloc", "zkp"]
+std = ["alloc", "lib-q-core/std", "lib-q-stark/std"]
+alloc = []
+no_std = []
+wasm = [
+    "zkp",
+    "alloc",
+    "lib-q-core/wasm",
+    "lib-q-random/std",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "dep:hex",
+]
+parallel = ["lib-q-stark-rayon", "lib-q-stark/parallel"]
+zkp = []
+stark = []
+plonky = ["dep:lib-q-plonky", "lib-q-plonky/full"]
+plonky-keccak-air = ["dep:lib-q-plonky", "lib-q-plonky/keccak-air"]
+plonky-lookup = ["dep:lib-q-plonky", "lib-q-plonky/lookup"]
+plonky-uni-stark = ["dep:lib-q-plonky", "lib-q-plonky/uni-stark"]
+plonky-batch-stark = ["dep:lib-q-plonky", "lib-q-plonky/batch-stark"]
+recursive-proofs-experimental = ["lib-q-stark-merkle/poseidon"]
+# Enable verbose trace/constraint logging in recursive verifier (off by default).
+trace-debug = []
+
+[lib]
+name = "lib_q_zkp"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[bench]]
+name = "stark_arithmetic_bench"
+harness = false
+required-features = ["zkp"]
+
+[[bench]]
+name = "zkp_benchmarks"
+harness = false
+required-features = ["zkp"]
+
+[dev-dependencies]
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.2" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "zkp"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

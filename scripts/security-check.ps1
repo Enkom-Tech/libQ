@@ -148,9 +148,10 @@ try {
     Write-Status "WARN" "cargo-audit not available"
 }
 
-# Check for WASM compatibility
+# Check for WASM compatibility (match CI: getrandom wasm_js + panic=abort)
 Write-Host "Checking for WASM compatibility..."
 try {
+    $env:CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS = '--cfg getrandom_backend="wasm_js" -C panic=abort'
     $wasmResult = cargo check --target wasm32-unknown-unknown --features "wasm" 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Status "PASS" "WASM compilation successful"

@@ -1,0 +1,45 @@
+[package]
+name = "lib-q-keccak-digest"
+version.workspace = true
+description = """
+lib-Q: pre-FIPS Keccak-224/256/384/512 and Keccak256Full (200-byte) digests; not FIPS 202 SHA-3
+"""
+authors.workspace = true
+license.workspace = true
+readme = "README.md"
+edition.workspace = true
+rust-version.workspace = true
+documentation = "https://docs.rs/lib-q-keccak-digest"
+repository.workspace = true
+keywords = ["crypto", "keccak", "hash", "digest", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+digest = { workspace = true }
+# v1: sponge core lives in `lib-q-sha3::block_api`; a slimmer dep graph is ADR 002
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+
+[dev-dependencies]
+blobby = { workspace = true, features = ["alloc"] }
+digest = { workspace = true, features = ["dev"] }
+
+[features]
+default = ["alloc"]
+alloc = ["digest/alloc", "lib-q-sha3/alloc"]
+
+[lib]
+name = "lib_q_keccak_digest"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(docsrs)',
+    'cfg(doc_cfg)',
+    'cfg(tarpaulin)',
+    'cfg(feature, values("alloc", "default", "zeroize", "oid", "asm"))',
+] }

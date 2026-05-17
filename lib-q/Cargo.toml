@@ -1,0 +1,205 @@
+[package]
+name = "lib-q"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+exclude = [
+    "/target",
+]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[lib]
+name = "libq"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core dependencies
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["rand"] }
+lib-q-kem = { path = "../lib-q-kem", version = "0.0.2" }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2" }
+lib-q-sig = { path = "../lib-q-sig", version = "0.0.2", default-features = false, features = ["alloc", "ml-dsa", "slh-dsa"] }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.2" }
+lib-q-aead = { path = "../lib-q-aead", version = "0.0.2" }
+lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.2", optional = true, default-features = false }
+lib-q-hpke = { path = "../lib-q-hpke", version = "0.0.2", optional = true }
+lib-q-utils = { path = "../lib-q-utils", version = "0.0.2" }
+lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.2", default-features = false, features = ["alloc", "zkp"] }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+lib-q-fn-dsa = { path = "../lib-q-fn-dsa", version = "0.0.2", optional = true }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.2", optional = true, default-features = false }
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.2", optional = true }
+
+# WASM-specific dependencies
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true, features = ["console"] }
+
+[dev-dependencies]
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp" }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", default-features = false, features = ["std", "random"] }
+lib-q-ring = { path = "../lib-q-ring" }
+lib-q-ring-sig = { path = "../lib-q-ring-sig" }
+rand_chacha = { workspace = true }
+rand_core = { workspace = true }
+
+# WASM testing
+wasm-bindgen-test = { workspace = true }
+
+# `criterion` / `proptest` are not used by this crate's wasm integration tests, but they
+# pull `wait-timeout` / `rand` 0.9 → `getrandom` 0.3 which does not build for
+# `wasm32-unknown-unknown` under CI's `getrandom_backend="wasm_js"` cfg unless heavily
+# patched. Keep them for native `cargo test` only.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["alloc", "lib-q-sig/std", "lib-q-zkp/std"]
+alloc = []
+no_std = []
+# WASM API
+wasm = [
+    "alloc",
+    "wasm-bindgen",
+    "js-sys",
+    "web-sys",
+    "lib-q-hash/wasm_js",
+    "lib-q-core/wasm",
+    "lib-q-core/wasm_getrandom",
+    "lib-q-core/slh-dsa",
+    "lib-q-utils/wasm_js",
+    "lib-q-sig/wasm",
+    "lib-q-sig/slh-dsa-wasm",
+    "lib-q-zkp/wasm",
+    "lib-q-aead/wasm",
+    "lib-q-hpke?/wasm",
+    "lib-q-hqc?/wasm",
+    "lib-q-cb-kem?/wasm",
+    "lib-q-ring-sig?/wasm",
+    "lib-q-prf?/wasm",
+    "lib-q-random?/wasm",
+]
+# WebAssembly JavaScript integration
+wasm_js = ["wasm", "lib-q-hash/wasm_js", "lib-q-core/wasm_getrandom", "lib-q-utils/wasm_js"]
+# Random number generation
+rand = []
+# Logging support
+log = []
+# Experimental APIs
+experimental = []
+# Testing support
+tests = []
+
+# Algorithm implementations
+# Re-export features from individual crates
+ml-kem = ["lib-q-kem/ml-kem"]
+ml-dsa = ["lib-q-sig/ml-dsa"]
+mldsa44 = ["lib-q-ml-dsa/mldsa44"]
+mldsa65 = ["lib-q-ml-dsa/mldsa65"]
+mldsa87 = ["lib-q-ml-dsa/mldsa87"]
+
+# NIST PQC Standards
+slh-dsa = ["lib-q-sig/slh-dsa", "lib-q-core/slh-dsa"]
+slh-dsa-std = ["lib-q-sig/slh-dsa-std", "lib-q-core/slh-dsa"]
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc", "lib-q-cb-kem/zeroize", "lib-q-cb-kem/cbkem348864", "lib-q-cb-kem/getrandom", "lib-q-cb-kem/rand"]
+relaxed_entropy_validation = ["lib-q-core/relaxed_entropy_validation"]
+hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-kem/hqc"]
+fn-dsa = ["dep:lib-q-fn-dsa", "lib-q-sig/fn-dsa"]
+
+# New Post-Quantum Algorithms
+saturnin = ["lib-q-aead/saturnin"]
+duplex-sponge-aead = ["lib-q-aead/duplex-sponge-aead"]
+tweak-aead = ["lib-q-aead/tweak-aead"]
+romulus = ["lib-q-aead/romulus"]
+# Protocol implementations
+hpke = ["dep:lib-q-hpke", "lib-q-hpke/std"]
+hpke-duplex-aead = ["hpke", "lib-q-hpke/duplex-sponge-aead"]
+zkp = ["lib-q-zkp/zkp"]
+# Plonky3-derived STARK stack (uni/batch STARK, Keccak AIR, lookup); optional compile cost.
+zkp-plonky = ["zkp", "lib-q-zkp/plonky"]
+zkp-plonky-keccak-air = ["zkp", "lib-q-zkp/plonky-keccak-air"]
+zkp-plonky-lookup = ["zkp", "lib-q-zkp/plonky-lookup"]
+zkp-plonky-uni-stark = ["zkp", "lib-q-zkp/plonky-uni-stark"]
+zkp-plonky-batch-stark = ["zkp", "lib-q-zkp/plonky-batch-stark"]
+zkp-parallel = ["zkp", "lib-q-zkp/parallel"]
+zkp-recursive-experimental = ["zkp", "lib-q-zkp/recursive-proofs-experimental"]
+
+# Random number generation features
+# Note: getrandom requires std in this configuration
+# For no_std environments, applications must provide custom entropy sources
+# For WASM, use wasm-specific getrandom configuration
+getrandom = ["lib-q-core/getrandom"]
+# lib-q-random integration
+random = ["dep:lib-q-random", "lib-q-random/std"]
+random-custom-entropy = ["dep:lib-q-random", "lib-q-random/custom-entropy"]
+
+# Federation ring openings + optional pilot insecure PRF transcript (lab only; see lib-q-ring-sig)
+ring-sig = ["dep:lib-q-ring-sig", "lib-q-ring-sig/std"]
+prf = ["dep:lib-q-prf"]
+pilot-insecure-prf-transcript = ["ring-sig", "prf", "lib-q-ring-sig/pilot-insecure-prf-transcript"]
+
+# Security features
+# Enable memory zeroization for hash functions and their dependencies
+zeroize = ["lib-q-hash/zeroize"]
+
+# SIMD features
+simd128 = ["lib-q-ml-dsa/simd128"]
+simd256 = ["lib-q-ml-dsa/simd256"]
+
+# Security features
+# Comprehensive security hardening with zeroization and all algorithms
+security-hardened = ["zeroize", "all-algorithms"]
+
+# Convenience features
+all-algorithms = ["ml-kem", "ml-dsa", "mldsa44", "mldsa65", "mldsa87", "slh-dsa", "cb-kem", "hqc", "fn-dsa", "saturnin", "duplex-sponge-aead", "tweak-aead", "romulus", "zkp"]
+
+# Development and testing features
+dev = ["experimental", "tests"]
+full = ["std", "wasm", "rand", "log", "all-algorithms"]
+
+[[test]]
+name = "api_surface_tests"
+path = "tests/api_surface_tests.rs"
+required-features = ["all-algorithms"]
+
+[[test]]
+name = "zkp_plonky_umbrella_tests"
+path = "tests/zkp_plonky_umbrella_tests.rs"
+required-features = ["zkp-plonky"]
+
+[[test]]
+name = "privacy_protocol_integration_tests"
+path = "tests/privacy_protocol_integration_tests.rs"
+
+[[test]]
+name = "wasm_integration"
+path = "tests/wasm_integration.rs"
+required-features = ["wasm", "ml-kem"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+    'cfg(feature, values("cb-kem"))',
+    'cfg(feature, values("zkp-plonky", "zkp-plonky-keccak-air", "zkp-plonky-lookup", "zkp-plonky-uni-stark", "zkp-plonky-batch-stark"))',
+] }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

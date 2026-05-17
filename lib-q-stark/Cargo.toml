@@ -1,0 +1,59 @@
+[package]
+name = "lib-q-stark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A minimal univariate STARK framework providing core components for proof generation and verification."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.2" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.2" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.2" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.2" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+
+itertools = { workspace = true }
+postcard = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+zeroize = { workspace = true, features = ["derive"], default-features = false }
+
+[dev-dependencies]
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.2" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.2" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+
+postcard = { workspace = true, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
+rand = { workspace = true, default-features = false }
+wasm-bindgen-test = { workspace = true }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
+parallel = ["lib-q-stark-rayon/parallel"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

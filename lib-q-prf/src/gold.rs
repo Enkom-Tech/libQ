@@ -1,0 +1,122 @@
+//! Gold (power-residue) PRF: \(\mathrm{Gold}_k(x) = (k+x)^g \bmod p\).
+
+use crypto_bigint::{
+    NonZero,
+    U256,
+    U512,
+};
+use zeroize::{
+    Zeroize,
+    ZeroizeOnDrop,
+};
+
+use crate::error::PrfError;
+use crate::field::{
+    fp_add,
+    fp_pow,
+    to_monty,
+};
+use crate::keys::{
+    validate_key_u256,
+    validate_key_u512,
+};
+use crate::params::{
+    GoldPrfParams256,
+    GoldPrfParams512,
+};
+
+/// Secret key `k` for the Gold PRF (pilot: [`U256`] field).
+///
+/// Invariant: `k` is a reduced field element in `[1, p)` for the modulus `p` in
+/// [`GoldPrfParams256`]. Keys are only constructible via [`GoldKey256::from_uint`] or
+/// [`GoldKey256::derive_from_seed`]; use [`GoldKey256::as_uint`] for read-only access.
+/// Evaluation assumes this invariant and does not re-validate on each call.
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct GoldKey256 {
+    k: U256,
+}
+
+/// Same invariant as [`GoldKey256`], with [`GoldPrfParams512`].
+/// Construct only via [`GoldKey512::from_uint`] / [`GoldKey512::derive_from_seed`];
+/// read the scalar with [`GoldKey512::as_uint`].
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct GoldKey512 {
+    k: U512,
+}
+
+impl GoldKey256 {
+    pub fn from_uint(k: U256, params: &GoldPrfParams256) -> Result<Self, PrfError> {
+        validate_key_u256(&k, &params.p)?;
+        Ok(Self { k })
+    }
+
+    pub fn derive_from_seed(seed: &[u8], params: &GoldPrfParams256) -> Result<Self, PrfError> {
+        let k = crate::shake::shake256_to_field_u256(seed, b"lib-q-prf/gold-k256/v1", &params.p)?;
+        Self::from_uint(k, params)
+    }
+
+    /// Borrow the key as a reduced field element in `[1, p)` (see type invariant).
+    #[inline]
+    #[must_use]
+    pub fn as_uint(&self) -> &U256 {
+        &self.k
+    }
+}
+
+impl GoldKey512 {
+    pub fn from_uint(k: U512, params: &GoldPrfParams512) -> Result<Self, PrfError> {
+        validate_key_u512(&k, &params.p)?;
+        Ok(Self { k })
+    }
+
+    pub fn derive_from_seed(seed: &[u8], params: &GoldPrfParams512) -> Result<Self, PrfError> {
+        let k = crate::shake::shake256_to_field_u512(seed, b"lib-q-prf/gold-k512/v1", &params.p)?;
+        Self::from_uint(k, params)
+    }
+
+    /// Borrow the key as a reduced field element in `[1, p)` (see type invariant).
+    #[inline]
+    #[must_use]
+    pub fn as_uint(&self) -> &U512 {
+        &self.k
+    }
+}
+
+/// Evaluate Gold PRF; returns canonical residue in little-endian bytes.
+///
+/// Assumes `key` satisfies the [`GoldKey256`] invariant (validated in
+/// [`GoldKey256::from_uint`] / [`GoldKey256::derive_from_seed`]).
+pub fn gold_prf_u256(
+    key: &GoldKey256,
+    x: &U256,
+    params: &GoldPrfParams256,
+) -> Result<[u8; 32], PrfError> {
+    let nz = NonZero::new(params.p)
+        .into_option()
+        .ok_or(PrfError::InvalidParam)?;
+    let xr = x.rem_vartime(&nz);
+    let xm = to_monty(&xr, &params.monty);
+    let km = to_monty(&key.k, &params.monty);
+    let sum = fp_add(xm, &km);
+    let out_m = fp_pow(&sum, &params.g);
+    Ok(out_m.retrieve().to_le_bytes().into())
+}
+
+/// 512-bit field variant; returns canonical residue in little-endian bytes.
+///
+/// Assumes `key` satisfies the [`GoldKey512`] invariant (see [`GoldKey512::from_uint`]).
+pub fn gold_prf_u512(
+    key: &GoldKey512,
+    x: &U512,
+    params: &GoldPrfParams512,
+) -> Result<[u8; 64], PrfError> {
+    let nz = NonZero::new(params.p)
+        .into_option()
+        .ok_or(PrfError::InvalidParam)?;
+    let xr = x.rem_vartime(&nz);
+    let xm = to_monty(&xr, &params.monty);
+    let km = to_monty(&key.k, &params.monty);
+    let sum = fp_add(xm, &km);
+    let out_m = fp_pow(&sum, &params.g);
+    Ok(out_m.retrieve().to_le_bytes().into())
+}

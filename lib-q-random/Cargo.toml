@@ -1,0 +1,127 @@
+[package]
+name = "lib-q-random"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Unified secure random number generation for libQ post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
+rand_chacha = { workspace = true, default-features = false }
+rand_core = { workspace = true, default-features = false }
+getrandom = { workspace = true, optional = true, default-features = false }
+rand = { workspace = true, default-features = false, optional = true }
+zeroize = { workspace = true, features = ["derive", "alloc"], default-features = false, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+aes = { workspace = true, default-features = false, optional = true }
+signature = { version = "3.0.0-rc.5", features = ["rand_core"], optional = true }
+
+# Merge wasm_js into transitive getrandom on wasm32-unknown-unknown (same pattern as lib-q-core).
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
+[features]
+default = ["std", "secure", "zeroize"]
+std = ["getrandom", "dep:rand", "alloc", "dep:lib-q-core"]
+alloc = ["dep:lib-q-core"]
+
+# `no_std` enables the aborting `#[panic_handler]` so standalone builds with `crate-type = ["cdylib", "rlib"]` link. Use e.g.
+# `cargo check -p lib-q-random --profile dev-no-std --no-default-features --features "no_std,getrandom"` (workspace `dev-no-std` sets `panic = "abort"`; or set `RUSTFLAGS=-Cpanic=abort` for the root crate).
+# As a dependency inside a firmware image that defines its own `#[panic_handler]`, enable `getrandom` / `alloc` / … with `default-features = false` and do not enable the `no_std` feature on this crate (see `lib-q-slh-dsa` for an example).
+no_std = ["getrandom", "no_std_panic_handler"]
+# Kept as an empty alias so older manifests and CI flags that pass `no_std_panic_handler` remain valid.
+no_std_panic_handler = []
+
+# RNG provider features
+secure = ["getrandom", "dep:rand"]
+deterministic = []
+hardware = []
+getrandom = ["dep:getrandom"]
+signature = ["dep:signature"]
+
+# Specialized implementations
+hash = ["dep:lib-q-hash"]
+# Secure `ClassicalMcElieceRng::new()` requires OS entropy; do not allow builds that only pull
+# deterministic test paths while still exposing the non-deterministic constructor.
+classical-mceliece = ["getrandom"]
+hpke = ["hash"]
+fn-dsa = []
+hqc = ["alloc"]  # HQC reference implementation in tests (requires Vec)
+aes = ["dep:aes"]
+nist-drbg = ["aes", "alloc"]  # NIST AES256-CTR-DRBG for KAT compliance
+
+# Additional features for specialized implementations
+rand = ["dep:rand"]
+
+# Security features
+zeroize = ["dep:zeroize"]
+entropy-validation = []
+
+# Development features
+test-vectors = []
+
+# Platform-specific features
+wasm = [
+    "alloc",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:hex",
+    "dep:getrandom",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+    "getrandom/wasm_js",
+    "custom-entropy",
+    "zeroize",
+]
+js = ["dep:getrandom", "getrandom/std"]
+
+# Custom entropy source features
+custom-entropy = []
+
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+hex = { workspace = true }
+proptest = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
+
+# Secure RNG cases need the optional getrandom dependency; skip when building with --no-default-features.
+[[test]]
+name = "security_tests"
+required-features = ["getrandom"]
+
+[[bench]]
+name = "rng_benchmarks"
+harness = false
+required-features = ["alloc"]
+
+[lib]
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. The `no_std` feature enables the aborting panic handler for standalone `cargo check` of this crate.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[package.metadata.docs.rs]
+features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy"]
+rustdoc-args = ["--cfg", "docsrs"]

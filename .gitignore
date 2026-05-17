@@ -32,6 +32,7 @@ Cargo.lock
 dist/
 build/
 out/
+sbom/
 
 # WASM build artifacts (already covered by pkg/.gitignore but good to have here too)
 pkg/*.wasm
@@ -85,6 +86,14 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+
+# Rust tarpaulin / CI: output dirs other than plain coverage/ (e.g. scripts/run-coverage.sh, coverage.yml)
+coverage-*/
+cov-*/
+combined-coverage/
+
+# Tarpaulin HTML when written to cwd or a crate root
+tarpaulin-report.html
 
 # nyc test coverage
 .nyc_output
@@ -169,6 +178,7 @@ docs/build/
 # Test artifacts
 test-results/
 test-output/
+cobertura.xml
 
 # Profiling data
 *.prof
@@ -200,5 +210,15 @@ rust-project.json
 # Cargo audit
 Cargo.audit.toml
 
+# SBOM / CycloneDX (e.g. cargo-cyclonedx beside a manifest; target/ already ignored)
+*bom.cdx.json
+*bom.cdx.xml
+cyclonedx-bom.json
+
 # Local configuration
 .cargo/config.toml
+
+/reference
+.cursor/
+.claude/
+hooks.json

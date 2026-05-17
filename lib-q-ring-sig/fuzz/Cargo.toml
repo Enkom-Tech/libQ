@@ -1,0 +1,41 @@
+[package]
+name = "lib-q-ring-sig-fuzz"
+version = "0.0.2"
+edition = "2024"
+rust-version = "1.94.1"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+lib-q-ring-sig = { path = "..", default-features = false, features = ["std", "pilot-insecure-prf-transcript"] }
+lib-q-prf = { path = "../../lib-q-prf", version = "0.0.2" }
+lib-q-lattice-zkp = { path = "../../lib-q-lattice-zkp", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../../lib-q-ring", default-features = false, features = ["alloc"] }
+libfuzzer-sys = "0.4.12"
+
+[[bin]]
+name = "ring_sig_verify_federation"
+path = "fuzz_targets/ring_sig_verify_federation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pilot_insecure_prf_transcript_verify"
+path = "fuzz_targets/pilot_insecure_prf_transcript_verify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dualring_lb_verify"
+path = "fuzz_targets/dualring_lb_verify.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
+resolver = "3"

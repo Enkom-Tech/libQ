@@ -6,12 +6,11 @@ Thank you for your interest in contributing to lib-Q! This document outlines the
 
 lib-Q is a cryptography library, which means security is paramount. All contributions must follow these principles:
 
-### 1. **Zero Classical Crypto**
-- **NEVER** use classical cryptographic algorithms (RSA, ECC, AES, SHA-256, etc.)
-- **ONLY** use NIST-approved post-quantum algorithms
-- **ONLY** use SHA-3 family hash functions (SHAKE256, SHAKE128, cSHAKE256)
-- **ONLY** use post-quantum secure ZKP systems (zk-STARKs, not classical SNARKs)
-- All classical crypto is considered broken in our threat model
+### 1. **Post-quantum asymmetric and SHA-3–aligned design**
+- **Do not** use **classical public-key** schemes (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the library’s PQC mission; follow [SECURITY.md](SECURITY.md).
+- **Do** use **NIST-track / standardized PQC** (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, HQC, CB-KEM family, etc.) for those roles.
+- **Hashes / XOFs** in new cryptographic design should stay in the **SHA-3 family** (SHAKE, cSHAKE, and related workspace APIs). Symmetric choices follow existing crate patterns (e.g. Saturnin, SHAKE-based AEAD). Some standardized or infrastructure paths may use other primitives already under review—mirror existing crates rather than inventing new classical stacks.
+- **ZKP**: The production-facing transparent proof stack is **zk-STARK–based** (`lib-q-zkp` and related crates). **`lib-q-lattice-zkp`** is an explicit research path for module-lattice statements. Do not add pairing-based or classical-curve trusted-setup SNARKs as the primary PQ story without maintainer agreement.
 
 ### 2. **Constant-Time Operations**
 - All cryptographic operations must be constant-time
@@ -31,10 +30,16 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 - No cache timing attacks
 - Use secure random number generation
 
+### 5. **WebAssembly and parallelism**
+- Do **not** enable **`parallel`** on `lib-q-stark-rayon`, **`parallel`** on `lib-q-stark-util`, or **`parallelhash`** on `lib-q-hash` for `wasm32-unknown-unknown` builds; these combinations fail with `compile_error!` by design.
+- Prefer `cargo check --target wasm32-unknown-unknown` with the workspace `getrandom` cfg from [docs/wasm-compilation.md](docs/wasm-compilation.md) when touching RNG or feature graphs that pull `getrandom`.
+
 ## Development Setup
 
+For full development workflow, CI/CD pipeline, and troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ### Prerequisites
-- Rust 1.70+ (latest stable recommended)
+- Rust 1.94.1+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - `wasm-pack` for WASM compilation
 - `cargo-audit` for security audits
 - `cargo-tarpaulin` for code coverage
@@ -45,8 +50,8 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 cargo install wasm-pack cargo-audit cargo-tarpaulin
 
 # Clone and setup
-git clone https://github.com/lib-q/lib-q.git
-cd lib-q
+git clone https://github.com/Enkom-Tech/libQ.git
+cd libQ
 cargo build
 ```
 
@@ -58,6 +63,15 @@ cargo build
 - Use `cargo clippy` for linting
 - Maximum line length: 100 characters
 
+### Linting (Clippy)
+Before submitting, ensure there are no Clippy issues. Run from the workspace root:
+
+```bash
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+CI runs Clippy with `-D warnings` (see `.github/workflows/ci.yml`); use the command above locally so PRs match the gate.
+
 ### Documentation
 - All public APIs must be documented
 - Include usage examples
@@ -67,7 +81,7 @@ cargo build
 ### Testing Requirements
 - **100% code coverage** for cryptographic functions
 - Property-based testing with `proptest`
-- Fuzzing tests for all public APIs
+- Property-based or fuzz-style tests for public APIs (continuous fuzzing e.g. `cargo fuzz` encouraged where applicable)
 - Constant-time verification tests
 - WASM compatibility tests
 
@@ -75,12 +89,13 @@ cargo build
 
 ### Before Submitting
 1. **Self-review**: Check your code against security guidelines
-2. **Static analysis**: Run `cargo audit` and `cargo clippy`
+2. **Static analysis**: Run `cargo audit` and `cargo clippy --all-targets --all-features`
 3. **Testing**: Ensure all tests pass, including WASM tests
 4. **Documentation**: Update relevant documentation
 
 ### Review Checklist
 - [ ] No classical cryptographic algorithms used
+- [ ] Only NIST-approved post-quantum algorithms used
 - [ ] Only SHA-3 family hash functions used (SHAKE256, SHAKE128, cSHAKE256)
 - [ ] Only post-quantum secure ZKP systems used (zk-STARKs)
 - [ ] All operations are constant-time
@@ -120,22 +135,21 @@ mod tests {
 - Test WASM compilation
 - Test performance characteristics
 
-### Fuzzing Tests
+### Property-based / fuzz-style tests
+Use `proptest` or `arbitrary` to exercise public APIs with generated inputs. Continuous fuzzing (e.g. `cargo fuzz`) is encouraged where applicable.
+
 ```rust
 #[cfg(test)]
-mod fuzz {
+mod tests {
     use super::*;
-    use arbitrary::Arbitrary;
+    use proptest::prelude::*;
 
-    #[derive(Arbitrary)]
-    struct FuzzInput {
-        data: Vec<u8>,
-        key: Vec<u8>,
-    }
-
-    #[test]
-    fn fuzz_encryption(input: FuzzInput) {
-        // Fuzzing test
+    proptest! {
+        #[test]
+        fn roundtrip_encryption(input in prop::collection::vec(any::<u8>(), 0..MAX_SIZE)) {
+            let result = encrypt(&input, &[0u8; 32]).unwrap();
+            assert_eq!(decrypt(&result, &[0u8; 32]).unwrap(), input);
+        }
     }
 }
 ```
@@ -173,7 +187,7 @@ wasm-pack test --headless --chrome
 
 1. **Fork** the repository
 2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Commit** your changes: `git commit -m 'Add amazing feature'`
+3. **Commit** your changes with a signed-off commit: `git commit -s -m 'Add amazing feature'`
 4. **Push** to the branch: `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
@@ -184,6 +198,7 @@ Brief description of changes
 
 ## Security Considerations
 - [ ] No classical crypto used
+- [ ] Only NIST-approved post-quantum algorithms used
 - [ ] Constant-time operations verified
 - [ ] Memory safety ensured
 - [ ] Input validation complete
@@ -209,9 +224,10 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ## Getting Help
 
-- **Security issues**: Email security@lib-q.org (private)
+- **Security issues**: Email github@enkom.dev (private)
 - **General questions**: Open an issue on GitHub
 - **Development questions**: Join our Discord/Matrix
+- **AI-Generated Wiki**: [https://deepwiki.com/Enkom-Tech/libQ](https://deepwiki.com/Enkom-Tech/libQ)
 
 ## Roadmap Contributions
 

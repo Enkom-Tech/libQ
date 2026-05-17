@@ -1,0 +1,52 @@
+[package]
+name = "lib-q-plonky"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Plonky3-derived ZK proving components for lib-Q"
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+keywords = ["cryptography", "post-quantum", "zkp", "lib-q"]
+categories = ["cryptography"]
+
+[lib]
+name = "lib_q_plonky"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
+
+[dependencies]
+lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", version = "0.0.2", optional = true }
+lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.2", optional = true }
+lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.2", optional = true }
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.2", optional = true }
+lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.2", optional = true }
+
+[features]
+default = ["alloc"]
+alloc = []
+std = ["alloc"]
+no_std = []
+lib-q-plonky-multilinear-util = ["dep:lib-q-plonky-multilinear-util"]
+lib-q-plonky-keccak-air = ["dep:lib-q-plonky-keccak-air"]
+lib-q-plonky-lookup = ["dep:lib-q-plonky-lookup"]
+lib-q-plonky-uni-stark = ["dep:lib-q-plonky-uni-stark"]
+lib-q-plonky-batch-stark = ["dep:lib-q-plonky-batch-stark"]
+multilinear-util = ["lib-q-plonky-multilinear-util"]
+keccak-air = ["lib-q-plonky-keccak-air"]
+lookup = ["lib-q-plonky-lookup"]
+uni-stark = ["lib-q-plonky-uni-stark"]
+batch-stark = ["lib-q-plonky-batch-stark", "uni-stark"]
+full = ["multilinear-util", "keccak-air", "lookup", "uni-stark", "batch-stark"]

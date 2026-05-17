@@ -1,0 +1,60 @@
+[package]
+name = "lib-q-lattice-zkp-fuzz"
+version = "0.0.2"
+edition = "2024"
+rust-version = "1.94.1"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+lib-q-lattice-zkp = { path = "..", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../../lib-q-ring", default-features = false, features = ["alloc"] }
+libfuzzer-sys = "0.4.12"
+
+[[bin]]
+name = "lattice_zkp_verify_opening"
+path = "fuzz_targets/lattice_zkp_verify_opening.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_verify_nullifier_opening"
+path = "fuzz_targets/lattice_zkp_verify_nullifier_opening.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_verify_blind_bundle"
+path = "fuzz_targets/lattice_zkp_verify_blind_bundle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_verify_blind_signature"
+path = "fuzz_targets/lattice_zkp_verify_blind_signature.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_verify_witness_nullifier"
+path = "fuzz_targets/lattice_zkp_verify_witness_nullifier.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_verify_private_membership"
+path = "fuzz_targets/lattice_zkp_verify_private_membership.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
+resolver = "3"

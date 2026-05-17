@@ -1,0 +1,9 @@
+{
+  "name": "wasm-browser-demo",
+  "private": true,
+  "version": "0.0.2",
+  "description": "Static host helper for libQ wasm-browser-demo (run: npx serve .)",
+  "scripts": {
+    "build": "wasm-pack build --target web --release"
+  }
+}

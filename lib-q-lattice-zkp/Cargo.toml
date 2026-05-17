@@ -1,0 +1,39 @@
+[package]
+name = "lib-q-lattice-zkp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+description = "Module-lattice commitments, sigma protocols, and BLNS-style credential amortisation"
+keywords = ["cryptography", "post-quantum", "lattice", "zkp", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
+subtle = { workspace = true }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+rand_chacha = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+hex = { workspace = true }
+proptest = { workspace = true }
+rand_core = { workspace = true }
+
+[features]
+default = ["alloc"]
+alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
+std = ["alloc", "lib-q-random/std"]
+random = ["dep:lib-q-random"]
+# Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
+wasm = ["random", "lib-q-random/wasm"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lattice_zkp_docs)'] }
