@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: wasm-docs-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
