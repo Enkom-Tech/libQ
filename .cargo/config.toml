@@ -1,7 +1,16 @@
-# Local parity with CI for wasm32-unknown-unknown (getrandom JS backend).
-# Do not set `-C panic=abort` here: it breaks `cargo test --target wasm32-unknown-unknown`
-# for crates that mix cdylib + tests. Release wasm-pack builds set panic=abort via
-# `CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS` in `.github/actions/wasm-build/action.yml`.
+# Workspace Cargo configuration (tracked; override locally via ~/.cargo/config.toml).
 
+# wasm32-unknown-unknown: getrandom must use the JS backend.
+# Do not set `-C panic=abort` here — it breaks `cargo test --target wasm32-unknown-unknown`
+# for crates that mix cdylib + tests. Release wasm-pack builds set panic=abort via
+# CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS in .github/actions/wasm-build/action.yml.
 [target.wasm32-unknown-unknown]
 rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
+
+# Linux cross-compilation from x86_64 hosts (CI cross-platform job, local apt toolchains).
+# Requires: gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf (see scripts/run-non-pr-ci-jobs-wsl.sh).
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
