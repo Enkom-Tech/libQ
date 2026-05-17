@@ -12,7 +12,7 @@ This document describes how to compile and ship libQ crates for `wasm32-unknown-
 
 On `wasm32-unknown-unknown`, `getrandom` must use the JavaScript backend (`wasm_js`). The repository configures this in two complementary ways:
 
-1. **`.cargo/config.toml`** — `rustflags` for `wasm32-unknown-unknown` include `--cfg getrandom_backend="wasm_js"`.
+1. **`.cargo/config.toml`** — `rustflags` for `wasm32-unknown-unknown` include `--cfg getrandom_backend="wasm_js"`. The same file sets GNU cross linkers for `aarch64-unknown-linux-gnu` and `armv7-unknown-linux-gnueabihf` when building from an x86_64 Linux host (install `gcc-aarch64-linux-gnu` / `gcc-arm-linux-gnueabihf`; see the cross-platform job in `.github/workflows/ci.yml`).
 2. **Crate manifests** — several crates add a `[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]` edge on `getrandom` with `features = ["wasm_js"]` so feature unification cannot drop the backend when hardened RNG paths are enabled.
 
 For CI parity, you can also export:

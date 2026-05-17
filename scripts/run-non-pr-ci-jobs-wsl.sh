@@ -8,10 +8,12 @@
 #   chmod +x scripts/run-non-pr-ci-jobs-wsl.sh
 #   ./scripts/run-non-pr-ci-jobs-wsl.sh
 #
-# Cross-compilation (aarch64, armv7) needs Ubuntu packages:
+# Cross-compilation (aarch64, armv7): linkers in .cargo/config.toml; rust-std targets in
+# rust-toolchain.toml. Run `rustup show` once in the repo to sync the toolchain. Ubuntu packages:
 #   sudo apt-get update
 #   sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross \
 #     gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libc6-dev-armhf-cross file
+# If `can't find crate for std` on a cross target, reinstall nightly: `rustup toolchain uninstall nightly && rustup toolchain install nightly`
 #
 # macOS / Windows MSVC targets from the CI matrix cannot be built from WSL; run those on
 # the native runners or a matching host.
