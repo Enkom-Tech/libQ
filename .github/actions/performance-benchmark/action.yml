@@ -99,7 +99,8 @@ runs:
           done
         else
           echo "Running all benchmarks"
-          cargo bench --features "${{ inputs.features }}" --verbose -- ${BENCH_CRITERION_FLAGS}
+          # Workspace-wide bench mixes Criterion and built-in harnesses; Criterion flags break the latter.
+          cargo bench --features "${{ inputs.features }}" --verbose
         fi
         
         echo "✅ Benchmarks completed successfully"
