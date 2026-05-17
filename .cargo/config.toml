@@ -9,8 +9,11 @@ rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
 
 # Linux cross-compilation from x86_64 hosts (CI cross-platform job, local apt toolchains).
 # Requires: gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf (see scripts/run-non-pr-ci-jobs-wsl.sh).
+# `rustflags` duplicate `linker` so a job-level `RUSTFLAGS=` env cannot leave the host `cc` driver.
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
+rustflags = ["-Clinker=aarch64-linux-gnu-gcc", "-Clinker-flavor=gnu"]
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
+rustflags = ["-Clinker=arm-linux-gnueabihf-gcc", "-Clinker-flavor=gnu"]

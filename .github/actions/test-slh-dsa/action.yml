@@ -18,6 +18,10 @@ inputs:
     description: Whether to run benchmarks
     default: "true"
     required: false
+  run-extended-kats:
+    description: Whether to run release-ci ACVP sigGen and full all-parameter-set KAT suites
+    default: "true"
+    required: false
   run-security-tests:
     description: Whether to run security validation tests
     default: "true"
@@ -55,7 +59,9 @@ runs:
       shell: bash
       run: |
         echo "Running security audit for SLH-DSA..."
-        cargo install cargo-audit --locked
+        if ! command -v cargo-audit >/dev/null 2>&1; then
+          cargo install cargo-audit --locked
+        fi
         cargo audit --deny warnings
         echo "Security audit completed successfully"
     
@@ -123,8 +129,12 @@ runs:
         cd ${{ inputs.working-directory }}
         cargo test --features "${{ inputs.features }}" --test acvp_keygen
         cargo test --features "${{ inputs.features }}" --test acvp_sig
-        echo "ACVP sigGen (full signing KATs): release + ignored — too slow for debug"
-        cargo test --features "${{ inputs.features }}" --profile release-ci --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
+        if [ "${{ inputs.run-extended-kats }}" = "true" ]; then
+          echo "ACVP sigGen (full signing KATs): release + ignored — too slow for debug"
+          cargo test --features "${{ inputs.features }}" --profile release-ci --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
+        else
+          echo "Skipping ACVP sigGen release-ci KATs (run-extended-kats=false)"
+        fi
         cargo test --features "${{ inputs.features }}" --test acvp_ver
         echo "ACVP tests completed"
     
@@ -188,6 +198,7 @@ runs:
         echo "Cross-compilation test completed"
     
     - name: Known answer tests and ACVP keygen (all parameter sets)
+      if: inputs.run-extended-kats == 'true'
       shell: bash
       run: |
         echo "Running full known_answer_tests (12 KATs) and ACVP keyGen projection including slow *s sets..."
