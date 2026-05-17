@@ -33,7 +33,7 @@ jobs:
           rustup target add wasm32-unknown-unknown
           RUSTDOCFLAGS="--cfg docsrs" cargo doc --no-deps --target wasm32-unknown-unknown --features wasm -p lib-q-core
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v3
         with:
