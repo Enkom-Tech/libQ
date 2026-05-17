@@ -1,0 +1,62 @@
+[package]
+name = "lib-q-sha3"
+version.workspace = true
+description = """
+lib-Q: SHA-3 (FIPS 202), SHAKE, cSHAKE (SP 800-185), TurboSHAKE; no_std-friendly. Raw Keccak digests: lib-q-keccak-digest
+"""
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+documentation = "https://docs.rs/lib-q-sha3"
+repository.workspace = true
+keywords = ["crypto", "sha3", "keccak", "hash", "digest"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+block-buffer = { workspace = true }
+digest = { workspace = true }
+# `default-features = false` avoids pulling `lib-q-keccak` `std` (e.g. `num_cpus`) for dependents
+# that are `no_std` / `wasm` / `thumb*`. The `asm` feature still enables `lib-q-keccak/asm` when set.
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+
+[dev-dependencies]
+digest = { workspace = true, features = ["dev"] }
+blobby = { workspace = true, features = ["alloc"] }
+hex-literal = { workspace = true }
+base16ct = { workspace = true }
+lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.2" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+name = "sha3_benchmarks"
+harness = false
+
+[features]
+default = ["alloc", "oid"]
+alloc = ["digest/alloc"]
+oid = ["digest/oid"] # Enable OID support.
+zeroize = ["digest/zeroize"]
+asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
+
+[lib]
+name = "lib_q_sha3"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(tarpaulin)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }

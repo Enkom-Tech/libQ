@@ -1,0 +1,453 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Rust Test
+description: Reusable Rust test action with matrix support and comprehensive testing
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for testing
+    default: ""
+    required: false
+  package:
+    description: Specific package to test (optional)
+    default: ""
+    required: false
+  packages:
+    description: >-
+      Space-separated packages to test together. Entries without '@' share --features with
+      inputs.features and are passed in one cargo test -p ... -p ... run. Use pkg@feat1,feat2
+      for a package that needs different features (runs a separate cargo test per such entry).
+      When non-empty, takes precedence over package for the normal (non-no_std) test paths.
+    default: ""
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-release-tests:
+    description: Whether to run release tests
+    default: "true"
+    required: false
+  run-coverage:
+    description: Whether to run coverage tests
+    default: "false"
+    required: false
+  coverage-threshold:
+    description: Minimum coverage threshold percentage
+    default: "95"
+    required: false
+  coverage-branch-threshold:
+    description: >-
+      Optional minimum branch coverage from cobertura.xml when the toolchain emits
+      branch data (branches-valid > 0). Empty string skips the branch check.
+    default: ""
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src, llvm-tools-preview
+
+    # Merged rustdoc doctests + incremental can leave mixed `lib_q_core` rlibs/rmeta under
+    # `target/debug/deps` (especially after cache restore) → E0460. CI does not need
+    # incremental for correctness; disabling it stabilizes doctest linking.
+    - name: Disable Cargo incremental (E0460 guard)
+      shell: bash
+      run: echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+
+    # `target/` must not be shared across rustc builds or matrix feature sets: stale or
+    # mixed rlibs cause E0460 (newer dependency) and E0463 (missing crate) under --profile release-ci.
+    - name: Toolchain fingerprint (cache)
+      id: toolchain-fp
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v sha256sum >/dev/null 2>&1; then
+          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        else
+          echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        fi
+    
+    - name: Compute cache-key fragment
+      id: cache-frag
+      shell: bash
+      env:
+        FEATURES: ${{ inputs.features }}
+        PACKAGE: ${{ inputs.package }}
+        PACKAGES: ${{ inputs.packages }}
+        # Bump this literal to invalidate every restored target/ tree at once.
+        CACHE_EPOCH: "v2"
+      run: |
+        set -euo pipefail
+        # SHA-256 of a canonical, newline-delimited join — immune to commas, spaces, @, etc.
+        # actions/cache rejects keys containing commas, and matrix feature lists are comma-separated.
+        payload=$(printf '%s\n%s\n%s\n%s\n' "$FEATURES" "$PACKAGE" "$PACKAGES" "$CACHE_EPOCH")
+        if command -v sha256sum >/dev/null 2>&1; then
+          hash=$(printf '%s' "$payload" | sha256sum | awk '{print $1}')
+        else
+          hash=$(printf '%s' "$payload" | shasum -a 256 | awk '{print $1}')
+        fi
+        echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-rust-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ steps.cache-frag.outputs.hash }}
+
+    - name: Nuke release-ci artifacts from any restored cache
+      shell: bash
+      run: |
+        ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        # lib-q-core / lib-q-utils emit companion library artefacts; the unsuffixed `.rlib` is
+        # never fingerprinted, so a restored `target/release-ci` tree will mix a stale
+        # `liblib_q_core.rlib` with freshly-hashed downstream rlibs → E0460.
+        rm -rf "${ROOT}/target/release-ci"
+
+    - name: Set coverage skip flag
+      id: coverage-skip
+      if: inputs.run-coverage == 'true'
+      shell: bash
+      run: |
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Install cargo-tarpaulin (if coverage enabled)
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
+      shell: bash
+      run: cargo install cargo-tarpaulin
+    
+    - name: Run tests
+      shell: bash
+      run: |
+        echo "Running tests..."
+        cd ${{ inputs.working-directory }}
+
+        # Check if we're running no_std tests and adjust accordingly
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
+        fi
+        FEAT_ARGS=()
+        if [[ -n "$FEATURES" ]]; then
+          FEAT_ARGS=(--features "$FEATURES")
+        fi
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+          echo "Running no_std or no_std-compatible compilation check"
+          echo "Cannot run tests in no_std mode or for no_std-compatible packages"
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            echo "Testing specific package: $PACKAGE"
+            # Check that the specific package compiles in no_std mode
+            if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
+              echo "Building no_std package $PACKAGE (rlib-only; no extra panic feature)"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "${FEATURES:-alloc}" --verbose
+            elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
+              echo "Building $PACKAGE no_std with dev-no-std (`no_std` includes aborting panic handler)"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
+            else
+              echo "Building no_std package $PACKAGE with dev-no-std profile (panic=abort)"
+              cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
+            fi
+          else
+            echo "Testing workspace with no_std features"
+            # For workspace no_std check, just verify compilation
+            cargo check --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
+          fi
+        else
+          if [[ -n "$PACKAGES" ]]; then
+            SHARED_FLAGS=""
+            for item in $PACKAGES; do
+              if [[ "$item" == *"@"* ]]; then
+                pkg="${item%%@*}"
+                pfeats="${item#*@}"
+                echo "Running dev tests for $pkg with features $pfeats"
+                cargo test -p "$pkg" --features "$pfeats" --verbose
+              else
+                if [[ -z "$SHARED_FLAGS" ]]; then
+                  SHARED_FLAGS="-p $item"
+                else
+                  SHARED_FLAGS="$SHARED_FLAGS -p $item"
+                fi
+              fi
+            done
+            if [[ -n "$SHARED_FLAGS" ]]; then
+              echo "Running dev tests with $SHARED_FLAGS and features ${FEATURES:-<crate defaults>}"
+              cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --verbose
+            fi
+          elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+              echo "Skipping full dev test suite for lib-q-fn-dsa (quick smoke runs in release step only)"
+            else
+              cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --verbose
+            fi
+          else
+            cargo test "${FEAT_ARGS[@]}" --verbose
+          fi
+        fi
+        echo "Tests completed"
+    
+    - name: Run release tests
+      if: inputs.run-release-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running release tests..."
+
+        # Nuke the entire release-ci output tree before cd'ing into a potential
+        # subdirectory.  Some workspace crates (`lib-q-core`, `lib-q-utils`, …) emit their
+        # companion .rlib WITHOUT a metadata-hash suffix, so Cargo's incremental
+        # fingerprint cache can hold stale --extern paths that point at vanished
+        # or re-hashed artefacts, causing E0460/E0463 on cache-restored CI runs.
+        # `cargo clean --profile` relies on the same fingerprints, so rm is the
+        # only reliable remedy.
+        ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        rm -rf "${ROOT}/target/release-ci"
+
+        cd ${{ inputs.working-directory }}
+
+        # Check if we're running no_std tests and adjust accordingly
+        FEATURES="${{ inputs.features }}"
+        PACKAGE="${{ inputs.package }}"
+        PACKAGES="${{ inputs.packages }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
+        fi
+        FEAT_ARGS=()
+        if [[ -n "$FEATURES" ]]; then
+          FEAT_ARGS=(--features "$FEATURES")
+        fi
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+          echo "Running no_std or no_std-compatible release compilation check"
+          echo "Cannot run tests in no_std mode or for no_std-compatible packages"
+          if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            echo "Testing specific package in release: $PACKAGE"
+            # Check that the specific package compiles in no_std mode for release
+            if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
+              echo "Building no_std package $PACKAGE in release mode (rlib-only)"
+              cargo check -p $PACKAGE --profile release --no-default-features --features "${FEATURES:-alloc}" --verbose
+            elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
+              echo "Building $PACKAGE no_std release check with release-security"
+              cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES" --verbose
+            else
+              echo "Building no_std package $PACKAGE with release-security profile (panic=abort)"
+              cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES" --verbose
+            fi
+          else
+            echo "Testing workspace with no_std features in release"
+            # For workspace no_std check, just verify compilation for release
+            cargo check --profile release-security --no-default-features --features "$FEATURES" --verbose
+          fi
+        else
+          if [[ -n "$PACKAGES" ]]; then
+            SHARED_FLAGS=""
+            for item in $PACKAGES; do
+              if [[ "$item" == *"@"* ]]; then
+                pkg="${item%%@*}"
+                pfeats="${item#*@}"
+                echo "Running release tests for $pkg with features $pfeats"
+                cargo test -p "$pkg" --features "$pfeats" --profile release-ci --verbose
+              else
+                if [[ -z "$SHARED_FLAGS" ]]; then
+                  SHARED_FLAGS="-p $item"
+                else
+                  SHARED_FLAGS="$SHARED_FLAGS -p $item"
+                fi
+              fi
+            done
+            if [[ -n "$SHARED_FLAGS" ]]; then
+              echo "Running release tests with $SHARED_FLAGS and features ${FEATURES:-<crate defaults>}"
+              cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --profile release-ci --verbose
+            fi
+          elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+              echo "Running quick FN-DSA smoke tests (release-ci). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
+              cd "${GITHUB_WORKSPACE:-.}"
+              FN_FEAT="${FEATURES:-std,rand}"
+              cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+              cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
+              cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
+            else
+              cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --profile release-ci --verbose
+            fi
+          else
+            cargo test "${FEAT_ARGS[@]}" --profile release-ci --verbose
+          fi
+        fi
+        echo "Release tests completed"
+    
+    - name: Generate coverage report
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
+      shell: bash
+      run: |
+        echo "Generating coverage report..."
+        cd ${{ inputs.working-directory }}
+        PACKAGE="${{ inputs.package }}"
+        FEATURES="${{ inputs.features }}"
+        if [[ "$PACKAGE" == "lib-q-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,alloc,ml-kem,hqc"
+        fi
+        if [[ "$PACKAGE" == "lib-q-ml-kem" && -z "$FEATURES" ]]; then
+          FEATURES="std,deterministic"
+        fi
+        
+        # Build tarpaulin command with appropriate options
+        TARPAULIN_CMD="cargo tarpaulin --engine llvm --out Html --out Xml --output-dir coverage --timeout 180"
+        
+        # Add package filter if specified
+        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --packages $PACKAGE"
+        fi
+        
+        # Add features
+        if [[ "$FEATURES" == *"no_std"* ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --no-default-features --features \"$FEATURES\""
+        elif [[ "$PACKAGE" == "lib-q-core" ]]; then
+          # lib-q-core needs std,rand features for proper coverage
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
+        elif [[ "$PACKAGE" == "lib-q" ]]; then
+          # lib-q needs all-algorithms feature
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"all-algorithms\""
+        elif [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand\""
+        elif [[ "$PACKAGE" == "lib-q-cb-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,rand,getrandom,alloc,zeroize,cbkem348864\""
+        elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,alloc,ml-kem,hqc\""
+        elif [[ "$PACKAGE" == "lib-q-ml-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,deterministic\""
+        elif [[ "$PACKAGE" == "lib-q-ml-dsa" ]]; then
+          if [[ -n "$FEATURES" ]]; then
+            TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
+          else
+            # ACVP / FIPS / hardened tests are feature-gated; align with ci.yml + run-coverage.sh.
+            TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened,mldsa44,mldsa65,mldsa87\""
+          fi
+        elif [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"simd256,simd128,simd512\""
+        elif [[ -n "$FEATURES" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
+        fi
+        
+        # Always exclude build artifacts and non-library trees from coverage
+        TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"target/*\" --exclude-files \"benches/*\" --exclude-files \"examples/*\""
+        
+        # For specific packages, exclude all other crates to focus coverage calculation
+        if [[ "$PACKAGE" == "lib-q-core" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hash/*\" --exclude-files \"lib-q-hpke/*\" --exclude-files \"lib-q-intrinsics/*\" --exclude-files \"lib-q-k12/*\" --exclude-files \"lib-q-keccak/*\" --exclude-files \"lib-q-keccak-digest/*\" --exclude-files \"lib-q-kem/*\" --exclude-files \"lib-q-ml-dsa/*\" --exclude-files \"lib-q-ml-kem/*\" --exclude-files \"lib-q-sha3/*\" --exclude-files \"lib-q-sig/*\" --exclude-files \"lib-q-aead/*\" --exclude-files \"lib-q-platform/*\" --exclude-files \"lib-q-utils/*\" --exclude-files \"lib-q-zkp/*\""
+          # PR/coverage runs use std,rand only; wasm sources are not part of that build — keep the percentage aligned.
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-core/src/wasm/*\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-core/src/*\" --include-files \"lib-q-core/src/**\" --include-files \"lib-q-core\\\\src\\\\*\""
+        elif [[ "$PACKAGE" == "lib-q" ]]; then
+          # Umbrella crate: count only lib-q/src so the gate reflects this package, not all deps.
+          # Repeat patterns so paths match on Linux (/) and Windows (\) in reports.
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q/src/*\" --include-files \"lib-q/src/**\" --include-files \"lib-q\\\\src\\\\*\""
+        elif [[ "$PACKAGE" == "lib-q-keccak" ]]; then
+          # Without include-files, Cobertura aggregates the whole instrumented graph (~tens of k lines) and the % collapses.
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-keccak/src/*\" --include-files \"lib-q-keccak/src/**\" --include-files \"lib-q-keccak\\\\src\\\\*\""
+          # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
+        elif [[ "$PACKAGE" == "lib-q-hash" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-hash/src/*\" --include-files \"lib-q-hash/src/**\" --include-files \"lib-q-hash\\\\src\\\\*\""
+        elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          PIN="${{ github.workspace }}/scripts/print-tarpaulin-include-args.sh"
+          if [[ ! -f "$PIN" ]]; then
+            echo "ERROR: Missing $PIN"
+            exit 1
+          fi
+          if ! INC="$(bash "$PIN" "$PACKAGE" | tr -d '\r')"; then
+            echo "ERROR: Could not build tarpaulin --include-files for package '$PACKAGE'"
+            exit 1
+          fi
+          TARPAULIN_CMD="$TARPAULIN_CMD ${INC}"
+        fi
+
+        # ML-DSA: simd256/AVX2 sources are not in default coverage builds; drop from denominator (see docs/coverage-scope.md).
+        if [[ "$PACKAGE" == "lib-q-ml-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/simd/avx2.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/simd/avx2/*\" --exclude-files \"lib-q-ml-dsa/src/simd/avx2/**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\*\" --exclude-files \"lib-q-ml-dsa\\\\src\\\\simd\\\\avx2\\\\**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\ml_dsa_generic\\\\instantiations\\\\avx2.rs\""
+        fi
+
+        if [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
+          ARCH_RAW="$(uname -m 2>/dev/null || echo unknown)"
+          ARCH_CLEAN="${ARCH_RAW%%[$'\r']}"
+          case "$ARCH_CLEAN" in
+            x86_64|amd64)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\arm64.rs\""
+              ;;
+            aarch64|arm64)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/avx2.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\avx2.rs\""
+              ;;
+            *)
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\arm64.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics/src/avx2.rs\""
+              TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-intrinsics\\\\src\\\\avx2.rs\""
+              ;;
+          esac
+        fi
+        
+        if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
+          if ! echo "$TARPAULIN_CMD" | grep -q -- '--include-files'; then
+            echo "ERROR: Tarpaulin command has no --include-files for package '$PACKAGE' (Cobertura line-rate would be invalid)."
+            exit 1
+          fi
+        fi
+        
+        if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD -- keypair_generation test_basic_fn_dsa_functionality"
+        elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD -- --test-threads=1"
+        fi
+        
+        echo "Running: $TARPAULIN_CMD"
+        eval "$TARPAULIN_CMD"
+        echo "Coverage report generated"
+
+    - name: Check coverage threshold
+      if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
+      shell: bash
+      run: |
+        echo "Checking coverage threshold..."
+        cd ${{ inputs.working-directory }}
+        CHECK="${{ github.workspace }}/scripts/check-coverage-metrics.sh"
+        if [[ ! -f "$CHECK" ]]; then
+          echo "ERROR: Missing $CHECK"
+          exit 1
+        fi
+        BRANCH_ARGS=()
+        if [[ -n "${{ inputs.coverage-branch-threshold }}" ]]; then
+          BRANCH_ARGS=(--branch-min "${{ inputs.coverage-branch-threshold }}")
+        fi
+        if ! bash "$CHECK" --dir coverage --line-min "${{ inputs.coverage-threshold }}" "${BRANCH_ARGS[@]}"; then
+          echo "ERROR: Coverage check failed (see messages above)"
+          ls -la coverage/ || echo "Coverage directory does not exist"
+          exit 1
+        fi

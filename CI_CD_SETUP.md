@@ -1,211 +1,352 @@
-# lib-Q CI/CD Pipeline
+# CI/CD Setup
 
-This document describes the CI/CD pipeline implementation for lib-Q, a post-quantum cryptography library.
+This document describes the CI/CD pipeline configuration for lib-Q.
 
-## Overview
+## Workflows
 
-### GitHub Actions Workflows
+### CI Pipeline (`.github/workflows/ci.yml`)
 
-#### CI Pipeline (`.github/workflows/ci.yml`)
-- Security audit and dependency scanning
-- Code quality checks (formatting, linting)
-- Multi-platform testing with feature combinations
-- WASM compilation and testing
-- Performance benchmarks
-- Documentation generation
-- Cross-platform builds (Linux, macOS, Windows, ARM)
+- **Triggers**: `push` / `pull_request` on `main` and `develop`, `workflow_dispatch`, and a weekly schedule (`cron: 0 5 * * 0`).
+- **PR vs full runs**: Pull requests run a slimmer set of jobs to save minutes. Pushes to `main`/`develop`, the weekly schedule, and manual dispatch also run heavier jobs (e.g. cross-platform builds, valgrind, HQC SIMD debug, full ML-DSA audit script, ZKP recursive aggregation, extended benchmarks where enabled).
+- **Core validation**: Fast gate (15 min timeout)—format, security audit, workspace Clippy with all features (`rust-build`).
+- **Test matrix**: Feature and package combinations via `rust-test` (e.g. `std`, `all-algorithms`, ML-KEM, ML-DSA modes, `no_std`, WASM, ZKP, `lib-q-random`, `lib-q-ring`, `lib-q-lattice-zkp`, STARK crates). Non-PR runs also `cargo check` both ring crates for `thumbv7em-none-eabi` and execute `lib-q-sca-test` (see `ci.yml`).
+- **WASM validation**: `wasm-build` across several crates; additional Romulus `no_std` / `wasm32` smoke checks.
+- **Cross-platform builds**: Non-PR only; multiple OS/target combinations.
+- **Algorithm tests**: Composite `test-*` actions for Keccak, SHA3, K12 (in `lib-q-hash`), Saturnin, FN-DSA, RNG (`lib-q-random`), CB-KEM, SLH-DSA, HPKE, and HQC (see [Composite actions](#composite-actions)).
+- **Other jobs**: ML-DSA compliance, documentation generation, integration tests, performance-style jobs where configured, SIMD debug for HQC, etc.
 
-#### CD Pipeline (`.github/workflows/cd.yml`)
-- Automated publishing to crates.io
-- WASM package publishing to npmjs.com
-- GitHub release creation with changelogs
-- Post-release security verification
+### CD Pipeline (`.github/workflows/cd.yml`)
 
-#### Security Pipeline (`.github/workflows/security.yml`)
-- NIST compliance validation
-- Constant-time operation verification
-- Memory safety and zeroization checks
-- Post-quantum algorithm validation
-- WASM security validation
+- **Trigger**: Version tags matching `v*`.
+- **Pre-release validation**: Workspace `Cargo.toml` version must match the tag; `rust-build` + `cargo test --all-features --release`.
+- **Rust publishing**: Crates publish in dependency order across **tiers 0–16** via `rust-lang/crates-io-auth-action` (crates.io **Trusted Publishing** / OIDC) and `./.github/actions/crate-publish`. Exact package lists per tier are defined only in `cd.yml`.
+- **WASM / npm**: `wasm-build` then `./.github/actions/npm-publish` for scoped `@lib-q/*` packages (requires `NPM_TOKEN`).
+- **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable). **`post-release` and `cd-summary` wait on `publish-rust-tier-16`** so the GitHub release is cut after the last crates.io tier (including `lib-q-zkp`).
 
-#### PR Validation (`.github/workflows/pr.yml`)
-- Code quality and security checks
-- Test coverage analysis (95% threshold)
-- Performance regression detection
-- Documentation validation
+### Security Pipeline (`.github/workflows/security.yml`)
 
-### Development Tools
+- **Triggers**: `push` / `pull_request` on `main` and `develop`, and daily schedule (`cron: 0 2 * * *`).
+- **Core**: `rust-build` with audit; NIST-focused checks via `cargo run -p lib-q-utils --bin security-validator`.
+- **Additional jobs**: Cryptographic validation, dependency and compliance-style checks, reporting suitable for PRs (see workflow file for the current job list).
 
-#### Security Check Scripts
-- `scripts/security-check.sh` (Linux/macOS)
-- `scripts/security-check.ps1` (Windows)
-- Cryptographic compliance validation
-- Classical algorithm detection
-- Memory safety verification
+### PR Validation (`.github/workflows/pr.yml`)
 
-#### Pre-commit Hooks (`.pre-commit-config.yaml`)
-- Automated formatting with `cargo fmt`
-- Linting with `cargo clippy`
-- Security validation before commits
+- **Core validation**: `rust-build` (audit, format, Clippy on `lib-q`), plus `cargo doc --all-features --no-deps --document-private-items`.
+- **Security validation**: Classical-crypto policy and SHA-3 compliance via `lib-q-utils` `security-validator`.
+- **Test coverage**: Targeted coverage for crates touched by the PR (`rust-test` with per-crate thresholds). For scope and thresholds, see `docs/coverage-scope.md`.
 
-#### Issue & PR Templates
-- Bug report template with security impact assessment
-- Security vulnerability reporting template
-- PR template with security checklists
+### Test Coverage (`.github/workflows/coverage.yml`)
 
-#### Dependency Management (`.github/dependabot.yml`)
-- Automated dependency updates
-- Security-focused update policies
-- Weekly update schedule
-- Critical dependency protection
+- **Triggers**: Pushes to `main`, PRs to `main` when certain paths change (`lib-q-keccak`, `lib-q-core`, or this workflow), and weekly schedule.
+- **Behavior**: `cargo-tarpaulin`, stable and nightly matrix, line coverage threshold (see `COVERAGE_THRESHOLD` in the workflow).
 
-## Security Architecture
+### Security-critical coverage (`.github/workflows/security-critical-coverage.yml`)
 
-### Cryptographic Compliance
-- Zero classical crypto detection
-- NIST-approved post-quantum algorithms only
-- SHA-3 family hash functions only
-- Constant-time operation validation
+- **Triggers**: `workflow_dispatch` and weekly schedule.
+- **Behavior**: Scoped tarpaulin on security-critical facade paths (e.g. `lib-q-sig` with ML-DSA features), with thresholds enforced via `scripts/check-coverage-metrics.sh`.
 
-### Memory Safety
-- Automated memory zeroization checks
-- Unsafe code usage tracking
-- Comprehensive input validation
+### ZKP fuzz (scheduled) (`.github/workflows/zkp-fuzz-scheduled.yml`)
 
-### Dependency Security
-- Automated vulnerability scanning with `cargo audit`
-- Controlled dependency updates
-- Trusted source verification
+- **Triggers**: Weekly schedule and `workflow_dispatch`.
+- **Behavior**: `cargo-fuzz` targets under `lib-q-zkp/fuzz` (bounded time); does not gate PR CI.
 
-## Publishing Process
+### Dependency updates
 
-### Automated Publishing
-1. Version tag creation (e.g., `v1.0.0`)
-2. Pre-release validation
-3. Multi-platform publishing
-4. Post-release verification
+- **Dependabot**: `.github/dependabot.yml` for GitHub Actions and cargo ecosystem updates.
 
-### Publishing Targets
-- Rust crate: `crates.io` (lib-q)
-- NPM package: `@lib-q/core`
-- GitHub release with changelog
+## Composite actions
 
-## Development Workflow
+There is **no** `security-validation` composite. Security checks use `rust-build`, `rust-test`, and workflow-local steps (including `lib-q-utils` `security-validator`).
 
-### Local Development
-```bash
-# Setup
-git clone https://github.com/lib-q/lib-q.git
-cd lib-q
-cargo install cargo-audit cargo-tarpaulin wasm-pack
-pre-commit install
+### Rust Build (`.github/actions/rust-build`)
 
-# Development
-git checkout -b feature/new-algorithm
-# Make changes
-./scripts/security-check.sh
-cargo test --all-features
-git commit -s -m "feat: add new algorithm"
+Primary reusable gate: toolchain, cache, integration-test layout check, optional audit / fmt / Clippy / tests / workspace builds / WASM or cross-compile flags. Used heavily in `ci.yml`, `pr.yml` (subset), `cd.yml`, and `security.yml`.
+
+```yaml
+- uses: ./.github/actions/rust-build
+  with:
+    run-security-audit: "true"
+    run-format-check: "true"
+    run-clippy: "true"
+    run-tests: "false"
+    run-workspace-builds: "false"
+    features: "all-algorithms"
 ```
 
-### CI/CD Flow
-1. Push to branch triggers CI pipeline
-2. PR creation triggers validation
-3. Security review (automated + manual)
-4. Merge with quality gates
-5. Release tag triggers CD pipeline
+### Rust Test (`.github/actions/rust-test`)
 
-## Security Validation
+Matrix tests in `ci.yml`; optional tarpaulin coverage (used in `pr.yml` with per-package thresholds). See `.github/actions/README.md` for inputs.
 
-### Automated Checks
-- Classical algorithm detection
-- SHA-3 compliance verification
-- Constant-time operation validation
-- Memory zeroization checks
-- Dependency vulnerability scanning
+### WASM Build (`.github/actions/wasm-build`)
 
-### Manual Review Process
-- Security team review for cryptographic changes
-- Maintainer approval required
-- Responsible disclosure handling
+Used in `ci.yml` and `cd.yml` (wasm-pack; supports `out-dir`, feature flags, `check-only`).
 
-## Quality Standards
+### Crate publish / NPM publish
 
-### Code Quality
-- Automated formatting with `cargo fmt`
-- Zero clippy warnings
-- 95% test coverage minimum
-- Complete API documentation
+- **`.github/actions/crate-publish`**: `cargo publish` with token from OIDC (`crates-io-auth-action`) in CD.
+- **`.github/actions/npm-publish`**: Node **20** (see action), registry publish with `NPM_TOKEN`.
 
-### Performance
-- Automated benchmark regression detection
-- WASM performance validation
-- Memory usage tracking
+### Performance benchmark (`.github/actions/performance-benchmark`)
+
+Composite action exists for reuse; **no workflow currently invokes it**. Use or wire it explicitly if you need a dedicated benchmark job.
+
+### Algorithm-specific test actions
+
+CI’s `algorithm-tests` job passes inputs aligned with `.github/workflows/ci.yml` (values below match that matrix; copy from the workflow if you need an exact replica).
+
+#### Keccak (`.github/actions/test-keccak`)
+
+```yaml
+- uses: ./.github/actions/test-keccak
+  with:
+    working-directory: "lib-q-keccak"
+    features: "asm,simd"
+    rust-version: "nightly"
+    run-benchmarks: "true"
+    test-algorithms: ""
+```
+
+#### SHA3 (`.github/actions/test-sha3`)
+
+```yaml
+- uses: ./.github/actions/test-sha3
+  with:
+    working-directory: "lib-q-sha3"
+    features: "alloc,oid"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    test-algorithms: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512,turboshake128,turboshake256"
+```
+
+#### K12 (`.github/actions/test-k12`)
+
+K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
+
+```yaml
+- uses: ./.github/actions/test-k12
+  with:
+    working-directory: "lib-q-hash"
+    features: "alloc,oid,getrandom"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    test-algorithms: "kangarootwelve"
+```
+
+#### Saturnin (`.github/actions/test-saturnin`)
+
+```yaml
+- uses: ./.github/actions/test-saturnin
+  with:
+    working-directory: "lib-q-saturnin"
+    features: "aead,aead-short,block-cipher,hash,stream,alloc"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    test-algorithms: "aead,aead-short,block-cipher,hash,stream"
+```
+
+#### FN-DSA (`.github/actions/test-fn-dsa`)
+
+```yaml
+- uses: ./.github/actions/test-fn-dsa
+  with:
+    working-directory: "lib-q-fn-dsa"
+    features: "std,rand"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    run-security-tests: "true"
+    run-constant-time: "true"
+```
+
+#### RNG (`.github/actions/test-rng`)
+
+```yaml
+- uses: ./.github/actions/test-rng
+  with:
+    working-directory: "lib-q-random"
+    features: "std,secure,zeroize"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-entropy-validation: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "secure,deterministic,hardware,user"
+```
+
+#### CB-KEM (`.github/actions/test-cb-kem`)
+
+```yaml
+- uses: ./.github/actions/test-cb-kem
+  with:
+    working-directory: "lib-q-cb-kem"
+    features: "cbkem348864"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128,cbkem8192128f"
+```
+
+#### SLH-DSA (`.github/actions/test-slh-dsa`)
+
+```yaml
+- uses: ./.github/actions/test-slh-dsa
+  with:
+    working-directory: "lib-q-slh-dsa"
+    features: "alloc"
+    rust-version: "stable"
+    run-benchmarks: "true"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
+```
+
+#### HPKE (`.github/actions/test-hpke`)
+
+```yaml
+- uses: ./.github/actions/test-hpke
+  with:
+    working-directory: "lib-q-hpke"
+    features: "ml-kem,saturnin,shake256,hash,secure-rng"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    run-security-tests: "true"
+    run-constant-time: "true"
+    test-algorithms: "ml-kem512,saturnin256,shake256"
+```
+
+#### HQC (`.github/actions/test-hqc`)
+
+```yaml
+- uses: ./.github/actions/test-hqc
+  with:
+    working-directory: "lib-q-hqc"
+    features: "alloc,hqc128,simd-avx2"
+    rust-version: "stable"
+    run-benchmarks: "false"
+    run-security-tests: "true"
+    run-simd-tests: "true"
+    test-algorithms: "hqc128,hqc192,hqc256"
+```
 
 ## Configuration
 
-### Required Secrets
-```yaml
-CARGO_REGISTRY_TOKEN: "crates.io publish token"
-NPM_TOKEN: "npm publish token"
+### Secrets and publishing auth
+
+- **crates.io**: CD uses **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. Configure the repository as a trusted publisher for workflow `cd.yml` at [crates.io publishing settings](https://crates.io/settings/publishing). A long-lived `CARGO_REGISTRY_TOKEN` secret is **not** required for that path.
+- **npm**: `NPM_TOKEN` — required for `npm-publish` in `cd.yml`.
+
+### Environment requirements
+
+- **Rust**: **1.94.1** minimum (workspace `rust-version` in [Cargo.toml](Cargo.toml)).
+- **Node.js**: **20** for npm publish actions; **18+** is still a reasonable local baseline for WASM tooling where not pinned by CI.
+- **Development tools**: `cargo-audit`, `cargo-tarpaulin` (coverage workflows), `wasm-pack`, and `cargo-fuzz` (ZKP scheduled workflow).
+
+## Publishing targets
+
+### Rust crates (crates.io)
+
+Publishing order and membership are defined **only** in `cd.yml` (tiers 0–16). In addition to umbrella and algorithm crates, the pipeline includes **platform/intrinsics**, **HQC**, **`lib-q-poseidon`**, **`lib-q-zkp`**, and the **`lib-q-stark-*`** / **`lib-q-plonky-*`** crate families. The following are representative, not exhaustive:
+
+**Workspace-only (not in `cd.yml` publish tiers):** examples package, **`lib-q-ring`**, **`lib-q-lattice-zkp`**, **`lib-q-ring-sig`**, **`lib-q-prf`**, **`lib-q-sca-test`**, and other tooling crates—built and tested in CI but not released through this CD graph unless added to `cd.yml`.
+
+- **`lib-q`** — Meta crate re-exporting the workspace surface.
+- **`lib-q-core`**, **`lib-q-utils`**, **`lib-q-platform`**, **`lib-q-intrinsics`**, **`lib-q-random`** — Infrastructure and utilities.
+- **Hashes**: **`lib-q-keccak`**, **`lib-q-sha3`**, **`lib-q-k12`**, **`lib-q-hash`**.
+- **KEMs**: **`lib-q-kem`**, **`lib-q-ml-kem`**, **`lib-q-cb-kem`**, **`lib-q-hqc`**.
+- **Signatures**: **`lib-q-sig`**, **`lib-q-ml-dsa`**, **`lib-q-fn-dsa`**, **`lib-q-slh-dsa`**.
+- **AEAD / symmetric**: **`lib-q-aead`**, **`lib-q-saturnin`**, etc.
+- **`lib-q-hpke`**, **`lib-q-zkp`**, STARK / Plonky2-related crates per tier blocks in `cd.yml`.
+
+Any crate included in the WASM publish matrix in `cd.yml` must declare in its `Cargo.toml`:
+
+```toml
+[lib]
+crate-type = ["cdylib", "rlib"]
 ```
 
-### Environment Requirements
-- Rust 1.70+
-- Node.js 18+ (for WASM development)
-- Development tools: cargo-audit, cargo-tarpaulin, wasm-pack
+`wasm-pack` needs `cdylib` for `.wasm` artifacts; `rlib` keeps the crate usable as a normal Rust dependency.
 
-## Benefits
+### NPM packages (npmjs.com)
 
-### For Developers
-- Automated quality gates
-- Early security issue detection
-- Standardized development process
-- Immediate feedback on changes
+Per `cd.yml` `publish-wasm-packages` matrix (names and `out-dir` vary by crate):
 
-### For Users
-- Reliable, quality-assured releases
-- Comprehensive security validation
-- Multi-platform compatibility
-- WASM support for web and Node.js
+- **`@lib-q/core`**, **`@lib-q/ml-kem`**, **`@lib-q/kem`**, **`@lib-q/sig`**, **`@lib-q/hash`**, **`@lib-q/utils`**, **`@lib-q/fn-dsa`**
 
-### For Maintainers
-- Automated publishing process
-- Continuous security monitoring
-- Automated dependency management
-- Consistent code quality
+### Additional publishing
 
-## Next Steps
+- **GitHub Release** with generated changelog body (see `post-release` job in `cd.yml`).
 
-### Immediate Actions
-1. Configure GitHub secrets for publishing
-2. Set up local development environment
-3. Test pipeline with initial commit
-4. Review and approve security workflows
+## Implemented algorithms
 
-### Future Enhancements
-- Automated fuzzing integration
-- Performance baseline establishment
-- Regular third-party security audits
-- NIST certification support
+### Hash functions
 
-## Documentation
+- **Keccak** (FIPS 202) — SHA-3 family and related modes.
+- **SHA-3** (FIPS 202) — SHA3 and SHAKE variants (see crate docs for exact profiles).
+- **KangarooTwelve** — Keccak-based XOF (exposed via hash crates as documented in the workspace).
 
-- Development Guide: `DEVELOPMENT.md`
-- Contributing Guidelines: `CONTRIBUTING.md`
-- Security Model: `docs/security.md`
-- API Documentation: Generated via `cargo doc`
+### Digital signatures
 
-## Resources
+- **ML-DSA** (FIPS 204) — Module-Lattice Digital Signature Algorithm.
+- **FN-DSA** (FIPS 206) — Falcon-based Digital Signature Algorithm (naming per project/npm metadata).
+- **SLH-DSA** (FIPS 205) — Stateless Hash-Based Digital Signature Algorithm.
 
-- GitHub Repository: https://github.com/lib-q/lib-q
-- Crates.io: https://crates.io/crates/lib-q
-- NPM Package: https://www.npmjs.com/package/@lib-q/core
-- Documentation: https://docs.rs/lib-q
+### Key encapsulation mechanisms (KEMs)
 
----
+- **ML-KEM** (FIPS 203).
+- **CB-KEM** — Code-based KEM (NIST code-based KEM family).
+- **HQC** — Hamming Quasi-Cyclic KEM.
 
-Status: CI/CD Pipeline Complete  
-Security Level: Post-Quantum Cryptography Compliant  
-Quality Gates: Automated Quality Assurance  
-Publishing: Multi-Platform Automated Publishing
+### Authenticated encryption
+
+- **Saturnin** — Symmetric suite used in PQ-oriented constructions.
+
+### Additional components
+
+- **HPKE** — Hybrid Public Key Encryption.
+- **Zero-knowledge proofs** — STARK-related stack and `lib-q-zkp`.
+- **Platform intrinsics** — SIMD-oriented helpers where applicable.
+- **Core types** — Shared types and traits across crates.
+
+## Algorithm implementation status
+
+**Legend:**
+
+- Complete/Full/Integrated/Published
+- Partial (has gaps)
+- Basic (minimal implementation)
+- Missing/Not Available
+
+| Algorithm | Implementation | Testing | CI/CD | Publishing |
+|-----------|----------------|---------|-------|------------|
+| Keccak | Complete | Full | Integrated | Published |
+| SHA-3 | Complete | Full | Integrated | Published |
+| K12 | Complete | Full | Integrated | Published |
+| Saturnin | Complete | Full | Integrated | Published |
+| ML-DSA | Complete | Full | Integrated | Published |
+| FN-DSA | Complete | Full | Integrated | Published |
+| ML-KEM | Complete | Full | Integrated | Published |
+| CB-KEM | Complete | Full | Integrated | Published |
+| HQC | Evolving | See crate CI | Integrated | Published |
+| SLH-DSA | Complete | Full | Integrated | Published |
+| HPKE | Complete | Full | Integrated | Published |
+| ZKP | Partial | Basic + scheduled fuzz | Integrated | Published |
+
+## Testing status
+
+### SLH-DSA
+
+- Core, integration, KATs, ACVP, and dedicated CI action: see crate and workflow history for current counts.
+
+### HPKE
+
+- Core and algorithm-agnostic tests; dedicated CI action.
+
+### HQC
+
+- Implementation and tests are active in CI (including SIMD paths on supported runners); treat crate README and `lib-q-hqc` tests as the live status source.
+
+## Performance
+
+- **Pipeline time**: Depends on event type (full vs PR), typically on the order of tens of minutes for a complete main-branch run.
+- **Parallelism**: Independent jobs run in parallel where GitHub Actions allows.
+- **Caching**: Cargo cache keys based on lockfiles and workflow context.

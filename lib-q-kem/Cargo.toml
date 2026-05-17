@@ -1,0 +1,93 @@
+[package]
+name = "lib-q-kem"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Post-quantum Key Encapsulation Mechanisms for lib-Q"
+keywords = ["cryptography", "post-quantum", "kem", "ml-kem", "nist"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
+
+# RustCrypto ML-KEM implementation (FIPS 203 standard)
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.2", optional = true, default-features = false }
+
+# Classical McEliece KEM implementation
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.2", optional = true, default-features = false }
+
+# HQC KEM implementation
+lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.2", optional = true, default-features = false }
+
+# SHA3 for authentication proofs
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", optional = true, default-features = false }
+
+# Random dependencies for the ml-kem feature
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+
+# WASM bindings
+wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+
+[features]
+default = []
+# Host / `cargo test` / coverage: enable alongside algorithm features so optional deps get `std`
+# without forcing it when only `ml-kem` / `hqc` / `wasm` is used (`no_std`, wasm no-std builds).
+std = [
+    "alloc",
+    "lib-q-core/std",
+    "lib-q-ml-kem?/std",
+    "lib-q-random?/std",
+    "lib-q-hqc?/std",
+    "lib-q-cb-kem?/std",
+]
+alloc = [] # Enable alloc support for Vec and other collections
+# Enable ml-kem (FIPS 203 standard) with modern dependencies.
+# `lib-q-ml-kem/std` is required because the dep declares `crate-type = ["cdylib", "rlib"]` and
+# a native cdylib needs std for the global allocator / panic handler / unwind runtime.
+ml-kem = [
+    "dep:lib-q-ml-kem",
+    "lib-q-ml-kem/std",
+    "dep:lib-q-sha3",
+    "dep:lib-q-random",
+    "alloc",
+]
+
+# Enable WASM support (`lib-q-ml-kem/wasm`: RNG + `getrandom`/`wasm_js` so the ML-KEM dep links on wasm32).
+wasm = [
+    "wasm-bindgen",
+    "ml-kem",
+    "lib-q-ml-kem?/wasm",
+    "lib-q-core/wasm",
+]
+
+cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc"]
+hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-hqc/alloc", "alloc"]
+
+[lib]
+name = "lib_q_kem"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(tarpaulin)',
+] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]

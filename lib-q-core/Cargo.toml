@@ -1,0 +1,125 @@
+[package]
+name = "lib-q-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Core types and traits for lib-Q post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "security", "core", "nist"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = false }
+# Core cryptographic dependencies - no_std compatible
+getrandom = { workspace = true, optional = true, default-features = false }
+# rand_core 0.10 has no optional features; OS RNG comes from getrandom/rand when std is enabled
+rand_core = { workspace = true, default-features = false }
+rand = { workspace = true, default-features = false, features = ["thread_rng"], optional = true }
+
+# Note: lib-q-core should not depend on implementation crates to avoid cyclic dependencies
+# Implementation crates depend on lib-q-core, and the main lib-q crate provides concrete implementations
+
+# Zeroize for secure memory clearing
+zeroize = { workspace = true, features = ["derive", "alloc"], default-features = false }
+
+# Constant-time comparisons (volatile-fenced; avoids compiler elision)
+subtle = { workspace = true, default-features = false }
+
+# Serde for serialization (optional)
+serde = { workspace = true, optional = true, features = ["derive"], default-features = false }
+
+# WASM bindings
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+# Once cell for global registry (std mode)
+# Note: sync module requires std feature
+once_cell = { version = "1.21.3", default-features = false, optional = true }
+# Spin for no_std global registry
+spin = { workspace = true, optional = true }
+
+# `rand` 0.10 pulls `getrandom` without `wasm_js`; getrandom 0.4 requires that feature on
+# wasm32-unknown-unknown (RUSTFLAGS `--cfg getrandom_backend=...` is not enough). A direct
+# edge merges features so transitive `getrandom` builds for the JS backend.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
+[features]
+default = ["std"]
+std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]
+alloc = []
+# `no_std` includes the aborting `#[panic_handler]` so `cargo check -p lib-q-core --no-default-features --features no_std,getrandom` works with `crate-type` cdylib+rlib.
+# On stable, also pass `--profile dev-no-std` (workspace root) or `RUSTFLAGS=-Cpanic=abort` so the root crate is built with `panic=abort` (unwinding is unavailable without std).
+# Firmware that supplies its own `#[panic_handler]` should depend with `default-features = false` and enable `spin` / `getrandom` / `alloc` explicitly without the `no_std` feature name.
+no_std = ["spin", "no_std_panic_handler"]
+# Kept as an empty alias so older manifests and CI flags that pass `no_std_panic_handler` remain valid.
+no_std_panic_handler = []
+# Random number generation - requires platform-specific configuration for no_std
+# In no_std environments, applications must provide custom entropy sources
+getrandom = ["dep:getrandom"]
+rand = ["dep:rand"]
+
+# Note: Feature flags for algorithm implementations are defined in the main lib-q crate
+# lib-q-core only provides the foundational types and traits
+
+# Hash function support (for conditional compilation)
+hash = []
+
+# Serialization features
+serde = ["dep:serde", "lib-q-types/serde"]
+
+# WASM support
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "serde",
+    "serde-wasm-bindgen",
+    "serde_json",
+    "wasm_getrandom",
+    "alloc",
+    "lib-q-types/wasm",
+]
+
+# WASM-specific getrandom configuration
+wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
+
+# Algorithm feature flags (for conditional compilation in WASM utils)
+ml-kem = []
+ml-dsa = []
+fn-dsa = []
+slh-dsa = []
+saturnin = []
+
+# Security validation features
+relaxed_entropy_validation = []
+
+[lib]
+name = "lib_q_core"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. The `no_std` feature enables the aborting panic handler for standalone `cargo check` of this crate.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }
+

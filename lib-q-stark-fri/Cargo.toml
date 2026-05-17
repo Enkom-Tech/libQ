@@ -1,0 +1,56 @@
+[package]
+name = "lib-q-stark-fri"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "An implementation of the FRI low-degree test (LDT) protocol used in zero-knowledge proof systems."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.2" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.2" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-interpolation = { path = "../lib-q-stark-interpolation", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+
+itertools = { workspace = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false, features = ["std"] }
+rand = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+zeroize = { workspace = true, features = ["derive"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
+
+[dev-dependencies]
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "fold_even_odd"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

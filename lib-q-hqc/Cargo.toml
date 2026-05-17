@@ -1,0 +1,141 @@
+[package]
+name = "lib-q-hqc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Post-Quantum HQC (Hamming Quasi-Cyclic) KEM for lib-Q"
+keywords = ["cryptography", "post-quantum", "hqc", "kem", "nist"]
+categories = ["cryptography", "wasm"]
+
+[dependencies]
+# Core libQ dependencies
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
+lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+
+# Core cryptographic primitives
+hybrid-array = { workspace = true }
+rand_core = { workspace = true } # RNG traits
+hex = { workspace = true }       # Hex encoding for test vectors
+
+# Platform-specific dependencies
+heapless = { version = "0.9.3", optional = true }              # no_std collections
+wasm-bindgen = { workspace = true, optional = true }           # WASM bindings
+js-sys = { workspace = true, optional = true }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+defmt = { version = "1.1.0", optional = true }                 # no_std logging
+
+# Optional features
+serde = { workspace = true, features = ["derive"], optional = true }
+serde-big-array = { version = "0.5.1", optional = true }       # Large array serialization
+zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] } # Secure memory clearing
+aes = { workspace = true, default-features = false, optional = true } # AES for DRBG
+
+[dev-dependencies]
+# Test dependencies
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "nist-drbg"] }
+rand = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+# Benchmarking dependencies (host targets only)
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[example]]
+name = "hqc_example"
+path = "examples/hqc_example.rs"
+required-features = ["hqc128", "hqc192", "hqc256"]
+
+[[bench]]
+name = "performance_benchmarks"
+harness = false
+
+[[test]]
+name = "bearssl_kat_verification_test"
+path = "tests/bearssl_kat_verification_test.rs"
+required-features = ["bearssl-aes"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "hqc", "random", "serialization"]
+
+[features]
+default = ["alloc", "random", "bearssl-aes"]
+
+# Core features
+std = []                            # Standard library support (compatibility feature)
+alloc = []                          # Heap allocation support (required for std builds)
+heapless = ["dep:heapless"]         # Named feature for optional dep (workspace `cargo metadata --features heapless`).
+no_std = ["heapless"]               # Embedded/no_std with heapless collections
+
+# HQC algorithm variants (NIST security levels)
+hqc128 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)
+hqc192 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 192-bit security (Level 3)
+hqc256 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 256-bit security (Level 5)
+hqc = ["hqc128", "hqc192", "hqc256"]                                # All HQC variants
+
+# Random number generation
+random = ["dep:lib-q-random", "lib-q-random/std", "zeroize"]        # RNG + secure stack buffers in provider decapsulation
+nist-drbg = ["dep:lib-q-random", "lib-q-random/nist-drbg"]         # NIST SP 800-90A DRBG
+
+# Platform support
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "hqc",
+    "lib-q-core/wasm",
+    "serialization",
+    "zeroize",
+]
+serialization = ["serde", "serde-big-array"]                        # Serde serialization
+
+# Security hardening
+zeroize = ["dep:zeroize"]                                           # Automatic memory zeroization
+security-hardened = ["zeroize", "hqc"]                              # Full security hardening
+
+# DRBG implementations (for KAT compatibility)
+aes-drbg = ["aes", "alloc"]                                         # Standard AES-256-CTR-DRBG
+bearssl-aes = ["aes", "alloc"]                                      # BearSSL AES for exact KAT match
+
+# Debug and diagnostics features (development only)
+debug-drbg-interop = ["aes-drbg", "bearssl-aes"]                   # Compare DRBG implementations
+debug-drbg-state = []                                               # Log DRBG state transitions
+debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]             # DRBG state logging with defmt
+archive-tests = []                                                  # Enable archived diagnostic tests
+
+# Performance optimizations
+simd-avx2 = []                                                      # AVX2 SIMD with runtime detection
+
+[lib]
+name = "lib_q_hqc"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(kani)',
+    'cfg(feature, values("lib-q-random"))',
+] }
+
+[package.metadata.wasm-pack.profile.release]
+# `-Oz` reduces size; see docs/wasm-security-model.md for WASM timing caveats vs native builds.
+wasm-opt = ["-Oz", "--enable-bulk-memory"]

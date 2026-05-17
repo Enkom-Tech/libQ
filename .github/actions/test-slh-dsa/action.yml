@@ -1,0 +1,207 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test SLH-DSA
+description: Run SLH-DSA (SPHINCS+) tests with security validation and benchmarking
+inputs:
+  working-directory:
+    description: Working directory for SLH-DSA crate
+    default: lib-q-slh-dsa
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "alloc"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "true"
+    required: false
+  run-security-tests:
+    description: Whether to run security validation tests
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time validation
+    default: "true"
+    required: false
+  test-algorithms:
+    description: Specific SLH-DSA algorithms to test
+    default: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-slh-dsa-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-slh-dsa-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for SLH-DSA..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features (minimal alloc; cdylib requires allocator when not linking std)..."
+        cd ${{ inputs.working-directory }}
+        cargo build --no-default-features --features alloc
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features --features alloc
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Run integration tests
+      shell: bash
+      run: |
+        echo "Running integration tests..."
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test lib_q_integration_tests
+        echo "Integration tests completed"
+    
+    - name: Run ACVP tests
+      shell: bash
+      run: |
+        echo "Running ACVP (NIST test vector) tests..."
+        rm -rf target/release-ci
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}" --test acvp_keygen
+        cargo test --features "${{ inputs.features }}" --test acvp_sig
+        echo "ACVP sigGen (full signing KATs): release + ignored — too slow for debug"
+        cargo test --features "${{ inputs.features }}" --profile release-ci --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
+        cargo test --features "${{ inputs.features }}" --test acvp_ver
+        echo "ACVP tests completed"
+    
+    - name: Test WASM compatibility
+      shell: bash
+      run: |
+        echo "Testing WASM compatibility..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        echo "WASM compatibility test completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "Benchmarks completed"
+    
+    - name: Run security validation tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running security validation tests..."
+        cd ${{ inputs.working-directory }}
+        # Test libQ integration
+        cd ..
+        cargo test --features "slh-dsa" --package lib-q
+        echo "Security validation tests completed"
+
+    - name: lib-q-sig SLH implicit-RNG integration tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running lib-q-sig SLH-DSA e2e (slh-dsa-std)..."
+        cd ${{ inputs.working-directory }}
+        cd ..
+        cargo test -p lib-q-sig --features slh-dsa-std
+        echo "lib-q-sig SLH-DSA std integration tests completed"
+    
+    - name: Run constant-time validation
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "Running constant-time validation..."
+        cd ${{ inputs.working-directory }}
+        cd ..
+        cargo test -p lib-q-slh-dsa --features "${{ inputs.features }}" --test constant_time
+        echo "Constant-time validation completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: Known answer tests and ACVP keygen (all parameter sets)
+      shell: bash
+      run: |
+        echo "Running full known_answer_tests (12 KATs) and ACVP keyGen projection including slow *s sets..."
+        rm -rf target/release-ci
+        cd ${{ inputs.working-directory }}
+        # Debug builds are far too slow for *s* KATs (10 signs each); match acvp_sig policy (release-ci).
+        cargo test --profile release-ci --features "${{ inputs.features }},all-parameter-set-tests" --test known_answer_tests
+        cargo test --profile release-ci --features "${{ inputs.features }},all-parameter-set-tests" --test acvp_keygen
+        echo "Full KAT and ACVP keygen suites completed"
+    
+    - name: Test no_std compatibility
+      shell: bash
+      run: |
+        echo "Testing no_std compatibility..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features --features "alloc" --test lib_q_integration_tests test_slh_dsa_key_generation_no_std
+        echo "no_std compatibility test completed"

@@ -1,0 +1,56 @@
+[package]
+name = "lib-q-romulus"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Romulus-N and Romulus-M AEAD (SKINNY-128-384+), no_std / wasm-friendly"
+keywords = ["cryptography", "aead", "romulus", "skinny", "lwc"]
+categories = ["cryptography"]
+
+[dependencies]
+aead = { workspace = true, default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
+subtle = { workspace = true, default-features = false }
+zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"] }
+
+[features]
+default = ["alloc", "std"]
+alloc = ["dep:lib-q-core", "lib-q-core/alloc", "aead/alloc"]
+std = ["alloc", "lib-q-core/std"]
+
+[lib]
+name = "lib_q_romulus"
+path = "src/lib.rs"
+
+[dev-dependencies]
+hex = { workspace = true }
+
+[[test]]
+name = "kat_tests"
+path = "tests/kat_tests.rs"
+required-features = ["std"]
+
+[[test]]
+name = "negative_tests"
+path = "tests/negative_tests.rs"
+required-features = ["std"]
+
+[[test]]
+name = "buffer_tests"
+path = "tests/buffer_tests.rs"
+required-features = ["std"]
+
+[[test]]
+name = "coverage_api"
+path = "tests/coverage_api.rs"
+required-features = ["alloc"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(doc_cfg)',
+] }

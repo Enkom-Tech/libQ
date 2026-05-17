@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-stark-mds"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A collection of methods allowing for fast multiplication by MDS matrices."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+
+rand = { workspace = true }
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
+
+rand = { workspace = true, default-features = false, features = ["std"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "mds"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

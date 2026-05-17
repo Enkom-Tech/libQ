@@ -1,0 +1,63 @@
+[package]
+name = "lib-q-prf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+description = "Legendre and Gold (power-residue) PRFs over large prime fields (Fiat-Shamir transcript building blocks)"
+keywords = ["cryptography", "post-quantum", "prf", "legendre", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+rand_core = { workspace = true }
+subtle = { workspace = true }
+zeroize = { workspace = true, features = ["derive", "alloc"] }
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+
+[dev-dependencies]
+crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
+hex = { workspace = true }
+sha2 = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
+
+[features]
+default = ["std"]
+alloc = ["lib-q-sha3/alloc"]
+std = ["alloc"]
+no_std_panic_handler = []
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:hex",
+    "alloc",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+]
+
+[lib]
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for normal Rust consumers. Optional
+# dependents should keep `lib-q-prf` default features enabled (`std`) so native `cdylib` links
+# include the standard allocator and panic runtime; use `default-features = false` only with
+# `no_std_panic_handler` and a firmware/global allocator if you truly need no-std `cdylib`.
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lib_q_prf_docs)', 'cfg(feature, values("alloc", "default", "no_std_panic_handler", "std", "wasm"))'] }
