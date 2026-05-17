@@ -215,9 +215,6 @@ Cargo.audit.toml
 *bom.cdx.xml
 cyclonedx-bom.json
 
-# Local configuration
-.cargo/config.toml
-
 /reference
 .cursor/
 .claude/
