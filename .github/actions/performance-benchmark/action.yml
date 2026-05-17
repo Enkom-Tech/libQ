@@ -83,9 +83,10 @@ runs:
     
     - name: Run performance benchmarks
       shell: bash
+      env:
+        BENCH_CRITERION_FLAGS: "--sample-size ${{ inputs.iterations }} --warm-up-time 1"
       run: |
         echo "⚡ Running performance benchmarks..."
-        rm -rf target/release
         cd ${{ inputs.working-directory }}
         
         # Run benchmarks with specified features
@@ -94,11 +95,11 @@ runs:
           IFS=',' read -ra TARGETS <<< "${{ inputs.benchmark-targets }}"
           for target in "${TARGETS[@]}"; do
             echo "Benchmarking: $target"
-            cargo bench --features "${{ inputs.features }}" --bench "$target" --verbose
+            cargo bench --features "${{ inputs.features }}" --bench "$target" --verbose -- ${BENCH_CRITERION_FLAGS}
           done
         else
           echo "Running all benchmarks"
-          cargo bench --features "${{ inputs.features }}" --verbose
+          cargo bench --features "${{ inputs.features }}" --verbose -- ${BENCH_CRITERION_FLAGS}
         fi
         
         echo "✅ Benchmarks completed successfully"
