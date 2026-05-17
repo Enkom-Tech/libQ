@@ -1,0 +1,199 @@
+# Comprehensive Test Coverage Workflow
+# 
+# This workflow runs a full coverage analysis on the main branch and generates
+# coverage reports and badges. It complements the PR workflow which does a more
+# targeted coverage check.
+#
+# For PR validation coverage, see the test-coverage job in pr.yml
+
+name: Test Coverage
+
+on:
+  # Run on main branch pushes for badge updates
+  push:
+    branches: [main]
+  # Run on pull requests to catch coverage regressions early
+  pull_request:
+    branches: [main]
+    paths:
+      # Only run full coverage on PRs that modify these critical paths
+      - 'lib-q-keccak/**'
+      - 'lib-q-core/**'
+      - 'lib-q-ml-dsa/**'
+      - 'scripts/run-coverage.sh'
+      - '.github/workflows/coverage.yml'
+  # Schedule a weekly coverage report for monitoring
+  schedule:
+    - cron: '0 0 * * 0'  # Run at midnight on Sundays
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUSTFLAGS: "-D warnings"
+  COVERAGE_THRESHOLD: "70"
+
+jobs:
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, nightly]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          # llvm-tools-preview: LLVM coverage merge (tarpaulin --engine llvm on Linux)
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Toolchain fingerprint (cache)
+        id: toolchain-fp
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v sha256sum >/dev/null 2>&1; then
+            echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          else
+            echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-coverage-${{ matrix.rust }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          
+      - name: Install tarpaulin
+        run: |
+          cargo install cargo-tarpaulin
+          
+      # First run coverage for individual critical crates
+      - name: Run coverage for core cryptographic crates
+        run: |
+          # Create directory for combined reports (cp -r does not create parent dirs)
+          mkdir -p combined-coverage \
+            "combined-coverage/${{ matrix.rust }}/core" \
+            "combined-coverage/${{ matrix.rust }}/crypto" \
+            "combined-coverage/${{ matrix.rust }}/utils" \
+            "combined-coverage/${{ matrix.rust }}/full"
+          
+          # Define critical cryptographic crates
+          CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-keccak-digest lib-q-k12"
+          CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
+          UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"
+          
+          # Run coverage for core cryptographic components
+          echo "Running coverage for core cryptographic components with ${{ matrix.rust }}"
+          for crate in $CORE_CRATES; do
+            if [ -d "$crate" ]; then
+              echo "Running coverage for $crate"
+              CRATE_THRESH="$COVERAGE_THRESHOLD"
+              case "$crate" in
+                lib-q-core) CRATE_THRESH="78" ;; # match PR test-coverage (docs/coverage-scope.md)
+                lib-q-keccak) CRATE_THRESH="65" ;;
+              esac
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $CRATE_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/core/$crate"
+            fi
+          done
+          
+          # Run coverage for cryptographic algorithm implementations
+          echo "Running coverage for cryptographic algorithm implementations with ${{ matrix.rust }}"
+          for crate in $CRYPTO_CRATES; do
+            if [ -d "$crate" ]; then
+              echo "Running coverage for $crate"
+              CRATE_THRESH="$COVERAGE_THRESHOLD"
+              case "$crate" in
+                lib-q-ml-dsa) CRATE_THRESH="60" ;;
+                lib-q-kem) CRATE_THRESH="65" ;;
+                lib-q-sig) CRATE_THRESH="66" ;;
+                lib-q-aead) CRATE_THRESH="68" ;;
+                lib-q-hpke) CRATE_THRESH="66" ;;
+                lib-q-cb-kem) CRATE_THRESH="68" ;;
+              esac
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $CRATE_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/crypto/$crate"
+            fi
+          done
+
+          # Informational: ML-DSA with simd256 (includes AVX2 sources). x86_64 runners only; not gated.
+          if [ "${{ matrix.rust }}" = "stable" ] && [ -d "lib-q-ml-dsa" ]; then
+            echo "Running informational SIMD256 coverage for lib-q-ml-dsa"
+            bash scripts/run-coverage.sh --crate lib-q-ml-dsa --ml-dsa-simd256 --threshold 0 --output-dir "coverage-lib-q-ml-dsa-simd256" --toolchain ${{ matrix.rust }} --no-report
+            mkdir -p "combined-coverage/${{ matrix.rust }}/crypto/lib-q-ml-dsa-simd256"
+            cp -r "coverage-lib-q-ml-dsa-simd256" "combined-coverage/${{ matrix.rust }}/crypto/lib-q-ml-dsa-simd256"
+          fi
+          
+          # Run coverage for utility crates
+          echo "Running coverage for utility crates with ${{ matrix.rust }}"
+          for crate in $UTIL_CRATES; do
+            if [ -d "$crate" ]; then
+              echo "Running coverage for $crate"
+              UTIL_THRESH="70"
+              case "$crate" in
+                lib-q-zkp) UTIL_THRESH="65" ;;
+              esac
+              bash scripts/run-coverage.sh --crate "$crate" --threshold $UTIL_THRESH --output-dir "coverage-$crate" --toolchain ${{ matrix.rust }}
+              
+              # Copy reports to combined directory for artifact upload
+              cp -r "coverage-$crate" "combined-coverage/${{ matrix.rust }}/utils/$crate"
+            fi
+          done
+      
+      # Aggregate workspace report for badges/artifacts only (denominator is entire repo; do not gate on this %).
+      - name: Run coverage for entire workspace
+        run: |
+          bash scripts/run-coverage.sh --threshold 0 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
+          
+          # Copy to combined directory
+          cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"
+          
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports-${{ matrix.rust }}
+          path: combined-coverage/
+          
+      - name: Extract coverage percentage
+        id: extract-coverage
+        run: |
+          set -euo pipefail
+          if COVERAGE=$(bash scripts/extract-coverage-percent.sh coverage-full); then
+            echo "percentage=${COVERAGE}" >> $GITHUB_OUTPUT
+            if awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 50) }'; then
+              echo "color=red" >> $GITHUB_OUTPUT
+            elif awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 60) }'; then
+              echo "color=yellow" >> $GITHUB_OUTPUT
+            else
+              echo "color=green" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "percentage=0" >> $GITHUB_OUTPUT
+            echo "color=red" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Download coverage badge (Shields.io)
+        env:
+          COVERAGE_PCT: ${{ steps.extract-coverage.outputs.percentage }}
+          COVERAGE_COLOR: ${{ steps.extract-coverage.outputs.color }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github/badges
+          # https://shields.io/ — static/v1 avoids path parsing issues with "66.32%".
+          # Network fetch at CI time (unlike a locally rendered SVG).
+          MSG=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['COVERAGE_PCT'] + '%', safe=''))")
+          curl -fsSL "https://img.shields.io/static/v1?label=coverage&message=${MSG}&color=${COVERAGE_COLOR}" \
+            -o .github/badges/coverage.svg

@@ -1,12 +1,10 @@
-# Security Model & Implementation Guidelines
+# Security Model
 
-## Security Philosophy
+lib-Q targets **post-quantum asymmetric** cryptography and **SHA-3–family** hashing for its stated APIs, with **Saturnin** and **SHAKE-based** symmetric options as the design center (see [SECURITY.md](../SECURITY.md)). Our threat model assumes:
 
-lib-Q is built on the principle that **all classical cryptography is broken**. Our threat model assumes:
-
-1. **Quantum computers exist** and can break classical algorithms
-2. **Adversaries have unlimited computational power** (both classical and quantum)
-3. **Side-channel attacks are real** and must be prevented
+1. **Quantum-capable adversaries** can break classical **public-key** schemes (RSA, ECC, and similar)
+2. **Adversaries are computationally strong** (classical and quantum where relevant)
+3. **Side-channel attacks are real** and must be mitigated in implementation
 4. **Memory safety is critical** for cryptographic implementations
 
 ## Threat Model
@@ -31,26 +29,26 @@ lib-Q is built on the principle that **all classical cryptography is broken**. O
 lib-Q provides three security tiers to balance quantum resistance with performance:
 
 #### Tier 1: Ultra-Secure (Pure Post-Quantum)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: SHAKE256-based constructions
-- **HPKE**: Pure post-quantum HPKE (PQ KEM + SHAKE256 AEAD)
+- **KEMs**: ML-KEM, CB-KEM, HQC
+- **Signatures**: ML-DSA, FN-DSA, SLH-DSA
+- **Symmetric**: SHAKE256-based constructions, Saturnin
+- **HPKE**: Pure post-quantum HPKE with Saturnin AEAD
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum security, performance secondary
 
-#### Tier 2: Balanced (Hybrid Post-Quantum)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: Post-quantum KEM + quantum-resistant classical (AES-256, ChaCha20)
-- **HPKE**: Hybrid HPKE (PQ KEM + AES-256-GCM)
+#### Tier 2: Balanced (Post-Quantum)
+- **KEMs**: ML-KEM, CB-KEM, HQC
+- **Signatures**: ML-DSA, FN-DSA, SLH-DSA
+- **Symmetric**: Saturnin, SHAKE-based AEAD options
+- **HPKE**: PQ-only HPKE (ML-KEM suite + Saturnin / SHAKE256 / optional duplex-sponge AEAD)
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Strong security with good performance
 
-#### Tier 3: Performance (Post-Quantum + Optimized Classical)
-- **KEMs**: CRYSTALS-Kyber, Classic McEliece, HQC
-- **Signatures**: CRYSTALS-Dilithium, Falcon, SPHINCS+
-- **Symmetric**: Post-quantum KEM + optimized classical (ChaCha20-Poly1305)
-- **HPKE**: Performance HPKE (PQ KEM + ChaCha20-Poly1305)
+#### Tier 3: Performance (Post-Quantum + Optimized)
+- **KEMs**: ML-KEM, CB-KEM, HQC
+- **Signatures**: ML-DSA, FN-DSA
+- **Symmetric**: Saturnin, SHAKE-based AEAD options (optimized modes where applicable)
+- **HPKE**: PQ-only HPKE with the same primitive set; tiering is primarily about parameter sets and AEAD choice, not a classical “hybrid” KEM
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum performance, strong security
 
@@ -58,29 +56,65 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 All tiers support post-quantum zero-knowledge proofs:
 
 #### zk-STARKs (Primary)
-- **Scalable**: Proof size grows logarithmically with computation
-- **Transparent**: No trusted setup required
-- **Post-quantum secure**: Based on collision-resistant hash functions
-- **WASM compatible**: Full browser and Node.js support
-- **Use Cases**: Blockchain privacy, scalable computation, verifiable computation
+- **Scalable**: Proof size grows roughly logarithmically with trace size for the parameters chosen (FRI blowup, query count).
+- **Transparent**: No trusted setup required.
+- **Post-quantum secure (default pipeline)**: Soundness is argued from **collision resistance of the transcript layer** (default **SHAKE256** challenger and Merkle hashing in `lib-q-zkp::stark::default_config`) together with **FRI** and query repetition—not from a classical discrete-log or pairing assumption.
+- **Trace field**: The default native field for STARK traces is **`Complex<Mersenne31>`** (`ZkpField` in `lib-q-zkp`). It is chosen for FFT/FRI efficiency; security margins must be set via FRI parameters and the hash-backed transcript, not by treating the field as a 256-bit secrecy container.
+- **Poseidon inside some AIRs**: For constraint efficiency, several shipped paths use **Poseidon-128** *inside the AIR* (for example default secret-preimage proofs, Merkle inclusion, and `SessionKeyDerivationAir` commitments). **Transcript binding** for those proofs still uses the STARK challenger configuration (SHAKE256 by default). If your policy requires **NIST-only** hash commitments *inside* the proved statement, use the documented NIST variants (for example `prove_secret_value_nist` / `HashPreimageNistAir` and the NIST preimage APIs in `lib-q-zkp::api`).
+- **WASM**: `lib-q-zkp` and `lib-q-lattice-zkp` are exercised in CI for `wasm32-unknown-unknown` and wasm-bindgen smoke tests; see [ZKP Implementation](zkp-implementation.md#testing-strategy).
+- **Use cases**: Verifiable computation, privacy-preserving proofs of statements encoded as AIRs, and protocol-adjacent demos—always match the proof type to your assurance target.
 
-#### Implementation Options
-1. **OpenZKP**: Open-source Rust implementation with simple interface
-2. **Winterfell**: Meta's general-purpose STARK prover/verifier
-3. **zkp-stark**: Lightweight Rust library with straightforward API
+lib-Q implements zk-STARKs via its own NIST-adapted stack (`lib-q-stark` and satellite crates) and an optional full Plonky3-derived stack (`lib-q-plonky`); see [ZKP Implementation](zkp-implementation.md#library-layout-and-implementation-status) for layout, features, and CI.
+
+#### Other ZKP work in-tree
+- **`lib-q-lattice-zkp`**: Research crate for **module-lattice** commitments and sigma-style proofs on `lib-q-ring`; not an AIR/STARK pipeline. See [zkp-implementation.md](zkp-implementation.md).
+
+#### Privacy-oriented protocols (registry metadata only)
+These components use **NIST PQC** primitives (ML-KEM, ML-DSA-field-compatible rings, Saturnin, SHAKE256) but are **not** drop-in replacements for the `lib-q-core` KEM/signature providers. They are labeled under `AlgorithmCategory::PrivacyProtocol` in `lib-q-types` for policy and documentation.
+
+| Component | Crate / module | Security notes |
+|-----------|----------------|----------------|
+| Blind issuance + anonymous tokens | `lib-q-lattice-zkp` (`blind`, `token`) | CRS Ajtai model; see [`BLIND_ISSUANCE.md`](../lib-q-lattice-zkp/BLIND_ISSUANCE.md). Issuer attestation binds blinded commitments; not Chaum blind RSA. `SpendingProof` carries the token serial; double-spends are rejected at the application layer by serial-set membership (verifier-tracked registry, not in-protocol). |
+| Nullifier + batch amortisation | `lib-q-lattice-zkp` (`sigma/uniqueness`, `sigma/amortise`) | Deterministic nullifiers for registries; opening proofs bind nullifiers into Fiat–Shamir contexts. Uniqueness amortisation labels enable single-batch verification across multiple commitments under one realm. |
+| Hierarchical Merkle + opening | `lib-q-lattice-zkp` (`sigma/hierarchical`) — `prove_level_membership` / `verify_level_membership` | Leaf payload is **revealed** (clearance level, role tag, parent digest). The verifier learns the path position. Full position-and-attribute-hiding PVTN ZK is **future work**; this construction is a Merkle path certificate composed with an Ajtai opening tied to the leaf. |
+| Federation ring openings | `lib-q-ring-sig` | Opening proofs over a shared CRS; linear-scan verification is not issuer-hiding toward the verifier (see [crate DESIGN](../lib-q-ring-sig/DESIGN.md)). Default DualRing-LB path uses an aggregated CCS 2021–style verify (`verify_dual_ring_opening`). |
+| Credential presentation | `lib-q-ring-sig` (`credential`) | Default path verifies with **`verify_dualring_lb`** (full-ring aggregate). A **legacy** API remains that uses **`verify_federation_opening_scan`** (linear cost; see module docs). The verifier does not receive the signer index on the default path. |
+
+##### Constant-time scope (Phase 7 paths)
+
+The following paths are wired for statistical timing / TVLA-style harnesses via
+[`lib-q-sca-test` `privacy_workloads`](../lib-q-sca-test/src/privacy_workloads.rs)
+(scaffold only; not a certification claim):
+
+- `BlindIssuance::verify` — blind issuance bundle verification.
+- `verify_federation_opening` — federation opening at a **known** signer index.
+- `verify_dualring_lb` — DualRing-LB (aggregated `verify_dual_ring_opening`; uniform cost across ring slots).
+- `BlindSignature::verify_blind_signature` — pilot blind-signature bundle verify.
+- `verify_private_membership` — private-membership pilot verifier.
+- `registry_nullifier`, `witness_nullifier`, `federation_digest` — public transcript / registry digests (SHAKE256).
+
+Prover-side rejection-sampling paths (`BlindIssuance::request`/`issuer_sign`,
+`sign_federation_message`, `prove_opening`, `prove_dual_ring_opening`, `sign_dualring_lb`, `amortise`) are **intentionally excluded**:
+their timing is data-dependent by construction (loop count of the abort), and they
+must be invoked only on attacker-independent secrets.
+
+##### Replay model
+
+| Asset | Replay defence | Where enforced |
+|-------|----------------|----------------|
+| Anonymous token (`AnonymousToken::spend`) | Application-layer registry of spent serials | Verifier maintains a per-realm `serial → seen` set; `SpendingProof::verify` rejects mismatched serials. |
 
 #### ZKP Features
-- **Proof Generation**: Create zero-knowledge proofs of computation
-- **Proof Verification**: Verify proofs without revealing inputs
-- **Privacy-Preserving**: Hide sensitive data while proving statements
-- **Scalable Verification**: Efficient verification of complex computations
+- **Proof generation / verification**: `ZkpProver` / `ZkpVerifier` and lower-level `StarkProver` / `StarkVerifier` over configured AIRs (see [ZKP Implementation](zkp-implementation.md#public-api-surface)).
+- **Privacy-preserving statements**: Depends on what is public in the AIR (public inputs, Merkle roots, metadata); not every API hides all witness bits—read the AIR and proof-type docs.
+- **Scalable verification**: Verifier cost is dominated by Merkle openings and FRI checks at the chosen security parameters.
 
 ### Post-Quantum Hash Functions
-We use only SHA-3 family hash functions, which are quantum-resistant:
+For **general-purpose** hashing and XOFs in KEM, signature, and AEAD-facing APIs, the design center is the **SHA-3 family** (quantum-resistant in the usual hash security model):
 
 1. **SHAKE256** (Primary)
    - Variable output length
-   - Used for hash-based signatures (SPHINCS+)
+   - Used for hash-based signatures (SLH-DSA)
    - 256-bit security level
    - NIST standardized
 
@@ -96,19 +130,31 @@ We use only SHA-3 family hash functions, which are quantum-resistant:
    - Used for specific applications requiring customization
    - NIST standardized
 
+**STARK / ZKP note:** `lib-q-zkp` also uses **Poseidon-128** inside specific AIR and Merkle gadgets where documented. That is an **in-circuit** primitive for arithmetization efficiency; it does not replace SHAKE256 as the default **Fiat-Shamir / Merkle** transcript hash in the recommended STARK configuration. Integrators with a strict "NIST-only inside the proved commitment" requirement should select the NIST preimage and NIST-hash AIR paths described in [ZKP Implementation](zkp-implementation.md).
+
 ### NIST PQC Standardization
 We only use algorithms that have been standardized or are in the final round of NIST's Post-Quantum Cryptography standardization process:
 
 #### Standardized Algorithms
-- **CRYSTALS-Kyber**: NIST PQC Standard (2022)
-- **CRYSTALS-Dilithium**: NIST PQC Standard (2022)
-- **Falcon**: NIST PQC Standard (2022)
-- **SPHINCS+**: NIST PQC Standard (2022)
+- **ML-KEM**: NIST PQC Standard (FIPS 203)
+- **ML-DSA**: NIST PQC Standard (FIPS 204)
+- **FN-DSA**: NIST PQC Standard (FIPS 206)
+- **SLH-DSA**: NIST PQC Standard (FIPS 205)
 
-#### Final Round Candidates
-- **Classic McEliece**: Final round candidate, strong security
-- **HQC**: Final round candidate, good performance
+#### NIST FIPS Standards
+- **FIPS 206 / FN-DSA**: Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm
+  - Official NIST designation for FALCON algorithm
+  - Compact signature sizes for bandwidth-constrained applications
+  - Suitable for root and intermediate certificates in PKI systems
 
+#### Code-based KEMs (workspace implementations)
+- **CB-KEM** (Classic McEliece–family parameter sets) and **HQC** are implemented as **post-quantum KEMs** in this repository; track each crate’s README and NIST publications for the exact standardization status of the parameter sets you enable.
+
+#### Emerging Post-Quantum Algorithms
+- **Saturnin**: Lightweight symmetric algorithm suite with 256-bit block cipher
+  - Designed for IoT and constrained devices
+  - Provides authenticated encryption and hashing modes
+  - Superior post-quantum security compared to classical alternatives
 ### Forbidden Classical Algorithms
 The following classical algorithms are explicitly forbidden in lib-Q:
 
@@ -125,15 +171,17 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **Ed448**: Broken by Shor's algorithm
 
 #### Forbidden Hash Functions
-- **SHA-1**: Collision attacks
-- **SHA-256**: Quantum attacks
-- **SHA-512**: Quantum attacks
-- **MD5**: Multiple attacks
+- **MD5**: Completely broken (collision and preimage attacks)
+- **SHA-1**: Practically broken (collision attacks)
+- **SHA-256 / SHA-512** (SHA-2 family): Grover's algorithm halves the effective security level — SHA-256 is reduced to 128-bit security against quantum adversaries, which falls below the required margin for new designs. lib-Q uses the SHA-3 / Keccak family exclusively for hash-based constructions.
+
+  Note: SHA-2 may still appear inside third-party crates as part of TLS record MAC or HKDF where no lib-Q-controlled path is involved. Those usages are not sanctioned for security-critical lib-Q operations.
 
 #### Forbidden Symmetric Ciphers
-- **AES-128**: Quantum attacks
-- **ChaCha20**: Quantum attacks (when used alone)
-- **Poly1305**: Quantum attacks (when used alone)
+- **AES-128**: Grover's algorithm reduces security to approximately 64 bits — not acceptable for post-quantum use.
+- **ChaCha20 / Poly1305** (standalone): 256-bit key variants survive Grover with ~128-bit quantum security, but these primitives are not part of the lib-Q algorithm set, which centers on Saturnin and SHA-3 family constructions. Do not substitute them for lib-Q primitives.
+
+  Note: **AES-256** may appear **inside reviewed implementations** where a standard or interoperability layer requires it (for example certain RNG or KEM-adjacent paths). That is not an invitation to add AES-GCM or ChaCha20-Poly1305 as general-purpose user-facing substitutes for the Saturnin / SHAKE-centered AEAD story without maintainer review.
 
 ## Implementation Security Guidelines
 
@@ -167,6 +215,10 @@ pub fn constant_time_select(condition: bool, a: u32, b: u32) -> u32 {
     (a & mask) | (b & !mask)
 }
 ```
+
+### WebAssembly and constant-time discipline
+
+The same source-level rules (no secret-dependent branches, subtle-based selection where applicable, table-lookup discipline) apply when compiling for `wasm32-unknown-unknown`. LLVM may choose different instruction sequences and memory layouts than for x86_64 or AArch64; **constant-time intent in Rust is not a formal proof on any target**, and WASM adds a distinct JIT and sandbox model. Treat WASM deployments like any other high-risk environment: pin toolchains, run regression tests on the actual target, and plan dedicated side-channel review if your threat model assumes browser-grade adversaries.
 
 ### Memory Safety
 Rust's ownership model provides memory safety, but additional measures are required:
@@ -320,7 +372,6 @@ pub fn secure_random_bytes(buffer: &mut [u8]) -> Result<(), Error> {
 - **User notification**: Clear notification of affected users
 
 ### Security Contact
-- **Security email**: security@lib-q.org
-- **PGP key**: Published for secure communication
-- **Bug bounty**: Rewards for security researchers
+- **Security email**: github@enkom.dev
+- **PGP key**: Published for secure communication (when available)
 - **Responsible disclosure**: Recognition for responsible disclosure

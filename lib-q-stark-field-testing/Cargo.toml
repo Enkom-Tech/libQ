@@ -1,0 +1,38 @@
+[package]
+name = "lib-q-stark-field-testing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Testing utilities for finite field arithmetic and field-based operations in lib-Q STARK implementation."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+
+criterion = { workspace = true, optional = true }
+num-bigint = { workspace = true }
+rand = { workspace = true, default-features = false, features = ["std"] }
+serde = { workspace = true, default-features = false, features = ["alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
+
+[features]
+default = []
+criterion = ["dep:criterion"]
+criterion-bench = ["criterion"]
+
+[package.metadata.docs.rs]
+features = ["criterion-bench"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
+

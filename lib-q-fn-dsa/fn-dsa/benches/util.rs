@@ -1,0 +1,129 @@
+use fn_dsa_comm::shake::SHAKE256;
+use fn_dsa_comm::{
+    Infallible,
+    TryCryptoRng,
+    TryRng,
+};
+
+#[cfg(target_arch = "x86")]
+pub fn core_cycles() -> u64 {
+    use core::arch::x86::{
+        _mm_lfence,
+        _rdtsc,
+    };
+    unsafe {
+        _mm_lfence();
+        _rdtsc()
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+pub fn core_cycles() -> u64 {
+    use core::arch::x86_64::{
+        _mm_lfence,
+        _rdtsc,
+    };
+    unsafe {
+        _mm_lfence();
+        _rdtsc()
+    }
+}
+
+#[cfg(any(target_arch = "aarch64", target_arch = "arm64ec"))]
+pub fn core_cycles() -> u64 {
+    use core::arch::asm;
+    let mut x: u64;
+    unsafe {
+        asm!("dsb sy", "mrs {}, pmccntr_el0", out(reg) x);
+    }
+    x
+}
+
+#[cfg(target_arch = "riscv64")]
+pub fn core_cycles() -> u64 {
+    use core::arch::asm;
+    let mut x: u64;
+    unsafe {
+        asm!("rdcycle {}", out(reg) x);
+    }
+    x
+}
+
+// Fake RNG for tests only; it is actually a wrapper around SHAKE256,
+// initialized with a seed.
+pub struct FakeRNG(SHAKE256);
+
+impl FakeRNG {
+    pub fn new(seed: &[u8]) -> Self {
+        let mut sh = SHAKE256::new();
+        sh.inject(seed);
+        sh.flip();
+        Self(sh)
+    }
+}
+
+impl TryRng for FakeRNG {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
+        let mut buf = [0u8; 4];
+        self.0.extract(&mut buf);
+        Ok(u32::from_le_bytes(buf))
+    }
+    fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
+        let mut buf = [0u8; 8];
+        self.0.extract(&mut buf);
+        Ok(u64::from_le_bytes(buf))
+    }
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), Self::Error> {
+        self.0.extract(dest);
+        Ok(())
+    }
+}
+impl TryCryptoRng for FakeRNG {}
+
+pub fn banner_arch() {
+    #[cfg(target_arch = "x86_64")]
+    {
+        print!("Arch: x86_64 (64-bit)");
+        #[cfg(feature = "no_avx2")]
+        print!(", AVX2:code=no");
+        #[cfg(not(feature = "no_avx2"))]
+        print!(
+            ", AVX2:code=yes,cpu={}",
+            if fn_dsa_comm::has_avx2() { "yes" } else { "no" }
+        );
+        println!();
+    }
+
+    #[cfg(target_arch = "x86")]
+    {
+        print!("Arch: x86 (32-bit)");
+        #[cfg(feature = "no_avx2")]
+        print!(", AVX2:code=no");
+        #[cfg(not(feature = "no_avx2"))]
+        print!(
+            ", AVX2:code=yes,cpu={}",
+            if fn_dsa_comm::has_avx2() { "yes" } else { "no" }
+        );
+        println!();
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    println!("Arch: aarch64");
+
+    #[cfg(target_arch = "arm64ec")]
+    println!("Arch: arm64ec");
+
+    #[cfg(target_arch = "riscv64")]
+    println!("Arch: riscv64");
+
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "riscv64"
+    )))]
+    println!("Arch: unknown");
+}

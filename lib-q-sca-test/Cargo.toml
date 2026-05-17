@@ -1,0 +1,33 @@
+[package]
+name = "lib-q-sca-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+readme = "README.md"
+description = "Side-channel validation harnesses (TVLA, statistical timing) for libQ PQC crates"
+rust-version.workspace = true
+
+[features]
+default = ["mlkem", "mldsa", "privacy"]
+mlkem = ["dep:lib-q-ml-kem"]
+mldsa = ["dep:lib-q-ml-dsa"]
+privacy = [
+    "dep:lib-q-lattice-zkp",
+    "dep:lib-q-ring",
+    "dep:lib-q-ring-sig",
+]
+
+[dependencies]
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", optional = true, default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", optional = true, default-features = false, features = ["alloc"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", optional = true, default-features = false, features = ["std", "hardened", "random"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", optional = true, default-features = false, features = ["hardened", "random", "mldsa44"] }
+lib-q-ring-sig = { path = "../lib-q-ring-sig", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+
+[dev-dependencies]
+rand_core = { workspace = true }
+rand_chacha = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(sca_test)'] }

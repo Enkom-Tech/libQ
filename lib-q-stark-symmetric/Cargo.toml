@@ -1,0 +1,35 @@
+[package]
+name = "lib-q-stark-symmetric"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "A modular framework for symmetric cryptographic primitives."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
+# Avoid pulling `lib-q-keccak` default `std` + `asm` (e.g. `num_cpus`) for wasm32 / no_std graphs.
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+
+itertools = { workspace = true }
+serde = { workspace = true, features = ["alloc"], default-features = false }
+
+[features]
+default = ["alloc"]
+std = ["alloc", "lib-q-keccak/std"]
+alloc = []
+no_std = []
+asm = ["lib-q-keccak/asm"]
+
+[dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

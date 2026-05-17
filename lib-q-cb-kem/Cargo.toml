@@ -1,0 +1,138 @@
+[package]
+name = "lib-q-cb-kem"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Classical McEliece KEM implementation for lib-Q post-quantum cryptography library"
+keywords = ["cryptography", "post-quantum", "kem", "classical-mceliece", "nist", "libq"]
+categories = ["cryptography", "wasm"]
+exclude = ["/data"]
+
+[dependencies]
+# libQ dependencies
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["classical-mceliece"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+
+# External dependencies
+aes = { workspace = true, default-features = false, optional = true }
+rand = { workspace = true, default-features = false, optional = true }
+rand_core = { workspace = true, default-features = false }
+getrandom = { workspace = true, optional = true, default-features = false }
+zeroize = { workspace = true, default-features = false, optional = true, features = ["alloc"] }
+hex = { workspace = true, optional = true }
+
+# Optional WASM bindings (`wasm` feature)
+wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
+js-sys = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive"], default-features = false }
+serde-wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
+[features]
+## When adding features or changing the default features, remember to update
+## the `[package.metadata.docs.rs]` section further down as well as the docs
+## generation CI job
+# alloc := enable, if the platform supports dynamic memory allocation
+# zeroize := enable to nullify sensitive memory sections after they go out of scope
+default = ["alloc", "zeroize"]
+no-default-features = []
+alloc = []
+zeroize = ["dep:zeroize"]
+
+# Standard library support
+std = []
+
+# WASM support
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:hex",
+    "dep:serde",
+    "dep:serde-wasm-bindgen",
+    "dep:serde_json",
+    "lib-q-core/wasm",
+    "wasm_getrandom",
+    "alloc",
+    "zeroize",
+]
+
+# Random number generation features
+rand = ["dep:rand"]
+getrandom = ["dep:getrandom"]
+wasm_getrandom = ["getrandom", "getrandom/wasm_js"]
+
+# Select which variant of Classical McEliece CB-KEM to compile for.
+# Only one of these features can be enabled.
+cbkem348864 = []
+cbkem348864f = []
+cbkem460896 = []
+cbkem460896f = []
+cbkem6688128 = []
+cbkem6688128f = []
+cbkem6960119 = []
+cbkem6960119f = []
+cbkem8192128 = []
+cbkem8192128f = ["nist-aes-rng"]
+
+# NIST AES256-CTR RNG for KATs and deterministic testing (includes zeroize for uninstantiate)
+aes = ["dep:aes"]
+nist-aes-rng = ["aes", "zeroize"]
+
+[lib]
+name = "lib_q_cb_kem"
+path = "src/lib.rs"
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
+crate-type = ["cdylib", "rlib"]
+
+[[bench]]
+name = "kem_api"
+harness = false
+
+[dev-dependencies]
+hex = { workspace = true }
+wasm-bindgen-test = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+criterion-cycles-per-byte = "0.8.0"
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "cbkem348864", "wasm_getrandom", "alloc", "zeroize"]
+
+
+[package.metadata.docs.rs]
+## Uses the #[doc(feature(...))] functionality to clearly show in the generated documentation
+## which feature of this crate is needed for each type and function to be available.
+## This increases discoverability of features massively.
+## To use this locally, run: `RUSTDOCFLAGS="--cfg docsrs" cargo doc`.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.wasm-pack.profile.release]
+# Enable bulk memory operations to fix wasm-validator errors
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(simd128)',
+    'cfg(simd256)',
+    'cfg(aarch64)',
+    'cfg(x86_64)',
+] }
+
+[lints.clippy]
+needless_doctest_main = "allow"

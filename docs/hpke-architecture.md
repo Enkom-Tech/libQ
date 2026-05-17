@@ -1,687 +1,536 @@
-# Hybrid Public Key Encryption (HPKE) Architecture
+# HPKE Architecture
 
-## Overview
+The lib-q-hpke implementation provides RFC 9180–aligned Hybrid Public Key Encryption using **post-quantum-only** primitives (no classical KEM or classical signatures in the HPKE path). The architecture follows a provider pattern that integrates with the lib-q ecosystem for algorithm-agnostic cryptographic operations.
 
-lib-Q implements a three-tier Hybrid Public Key Encryption (HPKE) system that provides post-quantum security with different performance characteristics. HPKE combines post-quantum key encapsulation mechanisms (KEMs) with symmetric encryption to provide secure, authenticated encryption.
+**PSK / AuthPSK wire format:** by default [`HpkePskWireFormat::Rfc9180`](../lib-q-hpke/src/types.rs) matches RFC 9180. Peers may opt into [`HpkePskWireFormat::LibQCommitmentSuffix`](../lib-q-hpke/src/types.rs) via [`HpkeContext::set_psk_wire_format`](../lib-q-hpke/src/lib.rs) for early PSK mismatch detection; that layout is **not** interoperable with strict third-party RFC 9180 stacks.
 
-## Architecture Design
+## Architecture Overview
 
-### Three-Tier System
+The HPKE implementation uses a provider pattern that abstracts cryptographic operations through the lib-q ecosystem:
 
 ```
-lib-Q HPKE Architecture
-├── Tier 1: Ultra-Secure (Pure Post-Quantum)
-│   ├── KEM: CRYSTALS-Kyber (Level 5)
-│   ├── AEAD: SHAKE256-based construction
-│   └── Use Case: Maximum security, performance secondary
-├── Tier 2: Balanced (Hybrid Post-Quantum)
-│   ├── KEM: CRYSTALS-Kyber (Level 3)
-│   ├── AEAD: AES-256-GCM
-│   └── Use Case: Strong security with good performance
-└── Tier 3: Performance (Post-Quantum + Optimized Classical)
-    ├── KEM: CRYSTALS-Kyber (Level 1)
-    ├── AEAD: ChaCha20-Poly1305
-    └── Use Case: Maximum performance, strong security
+lib-q-hpke
+├── PostQuantumProvider
+│   ├── KEM: ML-KEM-512, ML-KEM-768, ML-KEM-1024 (see interoperability note below)
+│   ├── KDF: HKDF-SHAKE128, HKDF-SHAKE256, HKDF-SHA3-256, HKDF-SHA3-512
+│   └── AEAD: Saturnin-256, SHAKE256, duplex-sponge AEAD (optional feature), Export-only
+├── Security Layer
+│   ├── Side-channel protection
+│   ├── Memory safety
+│   └── Input validation
+└── Integration Layer
+    ├── lib-q-core types (KemContext, CryptoProvider)
+    ├── lib-q-kem (LibQKemProvider)
+    ├── lib-q-hash, lib-q-aead
+    └── HpkePskWireFormat (PSK / AuthPSK on-the-wire policy)
 ```
 
-### Core Components
+**Interoperability note:** [`PostQuantumProvider`](../lib-q-hpke/src/providers/post_quantum.rs) wires **ML-KEM only** into HPKE encapsulation/decapsulation for the public `HpkeContext` API. Other PQ KEMs (for example HQC) may exist elsewhere in the workspace but are **not** selected by the current HPKE cipher-suite / provider path (see ignored tests in `lib-q-hpke/tests/cross_library_integration_tests.rs`).
+
+## Security Levels
+
+The implementation supports different security levels through algorithm selection:
+
+- **Level 1 (NIST category 1)**: ML-KEM-512 — FIPS 203 parameter set ML-KEM-512
+- **Level 3 (NIST category 3)**: ML-KEM-768 — FIPS 203 parameter set ML-KEM-768
+- **Level 5 (NIST category 5)**: ML-KEM-1024 — FIPS 203 parameter set ML-KEM-1024
+
+## Core Components
+
+The snippets below mirror the public shapes in [`lib-q-hpke/src/types.rs`](../lib-q-hpke/src/types.rs) and [`lib-q-hpke/src/lib.rs`](../lib-q-hpke/src/lib.rs). Sensitive byte fields use [`SecretBytes`](../lib-q-hpke/src/types.rs) (`Zeroizing<Vec<u8>>`).
 
 ```rust
-/// HPKE security tiers
-pub enum SecurityTier {
-    /// Ultra-secure: Pure post-quantum with maximum security
-    Ultra,
-    /// Balanced: Hybrid post-quantum with good performance
-    Balanced,
-    /// Performance: Post-quantum + optimized classical
-    Performance,
-}
-
-/// HPKE context for stateful operations
+/// HPKE context: KEM provider context, suite, PSK wire-format policy, HPKE crypto backend, RNG.
 pub struct HpkeContext {
-    /// The security tier
-    pub tier: SecurityTier,
-    /// The encapsulated key
-    pub encapsulated_key: EncapsulatedKey,
-    /// The derived encryption key
-    pub encryption_key: EncryptionKey,
-    /// The sequence number for ordered operations
-    pub sequence_number: u64,
+    kem_ctx: KemContext,
+    cipher_suite: HpkeCipherSuite,
+    psk_wire_format: HpkePskWireFormat,
+    hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
+    rng: Box<dyn CryptoRng + Send>,
 }
 
-/// HPKE ciphertext containing encapsulated key and encrypted data
-pub struct HpkeCiphertext {
-    /// The encapsulated key
-    pub encapsulated_key: EncapsulatedKey,
-    /// The encrypted payload
-    pub ciphertext: Vec<u8>,
-    /// The authentication tag
-    pub tag: [u8; 16],
+/// HPKE sender context for multiple message encryption
+pub struct HpkeSenderContext {
+    pub shared_secret: SecretBytes,
+    pub exporter_secret: SecretBytes,
+    pub key: SecretBytes,
+    pub nonce: SecretBytes,
+    pub cipher_suite: HpkeCipherSuite,
+    pub aead: HpkeAead,
+    pub encapsulated_key: Vec<u8>,
+    pub sequence_number: u32,
+    pub max_sequence_number: u32,
+    pub state: HpkeContextState,
+    pub(crate) hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
+}
+
+/// HPKE receiver context for multiple message decryption
+pub struct HpkeReceiverContext {
+    pub shared_secret: SecretBytes,
+    pub exporter_secret: SecretBytes,
+    pub key: SecretBytes,
+    pub nonce: SecretBytes,
+    pub cipher_suite: HpkeCipherSuite,
+    pub aead: HpkeAead,
+    pub sequence_number: u32,
+    pub max_sequence_number: u32,
+    pub state: HpkeContextState,
+    pub(crate) hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync>,
 }
 ```
 
-## Tier 1: Ultra-Secure HPKE
+Interop profiles and deterministic negotiation primitives are published in [`lib_q_hpke::interop`](../lib-q-hpke/src/interop.rs) (`HpkeInteropProfile`, `HpkeCapabilities`, `negotiate_hpke_capabilities`). WASM rehydrates sender/receiver state with the same default [`PostQuantumProvider`](../lib-q-hpke/src/providers/post_quantum.rs) backend as native `HpkeContext::new` unless you add explicit JS-side hooks for alternate providers later.
 
-### Design Philosophy
+## PostQuantumProvider Implementation
 
-Tier 1 provides maximum security by using only post-quantum algorithms throughout the entire encryption chain. This eliminates any reliance on classical cryptographic assumptions.
+The PostQuantumProvider is the core provider that implements all HPKE operations using post-quantum algorithms. It provides a unified interface for all supported cryptographic primitives.
+
+### Key Features
+
+- **Algorithm-Agnostic Design**: Uses lib-q abstractions for all cryptographic operations
+- **Comprehensive Algorithm Support**: Supports ML-KEM variants, post-quantum hash functions, and AEAD algorithms
+- **Security-First Implementation**: Constant-time operations, secure memory management, and comprehensive input validation
+- **RFC 9180 Compliance**: Full implementation of HPKE specification including all modes
 
 ### Implementation
 
 ```rust
-/// Ultra-secure HPKE implementation
-pub struct UltraHpke {
-    kem: Kyber5,
-    aead: Shake256Aead,
-}
+/// Post-quantum provider implementation (excerpt from `lib-q-hpke/src/providers/post_quantum.rs`)
+pub struct PostQuantumProvider;
 
-impl UltraHpke {
-    /// Create a new ultra-secure HPKE instance
+impl PostQuantumProvider {
     pub fn new() -> Self {
-        Self {
-            kem: Kyber5::new(),
-            aead: Shake256Aead::new(),
+        Self
+    }
+
+    fn hpke_kem_to_algorithm(kem: HpkeKem) -> Result<Algorithm, HpkeError> {
+        match kem {
+            HpkeKem::MlKem512 => Ok(Algorithm::MlKem512),
+            HpkeKem::MlKem768 => Ok(Algorithm::MlKem768),
+            HpkeKem::MlKem1024 => Ok(Algorithm::MlKem1024),
         }
     }
-    
-    /// Seal (encrypt) a message for a recipient
-    pub fn seal(
-        &self,
-        recipient_pk: &PublicKey,
-        plaintext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<HpkeCiphertext> {
-        // 1. Generate ephemeral key pair
-        let (ephemeral_sk, ephemeral_pk) = self.kem.generate_keypair()?;
-        
-        // 2. Encapsulate shared secret with recipient's public key
-        let (shared_secret, encapsulated_key) = self.kem.encapsulate(recipient_pk)?;
-        
-        // 3. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
-        
-        // 4. Encrypt with SHAKE256-based AEAD
-        let (ciphertext, tag) = self.aead.encrypt(
-            &encryption_key,
-            plaintext,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        // 5. Return encapsulated key + ciphertext + tag
-        Ok(HpkeCiphertext {
-            encapsulated_key,
-            ciphertext,
-            tag,
-        })
+
+    fn create_kem_provider() -> Result<LibQKemProvider, HpkeError> {
+        LibQKemProvider::new()
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create KEM provider: {}", e)))
     }
-    
-    /// Open (decrypt) a message using recipient's secret key
-    pub fn open(
-        &self,
-        recipient_sk: &SecretKey,
-        ciphertext: &HpkeCiphertext,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        // 1. Decapsulate shared secret using recipient's secret key
-        let shared_secret = self.kem.decapsulate(recipient_sk, &ciphertext.encapsulated_key)?;
-        
-        // 2. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
-        
-        // 3. Decrypt with SHAKE256-based AEAD
-        let plaintext = self.aead.decrypt(
-            &encryption_key,
-            &ciphertext.ciphertext,
-            &ciphertext.tag,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        Ok(plaintext)
+
+    fn create_hash_instance(kdf: HpkeKdf) -> Result<Box<dyn CoreHash>, HpkeError> {
+        let algorithm = match kdf {
+            HpkeKdf::HkdfShake128 => HashAlgorithm::Shake128,
+            HpkeKdf::HkdfShake256 => HashAlgorithm::Shake256,
+            HpkeKdf::HkdfSha3_256 => HashAlgorithm::Sha3_256,
+            HpkeKdf::HkdfSha3_512 => HashAlgorithm::Sha3_512,
+        };
+        create_hash(algorithm)
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create hash instance: {}", e)))
     }
-    
-    /// Derive encryption key from shared secret
-    fn derive_key(&self, shared_secret: &SharedSecret, encapsulated_key: &EncapsulatedKey) -> Result<EncryptionKey> {
-        // Use SHAKE256 for key derivation
-        let mut key = [0u8; 32];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Ultra-v1");
-        hasher.update(shared_secret.as_ref());
-        hasher.update(encapsulated_key.as_ref());
-        hasher.finalize(&mut key);
-        Ok(EncryptionKey(key))
+
+    fn create_aead_instance(aead: HpkeAead) -> Result<Box<dyn CoreAead>, HpkeError> {
+        let algorithm = match aead {
+            HpkeAead::Saturnin256 => Algorithm::Saturnin,
+            HpkeAead::Shake256 => Algorithm::Shake256Aead,
+            HpkeAead::DuplexSpongeAead => {
+                #[cfg(feature = "duplex-sponge-aead")]
+                {
+                    Algorithm::DuplexSpongeAead
+                }
+                #[cfg(not(feature = "duplex-sponge-aead"))]
+                {
+                    return Err(HpkeError::feature_not_enabled(
+                        "duplex-sponge-aead (enable lib-q-hpke feature duplex-sponge-aead)",
+                    ));
+                }
+            }
+            HpkeAead::Export => return Err(HpkeError::not_implemented("Export-only AEAD")),
+        };
+        create_aead(algorithm)
+            .map_err(|e| HpkeError::CryptoError(format!("Failed to create AEAD instance: {}", e)))
     }
 }
 ```
 
-### SHAKE256-based AEAD
+## HPKE Modes and Authentication
 
-```rust
-/// SHAKE256-based authenticated encryption
-pub struct Shake256Aead {
-    // Implementation details for SHAKE256-based AEAD
-}
+The implementation supports all HPKE modes as specified in RFC 9180:
 
-impl Shake256Aead {
-    /// Encrypt with SHAKE256-based AEAD
-    pub fn encrypt(
-        &self,
-        key: &EncryptionKey,
-        plaintext: &[u8],
-        associated_data: &[u8],
-    ) -> Result<(Vec<u8>, [u8; 16])> {
-        // 1. Generate nonce using SHAKE256
-        let nonce = self.generate_nonce(key)?;
-        
-        // 2. Encrypt using SHAKE256 in counter mode
-        let ciphertext = self.encrypt_shake256(key, &nonce, plaintext)?;
-        
-        // 3. Generate authentication tag using SHAKE256
-        let tag = self.generate_tag(key, &nonce, &ciphertext, associated_data)?;
-        
-        Ok((ciphertext, tag))
-    }
-    
-    /// Decrypt with SHAKE256-based AEAD
-    pub fn decrypt(
-        &self,
-        key: &EncryptionKey,
-        ciphertext: &[u8],
-        tag: &[u8; 16],
-        associated_data: &[u8],
-    ) -> Result<Vec<u8>> {
-        // 1. Generate nonce using SHAKE256
-        let nonce = self.generate_nonce(key)?;
-        
-        // 2. Verify authentication tag
-        let expected_tag = self.generate_tag(key, &nonce, ciphertext, associated_data)?;
-        if !constant_time_compare(tag, &expected_tag) {
-            return Err(Error::VerificationFailed {
-                operation: "HPKE tag verification".to_string(),
-            });
-        }
-        
-        // 3. Decrypt using SHAKE256 in counter mode
-        let plaintext = self.decrypt_shake256(key, &nonce, ciphertext)?;
-        
-        Ok(plaintext)
-    }
-    
-    /// Generate nonce for encryption
-    fn generate_nonce(&self, key: &EncryptionKey) -> Result<[u8; 12]> {
-        let mut nonce = [0u8; 12];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Nonce");
-        hasher.update(key.as_ref());
-        hasher.update(&random_bytes(16)?);
-        hasher.finalize(&mut nonce);
-        Ok(nonce)
-    }
-    
-    /// Generate authentication tag
-    fn generate_tag(
-        &self,
-        key: &EncryptionKey,
-        nonce: &[u8; 12],
-        ciphertext: &[u8],
-        associated_data: &[u8],
-    ) -> Result<[u8; 16]> {
-        let mut tag = [0u8; 16];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Tag");
-        hasher.update(key.as_ref());
-        hasher.update(nonce);
-        hasher.update(ciphertext);
-        hasher.update(associated_data);
-        hasher.finalize(&mut tag);
-        Ok(tag)
-    }
-}
-```
+### Base Mode
+Standard HPKE without additional authentication. Provides confidentiality through KEM encapsulation/decapsulation.
 
-## Tier 2: Balanced HPKE
+### PSK Mode
+Pre-shared key authentication mode. PSK is incorporated into the key schedule with validation. Use [`HpkeContext::setup_sender_psk`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_psk`](../lib-q-hpke/src/lib.rs). The bytes on the wire for the encapsulated key follow [`HpkeContext::psk_wire_format`](../lib-q-hpke/src/lib.rs) (RFC 9180 by default; optional libQ suffix as described above).
 
-### Design Philosophy
+### Auth Mode
+Sender authentication using asymmetric keys. Implements AuthEncap/AuthDecap for cryptographic sender verification. API: [`setup_sender_auth`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_auth`](../lib-q-hpke/src/lib.rs).
 
-Tier 2 provides strong security with good performance by combining post-quantum KEM with quantum-resistant classical AEAD. This tier is suitable for most applications requiring strong security.
+### AuthPSK Mode
+Combined PSK and sender authentication. API: [`setup_sender_auth_psk`](../lib-q-hpke/src/lib.rs) / [`setup_receiver_auth_psk`](../lib-q-hpke/src/lib.rs). Encapsulated-key layout follows the same [`HpkePskWireFormat`](../lib-q-hpke/src/types.rs) policy as PSK mode.
 
-### Implementation
+### Authentication implementation
 
-```rust
-/// Balanced HPKE implementation
-pub struct BalancedHpke {
-    kem: Kyber3,
-    aead: Aes256Gcm,
-}
+Auth / AuthPSK modes follow **RFC 9180** key schedules and use the same ML-KEM KEM id (`HpkeKem`) as base mode, with sender key material mixed into the HPKE context (see [`lib-q-hpke/src/hpke_core.rs`](../lib-q-hpke/src/hpke_core.rs) and [`lib-q-hpke/tests/auth_mode_tests.rs`](../lib-q-hpke/tests/auth_mode_tests.rs)). The repository previously included illustrative pseudocode here that did not match the checked-in implementation; read the crate sources and RFC for precise encap/decap ordering.
 
-impl BalancedHpke {
-    /// Create a new balanced HPKE instance
-    pub fn new() -> Self {
-        Self {
-            kem: Kyber3::new(),
-            aead: Aes256Gcm::new(),
-        }
-    }
-    
-    /// Seal (encrypt) a message for a recipient
-    pub fn seal(
-        &self,
-        recipient_pk: &PublicKey,
-        plaintext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<HpkeCiphertext> {
-        // 1. Generate ephemeral key pair
-        let (ephemeral_sk, ephemeral_pk) = self.kem.generate_keypair()?;
-        
-        // 2. Encapsulate shared secret with recipient's public key
-        let (shared_secret, encapsulated_key) = self.kem.encapsulate(recipient_pk)?;
-        
-        // 3. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
-        
-        // 4. Encrypt with AES-256-GCM
-        let (ciphertext, tag) = self.aead.encrypt(
-            &encryption_key,
-            plaintext,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        // 5. Return encapsulated key + ciphertext + tag
-        Ok(HpkeCiphertext {
-            encapsulated_key,
-            ciphertext,
-            tag,
-        })
-    }
-    
-    /// Open (decrypt) a message using recipient's secret key
-    pub fn open(
-        &self,
-        recipient_sk: &SecretKey,
-        ciphertext: &HpkeCiphertext,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        // 1. Decapsulate shared secret using recipient's secret key
-        let shared_secret = self.kem.decapsulate(recipient_sk, &ciphertext.encapsulated_key)?;
-        
-        // 2. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
-        
-        // 3. Decrypt with AES-256-GCM
-        let plaintext = self.aead.decrypt(
-            &encryption_key,
-            &ciphertext.ciphertext,
-            &ciphertext.tag,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        Ok(plaintext)
-    }
-    
-    /// Derive encryption key from shared secret
-    fn derive_key(&self, shared_secret: &SharedSecret, encapsulated_key: &EncapsulatedKey) -> Result<EncryptionKey> {
-        // Use SHAKE256 for key derivation
-        let mut key = [0u8; 32];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Balanced-v1");
-        hasher.update(shared_secret.as_ref());
-        hasher.update(encapsulated_key.as_ref());
-        hasher.finalize(&mut key);
-        Ok(EncryptionKey(key))
-    }
-}
-```
+**Key security properties (intent):**
 
-## Tier 3: Performance HPKE
+- **Sender authentication (Auth modes)** — Recipient can cryptographically verify that the sender used the claimed KEM secret key material, per RFC 9180.
+- **RFC 9180 alignment** — Mode bits and suite IDs are exercised by `rfc9180_compliance_tests` and related tests in `lib-q-hpke/tests/`.
+- **Forward secrecy** — Still governed by the ephemeral KEM half of the HPKE key schedule; see RFC 9180 security analysis for your deployment profile.
 
-### Design Philosophy
+## Security Guarantees
 
-Tier 3 provides maximum performance while maintaining strong security by combining post-quantum KEM with optimized classical AEAD. This tier is suitable for high-performance applications.
-
-### Implementation
-
-```rust
-/// Performance HPKE implementation
-pub struct PerformanceHpke {
-    kem: Kyber1,
-    aead: ChaCha20Poly1305,
-}
-
-impl PerformanceHpke {
-    /// Create a new performance HPKE instance
-    pub fn new() -> Self {
-        Self {
-            kem: Kyber1::new(),
-            aead: ChaCha20Poly1305::new(),
-        }
-    }
-    
-    /// Seal (encrypt) a message for a recipient
-    pub fn seal(
-        &self,
-        recipient_pk: &PublicKey,
-        plaintext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<HpkeCiphertext> {
-        // 1. Generate ephemeral key pair
-        let (ephemeral_sk, ephemeral_pk) = self.kem.generate_keypair()?;
-        
-        // 2. Encapsulate shared secret with recipient's public key
-        let (shared_secret, encapsulated_key) = self.kem.encapsulate(recipient_pk)?;
-        
-        // 3. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &encapsulated_key)?;
-        
-        // 4. Encrypt with ChaCha20-Poly1305
-        let (ciphertext, tag) = self.aead.encrypt(
-            &encryption_key,
-            plaintext,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        // 5. Return encapsulated key + ciphertext + tag
-        Ok(HpkeCiphertext {
-            encapsulated_key,
-            ciphertext,
-            tag,
-        })
-    }
-    
-    /// Open (decrypt) a message using recipient's secret key
-    pub fn open(
-        &self,
-        recipient_sk: &SecretKey,
-        ciphertext: &HpkeCiphertext,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>> {
-        // 1. Decapsulate shared secret using recipient's secret key
-        let shared_secret = self.kem.decapsulate(recipient_sk, &ciphertext.encapsulated_key)?;
-        
-        // 2. Derive encryption key using SHAKE256
-        let encryption_key = self.derive_key(&shared_secret, &ciphertext.encapsulated_key)?;
-        
-        // 3. Decrypt with ChaCha20-Poly1305
-        let plaintext = self.aead.decrypt(
-            &encryption_key,
-            &ciphertext.ciphertext,
-            &ciphertext.tag,
-            associated_data.unwrap_or(&[]),
-        )?;
-        
-        Ok(plaintext)
-    }
-    
-    /// Derive encryption key from shared secret
-    fn derive_key(&self, shared_secret: &SharedSecret, encapsulated_key: &EncapsulatedKey) -> Result<EncryptionKey> {
-        // Use SHAKE256 for key derivation
-        let mut key = [0u8; 32];
-        let mut hasher = Shake256::new();
-        hasher.update(b"lib-Q-HPKE-Performance-v1");
-        hasher.update(shared_secret.as_ref());
-        hasher.update(encapsulated_key.as_ref());
-        hasher.finalize(&mut key);
-        Ok(EncryptionKey(key))
-    }
-}
-```
-
-## Unified HPKE Interface
-
-### Factory Pattern
-
-```rust
-/// HPKE factory for creating instances based on security tier
-pub struct HpkeFactory;
-
-impl HpkeFactory {
-    /// Create HPKE instance for the specified security tier
-    pub fn create(tier: SecurityTier) -> Box<dyn Hpke> {
-        match tier {
-            SecurityTier::Ultra => Box::new(UltraHpke::new()),
-            SecurityTier::Balanced => Box::new(BalancedHpke::new()),
-            SecurityTier::Performance => Box::new(PerformanceHpke::new()),
-        }
-    }
-}
-
-/// Common HPKE trait
-pub trait Hpke {
-    /// Seal (encrypt) a message for a recipient
-    fn seal(
-        &self,
-        recipient_pk: &PublicKey,
-        plaintext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<HpkeCiphertext>;
-    
-    /// Open (decrypt) a message using recipient's secret key
-    fn open(
-        &self,
-        recipient_sk: &SecretKey,
-        ciphertext: &HpkeCiphertext,
-        associated_data: Option<&[u8]>,
-    ) -> Result<Vec<u8>>;
-    
-    /// Get the security tier of this HPKE instance
-    fn security_tier(&self) -> SecurityTier;
-}
-```
-
-### High-Level API
-
-```rust
-/// High-level HPKE API
-pub mod hpke {
-    use super::*;
-    
-    /// Encrypt a message using HPKE
-    pub fn encrypt(
-        recipient_pk: &PublicKey,
-        message: &[u8],
-        associated_data: Option<&[u8]>,
-        tier: SecurityTier,
-    ) -> Result<HpkeCiphertext> {
-        let hpke = HpkeFactory::create(tier);
-        hpke.seal(recipient_pk, message, associated_data)
-    }
-    
-    /// Decrypt a message using HPKE
-    pub fn decrypt(
-        recipient_sk: &SecretKey,
-        ciphertext: &HpkeCiphertext,
-        associated_data: Option<&[u8]>,
-        tier: SecurityTier,
-    ) -> Result<Vec<u8>> {
-        let hpke = HpkeFactory::create(tier);
-        hpke.open(recipient_sk, ciphertext, associated_data)
-    }
-    
-    /// Create an HPKE context for stateful operations
-    pub fn create_context(
-        recipient_pk: &PublicKey,
-        tier: SecurityTier,
-    ) -> Result<HpkeContext> {
-        let hpke = HpkeFactory::create(tier);
-        let (shared_secret, encapsulated_key) = hpke.kem().encapsulate(recipient_pk)?;
-        let encryption_key = hpke.derive_key(&shared_secret, &encapsulated_key)?;
-        
-        Ok(HpkeContext {
-            tier,
-            encapsulated_key,
-            encryption_key,
-            sequence_number: 0,
-        })
-    }
-}
-```
-
-## Performance Characteristics
-
-### Security vs Performance Trade-offs
-
-| Tier | KEM Security | AEAD Performance | Overall Security | Use Case |
-|------|-------------|------------------|------------------|----------|
-| Ultra | Level 5 (256-bit) | SHAKE256 (slow) | Maximum | Critical systems |
-| Balanced | Level 3 (192-bit) | AES-256-GCM (fast) | High | General purpose |
-| Performance | Level 1 (128-bit) | ChaCha20-Poly1305 (fastest) | Strong | High throughput |
-
-### Benchmark Targets
-
-| Operation | Ultra | Balanced | Performance |
-|-----------|-------|----------|-------------|
-| Key Generation | < 50ms | < 15ms | < 5ms |
-| Encryption | < 15ms | < 5ms | < 2ms |
-| Decryption | < 15ms | < 5ms | < 2ms |
-| Key Size | ~1.5KB | ~1.2KB | ~0.8KB |
-| Ciphertext Overhead | ~1.5KB | ~1.2KB | ~0.8KB |
-
-## Security Considerations
+The HPKE implementation provides comprehensive security guarantees:
 
 ### Post-Quantum Security
+- **KEM Security**: All supported KEM parameter sets (ML-KEM-512, ML-KEM-768, ML-KEM-1024) are used as specified in FIPS 203 for the HPKE KEM role
+- **Key Derivation**: HKDF with post-quantum hash functions (SHAKE128/256, SHA3-256/512) per suite selection
+- **AEAD Security**: [`HpkeAead::Saturnin256`](../lib-q-hpke/src/types.rs) uses a 32-byte authentication tag; SHAKE256 and duplex-sponge AEAD options are also available (see `HpkeAead::tag_len` in `types.rs`)
 
-- **KEM Security**: All tiers use post-quantum KEMs (CRYSTALS-Kyber)
-- **Key Derivation**: SHAKE256 for all key derivation operations
-- **Domain Separation**: Different derivation strings for each tier
-- **Nonce Generation**: Cryptographically secure nonce generation
+### Implementation Security
 
-### Classical Security
+**Constant-Time Operations**: All cryptographic operations use constant-time algorithms to prevent timing attacks. Key functions include `constant_time_compare()`, `constant_time_select()`, and `verify_auth_tag_constant_time()`.
 
-- **Tier 2**: AES-256-GCM provides 256-bit classical security
-- **Tier 3**: ChaCha20-Poly1305 provides 256-bit classical security
-- **Authentication**: All tiers provide strong authentication
-- **Confidentiality**: All tiers provide strong confidentiality
+**Memory Safety**: Sensitive data is automatically zeroed using the `Zeroize` trait. Secure containers (`SecureBytes`, `SecureKey`, `SecureStackBuffer`) provide automatic cleanup.
 
-### Side-Channel Resistance
+**Input Validation**: Comprehensive validation includes side-channel resistant key validation, nonce validation, and ciphertext validation. All validation functions maintain constant-time properties.
 
-- **Constant-time operations**: All cryptographic operations are constant-time
-- **Memory safety**: Secure memory management for sensitive data
-- **Input validation**: Comprehensive validation of all inputs
-- **Error handling**: Secure error handling without information leakage
+**Error Handling**: Error messages are designed to prevent information leakage while maintaining consistent timing characteristics.
 
-## Testing Strategy
+### Authentication Security
+- **Sender Authentication**: AuthEncap/AuthDecap provides cryptographic proof of sender identity
+- **Key Validation**: All keys are validated for correct size and format before use
+- **Context Security**: Sequence numbers prevent replay attacks and ensure proper message ordering
 
-### Unit Testing
+### Performance Characteristics
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_ultra_hpke_encryption_decryption() {
-        let hpke = UltraHpke::new();
-        let (pk, sk) = Kyber5::new().generate_keypair().unwrap();
-        let message = b"Hello, Post-Quantum World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-    
-    #[test]
-    fn test_balanced_hpke_encryption_decryption() {
-        let hpke = BalancedHpke::new();
-        let (pk, sk) = Kyber3::new().generate_keypair().unwrap();
-        let message = b"Hello, Balanced World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-    
-    #[test]
-    fn test_performance_hpke_encryption_decryption() {
-        let hpke = PerformanceHpke::new();
-        let (pk, sk) = Kyber1::new().generate_keypair().unwrap();
-        let message = b"Hello, Performance World!";
-        let ad = b"associated data";
-        
-        let ciphertext = hpke.seal(&pk, message, Some(ad)).unwrap();
-        let decrypted = hpke.open(&sk, &ciphertext, Some(ad)).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-}
-```
+Wire sizes for the **KEM** role (public key length / encapsulated ciphertext length) match [`HpkeKem`](../lib-q-hpke/src/types.rs):
 
-### Integration Testing
+| KEM | Approx. NIST category | Public key | Encapsulated ciphertext |
+|-----|------------------------|------------|-------------------------|
+| ML-KEM-512 | 1 | 800 B | 768 B |
+| ML-KEM-768 | 3 | 1184 B | 1088 B |
+| ML-KEM-1024 | 5 | 1568 B | 1568 B |
 
-```rust
-#[test]
-fn test_hpke_tier_interoperability() {
-    let message = b"Test message";
-    let ad = b"Test associated data";
-    
-    // Test all tiers
-    for tier in &[SecurityTier::Ultra, SecurityTier::Balanced, SecurityTier::Performance] {
-        let (pk, sk) = match tier {
-            SecurityTier::Ultra => Kyber5::new().generate_keypair().unwrap(),
-            SecurityTier::Balanced => Kyber3::new().generate_keypair().unwrap(),
-            SecurityTier::Performance => Kyber1::new().generate_keypair().unwrap(),
-        };
-        
-        let ciphertext = hpke::encrypt(&pk, message, Some(ad), *tier).unwrap();
-        let decrypted = hpke::decrypt(&sk, &ciphertext, Some(ad), *tier).unwrap();
-        
-        assert_eq!(message, decrypted.as_slice());
-    }
-}
-```
+**AEAD (Saturnin-256):** 32-byte key, 16-byte base nonce, **32-byte tag** (ciphertext expands by plaintext length plus tag; there is no fixed “ciphertext size” independent of the message).
+
+## Integration with lib-Q Ecosystem
+
+The HPKE implementation is designed to integrate seamlessly with the broader lib-Q ecosystem:
+
+### Provider Pattern Integration
+- **lib-q-core**: Uses `KemContext`, `KemPublicKey`, `KemSecretKey`, and `CryptoProvider` for keying and HPKE entry points
+- **lib-q-kem**: `PostQuantumProvider` builds a [`LibQKemProvider`](../lib-q-kem) and drives ML-KEM encapsulation/decapsulation (including AuthEncap/AuthDecap)
+- **lib-q-hash**: `create_hash()` for HKDF extract/expand
+- **lib-q-aead**: `create_aead()` for encrypt/decrypt in the data plane
+
+### Algorithm Support
+- **Current**: ML-KEM-512, ML-KEM-768, ML-KEM-1024; KDFs `HKDF-SHAKE128/256`, `HKDF-SHA3-256/512`; AEADs **Saturnin-256**, **SHAKE256**, **duplex-sponge AEAD** (enable crate feature `duplex-sponge-aead` on `lib-q-hpke`, and when using the `lib-q` metacrate the `hpke-duplex-aead` feature), **export-only** (see [`HpkeKdf`](../lib-q-hpke/src/types.rs) / [`HpkeAead`](../lib-q-hpke/src/types.rs))
+- **Future**: Additional post-quantum algorithms as they become available and are wired through the HPKE provider
 
 ## Usage Examples
 
 ### Basic HPKE Usage
 
 ```rust
-use lib-q::hpke::{SecurityTier, encrypt, decrypt};
+use lib_q_core::{
+    Algorithm,
+    KemContext,
+    KemPublicKey,
+    KemSecretKey,
+};
+use lib_q_hpke::HpkeContext;
+use libq::LibQCryptoProvider;
 
-// Generate keypair
-let (pk, sk) = lib-q::simple::keygen(1)?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create HPKE context with the same provider used for key generation
+    let provider = Box::new(LibQCryptoProvider::new()?);
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
 
-// Encrypt message using balanced tier
-let message = b"Secret message";
-let ciphertext = encrypt(&pk, message, Some(b"metadata"), SecurityTier::Balanced)?;
+    // Generate recipient key pair using the same provider
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
 
-// Decrypt message
-let decrypted = decrypt(&sk, &ciphertext, Some(b"metadata"), SecurityTier::Balanced)?;
-assert_eq!(message, decrypted.as_slice());
+    let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
+    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
+
+    // Encrypt message
+    let message = b"Hello, HPKE!";
+    let (encapsulated_key, ciphertext) = hpke_ctx.seal(
+        &recipient_pk,
+        b"application-info",
+        b"additional-data",
+        message,
+    )?;
+
+    // Decrypt message
+    let decrypted = hpke_ctx.open(
+        &encapsulated_key,
+        &recipient_sk,
+        b"application-info",
+        b"additional-data",
+        &ciphertext,
+    )?;
+
+    assert_eq!(decrypted, message);
+    Ok(())
+}
 ```
 
-### Tier Selection Based on Use Case
+### Context-based Operations
 
 ```rust
-fn encrypt_sensitive_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCiphertext> {
-    // Use ultra-secure tier for sensitive data
-    hpke::encrypt(recipient_pk, data, None, SecurityTier::Ultra)
-}
+// Setup sender context for multiple messages
+let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"session-info")?;
 
-fn encrypt_high_volume_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCiphertext> {
-    // Use performance tier for high-volume data
-    hpke::encrypt(recipient_pk, data, None, SecurityTier::Performance)
-}
+// Encrypt multiple messages
+let ciphertext1 = sender_ctx.seal(b"aad1", msg1)?;
+let ciphertext2 = sender_ctx.seal(b"aad2", msg2)?;
 
-fn encrypt_general_data(recipient_pk: &PublicKey, data: &[u8]) -> Result<HpkeCiphertext> {
-    // Use balanced tier for general data
-    hpke::encrypt(recipient_pk, data, None, SecurityTier::Balanced)
-}
+// Export key material
+let exported_key = sender_ctx.export(b"key-context", 32)?;
 ```
 
-### Stateful HPKE Context
+### Authenticated Mode
 
 ```rust
-use lib-q::hpke::create_context;
+// Setup sender with authentication
+let mut sender_ctx = hpke_ctx.setup_sender_auth(
+    &recipient_pk,
+    b"session-info",
+    &sender_sk,
+    &sender_pk,
+)?;
 
-// Create HPKE context for multiple operations
-let context = create_context(&recipient_pk, SecurityTier::Balanced)?;
+// Setup receiver with authentication
+let mut receiver_ctx = hpke_ctx.setup_receiver_auth(
+    &encapsulated_key,
+    &recipient_sk,
+    b"session-info",
+    &sender_pk,
+)?;
+```
 
-// Use context for multiple encryptions
-for (i, message) in messages.iter().enumerate() {
-    let ciphertext = context.encrypt(message, Some(&i.to_le_bytes()))?;
-    // Send ciphertext...
+## Advanced Usage Examples
+
+### Authenticated HPKE (Auth Mode)
+
+```rust
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::{HpkeContext, HpkeMode};
+use libq::LibQCryptoProvider;
+
+fn authenticated_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Box::new(LibQCryptoProvider::new()?);
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
+    
+    // Generate key pairs for both sender and recipient
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
+    let sender_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let recipient_keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    
+    let sender_pk = KemPublicKey::new(sender_keypair.public_key().as_bytes().to_vec());
+    let sender_sk = KemSecretKey::new(sender_keypair.secret_key().as_bytes().to_vec());
+    let recipient_pk = KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
+    let recipient_sk = KemSecretKey::new(recipient_keypair.secret_key().as_bytes().to_vec());
+    
+    // Setup authenticated sender context
+    let mut sender_ctx = hpke_ctx.setup_sender_auth(
+        &recipient_pk,
+        b"authenticated-session",
+        &sender_sk,
+        &sender_pk,
+    )?;
+    
+    // Encrypt message with sender authentication
+    let message = b"Sensitive authenticated message";
+    let ciphertext = sender_ctx.seal(b"metadata", message)?;
+    
+    // Setup authenticated receiver context
+    let mut receiver_ctx = hpke_ctx.setup_receiver_auth(
+        sender_ctx.encapsulated_key(),
+        &recipient_sk,
+        b"authenticated-session",
+        &sender_pk,
+    )?;
+    
+    // Decrypt and verify sender authentication
+    let decrypted = receiver_ctx.open(b"metadata", &ciphertext)?;
+    assert_eq!(decrypted, message);
+    
+    Ok(())
 }
 ```
 
-This HPKE architecture provides a complete, three-tier system for post-quantum public key encryption that balances security and performance for different use cases.
+### PSK Mode with Pre-Shared Key
+
+```rust
+fn psk_hpke_example() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Box::new(LibQCryptoProvider::new()?);
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
+    
+    // Generate recipient key pair
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
+    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
+    
+    // Define pre-shared key and identifier
+    let psk = b"shared-secret-key-32-bytes-long";
+    let psk_id = b"psk-identifier";
+    
+    // Setup PSK sender context
+    let mut sender_ctx = hpke_ctx.setup_sender_psk(
+        &recipient_pk,
+        b"psk-session",
+        psk,
+        psk_id,
+    )?;
+    
+    // Encrypt message with PSK authentication
+    let message = b"Message authenticated with PSK";
+    let ciphertext = sender_ctx.seal(b"metadata", message)?;
+    
+    // Setup PSK receiver context
+    let mut receiver_ctx = hpke_ctx.setup_receiver_psk(
+        sender_ctx.encapsulated_key(),
+        &recipient_sk,
+        b"psk-session",
+        psk,
+        psk_id,
+    )?;
+    
+    // Decrypt and verify PSK authentication
+    let decrypted = receiver_ctx.open(b"metadata", &ciphertext)?;
+    assert_eq!(decrypted, message);
+    
+    Ok(())
+}
+```
+
+### Export-Only Mode for Key Derivation
+
+```rust
+fn export_only_example() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = Box::new(LibQCryptoProvider::new()?);
+    let mut hpke_ctx = HpkeContext::with_provider(provider);
+    
+    // Generate key pair
+    let mut kem_ctx = KemContext::with_provider(Box::new(LibQCryptoProvider::new()?));
+    let keypair = kem_ctx.generate_keypair(Algorithm::MlKem512)?;
+    let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
+    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
+    
+    // Setup sender context for key export
+    let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"key-export-session")?;
+    
+    // Export keys for different purposes
+    let encryption_key = sender_ctx.export(b"encryption-key", 32)?;
+    let mac_key = sender_ctx.export(b"mac-key", 32)?;
+    let session_id = sender_ctx.export(b"session-id", 16)?;
+    
+    // Setup receiver context for key export
+    let mut receiver_ctx = hpke_ctx.setup_receiver(
+        sender_ctx.encapsulated_key(),
+        &recipient_sk,
+        b"key-export-session",
+    )?;
+    
+    // Export the same keys on receiver side
+    let receiver_encryption_key = receiver_ctx.export(b"encryption-key", 32)?;
+    let receiver_mac_key = receiver_ctx.export(b"mac-key", 32)?;
+    let receiver_session_id = receiver_ctx.export(b"session-id", 16)?;
+    
+    // Keys should be identical
+    assert_eq!(encryption_key, receiver_encryption_key);
+    assert_eq!(mac_key, receiver_mac_key);
+    assert_eq!(session_id, receiver_session_id);
+    
+    Ok(())
+}
+```
+
+## Security Considerations and Best Practices
+
+### Key Management
+
+1. **Key Generation**: Always use cryptographically secure random number generators
+2. **Key Storage**: Store secret keys in secure memory containers that auto-zeroize
+3. **Key Rotation**: Implement regular key rotation for long-term security
+4. **Key Validation**: Always validate key material before use
+
+```rust
+use lib_q_hpke::HpkeKem;
+use lib_q_hpke::security::{validate_kem_key, KeyType, SecureKey};
+
+// Secure key storage (length must match `KeyType::expected_length()`)
+let secret_key = SecureKey::new(vec![1u8; 32], KeyType::AeadKey)?;
+// Key material is zeroized on drop (`memory_safety::SecureKey`)
+
+// KEM wire validation (inputs must match `HpkeKem::public_key_len` / `secret_key_len`)
+let pk = [0u8; 800]; // ML-KEM-512 public key length
+let sk = [1u8; 1632]; // ML-KEM-512 secret key length
+validate_kem_key(HpkeKem::MlKem512, &pk, false)?;
+validate_kem_key(HpkeKem::MlKem512, &sk, true)?;
+```
+
+### Context Management
+
+1. **Sequence Numbers**: Monitor sequence numbers to prevent overflow
+2. **Context State**: Check context state before operations
+3. **Rekeying**: Implement proper rekeying when sequence numbers approach limits
+
+```rust
+use lib_q_hpke::HpkeContextState;
+
+// `HpkeSenderContext` exposes `state` and `sequence_number` fields (see `../lib-q-hpke/src/types.rs`)
+if sender_ctx.state == HpkeContextState::NeedsRekey {
+    sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"new-session")?;
+}
+if sender_ctx.sequence_number > 1_000_000 {
+    // Application policy: consider rekeying long sessions
+}
+```
+
+### Error Handling
+
+1. **Never Ignore Errors**: Always handle HPKE errors appropriately
+2. **Error Logging**: Log errors without exposing sensitive information
+3. **Graceful Degradation**: Implement fallback mechanisms for critical operations
+
+```rust
+use lib_q_core::Error;
+
+match hpke_ctx.seal(&recipient_pk, info, aad, message) {
+    Ok((encapsulated_key, ciphertext)) => {
+        // Success - proceed with encrypted data
+    }
+    Err(Error::InternalError { operation, details }) => {
+        // HPKE maps most failures to InternalError (see lib-q-hpke `From<HpkeError>`)
+        eprintln!("HPKE encryption failed: {} — {}", operation, details);
+        return Err("Encryption failed".into());
+    }
+    Err(e) => {
+        return Err(format!("lib-q error: {}", e).into());
+    }
+}
+```
+
+### Performance Optimization
+
+1. **Context Reuse**: Reuse HPKE contexts for multiple messages when possible
+2. **Algorithm Selection**: Choose appropriate algorithms based on security requirements
+3. **Memory Management**: Use stack-allocated buffers when possible
+
+```rust
+// Reuse context for multiple messages
+let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"session")?;
+
+for message in messages {
+    let ciphertext = sender_ctx.seal(b"metadata", message)?;
+    // Process ciphertext...
+}
+```
+
+## API Documentation
+
+For detailed API reference, see [API_REFERENCE.md](../lib-q-hpke/docs/API_REFERENCE.md).

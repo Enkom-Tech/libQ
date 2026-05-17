@@ -1,0 +1,105 @@
+[package]
+name = "lib-q-ml-dsa"
+version.workspace = true
+description = "NIST FIPS 204 Module-Lattice Digital Signature Algorithm (ML-DSA) implementation"
+keywords = ["cryptography", "post-quantum", "ml-dsa", "dilithium", "signatures"]
+categories = ["cryptography", "no-std"]
+
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme.workspace = true
+rust-version.workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.2" }
+lib-q-platform = { path = "../lib-q-platform", version = "0.0.2" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", features = ["simd"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+hax-lib.workspace = true
+hex = { workspace = true }
+zeroize = { workspace = true, optional = true }
+subtle = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+rand_core = { workspace = true }
+hex = { workspace = true, features = ["serde"] }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+# Pure Rust FIPS 204 implementation for benchmark comparison (replaces PQClean bindings).
+fips204 = { version = "0.4.6", default-features = false, features = ["default-rng", "ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
+
+[features]
+default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]
+
+# Parameter sets (FIPS 204)
+mldsa44 = []  # ML-DSA-44: Security Category 2
+mldsa65 = []  # ML-DSA-65: Security Category 3
+mldsa87 = []  # ML-DSA-87: Security Category 5
+
+# Platform optimizations
+simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]  # ARM NEON optimizations
+simd256 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd256"]  # x86_64 AVX2 optimizations
+
+# Standard library support
+std = []
+
+# Random number generation
+random = ["dep:lib-q-random", "lib-q-random/std"]
+nist-drbg = ["random", "lib-q-random/nist-drbg"]  # NIST SP 800-90A DRBG for KAT compatibility
+
+# Security hardening
+fips-mode = []                                      # Strict FIPS 204 compliance, minimal overhead
+# Optional `subtle` / `getrandom` use `dep:`; name features for workspace `cargo metadata --features` / tooling.
+subtle = ["dep:subtle"]
+getrandom = ["dep:getrandom"]
+# Atomic gate: RNG + zeroize + subtle + masked/constant-time signing paths. Do not enable piecemeal.
+hardened = ["random", "zeroize", "subtle", "getrandom"]
+zeroize = ["dep:zeroize"]                           # Automatic zeroization of sensitive material
+
+# Testing and validation
+acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
+test-utils = []   # Expose internal functions for advanced testing
+debug-trace = []  # Enable debug tracing for signature generation debugging
+
+[[bench]]
+name = "manual44"
+harness = false
+required-features = ["mldsa44"]
+
+[[bench]]
+name = "manual65"
+harness = false
+required-features = ["mldsa65"]
+
+[[bench]]
+name = "manual87"
+harness = false
+required-features = ["mldsa87"]
+
+[[bench]]
+name = "ml-dsa"
+harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)', 'cfg(ml_dsa_keccak_portable_simd)', 'cfg(tarpaulin)'] }

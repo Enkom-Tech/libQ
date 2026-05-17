@@ -1,0 +1,72 @@
+[package]
+name = "lib-q-examples"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Examples for lib-Q post-quantum cryptography library"
+license.workspace = true
+
+[dependencies]
+# Match typical umbrella usage: registry, signatures, and CB-KEM examples (`cb-kem` feature below).
+libq = { path = "../lib-q", version = "0.0.2", package = "lib-q", features = ["ml-dsa", "slh-dsa"] }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.2" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
+lib-q-kem = { path = "../lib-q-kem", version = "0.0.2", features = ["ml-kem"] }
+lib-q-sig = { path = "../lib-q-sig", version = "0.0.2", features = ["std", "ml-dsa"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", default-features = false, features = ["std", "mldsa44", "mldsa65", "mldsa87"] }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.2" }
+
+[features]
+default = ["cb-kem"]
+cb-kem = ["libq/cb-kem"]
+
+[[example]]
+name = "hash_example"
+path = "hash_example.rs"
+
+[[example]]
+name = "keccak_no_std_test"
+path = "keccak_no_std_test.rs"
+
+[[example]]
+name = "cb_kem_example"
+path = "cb_kem_example.rs"
+
+[[example]]
+name = "cb_kem_simple_example"
+path = "cb_kem_simple_example.rs"
+
+[[example]]
+name = "cb_kem_production_example"
+path = "cb_kem_production_example.rs"
+
+[[example]]
+name = "cb_kem_testing_example"
+path = "cb_kem_testing_example.rs"
+
+[[example]]
+name = "ml_dsa_working_no_std"
+path = "ml_dsa_working_no_std.rs"
+
+[[example]]
+name = "ml_dsa_full_integration_test"
+path = "ml_dsa_full_integration_test.rs"
+
+[[example]]
+name = "ml_dsa_no_std_example"
+path = "ml_dsa_no_std_example.rs"
+
+[[example]]
+name = "ml_dsa_no_std_trait_test"
+path = "ml_dsa_no_std_trait_test.rs"
+
+[[example]]
+name = "ml_dsa_integration_test"
+path = "ml_dsa_integration_test.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("cb-kem"))',
+] }

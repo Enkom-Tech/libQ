@@ -1,0 +1,70 @@
+# Scoped line (and optional branch) coverage for security-critical facade code.
+# Branch enforcement is a no-op when Cobertura reports branches-valid=0 (typical for LLVM tarpaulin).
+
+name: Security-critical coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  lib-q-sig-critical:
+    name: lib-q-sig scoped coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rust-src, llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-sec-cov-sig-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate scoped Cobertura
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-sc
+          cargo tarpaulin --engine llvm -p lib-q-sig \
+            --features std,ml-dsa \
+            --ignore-tests --ignore-panics \
+            --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*' \
+            --include-files 'lib-q-sig/src/lib.rs' \
+            --include-files 'lib-q-sig/src/ml_dsa.rs' \
+            --include-files 'lib-q-sig/src/provider.rs' \
+            --include-files 'lib-q-sig\\src\\lib.rs' \
+            --include-files 'lib-q-sig\\src\\ml_dsa.rs' \
+            --include-files 'lib-q-sig\\src\\provider.rs' \
+            --out Xml --out Html --output-dir coverage-sc
+
+      - name: Check thresholds
+        run: |
+          set -euo pipefail
+          bash scripts/check-coverage-metrics.sh \
+            --dir coverage-sc \
+            --line-min 70 \
+            --branch-min 100
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-critical-coverage-lib-q-sig
+          path: coverage-sc/

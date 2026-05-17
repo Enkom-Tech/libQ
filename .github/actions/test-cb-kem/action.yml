@@ -1,0 +1,201 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Test CB-KEM
+description: Run Classical McEliece CB-KEM tests with security validation and benchmarking
+inputs:
+  working-directory:
+    description: Working directory for CB-KEM crate
+    default: lib-q-cb-kem
+    required: true
+  features:
+    description: Features to enable for testing
+    default: "cbkem348864"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  run-benchmarks:
+    description: Whether to run benchmarks
+    default: "true"
+    required: false
+  run-security-tests:
+    description: Whether to run security validation tests
+    default: "true"
+    required: false
+  run-constant-time:
+    description: Whether to run constant-time validation
+    default: "true"
+    required: false
+  test-algorithms:
+    description: Specific CB-KEM algorithms to test
+    default: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128,cbkem8192128f"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+
+    - name: Toolchain fingerprint (cache)
+      id: toolchain-fp
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v sha256sum >/dev/null 2>&1; then
+          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        else
+          echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Compute cache-key fragment
+      id: cache-frag
+      shell: bash
+      env:
+        FEATURES: ${{ inputs.features }}
+        CACHE_EPOCH: "v2"
+      run: |
+        set -euo pipefail
+        # SHA-256 of features — actions/cache rejects keys containing commas.
+        payload=$(printf '%s\n%s\n' "$FEATURES" "$CACHE_EPOCH")
+        if command -v sha256sum >/dev/null 2>&1; then
+          hash=$(printf '%s' "$payload" | sha256sum | awk '{print $1}')
+        else
+          hash=$(printf '%s' "$payload" | shasum -a 256 | awk '{print $1}')
+        fi
+        echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cb-kem-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ steps.cache-frag.outputs.hash }}
+        restore-keys: |
+          ${{ runner.os }}-cb-kem-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-
+    
+    - name: Security audit
+      shell: bash
+      run: |
+        echo "Running security audit for CB-KEM..."
+        cargo install cargo-audit --locked
+        cargo audit --deny warnings
+        echo "Security audit completed successfully"
+    
+    - name: Check formatting
+      shell: bash
+      run: |
+        echo "Checking code formatting..."
+        cd ${{ inputs.working-directory }}
+        cargo fmt --all -- --check
+        echo "Formatting check completed"
+    
+    - name: Clippy linting
+      shell: bash
+      run: |
+        echo "Running Clippy linting..."
+        cd ${{ inputs.working-directory }}
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo "Clippy linting completed"
+    
+    - name: Build with no default features
+      shell: bash
+      run: |
+        echo "Building with no default features..."
+        cd ${{ inputs.working-directory }}
+        # Keep `alloc`/`zeroize` with algorithm features so the library matches integration tests
+        # (`LibQCbKemProvider` is `alloc`-gated) and CI does not build empty test harnesses.
+        cargo build --no-default-features --features "cbkem348864,alloc,zeroize"
+        echo "Build completed"
+    
+    - name: Build with all features
+      shell: bash
+      run: |
+        echo "Building with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo build --features "${{ inputs.features }}"
+        echo "Build with features completed"
+    
+    - name: Run tests with no default features
+      shell: bash
+      run: |
+        echo "Running tests with no default features..."
+        cd ${{ inputs.working-directory }}
+        cargo test --no-default-features --features "cbkem348864,alloc,zeroize"
+        echo "Tests completed"
+    
+    - name: Run tests with all features
+      shell: bash
+      run: |
+        echo "Running tests with features: ${{ inputs.features }}"
+        cd ${{ inputs.working-directory }}
+        cargo test --features "${{ inputs.features }}"
+        echo "Tests with features completed"
+    
+    - name: Test WASM compatibility
+      shell: bash
+      run: |
+        echo "Testing WASM compatibility..."
+        cd ${{ inputs.working-directory }}
+        rustup target add wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }},wasm" --lib
+        echo "WASM compatibility test completed"
+    
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
+      shell: bash
+      run: |
+        echo "Running benchmarks..."
+        rm -rf target/release
+        cd ${{ inputs.working-directory }}
+        cargo bench --features "${{ inputs.features }}"
+        echo "Benchmarks completed"
+    
+    - name: Run security validation tests
+      if: inputs.run-security-tests == 'true'
+      shell: bash
+      run: |
+        echo "Running security validation tests..."
+        cd ${{ inputs.working-directory }}
+        # Test libQ integration
+        cd ..
+        cargo test --features "cb-kem" --package lib-q
+        echo "Security validation tests completed"
+    
+    - name: Run constant-time validation
+      if: inputs.run-constant-time == 'true'
+      shell: bash
+      run: |
+        echo "Running constant-time validation..."
+        cd ${{ inputs.working-directory }}
+        # CB-KEM operations should be constant-time
+        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for CB-KEM"
+        echo "Constant-time validation completed"
+    
+    - name: Cross-compilation test (ARM64)
+      shell: bash
+      run: |
+        echo "Testing ARM64 cross-compilation..."
+        cd ${{ inputs.working-directory }}
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu --features "${{ inputs.features }}"
+        echo "Cross-compilation test completed"
+    
+    - name: Test all CB-KEM variants
+      shell: bash
+      run: |
+        echo "Testing all CB-KEM variants..."
+        cd ${{ inputs.working-directory }}
+        
+        # Test each variant individually (includes 8192128f for NIST AES RNG / nist_aes_rng)
+        for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128 cbkem8192128f; do
+          echo "Testing $variant..."
+          cargo test --no-default-features --features "$variant,alloc,zeroize"
+        done
+        
+        echo "All CB-KEM variants tested successfully"

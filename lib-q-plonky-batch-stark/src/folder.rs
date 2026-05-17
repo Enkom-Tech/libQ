@@ -1,0 +1,185 @@
+use lib_q_plonky_uni_stark::{
+    ProverConstraintFolder,
+    VerifierConstraintFolder,
+};
+use lib_q_stark_air::{
+    AirBuilder,
+    ExtensionBuilder,
+    PermutationAirBuilder,
+    RowWindow,
+};
+use lib_q_stark_matrix::dense::RowMajorMatrixView;
+use lib_q_stark_matrix::stack::ViewPair;
+
+use crate::config::{
+    PackedChallenge,
+    PackedVal,
+    StarkGenericConfig,
+    Val,
+};
+
+pub struct ProverConstraintFolderWithLookups<'a, SC: StarkGenericConfig> {
+    pub inner: ProverConstraintFolder<'a, SC>,
+    pub permutation: RowMajorMatrixView<'a, PackedChallenge<SC>>,
+    pub permutation_challenges: &'a [PackedChallenge<SC>],
+    pub permutation_values: &'a [PackedChallenge<SC>],
+}
+
+impl<'a, SC: StarkGenericConfig> AirBuilder for ProverConstraintFolderWithLookups<'a, SC> {
+    type F = Val<SC>;
+    type Expr = PackedVal<SC>;
+    type Var = PackedVal<SC>;
+    type PreprocessedWindow = RowWindow<'a, PackedVal<SC>>;
+    type MainWindow = RowWindow<'a, PackedVal<SC>>;
+    type PublicVar = Val<SC>;
+
+    #[inline]
+    fn main(&self) -> Self::MainWindow {
+        self.inner.main()
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        self.inner.preprocessed()
+    }
+
+    #[inline]
+    fn is_first_row(&self) -> Self::Expr {
+        self.inner.is_first_row()
+    }
+
+    #[inline]
+    fn is_last_row(&self) -> Self::Expr {
+        self.inner.is_last_row()
+    }
+
+    #[inline]
+    fn is_transition_window(&self, size: usize) -> Self::Expr {
+        self.inner.is_transition_window(size)
+    }
+
+    #[inline]
+    fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
+        self.inner.assert_zero(x)
+    }
+
+    #[inline]
+    fn assert_zeros<const N: usize, I: Into<Self::Expr>>(&mut self, array: [I; N]) {
+        self.inner.assert_zeros(array)
+    }
+
+    #[inline]
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.inner.public_values()
+    }
+}
+
+impl<SC: StarkGenericConfig> ExtensionBuilder for ProverConstraintFolderWithLookups<'_, SC> {
+    type EF = SC::Challenge;
+    type ExprEF = PackedChallenge<SC>;
+    type VarEF = PackedChallenge<SC>;
+
+    fn assert_zero_ext<I>(&mut self, x: I)
+    where
+        I: Into<Self::ExprEF>,
+    {
+        self.inner.assert_zero_ext(x)
+    }
+}
+
+impl<'a, SC: StarkGenericConfig> PermutationAirBuilder
+    for ProverConstraintFolderWithLookups<'a, SC>
+{
+    type MP = RowWindow<'a, PackedChallenge<SC>>;
+    type RandomVar = PackedChallenge<SC>;
+    type PermutationVar = PackedChallenge<SC>;
+
+    fn permutation(&self) -> Self::MP {
+        RowWindow::from_view(&self.permutation)
+    }
+
+    fn permutation_randomness(&self) -> &[Self::RandomVar] {
+        self.permutation_challenges
+    }
+
+    fn permutation_values(&self) -> &[Self::PermutationVar] {
+        self.permutation_values
+    }
+}
+
+pub struct VerifierConstraintFolderWithLookups<'a, SC: StarkGenericConfig> {
+    pub inner: VerifierConstraintFolder<'a, SC>,
+    pub permutation: ViewPair<'a, SC::Challenge>,
+    pub permutation_challenges: &'a [SC::Challenge],
+    pub permutation_values: &'a [SC::Challenge],
+}
+
+impl<'a, SC: StarkGenericConfig> AirBuilder for VerifierConstraintFolderWithLookups<'a, SC> {
+    type F = Val<SC>;
+    type Expr = SC::Challenge;
+    type Var = SC::Challenge;
+    type PreprocessedWindow = RowWindow<'a, SC::Challenge>;
+    type MainWindow = RowWindow<'a, SC::Challenge>;
+    type PublicVar = Val<SC>;
+
+    fn main(&self) -> Self::MainWindow {
+        self.inner.main()
+    }
+
+    fn preprocessed(&self) -> &Self::PreprocessedWindow {
+        self.inner.preprocessed()
+    }
+
+    fn is_first_row(&self) -> Self::Expr {
+        self.inner.is_first_row()
+    }
+
+    fn is_last_row(&self) -> Self::Expr {
+        self.inner.is_last_row()
+    }
+
+    fn is_transition_window(&self, size: usize) -> Self::Expr {
+        self.inner.is_transition_window(size)
+    }
+
+    fn assert_zero<I: Into<Self::Expr>>(&mut self, x: I) {
+        self.inner.assert_zero(x)
+    }
+
+    fn public_values(&self) -> &[Self::PublicVar] {
+        self.inner.public_values()
+    }
+}
+
+impl<SC: StarkGenericConfig> ExtensionBuilder for VerifierConstraintFolderWithLookups<'_, SC> {
+    type EF = SC::Challenge;
+    type ExprEF = SC::Challenge;
+    type VarEF = SC::Challenge;
+
+    fn assert_zero_ext<I>(&mut self, x: I)
+    where
+        I: Into<Self::ExprEF>,
+    {
+        self.inner.accumulator *= self.inner.alpha;
+        self.inner.accumulator += x.into();
+    }
+}
+
+impl<'a, SC: StarkGenericConfig> PermutationAirBuilder
+    for VerifierConstraintFolderWithLookups<'a, SC>
+{
+    type MP = RowWindow<'a, SC::Challenge>;
+    type RandomVar = SC::Challenge;
+    type PermutationVar = SC::Challenge;
+
+    fn permutation(&self) -> Self::MP {
+        RowWindow::from_two_rows(self.permutation.top.values, self.permutation.bottom.values)
+    }
+
+    fn permutation_randomness(&self) -> &[Self::RandomVar] {
+        self.permutation_challenges
+    }
+
+    fn permutation_values(&self) -> &[Self::PermutationVar] {
+        self.permutation_values
+    }
+}

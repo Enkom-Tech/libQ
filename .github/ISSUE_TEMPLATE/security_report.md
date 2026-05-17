@@ -3,100 +3,88 @@ name: Security report
 about: Report a security vulnerability in lib-Q
 title: '[SECURITY] '
 labels: ['security', 'confidential']
-assignees: ['lib-q/security-team']
+---
+
+**Prefer private disclosure for sensitive issues.**  
+Use [GitHub Security Advisories](https://github.com/Enkom-Tech/libQ/security/advisories/new) so the report stays private until a fix is ready. This template is for coordinated disclosure; opening a public issue makes the report visible to everyone.
 
 ---
 
-**Security Vulnerability Report**
+## Vulnerability type
 
-**IMPORTANT**: This issue will be kept confidential until the vulnerability is resolved.
-
-**Vulnerability Type**
-- [ ] Cryptographic weakness
-- [ ] Side-channel attack
-- [ ] Memory safety issue
+- [ ] Cryptographic weakness (e.g. key recovery, forgery)
+- [ ] Side-channel or timing attack
+- [ ] Memory safety (use-after-free, leak of sensitive data)
 - [ ] Information disclosure
 - [ ] Denial of service
-- [ ] Timing attack
-- [ ] Other (please specify)
+- [ ] Other (describe below)
 
-**Severity**
-- [ ] Critical (immediate fix required)
-- [ ] High (fix within 24 hours)
-- [ ] Medium (fix within 1 week)
-- [ ] Low (fix within 1 month)
+## Severity
 
-**Affected Components**
-- [ ] Key Encapsulation Mechanisms (KEMs)
-- [ ] Digital Signatures
-- [ ] Hash Functions
-- [ ] Authenticated Encryption (AEAD)
-- [ ] Zero-Knowledge Proofs (ZKPs)
-- [ ] Random Number Generation
-- [ ] Memory Management
-- [ ] WASM Implementation
-- [ ] Other (please specify)
+- [ ] Critical — exploitable, serious impact; immediate fix
+- [ ] High — fix within days
+- [ ] Medium — fix within a release cycle
+- [ ] Low — fix when practical
 
-**Description**
-A clear and concise description of the vulnerability.
+## Affected components
 
-**Impact Assessment**
-Describe the potential impact of this vulnerability:
+- [ ] KEM (e.g. ML-KEM, HQC, CB-KEM)
+- [ ] Signatures (e.g. ML-DSA, FN-DSA, SLH-DSA)
+- [ ] Hash (SHA-3, SHAKE, K12, etc.)
+- [ ] AEAD / symmetric
+- [ ] ZKP
+- [ ] RNG
+- [ ] WASM bindings or build
+- [ ] Other (specify)
+
+## Description
+
+Clear description of the vulnerability and how it violates security assumptions.
+
+## Impact
+
 - What can an attacker do?
-- What data is at risk?
-- What systems are affected?
+- What data or systems are at risk?
+- Under what conditions is it exploitable?
 
-**Proof of Concept**
+## Proof of concept
+
 ```rust
-// If possible, provide a proof of concept
-// DO NOT include actual attack code that could be harmful
-use lib-q::{init, Kem};
-
+// Minimal PoC that demonstrates the issue. Do not include weaponized exploit code.
+// Prefer assertions or outputs that show the vulnerability.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init()?;
-    // Describe the vulnerability here
+    // Steps that trigger the vulnerability
     Ok(())
 }
 ```
 
-**Steps to Reproduce**
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See vulnerability
+## Steps to reproduce
 
-**Expected Behavior**
-What should happen in a secure implementation.
+1. Crate(s) and features used
+2. Build/test command or code path
+3. Inputs or configuration that trigger the issue
+4. Observed vs expected (e.g. invalid ciphertext accepted, timing difference, etc.)
 
-**Actual Behavior**
-What actually happens that makes this a vulnerability.
+## Environment
 
-**Environment**
- - OS: [e.g. Ubuntu 22.04, Windows 11, macOS 13]
- - Rust version: [e.g. 1.70.0]
- - lib-Q version: [e.g. 0.1.0]
- - Target: [e.g. x86_64-unknown-linux-gnu, wasm32-unknown-unknown]
- - Features: [e.g. "all-algorithms", "wasm"]
+| Field   | Value |
+|--------|--------|
+| OS     | |
+| Rust   | |
+| lib-Q  | version |
+| Target | |
+| Features | |
 
-**Additional Context**
-Add any other context about the vulnerability here.
+## Suggested mitigation
 
-**Mitigation**
-If you have suggestions for how to fix this vulnerability, please describe them.
+If you have ideas for a fix or hardening (e.g. constant-time, validation), describe them here.
 
-**Disclosure Timeline**
-- [ ] I agree to responsible disclosure
-- [ ] I will not publicly disclose this vulnerability until it's fixed
-- [ ] I understand this will be kept confidential
+## Disclosure
 
-**Contact Information**
-- Name: [Optional]
-- Email: [Optional]
-- PGP Key: [Optional]
+- [ ] I will follow responsible disclosure and not disclose publicly before a fix is available
+- [ ] I have not included harmful or weaponized code in this report
 
-**Checklist**
-- [ ] I have verified this is a real vulnerability
-- [ ] I have provided sufficient details for reproduction
-- [ ] I have assessed the severity appropriately
-- [ ] I have not included any harmful code
-- [ ] I agree to responsible disclosure practices
+## Contact (optional)
+
+- Email or preferred contact for follow-up
+- PGP key fingerprint if you use encrypted communication

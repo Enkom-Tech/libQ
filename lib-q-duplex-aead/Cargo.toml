@@ -1,0 +1,51 @@
+[package]
+name = "lib-q-duplex-aead"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "Keccak-f[1600] duplex-sponge AEAD for lib-Q"
+keywords = ["cryptography", "post-quantum", "aead", "duplex", "keccak"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", default-features = false }
+subtle = { workspace = true, default-features = false }
+zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
+
+[features]
+default = ["alloc", "std"]
+alloc = ["lib-q-core/alloc"]
+std = ["lib-q-core/std"]
+simd-avx2 = []
+
+[lib]
+name = "lib_q_duplex_aead"
+path = "src/lib.rs"
+
+[dev-dependencies]
+hex = { workspace = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc", "std"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+name = "duplex_aead"
+harness = false
+required-features = ["std"]
+
+[[test]]
+name = "coverage_api"
+path = "tests/coverage_api.rs"
+required-features = ["alloc"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(doc_cfg)',
+] }

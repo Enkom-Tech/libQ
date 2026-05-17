@@ -1,0 +1,173 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: WASM Build
+description: Reusable WASM build action with multiple targets and package support
+inputs:
+  working-directory:
+    description: Working directory for the crate
+    default: "."
+    required: false
+  features:
+    description: Features to enable for building
+    default: ""
+    required: false
+  targets:
+    description: Comma-separated list of targets (web,nodejs)
+    default: "web,nodejs"
+    required: false
+  out-dir:
+    description: Output directory for wasm-pack (default pkg)
+    default: "pkg"
+    required: false
+  rust-version:
+    description: Rust toolchain version to use
+    default: "stable"
+    required: false
+  verify-artifacts:
+    description: Whether to verify build artifacts
+    default: "true"
+    required: false
+  cache-pkg:
+    description: Whether to cache pkg directory
+    default: "true"
+    required: false
+  check-only:
+    description: If true, run cargo check for wasm32 only (no wasm-pack); for rlib crates without JS bindings
+    default: "false"
+    required: false
+  dev-profile:
+    description: >-
+      If true, wasm-pack builds the debug profile. Default false: CD and wasm-size-check.sh use
+      --release so published artifacts match size gates.
+    default: "false"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust-version }}
+        components: rustfmt, clippy, rust-src
+        targets: wasm32-unknown-unknown
+    
+    - name: Install wasm-pack
+      if: inputs.check-only != 'true'
+      shell: bash
+      run: |
+        if ! command -v wasm-pack &>/dev/null; then
+          cargo install wasm-pack --locked
+        fi
+        wasm-pack --version
+    
+    - name: Cache dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+          ${{ inputs.cache-pkg == 'true' && format('{0}/{1}', inputs.working-directory, inputs.out-dir) || '' }}
+        key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-wasm-
+    
+    - name: Cargo check WASM (library only)
+      if: inputs.check-only == 'true'
+      shell: bash
+      env:
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "cargo check for wasm32 (check-only, no wasm-pack)..."
+        cd ${{ inputs.working-directory }}
+        if [ -z "${{ inputs.features }}" ]; then
+          cargo check --target wasm32-unknown-unknown --lib
+        else
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+        fi
+    
+    - name: Build WASM for web target
+      if: ${{ contains(inputs.targets, 'web') && inputs.check-only != 'true' }}
+      shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "Building WASM for web target..."
+        cd ${{ inputs.working-directory }}
+        OUT_DIR="${{ inputs.out-dir }}"
+        TARGETS="${{ inputs.targets }}"
+        # Avoid overwriting glue when both web and nodejs run: use pkg/web + pkg/nodejs (matches npm conditional exports).
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs'; then
+          WEB_OUT="${OUT_DIR}/web"
+          mkdir -p "$WEB_OUT"
+        else
+          WEB_OUT="$OUT_DIR"
+        fi
+        REL_FLAGS=""
+        if [ "${{ inputs.dev-profile }}" != "true" ]; then
+          REL_FLAGS="--release"
+        fi
+        if [ -n "${{ inputs.features }}" ]; then
+          echo "Pre-checking with cargo for feature resolution..."
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+          echo "Building with wasm-pack..."
+          wasm-pack build $REL_FLAGS --target web --out-dir "$WEB_OUT" -- --features "${{ inputs.features }}" --verbose
+        else
+          wasm-pack build $REL_FLAGS --target web --out-dir "$WEB_OUT" --verbose
+        fi
+        echo "WASM web build completed successfully (out-dir=$WEB_OUT)"
+    
+    - name: Build WASM for nodejs target
+      if: ${{ contains(inputs.targets, 'nodejs') && inputs.check-only != 'true' }}
+      shell: bash
+      env:
+        # Ensure getrandom WASM backend is properly configured
+        CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+      run: |
+        echo "Building WASM for nodejs target..."
+        cd ${{ inputs.working-directory }}
+        OUT_DIR="${{ inputs.out-dir }}"
+        TARGETS="${{ inputs.targets }}"
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs'; then
+          NODE_OUT="${OUT_DIR}/nodejs"
+          mkdir -p "$NODE_OUT"
+        else
+          NODE_OUT="$OUT_DIR"
+        fi
+        REL_FLAGS=""
+        if [ "${{ inputs.dev-profile }}" != "true" ]; then
+          REL_FLAGS="--release"
+        fi
+        if [ -n "${{ inputs.features }}" ]; then
+          echo "Pre-checking with cargo for feature resolution..."
+          cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }}" --lib
+          echo "Building with wasm-pack..."
+          wasm-pack build $REL_FLAGS --target nodejs --out-dir "$NODE_OUT" -- --features "${{ inputs.features }}" --verbose
+        else
+          wasm-pack build $REL_FLAGS --target nodejs --out-dir "$NODE_OUT" --verbose
+        fi
+        echo "WASM nodejs build completed successfully (out-dir=$NODE_OUT)"
+    
+    - name: Verify WASM artifacts
+      if: ${{ inputs.verify-artifacts == 'true' && inputs.check-only != 'true' }}
+      shell: bash
+      run: |
+        echo "Verifying WASM build artifacts..."
+        cd ${{ inputs.working-directory }}
+        OUT_DIR="${{ inputs.out-dir }}"
+        TARGETS="${{ inputs.targets }}"
+        if echo "$TARGETS" | grep -q 'web' && echo "$TARGETS" | grep -q 'nodejs' && [ -d "$OUT_DIR/web" ] && [ -d "$OUT_DIR/nodejs" ]; then
+          echo "Dual-target layout under $OUT_DIR:"
+          ls -la "$OUT_DIR/web" || true
+          ls -la "$OUT_DIR/nodejs" || true
+          find "$OUT_DIR" -name '*.wasm' -exec ls -lh {} \;
+        else
+          ls -la "$OUT_DIR"/ || echo "No $OUT_DIR directory found"
+          if [ -d "$OUT_DIR" ]; then
+            echo "WASM package contents:"
+            ls -la "$OUT_DIR"/
+            echo "WASM file size:"
+            ls -lh "$OUT_DIR"/*.wasm 2>/dev/null || echo "No .wasm files found"
+          fi
+        fi

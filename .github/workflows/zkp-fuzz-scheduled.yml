@@ -1,0 +1,37 @@
+# Bounded fuzzing for lib-q-zkp (postcard STARK proof decode + small prove).
+# Runs weekly and on demand; does not block PR CI.
+
+name: ZKP fuzz (scheduled)
+
+on:
+  schedule:
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+
+env:
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  fuzz:
+    name: cargo-fuzz (lib-q-zkp)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Fuzz zkp_verify_bytes
+        run: |
+          cd lib-q-zkp/fuzz
+          cargo fuzz run zkp_verify_bytes -- -max_total_time=120 -timeout=10
+
+      - name: Fuzz zkp_prove_arithmetic
+        run: |
+          cd lib-q-zkp/fuzz
+          cargo fuzz run zkp_prove_arithmetic -- -max_total_time=180 -timeout=60

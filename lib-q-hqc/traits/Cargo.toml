@@ -1,0 +1,23 @@
+[package]
+name = "lib-q-hqc-traits"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+description = "Shared traits for post-quantum cryptographic primitives"
+keywords.workspace = true
+categories = ["cryptography", "no-std"]
+
+[lib]
+name = "lib_q_hqc_traits"
+path = "src/lib.rs"
+
+[dependencies]
+
+[features]
+default = ["std"]
+std = []

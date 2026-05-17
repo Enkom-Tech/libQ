@@ -1,0 +1,1041 @@
+// Allow clippy warnings in entropy source code
+// These are legitimate patterns for platform-specific implementations
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_lossless,
+    clippy::manual_clamp,
+    clippy::needless_return,
+    clippy::collapsible_if,
+    clippy::match_same_arms,
+    clippy::unreadable_literal,
+    clippy::missing_errors_doc
+)]
+
+//! Entropy source implementations
+//!
+//! This module provides various entropy source implementations for different
+//! platforms and use cases, including OS entropy, hardware RNGs, and
+//! deterministic sources for testing.
+
+#[cfg(feature = "alloc")]
+use alloc::{
+    boxed::Box,
+    vec::Vec,
+};
+
+use rand_chacha::ChaCha20Rng;
+use rand_core::{
+    Rng,
+    SeedableRng,
+};
+
+use crate::traits::{
+    EntropyConfig,
+    EntropySource,
+    EntropySourceType,
+};
+use crate::{
+    Error,
+    Result,
+};
+
+/// Operating system entropy source
+///
+/// This entropy source uses the operating system's secure random number
+/// generator, typically `/dev/urandom` on Unix-like systems or
+/// `CryptGenRandom` on Windows.
+#[derive(Debug, Clone)]
+pub struct OsEntropySource {
+    /// Platform identifier
+    platform: &'static str,
+    /// Quality estimate
+    quality: f64,
+    /// Maximum entropy per call (from config)
+    max_per_call: Option<usize>,
+}
+
+impl OsEntropySource {
+    /// Create a new OS entropy source
+    pub fn new() -> Self {
+        let platform = Self::detect_platform();
+        let quality = Self::estimate_platform_quality(platform);
+        Self {
+            platform,
+            quality,
+            max_per_call: None,
+        }
+    }
+
+    /// Estimate quality based on platform
+    fn estimate_platform_quality(platform: &'static str) -> f64 {
+        match platform {
+            "Linux" => 0.95,       // /dev/urandom is generally high quality
+            "macOS" => 0.95,       // SecRandomCopyBytes is high quality
+            "Windows" => 0.95,     // CryptGenRandom is high quality
+            "FreeBSD" => 0.95,     // /dev/urandom is high quality
+            "OpenBSD" => 0.95,     // /dev/urandom is high quality
+            "NetBSD" => 0.95,      // /dev/urandom is high quality
+            "WebAssembly" => 0.90, // Browser crypto.getRandomValues() is good but slightly lower
+            _ => 0.80,             // Unknown platforms get conservative estimate
+        }
+    }
+
+    /// Get the platform identifier
+    pub fn platform(&self) -> &'static str {
+        self.platform
+    }
+
+    /// Detect the current platform
+    fn detect_platform() -> &'static str {
+        #[cfg(target_os = "linux")]
+        return "Linux";
+        #[cfg(target_os = "macos")]
+        return "macOS";
+        #[cfg(target_os = "windows")]
+        return "Windows";
+        #[cfg(target_os = "freebsd")]
+        return "FreeBSD";
+        #[cfg(target_os = "openbsd")]
+        return "OpenBSD";
+        #[cfg(target_os = "netbsd")]
+        return "NetBSD";
+        #[cfg(target_arch = "wasm32")]
+        return "WebAssembly";
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "macos",
+            target_os = "windows",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd",
+            target_arch = "wasm32"
+        )))]
+        return "Unknown";
+    }
+}
+
+impl EntropySource for OsEntropySource {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        // Check if the requested amount exceeds the maximum per call
+        if let Some(max_per_call) = self.max_entropy_per_call() {
+            if dest.len() > max_per_call {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested entropy exceeds maximum per call",
+                ));
+            }
+        }
+
+        #[cfg(feature = "std")]
+        {
+            getrandom::fill(dest).map_err(|_| {
+                Error::platform_rng_failed_with_code(
+                    self.platform,
+                    -1,
+                    "Failed to get entropy from OS",
+                )
+            })
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            Err(Error::feature_not_available("OS entropy source", &["std"]))
+        }
+    }
+
+    fn initialize(&mut self, config: &EntropyConfig) -> Result<()> {
+        // Validate that the source meets the minimum quality requirement
+        if self.quality() < config.min_quality {
+            return Err(Error::entropy_source_unavailable(
+                "OS entropy source quality below required minimum",
+            ));
+        }
+
+        // Update max_per_call if specified in config
+        if let Some(max_per_call) = config.max_per_call {
+            if max_per_call > 256 {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested max_per_call exceeds OS entropy source limit",
+                ));
+            }
+            self.max_per_call = Some(max_per_call);
+        }
+
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        #[cfg(feature = "std")]
+        {
+            true
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            false
+        }
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        match self.platform {
+            "Linux" => "Linux OS Entropy Source",
+            "macOS" => "macOS OS Entropy Source",
+            "Windows" => "Windows OS Entropy Source",
+            "FreeBSD" => "FreeBSD OS Entropy Source",
+            "OpenBSD" => "OpenBSD OS Entropy Source",
+            "NetBSD" => "NetBSD OS Entropy Source",
+            "WebAssembly" => "WebAssembly OS Entropy Source",
+            _ => "Unknown OS Entropy Source",
+        }
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::OperatingSystem
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        self.max_per_call.or(Some(16384)) // Use config value or default limit (16KB)
+    }
+}
+
+impl Default for OsEntropySource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Hardware random number generator entropy source
+///
+/// On **x86 / `x86_64`** with the **`std`** feature, this uses **RDRAND** when the
+/// CPU advertises support and a probe read succeeds. Without `std`, runtime
+/// CPUID-based detection is unavailable and this source reports as unavailable.
+///
+/// **`AArch64`** and **`PowerPC`** do not use in-process `RNDR` / `DARN` in this
+/// crate on stable Rust; use [`OsEntropySource`] for those targets.
+#[derive(Debug, Clone)]
+pub struct HardwareEntropySource {
+    /// Hardware device identifier
+    device: &'static str,
+    /// Quality estimate
+    quality: f64,
+    /// Whether hardware RNG is available
+    available: bool,
+}
+
+impl HardwareEntropySource {
+    /// Create a new hardware entropy source
+    pub fn new() -> Self {
+        let (device, available) = Self::detect_hardware_rng();
+        Self {
+            device,
+            quality: if available { 0.99 } else { 0.0 },
+            available,
+        }
+    }
+
+    /// Detect available hardware RNG (RDRAND on x86 / `x86_64` when present).
+    fn detect_hardware_rng() -> (&'static str, bool) {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            if let Some(label) = crate::hardware_rng::probe_rdrand() {
+                return (label, true);
+            }
+            #[cfg(target_arch = "x86_64")]
+            {
+                return ("x86_64 (RDRAND unavailable)", false);
+            }
+            #[cfg(target_arch = "x86")]
+            {
+                return ("x86 (RDRAND unavailable)", false);
+            }
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            return ("AArch64", false);
+        }
+        #[cfg(any(target_arch = "powerpc64", target_arch = "powerpc"))]
+        {
+            return ("PowerPC", false);
+        }
+        #[cfg(not(any(
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "aarch64",
+            target_arch = "powerpc64",
+            target_arch = "powerpc"
+        )))]
+        {
+            return ("Unknown", false);
+        }
+    }
+}
+
+impl EntropySource for HardwareEntropySource {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        if !self.available {
+            return Err(Error::hardware_rng_failed(self.device));
+        }
+
+        // Check if the requested amount exceeds the maximum per call
+        if let Some(max_per_call) = self.max_entropy_per_call() {
+            if dest.len() > max_per_call {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested entropy exceeds hardware RNG maximum per call",
+                ));
+            }
+        }
+
+        crate::hardware_rng::fill_hw_cpu(dest, self.device)
+    }
+
+    fn initialize(&mut self, config: &EntropyConfig) -> Result<()> {
+        // Validate that the source meets the minimum quality requirement
+        if self.quality() < config.min_quality {
+            return Err(Error::entropy_source_unavailable(
+                "Hardware entropy source quality below required minimum",
+            ));
+        }
+
+        // Update max_per_call if specified in config
+        if let Some(max_per_call) = config.max_per_call {
+            if max_per_call > crate::hardware_rng::HW_RNG_MAX_PER_CALL {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested max_per_call exceeds hardware RNG limit",
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        self.available
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        "Hardware RNG"
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::Hardware
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        Some(crate::hardware_rng::HW_RNG_MAX_PER_CALL)
+    }
+}
+
+impl Default for HardwareEntropySource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Deterministic entropy source for testing
+///
+/// This entropy source provides deterministic bytes from a **256-bit** `ChaCha20`
+/// stream (`rand_chacha::ChaCha20Rng`), matching the construction used across
+/// libQ for reproducible tests and vectors.
+///
+/// **USE CASE**: This is designed for:
+/// - Unit testing with reproducible outcomes
+/// - Known Answer Tests (KAT) verification
+/// - Benchmarking with consistent inputs
+///
+/// **NOT FOR CRYPTOGRAPHIC USE**: For actual cryptographic operations,
+/// use `OsEntropySource` or other secure entropy sources. Unpredictability is
+/// only as strong as the secrecy of the 32-byte seed.
+#[derive(Debug, Clone)]
+pub struct DeterministicEntropySource {
+    /// `ChaCha20` stream generator
+    rng: ChaCha20Rng,
+    /// Quality estimate (0.0 for deterministic)
+    quality: f64,
+}
+
+impl DeterministicEntropySource {
+    /// Create a new deterministic entropy source from a 32-byte `ChaCha20` key
+    #[must_use]
+    pub fn new(seed: [u8; 32]) -> Self {
+        Self {
+            rng: ChaCha20Rng::from_seed(seed),
+            quality: 0.0, // Deterministic sources have no true entropy
+        }
+    }
+
+    fn generate_deterministic_bytes(&mut self, dest: &mut [u8]) {
+        self.rng.fill_bytes(dest);
+    }
+}
+
+impl EntropySource for DeterministicEntropySource {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        self.generate_deterministic_bytes(dest);
+        Ok(())
+    }
+
+    fn initialize(&mut self, config: &EntropyConfig) -> Result<()> {
+        // For deterministic sources, we don't enforce quality requirements
+        // since they're meant for testing and have 0.0 quality by design
+        let _ = config;
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        "Deterministic Entropy Source"
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::Deterministic
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        None // No limit for deterministic sources
+    }
+}
+
+/// User-provided entropy source
+///
+/// This entropy source allows users to provide their own entropy data,
+/// useful for specialized applications or when integrating with external
+/// entropy sources.
+#[cfg(feature = "alloc")]
+#[derive(Debug, Clone)]
+pub struct UserEntropySource {
+    /// User-provided entropy data
+    entropy_data: Vec<u8>,
+    /// Current position in the entropy data
+    position: usize,
+    /// Quality estimate
+    quality: f64,
+    /// Configured maximum entropy per call
+    max_per_call: Option<usize>,
+}
+
+#[cfg(feature = "alloc")]
+impl UserEntropySource {
+    /// Create a new user entropy source
+    pub fn new(entropy_data: Vec<u8>) -> Self {
+        Self {
+            quality: 0.8, // Assume reasonable quality for user-provided data
+            entropy_data,
+            position: 0,
+            max_per_call: None, // No limit by default
+        }
+    }
+
+    /// Create a new user entropy source with quality assessment
+    pub fn with_quality(entropy_data: Vec<u8>, quality: f64) -> Self {
+        Self {
+            quality: quality.max(0.0).min(1.0),
+            entropy_data,
+            position: 0,
+            max_per_call: None, // No limit by default
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl EntropySource for UserEntropySource {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        if self.entropy_data.is_empty() {
+            return Err(Error::entropy_source_unavailable("User entropy source"));
+        }
+
+        // Check if the requested amount exceeds the maximum per call
+        if let Some(max_per_call) = self.max_per_call {
+            if dest.len() > max_per_call {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested entropy exceeds user entropy source maximum per call",
+                ));
+            }
+        }
+
+        for (i, byte) in dest.iter_mut().enumerate() {
+            let index = (self.position + i) % self.entropy_data.len();
+            *byte = self.entropy_data[index];
+        }
+
+        self.position = (self.position + dest.len()) % self.entropy_data.len();
+        Ok(())
+    }
+
+    fn initialize(&mut self, config: &EntropyConfig) -> Result<()> {
+        // Validate that the source meets the minimum quality requirement
+        if self.quality() < config.min_quality {
+            return Err(Error::entropy_source_unavailable(
+                "User entropy source quality below required minimum",
+            ));
+        }
+
+        // For user entropy sources, we allow max_per_call to be larger than the entropy data size
+        // because the source can cycle through the data. We only enforce reasonable limits.
+        if let Some(max_per_call) = config.max_per_call {
+            if max_per_call > 1024 {
+                return Err(Error::entropy_source_unavailable(
+                    "Requested max_per_call exceeds reasonable limit for user entropy source",
+                ));
+            }
+            // Store the configured max_per_call
+            self.max_per_call = Some(max_per_call);
+        }
+
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        !self.entropy_data.is_empty()
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        "User Entropy Source"
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::User
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        Some(self.entropy_data.len())
+    }
+}
+
+/// NIST AES256-CTR-DRBG entropy source for KAT test compatibility (minimal implementation).
+///
+/// This entropy source implements a minimal NIST AES256-CTR-DRBG-style algorithm:
+/// `randombytes_init` and `EntropySource` for contexts that need the same 48-byte-init
+/// API (e.g. KAT or legacy tests) but do not require reseed, personalization, or health tests.
+/// It is **not** a full NIST-aligned DRBG (no reseed interval enforcement, no uninstantiate,
+/// no health test).
+///
+/// For full NIST SP 800-90A Rev. 1 `CTR_DRBG` alignment (instantiate with personalization,
+/// reseed, uninstantiate, health test, reseed interval, error state), use the canonical
+/// implementation in **lib-q-cb-kem** behind the `nist-aes-rng` feature (`AesState`).
+#[cfg(feature = "nist-drbg")]
+#[derive(Debug, Clone)]
+pub struct NistAes256CtrDrbg {
+    /// 256-bit AES key
+    key: [u8; 32],
+    /// 128-bit counter value
+    v: [u8; 16],
+    /// Reseed counter
+    reseed_counter: i32,
+    /// Quality estimate (high for NIST DRBG)
+    quality: f64,
+}
+
+#[cfg(feature = "nist-drbg")]
+impl NistAes256CtrDrbg {
+    /// Create a new NIST AES256-CTR-DRBG entropy source
+    pub fn new() -> Self {
+        Self {
+            key: [0u8; 32],
+            v: [0u8; 16],
+            reseed_counter: 0,
+            quality: 1.0, // NIST DRBG provides high quality entropy
+        }
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl Default for NistAes256CtrDrbg {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl NistAes256CtrDrbg {
+    /// Initialize the DRBG with entropy input (48 bytes)
+    ///
+    /// This corresponds to the `randombytes_init` function in the reference implementation.
+    pub fn randombytes_init(&mut self, entropy_input: [u8; 48]) {
+        self.key = [0u8; 32];
+        self.v = [0u8; 16];
+        self.reseed_counter = 1i32;
+
+        Self::aes256_ctr_update(&mut Some(entropy_input), &mut self.key, &mut self.v);
+        self.reseed_counter = 1;
+    }
+
+    /// AES256-ECB encryption
+    ///
+    /// Encrypts a 128-bit plaintext using AES256-ECB mode.
+    fn aes256_ecb(key: &[u8; 32], ctr: &[u8; 16], buffer: &mut [u8; 16]) {
+        use aes::cipher::{
+            BlockCipherEncrypt,
+            KeyInit,
+        };
+        use aes::{
+            Aes256,
+            Block,
+        };
+        let cipher = Aes256::new_from_slice(key).expect("32-byte key");
+        buffer.copy_from_slice(ctr);
+        let mut block = Block::from(*buffer);
+        cipher.encrypt_block(&mut block);
+        *buffer = block.into();
+    }
+
+    /// Update key and v with provided data by running one round of AES in counter mode
+    fn aes256_ctr_update(
+        provided_data: &mut Option<[u8; 48]>,
+        key: &mut [u8; 32],
+        v: &mut [u8; 16],
+    ) {
+        let mut temp = [[0u8; 16]; 3];
+
+        for tmp in &mut temp[0..3] {
+            let count = u128::from_be_bytes(*v);
+            let count_next = count.wrapping_add(1);
+            v.copy_from_slice(&count_next.to_be_bytes());
+
+            Self::aes256_ecb(key, v, tmp);
+        }
+
+        if let Some(d) = provided_data {
+            for j in 0..3 {
+                for i in 0..16 {
+                    temp[j][i] ^= d[16 * j + i];
+                }
+            }
+        }
+
+        key[0..16].copy_from_slice(&temp[0]);
+        key[16..32].copy_from_slice(&temp[1]);
+        v.copy_from_slice(&temp[2]);
+    }
+
+    /// Generate random bytes using the DRBG
+    fn generate_bytes(&mut self, dest: &mut [u8]) {
+        for chunk in dest.chunks_mut(16) {
+            let count = u128::from_be_bytes(self.v);
+            let count_next = count.wrapping_add(1);
+            self.v.copy_from_slice(&count_next.to_be_bytes());
+
+            let mut block = [0u8; 16];
+            Self::aes256_ecb(&self.key, &self.v, &mut block);
+
+            chunk.copy_from_slice(&block[..chunk.len()]);
+        }
+
+        Self::aes256_ctr_update(&mut None, &mut self.key, &mut self.v);
+        self.reseed_counter += 1;
+    }
+}
+
+#[cfg(feature = "nist-drbg")]
+impl EntropySource for NistAes256CtrDrbg {
+    fn get_entropy(&mut self, dest: &mut [u8]) -> Result<()> {
+        self.generate_bytes(dest);
+        Ok(())
+    }
+
+    fn is_available(&self) -> bool {
+        true
+    }
+
+    fn quality(&self) -> f64 {
+        self.quality
+    }
+
+    fn name(&self) -> &'static str {
+        "NIST AES256-CTR-DRBG"
+    }
+
+    fn source_type(&self) -> EntropySourceType {
+        EntropySourceType::Deterministic
+    }
+
+    fn max_entropy_per_call(&self) -> Option<usize> {
+        None // No limit for DRBG
+    }
+}
+
+/// Entropy source factory
+///
+/// This factory provides convenient methods for creating different types
+/// of entropy sources based on requirements and platform capabilities.
+#[cfg(feature = "alloc")]
+pub struct EntropySourceFactory;
+
+#[cfg(feature = "alloc")]
+impl EntropySourceFactory {
+    /// Create the best available entropy source
+    ///
+    /// This method attempts to create the highest quality entropy source
+    /// available on the current platform.
+    pub fn create_best_available() -> Result<Box<dyn EntropySource>> {
+        Self::create_best_available_with_config(&EntropyConfig::default())
+    }
+
+    /// Create the best available entropy source with configuration
+    ///
+    /// This method attempts to create the highest quality entropy source
+    /// available on the current platform that meets the specified requirements.
+    pub fn create_best_available_with_config(
+        config: &EntropyConfig,
+    ) -> Result<Box<dyn EntropySource>> {
+        // Try hardware RNG first
+        let mut hardware_source = HardwareEntropySource::new();
+        if hardware_source.is_available() {
+            if hardware_source.initialize(config).is_ok() {
+                return Ok(Box::new(hardware_source));
+            }
+        }
+
+        // Fall back to OS entropy
+        let mut os_source = OsEntropySource::new();
+        if os_source.is_available() {
+            if os_source.initialize(config).is_ok() {
+                return Ok(Box::new(os_source));
+            }
+        }
+
+        // Do not substitute non-cryptographic "fallback" RNGs when OS/hardware sources fail.
+        // Callers must fix the environment, enable `getrandom`, or register a custom entropy
+        // source (`custom-entropy` feature) for `no_std`/WASM.
+        Err(Error::entropy_source_unavailable_with_context(
+            "secure entropy",
+            "no OS or hardware entropy source satisfied the configuration; weak fallbacks are disabled",
+        ))
+    }
+
+    /// Create an OS entropy source
+    pub fn create_os_entropy() -> Result<Box<dyn EntropySource>> {
+        Self::create_os_entropy_with_config(&EntropyConfig::default())
+    }
+
+    /// Create an OS entropy source with configuration
+    pub fn create_os_entropy_with_config(config: &EntropyConfig) -> Result<Box<dyn EntropySource>> {
+        let mut source = OsEntropySource::new();
+        if source.is_available() {
+            source.initialize(config)?;
+            Ok(Box::new(source))
+        } else {
+            Err(Error::entropy_source_unavailable("OS entropy source"))
+        }
+    }
+
+    /// Create a hardware entropy source
+    pub fn create_hardware_entropy() -> Result<Box<dyn EntropySource>> {
+        Self::create_hardware_entropy_with_config(&EntropyConfig::default())
+    }
+
+    /// Create a hardware entropy source with configuration
+    pub fn create_hardware_entropy_with_config(
+        config: &EntropyConfig,
+    ) -> Result<Box<dyn EntropySource>> {
+        let mut source = HardwareEntropySource::new();
+        if source.is_available() {
+            source.initialize(config)?;
+            Ok(Box::new(source))
+        } else {
+            Err(Error::entropy_source_unavailable("Hardware entropy source"))
+        }
+    }
+
+    /// Create a deterministic entropy source (`ChaCha20` stream from `seed`)
+    pub fn create_deterministic_entropy(seed: [u8; 32]) -> Box<dyn EntropySource> {
+        Box::new(DeterministicEntropySource::new(seed))
+    }
+
+    /// Create a user entropy source
+    pub fn create_user_entropy(entropy_data: Vec<u8>) -> Box<dyn EntropySource> {
+        Box::new(UserEntropySource::new(entropy_data))
+    }
+
+    /// Create a user entropy source with quality assessment
+    pub fn create_user_entropy_with_quality(
+        entropy_data: Vec<u8>,
+        quality: f64,
+    ) -> Box<dyn EntropySource> {
+        Box::new(UserEntropySource::with_quality(entropy_data, quality))
+    }
+
+    /// Create a NIST AES256-CTR-DRBG entropy source
+    #[cfg(feature = "nist-drbg")]
+    pub fn create_nist_drbg_entropy(entropy_input: [u8; 48]) -> Box<dyn EntropySource> {
+        let mut drbg = NistAes256CtrDrbg::new();
+        drbg.randombytes_init(entropy_input);
+        Box::new(drbg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
+    use alloc::format;
+    #[cfg(all(test, feature = "alloc"))]
+    use alloc::vec;
+
+    use super::*;
+
+    #[test]
+    fn test_os_entropy_source_creation() {
+        let source = OsEntropySource::new();
+        assert!(!source.name().is_empty());
+        assert_eq!(source.source_type(), EntropySourceType::OperatingSystem);
+
+        // Test that platform is detected and used in name
+        let platform = source.platform();
+        assert!(!platform.is_empty());
+        assert!(source.name().contains(platform));
+
+        // Test that quality is set based on platform
+        assert!(source.quality() > 0.0);
+        assert!(source.quality() <= 1.0);
+    }
+
+    #[test]
+    fn test_hardware_entropy_source_creation() {
+        let source = HardwareEntropySource::new();
+        assert!(!source.name().is_empty());
+        assert_eq!(source.source_type(), EntropySourceType::Hardware);
+    }
+
+    #[test]
+    #[cfg(all(feature = "std", target_arch = "x86_64"))]
+    fn test_hardware_entropy_rdrand_smoke_if_cpu_supports() {
+        if !std::arch::is_x86_feature_detected!("rdrand") {
+            return;
+        }
+        let mut source = HardwareEntropySource::new();
+        assert!(source.is_available());
+        source.initialize(&EntropyConfig::default()).unwrap();
+        let mut buf = [0u8; 64];
+        source.get_entropy(&mut buf).unwrap();
+    }
+
+    #[test]
+    fn test_deterministic_entropy_source_creation() {
+        let mut seed = [0u8; 32];
+        seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let source = DeterministicEntropySource::new(seed);
+        assert!(!source.name().is_empty());
+        assert_eq!(source.source_type(), EntropySourceType::Deterministic);
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(source.quality(), 0.0);
+        }
+    }
+
+    #[test]
+    fn test_deterministic_entropy_consistency() {
+        let seed = [42u8; 32];
+        let mut source1 = DeterministicEntropySource::new(seed);
+        let mut source2 = DeterministicEntropySource::new(seed);
+
+        let mut bytes1 = [0u8; 32];
+        let mut bytes2 = [0u8; 32];
+
+        source1.get_entropy(&mut bytes1).unwrap();
+        source2.get_entropy(&mut bytes2).unwrap();
+
+        assert_eq!(bytes1, bytes2);
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_user_entropy_source_creation() {
+        let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let source = UserEntropySource::new(entropy_data);
+        assert!(!source.name().is_empty());
+        assert_eq!(source.source_type(), EntropySourceType::User);
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_user_entropy_source_with_quality() {
+        let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let source = UserEntropySource::with_quality(entropy_data, 0.9);
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(source.quality(), 0.9);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_user_entropy_source_cycling() {
+        let entropy_data = vec![1, 2, 3];
+        let mut source = UserEntropySource::new(entropy_data);
+
+        // Initialize with a config that allows more bytes per call
+        let config = EntropyConfig {
+            max_per_call: Some(6), // Allow up to 6 bytes per call (same as what we're requesting)
+            ..Default::default()
+        };
+        source.initialize(&config).unwrap();
+
+        let mut bytes = [0u8; 6];
+        source.get_entropy(&mut bytes).unwrap();
+
+        // Should cycle through the entropy data
+        assert_eq!(bytes, [1, 2, 3, 1, 2, 3]);
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_entropy_source_factory_deterministic() {
+        let mut seed = [0u8; 32];
+        seed[..4].copy_from_slice(&[1, 2, 3, 4]);
+        let source = EntropySourceFactory::create_deterministic_entropy(seed);
+        assert_eq!(source.source_type(), EntropySourceType::Deterministic);
+    }
+
+    #[test]
+    #[cfg(all(feature = "alloc", feature = "nist-drbg"))]
+    fn test_nist_drbg_kat_vectors() {
+        use alloc::vec::Vec;
+
+        // Test vectors from classic-mceliece reference implementation
+        const RNG_REF1: &str = "061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA19810F5392D076276EF41277C3AB6E94A4E3B7DCC104A05BB089D338BF55C72CAB375389A94BB920BD5D6DC9E7F2EC6FDE028B6F5724BB039F3652AD98DF8CE6C97013210B84BBE81388C3D141D61957C73BCDC5E5CD92525F46A2B757B03CAB5C337004A2DA35324A325713564DAE28F57ACC6DBE32A0726190BAA6B8A0A255AA1AD01E8DD569AA36D096256C420718A69D46D8DB1C6DD40606A0BE3C235BEFE623A90593F82D6A8F9F924E44E36BE87F7D26B8445966F9EE329C426C12521E85F6FD4ECD5D566BA0A3487125D79CC64";
+        const RNG_REF2: &str = "C17E034061ED5EA817C41D61636281E816F817DCF753A91D97C018FF82FBC9B1728FC66AF114B57978FB6082B70D285140B26725AA5F7BB4409820F67E2D656EDACA30B5BB12EB5249CC3809B188CF0CC95B5AE0EFE8FC5887152CB6601B4CCF9FC411894FA0C0264EB51A481D4D7074FDF065053030C8A92BFCDD06BF18C8489C38D03784FD63001830E5A385A4A37866693F5BDAB8A8A25B519DDBF2D28268601D95BEED647E430484A227C023B0297A282F06C91376433BDE5EC3ABBA8C06B830C26452EA2FA7EDEA8DCFE20EAFCF8980B3D5AECEF89DD861ACEC1F5F7CD2AE6B3CDE3C1D80A2830DD0B9E8468AFAD161981074BEB33DF1CDFF9A5214F9F0";
+
+        // Parse hex strings to bytes
+        fn hex_to_bytes(hex: &str) -> Vec<u8> {
+            let mut bytes = Vec::new();
+            let mut chars = hex.chars().peekable();
+            while let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+                let byte = u8::from_str_radix(&format!("{c1}{c2}"), 16).unwrap();
+                bytes.push(byte);
+            }
+            bytes
+        }
+
+        let mut entropy_input = [0u8; 48];
+        for (i, byte) in entropy_input.iter_mut().enumerate().take(48) {
+            *byte = u8::try_from(i).expect("i < 48, so conversion to u8 is safe");
+        }
+
+        let mut drbg = NistAes256CtrDrbg::new();
+        drbg.randombytes_init(entropy_input);
+
+        // Test first 256 bytes
+        let mut data = [0u8; 256];
+        drbg.get_entropy(&mut data).unwrap();
+        let ref1 = hex_to_bytes(RNG_REF1);
+        assert_eq!(data.as_slice(), ref1.as_slice());
+
+        // Test second 256 bytes
+        drbg.get_entropy(&mut data).unwrap();
+        let ref2 = hex_to_bytes(RNG_REF2);
+        assert_eq!(data.as_slice(), ref2.as_slice());
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_entropy_source_factory_user() {
+        let entropy_data = vec![1, 2, 3, 4, 5];
+        let source = EntropySourceFactory::create_user_entropy(entropy_data);
+        assert_eq!(source.source_type(), EntropySourceType::User);
+    }
+
+    #[test]
+    fn test_entropy_config_validation() {
+        let config = EntropyConfig {
+            min_quality: 0.9, // High quality requirement
+            max_per_call: Some(32),
+            ..Default::default()
+        };
+
+        // Test OS entropy source with high quality requirement
+        let mut os_source = OsEntropySource::new();
+        // OS entropy should meet the quality requirement (0.95 > 0.9)
+        assert!(os_source.initialize(&config).is_ok());
+
+        // Test with quality requirement too high
+        let config2 = EntropyConfig {
+            min_quality: 0.99,
+            ..config
+        };
+        let mut os_source2 = OsEntropySource::new();
+        // OS entropy should not meet this requirement (0.95 < 0.99)
+        assert!(os_source2.initialize(&config2).is_err());
+    }
+
+    #[test]
+    fn test_entropy_config_max_per_call() {
+        let config = EntropyConfig {
+            max_per_call: Some(16),
+            ..Default::default()
+        };
+
+        let mut os_source = OsEntropySource::new();
+        os_source.initialize(&config).unwrap();
+
+        // Test requesting more than max_per_call
+        let mut buffer = [0u8; 32]; // Request 32 bytes, but max is 16
+        assert!(os_source.get_entropy(&mut buffer).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_entropy_source_factory_with_config() {
+        let config = EntropyConfig {
+            min_quality: 0.8,
+            max_per_call: Some(64),
+            ..Default::default()
+        };
+
+        // This should work with default config
+        let result = EntropySourceFactory::create_best_available_with_config(&config);
+        // The result depends on platform capabilities, so we just check it doesn't panic
+        let _ = result;
+    }
+
+    #[test]
+    #[cfg(any(feature = "std", feature = "alloc"))]
+    fn test_platform_specific_error_messages() {
+        let mut os_source = OsEntropySource::new();
+        let platform = os_source.platform();
+
+        // Test quality error message
+        let config = EntropyConfig {
+            min_quality: 1.0, // Set to impossible value
+            ..Default::default()
+        };
+
+        let result = os_source.initialize(&config);
+        assert!(result.is_err());
+        if let Err(error) = result {
+            let error_msg = format!("{error}");
+            assert!(error_msg.contains("quality below required minimum"));
+        }
+
+        // Test max_per_call error message
+        let config2 = EntropyConfig {
+            max_per_call: Some(1000), // Exceeds limit
+            ..Default::default()
+        };
+
+        let result2 = os_source.initialize(&config2);
+        assert!(result2.is_err());
+        if let Err(error) = result2 {
+            let error_msg = format!("{error}");
+            assert!(error_msg.contains("exceeds OS entropy source limit"));
+        }
+
+        // Test that platform is still accessible and used in name
+        assert!(!platform.is_empty());
+        assert!(os_source.name().contains(platform));
+    }
+}
