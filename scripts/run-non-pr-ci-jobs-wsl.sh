@@ -24,7 +24,7 @@
 #                      patterns do not hit drvfs I/O errors.
 #   PERF_NO_RUN=1      Only compile workspace benches (`cargo bench --no-run`); skip the
 #                      long `cargo bench --features all-algorithms` execution (CI runs it).
-#   BENCH_CRITERION_FLAGS  Extra args after `--` (default matches ci.yml performance job).
+#   BENCH_CRITERION_FLAGS  Extra args after `--` for named Criterion bench steps only (ci.yml).
 
 set -euo pipefail
 
@@ -87,7 +87,7 @@ BENCH_EXTRA=( ${BENCH_CRITERION_FLAGS} )
 if [[ "${PERF_NO_RUN:-}" == "1" ]]; then
   cargo bench --features "all-algorithms" --no-run --verbose
 else
-  cargo bench --features "all-algorithms" --verbose -- "${BENCH_EXTRA[@]}"
+  cargo bench --features "all-algorithms" --verbose
 fi
 
 cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream,simd-avx2" --bench saturnin_criterion_benches --verbose -- "${BENCH_EXTRA[@]}"

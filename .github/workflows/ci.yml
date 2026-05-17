@@ -613,10 +613,6 @@ jobs:
         if: runner.os != 'Windows'
         env:
           RUSTFLAGS: "-C target-cpu=generic -C opt-level=3 -C overflow-checks=on"
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Clinker=aarch64-linux-gnu-gcc -Clinker-flavor=gnu"
-          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
-          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS: "-Clinker=arm-linux-gnueabihf-gcc -Clinker-flavor=gnu"
         run: |
           echo "Building for ${{ matrix.name }} (${{ matrix.target }}) on Unix-like system"
           cargo build --target ${{ matrix.target }} --features "all-algorithms" --release
@@ -691,10 +687,6 @@ jobs:
         if: matrix.install-cross-compiler && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
         env:
           RUSTFLAGS: "-C target-cpu=generic -C opt-level=3 -C overflow-checks=on"
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-Clinker=aarch64-linux-gnu-gcc -Clinker-flavor=gnu"
-          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
-          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_RUSTFLAGS: "-Clinker=arm-linux-gnueabihf-gcc -Clinker-flavor=gnu"
         run: |
           echo "Building cross-compilation tests for ${{ matrix.name }} (execution skipped)"
           # Build tests for cross-compilation target to ensure they compile correctly
@@ -709,12 +701,11 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
-    # Full-workspace Criterion runs (100 samples by default) exceed 30m after compile; use
-    # BENCH_CRITERION_FLAGS and keep cached target/release (see Run benchmarks step).
+    # Full-workspace bench runs exceed 30m after compile; keep cached target/release.
+    # BENCH_CRITERION_FLAGS applies only to named Criterion bench steps (not workspace-wide cargo bench).
     timeout-minutes: 90
     env:
       CARGO_INCREMENTAL: "0"
-      # Passed after `--` to each Criterion bench binary (CI budget; run full samples locally).
       BENCH_CRITERION_FLAGS: "--sample-size 30 --warm-up-time 1"
     steps:
       - uses: actions/checkout@v5
@@ -740,7 +731,8 @@ jobs:
         run: |
           # Do not rm target/release: the bench cache restores release artifacts and avoids a
           # full workspace recompile on every push to main.
-          cargo bench --features "all-algorithms" --verbose -- ${BENCH_CRITERION_FLAGS}
+          # No Criterion flags here: the workspace mixes Criterion benches and built-in #[bench] harnesses.
+          cargo bench --features "all-algorithms" --verbose
 
       - name: Run Saturnin SIMD benchmarks
         run: |
