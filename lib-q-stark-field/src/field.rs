@@ -997,7 +997,10 @@ pub trait TwoAdicField: Field {
     const TWO_ADICITY: usize;
 
     /// Returns a generator of the multiplicative group of order `2^bits`.
-    /// Assumes `bits <= TWO_ADICITY`, otherwise the result is undefined.
+    ///
+    /// Requires `bits <= TWO_ADICITY`. Implementations in this crate panic when that
+    /// precondition is violated; other implementations may be undefined in release builds.
+    /// Prefer [`crate::assert_two_adic_bits`] at FFT/LDE entry points for a clear error.
     #[must_use]
     fn two_adic_generator(bits: usize) -> Self;
 }

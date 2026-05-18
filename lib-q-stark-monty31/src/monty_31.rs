@@ -701,7 +701,7 @@ impl<FP: FieldParameters> PrimeField32 for MontyField31<FP> {
 impl<FP: FieldParameters + TwoAdicData> TwoAdicField for MontyField31<FP> {
     const TWO_ADICITY: usize = FP::TWO_ADICITY;
     fn two_adic_generator(bits: usize) -> Self {
-        assert!(bits <= Self::TWO_ADICITY);
+        lib_q_stark_field::assert_two_adic_bits::<Self>(bits);
         FP::TWO_ADIC_GENERATORS.as_ref()[bits]
     }
 }

@@ -530,7 +530,7 @@ impl TwoAdicField for Mersenne31 {
     const TWO_ADICITY: usize = 1;
 
     fn two_adic_generator(bits: usize) -> Self {
-        assert!(bits <= Self::TWO_ADICITY);
+        lib_q_stark_field::assert_two_adic_bits::<Self>(bits);
         if bits == 0 {
             Self::ONE
         } else {

@@ -4,6 +4,8 @@ use alloc::sync::Arc;
 use lib_q_stark_field::{
     Field,
     TwoAdicField,
+    assert_two_adic_bits,
+    assert_two_adic_fft_height,
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::{
@@ -60,6 +62,7 @@ impl<F: TwoAdicField> Radix2Dit<F> {
         w_lock
             .entry(log_h)
             .or_insert_with(|| {
+                assert_two_adic_bits::<F>(log_h);
                 let n = 1 << log_h;
                 let root = F::two_adic_generator(log_h);
                 Arc::from(root.powers().take(n).collect())
@@ -72,6 +75,7 @@ impl<F: TwoAdicField> TwoAdicSubgroupDft<F> for Radix2Dit<F> {
     type Evaluations = RowMajorMatrix<F>;
 
     fn dft_batch(&self, mut mat: RowMajorMatrix<F>) -> RowMajorMatrix<F> {
+        assert_two_adic_fft_height::<F>(mat.height());
         let h = mat.height();
         let log_h = log2_strict_usize(h);
 
