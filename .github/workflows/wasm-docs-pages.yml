@@ -33,6 +33,24 @@ jobs:
           rustup target add wasm32-unknown-unknown
           RUSTDOCFLAGS="--cfg docsrs" cargo doc --no-deps --target wasm32-unknown-unknown --features wasm -p lib-q-core
 
+      # Single-crate `cargo doc` does not emit doc/index.html; Pages needs one at the site root.
+      - name: Add Pages landing index
+        run: |
+          printf '%s\n' \
+            '<!DOCTYPE html>' \
+            '<html lang="en">' \
+            '<head>' \
+            '<meta charset="utf-8">' \
+            '<meta http-equiv="refresh" content="0; url=lib_q_core/">' \
+            '<link rel="canonical" href="lib_q_core/">' \
+            '<title>lib-q-core (wasm32) API docs</title>' \
+            '</head>' \
+            '<body>' \
+            '<p><a href="lib_q_core/">lib-q-core</a> API documentation (wasm32-unknown-unknown).</p>' \
+            '</body>' \
+            '</html>' \
+            > target/wasm32-unknown-unknown/doc/index.html
+
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
