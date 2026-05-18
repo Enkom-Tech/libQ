@@ -19,12 +19,18 @@ export BENCH_CRITERION_FLAGS="${BENCH_CRITERION_FLAGS:---quick --warm-up-time 1}
 # shellcheck disable=SC2206
 BENCH_EXTRA=( ${BENCH_CRITERION_FLAGS} )
 
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON=(python3)
-elif command -v py >/dev/null 2>&1; then
+PYTHON=()
+for py in python3.14 python3.13 python3.12 python3.11 python3; do
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c "import tomllib" 2>/dev/null; then
+    PYTHON=("$py")
+    break
+  fi
+done
+if [[ ${#PYTHON[@]} -eq 0 ]] && command -v py >/dev/null 2>&1 && py -3 -c "import tomllib" 2>/dev/null; then
   PYTHON=(py -3)
-else
-  echo "ERROR: python3 or py not found" >&2
+fi
+if [[ ${#PYTHON[@]} -eq 0 ]]; then
+  echo "ERROR: need Python 3.11+ (stdlib tomllib); install python3.11 or newer" >&2
   exit 1
 fi
 
@@ -62,7 +68,7 @@ run_shard_from_line() {
 SHARD_LINES="$("${PYTHON[@]}" -c "
 import tomllib
 from pathlib import Path
-for s in tomllib.loads(Path('.github/benchmark-shards.toml').read_bytes()).get('shard', []):
+for s in tomllib.loads(Path('.github/benchmark-shards.toml').read_text(encoding='utf-8')).get('shard', []):
     if s.get('enabled', True) is False:
         continue
     f = s.get('features', '')

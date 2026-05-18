@@ -5,12 +5,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON=(python3)
-elif command -v py >/dev/null 2>&1; then
+PYTHON=()
+for py in python3.14 python3.13 python3.12 python3.11 python3; do
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c "import tomllib" 2>/dev/null; then
+    PYTHON=("$py")
+    break
+  fi
+done
+if [[ ${#PYTHON[@]} -eq 0 ]] && command -v py >/dev/null 2>&1 && py -3 -c "import tomllib" 2>/dev/null; then
   PYTHON=(py -3)
-else
-  echo "ERROR: python3 or py not found" >&2
+fi
+if [[ ${#PYTHON[@]} -eq 0 ]]; then
+  echo "ERROR: need Python 3.11+ (stdlib tomllib); install python3.11 or newer" >&2
   exit 1
 fi
 
@@ -24,7 +30,7 @@ echo "== Parsing benchmark manifest =="
 "${PYTHON[@]}" -c "
 import tomllib
 from pathlib import Path
-data = tomllib.loads(Path('$MANIFEST').read_bytes())
+data = tomllib.loads(Path('$MANIFEST').read_text(encoding='utf-8'))
 ids = [s['id'] for s in data.get('shard', []) if s.get('enabled', True) is not False]
 if len(ids) != len(set(ids)):
     raise SystemExit('duplicate shard id in manifest')
@@ -68,7 +74,7 @@ while IFS= read -r line; do
 done < <("${PYTHON[@]}" -c "
 import tomllib
 from pathlib import Path
-for s in tomllib.loads(Path('$MANIFEST').read_bytes()).get('shard', []):
+for s in tomllib.loads(Path('$MANIFEST').read_text(encoding='utf-8')).get('shard', []):
     if s.get('enabled', True) is False:
         continue
     f = s.get('features', '')
