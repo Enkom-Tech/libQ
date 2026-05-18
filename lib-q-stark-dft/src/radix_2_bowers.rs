@@ -4,6 +4,7 @@ use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
     TwoAdicField,
+    assert_two_adic_fft_height,
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::{
@@ -37,6 +38,7 @@ impl<F: TwoAdicField> TwoAdicSubgroupDft<F> for Radix2Bowers {
     type Evaluations = RowMajorMatrix<F>;
 
     fn dft_batch(&self, mut mat: RowMajorMatrix<F>) -> RowMajorMatrix<F> {
+        assert_two_adic_fft_height::<F>(mat.height());
         reverse_matrix_index_bits(&mut mat);
         bowers_g(&mut mat.as_view_mut());
         mat
@@ -44,6 +46,7 @@ impl<F: TwoAdicField> TwoAdicSubgroupDft<F> for Radix2Bowers {
 
     /// Compute the inverse DFT of each column in `mat`.
     fn idft_batch(&self, mut mat: RowMajorMatrix<F>) -> RowMajorMatrix<F> {
+        assert_two_adic_fft_height::<F>(mat.height());
         bowers_g_t(&mut mat.as_view_mut());
         divide_by_height(&mut mat);
         reverse_matrix_index_bits(&mut mat);

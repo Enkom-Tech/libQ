@@ -1,6 +1,9 @@
 use alloc::vec;
 
-use lib_q_stark_field::TwoAdicField;
+use lib_q_stark_field::{
+    TwoAdicField,
+    assert_two_adic_fft_height,
+};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_util::log2_strict_usize;
@@ -13,6 +16,7 @@ pub struct NaiveDft;
 impl<F: TwoAdicField> TwoAdicSubgroupDft<F> for NaiveDft {
     type Evaluations = RowMajorMatrix<F>;
     fn dft_batch(&self, mat: RowMajorMatrix<F>) -> RowMajorMatrix<F> {
+        assert_two_adic_fft_height::<F>(mat.height());
         let w = mat.width();
         let h = mat.height();
         let log_h = log2_strict_usize(h);

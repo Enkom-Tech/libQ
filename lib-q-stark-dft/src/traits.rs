@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use lib_q_stark_field::{
     BasedVectorSpace,
     TwoAdicField,
+    assert_two_adic_coset_lde,
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::bitrev::BitReversibleMatrix;
@@ -235,6 +236,7 @@ pub trait TwoAdicSubgroupDft<F: TwoAdicField>: Clone + Default {
         added_bits: usize,
         shift: F,
     ) -> Self::Evaluations {
+        assert_two_adic_coset_lde::<F>(mat.height(), added_bits);
         // To briefly explain the additional interpretation, start with the evaluations of the polynomial
         // `f(x)` over `gH`. If we reinterpret the evaluations as being over the subgroup `H`, this is equivalent to
         // switching our polynomial to `f1(x) = f(g x)`. The output of the iDFT will be the coefficients of

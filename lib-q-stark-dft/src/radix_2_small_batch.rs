@@ -8,6 +8,8 @@ use itertools::Itertools;
 use lib_q_stark_field::{
     Field,
     TwoAdicField,
+    assert_two_adic_bits,
+    assert_two_adic_fft_height,
     scale_slice_in_place_single_core,
 };
 use lib_q_stark_matrix::Matrix;
@@ -81,6 +83,7 @@ impl<F: TwoAdicField> Radix2DFTSmallBatch<F> {
     /// packed and non-packed variants.
     fn roots_of_unity_table(&self, n: usize) -> Vec<Vec<F>> {
         let lg_n = log2_strict_usize(n);
+        assert_two_adic_bits::<F>(lg_n);
         let generator = F::two_adic_generator(lg_n);
         let half_n = 1 << (lg_n - 1);
         // nth_roots = [1, g, g^2, g^3, ..., g^{n/2 - 1}]
@@ -143,6 +146,7 @@ where
     type Evaluations = RowMajorMatrix<F>;
 
     fn dft_batch(&self, mut mat: RowMajorMatrix<F>) -> Self::Evaluations {
+        assert_two_adic_fft_height::<F>(mat.height());
         let h = mat.height();
         let w = mat.width();
         let log_h = log2_strict_usize(h);
