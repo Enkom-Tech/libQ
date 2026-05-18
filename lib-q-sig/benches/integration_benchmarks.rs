@@ -21,6 +21,26 @@ use lib_q_core::{
 };
 use lib_q_sig::LibQSignatureProvider;
 
+/// Key-generation entropy for SLH-DSA (3×N with N ≤ 32).
+#[cfg(feature = "slh-dsa")]
+fn slh_dsa_keygen_randomness(seed: u8) -> [u8; 96] {
+    let mut bytes = [0u8; 96];
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *byte = seed.wrapping_add(i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+    }
+    bytes
+}
+
+/// Signing entropy for SLH-DSA (sized for all parameter sets).
+#[cfg(feature = "slh-dsa")]
+fn slh_dsa_signing_randomness(seed: u8) -> [u8; 32] {
+    let mut bytes = [0u8; 32];
+    for (i, byte) in bytes.iter_mut().enumerate() {
+        *byte = seed.wrapping_add(i as u8).wrapping_mul(0x3D).wrapping_add(0x5A);
+    }
+    bytes
+}
+
 /// Benchmark provider pattern key generation across all algorithms
 fn benchmark_provider_key_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("provider_key_generation");
@@ -39,11 +59,12 @@ fn benchmark_provider_key_generation(c: &mut Criterion) {
             Algorithm::SlhDsaShake256256fRobust,
         ];
 
-        for algorithm in slh_dsa_algorithms {
+        for (seed, algorithm) in slh_dsa_algorithms.iter().enumerate() {
+            let key_randomness = slh_dsa_keygen_randomness(seed as u8);
             group.bench_function(format!("{:?}", algorithm), |b| {
                 b.iter(|| {
                     let keypair = provider
-                        .generate_keypair(algorithm, None)
+                        .generate_keypair(*algorithm, Some(&key_randomness))
                         .expect("Key generation should succeed");
                     black_box(keypair)
                 })
@@ -100,8 +121,10 @@ fn benchmark_provider_signing(c: &mut Criterion) {
     {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
+        let key_randomness = slh_dsa_keygen_randomness(0);
+        let signing_randomness = slh_dsa_signing_randomness(0);
         let keypair = provider
-            .generate_keypair(algorithm, None)
+            .generate_keypair(algorithm, Some(&key_randomness))
             .expect("Key generation should succeed");
 
         let message_sizes = [64, 256, 1024, 4096, 16384];
@@ -111,7 +134,12 @@ fn benchmark_provider_signing(c: &mut Criterion) {
             group.bench_with_input(BenchmarkId::new("SLH-DSA", size), &message, |b, msg| {
                 b.iter(|| {
                     let signature = provider
-                        .sign(algorithm, keypair.secret_key(), msg, None)
+                        .sign(
+                            algorithm,
+                            keypair.secret_key(),
+                            msg,
+                            Some(&signing_randomness),
+                        )
                         .expect("Signing should succeed");
                     black_box(signature)
                 })
@@ -134,8 +162,10 @@ fn benchmark_provider_verification(c: &mut Criterion) {
     {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
+        let key_randomness = slh_dsa_keygen_randomness(1);
+        let signing_randomness = slh_dsa_signing_randomness(1);
         let keypair = provider
-            .generate_keypair(algorithm, None)
+            .generate_keypair(algorithm, Some(&key_randomness))
             .expect("Key generation should succeed");
 
         let message_sizes = [64, 256, 1024, 4096, 16384];
@@ -143,7 +173,12 @@ fn benchmark_provider_verification(c: &mut Criterion) {
         for size in message_sizes {
             let message = vec![0u8; size];
             let signature = provider
-                .sign(algorithm, keypair.secret_key(), &message, None)
+                .sign(
+                    algorithm,
+                    keypair.secret_key(),
+                    &message,
+                    Some(&signing_randomness),
+                )
                 .expect("Signing should succeed");
 
             group.bench_with_input(BenchmarkId::new("SLH-DSA", size), &message, |b, msg| {
@@ -178,18 +213,25 @@ fn benchmark_cross_algorithm_comparison(c: &mut Criterion) {
             Algorithm::SlhDsaShake256256fRobust,
         ];
 
-        for algorithm in slh_dsa_algorithms {
+        for (seed, algorithm) in slh_dsa_algorithms.iter().enumerate() {
+            let key_randomness = slh_dsa_keygen_randomness(seed as u8);
+            let signing_randomness = slh_dsa_signing_randomness(seed as u8);
             let keypair = provider
-                .generate_keypair(algorithm, None)
+                .generate_keypair(*algorithm, Some(&key_randomness))
                 .expect("Key generation should succeed");
 
             group.bench_function(format!("{:?}_full_workflow", algorithm), |b| {
                 b.iter(|| {
                     let signature = provider
-                        .sign(algorithm, keypair.secret_key(), message, None)
+                        .sign(
+                            *algorithm,
+                            keypair.secret_key(),
+                            message,
+                            Some(&signing_randomness),
+                        )
                         .expect("Signing should succeed");
                     let is_valid = provider
-                        .verify(algorithm, keypair.public_key(), message, &signature)
+                        .verify(*algorithm, keypair.public_key(), message, &signature)
                         .expect("Verification should succeed");
                     black_box((signature, is_valid))
                 })
@@ -212,11 +254,7 @@ fn benchmark_security_validation_overhead(c: &mut Criterion) {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
-        // Benchmark with valid randomness (includes security validation)
-        let mut valid_randomness = [0u8; 32];
-        for (i, item) in valid_randomness.iter_mut().enumerate() {
-            *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
-        }
+        let valid_randomness = slh_dsa_keygen_randomness(0x2B);
 
         group.bench_function("with_security_validation", |b| {
             b.iter(|| {
@@ -227,7 +265,8 @@ fn benchmark_security_validation_overhead(c: &mut Criterion) {
             })
         });
 
-        // Benchmark with system RNG (bypasses some validation)
+        // Benchmark with system RNG (requires slh-dsa-std for OS entropy)
+        #[cfg(feature = "slh-dsa-std")]
         group.bench_function("with_system_rng", |b| {
             b.iter(|| {
                 let keypair = provider
@@ -295,11 +334,14 @@ fn benchmark_provider_memory_usage(c: &mut Criterion) {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
         let algorithm = Algorithm::SlhDsaShake256128fRobust;
 
+        let key_randomness = slh_dsa_keygen_randomness(0x7E);
+        let signing_randomness = slh_dsa_signing_randomness(0x7E);
+
         // Benchmark key generation memory usage
         group.bench_function("key_generation_memory", |b| {
             b.iter(|| {
                 let keypair = provider
-                    .generate_keypair(algorithm, None)
+                    .generate_keypair(algorithm, Some(&key_randomness))
                     .expect("Key generation should succeed");
                 let public_key_size = keypair.public_key().as_bytes().len();
                 let secret_key_size = keypair.secret_key().as_bytes().len();
@@ -309,14 +351,19 @@ fn benchmark_provider_memory_usage(c: &mut Criterion) {
 
         // Benchmark signing memory usage
         let keypair = provider
-            .generate_keypair(algorithm, None)
+            .generate_keypair(algorithm, Some(&key_randomness))
             .expect("Key generation should succeed");
         let message = b"Memory usage benchmark message";
 
         group.bench_function("signing_memory", |b| {
             b.iter(|| {
                 let signature = provider
-                    .sign(algorithm, keypair.secret_key(), message, None)
+                    .sign(
+                        algorithm,
+                        keypair.secret_key(),
+                        message,
+                        Some(&signing_randomness),
+                    )
                     .expect("Signing should succeed");
                 let signature_size = signature.len();
                 black_box(signature_size)
