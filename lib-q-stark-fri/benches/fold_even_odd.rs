@@ -1,3 +1,9 @@
+//! FRI even/odd fold benchmarks.
+//!
+//! Base [`Mersenne31`] has `TWO_ADICITY = 1`; [`TwoAdicFriFolding::fold_matrix`] needs
+//! `log2(height) + 1` two-adic bits. Benchmark only [`Complex<Mersenne31>`] (see
+//! `lib-q-stark-dft/benches/fft.rs`).
+
 use core::marker::PhantomData;
 
 use criterion::{
@@ -54,14 +60,6 @@ where
 fn bench_fold_even_odd(c: &mut Criterion) {
     let log_sizes = [12, 14, 16, 18, 20, 22];
 
-    bench::<Mersenne31, Mersenne31>(c, &log_sizes);
-    // Mersenne31 only supports degree 2 and 3 extensions, not degree 5
-    // bench::<Mersenne31, BinomialExtensionField<Mersenne31, 5>>(c, &log_sizes);
-    // bench::<BinomialExtensionField<Mersenne31, 5>, BinomialExtensionField<Mersenne31, 5>>(
-    //     c, &log_sizes,
-    // );
-    // Goldilocks field not integrated - benchmarks removed
-    // bench::<Goldilocks, Goldilocks>(c, &log_sizes);
     bench::<Complex<Mersenne31>, Complex<Mersenne31>>(c, &log_sizes);
 }
 
