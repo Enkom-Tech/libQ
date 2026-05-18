@@ -16,6 +16,8 @@ use lib_q_stark_field::{
     Field,
     Powers,
     TwoAdicField,
+    assert_two_adic_bits,
+    assert_two_adic_fft_height,
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::bitrev::{
@@ -91,6 +93,7 @@ where
         w_lock
             .entry(log_h)
             .or_insert_with(|| {
+                assert_two_adic_bits::<F>(log_h);
                 let half_h = (1 << log_h) >> 1;
                 let root = F::two_adic_generator(log_h);
                 let twiddles = root.powers().collect_n(half_h);
@@ -119,6 +122,7 @@ where
         w_lock
             .entry(key)
             .or_insert_with(|| {
+                assert_two_adic_bits::<F>(log_h);
                 let mid = log_h.div_ceil(2);
                 let h = 1 << log_h;
                 let root = F::two_adic_generator(log_h);
@@ -154,6 +158,7 @@ where
         w_lock
             .entry(log_h)
             .or_insert_with(|| {
+                assert_two_adic_bits::<F>(log_h);
                 // This computation only runs if the entry is truly vacant.
                 let half_h = (1 << log_h) >> 1;
                 let root_inv = F::two_adic_generator(log_h).inverse();
@@ -174,6 +179,7 @@ impl<F: TwoAdicField + Ord> TwoAdicSubgroupDft<F> for Radix2DitParallel<F> {
     type Evaluations = BitReversedMatrixView<RowMajorMatrix<F>>;
 
     fn dft_batch(&self, mut mat: RowMajorMatrix<F>) -> Self::Evaluations {
+        assert_two_adic_fft_height::<F>(mat.height());
         let h = mat.height();
         let log_h = log2_strict_usize(h);
 

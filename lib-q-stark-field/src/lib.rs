@@ -40,6 +40,7 @@ pub mod integers;
 pub mod op_assign_macros;
 mod packed;
 pub mod secret;
+mod two_adic;
 
 pub use array::*;
 pub use batch_inverse::*;
@@ -48,3 +49,4 @@ pub use field::*;
 pub use helpers::*;
 pub use packed::*;
 pub use secret::*;
+pub use two_adic::*;
