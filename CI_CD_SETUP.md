@@ -13,7 +13,10 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **WASM validation**: `wasm-build` across several crates; additional Romulus `no_std` / `wasm32` smoke checks.
 - **Cross-platform builds**: Non-PR only; multiple OS/target combinations.
 - **Algorithm tests**: Composite `test-*` actions for Keccak, SHA3, K12 (in `lib-q-hash`), Saturnin, FN-DSA, RNG (`lib-q-random`), CB-KEM, SLH-DSA, HPKE, and HQC (see [Composite actions](#composite-actions)).
-- **Other jobs**: ML-DSA compliance, documentation generation, integration tests, performance-style jobs where configured, SIMD debug for HQC, etc.
+- **Benchmark manifest** (`bench-shards-validate`): On every run (including PRs), validates [`.github/benchmark-shards.toml`](.github/benchmark-shards.toml) and compile-checks each shard with `cargo bench --no-run`.
+- **Benchmark matrix** (`bench-matrix`): On every run (including PRs), emits and verifies GitHub Actions matrix JSON from the manifest (`bench-shards-to-json.sh` + `verify-matrix`); no Criterion execution on PRs.
+- **Per-crate benchmarks** (non-PR only): `bench-warm-cache` compiles all manifest shards once; `performance-benches` runs ~23 parallel shards (`max-parallel: 12`) via [`run-bench-shard`](.github/actions/run-bench-shard). Bench jobs use `concurrency` groups under `ci-benches-${{ github.ref }}` with `cancel-in-progress: true` so force-pushes cancel stale warm-cache and shard runs. Criterion uses `--quick --warm-up-time 1`.
+- **Other jobs**: ML-DSA compliance, documentation generation, integration tests, SIMD debug for HQC, etc.
 
 ### CD Pipeline (`.github/workflows/cd.yml`)
 
@@ -88,7 +91,13 @@ Used in `ci.yml` and `cd.yml` (wasm-pack; supports `out-dir`, feature flags, `ch
 
 ### Performance benchmark (`.github/actions/performance-benchmark`)
 
-Composite action exists for reuse; **no workflow currently invokes it**. Use or wire it explicitly if you need a dedicated benchmark job.
+Reusable local/manual runner: executes [`scripts/run-bench-shards.sh`](scripts/run-bench-shards.sh) (manifest-driven). CI uses the `performance-benches` matrix in `ci.yml`, not this action directly.
+
+**Maintainer workflow:** when adding `[[bench]]` to a workspace crate, add a matching `[[shard]]` in [`.github/benchmark-shards.toml`](.github/benchmark-shards.toml), then run `./scripts/validate-bench-shards.sh` and `./scripts/bench-shards-to-json.sh` (includes `verify-matrix`).
+
+### Run benchmark shard (`.github/actions/run-bench-shard`)
+
+Runs one manifest row: `cargo bench -p <package>` with optional `--features` / `--bench`. Matrix shards use `actions/cache/restore@v5` only; `bench-warm-cache` restores, compiles, then `actions/cache/save@v5`.
 
 ### Algorithm-specific test actions
 

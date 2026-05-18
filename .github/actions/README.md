@@ -51,6 +51,14 @@ Builds WebAssembly targets (web, nodejs) via wasm-pack. Supports `out-dir` (defa
 
 Publishes Rust crates to crates.io. The CD workflow uses `rust-lang/crates-io-auth-action` (Trusted Publishing) and passes its token output to this action. Configure this repository as a trusted publisher at https://crates.io/settings/publishing for workflow `cd.yml` before releasing.
 
+### `run-bench-shard`
+
+Runs one row from [`.github/benchmark-shards.toml`](../benchmark-shards.toml): `cargo bench -p <package>` with optional `--features` and `--bench`. Used by the `performance-benches` matrix in `ci.yml`. Shards restore cache only; `bench-warm-cache` saves the shared `target/` cache. Stale shard runs are cancelled via per-shard `concurrency` groups (`ci-benches-<ref>-<id>`).
+
+### `performance-benchmark`
+
+Manual/reusable runner for all manifest shards via `scripts/run-bench-shards.sh` (Criterion `--quick` by default). CI does not invoke this action; it uses the per-crate matrix instead.
+
 ## Workflow Integration
 
 The actions are used in the following workflows:

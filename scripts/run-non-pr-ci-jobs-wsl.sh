@@ -22,8 +22,9 @@
 #   CARGO_TARGET_DIR   If unset and the repo lives under /mnt/, defaults to
 #                      $HOME/.cache/libq-wsl-ci-target so `cargo clean` / `rm -rf target/release`
 #                      patterns do not hit drvfs I/O errors.
-#   PERF_NO_RUN=1      Only compile workspace benches (`cargo bench --no-run`); skip the
-#                      long `cargo bench --features all-algorithms` execution (CI runs it).
+#   PERF_NO_RUN=1      Compile all manifest shards only (`cargo bench --no-run` per shard).
+#   PERF_PARALLEL=1    Run all manifest shards concurrently (high RAM use).
+#   SHARD_ID=lib-q-zkp Run a single shard from .github/benchmark-shards.toml
 #   BENCH_CRITERION_FLAGS  Extra args after `--` for named Criterion bench steps only (ci.yml).
 
 set -euo pipefail
@@ -41,7 +42,7 @@ fi
 export CARGO_TERM_COLOR="${CARGO_TERM_COLOR:-always}"
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 export CARGO_INCREMENTAL="${CARGO_INCREMENTAL:-0}"
-export BENCH_CRITERION_FLAGS="${BENCH_CRITERION_FLAGS:---sample-size 30 --warm-up-time 1}"
+export BENCH_CRITERION_FLAGS="${BENCH_CRITERION_FLAGS:---quick --warm-up-time 1}"
 
 if [[ -z "${CARGO_TARGET_DIR:-}" ]] && [[ "${ROOT}" == /mnt/* ]]; then
   export CARGO_TARGET_DIR="${HOME}/.cache/libq-wsl-ci-target"
@@ -80,26 +81,8 @@ cargo test -p lib-q-keccak --target aarch64-unknown-linux-gnu --features std --p
 rm -rf "${TGT_DIR}/release-ci"
 cargo test -p lib-q-keccak --target armv7-unknown-linux-gnueabihf --features std --profile release-ci --no-run
 
-echo "== 3/5 Performance & Benchmarks (matches ci.yml performance job) =="
-# shellcheck disable=SC2206
-BENCH_EXTRA=( ${BENCH_CRITERION_FLAGS} )
-
-if [[ "${PERF_NO_RUN:-}" == "1" ]]; then
-  cargo bench --features "all-algorithms" --no-run --verbose
-else
-  cargo bench --features "all-algorithms" --verbose
-fi
-
-cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream,simd-avx2" --bench saturnin_criterion_benches --verbose -- "${BENCH_EXTRA[@]}"
-(
-  cd lib-q-random
-  cargo bench --features "std,secure,zeroize" --verbose -- "${BENCH_EXTRA[@]}"
-)
-(
-  cd lib-q-hqc
-  cargo bench --features "alloc,hqc128,simd-avx2" --bench simd_benchmarks --verbose -- "${BENCH_EXTRA[@]}"
-)
-cargo bench -p lib-q-zkp --features "zkp,std" --bench stark_arithmetic_bench --verbose -- "${BENCH_EXTRA[@]}"
+echo "== 3/5 Performance & Benchmarks (manifest: .github/benchmark-shards.toml) =="
+./scripts/run-bench-shards.sh
 
 echo "== 4/5 SIMD Debug Verification (HQC) =="
 (

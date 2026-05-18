@@ -84,7 +84,7 @@ runs:
     - name: Run performance benchmarks
       shell: bash
       env:
-        BENCH_CRITERION_FLAGS: "--sample-size ${{ inputs.iterations }} --warm-up-time 1"
+        BENCH_CRITERION_FLAGS: "--quick --warm-up-time 1"
       run: |
         echo "⚡ Running performance benchmarks..."
         cd ${{ inputs.working-directory }}
@@ -98,9 +98,8 @@ runs:
             cargo bench --features "${{ inputs.features }}" --bench "$target" --verbose -- ${BENCH_CRITERION_FLAGS}
           done
         else
-          echo "Running all benchmarks"
-          # Workspace-wide bench mixes Criterion and built-in harnesses; Criterion flags break the latter.
-          cargo bench --features "${{ inputs.features }}" --verbose
+          echo "Running all benchmark shards (see ci.yml performance-benches matrix)"
+          bash "${{ github.workspace }}/scripts/run-bench-shards.sh"
         fi
         
         echo "✅ Benchmarks completed successfully"

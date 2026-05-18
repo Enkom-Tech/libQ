@@ -2,8 +2,9 @@ name: CI
 
 # Pull requests: core checks, feature test matrix, WASM, algorithm crates, integration, ML-KEM,
 # ML-DSA targeted tests. Push to main/develop, weekly schedule, and workflow_dispatch also run
-# heavier jobs (benchmarks, cross-OS builds, valgrind, HQC SIMD debug, full ML-DSA audit script,
-# ZKP recursive) to keep CI minutes predictable on PRs.
+# heavier jobs (per-crate Criterion benchmark shards, cross-OS builds, valgrind, HQC SIMD debug, full ML-DSA audit script,
+# ZKP recursive) to keep CI minutes predictable on PRs. PRs still run bench-shards-validate and bench-matrix (manifest
+# compile-check + matrix JSON verify); full Criterion shards run only on push/schedule/dispatch.
 
 on:
   push:
@@ -695,18 +696,35 @@ jobs:
           cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --profile release-ci --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
-  # Performance and benchmarks - runs after core validation
-  performance:
-    name: Performance & Benchmarks
+  # Benchmark manifest validation (all events, including PRs).
+  bench-shards-validate:
+    name: Benchmark manifest
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Validate benchmark shards manifest
+        run: ./scripts/validate-bench-shards.sh
+
+  # Compile all bench targets once and populate the shared release cache (non-PR only).
+  bench-warm-cache:
+    name: Benchmark warm cache
     if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
-    # Full-workspace bench runs exceed 30m after compile; keep cached target/release.
-    # BENCH_CRITERION_FLAGS applies only to named Criterion bench steps (not workspace-wide cargo bench).
-    timeout-minutes: 90
+    timeout-minutes: 60
+    concurrency:
+      group: ci-benches-${{ github.ref }}-warm-cache
+      cancel-in-progress: true
     env:
       CARGO_INCREMENTAL: "0"
-      BENCH_CRITERION_FLAGS: "--sample-size 30 --warm-up-time 1"
     steps:
       - uses: actions/checkout@v5
 
@@ -716,8 +734,9 @@ jobs:
           toolchain: stable
           components: rust-src
 
-      - name: Cache dependencies
-        uses: actions/cache@v5
+      - name: Restore cache
+        id: bench-cache
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/registry
@@ -726,39 +745,64 @@ jobs:
           key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-bench-
-      
-      - name: Run benchmarks
-        run: |
-          # Do not rm target/release: the bench cache restores release artifacts and avoids a
-          # full workspace recompile on every push to main.
-          # No Criterion flags here: the workspace mixes Criterion benches and built-in #[bench] harnesses.
-          cargo bench --features "all-algorithms" --verbose
 
-      - name: Run Saturnin SIMD benchmarks
-        run: |
-          echo "Running Saturnin scalar vs AVX2 benchmarks..."
-          cargo bench -p lib-q-saturnin --features "alloc,aead,block-cipher,hash,stream,simd-avx2" --bench saturnin_criterion_benches --verbose -- ${BENCH_CRITERION_FLAGS}
-          echo "✅ Saturnin SIMD benchmarks completed"
-      
-      - name: Run RNG performance benchmarks
-        run: |
-          echo "Running RNG-specific performance benchmarks..."
-          cd lib-q-random
-          cargo bench --features "std,secure,zeroize" --verbose -- ${BENCH_CRITERION_FLAGS}
-          echo "✅ RNG performance benchmarks completed"
-      
-      - name: Run HQC SIMD benchmarks
-        run: |
-          echo "Running HQC SIMD performance benchmarks..."
-          cd lib-q-hqc
-          cargo bench --features "alloc,hqc128,simd-avx2" --bench simd_benchmarks --verbose -- ${BENCH_CRITERION_FLAGS}
-          echo "✅ HQC SIMD benchmarks completed"
+      - name: Compile all manifest benchmark targets
+        run: PERF_NO_RUN=1 ./scripts/run-bench-shards.sh
 
-      - name: Run lib-q-zkp STARK benchmarks
-        run: |
-          echo "Running lib-q-zkp STARK arithmetic benchmarks..."
-          cargo bench -p lib-q-zkp --features "zkp,std" --bench stark_arithmetic_bench --verbose -- ${BENCH_CRITERION_FLAGS}
-          echo "✅ lib-q-zkp STARK benchmarks completed"
+      - name: Save cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.bench-cache.outputs.cache-primary-key }}
+
+  # Emit per-crate matrix from .github/benchmark-shards.toml (all events; PRs only parse/verify JSON).
+  bench-matrix:
+    name: Benchmark matrix
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: ci-benches-${{ github.ref }}-matrix
+      cancel-in-progress: true
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generate and verify benchmark matrix JSON
+        id: matrix
+        run: ./scripts/bench-shards-to-json.sh
+
+  # Per-crate Criterion benchmarks — parallel matrix (~23 shards).
+  performance-benches:
+    name: Benchmarks · ${{ matrix.id }}
+    if: github.event_name != 'pull_request'
+    needs: [bench-warm-cache, bench-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    concurrency:
+      group: ci-benches-${{ github.ref }}-${{ matrix.id }}
+      cancel-in-progress: true
+    env:
+      CARGO_INCREMENTAL: "0"
+      BENCH_CRITERION_FLAGS: "--quick --warm-up-time 1"
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJson(needs.bench-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run benchmark shard
+        uses: ./.github/actions/run-bench-shard
+        with:
+          package: ${{ matrix.package }}
+          features: ${{ matrix.features }}
+          bench: ${{ matrix.bench }}
 
   # Documentation generation - lightweight job
   documentation:
@@ -807,7 +851,7 @@ jobs:
             working-directory: lib-q-keccak
             features: "asm,simd"
             rust-version: "nightly"
-            run-benchmarks: "true"
+            run-benchmarks: "false"
             test-algorithms: ""
           - name: "SHA3"
             action: test-sha3
@@ -843,7 +887,7 @@ jobs:
             working-directory: lib-q-random
             features: "std,secure,zeroize"
             rust-version: "stable"
-            run-benchmarks: "true"
+            run-benchmarks: "false"
             run-entropy-validation: "true"
             run-security-tests: "true"
             run-constant-time: "true"
@@ -853,7 +897,7 @@ jobs:
             working-directory: lib-q-cb-kem
             features: "cbkem348864"
             rust-version: "stable"
-            run-benchmarks: "true"
+            run-benchmarks: "false"
             run-security-tests: "true"
             run-constant-time: "true"
             test-algorithms: "cbkem348864,cbkem460896,cbkem6688128,cbkem6960119,cbkem8192128,cbkem8192128f"
@@ -880,7 +924,7 @@ jobs:
             working-directory: lib-q-hqc
             features: "alloc,hqc128,simd-avx2"
             rust-version: "stable"
-            run-benchmarks: "false"  # Changed from "true" - benchmarks run in performance job
+            run-benchmarks: "false"  # Benchmarks run in performance-benches matrix (non-PR only)
             run-security-tests: "true"
             run-simd-tests: "true"
             test-algorithms: "hqc128,hqc192,hqc256"
@@ -971,8 +1015,8 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
           features: ${{ matrix.features }}
           rust-version: ${{ matrix.rust-version }}
-          # Full Criterion runs are skipped on pull requests to keep algorithm-tests within its time budget; they still run on main/schedule (performance job also benches the workspace)
-          run-benchmarks: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
+          # Criterion benches run in performance-benches manifest matrix (non-PR only)
+          run-benchmarks: "false"
           # Full release-ci KAT/ACVP sigGen projection is skipped on PRs; smoke KATs still run in earlier steps.
           run-extended-kats: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           run-security-tests: ${{ matrix.run-security-tests }}
@@ -1222,7 +1266,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, performance, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

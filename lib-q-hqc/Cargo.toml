@@ -58,6 +58,10 @@ required-features = ["hqc128", "hqc192", "hqc256"]
 name = "performance_benchmarks"
 harness = false
 
+[[bench]]
+name = "simd_benchmarks"
+harness = false
+
 [[test]]
 name = "bearssl_kat_verification_test"
 path = "tests/bearssl_kat_verification_test.rs"
