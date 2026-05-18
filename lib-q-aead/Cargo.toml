@@ -125,6 +125,11 @@ wasm-bindgen-test = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 
+[[bench]]
+name = "aead_benchmarks"
+path = "benches/aead_benchmarks.rs"
+harness = false
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

@@ -1,0 +1,123 @@
+# Benchmark CI shard registry — one [[shard]] row per GitHub Actions matrix job.
+#
+# When adding [[bench]] to any workspace crate, add a matching [[shard]] here.
+# CI: bench-shards-validate (compile-check) and bench-matrix (JSON for fromJson) run on every PR.
+#
+# Fields:
+#   id              — unique job label (required)
+#   package         — Cargo -p name (required)
+#   features        — comma-separated --features (optional; crate defaults if omitted)
+#   bench           — single --bench target (optional; all package benches if omitted)
+#   timeout_minutes — job timeout (optional; default 20)
+#   enabled         — set false to skip row (optional; default true)
+
+[[shard]]
+id = "lib-q-stark-matrix"
+package = "lib-q-stark-matrix"
+timeout_minutes = 45
+
+[[shard]]
+id = "lib-q-stark-mersenne31"
+package = "lib-q-stark-mersenne31"
+
+[[shard]]
+id = "lib-q-stark-dft"
+package = "lib-q-stark-dft"
+
+[[shard]]
+id = "lib-q-stark-fri"
+package = "lib-q-stark-fri"
+
+[[shard]]
+id = "lib-q-stark-mds"
+package = "lib-q-stark-mds"
+
+[[shard]]
+id = "lib-q-stark-merkle"
+package = "lib-q-stark-merkle"
+
+[[shard]]
+id = "lib-q-stark-util"
+package = "lib-q-stark-util"
+
+[[shard]]
+id = "lib-q-zkp"
+package = "lib-q-zkp"
+features = "zkp,std"
+timeout_minutes = 30
+
+[[shard]]
+id = "lib-q-ml-dsa"
+package = "lib-q-ml-dsa"
+timeout_minutes = 45
+
+[[shard]]
+id = "lib-q-slh-dsa"
+package = "lib-q-slh-dsa"
+timeout_minutes = 30
+
+[[shard]]
+id = "lib-q-fn-dsa"
+package = "lib-q-fn-dsa"
+
+[[shard]]
+id = "lib-q-sig"
+package = "lib-q-sig"
+features = "std"
+
+[[shard]]
+id = "lib-q-ml-kem"
+package = "lib-q-ml-kem"
+
+[[shard]]
+id = "lib-q-cb-kem"
+package = "lib-q-cb-kem"
+
+[[shard]]
+id = "lib-q-k12"
+package = "lib-q-k12"
+
+[[shard]]
+id = "lib-q-sha3"
+package = "lib-q-sha3"
+
+[[shard]]
+id = "lib-q-duplex-aead"
+package = "lib-q-duplex-aead"
+
+[[shard]]
+id = "lib-q-tweak-aead"
+package = "lib-q-tweak-aead"
+
+[[shard]]
+id = "lib-q-aead"
+package = "lib-q-aead"
+features = "shake256,std"
+
+[[shard]]
+id = "lib-q-hqc-portable"
+package = "lib-q-hqc"
+features = "alloc,hqc128"
+bench = "performance_benchmarks"
+timeout_minutes = 30
+
+[[shard]]
+id = "lib-q-hqc-simd"
+package = "lib-q-hqc"
+features = "alloc,hqc128,simd-avx2"
+bench = "simd_benchmarks"
+timeout_minutes = 30
+
+# Orphan HQC bench sources (not registered): drbg_comparison_bench, performance_working_benchmarks
+
+[[shard]]
+id = "lib-q-saturnin-simd"
+package = "lib-q-saturnin"
+features = "alloc,aead,block-cipher,hash,stream,simd-avx2"
+bench = "saturnin_criterion_benches"
+timeout_minutes = 30
+
+[[shard]]
+id = "lib-q-random"
+package = "lib-q-random"
+features = "std,secure,zeroize"
