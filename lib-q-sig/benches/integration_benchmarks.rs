@@ -26,7 +26,10 @@ use lib_q_sig::LibQSignatureProvider;
 fn slh_dsa_keygen_randomness(seed: u8) -> [u8; 96] {
     let mut bytes = [0u8; 96];
     for (i, byte) in bytes.iter_mut().enumerate() {
-        *byte = seed.wrapping_add(i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
+        *byte = seed
+            .wrapping_add(i as u8)
+            .wrapping_mul(0x1F)
+            .wrapping_add(0x2B);
     }
     bytes
 }
@@ -36,7 +39,10 @@ fn slh_dsa_keygen_randomness(seed: u8) -> [u8; 96] {
 fn slh_dsa_signing_randomness(seed: u8) -> [u8; 32] {
     let mut bytes = [0u8; 32];
     for (i, byte) in bytes.iter_mut().enumerate() {
-        *byte = seed.wrapping_add(i as u8).wrapping_mul(0x3D).wrapping_add(0x5A);
+        *byte = seed
+            .wrapping_add(i as u8)
+            .wrapping_mul(0x3D)
+            .wrapping_add(0x5A);
     }
     bytes
 }
