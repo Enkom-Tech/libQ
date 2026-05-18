@@ -1,3 +1,10 @@
+//! MDS permutation benchmarks.
+//!
+//! [`CosetMds`] and [`IntegratedCosetMds`] build FFT twiddles via
+//! [`TwoAdicField::two_adic_generator`]. Base [`Mersenne31`] has `TWO_ADICITY = 1`, so
+//! coset MDS at width 16 is benchmarked on [`Complex<Mersenne31>`] only. Static
+//! [`MdsMatrixMersenne31`] benches remain on the base field.
+
 use core::any::type_name;
 
 use criterion::{
@@ -6,6 +13,7 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
+use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
@@ -33,10 +41,12 @@ use rand::{
 };
 
 fn bench_all_mds(c: &mut Criterion) {
-    bench_mds::<Mersenne31, IntegratedCosetMds<Mersenne31, 16>, 16>(c);
-    bench_mds::<<Mersenne31 as Field>::Packing, IntegratedCosetMds<Mersenne31, 16>, 16>(c);
-    bench_mds::<Mersenne31, CosetMds<Mersenne31, 16>, 16>(c);
-    bench_mds::<<Mersenne31 as Field>::Packing, CosetMds<Mersenne31, 16>, 16>(c);
+    type F = Complex<Mersenne31>;
+
+    bench_mds::<F, IntegratedCosetMds<F, 16>, 16>(c);
+    bench_mds::<<F as Field>::Packing, IntegratedCosetMds<F, 16>, 16>(c);
+    bench_mds::<F, CosetMds<F, 16>, 16>(c);
+    bench_mds::<<F as Field>::Packing, CosetMds<F, 16>, 16>(c);
 
     bench_mds::<Mersenne31, MdsMatrixMersenne31, 8>(c);
     bench_mds::<Mersenne31, MdsMatrixMersenne31, 12>(c);
