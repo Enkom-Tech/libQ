@@ -43,6 +43,7 @@ no_std = []
 wasm = ["alloc", "wasm-bindgen", "js-sys", "serde-wasm-bindgen", "serde_json", "lib-q-core/wasm"]
 
 [lib]
+bench = false
 name = "lib_q_sig"
 path = "src/lib.rs"
 # wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.

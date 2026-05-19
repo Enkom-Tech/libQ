@@ -35,6 +35,9 @@ rand = { workspace = true, default-features = false }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
+[lib]
+bench = false
+
 [[bench]]
 name = "transpose_benchmark"
 path = "benches/transpose_benchmark.rs"

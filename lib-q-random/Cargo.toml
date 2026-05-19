@@ -116,6 +116,7 @@ harness = false
 required-features = ["alloc"]
 
 [lib]
+bench = false
 # wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. The `no_std` feature enables the aborting panic handler for standalone `cargo check` of this crate.
 crate-type = ["cdylib", "rlib"]
 

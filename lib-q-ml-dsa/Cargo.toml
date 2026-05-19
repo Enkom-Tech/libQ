@@ -12,6 +12,7 @@ edition.workspace = true
 repository.workspace = true
 readme.workspace = true
 rust-version.workspace = true
+autobenches = false
 
 [lib]
 bench = false

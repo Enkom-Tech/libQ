@@ -37,6 +37,7 @@ alloc = ["digest/alloc"]
 zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
 
 [lib]
+bench = false
 name = "lib_q_k12"
 path = "src/lib.rs"
 crate-type = ["rlib"]

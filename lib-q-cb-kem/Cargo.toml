@@ -88,6 +88,7 @@ aes = ["dep:aes"]
 nist-aes-rng = ["aes", "zeroize"]
 
 [lib]
+bench = false
 name = "lib_q_cb_kem"
 path = "src/lib.rs"
 # wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.
