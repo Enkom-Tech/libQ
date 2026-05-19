@@ -46,7 +46,12 @@ fi
 
 echo "== Resolving workspace packages =="
 WORKSPACE_PKGS="$(cargo metadata --format-version 1 --no-deps \
-  | "${PYTHON[@]}" -c "import json,sys; m=json.load(sys.stdin); print('\n'.join(sorted(p['name'] for p in m['packages'])))")"
+  | "${PYTHON[@]}" -c "
+import json, sys
+m = json.load(sys.stdin)
+members = set(m['workspace_members'])
+print('\n'.join(sorted(p['name'] for p in m['packages'] if p['id'] in members)))
+")"
 
 while IFS= read -r line; do
   [[ -z "$line" ]] && continue
@@ -100,16 +105,39 @@ for s in tomllib.loads(Path('$MANIFEST').read_text(encoding='utf-8')).get('shard
 
 echo "== Checking for bench targets missing from manifest =="
 WARN=0
-while IFS= read -r toml; do
-  pkg="$(grep -E '^name = ' "$(dirname "$toml")/Cargo.toml" 2>/dev/null | head -1 | sed 's/name = "\(.*\)"/\1/')"
+ORPHAN_WARN="$("${PYTHON[@]}" -c "
+import re
+import subprocess
+import tomllib
+from pathlib import Path
+
+root = Path('$ROOT')
+manifest = tomllib.loads((root / '.github/benchmark-shards.toml').read_text(encoding='utf-8'))
+sharded = {row['package'] for row in manifest.get('shard', [])}
+
+meta = subprocess.run(
+    ['cargo', 'metadata', '--format-version', '1', '--no-deps'],
+    cwd=root, check=True, capture_output=True, text=True,
+).stdout
+import json
+data = json.loads(meta)
+members = set(data['workspace_members'])
+bench_re = re.compile(r'^\\[\\[bench\\]\\]', re.MULTILINE)
+
+for pkg in data['packages']:
+    if pkg['id'] not in members:
+        continue
+    path = Path(pkg['manifest_path'])
+    if not bench_re.search(path.read_text(encoding='utf-8')):
+        continue
+    if pkg['name'] not in sharded:
+        print(pkg['name'])
+")"
+while IFS= read -r pkg; do
   [[ -z "$pkg" ]] && continue
-  if grep -q '^\[\[bench\]\]' "$toml" 2>/dev/null; then
-    if ! grep -q "^package = \"${pkg}\"" "$MANIFEST"; then
-      echo "WARN: ${pkg} has [[bench]] but no shard in benchmark-shards.toml" >&2
-      WARN=1
-    fi
-  fi
-done < <(find . -path './target' -prune -o -name 'Cargo.toml' -print 2>/dev/null)
+  echo "WARN: ${pkg} has [[bench]] but no shard in benchmark-shards.toml" >&2
+  WARN=1
+done <<<"$ORPHAN_WARN"
 
 if [[ "$FAIL" -ne 0 ]]; then
   echo "validate-bench-shards: FAILED" >&2

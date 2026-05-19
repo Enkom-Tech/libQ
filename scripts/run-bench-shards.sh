@@ -46,7 +46,7 @@ bench_shard() {
   if [[ -n "$bench" ]]; then
     args+=(-b "$bench")
   fi
-  ./scripts/run-criterion-benches.sh "${args[@]}"
+  bash ./scripts/run-criterion-benches.sh "${args[@]}"
 }
 
 run_shard_from_line() {
