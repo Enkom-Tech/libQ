@@ -21,7 +21,8 @@ jobs:
   pre-release-validation:
     name: Pre-Release Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # audit/fmt/clippy + full workspace tests (dev + release-ci); CI test-matrix uses 60m per shard.
+    timeout-minutes: 90
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
       cache-key: ${{ steps.cache-key.outputs.value }}
@@ -57,10 +58,18 @@ jobs:
         with:
           run-security-audit: "true"
           run-format-check: "true"
-          run-clippy: "true"
-          run-tests: "true"
+          # Clippy and tests run once below (workspace --all-features) to avoid triple compile/test.
+          run-clippy: "false"
+          run-tests: "false"
+          run-workspace-builds: "false"
           features: "all-algorithms"
-      
+
+      - name: Clippy (workspace, all targets, all features)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run workspace tests (dev profile)
+        run: cargo test --all-features
+
       - name: Run release tests
         run: |
           rm -rf target/release-ci
