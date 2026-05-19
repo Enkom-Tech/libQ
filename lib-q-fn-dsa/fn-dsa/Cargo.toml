@@ -10,6 +10,10 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+autobenches = false
+
+[lib]
+bench = false
 
 [dependencies]
 fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
