@@ -41,6 +41,17 @@ pkg/*.d.ts
 pkg/*.checksum
 pkg/*.sha256
 
+# Python (e.g. scripts/bench_shards_lib.py)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
 # Node.js (for WASM testing and development)
 node_modules/
 npm-debug.log*

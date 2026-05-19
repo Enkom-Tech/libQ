@@ -44,6 +44,9 @@ lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.2" }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
+[lib]
+bench = false
+
 [[bench]]
 name = "fold_even_odd"
 harness = false

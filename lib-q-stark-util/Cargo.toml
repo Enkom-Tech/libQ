@@ -24,6 +24,9 @@ criterion = { workspace = true }
 # Not supported on wasm32-unknown-unknown (see `compile_error!` in `src/lib.rs`).
 parallel = ["rayon"]
 
+[lib]
+bench = false
+
 [[bench]]
 name = "bit_reverse"
 harness = false

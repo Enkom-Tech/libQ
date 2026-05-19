@@ -53,7 +53,9 @@ Publishes Rust crates to crates.io. The CD workflow uses `rust-lang/crates-io-au
 
 ### `run-bench-shard`
 
-Runs one row from [`.github/benchmark-shards.toml`](../benchmark-shards.toml): `cargo bench -p <package>` with optional `--features` and `--bench`. Used by the `performance-benches` matrix in `ci.yml`. Shards restore cache only; `bench-warm-cache` saves the shared `target/` cache. Stale shard runs are cancelled via per-shard `concurrency` groups (`ci-benches-<ref>-<id>`).
+Runs one row from [`.github/benchmark-shards.toml`](../benchmark-shards.toml): each Criterion `[[bench]]` with `harness = false` via `cargo bench -p <package> --bench <name>` (never bare `cargo bench`, which would hit libtest). Optional manifest `--bench` pins a single target. Used by the `performance-benches` matrix in `ci.yml`. Shards restore cache only; `bench-warm-cache` saves the shared `target/` cache. Stale shard runs are cancelled via per-shard `concurrency` groups (`ci-benches-<ref>-<id>`).
+
+For ad-hoc local/CI use, prefer [`scripts/run-criterion-benches.sh`](../../scripts/run-criterion-benches.sh) or `python scripts/bench_shards_lib.py audit` before changing bench manifests.
 
 ### `performance-benchmark`
 

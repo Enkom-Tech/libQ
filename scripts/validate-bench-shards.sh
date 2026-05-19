@@ -37,11 +37,16 @@ if len(ids) != len(set(ids)):
 print(f'Shards enabled: {len(ids)}')
 "
 
+FAIL=0
+
+echo "== Auditing shard bench configuration =="
+if ! "${PYTHON[@]}" scripts/bench_shards_lib.py audit; then
+  FAIL=1
+fi
+
 echo "== Resolving workspace packages =="
 WORKSPACE_PKGS="$(cargo metadata --format-version 1 --no-deps \
   | "${PYTHON[@]}" -c "import json,sys; m=json.load(sys.stdin); print('\n'.join(sorted(p['name'] for p in m['packages'])))")"
-
-FAIL=0
 
 while IFS= read -r line; do
   [[ -z "$line" ]] && continue
@@ -57,20 +62,31 @@ while IFS= read -r line; do
     continue
   fi
 
-  CMD=(cargo bench -p "$package" --no-run)
-  if [[ -n "$features" ]]; then
-    CMD+=(--features "$features")
-  fi
+  BENCHES=()
   if [[ -n "$bench" ]]; then
-    CMD+=(--bench "$bench")
+    BENCHES=("$bench")
+  else
+    mapfile -t BENCHES < <("${PYTHON[@]}" scripts/bench_shards_lib.py criterion-benches "$package" "$features")
+    if [[ ${#BENCHES[@]} -eq 0 ]]; then
+      echo "ERROR: shard $id: no Criterion bench targets for $package" >&2
+      FAIL=1
+      continue
+    fi
   fi
 
-  echo "  compile-check: $id (${CMD[*]})"
-  if ! "${CMD[@]}" >/dev/null 2>&1; then
-    echo "ERROR: shard $id: cargo bench compile failed" >&2
-    "${CMD[@]}" 2>&1 | tail -20 >&2 || true
-    FAIL=1
-  fi
+  for target in "${BENCHES[@]}"; do
+    CMD=(cargo bench -p "$package" --bench "$target" --no-run)
+    if [[ -n "$features" ]]; then
+      CMD+=(--features "$features")
+    fi
+
+    echo "  compile-check: $id --bench $target"
+    if ! "${CMD[@]}" >/dev/null 2>&1; then
+      echo "ERROR: shard $id: cargo bench compile failed for --bench $target" >&2
+      "${CMD[@]}" 2>&1 | tail -20 >&2 || true
+      FAIL=1
+    fi
+  done
 done < <("${PYTHON[@]}" -c "
 import tomllib
 from pathlib import Path

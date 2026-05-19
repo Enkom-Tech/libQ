@@ -42,6 +42,7 @@ zeroize = ["dep:zeroize"]
 wasm = ["lib-q-core/wasm_getrandom"]
 
 [lib]
+bench = false
 name = "lib_q_saturnin"
 path = "src/lib.rs"
 

@@ -47,14 +47,12 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         set -euo pipefail
-        FEATURE_ARGS=()
+        ARGS=(-p "${{ inputs.package }}")
         if [[ -n "${{ inputs.features }}" ]]; then
-          FEATURE_ARGS=(--features "${{ inputs.features }}")
+          ARGS+=(-f "${{ inputs.features }}")
         fi
-        BENCH_ARGS=()
         if [[ -n "${{ inputs.bench }}" ]]; then
-          BENCH_ARGS=(--bench "${{ inputs.bench }}")
+          ARGS+=(-b "${{ inputs.bench }}")
         fi
         echo "Package: ${{ inputs.package }}"
-        cargo bench -p "${{ inputs.package }}" "${FEATURE_ARGS[@]}" "${BENCH_ARGS[@]}" \
-          --verbose -- ${BENCH_CRITERION_FLAGS}
+        bash ./scripts/run-criterion-benches.sh "${ARGS[@]}"

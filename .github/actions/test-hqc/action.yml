@@ -141,8 +141,8 @@ runs:
       run: |
         echo "Running benchmarks..."
         rm -rf target/release
-        cd ${{ inputs.working-directory }}
-        cargo bench --features "${{ inputs.features }}"
+        bash "${{ github.workspace }}/scripts/run-criterion-benches.sh" \
+          -p lib-q-hqc -f "${{ inputs.features }}" -b performance_benchmarks
         echo "Benchmarks completed"
     
     - name: Run SIMD benchmarks
@@ -150,8 +150,8 @@ runs:
       shell: bash
       run: |
         echo "Running SIMD performance benchmarks..."
-        cd ${{ inputs.working-directory }}
-        cargo bench --features "simd-avx2,alloc,hqc128" --bench simd_benchmarks
+        bash "${{ github.workspace }}/scripts/run-criterion-benches.sh" \
+          -p lib-q-hqc -f "simd-avx2,alloc,hqc128" -b simd_benchmarks
         echo "SIMD benchmarks completed"
     
     - name: Run security validation tests

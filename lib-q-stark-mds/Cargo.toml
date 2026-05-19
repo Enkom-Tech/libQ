@@ -25,6 +25,9 @@ rand = { workspace = true, default-features = false, features = ["std"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
+[lib]
+bench = false
+
 [[bench]]
 name = "mds"
 harness = false

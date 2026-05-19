@@ -69,6 +69,7 @@ recursive-proofs-experimental = ["lib-q-stark-merkle/poseidon"]
 trace-debug = []
 
 [lib]
+bench = false
 name = "lib_q_zkp"
 path = "src/lib.rs"
 # wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. Native no_std CI enables `no_std_panic_handler` where applicable.

@@ -44,6 +44,9 @@ lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "
     "criterion-bench",
 ] }
 
+[lib]
+bench = false
+
 [[bench]]
 name = "bench_field"
 harness = false

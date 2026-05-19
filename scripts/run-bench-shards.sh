@@ -16,8 +16,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 export BENCH_CRITERION_FLAGS="${BENCH_CRITERION_FLAGS:---quick --warm-up-time 1}"
-# shellcheck disable=SC2206
-BENCH_EXTRA=( ${BENCH_CRITERION_FLAGS} )
 
 PYTHON=()
 for py in python3.14 python3.13 python3.12 python3.11 python3; do
@@ -40,20 +38,15 @@ bench_shard() {
   local features="$3"
   local bench="$4"
 
-  local -a cmd=(cargo bench -p "$package")
+  echo ">>> Benchmark shard: $id"
+  local -a args=(-p "$package")
   if [[ -n "$features" ]]; then
-    cmd+=(--features "$features")
+    args+=(-f "$features")
   fi
   if [[ -n "$bench" ]]; then
-    cmd+=(--bench "$bench")
+    args+=(-b "$bench")
   fi
-  if [[ "${PERF_NO_RUN:-}" == "1" ]]; then
-    cmd+=(--no-run)
-  fi
-  cmd+=(--verbose -- "${BENCH_EXTRA[@]}")
-
-  echo ">>> Benchmark shard: $id"
-  "${cmd[@]}"
+  ./scripts/run-criterion-benches.sh "${args[@]}"
 }
 
 run_shard_from_line() {

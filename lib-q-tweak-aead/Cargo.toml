@@ -24,6 +24,7 @@ std = ["lib-q-core/std"]
 simd-avx2 = []
 
 [lib]
+bench = false
 name = "lib_q_tweak_aead"
 path = "src/lib.rs"
 
