@@ -9,9 +9,19 @@ use lib_q_stark_matrix::dense::RowMajorMatrix;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 
+fn large_transpose_dims() -> &'static [(usize, usize)] {
+    const LARGE: [(usize, usize); 4] = [(20, 8), (21, 8), (22, 8), (23, 8)];
+    // 2^23 x 2^8 needs ~8 GiB per u32 matrix (~16 GiB for src+dst); exceeds GitHub runner RAM.
+    const LARGE_CI: [(usize, usize); 3] = [(20, 8), (21, 8), (22, 8)];
+    if std::env::var_os("CI").is_some() {
+        &LARGE_CI
+    } else {
+        &LARGE
+    }
+}
+
 fn transpose_benchmark(c: &mut Criterion) {
     const SMALL_DIMS: [(usize, usize); 4] = [(4, 4), (8, 8), (10, 10), (12, 12)];
-    const LARGE_DIMS: [(usize, usize); 4] = [(20, 8), (21, 8), (22, 8), (23, 8)];
 
     let inner = |g: &mut BenchmarkGroup<'_, _>, dims: &[(usize, usize)]| {
         let mut rng = SmallRng::seed_from_u64(1);
@@ -41,7 +51,7 @@ fn transpose_benchmark(c: &mut Criterion) {
     let mut g = c.benchmark_group("transpose");
     inner(&mut g, &SMALL_DIMS);
     g.sample_size(10);
-    inner(&mut g, &LARGE_DIMS);
+    inner(&mut g, large_transpose_dims());
 }
 
 criterion_group!(benches, transpose_benchmark);
