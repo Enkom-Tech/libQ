@@ -13,7 +13,8 @@ fn large_transpose_dims() -> &'static [(usize, usize)] {
     const LARGE: [(usize, usize); 4] = [(20, 8), (21, 8), (22, 8), (23, 8)];
     // 2^23 x 2^8 needs ~8 GiB per u32 matrix (~16 GiB for src+dst); exceeds GitHub runner RAM.
     const LARGE_CI: [(usize, usize); 3] = [(20, 8), (21, 8), (22, 8)];
-    if std::env::var_os("CI").is_some() {
+    // GitHub Actions sets CI at compile time; avoid std::env (disallowed in clippy.toml).
+    if option_env!("CI").is_some() {
         &LARGE_CI
     } else {
         &LARGE
