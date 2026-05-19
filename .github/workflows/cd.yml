@@ -21,8 +21,8 @@ jobs:
   pre-release-validation:
     name: Pre-Release Validation
     runs-on: ubuntu-latest
-    # audit/fmt/clippy + full workspace tests (dev + release-ci); CI test-matrix uses 60m per shard.
-    timeout-minutes: 90
+    # audit/fmt/clippy + rust-test (std,all-algorithms); CI test-matrix allows 60m for that shard alone.
+    timeout-minutes: 150
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
       cache-key: ${{ steps.cache-key.outputs.value }}
@@ -67,13 +67,13 @@ jobs:
       - name: Clippy (workspace, all targets, all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Run workspace tests (dev profile)
-        run: cargo test --all-features
-
-      - name: Run release tests
-        run: |
-          rm -rf target/release-ci
-          cargo test --all-features --profile release-ci
+      # Match CI test-matrix "all-algorithms" (not --all-features): avoids optional
+      # feature explosion and uses rust-test FN-DSA release-ci smoke paths.
+      - name: Run workspace tests (std, all-algorithms)
+        uses: ./.github/actions/rust-test
+        with:
+          features: "std,all-algorithms"
+          run-release-tests: "true"
 
   # Rust crate publishing in dependency order (each tier after the previous).
   # Uses crates.io Trusted Publishing (OIDC); configure trusted publishers at
