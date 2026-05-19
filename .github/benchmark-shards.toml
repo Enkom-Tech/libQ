@@ -60,6 +60,12 @@ timeout_minutes = 30
 id = "lib-q-fn-dsa"
 package = "lib-q-fn-dsa"
 
+# Low-level reference microbenches (keygen/sign/verify); umbrella API perf in lib-q-fn-dsa.
+[[shard]]
+id = "fn-dsa"
+package = "fn-dsa"
+timeout_minutes = 45
+
 [[shard]]
 id = "lib-q-sig"
 package = "lib-q-sig"
