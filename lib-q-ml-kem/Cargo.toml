@@ -52,6 +52,7 @@ js-sys = { workspace = true, optional = true }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [lib]
+bench = false
 name = "lib_q_ml_kem"
 path = "src/lib.rs"
 # wasm-pack requires `cdylib` in this manifest; `rlib` remains for Rust consumers. A native

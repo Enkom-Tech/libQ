@@ -43,6 +43,7 @@ zeroize = ["digest/zeroize"]
 asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
 
 [lib]
+bench = false
 name = "lib_q_sha3"
 path = "src/lib.rs"
 crate-type = ["rlib"]

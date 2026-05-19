@@ -35,6 +35,9 @@ alloc = []
 no_std = []
 parallel = ["lib-q-stark-rayon/parallel"]
 
+[lib]
+bench = false
+
 [[bench]]
 name = "fft"
 harness = false
