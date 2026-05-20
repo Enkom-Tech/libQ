@@ -4,6 +4,8 @@
 
 The HQC implementation includes optional AVX2 SIMD optimizations that provide 34-46% performance improvement for key operations. This document describes the architecture, design decisions, and implementation details.
 
+PKE-layer vector semantics (sparse sampling, `xof_get_bytes`, schoolbook vs Toom multiply) are documented in [vector-operations.md](vector-operations.md).
+
 ## Architecture Design
 
 ### Zero-Sized Type (ZST) Pattern

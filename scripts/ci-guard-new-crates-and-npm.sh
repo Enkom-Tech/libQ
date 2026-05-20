@@ -110,7 +110,7 @@ cd_text = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8"
 published: set[str] = set()
 for mm in re.finditer(r"^\s*-\s*package:\s*\"([^\"]+)\"", cd_text, re.MULTILINE):
     published.add(mm.group(1))
-for mm in re.finditer(r"^\s+package:\s+(lib-q[\w-]+)\s*$", cd_text, re.MULTILINE):
+for mm in re.finditer(r"^\s+package:\s+(lib-q(?:[\w-]+)?)\s*$", cd_text, re.MULTILINE):
     published.add(mm.group(1))
 
 missing = sorted(expected - published)
