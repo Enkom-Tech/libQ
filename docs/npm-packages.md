@@ -1,6 +1,10 @@
 # @lib-q npm packages
 
-Published packages are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each package ships the `wasm-pack` output (`*.js`, `*.d.ts`, `*.wasm`) scoped as `@lib-q/<name>`.
+**22** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
+
+Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
+
+Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-npm-ordered.sh` or `scripts/publish-npm-ordered.ps1`.
 
 ## Packages
 
@@ -23,6 +27,13 @@ Published packages are built in release with [`wasm-pack`](https://rustwasm.gith
 | `@lib-q/cb-kem` | `lib-q-cb-kem` | CB-KEM for the **single** parameter set compiled into that build |
 | `@lib-q/ring-sig` | `lib-q-ring-sig` | Pilot singleton DualRing-LB sign/verify |
 | `@lib-q/prf` | `lib-q-prf` | Legendre / Gold PRF evaluation (pilot moduli) |
+| `@lib-q/stark` | `lib-q-stark` | STARK framework; JS metadata + Rust/zkp for prove/verify |
+| `@lib-q/plonky` | `lib-q-plonky` | Plonky3-derived STARK components |
+| `@lib-q/poseidon` | `lib-q-poseidon` | Poseidon-128 over `Complex<Mersenne31>` |
+| `@lib-q/lattice-zkp` | `lib-q-lattice-zkp` | Module-lattice commitments / sigma (research) |
+| `@lib-q/ring` | `lib-q-ring` | ML-DSA ring \(R_q\) constants and shared arithmetic (Rust-heavy) |
+
+`lib-q-stark-*` and `lib-q-plonky-*` subcrates remain **crates.io-only**; npm uses the umbrella rows above.
 
 ## Installation
 

@@ -1,5 +1,5 @@
-// Copyright 2025 Enkom Tech
-// Copyright 2025 Nexlab-One
+// Copyright 2026 Enkom Tech
+// Copyright 2026 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
 //! Constant-time and comparison-hardening smoke tests for SLH-DSA.

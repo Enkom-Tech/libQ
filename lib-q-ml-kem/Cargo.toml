@@ -41,7 +41,7 @@ hardened = ["random", "subtle", "getrandom"]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 rand_core = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
@@ -68,7 +68,7 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 hex = { workspace = true, features = ["serde"] }
 hex-literal = { workspace = true }
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 crypto-common = { version = "0.2.1", features = ["rand_core"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

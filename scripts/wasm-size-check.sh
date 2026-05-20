@@ -57,5 +57,10 @@ check_one "lib-q-slh-dsa" "wasm" 13900
 check_one "lib-q-ring-sig" "wasm" 7000
 check_one "lib-q-prf" "wasm" 3500
 check_one "lib-q-random" "wasm" 1750
+check_one "lib-q-stark" "wasm" 3500
+check_one "lib-q-plonky" "wasm" 3500
+check_one "lib-q-poseidon" "wasm,alloc" 7000
+check_one "lib-q-lattice-zkp" "wasm,random" 10400
+check_one "lib-q-ring" "wasm,alloc" 7000
 
 echo "wasm-size-check: OK"

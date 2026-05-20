@@ -1,15 +1,18 @@
 [package]
-name = "fn-dsa-comm"
+name = "lib-q-fn-dsa-comm"
 version = "0.0.2"
 authors.workspace = true
 categories.workspace = true
-description.workspace = true
+description = "FN-DSA common primitives (lib-Q; not crates.io fn-dsa-comm)"
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+
+[lib]
+name = "fn_dsa_comm"
 
 [dependencies]
 rand_core = { workspace = true }

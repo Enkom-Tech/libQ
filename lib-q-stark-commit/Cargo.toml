@@ -15,7 +15,7 @@ lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
 lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
 
 itertools = { workspace = true }
-serde = { workspace = true, default-features = false }
+serde = { workspace = true, default-features = false, features = ["alloc", "derive"] }
 
 [features]
 default = ["alloc"]

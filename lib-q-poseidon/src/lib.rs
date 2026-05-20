@@ -38,10 +38,9 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::String;
+#[cfg(all(feature = "alloc", feature = "std"))]
+use alloc::string::ToString;
 
 mod constants;
 #[cfg(feature = "alloc")]
@@ -82,6 +81,9 @@ pub use sponge::{
     PoseidonSpongeSqueeze,
 };
 
+#[cfg(feature = "wasm")]
+mod wasm;
+
 /// Error types for Poseidon operations
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PoseidonError {
@@ -113,7 +115,7 @@ impl core::fmt::Display for PoseidonError {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "std"))]
 impl From<PoseidonError> for lib_q_core::Error {
     fn from(err: PoseidonError) -> Self {
         lib_q_core::Error::InternalError {
@@ -123,7 +125,7 @@ impl From<PoseidonError> for lib_q_core::Error {
     }
 }
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(all(not(feature = "alloc"), feature = "std"))]
 impl From<PoseidonError> for lib_q_core::Error {
     fn from(err: PoseidonError) -> Self {
         match err {

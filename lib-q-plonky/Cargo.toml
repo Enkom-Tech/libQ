@@ -14,7 +14,7 @@ categories = ["cryptography"]
 [lib]
 name = "lib_q_plonky"
 path = "src/lib.rs"
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -27,17 +27,22 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(doc_cfg)',
 ] }
 
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
 [dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["std"] }
 lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", version = "0.0.2", optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.2", optional = true }
 lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.2", optional = true }
 lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.2", optional = true }
 lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.2", optional = true }
 
 [features]
-default = ["alloc"]
+default = ["std"]
 alloc = []
-std = ["alloc"]
+std = ["alloc", "lib-q-core/std"]
 no_std = []
 lib-q-plonky-multilinear-util = ["dep:lib-q-plonky-multilinear-util"]
 lib-q-plonky-keccak-air = ["dep:lib-q-plonky-keccak-air"]
@@ -50,3 +55,7 @@ lookup = ["lib-q-plonky-lookup"]
 uni-stark = ["lib-q-plonky-uni-stark"]
 batch-stark = ["lib-q-plonky-batch-stark", "uni-stark"]
 full = ["multilinear-util", "keccak-air", "lookup", "uni-stark", "batch-stark"]
+wasm = ["alloc", "dep:wasm-bindgen", "lib-q-core/wasm", "lib-q-core/alloc"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]

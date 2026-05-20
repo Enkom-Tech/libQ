@@ -582,57 +582,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fn-dsa"
-version = "0.0.2"
-dependencies = [
- "fn-dsa-comm",
- "fn-dsa-kgen",
- "fn-dsa-sign",
- "fn-dsa-vrfy",
- "hex",
-]
-
-[[package]]
-name = "fn-dsa-comm"
-version = "0.0.2"
-dependencies = [
- "cpufeatures 0.3.0",
- "hex",
- "rand_core 0.10.1",
-]
-
-[[package]]
-name = "fn-dsa-kgen"
-version = "0.0.2"
-dependencies = [
- "fn-dsa-comm",
- "hex",
- "num-bigint",
- "num-traits",
- "sha2 0.11.0",
- "zeroize",
-]
-
-[[package]]
-name = "fn-dsa-sign"
-version = "0.0.2"
-dependencies = [
- "fn-dsa-comm",
- "hex",
- "zeroize",
-]
-
-[[package]]
-name = "fn-dsa-vrfy"
-version = "0.0.2"
-dependencies = [
- "fn-dsa-comm",
- "fn-dsa-kgen",
- "fn-dsa-sign",
- "hex",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1056,10 +1005,10 @@ name = "lib-q-fn-dsa"
 version = "0.0.2"
 dependencies = [
  "criterion",
- "fn-dsa",
  "hex",
  "js-sys",
  "lib-q-core",
+ "lib-q-fn-dsa-alg",
  "lib-q-random",
  "proptest",
  "rand 0.10.1",
@@ -1067,6 +1016,57 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "zeroize",
+]
+
+[[package]]
+name = "lib-q-fn-dsa-alg"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-fn-dsa-comm",
+ "lib-q-fn-dsa-kgen",
+ "lib-q-fn-dsa-sign",
+ "lib-q-fn-dsa-vrfy",
+]
+
+[[package]]
+name = "lib-q-fn-dsa-comm"
+version = "0.0.2"
+dependencies = [
+ "cpufeatures 0.3.0",
+ "hex",
+ "rand_core 0.10.1",
+]
+
+[[package]]
+name = "lib-q-fn-dsa-kgen"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-fn-dsa-comm",
+ "num-bigint",
+ "num-traits",
+ "sha2 0.11.0",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-fn-dsa-sign"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-fn-dsa-comm",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-fn-dsa-vrfy"
+version = "0.0.2"
+dependencies = [
+ "hex",
+ "lib-q-fn-dsa-comm",
+ "lib-q-fn-dsa-kgen",
+ "lib-q-fn-dsa-sign",
 ]
 
 [[package]]
@@ -1095,7 +1095,6 @@ dependencies = [
  "getrandom 0.4.2",
  "hex",
  "js-sys",
- "lib-q",
  "lib-q-aead",
  "lib-q-core",
  "lib-q-hash",
@@ -1208,6 +1207,7 @@ name = "lib-q-lattice-zkp"
 version = "0.0.2"
 dependencies = [
  "hex",
+ "lib-q-core",
  "lib-q-random",
  "lib-q-ring",
  "lib-q-sha3",
@@ -1215,6 +1215,7 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "subtle",
+ "wasm-bindgen",
  "wasm-bindgen-test",
  "zeroize",
 ]
@@ -1275,11 +1276,14 @@ dependencies = [
 name = "lib-q-plonky"
 version = "0.0.2"
 dependencies = [
+ "lib-q-core",
  "lib-q-plonky-batch-stark",
  "lib-q-plonky-keccak-air",
  "lib-q-plonky-lookup",
  "lib-q-plonky-multilinear-util",
  "lib-q-plonky-uni-stark",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -1380,6 +1384,8 @@ dependencies = [
  "lib-q-sha3",
  "lib-q-stark-field",
  "lib-q-stark-mersenne31",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1404,7 +1410,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-random"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "aes",
  "criterion",
@@ -1430,11 +1436,14 @@ name = "lib-q-ring"
 version = "0.0.2"
 dependencies = [
  "hex",
+ "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
  "proptest",
  "rand_core 0.10.1",
  "subtle",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
  "zeroize",
 ]
 
@@ -1572,6 +1581,7 @@ name = "lib-q-stark"
 version = "0.0.2"
 dependencies = [
  "itertools 0.14.0",
+ "lib-q-core",
  "lib-q-random",
  "lib-q-stark-air",
  "lib-q-stark-challenger",
@@ -1592,6 +1602,7 @@ dependencies = [
  "subtle",
  "thiserror",
  "tracing",
+ "wasm-bindgen",
  "wasm-bindgen-test",
  "zeroize",
 ]

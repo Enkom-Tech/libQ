@@ -24,10 +24,10 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 [dependencies]
 # Core libQ types
 lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["fn-dsa", "rand", "getrandom"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["fn-dsa", "rand", "getrandom"] }
 
 # FN-DSA implementation (the actual algorithm)
-fn-dsa = { path = "fn-dsa" }
+lib-q-fn-dsa-alg = { path = "fn-dsa", version = "0.0.2" }
 
 # Standard library features
 rand_core = { workspace = true }
@@ -49,8 +49,8 @@ rand = []
 zeroize = ["dep:zeroize"]
 
 # Performance features
-no_avx2 = ["fn-dsa/no_avx2"]
-shake256x4 = ["fn-dsa/shake256x4"]
+no_avx2 = ["lib-q-fn-dsa-alg/no_avx2"]
+shake256x4 = ["lib-q-fn-dsa-alg/shake256x4"]
 
 # WASM support
 wasm = ["lib-q-random/wasm", "wasm-bindgen", "js-sys", "web-sys"]

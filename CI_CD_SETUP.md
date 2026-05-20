@@ -24,7 +24,7 @@ This document describes the CI/CD pipeline configuration for lib-Q.
 - **Pre-release validation**: Workspace `Cargo.toml` version must match the tag; `rust-build` + `cargo test --all-features --release`.
 - **Rust publishing**: Crates publish in dependency order across **tiers 0–16** via `rust-lang/crates-io-auth-action` (crates.io **Trusted Publishing** / OIDC) and `./.github/actions/crate-publish`. Exact package lists per tier are defined only in `cd.yml`.
 - **WASM / npm**: `wasm-build` then `./.github/actions/npm-publish` for scoped `@lib-q/*` packages (requires `NPM_TOKEN`).
-- **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable). **`post-release` and `cd-summary` wait on `publish-rust-tier-16`** so the GitHub release is cut after the last crates.io tier (including `lib-q-zkp`).
+- **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable). **`post-release` and `cd-summary` wait on `publish-rust-tier-17`** so the GitHub release is cut after the last crates.io tier (including the `lib-q` umbrella).
 
 ### Security Pipeline (`.github/workflows/security.yml`)
 
@@ -241,7 +241,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 
 ### Secrets and publishing auth
 
-- **crates.io**: CD uses **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. Configure the repository as a trusted publisher for workflow `cd.yml` at [crates.io publishing settings](https://crates.io/settings/publishing). A long-lived `CARGO_REGISTRY_TOKEN` secret is **not** required for that path.
+- **crates.io**: CD uses **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. On each published crate (including `lib-q`), open **Settings → Trusted Publishing** and add `Enkom-Tech/libQ` + workflow `cd.yml` ([docs](https://crates.io/docs/trusted-publishing)). A long-lived `CARGO_REGISTRY_TOKEN` secret is **not** required for that path.
 - **npm**: `NPM_TOKEN` — required for `npm-publish` in `cd.yml`.
 
 ### Environment requirements
@@ -277,9 +277,9 @@ crate-type = ["cdylib", "rlib"]
 
 ### NPM packages (npmjs.com)
 
-Per `cd.yml` `publish-wasm-packages` matrix (names and `out-dir` vary by crate):
+Per `cd.yml` `publish-wasm-packages` matrix (names and `out-dir` vary by crate). Manual publish: [docs/npm-publish.md](docs/npm-publish.md) (`scripts/publish-npm-ordered.sh` / `.ps1`).
 
-- **`@lib-q/core`**, **`@lib-q/ml-kem`**, **`@lib-q/kem`**, **`@lib-q/sig`**, **`@lib-q/hash`**, **`@lib-q/utils`**, **`@lib-q/fn-dsa`**
+- **`@lib-q/core`**, **`@lib-q/ml-kem`**, **`@lib-q/kem`**, **`@lib-q/sig`**, **`@lib-q/hash`**, **`@lib-q/utils`**, **`@lib-q/fn-dsa`**, **`@lib-q/aead`**, **`@lib-q/hpke`**, **`@lib-q/zkp`**, **`@lib-q/random`**, **`@lib-q/hqc`**, **`@lib-q/slh-dsa`**, **`@lib-q/cb-kem`**, **`@lib-q/ring-sig`**, **`@lib-q/prf`**, **`@lib-q/stark`**, **`@lib-q/plonky`**, **`@lib-q/poseidon`**, **`@lib-q/lattice-zkp`**, **`@lib-q/ring`**, **`@lib-q/types`** (22 total; see [docs/npm-coverage.md](docs/npm-coverage.md))
 
 ### Additional publishing
 

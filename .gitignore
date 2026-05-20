@@ -34,12 +34,12 @@ build/
 out/
 sbom/
 
-# WASM build artifacts (already covered by pkg/.gitignore but good to have here too)
-pkg/*.wasm
-pkg/*.js
-pkg/*.d.ts
-pkg/*.checksum
-pkg/*.sha256
+# wasm-pack output (cd.yml / scripts/publish-npm-ordered.sh; per-crate out-dir: pkg, pkg-sig, pkg-hash, pkg-utils)
+**/pkg/
+**/pkg-*/
+**/pkg-size-check/
+scripts/publish-npm-ordered.log
+scripts/publish-crates-io-ordered.log
 
 # Python (e.g. scripts/bench_shards_lib.py)
 __pycache__/

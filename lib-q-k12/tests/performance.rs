@@ -1,5 +1,5 @@
-// Copyright 2025 Enkom Tech
-// Copyright 2025 Nexlab-One
+// Copyright 2026 Enkom Tech
+// Copyright 2026 Nexlab-One
 // SPDX-License-Identifier: Apache-2.0
 
 //! Performance regression tests for Kt128

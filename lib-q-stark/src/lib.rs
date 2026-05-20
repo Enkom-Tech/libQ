@@ -114,3 +114,6 @@ pub use verifier::{
     verify_from_bytes,
     verify_with_preprocessed,
 };
+
+#[cfg(feature = "wasm")]
+mod wasm;

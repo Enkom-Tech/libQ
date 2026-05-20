@@ -1,9 +1,9 @@
 [package]
-name = "fn-dsa"
+name = "lib-q-fn-dsa-alg"
 version = "0.0.2"
 authors.workspace = true
 categories.workspace = true
-description.workspace = true
+description = "FN-DSA algorithm facade (lib-Q; not the crates.io `fn-dsa` package by pornin)"
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
@@ -13,21 +13,22 @@ rust-version.workspace = true
 autobenches = false
 
 [lib]
+name = "fn_dsa"
 bench = false
 
 [dependencies]
-fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
-fn-dsa-kgen = { version = "0.0.2", path = "../fn-dsa-kgen" }
-fn-dsa-sign = { version = "0.0.2", path = "../fn-dsa-sign" }
-fn-dsa-vrfy = { version = "0.0.2", path = "../fn-dsa-vrfy" }
+lib-q-fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-kgen = { version = "0.0.2", path = "../fn-dsa-kgen" }
+lib-q-fn-dsa-sign = { version = "0.0.2", path = "../fn-dsa-sign" }
+lib-q-fn-dsa-vrfy = { version = "0.0.2", path = "../fn-dsa-vrfy" }
 
 [dev-dependencies]
 hex = { workspace = true }
 
 [features]
 default = []
-no_avx2 = ["fn-dsa-comm/no_avx2", "fn-dsa-kgen/no_avx2", "fn-dsa-sign/no_avx2", "fn-dsa-vrfy/no_avx2"]
-shake256x4 = ["fn-dsa-comm/shake256x4", "fn-dsa-kgen/shake256x4", "fn-dsa-sign/shake256x4"]
+no_avx2 = ["lib-q-fn-dsa-comm/no_avx2", "lib-q-fn-dsa-kgen/no_avx2", "lib-q-fn-dsa-sign/no_avx2", "lib-q-fn-dsa-vrfy/no_avx2"]
+shake256x4 = ["lib-q-fn-dsa-comm/shake256x4", "lib-q-fn-dsa-kgen/shake256x4", "lib-q-fn-dsa-sign/shake256x4"]
 
 [[bench]]
 name = "keygen"

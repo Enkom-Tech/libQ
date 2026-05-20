@@ -12,24 +12,41 @@ keywords = ["cryptography", "post-quantum", "poseidon", "zkp", "hash"]
 categories = ["cryptography"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
 digest = { workspace = true }
 zeroize = { workspace = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 hex = { workspace = true }
+wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 
 [features]
-default = ["alloc"]
-std = ["alloc", "lib-q-core/std"]
+default = ["std"]
+std = ["alloc", "dep:lib-q-core", "lib-q-core/std"]
 alloc = []
 no_std = []
+wasm = [
+    "alloc",
+    "dep:wasm-bindgen",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+    "lib-q-core/alloc",
+]
+
+[lib]
+name = "lib_q_poseidon"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

@@ -22,7 +22,6 @@ tracing = { workspace = true }
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
 lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.2" }
-
 rand = { workspace = true, default-features = false, features = ["std"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

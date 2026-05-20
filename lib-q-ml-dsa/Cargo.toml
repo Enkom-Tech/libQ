@@ -23,7 +23,7 @@ lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.2" }
 lib-q-platform = { path = "../lib-q-platform", version = "0.0.2" }
 lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.2", features = ["simd"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
 hax-lib.workspace = true
 hex = { workspace = true }
 zeroize = { workspace = true, optional = true }
@@ -34,7 +34,7 @@ getrandom = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 rand_core = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }

@@ -17,7 +17,7 @@ hybrid-array = { workspace = true, features = ["extra-sizes"] }
 typenum = { version = "1.20.0", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, default-features = false, features = ["signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true, default-features = false, features = ["signature"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0", features = ["rand_core"] }
 hmac = "0.13.0"
@@ -45,7 +45,7 @@ pastey = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std", "signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std", "signature"] }
 rand_chacha = { workspace = true }
 num-bigint = { workspace = true }
 quickcheck = "1.1.0"
