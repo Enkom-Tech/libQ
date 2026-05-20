@@ -29,7 +29,6 @@ use strided::{
     VerticallyStridedMatrixView,
     VerticallyStridedRowIndexMap,
 };
-use tracing::instrument;
 
 use crate::dense::RowMajorMatrix;
 
@@ -436,7 +435,6 @@ pub trait Matrix<T: Send + Sync + Clone>: Send + Sync {
     /// Compute Mᵀv, aka premultiply this matrix by the given vector,
     /// aka scale each row by the corresponding entry in `v` and take the sum across rows.
     /// `v` can be a vector of extension elements.
-    #[instrument(level = "debug", skip_all, fields(dims = %self.dimensions()))]
     fn columnwise_dot_product<EF>(&self, v: &[EF]) -> Vec<EF>
     where
         T: Field,

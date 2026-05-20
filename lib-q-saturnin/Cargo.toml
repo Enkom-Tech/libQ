@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Saturnin post-quantum symmetric algorithm suite for lib-Q"
 license.workspace = true
 repository.workspace = true
-keywords = ["cryptography", "post-quantum", "saturnin", "symmetric", "aead", "block-cipher"]
+keywords = ["cryptography", "post-quantum", "saturnin", "aead", "block-cipher"]
 categories = ["cryptography"]
 readme.workspace = true
 

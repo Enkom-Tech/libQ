@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Post-quantum Authenticated Encryption for lib-Q"
 license.workspace = true
 repository.workspace = true
-keywords = ["cryptography", "post-quantum", "aead", "authenticated-encryption"]
+keywords = ["cryptography", "post-quantum", "aead", "encryption"]
 categories = ["cryptography"]
 readme.workspace = true
 
@@ -17,7 +17,7 @@ lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = f
 lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.2", optional = true }
 lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
 lib-q-duplex-aead = { path = "../lib-q-duplex-aead", version = "0.0.2", optional = true }
 lib-q-tweak-aead = { path = "../lib-q-tweak-aead", version = "0.0.2", optional = true }
 lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.2", optional = true, default-features = false }

@@ -9,14 +9,14 @@ repository.workspace = true
 homepage.workspace = true
 readme.workspace = true
 description = "Classical McEliece KEM implementation for lib-Q post-quantum cryptography library"
-keywords = ["cryptography", "post-quantum", "kem", "classical-mceliece", "nist", "libq"]
+keywords = ["cryptography", "post-quantum", "kem", "classical-mceliece", "nist"]
 categories = ["cryptography", "wasm"]
 exclude = ["/data"]
 
 [dependencies]
 # libQ dependencies
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["classical-mceliece"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["classical-mceliece"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 
 # External dependencies

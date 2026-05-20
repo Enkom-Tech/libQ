@@ -28,13 +28,13 @@ lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.2", optional = true, default
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", optional = true, default-features = false }
 
 # Random dependencies for the ml-kem feature
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
 
 # WASM bindings
 wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 
 [features]
 default = []

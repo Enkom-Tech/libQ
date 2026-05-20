@@ -10,19 +10,22 @@ keywords = ["cryptography", "post-quantum", "lattice", "zkp", "no-std"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
+hex = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
 rand_chacha = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 hex = { workspace = true }
 proptest = { workspace = true }
 rand_core = { workspace = true }
@@ -30,10 +33,30 @@ rand_core = { workspace = true }
 [features]
 default = ["alloc"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
-std = ["alloc", "lib-q-random/std"]
+std = ["alloc", "lib-q-ring/std", "lib-q-random/std"]
+no_std = ["alloc", "lib-q-ring/no_std_panic_handler"]
+no_std_panic_handler = ["lib-q-ring/no_std_panic_handler"]
 random = ["dep:lib-q-random"]
 # Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
-wasm = ["random", "lib-q-random/wasm"]
+wasm = [
+    "alloc",
+    "random",
+    "lib-q-ring/wasm",
+    "lib-q-random/wasm",
+    "dep:lib-q-core",
+    "lib-q-core/wasm",
+    "lib-q-core/alloc",
+    "dep:wasm-bindgen",
+    "dep:hex",
+]
+
+[lib]
+name = "lib_q_lattice_zkp"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lattice_zkp_docs)'] }

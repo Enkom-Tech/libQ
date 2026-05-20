@@ -7,13 +7,13 @@ authors.workspace = true
 description = "Post-quantum Zero-Knowledge Proofs for lib-Q"
 license.workspace = true
 repository.workspace = true
-keywords = ["cryptography", "post-quantum", "zkp", "zero-knowledge-proofs"]
+keywords = ["cryptography", "post-quantum", "zkp", "stark"]
 categories = ["cryptography"]
 readme.workspace = true
 autobenches = false
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, features = ["std"] }
 lib-q-stark = { path = "../lib-q-stark", version = "0.0.2", default-features = false, features = ["alloc"] }
 lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.2" }
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
@@ -29,7 +29,7 @@ lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2", optional
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
 lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.2", default-features = false, features = ["alloc"] }
 digest = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", default-features = false }
 postcard = { workspace = true, features = ["alloc"] }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 zeroize = { workspace = true, default-features = false }
@@ -41,7 +41,7 @@ serde_json = { workspace = true, optional = true, default-features = false, feat
 hex = { workspace = true, optional = true }
 
 [features]
-default = ["alloc", "zkp"]
+default = ["std", "zkp"]
 std = ["alloc", "lib-q-core/std", "lib-q-stark/std"]
 alloc = []
 no_std = []
@@ -90,7 +90,7 @@ required-features = ["zkp"]
 
 [dev-dependencies]
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.2" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

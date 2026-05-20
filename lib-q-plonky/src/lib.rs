@@ -20,3 +20,6 @@ pub use lib_q_plonky_lookup as lookup;
 pub use lib_q_plonky_multilinear_util as multilinear_util;
 #[cfg(feature = "uni-stark")]
 pub use lib_q_plonky_uni_stark as uni_stark;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;

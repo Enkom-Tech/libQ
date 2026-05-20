@@ -24,7 +24,7 @@ required-features = ["alloc"]
 lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false }
 lib-q-kem = { path = "../lib-q-kem", version = "0.0.2", default-features = false }
 lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["hpke"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["hpke"] }
 lib-q-aead = { path = "../lib-q-aead", version = "0.0.2", default-features = false, features = ["alloc", "saturnin", "shake256"] }
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.2", optional = true }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.2", optional = true }
@@ -90,8 +90,7 @@ name = "hpke_interop_negotiation"
 required-features = ["std"]
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", features = ["std"] }
-lib-q = { path = "../lib-q", version = "0.0.2", features = ["ml-kem"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 wasm-bindgen-test = { workspace = true }

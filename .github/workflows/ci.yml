@@ -137,11 +137,11 @@ jobs:
           - name: "lib-q-stark-dft parallel"
             features: "alloc,parallel"
             package: "lib-q-stark-dft"
-          - name: "lib-q-ring"
-            features: "alloc"
+          - name: "lib-q-ring no_std"
+            features: "no_std"
             package: "lib-q-ring"
-          - name: "lib-q-lattice-zkp"
-            features: "alloc"
+          - name: "lib-q-lattice-zkp no_std"
+            features: "no_std"
             package: "lib-q-lattice-zkp"
           - name: "lib-q-prf"
             features: "alloc"
@@ -232,17 +232,23 @@ jobs:
             features: "wasm"
             check-only: "false"
           - working-directory: "lib-q-lattice-zkp"
-            features: ""
-            check-only: "true"
+            features: "wasm,random"
+            check-only: "false"
+          - working-directory: "lib-q-ring"
+            features: "wasm,alloc"
+            check-only: "false"
+          - working-directory: "lib-q-poseidon"
+            features: "wasm,alloc"
+            check-only: "false"
           - working-directory: "lib-q-ring-sig"
             features: "wasm"
             check-only: "false"
           - working-directory: "lib-q-plonky"
-            features: ""
-            check-only: "true"
+            features: "wasm"
+            check-only: "false"
           - working-directory: "lib-q-stark"
-            features: ""
-            check-only: "true"
+            features: "wasm"
+            check-only: "false"
           - working-directory: "lib-q-ml-dsa"
             features: "mldsa44,random"
             check-only: "true"
@@ -327,10 +333,13 @@ jobs:
         crate:
           - lib-q
           - lib-q-lattice-zkp
+          - lib-q-ring
           - lib-q-ring-sig
           - lib-q-prf
           - lib-q-ml-kem
           - lib-q-stark
+          - lib-q-plonky
+          - lib-q-poseidon
           - lib-q-aead
           - lib-q-hqc
           - lib-q-cb-kem
@@ -381,8 +390,13 @@ jobs:
             lib-q-hpke) echo "features=wasm,alloc,ml-kem,saturnin,shake256" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-zkp) echo "features=wasm,zkp" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-random) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-stark) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-plonky) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-poseidon) echo "features=wasm,alloc" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-lattice-zkp) echo "features=wasm,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-ring) echo "features=wasm,alloc" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q) echo "features=wasm,ml-kem" >> $GITHUB_OUTPUT; echo "test=wasm_integration" >> $GITHUB_OUTPUT ;;
-            *) echo "features=" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            *) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
           esac
 
       - name: wasm-pack test (Node)

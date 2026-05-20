@@ -13,6 +13,20 @@ import path from "path";
 
 const cwd = process.cwd();
 const pkgPath = path.join(cwd, "package.json");
+if (!fs.existsSync(pkgPath)) {
+  const seed = ["web/package.json", "nodejs/package.json"]
+    .map((p) => path.join(cwd, p))
+    .find((p) => fs.existsSync(p));
+  if (seed) {
+    fs.copyFileSync(seed, pkgPath);
+  }
+}
+if (!fs.existsSync(pkgPath)) {
+  console.error(
+    "npm-publish-annotate: missing package.json (expected wasm-pack pkg/ or web/ + nodejs/ layout)",
+  );
+  process.exit(1);
+}
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
 const stem = (process.env.NPM_PUBLISH_STEM || "").trim();
@@ -43,6 +57,13 @@ const flatStem =
   stem &&
   fs.existsSync(path.join(cwd, `${stem}.js`)) &&
   fs.existsSync(path.join(cwd, `${stem}.d.ts`));
+
+for (const sub of ["web", "nodejs"]) {
+  const gi = path.join(cwd, sub, ".gitignore");
+  if (fs.existsSync(gi) && fs.readFileSync(gi, "utf8").trim() === "*") {
+    fs.unlinkSync(gi);
+  }
+}
 
 if (dual) {
   pkg.main = `./nodejs/${stem}.js`;

@@ -187,19 +187,19 @@ debug = false
 # `cargo test` builds path dependencies with the dev profile. FN-DSA signing and
 # keygen at high logn are unusably slow without LLVM optimization (multi-minute
 # KAT/self tests in debug). Match the practical cost of `cargo test -p fn-dsa --release`.
-[profile.dev.package."fn-dsa"]
+[profile.dev.package."lib-q-fn-dsa-alg"]
 opt-level = 2
-[profile.dev.package."fn-dsa-comm"]
+[profile.dev.package."lib-q-fn-dsa-comm"]
 opt-level = 2
-[profile.dev.package."fn-dsa-kgen"]
+[profile.dev.package."lib-q-fn-dsa-kgen"]
 opt-level = 2
-[profile.dev.package."fn-dsa-sign"]
+[profile.dev.package."lib-q-fn-dsa-sign"]
 opt-level = 2
-[profile.dev.package."fn-dsa-vrfy"]
+[profile.dev.package."lib-q-fn-dsa-vrfy"]
 opt-level = 2
 
-# Root crate of `cargo test -p fn-dsa` uses the test profile for the library.
-[profile.test.package."fn-dsa"]
+# Root crate of `cargo test -p lib-q-fn-dsa-alg` uses the test profile for the library.
+[profile.test.package."lib-q-fn-dsa-alg"]
 opt-level = 2
 
 # Additional security hardening options can be added here
