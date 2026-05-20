@@ -341,8 +341,9 @@ impl ThreadEntropyRegistry {
     }
 }
 
-// Global thread-local registry
-static THREAD_REGISTRY: ThreadEntropyRegistry = ThreadEntropyRegistry::new();
+thread_local! {
+    static THREAD_REGISTRY: ThreadEntropyRegistry = const { ThreadEntropyRegistry::new() };
+}
 
 /// Register a custom entropy source for the current thread
 ///
@@ -356,12 +357,12 @@ static THREAD_REGISTRY: ThreadEntropyRegistry = ThreadEntropyRegistry::new();
 /// The caller is responsible for ensuring the source is not dropped
 /// while registered.
 pub unsafe fn register_custom_entropy_source(source: *const CustomEntropySource) {
-    unsafe { THREAD_REGISTRY.register(source) };
+    THREAD_REGISTRY.with(|registry| unsafe { registry.register(source) });
 }
 
 /// Unregister the current custom entropy source
 pub fn unregister_custom_entropy_source() {
-    THREAD_REGISTRY.unregister();
+    THREAD_REGISTRY.with(ThreadEntropyRegistry::unregister);
 }
 
 /// Generate entropy using the registered custom source
@@ -374,12 +375,12 @@ pub fn unregister_custom_entropy_source() {
 ///
 /// Returns an error if no source is registered or if entropy generation fails.
 pub fn generate_custom_entropy(dest: &mut [u8]) -> Result<()> {
-    THREAD_REGISTRY.generate_entropy(dest)
+    THREAD_REGISTRY.with(|registry| registry.generate_entropy(dest))
 }
 
 /// Check if a custom entropy source is registered
 pub fn has_custom_entropy_source() -> bool {
-    unsafe { THREAD_REGISTRY.get_source().is_some() }
+    THREAD_REGISTRY.with(|registry| unsafe { registry.get_source().is_some() })
 }
 
 /// Get information about the registered entropy source
@@ -388,11 +389,11 @@ pub fn has_custom_entropy_source() -> bool {
 ///
 /// Returns a tuple of (`source_id`, quality) if a source is registered.
 pub fn get_entropy_source_info() -> Option<(&'static str, EntropyQuality)> {
-    unsafe {
-        THREAD_REGISTRY
+    THREAD_REGISTRY.with(|registry| unsafe {
+        registry
             .get_source()
             .map(|source| (source.source_id(), source.quality()))
-    }
+    })
 }
 
 impl fmt::Display for EntropyQuality {

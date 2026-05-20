@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=../../schemas/github-action.json
 name: Test SHA3
 description: Run SHA3 tests with security validation and comprehensive feature testing
 inputs:

@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=../../schemas/github-action.json
 name: Test K12
 description: Run K12 (KangarooTwelve) tests with security validation and comprehensive feature testing
 inputs:

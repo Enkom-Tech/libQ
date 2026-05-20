@@ -17,5 +17,5 @@ When the `shake256x4` feature is enabled, internal KAT digests may differ from t
 
 1. Obtain the latest **FIPS 206** PDF and any published errata.
 2. If CAVP FN-DSA vectors are available, add a `cargo test` harness that parses them and compares sign/verify outputs.
-3. Re-run `cargo test -p fn-dsa` and `cargo test -p lib-q-fn-dsa` with and without `shake256x4` on supported targets.
+3. Re-run `cargo test -p lib-q-fn-dsa-alg` and `cargo test -p lib-q-fn-dsa` with and without `shake256x4` on supported targets.
 4. Record any wire-byte changes from earlier drafts in this file and in the changelog.

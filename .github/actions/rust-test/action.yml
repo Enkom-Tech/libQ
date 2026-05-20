@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=../../schemas/github-action.json
 name: Rust Test
 description: Reusable Rust test action with matrix support and comprehensive testing
 inputs:
@@ -291,10 +291,10 @@ runs:
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
-              echo "Running quick FN-DSA smoke tests (release-ci). Full keygen KAT: cargo test -p fn-dsa-kgen test_keygen --release -- --test-threads=1"
+              echo "Running quick FN-DSA smoke tests (release-ci). Full keygen KAT: cargo test -p lib-q-fn-dsa-kgen test_keygen --release -- --test-threads=1"
               cd "${GITHUB_WORKSPACE:-.}"
               FN_FEAT="${FEATURES:-std,rand}"
-              cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+              cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
               cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
               cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
             else

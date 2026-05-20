@@ -82,7 +82,7 @@ pub use sponge::{
 };
 
 #[cfg(feature = "wasm")]
-mod wasm;
+pub mod wasm;
 
 /// Error types for Poseidon operations
 #[derive(Debug, Clone, PartialEq, Eq)]

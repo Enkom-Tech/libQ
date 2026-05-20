@@ -106,6 +106,11 @@ name = "wasm_smoke"
 path = "tests/wasm_smoke.rs"
 required-features = ["wasm"]
 
+[[test]]
+name = "custom_entropy_tests"
+path = "tests/custom_entropy_tests.rs"
+required-features = ["custom-entropy"]
+
 # Secure RNG cases need the optional getrandom dependency; skip when building with --no-default-features.
 [[test]]
 name = "security_tests"

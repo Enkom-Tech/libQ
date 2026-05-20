@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=../../schemas/github-action.json
 name: Performance Benchmark
 description: Comprehensive performance benchmarking action for cryptographic libraries
 inputs:

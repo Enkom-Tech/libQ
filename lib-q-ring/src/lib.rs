@@ -76,4 +76,4 @@ pub use uniform::{
 };
 
 #[cfg(feature = "wasm")]
-mod wasm;
+pub mod wasm;
