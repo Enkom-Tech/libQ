@@ -1,316 +1,187 @@
-# HQC Vector Operations Documentation
+# HQC PKE vector operations
 
-## Overview
+Documentation for the production **u64 polynomial vectors** used in the HQC PKE layer. All symbols below live in [`src/hqc_pke.rs`](../src/hqc_pke.rs) on `HqcPke<P: HqcParams>` unless noted.
 
-This document provides comprehensive documentation of all vector operations in the HQC implementation, ensuring maintainability and audit readiness. All operations are designed to match the reference implementation exactly while maintaining constant-time execution for security.
+This is not a catalog of every `vect_*` name in the crate. Byte-oriented helpers in [`src/internal/vector.rs`](../src/internal/vector.rs) (`vect_add`, `vect_fixed_weight`, …) are separate utilities and are **not** on the KEM/PKE hot path.
 
-## Core Vector Operations
+For AVX2 multiply and runtime dispatch, see [SIMD architecture](simd-architecture.md). For assurance and KAT strategy, see [SECURITY.md](../SECURITY.md).
 
-### 1. `vect_write_support_to_vector`
+## Scope and representation
 
-**Purpose**: Writes a support set (array of bit positions) to a vector using constant-time operations.
+| Concept | Type / location | Notes |
+|--------|-----------------|-------|
+| Ring element | `&mut [u64]` length `P::VEC_N_SIZE_64` | Coefficients in \(\mathrm{GF}(2)[x]/(x^N-1)\); little-endian u64 limbs |
+| Dense random `h` | `vect_set_random` | Fills `P::VEC_N_SIZE_BYTES` via XOF, then masks the high bits of the last limb |
+| Sparse secret `x`, `y` | `vect_sample_fixed_weight1` | Weight `P::OMEGA` (keygen / decryption key) |
+| Encryption noise | `vect_sample_fixed_weight2` | Weights `P::OMEGA_R` (`r1`, `r2`) and `P::OMEGA_E` (`e`) |
+| Multiply | `vect_mul` | \(\mathrm{GF}(2)[x]/(x^N-1)\); AVX2 Toom when available, else schoolbook |
+| Add / truncate | `vect_add`, `vect_truncate` | XOR; truncate to `P::N1N2` bits for concatenated-code payloads |
 
-**Implementation Details**:
-```rust
-pub fn vect_write_support_to_vector(&self, v: &mut [u64], support: &[u32], weight: usize) {
-    // Precompute index_tab and bit_tab like reference
-    let mut index_tab = vec![0u32; weight];
-    let mut bit_tab = vec![0u64; weight];
+Parameters are defined per security level in [`src/params_correct.rs`](../src/params_correct.rs) (`Hqc1Params`, `Hqc3Params`, `Hqc5Params`).
 
-    for i in 0..weight {
-        index_tab[i] = support[i] >> 6;        // Word index (divide by 64)
-        let pos = support[i] & 0x3f;           // Bit position within word (mod 64)
-        bit_tab[i] = 1u64 << pos;              // Bit mask
-    }
+## PKE call graph
 
-    // Constant-time vector write (matches reference exactly)
-    for i in 0..v.len() {
-        let mut val = 0u64;
-        for j in 0..weight {
-            let tmp = i.wrapping_sub(index_tab[j] as usize);
-            // Constant-time check if tmp == 0
-            let val1 = 1u32 ^ ((tmp as u32 | tmp.wrapping_neg() as u32) >> 31);
-            let mask = (-(val1 as i64)) as u64;
-            val |= bit_tab[j] & mask;
-        }
-        v[i] |= val;  // Use |= to accumulate (critical for correctness)
-    }
-}
+```text
+keygen (seed_dk XOF)
+  ├─ vect_sample_fixed_weight1 → y, x     (weight OMEGA)
+  └─ vect_set_random (seed_ek XOF) → h
+       └─ vect_mul(y, h); vect_add → s
+
+encrypt (theta XOF)
+  ├─ vect_sample_fixed_weight2 → r2, e, r1
+  ├─ vect_mul / vect_add → u
+  ├─ vect_mul / vect_add → tmp; vect_truncate(tmp)
+  └─ concatenated encode → v
+
+decrypt
+  └─ same multiply/add/truncate pattern on recovered polynomials
 ```
 
-**Key Features**:
-- **Constant-time execution**: Prevents timing attacks
-- **Accumulation semantics**: Uses `|=` to accumulate bits, not replace
-- **Reference compatibility**: Matches reference implementation exactly
-- **Bit position calculation**: `index = pos >> 6`, `bit = pos & 0x3f`
+## XOF byte consumption (`xof_get_bytes`)
 
-**Security Considerations**:
-- All operations are constant-time to prevent side-channel attacks
-- No conditional branches based on secret data
-- Uses bitwise operations for all comparisons
+Support sampling and `vect_set_random` must advance the SHAKE-256 XOF state exactly like the reference `xof_get_bytes`. The crate centralizes that in `HqcPke::xof_get_bytes`:
 
-### 2. `vect_sample_fixed_weight1`
+- If `output.len()` is a multiple of 8: one `squeeze` of the full buffer.
+- Otherwise: squeeze the aligned prefix, squeeze 8 bytes into a temporary buffer, copy only `len % 8` bytes into the tail.
 
-**Purpose**: Samples a random vector with exactly `weight` non-zero bits.
+`vect_generate_random_support1` refills its 3·weight byte buffer through `xof_get_bytes`, not a bare `squeeze` of arbitrary length. KAT and intermediate-value tests depend on this.
 
-**Implementation Details**:
-```rust
-pub fn vect_sample_fixed_weight1(
-    &self,
-    xof: &mut Shake256Xof,
-    output: &mut [u64],
-    weight: usize,
-) -> Result<(), HqcPkeError> {
-    // Clear output first (critical for correctness)
-    for item in &mut *output {
-        *item = 0;
-    }
+## Operations
 
-    let mut support = vec![0u32; weight];
-    self.vect_generate_random_support1(xof, &mut support, weight)?;
-    self.vect_write_support_to_vector(output, &support, weight);
+### `vect_write_support_to_vector`
 
-    Ok(())
-}
-```
+Writes `weight` bit positions from `support[]` into `v[]` using precomputed `index_tab` (word index `pos >> 6`) and `bit_tab` (`1 << (pos & 0x3f)`). Each output word ORs masked contributions from every support entry (`*val |= temp_val`); assignment would be wrong when multiple bits share a limb.
 
-**Key Features**:
-- **Deterministic sampling**: Uses XOF for reproducible randomness
-- **Fixed weight guarantee**: Exactly `weight` bits will be set
-- **Vector initialization**: Clears output before writing support
+**Timing:** Inner word selection uses the reference constant-time equality idiom (`tmp == 0` via masks). Support values are XOF-derived secrets in the PKE threat model.
 
-### 3. `vect_generate_random_support1`
+### `vect_sample_fixed_weight1` / `vect_generate_random_support1`
 
-**Purpose**: Generates a random support set of distinct indices using rejection sampling.
+**Purpose:** Sample a sparse vector with Hamming weight `weight` for decryption-key polynomials (`x`, `y`).
 
-**Implementation Details**:
-```rust
-pub fn vect_generate_random_support1(
-    &self,
-    xof: &mut Shake256Xof,
-    support: &mut [u32],
-    weight: usize,
-) -> Result<(), HqcPkeError> {
-    let random_bytes_size = 3 * weight;
-    let mut rand_bytes = vec![0u8; random_bytes_size];
-    let mut i = 0;
-    let mut j = random_bytes_size;
+1. Zero the output buffer.
+2. `vect_generate_random_support1`: rejection sampling on 24-bit candidates, then Barrett reduction mod `P::N`, then duplicate rejection.
+3. `vect_write_support_to_vector`.
 
-    while i < weight {
-        loop {
-            if j == random_bytes_size {
-                xof.squeeze(&mut rand_bytes)
-                    .map_err(|_| HqcPkeError::HashError)?;
-                j = 0;
-            }
+**Rejection threshold:** Accept when `candidate < P::UTILS_REJECTION_THRESHOLD`, where
 
-            // Construct 24-bit value from 3 bytes (big-endian)
-            support[i] = ((rand_bytes[j] as u32) << 16) |
-                        ((rand_bytes[j + 1] as u32) << 8) |
-                        (rand_bytes[j + 2] as u32);
-            j += 3;
+\[
+\texttt{UTILS\_REJECTION\_THRESHOLD} = \lfloor 2^{24} / N \rfloor \cdot N
+\]
 
-            // Rejection sampling
-            if support[i] < P::UTILS_REJECTION_THRESHOLD {
-                break;
-            }
-        }
+(not \(2^{24}-1\)). See parameter table below.
 
-        // Barrett reduction modulo PARAM_N
-        support[i] = self.barrett_reduce(support[i]);
+**Timing:** Rejection loops and `if support[k] == support[i]` duplicate checks follow the reference and are **not** constant-time; runtime varies with XOF draws and collision count.
 
-        // Constant-time duplicate check
-        let mut inc = 1;
-        for k in 0..i {
-            if support[k] == support[i] {
-                inc = 0;
-            }
-        }
-        i += inc;
-    }
+### `vect_sample_fixed_weight2` / `vect_generate_random_support2`
 
-    Ok(())
-}
-```
+**Purpose:** Sample sparse encryption noise (`r1`, `r2`, `e`) without the per-draw rejection loop of method 1.
 
-**Key Features**:
-- **Rejection sampling**: Ensures uniform distribution
-- **Duplicate prevention**: Constant-time duplicate checking
-- **Barrett reduction**: Efficient modular reduction
-- **24-bit values**: Uses 3 bytes per support position
+1. `xof_get_bytes` → `weight` little-endian `u32` values.
+2. Map index `i` with `support[i] = i + (rand * (N - i)) >> 32` (64-bit intermediate).
+3. Reverse pass resolves collisions with masked updates (reference `vect_generate_random_support2`).
 
-### 4. `barrett_reduce`
+**Timing:** Reference-style masked fixes; still not a uniform-cycle guarantee in the BearSSL sense.
 
-**Purpose**: Performs Barrett reduction modulo PARAM_N with constant-time execution.
+### `barrett_reduce`
 
-**Implementation Details**:
-```rust
-pub fn barrett_reduce(&self, x: u32) -> u32 {
-    let q = ((x as u64) * P::N_MU) >> 32;
-    let mut r = x - (q * P::N as u64) as u32;
+Reduces `x` mod `P::N` using precomputed `P::N_MU = \lfloor 2^{32} / N \rfloor`. Final correction uses bit masks (no branch on `r >= N`).
 
-    // Constant-time final reduction (matches reference exactly)
-    let reduce_flag = ((r.wrapping_sub(P::N as u32)) >> 31) ^ 1;
-    let mask = (-(reduce_flag as i32)) as u32;
-    r -= mask & (P::N as u32);
+**Timing:** Fixed operation count; suitable for auditing as constant-time at the C/Rust statement level.
 
-    r
-}
-```
+### `vect_set_random`
 
-**Key Features**:
-- **Constant-time execution**: No conditional branches
-- **Reference compatibility**: Matches reference implementation exactly
-- **Efficient reduction**: Uses precomputed N_MU for fast division
+Expands a dense polynomial from the encryption-key XOF:
 
-### 5. `vect_mul` (Polynomial Multiplication)
+- Consumes **`P::VEC_N_SIZE_BYTES`** (not `VEC_N_SIZE_64 * 8`); for HQC-128 that is 2209 bytes vs 2216.
+- Uses the same aligned / partial-tail `xof_get_bytes` pattern as above.
+- Masks the last u64 when `P::N % 64 != 0`.
 
-**Purpose**: Performs polynomial multiplication in GF(2)[x]/(x^n - 1).
+Used for public polynomial `h` in keygen and when parsing `seed_ek` from a public key.
 
-**Implementation Details**:
-```rust
-fn vect_mul(&self, output: &mut [u64], a: &[u64], b: &[u64]) -> Result<(), HqcPkeError> {
-    let mut unreduced = vec![0u64; 2 * P::VEC_N_SIZE_64];
+### `vect_mul`
 
-    // Schoolbook multiplication into unreduced buffer (matching reference exactly)
-    for (i, &ai) in a.iter().enumerate().take(P::VEC_N_SIZE_64) {
-        for bit in 0..64 {
-            let mask = if (ai >> bit) & 1 == 1 { !0u64 } else { 0u64 };
-            let base = i;
-            let sh = bit;
-            let inv = 64 - sh;
+Product in \(\mathrm{GF}(2)[x]/(x^N-1)\).
 
-            if sh == 0 {
-                for j in 0..P::VEC_N_SIZE_64 {
-                    unreduced[base + j] ^= b[j] & mask;
-                }
-            } else {
-                for j in 0..P::VEC_N_SIZE_64 {
-                    unreduced[base + j] ^= (b[j] << sh) & mask;
-                    unreduced[base + j + 1] ^= (b[j] >> inv) & mask;
-                }
-            }
-        }
-    }
+| Path | When | Implementation |
+|------|------|----------------|
+| AVX2 | `feature = "simd-avx2"`, x86_64, runtime `has_avx2()` | [`src/simd/avx2/gf2x.rs`](../src/simd/avx2/gf2x.rs) Toom-based `avx2_vect_mul_mod_xnm1` |
+| Portable | otherwise | `schoolbook_vect_mul_mod_xnm1` in `hqc_pke.rs` |
 
-    // Reduce modulo x^n - 1 (matching reference exactly)
-    for i in 0..P::VEC_N_SIZE_64 {
-        let r = unreduced[i + P::VEC_N_SIZE_64 - 1] >> (P::N & 0x3F);
-        let carry = unreduced[i + P::VEC_N_SIZE_64] << (64 - (P::N & 0x3F));
-        output[i] = unreduced[i] ^ r ^ carry;
-    }
+Both paths must agree; see `tests/vect_mul_equivalence.rs` and SIMD tests in [simd-architecture.md](simd-architecture.md).
 
-    // Mask excess bits in the last word (using BITMASK equivalent)
-    output[P::VEC_N_SIZE_64 - 1] &= (1u64 << (P::N & 0x3F)) - 1;
+The schoolbook kernel scans set bits of `a` with `if (ai >> bit) & 1 == 1` (reference-style). That is **data-dependent** in cycle count. AVX2 is optimized for throughput, not documented as constant-time.
 
-    Ok(())
-}
-```
+`vect_mul` returns `InvalidKey` if `output.len() != P::VEC_N_SIZE_64`.
 
-**Key Features**:
-- **Schoolbook multiplication**: Matches reference algorithm exactly
-- **Modular reduction**: Reduces modulo x^n - 1
-- **Bit masking**: Masks excess bits in final word
-- **No bounds checking**: Matches reference behavior exactly
+### `vect_add`
 
-### 6. `vect_add`
+Element-wise XOR over the first `len` limbs. With `simd-avx2` and AVX2 at runtime, delegates to `Avx2::vect_add` on the byte view of the limb slice; otherwise a simple XOR loop with length guards.
 
-**Purpose**: Performs vector addition in GF(2) (XOR).
+### `vect_truncate`
 
-**Implementation Details**:
-```rust
-fn vect_add(
-    &self,
-    output: &mut [u64],
-    a: &[u64],
-    b: &[u64],
-    len: usize,
-) -> Result<(), HqcPkeError> {
-    for i in 0..len {
-        if i < output.len() && i < a.len() && i < b.len() {
-            output[i] = a[i] ^ b[i];
-        }
-    }
-    Ok(())
-}
-```
+Zeroes and masks limbs so only the low `P::N1N2` bits of a vector remain (concatenated-code width). Used after multiply/add before encoding into the RS/RM payload.
 
-**Key Features**:
-- **Simple XOR operation**: Element-wise XOR of vectors
-- **Bounds checking**: Prevents buffer overflows
-- **GF(2) arithmetic**: Addition in binary field
+## Parameters (vector-related)
 
-## Parameter Specifications
+| Parameter | HQC-128 (`Hqc1Params`) | HQC-192 (`Hqc3Params`) | HQC-256 (`Hqc5Params`) |
+|-----------|------------------------|------------------------|------------------------|
+| `N` | 17669 | 35851 | 57637 |
+| `OMEGA` (dk sparse weight) | 66 | 103 | 134 |
+| `OMEGA_E` (`e` weight) | 75 | 114 | 149 |
+| `OMEGA_R` (`r1`, `r2` weight) | 75 | 115 | 149 |
+| `VEC_N_SIZE_64` | 277 | 561 | 901 |
+| `VEC_N_SIZE_BYTES` | 2209 | 4482 | 7205 |
+| `N1N2` (truncate width, bits) | 17664 | 35840 | 57600 |
+| `UTILS_REJECTION_THRESHOLD` | 16767881 | 16742417 | 16772367 |
+| `N_MU` | 243079 | 119800 | 74517 |
 
-### HQC-1 Parameters
-- **PARAM_N**: 17669 (polynomial degree)
-- **PARAM_OMEGA**: 66 (weight of error vectors)
-- **PARAM_OMEGA_R**: 75 (rejection sampling threshold)
-- **VEC_N_SIZE_64**: 277 (number of 64-bit words)
-- **UTILS_REJECTION_THRESHOLD**: 2^24 - 1 (rejection sampling threshold)
+Bit indexing within a limb: `word = position >> 6`, `bit = position & 0x3f`, `mask = 1u64 << bit`.
 
-### Bit Manipulation Constants
-- **Word size**: 64 bits
-- **Index calculation**: `index = position >> 6`
-- **Bit calculation**: `bit = position & 0x3f`
-- **Bit mask**: `mask = 1u64 << bit`
+Official names in the HQC submission map to `HqcParams` in Rust (`N`, `OMEGA`, …).
 
-## Security Considerations
+## Side-channel and timing posture
 
-### Constant-Time Operations
-All vector operations are designed to execute in constant time to prevent timing attacks:
+Do not describe this module as uniformly constant-time. Use the following classification when reviewing or hardening:
 
-1. **No conditional branches** based on secret data
-2. **Bitwise operations** for all comparisons
-3. **Masking operations** instead of if-statements
-4. **Uniform execution paths** regardless of input values
+| Component | Posture | Notes |
+|-----------|---------|-------|
+| `vect_write_support_to_vector` | Reference-style CT word select | Masks for `tmp == 0` |
+| `barrett_reduce` | Fixed-latency reduction step | |
+| `vect_generate_random_support1` | Variable time | Rejection + branched duplicate check |
+| `vect_generate_random_support2` | Variable time | Collision resolution passes |
+| `schoolbook_vect_mul_mod_xnm1` | Variable time | Per-set-bit updates |
+| AVX2 `vect_mul` | Fast path | Equivalence-tested vs schoolbook, not CT-audited |
+| `vect_add` / `vect_truncate` | Public-length operations | Operand values may still be secret |
 
-### Memory Safety
-- **Bounds checking** in all operations
-- **Buffer overflow prevention**
-- **Proper initialization** of all vectors
-- **Zeroization** of sensitive data when appropriate
+HQC reference code uses the same patterns for interoperability and KAT alignment. Any hardening fork must re-run KATs and cross-implementation tests.
 
-## Testing and Validation
+## Verification map
 
-### Unit Tests
-- **Vector write operations**: Test bit setting at various positions
-- **Support generation**: Verify uniform distribution and no duplicates
-- **Polynomial multiplication**: Test with known inputs
-- **Barrett reduction**: Test modular arithmetic
+| Concern | Tests / artifacts |
+|---------|-------------------|
+| Support write, Barrett, basic multiply | `tests/comprehensive_validation.rs` |
+| Schoolbook vs AVX2 multiply | `tests/vect_mul_equivalence.rs`, `src/simd/avx2/gf2x.rs` unit tests |
+| `vect_set_random` / XOF alignment | `tests/vect_set_random_analysis.rs`, `tests/kat_intermediate_values_verification.rs` |
+| Parameter constants | `tests/compliance_parameter_validation.rs`, `tests/official_specification_verification_test.rs` |
+| Full KEM | `tests/kat_test.rs`, `tests/compliance/kat_verification.rs` |
+| Cross-parameter behavior | `tests/compliance/cross_implementation.rs` |
 
-### Integration Tests
-- **End-to-end key generation**: Verify complete workflow
-- **KAT compliance**: Match official test vectors
-- **Cross-platform compatibility**: Test on different architectures
+Public test hooks on `HqcPke` (`test_vect_mul`, `test_vect_sample_fixed_weight1`, …) exist for component debugging; prefer the integration tests above for regression gates.
 
-## Maintenance Guidelines
+## Maintenance checklist
 
-### Code Modifications
-1. **Preserve constant-time properties** in all modifications
-2. **Maintain reference compatibility** for correctness
-3. **Add comprehensive tests** for any new functionality
-4. **Document security implications** of changes
+When changing vector code:
 
-### Performance Optimization
-1. **Profile before optimizing** to identify bottlenecks
-2. **Maintain security properties** during optimization
-3. **Benchmark against reference** implementation
-4. **Consider Karatsuba multiplication** for performance gains
-
-### Audit Preparation
-1. **Document all design decisions** and rationale
-2. **Maintain test coverage** above 95%
-3. **Keep security analysis** up to date
-4. **Prepare for third-party review**
+1. Preserve `xof_get_bytes` semantics for any path that feeds KATs or reference intermediate values.
+2. Keep `|=` accumulation in `vect_write_support_to_vector`.
+3. Run multiply equivalence (portable vs AVX2) for all three parameter sets.
+4. Re-run KAT or intermediate-value suites if sampling or `vect_set_random` changes.
+5. Update this document and [simd-architecture.md](simd-architecture.md) if dispatch or limb layout changes.
+6. Record timing-posture changes in [SECURITY.md](../SECURITY.md); do not claim uniform constant-time without evidence.
 
 ## References
-- [HQC Official Specification](https://pqc-hqc.org/)
-- Upstream HQC reference C implementation (obtain from the HQC submission / project sources)
-- [NIST Post-Quantum Cryptography Standards](https://csrc.nist.gov/projects/post-quantum-cryptography)
-- [Constant-Time Programming](https://www.bearssl.org/constanttime.html)
 
----
-**Last Updated**: December 2024  
-**Next Review**: Q2 2025  
-**Maintainer**: libQ Development Team
+- [HQC specification](https://pqc-hqc.org/)
+- NIST PQC project: [post-quantum cryptography](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- Reference C implementation (submission sources for `vector.c`, `gf2x`, `parameters.h`)
+- [BearSSL constant-time programming](https://www.bearssl.org/constanttime.html) (background on CT idioms used in support write / Barrett)
