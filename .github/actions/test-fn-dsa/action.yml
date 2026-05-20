@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+# yaml-language-server: $schema=../../schemas/github-action.json
 name: Test FN-DSA
 description: Run FN-DSA quick smoke tests, security checks, and optional benchmarks (full keygen KAT is manual)
 inputs:
@@ -107,10 +107,10 @@ runs:
       shell: bash
       run: |
         echo "🧪 Running quick FN-DSA smoke tests (release)..."
-        echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p fn-dsa-kgen -- --ignored --release --test-threads=1"
+        echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p lib-q-fn-dsa-kgen -- --ignored --release --test-threads=1"
         rm -rf target/release-ci
         cd "${{ github.workspace }}"
-        cargo test -p fn-dsa self_test --profile release-ci -- --test-threads=1
+        cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
         cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
         cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "${{ inputs.features }}"
         echo "✅ Quick smoke tests completed"
