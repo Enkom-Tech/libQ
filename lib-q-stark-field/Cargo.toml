@@ -8,6 +8,8 @@ description = "A modular framework for finite fields, including support for gene
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+# `constant_time_tests` needs `lib-q-stark-mersenne31` (published later); run from workspace root.
+exclude = ["/tests"]
 
 [dependencies]
 lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
@@ -30,10 +32,6 @@ no_std = []
 
 [dev-dependencies]
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
-
-[[test]]
-name = "constant_time_tests"
-path = "tests/constant_time_tests.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

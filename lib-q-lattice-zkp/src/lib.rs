@@ -3,10 +3,22 @@
 //! The construction targets the same \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\) field as ML-DSA via
 //! [`lib_q_ring`].
 #![forbid(unsafe_code)]
-#![no_std]
 #![allow(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "alloc")]
 extern crate alloc;
+
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
+}
 
 pub mod blind;
 pub mod budget;
@@ -49,6 +61,9 @@ pub use error::{
     VerifyError,
 };
 pub use params::AjtaiParameters;
+#[cfg(feature = "wasm")]
+mod wasm;
+
 pub use sigma::{
     AmortisedProof,
     BatchPresentationState,

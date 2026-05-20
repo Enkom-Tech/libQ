@@ -216,7 +216,7 @@ pub use provider::LibQRng;
 pub use specialized::ClassicalMcElieceRng;
 #[cfg(feature = "fn-dsa")]
 pub use specialized::FnDsaRng;
-#[cfg(feature = "hpke")]
+#[cfg(all(feature = "hpke", feature = "hash"))]
 pub use specialized::Kt128Rng;
 #[cfg(feature = "alloc")]
 pub use traits::RngProvider;

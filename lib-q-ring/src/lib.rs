@@ -3,12 +3,23 @@
 //!
 //! Portable NTT (Cooley–Tukey forward, Gentleman–Sande inverse with Montgomery
 //! scaling) is bit-compatible with the non-`hardened` path in `lib-q-ml-dsa`.
-#![no_std]
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
+}
 
 pub mod challenge;
 pub mod coeff;
@@ -63,3 +74,6 @@ pub use uniform::{
     try_uniform_coeff_mod_q_from_u32,
     uniform_mod_u32_rejection_threshold,
 };
+
+#[cfg(feature = "wasm")]
+mod wasm;

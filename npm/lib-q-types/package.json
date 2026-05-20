@@ -1,7 +1,7 @@
 {
   "name": "@lib-q/types",
-  "version": "0.0.0",
-  "description": "TypeScript declarations for @lib-q WASM packages (published versions overwrite metadata in CI)",
+  "version": "0.0.2",
+  "description": "TypeScript typings for @lib-q WASM packages",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -12,15 +12,21 @@
   "bugs": {
     "url": "https://github.com/Enkom-Tech/libQ/issues"
   },
-  "keywords": ["typescript", "lib-q", "wasm", "post-quantum"],
+  "keywords": "[\"typescript\",\"lib-q\",\"wasm\",\"types\"]",
   "main": "./index.js",
   "module": "./index.js",
   "types": "./index.d.ts",
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "import": "./index.js"
+      "import": "./index.js",
+      "default": "./index.js"
     }
   },
-  "files": ["index.js", "index.d.ts", "README.md"]
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md"
+  ],
+  "author": "lib-Q Contributors"
 }

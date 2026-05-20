@@ -29,7 +29,7 @@ serde = { workspace = true, optional = true, default-features = false, features 
 serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 serde-wasm-bindgen = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.2", optional = true, features = ["std", "getrandom"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true, features = ["std", "getrandom"] }
 
 [dev-dependencies]
 rand_chacha = { workspace = true, features = ["std"] }

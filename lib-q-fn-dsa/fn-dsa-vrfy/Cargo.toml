@@ -1,5 +1,5 @@
 [package]
-name = "fn-dsa-vrfy"
+name = "lib-q-fn-dsa-vrfy"
 version = "0.0.2"
 authors.workspace = true
 categories.workspace = true
@@ -11,12 +11,15 @@ readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lib]
+name = "fn_dsa_vrfy"
+
 [dependencies]
-fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-comm = { version = "0.0.2", path = "../fn-dsa-comm" }
 
 [dev-dependencies]
-fn-dsa-kgen = { path = "../fn-dsa-kgen", version = "0.0.2" }
-fn-dsa-sign = { path = "../fn-dsa-sign", version = "0.0.2" }
+lib-q-fn-dsa-kgen = { path = "../fn-dsa-kgen", version = "0.0.2" }
+lib-q-fn-dsa-sign = { path = "../fn-dsa-sign", version = "0.0.2" }
 hex = { workspace = true }
 
 [features]

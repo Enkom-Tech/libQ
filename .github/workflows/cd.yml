@@ -76,8 +76,8 @@ jobs:
           run-release-tests: "true"
 
   # Rust crate publishing in dependency order (each tier after the previous).
-  # Uses crates.io Trusted Publishing (OIDC); configure trusted publishers at
-  # https://crates.io/settings/publishing for this repo and workflow.
+  # Uses crates.io Trusted Publishing (OIDC); per-crate Settings -> Trusted Publishing
+  # (see https://crates.io/docs/trusted-publishing).
   # lib-q-core depends on lib-q-types; publish types first.
   publish-rust-lib-q-types:
     name: Publish lib-q-types
@@ -164,9 +164,56 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  # Nested FN-DSA crates use lib-q-fn-dsa-* names (crates.io fn-dsa-* is pornin/rust-fn-dsa).
+  publish-rust-fn-dsa-deps:
+    name: Publish FN-DSA (nested)
+    needs: [publish-rust-tier-1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-fn-dsa-comm"
+            working-directory: "lib-q-fn-dsa/fn-dsa-comm"
+          - package: "lib-q-fn-dsa-kgen"
+            working-directory: "lib-q-fn-dsa/fn-dsa-kgen"
+          - package: "lib-q-fn-dsa-sign"
+            working-directory: "lib-q-fn-dsa/fn-dsa-sign"
+          - package: "lib-q-fn-dsa-vrfy"
+            working-directory: "lib-q-fn-dsa/fn-dsa-vrfy"
+          - package: "lib-q-fn-dsa-alg"
+            working-directory: "lib-q-fn-dsa/fn-dsa"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          working-directory: ${{ matrix.working-directory }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-lib-q-fn-dsa:
+    name: Publish lib-q-fn-dsa
+    needs: [publish-rust-fn-dsa-deps]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-fn-dsa
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-tier-2:
     name: Publish Rust (tier 2)
-    needs: [publish-rust-tier-1]
+    needs: [publish-rust-tier-1, publish-rust-lib-q-fn-dsa]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -175,7 +222,6 @@ jobs:
           - package: "lib-q-k12"
           - package: "lib-q-ml-kem"
           - package: "lib-q-cb-kem"
-          - package: "lib-q-fn-dsa"
           - package: "lib-q-intrinsics"
           - package: "lib-q-hqc"
           - package: "lib-q-slh-dsa"
@@ -225,7 +271,6 @@ jobs:
       matrix:
         include:
           - package: "lib-q-hpke"
-          - package: "lib-q"
           - package: "lib-q-sca-test"
     steps:
       - uses: actions/checkout@v5
@@ -495,15 +540,31 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  publish-rust-tier-17:
+    name: Publish Rust (tier 17 — lib-q umbrella)
+    needs: [publish-rust-tier-16]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@v1
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-wasm-packages:
     name: Publish WASM Packages
-    needs: [pre-release-validation, publish-rust-tier-16]
+    needs: [pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       matrix:
         include:
-          - working-directory: "."
+          - working-directory: "lib-q"
             package-name: "@lib-q/core"
             package-description: "Post-quantum cryptography library for Node.js (complete package)"
             package-keywords: "cryptography,post-quantum,security,wasm"
@@ -596,6 +657,36 @@ jobs:
             package-keywords: "cryptography,post-quantum,prf,legendre,wasm"
             features: "wasm"
             out-dir: "pkg"
+          - working-directory: "lib-q-stark"
+            package-name: "@lib-q/stark"
+            package-description: "STARK framework for Node.js (lib-q-stark); full prove/verify via @lib-q/zkp or Rust"
+            package-keywords: "cryptography,post-quantum,stark,zkp,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-plonky"
+            package-name: "@lib-q/plonky"
+            package-description: "Plonky3-derived ZK STARK components for Node.js"
+            package-keywords: "cryptography,post-quantum,zkp,plonky,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-poseidon"
+            package-name: "@lib-q/poseidon"
+            package-description: "Poseidon hash for STARK fields (Complex<Mersenne31>)"
+            package-keywords: "cryptography,post-quantum,poseidon,zkp,wasm"
+            features: "wasm,alloc"
+            out-dir: "pkg"
+          - working-directory: "lib-q-lattice-zkp"
+            package-name: "@lib-q/lattice-zkp"
+            package-description: "Module-lattice commitments and sigma protocols (research)"
+            package-keywords: "cryptography,post-quantum,lattice,zkp,wasm"
+            features: "wasm,random"
+            out-dir: "pkg"
+          - working-directory: "lib-q-ring"
+            package-name: "@lib-q/ring"
+            package-description: "ML-DSA ring arithmetic R_q for Node.js"
+            package-keywords: "cryptography,post-quantum,lattice,ml-dsa,wasm"
+            features: "wasm,alloc"
+            out-dir: "pkg"
           - working-directory: "npm/lib-q-types"
             package-name: "@lib-q/types"
             package-description: "TypeScript typings for @lib-q WASM packages"
@@ -630,7 +721,7 @@ jobs:
   # Post-release tasks - run after publishing
   post-release:
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-tier-16, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -744,7 +835,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-tier-16, publish-wasm-packages, post-release, security-verification]
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -755,7 +846,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-16.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust crate publishing: ${{ needs.publish-rust-tier-17.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY

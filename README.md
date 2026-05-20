@@ -110,7 +110,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 
 ### npm packages (npmjs.com)
 
-These packages are built with `wasm-pack` in CD and correspond to stable JS entry points; other crates are **Rust-only** on crates.io but still participate in the workspace wasm compile gate.
+**22** `@lib-q/*` packages are built with `wasm-pack` in CD. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface).
 
 - **`@lib-q/core`** — Umbrella WASM bundle (all algorithms path used in CD)
 - **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
@@ -128,6 +128,13 @@ These packages are built with `wasm-pack` in CD and correspond to stable JS entr
 - **`@lib-q/cb-kem`** — Classic McEliece CB-KEM (single compile-time parameter set per build)
 - **`@lib-q/ring-sig`** — Federation / DualRing-LB pilot bindings
 - **`@lib-q/prf`** — Legendre / Gold PRF pilots
+- **`@lib-q/stark`** — STARK framework (metadata; use **`@lib-q/zkp`** for preimage prove/verify in JS)
+- **`@lib-q/plonky`** — Plonky3-derived STARK components
+- **`@lib-q/poseidon`** — Poseidon-128 for STARK fields
+- **`@lib-q/lattice-zkp`** — Module-lattice / sigma research APIs
+- **`@lib-q/ring`** — ML-DSA ring arithmetic \(R_q\)
+
+API reference: [docs/npm-wasm-api.md](docs/npm-wasm-api.md).
 
 ## Installation
 
