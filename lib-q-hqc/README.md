@@ -191,7 +191,7 @@ cargo bench --features "simd-avx2,alloc,hqc128" --bench simd_benchmarks
 cargo bench --features "alloc,hqc128" --bench simd_benchmarks
 ```
 
-See [SIMD Architecture Documentation](docs/simd-architecture.md) for detailed information.
+See [SIMD Architecture Documentation](docs/simd-architecture.md) for dispatch and AVX2 paths, and [PKE vector operations](docs/vector-operations.md) for sparse sampling, XOF consumption, and multiply semantics.
 
 ## Testing
 
