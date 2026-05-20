@@ -1210,7 +1210,7 @@ mod tests {
 
     /// Full SHA256 keygen KATs (degrees 256 / 512 / 1024). Too slow for routine `cargo test`
     /// (NTRU solve); run before release or when touching keygen, e.g.
-    /// `cargo test -p fn-dsa-kgen test_keygen_ref_full_kat -- --ignored --release --test-threads=1`
+    /// `cargo test -p lib-q-fn-dsa-kgen test_keygen_ref_full_kat -- --ignored --release --test-threads=1`
     #[test]
     #[ignore = "slow full keygen KAT; run with --ignored --release"]
     fn test_keygen_ref_full_kat() {

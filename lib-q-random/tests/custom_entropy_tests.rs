@@ -71,6 +71,7 @@ unsafe extern "C" fn high_quality_entropy_callback(
 #[test]
 #[cfg(feature = "custom-entropy")]
 fn test_custom_entropy_registration() {
+    unregister_custom_entropy_source();
     // Initially no source registered
     assert!(!has_custom_entropy_source());
     assert!(get_entropy_source_info().is_none());
@@ -380,6 +381,7 @@ fn test_custom_entropy_with_no_std_rng() {
 #[test]
 #[cfg(feature = "custom-entropy")]
 fn test_custom_entropy_multiple_registrations() {
+    unregister_custom_entropy_source();
     let context = EntropyContext::empty();
     let config = CustomEntropyConfig::default();
 
