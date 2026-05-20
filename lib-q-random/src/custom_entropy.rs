@@ -379,6 +379,7 @@ pub fn generate_custom_entropy(dest: &mut [u8]) -> Result<()> {
 }
 
 /// Check if a custom entropy source is registered
+#[must_use]
 pub fn has_custom_entropy_source() -> bool {
     THREAD_REGISTRY.with(|registry| unsafe { registry.get_source().is_some() })
 }
@@ -388,6 +389,7 @@ pub fn has_custom_entropy_source() -> bool {
 /// # Returns
 ///
 /// Returns a tuple of (`source_id`, quality) if a source is registered.
+#[must_use]
 pub fn get_entropy_source_info() -> Option<(&'static str, EntropyQuality)> {
     THREAD_REGISTRY.with(|registry| unsafe {
         registry
