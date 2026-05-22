@@ -229,12 +229,9 @@ impl TryCryptoRng for ClassicalMcElieceRng {}
 /// using libQ's **KT128** (`KangarooTwelve`) primitive. K12 is significantly
 /// faster than SHAKE256 while maintaining the same security properties.
 #[cfg(feature = "hash")]
+#[derive(Clone, Debug)]
 pub struct Kt128Rng {
-    /// Internal buffer for K12 output
-    pub buffer: [u8; 32], // K12 output size
-    /// Current position in the buffer
-    pub position: usize,
-    counter: u64,
+    expander: crate::kt128_expander::Kt128Expander,
 }
 
 #[cfg(feature = "hash")]
@@ -268,43 +265,17 @@ impl Kt128Rng {
     /// Create a new secure RNG with explicit seed
     #[must_use]
     pub fn from_seed(seed: &[u8]) -> Self {
-        use lib_q_hash::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
-
-        let mut k12 = lib_q_hash::Kt128::new(b"HPKE-RNG");
-        k12.update(seed);
-        let mut reader = k12.finalize_xof();
-
-        // Fill initial buffer
-        let mut buffer = [0u8; 32];
-        reader.read(&mut buffer);
-
         Self {
-            buffer,
-            position: 0,
-            counter: 0,
+            expander: crate::kt128_expander::Kt128Expander::from_seed(
+                crate::kt128_expander::DOMAIN_HPKE_RNG,
+                seed,
+            ),
         }
     }
 
-    /// Refill the internal buffer with new random data
+    /// Refill the internal buffer with new random data (advances the KT128 chain).
     pub fn refill(&mut self) {
-        use lib_q_hash::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
-
-        // Use current buffer + counter as seed for next generation
-        let mut k12 = lib_q_hash::Kt128::new(b"HPKE-RNG");
-        k12.update(&self.buffer);
-        k12.update(&self.counter.to_le_bytes());
-        let mut reader = k12.finalize_xof();
-        reader.read(&mut self.buffer);
-        self.counter = self.counter.wrapping_add(1);
-        self.position = 0;
+        self.expander.refill();
     }
 }
 
@@ -325,25 +296,28 @@ impl TryRng for Kt128Rng {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        let mut remaining = dest.len();
-        let mut offset = 0;
-
-        while remaining > 0 {
-            if self.position >= self.buffer.len() {
-                self.refill();
-            }
-
-            let available = self.buffer.len() - self.position;
-            let to_copy = core::cmp::min(remaining, available);
-
-            dest[offset..offset + to_copy]
-                .copy_from_slice(&self.buffer[self.position..self.position + to_copy]);
-
-            self.position += to_copy;
-            offset += to_copy;
-            remaining -= to_copy;
-        }
+        self.expander.fill_bytes(dest);
         Ok(())
+    }
+}
+
+#[cfg(feature = "hash")]
+#[cfg(test)]
+mod kt128_rng_tests {
+    use super::*;
+    use crate::kt128_expander::Kt128Expander;
+
+    /// HPKE domain + seed must match the shared expander (regression for refactor).
+    #[test]
+    fn test_kt128_rng_matches_hpke_domain_expander() {
+        let seed = [9u8; 32];
+        let mut rng = Kt128Rng::from_seed(&seed);
+        let mut exp = Kt128Expander::from_seed(crate::kt128_expander::DOMAIN_HPKE_RNG, &seed);
+        let mut a = [0u8; 128];
+        let mut b = [0u8; 128];
+        rng.fill_bytes(&mut a);
+        exp.fill_bytes(&mut b);
+        assert_eq!(a, b);
     }
 }
 

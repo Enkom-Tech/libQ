@@ -16,13 +16,8 @@ use lib_q_core::{
 use lib_q_hpke::HpkeKem;
 use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
-use lib_q_hpke::security::CryptoRng;
+use lib_q_hpke::security::test_rng::TestRng;
 use lib_q_kem::LibQKemProvider;
-use rand_chacha::ChaCha20Rng;
-use rand_core::{
-    Rng,
-    SeedableRng,
-};
 
 /// Test that AuthEncap/AuthDecap provides proper sender authentication
 #[test]
@@ -285,30 +280,4 @@ fn test_authentication_cryptographic_proof() {
         shared_secret, decapsulated_shared_secret,
         "Authenticated shared secrets should match"
     );
-}
-
-/// Deterministic CSPRNG wrapper for repeatable tests.
-struct TestRng(ChaCha20Rng);
-
-impl Default for TestRng {
-    fn default() -> Self {
-        let mut seed = [0u8; 32];
-        seed[0..8].copy_from_slice(&0x42_u64.to_le_bytes());
-        Self(ChaCha20Rng::from_seed(seed))
-    }
-}
-
-impl CryptoRng for TestRng {
-    fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), lib_q_hpke::error::HpkeError> {
-        self.0.fill_bytes(dest);
-        Ok(())
-    }
-
-    fn next_u32(&mut self) -> Result<u32, lib_q_hpke::error::HpkeError> {
-        Ok(self.0.next_u32())
-    }
-
-    fn next_u64(&mut self) -> Result<u64, lib_q_hpke::error::HpkeError> {
-        Ok(self.0.next_u64())
-    }
 }

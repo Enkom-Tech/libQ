@@ -25,25 +25,8 @@ pub use lib_q_random::Kt128Rng;
 #[cfg(feature = "hash")]
 impl CryptoRng for Kt128Rng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
-        let mut remaining = dest.len();
-        let mut offset = 0;
-
-        while remaining > 0 {
-            if self.position >= self.buffer.len() {
-                self.refill();
-            }
-
-            let available = self.buffer.len() - self.position;
-            let to_copy = core::cmp::min(remaining, available);
-
-            dest[offset..offset + to_copy]
-                .copy_from_slice(&self.buffer[self.position..self.position + to_copy]);
-
-            self.position += to_copy;
-            offset += to_copy;
-            remaining -= to_copy;
-        }
-
+        use rand_core::Rng;
+        Rng::fill_bytes(self, dest);
         Ok(())
     }
 

@@ -2,18 +2,14 @@
 //!
 //! This module provides a deterministic RNG for testing purposes.
 
-use rand_chacha::ChaCha20Rng;
-use rand_core::{
-    Rng,
-    SeedableRng,
-};
+use lib_q_random::kt128_expander::Kt128Expander;
 
 use crate::error::HpkeError;
 use crate::security::CryptoRng;
 
-/// Deterministic test RNG for reproducible testing
+/// Deterministic test RNG for reproducible testing (KT128 / [`lib_q_random`]).
 pub struct TestRng {
-    inner: ChaCha20Rng,
+    expander: Kt128Expander,
 }
 
 impl TestRng {
@@ -22,28 +18,30 @@ impl TestRng {
         Self::with_seed(12345)
     }
 
-    /// Create a new test RNG with specific seed
+    /// Create a new test RNG with specific seed (SplitMix64 → KT128, lib-Q DET domain).
     pub fn with_seed(seed: u64) -> Self {
-        let mut expanded = [0u8; 32];
-        expanded[0..8].copy_from_slice(&seed.to_le_bytes());
         Self {
-            inner: ChaCha20Rng::from_seed(expanded),
+            expander: Kt128Expander::from_det_u64(seed),
         }
     }
 }
 
 impl CryptoRng for TestRng {
     fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
-        self.inner.fill_bytes(dest);
+        self.expander.fill_bytes(dest);
         Ok(())
     }
 
     fn next_u32(&mut self) -> Result<u32, HpkeError> {
-        Ok(self.inner.next_u32())
+        let mut bytes = [0u8; 4];
+        self.fill_bytes(&mut bytes)?;
+        Ok(u32::from_le_bytes(bytes))
     }
 
     fn next_u64(&mut self) -> Result<u64, HpkeError> {
-        Ok(self.inner.next_u64())
+        let mut bytes = [0u8; 8];
+        self.fill_bytes(&mut bytes)?;
+        Ok(u64::from_le_bytes(bytes))
     }
 }
 
@@ -92,7 +90,6 @@ mod tests {
 
         let _ = rng.fill_bytes(&mut bytes);
 
-        // Should not be all zeros
         assert!(bytes.iter().any(|&b| b != 0));
     }
 }

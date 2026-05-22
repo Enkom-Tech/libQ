@@ -15,9 +15,9 @@ exclude = ["/data"]
 
 [dependencies]
 # libQ dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["classical-mceliece"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4", features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["classical-mceliece"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4" }
 
 # External dependencies
 aes = { workspace = true, default-features = false, optional = true }

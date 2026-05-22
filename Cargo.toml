@@ -76,7 +76,7 @@ homepage = "https://github.com/Enkom-Tech/libQ"
 edition = "2024"
 repository = "https://github.com/Enkom-Tech/libQ"
 readme = "README.md"
-version = "0.0.2"
+version = "0.0.4"
 rust-version = "1.94.1"
 description = "Post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
@@ -84,20 +84,21 @@ categories = ["cryptography", "wasm"]
 
 # Workspace dependencies for inherited properties
 [workspace.dependencies]
-hax-lib = "0.3.6"
+hax-lib = "0.3.7"
 blobby = "0.4.0"
 # WASM dependencies - shared across all workspace members
-wasm-bindgen = "0.2.121"
-js-sys = "0.3.98"
-web-sys = "0.3.98"
-wasm-bindgen-test = "0.3.71"
+wasm-bindgen = "0.2.122"
+js-sys = "0.3.99"
+web-sys = "0.3.99"
+wasm-bindgen-test = "0.3.72"
 # Common dependencies - shared across all workspace members
 zeroize = { version = "1.8.2", default-features = false }
 serde = { version = "1.0.228", default-features = false }
-serde_json = { version = "1.0.149", default-features = false }
+serde_json = { version = "1.0.150", default-features = false }
 serde-wasm-bindgen = "0.6.5"
 rand_core = { version = "0.10.1", default-features = false }
 rand = { version = "0.10.1", default-features = false }
+# Still used by lib-q-hqc, lib-q-slh-dsa (tests), lib-q-lattice-zkp, etc. Remove when follow-up ChaCha cleanup lands.
 rand_chacha = { version = "0.10.0", default-features = false }
 getrandom = { version = "0.4.2", default-features = false }
 criterion = "0.8.2"
@@ -108,8 +109,8 @@ cpufeatures = "0.3.0"
 # STARK dependencies
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
-pastey = "0.2.2"
-spin = "0.11.0"
+pastey = "0.2.3"
+spin = "0.12.0"
 thiserror = { version = "2.0.18", default-features = false }
 tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
 subtle = { version = "2.6.1", default-features = false }

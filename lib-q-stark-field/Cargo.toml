@@ -12,8 +12,8 @@ readme.workspace = true
 exclude = ["/tests"]
 
 [dependencies]
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.4" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.4" }
 
 itertools = { workspace = true }
 num-bigint = { workspace = true }
@@ -31,7 +31,7 @@ alloc = []
 no_std = []
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.4" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

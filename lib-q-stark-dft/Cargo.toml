@@ -10,18 +10,18 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.2" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.2" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.2" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.2" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.4" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.4" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.4" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.4" }
 
 itertools = { workspace = true }
 spin = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.2" }
-lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.2" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.4" }
+lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.4" }
 rand = { workspace = true, default-features = false, features = ["std"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

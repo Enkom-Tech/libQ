@@ -248,6 +248,46 @@ fn benchmark_rng_initialization(c: &mut Criterion) {
     group.finish();
 }
 
+/// Saturnin CTR deterministic fill (`deterministic-saturnin` feature).
+#[cfg(feature = "deterministic-saturnin")]
+fn benchmark_saturnin_deterministic_fill_bytes(c: &mut Criterion) {
+    use lib_q_random::saturnin_det::SaturninDeterministicEntropySource;
+
+    let mut group = c.benchmark_group("saturnin_deterministic_fill_bytes");
+    let mut seed = [0u8; 32];
+    seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    let mut source = SaturninDeterministicEntropySource::new(seed).expect("saturnin init");
+
+    for size in [64, 256, 1024, 4096].iter() {
+        group.bench_with_input(BenchmarkId::new("fill", size), size, |b, &size| {
+            b.iter(|| {
+                let mut bytes = vec![0u8; size];
+                source.get_entropy(&mut bytes).unwrap();
+                black_box(bytes)
+            });
+        });
+    }
+
+    group.finish();
+}
+
+#[cfg(feature = "deterministic-saturnin")]
+criterion_group!(
+    benches,
+    benchmark_deterministic_rng_creation,
+    benchmark_secure_rng_creation,
+    benchmark_rng_fill_bytes,
+    benchmark_rng_next_u32,
+    benchmark_rng_next_u64,
+    benchmark_entropy_source_performance,
+    benchmark_entropy_validation,
+    benchmark_rng_operations,
+    benchmark_custom_rng_creation,
+    benchmark_rng_initialization,
+    benchmark_saturnin_deterministic_fill_bytes
+);
+
+#[cfg(not(feature = "deterministic-saturnin"))]
 criterion_group!(
     benches,
     benchmark_deterministic_rng_creation,

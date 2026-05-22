@@ -61,9 +61,37 @@ jobs:
     name: Deploy docs to Pages
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      pages: write
+      id-token: write
+      deployments: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Prune old GitHub Pages deployments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: deployments } = await github.rest.repos.listDeployments({
+              owner,
+              repo,
+              environment: 'github-pages',
+              per_page: 100,
+            });
+            for (const deployment of deployments) {
+              await github.rest.repos.deleteDeployment({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+              });
+            }
+            core.info(
+              deployments.length === 0
+                ? 'No previous github-pages deployments to prune'
+                : `Pruned ${deployments.length} previous github-pages deployment(s)`,
+            );
+
       - id: deployment
         uses: actions/deploy-pages@v5

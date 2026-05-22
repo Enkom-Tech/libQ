@@ -23,12 +23,7 @@ use alloc::{
     vec::Vec,
 };
 
-use rand_chacha::ChaCha20Rng;
-use rand_core::{
-    Rng,
-    SeedableRng,
-};
-
+use crate::kt128_expander::Kt128Expander;
 use crate::traits::{
     EntropyConfig,
     EntropySource,
@@ -338,9 +333,8 @@ impl Default for HardwareEntropySource {
 
 /// Deterministic entropy source for testing
 ///
-/// This entropy source provides deterministic bytes from a **256-bit** `ChaCha20`
-/// stream (`rand_chacha::ChaCha20Rng`), matching the construction used across
-/// libQ for reproducible tests and vectors.
+/// This entropy source provides deterministic bytes from **KT128** (`KangarooTwelve`)
+/// XOF expansion via [`Kt128Expander`] and domain [`crate::kt128_expander::DOMAIN_LIBQ_DET_RNG`].
 ///
 /// **USE CASE**: This is designed for:
 /// - Unit testing with reproducible outcomes
@@ -352,24 +346,33 @@ impl Default for HardwareEntropySource {
 /// only as strong as the secrecy of the 32-byte seed.
 #[derive(Debug, Clone)]
 pub struct DeterministicEntropySource {
-    /// `ChaCha20` stream generator
-    rng: ChaCha20Rng,
+    /// KT128 expander
+    expander: Kt128Expander,
     /// Quality estimate (0.0 for deterministic)
     quality: f64,
 }
 
 impl DeterministicEntropySource {
-    /// Create a new deterministic entropy source from a 32-byte `ChaCha20` key
+    /// Create a new deterministic entropy source from a 32-byte seed.
     #[must_use]
     pub fn new(seed: [u8; 32]) -> Self {
         Self {
-            rng: ChaCha20Rng::from_seed(seed),
+            expander: Kt128Expander::from_det_seed_32(seed),
             quality: 0.0, // Deterministic sources have no true entropy
         }
     }
 
+    /// Create from a `u64` test seed (`SplitMix64` → 32 bytes → KT128).
+    #[must_use]
+    pub fn from_u64(seed: u64) -> Self {
+        Self {
+            expander: Kt128Expander::from_det_u64(seed),
+            quality: 0.0,
+        }
+    }
+
     fn generate_deterministic_bytes(&mut self, dest: &mut [u8]) {
-        self.rng.fill_bytes(dest);
+        self.expander.fill_bytes(dest);
     }
 }
 
@@ -752,9 +755,14 @@ impl EntropySourceFactory {
         }
     }
 
-    /// Create a deterministic entropy source (`ChaCha20` stream from `seed`)
+    /// Create a deterministic entropy source (KT128 XOF from `seed`).
     pub fn create_deterministic_entropy(seed: [u8; 32]) -> Box<dyn EntropySource> {
         Box::new(DeterministicEntropySource::new(seed))
+    }
+
+    /// Create a deterministic entropy source from a `u64` test seed (`SplitMix64` → KT128).
+    pub fn create_deterministic_entropy_from_u64(seed: u64) -> Box<dyn EntropySource> {
+        Box::new(DeterministicEntropySource::from_u64(seed))
     }
 
     /// Create a user entropy source
@@ -787,6 +795,10 @@ mod tests {
     use alloc::vec;
 
     use super::*;
+    use crate::kt128_expander::{
+        KT128_DET_GOLDEN_U64_SEED_64,
+        KT128_DET_GOLDEN_ZERO_SEED_64,
+    };
 
     #[test]
     fn test_os_entropy_source_creation() {
@@ -850,6 +862,23 @@ mod tests {
         source2.get_entropy(&mut bytes2).unwrap();
 
         assert_eq!(bytes1, bytes2);
+    }
+
+    /// KT128 deterministic entropy must match committed goldens (`libQ-DET-RNG-v1`).
+    #[test]
+    fn test_deterministic_entropy_golden_zero_seed() {
+        let mut source = DeterministicEntropySource::new([0u8; 32]);
+        let mut out = [0u8; 64];
+        source.get_entropy(&mut out).unwrap();
+        assert_eq!(out, KT128_DET_GOLDEN_ZERO_SEED_64);
+    }
+
+    #[test]
+    fn test_deterministic_entropy_golden_from_u64() {
+        let mut source = DeterministicEntropySource::from_u64(0x0123_4567_89AB_CDEF);
+        let mut out = [0u8; 64];
+        source.get_entropy(&mut out).unwrap();
+        assert_eq!(out, KT128_DET_GOLDEN_U64_SEED_64);
     }
 
     #[test]

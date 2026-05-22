@@ -13,7 +13,7 @@ keywords = ["cryptography", "post-quantum", "security", "core", "nist"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.4", default-features = false }
 # Core cryptographic dependencies - no_std compatible
 getrandom = { workspace = true, optional = true, default-features = false }
 # rand_core 0.10 has no optional features; OS RNG comes from getrandom/rand when std is enabled
@@ -40,7 +40,7 @@ serde_json = { workspace = true, optional = true }
 
 # Once cell for global registry (std mode)
 # Note: sync module requires std feature
-once_cell = { version = "1.21.3", default-features = false, optional = true }
+once_cell = { version = "1.21.4", default-features = false, optional = true }
 # Spin for no_std global registry
 spin = { workspace = true, optional = true }
 

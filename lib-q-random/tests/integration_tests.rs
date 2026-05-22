@@ -37,8 +37,11 @@ use lib_q_random::validation::quick_entropy_check;
 use lib_q_random::{
     EntropyQuality,
     EntropyValidator,
+    KT128_DET_GOLDEN_U64_SEED_64,
+    KT128_DET_GOLDEN_ZERO_SEED_64,
     LibQRng,
     new_deterministic_rng,
+    new_deterministic_rng_from_u64,
     new_secure_rng,
 };
 // no_std imports
@@ -127,6 +130,24 @@ fn test_deterministic_rng_consistency() {
 
         assert_eq!(bytes1, bytes2);
     }
+}
+
+/// End-to-end check: `LibQRng` deterministic path matches `tests/data/kt128_det_rng_v1.json`.
+#[test]
+#[cfg(feature = "alloc")]
+fn test_deterministic_kt128_golden_vectors() {
+    let mut zero = [0u8; 64];
+    new_deterministic_rng([0u8; 32]).fill_bytes(&mut zero);
+    assert_eq!(zero, KT128_DET_GOLDEN_ZERO_SEED_64);
+
+    let mut u64_out = [0u8; 64];
+    new_deterministic_rng_from_u64(0x0123_4567_89AB_CDEF).fill_bytes(&mut u64_out);
+    assert_eq!(u64_out, KT128_DET_GOLDEN_U64_SEED_64);
+
+    let mut via_factory = [0u8; 64];
+    let mut source = EntropySourceFactory::create_deterministic_entropy([0u8; 32]);
+    source.get_entropy(&mut via_factory).unwrap();
+    assert_eq!(via_factory, KT128_DET_GOLDEN_ZERO_SEED_64);
 }
 
 #[test]

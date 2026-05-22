@@ -1,7 +1,7 @@
 [package]
 name = "lib-q-random"
-# 0.0.2 on crates.io was published without `lib-q-hash` in the manifest; 0.0.3 restores it for `hpke`.
-version = "0.0.3"
+# 0.0.4: deterministic RNG uses KT128 (KangarooTwelve) instead of ChaCha20.
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -14,9 +14,10 @@ keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"], optional = true }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
-rand_chacha = { workspace = true, default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.4", optional = true }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.4", default-features = false }
+lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.4", default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }
@@ -27,7 +28,7 @@ serde_json = { workspace = true, optional = true, default-features = false, feat
 serde-wasm-bindgen = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 aes = { workspace = true, default-features = false, optional = true }
-signature = { version = "3.0.0-rc.5", features = ["rand_core"], optional = true }
+signature = { version = "3.0.0", features = ["rand_core"], optional = true }
 
 # Merge wasm_js into transitive getrandom on wasm32-unknown-unknown (same pattern as lib-q-core).
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
@@ -48,6 +49,7 @@ no_std_panic_handler = []
 # RNG provider features
 secure = ["getrandom", "dep:rand"]
 deterministic = []
+deterministic-saturnin = ["alloc", "dep:lib-q-saturnin", "lib-q-saturnin/stream", "lib-q-saturnin/alloc"]
 hardware = []
 getrandom = ["dep:getrandom"]
 signature = ["dep:signature"]
@@ -70,7 +72,7 @@ rand = ["dep:rand"]
 zeroize = ["dep:zeroize"]
 entropy-validation = []
 
-# Development features
+# Development features (golden JSON tests in `tests/kt128_golden_vectors.rs` always run; alias for CI/docs)
 test-vectors = []
 
 # Platform-specific features
@@ -100,6 +102,8 @@ wasm-bindgen-test = { workspace = true }
 criterion = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [[test]]
 name = "wasm_smoke"
@@ -130,5 +134,5 @@ crate-type = ["cdylib", "rlib"]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [package.metadata.docs.rs]
-features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy"]
+features = ["std", "secure", "zeroize", "entropy-validation", "custom-entropy", "hash", "hpke", "deterministic-saturnin"]
 rustdoc-args = ["--cfg", "docsrs"]

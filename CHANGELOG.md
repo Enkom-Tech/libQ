@@ -2,6 +2,18 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.4
+
+### Changed
+
+- **Workspace:** All crates and path dependency pins aligned to **0.0.4** (shared `[workspace.package]` version).
+- **`lib-q-random`:** Deterministic RNG expansion uses **KT128** (domain `libQ-DET-RNG-v1`) with SplitMix64 for `*_from_u64` seeds; ChaCha20 removed. Optional `deterministic-saturnin` feature for Saturnin CTR test streams. Golden vectors in `lib-q-random/tests/data/kt128_det_rng_v1.json`.
+- **`lib-q-hpke`:** Test RNG and auth encap tests use `lib-q-random` KT128 expander; `rand_chacha` dependency removed.
+
+### Documentation
+
+- `docs/security.md` and `lib-q-random` README/CHANGELOG describe KT128 deterministic paths and migration from ChaCha20 output.
+
 ## 0.0.2
 
 ### Added
