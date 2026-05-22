@@ -8,7 +8,7 @@ inputs:
     required: true
   features:
     description: Features to enable for testing
-    default: "ml-kem,saturnin,shake256,hash,secure-rng"
+    default: "std,ml-kem,saturnin,shake256,hash,secure-rng"
     required: false
   rust-version:
     description: Rust toolchain version to use

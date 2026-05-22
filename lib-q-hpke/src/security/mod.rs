@@ -15,7 +15,8 @@ pub mod prng;
 pub mod side_channel_protection;
 pub mod validation;
 
-#[cfg(test)]
+// Unit tests and `std` integration tests (e.g. `auth_encap_validation_tests`) need this module.
+#[cfg(any(test, feature = "std"))]
 pub mod test_rng;
 
 pub use constant_time::constant_time_eq;

@@ -24,10 +24,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-random = "0.0.2"
+lib-q-random = "0.0.4"
 
 # For custom entropy sources in no_std/WASM environments
-lib-q-random = { version = "0.0.2", features = ["custom-entropy"] }
+lib-q-random = { version = "0.0.4", features = ["custom-entropy"] }
 ```
 
 ### Basic Usage
@@ -183,7 +183,10 @@ The crate is organized into several key components:
 - **`std`**: Standard library support (default)
 - **`alloc`**: Dynamic memory allocation support
 - **`secure`**: Cryptographically secure RNGs (default)
-- **`deterministic`**: Deterministic RNGs for testing
+- **`deterministic`**: Deterministic RNGs for testing (KT128 expansion; always available with `lib-q-k12`)
+- **`hash`**: HPKE `Kt128Rng` export
+- **`hpke`**: HPKE RNG integration (`hash`)
+- **`deterministic-saturnin`**: Optional Saturnin CTR deterministic RNG (`LibQRng::new_deterministic_saturnin`)
 - **`hardware`**: Hardware RNG support
 - **`zeroize`**: Secure memory clearing (default)
 - **`entropy-validation`**: Entropy validation features
@@ -212,8 +215,12 @@ seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
 let mut rng = new_deterministic_rng(seed);
 let mut bytes = [0u8; 16];
 rng.fill_bytes(&mut bytes);
-// bytes will be the same every time with the same seed
+// bytes will be the same every time with the same seed (KT128 / libQ-DET-RNG-v1)
 ```
+
+### Migration (0.0.3 → 0.0.4)
+
+Deterministic APIs are unchanged by name, but **output bytes differ**: ChaCha20 was replaced with KT128 (KangarooTwelve) and domain-separated expansion. `new_deterministic_from_u64` now uses SplitMix64 to form a 32-byte seed. Re-record any test vectors that pinned ChaCha20 output. See [CHANGELOG.md](CHANGELOG.md).
 
 ### Custom Entropy Source
 

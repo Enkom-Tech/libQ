@@ -102,14 +102,14 @@ impl LibQRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// Initializes a `ChaCha20` byte stream from a **256-bit** seed (same as
-    /// `rand_chacha::ChaCha20Rng::from_seed`). Suitable for KATs and regression
+    /// Initializes a **KT128** (`KangarooTwelve`) XOF byte stream from a **256-bit** seed.
+    /// Suitable for KATs and regression
     /// tests. **Unpredictability is only as strong as the seed**: this is not a
     /// substitute for [`Self::new_secure`] in production.
     ///
     /// # Arguments
     ///
-    /// * `seed` - 32-byte `ChaCha20` key material; must be chosen explicitly for tests
+    /// * `seed` - 32-byte seed; must be chosen explicitly for tests
     ///
     /// # Examples
     ///
@@ -141,6 +141,47 @@ impl LibQRng {
             bytes_generated: 0,
             reseed_interval: None, // No reseeding for deterministic RNGs
         }
+    }
+
+    /// Create a deterministic RNG from a `u64` test seed (`SplitMix64` → KT128).
+    pub fn new_deterministic_from_u64(seed: u64) -> Self {
+        let entropy_source =
+            crate::entropy::EntropySourceFactory::create_deterministic_entropy_from_u64(seed);
+        let validator = EntropyValidator::with_settings(32, 1024, 0.1, false);
+
+        Self {
+            entropy_source,
+            validator,
+            security_level: SecurityLevel::Deterministic,
+            deterministic: true,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: None,
+        }
+    }
+
+    /// Create a deterministic RNG using Saturnin CTR keystream (`deterministic-saturnin` feature).
+    ///
+    /// Requires `alloc`. Uses domain [`crate::kt128_expander::DOMAIN_LIBQ_DET_SATURNIN`] for the CTR nonce.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if Saturnin keystream generation fails.
+    #[cfg(feature = "deterministic-saturnin")]
+    pub fn new_deterministic_saturnin(seed: [u8; 32]) -> Result<Self> {
+        let entropy_source = alloc::boxed::Box::new(
+            crate::saturnin_det::SaturninDeterministicEntropySource::new(seed)?,
+        );
+        let validator = EntropyValidator::with_settings(32, 1024, 0.1, false);
+        Ok(Self {
+            entropy_source,
+            validator,
+            security_level: SecurityLevel::Deterministic,
+            deterministic: true,
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: None,
+        })
     }
 
     /// Create a new RNG with NIST AES256-CTR-DRBG for KAT test compatibility
@@ -647,7 +688,23 @@ mod tests {
         assert_eq!(bytes1, bytes2);
     }
 
-    /// Regression: deterministic RNG must use the full 256-bit seed (`ChaCha20`), not a
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_libq_rng_deterministic_golden_zero_seed() {
+        use crate::kt128_expander::Kt128Expander;
+
+        let expected = crate::kt128_expander::KT128_DET_GOLDEN_ZERO_SEED_64;
+        let mut rng = LibQRng::new_deterministic([0u8; 32]);
+        let mut out = [0u8; 64];
+        rng.fill_bytes(&mut out);
+        let mut direct = Kt128Expander::from_det_seed_32([0u8; 32]);
+        let mut expected_direct = [0u8; 64];
+        direct.fill_bytes(&mut expected_direct);
+        assert_eq!(out, expected);
+        assert_eq!(out, expected_direct);
+    }
+
+    /// Regression: deterministic RNG must use the full 256-bit seed (KT128), not a
     /// collapsed 64-bit state where distant seed bytes could be ignored.
     #[test]
     #[cfg(feature = "alloc")]
@@ -666,7 +723,7 @@ mod tests {
 
         assert_ne!(
             out_a, out_b,
-            "ChaCha20 streams from different 32-byte keys must diverge immediately"
+            "KT128 streams from different 32-byte keys must diverge immediately"
         );
     }
 

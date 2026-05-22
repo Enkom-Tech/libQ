@@ -10,8 +10,8 @@ keywords = ["cryptography", "post-quantum", "lattice", "ml-dsa", "no-std"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4", default-features = false, optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
 rand_core = { workspace = true, default-features = false }
 zeroize = { workspace = true, features = ["derive", "alloc"] }
 subtle = { workspace = true }
@@ -23,7 +23,7 @@ wasm-bindgen-test = { workspace = true }
 # `proptest` pulls `rand` 0.9 → `getrandom` 0.3; CI wasm builds set `getrandom_backend="wasm_js"`.
 # These dev-deps are unused in this crate's sources; keep them host-only.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std"] }
 rand_core = { workspace = true }
 hex = { workspace = true }
 proptest = { workspace = true }

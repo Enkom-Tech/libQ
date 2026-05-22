@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "domain": "libQ-DET-RNG-v1",
+  "vectors": [
+    {
+      "name": "zero_seed_64",
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "output_hex": "ddfaae70c00aa282b43a437c76f08c4120d708228c3f0dcdf1e53b0939be147cc58af6d5509b404d4636bf1107e549e29dacebb768914996e53a32162877b245"
+    },
+    {
+      "name": "u64_seed_0123456789abcdef_64",
+      "seed_u64": "0123456789abcdef",
+      "output_hex": "fcb5e670f88d318468d915ca16d50b97ffb59638e6aad2462d3af624dd8e8f45c666709ddd8ada08882dc6ab1fcd934078722315cf3daeeeb366bdac10fe8402"
+    }
+  ]
+}

@@ -12,15 +12,15 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2" }
-lib-q-types = { path = "../lib-q-types", version = "0.0.2", default-features = false }
-lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.2", optional = true }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.2", optional = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
-lib-q-duplex-aead = { path = "../lib-q-duplex-aead", version = "0.0.2", optional = true }
-lib-q-tweak-aead = { path = "../lib-q-tweak-aead", version = "0.0.2", optional = true }
-lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.2", optional = true, default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4" }
+lib-q-types = { path = "../lib-q-types", version = "0.0.4", default-features = false }
+lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.4", optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.4", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true }
+lib-q-duplex-aead = { path = "../lib-q-duplex-aead", version = "0.0.4", optional = true }
+lib-q-tweak-aead = { path = "../lib-q-tweak-aead", version = "0.0.4", optional = true }
+lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.4", optional = true, default-features = false }
 subtle = { workspace = true, default-features = false }
 zeroize = { workspace = true, default-features = false, optional = true }
 once_cell = "1.21.4"

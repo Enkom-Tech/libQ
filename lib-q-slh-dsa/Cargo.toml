@@ -15,9 +15,9 @@ exclude = ["tests"]
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 typenum = { version = "1.20.0", features = ["const-generics"] }
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["alloc"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true, default-features = false, features = ["signature"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4", features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true, default-features = false, features = ["signature"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0", features = ["rand_core"] }
 hmac = "0.13.0"
@@ -45,15 +45,15 @@ pastey = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std", "signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std", "signature"] }
 rand_chacha = { workspace = true }
 num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
 proptest = { workspace = true }
 aes = { workspace = true }
-cipher = "0.5.1"
-ctr = "0.10.0"
+cipher = "0.5.2"
+ctr = "0.10.1"
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 pkcs8 = { version = "0.11.0", features = ["pem"] }

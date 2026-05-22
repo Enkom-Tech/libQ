@@ -5,10 +5,7 @@
 
 use core::fmt;
 
-use rand_chacha::ChaCha20Rng;
 use rand_core::{
-    Rng,
-    SeedableRng,
     TryCryptoRng,
     TryRng,
 };
@@ -18,6 +15,7 @@ use crate::custom_entropy::{
     generate_custom_entropy,
     has_custom_entropy_source,
 };
+use crate::kt128_expander::Kt128Expander;
 use crate::{
     Error,
     Result,
@@ -35,8 +33,8 @@ pub struct NoStdRng {
     bytes_generated: usize,
     /// Reseed interval in bytes (1MB default)
     reseed_interval: usize,
-    /// `ChaCha20`-based stream when constructed with [`Self::new_deterministic`]
-    deterministic_rng: Option<ChaCha20Rng>,
+    /// KT128 expander when constructed with [`Self::new_deterministic`]
+    deterministic_rng: Option<Kt128Expander>,
 }
 
 impl NoStdRng {
@@ -87,8 +85,8 @@ impl NoStdRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// This builds a `ChaCha20` DRBG-style byte stream from a **256-bit** seed
-    /// (same construction as `rand_chacha::ChaCha20Rng::from_seed` used elsewhere
+    /// This builds a KT128 XOF byte stream from a **256-bit** seed
+    /// ([`Kt128Expander`] / [`crate::kt128_expander::DOMAIN_LIBQ_DET_RNG`])
     /// in libQ). Output is reproducible and suitable for KATs and benchmarks.
     ///
     /// **Security**: Unpredictability is **entirely** bounded by the secrecy of
@@ -98,7 +96,7 @@ impl NoStdRng {
     ///
     /// # Arguments
     ///
-    /// * `seed` - 32-byte key for `ChaCha20`; distinct seeds produce unrelated streams
+    /// * `seed` - 32-byte seed; distinct seeds produce unrelated streams
     ///
     /// # Examples
     ///
@@ -116,7 +114,18 @@ impl NoStdRng {
             reseed_counter: 0,
             bytes_generated: 0,
             reseed_interval: 0, // No reseeding for deterministic RNG
-            deterministic_rng: Some(ChaCha20Rng::from_seed(seed)),
+            deterministic_rng: Some(Kt128Expander::from_det_seed_32(seed)),
+        }
+    }
+
+    /// Same as [`Self::new_deterministic`] but seeds via `SplitMix64` → KT128.
+    #[must_use]
+    pub fn new_deterministic_from_u64(seed: u64) -> Self {
+        Self {
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: 0,
+            deterministic_rng: Some(Kt128Expander::from_det_u64(seed)),
         }
     }
 
@@ -172,8 +181,8 @@ impl TryRng for NoStdRng {
         }
 
         // Generate random bytes
-        if let Some(ref mut rng) = self.deterministic_rng {
-            rng.fill_bytes(dest);
+        if let Some(ref mut expander) = self.deterministic_rng {
+            expander.fill_bytes(dest);
         } else {
             #[cfg(feature = "custom-entropy")]
             {
@@ -305,7 +314,7 @@ mod tests {
         assert_eq!(bytes1, bytes2);
     }
 
-    /// Regression: deterministic RNG must use the full 256-bit seed (`ChaCha20`), not a
+    /// Regression: deterministic RNG must use the full 256-bit seed (KT128), not a
     /// collapsed 64-bit state where distant seed bytes could be ignored.
     #[test]
     fn test_deterministic_seeds_differ_in_final_byte_yield_different_streams() {
@@ -323,7 +332,7 @@ mod tests {
 
         assert_ne!(
             out_a, out_b,
-            "ChaCha20 streams from different 32-byte keys must diverge immediately"
+            "KT128 streams from different 32-byte keys must diverge immediately"
         );
     }
 }
