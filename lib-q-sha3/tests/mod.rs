@@ -1,4 +1,6 @@
-use blobby::parse_into_vec;
+mod common;
+
+use common::kat_blobs;
 use digest::{
     Digest,
     ExtendableOutput,
@@ -16,7 +18,7 @@ pub struct TestVector {
 #[test]
 fn sha3_224_kat() {
     let data = include_bytes!("data/sha3_224_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -35,7 +37,7 @@ fn sha3_224_kat() {
 #[test]
 fn sha3_256_kat() {
     let data = include_bytes!("data/sha3_256_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -54,7 +56,7 @@ fn sha3_256_kat() {
 #[test]
 fn sha3_384_kat() {
     let data = include_bytes!("data/sha3_384_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -73,7 +75,7 @@ fn sha3_384_kat() {
 #[test]
 fn sha3_512_kat() {
     let data = include_bytes!("data/sha3_512_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -92,7 +94,7 @@ fn sha3_512_kat() {
 #[test]
 fn shake128_kat() {
     let data = include_bytes!("data/shake128_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {
@@ -112,7 +114,7 @@ fn shake128_kat() {
 #[test]
 fn shake256_kat() {
     let data = include_bytes!("data/shake256_kat.blb");
-    let blobs = parse_into_vec(data).unwrap();
+    let blobs = kat_blobs(data);
 
     for (i, chunk) in blobs.chunks(2).enumerate() {
         if chunk.len() == 2 {

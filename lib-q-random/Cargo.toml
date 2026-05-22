@@ -72,7 +72,7 @@ rand = ["dep:rand"]
 zeroize = ["dep:zeroize"]
 entropy-validation = []
 
-# Development features (golden JSON tests in `tests/kt128_golden_vectors.rs` always run; alias for CI/docs)
+# Development features (native golden JSON tests in `tests/kt128_golden_vectors.rs`; alias for CI/docs)
 test-vectors = []
 
 # Platform-specific features

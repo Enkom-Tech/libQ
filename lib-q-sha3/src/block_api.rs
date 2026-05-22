@@ -352,11 +352,9 @@ pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
 
     let mut chunks = block.chunks_exact(8);
     for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        *s ^= u64::from_le_bytes(
-            *chunk
-                .first_chunk::<8>()
-                .expect("8 bytes from chunk_exact(8)"),
-        );
+        let mut lane = [0u8; 8];
+        lane.copy_from_slice(chunk);
+        *s ^= u64::from_le_bytes(lane);
     }
 
     let rem = chunks.remainder();
