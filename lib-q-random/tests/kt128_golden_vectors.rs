@@ -1,5 +1,8 @@
 //! Golden vectors for KT128 deterministic RNG (`tests/data/kt128_det_rng_v1.json`).
+//!
+//! Native-only: dev-dependencies (`serde`, `hex`) are not linked for `wasm32-unknown-unknown`.
 
+#![cfg(not(target_arch = "wasm32"))]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use hex::FromHex;

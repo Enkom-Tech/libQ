@@ -3,6 +3,9 @@
 //! These tests verify that SHA3 operations are constant-time to prevent
 //! timing-based side-channel attacks.
 
+mod common;
+
+use common::duration_min_max_nanos;
 use std::time::{
     Duration,
     Instant,
@@ -73,10 +76,9 @@ where
 }
 
 fn timing_spread_is_within_limit(timings: &[Duration]) -> bool {
-    let min_timing = timings.iter().copied().min().expect("at least one timing");
-    let max_timing = timings.iter().copied().max().expect("at least one timing");
-    let min_ns = min_timing.as_nanos();
-    let max_ns = max_timing.as_nanos();
+    let Some((min_ns, max_ns)) = duration_min_max_nanos(timings) else {
+        return true;
+    };
 
     // `max <= min * (1 + MAX_SPREAD_PERCENT/100)`.
     let rhs = min_ns * (100 + MAX_SPREAD_PERCENT);
@@ -92,18 +94,9 @@ where
 
     for attempt in 1..=TIMING_ATTEMPTS {
         let timings = collect_timings();
-        let min_ns = timings
-            .iter()
-            .copied()
-            .min()
-            .expect("at least one timing")
-            .as_nanos();
-        let max_ns = timings
-            .iter()
-            .copied()
-            .max()
-            .expect("at least one timing")
-            .as_nanos();
+        let Some((min_ns, max_ns)) = duration_min_max_nanos(&timings) else {
+            panic!("{label}: collect_timings returned no durations");
+        };
         let timing_ns = timings
             .iter()
             .map(|duration| duration.as_nanos())
@@ -122,11 +115,15 @@ where
         last_failure = Some((min_ns, max_ns, timing_ns));
     }
 
-    let (min_ns, max_ns, timing_ns) = last_failure.expect("at least one attempt");
-    panic!(
-        "{} timing spread too high after {} attempts: timings={:?} min={}ns max={}ns allowed_ratio<=1.{}",
-        label, TIMING_ATTEMPTS, timing_ns, min_ns, max_ns, MAX_SPREAD_PERCENT
-    );
+    match last_failure {
+        Some((min_ns, max_ns, timing_ns)) => panic!(
+            "{} timing spread too high after {} attempts: timings={:?} min={}ns max={}ns allowed_ratio<=1.{}",
+            label, TIMING_ATTEMPTS, timing_ns, min_ns, max_ns, MAX_SPREAD_PERCENT
+        ),
+        None => panic!(
+            "{label} timing spread too high after {TIMING_ATTEMPTS} attempts (no timing samples recorded)"
+        ),
+    }
 }
 
 /// Test that SHA3-224 operations have similar timing for equal-length inputs.
