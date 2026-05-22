@@ -2,6 +2,9 @@
 //! (`sha3_256`, `AlgorithmName`, `Debug`, state serialization, cSHAKE customization
 //! paths, TurboSHAKE reset).
 
+mod common;
+
+use common::deserialize_state;
 use core::fmt::{
     self,
     Display,
@@ -95,7 +98,7 @@ fn sha3_256_serializable_state_roundtrip() {
     let mut h = lib_q_sha3::Sha3_256::new();
     Digest::update(&mut h, b"partial");
     let state = h.serialize();
-    let mut h2 = lib_q_sha3::Sha3_256::deserialize(&state).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::Sha3_256>(&state);
     Digest::update(&mut h2, b" rest");
     Digest::update(&mut h, b" rest");
     assert_eq!(h.finalize(), h2.finalize());
@@ -106,7 +109,7 @@ fn shake128_serializable_state_roundtrip() {
     let mut h = lib_q_sha3::Shake128::default();
     h.update(b"abc");
     let state = h.serialize();
-    let mut h2 = lib_q_sha3::Shake128::deserialize(&state).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::Shake128>(&state);
     h2.update(b"def");
     h.update(b"def");
     let mut o1 = [0u8; 32];
@@ -163,7 +166,7 @@ fn cshake128_serializable_state_roundtrip() {
     let mut h = lib_q_sha3::CShake128::new_customized(b"Email Signature");
     h.update(&[0u8; 168]);
     let state = h.serialize();
-    let mut h2 = lib_q_sha3::CShake128::deserialize(&state).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::CShake128>(&state);
     h2.update(b"tail");
     h.update(b"tail");
     let mut o1 = [0u8; 32];
@@ -179,7 +182,7 @@ fn cshake128_serializable_state_roundtrip_after_two_rate_blocks() {
     let mut h = lib_q_sha3::CShake128::new_customized(b"two blocks");
     h.update(&[1u8; 336]);
     let state = h.serialize();
-    let mut h2 = lib_q_sha3::CShake128::deserialize(&state).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::CShake128>(&state);
     h2.update(b"more");
     h.update(b"more");
     let mut o1 = [0u8; 48];
@@ -195,7 +198,7 @@ fn cshake256_serializable_state_roundtrip() {
     let mut h = lib_q_sha3::CShake256::new_customized(b"domain 256");
     h.update(&[0u8; 136]);
     let state = h.serialize();
-    let mut h2 = lib_q_sha3::CShake256::deserialize(&state).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::CShake256>(&state);
     h2.update(b"tail");
     h.update(b"tail");
     let mut o1 = [0u8; 32];
@@ -222,7 +225,7 @@ fn cshake128_serialize_at_rate_minus_one_does_not_match_continued_uninterrupted(
     let mut snap = lib_q_sha3::CShake128::new_customized(customization);
     snap.update(&input167);
     let st = snap.serialize();
-    let mut h2 = lib_q_sha3::CShake128::deserialize(&st).unwrap();
+    let mut h2 = deserialize_state::<lib_q_sha3::CShake128>(&st);
     h2.update(tail);
     let mut out_snap = [0u8; 32];
     h2.finalize_xof_into(&mut out_snap);
@@ -237,12 +240,12 @@ fn cshake128_serialize_at_rate_minus_one_does_not_match_continued_uninterrupted(
 fn cshake_core_serializable_state_roundtrip() {
     let c128 = CShake128Core::new_with_function_name(b"fn", b"custom");
     let s128 = c128.serialize();
-    let c128_2 = CShake128Core::deserialize(&s128).unwrap();
+    let c128_2 = deserialize_state::<CShake128Core>(&s128);
     assert_eq!(c128.serialize(), c128_2.serialize());
 
     let c256 = CShake256Core::new_customized(b"domain");
     let s256 = c256.serialize();
-    let c256_2 = CShake256Core::deserialize(&s256).unwrap();
+    let c256_2 = deserialize_state::<CShake256Core>(&s256);
     assert_eq!(c256.serialize(), c256_2.serialize());
 }
 
