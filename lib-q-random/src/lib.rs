@@ -62,7 +62,7 @@
 //!     let mut bytes = [0u8; 32];
 //!     rng.fill_bytes(&mut bytes);
 //!
-//!     // Create a deterministic RNG for testing (32-byte `ChaCha20` seed)
+//!     // Create a deterministic RNG for testing (32-byte KT128 seed)
 //!     let mut test_rng = LibQRng::new_deterministic([1; 32]);
 //! }
 //! ```
@@ -151,7 +151,8 @@
 //! - **Production randomness** comes from OS or registered hardware/custom entropy sources;
 //!   APIs return an error when secure entropy is unavailable instead of substituting weak RNGs.
 //! - **Deterministic constructors** (`LibQRng::new_deterministic`, `NoStdRng::new_deterministic`,
-//!   `new_deterministic_rng`, etc.) use a `ChaCha20` stream keyed only by the caller’s 32-byte seed.
+//!   `new_deterministic_rng`, etc.) use **KT128** (`KangarooTwelve`) XOF expansion keyed by the caller’s
+//!   32-byte seed (or SplitMix64-expanded `u64` for `*_from_u64`).
 //!   They are for tests, KATs, and reproducible benchmarks: treat the seed like a symmetric key;
 //!   if it is guessable, the entire stream is guessable.
 //! - Entropy validation applies to non-deterministic sources.
@@ -178,6 +179,10 @@ mod no_std_panic_handler {
 }
 
 mod hardware_rng;
+pub mod kt128_expander;
+
+#[cfg(feature = "deterministic-saturnin")]
+pub mod saturnin_det;
 
 // Core modules
 pub mod entropy;
@@ -199,6 +204,13 @@ pub mod no_std_rng;
 // Deterministic RNG for STARK/ZKP use
 pub mod deterministic_rng;
 pub use deterministic_rng::DeterministicRng;
+pub use kt128_expander::{
+    DOMAIN_HPKE_RNG,
+    DOMAIN_LIBQ_DET_RNG,
+    KT128_DET_GOLDEN_U64_SEED_64,
+    KT128_DET_GOLDEN_ZERO_SEED_64,
+    Kt128Expander,
+};
 
 // Custom entropy source system for no_std/WASM environments
 #[cfg(feature = "custom-entropy")]
@@ -321,13 +333,13 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::NoStdRng> {
 /// Create a new deterministic RNG instance
 ///
 /// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations. Output is a `ChaCha20` stream from `seed`.
+/// reproducible operations. Output is a **KT128** XOF stream from `seed`.
 /// **Unpredictability is only as strong as the seed**; use [`new_secure_rng`]
 /// for production cryptography.
 ///
 /// # Arguments
 ///
-/// * `seed` - 32-byte `ChaCha20` key (same interpretation as `ChaCha20Rng::from_seed`)
+/// * `seed` - 32-byte seed for KT128 expansion
 ///
 /// # Examples
 ///
@@ -345,15 +357,22 @@ pub fn new_deterministic_rng(seed: [u8; 32]) -> LibQRng {
     LibQRng::new_deterministic(seed)
 }
 
+/// Create a deterministic RNG from a `u64` test seed (`SplitMix64` → KT128).
+#[cfg(feature = "alloc")]
+#[must_use]
+pub fn new_deterministic_rng_from_u64(seed: u64) -> LibQRng {
+    LibQRng::new_deterministic_from_u64(seed)
+}
+
 /// Create a new deterministic RNG instance for `no_std` environments
 ///
 /// This function creates a deterministic RNG suitable for testing and
-/// reproducible operations in `no_std` environments. `ChaCha20` stream from `seed`;
+/// reproducible operations in `no_std` environments. KT128 stream from `seed`;
 /// **not** unpredictable unless the seed is secret and high-entropy.
 ///
 /// # Arguments
 ///
-/// * `seed` - 32-byte `ChaCha20` key
+/// * `seed` - 32-byte seed
 ///
 /// # Examples
 ///
@@ -369,6 +388,13 @@ pub fn new_deterministic_rng(seed: [u8; 32]) -> LibQRng {
 #[must_use]
 pub fn new_deterministic_rng_no_std(seed: [u8; 32]) -> no_std_rng::NoStdRng {
     no_std_rng::NoStdRng::new_deterministic(seed)
+}
+
+/// Create a deterministic `no_std` RNG from a `u64` test seed (`SplitMix64` → KT128).
+#[cfg(not(feature = "alloc"))]
+#[must_use]
+pub fn new_deterministic_rng_no_std_from_u64(seed: u64) -> no_std_rng::NoStdRng {
+    no_std_rng::NoStdRng::new_deterministic_from_u64(seed)
 }
 
 /// Register a custom entropy source for the current thread

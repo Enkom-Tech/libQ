@@ -181,7 +181,9 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **AES-128**: Grover's algorithm reduces security to approximately 64 bits — not acceptable for post-quantum use.
 - **ChaCha20 / Poly1305** (standalone): 256-bit key variants survive Grover with ~128-bit quantum security, but these primitives are not part of the lib-Q algorithm set, which centers on Saturnin and SHA-3 family constructions. Do not substitute them for lib-Q primitives.
 
-  Note: **AES-256** may appear **inside reviewed implementations** where a standard or interoperability layer requires it (for example certain RNG or KEM-adjacent paths). That is not an invitation to add AES-GCM or ChaCha20-Poly1305 as general-purpose user-facing substitutes for the Saturnin / SHAKE-centered AEAD story without maintainer review.
+  Note: **AES-256** may appear **inside reviewed implementations** where a standard or interoperability layer requires it (for example NIST AES-CTR-DRBG KAT paths in `lib-q-random`). That is not an invitation to add AES-GCM or ChaCha20-Poly1305 as general-purpose user-facing substitutes for the Saturnin / SHAKE-centered AEAD story without maintainer review.
+
+  **`lib-q-random` deterministic RNG** (0.0.4+): test/KAT expansion uses **KT128** (`libQ-DET-RNG-v1` domain), not ChaCha20. Optional `deterministic-saturnin` uses Saturnin CTR for cipher-aligned test streams.
 
 ## Implementation Security Guidelines
 

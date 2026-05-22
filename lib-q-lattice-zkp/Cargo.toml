@@ -10,10 +10,10 @@ keywords = ["cryptography", "post-quantum", "lattice", "zkp", "no-std"]
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", default-features = false, optional = true }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.2", default-features = false, features = ["alloc"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.2", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.4", default-features = false, optional = true }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
@@ -25,7 +25,7 @@ wasm-bindgen-test = { workspace = true }
 rand_chacha = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.3", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std"] }
 hex = { workspace = true }
 proptest = { workspace = true }
 rand_core = { workspace = true }
