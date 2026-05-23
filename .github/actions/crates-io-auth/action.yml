@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=../../schemas/github-action.json
+name: crates.io authentication
+description: >-
+  crates.io token via CARGO_REGISTRY_TOKEN secret (preferred) or Trusted Publishing OIDC
+  (rust-lang/crates-io-auth-action) when no secret is provided.
+inputs:
+  registry-token:
+    description: Optional API token (pass secrets.CARGO_REGISTRY_TOKEN from the workflow)
+    required: false
+    default: ""
+outputs:
+  token:
+    description: Token for cargo publish
+    value: ${{ steps.secret.outputs.token || steps.oidc.outputs.token }}
+runs:
+  using: composite
+  steps:
+    - name: Use CARGO_REGISTRY_TOKEN secret
+      id: secret
+      if: inputs.registry-token != ''
+      shell: bash
+      env:
+        TOKEN: ${{ inputs.registry-token }}
+      run: |
+        echo "::add-mask::$TOKEN"
+        echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+        echo "Using CARGO_REGISTRY_TOKEN for crates.io authentication"
+
+    - name: Authenticate with crates.io (Trusted Publishing)
+      id: oidc
+      if: inputs.registry-token == ''
+      uses: rust-lang/crates-io-auth-action@v1
