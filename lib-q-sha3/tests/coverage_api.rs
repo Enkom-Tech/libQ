@@ -4,12 +4,12 @@
 
 mod common;
 
-use common::deserialize_state;
 use core::fmt::{
     self,
     Display,
 };
 
+use common::deserialize_state;
 use digest::block_api::AlgorithmName;
 use digest::common::hazmat::SerializableState;
 use digest::consts::{

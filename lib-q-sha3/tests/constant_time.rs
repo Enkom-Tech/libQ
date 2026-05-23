@@ -5,12 +5,12 @@
 
 mod common;
 
-use common::duration_min_max_nanos;
 use std::time::{
     Duration,
     Instant,
 };
 
+use common::duration_min_max_nanos;
 use digest::Digest;
 use lib_q_keccak_digest::Keccak256;
 use lib_q_sha3::{
