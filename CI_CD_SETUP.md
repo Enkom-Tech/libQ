@@ -241,7 +241,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 
 ### Secrets and publishing auth
 
-- **crates.io**: CD uses **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. On each published crate (including `lib-q`), open **Settings → Trusted Publishing** and add `Enkom-Tech/libQ` + workflow `cd.yml` ([docs](https://crates.io/docs/trusted-publishing)). A long-lived `CARGO_REGISTRY_TOKEN` secret is **not** required for that path.
+- **crates.io**: CD uses `./.github/actions/crates-io-auth`, which prefers the repo secret **`CARGO_REGISTRY_TOKEN`** when set; otherwise it falls back to **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. For OIDC-only runs, configure each published crate under **Settings → Trusted Publishing** with `Enkom-Tech/libQ` + workflow `cd.yml` ([docs](https://crates.io/docs/trusted-publishing)).
 - **npm**: `NPM_TOKEN` — required for `npm-publish` in `cd.yml`.
 
 ### Environment requirements
