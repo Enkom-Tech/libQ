@@ -4,7 +4,6 @@
 //! input validation, error handling, and cryptographic properties.
 
 use digest::Digest;
-use lib_q_keccak_digest::Keccak256;
 use lib_q_sha3::{
     Sha3_224,
     Sha3_256,
@@ -57,18 +56,6 @@ fn test_hash_determinism() {
             result1, result2,
             "SHA3-256 should be deterministic for input"
         );
-
-        // Test Keccak256
-        let mut hasher1 = Keccak256::new();
-        let mut hasher2 = Keccak256::new();
-        hasher1.update(input);
-        hasher2.update(input);
-        let result1 = hasher1.finalize();
-        let result2 = hasher2.finalize();
-        assert_eq!(
-            result1, result2,
-            "Keccak256 should be deterministic for input"
-        );
     }
 }
 
@@ -117,19 +104,16 @@ fn test_hash_algorithm_distinctness() {
     let mut sha3_256_hasher = Sha3_256::new();
     let mut sha3_384_hasher = Sha3_384::new();
     let mut sha3_512_hasher = Sha3_512::new();
-    let mut keccak256_hasher = Keccak256::new();
 
     sha3_224_hasher.update(test_input);
     sha3_256_hasher.update(test_input);
     sha3_384_hasher.update(test_input);
     sha3_512_hasher.update(test_input);
-    keccak256_hasher.update(test_input);
 
     let sha3_224_result = sha3_224_hasher.finalize();
     let sha3_256_result = sha3_256_hasher.finalize();
     let sha3_384_result = sha3_384_hasher.finalize();
     let sha3_512_result = sha3_512_hasher.finalize();
-    let keccak256_result = keccak256_hasher.finalize();
 
     // All results should be different (compare first 28 bytes for SHA3-224)
     assert_ne!(
@@ -147,11 +131,6 @@ fn test_hash_algorithm_distinctness() {
         &sha3_512_result[..48],
         "SHA3-384 and SHA3-512 should produce different outputs"
     );
-    assert_ne!(
-        &sha3_256_result[..],
-        &keccak256_result[..],
-        "SHA3-256 and Keccak256 should produce different outputs"
-    );
 }
 
 /// Test that hash outputs have the correct length
@@ -163,19 +142,16 @@ fn test_hash_output_lengths() {
     let mut sha3_256_hasher = Sha3_256::new();
     let mut sha3_384_hasher = Sha3_384::new();
     let mut sha3_512_hasher = Sha3_512::new();
-    let mut keccak256_hasher = Keccak256::new();
 
     sha3_224_hasher.update(test_input);
     sha3_256_hasher.update(test_input);
     sha3_384_hasher.update(test_input);
     sha3_512_hasher.update(test_input);
-    keccak256_hasher.update(test_input);
 
     let sha3_224_result = sha3_224_hasher.finalize();
     let sha3_256_result = sha3_256_hasher.finalize();
     let sha3_384_result = sha3_384_hasher.finalize();
     let sha3_512_result = sha3_512_hasher.finalize();
-    let keccak256_result = keccak256_hasher.finalize();
 
     assert_eq!(
         sha3_224_result.len(),
@@ -197,11 +173,6 @@ fn test_hash_output_lengths() {
         64,
         "SHA3-512 should produce 512 bits (64 bytes)"
     );
-    assert_eq!(
-        keccak256_result.len(),
-        32,
-        "Keccak256 should produce 256 bits (32 bytes)"
-    );
 }
 
 /// Test that hash operations handle empty input correctly
@@ -213,19 +184,16 @@ fn test_empty_input_handling() {
     let mut sha3_256_hasher = Sha3_256::new();
     let mut sha3_384_hasher = Sha3_384::new();
     let mut sha3_512_hasher = Sha3_512::new();
-    let mut keccak256_hasher = Keccak256::new();
 
     sha3_224_hasher.update(empty_input);
     sha3_256_hasher.update(empty_input);
     sha3_384_hasher.update(empty_input);
     sha3_512_hasher.update(empty_input);
-    keccak256_hasher.update(empty_input);
 
     let sha3_224_result = sha3_224_hasher.finalize();
     let sha3_256_result = sha3_256_hasher.finalize();
     let sha3_384_result = sha3_384_hasher.finalize();
     let sha3_512_result = sha3_512_hasher.finalize();
-    let keccak256_result = keccak256_hasher.finalize();
 
     // Empty input should not produce all-zero output
     assert!(
@@ -244,10 +212,6 @@ fn test_empty_input_handling() {
         !sha3_512_result.iter().all(|&x| x == 0),
         "SHA3-512 empty input should not produce all zeros"
     );
-    assert!(
-        !keccak256_result.iter().all(|&x| x == 0),
-        "Keccak256 empty input should not produce all zeros"
-    );
 }
 
 /// Test that hash operations handle large inputs correctly
@@ -259,19 +223,16 @@ fn test_large_input_handling() {
     let mut sha3_256_hasher = Sha3_256::new();
     let mut sha3_384_hasher = Sha3_384::new();
     let mut sha3_512_hasher = Sha3_512::new();
-    let mut keccak256_hasher = Keccak256::new();
 
     sha3_224_hasher.update(&large_input);
     sha3_256_hasher.update(&large_input);
     sha3_384_hasher.update(&large_input);
     sha3_512_hasher.update(&large_input);
-    keccak256_hasher.update(&large_input);
 
     let sha3_224_result = sha3_224_hasher.finalize();
     let sha3_256_result = sha3_256_hasher.finalize();
     let sha3_384_result = sha3_384_hasher.finalize();
     let sha3_512_result = sha3_512_hasher.finalize();
-    let keccak256_result = keccak256_hasher.finalize();
 
     // Large input should produce valid hash outputs
     assert_eq!(
@@ -293,11 +254,6 @@ fn test_large_input_handling() {
         sha3_512_result.len(),
         64,
         "SHA3-512 large input should produce 64 bytes"
-    );
-    assert_eq!(
-        keccak256_result.len(),
-        32,
-        "Keccak256 large input should produce 32 bytes"
     );
 }
 

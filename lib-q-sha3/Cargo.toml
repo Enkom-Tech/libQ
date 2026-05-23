@@ -26,7 +26,6 @@ digest = { workspace = true, features = ["dev"] }
 blobby = { workspace = true, features = ["alloc"] }
 hex-literal = { workspace = true }
 base16ct = { workspace = true }
-lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.4" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }

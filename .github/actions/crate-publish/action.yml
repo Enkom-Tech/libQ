@@ -53,7 +53,20 @@ runs:
           echo "Dry run mode - would publish ${{ inputs.package }}"
           cargo publish -p ${{ inputs.package }} --dry-run
         else
-          cargo publish -p ${{ inputs.package }}
+          set +e
+          publish_output="$(cargo publish -p ${{ inputs.package }} 2>&1)"
+          publish_status=$?
+          set -e
+          if [ "$publish_status" -ne 0 ]; then
+            if echo "$publish_output" | grep -q 'already uploaded'; then
+              echo "${{ inputs.package }} is already on crates.io; skipping"
+            else
+              echo "$publish_output"
+              exit "$publish_status"
+            fi
+          else
+            echo "$publish_output"
+          fi
         fi
         
         echo "Successfully published ${{ inputs.package }}"
