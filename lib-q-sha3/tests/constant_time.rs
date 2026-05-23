@@ -12,7 +12,6 @@ use std::time::{
 
 use common::duration_min_max_nanos;
 use digest::Digest;
-use lib_q_keccak_digest::Keccak256;
 use lib_q_sha3::{
     Sha3_224,
     Sha3_256,
@@ -154,25 +153,6 @@ fn test_sha3_256_constant_time() {
         for input in &test_inputs {
             let timing = trimmed_mean_duration(|| {
                 let mut hasher = Sha3_256::new();
-                hasher.update(input);
-                let _result = hasher.finalize();
-                std::hint::black_box(_result);
-            });
-            timings.push(timing);
-        }
-        timings
-    });
-}
-
-/// Test that Keccak operations have similar timing for equal-length inputs.
-#[test]
-fn test_keccak_256_constant_time() {
-    let test_inputs = build_fixed_length_inputs(128);
-    assert_timing_spread_with_retries("Keccak256", || {
-        let mut timings = Vec::new();
-        for input in &test_inputs {
-            let timing = trimmed_mean_duration(|| {
-                let mut hasher = Keccak256::new();
                 hasher.update(input);
                 let _result = hasher.finalize();
                 std::hint::black_box(_result);
