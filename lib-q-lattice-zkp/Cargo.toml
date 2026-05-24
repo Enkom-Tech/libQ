@@ -25,7 +25,6 @@ wasm-bindgen-test = { workspace = true }
 rand_chacha = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std"] }
 hex = { workspace = true }
 proptest = { workspace = true }
 rand_core = { workspace = true }
