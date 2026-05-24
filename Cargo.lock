@@ -1516,7 +1516,6 @@ dependencies = [
  "digest 0.11.3",
  "hex-literal",
  "lib-q-keccak",
- "lib-q-keccak-digest",
 ]
 
 [[package]]
