@@ -19,7 +19,6 @@ lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = fal
 [dev-dependencies]
 digest = { workspace = true, features = ["alloc"] }
 hex-literal = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 hex = { workspace = true }
