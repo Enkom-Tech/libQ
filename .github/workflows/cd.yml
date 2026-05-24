@@ -171,10 +171,72 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  # k12 + intrinsics before hash/random; algorithm crates that depend on lib-q-random publish later.
+  publish-rust-tier-2-early:
+    name: Publish Rust (tier 2 — k12, intrinsics)
+    needs: [publish-rust-tier-1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-k12"
+          - package: "lib-q-intrinsics"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  # lib-q-hash and lib-q-random must publish before crates that depend on lib-q-random (incl. dev-deps).
+  # lib-q-random requires lib-q-k12 and resolves lib-q-hash from crates.io on publish.
+  publish-rust-lib-q-hash:
+    name: Publish lib-q-hash
+    needs: [publish-rust-tier-2-early]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-hash
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-lib-q-random:
+    name: Publish lib-q-random
+    needs: [publish-rust-lib-q-hash]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-random
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   # Nested FN-DSA crates use lib-q-fn-dsa-* names (crates.io fn-dsa-* is pornin/rust-fn-dsa).
   publish-rust-fn-dsa-deps:
     name: Publish FN-DSA (nested)
-    needs: [publish-rust-tier-1]
+    needs: [publish-rust-tier-1, publish-rust-lib-q-random]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -223,16 +285,14 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-2:
-    name: Publish Rust (tier 2)
-    needs: [publish-rust-tier-1, publish-rust-lib-q-fn-dsa]
+    name: Publish Rust (tier 2 — algorithms)
+    needs: [publish-rust-lib-q-fn-dsa, publish-rust-lib-q-random]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         include:
-          - package: "lib-q-k12"
           - package: "lib-q-ml-kem"
-          - package: "lib-q-intrinsics"
           - package: "lib-q-hqc"
           - package: "lib-q-slh-dsa"
           - package: "lib-q-lattice-zkp"
@@ -249,47 +309,9 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
-  # lib-q-hash and lib-q-random must publish before tier-3 crates that optional-dep on random.
-  # lib-q-random requires lib-q-k12 (tier 2) and lists lib-q-hash (optional, still resolved on publish).
-  publish-rust-lib-q-hash:
-    name: Publish lib-q-hash
-    needs: [publish-rust-tier-2]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
-      - name: Authenticate with crates.io
-        id: crates-io-auth
-        uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: Publish crate
-        uses: ./.github/actions/crate-publish
-        with:
-          package: lib-q-hash
-          token: ${{ steps.crates-io-auth.outputs.token }}
-
-  publish-rust-lib-q-random:
-    name: Publish lib-q-random
-    needs: [publish-rust-lib-q-hash]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
-      - name: Authenticate with crates.io
-        id: crates-io-auth
-        uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: Publish crate
-        uses: ./.github/actions/crate-publish
-        with:
-          package: lib-q-random
-          token: ${{ steps.crates-io-auth.outputs.token }}
-
   publish-rust-tier-3:
     name: Publish Rust (tier 3)
-    needs: [publish-rust-lib-q-random]
+    needs: [publish-rust-tier-2]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
