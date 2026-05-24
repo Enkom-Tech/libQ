@@ -28,7 +28,9 @@ hex = { workspace = true }
 proptest = { workspace = true }
 
 [features]
-default = ["alloc"]
+# `std` in default so `cargo publish` verification (default features) links the standard library.
+# Firmware/WASM: `default-features = false` with `no_std` or `alloc` + platform panic/allocator.
+default = ["std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc"]
 # Firmware / CI no_std gate (`cargo check --lib`); cdylib remains wasm-only on native host.
