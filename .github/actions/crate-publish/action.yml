@@ -58,7 +58,7 @@ runs:
           publish_status=$?
           set -e
           if [ "$publish_status" -ne 0 ]; then
-            if echo "$publish_output" | grep -q 'already uploaded'; then
+            if echo "$publish_output" | grep -qE 'already uploaded|already exists on crates\.io'; then
               echo "${{ inputs.package }} is already on crates.io; skipping"
             else
               echo "$publish_output"
