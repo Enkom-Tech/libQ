@@ -27,9 +27,6 @@ std = ["alloc"]
 alloc = []
 no_std = []
 
-[dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.4" }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 

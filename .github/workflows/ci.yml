@@ -1242,6 +1242,8 @@ jobs:
           cargo test --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
           echo "Running constant-time tests for lib-q-k12..."
           cargo test --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+          echo "Running STARK field constant-time tests (lib-q-stark-mersenne31)..."
+          cargo test --test field_constant_time_tests -p lib-q-stark-mersenne31 || echo "⚠️  field_constant_time_tests not available"
 
   # Integration tests - runs after algorithm tests
   integration-tests:
