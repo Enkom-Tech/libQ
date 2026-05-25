@@ -57,6 +57,19 @@ runs:
           STEM=$(CRATE_TOML="$REPO_ROOT/$CRATE_ROOT/Cargo.toml" python3 -c "import os,tomllib;d=tomllib.load(open(os.environ['CRATE_TOML'],'rb'));lib=d.get('lib')or{};print(lib.get('name')or d['package']['name'].replace('-','_'))")
         fi
         export NPM_PUBLISH_STEM="$STEM"
+
+        # wasm-pack dual-target builds write package.json under web/ and nodejs/, not pkg/ root.
+        if [[ ! -f package.json ]]; then
+          if [[ -f web/package.json ]]; then
+            cp web/package.json package.json
+          elif [[ -f nodejs/package.json ]]; then
+            cp nodejs/package.json package.json
+          else
+            echo "::error::missing package.json in $(pwd) (expected wasm-pack pkg/, pkg/web, or pkg/nodejs)"
+            exit 1
+          fi
+        fi
+        rm -f web/.gitignore nodejs/.gitignore 2>/dev/null || true
         
         npm pkg set name="${{ inputs.package-name }}"
         npm pkg set version="${{ inputs.version }}"
