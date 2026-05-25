@@ -11,7 +11,7 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.4", default-features = false, optional = true }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["std"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
