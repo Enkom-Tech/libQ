@@ -1016,7 +1016,7 @@ jobs:
   # TypeScript-only package: publish after WASM tarballs so a types failure does not cancel wasm matrix jobs.
   publish-npm-types:
     name: Publish @lib-q/types
-    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
