@@ -35,10 +35,6 @@ parallel = ["lib-q-stark-rayon/parallel"]
 [lib]
 bench = false
 
-[[bench]]
-name = "fft"
-harness = false
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

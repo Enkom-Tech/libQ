@@ -38,11 +38,6 @@ name = "transpose_benchmark"
 path = "benches/transpose_benchmark.rs"
 harness = false
 
-[[bench]]
-name = "columnwise_dot_product"
-path = "benches/columnwise_dot_product.rs"
-harness = false
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
