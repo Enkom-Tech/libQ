@@ -506,15 +506,32 @@ jobs:
           package: lib-q-stark-symmetric
           token: ${{ steps.crates-io-auth.outputs.token }}
 
-  publish-rust-tier-7:
-    name: Publish Rust (tier 7)
+  publish-rust-tier-7-matrix:
+    name: Publish Rust (tier 7 — stark-matrix)
     needs: [publish-rust-tier-6-symmetric]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-stark-matrix
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-7:
+    name: Publish Rust (tier 7 — stark-dft, commit)
+    needs: [publish-rust-tier-7-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         include:
-          - package: "lib-q-stark-matrix"
           - package: "lib-q-stark-dft"
           - package: "lib-q-stark-commit"
     steps:
@@ -530,16 +547,14 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
-  publish-rust-tier-8:
-    name: Publish Rust (tier 8)
+  publish-rust-tier-8-hashes:
+    name: Publish Rust (tier 8 — stark SHAKE/SHA3 adapters)
     needs: [publish-rust-tier-7]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         include:
-          - package: "lib-q-stark-mds"
-          - package: "lib-q-stark-field-testing"
           - package: "lib-q-stark-shake256"
           - package: "lib-q-stark-shake128"
           - package: "lib-q-stark-sha3-256"
@@ -556,9 +571,32 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  publish-rust-tier-8:
+    name: Publish Rust (tier 8 — stark-mds, field-testing)
+    needs: [publish-rust-tier-7]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-stark-mds"
+          - package: "lib-q-stark-field-testing"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-tier-9:
     name: Publish Rust (tier 9)
-    needs: [publish-rust-tier-8]
+    needs: [publish-rust-tier-8, publish-rust-tier-8-hashes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
