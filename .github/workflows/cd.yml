@@ -233,25 +233,38 @@ jobs:
           package: lib-q-random
           token: ${{ steps.crates-io-auth.outputs.token }}
 
-  # Nested FN-DSA crates use lib-q-fn-dsa-* names (crates.io fn-dsa-* is pornin/rust-fn-dsa).
-  publish-rust-fn-dsa-deps:
-    name: Publish FN-DSA (nested)
+  # Nested FN-DSA crates (lib-q-fn-dsa-*); publish in dependency order (matrix jobs are parallel).
+  publish-rust-fn-dsa-comm:
+    name: Publish lib-q-fn-dsa-comm
     needs: [publish-rust-tier-1, publish-rust-lib-q-random]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-fn-dsa-comm
+          working-directory: lib-q-fn-dsa/fn-dsa-comm
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-fn-dsa-kgen-sign:
+    name: Publish FN-DSA (kgen, sign)
+    needs: [publish-rust-fn-dsa-comm]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
         include:
-          - package: "lib-q-fn-dsa-comm"
-            working-directory: "lib-q-fn-dsa/fn-dsa-comm"
           - package: "lib-q-fn-dsa-kgen"
             working-directory: "lib-q-fn-dsa/fn-dsa-kgen"
           - package: "lib-q-fn-dsa-sign"
             working-directory: "lib-q-fn-dsa/fn-dsa-sign"
-          - package: "lib-q-fn-dsa-vrfy"
-            working-directory: "lib-q-fn-dsa/fn-dsa-vrfy"
-          - package: "lib-q-fn-dsa-alg"
-            working-directory: "lib-q-fn-dsa/fn-dsa"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -266,9 +279,47 @@ jobs:
           working-directory: ${{ matrix.working-directory }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  publish-rust-fn-dsa-vrfy:
+    name: Publish lib-q-fn-dsa-vrfy
+    needs: [publish-rust-fn-dsa-kgen-sign]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-fn-dsa-vrfy
+          working-directory: lib-q-fn-dsa/fn-dsa-vrfy
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-fn-dsa-alg:
+    name: Publish lib-q-fn-dsa-alg
+    needs: [publish-rust-fn-dsa-vrfy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-fn-dsa-alg
+          working-directory: lib-q-fn-dsa/fn-dsa
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-lib-q-fn-dsa:
     name: Publish lib-q-fn-dsa
-    needs: [publish-rust-fn-dsa-deps]
+    needs: [publish-rust-fn-dsa-alg]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
