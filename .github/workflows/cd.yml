@@ -627,8 +627,6 @@ jobs:
         include:
           - package: "lib-q-stark-challenger"
           - package: "lib-q-stark-interpolation"
-          - package: "lib-q-stark-merkle"
-          - package: "lib-q-stark-fri"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -665,9 +663,45 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  publish-rust-tier-11-merkle:
+    name: Publish Rust (tier 11 — stark-merkle)
+    needs: [publish-rust-tier-11]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-stark-merkle
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-11-fri:
+    name: Publish Rust (tier 11 — stark-fri)
+    needs: [publish-rust-tier-11-merkle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-stark-fri
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   publish-rust-tier-12:
     name: Publish Rust (tier 12)
-    needs: [publish-rust-tier-11]
+    needs: [publish-rust-tier-11-fri]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
