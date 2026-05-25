@@ -722,7 +722,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-13:
-    name: Publish Rust (tier 13)
+    name: Publish Rust (tier 13 — plonky multilinear, lookup)
     needs: [publish-rust-tier-12]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -730,7 +730,7 @@ jobs:
       matrix:
         include:
           - package: "lib-q-plonky-multilinear-util"
-          - package: "lib-q-plonky-keccak-air"
+          - package: "lib-q-plonky-lookup"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -745,15 +745,10 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-14:
-    name: Publish Rust (tier 14)
+    name: Publish Rust (tier 14 — plonky-uni-stark)
     needs: [publish-rust-tier-13]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      matrix:
-        include:
-          - package: "lib-q-plonky-lookup"
-          - package: "lib-q-plonky-uni-stark"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -764,19 +759,14 @@ jobs:
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
-          package: ${{ matrix.package }}
+          package: lib-q-plonky-uni-stark
           token: ${{ steps.crates-io-auth.outputs.token }}
 
-  publish-rust-tier-15:
-    name: Publish Rust (tier 15)
+  publish-rust-tier-14-keccak:
+    name: Publish Rust (tier 14 — plonky-keccak-air)
     needs: [publish-rust-tier-14]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      matrix:
-        include:
-          - package: "lib-q-plonky-batch-stark"
-          - package: "lib-q-plonky"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -787,12 +777,48 @@ jobs:
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
-          package: ${{ matrix.package }}
+          package: lib-q-plonky-keccak-air
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-15:
+    name: Publish Rust (tier 15 — plonky-batch-stark)
+    needs: [publish-rust-tier-14]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-plonky-batch-stark
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  publish-rust-tier-15-plonky:
+    name: Publish Rust (tier 15 — lib-q-plonky)
+    needs: [publish-rust-tier-15, publish-rust-tier-14-keccak]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-plonky
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-16:
     name: Publish Rust (tier 16)
-    needs: [publish-rust-tier-15]
+    needs: [publish-rust-tier-15-plonky]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
