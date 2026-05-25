@@ -9,17 +9,6 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-#[cfg(all(feature = "no_std", feature = "no_std_panic_handler"))]
-mod no_std_panic_handler {
-    use core::panic::PanicInfo;
-
-    #[panic_handler]
-    #[allow(clippy::empty_loop)]
-    fn panic(_info: &PanicInfo) -> ! {
-        loop {}
-    }
-}
-
 pub mod blind;
 pub mod budget;
 pub mod challenge;
