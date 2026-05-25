@@ -14,8 +14,8 @@ categories = ["cryptography", "no-std"]
 # `#![no_std]` under default features: native `cdylib`+`alloc` otherwise needs a global allocator and
 # `#[panic_handler]` (see `lib-q-prf`).
 lib-q-core = { path = "../lib-q-core", version = "0.0.4", default-features = false }
-lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.4", default-features = false, features = ["alloc"] }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["alloc"] }
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.4", default-features = false, features = ["std"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["std"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
 # Default features must stay enabled: `lib-q-prf` is built as `cdylib`+`rlib`; a no-std build
 # without `std`'s allocator/panic runtime fails to link that cdylib on native targets.
