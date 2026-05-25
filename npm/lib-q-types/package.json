@@ -12,7 +12,12 @@
   "bugs": {
     "url": "https://github.com/Enkom-Tech/libQ/issues"
   },
-  "keywords": "[\"typescript\",\"lib-q\",\"wasm\",\"types\"]",
+  "keywords": [
+    "typescript",
+    "lib-q",
+    "wasm",
+    "types"
+  ],
   "main": "./index.js",
   "module": "./index.js",
   "types": "./index.d.ts",
