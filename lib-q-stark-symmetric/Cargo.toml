@@ -24,9 +24,6 @@ alloc = []
 no_std = []
 asm = ["lib-q-keccak/asm"]
 
-[dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.4" }
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
