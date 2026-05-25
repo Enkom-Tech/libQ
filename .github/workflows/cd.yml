@@ -862,6 +862,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
+      fail-fast: false
       matrix:
         include:
           - working-directory: "lib-q"
@@ -987,12 +988,6 @@ jobs:
             package-keywords: "cryptography,post-quantum,lattice,ml-dsa,wasm"
             features: "wasm,alloc"
             out-dir: "pkg"
-          - working-directory: "npm/lib-q-types"
-            package-name: "@lib-q/types"
-            package-description: "TypeScript typings for @lib-q WASM packages"
-            package-keywords: "typescript,lib-q,wasm,types"
-            features: ""
-            skip-build: true
 
     steps:
       - uses: actions/checkout@v5
@@ -1018,10 +1013,28 @@ jobs:
           token: ${{ secrets.NPM_TOKEN }}
           version: ${{ needs.pre-release-validation.outputs.version }}
 
+  # TypeScript-only package: publish after WASM tarballs so a types failure does not cancel wasm matrix jobs.
+  publish-npm-types:
+    name: Publish @lib-q/types
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
+        with:
+          package-name: "@lib-q/types"
+          package-description: "TypeScript typings for @lib-q WASM packages"
+          package-keywords: "typescript,lib-q,wasm,types"
+          working-directory: "npm/lib-q-types"
+          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.pre-release-validation.outputs.version }}
+
   # Post-release tasks - run after publishing
   post-release:
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages]
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -1135,7 +1148,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, post-release, security-verification]
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -1148,12 +1161,16 @@ jobs:
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Rust crate publishing: ${{ needs.publish-rust-tier-17.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- @lib-q/types publishing: ${{ needs.publish-npm-types.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Release creation: ${{ needs.post-release.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security verification: ${{ needs.security-verification.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Check for critical failures
           if [[ "${{ needs.pre-release-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.publish-wasm-packages.result }}" == "failure" ]] || \
+             [[ "${{ needs.publish-npm-types.result }}" == "failure" ]] || \
+             [[ "${{ needs.post-release.result }}" == "failure" ]] || \
              [[ "${{ needs.security-verification.result }}" == "failure" ]]; then
             echo "❌ **Critical pipeline failures detected!**" >> $GITHUB_STEP_SUMMARY
             echo "Please review the failed jobs above." >> $GITHUB_STEP_SUMMARY

@@ -38,6 +38,11 @@ runs:
       with:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
+
+    # npm 11.6.2+ fixes misleading E404 on publish (token + provenance / trusted publishing).
+    - name: Upgrade npm CLI
+      shell: bash
+      run: npm install -g npm@11.6.2
     
     - name: Prepare NPM package
       shell: bash
@@ -125,11 +130,23 @@ runs:
           exit 1
         fi
         
+        publish_args=(--access public)
+        if [ -z "$NODE_AUTH_TOKEN" ]; then
+          # Trusted publishing (OIDC): provenance is applied automatically; do not pass --provenance.
+          echo "Publishing with npm trusted publishing (OIDC)"
+        else
+          # Granular/classic tokens often return misleading E404 when combined with --provenance.
+          echo "Publishing with NODE_AUTH_TOKEN (no --provenance flag)"
+        fi
+
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package-name }}"
-          npm publish --access public --dry-run
+          npm publish "${publish_args[@]}" --dry-run
         else
-          npm publish --access public --provenance
+          if ! npm publish "${publish_args[@]}"; then
+            echo "::error::npm publish failed for ${{ inputs.package-name }}. If the log shows E404, verify secrets.NPM_TOKEN can publish this scoped package (maintainer on @lib-q/*) or configure npm Trusted Publishers for workflow cd.yml on the package or @lib-q org."
+            exit 1
+          fi
         fi
         
         echo "Successfully published ${{ inputs.package-name }}"

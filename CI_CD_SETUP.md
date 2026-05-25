@@ -87,7 +87,7 @@ Used in `ci.yml` and `cd.yml` (wasm-pack; supports `out-dir`, feature flags, `ch
 ### Crate publish / NPM publish
 
 - **`.github/actions/crate-publish`**: `cargo publish` with token from OIDC (`crates-io-auth-action`) in CD.
-- **`.github/actions/npm-publish`**: Node **20** (see action), registry publish with `NPM_TOKEN`.
+- **`.github/actions/npm-publish`**: Node **20**, npm CLI **11.6.2+**, registry publish with `NPM_TOKEN` (no `--provenance` with token auth; misleading E404 otherwise). `@lib-q/types` publishes in a separate job after the WASM matrix (`fail-fast: false` on matrix jobs).
 
 ### Performance benchmark (`.github/actions/performance-benchmark`)
 
