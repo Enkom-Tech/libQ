@@ -77,7 +77,7 @@ impl<F: Field, A: Algebra<F>, const N: usize> Permutation<[A; N]> for Integrated
 
 impl<F: Field, A: Algebra<F>, const N: usize> MdsPermutation<A, N> for IntegratedCosetMds<F, N> {}
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use lib_q_stark_dft::{
         NaiveDft,

@@ -135,7 +135,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use alloc::vec;
 

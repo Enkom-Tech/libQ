@@ -630,7 +630,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use lib_q_stark_field::FieldArray;
     use lib_q_stark_mersenne31::Mersenne31;

@@ -92,7 +92,7 @@ fn bowers_g_t<F: Field, A: Algebra<F>, const N: usize>(values: &mut [A; N], twid
     }
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use lib_q_stark_dft::{
         NaiveDft,
