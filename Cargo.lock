@@ -1160,7 +1160,6 @@ dependencies = [
  "digest 0.11.3",
  "hex",
  "hex-literal",
- "lib-q-random",
  "lib-q-sha3",
  "serde",
  "serde_json",
@@ -1438,7 +1437,6 @@ version = "0.0.4"
 dependencies = [
  "hex",
  "lib-q-core",
- "lib-q-random",
  "lib-q-sha3",
  "proptest",
  "rand_core 0.10.1",
