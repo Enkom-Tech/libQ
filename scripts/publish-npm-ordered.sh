@@ -201,6 +201,7 @@ publish_one() {
       out=$(cd "$pkg_dir" && npm publish --access public --dry-run "${otp_args[@]}" 2>&1)
       code=$?
     else
+      # Do not pass --provenance with NODE_AUTH_TOKEN; npm often returns misleading E404.
       out=$(cd "$pkg_dir" && npm publish --access public "${otp_args[@]}" 2>&1)
       code=$?
     fi
