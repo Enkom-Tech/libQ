@@ -23,10 +23,6 @@ criterion = { workspace = true }
 [lib]
 bench = false
 
-[[bench]]
-name = "mds"
-harness = false
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
