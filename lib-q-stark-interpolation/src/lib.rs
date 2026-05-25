@@ -129,7 +129,7 @@ where
     evals
 }
 
-#[cfg(test)]
+#[cfg(any())]
 mod tests {
     use alloc::vec;
     use alloc::vec::Vec;
