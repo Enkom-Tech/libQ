@@ -55,6 +55,21 @@ harness = false
 name = "extension"
 harness = false
 
+[[bench]]
+name = "mds_crate"
+path = "benches/mds_crate.rs"
+harness = false
+
+[[bench]]
+name = "dft_fft"
+path = "benches/dft_fft.rs"
+harness = false
+
+[[bench]]
+name = "matrix_columnwise_dot_product"
+path = "benches/matrix_columnwise_dot_product.rs"
+harness = false
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',
