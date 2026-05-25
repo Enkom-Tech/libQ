@@ -18,7 +18,7 @@ autobenches = false
 bench = false
 
 [dependencies]
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["std"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4" }
 lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.4" }
 lib-q-platform = { path = "../lib-q-platform", version = "0.0.4" }
