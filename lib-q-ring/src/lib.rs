@@ -5,7 +5,8 @@
 //! scaling) is bit-compatible with the non-`hardened` path in `lib-q-ml-dsa`.
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
-#![cfg_attr(not(feature = "std"), no_std)]
+// Only the explicit `no_std` feature enables `#![no_std]` (dependents often use `alloc` without `std`).
+#![cfg_attr(feature = "no_std", no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

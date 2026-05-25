@@ -33,7 +33,7 @@ rand_core = { workspace = true }
 default = ["alloc"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-ring/std", "lib-q-random/std"]
-no_std = ["alloc", "lib-q-ring/no_std_panic_handler"]
+no_std = ["alloc", "lib-q-ring/no_std"]
 no_std_panic_handler = ["lib-q-ring/no_std_panic_handler"]
 random = ["dep:lib-q-random"]
 # Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
