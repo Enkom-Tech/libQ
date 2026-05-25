@@ -17,20 +17,14 @@ package = "lib-q-stark-matrix"
 timeout_minutes = 45
 
 [[shard]]
+# Mersenne31 Criterion benches (includes dft_fft, mds_crate, matrix_columnwise moved from tier-6–8 crates).
 id = "lib-q-stark-mersenne31"
 package = "lib-q-stark-mersenne31"
-
-[[shard]]
-id = "lib-q-stark-dft"
-package = "lib-q-stark-dft"
+timeout_minutes = 45
 
 [[shard]]
 id = "lib-q-stark-fri"
 package = "lib-q-stark-fri"
-
-[[shard]]
-id = "lib-q-stark-mds"
-package = "lib-q-stark-mds"
 
 [[shard]]
 id = "lib-q-stark-merkle"
