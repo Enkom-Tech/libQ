@@ -87,7 +87,7 @@ Used in `ci.yml` and `cd.yml` (wasm-pack; supports `out-dir`, feature flags, `ch
 ### Crate publish / NPM publish
 
 - **`.github/actions/crate-publish`**: `cargo publish` with token from OIDC (`crates-io-auth-action`) in CD.
-- **`.github/actions/npm-publish`**: Node **20**, npm CLI **11.6.2+**, registry publish with `NPM_TOKEN` (no `--provenance` with token auth; misleading E404 otherwise). `@lib-q/types` publishes in a separate job after the WASM matrix (`fail-fast: false` on matrix jobs).
+- **`.github/actions/npm-publish`**: Node **20**, npm CLI **11.6.2+**, dual-target `pkg/web` + `pkg/nodejs` (seeds root `package.json` before `npm pkg set`). Publishes with `secrets.NPM_TOKEN` when set; on `E404`/`ENEEDAUTH` retries via **npm Trusted Publishing** (OIDC; requires `id-token: write` and a trusted publisher for `Enkom-Tech/libQ` / workflow `cd.yml` on npm). Do not pass `--provenance` with token auth. `@lib-q/types` is a separate job (`fail-fast: false` on the WASM matrix).
 
 ### Performance benchmark (`.github/actions/performance-benchmark`)
 
