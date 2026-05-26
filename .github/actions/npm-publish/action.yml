@@ -37,7 +37,6 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        registry-url: 'https://registry.npmjs.org'
 
     # npm 11.6.2+ fixes misleading E404 on publish (token + provenance / trusted publishing).
     - name: Upgrade npm CLI
@@ -152,13 +151,38 @@ runs:
           echo "Publishing with NODE_AUTH_TOKEN (no --provenance flag)"
         fi
 
+        publish_once() {
+          npm publish "${publish_args[@]}" "$@"
+        }
+
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package-name }}"
-          npm publish "${publish_args[@]}" --dry-run
+          publish_once --dry-run
         else
-          if ! npm publish "${publish_args[@]}"; then
-            echo "::error::npm publish failed for ${{ inputs.package-name }}. If the log shows E404, verify secrets.NPM_TOKEN can publish this scoped package (maintainer on @lib-q/*) or configure npm Trusted Publishers for workflow cd.yml on the package or @lib-q org."
-            exit 1
+          log="$(mktemp)"
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "Publishing with NODE_AUTH_TOKEN"
+            if publish_once 2>&1 | tee "$log"; then
+              :
+            elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
+              echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
+              unset NODE_AUTH_TOKEN
+              if ! publish_once 2>&1 | tee "$log"; then
+                echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
+                cat "$log"
+                exit 1
+              fi
+            else
+              cat "$log"
+              exit 1
+            fi
+          else
+            echo "Publishing with npm trusted publishing (OIDC)"
+            if ! publish_once 2>&1 | tee "$log"; then
+              echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
+              cat "$log"
+              exit 1
+            fi
           fi
         fi
         
