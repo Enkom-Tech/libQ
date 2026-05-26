@@ -1,0 +1,222 @@
+# Fast recovery: publish @lib-q/* npm packages without crates.io tiers or pre-release tests.
+# Use when CD completed Rust publish but npm failed (workflow_dispatch).
+name: NPM Publish Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (defaults to [workspace.package].version)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  resolve-version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml | grep '^version = ' | head -1 | cut -d'"' -f2)
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing npm packages at version $VERSION"
+
+  publish-wasm-packages:
+    name: Publish WASM Packages
+    needs: resolve-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - working-directory: "lib-q"
+            package-name: "@lib-q/core"
+            package-description: "Post-quantum cryptography library for Node.js (complete package)"
+            package-keywords: "cryptography,post-quantum,security,wasm"
+            features: "wasm,all-algorithms,ml-kem"
+          - working-directory: "lib-q-ml-kem"
+            package-name: "@lib-q/ml-kem"
+            package-description: "NIST ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) for Node.js"
+            package-keywords: "cryptography,post-quantum,ml-kem,key-encapsulation,nist,wasm"
+            features: "wasm"
+          - working-directory: "lib-q-kem"
+            package-name: "@lib-q/kem"
+            package-description: "Post-quantum Key Encapsulation Mechanisms for Node.js"
+            package-keywords: "cryptography,post-quantum,kem,key-encapsulation,wasm"
+            features: "wasm,ml-kem"
+          - working-directory: "lib-q-sig"
+            package-name: "@lib-q/sig"
+            package-description: "Post-quantum Digital Signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,signatures,digital-signatures,wasm"
+            features: "wasm,ml-dsa"
+            out-dir: "pkg-sig"
+          - working-directory: "lib-q-hash"
+            package-name: "@lib-q/hash"
+            package-description: "Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)"
+            package-keywords: "cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm"
+            features: "alloc,oid"
+            out-dir: "pkg-hash"
+          - working-directory: "lib-q-utils"
+            package-name: "@lib-q/utils"
+            package-description: "Utility functions for post-quantum cryptography"
+            package-keywords: "cryptography,post-quantum,utilities,helpers,wasm"
+            features: ""
+            out-dir: "pkg-utils"
+          - working-directory: "lib-q-fn-dsa"
+            package-name: "@lib-q/fn-dsa"
+            package-description: "FN-DSA (FIPS 206) post-quantum digital signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist"
+            features: "wasm,std,rand"
+            out-dir: "pkg"
+          - working-directory: "lib-q-aead"
+            package-name: "@lib-q/aead"
+            package-description: "Post-quantum AEAD (Saturnin, Romulus, duplex-sponge) for Node.js"
+            package-keywords: "cryptography,post-quantum,aead,saturnin,wasm,nist"
+            features: "wasm,saturnin,romulus,duplex-sponge-aead"
+            out-dir: "pkg"
+          - working-directory: "lib-q-hpke"
+            package-name: "@lib-q/hpke"
+            package-description: "Post-quantum HPKE (RFC 9180) for Node.js"
+            package-keywords: "cryptography,post-quantum,hpke,ml-kem,wasm"
+            features: "wasm,alloc,ml-kem,saturnin,shake256"
+            out-dir: "pkg"
+          - working-directory: "lib-q-zkp"
+            package-name: "@lib-q/zkp"
+            package-description: "Post-quantum zero-knowledge proofs (STARK) for Node.js"
+            package-keywords: "cryptography,post-quantum,zkp,stark,wasm"
+            features: "wasm,zkp"
+            out-dir: "pkg"
+          - working-directory: "lib-q-random"
+            package-name: "@lib-q/random"
+            package-description: "Secure random bytes for post-quantum libQ on Node.js and WASM"
+            package-keywords: "cryptography,random,entropy,wasm,getrandom"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-hqc"
+            package-name: "@lib-q/hqc"
+            package-description: "HQC KEM (NIST PQC) for Node.js"
+            package-keywords: "cryptography,post-quantum,hqc,kem,wasm"
+            features: "wasm,hqc,random,serialization"
+            out-dir: "pkg"
+          - working-directory: "lib-q-slh-dsa"
+            package-name: "@lib-q/slh-dsa"
+            package-description: "SLH-DSA / SPHINCS+ (FIPS 205) signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,slh-dsa,sphincs,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-cb-kem"
+            package-name: "@lib-q/cb-kem"
+            package-description: "Classical McEliece CB-KEM for Node.js (single compile-time parameter set)"
+            package-keywords: "cryptography,post-quantum,mceliece,cb-kem,wasm"
+            features: "wasm,cbkem348864,wasm_getrandom,alloc,zeroize"
+            out-dir: "pkg"
+          - working-directory: "lib-q-ring-sig"
+            package-name: "@lib-q/ring-sig"
+            package-description: "Federation ring-style openings / DualRing-LB pilot for Node.js"
+            package-keywords: "cryptography,post-quantum,ring-signature,lattice,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-prf"
+            package-name: "@lib-q/prf"
+            package-description: "Legendre / Gold PRF pilots for Node.js"
+            package-keywords: "cryptography,post-quantum,prf,legendre,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-stark"
+            package-name: "@lib-q/stark"
+            package-description: "STARK framework for Node.js (lib-q-stark); full prove/verify via @lib-q/zkp or Rust"
+            package-keywords: "cryptography,post-quantum,stark,zkp,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-plonky"
+            package-name: "@lib-q/plonky"
+            package-description: "Plonky3-derived ZK STARK components for Node.js"
+            package-keywords: "cryptography,post-quantum,zkp,plonky,wasm"
+            features: "wasm"
+            out-dir: "pkg"
+          - working-directory: "lib-q-poseidon"
+            package-name: "@lib-q/poseidon"
+            package-description: "Poseidon hash for STARK fields (Complex<Mersenne31>)"
+            package-keywords: "cryptography,post-quantum,poseidon,zkp,wasm"
+            features: "wasm,alloc"
+            out-dir: "pkg"
+          - working-directory: "lib-q-lattice-zkp"
+            package-name: "@lib-q/lattice-zkp"
+            package-description: "Module-lattice commitments and sigma protocols (research)"
+            package-keywords: "cryptography,post-quantum,lattice,zkp,wasm"
+            features: "wasm,random"
+            out-dir: "pkg"
+          - working-directory: "lib-q-ring"
+            package-name: "@lib-q/ring"
+            package-description: "ML-DSA ring arithmetic R_q for Node.js"
+            package-keywords: "cryptography,post-quantum,lattice,ml-dsa,wasm"
+            features: "wasm,alloc"
+            out-dir: "pkg"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build WASM
+        uses: ./.github/actions/wasm-build
+        with:
+          working-directory: ${{ matrix.working-directory }}
+          features: ${{ matrix.features }}
+          targets: "web,nodejs"
+          out-dir: ${{ matrix.out-dir || 'pkg' }}
+          dev-profile: "false"
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
+        with:
+          package-name: ${{ matrix.package-name }}
+          package-description: ${{ matrix.package-description }}
+          package-keywords: ${{ matrix.package-keywords }}
+          working-directory: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}
+          crate-root: ${{ matrix.working-directory }}
+          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.resolve-version.outputs.version }}
+
+  publish-npm-types:
+    name: Publish @lib-q/types
+    needs: resolve-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
+        with:
+          package-name: "@lib-q/types"
+          package-description: "TypeScript typings for @lib-q WASM packages"
+          package-keywords: "typescript,lib-q,wasm,types"
+          working-directory: "npm/lib-q-types"
+          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.resolve-version.outputs.version }}
+
+  npm-publish-summary:
+    name: NPM publish summary
+    needs: [publish-wasm-packages, publish-npm-types]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - run: |
+          echo "## NPM publish summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- WASM matrix: ${{ needs.publish-wasm-packages.result }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @lib-q/types: ${{ needs.publish-npm-types.result }}" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ needs.publish-wasm-packages.result }}" == "failure" ]] || \
+             [[ "${{ needs.publish-npm-types.result }}" == "failure" ]]; then
+            exit 1
+          fi
