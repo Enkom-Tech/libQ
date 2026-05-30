@@ -111,7 +111,7 @@ jobs:
             features: "std,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-hardened"
-            features: "std,hardened,mldsa44,mldsa65,mldsa87"
+            features: "std,hardened,mldsa44,mldsa65,mldsa87,dudect-smoke-tests"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-cross-mode"
             features: "std,random,acvp,mldsa44,mldsa65,mldsa87"

@@ -49,7 +49,7 @@ fips204 = { version = "0.4.6", default-features = false, features = ["default-rn
 [[test]]
 name = "hardened_dudect_smoke"
 path = "tests/hardened_dudect_smoke.rs"
-required-features = ["hardened", "mldsa44"]
+required-features = ["hardened", "mldsa44", "dudect-smoke-tests"]
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]
@@ -83,6 +83,7 @@ zeroize = ["dep:zeroize"]                           # Automatic zeroization of s
 acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
 test-utils = []   # Expose internal functions for advanced testing
 debug-trace = []  # Enable debug tracing for signature generation debugging
+dudect-smoke-tests = []  # Wall-clock timing smoke; enabled only in dedicated CI matrix rows
 
 [[bench]]
 name = "manual44"

@@ -1,4 +1,8 @@
-#![cfg(all(feature = "hardened", feature = "mldsa44"))]
+#![cfg(all(
+    feature = "hardened",
+    feature = "mldsa44",
+    feature = "dudect-smoke-tests"
+))]
 
 use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
