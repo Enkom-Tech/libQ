@@ -73,8 +73,8 @@ jobs:
     needs: core-validation
     runs-on: ubuntu-latest
     # Full workspace `cargo test` + `cargo test --profile release-ci` for `std,all-algorithms`
-    # routinely approaches or exceeds 35 minutes as crates/tests grow; avoid false timeouts.
-    timeout-minutes: 60
+    # exceeds 60 minutes as the workspace grows; other matrix rows stay at 60m.
+    timeout-minutes: ${{ matrix.timeout_minutes || 60 }}
     strategy:
       fail-fast: false
       matrix:
@@ -85,6 +85,7 @@ jobs:
           - name: "all-algorithms"
             features: "std,all-algorithms"
             package: ""
+            timeout_minutes: 90
           - name: "ml-kem"
             features: "std,ml-kem,rand"
             package: ""
