@@ -45,7 +45,7 @@ fn hardened_dudect_smoke_verify() {
     let valid = sample_wall_times(
         || {
             let r = verify(&kp.verification_key, message, b"", &sig);
-            std::hint::black_box(r);
+            let _ = std::hint::black_box(r);
         },
         SAMPLES,
     );
@@ -58,7 +58,7 @@ fn hardened_dudect_smoke_verify() {
             bad[0] ^= idx;
             let bad_sig = MLDSA44Signature::new(bad);
             let r = verify(&kp.verification_key, message, b"", &bad_sig);
-            std::hint::black_box(r);
+            let _ = std::hint::black_box(r);
         },
         SAMPLES,
     );
