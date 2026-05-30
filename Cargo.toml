@@ -109,7 +109,7 @@ digest = "0.11.3"
 sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
 aead = { version = "0.5.2", default-features = false }
-aes = { version = "0.9.0", default-features = false }
+aes = { version = "0.9.1", default-features = false }
 crypto-bigint = { version = "0.7.3", default-features = false }
 # RNG & entropy
 rand_core = { version = "0.10.1", default-features = false }

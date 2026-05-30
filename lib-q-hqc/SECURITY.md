@@ -83,7 +83,7 @@ and manual review.
 
 1. Run `cargo test -p lib-q-hqc --features alloc,hqc` before merging crypto changes.
 2. Run Clippy with `-D warnings` on touched code.
-3. Run `cargo test -p lib-q-hqc --release --features alloc,hqc,random,bearssl-aes --test nist_kem_kat` after KEM/PKE changes.
+3. Run `cargo test -p lib-q-hqc --release --features alloc,hqc,random --test nist_kem_kat` after KEM/PKE changes (uses seeded keygen; no AES DRBG required). Enable `kat-drbg` only when validating DRBG-specific reference paths.
 4. Run `cargo test -p lib-q-sca-test --features hqc-hardened` after timing-sensitive changes.
 
 **Deployment**

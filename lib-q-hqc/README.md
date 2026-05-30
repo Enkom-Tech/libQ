@@ -53,7 +53,7 @@ Secret key layout: `ek_pke` ‖ `dk_pke` (32) ‖ `sigma` (16) ‖ `seed_kem` (4
 | `internal` | Polynomial / vector primitives, SHAKE256 |
 | `provider` | libQ KEM provider |
 
-DRBG backends: `bearssl-aes` (KAT-compatible) and `aes-drbg` (general use).
+Optional KAT DRBG backends (not enabled by default): `kat-drbg` / `bearssl-aes` (reference-compatible) and `aes-drbg` (pure Rust NIST CTR_DRBG). Production RNG uses `lib-q-random` via the `random` feature.
 
 See [SIMD architecture](docs/simd-architecture.md) and [vector operations](docs/vector-operations.md).
 

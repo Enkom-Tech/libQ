@@ -22,7 +22,7 @@ fn hardened_dudect_smoke_decapsulate() {
         let _ = dk.decapsulate(&ct);
         fast_path.push(start.elapsed().as_secs_f64());
 
-        let mut bad = ct.clone();
+        let mut bad = ct;
         bad[0] ^= i.wrapping_add(1);
         let start = std::time::Instant::now();
         let _ = dk.decapsulate(&bad);
