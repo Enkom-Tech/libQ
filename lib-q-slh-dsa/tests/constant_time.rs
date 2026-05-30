@@ -10,13 +10,15 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use lib_q_core::Utils;
+use lib_q_random::{
+    LibQRng,
+    new_deterministic_rng,
+};
 use lib_q_slh_dsa::{
     Shake128f,
     Signature,
     SigningKey,
 };
-use rand_chacha::ChaCha8Rng;
-use rand_core::SeedableRng;
 use signature::{
     Keypair,
     RandomizedSigner,
@@ -24,11 +26,11 @@ use signature::{
 };
 
 #[inline]
-fn test_rng_from_material(seed: &[u8]) -> ChaCha8Rng {
+fn test_rng_from_material(seed: &[u8]) -> LibQRng {
     let mut expanded = [0u8; 32];
     let take = seed.len().min(32);
     expanded[..take].copy_from_slice(&seed[..take]);
-    ChaCha8Rng::from_seed(expanded)
+    new_deterministic_rng(expanded)
 }
 
 #[test]

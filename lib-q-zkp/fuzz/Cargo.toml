@@ -2,7 +2,7 @@
 name = "lib-q-zkp-fuzz"
 version = "0.0.4"
 edition = "2024"
-rust-version = "1.94.1"
+rust-version = "1.96.0"
 publish = false
 
 [package.metadata]

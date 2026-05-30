@@ -111,7 +111,7 @@ jobs:
             features: "std,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-hardened"
-            features: "std,hardened,mldsa44,mldsa65,mldsa87"
+            features: "std,hardened,mldsa44,mldsa65,mldsa87,dudect-smoke-tests"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-cross-mode"
             features: "std,random,acvp,mldsa44,mldsa65,mldsa87"
@@ -1065,6 +1065,13 @@ jobs:
           run-simd-tests: ${{ matrix.run-simd-tests }}
           test-algorithms: ${{ matrix.test-algorithms }}
 
+      - name: SCA HQC timing smoke (dudect-style)
+        if: matrix.action == 'test-hqc'
+        run: |
+          cargo test -p lib-q-hqc --release --features hardened --test hardened_dudect_smoke -- --exact hardened_dudect_smoke_decapsulate
+          cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
+          cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
+
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification
@@ -1187,6 +1194,11 @@ jobs:
           cd lib-q-ml-kem
           cargo test --features "hardened,random" --lib --verbose
 
+      - name: ML-KEM hardened timing smoke (dudect-style)
+        run: |
+          cd lib-q-ml-kem
+          cargo test --features "hardened,random" --test hardened_dudect_smoke --verbose
+
       - name: Test ML-KEM ACVP vectors (hardened + deterministic)
         run: |
           cd lib-q-ml-kem
@@ -1197,9 +1209,25 @@ jobs:
           cd lib-q-ml-dsa
           cargo test --features "hardened,random,mldsa44,mldsa65,mldsa87" --test nistkats --verbose
 
+      - name: ML-DSA hardened timing smoke (dudect-style)
+        run: |
+          cd lib-q-ml-dsa
+          cargo test --features "hardened,random,mldsa44,dudect-smoke-tests" --test hardened_dudect_smoke --verbose
+
+      - name: lib-q-lattice-zkp hardened timing smoke (dudect-style)
+        run: |
+          cd lib-q-lattice-zkp
+          cargo test --features hardened --test hardened_dudect_smoke --test hardened_masked_witness --verbose
+
       - name: SCA test harness crate
         run: cargo test -p lib-q-sca-test --verbose
-      
+
+      - name: SCA lattice-zkp hardened prove smoke
+        run: cargo test -p lib-q-sca-test --features lattice-zkp-hardened lattice_zkp_hardened_prove_dudect_smoke --verbose
+
+      - name: SCA self-certification battery smoke
+        run: cargo test -p lib-q-sca-test --features lattice-zkp-hardened --test self_cert_report self_cert_smoke --verbose
+
       - name: Test ML-KEM integration
         run: |
           cd lib-q-core
@@ -1276,6 +1304,12 @@ jobs:
           echo "Running hash algorithm integration tests..."
           cargo test -p lib-q --test hash_integration_tests --features "all-algorithms" --verbose
           echo "✅ Hash integration tests completed successfully"
+
+      - name: Lattice ZKP wire byte-budget gate
+        run: |
+          cargo test -p lib-q-lattice-zkp --profile release-ci --test kat_vectors --verbose
+          cargo test -p lib-q --test lattice_zkp_wire_budget_tests --profile release-ci --verbose
+          echo "Lattice ZKP wire budget gate passed"
       
       - name: Run unified API tests
         run: |

@@ -70,7 +70,7 @@ fn test_prng_kat_seed_generation() {
     println!("Generated KAT seed: {:02x?}", seed);
 
     // This should match the first seed from our KAT file
-    // From lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.req line 2:
+    // From lib-q-hqc/kats/official/hqc-1/PQCkemKAT_2321.req line 2:
     let expected_seed = hex::decode("061550234D158C5EC95595FE04EF7A25767F2E24CC2BC479D09D86DC9ABCFDE7056A8C266F9EF97ED08541DBD2E1FFA1").unwrap();
 
     println!("Expected KAT seed: {:02x?}", expected_seed);

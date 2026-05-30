@@ -246,7 +246,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 
 ### Environment requirements
 
-- **Rust**: **1.94.1** minimum (workspace `rust-version` in [Cargo.toml](Cargo.toml)).
+- **Rust**: **1.96.0** minimum (workspace `rust-version` in [Cargo.toml](Cargo.toml)).
 - **Node.js**: **20** for npm publish actions; **18+** is still a reasonable local baseline for WASM tooling where not pinned by CI.
 - **Development tools**: `cargo-audit`, `cargo-tarpaulin` (coverage workflows), `wasm-pack`, and `cargo-fuzz` (ZKP scheduled workflow).
 
