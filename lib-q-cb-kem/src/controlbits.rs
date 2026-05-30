@@ -253,14 +253,15 @@ fn cbrecursion(
         if j % 2 == 0 {
             temp[n + n / 4..][j / 2] =
                 (temp[n + n / 4..][j / 2] & (0xFFFF << 16)) | ((temp[2 * j] & 0xFFFF) >> 1);
-            temp[n + n / 4..][(j + n / 2) / 2] = (temp[n + n / 4..][(j + n / 2) / 2] &
-                (0xFFFF << 16)) |
-                ((temp[2 * j + 1] & 0xFFFF) >> 1);
+            temp[n + n / 4..][usize::midpoint(j, n / 2)] =
+                (temp[n + n / 4..][usize::midpoint(j, n / 2)] & (0xFFFF << 16)) |
+                    ((temp[2 * j + 1] & 0xFFFF) >> 1);
         } else {
             temp[n + n / 4..][j / 2] =
                 (temp[n + n / 4..][j / 2] & 0xFFFF) | ((temp[2 * j] & 0xFFFE) << 15);
-            temp[n + n / 4..][(j + n / 2) / 2] =
-                (temp[n + n / 4..][(j + n / 2) / 2] & 0xFFFF) | ((temp[2 * j + 1] & 0xFFFE) << 15);
+            temp[n + n / 4..][usize::midpoint(j, n / 2)] =
+                (temp[n + n / 4..][usize::midpoint(j, n / 2)] & 0xFFFF) |
+                    ((temp[2 * j + 1] & 0xFFFE) << 15);
         }
     }
 

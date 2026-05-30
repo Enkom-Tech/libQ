@@ -3,6 +3,9 @@
 
 pub mod dudect;
 pub mod evaluation;
+pub mod ingest;
+pub mod report;
+pub mod self_cert;
 pub mod tvla_synthetic;
 
 #[cfg(feature = "privacy")]
@@ -109,8 +112,11 @@ mod privacy_smoke {
         AjtaiParameters,
         BlindIssuance,
         BlindRequest,
+        IssuerCommitmentParams,
+        LatticeZkpProfileV0,
         commit,
     };
+    use lib_q_random::new_deterministic_rng;
     use lib_q_ring::{
         ModuleVec,
         Poly,
@@ -120,8 +126,6 @@ mod privacy_smoke {
         RingSigParams,
         sign_federation_message,
     };
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
 
     use crate::privacy_workloads::{
         touch_blind_verify,
@@ -158,26 +162,28 @@ mod privacy_smoke {
 
     #[test]
     fn touch_blind_verify_accepts_round_trip_bundle() {
-        let key = AjtaiCommitmentKey {
-            seed: [0x6Au8; 32],
+        let issuer_params = IssuerCommitmentParams {
+            issuer_matrix_seed: [0x6Au8; 32],
             params: AjtaiParameters::new(2, 1),
+            profile_id: LatticeZkpProfileV0::token_spend_v0().profile_id,
         };
+        let key = issuer_params.commitment_key();
         let p = RingSigParams::mldsa65_pilot();
 
         let user_opening = AjtaiOpening {
             message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
             randomness: ModuleVec(vec![Poly::zero()]),
         };
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x10A5_BEEF_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0x10A5_BEEF_u64));
         let (_req, st) =
-            BlindIssuance::request(&mut rng, &key, user_opening).expect("blind request");
+            BlindIssuance::request(&mut rng, &issuer_params, user_opening).expect("blind request");
         let issuer_opening = sample_random_opening(&mut rng, &key);
         let blind_req = BlindRequest {
             com_blinded: st.com_blinded.clone(),
         };
         let resp = BlindIssuance::issuer_sign(
             &mut rng,
-            &key,
+            &issuer_params,
             &blind_req,
             &issuer_opening,
             b"sca-blind-realm",
@@ -188,8 +194,14 @@ mod privacy_smoke {
         .expect("issuer sign");
         let bundle = BlindIssuance::finalize(st, resp).expect("finalize");
 
-        touch_blind_verify(&key, &bundle, b"sca-blind-realm", p.tau, p.z_inf_bound)
-            .expect("blind verify workload");
+        touch_blind_verify(
+            &issuer_params,
+            &bundle,
+            b"sca-blind-realm",
+            p.tau,
+            p.z_inf_bound,
+        )
+        .expect("blind verify workload");
     }
 
     #[test]
@@ -199,7 +211,7 @@ mod privacy_smoke {
             params: AjtaiParameters::new(2, 1),
         };
         let p = RingSigParams::mldsa65_pilot();
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xFEED_FACE_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0xFEED_FACE_u64));
 
         let a = MemberIssuerKey::from_opening(
             &key,

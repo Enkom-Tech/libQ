@@ -42,8 +42,14 @@ serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
+lib-q-sca-test = { path = "../lib-q-sca-test" }
 # Pure Rust FIPS 204 implementation for benchmark comparison (replaces PQClean bindings).
 fips204 = { version = "0.4.6", default-features = false, features = ["default-rng", "ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
+
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened", "mldsa44", "dudect-smoke-tests"]
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]
@@ -77,6 +83,7 @@ zeroize = ["dep:zeroize"]                           # Automatic zeroization of s
 acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
 test-utils = []   # Expose internal functions for advanced testing
 debug-trace = []  # Enable debug tracing for signature generation debugging
+dudect-smoke-tests = []  # Wall-clock timing smoke; enabled only in dedicated CI matrix rows
 
 [[bench]]
 name = "manual44"

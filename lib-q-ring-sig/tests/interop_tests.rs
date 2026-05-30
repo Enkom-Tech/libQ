@@ -6,6 +6,7 @@ use lib_q_lattice_zkp::{
     AjtaiParameters,
     prove_opening,
 };
+use lib_q_random::new_deterministic_rng;
 use lib_q_ring::{
     ModuleVec,
     Poly,
@@ -23,11 +24,6 @@ use lib_q_ring_sig::{
     verify_dualring_lb,
     verify_federation_opening_scan,
 };
-use rand_chacha::{
-    ChaCha8Rng,
-    ChaCha20Rng,
-};
-use rand_core::SeedableRng;
 
 #[inline]
 fn interop_test_deterministic_seed32(tag: u64) -> [u8; 32] {
@@ -63,7 +59,7 @@ fn federation_scan_finds_signer() {
     let digest = federation_digest(&ring_slice);
     assert_ne!(digest, [0u8; 32]);
 
-    let mut rng = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xC0DE_u64));
+    let mut rng = new_deterministic_rng(interop_test_deterministic_seed32(0xC0DE_u64));
     let msg = b"policy-digest";
     let proof = sign_federation_message(
         &mut rng,
@@ -93,7 +89,7 @@ fn credential_presentation_roundtrip() {
     };
     let attr_com = lib_q_lattice_zkp::commit(&key, &attr_opening);
 
-    let mut rng = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xF00D_u64));
+    let mut rng = new_deterministic_rng(interop_test_deterministic_seed32(0xF00D_u64));
     let attr_proof = prove_opening(
         &mut rng,
         &key,
@@ -124,7 +120,7 @@ fn credential_presentation_roundtrip() {
         members: vec![other_member.commitment, issuer.commitment.clone()],
     };
     let msg = attribute_message_digest(&attr_com);
-    let mut rng2 = ChaCha8Rng::from_seed(interop_test_deterministic_seed32(0xBEEF_u64));
+    let mut rng2 = new_deterministic_rng(interop_test_deterministic_seed32(0xBEEF_u64));
     let fed_proof = sign_dualring_lb(
         &mut rng2,
         &key,
@@ -177,7 +173,7 @@ fn dualring_lb_verify_aggregated_equation_two_members() {
     )
     .expect("b");
     let ring_slice = [a.commitment.clone(), b.commitment.clone()];
-    let mut rng = ChaCha20Rng::from_seed([0xD1u8; 32]);
+    let mut rng = new_deterministic_rng([0xD1u8; 32]);
     let sig = sign_dualring_lb(
         &mut rng,
         &key,

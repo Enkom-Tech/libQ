@@ -9,6 +9,8 @@ use lib_q_lattice_zkp::{
     BlindIssuerKeypair,
     BlindRequest,
     BlindSignature,
+    IssuerCommitmentParams,
+    LatticeZkpProfileV0,
     MerklePath,
     ProofError,
     TOKEN_EPOCH_LEN,
@@ -36,6 +38,10 @@ use lib_q_lattice_zkp::{
     verify_witness_nullifier_opening,
     witness_nullifier,
 };
+use lib_q_random::{
+    new_deterministic_rng,
+    new_deterministic_rng_from_u64,
+};
 use lib_q_ring::{
     ModuleVec,
     Poly,
@@ -52,8 +58,6 @@ use lib_q_ring_sig::{
     verify_dualring_lb,
     verify_federation_opening,
 };
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 
 #[inline]
 fn test_seed32(tag: u64) -> [u8; 32] {
@@ -63,15 +67,21 @@ fn test_seed32(tag: u64) -> [u8; 32] {
 }
 
 fn pilot_crs() -> AjtaiCommitmentKey {
-    AjtaiCommitmentKey {
-        seed: [0x71u8; 32],
+    pilot_issuer_params().commitment_key()
+}
+
+fn pilot_issuer_params() -> IssuerCommitmentParams {
+    IssuerCommitmentParams {
+        issuer_matrix_seed: [0x71u8; 32],
         params: AjtaiParameters::new(2, 1),
+        profile_id: LatticeZkpProfileV0::token_spend_v0().profile_id,
     }
 }
 
 #[test]
 fn blind_issuance_token_fields_and_nullifier_amortisation() {
-    let key = pilot_crs();
+    let issuer_params = pilot_issuer_params();
+    let key = issuer_params.commitment_key();
     let p = RingSigParams::mldsa65_pilot();
     let user_opening = opening_from_token_fields(
         2,
@@ -81,16 +91,16 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
         &[1u8; TOKEN_EPOCH_LEN],
     )
     .expect("token opening layout");
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB1A4_u64));
+    let mut rng = new_deterministic_rng(test_seed32(0xB1A4_u64));
     let (_req, user_st) =
-        BlindIssuance::request(&mut rng, &key, user_opening.clone()).expect("blind req");
+        BlindIssuance::request(&mut rng, &issuer_params, user_opening.clone()).expect("blind req");
     let issuer_opening = lib_q_lattice_zkp::sigma::opening::sample_random_opening(&mut rng, &key);
     let blind_req = BlindRequest {
         com_blinded: user_st.com_blinded.clone(),
     };
     let resp = BlindIssuance::issuer_sign(
         &mut rng,
-        &key,
+        &issuer_params,
         &blind_req,
         &issuer_opening,
         b"integration-realm",
@@ -100,10 +110,16 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
     )
     .expect("issuer");
     let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
-    BlindIssuance::verify(&key, &bundle, b"integration-realm", p.tau, p.z_inf_bound)
-        .expect("blind verify");
+    BlindIssuance::verify(
+        &issuer_params,
+        &bundle,
+        b"integration-realm",
+        p.tau,
+        p.z_inf_bound,
+    )
+    .expect("blind verify");
 
-    let mut fs_rng = ChaCha20Rng::from_seed(test_seed32(0x50E4_u64));
+    let mut fs_rng = new_deterministic_rng(test_seed32(0x50E4_u64));
     let token_proof = prove_opening(
         &mut fs_rng,
         &key,
@@ -139,7 +155,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
 
     let realm = b"sybil-realm";
     let n = registry_nullifier(&bundle.com_blinded, realm);
-    let mut n_rng = ChaCha20Rng::from_seed(test_seed32(0xD06_u64));
+    let mut n_rng = new_deterministic_rng(test_seed32(0xD06_u64));
     let np = prove_nullifier_opening(
         &mut n_rng,
         &key,
@@ -183,7 +199,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
     let mut ap_opt: Result<lib_q_lattice_zkp::AmortisedProof, ProofError> =
         Err(ProofError::RejectionLimit);
     for attempt in 0u64..128 {
-        let mut ar = ChaCha20Rng::from_seed(test_seed32(0xA_u64 ^ attempt));
+        let mut ar = new_deterministic_rng(test_seed32(0xA_u64 ^ attempt));
         ap_opt = amortise(
             &mut ar,
             &key,
@@ -224,7 +240,7 @@ fn federation_ring_opening_integration() {
     )
     .expect("b");
     let ring = [a.commitment.clone(), b.commitment.clone()];
-    let mut rng = ChaCha20Rng::seed_from_u64(0xE11E);
+    let mut rng = new_deterministic_rng_from_u64(0xE11E);
     let proof = sign_federation_message(
         &mut rng,
         &key,
@@ -246,7 +262,8 @@ fn credential_lifecycle_end_to_end() {
     // End-to-end flow: blind issuance produces a token commitment, the issuer
     // (a federation member) signs the token's attribute digest, and the verifier
     // accepts the resulting CredentialPresentation via DualRing-LB–style full-ring verify.
-    let key = pilot_crs();
+    let issuer_params = pilot_issuer_params();
+    let key = issuer_params.commitment_key();
     let p = RingSigParams::mldsa65_pilot();
 
     let user_opening = opening_from_token_fields(
@@ -257,9 +274,9 @@ fn credential_lifecycle_end_to_end() {
         &[1u8; TOKEN_EPOCH_LEN],
     )
     .expect("token layout");
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB1A4_u64));
+    let mut rng = new_deterministic_rng(test_seed32(0xB1A4_u64));
     let (_req, user_st) =
-        BlindIssuance::request(&mut rng, &key, user_opening).expect("blind request");
+        BlindIssuance::request(&mut rng, &issuer_params, user_opening).expect("blind request");
     let issuer_blind_opening =
         lib_q_lattice_zkp::sigma::opening::sample_random_opening(&mut rng, &key);
     let blind_req = BlindRequest {
@@ -267,7 +284,7 @@ fn credential_lifecycle_end_to_end() {
     };
     let resp = BlindIssuance::issuer_sign(
         &mut rng,
-        &key,
+        &issuer_params,
         &blind_req,
         &issuer_blind_opening,
         b"credential-realm",
@@ -277,13 +294,19 @@ fn credential_lifecycle_end_to_end() {
     )
     .expect("issuer blind sign");
     let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
-    BlindIssuance::verify(&key, &bundle, b"credential-realm", p.tau, p.z_inf_bound)
-        .expect("blind bundle verify");
+    BlindIssuance::verify(
+        &issuer_params,
+        &bundle,
+        b"credential-realm",
+        p.tau,
+        p.z_inf_bound,
+    )
+    .expect("blind bundle verify");
 
     // Holder proves opening for the blinded token commitment under the attribute context
     // so the verifier can check it without learning the secret token fields.
     let attr_fs_ctx: &[u8] = b"credential-attribute";
-    let mut attr_rng = ChaCha20Rng::from_seed(test_seed32(0x50E4_u64));
+    let mut attr_rng = new_deterministic_rng(test_seed32(0x50E4_u64));
     let attribute_opening_proof = prove_opening(
         &mut attr_rng,
         &key,
@@ -323,7 +346,7 @@ fn credential_lifecycle_end_to_end() {
     };
 
     let attr_digest = attribute_message_digest(&bundle.com_blinded);
-    let mut fed_rng = ChaCha20Rng::from_seed([0x22; 32]);
+    let mut fed_rng = new_deterministic_rng([0x22; 32]);
     let ring_signature = sign_dualring_lb(
         &mut fed_rng,
         &key,
@@ -385,7 +408,7 @@ fn token_double_spend_detection() {
     let epoch = [0x01u8; TOKEN_EPOCH_LEN];
     let opening = opening_from_token_fields(2, 1, &serial, &origin, &epoch).expect("layout");
     let com = commit(&key, &opening);
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xDEAD_BEEF_u64));
+    let mut rng = new_deterministic_rng(test_seed32(0xDEAD_BEEF_u64));
     let proof = prove_opening(
         &mut rng,
         &key,
@@ -476,7 +499,7 @@ fn hierarchical_auth_cross_crate() {
     // Path for `target_payload` (leaf1): sibling at level 0 is leaf0 (target is right child),
     // sibling at level 1 is n23 (target is left child after first hash).
     let path = MerklePath {
-        directions: vec![false, true],
+        path_index: 1,
         siblings: vec![leaf0, n23],
     };
 
@@ -485,7 +508,7 @@ fn hierarchical_auth_cross_crate() {
         randomness: ModuleVec(vec![Poly::zero()]),
     };
     let credential_com = commit(&key, &credential_opening);
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xC1EA_C0DE_u64));
+    let mut rng = new_deterministic_rng(test_seed32(0xC1EA_C0DE_u64));
     let proof = prove_level_membership(
         &mut rng,
         &key,
@@ -539,7 +562,7 @@ fn hierarchical_auth_cross_crate() {
 
 #[test]
 fn blind_signature_pilot_integration() {
-    let key = pilot_crs();
+    let issuer_params = pilot_issuer_params();
     let p = RingSigParams::mldsa65_pilot();
     let user_opening = opening_from_token_fields(
         2,
@@ -549,14 +572,14 @@ fn blind_signature_pilot_integration() {
         &[3u8; TOKEN_EPOCH_LEN],
     )
     .expect("opening");
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0xB10Cu64));
-    let (req, user_st) = BlindIssuance::request(&mut rng, &key, user_opening).expect("request");
-    let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
+    let mut rng = new_deterministic_rng(test_seed32(0xB10Cu64));
+    let (req, user_st) =
+        BlindIssuance::request(&mut rng, &issuer_params, user_opening).expect("request");
+    let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
     let (resp, digest) = BlindIssuance::issuer_sign_message(
         &mut rng,
-        &key,
-        &req,
         &issuer,
+        &req,
         b"integration-policy",
         b"blind-sig-ctx",
         p.tau,
@@ -567,7 +590,7 @@ fn blind_signature_pilot_integration() {
     let bundle: UnblindedBlindSignature =
         BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize_message");
     bundle
-        .verify_blind_signature(&key, b"blind-sig-ctx", p.tau, p.z_inf_bound)
+        .verify_blind_signature(&issuer_params, b"blind-sig-ctx", p.tau, p.z_inf_bound)
         .expect("BlindSignature::verify_blind_signature");
 }
 
@@ -583,7 +606,7 @@ fn witness_nullifier_same_witness_two_commitment_keys_integration() {
         seed: [0x02u8; 32],
         params,
     };
-    let mut rng = ChaCha20Rng::from_seed([0x77; 32]);
+    let mut rng = new_deterministic_rng([0x77; 32]);
     let opening = lib_q_lattice_zkp::sigma::opening::sample_random_opening(&mut rng, &key_a);
     let com_a = commit(&key_a, &opening);
     let com_b = commit(&key_b, &opening);
@@ -594,7 +617,7 @@ fn witness_nullifier_same_witness_two_commitment_keys_integration() {
     );
     assert_ne!(com_a, com_b);
 
-    let mut pr = ChaCha20Rng::from_seed([0x51u8; 32]);
+    let mut pr = new_deterministic_rng([0x51u8; 32]);
     let proof_a = prove_witness_nullifier_opening(
         &mut pr,
         &key_a,
@@ -619,7 +642,7 @@ fn witness_nullifier_same_witness_two_commitment_keys_integration() {
     )
     .expect("verify a");
 
-    let mut pr2 = ChaCha20Rng::from_seed([0x52u8; 32]);
+    let mut pr2 = new_deterministic_rng([0x52u8; 32]);
     let proof_b = prove_witness_nullifier_opening(
         &mut pr2,
         &key_b,
@@ -669,7 +692,7 @@ fn dualring_lb_full_ring_verify_integration() {
     )
     .expect("b");
     let ring = [a.commitment.clone(), b.commitment.clone()];
-    let mut rng = ChaCha20Rng::from_seed([0xC0; 32]);
+    let mut rng = new_deterministic_rng([0xC0; 32]);
     let sig = sign_dualring_lb(
         &mut rng,
         &key,
@@ -697,7 +720,7 @@ fn private_membership_pilot_integration() {
     let l1 = leaf_hash(&leaf_payload);
     let root = node_hash(&l0, &l1);
     let path = MerklePath {
-        directions: vec![false],
+        path_index: 1,
         siblings: vec![l0],
     };
     let credential_opening = AjtaiOpening {
@@ -705,7 +728,7 @@ fn private_membership_pilot_integration() {
         randomness: ModuleVec(vec![Poly::zero()]),
     };
     let credential_com = commit(&key, &credential_opening);
-    let mut rng = ChaCha20Rng::from_seed(test_seed32(0x51A1_C0DEu64));
+    let mut rng = new_deterministic_rng(test_seed32(0x51A1_C0DEu64));
     let proof = prove_private_membership(
         &mut rng,
         &key,

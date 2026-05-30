@@ -43,12 +43,12 @@ impl SlhDsaNoStdRng {
 
     /// Create a new deterministic RNG for testing
     ///
-    /// Uses the same ChaCha20 construction as `lib_q_random::NoStdRng::new_deterministic`.
+    /// Uses the same KT128 construction as `lib_q_random::NoStdRng::new_deterministic`.
     /// Suitable for reproducible tests only; unpredictability is bounded by the 32-byte seed.
     ///
     /// # Arguments
     ///
-    /// * `seed` - 32-byte ChaCha20 key
+    /// * `seed` - 32-byte KT128 seed
     #[must_use]
     pub fn new_deterministic(seed: [u8; 32]) -> Self {
         let inner = lib_q_random::no_std_rng::NoStdRng::new_deterministic(seed);

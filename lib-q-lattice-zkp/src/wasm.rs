@@ -1,4 +1,4 @@
-//! WASM bindings: pilot Ajtai commitment smoke (fixed CRS) for integration tests.
+//! WASM bindings: fixed-seed Ajtai commitment smoke test for integration wiring.
 
 #![allow(missing_docs)]
 
@@ -20,26 +20,26 @@ use crate::{
     commit,
 };
 
-fn pilot_crs() -> AjtaiCommitmentKey {
+fn smoke_commitment_key() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {
         seed: [0xA1u8; 32],
         params: AjtaiParameters::new(2, 1),
     }
 }
 
-fn pilot_opening() -> AjtaiOpening {
+fn smoke_opening() -> AjtaiOpening {
     AjtaiOpening {
         message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
         randomness: ModuleVec(vec![Poly::zero()]),
     }
 }
 
-/// Hex-encoded Ajtai commitment for a zero pilot opening (smoke / wiring check).
+/// Hex-encoded Ajtai commitment for a zero opening (smoke / wiring check).
 #[wasm_bindgen(js_name = latticeZkpPilotCommitHex)]
 pub fn lattice_zkp_pilot_commit_hex() -> Result<JsValue, JsValue> {
-    let crs = pilot_crs();
-    let opening = pilot_opening();
-    let com = commit(&crs, &opening);
+    let key = smoke_commitment_key();
+    let opening = smoke_opening();
+    let com = commit(&key, &opening);
     let bytes = write_module_vec(&com.value.0);
     Ok(JsValue::from_str(&hex::encode(bytes)))
 }

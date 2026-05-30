@@ -10,7 +10,7 @@ description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-rust-version = "1.92.0"
+rust-version.workspace = true
 categories = ["cryptography", "no-std", "wasm"]
 keywords = ["crypto", "ml-kem", "lattice", "post-quantum", "nist"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
@@ -79,8 +79,14 @@ name = "wasm_smoke"
 path = "tests/wasm_smoke.rs"
 required-features = ["wasm"]
 
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened"]
+
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
+lib-q-sca-test = { path = "../lib-q-sca-test" }
 
 [[bench]]
 name = "mlkem"

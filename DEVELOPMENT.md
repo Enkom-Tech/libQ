@@ -6,7 +6,7 @@ This guide covers the development setup, CI/CD pipeline, security practices, and
 
 ### Prerequisites
 
-- **Rust 1.94.1+** (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
+- **Rust 1.96.0+** (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - **Git** with proper signing setup
 - **Node.js 18+** (for WASM development)
 - **Development tools** (see installation below)

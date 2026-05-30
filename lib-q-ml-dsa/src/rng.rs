@@ -57,7 +57,7 @@ impl MLDsaRng {
     ///
     /// # Arguments
     ///
-    /// * `seed` - 32-byte ChaCha20 key when `random` is enabled (via `LibQRng`).
+    /// * `seed` - 32-byte KT128 seed when `random` is enabled (via `LibQRng`).
     ///   With `random` disabled, the same bytes initialize a SHAKE256 XOF stream.
     #[cfg(feature = "random")]
     pub fn new_deterministic(seed: [u8; 32]) -> Self {

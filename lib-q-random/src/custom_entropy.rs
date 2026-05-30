@@ -2,8 +2,8 @@
 //!
 //! This module provides a secure, callback-based entropy source system that allows
 //! developers to plug in custom entropy sources for `no_std` and WASM environments.
-//! The system uses function pointers and thread-local storage to avoid global state
-//! while maintaining security and performance.
+//! With `std`, registrations are thread-local. On `no_std` / WASM, a single process-wide
+//! registry is used (browser WASM and typical firmware are single-threaded).
 
 use core::sync::atomic::{
     AtomicPtr,
@@ -341,8 +341,28 @@ impl ThreadEntropyRegistry {
     }
 }
 
+// `thread_local!` requires `std`. `no_std` / WASM builds use one registry (typical WASM and firmware are single-threaded).
+#[cfg(feature = "std")]
 thread_local! {
     static THREAD_REGISTRY: ThreadEntropyRegistry = const { ThreadEntropyRegistry::new() };
+}
+
+#[cfg(not(feature = "std"))]
+static REGISTRY: ThreadEntropyRegistry = const { ThreadEntropyRegistry::new() };
+
+#[inline]
+fn with_registry<F, R>(f: F) -> R
+where
+    F: FnOnce(&ThreadEntropyRegistry) -> R,
+{
+    #[cfg(feature = "std")]
+    {
+        THREAD_REGISTRY.with(f)
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        f(&REGISTRY)
+    }
 }
 
 /// Register a custom entropy source for the current thread
@@ -357,12 +377,12 @@ thread_local! {
 /// The caller is responsible for ensuring the source is not dropped
 /// while registered.
 pub unsafe fn register_custom_entropy_source(source: *const CustomEntropySource) {
-    THREAD_REGISTRY.with(|registry| unsafe { registry.register(source) });
+    with_registry(|registry| unsafe { registry.register(source) });
 }
 
 /// Unregister the current custom entropy source
 pub fn unregister_custom_entropy_source() {
-    THREAD_REGISTRY.with(ThreadEntropyRegistry::unregister);
+    with_registry(ThreadEntropyRegistry::unregister);
 }
 
 /// Generate entropy using the registered custom source
@@ -375,13 +395,13 @@ pub fn unregister_custom_entropy_source() {
 ///
 /// Returns an error if no source is registered or if entropy generation fails.
 pub fn generate_custom_entropy(dest: &mut [u8]) -> Result<()> {
-    THREAD_REGISTRY.with(|registry| registry.generate_entropy(dest))
+    with_registry(|registry| registry.generate_entropy(dest))
 }
 
 /// Check if a custom entropy source is registered
 #[must_use]
 pub fn has_custom_entropy_source() -> bool {
-    THREAD_REGISTRY.with(|registry| unsafe { registry.get_source().is_some() })
+    with_registry(|registry| unsafe { registry.get_source().is_some() })
 }
 
 /// Get information about the registered entropy source
@@ -391,7 +411,7 @@ pub fn has_custom_entropy_source() -> bool {
 /// Returns a tuple of (`source_id`, quality) if a source is registered.
 #[must_use]
 pub fn get_entropy_source_info() -> Option<(&'static str, EntropyQuality)> {
-    THREAD_REGISTRY.with(|registry| unsafe {
+    with_registry(|registry| unsafe {
         registry
             .get_source()
             .map(|source| (source.source_id(), source.quality()))
