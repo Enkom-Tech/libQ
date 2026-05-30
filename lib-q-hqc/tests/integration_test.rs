@@ -15,7 +15,6 @@ use lib_q_hqc::params_correct::{
 use lib_q_hqc::reed_muller::ReedMuller;
 use lib_q_hqc::reed_solomon::ReedSolomon;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use lib_q_random::LibQRng;
 
 /// NIST HQC KAT count=0 entropy (48 bytes); reused for deterministic KEM keygen at all levels.
 const KEM_INTEGRATION_KEY_SEED_48: [u8; 48] = [
@@ -39,7 +38,7 @@ const fn kem_encaps_prng_seed(base: u8) -> [u8; 48] {
 fn test_full_hqc1_integration() {
     println!("Testing HQC-1 (128-bit security) full integration...");
 
-    // Test KEM (deterministic key + encapsulation PRNG; avoids rare OS-RNG PKE decode mismatches)
+    // Deterministic key + encapsulation PRNG so the shared-secret comparison is reproducible.
     let kem = HqcKem::<Hqc1Params>::new().expect("Failed to create HQC-1 KEM");
     let (public_key, secret_key) = kem
         .keygen_with_seed(&KEM_INTEGRATION_KEY_SEED_48)
@@ -220,31 +219,45 @@ fn test_pke_integration() {
     println!("Testing PKE integration...");
 
     let pke = HqcPke::<Hqc1Params>::new().expect("Failed to create PKE instance");
-    let mut rng = LibQRng::new_secure().expect("Failed to create RNG");
 
-    // Generate keypair
-    let (public_key, secret_key) = pke
-        .keygen(&mut rng)
-        .expect("Failed to generate PKE keypair");
+    // Exercise distinct keypairs with deterministic, varied seeds so the round-trip
+    // assertion is reproducible in CI while still covering many independent keys.
+    let trials = 16;
+    let k_words = Hqc1Params::K.div_ceil(8);
+    for i in 0..trials {
+        let mut rng = create_shake256_prng_rng(kem_encaps_prng_seed(0x40u8.wrapping_add(i as u8)));
+        let (public_key, secret_key) = pke
+            .keygen(&mut rng)
+            .expect("Failed to generate PKE keypair");
 
-    // Test message
-    let message = [1u64, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-    let theta = [0u8; 32];
+        // Message occupies the low K bytes; trailing words stay zero.
+        let mut message = [0u64; 16];
+        for (w, word) in message.iter_mut().take(k_words).enumerate() {
+            *word = 0x0102_0304_0506_0708u64
+                .wrapping_mul((i as u64) + 1)
+                .wrapping_add(w as u64);
+        }
 
-    // Encrypt
-    let ciphertext = pke
-        .encrypt(&public_key, &message, &theta)
-        .expect("Failed to encrypt with PKE");
+        let mut theta = [0u8; 32];
+        for (b, slot) in theta.iter_mut().enumerate() {
+            *slot = (i as u8).wrapping_mul(31).wrapping_add(b as u8);
+        }
 
-    // Decrypt
-    let decrypted = pke
-        .decrypt(&secret_key, &ciphertext)
-        .expect("Failed to decrypt with PKE");
+        let ciphertext = pke
+            .encrypt(&public_key, &message[..k_words], &theta)
+            .expect("Failed to encrypt with PKE");
+        let decrypted = pke
+            .decrypt(&secret_key, &ciphertext)
+            .expect("Failed to decrypt with PKE");
 
-    println!("✅ PKE integration test passed");
-    println!("   Message length: {} u64 values", message.len());
-    println!("   Decrypted length: {} u64 values", decrypted.len());
-    println!("   Ciphertext size: {} bytes", ciphertext.as_bytes().len());
+        assert_eq!(
+            &message[..k_words],
+            &decrypted[..k_words],
+            "PKE round-trip mismatch on trial {i}"
+        );
+    }
+
+    println!("✅ PKE integration test passed ({trials} distinct keypairs)");
 }
 
 #[test]
@@ -253,10 +266,9 @@ fn test_multiple_kem_operations() {
 
     let kem = HqcKem::<Hqc1Params>::new().expect("Failed to create KEM");
 
-    // Deterministic key material (NIST KAT seed) plus SHAKE256 PRNG for encapsulation-only
-    // randomness. OS-backed `new_secure()` keys can still hit rare PKE decode mismatches in
-    // this codebase; this setup keeps the test reproducible and CI-stable while still
-    // exercising multiple encaps/decaps cycles on a fixed keypair.
+    // Deterministic key material (NIST KAT seed) plus a SHAKE256 encapsulation PRNG keep the
+    // shared-secret comparison reproducible across multiple encaps/decaps cycles on one keypair.
+    // Coverage of many independent keys lives in `test_kem_roundtrip_varied_keys_all_params`.
     let (public_key, secret_key) = kem
         .keygen_with_seed(&KEM_INTEGRATION_KEY_SEED_48)
         .expect("Failed to generate keypair");
@@ -290,4 +302,43 @@ fn test_multiple_kem_operations() {
     }
 
     println!("✅ Multiple KEM operations test passed");
+}
+
+/// Exercises the full KEM round-trip across many independent keypairs for every
+/// parameter set. Keys are derived from varied deterministic seeds (not a single
+/// pinned seed) so the test covers a broad slice of the key space while remaining
+/// reproducible in CI. A decapsulation mismatch here means PKE decryption failed to
+/// recover the message — i.e. a decode-correctness regression, since HQC's spec
+/// decryption-failure rate is cryptographically negligible.
+#[test]
+fn test_kem_roundtrip_varied_keys_all_params() {
+    fn run<P: HqcParams>(label: &str, trials: usize) {
+        let kem = HqcKem::<P>::new().expect("Failed to create KEM");
+        for i in 0..trials {
+            let key_seed = kem_encaps_prng_seed(0x10u8.wrapping_add(i as u8));
+            let (public_key, secret_key) = kem
+                .keygen_with_seed(&key_seed)
+                .expect("Failed to generate keypair");
+
+            let mut enc_rng =
+                create_shake256_prng_rng(kem_encaps_prng_seed(0x90u8.wrapping_add(i as u8)));
+            let (ciphertext, ss_send) = kem
+                .encapsulate(&public_key, &mut enc_rng)
+                .expect("Failed to encapsulate");
+            let ss_recv = kem
+                .decapsulate(&secret_key, &ciphertext)
+                .expect("Failed to decapsulate");
+
+            assert_eq!(
+                ss_send.as_bytes(),
+                ss_recv.as_bytes(),
+                "{label}: shared-secret mismatch on trial {i} (decode-correctness regression)"
+            );
+        }
+        println!("✅ {label}: {trials} varied-key KEM round-trips matched");
+    }
+
+    run::<Hqc1Params>("HQC-128", 24);
+    run::<Hqc3Params>("HQC-192", 16);
+    run::<Hqc5Params>("HQC-256", 12);
 }

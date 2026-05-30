@@ -14,7 +14,7 @@ use zeroize::{
 
 use crate::params::AjtaiParameters;
 
-/// CRS seed `ρ` and dimensions.
+/// Commitment key seed (ExpandA `ρ`) and module dimensions.
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct AjtaiCommitmentKey {
     /// ExpandA seed (32 bytes).

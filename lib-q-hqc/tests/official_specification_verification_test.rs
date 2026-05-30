@@ -276,12 +276,14 @@ fn test_failure_rate<P: HqcParams>(name: &str, num_tests: usize, expected_max_fa
         expected_max_failure_rate, expected_failure_rate_percent
     );
 
-    if observed_failure_rate <= expected_max_failure_rate {
-        println!("  ✅ {} failure rate is within expected bounds", name);
-    } else {
-        println!("  ❌ {} failure rate exceeds expected bounds", name);
-        println!("  Note: 100% failure rate is expected behavior for HQC algorithm design");
-    }
+    // HQC's spec decryption-failure rate is cryptographically negligible, so any observed
+    // failure on these sample sizes is a decode-correctness regression, not algorithm
+    // behavior. Sampling cannot prove the < 2⁻¹²⁸ bound, but it must not show failures here.
+    assert_eq!(
+        failures, 0,
+        "{name}: {failures}/{total_attempts} decapsulation failures — decode-correctness regression"
+    );
+    println!("  ✅ {name}: 0/{total_attempts} failures (negligible-DFR expectation holds)");
 
     // Additional analysis
     let noise_analysis = analyze_noise_characteristics::<P>();

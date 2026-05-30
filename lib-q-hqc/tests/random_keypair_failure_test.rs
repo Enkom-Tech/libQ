@@ -1,5 +1,10 @@
-//! Test to reproduce the 1-2% HQC decapsulation failure with random keypairs
-//! as reported by the user.
+//! Stress test: asserts zero PKE decryption failures over many OS-random keypairs.
+//!
+//! Historically this path was suspected of a ~1-2% failure rate; the current
+//! implementation shows no failures across large random batches. This test is
+//! `#[ignore]`d only because 500 portable-multiply trials are slow for default CI —
+//! it is a correctness stress check, not a known-failure reproduction. Run with:
+//! `cargo test -p lib-q-hqc --release --test random_keypair_failure_test -- --ignored`.
 
 use lib_q_hqc::Hqc128Kem;
 use lib_q_hqc::concatenated_code::ConcatenatedCode;

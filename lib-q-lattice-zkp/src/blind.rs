@@ -1,7 +1,7 @@
-//! Homomorphic blinding helpers for Ajtai commitments used in prototype blind-issuance flows.
+//! Homomorphic blinding for issuer-keyed Ajtai commitments (wire v0 blind issuance).
 //!
 //! [`BlindIssuance`] wires user blinding, issuer Fiat–Shamir attestation, and verifier checks.
-//! See [`BLIND_ISSUANCE.md`](../BLIND_ISSUANCE.md) for the CRS model and limitations.
+//! See [`BLIND_ISSUANCE.md`](../BLIND_ISSUANCE.md) for the issuer-keyed model and wire layout.
 
 extern crate alloc;
 
@@ -17,6 +17,10 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use zeroize::{
+    Zeroize,
+    ZeroizeOnDrop,
+};
 
 use crate::commitment::{
     AjtaiCommitment,
@@ -28,6 +32,8 @@ use crate::error::{
     ProofError,
     VerifyError,
 };
+use crate::params::AjtaiParameters;
+use crate::profile::LatticeZkpProfileV0;
 use crate::serialize::write_module_vec;
 use crate::sigma::opening::{
     OpeningProof,
@@ -52,29 +58,119 @@ pub fn blind_message_digest(message: &[u8]) -> [u8; 32] {
     out
 }
 
-/// Pilot issuer key material: an [`AjtaiOpening`] witness and its commitment image under the CRS.
-///
-/// Production blind signatures over Module-SIS require a trapdoor or issuer-keyed matrix family
-/// (see [`BLIND_ISSUANCE.md`](../BLIND_ISSUANCE.md)); this type models a **pilot** signing key as a
-/// standard Ajtai opening under the shared CRS.
+/// Domain-separated digest of a blinded commitment image for wire kind `0x08`.
+#[must_use]
+pub fn blinded_commitment_digest(com: &AjtaiCommitment) -> [u8; 32] {
+    let wire = write_module_vec(&com.value.0);
+    let mut h = lib_q_sha3::Shake256::default();
+    h.update(b"lattice-zkp/blinded-com/v0");
+    h.update(&wire);
+    let mut out = [0u8; 32];
+    let mut r = h.finalize_xof();
+    XofReader::read(&mut r, &mut out);
+    out
+}
+
+/// Domain tag for issuer-keyed commitment parameter digests on wire kind `0x08`.
+pub const ISSUER_PARAMS_DIGEST_DOMAIN: &[u8] = b"lattice-zkp/issuer-params/v0";
+
+/// Issuer-specific Ajtai matrix parameters (wire v0; replaces shared-CRS blind pilot).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IssuerCommitmentParams {
+    /// Seed expanding issuer-specific matrix `A_issuer`.
+    pub issuer_matrix_seed: [u8; 32],
+    pub params: AjtaiParameters,
+    /// Profile id bound into [`Self::issuer_params_digest`].
+    pub profile_id: u8,
+}
+
+impl IssuerCommitmentParams {
+    /// Build issuer params from a wire profile and issuer matrix seed.
+    #[must_use]
+    pub fn from_profile(profile: &LatticeZkpProfileV0, issuer_matrix_seed: [u8; 32]) -> Self {
+        Self {
+            issuer_matrix_seed,
+            params: profile.ajtai.clone(),
+            profile_id: profile.profile_id,
+        }
+    }
+
+    /// Expand `A_issuer` commitment key.
+    #[must_use]
+    pub fn commitment_key(&self) -> AjtaiCommitmentKey {
+        AjtaiCommitmentKey {
+            seed: self.issuer_matrix_seed,
+            params: self.params.clone(),
+        }
+    }
+
+    /// `SHAKE256(domain ‖ issuer_matrix_seed ‖ profile_id)` carried on wire kind `0x08`.
+    #[must_use]
+    pub fn issuer_params_digest(&self) -> [u8; 32] {
+        let mut h = lib_q_sha3::Shake256::default();
+        h.update(ISSUER_PARAMS_DIGEST_DOMAIN);
+        h.update(&self.issuer_matrix_seed);
+        h.update(&[self.profile_id]);
+        let mut out = [0u8; 32];
+        let mut r = h.finalize_xof();
+        XofReader::read(&mut r, &mut out);
+        out
+    }
+}
+
+/// Issuer signing key: secret opening and public commitment under issuer-keyed `A_issuer`.
 #[derive(Clone)]
 pub struct BlindIssuerKeypair {
-    /// Secret opening witness.
+    /// Issuer matrix parameters (wire-bound via digest).
+    pub issuer_params: IssuerCommitmentParams,
+    /// Secret opening witness under `issuer_params.commitment_key()`.
     pub secret_opening: AjtaiOpening,
-    /// Public commitment `commit(crs, secret_opening)`.
+    /// Public commitment `commit(A_issuer, secret_opening)`.
     pub public_commitment: AjtaiCommitment,
 }
 
+impl Zeroize for BlindIssuerKeypair {
+    fn zeroize(&mut self) {
+        self.secret_opening.zeroize();
+    }
+}
+
+impl Drop for BlindIssuerKeypair {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl core::fmt::Debug for BlindIssuerKeypair {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("BlindIssuerKeypair")
+            .field("public_commitment", &self.public_commitment)
+            .field("secret_opening", &"<redacted>")
+            .finish()
+    }
+}
+
 impl BlindIssuerKeypair {
-    /// Derive `(sk, pk)` from a uniformly sampled opening.
+    /// Derive `(sk, pk)` from uniformly sampled opening under issuer-keyed matrix.
     #[must_use]
-    pub fn sample<R: Rng + CryptoRng>(rng: &mut R, crs: &AjtaiCommitmentKey) -> Self {
-        let secret_opening = sample_random_opening(rng, crs);
-        let public_commitment = commit(crs, &secret_opening);
+    pub fn sample_issuer_keyed<R: Rng + CryptoRng>(
+        rng: &mut R,
+        issuer_params: &IssuerCommitmentParams,
+    ) -> Self {
+        let key = issuer_params.commitment_key();
+        let secret_opening = sample_random_opening(rng, &key);
+        let public_commitment = commit(&key, &secret_opening);
         Self {
+            issuer_params: issuer_params.clone(),
             secret_opening,
             public_commitment,
         }
+    }
+
+    /// Issuer commitment key for blind issuance operations.
+    #[must_use]
+    pub fn commitment_key(&self) -> AjtaiCommitmentKey {
+        self.issuer_params.commitment_key()
     }
 
     /// Wire bytes for the public commitment image (absorbed into Fiat–Shamir contexts).
@@ -85,11 +181,12 @@ impl BlindIssuerKeypair {
 }
 
 /// Final bundle after [`BlindIssuance::finalize_message`]: blinded token + issuer attestation + message digest.
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct UnblindedBlindSignature {
     /// Inner blind issuance bundle.
     pub issuance: UnblindedIssuance,
     /// [`blind_message_digest`] of the signed application message.
+    #[zeroize(skip)]
     pub message_digest: [u8; 32],
 }
 
@@ -97,12 +194,13 @@ pub struct UnblindedBlindSignature {
 ///
 /// Naming aligns with blind-signature literature: [`BlindSignature::verify_signature`] is the
 /// public verifier entry point; [`BlindIssuance::issuer_sign_message`] / [`BlindIssuance::finalize_message`]
-/// implement the issuer-side **blind sign** and user-side **unblind** steps for the pilot CRS model.
+/// implement the issuer-side **blind sign** and user-side **unblind** steps under
+/// [`IssuerCommitmentParams`].
 pub trait BlindSignature {
     /// Verify commitment consistency, issuer attestation, and message digest binding.
     fn verify_blind_signature(
         &self,
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
@@ -111,25 +209,25 @@ pub trait BlindSignature {
     /// Synonym for [`Self::verify_blind_signature`] (Phase 7 plan surface: `verify_signature`).
     fn verify_signature(
         &self,
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
-        self.verify_blind_signature(key, base_ctx, tau, z_inf_bound)
+        self.verify_blind_signature(issuer_params, base_ctx, tau, z_inf_bound)
     }
 }
 
 impl BlindSignature for UnblindedBlindSignature {
     fn verify_blind_signature(
         &self,
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
         BlindIssuance::verify_message(
-            key,
+            issuer_params,
             &self.issuance,
             base_ctx,
             &self.message_digest,
@@ -139,13 +237,46 @@ impl BlindSignature for UnblindedBlindSignature {
     }
 }
 
+/// User-side blind openings (scrubbed on drop unless consumed by [`BlindIssuance::finalize`]).
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+struct BlindOpeningSecrets {
+    user_opening: AjtaiOpening,
+    blind_opening: AjtaiOpening,
+}
+
 /// User-side state after [`BlindIssuance::request`].
+///
+/// Dropping without finalizing scrubs [`BlindOpeningSecrets`] automatically.
+#[must_use = "consume via BlindIssuance::finalize or drop to scrub blind/user openings"]
 #[derive(Clone)]
 pub struct BlindUserState {
     /// Blinded token commitment `Com(user + blind)`.
     pub com_blinded: AjtaiCommitment,
-    pub user_opening: AjtaiOpening,
-    pub blind_opening: AjtaiOpening,
+    secrets: BlindOpeningSecrets,
+}
+
+impl BlindUserState {
+    /// User credential opening before blinding.
+    #[must_use]
+    pub fn user_opening(&self) -> &AjtaiOpening {
+        &self.secrets.user_opening
+    }
+
+    /// Uniform blinding opening sampled in [`BlindIssuance::request`].
+    #[must_use]
+    pub fn blind_opening(&self) -> &AjtaiOpening {
+        &self.secrets.blind_opening
+    }
+}
+
+impl core::fmt::Debug for BlindUserState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("BlindUserState")
+            .field("com_blinded", &self.com_blinded)
+            .field("user_opening", &"<redacted>")
+            .field("blind_opening", &"<redacted>")
+            .finish()
+    }
 }
 
 /// Message sent to the issuer (blinded commitment only).
@@ -163,35 +294,54 @@ pub struct BlindResponse {
 }
 
 /// Final bundle after [`BlindIssuance::finalize`].
-#[derive(Clone)]
+///
+/// Cloning duplicates the secret [`token_opening`]; prefer references when possible.
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct UnblindedIssuance {
+    #[zeroize(skip)]
     pub com_blinded: AjtaiCommitment,
     /// Opening for `com_blinded` (= user + blind).
     pub token_opening: AjtaiOpening,
+    #[zeroize(skip)]
     pub issuer_com: AjtaiCommitment,
+    #[zeroize(skip)]
     pub issuer_proof: OpeningProof,
 }
 
-/// CRS-style blind issuance orchestration (see design note: not Chaum blind RSA).
+impl core::fmt::Debug for UnblindedIssuance {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("UnblindedIssuance")
+            .field("com_blinded", &self.com_blinded)
+            .field("token_opening", &"<redacted>")
+            .field("issuer_com", &self.issuer_com)
+            .field("issuer_proof", &self.issuer_proof)
+            .finish()
+    }
+}
+
+/// Issuer-keyed blind issuance orchestration (homomorphic Ajtai blinding; not Chaum blind RSA).
 pub struct BlindIssuance;
 
 impl BlindIssuance {
     /// User samples blinding, returns the blinded commitment for the issuer.
     pub fn request<R: Rng + CryptoRng>(
         rng: &mut R,
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         user_opening: AjtaiOpening,
     ) -> Result<(BlindRequest, BlindUserState), ProofError> {
-        let blind_opening = sample_random_opening(rng, key);
-        let com_blinded = blinded_commitment(key, &user_opening, &blind_opening)
+        let key = issuer_params.commitment_key();
+        let blind_opening = sample_random_opening(rng, &key);
+        let com_blinded = blinded_commitment(&key, &user_opening, &blind_opening)
             .ok_or(ProofError::InvalidParameters)?;
         let req = BlindRequest {
             com_blinded: com_blinded.clone(),
         };
         let st = BlindUserState {
             com_blinded,
-            user_opening,
-            blind_opening,
+            secrets: BlindOpeningSecrets {
+                user_opening,
+                blind_opening,
+            },
         };
         Ok((req, st))
     }
@@ -201,15 +351,15 @@ impl BlindIssuance {
     #[allow(clippy::too_many_arguments)] // Fiat–Shamir sigma API: explicit public inputs
     pub fn issuer_sign_message<R: Rng + CryptoRng>(
         rng: &mut R,
-        key: &AjtaiCommitmentKey,
-        blind_req: &BlindRequest,
         issuer: &BlindIssuerKeypair,
+        blind_req: &BlindRequest,
         message: &[u8],
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
         max_attempts: usize,
     ) -> Result<(BlindResponse, [u8; 32]), ProofError> {
+        let key = issuer.commitment_key();
         let digest = blind_message_digest(message);
         let issuer_com = issuer.public_commitment.clone();
         let blind_wire = write_module_vec(&blind_req.com_blinded.value.0);
@@ -218,7 +368,7 @@ impl BlindIssuance {
         let ctx = issuance_transcript_ctx(base_ctx, BLIND_ISSUER_FS_LABEL, &extra);
         let issuer_proof = prove_opening(
             rng,
-            key,
+            &key,
             &issuer.secret_opening,
             &issuer_com,
             &ctx,
@@ -240,7 +390,7 @@ impl BlindIssuance {
     #[allow(clippy::too_many_arguments)] // Fiat–Shamir sigma API: explicit public inputs
     pub fn issuer_sign<R: Rng + CryptoRng>(
         rng: &mut R,
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         blind_req: &BlindRequest,
         issuer_opening: &AjtaiOpening,
         base_ctx: &[u8],
@@ -248,13 +398,14 @@ impl BlindIssuance {
         z_inf_bound: i32,
         max_attempts: usize,
     ) -> Result<BlindResponse, ProofError> {
-        let issuer_com = commit(key, issuer_opening);
+        let key = issuer_params.commitment_key();
+        let issuer_com = commit(&key, issuer_opening);
         let blind_wire = write_module_vec(&blind_req.com_blinded.value.0);
         let extra = blind_wire;
         let ctx = issuance_transcript_ctx(base_ctx, BLIND_ISSUER_FS_LABEL, &extra);
         let issuer_proof = prove_opening(
             rng,
-            key,
+            &key,
             issuer_opening,
             &issuer_com,
             &ctx,
@@ -273,10 +424,14 @@ impl BlindIssuance {
         user: BlindUserState,
         resp: BlindResponse,
     ) -> Result<UnblindedIssuance, ProofError> {
-        let token_opening = aggregate_opening(&user.user_opening, &user.blind_opening)
+        let BlindUserState {
+            com_blinded,
+            secrets,
+        } = user;
+        let token_opening = aggregate_opening(&secrets.user_opening, &secrets.blind_opening)
             .ok_or(ProofError::InvalidParameters)?;
         Ok(UnblindedIssuance {
-            com_blinded: user.com_blinded,
+            com_blinded,
             token_opening,
             issuer_com: resp.issuer_com,
             issuer_proof: resp.issuer_proof,
@@ -285,10 +440,10 @@ impl BlindIssuance {
 
     /// [`BlindIssuance::finalize`] plus carried [`blind_message_digest`] for [`BlindSignature`] verification.
     ///
-    /// **Unblinding (pilot CRS model):** the issuer’s attestation [`BlindResponse::issuer_proof`]
-    /// is unchanged, while the aggregated [`UnblindedIssuance::token_opening`] is the sum of the
-    /// user and blinding openings—so the separate blinding randomness is **not** carried as an
-    /// independent component on the wire after this step (it is folded into the token witness).
+    /// **Unblinding:** the issuer’s attestation [`BlindResponse::issuer_proof`] is unchanged,
+    /// while the aggregated [`UnblindedIssuance::token_opening`] is the sum of the user and
+    /// blinding openings—blinding randomness is folded into the token witness and not carried
+    /// separately on the wire after this step.
     pub fn finalize_message(
         user: BlindUserState,
         resp: BlindResponse,
@@ -313,20 +468,21 @@ impl BlindIssuance {
 
     /// Verify token opening matches `com_blinded` and issuer attestation.
     pub fn verify(
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         bundle: &UnblindedIssuance,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
-        let expect = commit(key, &bundle.token_opening);
+        let key = issuer_params.commitment_key();
+        let expect = commit(&key, &bundle.token_opening);
         if expect != bundle.com_blinded {
             return Err(VerifyError::Rejected);
         }
         let blind_wire = write_module_vec(&bundle.com_blinded.value.0);
         let ctx = issuance_transcript_ctx(base_ctx, BLIND_ISSUER_FS_LABEL, &blind_wire);
         verify_opening(
-            key,
+            &key,
             &bundle.issuer_com,
             &bundle.issuer_proof,
             &ctx,
@@ -337,14 +493,15 @@ impl BlindIssuance {
 
     /// Verify [`UnblindedBlindSignature`]: token opening, issuer attestation, and message digest.
     pub fn verify_message(
-        key: &AjtaiCommitmentKey,
+        issuer_params: &IssuerCommitmentParams,
         bundle: &UnblindedIssuance,
         base_ctx: &[u8],
         message_digest: &[u8; 32],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
-        let expect = commit(key, &bundle.token_opening);
+        let key = issuer_params.commitment_key();
+        let expect = commit(&key, &bundle.token_opening);
         if expect != bundle.com_blinded {
             return Err(VerifyError::Rejected);
         }
@@ -353,7 +510,7 @@ impl BlindIssuance {
         let extra = issuance_blind_message_extra(&blind_wire, &issuer_wire, message_digest);
         let ctx = issuance_transcript_ctx(base_ctx, BLIND_ISSUER_FS_LABEL, &extra);
         verify_opening(
-            key,
+            &key,
             &bundle.issuer_com,
             &bundle.issuer_proof,
             &ctx,
@@ -431,9 +588,8 @@ pub fn issuance_transcript_ctx(base_ctx: &[u8], label: &[u8], extra: &[u8]) -> V
 
 #[cfg(test)]
 mod tests {
+    use lib_q_random::new_deterministic_rng;
     use lib_q_ring::Poly;
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
 
     use super::*;
     use crate::params::AjtaiParameters;
@@ -441,10 +597,14 @@ mod tests {
     use crate::sigma::opening::sample_random_opening;
 
     #[inline]
-    fn test_seed32(tag: u64) -> [u8; 32] {
-        let mut seed = [0u8; 32];
-        seed[0..8].copy_from_slice(&tag.to_le_bytes());
-        seed
+    fn test_issuer_params(seed: u8) -> IssuerCommitmentParams {
+        let mut issuer_matrix_seed = [0u8; 32];
+        issuer_matrix_seed[0] = seed;
+        IssuerCommitmentParams {
+            issuer_matrix_seed,
+            params: AjtaiParameters::new(2, 1),
+            profile_id: LatticeZkpProfileV0::token_spend_v0().profile_id,
+        }
     }
 
     #[test]
@@ -483,23 +643,24 @@ mod tests {
 
     #[test]
     fn blind_issuance_attestation_roundtrip() {
-        let params = AjtaiParameters::new(2, 1);
-        let key = AjtaiCommitmentKey {
-            seed: [0xCDu8; 32],
-            params,
-        };
+        let issuer_params = test_issuer_params(0xCD);
+        let key = issuer_params.commitment_key();
         let mut mu = alloc::vec![Poly::zero(), Poly::zero()];
         mu[0].coeffs[0] = 9;
         let user = AjtaiOpening {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xB10C_u64));
-        let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
+        let mut rng = new_deterministic_rng([
+            0xB1, 0x0C, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+        ]);
+        let (req, user_st) =
+            BlindIssuance::request(&mut rng, &issuer_params, user).expect("request");
         let issuer_opening = sample_random_opening(&mut rng, &key);
         let resp = BlindIssuance::issuer_sign(
             &mut rng,
-            &key,
+            &issuer_params,
             &req,
             &issuer_opening,
             b"realm",
@@ -509,30 +670,29 @@ mod tests {
         )
         .expect("issuer");
         let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
-        BlindIssuance::verify(&key, &bundle, b"realm", 39, 20_000_000).expect("verify");
+        BlindIssuance::verify(&issuer_params, &bundle, b"realm", 39, 20_000_000).expect("verify");
     }
 
     #[test]
     fn blind_signature_message_roundtrip_and_wrong_message_fails() {
-        let params = AjtaiParameters::new(2, 1);
-        let key = AjtaiCommitmentKey {
-            seed: [0xE1u8; 32],
-            params,
-        };
+        let issuer_params = test_issuer_params(0xE1);
         let mut mu = alloc::vec![Poly::zero(), Poly::zero()];
         mu[0].coeffs[0] = 2;
         let user = AjtaiOpening {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x51AE_u64));
-        let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
-        let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
+        let mut rng = new_deterministic_rng([
+            0x51, 0xAE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+        ]);
+        let (req, user_st) =
+            BlindIssuance::request(&mut rng, &issuer_params, user).expect("request");
+        let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
         let (resp, digest) = BlindIssuance::issuer_sign_message(
             &mut rng,
-            &key,
-            &req,
             &issuer,
+            &req,
             b"app-policy-42",
             b"realm-ms",
             39,
@@ -543,14 +703,14 @@ mod tests {
         let bundle =
             BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize message");
         bundle
-            .verify_signature(&key, b"realm-ms", 39, 20_000_000)
+            .verify_signature(&issuer_params, b"realm-ms", 39, 20_000_000)
             .expect("BlindSignature::verify_signature alias");
 
         let mut bad = bundle.clone();
         bad.message_digest[0] ^= 0xFF;
         assert!(
             BlindIssuance::verify_message(
-                &key,
+                &issuer_params,
                 &bad.issuance,
                 b"realm-ms",
                 &bad.message_digest,
@@ -563,30 +723,30 @@ mod tests {
 
     #[test]
     fn blind_signature_wrong_issuer_commitment_rejected() {
-        let params = AjtaiParameters::new(2, 1);
-        let key = AjtaiCommitmentKey {
-            seed: [0xA7u8; 32],
-            params,
-        };
+        let issuer_params = test_issuer_params(0xA7);
         let mut mu = alloc::vec![Poly::zero(), Poly::zero()];
         mu[0].coeffs[0] = 3;
         let user = AjtaiOpening {
             message: ModuleVec(mu),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBAD_u64));
-        let (req, user_st) = BlindIssuance::request(&mut rng, &key, user).expect("request");
-        let issuer = BlindIssuerKeypair::sample(&mut rng, &key);
-        let other = BlindIssuerKeypair::sample(&mut rng, &key);
+        let mut rng = new_deterministic_rng([
+            0xBA, 0xD0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+        ]);
+        let (req, user_st) =
+            BlindIssuance::request(&mut rng, &issuer_params, user).expect("request");
+        let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
+        let other = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
         let (mut resp, digest) = BlindIssuance::issuer_sign_message(
-            &mut rng, &key, &req, &issuer, b"policy", b"ctx", 39, 20_000_000, 512,
+            &mut rng, &issuer, &req, b"policy", b"ctx", 39, 20_000_000, 512,
         )
         .expect("issuer msg");
-        resp.issuer_com = other.public_commitment;
+        resp.issuer_com = other.public_commitment.clone();
         let bundle = BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize");
         assert!(
             bundle
-                .verify_blind_signature(&key, b"ctx", 39, 20_000_000)
+                .verify_blind_signature(&issuer_params, b"ctx", 39, 20_000_000)
                 .is_err(),
             "replacing issuer commitment must break attestation verification"
         );
@@ -594,27 +754,29 @@ mod tests {
 
     #[test]
     fn blind_signature_same_message_unlinkable_across_sessions() {
-        let params = AjtaiParameters::new(2, 1);
-        let key = AjtaiCommitmentKey {
-            seed: [0xB2u8; 32],
-            params,
-        };
+        let issuer_params = test_issuer_params(0xB2);
         let mut mu = alloc::vec![Poly::zero(), Poly::zero()];
         mu[0].coeffs[0] = 1;
         let user = AjtaiOpening {
             message: ModuleVec(mu.clone()),
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
-        let mut issuer_rng = ChaCha8Rng::from_seed(test_seed32(1));
-        let issuer = BlindIssuerKeypair::sample(&mut issuer_rng, &key);
+        let mut issuer_rng = new_deterministic_rng([
+            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
+        let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut issuer_rng, &issuer_params);
 
-        let mut r1 = ChaCha8Rng::from_seed(test_seed32(0x111_u64));
-        let (req1, st1) = BlindIssuance::request(&mut r1, &key, user.clone()).expect("r1");
+        let mut r1 = new_deterministic_rng([
+            0x11, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+        ]);
+        let (req1, st1) =
+            BlindIssuance::request(&mut r1, &issuer_params, user.clone()).expect("r1");
         let (resp1, d1) = BlindIssuance::issuer_sign_message(
             &mut r1,
-            &key,
-            &req1,
             &issuer,
+            &req1,
             b"same-msg",
             b"ctx-u",
             39,
@@ -624,13 +786,15 @@ mod tests {
         .expect("i1");
         let b1 = BlindIssuance::finalize_message(st1, resp1, d1).expect("f1");
 
-        let mut r2 = ChaCha8Rng::from_seed(test_seed32(0x222_u64));
-        let (req2, st2) = BlindIssuance::request(&mut r2, &key, user).expect("r2");
+        let mut r2 = new_deterministic_rng([
+            0x22, 0x22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
+        ]);
+        let (req2, st2) = BlindIssuance::request(&mut r2, &issuer_params, user).expect("r2");
         let (resp2, d2) = BlindIssuance::issuer_sign_message(
             &mut r2,
-            &key,
-            &req2,
             &issuer,
+            &req2,
             b"same-msg",
             b"ctx-u",
             39,
@@ -646,5 +810,16 @@ mod tests {
             write_module_vec(&b2.issuance.com_blinded.value.0),
             "independent blinding must change the blinded commitment bytes"
         );
+    }
+
+    #[test]
+    fn issuer_params_digest_rejects_wrong_profile() {
+        let profile = LatticeZkpProfileV0::token_spend_v0();
+        let mut seed = [0u8; 32];
+        seed[0] = 0x42;
+        let params = IssuerCommitmentParams::from_profile(&profile, seed);
+        let mut wrong = params.clone();
+        wrong.profile_id = profile.profile_id.wrapping_add(1);
+        assert_ne!(params.issuer_params_digest(), wrong.issuer_params_digest());
     }
 }

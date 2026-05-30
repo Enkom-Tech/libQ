@@ -20,6 +20,7 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use zeroize::Zeroize;
 
 use crate::commitment::{
     AjtaiCommitment,
@@ -33,9 +34,20 @@ use crate::error::{
 use crate::serialize::write_module_vec;
 use crate::sigma::opening;
 use crate::sigma::opening::OpeningProof;
+#[cfg(feature = "hardened")]
+use crate::sigma::secrets::{
+    MaskedWitness,
+    zeroize_poly_vec,
+};
+use crate::sigma::secrets::{
+    ProverMaskScratch,
+    SecretMaskVec,
+    SecretWitnessVec,
+};
 use crate::util::{
+    canonicalize_polys_mod_q,
     module_add,
-    module_infinity_norm,
+    module_norm_within_bound,
     module_ring_mul_challenge,
     polys_ct_eq,
 };
@@ -110,8 +122,7 @@ pub fn amortise<R: Rng + CryptoRng>(
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
 
     let mut state = BatchPresentationState::new(label);
-    let mut witness_cache = Vec::with_capacity(openings.len());
-    let mut masks = Vec::with_capacity(openings.len());
+    let mut scratch = ProverMaskScratch::new();
     let mut w_list = Vec::with_capacity(openings.len());
     for (opening_i, commitment_i) in openings.iter().zip(commitments.iter()) {
         if opening_i.message.0.len() != p.module_rank ||
@@ -121,24 +132,31 @@ pub fn amortise<R: Rng + CryptoRng>(
             return Err(ProofError::InvalidParameters);
         }
         let witness_i = opening::witness_vec(opening_i);
-        let expected_com = matrix.mul_vec(&ModuleVec(witness_i.clone()));
+        let expected_com = matrix.mul_vec_polys(&witness_i);
         if expected_com.0.len() != commitment_i.value.0.len() ||
             !bool::from(polys_ct_eq(&expected_com.0, &commitment_i.value.0))
         {
             return Err(ProofError::InvalidParameters);
         }
 
-        let y_i: Vec<Poly> = (0..p.witness_len())
-            .map(|_| opening::sample_uniform_poly(rng))
-            .collect();
-        let w_i = matrix.mul_vec(&ModuleVec(y_i.clone()));
+        let y_i = SecretMaskVec::new(
+            (0..p.witness_len())
+                .map(|_| opening::sample_uniform_poly(rng))
+                .collect(),
+        );
+        let w_i = matrix.mul_vec_polys(y_i.as_slice());
         state.absorb_attribute(
             &write_module_vec(&w_i.0),
             &write_module_vec(&commitment_i.value.0),
         );
 
-        witness_cache.push(witness_i);
-        masks.push(y_i);
+        #[cfg(not(feature = "hardened"))]
+        scratch.push_attribute(y_i, SecretWitnessVec::new(witness_i));
+        #[cfg(feature = "hardened")]
+        scratch.push_attribute_masked(
+            y_i,
+            MaskedWitness::split(SecretWitnessVec::new(witness_i), rng, &key.seed, label),
+        );
         w_list.push(w_i);
     }
 
@@ -148,26 +166,37 @@ pub fn amortise<R: Rng + CryptoRng>(
 
     let mut agg_z_polys: Vec<Poly> = (0..p.witness_len()).map(|_| Poly::zero()).collect();
     let mut agg_w_polys: Vec<Poly> = (0..p.module_rank).map(|_| Poly::zero()).collect();
-    for ((y_i, wit_i), (&ri, w_i)) in masks
-        .iter()
-        .zip(witness_cache.iter())
-        .zip(r_scalars.iter().zip(w_list.iter()))
-    {
-        for ((acc_z, y_poly), wit_poly) in agg_z_polys.iter_mut().zip(y_i.iter()).zip(wit_i.iter())
-        {
+    for i in 0..scratch.len() {
+        let y_i = scratch.mask(i);
+        let ri = r_scalars[i];
+        let w_i = &w_list[i];
+        #[cfg(not(feature = "hardened"))]
+        let wit_i = scratch.witness(i);
+        #[cfg(feature = "hardened")]
+        let mut cw_i = scratch.masked_witness(i).ring_mul_challenge(&c);
+        for (slot, (acc_z, y_poly)) in agg_z_polys.iter_mut().zip(y_i.iter()).enumerate() {
             let mut z_i = y_poly.clone();
-            z_i.add_assign(&crate::util::ring_mul(&c, wit_poly));
+            #[cfg(not(feature = "hardened"))]
+            z_i.add_assign(&crate::util::ring_mul(&c, &wit_i[slot]));
+            #[cfg(feature = "hardened")]
+            z_i.add_assign(&cw_i[slot]);
             let scaled = scalar_mul_poly(ri, &z_i);
             add_assign_poly(acc_z, &scaled);
+            z_i.zeroize();
         }
+        #[cfg(feature = "hardened")]
+        zeroize_poly_vec(&mut cw_i);
         for (acc_w, w_poly) in agg_w_polys.iter_mut().zip(w_i.0.iter()) {
             let scaled = scalar_mul_poly(ri, w_poly);
             add_assign_poly(acc_w, &scaled);
         }
     }
 
+    canonicalize_polys_mod_q(&mut agg_z_polys);
+    canonicalize_polys_mod_q(&mut agg_w_polys);
+
     let agg_z = ModuleVec(agg_z_polys);
-    if module_infinity_norm(&agg_z.0) > z_inf_bound {
+    if !bool::from(module_norm_within_bound(&agg_z.0, z_inf_bound)) {
         return Err(ProofError::RejectionLimit);
     }
 
@@ -209,15 +238,8 @@ fn derive_scalars_from_transcript(transcript: &[u8], count: usize) -> Vec<u32> {
 }
 
 fn scalar_mul_poly(r: u32, p: &Poly) -> Poly {
-    let q = FIELD_MODULUS as i64;
-    debug_assert!(r > 0 && (r as i64) < q);
-    let rr = (r % FIELD_MODULUS as u32) as i64;
-    let mut out = p.clone();
-    for c in &mut out.coeffs {
-        let v = ((*c as i64 * rr) % q + q) % q;
-        *c = v as i32;
-    }
-    out
+    debug_assert!(r > 0 && (r as i64) < FIELD_MODULUS as i64);
+    p.scalar_mul_by_u32_mod_q(r)
 }
 
 fn add_assign_poly(a: &mut Poly, b: &Poly) {
@@ -279,7 +301,7 @@ pub fn verify_aggregate(
     {
         return Err(VerifyError::InvalidFormat);
     }
-    if module_infinity_norm(&proof.agg_z.0) > z_inf_bound {
+    if !bool::from(module_norm_within_bound(&proof.agg_z.0, z_inf_bound)) {
         return Err(VerifyError::Rejected);
     }
 
@@ -312,8 +334,112 @@ pub fn verify_aggregate(
         &proof.agg_w.0,
         &module_ring_mul_challenge(&c, &weighted_com),
     )?;
-    if lhs.0.len() != rhs.len() || !bool::from(polys_ct_eq(&lhs.0, &rhs)) {
+    let mut lhs_canon = lhs.0.clone();
+    let mut rhs_canon = rhs.clone();
+    canonicalize_polys_mod_q(&mut lhs_canon);
+    canonicalize_polys_mod_q(&mut rhs_canon);
+    if lhs.0.len() != rhs.len() || !bool::from(polys_ct_eq(&lhs_canon, &rhs_canon)) {
         return Err(VerifyError::Rejected);
     }
     Ok(())
+}
+
+#[cfg(all(test, feature = "hardened"))]
+mod hardened_tests {
+    use lib_q_random::new_deterministic_rng;
+    use lib_q_sha3::{
+        ExtendableOutput,
+        Shake256,
+        Update,
+        XofReader,
+    };
+
+    use super::*;
+    use crate::commitment::{
+        AjtaiCommitmentKey,
+        AjtaiOpening,
+        commit,
+    };
+    use crate::sigma::opening;
+    use crate::sigma::secrets::{
+        MaskedWitness,
+        SecretWitnessVec,
+    };
+    use crate::util::ring_mul;
+
+    fn test_seed32(tag: u64) -> [u8; 32] {
+        let mut s = [0u8; 32];
+        s[..8].copy_from_slice(&tag.to_le_bytes());
+        s
+    }
+
+    #[test]
+    fn masked_cw_matches_direct_for_amortise_fixture() {
+        let params = crate::params::AjtaiParameters::new(2, 1);
+        let key = AjtaiCommitmentKey {
+            seed: [21u8; 32],
+            params,
+        };
+
+        let mut m1 = alloc::vec![Poly::zero(), Poly::zero()];
+        m1[0].coeffs[0] = 2;
+        let mut r1 = alloc::vec![Poly::zero()];
+        r1[0].coeffs[0] = 9;
+        let o1 = AjtaiOpening {
+            message: ModuleVec(m1),
+            randomness: ModuleVec(r1),
+        };
+
+        let mut m2 = alloc::vec![Poly::zero(), Poly::zero()];
+        m2[1].coeffs[0] = 3;
+        let mut r2 = alloc::vec![Poly::zero()];
+        r2[0].coeffs[0] = 7;
+        let o2 = AjtaiOpening {
+            message: ModuleVec(m2),
+            randomness: ModuleVec(r2),
+        };
+
+        let c1 = commit(&key, &o1);
+        let c2 = commit(&key, &o2);
+        let commitments = alloc::vec![c1, c2];
+        let openings = alloc::vec![o1, o2];
+
+        let mut rng = new_deterministic_rng(test_seed32(0xA5515EED));
+        let proof = amortise(
+            &mut rng,
+            &key,
+            &openings,
+            &commitments,
+            b"batch-ctx",
+            39,
+            100_000_000,
+        )
+        .expect("amortise");
+
+        let mut h = Shake256::default();
+        Update::update(&mut h, &proof.transcript);
+        let mut reader = ExtendableOutput::finalize_xof(h);
+        let mut challenge_seed = [0u8; 32];
+        XofReader::read(&mut reader, &mut challenge_seed);
+        let c = lib_q_ring::sample_in_ball(&challenge_seed, 39);
+
+        let mut rng2 = new_deterministic_rng(test_seed32(0xA5515EED));
+        for opening_i in &openings {
+            for _ in 0..key.params.witness_len() {
+                let _ = opening::sample_uniform_poly(&mut rng2);
+            }
+            let witness_i = opening::witness_vec(opening_i);
+            let masked = MaskedWitness::split(
+                SecretWitnessVec::new(witness_i.clone()),
+                &mut rng2,
+                &key.seed,
+                b"batch-ctx",
+            );
+            let masked_cw = masked.ring_mul_challenge(&c);
+            for (slot, w) in witness_i.iter().enumerate() {
+                let direct = ring_mul(&c, w);
+                assert_eq!(direct, masked_cw[slot], "slot {slot}");
+            }
+        }
+    }
 }

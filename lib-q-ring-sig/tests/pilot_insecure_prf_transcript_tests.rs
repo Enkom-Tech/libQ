@@ -7,6 +7,7 @@ use lib_q_prf::{
     LegendrePrfParams256,
     u256_to_le_bytes,
 };
+use lib_q_random::new_deterministic_rng;
 use lib_q_ring_sig::dualring_prf::verify_dualring_prf_batch_u256;
 use lib_q_ring_sig::pilot_insecure_prf_transcript::{
     PilotPrfTranscriptError,
@@ -15,8 +16,6 @@ use lib_q_ring_sig::pilot_insecure_prf_transcript::{
     pilot_prf_transcript_verify_batch_u256,
     pilot_prf_transcript_verify_u256,
 };
-use rand_chacha::ChaCha20Rng;
-use rand_core::SeedableRng;
 
 fn member_from_seed(
     seed: u8,
@@ -42,7 +41,7 @@ fn pilot_prf_transcript_sign_verify_roundtrip() {
     let (m1, l1, g1) = member_from_seed(0xB2);
     let ring = [m0, m1];
     let msg = b"hello-pilot-prf-transcript";
-    let mut rng = ChaCha20Rng::from_seed([0xC0u8; 32]);
+    let mut rng = new_deterministic_rng([0xC0u8; 32]);
     let sig = pilot_prf_transcript_sign_u256(&mut rng, &ring, 1, &l1, &g1, msg).expect("sign");
     pilot_prf_transcript_verify_u256(&ring, 1, msg, &sig).expect("verify");
 }
@@ -53,7 +52,7 @@ fn pilot_prf_transcript_rejects_tampered_challenge() {
     let (m1, _l1, _g1) = member_from_seed(0x02);
     let ring = [m0, m1];
     let msg = b"tamper";
-    let mut rng = ChaCha20Rng::from_seed([0x01u8; 32]);
+    let mut rng = new_deterministic_rng([0x01u8; 32]);
     let mut sig = pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, msg).expect("sign");
     sig.challenge[0] ^= 0xFF;
     let e = pilot_prf_transcript_verify_u256(&ring, 0, msg, &sig).unwrap_err();
@@ -65,7 +64,7 @@ fn pilot_prf_transcript_batch_two() {
     let (m0, l0, g0) = member_from_seed(0x11);
     let (m1, l1, g1) = member_from_seed(0x22);
     let ring = [m0, m1];
-    let mut rng = ChaCha20Rng::from_seed([0x22u8; 32]);
+    let mut rng = new_deterministic_rng([0x22u8; 32]);
     let s0 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, b"m0").expect("s0");
     let s1 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 1, &l1, &g1, b"m1").expect("s1");
     let items = vec![(b"m0".to_vec(), 0, s0), (b"m1".to_vec(), 1, s1)];
@@ -77,7 +76,7 @@ fn pilot_prf_transcript_batch_rejects_when_only_late_item_tampered() {
     let (m0, l0, g0) = member_from_seed(0x33);
     let (m1, l1, g1) = member_from_seed(0x44);
     let ring = [m0, m1];
-    let mut rng = ChaCha20Rng::from_seed([0x33u8; 32]);
+    let mut rng = new_deterministic_rng([0x33u8; 32]);
     let s0 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, b"m0").expect("s0");
     let mut s1 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 1, &l1, &g1, b"m1").expect("s1");
     s1.challenge[0] ^= 0xFF;
@@ -91,7 +90,7 @@ fn pilot_prf_transcript_batch_rejects_when_only_early_item_tampered() {
     let (m0, l0, g0) = member_from_seed(0x55);
     let (m1, l1, g1) = member_from_seed(0x66);
     let ring = [m0, m1];
-    let mut rng = ChaCha20Rng::from_seed([0x55u8; 32]);
+    let mut rng = new_deterministic_rng([0x55u8; 32]);
     let mut s0 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, b"m0").expect("s0");
     let s1 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 1, &l1, &g1, b"m1").expect("s1");
     s0.challenge[0] ^= 0xFF;
@@ -105,7 +104,7 @@ fn dualring_prf_batch_matches_pilot_wrapper() {
     let (m0, l0, g0) = member_from_seed(0x88);
     let (m1, l1, g1) = member_from_seed(0x99);
     let ring = [m0, m1];
-    let mut rng = ChaCha20Rng::from_seed([0x88u8; 32]);
+    let mut rng = new_deterministic_rng([0x88u8; 32]);
     let s0 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, b"a").expect("s0");
     let s1 = pilot_prf_transcript_sign_u256(&mut rng, &ring, 1, &l1, &g1, b"b").expect("s1");
     let items_ok = vec![
