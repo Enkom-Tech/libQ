@@ -55,7 +55,14 @@ impl ModuleMatrix {
     /// [`ModuleMatrix::mul_vec_ntt`] with automatic `NTT` on each input [`Poly`].
     #[must_use]
     pub fn mul_vec(&self, v: &ModuleVec) -> ModuleVec {
-        let v_ntt: Vec<NttPoly> = v.0.iter().map(Poly::to_ntt).collect();
+        self.mul_vec_polys(&v.0)
+    }
+
+    /// [`ModuleMatrix::mul_vec_ntt`] over a borrowed witness slice (no `ModuleVec` wrapper copy).
+    #[must_use]
+    pub fn mul_vec_polys(&self, v: &[Poly]) -> ModuleVec {
+        assert_eq!(v.len(), self.cols);
+        let v_ntt: Vec<NttPoly> = v.iter().map(Poly::to_ntt).collect();
         self.mul_vec_ntt(&v_ntt)
     }
 }

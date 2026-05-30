@@ -2,6 +2,36 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.5 (unreleased)
+
+### Added
+
+- **`lib-q-lattice-zkp`:** Wire v0 — frozen `LatticeZkpProfileV0`, `lattice_zkp_wire_v0` canonical encodings, exportable KAT fixtures under `tests/vectors/`, CI byte-budget tests, and wire decode fuzz targets.
+- **`lib-q-lattice-zkp`:** Constant-time prover hardening (`hardened` feature): shared `lib-q-ring` CT primitives, first-order `MaskedWitness` masking, fixed-iteration rejection with CT first-accept selection, amortise canonicalization, dudect-style CI smokes.
+- **`lib-q-sca-test`:** Side-channel self-certification harness — `report` (`EvaluationReport`/`SelfCertReport`, JSON schema `libq.sca.self-cert.v1` + Markdown), `self_cert` fixed-vs-random TVLA battery over the hardened ML-KEM, ML-DSA, and lattice-ZKP paths with an evidence-package writer, and `ingest` for feeding externally acquired power/EM/cycle traces through the same Welch gate.
+- **`lib-q-hqc`:** Authoritative KAT tree `kats/official/` with `PROVENANCE.md` (SHA-256 pins); NIST KEM KAT driver `tests/nist_kem_kat.rs` — byte-exact `pk`/`ct`/`ss`/`sk` (NIST wire layout) for HQC-128/192/256.
+- **`lib-q-hqc`:** `HqcKemSecretKey::to_nist_bytes()` / `from_nist_bytes()` for NIST `dk_pke ‖ sigma ‖ ek_pke` interop.
+- **`lib-q-hqc`:** `hardened` feature — `subtle` constant-time implicit-rejection in decapsulation; `tests/hardened_dudect_smoke.rs`.
+- **`lib-q-sca-test`:** `hqc-hardened` builds `lib-q-hqc` with `hardened` — nine wall-clock TVLA targets with CI smoke tests.
+
+### Fixed
+
+- **`lib-q-hqc`:** Closed audit findings F1 (randomized decapsulation reliability) and F2 (Reed–Muller message-length). Both were stale: ~62,000 random-key round-trips across HQC-128/192/256 on portable and AVX2 paths show zero decapsulation mismatches, and the Reed–Muller decoder round-trips the full N1-byte block. Restored real assertions — un-ignored the `pke_roundtrip_basic.rs` tests, made `test_pke_integration` assert message equality over distinct keypairs, added `test_kem_roundtrip_varied_keys_all_params`, and tightened the Reed–Muller error-correction test to the full 46-byte block. Removed the misleading "rare PKE decode mismatches" comments.
+- **`lib-q-hqc`:** Official KAT alignment — gate on `kats/official/` only; removed legacy `kats/ref/`, `kats/x86_64/`, and `kats/archive/` trees.
+
+### Changed
+
+- **Workspace:** Removed workspace `rand_chacha` and `rand_xoshiro` dependencies; test-only deterministic RNG call sites now use `lib-q-random` KT128 helpers (`new_deterministic_rng`, `new_deterministic_rng_from_u64`, `new_deterministic_rng_no_std`). Regenerated `lib-q-lattice-zkp` wire v0 KAT hex fixtures under `tests/vectors/`.
+- **`lib-q-lattice-zkp`:** Wire v0 privacy revision — QROM committed-first-message Fiat–Shamir (`fs_w_digest`), hidden PVTN Merkle index + clearance on wire, issuer-keyed blind issuance (`IssuerCommitmentParams`, `issuer_params_digest` on kind `0x08`). PVTN KAT **2558 B** (budget 4096 B).
+- **`lib-q-ring`:** Branch-free `Poly::infinity_norm`; `normalize_mod_q_assign` and `scalar_mul_by_u32_mod_q` for shared ML-DSA / lattice-ZKP hardened paths.
+
+### Documentation
+
+- `lib-q-lattice-zkp/DESIGN.md`, `README.md`, and `BLIND_ISSUANCE.md` document wire v0 limits, QROM FS, issuer-keyed blind issuance, PVTN privacy, and KAT regeneration.
+- `docs/sca-self-certification.md` defines the ISO/IEC 17825 / FIPS 140-3-aligned self-certification process, gates, and evidence package; `docs/higher-order-masking-milestone.md` scopes the planned higher-order masking work. `docs/hardened-attestation.md` and `lib-q-lattice-zkp/DESIGN.md` reference both.
+- **`lib-q-hqc`:** Rewrote `README.md`, `SECURITY.md`, and `tests/README.md` to remove false production-ready / "100% failure rate" claims; reconciled object sizes to `lib-q-types::hqc`; corrected the HQC-128 `N2` parameter (384, not 640); `docs/audit-package/README.md` records F1–F4 with boundaries; crate remains not production-ready.
+- **`docs/sca-self-certification.md`:** Added nine `lib-q-hqc` targets to the self-certification table.
+
 ## 0.0.4
 
 ### Changed

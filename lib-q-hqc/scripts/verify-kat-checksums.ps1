@@ -18,9 +18,7 @@ $OfficialKatDir = Join-Path $OfficialSubmissionRoot "KATs/Reference_Implementati
 # Define file paths
 $OurKats = @{
     "hqc-1" = @{
-        "req" = "lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.req"
-        "rsp" = "lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.rsp"
-        "intermediates" = "lib-q-hqc/kats/ref/hqc-1/intermediates_values"
+        "req" = "lib-q-hqc/kats/official/hqc-1/PQCkemKAT_2321.req"
     }
 }
 
@@ -110,21 +108,12 @@ Write-Host "===================================" -ForegroundColor Green
 $allMatch = $true
 
 # Compare HQC-1 (our) vs HQC-128 (official)
+# Only `.req` seeds are compared; `.rsp` in `kats/official/` is for the Oct 2024 parameter set.
 $comparisons = @(
     @{
         "Our" = $OurKats["hqc-1"]["req"]
         "Official" = $OfficialKats["hqc-128"]["req"]
         "Description" = "HQC-1 Request Files (PQCkemKAT_2321.req vs hqc-128_kat.req)"
-    },
-    @{
-        "Our" = $OurKats["hqc-1"]["rsp"]
-        "Official" = $OfficialKats["hqc-128"]["rsp"]
-        "Description" = "HQC-1 Response Files (PQCkemKAT_2321.rsp vs hqc-128_kat.rsp)"
-    },
-    @{
-        "Our" = $OurKats["hqc-1"]["intermediates"]
-        "Official" = $OfficialKats["hqc-128"]["intermediates"]
-        "Description" = "HQC-1 Intermediate Values (intermediates_values vs hqc-128_intermediates_values)"
     }
 )
 
@@ -160,17 +149,14 @@ Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC")
 - **Algorithm**: HQC (Hamming Quasi-Cyclic)
 
 ### Our KAT Files
-- **Location**: `lib-q-hqc/kats/ref/`
-- **Generated**: From official submission package
-- **Verification Status**: $(if ($allMatch) { "✅ VERIFIED - All files match official submission exactly" } else { "❌ DIFFERENCES DETECTED - Manual review required" })
+- **Location**: `lib-q-hqc/kats/official/`
+- **Verification Status**: $(if ($allMatch) { "✅ VERIFIED - `.req` seeds match official submission" } else { "❌ DIFFERENCES DETECTED - Manual review required" })
 
 ## File Mappings
 
 | Our File | Official File | Status |
 |----------|---------------|--------|
-| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.req` | `KATs/Reference_Implementation/hqc-128/hqc-128_kat.req` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["req"] -OfficialFile $OfficialKats["hqc-128"]["req"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
-| `lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.rsp` | `KATs/Reference_Implementation/hqc-128/hqc-128_kat.rsp` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["rsp"] -OfficialFile $OfficialKats["hqc-128"]["rsp"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
-| `lib-q-hqc/kats/ref/hqc-1/intermediates_values` | `KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["intermediates"] -OfficialFile $OfficialKats["hqc-128"]["intermediates"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
+| `lib-q-hqc/kats/official/hqc-1/PQCkemKAT_2321.req` | `KATs/Reference_Implementation/hqc-128/hqc-128_kat.req` (under submission root) | $(if ((Compare-Files -OurFile $OurKats["hqc-1"]["req"] -OfficialFile $OfficialKats["hqc-128"]["req"] -Description "Check")) { "✅ Match" } else { "❌ Differ" }) |
 
 ## Compliance Status
 

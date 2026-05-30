@@ -167,12 +167,11 @@ mod tests {
         AjtaiOpening,
         AjtaiParameters,
     };
+    use lib_q_random::new_deterministic_rng;
     use lib_q_ring::{
         ModuleVec,
         Poly,
     };
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
 
     use super::*;
 
@@ -222,7 +221,7 @@ mod tests {
         let com = lib_q_lattice_zkp::commit(&key, &o);
         let ring = [com.clone()];
         let msg = b"singleton";
-        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0x51A1_u64));
+        let mut rng = new_deterministic_rng(test_deterministic_seed32(0x51A1_u64));
         let sig =
             sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, tau, z, max).expect("sign");
         verify_dualring_lb(&key, &ring, msg, &sig, tau, z).expect("verify ring of 1");
@@ -242,7 +241,7 @@ mod tests {
         let com = lib_q_lattice_zkp::commit(&key, &o);
         let ring = [com.clone()];
         let msg = b"signed-once";
-        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xC0FFEE_u64));
+        let mut rng = new_deterministic_rng(test_deterministic_seed32(0xC0FFEE_u64));
         let sig =
             sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, tau, z, max).expect("sign");
         verify_dualring_lb(&key, &ring, msg, &sig, tau, z).expect("verify");
@@ -271,7 +270,7 @@ mod tests {
         let com_b = lib_q_lattice_zkp::commit(&key, &o_b);
         let ring = [com_a.clone(), com_b.clone()];
         let msg = b"fed-dual";
-        let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xD06_u64));
+        let mut rng = new_deterministic_rng(test_deterministic_seed32(0xD06_u64));
         let sig = sign_dualring_lb(&mut rng, &key, &o_b, &com_b, &ring, msg, tau, z, max)
             .expect("sign b");
         let wrong_ring = [com_a.clone(), com_a];

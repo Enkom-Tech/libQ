@@ -40,6 +40,7 @@ defmt = { version = "1.1.0", optional = true }                 # no_std logging
 serde = { workspace = true, features = ["derive"], optional = true }
 serde-big-array = { version = "0.5.1", optional = true }       # Large array serialization
 zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] } # Secure memory clearing
+subtle = { workspace = true, optional = true, default-features = false }
 aes = { workspace = true, default-features = false, optional = true } # AES for DRBG
 
 [dev-dependencies]
@@ -51,6 +52,17 @@ wasm-bindgen-test = { workspace = true }
 # Benchmarking dependencies (host targets only)
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
+lib-q-sca-test = { path = "../lib-q-sca-test" }
+
+[[test]]
+name = "nist_kem_kat"
+path = "tests/nist_kem_kat.rs"
+required-features = ["alloc", "hqc", "random"]
+
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened"]
 
 [[example]]
 name = "hqc_example"
@@ -64,11 +76,6 @@ harness = false
 [[bench]]
 name = "simd_benchmarks"
 harness = false
-
-[[test]]
-name = "bearssl_kat_verification_test"
-path = "tests/bearssl_kat_verification_test.rs"
-required-features = ["bearssl-aes"]
 
 [[test]]
 name = "wasm_smoke"
@@ -109,7 +116,10 @@ serialization = ["serde", "serde-big-array"]                        # Serde seri
 
 # Security hardening
 zeroize = ["dep:zeroize"]                                           # Automatic memory zeroization
-security-hardened = ["zeroize", "hqc"]                              # Full security hardening
+subtle = ["dep:subtle"]
+# Atomic side-channel hardening gate (decapsulation CT compare/select). Do not split.
+hardened = ["random", "zeroize", "subtle"]
+security-hardened = ["zeroize", "hqc", "hardened"]                  # Full security hardening
 
 # DRBG implementations (for KAT compatibility)
 aes-drbg = ["aes", "alloc"]                                         # Standard AES-256-CTR-DRBG
@@ -142,6 +152,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(doc_cfg)',
     'cfg(kani)',
     'cfg(feature, values("lib-q-random"))',
+    'cfg(feature, values("hardened", "subtle"))',
 ] }
 
 [package.metadata.wasm-pack.profile.release]

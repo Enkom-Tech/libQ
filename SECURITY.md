@@ -53,14 +53,27 @@ When libQ is compiled for `wasm32-unknown-unknown` and executed in a browser or 
 
 Threaded acceleration (`rayon` / `parallel` features in the STARK stack and `parallelhash` in `lib-q-hash`) is **rejected at compile time** on WASM; use serial feature sets.
 
+
+### `lib-q-lattice-zkp` (wire v0)
+
+[`lib-q-lattice-zkp`](lib-q-lattice-zkp/) ships a **frozen wire v0** profile with compact encodings, exportable KATs, and CI byte-budget gates. Suitable for downstream integration (e.g. GIP Phase 5C); not a substitute for independent audit or side-channel certification:
+
+- Opening Fiat–Shamir uses a committed-first-message transform with **QROM** claims (see below).
+- Blind issuance v0 is **issuer-keyed** via [`IssuerCommitmentParams`](lib-q-lattice-zkp/src/blind.rs); shared-CRS blind pilot is non-conformant.
+- PVTN wire v0 hides Merkle path index and clearance level on the wire (verifier-side search); see `lib-q-lattice-zkp/DESIGN.md` §4.1.
+- Default builds: prover rejection branches are not constant-time; enable `hardened` for CT-oriented prover paths.
+
 ### Random Oracle Model vs Quantum Random Oracle Model
 
-Components using the **Fiat–Shamir transform** for non-interactive proofs (`lib-q-lattice-zkp` sigma protocols and `lib-q-ring-sig` DualRing-LB–oriented pilot ring verification) have security proofs in the **Random Oracle Model (ROM)**, not the **Quantum Random Oracle Model (QROM)**. This means:
+Components using the **Fiat–Shamir transform** for non-interactive proofs (`lib-q-lattice-zkp` sigma opening proofs with `fs_w_digest`, and `lib-q-ring-sig` DualRing-LB–oriented pilot ring verification) state security as follows:
+
+- **`lib-q-lattice-zkp` opening / PVTN / blind attestation paths:** committed-first-message Fiat–Shamir (`QROM_FS_W_DIGEST_DOMAIN`); analyzed in the **Quantum Random Oracle Model (QROM)** for the transform in ADR 058 / `lattice-fs-security-model-v0`.
+- **`lib-q-ring-sig` DualRing-LB pilot:** security proofs remain in the **Random Oracle Model (ROM)**, not QROM, until a uniform upgrade lands.
 
 - Classical adversaries must treat the hash function (SHAKE256) as a black box, which is standard for Fiat–Shamir.
 - A quantum adversary with oracle access to the hash function could apply Simon's or Grover's algorithm to extract information beyond the classical proof bounds.
 
-**Impact assessment:** The QROM gap is real but bounded. Exploiting it requires a cryptographically relevant quantum computer capable of running structured oracle queries—at which point the entire lib-Q parameter landscape would require revision. More importantly, **this limitation is consistent across the stack**: accepting ROM in one zero-knowledge component (`lib-q-lattice-zkp`) and demanding QROM in another (`lib-q-ring-sig`) would create an inconsistent security model without strengthening the overall system.
+**Impact assessment:** QROM analysis applies to `lib-q-lattice-zkp` opening paths via the committed-first-message transform. `lib-q-ring-sig` DualRing-LB remains ROM-only until upgraded. Exploiting QROM gaps requires a cryptographically relevant quantum adversary with structured oracle access.
 
 **Alternatives considered:** The optional `pilot-insecure-prf-transcript` feature on [`lib-q-ring-sig`](lib-q-ring-sig/) composes [`lib-q-prf`](lib-q-prf/) Legendre and Gold (power-residue) PRFs into a Fiat–Shamir transcript for **laboratory wiring tests only**. That path is **not** a ring signature: the verifier consumes **raw PRF secret key encodings** for every listed member, so anyone who sees the ring vector can evaluate the PRFs and synthesize valid-looking transcripts. It trades the Module-LWE/SIS opening model for algebraic \(\mathbb{F}_p\) PRF assumptions without delivering issuer hiding or unforgeability in that form. For federation rings of modest size, the ROM-only opening-based path may still be preferable when a single Module-SIS/LWE assumption family is desired.
 
@@ -73,6 +86,7 @@ Components using the **Fiat–Shamir transform** for non-interactive proofs (`li
 - **Input validation** on public entry points.
 - **`unsafe`** restricted to narrow, reviewed cases (e.g. SIMD or FFI boundaries), not sprinkled through cryptographic logic.
 - **Automation** — CI includes builds, tests, `cargo audit`, and NIST-oriented validation utilities; see [.github/workflows/security.yml](.github/workflows/security.yml) and the scripts referenced from [README.md](README.md).
+- **Hardened builds** — `lib-q-ml-kem`, `lib-q-ml-dsa`, and `lib-q-lattice-zkp` expose a `hardened` feature with CI timing smoke tests; see [docs/hardened-attestation.md](docs/hardened-attestation.md). This is not independent side-channel certification.
 
 ## Audit status
 

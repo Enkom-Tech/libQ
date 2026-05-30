@@ -13,7 +13,7 @@ categories = ["cryptography", "no-std"]
 lib-q-core = { path = "../lib-q-core", version = "0.0.4", default-features = false, optional = true }
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.4", default-features = false, features = ["std"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.4", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
@@ -22,7 +22,20 @@ wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
-rand_chacha = { workspace = true }
+hex = { workspace = true }
+criterion = { workspace = true }
+lib-q-random = { path = "../lib-q-random", features = ["std"] }
+lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false, features = ["privacy"] }
+
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened"]
+
+[[test]]
+name = "hardened_masked_witness"
+path = "tests/hardened_masked_witness.rs"
+required-features = ["hardened"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 hex = { workspace = true }
@@ -32,16 +45,19 @@ rand_core = { workspace = true }
 [features]
 default = ["alloc"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
-std = ["alloc", "lib-q-ring/std", "lib-q-random/std"]
+std = ["alloc", "lib-q-ring/std", "lib-q-random/std", "lib-q-random/secure"]
 # Panic handler comes from `lib-q-ring/no_std` (do not add a second handler in this crate).
 no_std = ["alloc", "lib-q-ring/no_std"]
-random = ["dep:lib-q-random"]
+random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]
+# Attested builds: structured prover loops + workspace CSPRNG (`lib-q-random` via `random`).
+hardened = ["random"]
 # Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
 wasm = [
     "alloc",
     "random",
     "lib-q-ring/wasm",
     "lib-q-random/wasm",
+    "lib-q-random/secure",
     "dep:lib-q-core",
     "lib-q-core/wasm",
     "lib-q-core/alloc",
@@ -57,5 +73,12 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
+[[bench]]
+name = "lattice_zkp_wire_budget"
+harness = false
+
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(lattice_zkp_docs)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(lattice_zkp_docs)',
+    'cfg(feature, values("alloc", "std", "no_std", "random", "wasm", "hardened"))',
+] }

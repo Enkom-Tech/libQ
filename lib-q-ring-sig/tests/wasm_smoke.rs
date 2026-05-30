@@ -8,6 +8,8 @@ use lib_q_lattice_zkp::{
     commit,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+use lib_q_random::new_deterministic_rng_no_std;
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_random::new_secure_rng;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_ring::{
@@ -20,17 +22,12 @@ use lib_q_ring_sig::dualring_lb::{
     verify_dualring_lb,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use rand_chacha::ChaCha8Rng;
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use rand_core::{
-    SeedableRng,
-    TryRng,
-};
+use rand_core::TryRng;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 
 /// 32-byte seed for deterministic wasm tests: first 8 bytes are `tag` (little-endian); remainder
-/// zero. Not secret. Used with [`ChaCha8Rng::from_seed`] for reproducible `sign_dualring_lb` smoke.
+/// zero. Not secret. Used with [`new_deterministic_rng_no_std`] for reproducible `sign_dualring_lb` smoke.
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[inline]
 fn test_deterministic_seed32(tag: u64) -> [u8; 32] {
@@ -72,7 +69,7 @@ fn ring_sig_dualring_lb_pilot_wasm() {
     let com = commit(&key, &o);
     let ring = [com.clone()];
     let msg = b"wasm-smoke";
-    let mut rng = ChaCha8Rng::from_seed(test_deterministic_seed32(0xC0FFEE_u64));
+    let mut rng = new_deterministic_rng_no_std(test_deterministic_seed32(0xC0FFEE_u64));
     let sig =
         sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, 39, 20_000_000, 512).expect("sign");
     verify_dualring_lb(&key, &ring, msg, &sig, 39, 20_000_000).expect("verify");

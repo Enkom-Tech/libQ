@@ -12,9 +12,8 @@ use rand_core::Rng;
 /// This test verifies that our implementation produces the same intermediate
 /// values as the reference HQC implementation for the first KAT vector.
 ///
-/// Reference intermediate values are available in:
-/// - Our KAT: `lib-q-hqc/kats/ref/hqc-1/intermediates_values`
-/// - Official (from NIST HQC submission KATs): `KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values` under the submission package root
+/// Compare against reference submission intermediates (external package:
+/// `KATs/Reference_Implementation/hqc-128/hqc-128_intermediates_values`) when available.
 
 #[test]
 #[ignore] // KAT intermediate values - implementation differences with reference

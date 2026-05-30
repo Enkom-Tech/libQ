@@ -1,13 +1,28 @@
 # lib-q-sca-test
 
-Workspace tooling crate for **first-order leakage screening** of hardened [**lib-q-ml-kem**](../lib-q-ml-kem) and [**lib-q-ml-dsa**](../lib-q-ml-dsa) paths.
+Workspace tooling crate for **first-order leakage screening** and **side-channel self-certification** of hardened [**lib-q-ml-kem**](../lib-q-ml-kem), [**lib-q-ml-dsa**](../lib-q-ml-dsa), and [**lib-q-lattice-zkp**](../lib-q-lattice-zkp) paths.
 
 ## Contents
 
 - **TVLA helper** — Welch’s *t*-test for fixed-vs-random class means on trace vectors (or any scalar measurements). The common first-order criterion \\(|t| < 4.5\\) after on the order of \\(10^6\\) traces is exposed as a configurable threshold.
 - **Timing harness** — collects cycle or wall-clock samples for a user-supplied closure; intended for CI smoke runs with loose thresholds and for longer offline runs comparable to dudect-style methodology.
+- **Self-certification battery** ([`self_cert`](src/self_cert.rs)) — runs a fixed-vs-random TVLA screen over every hardened path in the active feature set and records [`EvaluationReport`](src/report.rs) entries with a per-target verdict.
+- **Evidence reports** ([`report`](src/report.rs)) — `EvaluationReport` / `SelfCertReport` serialize to JSON (schema `libq.sca.self-cert.v1`) and Markdown for archival.
+- **External trace ingestion** ([`ingest`](src/ingest.rs)) — parses externally acquired power/EM/cycle measurement files and feeds them through the same Welch gate, so instrumented evidence and software timing share one decision rule.
 
-This crate does **not** assert certification-grade side-channel resistance. It provides a **repeatable statistical scaffold** that downstream CI or labs can feed with real traces.
+This crate does **not** assert certification-grade side-channel resistance. It provides a **repeatable statistical scaffold** that downstream CI or labs can feed with real traces. The methodology, gates, and the self-certification-versus-accredited-certification boundary are documented in [`docs/sca-self-certification.md`](../docs/sca-self-certification.md).
+
+## Self-certification
+
+```bash
+# Fast plumbing smoke (reduced sample counts).
+cargo test -p lib-q-sca-test --features lattice-zkp-hardened \
+    --test self_cert_report self_cert_smoke
+
+# Full battery; writes target/sca-self-cert/<unix-ts>/{report.json,report.md}.
+cargo test -p lib-q-sca-test --features lattice-zkp-hardened \
+    --test self_cert_report self_cert_full_report -- --ignored --nocapture
+```
 
 ## Running
 

@@ -42,8 +42,14 @@ serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
+lib-q-sca-test = { path = "../lib-q-sca-test" }
 # Pure Rust FIPS 204 implementation for benchmark comparison (replaces PQClean bindings).
 fips204 = { version = "0.4.6", default-features = false, features = ["default-rng", "ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
+
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened", "mldsa44"]
 
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]

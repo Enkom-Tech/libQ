@@ -3,11 +3,10 @@
 //! [`HierarchicalAuthProof`] composes [`verify_merkle_path`] with an Ajtai opening check.
 //! This is **not** a full PVTN zero-knowledge protocol: the leaf payload is revealed.
 //!
-//! [`PrivateMembershipProof`] is a **pilot** variant intended for verifiers that must not
-//! receive the raw PVTN leaf bytes: the opening transcript binds [`PrivateMembershipProof::leaf_digest`]
-//! and structured public fields instead of embedding `leaf_payload` in the Fiat–Shamir context.
-//! Merkle sibling directions are still carried on the wire (full position hiding needs a hash
-//! path in ZK; see `DESIGN.md` in this crate).
+//! [`PrivateMembershipProof`] is the wire v0 PVTN variant: the raw leaf payload is not on the
+//! wire; the opening transcript binds [`PrivateMembershipProof::leaf_digest`] and structured
+//! public fields. Merkle path index and clearance level are recovered by verifier-side search;
+//! see `path_index_commitment`, `recover_path_index`, and `recover_clearance_level`.
 
 extern crate alloc;
 
@@ -44,7 +43,7 @@ use crate::sigma::opening::{
     prove_opening,
     verify_opening,
 };
-use crate::util::module_infinity_norm;
+use crate::util::module_norm_within_bound;
 
 /// Pilot infinity-norm budget for packing `clearance_level - min_clearance` in coefficient 0.
 pub const PVTN_CLEARANCE_MARGIN_NORM_BETA: i32 = 1_048_575;
@@ -72,26 +71,41 @@ pub fn node_hash(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
     out
 }
 
-/// Membership path: sibling digests from leaf to root (same convention as Merkle proofs).
+/// Domain tag for PVTN path-index commitments on the wire.
+pub const PVTN_PATH_INDEX_COMMIT_DOMAIN: &[u8] = b"lattice-zkp/pvtn-path-index/v0";
+
+/// Membership path: leaf index and sibling digests from leaf to root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MerklePath {
-    /// `true` if current aggregated hash is left child (sibling is right).
-    pub directions: Vec<bool>,
+    /// Leaf index in the tree (bit `l` of index selects left/right at level `l`).
+    pub path_index: u32,
     pub siblings: Vec<[u8; 32]>,
 }
 
-/// Walk from `leaf` to `root` using `path`.
-pub fn verify_merkle_path(
+/// Direction at Merkle level `level`: `true` if the running node is the left child.
+#[must_use]
+pub fn merkle_direction_at(path_index: u32, level: usize) -> bool {
+    ((path_index >> level) & 1) == 0
+}
+
+/// Walk from `leaf` to `root` using `path_index` and `siblings`.
+pub fn verify_merkle_path_from_index(
     leaf: &[u8; 32],
     root: &[u8; 32],
-    path: &MerklePath,
+    path_index: u32,
+    siblings: &[[u8; 32]],
 ) -> Result<(), VerifyError> {
-    if path.directions.len() != path.siblings.len() {
+    let depth = siblings.len();
+    if depth > 31 {
         return Err(VerifyError::InvalidFormat);
     }
+    if path_index >= 1u32 << depth {
+        return Err(VerifyError::Rejected);
+    }
     let mut cur = *leaf;
-    for (go_left, sib) in path.directions.iter().zip(path.siblings.iter()) {
-        cur = if *go_left {
+    for (level, sib) in siblings.iter().enumerate() {
+        let go_left = merkle_direction_at(path_index, level);
+        cur = if go_left {
             node_hash(&cur, sib)
         } else {
             node_hash(sib, &cur)
@@ -102,6 +116,77 @@ pub fn verify_merkle_path(
     } else {
         Err(VerifyError::Rejected)
     }
+}
+
+/// Walk from `leaf` to `root` using [`MerklePath`].
+pub fn verify_merkle_path(
+    leaf: &[u8; 32],
+    root: &[u8; 32],
+    path: &MerklePath,
+) -> Result<(), VerifyError> {
+    verify_merkle_path_from_index(leaf, root, path.path_index, &path.siblings)
+}
+
+/// Commitment to `(path_index, root, leaf, siblings)` carried on the PVTN wire.
+#[must_use]
+pub fn path_index_commitment(
+    path_index: u32,
+    root: &[u8; 32],
+    leaf_digest: &[u8; 32],
+    siblings: &[[u8; 32]],
+) -> [u8; 32] {
+    let mut h = lib_q_sha3::Shake256::default();
+    h.update(PVTN_PATH_INDEX_COMMIT_DOMAIN);
+    h.update(&path_index.to_le_bytes());
+    h.update(root);
+    h.update(leaf_digest);
+    for s in siblings {
+        h.update(s);
+    }
+    let mut out = [0u8; 32];
+    let mut reader = h.finalize_xof();
+    XofReader::read(&mut reader, &mut out);
+    out
+}
+
+/// Recover `path_index` from a wire commitment by search (depth cap ≤ 16).
+pub fn recover_path_index(
+    root: &[u8; 32],
+    leaf_digest: &[u8; 32],
+    siblings: &[[u8; 32]],
+    commitment: &[u8; 32],
+) -> Result<u32, VerifyError> {
+    let depth = siblings.len();
+    if depth > 16 {
+        return Err(VerifyError::InvalidFormat);
+    }
+    let max = 1u32 << depth;
+    for index in 0..max {
+        if path_index_commitment(index, root, leaf_digest, siblings) != *commitment {
+            continue;
+        }
+        if verify_merkle_path_from_index(leaf_digest, root, index, siblings).is_ok() {
+            return Ok(index);
+        }
+    }
+    Err(VerifyError::Rejected)
+}
+
+/// Recover clearance level by search over `[min_clearance, min_clearance + β]`.
+pub fn recover_clearance_level(
+    min_clearance: u32,
+    leaf_digest: &[u8; 32],
+    role_tag: &[u8; 16],
+    parent_digest: &[u8; 32],
+) -> Result<u32, VerifyError> {
+    let max = min_clearance.saturating_add(PVTN_CLEARANCE_MARGIN_NORM_BETA as u32);
+    for level in min_clearance..=max {
+        let payload = encode_pvtn_leaf(level, role_tag, parent_digest);
+        if leaf_hash(&payload) == *leaf_digest {
+            return Ok(level);
+        }
+    }
+    Err(VerifyError::Rejected)
 }
 
 /// PVTN-style leaf: declared clearance level, opaque role tag, parent digest.
@@ -218,7 +303,7 @@ pub fn verify_hierarchical_membership(
     )
 }
 
-/// Alias matching the Phase 7 API naming in deferred plan docs.
+/// Alias for [`verify_private_membership`] (wire v0 PVTN API naming).
 #[allow(clippy::too_many_arguments)]
 pub fn verify_level_membership(
     key: &AjtaiCommitmentKey,
@@ -320,7 +405,10 @@ fn verify_clearance_margin_public(
         return Err(VerifyError::Rejected);
     }
     let w0 = &witness_polys[0];
-    if module_infinity_norm(core::slice::from_ref(w0)) > PVTN_CLEARANCE_MARGIN_NORM_BETA {
+    if !bool::from(module_norm_within_bound(
+        core::slice::from_ref(w0),
+        PVTN_CLEARANCE_MARGIN_NORM_BETA,
+    )) {
         return Err(VerifyError::Rejected);
     }
     for c in w0.coeffs.iter().skip(1) {
@@ -342,7 +430,7 @@ fn verify_clearance_margin_public(
     Ok(())
 }
 
-/// Produce a private membership proof (pilot): leaf bytes stay prover-local; verifier checks
+/// Produce a PVTN private membership proof (wire v0): leaf bytes stay prover-local; verifier checks
 /// Merkle membership on [`PrivateMembershipProof::leaf_digest`] and a packed clearance-margin norm
 /// certificate composable with [`crate::sigma::norm`](super::norm).
 #[allow(clippy::too_many_arguments)]
@@ -424,7 +512,16 @@ pub fn verify_private_membership(
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    if proof.clearance_level < min_clearance {
+    let clearance_level = recover_clearance_level(
+        min_clearance,
+        &proof.leaf_digest,
+        &proof.role_tag,
+        &proof.parent_digest,
+    )?;
+    if clearance_level != proof.clearance_level {
+        return Err(VerifyError::Rejected);
+    }
+    if clearance_level < min_clearance {
         return Err(VerifyError::Rejected);
     }
     verify_clearance_margin_public(
@@ -472,7 +569,7 @@ mod tests {
         let l1 = leaf_hash(b"b");
         let root = node_hash(&l0, &l1);
         let path = MerklePath {
-            directions: vec![true],
+            path_index: 0,
             siblings: vec![l1],
         };
         verify_merkle_path(&l0, &root, &path).expect("ok");
@@ -480,8 +577,7 @@ mod tests {
 
     #[test]
     fn hierarchical_auth_accepts_leaf_at_level() {
-        use rand_chacha::ChaCha8Rng;
-        use rand_core::SeedableRng;
+        use lib_q_random::new_deterministic_rng;
 
         use crate::commitment::{
             AjtaiOpening,
@@ -504,7 +600,7 @@ mod tests {
         let l1 = leaf_hash(b"other-node");
         let root = node_hash(&l0, &l1);
         let path = MerklePath {
-            directions: vec![true],
+            path_index: 0,
             siblings: vec![l1],
         };
 
@@ -521,7 +617,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let credential_com = commit(&key, &opening);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xCAB_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0xCAB_u64));
         let ctx = hierarchical_opening_ctx(b"pvt", &leaf_payload);
         let opening_proof = prove_opening(
             &mut rng,
@@ -544,7 +640,7 @@ mod tests {
         verify_level_membership(&key, &proof, &root, 5, b"pvt", 39, 20_000_000).expect("ok");
         assert!(verify_level_membership(&key, &proof, &root, 9, b"pvt", 39, 20_000_000).is_err());
 
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0xA11C_u64));
         let proved = prove_level_membership(
             &mut rng,
             &key,
@@ -566,8 +662,7 @@ mod tests {
 
     #[test]
     fn private_membership_roundtrip_and_clearance_rejects_low_level() {
-        use rand_chacha::ChaCha8Rng;
-        use rand_core::SeedableRng;
+        use lib_q_random::new_deterministic_rng;
 
         use crate::commitment::{
             AjtaiOpening,
@@ -589,7 +684,7 @@ mod tests {
         let l1 = leaf_hash(b"other-private-node");
         let root = node_hash(&l0, &l1);
         let path = MerklePath {
-            directions: vec![true],
+            path_index: 0,
             siblings: vec![l1],
         };
 
@@ -606,7 +701,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let credential_com = commit(&key, &opening);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x51A1_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0x51A1_u64));
         let proof = prove_private_membership(
             &mut rng,
             &key,

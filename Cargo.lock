@@ -898,7 +898,6 @@ dependencies = [
  "lib-q-utils",
  "lib-q-zkp",
  "proptest",
- "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -1128,6 +1127,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-keccak",
  "lib-q-random",
+ "lib-q-sca-test",
  "lib-q-sha3",
  "lib-q-types",
  "rand 0.10.1",
@@ -1136,6 +1136,7 @@ dependencies = [
  "serde-big-array",
  "serde-wasm-bindgen",
  "serde_json",
+ "subtle",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "zeroize",
@@ -1204,13 +1205,14 @@ dependencies = [
 name = "lib-q-lattice-zkp"
 version = "0.0.4"
 dependencies = [
+ "criterion",
  "hex",
  "lib-q-core",
  "lib-q-random",
  "lib-q-ring",
+ "lib-q-sca-test",
  "lib-q-sha3",
  "proptest",
- "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "subtle",
  "wasm-bindgen",
@@ -1232,6 +1234,7 @@ dependencies = [
  "lib-q-platform",
  "lib-q-random",
  "lib-q-ring",
+ "lib-q-sca-test",
  "lib-q-sha3",
  "rand_core 0.10.1",
  "serde",
@@ -1252,6 +1255,7 @@ dependencies = [
  "hybrid-array",
  "js-sys",
  "lib-q-random",
+ "lib-q-sca-test",
  "lib-q-sha3",
  "num-rational",
  "rand_core 0.10.1",
@@ -1459,7 +1463,6 @@ dependencies = [
  "lib-q-random",
  "lib-q-ring",
  "lib-q-sha3",
- "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1493,13 +1496,13 @@ dependencies = [
 name = "lib-q-sca-test"
 version = "0.0.4"
 dependencies = [
+ "lib-q-hqc",
  "lib-q-lattice-zkp",
  "lib-q-ml-dsa",
  "lib-q-ml-kem",
  "lib-q-random",
  "lib-q-ring",
  "lib-q-ring-sig",
- "rand_chacha 0.10.0",
  "rand_core 0.10.1",
 ]
 
@@ -1561,7 +1564,6 @@ dependencies = [
  "proptest",
  "quickcheck",
  "quickcheck_macros",
- "rand_chacha 0.10.0",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1794,7 +1796,6 @@ dependencies = [
  "num-bigint",
  "pastey",
  "rand 0.10.1",
- "rand_xoshiro",
  "serde",
  "subtle",
 ]
@@ -2207,7 +2208,7 @@ dependencies = [
  "bitflags 2.11.1",
  "num-traits",
  "rand 0.9.4",
- "rand_chacha 0.9.0",
+ "rand_chacha",
  "rand_xorshift",
  "regex-syntax",
  "rusty-fork",
@@ -2270,7 +2271,7 @@ version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c5af06bb1b7d3216d91932aed5265164bf384dc89cd6ba05cf59a35f5f76ea"
 dependencies = [
- "rand_chacha 0.9.0",
+ "rand_chacha",
  "rand_core 0.9.5",
 ]
 
@@ -2293,16 +2294,6 @@ checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
 dependencies = [
  "ppv-lite86",
  "rand_core 0.9.5",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e6af7f3e25ded52c41df4e0b1af2d047e45896c2f3281792ed68a1c243daedb"
-dependencies = [
- "ppv-lite86",
- "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -2336,15 +2327,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "513962919efc330f829edb2535844d1b912b0fbe2ca165d613e4e8788bb05a5a"
 dependencies = [
  "rand_core 0.9.5",
-]
-
-[[package]]
-name = "rand_xoshiro"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "662effc7698e08ea324d3acccf8d9d7f7bf79b9785e270a174ea36e56900c91d"
-dependencies = [
- "rand_core 0.10.1",
 ]
 
 [[package]]
