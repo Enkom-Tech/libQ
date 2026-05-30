@@ -46,7 +46,6 @@ pastey = { workspace = true }
 criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.4", features = ["std", "signature"] }
-rand_chacha = { workspace = true }
 num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"

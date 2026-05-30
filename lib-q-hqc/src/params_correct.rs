@@ -42,6 +42,8 @@ pub trait HqcParams: Clone + fmt::Debug + PartialEq {
 
     /// Serialized KEM secret key size in bytes (same as `lib_q_types::hqc` for this parameter set).
     const SECRET_KEY_BYTES: usize;
+    /// NIST `CRYPTO_SECRETKEYBYTES` wire length (`dk_pke` ‖ `sigma` ‖ `ek_pke`).
+    const NIST_SECRET_KEY_BYTES: usize;
     /// KEM public key size in bytes (same as `lib_q_types::hqc`).
     const PUBLIC_KEY_BYTES: usize;
     /// KEM ciphertext size in bytes (same as `lib_q_types::hqc`).
@@ -104,6 +106,7 @@ impl HqcParams for Hqc1Params {
     const FFT: usize = 4;
 
     const SECRET_KEY_BYTES: usize = hqc::HQC128_SECRET_KEY_BYTES;
+    const NIST_SECRET_KEY_BYTES: usize = hqc::HQC128_NIST_SECRET_KEY_BYTES;
     const PUBLIC_KEY_BYTES: usize = hqc::HQC128_PUBLIC_KEY_BYTES;
     const CIPHERTEXT_BYTES: usize = hqc::HQC128_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
@@ -317,6 +320,7 @@ impl HqcParams for Hqc3Params {
     const FFT: usize = 5;
 
     const SECRET_KEY_BYTES: usize = hqc::HQC192_SECRET_KEY_BYTES;
+    const NIST_SECRET_KEY_BYTES: usize = hqc::HQC192_NIST_SECRET_KEY_BYTES;
     const PUBLIC_KEY_BYTES: usize = hqc::HQC192_PUBLIC_KEY_BYTES;
     const CIPHERTEXT_BYTES: usize = hqc::HQC192_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes
@@ -530,6 +534,7 @@ impl HqcParams for Hqc5Params {
     const FFT: usize = 5;
 
     const SECRET_KEY_BYTES: usize = hqc::HQC256_SECRET_KEY_BYTES;
+    const NIST_SECRET_KEY_BYTES: usize = hqc::HQC256_NIST_SECRET_KEY_BYTES;
     const PUBLIC_KEY_BYTES: usize = hqc::HQC256_PUBLIC_KEY_BYTES;
     const CIPHERTEXT_BYTES: usize = hqc::HQC256_CIPHERTEXT_BYTES;
     const SHARED_SECRET_BYTES: usize = 32; // 2025 specification: reduced from 40 to 32 bytes

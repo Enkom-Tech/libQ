@@ -5,8 +5,8 @@ authors = [
     "CreepySkeleton <creepy-skeleton@yandex.ru>",
     "GnomedDev <david2005thomas@gmail.com>",
 ]
-edition = "2021"
-rust-version = "1.61"
+edition = "2024"
+rust-version = "1.96.0"
 description = "Attribute macro for the proc-macro-error2 crate"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/GnomedDev/proc-macro-error-2"
@@ -15,8 +15,8 @@ repository = "https://github.com/GnomedDev/proc-macro-error-2"
 proc-macro = true
 
 [dependencies]
-quote = "1"
-proc-macro2 = "1"
+quote = "1.0.45"
+proc-macro2 = "1.0.106"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

@@ -1,10 +1,14 @@
-//! Module-lattice commitments, Fiat–Shamir sigma protocols, and BLNS-style batching hooks.
+//! Module-lattice commitments, QROM Fiat–Shamir sigma protocols, and BLNS-style batching hooks.
 //!
-//! The construction targets the same \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\) field as ML-DSA via
-//! [`lib_q_ring`].
+//! Wire **v0** (`lattice_zkp_wire_v0`) freezes profiles, encodings, and KAT fixtures. Security
+//! targets the same \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\) field as ML-DSA via [`lib_q_ring`].
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 #![cfg_attr(feature = "no_std", no_std)]
+
+#[cfg(feature = "hardened")]
+pub mod hardened;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -15,10 +19,12 @@ pub mod challenge;
 pub mod commitment;
 pub mod error;
 pub mod params;
+pub mod profile;
 pub mod serialize;
 pub mod sigma;
 pub mod token;
 pub mod util;
+pub mod wire;
 
 pub use blind::{
     BLIND_ISSUER_FS_LABEL,
@@ -28,16 +34,22 @@ pub use blind::{
     BlindResponse,
     BlindSignature,
     BlindUserState,
+    ISSUER_PARAMS_DIGEST_DOMAIN,
+    IssuerCommitmentParams,
     UnblindedBlindSignature,
     UnblindedIssuance,
     add_module_vec,
     aggregate_opening,
     blind_message_digest,
     blinded_commitment,
+    blinded_commitment_digest,
     issuance_blind_message_extra,
     issuance_transcript_ctx,
 };
-pub use budget::AmortisationBudget;
+pub use budget::{
+    AmortisationBudget,
+    measured_opening_wire_body_bytes,
+};
 pub use challenge::MlDsaCompatibleChallenge;
 pub use commitment::{
     AjtaiCommitment,
@@ -50,9 +62,64 @@ pub use error::{
     VerifyError,
 };
 pub use params::AjtaiParameters;
+pub use profile::{
+    LATTICE_ZKP_WIRE_VERSION_V0,
+    LatticeZkpProfileV0,
+    PROFILE_ID_PVTN_MEMBERSHIP_V0,
+    PROFILE_ID_SELECTIVE_DISCLOSURE_V0,
+    PROFILE_ID_TOKEN_SPEND_V0,
+    RQ_COEFF_PACK_BITS,
+    WIRE_BUDGET_PRESENTATION_BYTES,
+    WIRE_BUDGET_PRESENTATION_HARD_CAP_BYTES,
+    WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES,
+};
+pub use wire::{
+    BlindIssuanceWireV0,
+    MAX_WIRE_BYTES_AMORTISED_V0,
+    MAX_WIRE_BYTES_BLIND_ISSUANCE_V0,
+    MAX_WIRE_BYTES_DUAL_RING_V0,
+    MAX_WIRE_BYTES_LINEAR_V0,
+    MAX_WIRE_BYTES_NULLIFIER_V0,
+    MAX_WIRE_BYTES_OPENING_V0,
+    MAX_WIRE_BYTES_PVTN_V0,
+    MAX_WIRE_BYTES_SPENDING_V0,
+    ProofKindV0,
+    WIRE_ENVELOPE_HEADER_LEN,
+    decode_amortised_proof_v0,
+    decode_blind_issuance_v0,
+    decode_dual_ring_opening_proof_v0,
+    decode_linear_relation_proof_v0,
+    decode_nullifier_opening_proof_v0,
+    decode_opening_proof_v0,
+    decode_private_membership_proof_v0,
+    decode_spending_proof_v0,
+    decode_witness_nullifier_opening_proof_v0,
+    encode_amortised_proof_v0,
+    encode_blind_issuance_v0,
+    encode_dual_ring_opening_proof_v0,
+    encode_linear_relation_proof_v0,
+    encode_nullifier_opening_proof_v0,
+    encode_opening_proof_v0,
+    encode_private_membership_proof_v0,
+    encode_spending_proof_v0,
+    encode_witness_nullifier_opening_proof_v0,
+    wire_byte_len,
+};
 #[cfg(feature = "wasm")]
 mod wasm;
 
+pub use sigma::hierarchical::{
+    PVTN_PATH_INDEX_COMMIT_DOMAIN,
+    merkle_direction_at,
+    path_index_commitment,
+    recover_clearance_level,
+    recover_path_index,
+    verify_merkle_path_from_index,
+};
+pub use sigma::opening::{
+    QROM_FS_W_DIGEST_DOMAIN,
+    fs_w_digest,
+};
 pub use sigma::{
     AmortisedProof,
     BatchPresentationState,
@@ -119,13 +186,12 @@ pub use zeroize::Zeroizing;
 
 #[cfg(test)]
 mod tests {
+    use lib_q_random::new_deterministic_rng;
     use lib_q_ring::{
         ModuleVec,
         Poly,
         sample_in_ball,
     };
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
 
     use super::*;
 
@@ -134,6 +200,18 @@ mod tests {
         let mut seed = [0u8; 32];
         seed[0..8].copy_from_slice(&tag.to_le_bytes());
         seed
+    }
+
+    #[inline]
+    fn test_prove_attempts() -> usize {
+        #[cfg(feature = "hardened")]
+        {
+            crate::hardened::TEST_FIXED_PROVE_ATTEMPTS
+        }
+        #[cfg(not(feature = "hardened"))]
+        {
+            512
+        }
     }
 
     #[test]
@@ -212,7 +290,7 @@ mod tests {
             randomness: ModuleVec(randomness),
         };
         let com = commit(&key, &opening);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xC0FFEE));
+        let mut rng = new_deterministic_rng(test_seed32(0xC0FFEE));
         let proof = prove_opening(
             &mut rng,
             &key,
@@ -221,7 +299,7 @@ mod tests {
             b"ctx-opening",
             39,
             20_000_000,
-            512,
+            test_prove_attempts(),
         )
         .expect("prove");
         verify_opening(&key, &com, &proof, b"ctx-opening", 39, 20_000_000).expect("verify");
@@ -240,7 +318,7 @@ mod tests {
         };
         let com = commit(&key, &opening);
         for i in 0..100u64 {
-            let mut rng = ChaCha8Rng::from_seed(test_seed32(
+            let mut rng = new_deterministic_rng(test_seed32(
                 0xC0FFEE_u64 ^ (i.wrapping_mul(0x9E3779B97F4A7C15)),
             ));
             let proof = prove_opening(
@@ -251,7 +329,7 @@ mod tests {
                 b"ctx-open-complete",
                 39,
                 20_000_000,
-                512,
+                test_prove_attempts(),
             )
             .expect("prove");
             verify_opening(&key, &com, &proof, b"ctx-open-complete", 39, 20_000_000)
@@ -271,7 +349,7 @@ mod tests {
             randomness: ModuleVec(alloc::vec![Poly::zero()]),
         };
         let com = commit(&key, &opening);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBAD5EED));
+        let mut rng = new_deterministic_rng(test_seed32(0xBAD5EED));
         let mut proof = prove_opening(
             &mut rng,
             &key,
@@ -280,7 +358,7 @@ mod tests {
             b"ctx-open-tamper",
             39,
             20_000_000,
-            512,
+            test_prove_attempts(),
         )
         .expect("prove");
         proof.z.0[0].coeffs[0] ^= 1;
@@ -352,7 +430,7 @@ mod tests {
         let commitments = alloc::vec![c1, c2];
         let openings = alloc::vec![o1, o2];
 
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA5515EED));
+        let mut rng = new_deterministic_rng(test_seed32(0xA5515EED));
         let proof = amortise(
             &mut rng,
             &key,
@@ -381,7 +459,7 @@ mod tests {
         let commitments = alloc::vec![c];
         let openings = alloc::vec![o];
 
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xBADB_A7C1));
+        let mut rng = new_deterministic_rng(test_seed32(0xBADB_A7C1));
         let mut proof = amortise(
             &mut rng,
             &key,
@@ -479,6 +557,8 @@ mod tests {
 
         assert_eq!(util::module_infinity_norm(&[]), 0);
         assert_eq!(util::module_infinity_norm(&[a.clone(), b.clone()]), 5);
+        assert!(bool::from(util::module_norm_within_bound(&[a.clone()], 5)));
+        assert!(!bool::from(util::module_norm_within_bound(&[b.clone()], 4)));
 
         assert!(bool::from(util::polys_ct_eq(
             &[a.clone(), b.clone()],
@@ -512,7 +592,7 @@ mod tests {
             lib_q_ring::ModuleMatrix::expand_from_seed(&[0x42u8; 32], 1, key.params.witness_len());
         let t = l.mul_vec(&ModuleVec(witness));
 
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x1EE7_CAFE));
+        let mut rng = new_deterministic_rng(test_seed32(0x1EE7_CAFE));
         let proof = prove_linear(
             &mut rng,
             &key,
@@ -523,7 +603,7 @@ mod tests {
             b"linear-ctx",
             39,
             40_000_000,
-            256,
+            512,
         )
         .expect("prove_linear");
 
@@ -552,7 +632,7 @@ mod tests {
             lib_q_ring::ModuleMatrix::expand_from_seed(&[0x33u8; 32], 1, key.params.witness_len());
 
         let bad_t = ModuleVec(alloc::vec![Poly::zero(), Poly::zero()]);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_0001));
+        let mut rng = new_deterministic_rng(test_seed32(0xA11C_0001));
         assert_eq!(
             prove_linear(
                 &mut rng,
@@ -579,7 +659,7 @@ mod tests {
         witness.extend(opening_non_zero.message.0.clone());
         let t = l.mul_vec(&ModuleVec(witness));
         let com_non_zero = commit(&key, &opening_non_zero);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11C_0002));
+        let mut rng = new_deterministic_rng(test_seed32(0xA11C_0002));
         let res = prove_linear(
             &mut rng,
             &key,

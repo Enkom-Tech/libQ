@@ -1,240 +1,51 @@
-# HQC Test Suite
+# HQC test suite
 
-This directory contains comprehensive tests for the HQC (Hamming Quasi-Cyclic) implementation in libQ.
+Tests for [`lib-q-hqc`](../). Enable features as needed; most integration tests require
+`alloc` and a parameter-set feature (`hqc128`, `hqc192`, `hqc256`, or `hqc`).
 
-## Test Categories
-
-### 1. Edge Case Tests (`edge_case_tests.rs`)
-Tests the implementation's robustness under various edge conditions:
-- Empty input handling
-- Maximum size input handling
-- Invalid input sizes
-- Boundary value inputs
-- Memory allocation edge cases
-- Security-related edge cases
-- Constant-time behavior
-- Error propagation
-- Resource cleanup
-
-### 2. Interoperability Tests (`interoperability_tests.rs`)
-Tests compatibility across different configurations:
-- Cross-security-level compatibility
-- Feature combination compatibility
-- Parameter validation across security levels
-- Error handling consistency
-- Performance consistency across security levels
-- Memory usage consistency
-- Cross-module integration
-- Error correction consistency
-- Security level progression
-
-### 3. Security Validation Tests (`security_validation_tests.rs`)
-Tests security requirements and best practices:
-- Constant-time behavior
-- Side-channel resistance
-- Input validation security
-- Error handling security
-- Memory security
-- Cryptographic strength
-- Error correction security
-- Parameter security
-- Implementation consistency
-- Resistance to known attacks
-
-### 4. Integration Tests (`integration_tests.rs`)
-Tests the full HQC KEM cycle:
-- Full HQC-128 KEM cycle
-- Full HQC-192 KEM cycle
-- Full HQC-256 KEM cycle
-- Cross-security-level interoperability
-- Error handling in KEM operations
-- Key pair generation consistency
-- Shared secret generation consistency
-- Ciphertext properties
-- Performance under load
-- Memory usage under load
-
-### 5. Performance Tests (`performance_tests.rs`)
-Tests performance characteristics:
-- FFT performance improvements
-- FFT correctness verification
-- Performance scaling across security levels
-- Memory efficiency
-- FFT parameter validation
-
-## Running Tests
-
-### Run All Tests
 ```bash
-cargo test --features alloc
+cargo test -p lib-q-hqc --features alloc,hqc
 ```
 
-### Run Specific Test Categories
-```bash
-# Edge case tests
-cargo test edge_case_tests --features alloc
+## Layout
 
-# Interoperability tests
-cargo test interoperability_tests --features alloc
+| Category | Files | What they exercise |
+|----------|-------|-------------------|
+| **KEM integration** | `integration_test.rs` | Full HQC-1/3/5 KEM round-trips (pinned seeds + many varied keypairs), error-correcting code encode/decode, asserted PKE encrypt/decrypt, repeated encaps/decaps |
+| **PKE round-trip** | `pke_roundtrip_basic.rs`, `pke_roundtrip_test.rs` | PKE encrypt/decrypt with asserted equality over distinct keypairs |
+| **KAT / PRNG** | `nist_kem_kat.rs`, `hardened_dudect_smoke.rs`, `shake256_prng_kat.rs`, `sha3_hqc_kat.rs`, … | Authoritative NIST KEM KAT (`kats/official/`, `pk`/`ct`/`ss`/`sk`); hardened decaps timing smoke |
+| **Parameter compliance** | `compliance_parameter_validation.rs`, `compliance/parameter_validation.rs` | Parameter constants vs `lib-q-types::hqc` and specification |
+| **SIMD** | `simd_correctness.rs`, `simd_unit_tests.rs`, `simd_infrastructure_test.rs`, `simd_debug_utils/` | AVX2 vs portable bit-exact equivalence |
+| **DRBG / AES** | `aes_ctr_drbg_test.rs`, `aes_verification.rs`, `bearssl_aes_verification.rs`, `bearssl_vs_rust_aes_comparison.rs`, `drbg_interop_tests.rs`, `prng_compatibility_test.rs` | DRBG backends and AES interoperability |
+| **Vectors / algebra** | `vect_mul_equivalence.rs`, `vect_set_random_analysis.rs`, `test_direct_h_storage.rs`, `message_conversion_test.rs` | Polynomial / vector operations |
+| **Cross-checks** | `hqc_keygen_cross_compatibility_test.rs`, `verify_public_key_format.rs`, `official_specification_verification_test.rs`, `compliance/cross_implementation.rs` | Key formats and cross-implementation checks |
+| **Provider / smoke** | `basic_functionality_test.rs`, `wasm_smoke.rs` | libQ provider wiring, WASM compile smoke |
+| **Stress / diagnostics** | `comprehensive_validation.rs`, `comprehensive_failure_analysis_test.rs`, `noise_diagnostic_test.rs`, `random_keypair_failure_test.rs`, `rm_block_analysis_test.rs`, `reference_analysis.rs` | `#[ignore]`d stress checks (e.g. `random_keypair_failure_test` asserts zero failures over large OS-random batches) and debugging aids; run on demand, not default CI gates |
 
-# Security validation tests
-cargo test security_validation_tests --features alloc
+Historical debug harnesses are under [`archive/`](archive/README.md) and are not run in CI.
 
-# Integration tests
-cargo test integration_tests --features alloc
+## CI coverage
 
-# Performance tests
-cargo test performance_tests --features alloc
-```
+Workspace CI (`algorithm-tests` / `simd-debug-tests`) runs HQC with `alloc,hqc128,simd-avx2`
+and SIMD unit / cross-implementation checks. See
+[docs/audit-package/README.md](../docs/audit-package/README.md) for what is and is not
+verified.
 
-### Run Tests for Specific Security Levels
-```bash
-# HQC-128 only
-cargo test --features "alloc,hqc128"
+## Feature flags
 
-# HQC-192 only
-cargo test --features "alloc,hqc192"
+| Feature | Purpose |
+|---------|---------|
+| `alloc` | Required for most integration tests |
+| `hqc128` / `hqc192` / `hqc256` | Parameter set under test |
+| `hqc` | All parameter sets |
+| `simd-avx2` | SIMD paths (with portable fallback) |
 
-# HQC-256 only
-cargo test --features "alloc,hqc256"
+## Contributing tests
 
-# All security levels
-cargo test --features "alloc,hqc"
-```
-
-### Run Benchmarks
-```bash
-# Run performance benchmarks
-cargo bench --features alloc
-
-# Run benchmarks for specific security levels
-cargo bench --features "alloc,hqc128"
-cargo bench --features "alloc,hqc192"
-cargo bench --features "alloc,hqc256"
-```
-
-## Test Requirements
-
-### Features Required
-- `alloc`: Required for all tests (enables dynamic allocation)
-- `hqc128`: Required for HQC-128 specific tests
-- `hqc192`: Required for HQC-192 specific tests
-- `hqc256`: Required for HQC-256 specific tests
-
-### Dependencies
-- `lib_q_core`: Core libQ types and traits
-- `lib_q_hqc`: HQC implementation
-- `lib_q_sha3`: SHA-3 implementation for shared secret generation
-- `lib_q_random`: Secure random number generation
-
-## Test Coverage
-
-The test suite provides comprehensive coverage of:
-
-### Functional Testing
-- ✅ All HQC security levels (128, 192, 256)
-- ✅ All KEM operations (keygen, enc, dec)
-- ✅ All cryptographic primitives (BCH, repetition, tensor codes)
-- ✅ All mathematical operations (polynomial, vector operations)
-- ✅ All performance optimizations (FFT/NTT)
-
-### Security Testing
-- ✅ Constant-time operations
-- ✅ Side-channel resistance
-- ✅ Input validation
-- ✅ Error handling
-- ✅ Memory security
-- ✅ Cryptographic strength
-
-### Robustness Testing
-- ✅ Edge cases
-- ✅ Error conditions
-- ✅ Resource limits
-- ✅ Memory management
-- ✅ Performance under load
-
-### Interoperability Testing
-- ✅ Cross-security-level compatibility
-- ✅ Feature combination compatibility
-- ✅ Parameter validation
-- ✅ Error handling consistency
-
-## Test Results
-
-### Expected Outcomes
-- All tests should pass
-- No memory leaks
-- No panics or crashes
-- Consistent performance
-- Proper error handling
-
-### Performance Expectations
-- HQC-128: ~1-5ms per operation
-- HQC-192: ~2-10ms per operation
-- HQC-256: ~5-20ms per operation
-- FFT optimization: 20-50x speedup for large parameters
-
-### Security Expectations
-- Constant-time operations
-- No timing-based information leakage
-- Proper input validation
-- Secure memory handling
-- Resistance to known attacks
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Feature Not Enabled**
-   ```
-   error: could not find `hqc128` in `lib_q_hqc`
-   ```
-   Solution: Add the required feature flag: `--features "alloc,hqc128"`
-
-2. **Memory Issues**
-   ```
-   error: process didn't exit successfully
-   ```
-   Solution: Ensure sufficient memory is available for large parameter tests
-
-3. **Performance Issues**
-   ```
-   test timed out
-   ```
-   Solution: Increase timeout or optimize system performance
-
-### Debug Mode
-Run tests in debug mode for more detailed output:
-```bash
-RUST_LOG=debug cargo test --features alloc
-```
-
-### Verbose Output
-Run tests with verbose output:
-```bash
-cargo test --features alloc -- --nocapture
-```
-
-## Contributing
-
-When adding new tests:
-
-1. **Follow the existing structure** - Use the same test organization
-2. **Add comprehensive coverage** - Test edge cases and error conditions
-3. **Include performance tests** - Measure and verify performance
-4. **Document test purpose** - Add clear comments explaining what each test does
-5. **Use proper feature gating** - Ensure tests work with appropriate feature combinations
-
-### Test Naming Convention
-- `test_<functionality>_<condition>`: Basic functionality tests
-- `test_<functionality>_edge_cases`: Edge case tests
-- `test_<functionality>_security`: Security-related tests
-- `test_<functionality>_performance`: Performance tests
-- `test_<functionality>_integration`: Integration tests
-
-### Test Documentation
-Each test should include:
-- Clear description of what it tests
-- Expected behavior
-- Any special requirements
-- Performance expectations (if applicable)
+- Match existing file naming (`*_test.rs` or descriptive `snake_case.rs`).
+- Gate parameter-specific tests with the appropriate `hqc*` feature.
+- Do not add marketing claims to test output; assert behaviour only.
+- Prefer deterministic, varied seeds for always-on round-trip gates so they stay
+  reproducible. Reserve `#[ignore]` for genuinely slow stress runs, and never rationalize
+  a decode failure as "expected" — HQC's spec decryption-failure rate is negligible, so a
+  mismatch is a correctness regression.

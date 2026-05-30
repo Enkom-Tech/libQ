@@ -22,9 +22,26 @@ use crate::error::{
     VerifyError,
 };
 use crate::serialize::write_module_vec;
+#[cfg(not(feature = "hardened"))]
+use crate::sigma::secrets::accumulate_response_z;
+#[cfg(feature = "hardened")]
+use crate::sigma::secrets::{
+    MaskedWitness,
+    accumulate_response_z_masked,
+};
+use crate::sigma::secrets::{
+    SecretMaskVec,
+    SecretWitnessVec,
+    scrub_rejected_dual_ring_parts,
+    scrub_rejected_opening_parts,
+    zeroize_module_vec,
+    zeroize_polys,
+};
+#[cfg(not(feature = "hardened"))]
+use crate::util::module_infinity_norm;
 use crate::util::{
     module_add,
-    module_infinity_norm,
+    module_norm_within_bound,
     module_ring_mul_challenge,
     module_sub,
     polys_ct_eq,
@@ -46,10 +63,46 @@ pub(crate) fn witness_vec(opening: &AjtaiOpening) -> Vec<Poly> {
     v
 }
 
-fn fs_sparse_challenge(ctx: &[u8], first_message: &[Poly], tau: usize) -> Poly {
+/// Map each coefficient into `[0, q)` so wire packing and Fiat–Shamir hashing agree.
+#[cfg(not(feature = "hardened"))]
+pub(crate) fn normalize_polys_mod_q_for_fs(polys: &mut [Poly]) {
+    normalize_polys_mod_q(polys);
+}
+
+#[cfg(not(feature = "hardened"))]
+fn normalize_polys_mod_q(polys: &mut [Poly]) {
+    let q = lib_q_ring::constants::FIELD_MODULUS as i64;
+    for p in polys {
+        for c in &mut p.coeffs {
+            let mut v = *c as i64 % q;
+            if v < 0 {
+                v += q;
+            }
+            *c = v as i32;
+        }
+    }
+}
+
+/// Domain tag for committed-first-message Fiat–Shamir (QROM-hardened transcript).
+pub const QROM_FS_W_DIGEST_DOMAIN: &[u8] = b"lattice-zkp/qrom-fs/w-digest/v0";
+
+/// `SHAKE256(domain ‖ canonical_module_bytes(w))` before challenge derivation.
+#[must_use]
+pub fn fs_w_digest(first_message: &[Poly]) -> [u8; 32] {
+    let mut h = lib_q_sha3::Shake256::default();
+    lib_q_sha3::Update::update(&mut h, QROM_FS_W_DIGEST_DOMAIN);
+    lib_q_sha3::Update::update(&mut h, &write_module_vec(first_message));
+    let mut out = [0u8; 32];
+    let mut reader = lib_q_sha3::ExtendableOutput::finalize_xof(h);
+    lib_q_sha3::XofReader::read(&mut reader, &mut out);
+    out
+}
+
+pub(crate) fn fs_sparse_challenge(ctx: &[u8], first_message: &[Poly], tau: usize) -> Poly {
+    let w_digest = fs_w_digest(first_message);
     let mut h = lib_q_sha3::Shake256::default();
     lib_q_sha3::Update::update(&mut h, ctx);
-    lib_q_sha3::Update::update(&mut h, &write_module_vec(first_message));
+    lib_q_sha3::Update::update(&mut h, &w_digest);
     let mut reader = lib_q_sha3::ExtendableOutput::finalize_xof(h);
     let mut xof_seed = [0u8; 32];
     lib_q_sha3::XofReader::read(&mut reader, &mut xof_seed);
@@ -110,39 +163,97 @@ pub fn prove_opening<R: Rng + CryptoRng>(
     {
         return Err(ProofError::InvalidParameters);
     }
-    let wit = witness_vec(opening);
+    let wit_vec = witness_vec(opening);
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
 
-    let expected_com = matrix.mul_vec(&ModuleVec(wit.clone()));
+    let expected_com = matrix.mul_vec_polys(&wit_vec);
     if expected_com.0.len() != com.value.0.len() ||
         !bool::from(polys_ct_eq(&expected_com.0, &com.value.0))
     {
         return Err(ProofError::InvalidParameters);
     }
 
+    #[cfg(not(feature = "hardened"))]
+    let wit = SecretWitnessVec::new(wit_vec);
+    #[cfg(feature = "hardened")]
+    let masked_wit = MaskedWitness::split(SecretWitnessVec::new(wit_vec), rng, &key.seed, ctx);
+
+    #[cfg(feature = "hardened")]
+    let mut candidate_w = ModuleVec((0..p.module_rank).map(|_| Poly::zero()).collect());
+    #[cfg(feature = "hardened")]
+    let mut candidate_z = ModuleVec((0..p.witness_len()).map(|_| Poly::zero()).collect());
+    #[cfg(feature = "hardened")]
+    let mut have_success = subtle::Choice::from(0u8);
+
     for _ in 0..max_attempts {
-        let y: Vec<Poly> = (0..wit.len()).map(|_| sample_uniform_poly(rng)).collect();
-        let w = matrix.mul_vec(&ModuleVec(y.clone()));
+        let y = SecretMaskVec::new(
+            (0..p.witness_len())
+                .map(|_| sample_uniform_poly(rng))
+                .collect::<Vec<_>>(),
+        );
+        let mut w = matrix.mul_vec_polys(y.as_slice());
+        #[cfg(feature = "hardened")]
+        for p in &mut w.0 {
+            p.normalize_mod_q_assign();
+        }
+        #[cfg(not(feature = "hardened"))]
+        normalize_polys_mod_q(&mut w.0);
 
         let c = fs_sparse_challenge(ctx, &w.0, tau);
 
-        let mut z = Vec::with_capacity(wit.len());
-        for (yi, wi) in y.iter().zip(wit.iter()) {
-            let mut t = yi.clone();
-            let cw = crate::util::ring_mul(&c, wi);
-            t.add_assign(&cw);
-            z.push(t);
-        }
+        #[cfg(not(feature = "hardened"))]
+        let z = accumulate_response_z(&y, &c, &wit);
+        #[cfg(feature = "hardened")]
+        let z = accumulate_response_z_masked(&y, &c, &masked_wit);
 
-        if module_infinity_norm(&z) <= z_inf_bound {
-            let proof = OpeningProof { w, z: ModuleVec(z) };
-            // If the bound holds but the Schnorr check fails, keep sampling (same outer attempt
-            // budget). This matches the intended "abort until a verifying transcript" semantics.
+        #[cfg(not(feature = "hardened"))]
+        {
+            if module_infinity_norm(z.as_slice()) > z_inf_bound {
+                zeroize_module_vec(&mut w);
+                continue;
+            }
+
+            let mut proof = OpeningProof {
+                w,
+                z: ModuleVec(z.into_public()),
+            };
             if verify_opening(key, com, &proof, ctx, tau, z_inf_bound).is_ok() {
                 return Ok(proof);
             }
+            scrub_rejected_opening_parts(&mut proof.w, &mut proof.z.0);
+        }
+
+        #[cfg(feature = "hardened")]
+        {
+            let within = crate::hardened::response_within_bound(z.as_slice(), z_inf_bound);
+            let mut proof = OpeningProof {
+                w,
+                z: ModuleVec(z.into_public()),
+            };
+            let verify_ok = verify_opening(key, com, &proof, ctx, tau, z_inf_bound).is_ok();
+            let accept = crate::hardened::accept_transcript(within, verify_ok);
+            let take = crate::hardened::first_accept_take(accept, have_success);
+            crate::hardened::ct_select_polys(&mut candidate_w.0, &proof.w.0, take);
+            crate::hardened::ct_select_polys(&mut candidate_z.0, &proof.z.0, take);
+            have_success = crate::hardened::fold_accept_seen(have_success, accept);
+            scrub_rejected_opening_parts(&mut proof.w, &mut proof.z.0);
         }
     }
+
+    #[cfg(feature = "hardened")]
+    return {
+        if bool::from(have_success) {
+            Ok(OpeningProof {
+                w: candidate_w,
+                z: candidate_z,
+            })
+        } else {
+            scrub_rejected_opening_parts(&mut candidate_w, &mut candidate_z.0);
+            Err(ProofError::RejectionLimit)
+        }
+    };
+
+    #[cfg(not(feature = "hardened"))]
     Err(ProofError::RejectionLimit)
 }
 
@@ -163,7 +274,7 @@ pub fn verify_opening(
     {
         return Err(VerifyError::InvalidFormat);
     }
-    if module_infinity_norm(&proof.z.0) > z_inf_bound {
+    if !bool::from(module_norm_within_bound(&proof.z.0, z_inf_bound)) {
         return Err(VerifyError::Rejected);
     }
 
@@ -222,19 +333,35 @@ pub fn prove_dual_ring_opening<R: Rng + CryptoRng>(
         }
     }
 
-    let wit = witness_vec(opening);
+    let wit_vec = witness_vec(opening);
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
-    let expected_com = matrix.mul_vec(&ModuleVec(wit.clone()));
+    let expected_com = matrix.mul_vec_polys(&wit_vec);
     if expected_com.0.len() != ring[signer_idx].value.0.len() ||
         !bool::from(polys_ct_eq(&expected_com.0, &ring[signer_idx].value.0))
     {
         return Err(ProofError::InvalidParameters);
     }
 
+    #[cfg(not(feature = "hardened"))]
+    let wit = SecretWitnessVec::new(wit_vec);
+    #[cfg(feature = "hardened")]
+    let masked_wit = MaskedWitness::split(SecretWitnessVec::new(wit_vec), rng, &key.seed, ctx);
+
     let n = ring.len();
+    #[cfg(feature = "hardened")]
+    let mut candidate_challenges = alloc::vec![Poly::zero(); n];
+    #[cfg(feature = "hardened")]
+    let mut candidate_z = ModuleVec((0..p.witness_len()).map(|_| Poly::zero()).collect());
+    #[cfg(feature = "hardened")]
+    let mut have_success = subtle::Choice::from(0u8);
+
     for _ in 0..max_attempts {
-        let y: Vec<Poly> = (0..wit.len()).map(|_| sample_uniform_poly(rng)).collect();
-        let ay = matrix.mul_vec(&ModuleVec(y.clone()));
+        let y = SecretMaskVec::new(
+            (0..p.witness_len())
+                .map(|_| sample_uniform_poly(rng))
+                .collect::<Vec<_>>(),
+        );
+        let mut ay = matrix.mul_vec_polys(y.as_slice());
 
         let mut challenges = alloc::vec![Poly::zero(); n];
         for (i, ch) in challenges.iter_mut().enumerate() {
@@ -257,6 +384,7 @@ pub fn prove_dual_ring_opening<R: Rng + CryptoRng>(
         }
 
         let c_fs = fs_sparse_challenge(ctx, &r_combined, tau);
+        zeroize_polys(&mut r_combined);
 
         let mut sum_others = Poly::zero();
         for (i, ch) in challenges.iter().enumerate() {
@@ -269,24 +397,63 @@ pub fn prove_dual_ring_opening<R: Rng + CryptoRng>(
         cj.sub_assign(&sum_others);
         challenges[signer_idx] = cj;
 
-        let mut z = Vec::with_capacity(wit.len());
-        for (yi, wi) in y.iter().zip(wit.iter()) {
-            let mut t = yi.clone();
-            let cw = crate::util::ring_mul(&challenges[signer_idx], wi);
-            t.add_assign(&cw);
-            z.push(t);
-        }
+        #[cfg(not(feature = "hardened"))]
+        let z = accumulate_response_z(&y, &challenges[signer_idx], &wit);
+        #[cfg(feature = "hardened")]
+        let z = accumulate_response_z_masked(&y, &challenges[signer_idx], &masked_wit);
 
-        if module_infinity_norm(&z) <= z_inf_bound {
-            let proof = DualRingOpeningProof {
+        #[cfg(not(feature = "hardened"))]
+        {
+            if module_infinity_norm(z.as_slice()) > z_inf_bound {
+                zeroize_polys(&mut challenges);
+                zeroize_module_vec(&mut ay);
+                continue;
+            }
+
+            let mut proof = DualRingOpeningProof {
                 challenges,
-                z: ModuleVec(z),
+                z: ModuleVec(z.into_public()),
             };
             if verify_dual_ring_opening(key, ring, &proof, ctx, tau, z_inf_bound).is_ok() {
                 return Ok(proof);
             }
+            scrub_rejected_dual_ring_parts(&mut proof.z, &mut proof.challenges);
+            zeroize_module_vec(&mut ay);
+        }
+
+        #[cfg(feature = "hardened")]
+        {
+            let within = crate::hardened::response_within_bound(z.as_slice(), z_inf_bound);
+            let mut proof = DualRingOpeningProof {
+                challenges,
+                z: ModuleVec(z.into_public()),
+            };
+            let verify_ok =
+                verify_dual_ring_opening(key, ring, &proof, ctx, tau, z_inf_bound).is_ok();
+            let accept = crate::hardened::accept_transcript(within, verify_ok);
+            let take = crate::hardened::first_accept_take(accept, have_success);
+            crate::hardened::ct_select_polys(&mut candidate_challenges, &proof.challenges, take);
+            crate::hardened::ct_select_polys(&mut candidate_z.0, &proof.z.0, take);
+            have_success = crate::hardened::fold_accept_seen(have_success, accept);
+            scrub_rejected_dual_ring_parts(&mut proof.z, &mut proof.challenges);
+            zeroize_module_vec(&mut ay);
         }
     }
+
+    #[cfg(feature = "hardened")]
+    return {
+        if bool::from(have_success) {
+            Ok(DualRingOpeningProof {
+                challenges: candidate_challenges,
+                z: candidate_z,
+            })
+        } else {
+            scrub_rejected_dual_ring_parts(&mut candidate_z, &mut candidate_challenges);
+            Err(ProofError::RejectionLimit)
+        }
+    };
+
+    #[cfg(not(feature = "hardened"))]
     Err(ProofError::RejectionLimit)
 }
 
@@ -312,7 +479,7 @@ pub fn verify_dual_ring_opening(
             return Err(VerifyError::InvalidFormat);
         }
     }
-    if module_infinity_norm(&proof.z.0) > z_inf_bound {
+    if !bool::from(module_norm_within_bound(&proof.z.0, z_inf_bound)) {
         return Err(VerifyError::Rejected);
     }
 
@@ -344,8 +511,7 @@ pub fn verify_dual_ring_opening(
 mod dual_ring_opening_tests {
     use alloc::vec;
 
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
+    use lib_q_random::new_deterministic_rng;
 
     use super::*;
 
@@ -364,7 +530,7 @@ mod dual_ring_opening_tests {
         };
         let com = crate::commitment::commit(&key, &o);
         let ring = [com.clone()];
-        let mut rng = ChaCha8Rng::from_seed([7u8; 32]);
+        let mut rng = new_deterministic_rng([7u8; 32]);
         let ctx = b"dual-ring-ctx";
         let proof = prove_dual_ring_opening(&mut rng, &key, &o, &ring, 0, ctx, tau, z_bound, max)
             .expect("prove");
@@ -386,7 +552,7 @@ mod dual_ring_opening_tests {
         };
         let com = crate::commitment::commit(&key, &o);
         let ring = [com];
-        let mut rng = ChaCha8Rng::from_seed([9u8; 32]);
+        let mut rng = new_deterministic_rng([9u8; 32]);
         let proof =
             prove_dual_ring_opening(&mut rng, &key, &o, &ring, 0, b"ctx-a", tau, z_bound, max)
                 .expect("prove");
@@ -415,7 +581,7 @@ mod dual_ring_opening_tests {
         let c0 = crate::commitment::commit(&key, &o0);
         let c1 = crate::commitment::commit(&key, &o1);
         let ring = [c0, c1];
-        let mut rng = ChaCha8Rng::from_seed([2u8; 32]);
+        let mut rng = new_deterministic_rng([2u8; 32]);
         let ctx = b"two-slot";
         let proof = prove_dual_ring_opening(&mut rng, &key, &o1, &ring, 1, ctx, tau, z_bound, max)
             .expect("prove slot 1");

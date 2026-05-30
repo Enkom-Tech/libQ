@@ -347,12 +347,12 @@ pub fn new_secure_rng_no_std() -> Result<no_std_rng::SlhDsaNoStdRng, no_std_rng:
 
 /// Create a new deterministic RNG instance for no_std environments
 ///
-/// ChaCha20 stream from a 32-byte seed (see `lib_q_random::NoStdRng::new_deterministic`).
+/// KT128 stream from a 32-byte seed (see `lib_q_random::NoStdRng::new_deterministic`).
 /// For production signing, use [`new_secure_rng_no_std`].
 ///
 /// # Arguments
 ///
-/// * `seed` - 32-byte ChaCha20 key
+/// * `seed` - 32-byte KT128 seed
 ///
 /// # Examples
 ///

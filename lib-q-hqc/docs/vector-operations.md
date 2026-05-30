@@ -163,7 +163,7 @@ HQC reference code uses the same patterns for interoperability and KAT alignment
 | Schoolbook vs AVX2 multiply | `tests/vect_mul_equivalence.rs`, `src/simd/avx2/gf2x.rs` unit tests |
 | `vect_set_random` / XOF alignment | `tests/vect_set_random_analysis.rs`, `tests/kat_intermediate_values_verification.rs` |
 | Parameter constants | `tests/compliance_parameter_validation.rs`, `tests/official_specification_verification_test.rs` |
-| Full KEM | `tests/kat_test.rs`, `tests/compliance/kat_verification.rs` |
+| Full KEM | `tests/nist_kem_kat.rs`, `tests/compliance/kat_verification.rs` |
 | Cross-parameter behavior | `tests/compliance/cross_implementation.rs` |
 
 Public test hooks on `HqcPke` (`test_vect_mul`, `test_vect_sample_fixed_weight1`, …) exist for component debugging; prefer the integration tests above for regression gates.

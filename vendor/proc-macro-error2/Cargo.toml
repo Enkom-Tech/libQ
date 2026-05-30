@@ -7,26 +7,26 @@ authors = [
 version = "2.0.1"
 description = "Almost drop-in replacement to panics in proc-macros"
 repository = "https://github.com/GnomedDev/proc-macro-error-2"
-rust-version = "1.61"
+rust-version = "1.96.0"
 keywords = ["proc-macro", "error", "errors"]
 categories = ["development-tools::procedural-macro-helpers"]
 license = "MIT OR Apache-2.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-quote = "1"
-proc-macro2 = "1"
+quote = "1.0.45"
+proc-macro2 = "1.0.106"
 proc-macro-error-attr2 = { path = "./proc-macro-error-attr", version = "=2.0.0" }
 
 [dependencies.syn]
-version = "2"
+version = "2.0.117"
 optional = true
 default-features = false
 
 [dev-dependencies]
 test-crate = { path = "./test-crate" }
-syn = { version = "2", features = ["full"] }
-trybuild = { version = "1.0.99", features = ["diff"] }
+syn = { version = "2.0.117", features = ["full"] }
+trybuild = { version = "1.0.116", features = ["diff"] }
 
 [features]
 default = ["syn-error"]

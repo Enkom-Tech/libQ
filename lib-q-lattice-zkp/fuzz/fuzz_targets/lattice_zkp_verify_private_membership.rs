@@ -84,14 +84,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let min_clearance = take_u32(&mut data);
 
     let depth = (take_u32(&mut data) as usize) % 8 + 1;
-    let mut directions = Vec::new();
+    let path_index = take_u32(&mut data);
     let mut siblings = Vec::new();
     for _ in 0..depth {
-        if data.is_empty() {
-            return;
-        }
-        directions.push((data[0] & 1) == 1);
-        data = &data[1..];
         if data.len() < 32 {
             return;
         }
@@ -101,7 +96,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
         siblings.push(s);
     }
     let merkle_path = MerklePath {
-        directions,
+        path_index,
         siblings,
     };
 

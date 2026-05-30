@@ -68,6 +68,7 @@ pub use ntt::{
 pub use poly::{
     NttPoly,
     Poly,
+    polys_norm_within_bound,
 };
 pub use uniform::{
     sample_uniform_coeff_mod_q,

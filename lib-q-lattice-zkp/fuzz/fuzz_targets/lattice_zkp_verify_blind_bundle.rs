@@ -1,11 +1,12 @@
 #![no_main]
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
     AjtaiOpening,
     AjtaiParameters,
     BlindIssuance,
     BlindResponse,
+    IssuerCommitmentParams,
+    LatticeZkpProfileV0,
     MlDsaCompatibleChallenge,
     OpeningProof,
     UnblindedIssuance,
@@ -49,7 +50,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let _ = MlDsaCompatibleChallenge::derive(&seed, tau);
 
     let params = AjtaiParameters::new(2, 1);
-    let key = AjtaiCommitmentKey { seed, params };
+    let issuer_params = IssuerCommitmentParams {
+        issuer_matrix_seed: seed,
+        params,
+        profile_id: LatticeZkpProfileV0::token_spend_v0().profile_id,
+    };
+    let key = issuer_params.commitment_key();
 
     let m0 = poly_from_stream(&mut data);
     let m1 = poly_from_stream(&mut data);
@@ -89,5 +95,5 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 
     let z_bound = (take_u32(&mut data) % 5_000_000) as i32 + 1;
     let base_ctx = data;
-    let _ = BlindIssuance::verify(&key, &bundle, base_ctx, tau, z_bound);
+    let _ = BlindIssuance::verify(&issuer_params, &bundle, base_ctx, tau, z_bound);
 });

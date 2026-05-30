@@ -651,8 +651,8 @@ mod tests {
         let mut decoded_message = [0u8; 46];
         rm.decode(&codeword, &mut decoded_message).unwrap();
 
-        // Verify - only check first 28 bytes due to Reed-Muller implementation limitation
-        assert_eq!(message[0..28], decoded_message[0..28]);
+        // RM(1,7) corrects this single-bit error; the full 46-byte block must round-trip.
+        assert_eq!(message, decoded_message);
     }
 
     #[test]

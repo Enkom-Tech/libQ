@@ -12,6 +12,10 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec;
 
+use lib_q_random::{
+    LibQRng,
+    new_deterministic_rng,
+};
 use lib_q_slh_dsa::{
     ParameterSet,
     Sha2_128f,
@@ -24,8 +28,6 @@ use lib_q_slh_dsa::{
     SigningKey,
     VerifyingKey,
 };
-use rand_chacha::ChaCha8Rng;
-use rand_core::SeedableRng;
 use signature::{
     Keypair,
     RandomizedSigner,
@@ -33,11 +35,11 @@ use signature::{
 };
 
 #[inline]
-fn test_rng_from_material(seed: &[u8]) -> ChaCha8Rng {
+fn test_rng_from_material(seed: &[u8]) -> LibQRng {
     let mut expanded = [0u8; 32];
     let take = seed.len().min(32);
     expanded[..take].copy_from_slice(&seed[..take]);
-    ChaCha8Rng::from_seed(expanded)
+    new_deterministic_rng(expanded)
 }
 
 /// Test SLH-DSA key generation with external randomness (no_std compatible)

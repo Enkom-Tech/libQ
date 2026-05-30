@@ -97,7 +97,7 @@ impl<P: HqcParams> HqcPke<P> {
     /// Generate a key pair for HQC PKE with a given seed
     ///
     /// Returns (public_key, secret_key) where:
-    /// - public_key: (seed_ek, s) where seed_ek is used to derive h and s = y*h + x
+    /// - public_key: (h, s) wire format with s = y*h + x
     /// - secret_key: (seed_dk) where seed_dk is used to derive y
     ///
     /// This implementation matches the reference implementation KAT generation flow:
@@ -106,6 +106,17 @@ impl<P: HqcParams> HqcPke<P> {
     /// - Derives seed_pke from seed_kem using XOF (SHAKE-256 with domain=1)
     /// - Uses hash_i (SHA3-512 with domain=2) on seed_pke to derive keypair seeds
     /// - Produces seed_dk (32 bytes) and seed_ek (32 bytes)
+    /// Generate a key pair from an already-derived PKE seed (`seed_pke`).
+    ///
+    /// This matches `HQC-PKE.Keygen(seedPKE)` in the 2025 specification after
+    /// `seedPKE` has been obtained from the KEM XOF (`seedKEM` → XOF).
+    pub fn keygen_from_seed_pke(
+        &self,
+        seed_pke: &[u8; 32],
+    ) -> Result<(HqcPkePublicKey<P>, HqcPkeSecretKey<P>), HqcPkeError> {
+        self.keygen_from_derived_seeds(seed_pke)
+    }
+
     pub fn keygen_with_seed(
         &self,
         seed: &[u8],
@@ -144,11 +155,18 @@ impl<P: HqcParams> HqcPke<P> {
             .squeeze(&mut seed_pke)
             .map_err(|_| HqcPkeError::HashError)?;
 
+        self.keygen_from_derived_seeds(&seed_pke)
+    }
+
+    fn keygen_from_derived_seeds(
+        &self,
+        seed_pke: &[u8; 32],
+    ) -> Result<(HqcPkePublicKey<P>, HqcPkeSecretKey<P>), HqcPkeError> {
         // Step 3: Derive keypair seeds using hash_i (SHA3-512 with domain=2)
         // This matches the reference implementation in hqc.c:
         //   hash_i(keypair_seed, seed);  // seed is seed_pke
         let mut keypair_seed = [0u8; 64];
-        self.hash_i(&mut keypair_seed, &seed_pke);
+        self.hash_i(&mut keypair_seed, seed_pke);
 
         // Split the 64-byte hash output into seed_dk and seed_ek
         let mut seed_dk = [0u8; 32];
@@ -183,10 +201,11 @@ impl<P: HqcParams> HqcPke<P> {
         let s_copy = s.clone();
         self.vect_add(&mut s, &x, &s_copy, P::VEC_N_SIZE_64)?;
 
-        // Create public key (seed_ek, s) - store seed_ek, not h (matches reference)
+        // NIST / reference `ek_kem` wire format: seed_ek (32) ‖ serialized s.
+        let s_len = P::PUBLIC_KEY_BYTES - 32;
         let mut public_key_data: Vec<u8> = vec![0u8; P::PUBLIC_KEY_BYTES];
         public_key_data[..32].copy_from_slice(&seed_ek);
-        self.vect_to_bytes(&s, &mut public_key_data[32..])?;
+        self.vect_to_bytes(&s, &mut public_key_data[32..32 + s_len])?;
 
         // Create secret key (seed_dk)
         let secret_key_data = seed_dk;
@@ -862,24 +881,28 @@ impl<P: HqcParams> HqcPkePublicKey<P> {
     }
 
     pub fn parse(&self) -> Result<(Vec<u64>, Vec<u64>), HqcPkeError> {
-        // Extract seed_ek from first 32 bytes (matches reference)
-        let seed_ek = &self.data[..32];
+        if self.data.len() != P::PUBLIC_KEY_BYTES {
+            return Err(HqcPkeError::InvalidKey);
+        }
 
-        // Re-derive h using XOF from seed_ek (matches reference hqc_ek_pke_from_string)
+        if self.data.len() < 32 {
+            return Err(HqcPkeError::InvalidKey);
+        }
+
+        let mut seed_ek = [0u8; 32];
+        seed_ek.copy_from_slice(&self.data[..32]);
+        let s_len = P::PUBLIC_KEY_BYTES - 32;
+        let pke = HqcPke::<P>::new().map_err(|_| HqcPkeError::HashError)?;
+
         let mut ek_xof = Shake256Xof::new();
         ek_xof
-            .init_with_domain(seed_ek, 1)
+            .init_with_domain(&seed_ek, 1)
             .map_err(|_| HqcPkeError::HashError)?;
-
         let mut h = vec![0u64; P::VEC_N_SIZE_64];
-        // Use vect_set_random to derive h from seed_ek
-        let pke = HqcPke::<P>::new().map_err(|_| HqcPkeError::HashError)?;
         pke.vect_set_random(&mut ek_xof, &mut h)?;
 
-        // Read s from bytes after seed_ek
-        let s_bytes = &self.data[32..];
         let mut s = vec![0u64; P::VEC_N_SIZE_64];
-        pke.bytes_to_vect(s_bytes, &mut s)?;
+        pke.bytes_to_vect(&self.data[32..32 + s_len], &mut s)?;
 
         Ok((h, s))
     }
@@ -1036,56 +1059,3 @@ pub fn schoolbook_vect_mul_mod_xnm1(
     output[vec_n_words - 1] &= (1u64 << mask_n) - 1;
     Ok(())
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::params_correct::{Hqc1Params, HqcParams};
-    // Note: Using a simple RNG for testing - in production use proper crypto RNG
-
-    #[test]
-    fn test_hqc_pke_creation() {
-        let pke = HqcPke::<Hqc1Params>::new();
-        assert!(pke.is_ok());
-    }
-
-    #[test]
-    fn test_hqc_pke_keygen() {
-        let pke = HqcPke::<Hqc1Params>::new().unwrap();
-        let mut rng = ChaCha20Rng::from_seed([42u8; 32]);
-
-        let (public_key, secret_key) = pke.keygen(&mut rng).unwrap();
-
-        // Verify key sizes
-        assert_eq!(public_key.data.len(), Hqc1Params::PUBLIC_KEY_BYTES);
-        assert_eq!(secret_key.data.len(), Hqc1Params::SEED_BYTES);
-    }
-
-    #[test]
-    fn test_hqc_pke_encrypt_decrypt() {
-        let pke = HqcPke::<Hqc1Params>::new().unwrap();
-        let mut rng = ChaCha20Rng::from_seed([42u8; 32]);
-
-        // Generate key pair
-        let (public_key, secret_key) = pke.keygen(&mut rng).unwrap();
-
-        // Create test message
-        let message = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                      0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10];
-
-        // Generate random theta
-        let mut theta = [0u8; 32];
-        rng.fill_bytes(&mut theta);
-
-        // Encrypt
-        let ciphertext = pke.encrypt(&public_key, &message, &theta).unwrap();
-
-        // Decrypt
-        let decrypted_message = pke.decrypt(&secret_key, &ciphertext).unwrap();
-
-        // Verify
-        assert_eq!(message.to_vec(), decrypted_message);
-    }
-}
-*/

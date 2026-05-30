@@ -10,7 +10,7 @@
 //!
 //! The digest `SHAKE256( domain ‖ wire(message) ‖ wire(randomness) ‖ realm )` depends only
 //! on the secret opening witness (and realm), not on the commitment image. Two distinct
-//! commitments under different CRS seeds that open the same witness polynomials share the
+//! commitments under different commitment-key seeds that open the same witness polynomials share the
 //! same witness nullifier—useful for cross-commitment linkability at the application layer.
 //!
 //! [`NullifierOpeningProof`] / [`WitnessNullifierOpeningProof`] bind the respective digest
@@ -237,8 +237,7 @@ pub fn uniqueness_amortisation_label(realm: &[u8], commitments: &[AjtaiCommitmen
 mod tests {
     use alloc::vec;
 
-    use rand_chacha::ChaCha8Rng;
-    use rand_core::SeedableRng;
+    use lib_q_random::new_deterministic_rng;
 
     use super::*;
     use crate::commitment::{
@@ -298,7 +297,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let c = commit(&key, &o);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x5011_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0x5011_u64));
         let proof = prove_nullifier_opening(
             &mut rng, &key, &o, &c, b"ctx-n", b"realm-x", 39, 20_000_000, 512,
         )
@@ -335,7 +334,7 @@ mod tests {
         let label = uniqueness_amortisation_label(b"realm-amort", &commitments);
         let mut ap = None;
         for attempt in 0u64..256 {
-            let mut rng = ChaCha8Rng::from_seed(test_seed32(0xA11E_u64 ^ attempt));
+            let mut rng = new_deterministic_rng(test_seed32(0xA11E_u64 ^ attempt));
             if let Ok(p) = amortise(
                 &mut rng,
                 &key,
@@ -374,7 +373,7 @@ mod tests {
         let c2 = commit(&key2, &o);
         assert_ne!(
             c1, c2,
-            "different CRS seeds must yield different commitments"
+            "different commitment-key seeds must yield different commitments"
         );
         let n = witness_nullifier(&o, b"realm-w");
         assert_eq!(n, witness_nullifier(&o, b"realm-w"));
@@ -399,7 +398,7 @@ mod tests {
             randomness: lib_q_ring::ModuleVec(vec![lib_q_ring::Poly::zero()]),
         };
         let c = commit(&key, &o);
-        let mut rng = ChaCha8Rng::from_seed(test_seed32(0x5012_u64));
+        let mut rng = new_deterministic_rng(test_seed32(0x5012_u64));
         let proof = prove_witness_nullifier_opening(
             &mut rng,
             &key,

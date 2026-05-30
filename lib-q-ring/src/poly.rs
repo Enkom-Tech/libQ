@@ -1,5 +1,10 @@
 //! Coefficient (`Poly`) vs NTT (`NttPoly`) newtypes.
 
+use subtle::{
+    Choice,
+    ConditionallySelectable,
+    ConstantTimeGreater,
+};
 use zeroize::{
     Zeroize,
     ZeroizeOnDrop,
@@ -26,6 +31,20 @@ use crate::ntt::{
     ntt_forward_simd,
     ntt_multiply_montgomery,
 };
+
+#[inline]
+fn ct_gt_i32(a: i32, b: i32) -> Choice {
+    let flip = 1u32 << 31;
+    let a_u = (a as u32) ^ flip;
+    let b_u = (b as u32) ^ flip;
+    a_u.ct_gt(&b_u)
+}
+
+#[inline]
+fn centered_abs_i32(coefficient: i32) -> i32 {
+    let sign = coefficient >> 31;
+    coefficient - (sign & (coefficient << 1))
+}
 
 /// Polynomial in the time (coefficient) domain, canonical representatives mod `q`.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Zeroize, ZeroizeOnDrop)]
@@ -99,15 +118,53 @@ impl Poly {
     }
 
     /// Infinity norm on absolute representatives in \([-q/2, q/2]\)-style range.
+    ///
+    /// Branch-free over coefficient values (ML-DSA portable `infinity_norm_exceeds` model):
+    /// leaking which coefficient exceeds a bound is acceptable on verify paths; the sign of the
+    /// centered representative must not leak via control flow.
     #[must_use]
     pub fn infinity_norm(&self) -> i32 {
         let half = FIELD_MODULUS / 2;
         let mut m = 0i32;
         for &c in &self.coeffs {
-            let v = if c > half { c - FIELD_MODULUS } else { c };
-            m = m.max(v.abs());
+            let gt_half = ct_gt_i32(c, half);
+            let centered = i32::conditional_select(&c, &c.wrapping_sub(FIELD_MODULUS), gt_half);
+            let abs = centered_abs_i32(centered);
+            let gt_max = ct_gt_i32(abs, m);
+            m = i32::conditional_select(&m, &abs, gt_max);
         }
         m
+    }
+
+    /// Returns `1` iff [`Self::infinity_norm`] is at most `bound` (inclusive).
+    #[must_use]
+    pub fn norm_within_bound(&self, bound: i32) -> Choice {
+        let exceeds = ct_gt_i32(self.infinity_norm(), bound);
+        exceeds ^ Choice::from(1u8)
+    }
+
+    /// Map every coefficient into canonical `[0, q)` via Barrett reduction, then branch-free
+    /// non-negative fixup: `v + ((v >> 31) & q)`.
+    pub fn normalize_mod_q_assign(&mut self) {
+        let q = FIELD_MODULUS;
+        for c in &mut self.coeffs {
+            *c = reduce_element(*c);
+            let sign = *c >> 31;
+            *c += sign & q;
+        }
+    }
+
+    /// Multiply every coefficient by `scalar` (mod `q`) using wide multiply + Barrett reduction.
+    #[must_use]
+    pub fn scalar_mul_by_u32_mod_q(&self, scalar: u32) -> Poly {
+        let q = FIELD_MODULUS as i64;
+        let r = (scalar % FIELD_MODULUS as u32) as i64;
+        let mut out = self.clone();
+        for c in &mut out.coeffs {
+            let v = (*c as i64 * r).rem_euclid(q) as i32;
+            *c = reduce_element(v);
+        }
+        out
     }
 
     /// SIMD lane layout (ML-DSA coefficient order).
@@ -215,6 +272,16 @@ pub fn simd_from_i256(
     Poly::from_coeffs(*buf).to_simd()
 }
 
+/// Returns `1` iff every polynomial in `polys` has infinity norm at most `bound`.
+#[must_use]
+pub fn polys_norm_within_bound(polys: &[Poly], bound: i32) -> Choice {
+    let mut acc = Choice::from(1u8);
+    for p in polys {
+        acc &= p.norm_within_bound(bound);
+    }
+    acc
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,5 +333,48 @@ mod tests {
 
             assert_eq!(schoolbook, back);
         }
+    }
+
+    fn infinity_norm_branchy_reference(p: &Poly) -> i32 {
+        let half = FIELD_MODULUS / 2;
+        let mut m = 0i32;
+        for &c in &p.coeffs {
+            let v = if c > half { c - FIELD_MODULUS } else { c };
+            m = m.max(v.abs());
+        }
+        m
+    }
+
+    #[test]
+    fn infinity_norm_matches_branchy_reference() {
+        let q = FIELD_MODULUS;
+        let mut st = 0xA11CE_u64;
+        for _ in 0..256 {
+            let mut coeffs = [0i32; COEFFICIENTS_IN_RING_ELEMENT];
+            for c in &mut coeffs {
+                *c = (lcg_step(&mut st) as i32) % q;
+            }
+            let p = Poly::from_coeffs(coeffs);
+            assert_eq!(p.infinity_norm(), infinity_norm_branchy_reference(&p));
+        }
+        for &edge in &[0, 1, q / 2, q / 2 + 1, q - 1] {
+            let mut p = Poly::zero();
+            p.coeffs[0] = edge;
+            p.coeffs[1] = -edge;
+            assert_eq!(p.infinity_norm(), infinity_norm_branchy_reference(&p));
+        }
+    }
+
+    #[test]
+    fn normalize_mod_q_and_scalar_mul_smoke() {
+        let mut p = Poly::zero();
+        p.coeffs[0] = FIELD_MODULUS + 5;
+        p.normalize_mod_q_assign();
+        assert!((0..FIELD_MODULUS).contains(&p.coeffs[0]));
+        p.coeffs[1] = -3;
+        p.normalize_mod_q_assign();
+        assert!((0..FIELD_MODULUS).contains(&p.coeffs[1]));
+        let scaled = p.scalar_mul_by_u32_mod_q(3);
+        assert_eq!(scaled.coeffs[0], reduce_element(p.coeffs[0] * 3));
     }
 }

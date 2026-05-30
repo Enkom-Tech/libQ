@@ -323,7 +323,7 @@ impl EntropyValidator {
         let max_run_ratio = max_run_length as f64 / data.len() as f64;
 
         // Lower run ratio and max run ratio indicate better entropy
-        let quality = 1.0 - (run_ratio + max_run_ratio) * 0.5;
+        let quality = 1.0 - f64::midpoint(run_ratio, max_run_ratio);
         Ok(quality.max(0.0).min(1.0))
     }
 

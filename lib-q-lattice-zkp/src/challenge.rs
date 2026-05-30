@@ -1,4 +1,7 @@
 //! ML-DSA–compatible sparse ternary challenges.
+//!
+//! Sigma opening / linear / PVTN Fiat–Shamir uses the QROM committed-first-message transcript in
+//! [`crate::sigma::opening`](crate::sigma::opening) (`fs_w_digest`, then `SHAKE256(ctx ‖ w_digest)`).
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;

@@ -71,7 +71,7 @@ mod bearssl_kat {
     }
 
     /// Test vector from official NIST KAT files (HQC-1, count=0)
-    /// From: lib-q-hqc/kats/ref/hqc-1/PQCkemKAT_2321.rsp
+    /// From: lib-q-hqc/kats/official/hqc-1/PQCkemKAT_2321.rsp
     mod hqc1_kat_vectors {
 """
 

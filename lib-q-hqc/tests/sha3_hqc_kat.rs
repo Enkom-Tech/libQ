@@ -2,14 +2,14 @@
 //!
 //! The main test validates **hash_i** (HQC keygen seed derivation: SHA3-512(seed_pke || 2))
 //! against the **HQC reference** intermediate values for count=0.
-//! Source of truth: `lib-q-hqc/kats/ref/hqc-1/intermediates_values` (seed_pke, seed_dk, seed_ek).
+//! Expected `hash_i` outputs are inlined below (from the reference submission intermediates, count=0).
 //! Passing the main test means our hash_i (and thus lib_q_sha3 for this input) matches the reference.
 
 use lib_q_hqc::Hqc1Params;
 use lib_q_hqc::hqc_pke::HqcPke;
 
 /// HQC hash_i KAT: pke.hash_i(seed_pke) must match reference seed_dk and seed_ek.
-/// Uses seed_pke and expected values from kats/ref/hqc-1/intermediates_values.
+/// Uses inlined seed_pke / seed_dk / seed_ek from the reference intermediates (count=0).
 #[test]
 fn test_hash_i_kat_against_reference() {
     // seed_pke from HQC reference intermediates (count=0)

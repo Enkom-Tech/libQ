@@ -2,7 +2,7 @@
 name = "lib-q-lattice-zkp-fuzz"
 version = "0.0.4"
 edition = "2024"
-rust-version = "1.94.1"
+rust-version = "1.96.0"
 publish = false
 
 [package.metadata]
@@ -51,6 +51,69 @@ bench = false
 [[bin]]
 name = "lattice_zkp_verify_private_membership"
 path = "fuzz_targets/lattice_zkp_verify_private_membership.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_opening"
+path = "fuzz_targets/lattice_zkp_wire_v0_opening.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_pvtn"
+path = "fuzz_targets/lattice_zkp_wire_v0_pvtn.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_spending"
+path = "fuzz_targets/lattice_zkp_wire_v0_spending.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_linear"
+path = "fuzz_targets/lattice_zkp_wire_v0_linear.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_amortised"
+path = "fuzz_targets/lattice_zkp_wire_v0_amortised.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_nullifier"
+path = "fuzz_targets/lattice_zkp_wire_v0_nullifier.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_witness_nullifier"
+path = "fuzz_targets/lattice_zkp_wire_v0_witness_nullifier.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_blind_issuance"
+path = "fuzz_targets/lattice_zkp_wire_v0_blind_issuance.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lattice_zkp_wire_v0_dual_ring"
+path = "fuzz_targets/lattice_zkp_wire_v0_dual_ring.rs"
 test = false
 doc = false
 bench = false

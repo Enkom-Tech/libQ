@@ -5,6 +5,7 @@ pub mod hierarchical;
 pub mod linear;
 pub mod norm;
 pub mod opening;
+pub(crate) mod secrets;
 pub mod uniqueness;
 
 pub use amortise::{
@@ -18,18 +19,24 @@ pub use hierarchical::{
     HierarchicalAuthProof,
     MerklePath,
     PVTN_CLEARANCE_MARGIN_NORM_BETA,
+    PVTN_PATH_INDEX_COMMIT_DOMAIN,
     PrivateMembershipProof,
     encode_pvtn_leaf,
     hierarchical_opening_ctx,
     leaf_clearance_level,
     leaf_hash,
+    merkle_direction_at,
     node_hash,
+    path_index_commitment,
     private_membership_opening_ctx,
     prove_level_membership,
     prove_private_membership,
+    recover_clearance_level,
+    recover_path_index,
     verify_hierarchical_membership,
     verify_level_membership,
     verify_merkle_path,
+    verify_merkle_path_from_index,
     verify_private_membership,
 };
 pub use linear::{

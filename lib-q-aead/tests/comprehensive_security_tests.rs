@@ -40,7 +40,7 @@ fn median_nanos(samples: &mut [u128]) -> u128 {
     samples.sort_unstable();
     let mid = samples.len() / 2;
     if samples.len().is_multiple_of(2) {
-        (samples[mid - 1] + samples[mid]) / 2
+        u128::midpoint(samples[mid - 1], samples[mid])
     } else {
         samples[mid]
     }

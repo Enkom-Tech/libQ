@@ -1,0 +1,40 @@
+{
+  "schema": "lattice-zkp-kat-v0",
+  "description": "Fixed-seed prove/verify vectors for lib-q-lattice-zkp wire v0",
+  "regenerate": "cargo test -p lib-q-lattice-zkp kat_regenerate_vectors -- --ignored",
+  "profiles": {
+    "pvtn_membership_v0": 1,
+    "token_spend_v0": 2,
+    "selective_disclosure_v0": 3
+  },
+  "vectors": [
+    {
+      "id": "opening_token_spend_v0",
+      "profile_id": 2,
+      "proof_kind": "opening",
+      "fixture": "opening_token_spend_v0.hex",
+      "wire_bytes": 3977,
+      "budget_bytes": 131072,
+      "ctx": "6c6174746963652d7a6b702f6b61742f746f6b656e2d7370656e64"
+    },
+    {
+      "id": "pvtn_membership_v0",
+      "profile_id": 1,
+      "proof_kind": "private_membership",
+      "fixture": "pvtn_membership_v0.hex",
+      "wire_bytes": 2558,
+      "budget_bytes": 4096,
+      "min_clearance": 3,
+      "ctx": "6c6174746963652d7a6b702f6b61742f626173656c696e652d7076746e"
+    },
+    {
+      "id": "token_spend_v0",
+      "profile_id": 2,
+      "proof_kind": "spending",
+      "fixture": "token_spend_v0.hex",
+      "wire_bytes": 4009,
+      "budget_bytes": 131072,
+      "ctx": "6c6174746963652d7a6b702f6b61742f746f6b656e2d7370656e64"
+    }
+  ]
+}

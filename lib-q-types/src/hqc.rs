@@ -25,6 +25,12 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize) -> usize {
     ek_pke_len + PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + KEM_SEED_KEM_BYTES
 }
 
+/// NIST / reference `CRYPTO_SECRETKEYBYTES` wire layout: `dk_pke` ‖ `sigma` ‖ `ek_pke`.
+#[must_use]
+pub const fn kem_nist_secret_key_bytes(public_key_len: usize) -> usize {
+    PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + public_key_len
+}
+
 // --- HQC-128 (parameter set 1) ---
 
 /// KEM public key length (`CRYPTO_PUBLICKEYBYTES` / `seed_ek` ‖ `s`).
@@ -33,18 +39,22 @@ pub const HQC128_PUBLIC_KEY_BYTES: usize = 2241;
 pub const HQC128_CIPHERTEXT_BYTES: usize = 4433;
 /// Serialized KEM secret key length (see [`kem_secret_key_serialized_len`]).
 pub const HQC128_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC128_PUBLIC_KEY_BYTES);
+/// NIST KEM secret key wire length (`dk_pke` ‖ `sigma` ‖ `ek_pke`).
+pub const HQC128_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC128_PUBLIC_KEY_BYTES);
 
 // --- HQC-192 (parameter set 3) ---
 
 pub const HQC192_PUBLIC_KEY_BYTES: usize = 4522;
 pub const HQC192_CIPHERTEXT_BYTES: usize = 8978;
 pub const HQC192_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC192_PUBLIC_KEY_BYTES);
+pub const HQC192_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC192_PUBLIC_KEY_BYTES);
 
 // --- HQC-256 (parameter set 5) ---
 
 pub const HQC256_PUBLIC_KEY_BYTES: usize = 7245;
 pub const HQC256_CIPHERTEXT_BYTES: usize = 14421;
 pub const HQC256_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC256_PUBLIC_KEY_BYTES);
+pub const HQC256_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC256_PUBLIC_KEY_BYTES);
 
 #[cfg(test)]
 mod tests {
@@ -55,5 +65,8 @@ mod tests {
         assert_eq!(HQC128_SECRET_KEY_BYTES, 2241 + 32 + 16 + 48);
         assert_eq!(HQC192_SECRET_KEY_BYTES, 4522 + 32 + 16 + 48);
         assert_eq!(HQC256_SECRET_KEY_BYTES, 7245 + 32 + 16 + 48);
+        assert_eq!(HQC128_NIST_SECRET_KEY_BYTES, 32 + 16 + 2241);
+        assert_eq!(HQC192_NIST_SECRET_KEY_BYTES, 32 + 16 + 4522);
+        assert_eq!(HQC256_NIST_SECRET_KEY_BYTES, 32 + 16 + 7245);
     }
 }

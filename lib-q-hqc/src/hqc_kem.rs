@@ -31,8 +31,10 @@ use crate::params_correct::HqcParams;
 
 // Domain separators for hash functions (2025 specification)
 // According to HQC 2025 spec Section 3.1, each hash function uses its own domain separator
-const H_DOMAIN_SEPARATOR: u8 = 0; // SHA3-256 for H
-const G_DOMAIN_SEPARATOR: u8 = 1; // SHA3-512 for G
+// Domain bytes match the reference implementation / KAT tooling (Table 1):
+// G → 0, H → 1, I → 2 (PKE), J → 3, XOF → 1, PRNG → 0.
+const H_DOMAIN_SEPARATOR: u8 = 1; // SHA3-256 for H
+const G_DOMAIN_SEPARATOR: u8 = 0; // SHA3-512 for G
 const J_DOMAIN_SEPARATOR: u8 = 3; // SHA3-256 for J
 
 /// HQC KEM implementation
@@ -62,30 +64,27 @@ impl<P: HqcParams> HqcKem<P> {
         &self,
         seed_kem: &[u8],
     ) -> Result<(HqcKemPublicKey<P>, HqcKemSecretKey<P>), HqcKemError> {
-        // For KAT compatibility, we need to pass the 48-byte seed directly to PKE
-        // This matches the reference implementation approach where KEM simply calls PKE keygen
+        // NIST/HQC KAT `seed` is `seedKEM` (48 bytes). Derive `(seedPKE, σ)` via XOF domain 1,
+        // then run PKE keygen on `seedPKE` (HQC 2025 KEM.Keygen flow).
         if seed_kem.len() < 48 {
             return Err(HqcKemError::InvalidInput);
         }
 
-        // Compute HQC-PKE keypair using the full 48-byte seed (matching reference implementation)
-        let (ek_pke, dk_pke) = self
-            .pke
-            .keygen_with_seed(seed_kem)
-            .map_err(HqcKemError::PkeError)?;
+        let mut seed_kem_array = [0u8; 48];
+        seed_kem_array.copy_from_slice(&seed_kem[..48]);
 
-        // For KEM, we still need to derive sigma for encapsulation/decapsulation
-        // Extract first 32 bytes as KEM seed for sigma derivation
-        let kem_seed = &seed_kem[..32];
+        // NIST `.req`/`.rsp` `seed` is 48 bytes: `seedKEM` (32) || `m` (16) for encaps KAT.
+        let mut seed_kem_32 = [0u8; 32];
+        seed_kem_32.copy_from_slice(&seed_kem_array[..32]);
+
         let mut ctx_kem = Shake256Xof::new();
         ctx_kem
-            .init_with_domain(kem_seed, 1) // HQC_XOF_DOMAIN = 1
+            .init_with_domain(&seed_kem_32, 1) // HQC_XOF_DOMAIN = 1
             .map_err(|_| HqcKemError::HashError)?;
 
-        // Skip the first 32 bytes (seed_pke) and get sigma
-        let mut _skip = [0u8; 32];
+        let mut seed_pke = [0u8; 32];
         ctx_kem
-            .squeeze(&mut _skip)
+            .squeeze(&mut seed_pke)
             .map_err(|_| HqcKemError::HashError)?;
 
         let mut sigma = [0u8; 16]; // PARAM_SECURITY_BYTES
@@ -93,12 +92,12 @@ impl<P: HqcParams> HqcKem<P> {
             .squeeze(&mut sigma)
             .map_err(|_| HqcKemError::HashError)?;
 
-        // Create KEM public key (same as PKE public key)
-        let kem_public_key = HqcKemPublicKey::new(ek_pke.clone());
+        let (ek_pke, dk_pke) = self
+            .pke
+            .keygen_from_seed_pke(&seed_pke)
+            .map_err(HqcKemError::PkeError)?;
 
-        // Create KEM secret key (ek_pke, dk_pke, sigma, seed_kem)
-        let mut seed_kem_array = [0u8; 48];
-        seed_kem_array.copy_from_slice(seed_kem);
+        let kem_public_key = HqcKemPublicKey::new(ek_pke.clone());
         let kem_secret_key = HqcKemSecretKey::new(ek_pke, dk_pke, sigma, seed_kem_array);
 
         Ok((kem_public_key, kem_secret_key))
@@ -121,25 +120,19 @@ impl<P: HqcParams> HqcKem<P> {
         self.keygen_with_seed(&seed_kem)
     }
 
-    /// Encapsulate a shared secret using HQC KEM
-    pub fn encapsulate<R: rand_core::CryptoRng + ?Sized>(
+    /// Encapsulate with caller-supplied `m` and `salt` (NIST KEM KAT / deterministic harness).
+    pub fn encapsulate_with_m_salt(
         &self,
         public_key: &HqcKemPublicKey<P>,
-        rng: &mut R,
+        m: &[u8; 16],
+        salt: &[u8; 16],
     ) -> Result<(HqcKemCiphertext<P>, HqcKemSharedSecret<P>), HqcKemError> {
-        // Sample message m and salt
-        let mut m = [0u8; 16]; // PARAM_SECURITY_BYTES
-        rng.fill_bytes(&mut m);
-
-        let mut salt = [0u8; 16]; // SALT_BYTES
-        rng.fill_bytes(&mut salt);
-
         // Compute shared key K and ciphertext c_kem
         let mut hash_ek_kem = [0u8; 32]; // SEED_BYTES
         self.hash_h(&mut hash_ek_kem, public_key.as_bytes())?;
 
         let mut k_theta = [0u8; 64]; // SHARED_SECRET_BYTES + SEED_BYTES
-        self.hash_g(&mut k_theta, &hash_ek_kem, &m, &salt)?;
+        self.hash_g(&mut k_theta, &hash_ek_kem, m.as_ref(), salt.as_ref())?;
 
         let mut theta = [0u8; 32]; // SEED_BYTES
         theta.copy_from_slice(&k_theta[32..]);
@@ -149,13 +142,13 @@ impl<P: HqcParams> HqcKem<P> {
             .pke
             .encrypt(
                 public_key.pke_public_key(),
-                &self.bytes_to_u64_array(&m),
+                &self.bytes_to_u64_array(m.as_ref()),
                 &theta,
             )
             .map_err(HqcKemError::PkeError)?;
 
         // Create KEM ciphertext
-        let kem_ciphertext = HqcKemCiphertext::new(c_pke, salt);
+        let kem_ciphertext = HqcKemCiphertext::new(c_pke, *salt);
 
         // Create shared secret (clear transient stack buffers when zeroize is enabled)
         #[cfg(feature = "zeroize")]
@@ -174,14 +167,32 @@ impl<P: HqcParams> HqcKem<P> {
         #[cfg(feature = "zeroize")]
         {
             use zeroize::Zeroize;
-            m.zeroize();
-            salt.zeroize();
             hash_ek_kem.zeroize();
             k_theta.zeroize();
             theta.zeroize();
         }
 
         Ok((kem_ciphertext, kem_shared_secret))
+    }
+
+    /// Encapsulate a shared secret using HQC KEM
+    pub fn encapsulate<R: rand_core::CryptoRng + ?Sized>(
+        &self,
+        public_key: &HqcKemPublicKey<P>,
+        rng: &mut R,
+    ) -> Result<(HqcKemCiphertext<P>, HqcKemSharedSecret<P>), HqcKemError> {
+        let mut m = [0u8; 16];
+        rng.fill_bytes(&mut m);
+        let mut salt = [0u8; 16];
+        rng.fill_bytes(&mut salt);
+        let result = self.encapsulate_with_m_salt(public_key, &m, &salt);
+        #[cfg(feature = "zeroize")]
+        {
+            use zeroize::Zeroize;
+            m.zeroize();
+            salt.zeroize();
+        }
+        result
     }
 
     /// Decapsulate a shared secret using HQC KEM
@@ -235,36 +246,58 @@ impl<P: HqcParams> HqcKem<P> {
         let c_kem_bytes = ciphertext.as_bytes();
         let c_kem_prime_bytes = c_kem_prime.as_bytes();
 
-        let mut result = 0u8;
-        result |= self.vect_compare(&c_kem_bytes, &c_kem_prime_bytes, c_kem_bytes.len());
-        // Constant-time normalisation matching the reference implementation:
-        //   result = (uint8_t)(-((int16_t)result) >> 15)
-        // Maps 0 → 0x00, any non-zero → 0xFF.
-        let neg = (-(result as i16)) as u16;
-        result = (neg >> 15) as u8; // 0 or 1
-        result = (-(result as i8)) as u8; // 0x00 or 0xFF
-        // Invert: 0xFF = ciphertexts match (select k_prime),
-        //         0x00 = mismatch (select k_bar).
-        result = !result;
-
-        // Select final shared secret
-        #[cfg(feature = "zeroize")]
+        #[cfg(feature = "hardened")]
         let kem_shared_secret = {
-            let mut k_prime = Zeroizing::new([0u8; 32]);
-            k_prime.copy_from_slice(&k_theta_prime[..32]);
-            for i in 0..32 {
-                k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+            use subtle::ConstantTimeEq;
+            let equal = c_kem_bytes.ct_eq(&c_kem_prime_bytes);
+            #[cfg(feature = "zeroize")]
+            {
+                let mut k_prime = Zeroizing::new([0u8; 32]);
+                k_prime.copy_from_slice(&k_theta_prime[..32]);
+                let out = select_shared_secret_ct(equal, &k_prime, &k_bar);
+                HqcKemSharedSecret::new(out)
             }
-            HqcKemSharedSecret::new(*k_prime)
+            #[cfg(not(feature = "zeroize"))]
+            {
+                let mut k_prime = [0u8; 32];
+                k_prime.copy_from_slice(&k_theta_prime[..32]);
+                let out = select_shared_secret_ct(equal, &k_prime, &k_bar);
+                HqcKemSharedSecret::new(out)
+            }
         };
-        #[cfg(not(feature = "zeroize"))]
+
+        #[cfg(not(feature = "hardened"))]
         let kem_shared_secret = {
-            let mut k_prime = [0u8; 32]; // SHARED_SECRET_BYTES
-            k_prime.copy_from_slice(&k_theta_prime[..32]);
-            for i in 0..32 {
-                k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+            let mut result = 0u8;
+            result |= self.vect_compare(&c_kem_bytes, &c_kem_prime_bytes, c_kem_bytes.len());
+            // Constant-time normalisation matching the reference implementation:
+            //   result = (uint8_t)(-((int16_t)result) >> 15)
+            // Maps 0 → 0x00, any non-zero → 0xFF.
+            let neg = (-(result as i16)) as u16;
+            result = (neg >> 15) as u8; // 0 or 1
+            result = (-(result as i8)) as u8; // 0x00 or 0xFF
+            // Invert: 0xFF = ciphertexts match (select k_prime),
+            //         0x00 = mismatch (select k_bar).
+            result = !result;
+
+            #[cfg(feature = "zeroize")]
+            {
+                let mut k_prime = Zeroizing::new([0u8; 32]);
+                k_prime.copy_from_slice(&k_theta_prime[..32]);
+                for i in 0..32 {
+                    k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+                }
+                HqcKemSharedSecret::new(*k_prime)
             }
-            HqcKemSharedSecret::new(k_prime)
+            #[cfg(not(feature = "zeroize"))]
+            {
+                let mut k_prime = [0u8; 32]; // SHARED_SECRET_BYTES
+                k_prime.copy_from_slice(&k_theta_prime[..32]);
+                for i in 0..32 {
+                    k_prime[i] = (k_prime[i] & result) ^ (k_bar[i] & !result);
+                }
+                HqcKemSharedSecret::new(k_prime)
+            }
         };
 
         #[cfg(feature = "zeroize")]
@@ -351,7 +384,8 @@ impl<P: HqcParams> HqcKem<P> {
         Ok(())
     }
 
-    /// Vector comparison
+    /// Vector comparison (non-hardened decapsulation path).
+    #[cfg(not(feature = "hardened"))]
     fn vect_compare(&self, a: &[u8], b: &[u8], len: usize) -> u8 {
         let mut result = 0u8;
         for i in 0..len {
@@ -455,6 +489,53 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         result.extend_from_slice(&self.seed_kem);
         result
     }
+
+    /// Serialize to NIST `CRYPTO_SECRETKEYBYTES` layout: `dk_pke` ‖ `sigma` ‖ `ek_pke`.
+    #[cfg(feature = "alloc")]
+    pub fn to_nist_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(P::NIST_SECRET_KEY_BYTES);
+        out.extend_from_slice(&self.dk_pke.data);
+        out.extend_from_slice(&self.sigma);
+        out.extend_from_slice(&self.ek_pke.data);
+        out
+    }
+
+    /// Parse NIST `CRYPTO_SECRETKEYBYTES` (`dk_pke` ‖ `sigma` ‖ `ek_pke`).
+    ///
+    /// `seed_kem` is not part of the NIST wire format; a zero placeholder is stored because
+    /// decapsulation only needs `(ek_pke, dk_pke, sigma)`.
+    #[cfg(feature = "alloc")]
+    pub fn from_nist_bytes(bytes: &[u8]) -> Result<Self, HqcKemError> {
+        if bytes.len() != P::NIST_SECRET_KEY_BYTES {
+            return Err(HqcKemError::InvalidKey);
+        }
+        let mut dk = [0u8; 32];
+        dk.copy_from_slice(&bytes[..32]);
+        let mut sigma = [0u8; 16];
+        sigma.copy_from_slice(&bytes[32..48]);
+        let ek_bytes = &bytes[48..];
+        if ek_bytes.len() != P::PUBLIC_KEY_BYTES {
+            return Err(HqcKemError::InvalidKey);
+        }
+        let ek_pke = HqcPkePublicKey::new(ek_bytes.to_vec());
+        let dk_pke = HqcPkeSecretKey::new(dk);
+        let seed_kem = [0u8; 48];
+        Ok(Self::new(ek_pke, dk_pke, sigma, seed_kem))
+    }
+}
+
+#[cfg(feature = "hardened")]
+fn select_shared_secret_ct(
+    equal: subtle::Choice,
+    k_prime: &[u8; 32],
+    k_bar: &[u8; 32],
+) -> [u8; 32] {
+    use subtle::ConditionallySelectable;
+    let mut out = [0u8; 32];
+    for i in 0..32 {
+        out[i] = u8::conditional_select(&k_bar[i], &k_prime[i], equal);
+    }
+    out
 }
 
 /// HQC KEM Ciphertext
@@ -544,64 +625,3 @@ impl From<HqcPkeError> for HqcKemError {
         HqcKemError::PkeError(error)
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::params_correct::{Hqc1Params, HqcParams};
-    // Note: Using a simple RNG for testing - in production use proper crypto RNG
-
-    #[test]
-    fn test_hqc_kem_creation() {
-        let kem = HqcKem::<Hqc1Params>::new();
-        assert!(kem.is_ok());
-    }
-
-    #[test]
-    fn test_hqc_kem_keygen() {
-        let kem = HqcKem::<Hqc1Params>::new().unwrap();
-        let mut rng = ChaCha20Rng::from_seed([42u8; 32]);
-
-        let (public_key, secret_key) = kem.keygen(&mut rng).unwrap();
-
-        // Verify key sizes
-        assert_eq!(public_key.as_bytes().len(), Hqc1Params::PUBLIC_KEY_BYTES);
-        assert_eq!(secret_key.as_bytes().len(), Hqc1Params::SECRET_KEY_BYTES);
-    }
-
-    #[test]
-    fn test_hqc_kem_encapsulate_decapsulate() {
-        let kem = HqcKem::<Hqc1Params>::new().unwrap();
-        let mut rng = ChaCha20Rng::from_seed([42u8; 32]);
-
-        // Generate key pair
-        let (public_key, secret_key) = kem.keygen(&mut rng).unwrap();
-
-        // Encapsulate
-        let (ciphertext, shared_secret) = kem.encapsulate(&public_key, &mut rng).unwrap();
-
-        // Decapsulate
-        let decapsulated_secret = kem.decapsulate(&secret_key, &ciphertext).unwrap();
-
-        // Verify
-        assert_eq!(shared_secret.as_bytes(), decapsulated_secret.as_bytes());
-    }
-
-    #[test]
-    fn test_hqc_kem_full_cycle() {
-        let kem = HqcKem::<Hqc1Params>::new().unwrap();
-        let mut rng = ChaCha20Rng::from_seed([42u8; 32]);
-
-        // Generate key pair
-        let (public_key, secret_key) = kem.keygen(&mut rng).unwrap();
-
-        // Multiple encapsulate/decapsulate cycles
-        for _ in 0..10 {
-            let (ciphertext, shared_secret) = kem.encapsulate(&public_key, &mut rng).unwrap();
-            let decapsulated_secret = kem.decapsulate(&secret_key, &ciphertext).unwrap();
-            assert_eq!(shared_secret.as_bytes(), decapsulated_secret.as_bytes());
-        }
-    }
-}
-*/

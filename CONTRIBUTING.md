@@ -39,7 +39,7 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 For full development workflow, CI/CD pipeline, and troubleshooting, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### Prerequisites
-- Rust 1.94.1+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
+- Rust 1.96.0+ (see [Cargo.toml](Cargo.toml) `rust-version`; latest stable recommended)
 - `wasm-pack` for WASM compilation
 - `cargo-audit` for security audits
 - `cargo-tarpaulin` for code coverage

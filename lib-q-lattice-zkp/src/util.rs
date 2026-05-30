@@ -56,6 +56,28 @@ pub fn module_infinity_norm(v: &[Poly]) -> i32 {
     v.iter().map(Poly::infinity_norm).max().unwrap_or(0)
 }
 
+/// Constant-time infinity-norm bound check: returns `1` iff every coefficient of every
+/// polynomial in `v` is within `bound` (inclusive).
+#[must_use]
+pub fn module_norm_within_bound(v: &[Poly], bound: i32) -> subtle::Choice {
+    lib_q_ring::polys_norm_within_bound(v, bound)
+}
+
+/// Map every coefficient into canonical `[0, q)` (public transcript normalization).
+pub(crate) fn canonicalize_poly_mod_q(p: &mut Poly) {
+    let q = lib_q_ring::constants::FIELD_MODULUS;
+    for c in &mut p.coeffs {
+        *c = c.rem_euclid(q);
+    }
+}
+
+/// [`canonicalize_poly_mod_q`] on each polynomial in `polys`.
+pub(crate) fn canonicalize_polys_mod_q(polys: &mut [Poly]) {
+    for p in polys {
+        canonicalize_poly_mod_q(p);
+    }
+}
+
 /// Constant-time lexicographic equality of serialized coefficient vectors.
 pub fn polys_ct_eq(a: &[Poly], b: &[Poly]) -> Choice {
     if a.len() != b.len() {

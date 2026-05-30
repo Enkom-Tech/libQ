@@ -18,14 +18,27 @@ use crate::error::{
     ProofError,
     VerifyError,
 };
-use crate::serialize::write_module_vec;
 use crate::sigma::opening::{
     self,
     OpeningProof,
 };
+#[cfg(not(feature = "hardened"))]
+use crate::sigma::secrets::accumulate_response_z;
+#[cfg(feature = "hardened")]
+use crate::sigma::secrets::{
+    MaskedWitness,
+    accumulate_response_z_masked,
+};
+use crate::sigma::secrets::{
+    SecretMaskVec,
+    SecretWitnessVec,
+    scrub_rejected_opening_parts,
+    zeroize_module_vec,
+};
+#[cfg(not(feature = "hardened"))]
+use crate::util::module_infinity_norm;
 use crate::util::{
     module_add,
-    module_infinity_norm,
     module_ring_mul_challenge,
     polys_ct_eq,
 };
@@ -56,48 +69,123 @@ pub fn prove_linear<R: Rng + CryptoRng>(
     if l.cols != key.params.witness_len() || l.rows != t.0.len() {
         return Err(ProofError::InvalidParameters);
     }
-    let l_times_wit = l.mul_vec(&ModuleVec(opening::witness_vec(opening)));
+    let wit_vec = opening::witness_vec(opening);
+    let l_times_wit = l.mul_vec_polys(&wit_vec);
     if l_times_wit.0.len() != t.0.len() || !bool::from(polys_ct_eq(&l_times_wit.0, &t.0)) {
         return Err(ProofError::InvalidParameters);
     }
 
-    let wit = opening::witness_vec(opening);
+    #[cfg(not(feature = "hardened"))]
+    let wit = SecretWitnessVec::new(wit_vec);
+    #[cfg(feature = "hardened")]
+    let masked_wit = MaskedWitness::split(SecretWitnessVec::new(wit_vec), rng, &key.seed, ctx);
+
     let matrix =
         ModuleMatrix::expand_from_seed(&key.seed, key.params.module_rank, key.params.witness_len());
 
+    #[cfg(feature = "hardened")]
+    let mut candidate_opening_w = ModuleVec(
+        (0..key.params.module_rank)
+            .map(|_| lib_q_ring::Poly::zero())
+            .collect(),
+    );
+    #[cfg(feature = "hardened")]
+    let mut candidate_opening_z = ModuleVec(
+        (0..key.params.witness_len())
+            .map(|_| lib_q_ring::Poly::zero())
+            .collect(),
+    );
+    #[cfg(feature = "hardened")]
+    let mut candidate_u = ModuleVec((0..l.rows).map(|_| lib_q_ring::Poly::zero()).collect());
+    #[cfg(feature = "hardened")]
+    let mut have_success = subtle::Choice::from(0u8);
+
     for _ in 0..max_attempts {
-        let y: alloc::vec::Vec<_> = (0..wit.len())
-            .map(|_| opening::sample_uniform_poly(rng))
-            .collect();
-        let w = matrix.mul_vec(&ModuleVec(y.clone()));
-        let u = l.mul_vec(&ModuleVec(y.clone()));
-
-        let mut h = lib_q_sha3::Shake256::default();
-        lib_q_sha3::Update::update(&mut h, ctx);
-        lib_q_sha3::Update::update(&mut h, &write_module_vec(&w.0));
-        let mut reader = lib_q_sha3::ExtendableOutput::finalize_xof(h);
-        let mut xof_seed = [0u8; 32];
-        lib_q_sha3::XofReader::read(&mut reader, &mut xof_seed);
-        let c = lib_q_ring::sample_in_ball(&xof_seed, tau);
-
-        let mut z = alloc::vec::Vec::with_capacity(wit.len());
-        for (yi, wi) in y.iter().zip(wit.iter()) {
-            let mut tp = yi.clone();
-            tp.add_assign(&crate::util::ring_mul(&c, wi));
-            z.push(tp);
+        let y = SecretMaskVec::new(
+            (0..key.params.witness_len())
+                .map(|_| opening::sample_uniform_poly(rng))
+                .collect::<alloc::vec::Vec<_>>(),
+        );
+        #[cfg_attr(feature = "hardened", allow(unused_mut))]
+        let mut w = matrix.mul_vec_polys(y.as_slice());
+        #[cfg_attr(feature = "hardened", allow(unused_mut))]
+        let mut u = l.mul_vec_polys(y.as_slice());
+        #[cfg(not(feature = "hardened"))]
+        opening::normalize_polys_mod_q_for_fs(&mut w.0);
+        #[cfg(feature = "hardened")]
+        for p in &mut w.0 {
+            p.normalize_mod_q_assign();
         }
 
-        if module_infinity_norm(&z) <= z_inf_bound {
-            let proof = LinearRelationProof {
-                opening: OpeningProof { w, z: ModuleVec(z) },
+        let c = opening::fs_sparse_challenge(ctx, &w.0, tau);
+
+        #[cfg(not(feature = "hardened"))]
+        let z = accumulate_response_z(&y, &c, &wit);
+        #[cfg(feature = "hardened")]
+        let z = accumulate_response_z_masked(&y, &c, &masked_wit);
+
+        #[cfg(not(feature = "hardened"))]
+        {
+            if module_infinity_norm(z.as_slice()) > z_inf_bound {
+                zeroize_module_vec(&mut w);
+                zeroize_module_vec(&mut u);
+                continue;
+            }
+
+            let mut proof = LinearRelationProof {
+                opening: OpeningProof {
+                    w,
+                    z: ModuleVec(z.into_public()),
+                },
                 u,
             };
-            // Keep sampling unless the full linear verification equation accepts this transcript.
             if verify_linear(key, com, &proof, l, t, ctx, tau, z_inf_bound).is_ok() {
                 return Ok(proof);
             }
+            scrub_rejected_opening_parts(&mut proof.opening.w, &mut proof.opening.z.0);
+            zeroize_module_vec(&mut proof.u);
+        }
+
+        #[cfg(feature = "hardened")]
+        {
+            let within = crate::hardened::response_within_bound(z.as_slice(), z_inf_bound);
+            let mut proof = LinearRelationProof {
+                opening: OpeningProof {
+                    w,
+                    z: ModuleVec(z.into_public()),
+                },
+                u,
+            };
+            let verify_ok = verify_linear(key, com, &proof, l, t, ctx, tau, z_inf_bound).is_ok();
+            let accept = crate::hardened::accept_transcript(within, verify_ok);
+            let take = crate::hardened::first_accept_take(accept, have_success);
+            crate::hardened::ct_select_polys(&mut candidate_opening_w.0, &proof.opening.w.0, take);
+            crate::hardened::ct_select_polys(&mut candidate_opening_z.0, &proof.opening.z.0, take);
+            crate::hardened::ct_select_polys(&mut candidate_u.0, &proof.u.0, take);
+            have_success = crate::hardened::fold_accept_seen(have_success, accept);
+            scrub_rejected_opening_parts(&mut proof.opening.w, &mut proof.opening.z.0);
+            zeroize_module_vec(&mut proof.u);
         }
     }
+
+    #[cfg(feature = "hardened")]
+    return {
+        if bool::from(have_success) {
+            Ok(LinearRelationProof {
+                opening: OpeningProof {
+                    w: candidate_opening_w,
+                    z: candidate_opening_z,
+                },
+                u: candidate_u,
+            })
+        } else {
+            scrub_rejected_opening_parts(&mut candidate_opening_w, &mut candidate_opening_z.0);
+            zeroize_module_vec(&mut candidate_u);
+            Err(ProofError::RejectionLimit)
+        }
+    };
+
+    #[cfg(not(feature = "hardened"))]
     Err(ProofError::RejectionLimit)
 }
 
@@ -118,13 +206,7 @@ pub fn verify_linear(
         return Err(VerifyError::InvalidFormat);
     }
 
-    let mut h = lib_q_sha3::Shake256::default();
-    lib_q_sha3::Update::update(&mut h, ctx);
-    lib_q_sha3::Update::update(&mut h, &write_module_vec(&proof.opening.w.0));
-    let mut reader = lib_q_sha3::ExtendableOutput::finalize_xof(h);
-    let mut xof_seed = [0u8; 32];
-    lib_q_sha3::XofReader::read(&mut reader, &mut xof_seed);
-    let c = lib_q_ring::sample_in_ball(&xof_seed, tau);
+    let c = opening::fs_sparse_challenge(ctx, &proof.opening.w.0, tau);
 
     let lhs = l.mul_vec(&proof.opening.z);
     let rhs = module_add(&proof.u.0, &module_ring_mul_challenge(&c, &t.0))?;

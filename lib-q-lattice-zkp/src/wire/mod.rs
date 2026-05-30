@@ -1,0 +1,50 @@
+//! `lattice_zkp_wire_v0` canonical encodings (version byte + profile id + tagged payload).
+
+mod pack;
+mod v0;
+
+pub use pack::{
+    bias_to_signed,
+    coeff_to_unsigned,
+    pack_bounded_z_poly,
+    pack_rq_module,
+    pack_rq_poly,
+    pack_z_module,
+    signed_to_bias,
+    unpack_bounded_z_poly,
+    unpack_rq_module,
+    unpack_rq_poly,
+    unpack_z_module,
+};
+pub use v0::{
+    BlindIssuanceWireV0,
+    MAX_WIRE_BYTES_AMORTISED_V0,
+    MAX_WIRE_BYTES_BLIND_ISSUANCE_V0,
+    MAX_WIRE_BYTES_DUAL_RING_V0,
+    MAX_WIRE_BYTES_LINEAR_V0,
+    MAX_WIRE_BYTES_NULLIFIER_V0,
+    MAX_WIRE_BYTES_OPENING_V0,
+    MAX_WIRE_BYTES_PVTN_V0,
+    MAX_WIRE_BYTES_SPENDING_V0,
+    ProofKindV0,
+    WIRE_ENVELOPE_HEADER_LEN,
+    decode_amortised_proof_v0,
+    decode_blind_issuance_v0,
+    decode_dual_ring_opening_proof_v0,
+    decode_linear_relation_proof_v0,
+    decode_nullifier_opening_proof_v0,
+    decode_opening_proof_v0,
+    decode_private_membership_proof_v0,
+    decode_spending_proof_v0,
+    decode_witness_nullifier_opening_proof_v0,
+    encode_amortised_proof_v0,
+    encode_blind_issuance_v0,
+    encode_dual_ring_opening_proof_v0,
+    encode_linear_relation_proof_v0,
+    encode_nullifier_opening_proof_v0,
+    encode_opening_proof_v0,
+    encode_private_membership_proof_v0,
+    encode_spending_proof_v0,
+    encode_witness_nullifier_opening_proof_v0,
+    wire_byte_len,
+};
