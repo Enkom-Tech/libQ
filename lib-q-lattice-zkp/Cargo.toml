@@ -22,10 +22,6 @@ wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = { workspace = true }
-hex = { workspace = true }
-criterion = { workspace = true }
-lib-q-random = { path = "../lib-q-random", features = ["std"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false, features = ["privacy"] }
 
 [[test]]
 name = "hardened_dudect_smoke"
@@ -39,6 +35,9 @@ required-features = ["hardened"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 hex = { workspace = true }
+criterion = { workspace = true }
+lib-q-random = { path = "../lib-q-random", features = ["std"] }
+lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false, features = ["privacy"] }
 proptest = { workspace = true }
 rand_core = { workspace = true }
 
