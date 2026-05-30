@@ -1212,7 +1212,7 @@ jobs:
       - name: ML-DSA hardened timing smoke (dudect-style)
         run: |
           cd lib-q-ml-dsa
-          cargo test --features "hardened,random,mldsa44" --test hardened_dudect_smoke --verbose
+          cargo test --features "hardened,random,mldsa44,dudect-smoke-tests" --test hardened_dudect_smoke --verbose
 
       - name: lib-q-lattice-zkp hardened timing smoke (dudect-style)
         run: |
