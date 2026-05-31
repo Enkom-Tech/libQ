@@ -1127,9 +1127,16 @@ jobs:
       - name: Verify published Rust crate
         run: |
           VERSION=${{ needs.pre-release-validation.outputs.version }}
-          echo "Verifying Rust crate version $VERSION..."
-          cargo install --version $VERSION lib-q
-          echo "✅ Rust crate verification successful"
+          echo "Verifying lib-q $VERSION is published on crates.io..."
+          curl -sf "https://crates.io/api/v1/crates/lib-q/${VERSION}" \
+            | grep -q "\"num\":\"${VERSION}\"" \
+            || { echo "❌ lib-q ${VERSION} not found on crates.io"; exit 1; }
+          VERIFY_DIR="$(mktemp -d)"
+          cd "$VERIFY_DIR"
+          cargo init --lib --name libq_post_release_verify --quiet
+          cargo add "lib-q@=${VERSION}" --quiet
+          cargo check --quiet
+          echo "✅ Rust crate verification successful (resolved and compiled from crates.io)"
       
       - name: Verify published WASM packages (ESM import + smoke export)
         env:
