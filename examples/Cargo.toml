@@ -9,14 +9,14 @@ license.workspace = true
 
 [dependencies]
 # Match typical umbrella usage: registry, signatures, and CB-KEM examples (`cb-kem` feature below).
-libq = { path = "../lib-q", version = "0.0.4", package = "lib-q", features = ["ml-dsa", "slh-dsa"] }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.4" }
-lib-q-core = { path = "../lib-q-core", version = "0.0.4" }
-lib-q-kem = { path = "../lib-q-kem", version = "0.0.4", features = ["ml-kem"] }
-lib-q-sig = { path = "../lib-q-sig", version = "0.0.4", features = ["std", "ml-dsa"] }
-lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.4", default-features = false, features = ["std", "mldsa44", "mldsa65", "mldsa87"] }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.4", default-features = false }
-lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.4" }
+libq = { path = "../lib-q", version = "0.0.5", package = "lib-q", features = ["ml-dsa", "slh-dsa"] }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.5" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.5" }
+lib-q-kem = { path = "../lib-q-kem", version = "0.0.5", features = ["ml-kem"] }
+lib-q-sig = { path = "../lib-q-sig", version = "0.0.5", features = ["std", "ml-dsa"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.5", default-features = false, features = ["std", "mldsa44", "mldsa65", "mldsa87"] }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.5", default-features = false }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.5" }
 
 [features]
 default = ["cb-kem"]

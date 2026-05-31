@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-fn-dsa-kgen"
-version = "0.0.4"
+version = "0.0.5"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -15,7 +15,7 @@ rust-version.workspace = true
 name = "fn_dsa_kgen"
 
 [dependencies]
-lib-q-fn-dsa-comm = { version = "0.0.4", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-comm = { version = "0.0.5", path = "../fn-dsa-comm" }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]

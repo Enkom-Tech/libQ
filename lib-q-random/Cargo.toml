@@ -14,10 +14,10 @@ keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.4", features = ["alloc"], optional = true }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.4", optional = true }
-lib-q-k12 = { path = "../lib-q-k12", version = "0.0.4", default-features = false }
-lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.4", default-features = false, optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.5", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.5", optional = true }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.5", default-features = false }
+lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.5", default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }

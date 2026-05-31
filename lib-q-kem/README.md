@@ -21,7 +21,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-kem = { version = "0.0.2", features = ["ml-kem"] }
+lib-q-kem = { version = "0.0.5", features = ["ml-kem"] }
 ```
 
 Basic usage:
@@ -109,7 +109,7 @@ Example:
 
 ```toml
 [dependencies]
-lib-q-kem = { version = "0.0.2", features = ["ml-kem"] }
+lib-q-kem = { version = "0.0.5", features = ["ml-kem"] }
 ```
 
 ## Testing

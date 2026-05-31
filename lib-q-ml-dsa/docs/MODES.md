@@ -39,7 +39,7 @@ FIPS mode uses the exact algorithms specified in FIPS 204:
 
 ```toml
 [dependencies]
-lib-q-ml-dsa = { version = "0.0.2", features = ["fips-mode", "mldsa44"] }
+lib-q-ml-dsa = { version = "0.0.5", features = ["fips-mode", "mldsa44"] }
 ```
 
 ## Hardened Mode (`hardened` feature)
@@ -88,7 +88,7 @@ hardening at the SIMD decomposition and hint primitives.
 
 ```toml
 [dependencies]
-lib-q-ml-dsa = { version = "0.0.2", features = ["hardened", "mldsa44"] }
+lib-q-ml-dsa = { version = "0.0.5", features = ["hardened", "mldsa44"] }
 ```
 
 ## Feature Dependencies

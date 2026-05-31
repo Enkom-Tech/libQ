@@ -24,7 +24,7 @@ Add to `Cargo.toml`:
 # From another workspace member, use a path dependency:
 lib-q-plonky = { path = "../lib-q-plonky", features = ["full"] }
 # or crates.io once published:
-# lib-q-plonky = { version = "0.0.2", features = ["full"] }
+# lib-q-plonky = { version = "0.0.5", features = ["full"] }
 ```
 
 All components are built on the `lib-q-stark-*` primitives (SHAKE256-oriented pipeline).

@@ -29,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-fn-dsa = { version = "0.0.2", default-features = false, features = ["no_std", "alloc"] }
+lib-q-fn-dsa = { version = "0.0.5", default-features = false, features = ["no_std", "alloc"] }
 ```
 
 ## Basic Usage

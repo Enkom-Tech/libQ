@@ -132,10 +132,10 @@ TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross
 
 ## Versioning
 
-All packages share the workspace version (e.g. `0.0.2`) on release. Pin in production:
+All packages share the workspace version (e.g. `0.0.5`) on release. Pin in production:
 
 ```bash
-npm install @lib-q/core@0.0.2 @lib-q/zkp@0.0.2
+npm install @lib-q/core@0.0.5 @lib-q/zkp@0.0.5
 ```
 
 ## Security
