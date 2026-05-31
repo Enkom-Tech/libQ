@@ -10,8 +10,8 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.4" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.4" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.5" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.5" }
 digest = { workspace = true }
 
 [lints.rust]

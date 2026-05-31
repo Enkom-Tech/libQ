@@ -29,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-fn-dsa = { version = "0.0.2", features = ["wasm"] }
+lib-q-fn-dsa = { version = "0.0.5", features = ["wasm"] }
 ```
 
 ## Basic Usage
