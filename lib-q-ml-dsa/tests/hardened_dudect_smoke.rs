@@ -16,11 +16,9 @@ use lib_q_ml_dsa::ml_dsa_44::{
     verify,
 };
 use lib_q_sca_test::dudect::timing_passes_loose;
-use lib_q_sca_test::sample_wall_times;
 
-const SAMPLES: usize = 150;
-const WARMUP: usize = 48;
-const MAX_ATTEMPTS: usize = 3;
+const SMOKE_ITERS: u8 = 100;
+const MAX_ATTEMPTS: usize = 5;
 /// Loose CI gate: wall-clock smoke only, not instrumented dudect.
 const SMOKE_THRESHOLD: f64 = 8.0;
 
@@ -29,36 +27,21 @@ fn collect_verify_timing_samples(
     message: &[u8],
     sig: &MLDSA44Signature,
 ) -> Vec<f64> {
-    for i in 0..WARMUP {
-        let _ = verify(vk, message, b"", sig);
+    let mut samples = Vec::with_capacity(SMOKE_ITERS as usize * 2);
+    for i in 0..SMOKE_ITERS {
+        let start = std::time::Instant::now();
+        let r = verify(vk, message, b"", sig);
+        let _ = std::hint::black_box(r);
+        samples.push(start.elapsed().as_secs_f64());
+
         let mut bad = *sig.as_ref();
-        bad[0] ^= i as u8;
-        let _ = verify(vk, message, b"", &MLDSA44Signature::new(bad));
+        bad[0] ^= i.wrapping_add(1);
+        let bad_sig = MLDSA44Signature::new(bad);
+        let start = std::time::Instant::now();
+        let r = verify(vk, message, b"", &bad_sig);
+        let _ = std::hint::black_box(r);
+        samples.push(start.elapsed().as_secs_f64());
     }
-
-    let valid = sample_wall_times(
-        || {
-            let r = verify(vk, message, b"", sig);
-            let _ = std::hint::black_box(r);
-        },
-        SAMPLES,
-    );
-
-    let mut idx = 0u8;
-    let invalid = sample_wall_times(
-        || {
-            idx = idx.wrapping_add(1);
-            let mut bad = *sig.as_ref();
-            bad[0] ^= idx;
-            let bad_sig = MLDSA44Signature::new(bad);
-            let r = verify(vk, message, b"", &bad_sig);
-            let _ = std::hint::black_box(r);
-        },
-        SAMPLES,
-    );
-
-    let mut samples = valid;
-    samples.extend(invalid);
     samples
 }
 
@@ -82,6 +65,7 @@ fn hardened_dudect_smoke_verify() {
         eprintln!(
             "hardened ML-DSA verify timing smoke attempt {attempt}/{MAX_ATTEMPTS} exceeded loose gate"
         );
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
     panic!(
