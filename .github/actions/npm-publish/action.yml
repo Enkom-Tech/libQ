@@ -37,6 +37,8 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+        always-auth: true
 
     # npm 11.6.2+ fixes misleading E404 on publish (token + provenance / trusted publishing).
     - name: Upgrade npm CLI
@@ -141,6 +143,13 @@ runs:
         publish_once() {
           npm publish "${publish_args[@]}" "$@"
         }
+
+        if [ -n "$NODE_AUTH_TOKEN" ]; then
+          {
+            echo "@lib-q:registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}"
+          } >> "$HOME/.npmrc"
+        fi
         
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package-name }}"
