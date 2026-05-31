@@ -144,6 +144,10 @@ runs:
           npm publish "${publish_args[@]}" "$@"
         }
 
+        npm_already_published() {
+          grep -qE 'cannot publish over the previously published|You cannot publish over the previously published|403 Forbidden.*previously published' "$1"
+        }
+
         if [ -n "$NODE_AUTH_TOKEN" ]; then
           {
             echo "@lib-q:registry=https://registry.npmjs.org/"
@@ -157,27 +161,49 @@ runs:
         elif [ -n "$NODE_AUTH_TOKEN" ]; then
           log="$(mktemp)"
           echo "Publishing with NODE_AUTH_TOKEN"
-          if publish_once 2>&1 | tee "$log"; then
-            :
-          elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
-            echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
-            unset NODE_AUTH_TOKEN
-            if ! publish_once 2>&1 | tee "$log"; then
-              echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
+          set +e
+          publish_once 2>&1 | tee "$log"
+          publish_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$publish_status" -ne 0 ]; then
+            if npm_already_published "$log"; then
+              echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
+            elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
+              echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
+              unset NODE_AUTH_TOKEN
+              set +e
+              publish_once 2>&1 | tee "$log"
+              publish_status=${PIPESTATUS[0]}
+              set -e
+              if [ "$publish_status" -ne 0 ]; then
+                if npm_already_published "$log"; then
+                  echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
+                else
+                  echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
+                  cat "$log"
+                  exit 1
+                fi
+              fi
+            else
               cat "$log"
-              exit 1
+              exit "$publish_status"
             fi
-          else
-            cat "$log"
-            exit 1
           fi
         else
           log="$(mktemp)"
           echo "Publishing with npm trusted publishing (OIDC)"
-          if ! publish_once 2>&1 | tee "$log"; then
-            echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
-            cat "$log"
-            exit 1
+          set +e
+          publish_once 2>&1 | tee "$log"
+          publish_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$publish_status" -ne 0 ]; then
+            if npm_already_published "$log"; then
+              echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
+            else
+              echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
+              cat "$log"
+              exit 1
+            fi
           fi
         fi
         
