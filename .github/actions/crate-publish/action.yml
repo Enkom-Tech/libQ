@@ -53,20 +53,34 @@ runs:
           echo "Dry run mode - would publish ${{ inputs.package }}"
           cargo publish -p ${{ inputs.package }} --dry-run
         else
-          set +e
-          publish_output="$(cargo publish -p ${{ inputs.package }} 2>&1)"
-          publish_status=$?
-          set -e
-          if [ "$publish_status" -ne 0 ]; then
+          max_attempts=6
+          attempt=1
+          while [ "$attempt" -le "$max_attempts" ]; do
+            set +e
+            publish_output="$(cargo publish -p ${{ inputs.package }} 2>&1)"
+            publish_status=$?
+            set -e
+            if [ "$publish_status" -eq 0 ]; then
+              echo "$publish_output"
+              break
+            fi
             if echo "$publish_output" | grep -qE 'already uploaded|already exists on crates\.io'; then
               echo "${{ inputs.package }} is already on crates.io; skipping"
-            else
-              echo "$publish_output"
-              exit "$publish_status"
+              break
             fi
-          else
+            if echo "$publish_output" | grep -qE '429 Too Many Requests|rate limit|too many updates'; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                sleep_secs=$((attempt * 90))
+                echo "crates.io rate limit hit for ${{ inputs.package }}; retry $attempt/$max_attempts after ${sleep_secs}s"
+                echo "$publish_output"
+                sleep "$sleep_secs"
+                attempt=$((attempt + 1))
+                continue
+              fi
+            fi
             echo "$publish_output"
-          fi
+            exit "$publish_status"
+          done
         fi
         
         echo "Successfully published ${{ inputs.package }}"
