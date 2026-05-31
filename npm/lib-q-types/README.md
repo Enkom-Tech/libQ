@@ -5,5 +5,5 @@ TypeScript typings for @lib-q WASM packages
 ## Install
 
 ```bash
-npm install @lib-q/types@0.0.2
+npm install @lib-q/types@0.0.5
 ```

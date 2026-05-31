@@ -10,14 +10,14 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.4" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.4" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.5" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.5" }
 
 itertools = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.4" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.5" }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
