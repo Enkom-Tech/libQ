@@ -63,7 +63,22 @@ async function main() {
     console.log("OK", ${quotedPkg}, "init()");
     return;
   }
-  throw new Error("No wasm initializer (default/init) on " + ${quotedPkg});
+  if (typeof m.initSync === "function") {
+    m.initSync();
+    console.log("OK", ${quotedPkg}, "initSync()");
+    return;
+  }
+  if (typeof m.init_wasm === "function") {
+    m.init_wasm();
+    console.log("OK", ${quotedPkg}, "init_wasm()");
+    return;
+  }
+  // Node dual-target glue (nodejs/*.js) loads WASM at import time.
+  if (Object.keys(m).length > 0) {
+    console.log("OK", ${quotedPkg}, "auto-init node glue");
+    return;
+  }
+  throw new Error("No wasm initializer (default/init/initSync/init_wasm) on " + ${quotedPkg});
 }
 main().catch((e) => {
   console.error(e);
