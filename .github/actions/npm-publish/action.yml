@@ -136,53 +136,39 @@ runs:
       run: |
         echo "Publishing NPM package..."
         cd ${{ inputs.working-directory }}
-        
-        if [ -z "$NODE_AUTH_TOKEN" ]; then
-          echo "::error::NODE_AUTH_TOKEN is empty. NPM publish requires a valid token (e.g. secrets.NPM_TOKEN)."
-          exit 1
-        fi
-        
-        publish_args=(--access public)
-        if [ -z "$NODE_AUTH_TOKEN" ]; then
-          # Trusted publishing (OIDC): provenance is applied automatically; do not pass --provenance.
-          echo "Publishing with npm trusted publishing (OIDC)"
-        else
-          # Granular/classic tokens often return misleading E404 when combined with --provenance.
-          echo "Publishing with NODE_AUTH_TOKEN (no --provenance flag)"
-        fi
 
+        publish_args=(--access public)
         publish_once() {
           npm publish "${publish_args[@]}" "$@"
         }
-
+        
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package-name }}"
           publish_once --dry-run
-        else
+        elif [ -n "$NODE_AUTH_TOKEN" ]; then
           log="$(mktemp)"
-          if [ -n "$NODE_AUTH_TOKEN" ]; then
-            echo "Publishing with NODE_AUTH_TOKEN"
-            if publish_once 2>&1 | tee "$log"; then
-              :
-            elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
-              echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
-              unset NODE_AUTH_TOKEN
-              if ! publish_once 2>&1 | tee "$log"; then
-                echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
-                cat "$log"
-                exit 1
-              fi
-            else
+          echo "Publishing with NODE_AUTH_TOKEN"
+          if publish_once 2>&1 | tee "$log"; then
+            :
+          elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
+            echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
+            unset NODE_AUTH_TOKEN
+            if ! publish_once 2>&1 | tee "$log"; then
+              echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
               cat "$log"
               exit 1
             fi
           else
-            echo "Publishing with npm trusted publishing (OIDC)"
-            if ! publish_once 2>&1 | tee "$log"; then
-              echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
-              cat "$log"
-              exit 1
-            fi
+            cat "$log"
+            exit 1
+          fi
+        else
+          log="$(mktemp)"
+          echo "Publishing with npm trusted publishing (OIDC)"
+          if ! publish_once 2>&1 | tee "$log"; then
+            echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
+            cat "$log"
+            exit 1
           fi
         fi
         
