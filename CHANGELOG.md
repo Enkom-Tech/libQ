@@ -2,7 +2,7 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
-## 0.0.5 (unreleased)
+## 0.0.5
 
 ### Added
 
@@ -21,6 +21,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Changed
 
+- **Workspace:** All crates and path dependency pins aligned to **0.0.5** (shared `[workspace.package]` version).
 - **Workspace:** Removed workspace `rand_chacha` and `rand_xoshiro` dependencies; test-only deterministic RNG call sites now use `lib-q-random` KT128 helpers (`new_deterministic_rng`, `new_deterministic_rng_from_u64`, `new_deterministic_rng_no_std`). Regenerated `lib-q-lattice-zkp` wire v0 KAT hex fixtures under `tests/vectors/`.
 - **`lib-q-lattice-zkp`:** Wire v0 privacy revision — QROM committed-first-message Fiat–Shamir (`fs_w_digest`), hidden PVTN Merkle index + clearance on wire, issuer-keyed blind issuance (`IssuerCommitmentParams`, `issuer_params_digest` on kind `0x08`). PVTN KAT **2558 B** (budget 4096 B).
 - **`lib-q-ring`:** Branch-free `Poly::infinity_norm`; `normalize_mod_q_assign` and `scalar_mul_by_u32_mod_q` for shared ML-DSA / lattice-ZKP hardened paths.

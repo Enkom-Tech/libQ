@@ -58,7 +58,7 @@ Relaxed validation is implemented **inside `lib-q-core`** behind the feature fla
 
 ```toml
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.2", features = ["relaxed_entropy_validation"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.5", features = ["relaxed_entropy_validation"] }
 ```
 
 There is **no** separate `relaxed_entropy_validation` feature on `lib-q-cb-kem` itself—wire `lib-q-core` features through your dependency edge when you need compile-time relaxed checks in CI or tests.

@@ -242,7 +242,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 ### Secrets and publishing auth
 
 - **crates.io**: CD uses `./.github/actions/crates-io-auth`, which prefers the repo secret **`CARGO_REGISTRY_TOKEN`** when set; otherwise it falls back to **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. For OIDC-only runs, configure each published crate under **Settings → Trusted Publishing** with `Enkom-Tech/libQ` + workflow `cd.yml` ([docs](https://crates.io/docs/trusted-publishing)).
-- **npm**: `NPM_TOKEN` — automation token with **publish** access to all `@lib-q/*` packages (maintainer on the scope), **or** configure [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/) on each package (or the `@lib-q` org) for repository `Enkom-Tech/libQ`, workflows `cd.yml` and `npm-publish-only.yml`, environment `github`, ref filter `v*`. If publish fails with `E404` / `ENEEDAUTH` after the OIDC retry, the secret is missing, expired, or trusted publishing is not configured. Recovery without re-tagging: run workflow **NPM Publish Only** (`workflow_dispatch`, version `0.0.4`).
+- **npm**: `NPM_TOKEN` — automation token with **publish** access to all `@lib-q/*` packages (maintainer on the scope), **or** configure [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/) on each package (or the `@lib-q` org) for repository `Enkom-Tech/libQ`, workflows `cd.yml` and `npm-publish-only.yml`, environment `github`, ref filter `v*`. If publish fails with `E404` / `ENEEDAUTH` after the OIDC retry, the secret is missing, expired, or trusted publishing is not configured. Recovery without re-tagging: run workflow **NPM Publish Only** (`workflow_dispatch`, version `0.0.5`).
 
 ### Environment requirements
 
