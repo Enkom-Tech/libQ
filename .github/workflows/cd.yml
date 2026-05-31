@@ -1127,10 +1127,7 @@ jobs:
       - name: Verify published Rust crate
         run: |
           VERSION=${{ needs.pre-release-validation.outputs.version }}
-          echo "Verifying lib-q $VERSION is published on crates.io..."
-          curl -sf "https://crates.io/api/v1/crates/lib-q/${VERSION}" \
-            | grep -q "\"num\":\"${VERSION}\"" \
-            || { echo "❌ lib-q ${VERSION} not found on crates.io"; exit 1; }
+          echo "Verifying lib-q $VERSION resolves and compiles from crates.io..."
           VERIFY_DIR="$(mktemp -d)"
           cd "$VERIFY_DIR"
           cargo init --lib --name libq_post_release_verify --quiet
