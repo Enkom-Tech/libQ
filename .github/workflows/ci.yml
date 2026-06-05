@@ -44,6 +44,9 @@ jobs:
 
       - name: Guard workspace membership, crates.io publish list, and npm packages
         run: bash ./scripts/ci-guard-new-crates-and-npm.sh
+
+      - name: Guard banned terms in new primitive crates
+        run: bash ./scripts/ci-guard-primitive-banned-terms.sh
       
       - name: Core validation
         uses: ./.github/actions/rust-build
@@ -144,6 +147,24 @@ jobs:
           - name: "lib-q-lattice-zkp no_std"
             features: "no_std"
             package: "lib-q-lattice-zkp"
+          - name: "lib-q-mac"
+            features: "std,random"
+            package: "lib-q-mac"
+          - name: "lib-q-threshold-sig"
+            features: "std,random"
+            package: "lib-q-threshold-sig"
+          - name: "lib-q-double-kem"
+            features: "std,random"
+            package: "lib-q-double-kem"
+          - name: "lib-q-threshold-kem"
+            features: "std,random"
+            package: "lib-q-threshold-kem"
+          - name: "lib-q-fhe experimental"
+            features: "fhe"
+            package: "lib-q-fhe"
+          - name: "lib-q-blind-pcs experimental"
+            features: "blind-pcs"
+            package: "lib-q-blind-pcs"
           - name: "lib-q-prf"
             features: "alloc"
             package: "lib-q-prf"

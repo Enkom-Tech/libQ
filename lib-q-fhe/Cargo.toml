@@ -1,0 +1,29 @@
+[package]
+name = "lib-q-fhe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+description = "Experimental toy lattice FHE primitives for demos"
+keywords = ["cryptography", "post-quantum", "fhe", "experimental"]
+categories = ["cryptography"]
+
+[dependencies]
+sha2 = { workspace = true, default-features = false }
+
+[dev-dependencies]
+lib-q-blind-pcs = { path = "../lib-q-blind-pcs", default-features = false, features = ["blind-pcs"] }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+
+[features]
+default = []
+fhe = []
+
+[lib]
+name = "lib_q_fhe"
+path = "src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("fhe"))'] }

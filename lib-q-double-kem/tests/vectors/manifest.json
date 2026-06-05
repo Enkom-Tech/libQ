@@ -1,0 +1,7 @@
+{
+  "baseline_bytes": 2176,
+  "min_savings_percent": 40.0,
+  "regenerate": "cargo test -p lib-q-double-kem kat_regenerate_vectors -- --ignored",
+  "schema": "double-kem-kat-v1",
+  "wire_bytes": 1260
+}

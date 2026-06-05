@@ -932,6 +932,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-blind-pcs"
+version = "0.0.5"
+dependencies = [
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "lib-q-cb-kem"
 version = "0.0.5"
 dependencies = [
@@ -974,6 +981,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-double-kem"
+version = "0.0.5"
+dependencies = [
+ "hex",
+ "lib-q-ml-kem",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-duplex-aead"
 version = "0.0.5"
 dependencies = [
@@ -997,6 +1019,16 @@ dependencies = [
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-sig",
+]
+
+[[package]]
+name = "lib-q-fhe"
+version = "0.0.5"
+dependencies = [
+ "lib-q-blind-pcs",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -1217,6 +1249,21 @@ dependencies = [
  "subtle",
  "wasm-bindgen",
  "wasm-bindgen-test",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-mac"
+version = "0.0.5"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-sha3",
+ "proptest",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
  "zeroize",
 ]
 
@@ -1874,6 +1921,36 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "lib-q-threshold-kem"
+version = "0.0.5"
+dependencies = [
+ "hex",
+ "lib-q-ml-kem",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-threshold-sig"
+version = "0.0.5"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-ring",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
