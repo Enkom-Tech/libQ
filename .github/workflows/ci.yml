@@ -21,6 +21,8 @@ env:
   RUST_BACKTRACE: 1
   # Avoid incremental-cache races that surface as E0460/E0463 with shared `target/` on CI.
   CARGO_INCREMENTAL: "0"
+  # setup-node@v4 and other legacy JS actions; v5+ runs on Node 24 (GH Actions runner default Jun 2026).
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # Core validation pipeline - runs first and fastest
@@ -34,9 +36,9 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Setup Node.js (npm guards)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
       
       - name: Generate cache key
         id: cache-key
@@ -423,9 +425,9 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install wasm-pack
         run: |
