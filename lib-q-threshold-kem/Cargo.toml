@@ -1,0 +1,37 @@
+[package]
+name = "lib-q-threshold-kem"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "PROVISIONAL lattice threshold KEM built on ML-KEM-768 and Shamir shares"
+keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem"]
+categories = ["cryptography"]
+
+[dependencies]
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", default-features = false, features = ["std", "random"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.6", default-features = false, features = ["std"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc"] }
+subtle = { workspace = true, default-features = false }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std", "random"]
+std = []
+random = []
+
+[lib]
+name = "lib_q_threshold_kem"
+path = "src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("std", "random"))'] }

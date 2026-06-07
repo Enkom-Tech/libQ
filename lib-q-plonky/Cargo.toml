@@ -31,13 +31,13 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 wasm-bindgen-test = { workspace = true }
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.5", default-features = false, features = ["std"] }
-lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", version = "0.0.5", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.6", default-features = false, features = ["std"] }
+lib-q-plonky-multilinear-util = { path = "../lib-q-plonky-multilinear-util", version = "0.0.6", optional = true }
 wasm-bindgen = { workspace = true, optional = true }
-lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.5", optional = true }
-lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.5", optional = true }
-lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.5", optional = true }
-lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.5", optional = true }
+lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.6", optional = true }
+lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.6", optional = true }
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.6", optional = true }
+lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.6", optional = true }
 
 [features]
 default = ["std"]
