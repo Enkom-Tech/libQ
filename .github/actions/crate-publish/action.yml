@@ -46,12 +46,7 @@ runs:
         PKG="${{ inputs.package }}"
         WD="${{ inputs.working-directory }}"
         cd "$REPO_ROOT"
-        if [ "$WD" != "." ] && [ -f "$REPO_ROOT/$WD/Cargo.toml" ]; then
-          MANIFEST="$REPO_ROOT/$WD/Cargo.toml"
-        else
-          MANIFEST="$(cargo metadata --no-deps --format-version=1 -p "$PKG" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["manifest_path"])')"
-        fi
+        MANIFEST="$(python3 "$REPO_ROOT/scripts/resolve-crate-manifest.py" "$REPO_ROOT" "$PKG" "$WD")"
         if [ ! -f "$MANIFEST" ]; then
           echo "::error::crate manifest not found: $MANIFEST"
           exit 1
