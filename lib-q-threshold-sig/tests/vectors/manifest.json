@@ -1,0 +1,6 @@
+{
+  "budget_bytes": 8192,
+  "regenerate": "cargo test -p lib-q-threshold-sig kat_regenerate_vectors -- --ignored",
+  "schema": "threshold-sig-kat-v1",
+  "wire_bytes": 270
+}

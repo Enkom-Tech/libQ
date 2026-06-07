@@ -1,0 +1,42 @@
+[package]
+name = "lib-q-mac"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Quantum Carter-Wegman MAC (qCW-MAC) with splitting unforgeability target"
+keywords = ["cryptography", "post-quantum", "mac", "no-std"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.6", optional = true, default-features = false, features = ["alloc"] }
+zeroize = { workspace = true, default-features = false, features = ["derive"] }
+subtle = { workspace = true }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["std"] }
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+proptest = { workspace = true }
+
+[features]
+default = ["alloc"]
+alloc = ["lib-q-sha3/alloc"]
+std = ["alloc", "lib-q-random/std", "lib-q-random/secure"]
+no_std = ["alloc"]
+random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]
+
+[lib]
+name = "lib_q_mac"
+path = "src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("alloc", "std", "no_std", "random"))',
+] }

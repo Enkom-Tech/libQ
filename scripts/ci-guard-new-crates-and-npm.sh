@@ -152,6 +152,7 @@ for pkg_json in "${npm_dirs[@]}"; do
   npm run -s lint --if-present
   npm run -s test --if-present
   npm run -s build --if-present
+  npm pack --dry-run
   popd > /dev/null
 done
 

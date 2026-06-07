@@ -2,6 +2,22 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.6
+
+### Added
+
+- **`lib-q-threshold-kem`:** Provisional threshold KEM (`ThresholdKemProfileV1`) — ML-KEM-768 group encapsulation, byte-wise Shamir shares over GF(256), `threshold_kem_wire_v1` wire format, exportable KAT fixtures, CI byte-budget gates, and wire round-trip tests.
+- **`lib-q-threshold-sig`:** Provisional threshold signature (`ThresholdSigProfileV1`) — POP wire format, identify-abort fuzz targets, KAT vectors, budget gates, and wire decode fuzzing.
+- **`lib-q-double-kem`:** Provisional double-KEM composition crate with profile wiring and README.
+- **`lib-q-fhe`:** Provisional FHE core extracted to `fhe.rs` with profile scaffolding.
+- **`lib-q-blind-pcs`:** Provisional blind polynomial commitment core with KAT manifest.
+- **`lib-q-zkp`:** Recovery-policy STARK proofs — `RecoveryPolicyAir` (v0) and hybrid v1 (`RecoveryPolicyHybridAir`), wire encodings `recovery_zk_proof_v0` / `recovery_zk_proof_v1`, exportable KAT fixtures under `tests/vectors/recovery-policy-v0/` and `recovery-policy-v1/`, byte-budget documentation, and recovery ZK wire decode fuzz target.
+
+### Changed
+
+- **Workspace:** All crates and path dependency pins aligned to **0.0.6** (shared `[workspace.package]` version).
+- **`lib-q-slh-dsa`:** `typenum` bumped to **1.20.1** (Dependabot).
+
 ## 0.0.5
 
 ### Added

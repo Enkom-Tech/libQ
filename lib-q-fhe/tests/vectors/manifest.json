@@ -1,0 +1,5 @@
+{
+  "name": "lib-q-fhe toy vectors",
+  "profile": "demo-only",
+  "note": "Deterministic vectors for feature-gated toy flow tests."
+}

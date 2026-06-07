@@ -874,7 +874,7 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lib-q"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "js-sys",
@@ -906,7 +906,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-aead"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "hex",
@@ -932,8 +932,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-blind-pcs"
+version = "0.0.6"
+dependencies = [
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "lib-q-cb-kem"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "aes",
  "criterion",
@@ -956,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-core"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",
@@ -974,8 +981,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-double-kem"
+version = "0.0.6"
+dependencies = [
+ "hex",
+ "lib-q-ml-kem",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-duplex-aead"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "hex",
@@ -987,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-examples"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q",
  "lib-q-cb-kem",
@@ -1000,8 +1022,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-fhe"
+version = "0.0.6"
+dependencies = [
+ "lib-q-blind-pcs",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "lib-q-fn-dsa"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "hex",
@@ -1019,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-alg"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1030,7 +1062,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-comm"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "cpufeatures 0.3.0",
  "hex",
@@ -1039,7 +1071,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-kgen"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1051,7 +1083,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-sign"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1060,7 +1092,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-vrfy"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1070,7 +1102,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hash"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base16ct",
  "block-buffer 0.12.0",
@@ -1089,7 +1121,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hpke"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "getrandom 0.4.2",
  "hex",
@@ -1115,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hqc"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "aes",
  "criterion",
@@ -1144,18 +1176,18 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hqc-traits"
-version = "0.0.5"
+version = "0.0.6"
 
 [[package]]
 name = "lib-q-intrinsics"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-platform",
 ]
 
 [[package]]
 name = "lib-q-k12"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -1168,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-keccak"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "core_affinity",
  "getrandom 0.4.2",
@@ -1181,7 +1213,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-keccak-digest"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "blobby",
  "digest 0.11.3",
@@ -1190,7 +1222,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-kem"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-cb-kem",
  "lib-q-core",
@@ -1203,7 +1235,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-lattice-zkp"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "hex",
@@ -1221,8 +1253,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-mac"
+version = "0.0.6"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-sha3",
+ "proptest",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-ml-dsa"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "fips204",
@@ -1245,7 +1292,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ml-kem"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "crypto-common 0.2.2",
@@ -1269,14 +1316,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-platform"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-core",
 ]
 
 [[package]]
 name = "lib-q-plonky"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-core",
  "lib-q-plonky-batch-stark",
@@ -1290,7 +1337,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-batch-stark"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-plonky-lookup",
@@ -1313,7 +1360,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-keccak-air"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-keccak",
@@ -1328,7 +1375,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-lookup"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-air",
@@ -1342,7 +1389,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-multilinear-util"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-field",
@@ -1354,7 +1401,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-uni-stark"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-air",
@@ -1377,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-poseidon"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -1393,7 +1440,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-prf"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "crypto-bigint",
  "hex",
@@ -1412,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-random"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "aes",
  "criterion",
@@ -1437,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ring"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "hex",
  "lib-q-core",
@@ -1452,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ring-sig"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "crypto-bigint",
  "hex",
@@ -1474,7 +1521,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-romulus"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "aead",
  "hex",
@@ -1485,7 +1532,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-saturnin"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "lib-q-core",
@@ -1494,7 +1541,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sca-test"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-hqc",
  "lib-q-lattice-zkp",
@@ -1508,7 +1555,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sha3"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base16ct",
  "blobby",
@@ -1521,7 +1568,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sig"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "js-sys",
@@ -1541,7 +1588,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-slh-dsa"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "aes",
  "cipher",
@@ -1578,7 +1625,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-core",
@@ -1609,7 +1656,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-air"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-field",
@@ -1620,7 +1667,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-challenger"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "lib-q-stark-field",
@@ -1637,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-commit"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-field",
@@ -1648,7 +1695,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-dft"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "itertools 0.14.0",
@@ -1663,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-field"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-rayon",
@@ -1679,7 +1726,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-field-testing"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "lib-q-stark-dft",
@@ -1694,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-fri"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "itertools 0.14.0",
@@ -1721,7 +1768,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-interpolation"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-matrix",
@@ -1731,7 +1778,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-matrix"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "itertools 0.14.0",
@@ -1747,7 +1794,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-mds"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "lib-q-stark-dft",
@@ -1759,7 +1806,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-merkle"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "itertools 0.14.0",
@@ -1782,7 +1829,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-mersenne31"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "itertools 0.14.0",
@@ -1802,7 +1849,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-monty31"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-stark-dft",
@@ -1823,14 +1870,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-rayon"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "lib-q-stark-sha3-256"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -1839,7 +1886,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-shake128"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -1848,7 +1895,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-shake256"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -1857,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-symmetric"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "itertools 0.14.0",
  "lib-q-keccak",
@@ -1867,7 +1914,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-util"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "rand 0.10.1",
@@ -1877,8 +1924,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-threshold-kem"
+version = "0.0.6"
+dependencies = [
+ "hex",
+ "lib-q-ml-kem",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "lib-q-threshold-sig"
+version = "0.0.6"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-ring",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-tweak-aead"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "hex",
@@ -1890,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-types"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "serde",
  "wasm-bindgen",
@@ -1898,14 +1975,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-utils"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-core",
 ]
 
 [[package]]
 name = "lib-q-zkp"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -2677,9 +2754,9 @@ dependencies = [
 
 [[package]]
 name = "typenum"
-version = "1.20.0"
+version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40ce102ab67701b8526c123c1bab5cbe42d7040ccfd0f64af1a385808d2f43de"
+checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "unarray"
@@ -2857,7 +2934,7 @@ checksum = "684365b586a9a6256c1cc3544eee8680de48d6041142f581776ec7b139622ae9"
 
 [[package]]
 name = "wasm-browser-demo"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lib-q-ml-dsa",
  "wasm-bindgen",

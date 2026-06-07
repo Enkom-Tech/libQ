@@ -1,0 +1,5 @@
+{
+  "key_hex": "7163772d6d61632d76312d6b61742d736565642d303100000000000000000000",
+  "regenerate": "cargo test -p lib-q-mac kat_regenerate_vectors -- --ignored",
+  "schema": "qcw-mac-kat-v1"
+}

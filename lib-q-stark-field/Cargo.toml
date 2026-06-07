@@ -12,8 +12,8 @@ readme.workspace = true
 exclude = ["/tests"]
 
 [dependencies]
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.5" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.5" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.6" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.6" }
 
 itertools = { workspace = true }
 num-bigint = { workspace = true }

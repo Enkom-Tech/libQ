@@ -10,9 +10,9 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.5" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.5" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.5" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.6" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.6" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.6" }
 
 itertools = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["alloc", "derive"] }

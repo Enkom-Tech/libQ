@@ -1,0 +1,7 @@
+{
+  "budget_bytes": 30720,
+  "ciphertext_bytes": 1088,
+  "parameter_set_digest": "eb79c0f7804722e368351a9c5756dcafcae3ed2d46bc4c77dbc565b31877736c",
+  "regenerate": "cargo test -p lib-q-threshold-kem kat_regenerate_vectors -- --ignored",
+  "schema": "threshold-kem-kat-v1"
+}

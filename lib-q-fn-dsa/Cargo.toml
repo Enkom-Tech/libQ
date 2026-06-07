@@ -23,11 +23,11 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dependencies]
 # Core libQ types
-lib-q-core = { path = "../lib-q-core", version = "0.0.5" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.5", features = ["fn-dsa", "rand", "getrandom"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.6" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["fn-dsa", "rand", "getrandom"] }
 
 # FN-DSA implementation (the actual algorithm)
-lib-q-fn-dsa-alg = { path = "fn-dsa", version = "0.0.5" }
+lib-q-fn-dsa-alg = { path = "fn-dsa", version = "0.0.6" }
 
 # Standard library features
 rand_core = { workspace = true }

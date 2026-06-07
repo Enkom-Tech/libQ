@@ -113,6 +113,9 @@ pub mod merkle;
 pub mod api;
 
 #[cfg(feature = "zkp")]
+pub mod wire;
+
+#[cfg(feature = "zkp")]
 pub use api::{
     MerklePath,
     build_merkle_tree,
@@ -212,6 +215,13 @@ pub enum ProofMetadata {
     Identity {
         /// ML-DSA security level: 44, 65, or 87
         dsa_level: u8,
+    },
+    /// Recovery policy threshold proof metadata
+    RecoveryPolicy {
+        /// Number of keys in policy
+        key_count: u32,
+        /// Circuit air id
+        air_id: u8,
     },
 }
 

@@ -1,0 +1,26 @@
+[package]
+name = "lib-q-blind-pcs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Experimental provisional blind polynomial commitment sketch"
+keywords = ["cryptography", "post-quantum", "commitment", "experimental"]
+categories = ["cryptography"]
+
+[dependencies]
+sha2 = { workspace = true, default-features = false }
+
+[features]
+default = []
+blind-pcs = []
+
+[lib]
+name = "lib_q_blind_pcs"
+path = "src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("blind-pcs"))'] }

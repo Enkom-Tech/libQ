@@ -1,0 +1,14 @@
+{
+  "description": "Fixed-seed recovery policy STARK vectors",
+  "regenerate": "cargo test -p lib-q-zkp kat_regenerate_recovery_policy_vectors -- --ignored --release",
+  "schema": "recovery-zkp-kat-v0",
+  "vectors": [
+    {
+      "air_id": 1,
+      "expect_verify": true,
+      "id": "minimal_2_keys",
+      "proof_file": "minimal_2_keys.proof.hex",
+      "public_inputs_hex": "a8904e4b50c48bdb988c359e257abf9646a03a71142e73a8e79eb7cf053dc70c03000000020000000000000080510100efaf0144010000000100"
+    }
+  ]
+}
