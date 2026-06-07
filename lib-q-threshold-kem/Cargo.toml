@@ -12,9 +12,9 @@ keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem"]
 categories = ["cryptography"]
 
 [dependencies]
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.5", default-features = false, features = ["std", "random"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.5", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.5", default-features = false, features = ["std"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", default-features = false, features = ["std", "random"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.6", default-features = false, features = ["std"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
