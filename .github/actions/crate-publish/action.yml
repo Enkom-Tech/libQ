@@ -43,8 +43,18 @@ runs:
       run: |
         echo "Publishing ${{ inputs.package }}..."
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        cd "$REPO_ROOT/${{ inputs.working-directory }}"
-        MANIFEST="$(pwd)/Cargo.toml"
+        PKG="${{ inputs.package }}"
+        WD="${{ inputs.working-directory }}"
+        if [ "$WD" = "." ]; then
+          MANIFEST="$REPO_ROOT/$PKG/Cargo.toml"
+        else
+          MANIFEST="$REPO_ROOT/$WD/Cargo.toml"
+        fi
+        if [ ! -f "$MANIFEST" ]; then
+          echo "::error::crate manifest not found: $MANIFEST"
+          exit 1
+        fi
+        cd "$REPO_ROOT"
         BACKUP="$(mktemp)"
         cp "$MANIFEST" "$BACKUP"
         restore_manifest() {
@@ -53,7 +63,7 @@ runs:
         }
         trap restore_manifest EXIT
         python3 "$REPO_ROOT/scripts/strip-forward-dev-deps-for-publish.py" \
-          "${{ inputs.package }}" "$MANIFEST"
+          "$PKG" "$MANIFEST"
         
         if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
           echo "::error::CARGO_REGISTRY_TOKEN is empty. Crate publish requires a valid crates.io token (e.g. from rust-lang/crates-io-auth-action)."
@@ -62,13 +72,13 @@ runs:
         
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package }}"
-          cargo publish --allow-dirty -p ${{ inputs.package }} --dry-run
+          cargo publish --allow-dirty -p "$PKG" --dry-run
         else
           max_attempts=6
           attempt=1
           while [ "$attempt" -le "$max_attempts" ]; do
             set +e
-            publish_output="$(cargo publish --allow-dirty -p ${{ inputs.package }} 2>&1)"
+            publish_output="$(cargo publish --allow-dirty -p "$PKG" 2>&1)"
             publish_status=$?
             set -e
             if [ "$publish_status" -eq 0 ]; then
@@ -76,13 +86,13 @@ runs:
               break
             fi
             if echo "$publish_output" | grep -qE 'already uploaded|already exists on crates\.io'; then
-              echo "${{ inputs.package }} is already on crates.io; skipping"
+              echo "$PKG is already on crates.io; skipping"
               break
             fi
             if echo "$publish_output" | grep -qE '429 Too Many Requests|rate limit|too many updates'; then
               if [ "$attempt" -lt "$max_attempts" ]; then
                 sleep_secs=$((attempt * 90))
-                echo "crates.io rate limit hit for ${{ inputs.package }}; retry $attempt/$max_attempts after ${sleep_secs}s"
+                echo "crates.io rate limit hit for $PKG; retry $attempt/$max_attempts after ${sleep_secs}s"
                 echo "$publish_output"
                 sleep "$sleep_secs"
                 attempt=$((attempt + 1))
@@ -94,4 +104,4 @@ runs:
           done
         fi
         
-        echo "Successfully published ${{ inputs.package }}"
+        echo "Successfully published $PKG"
