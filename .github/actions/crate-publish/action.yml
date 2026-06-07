@@ -45,16 +45,17 @@ runs:
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
         PKG="${{ inputs.package }}"
         WD="${{ inputs.working-directory }}"
-        if [ "$WD" = "." ]; then
-          MANIFEST="$REPO_ROOT/$PKG/Cargo.toml"
-        else
+        cd "$REPO_ROOT"
+        if [ "$WD" != "." ] && [ -f "$REPO_ROOT/$WD/Cargo.toml" ]; then
           MANIFEST="$REPO_ROOT/$WD/Cargo.toml"
+        else
+          MANIFEST="$(cargo metadata --no-deps --format-version=1 -p "$PKG" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["manifest_path"])')"
         fi
         if [ ! -f "$MANIFEST" ]; then
           echo "::error::crate manifest not found: $MANIFEST"
           exit 1
         fi
-        cd "$REPO_ROOT"
         BACKUP="$(mktemp)"
         cp "$MANIFEST" "$BACKUP"
         restore_manifest() {
