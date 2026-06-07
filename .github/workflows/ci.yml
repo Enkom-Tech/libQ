@@ -91,8 +91,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - name: Cargo publish dry-run
-        run: cargo publish --dry-run --locked -p ${{ matrix.package }}
+      - name: Cargo publish dry-run (PR readiness)
+        run: bash scripts/publish-readiness-pr.sh ${{ matrix.package }}
 
   # Parallel test matrix - runs after core validation
   test-matrix:
