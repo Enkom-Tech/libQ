@@ -17,7 +17,11 @@ WS_VERSION="$(
     | cut -d'"' -f2
 )"
 
-MANIFEST="$(cargo metadata --no-deps --format-version=1 -p "$PKG" | python3 -c 'import json,sys; print(json.load(sys.stdin)["packages"][0]["manifest_path"])')"
+MANIFEST="$ROOT/$PKG/Cargo.toml"
+if [[ ! -f "$MANIFEST" ]]; then
+  echo "ERROR: missing manifest for $PKG at $MANIFEST" >&2
+  exit 1
+fi
 
 python3 - "$MANIFEST" "$WS_VERSION" "$PKG" <<'PY'
 import pathlib
