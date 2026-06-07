@@ -6,7 +6,7 @@ Scoped packages are built with [`wasm-pack`](https://rustwasm.github.io/wasm-pac
 
 - Workspace version in root `Cargo.toml` `[workspace.package].version` matches the release you intend to ship (CD uses the git tag without the `v` prefix).
 - **Rust** `wasm32-unknown-unknown` and **wasm-pack** installed locally (or let the script install wasm-pack).
-- **Node.js 20+** and `npm login` (or `NODE_AUTH_TOKEN` in the environment).
+- **Node.js 24+** (CI/CD uses Node 24; Node 20+ may still work locally) and `npm login` (or `NODE_AUTH_TOKEN` in the environment).
 - **crates.io**: CD publishes Rust crates before npm. For a manual run, finish [crates.io publishing](crates-io-publish.md) through `lib-q-zkp` (tier 16) so path dependencies resolve when you build from a clean tree with version-pinned deps—or build from this repo with path deps as usual.
 
 ## Ordered publish script
