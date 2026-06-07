@@ -58,40 +58,22 @@ if pkg not in re.findall(r'package:\s*"(lib-q[^"]+)"', cd):
 
 print(f"manifest pins: OK ({pkg})")
 
-# lib-q-fhe dev-deps reference lib-q-blind-pcs before it exists on crates.io.
-strip_dev = pkg == "lib-q-fhe"
-backup = None
-if strip_dev:
-    backup = pathlib.Path(manifest).read_text(encoding="utf-8")
-    lines = backup.splitlines(keepends=True)
-    out: list[str] = []
-    in_dev = False
-    for line in lines:
-        if line.strip() == "[dev-dependencies]":
-            in_dev = True
-            continue
-        if in_dev and line.startswith("["):
-            in_dev = False
-        if in_dev:
-            continue
-        out.append(line)
-    pathlib.Path(manifest).write_text("".join(out), encoding="utf-8", newline="\n")
-
-if has_workspace_prod:
-    print(f"publish dry-run: skipped ({pkg} has workspace prod deps; validated at CD tier publish)")
-    if strip_dev and backup is not None:
-        pathlib.Path(manifest).write_text(backup, encoding="utf-8", newline="\n")
+# lib-q-fhe dev-deps reference lib-q-blind-pcs (unpublished until tier 4b).
+skip_dry_run = has_workspace_prod or pkg == "lib-q-fhe"
+if skip_dry_run:
+    reason = (
+        "workspace prod deps"
+        if has_workspace_prod
+        else "dev-deps reference unpublished workspace crate"
+    )
+    print(f"publish dry-run: skipped ({pkg}: {reason}; validated at CD tier publish)")
     raise SystemExit(0)
 
-try:
-    import subprocess
+import subprocess
 
-    subprocess.run(
-        ["cargo", "publish", "--dry-run", "--no-verify", "--locked", "-p", pkg],
-        check=True,
-    )
-    print(f"publish dry-run: OK ({pkg})")
-finally:
-    if strip_dev and backup is not None:
-        pathlib.Path(manifest).write_text(backup, encoding="utf-8", newline="\n")
+subprocess.run(
+    ["cargo", "publish", "--dry-run", "--no-verify", "--locked", "-p", pkg],
+    check=True,
+)
+print(f"publish dry-run: OK ({pkg})")
 PY
