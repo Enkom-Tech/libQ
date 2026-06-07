@@ -33,6 +33,13 @@ members = [
     "lib-q-romulus",
     "lib-q-saturnin",
     "lib-q-tweak-aead",
+    # GIP-agnostic advanced primitives (opt-in; pre-standard cores marked PROVISIONAL)
+    "lib-q-mac",
+    "lib-q-threshold-sig",
+    "lib-q-threshold-kem",
+    "lib-q-double-kem",
+    "lib-q-fhe",
+    "lib-q-blind-pcs",
     # ZKP & lattice
     "lib-q-lattice-zkp",
     "lib-q-prf",
@@ -74,7 +81,15 @@ members = [
     "examples/wasm-browser-demo",
 ]
 # Standalone cargo-fuzz harnesses (not workspace members).
-exclude = ["lib-q-zkp/fuzz", "lib-q-lattice-zkp/fuzz", "lib-q-ring-sig/fuzz", "lib-q-prf/fuzz"]
+exclude = [
+    "lib-q-zkp/fuzz",
+    "lib-q-lattice-zkp/fuzz",
+    "lib-q-ring-sig/fuzz",
+    "lib-q-prf/fuzz",
+    "lib-q-threshold-sig/fuzz",
+    "lib-q-threshold-kem/fuzz",
+    "lib-q-double-kem/fuzz",
+]
 # Also outside the workspace: `benches/` (standalone Criterion runner) and
 # `lib-q-fn-dsa/fn-dsa-*` (nested path deps under `lib-q-fn-dsa`).
 resolver = "3"
@@ -86,7 +101,7 @@ homepage = "https://github.com/Enkom-Tech/libQ"
 edition = "2024"
 repository = "https://github.com/Enkom-Tech/libQ"
 readme = "README.md"
-version = "0.0.5"
+version = "0.0.6"
 rust-version = "1.96.0"
 description = "Post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]

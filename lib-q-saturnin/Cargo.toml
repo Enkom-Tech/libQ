@@ -12,7 +12,7 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.5" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.6" }
 
 # Optional dependencies for specific features
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }

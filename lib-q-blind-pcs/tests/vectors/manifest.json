@@ -1,0 +1,5 @@
+{
+  "schema": "blind-pcs-demo-v1",
+  "regenerate": "cargo test -p lib-q-blind-pcs demo_vectors -- --nocapture",
+  "notes": "Demo-only vectors for EXPERIMENTAL_NON_NIST blind PCS APIs."
+}

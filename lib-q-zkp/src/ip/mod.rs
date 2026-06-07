@@ -6,7 +6,11 @@
 pub mod auth;
 pub mod credential;
 pub mod identity;
+pub mod recovery_policy;
+pub mod recovery_policy_hybrid;
 
 pub use auth::*;
 pub use credential::*;
 pub use identity::*;
+pub use recovery_policy::*;
+pub use recovery_policy_hybrid::*;

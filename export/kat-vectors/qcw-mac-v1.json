@@ -1,0 +1,35 @@
+{
+  "format": "qcw-mac-kat-v1",
+  "negative_cases": [
+    {
+      "ad_hex": "616430",
+      "expected": {
+        "verified": false
+      },
+      "msg_hex": "68656c6c6f207175616e74756d206d6163",
+      "name": "tamper_reject",
+      "tag_hex": "6b428c1aab9b75c2c74af6e85256693189427798527eff7b5869158cb5f75b96"
+    }
+  ],
+  "positive_cases": [
+    {
+      "ad_hex": "616430",
+      "msg_hex": "68656c6c6f207175616e74756d206d6163",
+      "name": "baseline",
+      "tag_hex": "6a428c1aab9b75c2c74af6e85256693189427798527eff7b5869158cb5f75b96"
+    },
+    {
+      "ad_hex": "",
+      "msg_hex": "7061796c6f6164",
+      "name": "empty_ad",
+      "tag_hex": "becd37cd6a6797182c5921c0f86df2ca1fc81505457b1bdca82c49bd4b2acd47"
+    },
+    {
+      "ad_hex": "6173736f636961746564",
+      "msg_hex": "",
+      "name": "empty_msg",
+      "tag_hex": "21fe7520eb8b671d6db58b832ad726a15034301dc560d4dd09751fa73a968e33"
+    }
+  ],
+  "spec_version": "v1"
+}
