@@ -12,6 +12,19 @@ use lib_q_keccak::{
     set_global_config,
 };
 
+/// Serialize tests that mutate [`set_global_config`] / [`reset_global_config`].
+#[cfg(feature = "std")]
+mod global_config_test_sync {
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    pub fn lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("global config test lock")
+    }
+}
+
 #[test]
 fn test_feature_config_new() {
     let config = FeatureConfig::new();
@@ -238,6 +251,9 @@ fn test_description() {
 
 #[test]
 fn test_global_config_set_get_reset() {
+    #[cfg(feature = "std")]
+    let _guard = global_config_test_sync::lock();
+
     // Save original config to restore it later
     let original_config = get_global_config();
 
@@ -273,6 +289,8 @@ fn test_global_config_set_get_reset() {
 #[test]
 #[cfg(feature = "std")]
 fn test_global_config_concurrent_access() {
+    let _guard = global_config_test_sync::lock();
+
     use std::sync::{
         Arc,
         Barrier,
