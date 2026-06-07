@@ -4,10 +4,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL double ML-KEM-768 encapsulation profile with constrained wire budget"
-keywords = ["cryptography", "post-quantum", "kem", "ml-kem", "no-std"]
-categories = ["cryptography", "no-std"]
+keywords = ["cryptography", "post-quantum", "kem", "ml-kem"]
+categories = ["cryptography"]
 
 [dependencies]
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.5", default-features = false, features = ["deterministic"] }
@@ -27,7 +29,6 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.5", features = ["std"]
 default = ["alloc", "std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-ml-kem/std", "lib-q-random/std"]
-no_std = ["alloc"]
 random = ["dep:lib-q-random", "lib-q-random/getrandom", "lib-q-random/secure", "lib-q-ml-kem/random"]
 
 [lib]
@@ -36,5 +37,5 @@ path = "src/lib.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("alloc", "std", "no_std", "random"))',
+    'cfg(feature, values("alloc", "std", "random"))',
 ] }

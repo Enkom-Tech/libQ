@@ -3,6 +3,12 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 
+#[cfg(not(feature = "std"))]
+compile_error!(
+    "lib-q-double-kem currently requires the `std` feature because lib-q-ml-kem \
+depends on runtime allocator/panic support in this integration path."
+);
+
 pub mod double_kem;
 pub mod error;
 pub mod profile;

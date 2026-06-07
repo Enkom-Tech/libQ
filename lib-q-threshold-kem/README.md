@@ -16,6 +16,29 @@ This crate exposes `ThresholdKemProfileV1` with:
 - `max_threshold = 32`
 - `parameter_set_digest = SHA3-256("amber-tkem-revised-v1-T32-k128")`
 
+## Proof size table
+
+Measured from `tests/vectors/manifest.json` (KAT seed, T=32/n=64 encap path):
+
+| Scenario | Bytes | Budget | Pass |
+|----------|------:|-------:|:----:|
+| ML-KEM-768 ciphertext (`ct`) | 1088 | 30720 | yes |
+| Full wire (`threshold_kem_wire_v1`) | ≤30720 | 30720 | yes |
+
+Hard ciphertext ceiling: `WIRE_BUDGET_TKEM_CIPHERTEXT_BYTES = 30720`.
+
+Pinned parameter digest (SHA3-256): `eb79c0f7804722e368351a9c5756dcafcae3ed2d46bc4c77dbc565b31877736c`.
+
+## KAT export
+
+Schema: `threshold-kem-kat-v1`
+
+```bash
+cargo test -p lib-q-threshold-kem kat_regenerate_vectors -- --ignored
+```
+
+Output: `tests/vectors/threshold-kem-v1.json`
+
 ## Security and status
 
 This crate is **PROVISIONAL** and intended for controlled evaluation and interoperability testing.

@@ -1,5 +1,10 @@
 #![forbid(unsafe_code)]
 
+pub mod error;
+pub mod profile;
+pub mod threshold_kem;
+pub mod wire;
+
 use core::fmt;
 
 use lib_q_ml_kem::{

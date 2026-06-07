@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL lattice threshold KEM built on ML-KEM-768 and Shamir shares"
 keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem"]
@@ -30,3 +32,6 @@ random = []
 [lib]
 name = "lib_q_threshold_kem"
 path = "src/lib.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("std", "random"))'] }

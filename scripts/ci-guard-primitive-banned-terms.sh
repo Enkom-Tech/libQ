@@ -14,11 +14,13 @@ CRATES=(
   lib-q-blind-pcs
 )
 
-PATTERN='(gip|GIP|sybil|PoP|vault)'
+# Case-insensitive for gip/sybil/vault; PoP is matched case-sensitively only (avoids
+# false positives on neutral slugs such as threshold-sig-pop-v1.json).
+PATTERN='(?i:gip|sybil|vault)|PoP'
 
 failed=0
 for crate in "${CRATES[@]}"; do
-  if rg -n -i "$PATTERN" "$crate/src" "$crate/tests" "$crate/README.md" 2>/dev/null; then
+  if rg -n -P "$PATTERN" "$crate/src" "$crate/tests" "$crate/README.md" 2>/dev/null; then
     echo "ERROR: forbidden term in $crate" >&2
     failed=1
   fi

@@ -8,13 +8,27 @@ encapsulation lanes into a single upgraded shared secret.
 - **Provisional research profile** for Hint-MLWE style wire-constrained transport.
 - The API and wire layout can evolve before standardization.
 
-## Wire profile
+## Proof size table
 
-- Baseline size for two ML-KEM-768 ciphertexts: `2176` bytes (`2 x 1088`).
-- MAUL v1 target wire budget: `1260` bytes.
-- Fixed wire split:
-  - `hint`: `172` bytes
-  - `body`: `1088` bytes
+Measured from `tests/vectors/manifest.json` (KAT seed, MAUL v1 encap path):
+
+| Scenario | Bytes | Budget | Pass |
+|----------|------:|-------:|:----:|
+| Baseline (2× ML-KEM-768) | 2176 | — | — |
+| MAUL v1 wire (`double_kem` encap) | 1260 | 1260 | yes |
+| Size savings vs baseline | 42.1% | ≥40% | yes |
+
+Fixed wire split: `hint` 172 B + `body` 1088 B = 1260 B.
+
+## KAT export
+
+Schema: `double-kem-kat-v1`
+
+```bash
+cargo test -p lib-q-double-kem kat_regenerate_vectors -- --ignored
+```
+
+Output: `tests/vectors/double-kem-v1.json`
 
 ## Core API
 

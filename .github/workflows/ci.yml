@@ -71,6 +71,30 @@ jobs:
             cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak
 
   # Parallel test matrix - runs after core validation
+  publish-readiness:
+    name: Publish readiness (${{ matrix.package }})
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: "lib-q-mac"
+          - package: "lib-q-threshold-sig"
+          - package: "lib-q-threshold-kem"
+          - package: "lib-q-double-kem"
+          - package: "lib-q-fhe"
+          - package: "lib-q-blind-pcs"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Cargo publish dry-run
+        run: cargo publish --dry-run --locked -p ${{ matrix.package }}
+
+  # Parallel test matrix - runs after core validation
   test-matrix:
     name: Test Matrix
     needs: core-validation
@@ -149,6 +173,9 @@ jobs:
             package: "lib-q-lattice-zkp"
           - name: "lib-q-mac"
             features: "std,random"
+            package: "lib-q-mac"
+          - name: "lib-q-mac no_std"
+            features: "no_std"
             package: "lib-q-mac"
           - name: "lib-q-threshold-sig"
             features: "std,random"
@@ -298,6 +325,24 @@ jobs:
           - working-directory: "lib-q-random"
             features: "wasm"
             check-only: "false"
+          - working-directory: "lib-q-mac"
+            features: "no_std"
+            check-only: "true"
+          - working-directory: "lib-q-threshold-sig"
+            features: "std,random"
+            check-only: "true"
+          - working-directory: "lib-q-threshold-kem"
+            features: "std,random"
+            check-only: "true"
+          - working-directory: "lib-q-double-kem"
+            features: "std,random"
+            check-only: "true"
+          - working-directory: "lib-q-fhe"
+            features: "fhe"
+            check-only: "true"
+          - working-directory: "lib-q-blind-pcs"
+            features: "blind-pcs"
+            check-only: "true"
     
     steps:
       - uses: actions/checkout@v5
@@ -1342,7 +1387,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

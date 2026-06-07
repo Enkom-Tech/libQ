@@ -72,6 +72,8 @@ pub mod opening_verifier;
 pub mod poseidon_gadget;
 pub mod poseidon_hash;
 pub mod range_proof;
+pub mod recovery_policy;
+pub mod recovery_policy_hybrid;
 pub mod recursive_types;
 pub mod session_key;
 pub mod stark_verifier;
@@ -132,6 +134,29 @@ pub use opening_verifier::{
 pub use poseidon_gadget::PoseidonGadget;
 pub use poseidon_hash::PoseidonHashAir;
 pub use range_proof::RangeProofAir;
+pub use recovery_policy::{
+    RECOVERY_POLICY_AIR_ID,
+    RECOVERY_POLICY_COMMIT_DOMAIN,
+    RECOVERY_PUBLIC_INPUTS_LEN,
+    RECOVERY_VK_COMMIT_DOMAIN,
+    RecoveryPolicyAir,
+    RecoveryPolicyInput,
+    RecoveryPolicyKey,
+    RecoveryPolicyPublicInputs,
+    policy_commitment,
+    shake256_commit,
+    vk_commitment,
+};
+pub use recovery_policy_hybrid::{
+    RECOVERY_HYBRID_POLICY_COMMIT_DOMAIN,
+    RECOVERY_HYBRID_PUBLIC_INPUTS_LEN,
+    RECOVERY_HYBRID_VK_COMMIT_DOMAIN,
+    RECOVERY_POLICY_HYBRID_AIR_ID,
+    RecoveryPolicyHybridAir,
+    RecoveryPolicyHybridInput,
+    RecoveryPolicyHybridPublicInputs,
+    hybrid_policy_commitment,
+};
 pub use recursive_types::{
     RecursiveStarkInput,
     SerializedFriRound,

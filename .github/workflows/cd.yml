@@ -446,10 +446,37 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  publish-rust-tier-4b-new-primitives:
+    name: Publish Rust (tier 4b — new primitives)
+    needs: [publish-rust-tier-4]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-mac"
+          - package: "lib-q-threshold-sig"
+          - package: "lib-q-threshold-kem"
+          - package: "lib-q-double-kem"
+          - package: "lib-q-fhe"
+          - package: "lib-q-blind-pcs"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
   publish-rust-tier-5:
     name: Publish Rust (tier 5)
-    needs: [publish-rust-tier-4]
+    needs: [publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
