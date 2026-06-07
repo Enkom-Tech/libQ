@@ -14,9 +14,7 @@ STRIP_CRATES = frozenset(
     }
 )
 
-DEV_SECTION = re.compile(
-    r"^\[(?:target\.'[^']+'\.)?dev-dependencies\]\s*$"
-)
+DEV_SECTION = re.compile(r"^\[.*dev-dependencies\]\s*$")
 
 
 def strip_manifest(manifest: pathlib.Path, publishing_pkg: str) -> bool:
