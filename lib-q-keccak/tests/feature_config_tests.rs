@@ -15,7 +15,11 @@ use lib_q_keccak::{
 /// Serialize tests that mutate [`set_global_config`] / [`reset_global_config`].
 #[cfg(feature = "std")]
 mod global_config_test_sync {
-    use std::sync::{Mutex, MutexGuard, OnceLock};
+    use std::sync::{
+        Mutex,
+        MutexGuard,
+        OnceLock,
+    };
 
     pub fn lock() -> MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
