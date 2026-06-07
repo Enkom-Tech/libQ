@@ -14,7 +14,7 @@ exclude = ["tests"]
 
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
-typenum = { version = "1.20.0", features = ["const-generics"] }
+typenum = { version = "1.20.1", features = ["const-generics"] }
 lib-q-core = { path = "../lib-q-core", version = "0.0.5", features = ["alloc"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.5", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.5", optional = true, default-features = false, features = ["signature"] }
