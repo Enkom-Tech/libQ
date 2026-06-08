@@ -85,11 +85,7 @@ fn ciphertext_from_wire(wire: &FheCiphertextWire) -> Result<Ciphertext, JsValue>
 fn plaintext_len_from_wire(wire: &FheCiphertextWire) -> usize {
     let dim = wire.dimension as usize;
     let len = wire.plaintext_len as usize;
-    if len == 0 || len > dim {
-        dim
-    } else {
-        len
-    }
+    if len == 0 || len > dim { dim } else { len }
 }
 
 fn eval_op_from_wire(op: &EvalOpWire) -> Result<EvalOp, JsValue> {
