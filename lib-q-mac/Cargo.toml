@@ -55,6 +55,8 @@ wasm = [
     "getrandom/wasm_js",
 ]
 getrandom = ["dep:getrandom"]
+# Host integration tests (KAT, SU simulations); omitted from wasm-pack `--features wasm,random` builds.
+host-tests = ["std", "random"]
 
 [lib]
 name = "lib_q_mac"
@@ -69,7 +71,22 @@ name = "wasm_smoke"
 path = "tests/wasm_smoke.rs"
 required-features = ["wasm", "random"]
 
+[[test]]
+name = "kat_vectors"
+path = "tests/kat_vectors.rs"
+required-features = ["host-tests"]
+
+[[test]]
+name = "kat_regenerate"
+path = "tests/kat_regenerate.rs"
+required-features = ["host-tests"]
+
+[[test]]
+name = "su_properties"
+path = "tests/su_properties.rs"
+required-features = ["host-tests"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("alloc", "std", "no_std", "no_std_panic_handler", "random", "wasm", "getrandom"))',
+    'cfg(feature, values("alloc", "host-tests", "no_std", "no_std_panic_handler", "random", "std", "wasm", "getrandom"))',
 ] }
