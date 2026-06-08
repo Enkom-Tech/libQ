@@ -21,20 +21,20 @@ crate-type = ["cdylib", "rlib"]
 required-features = ["alloc"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.6", default-features = false }
-lib-q-kem = { path = "../lib-q-kem", version = "0.0.6", default-features = false }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.6", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["hpke"] }
-lib-q-aead = { path = "../lib-q-aead", version = "0.0.6", default-features = false, features = ["alloc", "saturnin", "shake256"] }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", optional = true }
-lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.6", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false }
+lib-q-kem = { path = "../lib-q-kem", version = "0.0.7", default-features = false }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.7", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["hpke"] }
+lib-q-aead = { path = "../lib-q-aead", version = "0.0.7", default-features = false, features = ["alloc", "saturnin", "shake256"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", optional = true }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.7", optional = true }
 
 # Post-quantum dependencies only
 rand_core = { workspace = true, default-features = false }
 zeroize = { workspace = true, default-features = false, features = ["alloc", "zeroize_derive"] }
 subtle = { workspace = true, default-features = false }
 getrandom = { workspace = true, default-features = false, optional = true }
-lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.6", optional = true }
+lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.7", optional = true }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
@@ -89,7 +89,7 @@ name = "hpke_interop_negotiation"
 required-features = ["std"]
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 wasm-bindgen-test = { workspace = true }

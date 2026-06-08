@@ -10,13 +10,13 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.6" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.6" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.6" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.6" }
-lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.6" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.6" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.6" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.7" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.7" }
+lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.7" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.7" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
 # Note: poseidon2 removed - non-NIST hash
 
 itertools = { workspace = true }
