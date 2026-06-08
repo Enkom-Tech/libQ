@@ -26,12 +26,14 @@ getrandom = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
+# Host-only test deps: proptest pulls `getrandom` 0.3 without `wasm_js` and breaks wasm-pack smoke builds.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
-proptest = { workspace = true }
-wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["alloc", "std"]
