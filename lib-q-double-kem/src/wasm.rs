@@ -109,8 +109,7 @@ pub fn double_kem_encap_hex(ek_a_hex: &str, ek_b_hex: &str) -> Result<JsValue, J
     let ek_a = decode_ek(&hex_decode(ek_a_hex)?)?;
     let ek_b = decode_ek(&hex_decode(ek_b_hex)?)?;
     let mut rng = new_secure_rng().map_err(js_err)?;
-    let (wire, shared) =
-        double_encap(MaulProfileV1, &ek_a, &ek_b, &mut rng).map_err(js_err)?;
+    let (wire, shared) = double_encap(MaulProfileV1, &ek_a, &ek_b, &mut rng).map_err(js_err)?;
     let wire_bytes = wire.to_bytes();
     let out = serde_json::json!({
         "wireHex": hex_encode(&wire_bytes),
