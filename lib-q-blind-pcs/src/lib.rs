@@ -10,3 +10,6 @@ pub use blind_pcs::{
     blind_open,
     verify,
 };
+
+#[cfg(feature = "wasm")]
+pub mod wasm;

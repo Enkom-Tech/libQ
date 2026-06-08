@@ -118,3 +118,109 @@ export type PrfHexString = string;
 
 /** `@lib-q/random` */
 export type SecureRandomBytes = Uint8Array;
+
+/** `@lib-q/mac` */
+export type QcwMacKeyBytes = Uint8Array;
+export type QcwMacTagBytes = Uint8Array;
+
+/** `@lib-q/blind-pcs` */
+export interface BlindPcsOpenResult {
+  messageHex: string;
+  blindHex: string;
+}
+
+/** `@lib-q/double-kem` */
+export interface DoubleKemEncapResult {
+  wireHex: string;
+  sharedSecretHex: string;
+}
+
+/** `@lib-q/fhe` */
+export interface FheKeygenResult {
+  seed: string;
+  dimension: number;
+  modulus: number;
+}
+
+export interface FheCiphertextWire {
+  dimension: number;
+  modulus: number;
+  nonce: string;
+  body: number[];
+  mask: number[];
+}
+
+export type FheEvalOpWire =
+  | { op: "addConstant"; value: number }
+  | { op: "mulConstant"; value: number }
+  | { op: "addCiphertext"; ciphertext: FheCiphertextWire };
+
+/** `@lib-q/threshold-kem` */
+export interface ThresholdKemShareVerifier {
+  index: number;
+  commitmentHex: string;
+}
+
+export interface ThresholdKemPublicKeyWire {
+  profileId: number;
+  threshold: number;
+  mlKemPublicKeyHex: string;
+  shareVerifiers: ThresholdKemShareVerifier[];
+}
+
+export interface ThresholdKemPartialWire {
+  index: number;
+  shareBytesHex: string;
+  tagHex: string;
+}
+
+export interface ThresholdKemKeygenShare {
+  index: number;
+  threshold: number;
+  commitmentHex: string;
+  shareBytes: Uint8Array;
+}
+
+export interface ThresholdKemEncapResult {
+  sharedSecret: Uint8Array;
+  ciphertextHex: string;
+  wire: Uint8Array;
+}
+
+/** `@lib-q/threshold-sig` */
+export interface ThresholdSigShareVerifier {
+  index: number;
+  verifyingKeyHex: string;
+  commitmentHex: string;
+}
+
+export interface ThresholdSigPublicKeyWire {
+  profileId: number;
+  threshold: number;
+  groupKeyHex: string;
+  shareVerifiers: ThresholdSigShareVerifier[];
+}
+
+export interface ThresholdSigRound1Commitment {
+  index: number;
+  nonceCommitmentHex: string;
+  bindingHex: string;
+}
+
+export interface ThresholdSigRound2Partial {
+  index: number;
+  zHex: string;
+  proofHex: string;
+}
+
+export interface ThresholdSigSignatureWire {
+  rAggHex: string;
+  zHex: string;
+  signers: number[];
+}
+
+export interface ThresholdSigAggregateResult {
+  signature: ThresholdSigSignatureWire;
+  signatureBytesHex: string;
+  wire: Uint8Array;
+}

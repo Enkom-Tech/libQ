@@ -25,3 +25,6 @@ pub use qcw_mac::{
     QcwMac,
     QcwMacKey,
 };
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
