@@ -19,7 +19,7 @@ block-buffer = { workspace = true }
 digest = { workspace = true }
 # `default-features = false` avoids pulling `lib-q-keccak` `std` (e.g. `num_cpus`) for dependents
 # that are `no_std` / `wasm` / `thumb*`. The `asm` feature still enables `lib-q-keccak/asm` when set.
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.6", default-features = false }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.7", default-features = false }
 
 [dev-dependencies]
 digest = { workspace = true, features = ["dev"] }

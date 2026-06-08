@@ -8,35 +8,85 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "Quantum Carter-Wegman MAC (qCW-MAC) with splitting unforgeability target"
-keywords = ["cryptography", "post-quantum", "mac", "no-std"]
-categories = ["cryptography", "no-std"]
+keywords = ["cryptography", "post-quantum", "mac", "no-std", "wasm"]
+categories = ["cryptography", "no-std", "wasm"]
 
 [dependencies]
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", optional = true, default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["std"] }
+wasm-bindgen-test = { workspace = true }
+
+# Host-only test deps: proptest pulls `getrandom` 0.3 without `wasm_js` and breaks wasm-pack smoke builds.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
-proptest = { workspace = true }
 
 [features]
-default = ["alloc"]
+default = ["alloc", "std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-random/std", "lib-q-random/secure"]
-no_std = ["alloc"]
+no_std = ["alloc", "no_std_panic_handler"]
+no_std_panic_handler = []
 random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "std",
+    "random",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+    "lib-q-random/wasm",
+    "dep:getrandom",
+    "getrandom/wasm_js",
+]
+getrandom = ["dep:getrandom"]
+# Host integration tests (KAT, SU simulations); omitted from wasm-pack `--features wasm,random` builds.
+host-tests = ["std", "random"]
 
 [lib]
 name = "lib_q_mac"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "random"]
+
+[[test]]
+name = "kat_vectors"
+path = "tests/kat_vectors.rs"
+required-features = ["host-tests"]
+
+[[test]]
+name = "kat_regenerate"
+path = "tests/kat_regenerate.rs"
+required-features = ["host-tests"]
+
+[[test]]
+name = "su_properties"
+path = "tests/su_properties.rs"
+required-features = ["host-tests"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("alloc", "std", "no_std", "random"))',
+    'cfg(feature, values("alloc", "host-tests", "no_std", "no_std_panic_handler", "random", "std", "wasm", "getrandom"))',
 ] }
