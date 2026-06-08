@@ -146,6 +146,7 @@ export interface FheCiphertextWire {
   dimension: number;
   modulus: number;
   nonce: string;
+  plaintextLen: number;
   body: number[];
   mask: number[];
 }

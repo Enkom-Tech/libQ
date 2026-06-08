@@ -37,7 +37,8 @@ wasm-bindgen-test = { workspace = true }
 default = ["alloc", "std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-random/std", "lib-q-random/secure"]
-no_std = ["alloc"]
+no_std = ["alloc", "no_std_panic_handler"]
+no_std_panic_handler = []
 random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]
 wasm = [
     "wasm-bindgen",
@@ -49,6 +50,7 @@ wasm = [
     "lib-q-core/wasm",
     "lib-q-random/wasm",
     "dep:getrandom",
+    "getrandom/wasm_js",
 ]
 getrandom = ["dep:getrandom"]
 
@@ -67,5 +69,5 @@ required-features = ["wasm", "random"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("alloc", "std", "no_std", "random", "wasm", "getrandom"))',
+    'cfg(feature, values("alloc", "std", "no_std", "no_std_panic_handler", "random", "wasm", "getrandom"))',
 ] }

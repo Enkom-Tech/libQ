@@ -42,6 +42,8 @@ struct FheCiphertextWire {
     dimension: u32,
     modulus: i32,
     nonce: String,
+    #[serde(rename = "plaintextLen")]
+    plaintext_len: u32,
     body: Vec<i32>,
     mask: Vec<i32>,
 }
@@ -54,11 +56,12 @@ enum EvalOpWire {
     MulConstant { value: i32 },
 }
 
-fn ciphertext_to_wire(ct: &Ciphertext) -> FheCiphertextWire {
+fn ciphertext_to_wire(ct: &Ciphertext, plaintext_len: u32) -> FheCiphertextWire {
     FheCiphertextWire {
         dimension: ct.params.dimension as u32,
         modulus: ct.params.modulus,
         nonce: ct.nonce.to_string(),
+        plaintext_len,
         body: ct.body.clone(),
         mask: ct.mask.clone(),
     }
@@ -77,6 +80,16 @@ fn ciphertext_from_wire(wire: &FheCiphertextWire) -> Result<Ciphertext, JsValue>
         body: wire.body.clone(),
         mask: wire.mask.clone(),
     })
+}
+
+fn plaintext_len_from_wire(wire: &FheCiphertextWire) -> usize {
+    let dim = wire.dimension as usize;
+    let len = wire.plaintext_len as usize;
+    if len == 0 || len > dim {
+        dim
+    } else {
+        len
+    }
 }
 
 fn eval_op_from_wire(op: &EvalOpWire) -> Result<EvalOp, JsValue> {
@@ -118,8 +131,9 @@ pub fn fhe_encrypt_wasm(
 ) -> Result<JsValue, JsValue> {
     let key = fhe_keygen(seed, dimension as usize, modulus);
     let plaintext = int32_array_to_vec(plaintext);
+    let plaintext_len = plaintext.len() as u32;
     let ct = encrypt(&key, &plaintext, nonce);
-    serde_wasm_bindgen::to_value(&ciphertext_to_wire(&ct)).map_err(js_err)
+    serde_wasm_bindgen::to_value(&ciphertext_to_wire(&ct, plaintext_len)).map_err(js_err)
 }
 
 /// Homomorphic evaluation; `opJson` is tagged JSON (`addConstant`, `mulConstant`, `addCiphertext`).
@@ -129,8 +143,9 @@ pub fn fhe_eval_wasm(ciphertext_json: JsValue, op_json: JsValue) -> Result<JsVal
         serde_wasm_bindgen::from_value(ciphertext_json).map_err(js_err)?;
     let ct = ciphertext_from_wire(&wire)?;
     let op_wire: EvalOpWire = serde_wasm_bindgen::from_value(op_json).map_err(js_err)?;
+    let plaintext_len = wire.plaintext_len;
     let out = eval(&ct, eval_op_from_wire(&op_wire)?);
-    serde_wasm_bindgen::to_value(&ciphertext_to_wire(&out)).map_err(js_err)
+    serde_wasm_bindgen::to_value(&ciphertext_to_wire(&out, plaintext_len)).map_err(js_err)
 }
 
 /// Decrypt ciphertext JSON with key `(seed, dimension, modulus)`; returns `Int32Array`.
@@ -146,8 +161,9 @@ pub fn fhe_decrypt_wasm(
     let key = fhe_keygen(seed, dimension as usize, modulus);
     let ct = ciphertext_from_wire(&wire)?;
     let plain = decrypt(&key, &ct);
-    let out = Int32Array::new_with_length(plain.len() as u32);
-    out.copy_from(&plain);
+    let len = plaintext_len_from_wire(&wire);
+    let out = Int32Array::new_with_length(len as u32);
+    out.copy_from(&plain[..len]);
     Ok(out)
 }
 

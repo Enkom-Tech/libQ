@@ -3,10 +3,21 @@
 //! Construction: keyed epsilon-AXU hash + quantum PRF (Boneh-Zhandry, ePrint 2026/271).
 //! Symmetric primitives only (SHAKE256 via [`lib_q_sha3`]).
 #![forbid(unsafe_code)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "no_std", no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+
+#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+mod no_std_panic_handler {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    #[allow(clippy::empty_loop)]
+    fn panic(_info: &PanicInfo) -> ! {
+        loop {}
+    }
+}
 
 pub mod axu;
 pub mod error;
