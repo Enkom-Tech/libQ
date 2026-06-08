@@ -110,7 +110,7 @@ pub fn double_kem_encap_hex(ek_a_hex: &str, ek_b_hex: &str) -> Result<JsValue, J
     let ek_b = decode_ek(&hex_decode(ek_b_hex)?)?;
     let mut rng = new_secure_rng().map_err(js_err)?;
     let (wire, shared) =
-        double_encap(MaulProfileV1::default(), &ek_a, &ek_b, &mut rng).map_err(js_err)?;
+        double_encap(MaulProfileV1, &ek_a, &ek_b, &mut rng).map_err(js_err)?;
     let wire_bytes = wire.to_bytes();
     let out = serde_json::json!({
         "wireHex": hex_encode(&wire_bytes),
@@ -130,6 +130,6 @@ pub fn double_kem_decap(
     let parsed = MaulEncapWire::from_bytes(wire).map_err(js_err)?;
     let dk_a = decode_dk(&hex_decode(dk_a_hex)?)?;
     let dk_b = decode_dk(&hex_decode(dk_b_hex)?)?;
-    let shared = double_decap(MaulProfileV1::default(), &parsed, &dk_a, &dk_b).map_err(js_err)?;
+    let shared = double_decap(MaulProfileV1, &parsed, &dk_a, &dk_b).map_err(js_err)?;
     Ok(bytes_to_uint8_array(Zeroizing::new(shared).as_ref()))
 }
