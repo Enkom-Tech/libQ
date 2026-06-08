@@ -1,5 +1,7 @@
 # lib-Q - Post-Quantum Cryptography Library
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Enkom-Tech/libQ)
+
 A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are produced for the `@lib-q/*` packages listed below (see [docs/npm-packages.md](docs/npm-packages.md)). For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
 
 ## Mission

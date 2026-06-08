@@ -126,6 +126,72 @@ Full sigma protocols, amortisation, and BLNS hooks are **Rust-only** (`lib-q-lat
 
 Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`).
 
+## `@lib-q/mac` (0.0.7)
+
+| JS name | Description |
+|---------|-------------|
+| `qcwMacKeyBytes` | Returns key size (32) |
+| `qcwMacTagBytes` | Returns tag size (32) |
+| `qcwMacGenerateKey` | Fresh key as `Uint8Array` |
+| `qcwMacSign` | Sign `(key, msg, ad)` → tag `Uint8Array` |
+| `qcwMacVerify` | Constant-time verify |
+
+## `@lib-q/blind-pcs` (0.0.7, EXPERIMENTAL_NON_NIST)
+
+| JS name | Description |
+|---------|-------------|
+| `blindCommit` | Commitment `Uint8Array` (32 bytes) |
+| `blindOpen` | JSON `{ messageHex, blindHex }` |
+| `blindVerify` | Verify with hex opening fields |
+| `blindVerifyBytes` | Verify with raw byte slices |
+
+## `@lib-q/double-kem` (0.0.7, PROVISIONAL)
+
+| JS name | Description |
+|---------|-------------|
+| `doubleKemWireBytes` | Fixed wire size (1260) |
+| `doubleKemEncapHex` | JSON `{ wireHex, sharedSecretHex }` from ML-KEM public keys |
+| `doubleKemDecap` | Decap with wire `Uint8Array` + hex secret keys |
+| `doubleKemCkFoUpgrade` | CK/FO upgrade of two 32-byte secrets |
+| `doubleKemWireFromBytes` / `doubleKemWireToBytes` | Canonical 1260-byte wire |
+
+## `@lib-q/fhe` (0.0.7, EXPERIMENTAL_NON_NIST)
+
+| JS name | Description |
+|---------|-------------|
+| `fheKeygen` | Deterministic key params JSON |
+| `fheEncrypt` | Encrypt `Int32Array` plaintext |
+| `fheEval` | Homomorphic op via tagged JSON (`addConstant`, `mulConstant`, `addCiphertext`) |
+| `fheDecrypt` | Decrypt to `Int32Array` |
+| `fheCiphertextToBytes` | Canonical ciphertext bytes |
+
+## `@lib-q/threshold-kem` (0.0.7, PROVISIONAL)
+
+Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
+
+| JS name | Description |
+|---------|-------------|
+| `thresholdKemSetup` | Profile metadata JSON |
+| `thresholdKemKeygenShares` | `{ publicKey, secretShares[] }` with `shareBytes` as `Uint8Array` |
+| `thresholdKemEncap` | `{ sharedSecret, ciphertextHex, wire }` |
+| `thresholdKemPartialDecap` | Partial share JSON |
+| `thresholdKemCombineDecap` | Combined shared secret `Uint8Array` |
+| `thresholdKemVerifyShare` | Share proof check |
+| `thresholdKemEncodeWireV1` / `thresholdKemDecodeWireV1` | Canonical wire codec |
+
+## `@lib-q/threshold-sig` (0.0.7, PROVISIONAL)
+
+| JS name | Description |
+|---------|-------------|
+| `thresholdSigSetup` | Profile metadata JSON |
+| `thresholdSigKeygenShares` | Keygen with `shareBytes` as `Uint8Array` |
+| `thresholdSigSignRound1` | Opaque `ThresholdSigRound1Handle` (nonce state) |
+| `thresholdSigSignRound2` | Round-2 partial JSON |
+| `thresholdSigAggregate` | Signature + wire JSON |
+| `thresholdSigVerify` | Boolean verify |
+| `thresholdSigIdentifyAbort` | Faulty signer indices |
+| `thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1` | Wire codec |
+
 ## `@lib-q/types`
 
 TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross-package typings.

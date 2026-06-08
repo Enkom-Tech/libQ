@@ -214,3 +214,42 @@ if missing:
 
 print("WASM npm coverage guard: OK")
 PY
+
+python3 - <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(".")
+cd = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8")
+
+tier4b_block = ""
+if "publish-rust-tier-4b-new-primitives:" in cd:
+    tier4b_block = cd.split("publish-rust-tier-4b-new-primitives:", 1)[1]
+    tier4b_block = tier4b_block.split("\n  publish-rust-tier-5:", 1)[0]
+
+tier4b_crates = sorted(
+    set(re.findall(r'-\s*package:\s*"(lib-q-[^"]+)"', tier4b_block))
+)
+
+wasm_block = cd.split("publish-wasm-packages:", 1)[1] if "publish-wasm-packages:" in cd else ""
+wasm_dirs = set(re.findall(r'working-directory:\s*"(lib-q-[^"]+)"', wasm_block))
+if "." in wasm_dirs:
+    wasm_dirs.add("lib-q")
+
+missing = sorted(crate for crate in tier4b_crates if crate not in wasm_dirs)
+if missing:
+    print(
+        "ERROR: tier-4b publish-rust crates missing from cd.yml publish-wasm-packages matrix:",
+        file=sys.stderr,
+    )
+    for crate in missing:
+        print(f"  - {crate}", file=sys.stderr)
+    print(
+        "Every crate in publish-rust-tier-4b-new-primitives must have a matching npm package.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+print("tier-4b npm parity guard: OK")
+PY

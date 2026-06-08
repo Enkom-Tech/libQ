@@ -29,3 +29,6 @@ pub use profile::{
     WIRE_BUDGET_MAUL_ENCAP_BYTES,
 };
 pub use wire::MaulEncapWire;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;

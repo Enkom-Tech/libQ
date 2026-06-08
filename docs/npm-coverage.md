@@ -3,11 +3,11 @@
 lib-Q ships **two release surfaces**:
 
 1. **crates.io** — full workspace (50+ crates), including `lib-q-stark-*`, `lib-q-plonky-*`, research crates, and infrastructure.
-2. **npm (`@lib-q/*`)** — **22** scoped packages built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers.
+2. **npm (`@lib-q/*`)** — **28** scoped packages built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers.
 
 npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate name.
 
-## Package map (22 npm packages)
+## Package map (28 npm packages)
 
 ### Core cryptography (17, published in 0.0.2)
 
@@ -42,6 +42,17 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 | `@lib-q/ring` | `lib-q-ring` | Shared ring \(R_q\) for ML-DSA / lattice-zkp |
 
 Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-npm-ordered.sh`).
+
+### Advanced primitives (6, tier-4b npm parity in 0.0.7)
+
+| npm | Rust crate | Role |
+|-----|------------|------|
+| `@lib-q/mac` | `lib-q-mac` | qCW-MAC symmetric authentication |
+| `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo |
+| `@lib-q/double-kem` | `lib-q-double-kem` | PROVISIONAL MAUL v1 double ML-KEM-768 |
+| `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE |
+| `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM |
+| `@lib-q/threshold-sig` | `lib-q-threshold-sig` | PROVISIONAL threshold signatures |
 
 ## What stays Rust-only on npm
 

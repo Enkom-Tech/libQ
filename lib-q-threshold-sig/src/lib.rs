@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 pub mod error;
 pub mod profile;
 pub mod threshold_sig;

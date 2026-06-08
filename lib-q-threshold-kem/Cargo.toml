@@ -8,30 +8,65 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL lattice threshold KEM built on ML-KEM-768 and Shamir shares"
-keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem"]
-categories = ["cryptography"]
+keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem", "wasm"]
+categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", default-features = false, features = ["std", "random"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", default-features = false, features = ["std"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", default-features = false, features = ["std", "random"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["std", "random"]
 std = []
 random = []
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "std",
+    "random",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+    "lib-q-random/wasm",
+    "dep:getrandom",
+]
+getrandom = ["dep:getrandom"]
 
 [lib]
 name = "lib_q_threshold_kem"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "random"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("std", "random"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("std", "random", "wasm", "getrandom"))',
+] }

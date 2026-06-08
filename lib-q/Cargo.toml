@@ -23,22 +23,22 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Core dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.6", features = ["rand"] }
-lib-q-kem = { path = "../lib-q-kem", version = "0.0.6" }
-lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.6" }
-lib-q-sig = { path = "../lib-q-sig", version = "0.0.6", default-features = false, features = ["alloc", "ml-dsa", "slh-dsa"] }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.6" }
-lib-q-aead = { path = "../lib-q-aead", version = "0.0.6" }
-lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.6", optional = true, default-features = false }
-lib-q-hpke = { path = "../lib-q-hpke", version = "0.0.6", optional = true }
-lib-q-utils = { path = "../lib-q-utils", version = "0.0.6" }
-lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.6", default-features = false, features = ["alloc", "zkp"] }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.6", default-features = false }
-lib-q-fn-dsa = { path = "../lib-q-fn-dsa", version = "0.0.6", optional = true }
-lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.6", optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", optional = true }
-lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.6", optional = true, default-features = false }
-lib-q-prf = { path = "../lib-q-prf", version = "0.0.6", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", features = ["rand"] }
+lib-q-kem = { path = "../lib-q-kem", version = "0.0.7" }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.7" }
+lib-q-sig = { path = "../lib-q-sig", version = "0.0.7", default-features = false, features = ["alloc", "ml-dsa", "slh-dsa"] }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.7" }
+lib-q-aead = { path = "../lib-q-aead", version = "0.0.7" }
+lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.7", optional = true, default-features = false }
+lib-q-hpke = { path = "../lib-q-hpke", version = "0.0.7", optional = true }
+lib-q-utils = { path = "../lib-q-utils", version = "0.0.7" }
+lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.7", default-features = false, features = ["alloc", "zkp"] }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.7", default-features = false }
+lib-q-fn-dsa = { path = "../lib-q-fn-dsa", version = "0.0.7", optional = true }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.7", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true }
+lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.7", optional = true, default-features = false }
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.7", optional = true }
 
 # WASM-specific dependencies
 wasm-bindgen = { workspace = true, optional = true }
@@ -46,11 +46,11 @@ js-sys = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = ["console"] }
 
 [dev-dependencies]
-lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.6" }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", default-features = false, features = ["std", "random"] }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.6" }
-lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.6" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["std"] }
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.7" }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", default-features = false, features = ["std", "random"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.7" }
+lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.7" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 rand_core = { workspace = true }
 
 # WASM testing

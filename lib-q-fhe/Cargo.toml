@@ -8,24 +8,51 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "Experimental toy lattice FHE primitives for demos"
-keywords = ["cryptography", "post-quantum", "fhe", "experimental"]
-categories = ["cryptography"]
+keywords = ["cryptography", "post-quantum", "fhe", "experimental", "wasm"]
+categories = ["cryptography", "wasm"]
 
 [dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
 sha2 = { workspace = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["derive", "std"] }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-blind-pcs = { path = "../lib-q-blind-pcs", version = "0.0.6", default-features = false, features = ["blind-pcs"] }
+lib-q-blind-pcs = { path = "../lib-q-blind-pcs", version = "0.0.7", default-features = false, features = ["blind-pcs"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = []
 fhe = []
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "fhe",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+]
 
 [lib]
 name = "lib_q_fhe"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "fhe"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("fhe"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("fhe", "wasm"))'] }

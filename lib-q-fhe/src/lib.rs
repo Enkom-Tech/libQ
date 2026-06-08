@@ -14,3 +14,6 @@ pub use fhe::{
     eval,
     fhe_keygen,
 };
+
+#[cfg(feature = "wasm")]
+pub mod wasm;

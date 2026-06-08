@@ -328,23 +328,23 @@ jobs:
             features: "wasm"
             check-only: "false"
           - working-directory: "lib-q-mac"
-            features: "no_std"
-            check-only: "true"
+            features: "wasm,random"
+            check-only: "false"
           - working-directory: "lib-q-threshold-sig"
-            features: "std,random"
-            check-only: "true"
+            features: "wasm,std,random"
+            check-only: "false"
           - working-directory: "lib-q-threshold-kem"
-            features: "std,random"
-            check-only: "true"
+            features: "wasm,std,random"
+            check-only: "false"
           - working-directory: "lib-q-double-kem"
-            features: "std,random"
-            check-only: "true"
+            features: "wasm,std,random"
+            check-only: "false"
           - working-directory: "lib-q-fhe"
-            features: "fhe"
-            check-only: "true"
+            features: "wasm,fhe"
+            check-only: "false"
           - working-directory: "lib-q-blind-pcs"
-            features: "blind-pcs"
-            check-only: "true"
+            features: "wasm,blind-pcs"
+            check-only: "false"
     
     steps:
       - uses: actions/checkout@v5
@@ -416,6 +416,12 @@ jobs:
           - lib-q-hpke
           - lib-q-zkp
           - lib-q-random
+          - lib-q-mac
+          - lib-q-blind-pcs
+          - lib-q-double-kem
+          - lib-q-fhe
+          - lib-q-threshold-kem
+          - lib-q-threshold-sig
     steps:
       - uses: actions/checkout@v5
 
@@ -465,6 +471,12 @@ jobs:
             lib-q-lattice-zkp) echo "features=wasm,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-ring) echo "features=wasm,alloc" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q) echo "features=wasm,ml-kem" >> $GITHUB_OUTPUT; echo "test=wasm_integration" >> $GITHUB_OUTPUT ;;
+            lib-q-mac) echo "features=wasm,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-blind-pcs) echo "features=wasm,blind-pcs" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-double-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-fhe) echo "features=wasm,fhe" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-threshold-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-threshold-sig) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             *) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
           esac
 

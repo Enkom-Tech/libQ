@@ -8,34 +8,68 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL double ML-KEM-768 encapsulation profile with constrained wire budget"
-keywords = ["cryptography", "post-quantum", "kem", "ml-kem"]
-categories = ["cryptography"]
+keywords = ["cryptography", "post-quantum", "kem", "ml-kem", "wasm"]
+categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.6", default-features = false, features = ["deterministic"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.6", default-features = false, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", optional = true, default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", default-features = false, features = ["deterministic"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.6", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = ["alloc", "std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-ml-kem/std", "lib-q-random/std"]
 random = ["dep:lib-q-random", "lib-q-random/getrandom", "lib-q-random/secure", "lib-q-ml-kem/random"]
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "serde_json",
+    "serde-wasm-bindgen",
+    "std",
+    "random",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+    "lib-q-random/wasm",
+    "dep:getrandom",
+]
+getrandom = ["dep:getrandom"]
 
 [lib]
 name = "lib_q_double_kem"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "random"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("alloc", "std", "random"))',
+    'cfg(feature, values("alloc", "std", "random", "wasm", "getrandom"))',
 ] }

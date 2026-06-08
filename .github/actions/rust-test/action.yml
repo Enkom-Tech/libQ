@@ -164,7 +164,7 @@ runs:
             elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
               echo "Building $PACKAGE no_std with dev-no-std (`no_std` includes aborting panic handler)"
               cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "$FEATURES" --verbose
-            elif [[ "$PACKAGE" == "lib-q-ring" || "$PACKAGE" == "lib-q-lattice-zkp" ]]; then
+            elif [[ "$PACKAGE" == "lib-q-ring" || "$PACKAGE" == "lib-q-lattice-zkp" || "$PACKAGE" == "lib-q-mac" ]]; then
               echo "Building $PACKAGE no_std for thumbv7em-none-eabi (cdylib dropped on embedded target)"
               cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "${FEATURES:-no_std}" --target thumbv7em-none-eabi --verbose
             elif [[ "$PACKAGE" == "lib-q-prf" ]]; then
@@ -256,9 +256,12 @@ runs:
             elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
               echo "Building $PACKAGE no_std release check with release-security"
               cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES" --verbose
-            elif [[ "$PACKAGE" == "lib-q-ring" || "$PACKAGE" == "lib-q-lattice-zkp" ]]; then
+            elif [[ "$PACKAGE" == "lib-q-ring" || "$PACKAGE" == "lib-q-lattice-zkp" || "$PACKAGE" == "lib-q-mac" ]]; then
               echo "Building $PACKAGE no_std release for thumbv7em-none-eabi"
               cargo check -p $PACKAGE --profile release-security --no-default-features --features "${FEATURES:-no_std}" --target thumbv7em-none-eabi --verbose
+            elif [[ "$PACKAGE" == "lib-q-prf" ]]; then
+              echo "Building $PACKAGE no_std release (rlib only on host; cdylib is wasm/npm-only)"
+              cargo check -p $PACKAGE --profile release-security --no-default-features --features "${FEATURES:-alloc,no_std_panic_handler}" --lib --verbose
             else
               echo "Building no_std package $PACKAGE with release-security profile (panic=abort)"
               cargo check -p $PACKAGE --profile release-security --no-default-features --features "$FEATURES" --verbose

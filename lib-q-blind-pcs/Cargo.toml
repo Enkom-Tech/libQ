@@ -8,19 +8,46 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "Experimental provisional blind polynomial commitment sketch"
-keywords = ["cryptography", "post-quantum", "commitment", "experimental"]
-categories = ["cryptography"]
+keywords = ["cryptography", "post-quantum", "commitment", "experimental", "wasm"]
+categories = ["cryptography", "wasm"]
 
 [dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
 sha2 = { workspace = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
 
 [features]
 default = []
 blind-pcs = []
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "blind-pcs",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+]
 
 [lib]
 name = "lib_q_blind_pcs"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "blind-pcs"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("blind-pcs"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("blind-pcs", "wasm"))'] }

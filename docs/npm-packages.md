@@ -1,6 +1,6 @@
 # @lib-q npm packages
 
-**22** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
+**28** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
 
 Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
 
@@ -32,6 +32,12 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/poseidon` | `lib-q-poseidon` | Poseidon-128 over `Complex<Mersenne31>` |
 | `@lib-q/lattice-zkp` | `lib-q-lattice-zkp` | Module-lattice commitments / sigma (research) |
 | `@lib-q/ring` | `lib-q-ring` | ML-DSA ring \(R_q\) constants and shared arithmetic (Rust-heavy) |
+| `@lib-q/mac` | `lib-q-mac` | qCW-MAC sign/verify (`qcwMacGenerateKey`, `qcwMacSign`, `qcwMacVerify`) |
+| `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo (**EXPERIMENTAL_NON_NIST**) |
+| `@lib-q/double-kem` | `lib-q-double-kem` | PROVISIONAL MAUL v1 double ML-KEM-768 |
+| `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE demo (**EXPERIMENTAL_NON_NIST**) |
+| `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) |
+| `@lib-q/threshold-sig` | `lib-q-threshold-sig` | PROVISIONAL threshold signatures (FROST-like) |
 
 `lib-q-stark-*` and `lib-q-plonky-*` subcrates remain **crates.io-only**; npm uses the umbrella rows above.
 

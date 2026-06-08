@@ -2,6 +2,19 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.7
+
+### Added
+
+- **npm WASM packages for tier-4b primitives** (parity with crates.io 0.0.6): `@lib-q/mac`, `@lib-q/blind-pcs`, `@lib-q/double-kem`, `@lib-q/fhe`, `@lib-q/threshold-kem`, `@lib-q/threshold-sig` — each with `wasm` feature, `src/wasm.rs`, wasm-bindgen smoke tests, CI wasm-build/bindgen-test matrix entries, and CD `publish-wasm-packages` rows.
+- **`@lib-q/types`:** TypeScript interfaces for MAC, double-KEM, FHE, and threshold KEM/sig wire shapes.
+
+### Changed
+
+- **Workspace:** Version **0.0.7**; npm package count **22 → 28**.
+- **CI:** `scripts/ci-guard-new-crates-and-npm.sh` now requires every `publish-rust-tier-4b-new-primitives` crate to appear in `publish-wasm-packages`.
+- **Docs:** `docs/npm-packages.md`, `docs/npm-coverage.md`, `docs/npm-wasm-api.md` updated for the six new packages.
+
 ## 0.0.6
 
 ### Added
