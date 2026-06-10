@@ -9,6 +9,11 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-stark-mds",
+]
 [dependencies]
 lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.7", optional = true }
 lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.7" }

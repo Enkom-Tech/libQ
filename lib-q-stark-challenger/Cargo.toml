@@ -9,6 +9,12 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "criterion",
+    "zeroize",
+]
 [dependencies]
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7" }

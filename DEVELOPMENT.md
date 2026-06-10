@@ -28,6 +28,9 @@ cd libQ
 # Optional: install pre-commit hooks (Python; use pip or conda)
 # pip install pre-commit && pre-commit install
 
+# Optional: install pre-push Rust health gate (fmt, clippy, audit, hygiene tools)
+# bash scripts/install-git-hooks.sh
+
 # Verify setup
 ./scripts/security-check.sh  # Linux/macOS
 # or
@@ -255,11 +258,16 @@ We follow [Semantic Versioning](https://semver.org/):
 cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 # Optional: pre-commit hooks (Python — pip install pre-commit && pre-commit install)
+# Optional: pre-push Rust health gate — bash scripts/install-git-hooks.sh
+#   Manual run: bash scripts/rust-pre-push-health.sh [--strict]
+#   Config: .rust-pre-push-health.json — see scripts/rust-pre-push-health.sh
 ```
 
 ### Useful Scripts
 
 - `./scripts/security-check.sh`: Security validation
+- `./scripts/rust-pre-push-health.sh`: Pre-push fmt/clippy/audit and hygiene checks
+- `./scripts/pre-git-push.sh`: Git pre-push orchestrator (auto-detects Cargo workspaces)
 - `cargo audit`: Dependency vulnerability scanning
 - `cargo tarpaulin`: Code coverage analysis
 - `wasm-pack build`: WASM compilation

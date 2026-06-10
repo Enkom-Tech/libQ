@@ -9,6 +9,13 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-core",
+    "lib-q-stark-dft",
+    "subtle",
+]
 [dependencies]
 lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
 lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.7" }

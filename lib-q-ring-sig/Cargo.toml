@@ -9,6 +9,12 @@ description = "Federation-style ring openings over Ajtai commitments (DualRing-L
 keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std"]
 categories = ["cryptography", "no-std"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "js-sys",
+    "serde_json",
+]
 [dependencies]
 # With `default-features = false`, the `std` feature enables `lib-q-core/std` so the crate root can omit
 # `#![no_std]` under default features: native `cdylib`+`alloc` otherwise needs a global allocator and

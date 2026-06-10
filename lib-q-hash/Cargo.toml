@@ -11,6 +11,11 @@ keywords = ["cryptography", "post-quantum", "hash", "shake"]
 categories = ["cryptography"]
 readme.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "base16ct",
+]
 [dependencies]
 block-buffer = { workspace = true }
 lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
