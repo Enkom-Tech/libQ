@@ -13,6 +13,14 @@ description = "Unified secure random number generation for libQ post-quantum cry
 keywords = ["cryptography", "post-quantum", "security", "rng", "entropy"]
 categories = ["cryptography", "wasm"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-hash",
+    "proptest",
+    "serde-wasm-bindgen",
+    "signature",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", features = ["alloc"], optional = true }
 lib-q-hash = { path = "../lib-q-hash", version = "0.0.7", optional = true }

@@ -1,0 +1,11 @@
+# cargo-audit configuration (see `cargo audit --help`).
+#
+# proc-macro-error2 is patched to vendor/proc-macro-error2 in the workspace root
+# Cargo.toml because crates.io 2.0.1 triggers rustc E0365 (rust-lang/rust#127909).
+# Upstream is flagged unmaintained (RUSTSEC-2026-0173); the vendored copy is
+# maintained in-tree and pinned via [patch.crates-io].
+
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0173", # vendored maintained copy: vendor/proc-macro-error2 ([patch.crates-io])
+]

@@ -1,0 +1,15 @@
+{
+  "mode": "soft",
+  "checks": {
+    "fmt": { "enabled": true, "blocking": null },
+    "clippy": { "enabled": true, "blocking": null },
+    "audit": { "enabled": true, "blocking": null },
+    "deps": { "enabled": true, "blocking": null, "tool": "auto" },
+    "warnalyzer": { "enabled": true, "blocking": null },
+    "dupes": { "enabled": true, "blocking": null },
+    "metrics": { "enabled": true, "blocking": null }
+  },
+  "output_json": ".rust-pre-push-health-last.json",
+  "clippy_args": ["--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+  "fmt_args": ["--all", "--", "--check"]
+}

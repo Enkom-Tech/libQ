@@ -15,6 +15,17 @@ autobenches = false
 # KAT `.rsp` trees under `kats/` exceed crates.io's 10 MiB upload limit; keep for CI, not the registry tarball.
 exclude = ["/kats", "/tests", "/benches", "/scripts"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "criterion",
+    "heapless",
+    "hybrid-array",
+    "js-sys",
+    "rand",
+    "serde",
+    "serde-big-array",
+]
 [dependencies]
 # Core libQ dependencies
 lib-q-core = { path = "../lib-q-core", version = "0.0.7" }

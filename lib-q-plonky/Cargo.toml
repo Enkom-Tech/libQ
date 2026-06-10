@@ -11,6 +11,11 @@ readme.workspace = true
 keywords = ["cryptography", "post-quantum", "zkp", "lib-q"]
 categories = ["cryptography"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-core",
+]
 [lib]
 name = "lib_q_plonky"
 path = "src/lib.rs"

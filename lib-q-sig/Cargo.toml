@@ -11,6 +11,13 @@ description = "Post-quantum Digital Signatures for lib-Q"
 keywords = ["cryptography", "post-quantum", "signatures", "pqc"]
 categories = ["cryptography"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "serde-wasm-bindgen",
+    "serde_json",
+    "sha2",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false, features = ["alloc"] }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.7", optional = true }

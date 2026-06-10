@@ -11,6 +11,13 @@ keywords = ["cryptography", "post-quantum", "aead", "encryption"]
 categories = ["cryptography"]
 readme.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-hash",
+    "lib-q-random",
+    "serde_json",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 lib-q-types = { path = "../lib-q-types", version = "0.0.7", default-features = false }

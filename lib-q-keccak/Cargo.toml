@@ -16,6 +16,14 @@ readme.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "getrandom",
+    "js-sys",
+    "nix",
+    "wasm-bindgen",
+]
 [features]
 default = ["std", "asm"]
 asm = []       # Use optimized assembly when available (ARMv8, x86_64 AVX2/AVX-512)

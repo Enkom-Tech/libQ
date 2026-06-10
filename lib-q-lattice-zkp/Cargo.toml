@@ -9,6 +9,12 @@ description = "Module-lattice commitments, sigma protocols, and BLNS-style crede
 keywords = ["cryptography", "post-quantum", "lattice", "zkp", "no-std"]
 categories = ["cryptography", "no-std"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-core",
+    "proptest",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false, optional = true }
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.7", default-features = false, features = ["std"] }

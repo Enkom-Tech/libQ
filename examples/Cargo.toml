@@ -7,6 +7,11 @@ authors.workspace = true
 description = "Examples for lib-Q post-quantum cryptography library"
 license.workspace = true
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-kem",
+]
 [dependencies]
 # Match typical umbrella usage: registry, signatures, and CB-KEM examples (`cb-kem` feature below).
 libq = { path = "../lib-q", version = "0.0.7", package = "lib-q", features = ["ml-dsa", "slh-dsa"] }
