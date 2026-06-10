@@ -15,6 +15,11 @@ categories = ["cryptography", "no-std", "wasm"]
 keywords = ["crypto", "ml-kem", "lattice", "post-quantum", "nist"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "crypto-common",
+]
 [features]
 default = ["std"]
 std = [] # When enabled, the crate is not `#![no_std]` (links `std`, providing the global allocator required by the `cdylib` output). `no_std` consumers must use `default-features = false`.

@@ -12,6 +12,14 @@ keywords = ["cryptography", "post-quantum", "signatures", "slh-dsa", "sphincs"]
 categories = ["cryptography"]
 exclude = ["tests"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "getrandom",
+    "js-sys",
+    "quickcheck",
+    "quickcheck_macros",
+]
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 typenum = { version = "1.20.1", features = ["const-generics"] }

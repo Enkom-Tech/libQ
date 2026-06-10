@@ -13,6 +13,12 @@ keywords = ["cryptography", "post-quantum", "kem", "classical-mceliece", "nist"]
 categories = ["cryptography", "wasm"]
 exclude = ["/data"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "getrandom",
+    "serde_json",
+]
 [dependencies]
 # libQ dependencies
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", features = ["alloc"] }

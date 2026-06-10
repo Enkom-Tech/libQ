@@ -230,3 +230,4 @@ cyclonedx-bom.json
 .cursor/
 .claude/
 hooks.json
+.rust-pre-push-health-last.json

@@ -12,6 +12,11 @@ description = "Post-quantum Key Encapsulation Mechanisms for lib-Q"
 keywords = ["cryptography", "post-quantum", "kem", "ml-kem", "nist"]
 categories = ["cryptography", "wasm"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "lib-q-sha3",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 

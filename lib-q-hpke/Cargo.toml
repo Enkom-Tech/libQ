@@ -13,6 +13,14 @@ categories = ["cryptography"]
 # Temporarily disabled publishing to avoid CI issues
 # publish = false
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "getrandom",
+    "js-sys",
+    "lib-q-ml-dsa",
+    "lib-q-ml-kem",
+]
 [lib]
 name = "lib_q_hpke"
 path = "src/lib.rs"

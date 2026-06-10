@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Git pre-push hook — calls repo orchestrator (Rust health gate when applicable).
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec bash "$ROOT/scripts/pre-git-push.sh" "$@"

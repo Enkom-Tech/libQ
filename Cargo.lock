@@ -1279,7 +1279,6 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
- "proptest",
  "rand_core 0.10.1",
  "serde",
  "serde_json",

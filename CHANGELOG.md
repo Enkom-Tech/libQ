@@ -9,6 +9,18 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **npm WASM packages for tier-4b primitives** (parity with crates.io 0.0.6): `@lib-q/mac`, `@lib-q/blind-pcs`, `@lib-q/double-kem`, `@lib-q/fhe`, `@lib-q/threshold-kem`, `@lib-q/threshold-sig` — each with `wasm` feature, `src/wasm.rs`, wasm-bindgen smoke tests, CI wasm-build/bindgen-test matrix entries, and CD `publish-wasm-packages` rows.
 - **`@lib-q/types`:** TypeScript interfaces for MAC, double-KEM, FHE, and threshold KEM/sig wire shapes.
 
+### Wire-stable (pending 0.0.7 tag)
+
+- **`lib-q-duplex-aead`:** Wire format v0 frozen — 32-byte key, 16-byte nonce, 32-byte tag, Keccak-f[1600] duplex-sponge. KAT fixtures in `tests/kat.rs` and `examples/dump_duplex_kat.rs`. libQ integration: `aead_id = 2` via `libq-crypto` feature `duplex-sponge`.
+
+### Hardened attestation (pending 0.0.7 tag)
+
+- **`lib-q-ml-kem`:** `hardened` feature enables Boolean masked decapsulation, shuffled NTT, `subtle` constant-time comparisons. Dudect smoke test: `tests/hardened_dudect_smoke.rs`.
+- **`lib-q-ml-dsa`:** `hardened` feature enables masked signing path. Dudect smoke test: `tests/hardened_dudect_smoke.rs` (requires `dudect-smoke-tests`).
+- **Attestation:** `docs/hardened-attestation.md` documents hardening scope, CI evidence requirements, and libQ `LIBQ_CRYPTO_HARDENED_ATTESTATION` contract.
+
+**Gate before crates.io tag `0.0.7`:** dudect smoke green on x86_64 and at least one ARM64 target with CI evidence linked in libQ `LIBQ_SIDECHANNEL_UPSTREAM.md`. Hardened claims ship on the **same** `0.0.7` semver tag — there is no separate `-hardened` suffix tag.
+
 ### Changed
 
 - **Workspace:** Version **0.0.7**; npm package count **22 → 28**.

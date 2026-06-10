@@ -11,6 +11,12 @@ description = "PROVISIONAL SHAKE256-based threshold signature crate (FROST-like,
 keywords = ["cryptography", "post-quantum", "threshold", "signature", "shake256", "wasm"]
 categories = ["cryptography", "wasm"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "getrandom",
+    "serde",
+]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }

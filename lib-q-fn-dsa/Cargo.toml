@@ -11,6 +11,16 @@ description = "FN-DSA (FIPS 206) post-quantum digital signature implementation"
 keywords = ["cryptography", "post-quantum", "fn-dsa", "falcon", "signature"]
 categories = ["cryptography"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "js-sys",
+    "proptest",
+    "rand",
+    "wasm-bindgen",
+    "web-sys",
+    "zeroize",
+]
 [lib]
 bench = false
 name = "lib_q_fn_dsa"

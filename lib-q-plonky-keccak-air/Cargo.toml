@@ -11,6 +11,12 @@ readme.workspace = true
 keywords = ["cryptography", "post-quantum", "zkp", "lib-q"]
 categories = ["cryptography"]
 
+
+[package.metadata.cargo-machete]
+ignored = [
+    "itertools",
+    "lib-q-keccak",
+]
 [lib]
 name = "lib_q_plonky_keccak_air"
 path = "src/lib.rs"
