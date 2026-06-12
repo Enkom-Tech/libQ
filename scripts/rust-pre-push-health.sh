@@ -73,13 +73,29 @@ if [[ ! -f "$ROOT/Cargo.toml" ]]; then
 fi
 
 now_ms() {
-  if command -v python3 >/dev/null 2>&1; then
-    python3 -c 'import time; print(int(time.time() * 1000))'
-  elif command -v python >/dev/null 2>&1; then
-    python -c 'import time; print(int(time.time() * 1000))'
+  local ms
+  if ms="$(run_python -c 'import time; print(int(time.time() * 1000))' 2>/dev/null)"; then
+    echo "$ms"
   else
     echo $(( $(date +%s) * 1000 ))
   fi
+}
+
+# Resolve a Python interpreter that can import json (skip Windows Store stubs).
+run_python() {
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import json' >/dev/null 2>&1; then
+    python3 "$@"
+  elif command -v python >/dev/null 2>&1 && python -c 'import json' >/dev/null 2>&1; then
+    python "$@"
+  elif command -v py >/dev/null 2>&1 && py -3 -c 'import json' >/dev/null 2>&1; then
+    py -3 "$@"
+  else
+    return 1
+  fi
+}
+
+python_available() {
+  run_python -c 'import json' >/dev/null 2>&1
 }
 
 # Load config via Python when available; otherwise use defaults.
@@ -97,17 +113,14 @@ load_config() {
     return 0
   fi
 
-  if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+  if ! python_available; then
     echo "${YELLOW}warn${NC}: config file present but Python unavailable — using defaults" >&2
     return 0
   fi
 
-  local py=python3
-  command -v python3 >/dev/null 2>&1 || py=python
-
   # shellcheck disable=SC2016
-  eval "$("$py" - "$CONFIG_FILE" "$MODE" <<'PY'
-import json, sys
+  eval "$(run_python - "$CONFIG_FILE" "$MODE" <<'PY'
+import json, shlex, sys
 path, cli_mode = sys.argv[1], sys.argv[2]
 with open(path, encoding="utf-8") as f:
     cfg = json.load(f)
@@ -120,6 +133,9 @@ def blk(k):
     c = checks.get(k, {})
     b = c.get("blocking")
     return "" if b is None else ("1" if b else "0")
+def bash_array(name, values):
+    if values:
+        print(f"{name}=({' '.join(shlex.quote(v) for v in values)})")
 deps = checks.get("deps", {})
 print(f"MODE={mode}")
 print(f"OUTPUT_JSON={cfg.get('output_json', '')}")
@@ -138,18 +154,16 @@ print(f"BLOCK_WARNALYZER={blk('warnalyzer')}")
 print(f"BLOCK_DUPES={blk('dupes')}")
 print(f"BLOCK_METRICS={blk('metrics')}")
 print(f"DEPS_TOOL={deps.get('tool', 'auto')}")
-ca = cfg.get("clippy_args")
-if ca:
-    print("CLIPPY_ARGS=" + " ".join(ca))
-fa = cfg.get("fmt_args")
-if fa:
-    print("FMT_ARGS=" + " ".join(fa))
+bash_array("CLIPPY_ARGS", cfg.get("clippy_args"))
+bash_array("FMT_ARGS", cfg.get("fmt_args"))
 PY
 )"
 }
 
 check_enabled() {
-  local name="$1" var="CHECK_$(upper "$name")" val=1
+  local name="$1"
+  local var="CHECK_$(upper "$name")"
+  local val=1
   eval "val=\${${var}-1}"
   [[ "$val" == "1" ]]
 }
@@ -173,14 +187,16 @@ check_in_only_filter() {
 }
 
 should_run() {
-  local c="$1" var="CHECK_$(upper "$c")"
+  local c="$1"
   check_skipped_by_cli "$c" && return 1
   check_in_only_filter "$c" || return 1
   check_enabled "$c"
 }
 
 is_blocking() {
-  local c="$1" var="BLOCK_$(upper "$c")" override=""
+  local c="$1"
+  local var="BLOCK_$(upper "$c")"
+  local override=""
   eval "override=\${${var}-}"
   if [[ -n "$override" ]]; then
     [[ "$override" == "1" ]]
@@ -237,6 +253,84 @@ run_check() {
   return "$rc"
 }
 
+is_windows() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW* | MSYS* | CYGWIN*) return 0 ;;
+  esac
+  [[ "${OS:-}" == "Windows_NT" ]]
+}
+
+fmt_args_include_all() {
+  local arg
+  for arg in "${FMT_ARGS[@]}"; do
+    [[ "$arg" == "--all" ]] && return 0
+  done
+  return 1
+}
+
+list_workspace_packages() {
+  if python_available; then
+    run_python - <<'PY'
+import json, subprocess
+
+meta = json.loads(
+    subprocess.check_output(
+        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
+        text=True,
+    )
+)
+for pkg in meta["packages"]:
+    print(pkg["name"])
+PY
+    return 0
+  fi
+
+  cargo metadata --no-deps --format-version 1 2>/dev/null \
+    | tr ',' '\n' \
+    | sed -n 's/^[[:space:]]*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+    | sort -u
+}
+
+run_cargo_fmt_per_package() {
+  local pkg failed=0 found=0
+  while IFS= read -r pkg; do
+    pkg="${pkg//$'\r'/}"
+    [[ -z "$pkg" ]] && continue
+    found=1
+    if ! cargo fmt -p "$pkg" -- --check; then
+      failed=1
+    fi
+  done < <(list_workspace_packages)
+
+  if [[ "$found" -eq 0 ]]; then
+    echo "${RED}error${NC}: could not enumerate workspace packages for fmt fallback" >&2
+    return 1
+  fi
+  return "$failed"
+}
+
+run_cargo_fmt() {
+  local errfile rc
+  errfile="$(mktemp 2>/dev/null || echo "${TMPDIR:-/tmp}/rust-pre-push-fmt.$$")"
+  if cargo fmt "${FMT_ARGS[@]}" 2>"$errfile"; then
+    rm -f "$errfile"
+    return 0
+  fi
+  rc=$?
+  cat "$errfile" >&2
+
+  if fmt_args_include_all \
+    && { is_windows || grep -qE 'too long|os error 206' "$errfile" 2>/dev/null; }; then
+    echo "${YELLOW}warn${NC}: cargo fmt --all hit platform path limits; checking workspace members individually" >&2
+    rm -f "$errfile"
+    run_cargo_fmt_per_package
+    return $?
+  fi
+
+  rm -f "$errfile"
+  return "$rc"
+}
+
 # --- individual checks ---
 
 do_fmt() {
@@ -245,7 +339,7 @@ do_fmt() {
     record "fmt" "fail" 0 "yes" "cargo not found"
     return 1
   fi
-  if ! cargo fmt "${FMT_ARGS[@]}"; then
+  if ! run_cargo_fmt; then
     record "fmt" "fail" "${CHECK_MS[fmt]:-0}" "yes" "run: cargo fmt --all"
     return 1
   fi
@@ -421,18 +515,16 @@ write_json_summary() {
   [[ -z "$OUTPUT_JSON" ]] && return 0
   local out="$ROOT/$OUTPUT_JSON"
   mkdir -p "$(dirname "$out")"
-  if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+  if ! python_available; then
     return 0
   fi
-  local py=python3
-  command -v python3 >/dev/null 2>&1 || py=python
   CHECKS_JSON="$(
     for k in fmt clippy audit deps warnalyzer dupes metrics; do
       printf '%s|%s|%s|%s|%s\n' \
         "$k" "${CHECK_STATUS[$k]:-skip}" "${CHECK_MS[$k]:-0}" \
         "${CHECK_BLOCKING[$k]:-no}" "${CHECK_MSG[$k]:-}"
     done
-  )" MODE="$MODE" OUT="$out" ROOT="$ROOT" "$py" <<'PY'
+  )" MODE="$MODE" OUT="$out" ROOT="$ROOT" run_python <<'PY'
 import json, os, time
 checks = {}
 for line in os.environ.get("CHECKS_JSON", "").splitlines():
