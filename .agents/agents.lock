@@ -1,17 +1,17 @@
 {
-  "generatedFrom": "repo:libq",
   "files": [
     {
-      "sha": "1ee17d6b353cb51edc05f13bb04b21deb0b0f9c7a9f20efae464d96cfe0d250f",
+      "sha": "649df52311585b4246a9843cfe231f9ecca0361b295d6ec55c75a502495afe54",
       "path": "AGENTS.md"
     },
     {
-      "sha": "d7e9eaa4821af5181913af8b14b150b01dac099e2e03a7be4b63d65e64be6a6f",
+      "sha": "65b910bbf81d9d567ab268fd54286cb1cb386d4b2523aa137f686b49bb51d33c",
       "path": ".cursor/rules/00-akira-agents.mdc"
     },
     {
-      "sha": "bb212c6af817e270ef436a83a20740bb3cb870a7cf751d2813741ea6b75aa0b0",
+      "sha": "3d9c71d05a544f94eefbb6cbf96dcd0567cc13c6046b95cc928afd0af29e2beb",
       "path": ".claude/CLAUDE.agents.md"
     }
-  ]
+  ],
+  "generatedFrom": "repo:libq"
 }
