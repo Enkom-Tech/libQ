@@ -24,6 +24,7 @@ use crate::{
     encrypt,
     eval,
     fhe_keygen,
+    validate_ciphertext,
 };
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
@@ -68,9 +69,18 @@ fn ciphertext_to_wire(ct: &Ciphertext, plaintext_len: u32) -> FheCiphertextWire 
 }
 
 fn ciphertext_from_wire(wire: &FheCiphertextWire) -> Result<Ciphertext, JsValue> {
-    Ok(Ciphertext {
+    let dim = wire.dimension as usize;
+    // Reject malformed wire data before any indexing can occur.
+    if wire.body.len() != dim || wire.mask.len() != dim {
+        return Err(js_err(alloc::format!(
+            "ciphertext dimension mismatch: dimension={dim}, body.len={}, mask.len={}",
+            wire.body.len(),
+            wire.mask.len(),
+        )));
+    }
+    let ct = Ciphertext {
         params: FheParams {
-            dimension: wire.dimension as usize,
+            dimension: dim,
             modulus: wire.modulus,
         },
         nonce: wire
@@ -79,7 +89,10 @@ fn ciphertext_from_wire(wire: &FheCiphertextWire) -> Result<Ciphertext, JsValue>
             .map_err(|_| js_err("invalid ciphertext nonce"))?,
         body: wire.body.clone(),
         mask: wire.mask.clone(),
-    })
+    };
+    // Belt-and-suspenders: run the shared validator in case invariants drift.
+    validate_ciphertext(&ct).map_err(js_err)?;
+    Ok(ct)
 }
 
 fn plaintext_len_from_wire(wire: &FheCiphertextWire) -> usize {
@@ -140,7 +153,7 @@ pub fn fhe_eval_wasm(ciphertext_json: JsValue, op_json: JsValue) -> Result<JsVal
     let ct = ciphertext_from_wire(&wire)?;
     let op_wire: EvalOpWire = serde_wasm_bindgen::from_value(op_json).map_err(js_err)?;
     let plaintext_len = wire.plaintext_len;
-    let out = eval(&ct, eval_op_from_wire(&op_wire)?);
+    let out = eval(&ct, eval_op_from_wire(&op_wire)?).map_err(js_err)?;
     serde_wasm_bindgen::to_value(&ciphertext_to_wire(&out, plaintext_len)).map_err(js_err)
 }
 
@@ -156,7 +169,7 @@ pub fn fhe_decrypt_wasm(
         serde_wasm_bindgen::from_value(ciphertext_json).map_err(js_err)?;
     let key = fhe_keygen(seed, dimension as usize, modulus);
     let ct = ciphertext_from_wire(&wire)?;
-    let plain = decrypt(&key, &ct);
+    let plain = decrypt(&key, &ct).map_err(js_err)?;
     let len = plaintext_len_from_wire(&wire);
     let out = Int32Array::new_with_length(len as u32);
     out.copy_from(&plain[..len]);

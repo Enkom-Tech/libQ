@@ -18,6 +18,7 @@ use crate::error::{
     ProofError,
     VerifyError,
 };
+use crate::serialize::write_module_vec;
 use crate::sigma::opening::{
     self,
     OpeningProof,
@@ -50,6 +51,25 @@ pub struct LinearRelationProof {
     pub opening: OpeningProof,
     /// `L · y`.
     pub u: ModuleVec,
+}
+
+/// Domain separator binding `u = L·y` into the linear-relation Fiat–Shamir transcript.
+const LINEAR_U_FS_DOMAIN: &[u8] = b"lattice-zkp/sigma-linear/u/v0";
+
+/// Build the Fiat–Shamir context that binds `u` into the challenge.
+///
+/// Soundness fix: the base opening challenge is `c = H(ctx ‖ w)`, which omits `u`.
+/// Without binding `u`, a malicious prover can set `u := L·z − c·t` for any false `t`
+/// and pass `L·z = u + c·t`. We fold the canonical byte encoding of `u` into the
+/// context so the challenge becomes `c = H(ctx ‖ u ‖ w)`. The same canonical encoding
+/// ([`write_module_vec`]) is used on both prover and verifier sides.
+fn linear_fs_ctx(ctx: &[u8], u: &ModuleVec) -> alloc::vec::Vec<u8> {
+    let u_wire = write_module_vec(&u.0);
+    let mut out = alloc::vec::Vec::with_capacity(ctx.len() + LINEAR_U_FS_DOMAIN.len() + u_wire.len());
+    out.extend_from_slice(ctx);
+    out.extend_from_slice(LINEAR_U_FS_DOMAIN);
+    out.extend_from_slice(&u_wire);
+    out
 }
 
 /// Prove `L·wit = t` for public `L`, `t` (time domain).
@@ -111,13 +131,25 @@ pub fn prove_linear<R: Rng + CryptoRng>(
         #[cfg_attr(feature = "hardened", allow(unused_mut))]
         let mut u = l.mul_vec_polys(y.as_slice());
         #[cfg(not(feature = "hardened"))]
-        opening::normalize_polys_mod_q_for_fs(&mut w.0);
+        {
+            opening::normalize_polys_mod_q_for_fs(&mut w.0);
+            opening::normalize_polys_mod_q_for_fs(&mut u.0);
+        }
         #[cfg(feature = "hardened")]
         for p in &mut w.0 {
             p.normalize_mod_q_assign();
         }
+        #[cfg(feature = "hardened")]
+        for p in &mut u.0 {
+            p.normalize_mod_q_assign();
+        }
 
-        let c = opening::fs_sparse_challenge(ctx, &w.0, tau);
+        // Bind `u` into the Fiat–Shamir challenge: c = H(ctx ‖ u ‖ w), then bind the opening
+        // statement (key/com/tau/bound) exactly as `opening::verify_opening` does so the shared
+        // challenge `c` matches the inner opening check on the verifier side.
+        let linear_ctx = linear_fs_ctx(ctx, &u);
+        let stmt_ctx = opening::opening_statement_ctx(key, com, &linear_ctx, tau, z_inf_bound);
+        let c = opening::fs_sparse_challenge(&stmt_ctx, &w.0, tau);
 
         #[cfg(not(feature = "hardened"))]
         let z = accumulate_response_z(&y, &c, &wit);
@@ -201,12 +233,20 @@ pub fn verify_linear(
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    opening::verify_opening(key, com, &proof.opening, ctx, tau, z_inf_bound)?;
     if proof.u.0.len() != l.rows || l.cols != key.params.witness_len() {
         return Err(VerifyError::InvalidFormat);
     }
 
-    let c = opening::fs_sparse_challenge(ctx, &proof.opening.w.0, tau);
+    // Bind `u` into the Fiat–Shamir challenge so the shared `c` covers `u` as well:
+    // c = H(ctx ‖ u ‖ w). The opening sub-proof and the linear check use the same `c`,
+    // so both must use this augmented context (matches the prover in `prove_linear`).
+    let linear_ctx = linear_fs_ctx(ctx, &proof.u);
+    opening::verify_opening(key, com, &proof.opening, &linear_ctx, tau, z_inf_bound)?;
+
+    // Reconstruct the same statement-bound challenge `c` that the opening sub-proof used
+    // (matches `prove_linear` and `opening::verify_opening`).
+    let stmt_ctx = opening::opening_statement_ctx(key, com, &linear_ctx, tau, z_inf_bound);
+    let c = opening::fs_sparse_challenge(&stmt_ctx, &proof.opening.w.0, tau);
 
     let lhs = l.mul_vec(&proof.opening.z);
     let rhs = module_add(&proof.u.0, &module_ring_mul_challenge(&c, &t.0))?;

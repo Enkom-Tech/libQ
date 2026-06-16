@@ -22,8 +22,8 @@ fn toy_demo_encrypt_eval_decrypt_roundtrip() {
     let plaintext = [3, 9, 11, 0];
     let ct = encrypt(&sk, &plaintext, 19);
 
-    let evaluated = eval(&ct, EvalOp::AddConstant(5));
-    let recovered = decrypt(&sk, &evaluated);
+    let evaluated = eval(&ct, EvalOp::AddConstant(5)).unwrap();
+    let recovered = decrypt(&sk, &evaluated).unwrap();
 
     assert_eq!(recovered, vec![8, 14, 16, 5]);
 }

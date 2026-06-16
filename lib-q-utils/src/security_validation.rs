@@ -129,21 +129,21 @@ impl SecurityValidator {
     /// Run all security validations (no_std version)
     #[cfg(not(feature = "std"))]
     pub fn validate(&self) -> SecurityValidationReport {
-        // Use static results for no_std environments
+        // no_std stub: real file-scanning requires std I/O and is not
+        // implemented in no_std mode.  Return an explicit failure (failed=1)
+        // so CI cannot mistake this stub for a passing security gate.
+        // NOTE: SecurityValidationResult::Fail holds a String which requires
+        // alloc; in no_std we express the failure through the summary counters
+        // directly rather than placing a Fail variant in the static slice.
         let summary = SecurityValidationSummary {
-            total_checks: 4,
-            passed: 4,
-            failed: 0,
+            total_checks: 1,
+            passed: 0,
+            failed: 1,
             warnings: 0,
         };
 
         SecurityValidationReport {
-            results: &[
-                ("classical_crypto", SecurityValidationResult::Pass),
-                ("sha3_compliance", SecurityValidationResult::Pass),
-                ("unsafe_code", SecurityValidationResult::Pass),
-                ("memory_zeroization", SecurityValidationResult::Pass),
-            ],
+            results: &[],
             summary,
         }
     }
@@ -152,22 +152,14 @@ impl SecurityValidator {
     fn check_classical_crypto(&self, report: &mut SecurityValidationReport) {
         let check_name = "classical_crypto_detection";
 
-        // This would scan the codebase for classical crypto usage
-        // For now, we'll simulate the check
-        let has_classical_crypto = false; // Would be determined by actual file scanning
-
-        if has_classical_crypto {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Fail(
-                    "Classical cryptographic algorithms detected".to_string(),
-                ),
-            );
-        } else {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        }
+        // TODO: scan self.source_paths for classical crypto usage.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: classical crypto scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -178,19 +170,14 @@ impl SecurityValidator {
     fn check_sha3_compliance(&self, report: &mut SecurityValidationReport) {
         let check_name = "sha3_compliance";
 
-        // This would scan for non-SHA-3 hash functions
-        let has_non_sha3 = false; // Would be determined by actual file scanning
-
-        if has_non_sha3 {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Fail("Non-SHA-3 hash functions detected".to_string()),
-            );
-        } else {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        }
+        // TODO: scan self.source_paths for non-SHA-3 hash usage.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: SHA-3 compliance scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -201,22 +188,14 @@ impl SecurityValidator {
     fn check_unsafe_code(&self, report: &mut SecurityValidationReport) {
         let check_name = "unsafe_code_usage";
 
-        // This would count unsafe blocks
-        let unsafe_count = 0; // Would be determined by actual file scanning
-
-        if unsafe_count > 0 {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning(format!(
-                    "Found {} unsafe blocks - review required",
-                    unsafe_count
-                )),
-            );
-        } else {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        }
+        // TODO: count unsafe blocks via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: unsafe code scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -227,21 +206,14 @@ impl SecurityValidator {
     fn check_zeroize_usage(&self, report: &mut SecurityValidationReport) {
         let check_name = "memory_zeroization";
 
-        // This would check for zeroize crate usage
-        let has_zeroize = true; // Would be determined by actual file scanning
-
-        if has_zeroize {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        } else {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning(
-                    "zeroize crate not used for sensitive data".to_string(),
-                ),
-            );
-        }
+        // TODO: verify zeroize crate usage via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: zeroize usage scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -252,21 +224,15 @@ impl SecurityValidator {
     fn check_timing_vulnerabilities(&self, report: &mut SecurityValidationReport) {
         let check_name = "timing_vulnerabilities";
 
-        // This would check for branching on secret data
-        let has_timing_vulns = false; // Would be determined by actual file scanning
-
-        if has_timing_vulns {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning(
-                    "Potential branching on secret data detected".to_string(),
-                ),
-            );
-        } else {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        }
+        // TODO: detect branching on secret data via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: timing vulnerability scan requires real file analysis"
+                    .to_string(),
+            ),
+        );
 
         report
             .summary
@@ -277,21 +243,14 @@ impl SecurityValidator {
     fn check_error_handling(&self, report: &mut SecurityValidationReport) {
         let check_name = "error_handling";
 
-        // This would check for unwrap/expect usage in production code
-        let has_unwrap = false; // Would be determined by actual file scanning
-
-        if has_unwrap {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning(
-                    "Potential unwrap/expect usage in production code".to_string(),
-                ),
-            );
-        } else {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        }
+        // TODO: detect unwrap/expect usage in production code via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: error handling scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -302,19 +261,14 @@ impl SecurityValidator {
     fn check_input_validation(&self, report: &mut SecurityValidationReport) {
         let check_name = "input_validation";
 
-        // This would check for input validation patterns
-        let has_validation = true; // Would be determined by actual file scanning
-
-        if has_validation {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        } else {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning("Limited input validation detected".to_string()),
-            );
-        }
+        // TODO: detect input validation patterns via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: input validation scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -325,21 +279,14 @@ impl SecurityValidator {
     fn check_random_generation(&self, report: &mut SecurityValidationReport) {
         let check_name = "random_generation";
 
-        // This would check for proper random number generation
-        let has_random = true; // Would be determined by actual file scanning
-
-        if has_random {
-            report
-                .results
-                .insert(check_name.to_string(), SecurityValidationResult::Pass);
-        } else {
-            report.results.insert(
-                check_name.to_string(),
-                SecurityValidationResult::Warning(
-                    "No random number generation detected".to_string(),
-                ),
-            );
-        }
+        // TODO: verify random number generation usage via real file scanning.
+        // Until real scanning is implemented, fail loudly so CI is not misled.
+        report.results.insert(
+            check_name.to_string(),
+            SecurityValidationResult::Fail(
+                "not implemented: random generation scan requires real file analysis".to_string(),
+            ),
+        );
 
         report
             .summary
@@ -401,8 +348,10 @@ mod tests {
         let validator = SecurityValidator::new();
         let report = validator.validate();
 
+        // All checks are stub-only — they must fail loudly rather than silently pass.
         assert!(report.summary.total_checks > 0);
-        assert!(report.summary.passed > 0);
+        assert!(!report.summary.is_success(), "stub validator must not report success");
+        assert!(report.summary.failed > 0);
     }
 
     #[test]
@@ -435,6 +384,8 @@ mod tests {
             .with_exclude_paths(vec!["b/".into()]);
         let r = v.validate();
         assert!(r.summary.total_checks > 0);
+        // Stub checks must signal failure, not silently pass.
+        assert!(!r.summary.is_success(), "stub validator must not report success");
     }
 
     #[test]

@@ -160,16 +160,28 @@ pub fn amortise<R: Rng + CryptoRng>(
         w_list.push(w_i);
     }
 
-    let challenge_seed = state.challenge_seed();
-    let c = lib_q_ring::sample_in_ball(&challenge_seed, tau);
     let r_scalars = derive_scalars_from_transcript(&state.buf, openings.len());
 
-    let mut agg_z_polys: Vec<Poly> = (0..p.witness_len()).map(|_| Poly::zero()).collect();
+    // Compute `agg_w = Σ rᵢ·wᵢ` first so it can be bound into the challenge `c`. This is
+    // independent of `c`; only `agg_z` below depends on `c`.
     let mut agg_w_polys: Vec<Poly> = (0..p.module_rank).map(|_| Poly::zero()).collect();
+    for i in 0..scratch.len() {
+        let ri = r_scalars[i];
+        let w_i = &w_list[i];
+        for (acc_w, w_poly) in agg_w_polys.iter_mut().zip(w_i.0.iter()) {
+            let scaled = scalar_mul_poly(ri, w_poly);
+            add_assign_poly(acc_w, &scaled);
+        }
+    }
+    canonicalize_polys_mod_q(&mut agg_w_polys);
+
+    // Bind `agg_w` into the batch challenge (matches `verify_aggregate`).
+    let c = batch_challenge_bound(&state.buf, &agg_w_polys, tau);
+
+    let mut agg_z_polys: Vec<Poly> = (0..p.witness_len()).map(|_| Poly::zero()).collect();
     for i in 0..scratch.len() {
         let y_i = scratch.mask(i);
         let ri = r_scalars[i];
-        let w_i = &w_list[i];
         #[cfg(not(feature = "hardened"))]
         let wit_i = scratch.witness(i);
         #[cfg(feature = "hardened")]
@@ -186,14 +198,9 @@ pub fn amortise<R: Rng + CryptoRng>(
         }
         #[cfg(feature = "hardened")]
         zeroize_poly_vec(&mut cw_i);
-        for (acc_w, w_poly) in agg_w_polys.iter_mut().zip(w_i.0.iter()) {
-            let scaled = scalar_mul_poly(ri, w_poly);
-            add_assign_poly(acc_w, &scaled);
-        }
     }
 
     canonicalize_polys_mod_q(&mut agg_z_polys);
-    canonicalize_polys_mod_q(&mut agg_w_polys);
 
     let agg_z = ModuleVec(agg_z_polys);
     if !bool::from(module_norm_within_bound(&agg_z.0, z_inf_bound)) {
@@ -206,6 +213,28 @@ pub fn amortise<R: Rng + CryptoRng>(
         agg_z,
         agg_w: ModuleVec(agg_w_polys),
     })
+}
+
+/// Domain separator binding `agg_w` into the batch Fiat–Shamir challenge.
+const AGG_W_FS_DOMAIN: &[u8] = b"lattice-zkp/amortise/agg-w/v0";
+
+/// Derive the batch challenge `c`, binding the aggregated commitment `agg_w` into the seed.
+///
+/// Soundness fix: previously `c = sample_in_ball(H(transcript))` and `agg_w` was supplied
+/// by the prover but never checked, so a malicious prover could substitute any `agg_w`.
+/// Binding `agg_w` into the challenge (`c = sample_in_ball(H(transcript ‖ agg_w))`) means a
+/// forged `agg_w` changes `c`, which then fails the verification equation
+/// `A·agg_z = agg_w + c·Σ rᵢ·comᵢ`. The canonical [`write_module_vec`] encoding of `agg_w`
+/// is absorbed identically on the prover and verifier sides.
+fn batch_challenge_bound(transcript: &[u8], agg_w: &[Poly], tau: usize) -> Poly {
+    let mut h = Shake256::default();
+    Update::update(&mut h, transcript);
+    Update::update(&mut h, AGG_W_FS_DOMAIN);
+    Update::update(&mut h, &write_module_vec(agg_w));
+    let mut reader = ExtendableOutput::finalize_xof(h);
+    let mut challenge_seed = [0u8; 32];
+    XofReader::read(&mut reader, &mut challenge_seed);
+    lib_q_ring::sample_in_ball(&challenge_seed, tau)
 }
 
 fn derive_scalars_from_transcript(transcript: &[u8], count: usize) -> Vec<u32> {
@@ -321,12 +350,11 @@ pub fn verify_aggregate(
         }
     }
 
-    let mut h = Shake256::default();
-    Update::update(&mut h, &proof.transcript);
-    let mut reader = ExtendableOutput::finalize_xof(h);
-    let mut challenge_seed = [0u8; 32];
-    XofReader::read(&mut reader, &mut challenge_seed);
-    let c = lib_q_ring::sample_in_ball(&challenge_seed, tau);
+    // Bind `agg_w` into the challenge so a forged `agg_w` changes `c` and fails the equation.
+    // Canonicalize `agg_w` identically to the prover before absorbing it into the seed.
+    let mut agg_w_canon = proof.agg_w.0.clone();
+    canonicalize_polys_mod_q(&mut agg_w_canon);
+    let c = batch_challenge_bound(&proof.transcript, &agg_w_canon, tau);
 
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
     let lhs = matrix.mul_vec(&proof.agg_z);
@@ -347,12 +375,6 @@ pub fn verify_aggregate(
 #[cfg(all(test, feature = "hardened"))]
 mod hardened_tests {
     use lib_q_random::new_deterministic_rng;
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Shake256,
-        Update,
-        XofReader,
-    };
 
     use super::*;
     use crate::commitment::{
@@ -416,12 +438,10 @@ mod hardened_tests {
         )
         .expect("amortise");
 
-        let mut h = Shake256::default();
-        Update::update(&mut h, &proof.transcript);
-        let mut reader = ExtendableOutput::finalize_xof(h);
-        let mut challenge_seed = [0u8; 32];
-        XofReader::read(&mut reader, &mut challenge_seed);
-        let c = lib_q_ring::sample_in_ball(&challenge_seed, 39);
+        // Challenge is bound to `agg_w` (soundness fix); recompute it the same way.
+        let mut agg_w_canon = proof.agg_w.0.clone();
+        canonicalize_polys_mod_q(&mut agg_w_canon);
+        let c = batch_challenge_bound(&proof.transcript, &agg_w_canon, 39);
 
         let mut rng2 = new_deterministic_rng(test_seed32(0xA5515EED));
         for opening_i in &openings {

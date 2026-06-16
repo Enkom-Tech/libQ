@@ -193,9 +193,11 @@ mod privacy_smoke {
         )
         .expect("issuer sign");
         let bundle = BlindIssuance::finalize(st, resp).expect("finalize");
+        let genuine_issuer_com = bundle.issuer_com.clone();
 
         touch_blind_verify(
             &issuer_params,
+            &genuine_issuer_com,
             &bundle,
             b"sca-blind-realm",
             p.tau,

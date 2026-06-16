@@ -33,10 +33,12 @@ use lib_q_stark_air::{
     WindowAccess,
 };
 use lib_q_stark_field::{
+    BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
 };
 use lib_q_stark_matrix::dense::RowMajorMatrix;
+use lib_q_stark_mersenne31::Mersenne31;
 
 use super::{
     AirError,
@@ -165,7 +167,9 @@ where
 /// A list of values to prove are within the range [0, 2^num_bits).
 pub type RangeProofInput<F> = Vec<F>;
 
-impl<F: Field> TraceGenerator<F, RangeProofInput<F>> for RangeProofAir {
+impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, RangeProofInput<F>>
+    for RangeProofAir
+{
     fn generate_trace(&self, inputs: &RangeProofInput<F>) -> Result<RowMajorMatrix<F>, AirError> {
         if inputs.is_empty() {
             return Err(AirError::InvalidInput {
@@ -206,59 +210,72 @@ impl<F: Field> TraceGenerator<F, RangeProofInput<F>> for RangeProofAir {
     }
 }
 
-/// Decompose a field element into bits
+/// Decompose a field element into bits.
+///
+/// # Supported input domain
+///
+/// Only **base-field-representable** values are supported: the input must be an embedding of a
+/// `Mersenne31` base-field element (all extension coefficients beyond coefficient 0 must be
+/// zero). Bit/parity is only well defined on the base-field integer in `[0, p)`; performing a
+/// parity test on a genuine extension-field element (e.g. one with a non-zero imaginary part in
+/// `Complex<Mersenne31>`) is meaningless and would silently produce a bogus decomposition.
+/// Inputs with non-zero higher coefficients, or whose base-field value does not fit in
+/// `num_bits`, are rejected with [`AirError::InvalidInput`].
 ///
 /// # Arguments
 ///
-/// * `value` - The field element to decompose
+/// * `value` - The field element to decompose (must be a base-field embedding)
 /// * `num_bits` - Number of bits to decompose into
 ///
 /// # Returns
 ///
-/// A vector of field elements representing bits (each 0 or 1),
-/// from least significant to most significant.
-fn decompose_to_bits<F: Field>(value: F, num_bits: usize) -> Result<Vec<F>, AirError> {
-    // For decomposition, we need to get the integer representation
-    // We'll recompute bit-by-bit using field arithmetic
+/// A vector of field elements representing bits (each 0 or 1), from least significant to most
+/// significant.
+fn decompose_to_bits<F: Field + BasedVectorSpace<Mersenne31>>(
+    value: F,
+    num_bits: usize,
+) -> Result<Vec<F>, AirError> {
+    // Extract the base-field coefficient (coefficient 0) and require all higher-degree
+    // extension coefficients to be zero, so parity/bit decomposition is well defined.
+    let coeffs = value.as_basis_coefficients_slice();
+    let base = coeffs.first().copied().unwrap_or(Mersenne31::ZERO);
+    if coeffs.iter().skip(1).any(|c| *c != Mersenne31::ZERO) {
+        return Err(AirError::InvalidInput {
+            reason: "Range-proof input must be a base-field element (no extension components)"
+                .to_string(),
+        });
+    }
+
+    // Embed a base-field bit value into F (coefficient 0, all higher coefficients zero).
+    let embed = |b: Mersenne31| -> F {
+        F::from_basis_coefficients_fn(|i| if i == 0 { b } else { Mersenne31::ZERO })
+    };
+
+    // Decompose the base-field element bit-by-bit using its parity in the base field.
     let mut bits = Vec::with_capacity(num_bits);
-    let mut remainder = value;
-    let two = F::TWO;
+    let mut remainder = base;
+    let two = Mersenne31::TWO;
     let two_inv = two.inverse(); // 2^(-1) mod p
 
     for _i in 0..num_bits {
-        // Compute bit i
-        // We check if remainder is odd by computing remainder - 2 * floor(remainder / 2)
-        // In the field, this is equivalent to checking the least significant bit
-
-        // For a proper implementation, we need to know if remainder mod 2 = 1
-        // We can do this by checking if remainder * 2^(-1) is an integer
-        // Specifically, bit = remainder - 2 * (remainder * 2^(-1)).floor()
-
-        // Since we're working in a finite field, we need a different approach:
-        // We'll compute the bit as (remainder - (remainder - bit) * 2^(-1)) where bit ∈ {0, 1}
-        // Trial: if remainder is odd, bit = 1, else bit = 0
-
-        // For finite field representation, we need to extract the actual integer value
-        // This is field-specific, but we can use a workaround:
-        // We'll verify correctness by checking that 2*half ∈ {remainder, remainder - 1}
-
+        // 2 * (remainder / 2) equals `remainder` iff `remainder` is even in the base field.
         let half = remainder * two_inv;
-        let doubled = half + half; // = 2 * half = remainder (if even) or remainder - 1 (if odd)
+        let doubled = half + half;
 
         let bit = if doubled == remainder {
-            F::ZERO // Even
+            Mersenne31::ZERO // even
         } else {
-            F::ONE // Odd
+            Mersenne31::ONE // odd
         };
 
-        bits.push(bit);
+        bits.push(embed(bit));
 
-        // Update remainder for next iteration: (remainder - bit) / 2
+        // remainder := (remainder - bit) / 2
         remainder = (remainder - bit) * two_inv;
     }
 
-    // Verify the decomposition (remainder should be zero)
-    if remainder != F::ZERO {
+    // Decomposition must be exact: the base-field value fit within `num_bits`.
+    if remainder != Mersenne31::ZERO {
         return Err(AirError::InvalidInput {
             reason: "Value exceeds range: decomposition has non-zero remainder".to_string(),
         });
