@@ -1552,6 +1552,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-sah"
+version = "0.0.7"
+dependencies = [
+ "criterion",
+ "lib-q-core",
+ "serde_json",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-saturnin"
 version = "0.0.7"
 dependencies = [
@@ -2045,7 +2056,6 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
- "zeroize",
 ]
 
 [[package]]

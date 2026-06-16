@@ -1,7 +1,9 @@
-//! Poseidon parameter sets for different security levels
+//! Poseidon parameter sets
 //!
-//! This module defines standard Poseidon parameter configurations optimized
-//! for `Complex<Mersenne31>` field.
+//! This module defines Poseidon parameter configurations for the
+//! `Complex<Mersenne31>` field. The "128"/"256" labels are targeted margins
+//! only; the round counts are NOT independently verified for the GF(p²)
+//! extension field. Do not rely on a specific bit-security level.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -25,8 +27,12 @@ pub type PoseidonField = Complex<Mersenne31>;
 
 /// Poseidon parameter configuration
 ///
-/// MDS matrix is stored as row-major `Vec<Vec<F>>` to support state widths 5 and 7
-/// (128-bit and 256-bit security over `Complex<Mersenne31>`).
+/// MDS matrix is stored as row-major `Vec<Vec<F>>` to support state widths 5 and 7.
+///
+/// NOTE: The "128" / "256" labels reflect the targeted (capacity-based) margins
+/// only; the round counts and parameters are NOT independently verified for the
+/// `Complex<Mersenne31>` extension field GF(p²). Do not rely on a specific
+/// bit-security level for these parameters.
 #[derive(Debug, Clone)]
 pub struct PoseidonParams {
     /// State width (number of field elements)
@@ -45,13 +51,19 @@ pub struct PoseidonParams {
     pub mds_matrix: Vec<Vec<PoseidonField>>,
 }
 
-/// Poseidon-128 parameters for 128-bit security over `Complex<Mersenne31>`
+/// Poseidon-128 parameter set over `Complex<Mersenne31>`
 ///
 /// Configuration:
-/// - State width: 5 (rate=2, capacity=3) for 3×62 ≥ 128 bits
+/// - State width: 5 (rate=2, capacity=3)
 /// - Full rounds: 8 (4 before partial, 4 after)
 /// - Partial rounds: 56
 /// - S-box: x^5
+///
+/// WARNING: The "128" label denotes the targeted capacity margin only. The full
+/// and partial round counts are NOT independently verified to provide 128-bit
+/// security over the GF(p²) extension field `Complex<Mersenne31>`; the standard
+/// Poseidon analysis does not directly cover this field. Do not rely on a
+/// specific bit-security level.
 pub struct Poseidon128;
 
 impl Poseidon128 {
@@ -80,13 +92,19 @@ impl Default for Poseidon128 {
     }
 }
 
-/// Poseidon-256 parameters for 256-bit security over `Complex<Mersenne31>`
+/// Poseidon-256 parameter set over `Complex<Mersenne31>`
 ///
 /// Configuration:
-/// - State width: 7 (rate=2, capacity=5) for 5×62 ≥ 256 bits
+/// - State width: 7 (rate=2, capacity=5)
 /// - Full rounds: 8 (4 before partial, 4 after)
 /// - Partial rounds: 60
 /// - S-box: x^5
+///
+/// WARNING: The "256" label denotes the targeted capacity margin only. The full
+/// and partial round counts are NOT independently verified to provide 256-bit
+/// security over the GF(p²) extension field `Complex<Mersenne31>`; the standard
+/// Poseidon analysis does not directly cover this field. Do not rely on a
+/// specific bit-security level.
 pub struct Poseidon256;
 
 impl Poseidon256 {

@@ -95,5 +95,6 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 
     let z_bound = (take_u32(&mut data) % 5_000_000) as i32 + 1;
     let base_ctx = data;
-    let _ = bundle.verify_blind_signature(&key, base_ctx, tau, z_bound);
+    let genuine_issuer_com = bundle.issuance.issuer_com.clone();
+    let _ = bundle.verify_blind_signature(&key, &genuine_issuer_com, base_ctx, tau, z_bound);
 });

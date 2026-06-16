@@ -25,8 +25,8 @@ fn encrypt_commit_eval_verify_pipeline() {
     let commitment = blind_commit(&ciphertext_bytes, blind);
     let opening = blind_open(&ciphertext_bytes, blind);
 
-    let evaluated = eval(&ciphertext, EvalOp::MulConstant(3));
-    let recovered = decrypt(&sk, &evaluated);
+    let evaluated = eval(&ciphertext, EvalOp::MulConstant(3)).unwrap();
+    let recovered = decrypt(&sk, &evaluated).unwrap();
 
     assert!(verify(&commitment, &opening));
     assert_eq!(recovered, vec![3, 6, 9, 12]);

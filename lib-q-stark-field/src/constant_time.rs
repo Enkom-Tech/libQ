@@ -48,7 +48,35 @@ pub fn constant_time_select<F>(condition: bool, a: F, b: F) -> F
 where
     F: Field + ConditionallySelectable,
 {
-    F::conditional_select(&a, &b, Choice::from(condition as u8))
+    // subtle::conditional_select(&x, &y, c) returns x when c==0, y when c==1.
+    // We want to return `a` when condition==true (choice==1), so swap operands.
+    F::conditional_select(&b, &a, Choice::from(condition as u8))
+}
+
+#[cfg(test)]
+mod tests {
+    use subtle::{
+        Choice,
+        ConditionallySelectable,
+    };
+
+    /// Verify the `subtle` API semantics that our `constant_time_select` fix
+    /// relies on: `conditional_select(&b, &a, 1u8)` yields `a` (second arg),
+    /// and `conditional_select(&b, &a, 0u8)` yields `b` (first arg).
+    ///
+    /// Invariant: `constant_time_select(true, a, b) == a`
+    ///            `constant_time_select(false, a, b) == b`
+    #[test]
+    fn select_choice_true_returns_a() {
+        let a: u32 = 42;
+        let b: u32 = 99;
+        // choice==1 (true)  → second argument → a
+        let got_true = u32::conditional_select(&b, &a, Choice::from(1u8));
+        // choice==0 (false) → first argument  → b
+        let got_false = u32::conditional_select(&b, &a, Choice::from(0u8));
+        assert_eq!(got_true, a, "choice==1 must yield a");
+        assert_eq!(got_false, b, "choice==0 must yield b");
+    }
 }
 
 /// Constant-time conditional assignment.

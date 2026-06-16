@@ -111,6 +111,37 @@ where
     let log_global_max_height =
         proof.commit_phase_commits.len() + params.log_blowup + params.log_final_poly_len;
 
+    // `commit_phase_commits.len()` is attacker-controlled. Derive the expected number of
+    // commit-phase rounds from the TRUSTED inputs (the matrix domains the verifier itself
+    // supplied in `commitments_with_opening_points`) and reject any mismatch BEFORE the
+    // `sample_bits` / `two_adic_generator` calls that consume `log_global_max_height`.
+    //
+    // The trusted global max height is the largest committed matrix height after blow-up,
+    // and FRI folds it down to the final domain size, so:
+    //   expected_commits = trusted_log_global_max_height - log_blowup - log_final_poly_len.
+    let trusted_log_global_max_height = commitments_with_opening_points
+        .iter()
+        .flat_map(|(_, mats)| mats.iter())
+        .map(|(domain, _)| log2_strict_usize(domain.size()) + params.log_blowup)
+        .max();
+
+    if let Some(trusted_log_global_max_height) = trusted_log_global_max_height {
+        // Bound by the field's two-adicity: heights above this cannot exist and would
+        // otherwise panic in `Val::two_adic_generator`.
+        if trusted_log_global_max_height > Val::TWO_ADICITY {
+            return Err(FriError::InvalidProofShape);
+        }
+        let expected_commits = trusted_log_global_max_height
+            .checked_sub(params.log_blowup + params.log_final_poly_len)
+            .ok_or(FriError::InvalidProofShape)?;
+        if proof.commit_phase_commits.len() != expected_commits {
+            return Err(FriError::InvalidProofShape);
+        }
+    } else if !proof.commit_phase_commits.is_empty() {
+        // No trusted matrices means there is nothing to fold; any commit-phase round is bogus.
+        return Err(FriError::InvalidProofShape);
+    }
+
     // Generate all of the random challenges for the FRI rounds.
     let betas: Vec<Challenge> = proof
         .commit_phase_commits

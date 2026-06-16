@@ -12,7 +12,7 @@
 //! - Post-quantum security: SHAKE256 is NIST-approved
 //!
 //! Generation method:
-//! 1. Seed = SHAKE256("Poseidon128_Mersenne31_v1") or "Poseidon256_Mersenne31_v1"
+//! 1. Seed = SHAKE256("Poseidon128_Mersenne31_v1_w5") or "Poseidon256_Mersenne31_v1_w7"
 //! 2. For each constant: read 8 bytes (4 for real, 4 for imag)
 //! 3. Interpret as u32 mod P (Mersenne31 prime = 2^31 - 1)
 //! 4. Construct `Complex<Mersenne31>` from (real, imag) pair
@@ -70,8 +70,11 @@ pub fn mds_matrix_7x7() -> Vec<Vec<F>> {
     cauchy_mds(7)
 }
 
-/// Round constants for Poseidon-128 (64 rounds total: 8 full + 56 partial)
-/// State width 5 for 128-bit security over `Complex<Mersenne31>` (capacity 3 × ~62 bits ≥ 128).
+/// Round constants for Poseidon-128 (64 rounds total: 8 full + 56 partial), state width 5.
+///
+/// NOTE: round counts are NOT independently verified to provide 128-bit security
+/// over the GF(p²) extension field `Complex<Mersenne31>`; do not rely on a
+/// specific bit-security level.
 ///
 /// Total constants: 64 rounds × 5 elements = 320 constants
 /// Seed: "Poseidon128_Mersenne31_v1_w5"
@@ -80,8 +83,11 @@ pub fn round_constants_128() -> Vec<F> {
     generate_round_constants("Poseidon128_Mersenne31_v1_w5", 320)
 }
 
-/// Round constants for Poseidon-256 (68 rounds total: 8 full + 60 partial)
-/// State width 7 for 256-bit security over `Complex<Mersenne31>` (capacity 5 × ~62 bits ≥ 256).
+/// Round constants for Poseidon-256 (68 rounds total: 8 full + 60 partial), state width 7.
+///
+/// NOTE: round counts are NOT independently verified to provide 256-bit security
+/// over the GF(p²) extension field `Complex<Mersenne31>`; do not rely on a
+/// specific bit-security level.
 ///
 /// Total constants: 68 rounds × 7 elements = 476 constants
 /// Seed: "Poseidon256_Mersenne31_v1_w7"

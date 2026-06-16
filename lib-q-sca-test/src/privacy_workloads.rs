@@ -75,14 +75,23 @@ pub fn touch_federation_digest(ring: &[AjtaiCommitment]) -> [u8; 32] {
 /// Drives the verifier-side transcript recomputation and opening checks; the prover-side
 /// rejection sampling lives in `BlindIssuance::request` / `issuer_sign` and is **not**
 /// constant-time-critical.
+#[allow(clippy::too_many_arguments)]
 pub fn touch_blind_verify(
     issuer_params: &IssuerCommitmentParams,
+    genuine_issuer_com: &AjtaiCommitment,
     bundle: &UnblindedIssuance,
     base_ctx: &[u8],
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    BlindIssuance::verify(issuer_params, bundle, base_ctx, tau, z_inf_bound)
+    BlindIssuance::verify(
+        issuer_params,
+        genuine_issuer_com,
+        bundle,
+        base_ctx,
+        tau,
+        z_inf_bound,
+    )
 }
 
 /// Federation opening verification at a fixed signer index.
@@ -122,14 +131,16 @@ pub fn touch_witness_nullifier(opening: &AjtaiOpening, realm: &[u8]) -> [u8; 32]
 }
 
 /// Pilot blind-signature bundle verification ([`BlindSignature::verify_blind_signature`]).
+#[allow(clippy::too_many_arguments)]
 pub fn touch_blind_signature_verify(
     issuer_params: &IssuerCommitmentParams,
+    genuine_issuer_com: &AjtaiCommitment,
     bundle: &UnblindedBlindSignature,
     base_ctx: &[u8],
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    bundle.verify_blind_signature(issuer_params, base_ctx, tau, z_inf_bound)
+    bundle.verify_blind_signature(issuer_params, genuine_issuer_com, base_ctx, tau, z_inf_bound)
 }
 
 /// Private Merkle membership pilot verifier.

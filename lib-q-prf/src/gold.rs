@@ -15,6 +15,7 @@ use crate::field::{
     fp_add,
     fp_pow,
     to_monty,
+    uint_ct_eq_zero,
 };
 use crate::keys::{
     validate_key_u256,
@@ -98,6 +99,11 @@ pub fn gold_prf_u256(
     let xm = to_monty(&xr, &params.monty);
     let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
+    // Reject (k + x) ≡ 0 (mod p): raising zero to any power is 0, creating a
+    // degenerate key-relation oracle.  Mirror the identical check in legendre_prf_u256.
+    if bool::from(uint_ct_eq_zero(&sum.retrieve())) {
+        return Err(PrfError::ZeroInput);
+    }
     let out_m = fp_pow(&sum, &params.g);
     Ok(out_m.retrieve().to_le_bytes().into())
 }
@@ -117,6 +123,10 @@ pub fn gold_prf_u512(
     let xm = to_monty(&xr, &params.monty);
     let km = to_monty(&key.k, &params.monty);
     let sum = fp_add(xm, &km);
+    // Reject (k + x) ≡ 0 (mod p): mirror legendre_prf_u512.
+    if bool::from(uint_ct_eq_zero(&sum.retrieve())) {
+        return Err(PrfError::ZeroInput);
+    }
     let out_m = fp_pow(&sum, &params.g);
     Ok(out_m.retrieve().to_le_bytes().into())
 }

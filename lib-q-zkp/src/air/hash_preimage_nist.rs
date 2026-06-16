@@ -6,9 +6,18 @@
 //! # Design
 //!
 //! Single-row trace: columns 0..32 hold the 32-byte hash output as one field element per byte
-//! (byte value as field element). The trace is padded to a power-of-two height. Full Keccak-f
-//! constraints are not yet implemented; this module provides trace generation and public value
-//! encoding so the NIST API can be used once Keccak-f constraints are added.
+//! (byte value as field element). The trace is padded to a power-of-two height.
+//!
+//! # Status: NOT IMPLEMENTED (returns errors)
+//!
+//! Full Keccak-f / cSHAKE256 constraints are **not yet implemented**. Without them the AIR
+//! cannot soundly bind the secret preimage to the public hash output, so the public entry
+//! points ([`crate::ZkpProver::prove_secret_value_nist`] and
+//! [`crate::ZkpVerifier::verify_secret_value_nist`]) return
+//! [`lib_q_core::Error::NotImplemented`] rather than producing/accepting a proof that proves
+//! nothing. The [`Air::eval`] implementation also emits an unsatisfiable constraint as a
+//! defense-in-depth measure. Trace generation and public-value encoding remain so the real
+//! constraints can be layered in later without changing the public API surface.
 //!
 //! # Security
 //!
@@ -85,10 +94,17 @@ where
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
         let _local = main.current_slice();
-        // Placeholder constraint (0 = 0). Full Keccak-f constraints to be added for
-        // soundness; until then this AIR is for testing the NIST API only.
-        let zero = <AB::F as PrimeCharacteristicRing>::ZERO;
-        builder.assert_zero(AB::Expr::from(zero));
+        // SOUNDNESS: real Keccak-f / cSHAKE256 constraints are NOT yet implemented. A
+        // placeholder `assert_zero(0)` would make every statement verify (the proof would
+        // bind nothing to the public hash output), so we instead emit an unsatisfiable
+        // constraint (`assert_zero(1)`). This guarantees no proof produced by this AIR can
+        // ever verify until proper Keccak-f constraints exist.
+        //
+        // The public prove/verify entry points
+        // (`ZkpProver::prove_secret_value_nist` / `ZkpVerifier::verify_secret_value_nist`)
+        // additionally return `Error::NotImplemented` before this AIR is ever invoked.
+        let one = <AB::F as PrimeCharacteristicRing>::ONE;
+        builder.assert_zero(AB::Expr::from(one));
     }
 }
 

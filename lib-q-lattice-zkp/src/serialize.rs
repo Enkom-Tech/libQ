@@ -3,7 +3,10 @@
 use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
-use lib_q_ring::constants::COEFFICIENTS_IN_RING_ELEMENT;
+use lib_q_ring::constants::{
+    COEFFICIENTS_IN_RING_ELEMENT,
+    FIELD_MODULUS,
+};
 
 use crate::error::VerifyError;
 
@@ -38,7 +41,13 @@ pub fn read_module_vec(data: &[u8]) -> Result<Vec<Poly>, VerifyError> {
             .try_into()
             .map_err(|_| VerifyError::InvalidFormat)?,
     ) as usize;
-    let need = 4 + n * COEFFICIENTS_IN_RING_ELEMENT * 4;
+    // Use checked arithmetic for the required byte length so a hostile `n` cannot overflow
+    // `usize` and wrap to a small `need` that passes the length check (#7).
+    let need = n
+        .checked_mul(COEFFICIENTS_IN_RING_ELEMENT)
+        .and_then(|v| v.checked_mul(4))
+        .and_then(|v| v.checked_add(4))
+        .ok_or(VerifyError::InvalidFormat)?;
     if data.len() < need {
         return Err(VerifyError::InvalidFormat);
     }
@@ -47,11 +56,21 @@ pub fn read_module_vec(data: &[u8]) -> Result<Vec<Poly>, VerifyError> {
     for _ in 0..n {
         let mut coeffs = [0i32; COEFFICIENTS_IN_RING_ELEMENT];
         for c in &mut coeffs {
-            *c = i32::from_le_bytes(
+            let v = i32::from_le_bytes(
                 data[off..off + 4]
                     .try_into()
                     .map_err(|_| VerifyError::InvalidFormat)?,
             );
+            // Range-check decoded coefficients (#7). This serializer preserves signed values
+            // (callers may store either canonical `[0, q)` or centered `(-q, q)` representatives),
+            // so we reject any coefficient whose magnitude reaches the modulus: a valid reduced or
+            // centered representative always satisfies `|v| < q`. This stops out-of-range garbage
+            // from entering ring arithmetic. Trust assumption: within `(-q, q)` both canonical and
+            // centered encodings are accepted; canonicalization (if required) happens downstream.
+            if v <= -FIELD_MODULUS || v >= FIELD_MODULUS {
+                return Err(VerifyError::InvalidFormat);
+            }
+            *c = v;
             off += 4;
         }
         out.push(Poly::from_coeffs(coeffs));

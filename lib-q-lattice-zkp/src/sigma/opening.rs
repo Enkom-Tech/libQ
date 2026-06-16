@@ -98,6 +98,35 @@ pub fn fs_w_digest(first_message: &[Poly]) -> [u8; 32] {
     out
 }
 
+/// Domain separator binding the opening *statement* into the Fiat–Shamir transcript.
+pub const OPENING_STATEMENT_FS_DOMAIN: &[u8] = b"lattice-zkp/sigma-opening/statement/v0";
+
+/// Build the statement-bound Fiat–Shamir context for [`prove_opening`] / [`verify_opening`].
+///
+/// Defense-in-depth (#6): absorb the public statement — commitment-key seed, commitment image
+/// `com`, sparse-challenge weight `tau`, and the norm bound `z_inf_bound` — into the context so the
+/// challenge is bound to the exact instance and cannot be transplanted across keys/params/bounds
+/// (cross-parameter binding). The identical encoding is used on both prover and verifier sides.
+pub(crate) fn opening_statement_ctx(
+    key: &AjtaiCommitmentKey,
+    com: &AjtaiCommitment,
+    ctx: &[u8],
+    tau: usize,
+    z_inf_bound: i32,
+) -> Vec<u8> {
+    let com_wire = write_module_vec(&com.value.0);
+    let mut out = Vec::with_capacity(
+        ctx.len() + OPENING_STATEMENT_FS_DOMAIN.len() + key.seed.len() + com_wire.len() + 8 + 4,
+    );
+    out.extend_from_slice(ctx);
+    out.extend_from_slice(OPENING_STATEMENT_FS_DOMAIN);
+    out.extend_from_slice(&key.seed);
+    out.extend_from_slice(&(tau as u64).to_le_bytes());
+    out.extend_from_slice(&z_inf_bound.to_le_bytes());
+    out.extend_from_slice(&com_wire);
+    out
+}
+
 pub(crate) fn fs_sparse_challenge(ctx: &[u8], first_message: &[Poly], tau: usize) -> Poly {
     let w_digest = fs_w_digest(first_message);
     let mut h = lib_q_sha3::Shake256::default();
@@ -117,15 +146,58 @@ fn sum_challenge_polys(ch: &[Poly]) -> Poly {
     acc
 }
 
-pub(crate) fn sample_uniform_poly<R: Rng + CryptoRng>(rng: &mut R) -> Poly {
+// --- Bounded sampling for Module-SIS shortness (soundness fix #5) ---
+//
+// `q = FIELD_MODULUS = 8_380_417`, so `q/2 = 4_190_208`. Module-SIS *binding* of the Ajtai
+// commitment is only meaningful when both the witness and the proof response `z` are SHORT
+// (well below `q/2`). The legacy `z_inf_bound = 20_000_000 > 2q` made the verifier's norm check
+// a no-op, so shortness was never enforced and binding did not hold.
+//
+// We sample the mask `y` and the opening witness from small symmetric ranges and size the
+// response bound accordingly:
+//
+//   z = y + c · wit,   with a sparse ternary challenge `c` of Hamming weight τ (= 39 for v0).
+//   ||c·wit||_inf ≤ τ · ||wit||_inf,   so ||z||_inf ≤ ||y||_inf + τ · ||wit||_inf.
+//
+// With `Y_MASK_BOUND` and `OPENING_WITNESS_BOUND` below, the honest response is *deterministically*
+// bounded by `Y_MASK_BOUND + τ·OPENING_WITNESS_BOUND`, which is comfortably below `q/2`. See
+// `crate::profile` for the resulting `z_inf_bound` value and reasoning.
+
+/// Symmetric infinity-norm bound for the Fiat–Shamir mask `y` (coefficients in `[-B, B]`).
+pub(crate) const Y_MASK_BOUND: i32 = 1_000_000;
+
+/// Symmetric infinity-norm bound for sampled opening witnesses (coefficients in `[-B, B]`).
+pub(crate) const OPENING_WITNESS_BOUND: i32 = 1_024;
+
+/// Sample a polynomial with coefficients uniform in `[-bound, bound]` (centered, short).
+fn sample_bounded_poly<R: Rng + CryptoRng>(rng: &mut R, bound: i32) -> Poly {
+    debug_assert!(bound >= 0);
+    // `2*bound + 1` distinct values; rejection-free modular reduction is unbiased only if we
+    // reject the few high words, so reuse the unbiased rejection sampler over the range size.
+    let range = (bound as u32).wrapping_mul(2).wrapping_add(1);
+    let q = lib_q_ring::constants::FIELD_MODULUS;
     let mut coeffs = [0i32; 256];
     for c in &mut coeffs {
-        *c = lib_q_ring::sample_uniform_field_coefficient(rng);
+        let v = lib_q_ring::sample_uniform_coeff_mod_q(rng, range) - bound;
+        // Store as a canonical representative in [0, q) so wire packing / FS hashing agree.
+        *c = v.rem_euclid(q);
     }
     Poly::from_coeffs(coeffs)
 }
 
-/// Sample a uniformly random opening with dimensions from `key.params`.
+/// Sample the short Fiat–Shamir mask `y` (coefficients uniform in `[-Y_MASK_BOUND, Y_MASK_BOUND]`).
+///
+/// Previously this drew a *full-field-uniform* polynomial, which forced `||z||_inf ≈ q/2` and made
+/// any sub-`q/2` norm bound reject honest proofs. Bounding `y` is what lets the verifier enforce a
+/// short `z` (and therefore Module-SIS binding) while preserving honest completeness.
+pub(crate) fn sample_uniform_poly<R: Rng + CryptoRng>(rng: &mut R) -> Poly {
+    sample_bounded_poly(rng, Y_MASK_BOUND)
+}
+
+/// Sample a short random opening (witness coefficients in `[-OPENING_WITNESS_BOUND, +bound]`).
+///
+/// Short witnesses are required for Module-SIS binding to hold; full-field-uniform openings make
+/// the commitment non-binding.
 #[must_use]
 pub fn sample_random_opening<R: Rng + CryptoRng>(
     rng: &mut R,
@@ -133,10 +205,10 @@ pub fn sample_random_opening<R: Rng + CryptoRng>(
 ) -> AjtaiOpening {
     let p = &key.params;
     let message: Vec<Poly> = (0..p.module_rank)
-        .map(|_| sample_uniform_poly(rng))
+        .map(|_| sample_bounded_poly(rng, OPENING_WITNESS_BOUND))
         .collect();
     let randomness: Vec<Poly> = (0..p.randomness_dimension)
-        .map(|_| sample_uniform_poly(rng))
+        .map(|_| sample_bounded_poly(rng, OPENING_WITNESS_BOUND))
         .collect();
     AjtaiOpening {
         message: ModuleVec(message),
@@ -173,6 +245,9 @@ pub fn prove_opening<R: Rng + CryptoRng>(
         return Err(ProofError::InvalidParameters);
     }
 
+    // Bind the public statement into the FS challenge (#6); same encoding as `verify_opening`.
+    let stmt_ctx = opening_statement_ctx(key, com, ctx, tau, z_inf_bound);
+
     #[cfg(not(feature = "hardened"))]
     let wit = SecretWitnessVec::new(wit_vec);
     #[cfg(feature = "hardened")]
@@ -199,7 +274,7 @@ pub fn prove_opening<R: Rng + CryptoRng>(
         #[cfg(not(feature = "hardened"))]
         normalize_polys_mod_q(&mut w.0);
 
-        let c = fs_sparse_challenge(ctx, &w.0, tau);
+        let c = fs_sparse_challenge(&stmt_ctx, &w.0, tau);
 
         #[cfg(not(feature = "hardened"))]
         let z = accumulate_response_z(&y, &c, &wit);
@@ -278,7 +353,9 @@ pub fn verify_opening(
         return Err(VerifyError::Rejected);
     }
 
-    let c = fs_sparse_challenge(ctx, &proof.w.0, tau);
+    // Bind the public statement into the FS challenge (#6); same encoding as `prove_opening`.
+    let stmt_ctx = opening_statement_ctx(key, com, ctx, tau, z_inf_bound);
+    let c = fs_sparse_challenge(&stmt_ctx, &proof.w.0, tau);
 
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
     let lhs = matrix.mul_vec(&proof.z);

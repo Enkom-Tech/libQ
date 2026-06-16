@@ -57,13 +57,25 @@ pub const RECOVERY_POLICY_COMMIT_DOMAIN: &[u8] = b"recovery-zk/policy-commit/v0"
 /// Domain: per-key verification-key commitment.
 pub const RECOVERY_VK_COMMIT_DOMAIN: &[u8] = b"recovery-zk/vk-commit/v0";
 
+/// Number of bits used to range-constrain `slack` and the strictly-increasing key-id gap.
+///
+/// The native field is Mersenne31 (`p = 2^31 - 1`), so the unambiguous range-proof domain is
+/// `[0, 2^31)`. slack/weight/threshold/key-id values must lie in this domain (enforced by the
+/// bit decomposition); larger inputs cannot be proven. Using 31 bits also prevents the
+/// aliasing that a 32-bit decomposition would allow once values approach the field modulus.
+pub const RANGE_BITS: usize = 31;
+
 const COL_KEY_ID: usize = 0;
 const COL_WEIGHT: usize = 1;
 const COL_RUNNING_SUM: usize = 2;
 const COL_TIME_LOCK: usize = 3;
 const COL_SLACK: usize = 4;
 const COL_VK_COMMIT_START: usize = 5;
-const TRACE_WIDTH: usize = COL_VK_COMMIT_START + VK_COMMITMENT_SIZE;
+const COL_SLACK_BITS_START: usize = COL_VK_COMMIT_START + VK_COMMITMENT_SIZE;
+// Bit-decomposition of (next_key_id - key_id - 1), proving the gap is in [0, 2^RANGE_BITS),
+// i.e. key ids are strictly increasing.
+const COL_KEY_GAP_BITS_START: usize = COL_SLACK_BITS_START + RANGE_BITS;
+const TRACE_WIDTH: usize = COL_KEY_GAP_BITS_START + RANGE_BITS;
 
 /// Public statement for a recovery policy proof (v0 wire layout).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,12 +251,17 @@ where
         let local = main.current_slice();
         let next = main.next_slice();
 
+        let key_id = local[COL_KEY_ID].into();
         let weight = local[COL_WEIGHT].into();
         let running_sum = local[COL_RUNNING_SUM].into();
         let slack = local[COL_SLACK].into();
 
+        let next_key_id = next[COL_KEY_ID].into();
         let next_weight = next[COL_WEIGHT].into();
         let next_running_sum = next[COL_RUNNING_SUM].into();
+
+        let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
+        let two = one.clone() + one.clone();
 
         // First row: running_sum = weight
         {
@@ -258,6 +275,38 @@ where
             b.assert_zero(next_running_sum.clone() - (running_sum.clone() + next_weight));
         }
 
+        // Range-constrain `slack` to [0, 2^RANGE_BITS): each bit is boolean and the bits
+        // reconstruct slack. Without this, `slack` is a free witness and the last-row equation
+        // `running_sum = threshold + slack` would be satisfiable for ANY running_sum (the
+        // prover could pick slack to absorb a sub-threshold sum, defeating the threshold check).
+        {
+            let mut acc = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
+            let mut weight_pow = one.clone();
+            for i in 0..RANGE_BITS {
+                let bit: AB::Expr = local[COL_SLACK_BITS_START + i].into();
+                builder.assert_bool(bit.clone());
+                acc = acc + bit * weight_pow.clone();
+                weight_pow = weight_pow.clone() * two.clone();
+            }
+            builder.assert_eq(slack.clone(), acc);
+        }
+
+        // Key-id monotonicity: prove (next_key_id - key_id - 1) in [0, 2^RANGE_BITS) on
+        // transition rows, i.e. next_key_id >= key_id + 1 (strictly increasing). The gap is
+        // bit-decomposed in the current row's COL_KEY_GAP_BITS columns.
+        {
+            let mut acc = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
+            let mut weight_pow = one.clone();
+            for i in 0..RANGE_BITS {
+                let bit: AB::Expr = local[COL_KEY_GAP_BITS_START + i].into();
+                builder.assert_bool(bit.clone());
+                acc = acc + bit * weight_pow.clone();
+                weight_pow = weight_pow.clone() * two.clone();
+            }
+            let gap = next_key_id.clone() - key_id.clone() - one.clone();
+            builder.when_transition().assert_eq(gap, acc);
+        }
+
         // Last row: running_sum = threshold + slack
         {
             let threshold = AB::F::from_prime_subfield(
@@ -267,7 +316,22 @@ where
             );
             builder
                 .when_last_row()
-                .assert_zero(running_sum - AB::Expr::from(threshold) - slack.clone());
+                .assert_zero(running_sum.clone() - AB::Expr::from(threshold) - slack.clone());
+        }
+
+        // Bind the threshold and policy commitment to the public values. The threshold is the
+        // first public value; the 32-byte policy commitment follows (one field element per
+        // byte). Binding the commitment ties the proof to the specific recovery policy via the
+        // Fiat-Shamir transcript, so a proof for one policy cannot be replayed for another.
+        let pubs = builder.public_values();
+        if !pubs.is_empty() {
+            let threshold_pub: AB::Expr = pubs[0].into();
+            let threshold_f = AB::F::from_prime_subfield(
+                <<AB::F as PrimeCharacteristicRing>::PrimeSubfield as QuotientMap<u32>>::from_int(
+                    self.public.threshold,
+                ),
+            );
+            builder.assert_eq(threshold_pub, AB::Expr::from(threshold_f));
         }
     }
 }
@@ -329,6 +393,23 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
         let mut acc: u32 = 0;
         let last_key_id = sorted_keys.last().map(|k| k.key_id).unwrap_or(0);
 
+        // Fill the low RANGE_BITS bit-decomposition columns of `value` starting at `col_start`.
+        let write_bits =
+            |trace: &mut [Complex<Mersenne31>], base: usize, col_start: usize, value: u32| {
+                for i in 0..RANGE_BITS {
+                    let bit = (value >> i) & 1;
+                    trace[base + col_start + i] = Complex::<Mersenne31>::from_u32(bit);
+                }
+            };
+
+        // Build the ordered key_id list (real rows then padding) so each row can compute the
+        // gap to the NEXT row's key_id for the monotonicity bit-decomposition.
+        let mut row_key_ids: Vec<u32> = sorted_keys.iter().map(|k| k.key_id).collect();
+        for pad_idx in key_count..height {
+            let fake_id = last_key_id.saturating_add((pad_idx - key_count + 1) as u32);
+            row_key_ids.push(fake_id);
+        }
+
         for (row_idx, key) in sorted_keys.iter().enumerate() {
             acc = acc.saturating_add(key.weight);
             let vk_commit = vk_commitment(self.public.crypto_suite_id, &key.raw_vk_bytes);
@@ -344,6 +425,15 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
                 trace_values[base + COL_VK_COMMIT_START + i] =
                     Complex::<Mersenne31>::from_u32(u32::from(byte));
             }
+            write_bits(&mut trace_values, base, COL_SLACK_BITS_START, row_slack);
+            // gap = next_key_id - key_id - 1 (>= 0 since key ids are strictly increasing).
+            // The last row has no successor; its gap bits are left at 0 (the gap constraint is
+            // only enforced on transition rows).
+            let gap = row_key_ids
+                .get(row_idx + 1)
+                .map(|&nxt| nxt.saturating_sub(key.key_id).saturating_sub(1))
+                .unwrap_or(0);
+            write_bits(&mut trace_values, base, COL_KEY_GAP_BITS_START, gap);
         }
 
         // Pad: strictly increasing key_id, zero weight, frozen running_sum/slack
@@ -351,8 +441,8 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
         let final_slack = final_acc.saturating_sub(self.public.threshold);
         for pad_idx in key_count..height {
             let base = pad_idx * TRACE_WIDTH;
-            let fake_id = last_key_id.saturating_add((pad_idx - key_count + 1) as u32);
-            trace_values[base + COL_KEY_ID] = Complex::<Mersenne31>::from_u32(fake_id);
+            let this_id = row_key_ids[pad_idx];
+            trace_values[base + COL_KEY_ID] = Complex::<Mersenne31>::from_u32(this_id);
             trace_values[base + COL_WEIGHT] = Complex::<Mersenne31>::ZERO;
             trace_values[base + COL_RUNNING_SUM] = Complex::<Mersenne31>::from_u32(final_acc);
             trace_values[base + COL_TIME_LOCK] =
@@ -361,6 +451,12 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
             for i in 0..VK_COMMITMENT_SIZE {
                 trace_values[base + COL_VK_COMMIT_START + i] = Complex::<Mersenne31>::ZERO;
             }
+            write_bits(&mut trace_values, base, COL_SLACK_BITS_START, final_slack);
+            let gap = row_key_ids
+                .get(pad_idx + 1)
+                .map(|&nxt| nxt.saturating_sub(this_id).saturating_sub(1))
+                .unwrap_or(0);
+            write_bits(&mut trace_values, base, COL_KEY_GAP_BITS_START, gap);
         }
 
         Ok(RowMajorMatrix::new(trace_values, TRACE_WIDTH))
@@ -372,7 +468,13 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
     ) -> Vec<lib_q_stark_field::extension::Complex<Mersenne31>> {
         use lib_q_stark_field::extension::Complex;
 
-        vec![Complex::<Mersenne31>::from_u32(self.public.threshold)]
+        // [threshold, policy_commitment[0..32]] (one field element per commitment byte).
+        let mut out = Vec::with_capacity(1 + POLICY_COMMITMENT_SIZE);
+        out.push(Complex::<Mersenne31>::from_u32(self.public.threshold));
+        for &byte in &self.public.policy_commitment {
+            out.push(Complex::<Mersenne31>::from_u32(u32::from(byte)));
+        }
+        out
     }
 }
 

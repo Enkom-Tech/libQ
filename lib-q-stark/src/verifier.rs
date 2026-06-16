@@ -273,6 +273,10 @@ where
     if *degree_bits > MAX_DEGREE_BITS {
         return Err(VerificationError::InvalidProofShape);
     }
+    // Reject before any subtraction/shift by the zk offset would underflow/panic.
+    if *degree_bits < config.is_zk() {
+        return Err(VerificationError::InvalidProofShape);
+    }
 
     // Validate commitment structure
     // Commitments struct has trace, quotient_chunks, and optional random

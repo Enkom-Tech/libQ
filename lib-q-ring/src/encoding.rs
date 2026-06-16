@@ -42,7 +42,9 @@ pub fn simple_bit_unpack(w: u8, data: &[u8], out: &mut [i32; COEFFICIENTS_IN_RIN
     let w = usize::from(w);
     let need = simple_bit_pack_len(w);
     assert!(data.len() >= need, "input too short");
-    let mask = (1u32 << w) - 1;
+    // Use a u64 intermediate so that w == 32 produces a mask of all-ones (u32::MAX)
+    // without overflowing a u32 shift.
+    let mask = ((1u64 << w).wrapping_sub(1)) as u32;
     let mut bit_idx = 0usize;
     for o in out.iter_mut() {
         let mut v = 0u32;

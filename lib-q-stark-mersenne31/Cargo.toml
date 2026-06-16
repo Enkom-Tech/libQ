@@ -17,7 +17,6 @@ ignored = [
 [dependencies]
 lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.7" }
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.7" }
 lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
 lib-q-stark-mds = { path = "../lib-q-stark-mds", version = "0.0.7" }
 lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.7" }
@@ -27,7 +26,7 @@ lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
 itertools = { workspace = true }
 num-bigint = { workspace = true }
 pastey = { workspace = true }
-rand = { workspace = true, default-features = false, features = ["std"] }
+rand = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"], default-features = false }
 subtle = { workspace = true }
 

@@ -423,58 +423,28 @@ impl ZkpProver {
     ///
     /// * `secret_value` - The secret preimage to prove knowledge of
     /// * `_public_statement` - Reserved for future use
+    ///
+    /// # Status
+    ///
+    /// NOT IMPLEMENTED. The underlying [`HashPreimageNistAir`](crate::air::HashPreimageNistAir)
+    /// does not yet encode Keccak-f / cSHAKE256 constraints, so a generated proof would not
+    /// soundly bind the secret to the public hash. This function therefore returns
+    /// [`Error::NotImplemented`](lib_q_core::Error::NotImplemented) until the constraints exist.
     pub fn prove_secret_value_nist(
         &mut self,
         secret_value: &[u8],
-        _public_statement: &[u8],
+        public_statement: &[u8],
     ) -> Result<ZkpProof> {
-        use crate::air::{
-            HASH_OUTPUT_BYTES,
-            HashPreimageNistAir,
-            TraceGenerator,
-        };
-        use crate::stark::{
-            StarkProver,
-            default_config,
-        };
-
-        if secret_value.is_empty() {
-            return Err(lib_q_core::Error::InvalidState {
-                operation: "prove_secret_value_nist".to_string(),
-                reason: "Secret value cannot be empty".to_string(),
-            });
-        }
-        if secret_value.len() > air::hash_preimage_nist::MAX_PREIMAGE_SIZE {
-            return Err(lib_q_core::Error::InvalidState {
-                operation: "prove_secret_value_nist".to_string(),
-                reason: "Secret value exceeds maximum size".to_string(),
-            });
-        }
-
-        let air = HashPreimageNistAir::new();
-        let input = secret_value.to_vec();
-        let trace: RowMajorMatrix<ZkpField> =
-            air.generate_trace(&input)
-                .map_err(|e| lib_q_core::Error::InternalError {
-                    operation: "prove_secret_value_nist".to_string(),
-                    details: e.to_string(),
-                })?;
-
-        let public_values: Vec<ZkpField> = air.public_values(&input);
-        let config = default_config();
-        let prover = StarkProver::new(config);
-
-        let proof = prover.prove(&air, trace, &public_values).map_err(|e| {
-            lib_q_core::Error::InternalError {
-                operation: "STARK proof generation (NIST)".to_string(),
-                details: e.to_string(),
-            }
-        })?;
-
-        let metadata = ProofMetadata::HashPreimageNist {
-            output_size: HASH_OUTPUT_BYTES as u16,
-        };
-        ZkpProof::from_stark_proof(&proof, metadata)
+        // SOUNDNESS GATE: cSHAKE256/Keccak-f AIR constraints are not implemented yet (see
+        // `crate::air::hash_preimage_nist`). A proof from the current AIR would not bind the
+        // secret to the public hash, so we refuse rather than emit a proof that proves nothing.
+        // Once real Keccak-f constraints exist, replace this with the trace-generation and
+        // STARK-proving flow used by `prove_secret_value`.
+        let _ = (secret_value, public_statement);
+        Err(lib_q_core::Error::NotImplemented {
+            feature: "NIST (cSHAKE256) preimage proofs: Keccak-f AIR constraints not implemented"
+                .to_string(),
+        })
     }
 
     /// Prove a computation using a circuit
@@ -593,15 +563,6 @@ impl ZkpProver {
 /// `ZkpVerifier::verify` and `ZkpVerifier::verify_secret_value_nist`.
 #[cfg(feature = "zkp")]
 fn verify_secret_value_nist_impl(proof: &ZkpProof, expected_hash: &[u8]) -> Result<bool> {
-    use crate::air::{
-        HashPreimageNistAir,
-        expected_hash_to_public_values,
-    };
-    use crate::stark::{
-        StarkVerifier,
-        default_config,
-    };
-
     if proof.proof_type != ProofType::Stark {
         return Ok(false);
     }
@@ -613,21 +574,15 @@ fn verify_secret_value_nist_impl(proof: &ZkpProof, expected_hash: &[u8]) -> Resu
         return Ok(false);
     };
 
-    let air = HashPreimageNistAir::new();
-    let public_values = expected_hash_to_public_values::<ZkpField>(expected_hash);
-
-    let stark_proof = match proof.to_stark_proof() {
-        Ok(p) => p,
-        Err(_) => return Ok(false),
-    };
-
-    let config = default_config();
-    let verifier = StarkVerifier::new(config);
-
-    match verifier.verify(&air, &stark_proof, &public_values) {
-        Ok(()) => Ok(true),
-        Err(_) => Ok(false),
-    }
+    // SOUNDNESS GATE: the NIST AIR has no Keccak-f constraints yet (see
+    // `crate::air::hash_preimage_nist`), so a "valid" proof would prove nothing. Refuse to
+    // verify NIST proofs rather than accept them. Once the constraints exist, restore the
+    // StarkVerifier flow against `expected_hash_to_public_values(expected_hash)`.
+    let _ = expected_hash;
+    Err(lib_q_core::Error::NotImplemented {
+        feature: "NIST (cSHAKE256) preimage proofs: Keccak-f AIR constraints not implemented"
+            .to_string(),
+    })
 }
 
 #[cfg(feature = "zkp")]
@@ -637,30 +592,27 @@ impl ZkpVerifier {
         Self {}
     }
 
-    /// Verify a zero-knowledge proof of secret value knowledge
+    /// Verify a zero-knowledge proof of secret value (preimage) knowledge
     ///
-    /// This verifies a proof generated by `ZkpProver::prove_secret_value`. The
-    /// expected hash is the **Poseidon** commitment (same encoding as used in proving).
+    /// This verifies a proof generated by [`ZkpProver::prove_secret_value`]. The verifier
+    /// recomputes the public Poseidon commitment from the **preimage**, so the caller passes
+    /// the same secret preimage that was given to the prover (NOT the hash output). The proof
+    /// then attests that the prover knew a preimage hashing to that commitment.
     /// For NIST proofs use [`verify_secret_value_nist`](ZkpVerifier::verify_secret_value_nist).
     ///
     /// # Arguments
     ///
     /// * `proof` - The proof to verify
-    /// * `public_hash` - The expected Poseidon hash output (bytes encoding used by the prover)
+    /// * `preimage` - The secret preimage (same bytes passed to `prove_secret_value`); the
+    ///   verifier hashes it with Poseidon-128 to reconstruct the public commitment
     ///
     /// # Returns
     ///
     /// `Ok(true)` if the proof is valid, `Ok(false)` or `Err` otherwise
-    pub fn verify_secret_value(&self, proof: &ZkpProof, public_hash: &[u8]) -> Result<bool> {
-        use lib_q_poseidon::{
-            Poseidon,
-            Poseidon128,
-        };
-
+    pub fn verify_secret_value(&self, proof: &ZkpProof, preimage: &[u8]) -> Result<bool> {
         use crate::air::{
             HashPreimageAir,
-            bytes_to_poseidon_field,
-            poseidon_slice_to_field,
+            TraceGenerator,
         };
         use crate::stark::{
             StarkVerifier,
@@ -685,14 +637,9 @@ impl ZkpVerifier {
         let _ = output_size;
         let air = HashPreimageAir::new();
 
-        // Convert expected hash bytes to Poseidon field elements, then hash to get public values
-        // The public values are the Poseidon hash output (field elements), matching what
-        // HashPreimageAir::public_values() returns during proving
-        let expected_field_elements = bytes_to_poseidon_field(public_hash);
-        let poseidon_hash = Poseidon128.hash(&expected_field_elements);
-
-        // Convert Poseidon hash output to public values (field elements)
-        let public_values = poseidon_slice_to_field(&poseidon_hash);
+        // Reconstruct the public commitment exactly as the prover did, from the preimage.
+        // Using the AIR's own `public_values` guarantees the same padding/encoding rules.
+        let public_values: Vec<ZkpField> = air.public_values(&preimage.to_vec());
 
         // Deserialize the STARK proof
         let stark_proof = proof.to_stark_proof()?;
@@ -933,66 +880,41 @@ mod tests {
 
     #[cfg(feature = "zkp")]
     #[test]
-    fn test_nist_secret_value_round_trip() {
-        use digest::{
-            ExtendableOutput,
-            Update,
-        };
-        use lib_q_sha3::CShake256;
-
-        use crate::air::hash_preimage_nist::CSHAKE_DOMAIN;
-
+    fn test_nist_secret_value_not_implemented() {
+        // The NIST AIR has no Keccak-f constraints, so prove/verify must refuse rather
+        // than emit/accept an unsound proof.
         let secret = b"nist_secret_value";
         let mut prover = ZkpProver::new();
-        let proof = prover
-            .prove_secret_value_nist(secret, b"")
-            .expect("prove_secret_value_nist");
-        let mut expected_hash = [0u8; 32];
-        {
-            let mut hasher = CShake256::new_with_function_name(&[], CSHAKE_DOMAIN);
-            hasher.update(secret);
-            hasher.finalize_xof_into(&mut expected_hash);
-        }
-        let verifier = ZkpVerifier::new();
         assert!(
-            verifier
-                .verify_secret_value_nist(&proof, &expected_hash)
-                .unwrap(),
-            "NIST proof should verify with correct expected hash"
+            matches!(
+                prover.prove_secret_value_nist(secret, b""),
+                Err(lib_q_core::Error::NotImplemented { .. })
+            ),
+            "NIST prove must return NotImplemented"
         );
-        // Generic verify() must dispatch to verify_secret_value_nist for HashPreimageNist
-        assert!(
-            verifier.verify(proof.clone(), &expected_hash).unwrap(),
-            "verify() must accept NIST proof with correct expected hash"
-        );
-    }
 
-    #[cfg(feature = "zkp")]
-    #[test]
-    fn test_nist_proof_rejected_by_poseidon_verifier() {
-        use digest::{
-            ExtendableOutput,
-            Update,
+        let verifier = ZkpVerifier::new();
+        let mut dummy = ZkpProof {
+            data: alloc::vec![1u8; 8],
+            proof_type: ProofType::Stark,
+            security_level: 1,
+            metadata: ProofMetadata::HashPreimageNist { output_size: 32 },
         };
-        use lib_q_sha3::CShake256;
-
-        use crate::air::hash_preimage_nist::CSHAKE_DOMAIN;
-
-        let secret = b"nist_only";
-        let mut prover = ZkpProver::new();
-        let proof = prover
-            .prove_secret_value_nist(secret, b"")
-            .expect("NIST prove");
-        let mut expected_hash = [0u8; 32];
-        let mut hasher = CShake256::new_with_function_name(&[], CSHAKE_DOMAIN);
-        hasher.update(secret);
-        hasher.finalize_xof_into(&mut expected_hash);
-        let verifier = ZkpVerifier::new();
         assert!(
-            !verifier
-                .verify_secret_value(&proof, &expected_hash)
-                .unwrap(),
-            "NIST proof must not be accepted by Poseidon verifier"
+            matches!(
+                verifier.verify_secret_value_nist(&dummy, &[0u8; 32]),
+                Err(lib_q_core::Error::NotImplemented { .. })
+            ),
+            "NIST verify must return NotImplemented"
+        );
+        // Generic verify() dispatches to the NIST impl, which must also refuse.
+        dummy.data = alloc::vec![1u8; 8];
+        assert!(
+            matches!(
+                verifier.verify(dummy, &[0u8; 32]),
+                Err(lib_q_core::Error::NotImplemented { .. })
+            ),
+            "verify() must return NotImplemented for NIST proofs"
         );
     }
 
@@ -1325,17 +1247,18 @@ mod tests {
                 .unwrap()
         );
 
-        let malformed_stark = ZkpProof {
+        // A proof carrying NIST metadata reaches the soundness gate, which refuses to
+        // verify (NIST constraints not implemented) rather than returning a boolean.
+        let nist_meta = ZkpProof {
             data: vec![0xAA; 16],
             proof_type: ProofType::Stark,
             security_level: 1,
             metadata: ProofMetadata::HashPreimageNist { output_size: 32 },
         };
-        assert!(
-            !verifier
-                .verify_secret_value_nist(&malformed_stark, &[0u8; 32])
-                .unwrap()
-        );
+        assert!(matches!(
+            verifier.verify_secret_value_nist(&nist_meta, &[0u8; 32]),
+            Err(lib_q_core::Error::NotImplemented { .. })
+        ));
     }
 
     #[cfg(feature = "zkp")]

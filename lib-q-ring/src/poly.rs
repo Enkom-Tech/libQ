@@ -84,8 +84,10 @@ impl Poly {
 
     /// Multiply every coefficient by a small integer, then reduce mod `q`.
     pub fn scalar_mul_assign(&mut self, k: i32) {
+        let q = FIELD_MODULUS as i64;
         for c in &mut self.coeffs {
-            *c = reduce_element((*c as i64 * k as i64) as i32);
+            let wide = *c as i64 * k as i64;
+            *c = reduce_element(wide.rem_euclid(q) as i32);
         }
     }
 

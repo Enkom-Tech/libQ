@@ -31,6 +31,7 @@ members = [
     "lib-q-duplex-aead",
     "lib-q-hpke",
     "lib-q-romulus",
+    "lib-q-sah",
     "lib-q-saturnin",
     "lib-q-tweak-aead",
     # libQ-agnostic advanced primitives (opt-in; pre-standard cores marked PROVISIONAL)

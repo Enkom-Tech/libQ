@@ -12,8 +12,14 @@ Poseidon is an algebraic hash function designed specifically for efficient imple
 
 - **Field-native**: Operates directly on `Complex<Mersenne31>` field elements
 - **Efficient**: ~300 constraints per hash vs ~150,000 for Keccak-f[1600]
-- **Secure**: Conservative round counts based on peer-reviewed research
 - **Post-quantum**: Designed for use in post-quantum zero-knowledge proofs
+
+> **Security warning:** The round counts and sponge parameters in this crate have
+> **not** been independently verified for the `Complex<Mersenne31>` extension field
+> GF(p²). The standard Poseidon security analysis is stated over a prime field and
+> does not directly cover this field and state. Do **not** rely on a specific
+> bit-security level (e.g. 128-bit or 256-bit) until these parameters have been
+> regenerated and analyzed for GF(p²).
 
 ## Usage
 
@@ -32,16 +38,20 @@ let input = vec![
 let hash = hasher.hash(&input);
 ```
 
-## Security Parameters
+## Parameter Sets
 
-- **Poseidon-128**: 128-bit security level
-  - State width: 3 (rate=2, capacity=1)
+The "128"/"256" labels reflect targeted capacity margins only. The round counts
+are **not** independently verified for GF(p²); do not rely on a specific
+bit-security level (see the security warning above).
+
+- **Poseidon-128** (parameter set, unverified bit-security over GF(p²))
+  - State width: 5 (rate=2, capacity=3)
   - Full rounds: 8 (4 before partial, 4 after)
   - Partial rounds: 56
   - S-box: x^5
 
-- **Poseidon-256**: 256-bit security level
-  - State width: 3 (rate=2, capacity=1)
+- **Poseidon-256** (parameter set, unverified bit-security over GF(p²))
+  - State width: 7 (rate=2, capacity=5)
   - Full rounds: 8 (4 before partial, 4 after)
   - Partial rounds: 60
   - S-box: x^5
@@ -64,7 +74,9 @@ This crate is integrated with `lib-q-zkp` for use in STARK proofs. The Poseidon 
 
 ## Security Considerations
 
-- MDS matrices are generated using secure methods
-- Round constants follow cryptographic best practices
-- Parameters chosen conservatively above minimum security margins
+- MDS matrices use a Cauchy construction (every square submatrix is invertible)
+- Round constants are derived deterministically via SHAKE256 ("nothing up my sleeve")
+- The sponge uses standard 10*1 padding in the rate
+- Round counts and parameters are **not** independently verified for GF(p²);
+  do not rely on a specific bit-security level (see the security warning above)
 - All operations are constant-time where applicable

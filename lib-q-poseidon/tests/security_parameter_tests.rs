@@ -1,6 +1,10 @@
 //! Security parameter tests for Poseidon
 //!
-//! Enforce at test time that Poseidon parameters meet the claimed security levels.
+//! Enforce at test time that Poseidon parameters meet the structural invariants
+//! the crate targets (capacity/state-width relations, minimum round counts, MDS
+//! invertibility, valid S-box exponent). NOTE: these checks do NOT prove a
+//! specific bit-security level over the GF(p²) extension field; the round counts
+//! are not independently verified for that field.
 
 use lib_q_poseidon::{
     Poseidon128,
@@ -78,12 +82,16 @@ fn test_poseidon128_partial_round_count_statistical_bound() {
 }
 
 #[test]
-fn test_sbox_alpha_is_valid_permutation_over_mersenne31() {
-    let p_minus_1 = (Mersenne31::ORDER_U32 - 1) as u64;
-    let g = gcd(5, p_minus_1);
+fn test_sbox_alpha_is_valid_permutation_over_gf_p2() {
+    // The S-box operates over the extension field GF(p^2) = Complex<Mersenne31>,
+    // whose multiplicative group has order p^2 - 1 (NOT p - 1). x^5 is a
+    // permutation of GF(p^2) iff gcd(5, p^2 - 1) == 1.
+    let p = Mersenne31::ORDER_U32 as u64;
+    let order_minus_1 = p * p - 1;
+    let g = gcd(5, order_minus_1);
     assert_eq!(
         g, 1,
-        "alpha=5 must be coprime to p-1 for x^5 to be a permutation"
+        "alpha=5 must be coprime to p^2 - 1 for x^5 to be a permutation over GF(p^2)"
     );
 }
 

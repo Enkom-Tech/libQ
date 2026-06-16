@@ -1,0 +1,11 @@
+# S-A-H spec pin file
+# Implementations vendor a copy of these files; CI recomputes these
+# SHA-256 hashes and fails on mismatch. See sah.md section 10.
+
+spec_version: 0.3.0
+status: draft
+
+sha256:
+  fd9f22103c1cd4a348baf46fe3488545d11e6519fc931b6ccbfbaa7f5ff41357  sah-256.profile.json
+  8af4e4489ec3f90e2a4c99c7eb9fe1d3ff467a722794846050db4d2f5e1a1d3b  vectors/kat_sah256_v0.3.0.json
+  8be2e4cf249a0e0d96e20d1ccab86d52097b10913d6c1280671f7f1067392e20  vectors/perm_sah256_v0.3.0.json

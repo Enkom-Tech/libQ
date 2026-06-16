@@ -15,7 +15,6 @@
 //!
 //! All AIR implementations follow these security principles:
 //! - Input validation to prevent DoS attacks
-//! - Automatic zeroization of secret data via `SecretWitness`
 //! - Constant-time operations where applicable
 //!
 //! # Example

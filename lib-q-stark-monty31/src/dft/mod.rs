@@ -57,23 +57,44 @@ fn coset_shift_and_scale_rows<F: Field>(
         });
 }
 
+/// Both twiddle tables guarded by a single lock to prevent any
+/// inconsistency between the forward and inverse caches.
+struct TwiddleCache<F> {
+    twiddles: Arc<[Vec<F>]>,
+    inv_twiddles: Arc<[Vec<F>]>,
+}
+
+impl<F> core::fmt::Debug for TwiddleCache<F> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TwiddleCache")
+            .field("twiddles", &self.twiddles.len())
+            .field("inv_twiddles", &self.inv_twiddles.len())
+            .finish()
+    }
+}
+
+impl<F> Default for TwiddleCache<F> {
+    fn default() -> Self {
+        Self {
+            twiddles: Arc::from([]),
+            inv_twiddles: Arc::from([]),
+        }
+    }
+}
+
 /// Recursive DFT, decimation-in-frequency in the forward direction,
 /// decimation-in-time in the backward (inverse) direction.
 #[derive(Clone, Debug, Default)]
 pub struct RecursiveDft<F> {
-    /// Forward twiddle tables
+    /// Forward and inverse twiddle tables under a single lock.
     #[allow(clippy::type_complexity)]
-    twiddles: Arc<RwLock<Arc<[Vec<F>]>>>,
-    /// Inverse twiddle tables
-    #[allow(clippy::type_complexity)]
-    inv_twiddles: Arc<RwLock<Arc<[Vec<F>]>>>,
+    cache: Arc<RwLock<TwiddleCache<F>>>,
 }
 
 impl<MP: FieldParameters + TwoAdicData> RecursiveDft<MontyField31<MP>> {
     pub fn new(n: usize) -> Self {
         let res = Self {
-            twiddles: Arc::default(),
-            inv_twiddles: Arc::default(),
+            cache: Arc::default(),
         };
         res.update_twiddles(n);
         res
@@ -110,19 +131,35 @@ impl<MP: FieldParameters + TwoAdicData> RecursiveDft<MontyField31<MP>> {
     }
 
     /// Compute twiddle factors, or take memoized ones if already available.
+    ///
+    /// Both forward and inverse tables are updated atomically under a single
+    /// write lock, so a reader can never see a state where one table is ahead
+    /// of the other.
     #[instrument(skip_all)]
     fn update_twiddles(&self, fft_len: usize) {
         // As we don't save the twiddles for the final layer where
         // the only twiddle is 1, roots_of_unity_table(fft_len)
         // returns a vector of twiddles of length log_2(fft_len) - 1.
-        // let curr_max_fft_len = 2 << self.twiddles.read().len();
         let need = log2_strict_usize(fft_len);
-        let snapshot = self.twiddles.read().clone();
-        let have = snapshot.len() + 1;
+
+        // Fast path: read lock only.
+        {
+            let r = self.cache.read();
+            let have = r.twiddles.len() + 1;
+            if have >= need {
+                return;
+            }
+        }
+
+        // Slow path: acquire write lock and double-check.
+        let mut w = self.cache.write();
+        let current_len = w.twiddles.len();
+        let have = current_len + 1;
         if have >= need {
             return;
         }
 
+        // Compute only the missing entries: from `have` up to `need`.
         let missing_twiddles = MontyField31::get_missing_twiddles(need, have);
 
         let missing_inv_twiddles = missing_twiddles
@@ -138,30 +175,23 @@ impl<MP: FieldParameters + TwoAdicData> RecursiveDft<MontyField31<MP>> {
                     .collect()
             })
             .collect::<Vec<_>>();
-        // Helper closure to extend a table under its lock.
-        let extend_table = |lock: &RwLock<Arc<[Vec<_>]>>, missing: &[Vec<_>]| {
-            let mut w = lock.write();
-            let current_len = w.len();
-            // Double-check if an update is still needed after acquiring the write lock.
-            if (current_len + 1) < need {
-                let mut v = w.to_vec();
-                // Append only the portion needed in case another thread did a partial update.
-                let extend_from = current_len.saturating_sub(current_len);
-                v.extend_from_slice(&missing[extend_from..]);
-                *w = v.into();
-            }
-        };
-        // Atomically update each table. This two-step process is the source of the race condition.
-        extend_table(&self.twiddles, &missing_twiddles);
-        extend_table(&self.inv_twiddles, &missing_inv_twiddles);
+
+        // The delta is exactly the number of new entries returned by get_missing_twiddles.
+        // Append them to both tables in one atomic write-lock section.
+        let mut fwd = w.twiddles.to_vec();
+        let mut inv = w.inv_twiddles.to_vec();
+        fwd.extend(missing_twiddles);
+        inv.extend(missing_inv_twiddles);
+        w.twiddles = fwd.into();
+        w.inv_twiddles = inv.into();
     }
 
     fn get_twiddles(&self) -> Arc<[Vec<MontyField31<MP>>]> {
-        self.twiddles.read().clone()
+        self.cache.read().twiddles.clone()
     }
 
     fn get_inv_twiddles(&self) -> Arc<[Vec<MontyField31<MP>>]> {
-        self.inv_twiddles.read().clone()
+        self.cache.read().inv_twiddles.clone()
     }
 }
 

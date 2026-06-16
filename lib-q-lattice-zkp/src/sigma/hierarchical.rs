@@ -512,15 +512,11 @@ pub fn verify_private_membership(
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    let clearance_level = recover_clearance_level(
-        min_clearance,
-        &proof.leaf_digest,
-        &proof.role_tag,
-        &proof.parent_digest,
-    )?;
-    if clearance_level != proof.clearance_level {
-        return Err(VerifyError::Rejected);
-    }
+    // O(1) verification: the bundle carries `clearance_level` explicitly, so we recompute the
+    // leaf digest directly instead of brute-forcing `recover_clearance_level` over the full
+    // `[min_clearance, min_clearance + β]` range (β ≈ 2^20 SHAKE hashes — a verifier DoS over
+    // attacker-controlled inputs). Binding to `leaf_digest` below makes the carried value sound.
+    let clearance_level = proof.clearance_level;
     if clearance_level < min_clearance {
         return Err(VerifyError::Rejected);
     }
@@ -531,6 +527,8 @@ pub fn verify_private_membership(
         &proof.clearance_margin_witness_polys,
     )?;
 
+    // Recompute the leaf digest from the carried structured fields and require it matches
+    // `leaf_digest` exactly. This authenticates `clearance_level` (and role/parent) in O(1).
     let recomposed = encode_pvtn_leaf(proof.clearance_level, &proof.role_tag, &proof.parent_digest);
     if leaf_hash(&recomposed) != proof.leaf_digest {
         return Err(VerifyError::Rejected);

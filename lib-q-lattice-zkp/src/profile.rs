@@ -13,6 +13,23 @@ use lib_q_ring::constants::{
 
 use crate::params::AjtaiParameters;
 
+/// Frozen `||z||_inf` abort bound for all v0 profiles.
+///
+/// Soundness fix (#5): the legacy bound was `20_000_000`, larger than `2q` (`q = 8_380_417`,
+/// `q/2 = 4_190_208`), so the verifier's norm check never rejected anything and Module-SIS
+/// *binding* of the Ajtai commitment was not enforced. The bound must be **well below `q/2`** for
+/// shortness — and hence binding — to hold.
+///
+/// Honest provers sample the mask `y` with coefficients in `[-Y_MASK_BOUND, Y_MASK_BOUND]`
+/// (`1_000_000`) and short opening witnesses in `[-OPENING_WITNESS_BOUND, OPENING_WITNESS_BOUND]`
+/// (`1_024`); see [`crate::sigma::opening`]. With a sparse ternary challenge of Hamming weight
+/// `τ = 39`, the honest response is bounded by
+/// `||z||_inf ≤ Y_MASK_BOUND + τ·OPENING_WITNESS_BOUND = 1_000_000 + 39·1_024 = 1_039_936`,
+/// and at most `≈ 1_079_872` for aggregated (user+blind) openings. We set the frozen bound to
+/// `1_500_000`, which leaves a comfortable completeness margin while staying at roughly `0.36·(q/2)`
+/// — safely short for Module-SIS binding.
+pub const V0_Z_INF_BOUND: i32 = 1_500_000;
+
 /// Wire format major version carried in every `lattice_zkp_wire_v0` envelope.
 pub const LATTICE_ZKP_WIRE_VERSION_V0: u8 = 0;
 
@@ -81,7 +98,7 @@ impl LatticeZkpProfileV0 {
     /// PVTN private membership: `k=1`, `l=1`, depth cap 16, wire cap 4096 B.
     #[must_use]
     pub const fn pvtn_membership_v0() -> Self {
-        let z_inf_bound = 20_000_000;
+        let z_inf_bound = V0_Z_INF_BOUND;
         Self {
             profile_id: PROFILE_ID_PVTN_MEMBERSHIP_V0,
             label: "lib-q-lattice-zkp/pvtn-membership/v0",
@@ -100,7 +117,7 @@ impl LatticeZkpProfileV0 {
     /// Anonymous token spend: `k=2`, `l=1` (header in message poly), 125 KiB cap.
     #[must_use]
     pub const fn token_spend_v0() -> Self {
-        let z_inf_bound = 20_000_000;
+        let z_inf_bound = V0_Z_INF_BOUND;
         Self {
             profile_id: PROFILE_ID_TOKEN_SPEND_V0,
             label: "lib-q-lattice-zkp/token-spend/v0",
@@ -119,7 +136,7 @@ impl LatticeZkpProfileV0 {
     /// Selective-disclosure opening / amortised presentation attributes.
     #[must_use]
     pub const fn selective_disclosure_v0() -> Self {
-        let z_inf_bound = 20_000_000;
+        let z_inf_bound = V0_Z_INF_BOUND;
         Self {
             profile_id: PROFILE_ID_SELECTIVE_DISCLOSURE_V0,
             label: "lib-q-lattice-zkp/selective-disclosure/v0",

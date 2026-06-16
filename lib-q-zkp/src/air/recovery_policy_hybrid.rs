@@ -46,13 +46,20 @@ pub const RECOVERY_HYBRID_POLICY_COMMIT_DOMAIN: &[u8] = b"recovery-zk/policy-com
 /// Domain: per-key verification-key commitment (hybrid).
 pub const RECOVERY_HYBRID_VK_COMMIT_DOMAIN: &[u8] = b"recovery-zk/vk-commit/v1";
 
+/// Number of bits used to range-constrain `slack` and the strictly-increasing key-id gap.
+/// Native field is Mersenne31 (`p = 2^31 - 1`); 31 bits is the unambiguous range-proof domain.
+pub const RANGE_BITS: usize = 31;
+
 const COL_KEY_ID: usize = 0;
 const COL_WEIGHT: usize = 1;
 const COL_RUNNING_SUM: usize = 2;
 const COL_TIME_LOCK: usize = 3;
 const COL_SLACK: usize = 4;
 const COL_VK_COMMIT_START: usize = 5;
-const TRACE_WIDTH: usize = COL_VK_COMMIT_START + VK_COMMITMENT_SIZE;
+const COL_SLACK_BITS_START: usize = COL_VK_COMMIT_START + VK_COMMITMENT_SIZE;
+// Bit-decomposition of (next_key_id - key_id - 1): proves strictly increasing key ids.
+const COL_KEY_GAP_BITS_START: usize = COL_SLACK_BITS_START + RANGE_BITS;
+const TRACE_WIDTH: usize = COL_KEY_GAP_BITS_START + RANGE_BITS;
 
 /// Public statement for hybrid recovery policy proof.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -192,11 +199,16 @@ where
         let local = main.current_slice();
         let next = main.next_slice();
 
+        let key_id = local[COL_KEY_ID].into();
         let weight = local[COL_WEIGHT].into();
         let running_sum = local[COL_RUNNING_SUM].into();
         let slack = local[COL_SLACK].into();
+        let next_key_id = next[COL_KEY_ID].into();
         let next_weight = next[COL_WEIGHT].into();
         let next_running_sum = next[COL_RUNNING_SUM].into();
+
+        let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
+        let two = one.clone() + one.clone();
 
         {
             let mut b = builder.when_first_row();
@@ -206,6 +218,36 @@ where
             let mut b = builder.when_transition();
             b.assert_zero(next_running_sum.clone() - (running_sum.clone() + next_weight));
         }
+
+        // Range-constrain `slack` to [0, 2^RANGE_BITS) via bit decomposition. Without this the
+        // last-row equation `running_sum = effective_threshold + slack` is satisfiable for any
+        // running_sum, defeating the threshold check.
+        {
+            let mut acc = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
+            let mut weight_pow = one.clone();
+            for i in 0..RANGE_BITS {
+                let bit: AB::Expr = local[COL_SLACK_BITS_START + i].into();
+                builder.assert_bool(bit.clone());
+                acc = acc + bit * weight_pow.clone();
+                weight_pow = weight_pow.clone() * two.clone();
+            }
+            builder.assert_eq(slack.clone(), acc);
+        }
+
+        // Key-id monotonicity: (next_key_id - key_id - 1) in [0, 2^RANGE_BITS) on transitions.
+        {
+            let mut acc = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO);
+            let mut weight_pow = one.clone();
+            for i in 0..RANGE_BITS {
+                let bit: AB::Expr = local[COL_KEY_GAP_BITS_START + i].into();
+                builder.assert_bool(bit.clone());
+                acc = acc + bit * weight_pow.clone();
+                weight_pow = weight_pow.clone() * two.clone();
+            }
+            let gap = next_key_id.clone() - key_id.clone() - one.clone();
+            builder.when_transition().assert_eq(gap, acc);
+        }
+
         {
             let effective_threshold = self
                 .public
@@ -218,7 +260,24 @@ where
             );
             builder
                 .when_last_row()
-                .assert_zero(running_sum - AB::Expr::from(threshold) - slack.clone());
+                .assert_zero(running_sum.clone() - AB::Expr::from(threshold) - slack.clone());
+        }
+
+        // Bind the effective threshold (public value 0) to the public values, tying the proof
+        // to the declared threshold/cleartext-weight context.
+        let pubs = builder.public_values();
+        if !pubs.is_empty() {
+            let effective_threshold = self
+                .public
+                .threshold
+                .saturating_sub(self.public.cleartext_weight_sum);
+            let effective_f = AB::F::from_prime_subfield(
+                <<AB::F as PrimeCharacteristicRing>::PrimeSubfield as QuotientMap<u32>>::from_int(
+                    effective_threshold,
+                ),
+            );
+            let pub0: AB::Expr = pubs[0].into();
+            builder.assert_eq(pub0, AB::Expr::from(effective_f));
         }
     }
 }
@@ -285,6 +344,20 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
             .threshold
             .saturating_sub(self.public.cleartext_weight_sum);
 
+        let write_bits =
+            |trace: &mut [Complex<Mersenne31>], base: usize, col_start: usize, value: u32| {
+                for i in 0..RANGE_BITS {
+                    let bit = (value >> i) & 1;
+                    trace[base + col_start + i] = Complex::<Mersenne31>::from_u32(bit);
+                }
+            };
+
+        let mut row_key_ids: Vec<u32> = sorted_keys.iter().map(|k| k.key_id).collect();
+        for pad_idx in key_count..height {
+            let fake_id = last_key_id.saturating_add((pad_idx - key_count + 1) as u32);
+            row_key_ids.push(fake_id);
+        }
+
         for (row_idx, key) in sorted_keys.iter().enumerate() {
             acc = acc.saturating_add(key.weight);
             let vk_commit = hybrid_vk_commitment(self.public.crypto_suite_id, &key.raw_vk_bytes);
@@ -300,14 +373,20 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
                 trace_values[base + COL_VK_COMMIT_START + i] =
                     Complex::<Mersenne31>::from_u32(u32::from(byte));
             }
+            write_bits(&mut trace_values, base, COL_SLACK_BITS_START, row_slack);
+            let gap = row_key_ids
+                .get(row_idx + 1)
+                .map(|&nxt| nxt.saturating_sub(key.key_id).saturating_sub(1))
+                .unwrap_or(0);
+            write_bits(&mut trace_values, base, COL_KEY_GAP_BITS_START, gap);
         }
 
         let final_acc = acc;
         let final_slack = final_acc.saturating_sub(effective_threshold);
         for pad_idx in key_count..height {
             let base = pad_idx * TRACE_WIDTH;
-            let fake_id = last_key_id.saturating_add((pad_idx - key_count + 1) as u32);
-            trace_values[base + COL_KEY_ID] = Complex::<Mersenne31>::from_u32(fake_id);
+            let this_id = row_key_ids[pad_idx];
+            trace_values[base + COL_KEY_ID] = Complex::<Mersenne31>::from_u32(this_id);
             trace_values[base + COL_WEIGHT] = Complex::<Mersenne31>::ZERO;
             trace_values[base + COL_RUNNING_SUM] = Complex::<Mersenne31>::from_u32(final_acc);
             trace_values[base + COL_TIME_LOCK] =
@@ -316,6 +395,12 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
             for i in 0..VK_COMMITMENT_SIZE {
                 trace_values[base + COL_VK_COMMIT_START + i] = Complex::<Mersenne31>::ZERO;
             }
+            write_bits(&mut trace_values, base, COL_SLACK_BITS_START, final_slack);
+            let gap = row_key_ids
+                .get(pad_idx + 1)
+                .map(|&nxt| nxt.saturating_sub(this_id).saturating_sub(1))
+                .unwrap_or(0);
+            write_bits(&mut trace_values, base, COL_KEY_GAP_BITS_START, gap);
         }
 
         Ok(RowMajorMatrix::new(trace_values, TRACE_WIDTH))

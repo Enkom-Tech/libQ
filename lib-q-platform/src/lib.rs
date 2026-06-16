@@ -7,6 +7,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 /// CPU feature detection
 pub mod cpu;
 

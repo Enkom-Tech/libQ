@@ -30,6 +30,48 @@ pub enum EvalOp {
     MulConstant(i32),
 }
 
+/// Errors produced by this crate's FHE operations.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FheError {
+    /// `body`, `mask`, and `params.dimension` must all be equal in length.
+    DimensionMismatch {
+        expected: usize,
+        body_len: usize,
+        mask_len: usize,
+    },
+    /// The two ciphertexts supplied to `eval` or `decrypt` have different parameter sets.
+    ParamMismatch,
+}
+
+impl core::fmt::Display for FheError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            FheError::DimensionMismatch { expected, body_len, mask_len } => write!(
+                f,
+                "ciphertext dimension mismatch: params.dimension={expected}, \
+                 body.len={body_len}, mask.len={mask_len}"
+            ),
+            FheError::ParamMismatch => write!(f, "ciphertext parameter mismatch"),
+        }
+    }
+}
+
+/// Validate that `body.len() == mask.len() == params.dimension` for a [`Ciphertext`].
+///
+/// This must be called before any indexing into `body` or `mask` to prevent
+/// out-of-bounds panics on crafted ciphertexts.
+pub fn validate_ciphertext(ct: &Ciphertext) -> Result<(), FheError> {
+    let dim = ct.params.dimension;
+    if ct.body.len() != dim || ct.mask.len() != dim {
+        return Err(FheError::DimensionMismatch {
+            expected: dim,
+            body_len: ct.body.len(),
+            mask_len: ct.mask.len(),
+        });
+    }
+    Ok(())
+}
+
 impl Ciphertext {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut out =
@@ -100,7 +142,13 @@ pub fn encrypt(key: &FheSecretKey, plaintext: &[i32], nonce: u64) -> Ciphertext 
     }
 }
 
-pub fn eval(ciphertext: &Ciphertext, op: EvalOp) -> Ciphertext {
+/// Homomorphically evaluate `op` on `ciphertext`.
+///
+/// Returns [`FheError::DimensionMismatch`] if `ciphertext` (or the RHS for
+/// `AddCiphertext`) has `body`/`mask` lengths inconsistent with
+/// `params.dimension`, preventing an out-of-bounds panic.
+pub fn eval(ciphertext: &Ciphertext, op: EvalOp) -> Result<Ciphertext, FheError> {
+    validate_ciphertext(ciphertext)?;
     let modulus = ciphertext.params.modulus;
     let mut out = ciphertext.clone();
     match op {
@@ -115,19 +163,30 @@ pub fn eval(ciphertext: &Ciphertext, op: EvalOp) -> Ciphertext {
                 out.mask[i] = mod_q(out.mask[i] as i64 * c as i64, modulus);
             }
         }
-        EvalOp::AddCiphertext(rhs) => {
-            assert_eq!(out.params, rhs.params, "parameter mismatch");
+        EvalOp::AddCiphertext(ref rhs) => {
+            validate_ciphertext(rhs)?;
+            if out.params != rhs.params {
+                return Err(FheError::ParamMismatch);
+            }
             for i in 0..out.body.len() {
                 out.body[i] = mod_q(out.body[i] as i64 + rhs.body[i] as i64, modulus);
                 out.mask[i] = mod_q(out.mask[i] as i64 + rhs.mask[i] as i64, modulus);
             }
         }
     }
-    out
+    Ok(out)
 }
 
-pub fn decrypt(key: &FheSecretKey, ciphertext: &Ciphertext) -> Vec<i32> {
-    assert_eq!(key.params, ciphertext.params, "parameter mismatch");
+/// Decrypt `ciphertext` with `key`.
+///
+/// Returns [`FheError::ParamMismatch`] if the key and ciphertext parameters
+/// differ, or [`FheError::DimensionMismatch`] if the ciphertext vectors are
+/// inconsistent with `params.dimension`, preventing an out-of-bounds panic.
+pub fn decrypt(key: &FheSecretKey, ciphertext: &Ciphertext) -> Result<Vec<i32>, FheError> {
+    if key.params != ciphertext.params {
+        return Err(FheError::ParamMismatch);
+    }
+    validate_ciphertext(ciphertext)?;
     let modulus = key.params.modulus;
     let mut plain = vec![0i32; ciphertext.body.len()];
     for (i, p) in plain.iter_mut().enumerate().take(ciphertext.body.len()) {
@@ -136,5 +195,5 @@ pub fn decrypt(key: &FheSecretKey, ciphertext: &Ciphertext) -> Vec<i32> {
             modulus,
         );
     }
-    plain
+    Ok(plain)
 }

@@ -373,7 +373,7 @@ pub fn quick_entropy_check(data: &[u8]) -> bool {
     }
 
     // Simple checks for obviously bad entropy
-    let mut byte_counts = [0u8; 256];
+    let mut byte_counts = [0u32; 256];
     for &byte in data {
         byte_counts[byte as usize] += 1;
     }

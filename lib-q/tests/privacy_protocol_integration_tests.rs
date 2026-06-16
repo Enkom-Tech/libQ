@@ -112,6 +112,7 @@ fn blind_issuance_token_fields_and_nullifier_amortisation() {
     let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
     BlindIssuance::verify(
         &issuer_params,
+        &commit(&key, &issuer_opening),
         &bundle,
         b"integration-realm",
         p.tau,
@@ -296,6 +297,7 @@ fn credential_lifecycle_end_to_end() {
     let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
     BlindIssuance::verify(
         &issuer_params,
+        &commit(&key, &issuer_blind_opening),
         &bundle,
         b"credential-realm",
         p.tau,
@@ -590,7 +592,13 @@ fn blind_signature_pilot_integration() {
     let bundle: UnblindedBlindSignature =
         BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize_message");
     bundle
-        .verify_blind_signature(&issuer_params, b"blind-sig-ctx", p.tau, p.z_inf_bound)
+        .verify_blind_signature(
+            &issuer_params,
+            &issuer.public_commitment,
+            b"blind-sig-ctx",
+            p.tau,
+            p.z_inf_bound,
+        )
         .expect("BlindSignature::verify_blind_signature");
 }
 
