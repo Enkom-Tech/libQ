@@ -3,15 +3,15 @@
   "files": [
     {
       "path": "AGENTS.md",
-      "sha": "a86daa29055834310113dde656b834d00bbe92d8c58131fb08d46955f32be74f"
+      "sha": "72adaa7864f0ab28ed137001d82364ac9377bcab81c1f4a1dd252f9602b119e5"
     },
     {
       "path": ".cursor/rules/00-akira-agents.mdc",
-      "sha": "e59e90b8411ee3141bae2782c62dd62420f616d0b72895c0b897583a02f790c3"
+      "sha": "54f8598abbe1f2cd899e66b4f7db6b77843d09bc3642d2104a0dc33aa238ee2b"
     },
     {
       "path": ".claude/CLAUDE.agents.md",
-      "sha": "766556b59ef94225f37210849c022a2a07b6530ae006ad3be3b6bba6aadf8539"
+      "sha": "073d9ace78add621ced877fdc41862d8caa2de9231b389f32eca4033a9157849"
     }
   ]
 }
