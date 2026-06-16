@@ -267,7 +267,7 @@ impl LibQRng {
                 SecurityLevel::CryptographicallySecure
             }
             crate::traits::EntropySourceType::Deterministic => SecurityLevel::Deterministic,
-            crate::traits::EntropySourceType::User => SecurityLevel::CryptographicallySecure,
+            crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
         };
 
         let deterministic =
@@ -409,7 +409,7 @@ impl SecureRng for LibQRng {
         if !self.deterministic {
             // Only validate if we have enough data
             if dest.len() >= 8 {
-                let _ = self.validator.validate_entropy(dest);
+                self.validator.validate_entropy(dest)?;
             }
         }
 
@@ -557,13 +557,19 @@ impl LibQRng {
 
         // Calculate the number of bytes needed
         let size = core::mem::size_of::<T>();
+        if size == 0 {
+            return;
+        }
         let total_bytes = core::mem::size_of_val(dest);
 
         // Create a temporary byte buffer
         let mut bytes = vec![0u8; total_bytes];
 
-        // Fill with random bytes
-        let _ = self.fill_bytes_secure(&mut bytes);
+        // Entropy failure must never yield predictable output; abort like the
+        // infallible `RngCore` path instead of returning the zeroed buffer.
+        if self.fill_bytes_secure(&mut bytes).is_err() {
+            rng_abort();
+        }
 
         // Convert bytes back to the target type
         for (i, chunk) in bytes.chunks_exact(size).enumerate() {

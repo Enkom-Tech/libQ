@@ -223,6 +223,10 @@ where
     if *degree_bits > MAX_DEGREE_BITS {
         return Err(VerificationError::ProofTooLarge);
     }
+    // Reject before any subtraction/shift by the zk offset would underflow/panic.
+    if *degree_bits < config.is_zk() {
+        return Err(VerificationError::InvalidProofShape);
+    }
     if opened_values.quotient_chunks.len() > MAX_PROOF_QUOTIENT_CHUNKS {
         return Err(VerificationError::ProofTooLarge);
     }
@@ -295,6 +299,12 @@ where
     challenger.observe(Val::<SC>::from_usize(proof.degree_bits));
     challenger.observe(Val::<SC>::from_usize(proof.degree_bits - config.is_zk()));
     challenger.observe(Val::<SC>::from_usize(preprocessed_width));
+
+    // Public values are untrusted: validate their count against the AIR's declared
+    // number before they are observed or folded into the constraints.
+    if public_values.len() != air.num_public_values() {
+        return Err(VerificationError::InvalidProofShape);
+    }
 
     challenger.observe(commitments.trace.clone());
     if let Some(ref c) = preprocessed_commit {

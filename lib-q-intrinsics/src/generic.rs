@@ -80,22 +80,22 @@ pub mod vector_ops {
             result
         }
 
-        /// Shift left
+        /// Shift left (wrapping — amounts >= 32 produce 0)
         #[allow(clippy::should_implement_trait)]
         pub fn shl(self, amount: u32) -> Self {
             let mut result = Self { data: [0; 8] };
             for i in 0..8 {
-                result.data[i] = self.data[i] << amount;
+                result.data[i] = self.data[i].wrapping_shl(amount);
             }
             result
         }
 
-        /// Shift right arithmetic
+        /// Shift right arithmetic (wrapping — amounts >= 32 produce 0 / sign-fill)
         #[allow(clippy::should_implement_trait)]
         pub fn shr(self, amount: u32) -> Self {
             let mut result = Self { data: [0; 8] };
             for i in 0..8 {
-                result.data[i] = (self.data[i] as i32 >> amount) as u32;
+                result.data[i] = (self.data[i] as i32).wrapping_shr(amount) as u32;
             }
             result
         }
@@ -186,6 +186,12 @@ pub mod crypto_ops {
     pub fn generic_block_cipher(data: &[u8], key: &[u8]) -> [u8; 256] {
         // Simple XOR cipher as fallback (fixed size for no_std)
         let mut result = [0u8; 256];
+        if key.is_empty() {
+            // No key material — return data bytes with no transformation applied.
+            let len = core::cmp::min(data.len(), 256);
+            result[..len].copy_from_slice(&data[..len]);
+            return result;
+        }
         let len = core::cmp::min(data.len(), 256);
         for i in 0..len {
             result[i] = data[i] ^ key[i % key.len()];

@@ -7,6 +7,7 @@ use core::fmt::Debug;
 use lib_q_plonky_lookup::AirWithLookups;
 use lib_q_plonky_lookup::logup::LogUpGadget;
 use lib_q_plonky_lookup::lookup_traits::{
+    Kind,
     Lookup,
     LookupGadget,
 };
@@ -55,6 +56,10 @@ use crate::folder::VerifierConstraintFolderWithLookups;
 use crate::proof::BatchProof;
 use crate::symbolic::get_log_num_quotient_chunks;
 
+/// DoS upper bound on `degree_bits` per instance, consistent with the
+/// `lib-q-plonky-uni-stark` verifier's two-adicity-bounded limit.
+const MAX_DEGREE_BITS: usize = 24;
+
 #[instrument(skip_all)]
 pub fn verify_batch<SC, A>(
     config: &SC,
@@ -99,6 +104,17 @@ where
         commitments.random.is_some() != SC::Pcs::ZK
     {
         return Err(VerificationError::RandomizationError);
+    }
+
+    // degree_bits is untrusted: validate every instance against the DoS upper bound
+    // and the zk offset lower bound BEFORE any subtraction/shift would underflow/panic.
+    for &ext_db in degree_bits.iter() {
+        if ext_db > MAX_DEGREE_BITS {
+            return Err(VerificationError::ProofTooLarge);
+        }
+        if ext_db < config.is_zk() {
+            return Err(VerificationError::InvalidProofShape);
+        }
     }
 
     challenger.observe_base_as_algebra_element::<Challenge<SC>>(Val::<SC>::from_usize(n_instances));
@@ -506,12 +522,38 @@ where
         })?;
     }
 
+    // Group the per-instance cumulated values by the TRUSTED global lookup name taken
+    // from the verifier's known configuration (`common.lookups`), NOT by the
+    // proof-supplied `LookupData::name`. The trusted global names for instance `i` are,
+    // in order, the `Kind::Global(name)` lookups in `all_lookups[i]` — this mirrors how
+    // the prover builds `global_lookup_data[i]`. Reject if the proof-supplied entries
+    // disagree with the trusted set in count or name.
     let mut global_cumulative = BTreeMap::<&String, Vec<_>>::new();
-    for data in global_lookup_data.iter().flatten() {
-        global_cumulative
-            .entry(&data.name)
-            .or_default()
-            .push(data.expected_cumulated);
+    for (i, proof_data) in global_lookup_data.iter().enumerate() {
+        let trusted_global_names = all_lookups[i].iter().filter_map(|lookup| match &lookup.kind {
+            Kind::Global(name) => Some(name),
+            Kind::Local => None,
+        });
+
+        let mut proof_iter = proof_data.iter();
+        let mut matched = 0usize;
+        for trusted_name in trusted_global_names {
+            let data = proof_iter
+                .next()
+                .ok_or(VerificationError::InvalidProofShape)?;
+            if &data.name != trusted_name {
+                return Err(VerificationError::InvalidProofShape);
+            }
+            global_cumulative
+                .entry(trusted_name)
+                .or_default()
+                .push(data.expected_cumulated);
+            matched += 1;
+        }
+        // Any extra proof-supplied entries beyond the trusted set are rejected.
+        if matched != proof_data.len() {
+            return Err(VerificationError::InvalidProofShape);
+        }
     }
 
     for (name, all_expected_cumulative) in global_cumulative {

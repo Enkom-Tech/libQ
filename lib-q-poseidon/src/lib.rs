@@ -12,9 +12,15 @@
 //!
 //! # Security
 //!
-//! - Uses conservative round counts based on peer-reviewed research
-//! - MDS matrices generated using secure methods
-//! - Parameters chosen for 128-bit and 256-bit security levels
+//! - Uses round counts and an MDS construction inspired by the Poseidon design.
+//! - MDS matrices use a Cauchy construction (every square submatrix is invertible).
+//!
+//! WARNING: the round counts and sponge parameters in this crate have NOT been
+//! independently verified for the `Complex<Mersenne31>` extension field GF(p²).
+//! The standard Poseidon security analysis is stated over a prime field and does
+//! not directly cover this exact field and state. Do NOT rely on a specific
+//! bit-security level (e.g. 128-bit or 256-bit) for these parameters until they
+//! have been regenerated and analyzed for GF(p²).
 //!
 //! # Example
 //!

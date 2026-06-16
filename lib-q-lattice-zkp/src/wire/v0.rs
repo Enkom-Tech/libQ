@@ -27,8 +27,6 @@ use crate::sigma::hierarchical::{
     PVTN_CLEARANCE_MARGIN_NORM_BETA,
     PrivateMembershipProof,
     path_index_commitment,
-    recover_clearance_level,
-    recover_path_index,
 };
 use crate::sigma::linear::LinearRelationProof;
 use crate::sigma::opening::{
@@ -236,8 +234,13 @@ fn encode_merkle_path_hidden(
     if depth > depth_cap as usize {
         return Err(VerifyError::InvalidFormat);
     }
+    // Carry `path_index` explicitly (4 LE bytes) plus a binding commitment. Previously only the
+    // commitment was on the wire and the verifier brute-forced `path_index` via
+    // `recover_path_index` (a 2^depth SHAKE search over attacker bytes — a verify DoS). The
+    // explicit index lets the decoder check the commitment in O(1).
     let commitment = path_index_commitment(path.path_index, tree_root, leaf_digest, &path.siblings);
     out.push(depth as u8);
+    out.extend_from_slice(&path.path_index.to_le_bytes());
     for s in &path.siblings {
         out.extend_from_slice(s);
     }
@@ -258,12 +261,19 @@ fn decode_merkle_path_hidden(
     if depth > depth_cap as usize {
         return Err(VerifyError::InvalidFormat);
     }
-    let need = 1 + depth * 32 + 32;
+    // Layout: depth(1) ‖ path_index(4) ‖ siblings(depth*32) ‖ commitment(32).
+    let need = 1 + 4 + depth * 32 + 32;
     if data.len() < need {
         return Err(VerifyError::InvalidFormat);
     }
-    let mut siblings = Vec::with_capacity(depth);
     let mut off = 1usize;
+    let path_index = u32::from_le_bytes(
+        data[off..off + 4]
+            .try_into()
+            .map_err(|_| VerifyError::InvalidFormat)?,
+    );
+    off += 4;
+    let mut siblings = Vec::with_capacity(depth);
     for _ in 0..depth {
         let mut s = [0u8; 32];
         s.copy_from_slice(&data[off..off + 32]);
@@ -273,7 +283,10 @@ fn decode_merkle_path_hidden(
     let mut commitment = [0u8; 32];
     commitment.copy_from_slice(&data[off..off + 32]);
     off += 32;
-    let path_index = recover_path_index(tree_root, leaf_digest, &siblings, &commitment)?;
+    // O(1) check: the carried index must reproduce the binding commitment.
+    if path_index_commitment(path_index, tree_root, leaf_digest, &siblings) != commitment {
+        return Err(VerifyError::Rejected);
+    }
     Ok((
         MerklePath {
             path_index,
@@ -315,6 +328,9 @@ pub fn encode_private_membership_proof_v0(
     body.extend_from_slice(&proof.leaf_digest);
     body.extend_from_slice(&proof.role_tag);
     body.extend_from_slice(&proof.parent_digest);
+    // Carry `clearance_level` explicitly so the verifier recomputes the leaf digest in O(1)
+    // instead of brute-forcing `recover_clearance_level` over `[min_clearance, +β]` (β ≈ 2^20).
+    body.extend_from_slice(&proof.clearance_level.to_le_bytes());
     body.extend_from_slice(&proof.clearance_margin_norm.max_norm.to_le_bytes());
     let opening_body = encode_opening_body(profile, &proof.opening_proof)?;
     body.extend_from_slice(&opening_body);
@@ -336,8 +352,10 @@ pub fn decode_private_membership_proof_v0(
     if depth > profile.merkle_depth_cap as usize {
         return Err(VerifyError::InvalidFormat);
     }
-    let merkle_len = 1 + depth * 32 + 32;
-    if body.len() < merkle_len + 32 + 16 + 32 + 4 {
+    // Merkle layout now: depth(1) ‖ path_index(4) ‖ siblings(depth*32) ‖ commitment(32).
+    let merkle_len = 1 + 4 + depth * 32 + 32;
+    // Trailing fields: leaf_digest(32) ‖ role_tag(16) ‖ parent_digest(32) ‖ clearance_level(4) ‖ max_norm(4).
+    if body.len() < merkle_len + 32 + 16 + 32 + 4 + 4 {
         return Err(VerifyError::InvalidFormat);
     }
     let mut leaf_digest = [0u8; 32];
@@ -351,6 +369,12 @@ pub fn decode_private_membership_proof_v0(
     let mut parent_digest = [0u8; 32];
     parent_digest.copy_from_slice(&body[off..off + 32]);
     off += 32;
+    let clearance_level = u32::from_le_bytes(
+        body[off..off + 4]
+            .try_into()
+            .map_err(|_| VerifyError::InvalidFormat)?,
+    );
+    off += 4;
     let max_norm = i32::from_le_bytes(
         body[off..off + 4]
             .try_into()
@@ -360,9 +384,25 @@ pub fn decode_private_membership_proof_v0(
 
     let opening_proof = decode_opening_body(&profile, &body[off..])?;
 
-    let clearance_level =
-        recover_clearance_level(min_clearance, &leaf_digest, &role_tag, &parent_digest)?;
-    let margin = clearance_level - min_clearance;
+    // O(1) validation of the carried clearance level: it must be >= min_clearance, within β,
+    // and reproduce `leaf_digest`. Replaces the prior 2^20 SHAKE `recover_clearance_level` search.
+    if clearance_level < min_clearance {
+        return Err(VerifyError::Rejected);
+    }
+    let margin = clearance_level
+        .checked_sub(min_clearance)
+        .ok_or(VerifyError::InvalidFormat)?;
+    if margin > PVTN_CLEARANCE_MARGIN_NORM_BETA as u32 {
+        return Err(VerifyError::InvalidFormat);
+    }
+    let recomposed = crate::sigma::hierarchical::encode_pvtn_leaf(
+        clearance_level,
+        &role_tag,
+        &parent_digest,
+    );
+    if crate::sigma::hierarchical::leaf_hash(&recomposed) != leaf_digest {
+        return Err(VerifyError::Rejected);
+    }
 
     let clearance_margin_norm = crate::sigma::norm::CrtPackedNormProof {
         slot_bounds: alloc::vec![max_norm],

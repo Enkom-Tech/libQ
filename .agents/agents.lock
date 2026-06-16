@@ -1,0 +1,17 @@
+{
+  "generatedFrom": "repo:libq",
+  "files": [
+    {
+      "sha": "a86daa29055834310113dde656b834d00bbe92d8c58131fb08d46955f32be74f",
+      "path": "AGENTS.md"
+    },
+    {
+      "sha": "e59e90b8411ee3141bae2782c62dd62420f616d0b72895c0b897583a02f790c3",
+      "path": ".cursor/rules/00-akira-agents.mdc"
+    },
+    {
+      "sha": "766556b59ef94225f37210849c022a2a07b6530ae006ad3be3b6bba6aadf8539",
+      "path": ".claude/CLAUDE.agents.md"
+    }
+  ]
+}

@@ -35,11 +35,19 @@ pub struct SecretFieldElement<F: Field> {
 
 impl<F: Field> Zeroize for SecretFieldElement<F> {
     fn zeroize(&mut self) {
-        // Zeroize the field value
-        // For most fields, setting to ZERO is sufficient
-        self.value = F::ZERO;
-        // Use compiler barrier to prevent optimization
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        // Write through a volatile pointer so the compiler cannot treat this
+        // store as a dead write and elide it.  The SeqCst fence then prevents
+        // any reordering that could move the write after the value is released.
+        //
+        // SAFETY: `self.value` is a valid, aligned, initialized field element
+        // for the duration of this method, and we hold `&mut self`.
+        unsafe {
+            core::ptr::write_volatile(
+                core::ptr::addr_of_mut!(self.value),
+                F::ZERO,
+            );
+        }
+        core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
     }
 }
 

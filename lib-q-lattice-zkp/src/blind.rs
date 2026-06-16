@@ -13,6 +13,7 @@ use lib_q_sha3::{
     Update,
     XofReader,
 };
+use subtle::ConstantTimeEq;
 use rand_core::{
     CryptoRng,
     Rng,
@@ -198,9 +199,12 @@ pub struct UnblindedBlindSignature {
 /// [`IssuerCommitmentParams`].
 pub trait BlindSignature {
     /// Verify commitment consistency, issuer attestation, and message digest binding.
+    ///
+    /// `genuine_issuer_com` pins the authentic issuer public commitment.
     fn verify_blind_signature(
         &self,
         issuer_params: &IssuerCommitmentParams,
+        genuine_issuer_com: &AjtaiCommitment,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
@@ -210,11 +214,12 @@ pub trait BlindSignature {
     fn verify_signature(
         &self,
         issuer_params: &IssuerCommitmentParams,
+        genuine_issuer_com: &AjtaiCommitment,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
-        self.verify_blind_signature(issuer_params, base_ctx, tau, z_inf_bound)
+        self.verify_blind_signature(issuer_params, genuine_issuer_com, base_ctx, tau, z_inf_bound)
     }
 }
 
@@ -222,12 +227,14 @@ impl BlindSignature for UnblindedBlindSignature {
     fn verify_blind_signature(
         &self,
         issuer_params: &IssuerCommitmentParams,
+        genuine_issuer_com: &AjtaiCommitment,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
         BlindIssuance::verify_message(
             issuer_params,
+            genuine_issuer_com,
             &self.issuance,
             base_ctx,
             &self.message_digest,
@@ -316,6 +323,30 @@ impl core::fmt::Debug for UnblindedIssuance {
             .field("issuer_com", &self.issuer_com)
             .field("issuer_proof", &self.issuer_proof)
             .finish()
+    }
+}
+
+/// Constant-time authentication of the bundle's issuer commitment against the genuine one.
+///
+/// Soundness fix: blind-signature verification previously trusted whatever
+/// [`UnblindedIssuance::issuer_com`] the bundle carried, so any party holding *some* valid
+/// issuer keypair could produce a bundle that verifies — the genuine issuer was never
+/// authenticated. The verifier must pin the genuine issuer public commitment and compare it
+/// against the bundle's `issuer_com` in constant time before trusting the attestation.
+fn authenticate_issuer_commitment(
+    bundle_issuer_com: &AjtaiCommitment,
+    genuine_issuer_com: &AjtaiCommitment,
+) -> Result<(), VerifyError> {
+    let bundle_wire = write_module_vec(&bundle_issuer_com.value.0);
+    let genuine_wire = write_module_vec(&genuine_issuer_com.value.0);
+    // Length check (public metadata) before the constant-time byte comparison.
+    if bundle_wire.len() != genuine_wire.len() {
+        return Err(VerifyError::Rejected);
+    }
+    if bool::from(bundle_wire.ct_eq(&genuine_wire)) {
+        Ok(())
+    } else {
+        Err(VerifyError::Rejected)
     }
 }
 
@@ -467,13 +498,19 @@ impl BlindIssuance {
     }
 
     /// Verify token opening matches `com_blinded` and issuer attestation.
+    ///
+    /// `genuine_issuer_com` is the issuer's authentic public commitment; the bundle's
+    /// `issuer_com` is authenticated against it in constant time so an attacker cannot
+    /// substitute their own valid issuer keypair.
     pub fn verify(
         issuer_params: &IssuerCommitmentParams,
+        genuine_issuer_com: &AjtaiCommitment,
         bundle: &UnblindedIssuance,
         base_ctx: &[u8],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
+        authenticate_issuer_commitment(&bundle.issuer_com, genuine_issuer_com)?;
         let key = issuer_params.commitment_key();
         let expect = commit(&key, &bundle.token_opening);
         if expect != bundle.com_blinded {
@@ -492,14 +529,20 @@ impl BlindIssuance {
     }
 
     /// Verify [`UnblindedBlindSignature`]: token opening, issuer attestation, and message digest.
+    ///
+    /// `genuine_issuer_com` is the issuer's authentic public commitment; the bundle's
+    /// `issuer_com` is authenticated against it in constant time so an attacker cannot
+    /// substitute their own valid issuer keypair.
     pub fn verify_message(
         issuer_params: &IssuerCommitmentParams,
+        genuine_issuer_com: &AjtaiCommitment,
         bundle: &UnblindedIssuance,
         base_ctx: &[u8],
         message_digest: &[u8; 32],
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
+        authenticate_issuer_commitment(&bundle.issuer_com, genuine_issuer_com)?;
         let key = issuer_params.commitment_key();
         let expect = commit(&key, &bundle.token_opening);
         if expect != bundle.com_blinded {
@@ -669,8 +712,17 @@ mod tests {
             512,
         )
         .expect("issuer");
+        let genuine_issuer_com = commit(&key, &issuer_opening);
         let bundle = BlindIssuance::finalize(user_st, resp).expect("finalize");
-        BlindIssuance::verify(&issuer_params, &bundle, b"realm", 39, 20_000_000).expect("verify");
+        BlindIssuance::verify(
+            &issuer_params,
+            &genuine_issuer_com,
+            &bundle,
+            b"realm",
+            39,
+            20_000_000,
+        )
+        .expect("verify");
     }
 
     #[test]
@@ -689,6 +741,7 @@ mod tests {
         let (req, user_st) =
             BlindIssuance::request(&mut rng, &issuer_params, user).expect("request");
         let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
+        let genuine_issuer_com = issuer.public_commitment.clone();
         let (resp, digest) = BlindIssuance::issuer_sign_message(
             &mut rng,
             &issuer,
@@ -703,7 +756,7 @@ mod tests {
         let bundle =
             BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize message");
         bundle
-            .verify_signature(&issuer_params, b"realm-ms", 39, 20_000_000)
+            .verify_signature(&issuer_params, &genuine_issuer_com, b"realm-ms", 39, 20_000_000)
             .expect("BlindSignature::verify_signature alias");
 
         let mut bad = bundle.clone();
@@ -711,6 +764,7 @@ mod tests {
         assert!(
             BlindIssuance::verify_message(
                 &issuer_params,
+                &genuine_issuer_com,
                 &bad.issuance,
                 b"realm-ms",
                 &bad.message_digest,
@@ -738,6 +792,7 @@ mod tests {
             BlindIssuance::request(&mut rng, &issuer_params, user).expect("request");
         let issuer = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
         let other = BlindIssuerKeypair::sample_issuer_keyed(&mut rng, &issuer_params);
+        let genuine_issuer_com = issuer.public_commitment.clone();
         let (mut resp, digest) = BlindIssuance::issuer_sign_message(
             &mut rng, &issuer, &req, b"policy", b"ctx", 39, 20_000_000, 512,
         )
@@ -746,7 +801,7 @@ mod tests {
         let bundle = BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize");
         assert!(
             bundle
-                .verify_blind_signature(&issuer_params, b"ctx", 39, 20_000_000)
+                .verify_blind_signature(&issuer_params, &genuine_issuer_com, b"ctx", 39, 20_000_000)
                 .is_err(),
             "replacing issuer commitment must break attestation verification"
         );

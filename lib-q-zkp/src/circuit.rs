@@ -74,6 +74,44 @@ impl<F: Field> ArithmeticCircuit<F> {
     pub fn add_constraint(&mut self, constraint: Constraint<F>) {
         self.constraints.push(constraint);
     }
+
+    /// Largest wire index referenced by any constraint, or `None` if there are no constraints.
+    fn max_referenced_wire(&self) -> Option<usize> {
+        self.constraints
+            .iter()
+            .flat_map(|c| match c {
+                Constraint::AssertZero(w) => alloc::vec![w.index],
+                Constraint::AssertEqual(l, r) => alloc::vec![l.index, r.index],
+                Constraint::AssertConstant(w, _) => alloc::vec![w.index],
+                Constraint::AssertAdd(o, l, r) => alloc::vec![o.index, l.index, r.index],
+                Constraint::AssertMul(o, l, r) => alloc::vec![o.index, l.index, r.index],
+            })
+            .max()
+    }
+
+    /// Validate the circuit against a concrete trace `width`.
+    ///
+    /// Rejects circuits whose constraints reference a wire index `>= width`. Such indices were
+    /// previously silently skipped during trace generation and constraint evaluation, which
+    /// dropped the constraint entirely and broke soundness (a prover could omit any constraint
+    /// by giving its output wire an out-of-range index). Returning an error makes the failure
+    /// explicit instead.
+    pub fn validate(&self, width: usize) -> Result<(), lib_q_core::Error> {
+        if let Some(max_wire) = self.max_referenced_wire() {
+            if max_wire >= width {
+                return Err(lib_q_core::Error::InvalidState {
+                    operation: "ArithmeticCircuit::validate".into(),
+                    reason: alloc::format!(
+                        "Constraint references wire index {} but trace width is {}; \
+                         out-of-range wire indices are rejected",
+                        max_wire,
+                        width
+                    ),
+                });
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Builder for constructing arithmetic circuits
@@ -230,35 +268,45 @@ impl<F: Field> CircuitAir<F> {
 
         let width = self.width();
 
+        // Reject circuits with out-of-range wire indices instead of silently dropping the
+        // affected constraints (which would be unsound).
+        self.circuit.validate(width)?;
+
+        // Witness/public inputs must fit within the trace width.
+        if self.circuit.witness_size + self.circuit.public_input_size > width {
+            return Err(lib_q_core::Error::InvalidState {
+                operation: "CircuitAir::generate_trace".into(),
+                reason: alloc::format!(
+                    "Witness ({}) + public inputs ({}) exceed trace width {}",
+                    self.circuit.witness_size,
+                    self.circuit.public_input_size,
+                    width
+                ),
+            });
+        }
+
         // Allocate trace for a single row (power of 2)
         let mut trace_values = F::zero_vec(width);
 
-        // Fill witness wires
+        // Fill witness wires (bounds guaranteed by the checks above).
         for (i, val) in witness.iter().enumerate() {
-            if i < width {
-                trace_values[i] = *val;
-            }
+            trace_values[i] = *val;
         }
 
         // Fill public input wires
         for (i, val) in public.iter().enumerate() {
             let idx = self.circuit.witness_size + i;
-            if idx < width {
-                trace_values[idx] = *val;
-            }
+            trace_values[idx] = *val;
         }
 
-        // Compute intermediate wire values by evaluating constraints
+        // Compute intermediate wire values by evaluating constraints. Indices are guaranteed
+        // in-range by `validate`, so no defensive skipping is needed.
         for constraint in &self.circuit.constraints {
             match constraint {
-                Constraint::AssertAdd(out, l, r)
-                    if out.index < width && l.index < width && r.index < width =>
-                {
+                Constraint::AssertAdd(out, l, r) => {
                     trace_values[out.index] = trace_values[l.index] + trace_values[r.index];
                 }
-                Constraint::AssertMul(out, l, r)
-                    if out.index < width && l.index < width && r.index < width =>
-                {
+                Constraint::AssertMul(out, l, r) => {
                     trace_values[out.index] = trace_values[l.index] * trace_values[r.index];
                 }
                 // Other constraints don't compute new values
@@ -303,8 +351,23 @@ impl<F: Field> BaseAir<F> for CircuitAir<F> {
 
 impl<F: Field, AB: AirBuilder<F = F>> Air<AB> for CircuitAir<F> {
     fn eval(&self, builder: &mut AB) {
+        // SOUNDNESS: bind the public-input wires to the declared public values. Without this
+        // the public inputs live only in the trace and are never tied to the verifier-supplied
+        // public values, so a prover could prove the statement for *any* public inputs.
+        // Public input wires occupy columns [witness_size, witness_size + public_input_size).
+        let pubs = builder.public_values().to_vec();
+
         let main = builder.main();
         let row = main.current_slice();
+
+        // Bind public inputs to public values.
+        let base = self.circuit.witness_size;
+        for (i, pv) in pubs.iter().enumerate() {
+            let col = base + i;
+            if col < row.len() {
+                builder.assert_eq(row[col], *pv);
+            }
+        }
 
         // Evaluate each constraint in the circuit
         for constraint in &self.circuit.constraints {

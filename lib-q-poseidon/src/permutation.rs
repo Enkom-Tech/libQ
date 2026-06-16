@@ -29,7 +29,7 @@ pub type PoseidonState = Vec<F>;
 /// Poseidon permutation function
 ///
 /// This implements the full Poseidon permutation with configurable
-/// round counts and state width for different security levels.
+/// round counts and state width per parameter set.
 #[derive(Debug, Clone)]
 pub struct PoseidonPermutation {
     params: PoseidonParams,

@@ -492,11 +492,18 @@ where
             previous_hash_col = computed_hash_col;
         }
 
-        // Note: Full Poseidon constraints are added per-level above
-        // The PoseidonGadget::constrain() method would be called here,
-        // but it requires column indices which we need to compute dynamically
-        // For a complete implementation, we'd restructure to call the gadget
-        // with proper column mappings
+        // SOUNDNESS: bind the computed Merkle root to the public value. After the loop,
+        // `previous_hash_col` is the column holding the final level's computed hash (the root).
+        // Without this binding the proof would not prove membership in the *claimed* tree, since
+        // any root could be produced from arbitrary siblings. Mirrors the public-value-binding
+        // pattern in `identity_proof.rs`. (For tree_depth == 0 the leaf hash at column 0 is the
+        // root, which `previous_hash_col` already points to.)
+        let pubs = builder.public_values();
+        if !pubs.is_empty() {
+            let expected_root: AB::Expr = pubs[0].into();
+            let computed_root: AB::Expr = local[previous_hash_col].into();
+            builder.assert_eq(computed_root, expected_root);
+        }
     }
 }
 
@@ -637,7 +644,12 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, MerkleProofInput
                 // We're on the left, sibling is on the right
                 [current_hash[0], *sibling_field].to_vec()
             };
-            current_hash = POSEIDON_128.hash(&combined);
+            // Per-level node hash must match the AIR/trace, which constrains a SINGLE Poseidon
+            // permutation of [left, right] (via PoseidonGadget), not a full padded sponge.
+            // Using the same single-permutation here keeps `public_values` consistent with the
+            // computed root that the eval binds against.
+            let (node_hash, _intermediates) = compute_poseidon_with_intermediates(&combined);
+            current_hash = vec![node_hash];
         }
 
         // Convert PoseidonField to F using proper conversion
@@ -673,7 +685,9 @@ pub fn compute_merkle_root(leaf: &[u8], path_bits: &[bool], siblings: &[MerkleHa
         } else {
             [current_hash[0], *sibling_field].to_vec()
         };
-        current_hash = POSEIDON_128.hash(&combined);
+        // Single-permutation node hash to match the AIR gadget (see `public_values`).
+        let (node_hash, _) = compute_poseidon_with_intermediates(&combined);
+        current_hash = vec![node_hash];
     }
 
     MerkleHash::from_field(current_hash[0])
