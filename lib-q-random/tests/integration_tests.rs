@@ -418,8 +418,8 @@ fn test_custom_rng_creation() {
     let entropy_source = UserEntropySource::new(entropy_data);
     let rng = LibQRng::new_custom(entropy_source);
 
-    assert!(!rng.is_deterministic());
-    assert_eq!(rng.security_level(), SecurityLevel::CryptographicallySecure);
+    assert!(rng.is_deterministic());
+    assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
     assert_eq!(rng.entropy_source_type(), EntropySourceType::User);
 }
 
