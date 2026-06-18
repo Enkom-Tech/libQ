@@ -6,7 +6,7 @@ A Rust cryptography workspace focused on **NIST-standardized post-quantum** key 
 
 ## Mission
 
-lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitives, SHA-3–family hashing, Saturnin AEAD, HPKE, and optional STARK-based proofs, with the goal of keeping advanced cryptography approachable without hiding residual implementation risk.
+lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitives, SHA-3–family hashing, Saturnin and Rocca-S AEAD, HPKE, and optional STARK-based proofs, with the goal of keeping advanced cryptography approachable without hiding residual implementation risk.
 
 ## Key features
 
@@ -68,8 +68,9 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-intrinsics`** | SIMD / intrinsics helpers |
 | **`lib-q-sig`** | Signature façade (ML-DSA, SLH-DSA) |
 | **`lib-q-hash`** | Hash façade (SHAKE, KMAC, TupleHash, etc.) |
-| **`lib-q-aead`** | AEAD façade (Saturnin, Romulus, duplex, tweak) |
+| **`lib-q-aead`** | AEAD façade (Saturnin, Rocca-S, Romulus, duplex, tweak) |
 | **`lib-q-saturnin`** | Saturnin suite |
+| **`lib-q-rocca-s`** | Rocca-S AEAD (AES-accelerated; IETF draft-nakano-rocca-s) |
 | **`lib-q-duplex-aead`** | Duplex-sponge AEAD |
 | **`lib-q-tweak-aead`** | Tweakable CTR AEAD over Keccak |
 | **`lib-q-romulus`** | Romulus AEAD (Skinny-based) |
@@ -121,7 +122,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 - **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206)
 - **`@lib-q/hash`** — SHA-3–family hash façade
 - **`@lib-q/utils`** — Utilities
-- **`@lib-q/aead`** — Post-quantum AEAD (Saturnin, Romulus, duplex-sponge)
+- **`@lib-q/aead`** — Post-quantum AEAD (Saturnin, Rocca-S, Romulus, duplex-sponge)
 - **`@lib-q/hpke`** — Post-quantum HPKE (RFC 9180)
 - **`@lib-q/zkp`** — ZKP / STARK proofs (high-level JSON API)
 - **`@lib-q/random`** — Secure random bytes (`getrandom` / wasm_js)
@@ -210,6 +211,10 @@ npm install @lib-q/aead @lib-q/hpke @lib-q/zkp @lib-q/random @lib-q/hqc @lib-q/s
 
 ### Authenticated encryption
 - **Saturnin** (post-quantum symmetric suite: AEAD, block cipher, hash, and stream modes)
+- **Rocca-S** (AES-accelerated 256-bit AEAD; IETF draft-nakano-rocca-s; 128-bit nonce, 256-bit tag)
+- **Romulus** (NIST-submitted Skinny-based AEAD)
+- **Duplex-sponge AEAD** (Keccak-duplex construction)
+- **Tweak-AEAD** (tweakable CTR AEAD over Keccak)
 
 ### Hybrid public-key encryption (HPKE)
 - **Tier 1: Ultra-Secure** (Pure post-quantum with SHAKE256-based AEAD)
@@ -238,7 +243,7 @@ lib-Q/   (repository root)
 ├── lib-q-lattice-zkp/  # Module-lattice ZKP research (sigma, commitments)
 ├── lib-q-sca-test/     # SCA screening tooling
 ├── lib-q-hash/, lib-q-sha3/, lib-q-keccak/, lib-q-k12/
-├── lib-q-aead/, lib-q-saturnin/
+├── lib-q-aead/, lib-q-saturnin/, lib-q-rocca-s/
 ├── lib-q-hpke/
 ├── lib-q-zkp/, lib-q-stark*/, lib-q-plonky*/
 ├── lib-q-utils/, lib-q-random/, lib-q-platform/, …
@@ -266,7 +271,7 @@ The table above is the authoritative crate list; the `[workspace].members` table
 - **ML-KEM** (FIPS 203; levels 1, 3, and 5)
 - **CB-KEM** (Classic McEliece–family; five parameter sets, feature-selected)
 - **HQC** (HQC-128, HQC-192, HQC-256)
-- **Saturnin** (AEAD, block, hash, stream modes)
+- **Saturnin** (AEAD, block, hash, stream modes) and **Rocca-S** (AES-accelerated 256-bit AEAD)
 - **HPKE** (RFC 9180) with post-quantum KEM and AEAD options
 - **Hash and XOF suite** (SHA-3 family, including SHAKE and cSHAKE, as exposed by workspace crates)
 - **ZKP / STARK stack** (`lib-q-zkp` and supporting `lib-q-stark*` / `lib-q-plonky*` crates)
