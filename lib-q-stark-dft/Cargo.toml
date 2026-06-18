@@ -16,10 +16,10 @@ ignored = [
     "rand",
 ]
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.7" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.8" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.8" }
 
 itertools = { workspace = true }
 spin = { workspace = true }
