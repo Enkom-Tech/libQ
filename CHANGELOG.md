@@ -6,6 +6,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Added
 
+- **`lib-q-saturnin` — Saturnin update ("An Update on Saturnin"):** new **Saturnin-QCB** one-pass AEAD (`qcb` feature, default) built on a reusable Saturnin tweakable block cipher `SaturninTbc` (`Saturnin16^d_{K⊕T}`); message blocks use domain 9, the tag domain 10, AD domain 11. Also adds the **shorter-nonce tweak** for Saturnin-Short (`SaturninShortAead::with_nonce_len`, max plaintext `31 - nonce_len`). QCB is a spec-faithful interpretation pinned to derived self-consistency vectors — no official designer KATs exist; see `lib-q-saturnin/SECURITY.md`.
 - **npm WASM packages for tier-4b primitives** (parity with crates.io 0.0.6): `@lib-q/mac`, `@lib-q/blind-pcs`, `@lib-q/double-kem`, `@lib-q/fhe`, `@lib-q/threshold-kem`, `@lib-q/threshold-sig` — each with `wasm` feature, `src/wasm.rs`, wasm-bindgen smoke tests, CI wasm-build/bindgen-test matrix entries, and CD `publish-wasm-packages` rows.
 - **`@lib-q/types`:** TypeScript interfaces for MAC, double-KEM, FHE, and threshold KEM/sig wire shapes.
 

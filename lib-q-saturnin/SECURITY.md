@@ -8,9 +8,36 @@ Full AEAD (`aead.rs`) tag verification uses constant-time comparison (`lib_q_cor
 
 Short mode is a single 32-byte block: there is no separate authentication tag. Validity is established by constant-time nonce binding and padding validation over the decrypted block, then fixed-layout assembly of a candidate plaintext buffer. The public decrypt API maps that result to `Ok` or `Err(VerificationFailed)` only after the symmetric inverse and parsing work complete—the same structural pattern as full Saturnin AEAD (full symmetric decrypt work before returning plaintext versus authentication failure at the API boundary). `AeadDecryptSemantic::decrypt_semantic` is implemented for Short as well. Remote timing analyses should assume verification can influence control flow at that API boundary; callers with stricter separation requirements must mediate timing above this layer.
 
+### Saturnin-QCB (`qcb` feature)
+
+Saturnin-QCB (`qcb.rs`) is the one-pass AEAD from "An Update on Saturnin", built on the Saturnin
+tweakable block cipher `SaturninTbc` (`tbc.rs`): `TBC_d(K,T)(M) = Saturnin16^d_{K⊕T}(M)`. Tag
+verification uses the constant-time `lib_q_core::Utils::constant_time_compare`, and the full
+ciphertext body is decrypted before the authentication outcome is mapped to `Ok` vs
+`Err(VerificationFailed)` (Layer A) / `AuthenticationFailed` (Layer B), matching the contract of
+the other Saturnin AEAD paths.
+
+**Interpretation caveat — read before relying on byte compatibility.** The update note specifies
+only the TBC and the high-level mode (domains 9/10 for message/tag, ΘCB-style checksum tag,
+"always 01\*-padded" message, up to 512 bits of expansion). The complete mode is defined in the
+separate QCB paper (`[BBC+20]`), which is **not** part of this repository, and **no official QCB
+known-answer test vectors exist**. The remaining details are documented, explicit choices in the
+`qcb` module: the tweak encoding (`N ‖ 0·8 ‖ block_index_be`), associated-data handling (domain
+11, nonce-independent, XOR-folded into the tag), and the always-pad rule. Consequently this
+module is a spec-faithful **interpretation** for experimentation and cross-checking, not a
+reference guaranteed to interoperate with another Saturnin-QCB implementation. If/when the
+designers publish QCB KATs, they must be pinned and any divergence reconciled before this mode is
+treated as a standard.
+
 ## KAT validation
 
 Implementation is validated against the reference KAT vectors (AEAD, hash, block cipher) in `tests/kat_tests.rs`. KATs are the authoritative correctness check.
+
+Saturnin-QCB has no published designer KATs (see above); it is instead pinned to **derived
+self-consistency vectors** (`qcb::tests::pinned_kat_vectors`) plus round-trip, tamper-detection,
+nonce/AD-binding, and block-independence (parallelism) tests. These lock byte-level behavior so
+the construction cannot drift silently, but they do **not** establish agreement with an external
+reference.
 
 ## Implementation notes
 

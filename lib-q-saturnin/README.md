@@ -40,6 +40,41 @@ fn main() -> Result<()> {
 }
 ```
 
+### Saturnin-QCB (one-pass AEAD)
+
+`SaturninQcb` is the one-pass, parallelizable AEAD from "An Update on Saturnin", built on the
+Saturnin tweakable block cipher (`SaturninTbc` = `Saturnin16^d_{K⊕T}`). Message blocks use domain
+9, the tag uses domain 10; each block is encrypted with a tweak binding the nonce and block index,
+so encryption is rate-one and embarrassingly parallel.
+
+```rust
+use lib_q_saturnin::{
+    Aead,
+    AeadKey,
+    Nonce,
+    Result,
+    SaturninQcb,
+};
+
+fn main() -> Result<()> {
+    let aead = SaturninQcb::new();
+    let key = AeadKey::new(vec![0u8; 32]);
+    let nonce = Nonce::new(vec![0u8; 16]);
+
+    let ciphertext = aead.encrypt(&key, &nonce, b"data", Some(b"ad"))?;
+    let plaintext = aead.decrypt(&key, &nonce, &ciphertext, Some(b"ad"))?;
+    assert_eq!(plaintext, b"data");
+    Ok(())
+}
+```
+
+> ⚠️ **Spec-faithful interpretation, not a byte-compatible reference.** The update note only gives
+> a high-level description of Saturnin-QCB; the full mode lives in the separate QCB paper
+> (`[BBC+20]`), and no official QCB known-answer tests are published. This implementation follows
+> everything the note specifies and documents every gap-filling choice (padding, tweak encoding,
+> AD folding) in the [`qcb` module docs](src/qcb.rs). It is verified by round-trip, tamper, and
+> pinned self-consistency vectors — not by designer KATs. See [SECURITY.md](SECURITY.md).
+
 ### Hash
 
 ```rust
@@ -89,7 +124,8 @@ fn main() -> Result<()> {
 ## Features
 
 - `aead` - Authenticated encryption (default)
-- `aead-short` — **Saturnin-Short** (spec section 2.3): single `Saturnin^6` block over `pad(nonce ‖ plaintext)`; fixed 32-byte ciphertext, no associated data, plaintext strictly under 128 bits. This is not CTR-Cascade (`aead`).
+- `aead-short` — **Saturnin-Short** (spec section 2.3): single `Saturnin^6` block over `pad(nonce ‖ plaintext)`; fixed 32-byte ciphertext, no associated data, plaintext strictly under 128 bits. This is not CTR-Cascade (`aead`). Supports the update note's **shorter-nonce tweak** via `SaturninShortAead::with_nonce_len` (a shorter nonce frees room for longer plaintext: max plaintext = `31 - nonce_len` bytes).
+- `qcb` — **Saturnin-QCB** (default): one-pass, parallelizable TBC-based AEAD from the update note. Exposes `SaturninQcb` and the reusable tweakable block cipher `SaturninTbc`. See the caveat above.
 - `block-cipher` - Block cipher operations
 - `hash` - Hash function
 - `stream` - Stream cipher
