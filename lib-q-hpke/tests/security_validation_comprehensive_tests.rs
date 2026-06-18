@@ -472,7 +472,7 @@ fn test_sequence_number_overflow_protection() {
     let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"test info").unwrap();
 
     // Force sequence number to near maximum
-    sender_ctx.sequence_number = u32::MAX - 3;
+    sender_ctx.sequence_number = u64::MAX - 3;
 
     // Try to encrypt multiple messages to trigger overflow
     let mut success_count = 0;

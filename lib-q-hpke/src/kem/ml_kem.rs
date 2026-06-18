@@ -15,6 +15,8 @@ use lib_q_kem::{
     LibQKemProvider,
     available_algorithms,
 };
+#[cfg(feature = "alloc")]
+use zeroize::Zeroizing;
 
 use crate::error::{
     HpkeError,
@@ -59,7 +61,7 @@ impl MlKemImpl {
 }
 
 impl Kem for MlKemImpl {
-    fn generate_keypair(&self) -> Result<(Vec<u8>, Vec<u8>), HpkeError> {
+    fn generate_keypair(&self) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
             let algorithm = match self.variant {
@@ -81,7 +83,7 @@ impl Kem for MlKemImpl {
 
             Ok((
                 keypair.public_key().as_bytes().to_vec(),
-                keypair.secret_key().as_bytes().to_vec(),
+                Zeroizing::new(keypair.secret_key().as_bytes().to_vec()),
             ))
         }
 
@@ -91,7 +93,7 @@ impl Kem for MlKemImpl {
         }
     }
 
-    fn encapsulate(&self, public_key: &[u8]) -> Result<(Vec<u8>, Vec<u8>), HpkeError> {
+    fn encapsulate(&self, public_key: &[u8]) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
             let algorithm = match self.variant {
@@ -112,7 +114,7 @@ impl Kem for MlKemImpl {
                     )
                 })?;
 
-            Ok((ciphertext, shared_secret))
+            Ok((ciphertext, Zeroizing::new(shared_secret)))
         }
 
         #[cfg(not(feature = "ml-kem"))]
@@ -121,7 +123,11 @@ impl Kem for MlKemImpl {
         }
     }
 
-    fn decapsulate(&self, secret_key: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, HpkeError> {
+    fn decapsulate(
+        &self,
+        secret_key: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
         #[cfg(feature = "ml-kem")]
         {
             let algorithm = match self.variant {
@@ -142,7 +148,7 @@ impl Kem for MlKemImpl {
                     )
                 })?;
 
-            Ok(shared_secret)
+            Ok(Zeroizing::new(shared_secret))
         }
 
         #[cfg(not(feature = "ml-kem"))]
@@ -208,6 +214,6 @@ mod tests {
 
         // Decapsulate
         let decapsulated_secret = kem.decapsulate(&secret_key, &ciphertext).unwrap();
-        assert_eq!(shared_secret, decapsulated_secret);
+        assert_eq!(*shared_secret, *decapsulated_secret);
     }
 }
