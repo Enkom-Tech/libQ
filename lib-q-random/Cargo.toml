@@ -22,10 +22,10 @@ ignored = [
     "signature",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", features = ["alloc"], optional = true }
-lib-q-hash = { path = "../lib-q-hash", version = "0.0.8", optional = true }
-lib-q-k12 = { path = "../lib-q-k12", version = "0.0.8", default-features = false }
-lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.8", default-features = false, optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", features = ["alloc"], optional = true }
+lib-q-hash = { path = "../lib-q-hash", version = "0.0.7", optional = true }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.7", default-features = false }
+lib-q-saturnin = { path = "../lib-q-saturnin", version = "0.0.7", default-features = false, optional = true }
 rand_core = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 rand = { workspace = true, default-features = false, optional = true }

@@ -10,9 +10,9 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
 # Avoid pulling `lib-q-keccak` default `std` + `asm` (e.g. `num_cpus`) for wasm32 / no_std graphs.
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.8", default-features = false }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.7", default-features = false }
 
 itertools = { workspace = true }
 serde = { workspace = true, features = ["alloc"], default-features = false }

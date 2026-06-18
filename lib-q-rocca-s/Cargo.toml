@@ -12,7 +12,7 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 
 # Optional: zeroization of key/plaintext staging buffers.
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }

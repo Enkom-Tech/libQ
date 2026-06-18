@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-prf-fuzz"
-version = "0.0.8"
+version = "0.0.7"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false

@@ -19,13 +19,13 @@ ignored = [
 # With `default-features = false`, the `std` feature enables `lib-q-core/std` so the crate root can omit
 # `#![no_std]` under default features: native `cdylib`+`alloc` otherwise needs a global allocator and
 # `#[panic_handler]` (see `lib-q-prf`).
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
-lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.8", default-features = false, features = ["std"] }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.8", default-features = false, features = ["std"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false }
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.7", default-features = false, features = ["std"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.7", default-features = false, features = ["std"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false }
 # Default features must stay enabled: `lib-q-prf` is built as `cdylib`+`rlib`; a no-std build
 # without `std`'s allocator/panic runtime fails to link that cdylib on native targets.
-lib-q-prf = { path = "../lib-q-prf", version = "0.0.8", optional = true }
+lib-q-prf = { path = "../lib-q-prf", version = "0.0.7", optional = true }
 crypto-bigint = { workspace = true, optional = true, default-features = false, features = ["zeroize"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
@@ -35,10 +35,10 @@ serde = { workspace = true, optional = true, default-features = false, features 
 serde_json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 serde-wasm-bindgen = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, features = ["std", "getrandom"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true, features = ["std", "getrandom"] }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 wasm-bindgen-test = { workspace = true }
 
 [[test]]

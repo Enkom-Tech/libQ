@@ -124,14 +124,19 @@ macro_rules! bench_group_libcrux {
             $keysize,
             (),
             |()| {
-                let key_generation_seed: [u8; KEY_GENERATION_RANDOMNESS_SIZE] =
-                    bench_utils::random_array();
-                let signing_randomness: [u8; SIGNING_RANDOMNESS_SIZE] = bench_utils::random_array();
                 let message = bench_utils::random_array::<1023>();
-                let keypair = p::generate_key_pair(key_generation_seed);
-                let signature =
-                    p::sign(&keypair.signing_key, &message, b"", signing_randomness).unwrap();
-                (keypair, message, signature)
+                loop {
+                    let key_generation_seed: [u8; KEY_GENERATION_RANDOMNESS_SIZE] =
+                        bench_utils::random_array();
+                    let signing_randomness: [u8; SIGNING_RANDOMNESS_SIZE] =
+                        bench_utils::random_array();
+                    let keypair = p::generate_key_pair(key_generation_seed);
+                    if let Ok(signature) =
+                        p::sign(&keypair.signing_key, &message, b"", signing_randomness)
+                    {
+                        return (keypair, message, signature);
+                    }
+                }
             },
             |(keypair, message, signature): ($keypair_t, [u8; 1023], $signature_t)| {
                 p::verify(&keypair.verification_key, &message, b"", &signature).unwrap()
