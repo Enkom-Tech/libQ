@@ -219,3 +219,123 @@ impl HpkeReceiverContext {
         self.state = HpkeContextState::Closed;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloc::sync::Arc;
+    use alloc::vec;
+
+    use zeroize::Zeroizing;
+
+    use super::{
+        HpkeReceiverContext,
+        HpkeSenderContext,
+    };
+    use crate::error::HpkeError;
+    use crate::providers::post_quantum::PostQuantumProvider;
+    use crate::providers::traits::HpkeCryptoProvider;
+    use crate::types::{
+        HpkeAead,
+        HpkeCipherSuite,
+        HpkeContextState,
+        HpkeKdf,
+        HpkeKem,
+    };
+
+    #[test]
+    fn export_only_context_disallows_payload_ops() {
+        let export_suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfShake256, HpkeAead::Export);
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
+        let sender = HpkeSenderContext::new(
+            Zeroizing::new(vec![1u8; 32]),
+            Zeroizing::new(vec![2u8; 32]),
+            Zeroizing::new(vec![]),
+            Zeroizing::new(vec![]),
+            vec![5u8; 768],
+            export_suite,
+            HpkeAead::Export,
+            hpke_crypto.clone(),
+        );
+        assert!(!sender.can_encrypt());
+
+        let receiver = HpkeReceiverContext::new(
+            Zeroizing::new(vec![1u8; 32]),
+            Zeroizing::new(vec![2u8; 32]),
+            Zeroizing::new(vec![]),
+            Zeroizing::new(vec![]),
+            export_suite,
+            HpkeAead::Export,
+            hpke_crypto,
+        );
+        assert!(!receiver.can_decrypt());
+    }
+
+    #[test]
+    fn sender_context_state_transitions() {
+        let suite = HpkeCipherSuite::new(
+            HpkeKem::MlKem512,
+            HpkeKdf::HkdfShake256,
+            HpkeAead::Saturnin256,
+        );
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
+        let mut sender = HpkeSenderContext::new(
+            Zeroizing::new(vec![1; 32]),
+            Zeroizing::new(vec![2; 32]),
+            Zeroizing::new(vec![3; 32]),
+            Zeroizing::new(vec![4; 16]),
+            vec![5; 768],
+            suite,
+            HpkeAead::Saturnin256,
+            hpke_crypto,
+        );
+
+        assert!(sender.can_encrypt());
+        assert_eq!(sender.encapsulated_key(), &[5; 768]);
+        assert!(sender.increment_sequence().is_ok());
+        assert_eq!(sender.sequence_number, 1);
+
+        sender.max_sequence_number = 1;
+        let overflow = sender.increment_sequence();
+        assert!(matches!(overflow, Err(HpkeError::CryptoError(_))));
+        assert_eq!(sender.state, HpkeContextState::NeedsRekey);
+        assert!(!sender.can_encrypt());
+
+        sender.close();
+        assert_eq!(sender.state, HpkeContextState::Closed);
+        assert!(!sender.can_encrypt());
+    }
+
+    #[test]
+    fn receiver_context_state_transitions() {
+        let suite =
+            HpkeCipherSuite::new(HpkeKem::MlKem512, HpkeKdf::HkdfShake256, HpkeAead::Shake256);
+        let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
+            Arc::new(PostQuantumProvider::new());
+        let mut receiver = HpkeReceiverContext::new(
+            Zeroizing::new(vec![1; 32]),
+            Zeroizing::new(vec![2; 32]),
+            Zeroizing::new(vec![3; 32]),
+            Zeroizing::new(vec![4; 16]),
+            suite,
+            HpkeAead::Shake256,
+            hpke_crypto,
+        );
+
+        assert!(receiver.can_decrypt());
+        assert!(receiver.increment_sequence().is_ok());
+        assert_eq!(receiver.sequence_number, 1);
+
+        receiver.max_sequence_number = 1;
+        let overflow = receiver.increment_sequence();
+        assert!(matches!(overflow, Err(HpkeError::CryptoError(_))));
+        assert_eq!(receiver.state, HpkeContextState::NeedsRekey);
+        assert!(!receiver.can_decrypt());
+
+        receiver.close();
+        assert_eq!(receiver.state, HpkeContextState::Closed);
+        assert!(!receiver.can_decrypt());
+    }
+}

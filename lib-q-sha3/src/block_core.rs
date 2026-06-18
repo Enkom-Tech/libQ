@@ -48,6 +48,7 @@ pub use crate::cshake::{
 use crate::{
     DEFAULT_ROUND_COUNT,
     PLEN,
+    xor_block,
 };
 
 /// Pre-FIPS Keccak **padding nibble** for raw Keccak *fixed* digests (not FIPS 202 SHA-3 padding).
@@ -345,23 +346,4 @@ where
 impl<Rate, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop for SpongeReaderCore<Rate, ROUNDS> where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>
 {
-}
-
-pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
-    assert!(block.len() < 8 * PLEN);
-
-    let mut chunks = block.chunks_exact(8);
-    for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        let mut lane = [0u8; 8];
-        lane.copy_from_slice(chunk);
-        *s ^= u64::from_le_bytes(lane);
-    }
-
-    let rem = chunks.remainder();
-    if !rem.is_empty() {
-        let mut buf = [0u8; 8];
-        buf[..rem.len()].copy_from_slice(rem);
-        let n = block.len() / 8;
-        state[n] ^= u64::from_le_bytes(buf);
-    }
 }

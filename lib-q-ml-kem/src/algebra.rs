@@ -9,6 +9,13 @@ use hybrid_array::typenum::U256;
 use lib_q_sha3::digest::XofReader;
 use zeroize::Zeroize;
 
+use crate::core_types::ArraySize;
+pub use crate::core_types::{
+    FieldElement,
+    Integer,
+    NttPolynomial,
+    NttVector,
+};
 use crate::crypto::{
     PRF,
     PrfOutput,
@@ -16,21 +23,11 @@ use crate::crypto::{
 };
 #[cfg(not(feature = "hardened"))]
 use crate::encode::Encode;
-use crate::param::{
-    ArraySize,
-    CbdSamplingSize,
-};
+use crate::param::CbdSamplingSize;
 use crate::util::{
     B32,
     Truncate,
 };
-
-pub type Integer = u16;
-
-/// An element of GF(q).  Although `q` is only 16 bits wide, we use a wider uint type to so that we
-/// can defer modular reductions.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
-pub struct FieldElement(pub Integer);
 
 impl Zeroize for FieldElement {
     fn zeroize(&mut self) {
@@ -247,10 +244,6 @@ impl<K: ArraySize> PolynomialVector<K> {
         }))
     }
 }
-
-/// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttPolynomial(pub Array<FieldElement, U256>);
 
 impl Zeroize for NttPolynomial {
     fn zeroize(&mut self) {
@@ -554,10 +547,6 @@ impl NttPolynomial {
         }
     }
 }
-
-/// A vector of K NTT-domain polynomials
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
 
 impl<K: ArraySize> NttVector<K> {
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {

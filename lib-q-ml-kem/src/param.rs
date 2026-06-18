@@ -43,7 +43,8 @@ use hybrid_array::typenum::{
     U384,
 };
 
-use crate::algebra::{
+pub use crate::core_types::ArraySize;
+use crate::core_types::{
     FieldElement,
     NttVector,
 };
@@ -53,11 +54,6 @@ use crate::util::{
     Flatten,
     Unflatten,
 };
-
-/// An array length with other useful properties
-pub trait ArraySize: hybrid_array::ArraySize + PartialEq + Debug {}
-
-impl<T> ArraySize for T where T: hybrid_array::ArraySize + PartialEq + Debug {}
 
 /// An integer that can be used as a length for encoded values.
 pub trait EncodingSize: ArraySize {

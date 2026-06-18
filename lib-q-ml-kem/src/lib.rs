@@ -43,6 +43,10 @@
 /// The inevitable utility module
 mod util;
 
+/// Foundational value types (`FieldElement`, `NttPolynomial`, `NttVector`, `ArraySize`) shared by
+/// `algebra` and `param` so neither depends on the other.
+mod core_types;
+
 /// Section 2.4. Interpreting the Pseudocode
 /// Section 4.2.2. Sampling algorithms
 /// Section 4.3. The Number-Theoretic Transform

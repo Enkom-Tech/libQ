@@ -26,7 +26,7 @@ use digest::{
     XofReader,
 };
 use lib_q_sha3::Update;
-use lib_q_sha3::block_api::{
+use lib_q_sha3::block_core::{
     CShake128Core,
     CShake256Core,
     SpongeHasherCore,
