@@ -77,6 +77,8 @@ mod wasm;
 // Algorithm implementations
 #[cfg(feature = "duplex-sponge-aead")]
 mod duplex_aead;
+#[cfg(feature = "rocca-s")]
+mod rocca_s;
 #[cfg(feature = "romulus-m")]
 mod romulus_m;
 #[cfg(feature = "romulus-n")]
@@ -91,6 +93,8 @@ mod tweak_aead;
 // Re-export implementations
 #[cfg(feature = "duplex-sponge-aead")]
 pub use duplex_aead::DuplexSpongeAead;
+#[cfg(feature = "rocca-s")]
+pub use rocca_s::RoccaSAead;
 #[cfg(feature = "romulus-m")]
 pub use romulus_m::RomulusMAead;
 #[cfg(feature = "romulus-n")]
@@ -143,6 +147,11 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
         Ok(Box::new(RomulusMAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
+    #[cfg(feature = "rocca-s")]
+    let _ = registry.register_algorithm(Algorithm::RoccaS, || {
+        Ok(Box::new(RoccaSAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
     registry
 });
 
@@ -183,6 +192,11 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
     #[cfg(feature = "romulus-m")]
     let _ = registry.register_algorithm(Algorithm::RomulusM, || {
         Ok(Box::new(RomulusMAead::new()) as Box<dyn AeadWithMetadata>)
+    });
+
+    #[cfg(feature = "rocca-s")]
+    let _ = registry.register_algorithm(Algorithm::RoccaS, || {
+        Ok(Box::new(RoccaSAead::new()) as Box<dyn AeadWithMetadata>)
     });
 
     registry

@@ -140,6 +140,7 @@ impl WasmConversions {
             "tweakaead" | "tweak-aead" => Ok(Algorithm::TweakAead),
             "romulus-n" | "romulusn" => Ok(Algorithm::RomulusN),
             "romulus-m" | "romulusm" => Ok(Algorithm::RomulusM),
+            "rocca-s" | "roccas" => Ok(Algorithm::RoccaS),
 
             _ => Err(crate::error::Error::UnsupportedAlgorithm {
                 algorithm: algorithm_str.to_string(),
@@ -206,6 +207,7 @@ impl WasmConversions {
             Algorithm::TweakAead => "tweak-aead".to_string(),
             Algorithm::RomulusN => "romulus-n".to_string(),
             Algorithm::RomulusM => "romulus-m".to_string(),
+            Algorithm::RoccaS => "rocca-s".to_string(),
 
             // Other algorithms (add as needed)
             _ => format!("{:?}", algorithm).to_lowercase().replace('_', "-"),

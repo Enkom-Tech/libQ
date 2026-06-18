@@ -266,6 +266,17 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         true,
     );
 
+    static ROCCA_S_METADATA: AeadMetadata = AeadMetadata::new(
+        Algorithm::RoccaS,
+        32, // 256-bit key
+        16, // 128-bit nonce
+        32, // 256-bit tag
+        1,  // Level 1 security
+        "Rocca-S",
+        "Rocca-S high-throughput AES-round AEAD (IETF draft-nakano-rocca-s)",
+        true,
+    );
+
     match algorithm {
         Algorithm::Saturnin => Some(&SATURNIN_METADATA),
         Algorithm::Shake256Aead => Some(&SHAKE256_METADATA),
@@ -273,6 +284,7 @@ pub fn get_metadata(algorithm: Algorithm) -> Option<&'static AeadMetadata> {
         Algorithm::TweakAead => Some(&TWEAK_AEAD_METADATA),
         Algorithm::RomulusN => Some(&ROMULUS_N_METADATA),
         Algorithm::RomulusM => Some(&ROMULUS_M_METADATA),
+        Algorithm::RoccaS => Some(&ROCCA_S_METADATA),
         _ => None,
     }
 }

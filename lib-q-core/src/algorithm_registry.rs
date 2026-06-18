@@ -580,6 +580,15 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::RoccaS,
+            category: AlgorithmCategory::Aead,
+            security_level: 1,
+            name: "Rocca-S",
+            description: "Rocca-S high-throughput AES-round AEAD (IETF draft-nakano-rocca-s); 256-bit key/tag, 128-bit nonce",
+            enabled: true,
+        });
+
         // Privacy-oriented protocol identifiers (implementations: lib-q-lattice-zkp, lib-q-ring-sig)
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::LatticeRingSignature,
