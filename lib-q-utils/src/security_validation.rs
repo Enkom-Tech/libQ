@@ -342,7 +342,10 @@ mod tests {
 
         // All checks are stub-only — they emit warnings until real scanning is implemented.
         assert!(report.summary.total_checks > 0);
-        assert!(report.summary.is_success(), "stub validator should pass with warnings only");
+        assert!(
+            report.summary.is_success(),
+            "stub validator should pass with warnings only"
+        );
         assert_eq!(report.summary.failed, 0);
         assert!(report.summary.warnings > 0);
     }
@@ -378,7 +381,10 @@ mod tests {
         let r = v.validate();
         assert!(r.summary.total_checks > 0);
         // Stub checks emit warnings; no hard failures until real scanning is wired.
-        assert!(r.summary.is_success(), "stub validator should pass with warnings only");
+        assert!(
+            r.summary.is_success(),
+            "stub validator should pass with warnings only"
+        );
         assert_eq!(r.summary.failed, 0);
     }
 
