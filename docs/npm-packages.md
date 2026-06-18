@@ -17,7 +17,7 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206) |
 | `@lib-q/hash` | `lib-q-hash` | SHA-3 family façade |
 | `@lib-q/utils` | `lib-q-utils` | Shared utilities |
-| `@lib-q/aead` | `lib-q-aead` | AEAD (`wasm` + Saturnin / Romulus / duplex-sponge as configured in CD) |
+| `@lib-q/aead` | `lib-q-aead` | AEAD (`wasm` + Saturnin / Rocca-S / Romulus / duplex-sponge as configured in CD) |
 | `@lib-q/hpke` | `lib-q-hpke` | HPKE (`hpkeSeal` / `hpkeOpen`, multi-shot sender/receiver objects, opaque `u32` handles for secret-bearing contexts) |
 | `@lib-q/zkp` | `lib-q-zkp` | Preimage proofs (`provePreimage` / `verifyPreimage`) |
 | `@lib-q/types` | `npm/lib-q-types` | Shared TypeScript interfaces for WASM return shapes (`LibQWasmError`, `HpkeSealResult`, …) |
