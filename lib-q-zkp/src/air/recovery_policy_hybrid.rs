@@ -228,7 +228,7 @@ where
             for i in 0..RANGE_BITS {
                 let bit: AB::Expr = local[COL_SLACK_BITS_START + i].into();
                 builder.assert_bool(bit.clone());
-                acc = acc + bit * weight_pow.clone();
+                acc += bit * weight_pow.clone();
                 weight_pow = weight_pow.clone() * two.clone();
             }
             builder.assert_eq(slack.clone(), acc);
@@ -241,7 +241,7 @@ where
             for i in 0..RANGE_BITS {
                 let bit: AB::Expr = local[COL_KEY_GAP_BITS_START + i].into();
                 builder.assert_bool(bit.clone());
-                acc = acc + bit * weight_pow.clone();
+                acc += bit * weight_pow.clone();
                 weight_pow = weight_pow.clone() * two.clone();
             }
             let gap = next_key_id.clone() - key_id.clone() - one.clone();

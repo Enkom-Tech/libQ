@@ -197,6 +197,10 @@ fn bp_vec(u: [u64; 8]) -> [u64; 8] {
 
 /// Constant-time bitsliced AES S-box applied to every byte of the 8-word state.
 /// Production path: no table lookup, data-independent control flow.
+// The loop indices double as bit-shift amounts (`8 * i`, `8 * p`) in these transpose/scatter
+// steps, so range loops express the bit-plane layout most clearly; an iterator rewrite would
+// obscure the bitslicing without removing the index arithmetic.
+#[allow(clippy::needless_range_loop)]
 #[inline]
 pub(crate) fn layer_bitsliced(s: &mut [u64; 8]) {
     // Orthogonalize: build 8 bit-planes over all 64 state bytes.
