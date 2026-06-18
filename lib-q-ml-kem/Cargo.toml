@@ -41,6 +41,10 @@ subtle = ["dep:subtle"]
 # Atomic side-channel hardening gate: masks decapsulation path, NTT randomisation, subtle comparisons.
 # Partial enabling is unsafe; do not split into separate CT/masking features.
 hardened = ["random", "subtle", "getrandom"]
+# PKCS#8 / SPKI key serialization (draft-ietf-lamps-kyber-certificates). Off by default; pulls the
+# pure-Rust `der` codec only. Encodes the FIPS-203 expanded decapsulation key (`expandedKey` arm)
+# and decodes either the `seed [0]` or `expandedKey` arm.
+pkcs8 = ["dep:der"]
 
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
@@ -52,6 +56,11 @@ subtle = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
+der = { version = "0.8.0", optional = true, default-features = false, features = [
+    "alloc",
+    "derive",
+    "oid",
+] }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
@@ -104,5 +113,5 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(docsrs)',
-    'cfg(feature, values("default", "std", "deterministic", "random", "wasm", "getrandom", "hardened"))',
+    'cfg(feature, values("default", "std", "deterministic", "random", "wasm", "getrandom", "hardened", "pkcs8"))',
 ] }
