@@ -62,7 +62,7 @@ impl CpuFeatures {
     pub fn new() -> Self {
         #[cfg(feature = "std")]
         {
-            return runtime::detect();
+            runtime::detect()
         }
         #[cfg(not(feature = "std"))]
         {

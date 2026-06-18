@@ -179,6 +179,9 @@ pub fn amortise<R: Rng + CryptoRng>(
     let c = batch_challenge_bound(&state.buf, &agg_w_polys, tau);
 
     let mut agg_z_polys: Vec<Poly> = (0..p.witness_len()).map(|_| Poly::zero()).collect();
+    // `i` indexes the parallel `scratch` accessors (mask/witness/masked_witness) as well as
+    // `r_scalars`, so a range loop keeps the per-instance lookups aligned.
+    #[allow(clippy::needless_range_loop)]
     for i in 0..scratch.len() {
         let y_i = scratch.mask(i);
         let ri = r_scalars[i];
