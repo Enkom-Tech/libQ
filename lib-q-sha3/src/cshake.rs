@@ -37,13 +37,13 @@ use digest::{
     Reset,
 };
 
-use crate::block_api::xor_block;
 use crate::{
     CSHAKE_PAD,
     DEFAULT_ROUND_COUNT as ROUNDS,
     PLEN,
     SHAKE_PAD,
     SpongeReaderCore,
+    xor_block,
 };
 
 #[inline]

@@ -29,7 +29,7 @@ use digest::consts::{
     U144,
     U200,
 };
-use lib_q_sha3::block_api::{
+use lib_q_sha3::block_core::{
     KECCAK_DIGEST_PAD,
     SpongeHasherCore,
 };

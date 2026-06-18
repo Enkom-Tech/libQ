@@ -9,7 +9,7 @@
 //!
 //! - [`cshake`]: cSHAKE-128/256 (NIST SP 800-185).
 //! - [`turbo_shake`]: TurboSHAKE-128/256 (12-round Keccak; used by RFC 9861 KangarooTwelve in [`lib_q_k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12)).
-//! - [`block_api`]: low-level cores and Keccak state for composition (e.g. K12); not needed for typical hashing.
+//! - [`block_core`]: low-level cores and Keccak state for composition (e.g. K12); not needed for typical hashing.
 //!
 //! The rest of the API is re-exported at the crate root for discoverability. See the crate **README** (front page of docs) for standards links, feature flags, and **security** considerations.
 //!
@@ -46,13 +46,13 @@ pub use digest::{
 };
 
 /// Block-level types and Keccak cores for advanced composition (e.g. K12). Most callers should use the crate-root types.
-pub mod block_api;
+pub mod block_core;
 /// cSHAKE-128 and cSHAKE-256 (NIST SP 800-185). Types are re-exported at the crate root.
 pub mod cshake;
 /// TurboSHAKE-128 and TurboSHAKE-256. Types are re-exported at the crate root.
 pub mod turbo_shake;
 
-use block_api::{
+use block_core::{
     SpongeHasherCore,
     SpongeReaderCore,
 };
@@ -101,6 +101,29 @@ const CSHAKE_PAD: u8 = 0x04;
 
 const PLEN: usize = 25;
 const DEFAULT_ROUND_COUNT: usize = 24;
+
+/// XOR a (partial) block into the Keccak state lanes (little-endian).
+///
+/// Shared Keccak-sponge helper used by both the block API and cSHAKE; lives at the crate root
+/// so neither module has to depend on the other.
+pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
+    assert!(block.len() < 8 * PLEN);
+
+    let mut chunks = block.chunks_exact(8);
+    for (s, chunk) in state.iter_mut().zip(&mut chunks) {
+        let mut lane = [0u8; 8];
+        lane.copy_from_slice(chunk);
+        *s ^= u64::from_le_bytes(lane);
+    }
+
+    let rem = chunks.remainder();
+    if !rem.is_empty() {
+        let mut buf = [0u8; 8];
+        buf[..rem.len()].copy_from_slice(rem);
+        let n = block.len() / 8;
+        state[n] ^= u64::from_le_bytes(buf);
+    }
+}
 
 digest::buffer_fixed!(
     /// SHA-3-224 (FIPS 202).
