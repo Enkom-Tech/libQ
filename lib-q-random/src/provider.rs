@@ -270,8 +270,11 @@ impl LibQRng {
             crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
         };
 
-        let deterministic =
-            entropy_source.source_type() == crate::traits::EntropySourceType::Deterministic;
+        let deterministic = matches!(
+            entropy_source.source_type(),
+            crate::traits::EntropySourceType::Deterministic
+                | crate::traits::EntropySourceType::User
+        );
 
         Self {
             entropy_source,
