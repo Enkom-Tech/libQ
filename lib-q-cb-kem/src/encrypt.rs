@@ -169,7 +169,7 @@ fn gen_e<R: CryptoRng + Rng>(e: &mut [u8], rng: &mut R) {
 /// Computes syndrome `s` based on public key `pk` and error vector `e`.
 #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
 fn syndrome(
-    s: &mut [u8; (PK_NROWS + 7) / 8],
+    s: &mut [u8; PK_NROWS.div_ceil(8)],
     pk: &[u8; PK_NROWS * PK_ROW_BYTES],
     e: &[u8; SYS_N / 8],
 ) {
