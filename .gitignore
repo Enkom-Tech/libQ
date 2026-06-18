@@ -101,6 +101,7 @@ coverage/
 # Rust tarpaulin / CI: output dirs other than plain coverage/ (e.g. scripts/run-coverage.sh, coverage.yml)
 coverage-*/
 cov-*/
+cov70-*/
 combined-coverage/
 
 # Tarpaulin HTML when written to cwd or a crate root
@@ -230,5 +231,7 @@ cyclonedx-bom.json
 .cursor/
 .claude/
 .agents/
+# Generated umbrella agent file (regenerated from .agents/; not published)
+AGENTS.md
 hooks.json
 .rust-pre-push-health-last.json
