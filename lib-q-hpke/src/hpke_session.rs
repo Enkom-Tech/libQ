@@ -34,9 +34,9 @@ pub struct HpkeSenderContext {
     /// Encapsulated key to be sent to receiver
     pub encapsulated_key: Vec<u8>,
     /// Sequence number
-    pub sequence_number: u32,
+    pub sequence_number: u64,
     /// Maximum sequence number before context must be rekeyed
-    pub max_sequence_number: u32,
+    pub max_sequence_number: u64,
     /// Context state
     pub state: HpkeContextState,
     /// Cryptographic backend for multi-message seal and export
@@ -83,7 +83,7 @@ impl HpkeSenderContext {
             aead,
             encapsulated_key,
             sequence_number: 0,
-            max_sequence_number: u32::MAX - 1,
+            max_sequence_number: u64::MAX - 1,
             state: HpkeContextState::Active,
             hpke_crypto,
         }
@@ -139,9 +139,9 @@ pub struct HpkeReceiverContext {
     /// AEAD algorithm from the negotiated cipher suite
     pub aead: HpkeAead,
     /// Sequence number
-    pub sequence_number: u32,
+    pub sequence_number: u64,
     /// Maximum sequence number before context must be rekeyed
-    pub max_sequence_number: u32,
+    pub max_sequence_number: u64,
     /// Context state
     pub state: HpkeContextState,
     /// Cryptographic backend for multi-message open and export
@@ -184,7 +184,7 @@ impl HpkeReceiverContext {
             cipher_suite,
             aead,
             sequence_number: 0,
-            max_sequence_number: u32::MAX - 1,
+            max_sequence_number: u64::MAX - 1,
             state: HpkeContextState::Active,
             hpke_crypto,
         }

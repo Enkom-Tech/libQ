@@ -1,6 +1,8 @@
 //! HKDF implementation using lib-q-hash
 
 #[cfg(all(feature = "alloc", feature = "hash"))]
+use alloc::format;
+#[cfg(all(feature = "alloc", feature = "hash"))]
 use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
@@ -99,6 +101,16 @@ impl HkdfImpl {
 
         #[cfg(feature = "hash")]
         {
+            // RFC 5869 / RFC 9180 §5.3: the expanded length L MUST be at most 255*Nh.
+            let max_l = kdf.extract_len().checked_mul(255).ok_or_else(|| {
+                HpkeError::CryptoError("HKDF-Expand length bound (255*Nh) overflowed".into())
+            })?;
+            if output_len > max_l {
+                return Err(HpkeError::CryptoError(format!(
+                    "HKDF-Expand length {output_len} exceeds RFC maximum 255*Nh ({max_l})"
+                )));
+            }
+
             let mut output = vec![0u8; output_len];
 
             match kdf {
@@ -192,6 +204,16 @@ impl HkdfImpl {
         {
             if output_len == 0 {
                 return Ok(Vec::new());
+            }
+
+            // RFC 5869 / RFC 9180 §5.3: the expanded length L MUST be at most 255*Nh.
+            let max_l = self.kdf.extract_len().checked_mul(255).ok_or_else(|| {
+                HpkeError::CryptoError("HKDF-Expand length bound (255*Nh) overflowed".into())
+            })?;
+            if output_len > max_l {
+                return Err(HpkeError::CryptoError(format!(
+                    "HKDF-Expand length {output_len} exceeds RFC maximum 255*Nh ({max_l})"
+                )));
             }
 
             let mut output = vec![0u8; output_len];

@@ -329,7 +329,7 @@ fn fuzz_sequence_number_overflow() {
     let mut sender_ctx = hpke_ctx.setup_sender(&recipient_pk, b"test info").unwrap();
     
     // Force sequence number to near maximum
-    sender_ctx.sequence_number = u32::MAX - 5;
+    sender_ctx.sequence_number = u64::MAX - 5;
     
     // Try to encrypt multiple messages to trigger overflow
     for i in 0..10 {
