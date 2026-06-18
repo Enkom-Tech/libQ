@@ -146,7 +146,7 @@ cpufeatures = "0.3.0"
 thiserror = { version = "2.0.18", default-features = false }
 tracing = { version = "0.1.44", default-features = false, features = ["attributes"] }
 # STARK / proof-system
-itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.15.0", default-features = false, features = ["use_alloc"] }
 num-bigint = { version = "0.4.6", default-features = false }
 num-traits = "0.2.19"
 pastey = "0.2.3"
