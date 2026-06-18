@@ -79,8 +79,8 @@ where
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
         let ek_pke = EncryptionKey::from_bytes(ek_pke);
 
-        // XXX(RLB): The encoding here is redundant, since `h` can be computed from `ek_pke`.
-        // Should we verify that the provided `h` value is valid?
+        // The encoding here is redundant, since `h` can be computed from `ek_pke`. The infallible
+        // `from_bytes` trusts the provided `h`; `try_from_bytes` (below) verifies it per FIPS-203.
 
         Self {
             dk_pke: DecryptionKey::from_bytes(dk_pke),
@@ -99,6 +99,40 @@ where
             self.ek.h.clone(),
             self.z.clone(),
         ))
+    }
+}
+
+impl<P> DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    /// Parse and FIPS-203 validate a decapsulation key.
+    ///
+    /// Validates that (a) the embedded encapsulation key is canonically encoded (the FIPS-203
+    /// "modulus check") and (b) the embedded hash `h` equals `H(ek)`. Valid keys decode
+    /// identically to the infallible [`EncodedSizeUser::from_bytes`].
+    ///
+    /// # Errors
+    /// Returns [`crate::Error::InvalidKey`] if the embedded encapsulation key is non-canonically
+    /// encoded, or if the embedded hash `h` does not equal `H(ek)`.
+    #[allow(clippy::similar_names)] // dk_pke, ek_pke, following the spec
+    pub fn try_from_bytes(enc: &Encoded<Self>) -> Result<Self, crate::Error> {
+        let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
+
+        // (a) The encapsulation key must be canonically encoded.
+        let ek_pke = EncryptionKey::try_from_bytes(ek_pke)?;
+
+        // (b) The embedded `h` must equal the recomputed `H(ek)`.
+        let ek = EncapsulationKey::new(ek_pke);
+        if ek.h != *h {
+            return Err(crate::Error::InvalidKey);
+        }
+
+        Ok(Self {
+            dk_pke: DecryptionKey::from_bytes(dk_pke),
+            ek,
+            z: z.clone(),
+        })
     }
 }
 
@@ -209,6 +243,17 @@ where
         let r = SecretB32::new(r);
         let c = self.ek_pke.encrypt(m, &r);
         (c, K)
+    }
+
+    /// Parse and FIPS-203 validate an encapsulation key.
+    ///
+    /// Valid keys decode identically to [`EncodedSizeUser::from_bytes`].
+    ///
+    /// # Errors
+    /// Returns [`crate::Error::InvalidKey`] if the key is non-canonically encoded (a 12-bit
+    /// coefficient `>= q`).
+    pub fn try_from_bytes(enc: &Encoded<Self>) -> Result<Self, crate::Error> {
+        Ok(Self::new(EncryptionKey::try_from_bytes(enc)?))
     }
 }
 
@@ -356,5 +401,54 @@ mod test {
         codec_test::<MlKem512Params>();
         codec_test::<MlKem768Params>();
         codec_test::<MlKem1024Params>();
+    }
+
+    #[cfg(feature = "random")]
+    #[allow(clippy::similar_names)] // dk_bytes / ek_bytes, bad_dk / bad_ek
+    fn try_from_bytes_validation_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
+        let dk = DecapsulationKey::<P>::generate(&mut rng);
+        let ek = dk.encapsulation_key().clone();
+
+        // Valid keys validate and decode identically to the infallible path.
+        let dk_bytes = dk.as_bytes();
+        assert_eq!(
+            DecapsulationKey::<P>::try_from_bytes(&dk_bytes).unwrap(),
+            dk
+        );
+        let ek_bytes = ek.as_bytes();
+        assert_eq!(
+            EncapsulationKey::<P>::try_from_bytes(&ek_bytes).unwrap(),
+            ek
+        );
+
+        // Non-canonical encapsulation key: force the first 12-bit coefficient to 0xFFF (>= q).
+        let mut bad_ek = ek_bytes.clone();
+        bad_ek[0] = 0xFF;
+        bad_ek[1] = 0xFF;
+        assert_eq!(
+            EncapsulationKey::<P>::try_from_bytes(&bad_ek),
+            Err(crate::Error::InvalidKey)
+        );
+
+        // Tampered embedded hash `h` (it occupies bytes [len-64 .. len-32], before the 32-byte z).
+        let mut bad_dk = (*dk_bytes).clone();
+        let n = bad_dk.len();
+        bad_dk[n - 33] ^= 0xFF;
+        assert_eq!(
+            DecapsulationKey::<P>::try_from_bytes(&bad_dk),
+            Err(crate::Error::InvalidKey)
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn try_from_bytes_validation() {
+        try_from_bytes_validation_test::<MlKem512Params>();
+        try_from_bytes_validation_test::<MlKem768Params>();
+        try_from_bytes_validation_test::<MlKem1024Params>();
     }
 }

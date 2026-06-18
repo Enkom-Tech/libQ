@@ -11,7 +11,10 @@ and instrumented power/EM TVLA remain out of scope.
 
 ## Specification alignment
 
-The implementation targets the [NIST HQC specification (October 2024)](https://pqc-hqc.org/doc/hqc-specification_2024-10-30.pdf).
+The implementation targets the [NIST HQC specification (2025-08-22)](https://pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf)
+— the post-selection construction with implicit-rejection `FO_m` and `(ek, salt)` binding into `K`
+and `θ` (see `src/hqc_kem.rs` and `kats/official/PROVENANCE.md`). It supersedes the earlier
+[October 2024 specification](https://pqc-hqc.org/doc/hqc-specification_2024-10-30.pdf).
 Cryptographic object sizes are defined in [`lib-q-types::hqc`](../lib-q-types/src/hqc.rs)
 and mirrored in `params_correct`:
 
@@ -100,5 +103,5 @@ GitHub security advisories or **github@enkom.dev**).
 ## References
 
 - [NIST PQC project](https://csrc.nist.gov/projects/post-quantum-cryptography)
-- [HQC specification (October 2024)](https://pqc-hqc.org/doc/hqc-specification_2024-10-30.pdf)
+- [HQC specification (2025-08-22)](https://pqc-hqc.org/doc/hqc_specifications_2025_08_22.pdf)
 - [Internal assessment](docs/audit-package/README.md)
