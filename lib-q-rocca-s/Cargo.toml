@@ -1,0 +1,82 @@
+[package]
+name = "lib-q-rocca-s"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Rocca-S high-throughput AES-based AEAD (IETF draft-nakano-rocca-s) for lib-Q"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "aead", "rocca-s", "aes", "encryption"]
+categories = ["cryptography"]
+readme.workspace = true
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
+
+# Optional: zeroization of key/plaintext staging buffers.
+zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
+
+[features]
+default = ["aead", "alloc"]
+std = ["alloc"]
+alloc = ["lib-q-core/alloc"]
+
+# AEAD mode (the only mode Rocca-S provides).
+aead = ["dep:zeroize"]
+
+# Performance: runtime-dispatched hardware AES round.
+simd = ["simd-aesni", "simd-neon"]
+simd-aesni = ["std"]
+simd-neon = []
+
+# Explicit zeroize toggle (also satisfies workspace `cargo metadata --features zeroize`).
+zeroize = ["dep:zeroize"]
+
+# WASM: enable getrandom/wasm_js so lib-q-core compiles for wasm32-unknown-unknown.
+wasm = ["lib-q-core/wasm_getrandom"]
+
+[lib]
+bench = false
+name = "lib_q_rocca_s"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "kat_tests"
+path = "tests/kat_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "simd_equivalence"
+path = "tests/simd_equivalence.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "constant_time"
+path = "tests/constant_time.rs"
+required-features = ["alloc", "aead"]
+
+[[bench]]
+name = "rocca_s_criterion_benches"
+harness = false
+required-features = ["alloc"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+    'cfg(target_arch, values("wasm32"))',
+] }

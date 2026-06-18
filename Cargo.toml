@@ -30,6 +30,7 @@ members = [
     "lib-q-aead",
     "lib-q-duplex-aead",
     "lib-q-hpke",
+    "lib-q-rocca-s",
     "lib-q-romulus",
     "lib-q-sah",
     "lib-q-saturnin",
