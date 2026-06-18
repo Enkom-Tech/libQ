@@ -8,6 +8,11 @@ IETF draft variant (`draft-nakano-rocca-s`), matching the reference
 implementation at <https://github.com/jedisct1/rust-rocca-s>, and exposes it
 through the standard lib-Q [`Aead`] / [`AeadDecryptSemantic`] traits.
 
+This crate is pinned to **`draft-nakano-rocca-s-06`** and accepts only 256-bit keys. The draft-06
+key-expansion change (a key-length-dependent `S[6]` init that fixes identical initial states for
+128/192-bit keys) therefore does **not** apply here; the all-zero known-answer test in
+`tests/kat_tests.rs` matches draft-06.
+
 ## Parameters
 
 | Parameter | Size |
