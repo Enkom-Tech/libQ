@@ -80,6 +80,10 @@ pub mod kem;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+/// PKCS#8 / SPKI key serialization (feature `pkcs8`).
+#[cfg(feature = "pkcs8")]
+pub mod pkcs8;
+
 /// Section 7. Parameter Sets
 mod param;
 
