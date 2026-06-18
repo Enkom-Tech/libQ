@@ -39,6 +39,7 @@ pub use crate::{
 use crate::{
     Encoded,
     EncodedSizeUser,
+    Seed,
 };
 
 /// A shared key resulting from an ML-KEM transaction
@@ -208,6 +209,42 @@ where
         Self::generate_deterministic(&d, &z)
     }
 
+    /// Generate a fresh decapsulation key, also returning the 64-byte [`Seed`] (`d ‖ z`) that
+    /// produced it so callers can persist the key compactly.
+    pub(crate) fn generate_with_seed<R: CryptoRng + Rng + ?Sized>(
+        rng: &mut R,
+    ) -> (Zeroizing<Seed>, Self) {
+        let mut d: B32 = rand(rng);
+        let mut z: B32 = rand(rng);
+        let dk = Self::generate_deterministic(&d, &z);
+
+        let mut seed = Zeroizing::new(Seed::default());
+        seed[..32].copy_from_slice(d.as_slice());
+        seed[32..].copy_from_slice(z.as_slice());
+
+        // The seed bytes now live inside `seed`; clear the working copies.
+        d.zeroize();
+        z.zeroize();
+        (seed, dk)
+    }
+
+    /// Reconstruct a decapsulation key from a 64-byte [`Seed`] (`d ‖ z`).
+    ///
+    /// The result is byte-identical to the key originally generated from the same seed. See
+    /// [`Seed`] for the security requirements on the seed's provenance.
+    #[must_use]
+    pub fn from_seed(seed: &Seed) -> Self {
+        let mut d = B32::default();
+        let mut z = B32::default();
+        d.as_mut_slice().copy_from_slice(&seed[..32]);
+        z.as_mut_slice().copy_from_slice(&seed[32..]);
+
+        let dk = Self::generate_deterministic(&d, &z);
+        d.zeroize();
+        z.zeroize();
+        dk
+    }
+
     #[must_use]
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     pub(crate) fn generate_deterministic(d: &B32, z: &B32) -> Self {
@@ -326,6 +363,24 @@ where
         rng: &mut R,
     ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
         let dk = Self::DecapsulationKey::generate(rng);
+        let ek = dk.encapsulation_key().clone();
+        (dk, ek)
+    }
+
+    fn generate_with_seed<R: CryptoRng + Rng + ?Sized>(
+        rng: &mut R,
+    ) -> (
+        Zeroizing<Seed>,
+        Self::DecapsulationKey,
+        Self::EncapsulationKey,
+    ) {
+        let (seed, dk) = Self::DecapsulationKey::generate_with_seed(rng);
+        let ek = dk.encapsulation_key().clone();
+        (seed, dk, ek)
+    }
+
+    fn generate_from_seed(seed: &Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
+        let dk = Self::DecapsulationKey::from_seed(seed);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
     }
@@ -450,5 +505,69 @@ mod test {
         try_from_bytes_validation_test::<MlKem512Params>();
         try_from_bytes_validation_test::<MlKem768Params>();
         try_from_bytes_validation_test::<MlKem1024Params>();
+    }
+
+    // Seed reconstruction is fully deterministic and needs no RNG, so this runs under the default
+    // feature set: `from_seed(d ‖ z)` must yield exactly what `generate_deterministic(d, z)` does.
+    #[test]
+    fn seed_matches_deterministic() {
+        use crate::param::KemParams;
+        use crate::util::B32;
+        use crate::{
+            MlKem512Params,
+            MlKem768Params,
+            MlKem1024Params,
+            Seed,
+        };
+
+        fn check<P: KemParams>() {
+            let mut seed = Seed::default();
+            seed.iter_mut()
+                .enumerate()
+                .for_each(|(i, b)| *b = u8::try_from(i).expect("seed index < 64 fits in u8"));
+
+            let mut d = B32::default();
+            let mut z = B32::default();
+            d.as_mut_slice().copy_from_slice(&seed[..32]);
+            z.as_mut_slice().copy_from_slice(&seed[32..]);
+
+            let dk_det = super::DecapsulationKey::<P>::generate_deterministic(&d, &z);
+            let dk_seed = super::DecapsulationKey::<P>::from_seed(&seed);
+            assert_eq!(dk_det, dk_seed);
+            assert_eq!(dk_det.encapsulation_key(), dk_seed.encapsulation_key());
+        }
+
+        check::<MlKem512Params>();
+        check::<MlKem768Params>();
+        check::<MlKem1024Params>();
+    }
+
+    #[cfg(feature = "random")]
+    fn seed_round_trip_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
+
+        // Generate fresh, capture the 64-byte seed, then reconstruct from it.
+        let (seed, dk) = DecapsulationKey::<P>::generate_with_seed(&mut rng);
+        let dk_restored = DecapsulationKey::<P>::from_seed(&seed);
+        assert_eq!(dk, dk_restored);
+        assert_eq!(dk.encapsulation_key(), dk_restored.encapsulation_key());
+
+        // The restored key is functionally equivalent: decapsulates a ciphertext encapsulated to
+        // the original encapsulation key.
+        let ek = dk.encapsulation_key();
+        let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
+        let k_recv = dk_restored.decapsulate(&ct).unwrap();
+        assert_eq!(k_send, k_recv);
+    }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn seed_round_trip() {
+        seed_round_trip_test::<MlKem512Params>();
+        seed_round_trip_test::<MlKem768Params>();
+        seed_round_trip_test::<MlKem1024Params>();
     }
 }
