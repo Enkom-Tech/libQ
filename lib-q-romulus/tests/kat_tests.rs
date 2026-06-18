@@ -4,9 +4,9 @@
 
 use std::vec::Vec;
 
-use aead::generic_array::GenericArray;
+use aead::array::Array;
 use aead::{
-    AeadInPlace,
+    AeadInOut,
     KeyInit,
 };
 use lib_q_romulus::{
@@ -104,13 +104,13 @@ fn kat_romulus_n_all() {
     );
 
     for e in &vectors {
-        let key = GenericArray::from(e.key);
-        let nonce = GenericArray::from(e.nonce);
+        let key = Array::from(e.key);
+        let nonce = Array::from(e.nonce);
         let cipher = RomulusN::new(&key);
 
         let mut buf = e.pt.clone();
         let tag = cipher
-            .encrypt_in_place_detached(&nonce, &e.ad, &mut buf)
+            .encrypt_inout_detached(&nonce, &e.ad, buf.as_mut_slice().into())
             .expect("encrypt");
         let mut combined = buf.clone();
         combined.extend_from_slice(tag.as_slice());
@@ -118,9 +118,9 @@ fn kat_romulus_n_all() {
 
         let body_len = e.ct.len().saturating_sub(16);
         let mut buf2 = e.ct[..body_len].to_vec();
-        let tag2 = GenericArray::clone_from_slice(&e.ct[body_len..]);
+        let tag2 = Array::try_from(&e.ct[body_len..]).expect("tag len");
         cipher
-            .decrypt_in_place_detached(&nonce, &e.ad, &mut buf2, &tag2)
+            .decrypt_inout_detached(&nonce, &e.ad, buf2.as_mut_slice().into(), &tag2)
             .expect("decrypt");
         assert_eq!(buf2, e.pt, "Romulus-N decrypt mismatch");
     }
@@ -136,13 +136,13 @@ fn kat_romulus_m_all() {
     );
 
     for e in &vectors {
-        let key = GenericArray::from(e.key);
-        let nonce = GenericArray::from(e.nonce);
+        let key = Array::from(e.key);
+        let nonce = Array::from(e.nonce);
         let cipher = RomulusM::new(&key);
 
         let mut buf = e.pt.clone();
         let tag = cipher
-            .encrypt_in_place_detached(&nonce, &e.ad, &mut buf)
+            .encrypt_inout_detached(&nonce, &e.ad, buf.as_mut_slice().into())
             .expect("encrypt");
         let mut combined = buf.clone();
         combined.extend_from_slice(tag.as_slice());
@@ -150,9 +150,9 @@ fn kat_romulus_m_all() {
 
         let body_len = e.ct.len().saturating_sub(16);
         let mut buf2 = e.ct[..body_len].to_vec();
-        let tag2 = GenericArray::clone_from_slice(&e.ct[body_len..]);
+        let tag2 = Array::try_from(&e.ct[body_len..]).expect("tag len");
         cipher
-            .decrypt_in_place_detached(&nonce, &e.ad, &mut buf2, &tag2)
+            .decrypt_inout_detached(&nonce, &e.ad, buf2.as_mut_slice().into(), &tag2)
             .expect("decrypt");
         assert_eq!(buf2, e.pt, "Romulus-M decrypt mismatch");
     }

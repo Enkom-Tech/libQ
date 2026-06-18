@@ -2,9 +2,9 @@
 
 #![cfg(feature = "std")]
 
-use aead::generic_array::GenericArray;
+use aead::array::Array;
 use aead::{
-    AeadInPlace,
+    AeadInOut,
     KeyInit,
 };
 use lib_q_romulus::{
@@ -14,16 +14,16 @@ use lib_q_romulus::{
 
 #[test]
 fn romulus_n_wrong_tag_fails() {
-    let key = GenericArray::from([7u8; 16]);
-    let nonce = GenericArray::from([8u8; 16]);
+    let key = Array::from([7u8; 16]);
+    let nonce = Array::from([8u8; 16]);
     let cipher = RomulusN::new(&key);
     let mut buf = b"hello romulus".to_vec();
     let tag = cipher
-        .encrypt_in_place_detached(&nonce, b"ad", &mut buf)
+        .encrypt_inout_detached(&nonce, b"ad", buf.as_mut_slice().into())
         .unwrap();
     let mut bad = tag;
     bad[0] ^= 0xFF;
-    let err = cipher.decrypt_in_place_detached(&nonce, b"ad", &mut buf, &bad);
+    let err = cipher.decrypt_inout_detached(&nonce, b"ad", buf.as_mut_slice().into(), &bad);
     assert!(err.is_err());
     assert!(
         buf.iter().all(|&b| b == 0),
@@ -33,57 +33,57 @@ fn romulus_n_wrong_tag_fails() {
 
 #[test]
 fn romulus_n_wrong_nonce_fails() {
-    let key = GenericArray::from([1u8; 16]);
-    let n1 = GenericArray::from([2u8; 16]);
-    let n2 = GenericArray::from([3u8; 16]);
+    let key = Array::from([1u8; 16]);
+    let n1 = Array::from([2u8; 16]);
+    let n2 = Array::from([3u8; 16]);
     let cipher = RomulusN::new(&key);
     let mut buf = b"data".to_vec();
     let tag = cipher
-        .encrypt_in_place_detached(&n1, b"", &mut buf)
+        .encrypt_inout_detached(&n1, b"", buf.as_mut_slice().into())
         .unwrap();
-    let err = cipher.decrypt_in_place_detached(&n2, b"", &mut buf, &tag);
+    let err = cipher.decrypt_inout_detached(&n2, b"", buf.as_mut_slice().into(), &tag);
     assert!(err.is_err());
 }
 
 #[test]
 fn romulus_n_wrong_ad_fails() {
-    let key = GenericArray::from([4u8; 16]);
-    let nonce = GenericArray::from([5u8; 16]);
+    let key = Array::from([4u8; 16]);
+    let nonce = Array::from([5u8; 16]);
     let cipher = RomulusN::new(&key);
     let mut buf = b"x".to_vec();
     let tag = cipher
-        .encrypt_in_place_detached(&nonce, b"ad1", &mut buf)
+        .encrypt_inout_detached(&nonce, b"ad1", buf.as_mut_slice().into())
         .unwrap();
-    let err = cipher.decrypt_in_place_detached(&nonce, b"ad2", &mut buf, &tag);
+    let err = cipher.decrypt_inout_detached(&nonce, b"ad2", buf.as_mut_slice().into(), &tag);
     assert!(err.is_err());
 }
 
 #[test]
 fn romulus_n_wrong_tag_empty_message_fails() {
-    let key = GenericArray::from([9u8; 16]);
-    let nonce = GenericArray::from([10u8; 16]);
+    let key = Array::from([9u8; 16]);
+    let nonce = Array::from([10u8; 16]);
     let cipher = RomulusN::new(&key);
     let mut buf = vec![];
     let tag = cipher
-        .encrypt_in_place_detached(&nonce, b"", &mut buf)
+        .encrypt_inout_detached(&nonce, b"", buf.as_mut_slice().into())
         .unwrap();
     let mut bad = tag;
     bad[15] ^= 1;
-    let err = cipher.decrypt_in_place_detached(&nonce, b"", &mut buf, &bad);
+    let err = cipher.decrypt_inout_detached(&nonce, b"", buf.as_mut_slice().into(), &bad);
     assert!(err.is_err());
 }
 
 #[test]
 fn romulus_n_truncated_ciphertext_fails() {
-    let key = GenericArray::from([6u8; 16]);
-    let nonce = GenericArray::from([7u8; 16]);
+    let key = Array::from([6u8; 16]);
+    let nonce = Array::from([7u8; 16]);
     let cipher = RomulusN::new(&key);
     let mut buf = vec![0xABu8; 32];
     let tag = cipher
-        .encrypt_in_place_detached(&nonce, b"", &mut buf)
+        .encrypt_inout_detached(&nonce, b"", buf.as_mut_slice().into())
         .unwrap();
     buf.truncate(16);
-    let err = cipher.decrypt_in_place_detached(&nonce, b"", &mut buf, &tag);
+    let err = cipher.decrypt_inout_detached(&nonce, b"", buf.as_mut_slice().into(), &tag);
     assert!(err.is_err());
     assert!(
         buf.iter().all(|&b| b == 0),
@@ -93,15 +93,15 @@ fn romulus_n_truncated_ciphertext_fails() {
 
 #[test]
 fn romulus_m_wrong_tag_fails() {
-    let key = GenericArray::from([11u8; 16]);
-    let nonce = GenericArray::from([12u8; 16]);
+    let key = Array::from([11u8; 16]);
+    let nonce = Array::from([12u8; 16]);
     let cipher = RomulusM::new(&key);
     let mut buf = b"msg".to_vec();
     let tag = cipher
-        .encrypt_in_place_detached(&nonce, b"z", &mut buf)
+        .encrypt_inout_detached(&nonce, b"z", buf.as_mut_slice().into())
         .unwrap();
     let mut bad = tag;
     bad[5] ^= 0x55;
-    let err = cipher.decrypt_in_place_detached(&nonce, b"z", &mut buf, &bad);
+    let err = cipher.decrypt_inout_detached(&nonce, b"z", buf.as_mut_slice().into(), &bad);
     assert!(err.is_err());
 }

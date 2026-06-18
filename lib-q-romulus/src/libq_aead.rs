@@ -7,9 +7,9 @@ extern crate alloc;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-use aead::generic_array::GenericArray;
+use aead::array::Array;
 use aead::{
-    AeadInPlace,
+    AeadInOut,
     KeyInit,
 };
 use lib_q_core::{
@@ -83,14 +83,22 @@ impl Aead for RomulusNAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let nonce_z = stack_secret::zeroizing_copy_16(nb);
-        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let nonce_arr =
+            Array::try_from(nonce_z.as_slice()).map_err(|_| Error::InvalidNonceSize {
+                expected: Self::nonce_size(),
+                actual: nonce_z.len(),
+            })?;
         let cipher = {
             let kz = stack_secret::zeroizing_copy_16(kb);
-            RomulusN::new(GenericArray::from_slice(kz.as_slice()))
+            let key_arr = Array::try_from(kz.as_slice()).map_err(|_| Error::InvalidKeySize {
+                expected: Self::key_size(),
+                actual: kz.len(),
+            })?;
+            RomulusN::new(&key_arr)
         };
         let mut buf = plaintext.to_vec();
         let tag = cipher
-            .encrypt_in_place_detached(nonce_ref, ad, &mut buf)
+            .encrypt_inout_detached(&nonce_arr, ad, buf.as_mut_slice().into())
             .map_err(|_| Error::EncryptionFailed {
                 operation: "Romulus-N encrypt".to_string(),
             })?;
@@ -244,14 +252,22 @@ impl Aead for RomulusMAead {
         }
         let ad = associated_data.unwrap_or(&[]);
         let nonce_z = stack_secret::zeroizing_copy_16(nb);
-        let nonce_ref = GenericArray::from_slice(nonce_z.as_slice());
+        let nonce_arr =
+            Array::try_from(nonce_z.as_slice()).map_err(|_| Error::InvalidNonceSize {
+                expected: Self::nonce_size(),
+                actual: nonce_z.len(),
+            })?;
         let cipher = {
             let kz = stack_secret::zeroizing_copy_16(kb);
-            RomulusM::new(GenericArray::from_slice(kz.as_slice()))
+            let key_arr = Array::try_from(kz.as_slice()).map_err(|_| Error::InvalidKeySize {
+                expected: Self::key_size(),
+                actual: kz.len(),
+            })?;
+            RomulusM::new(&key_arr)
         };
         let mut buf = plaintext.to_vec();
         let tag = cipher
-            .encrypt_in_place_detached(nonce_ref, ad, &mut buf)
+            .encrypt_inout_detached(&nonce_arr, ad, buf.as_mut_slice().into())
             .map_err(|_| Error::EncryptionFailed {
                 operation: "Romulus-M encrypt".to_string(),
             })?;

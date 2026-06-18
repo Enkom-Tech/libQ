@@ -2,19 +2,18 @@
 
 #![deny(unsafe_code)]
 
-use aead::consts::{
-    U0,
-    U16,
-};
+use aead::consts::U16;
+use aead::inout::InOutBuf;
 use aead::{
     AeadCore,
-    AeadInPlace,
+    AeadInOut,
     Error,
     Key,
     KeyInit,
     KeySizeUser,
     Nonce,
     Tag,
+    TagPosition,
 };
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
@@ -56,32 +55,36 @@ impl KeyInit for RomulusN {
 impl AeadCore for RomulusN {
     type NonceSize = U16;
     type TagSize = U16;
-    type CiphertextOverhead = U0;
+    const TAG_POSITION: TagPosition = TagPosition::Postfix;
 }
 
-impl AeadInPlace for RomulusN {
-    fn encrypt_in_place_detached(
+impl AeadInOut for RomulusN {
+    fn encrypt_inout_detached(
         &self,
         nonce: &Nonce<Self>,
         associated_data: &[u8],
-        buffer: &mut [u8],
+        buffer: InOutBuf<'_, '_, u8>,
     ) -> Result<Tag<Self>, Error> {
         let k = crate::stack_secret::zeroizing_copy_16(self.key.as_slice());
         let n = crate::stack_secret::zeroizing_copy_16(nonce.as_slice());
+        // Romulus is an in-place AEAD: aead's higher-level paths always hand us an aliased
+        // (in == out) buffer, so the output slice already holds the plaintext.
+        let buffer = buffer.into_out();
         let tag = romulus_n_encrypt(&k, &n, associated_data, buffer)?;
         Ok(Tag::<Self>::from(tag))
     }
 
-    fn decrypt_in_place_detached(
+    fn decrypt_inout_detached(
         &self,
         nonce: &Nonce<Self>,
         associated_data: &[u8],
-        buffer: &mut [u8],
+        buffer: InOutBuf<'_, '_, u8>,
         tag: &Tag<Self>,
     ) -> Result<(), Error> {
         let k = crate::stack_secret::zeroizing_copy_16(self.key.as_slice());
         let n = crate::stack_secret::zeroizing_copy_16(nonce.as_slice());
         let tg = crate::stack_secret::zeroizing_copy_16(tag.as_slice());
+        let buffer = buffer.into_out();
         romulus_n_decrypt(&k, &n, associated_data, buffer, &tg)
     }
 }
