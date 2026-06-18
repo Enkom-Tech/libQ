@@ -7,12 +7,23 @@
 //!
 //! ## Limits
 //!
-//! - **Plaintext**: 0 to 15 bytes (`MAX_PLAINTEXT_LEN`); cannot equal 16. The 16-byte padded
+//! - **Plaintext**: 0 to 15 bytes with the default 16-byte nonce; cannot equal 16. The padded
 //!   tail reserves at least one byte for the `0x80` terminator, so plaintext is strictly under
-//!   128 bits (15 bytes max), not 16 bytes (= 128 bits).
-//! - **Nonce**: 128 bits (16 bytes)
+//!   the tail length.
+//! - **Nonce**: 128 bits (16 bytes) by default
 //! - **Associated data**: not supported
 //! - **Ciphertext**: always 32 bytes
+//!
+//! ## Shorter-nonce tweak (update note)
+//!
+//! "An Update on Saturnin" proposes, "should the need arise", a tweak of Saturnin-Short that
+//! **decreases the nonce length in order to accommodate longer messages**. Since the 256-bit
+//! block is split as `pad(nonce ‖ plaintext)`, every byte removed from the nonce becomes
+//! available to the plaintext: with a nonce of `n` bytes the maximum plaintext length is
+//! `31 - n` bytes. [`SaturninShortAead::with_nonce_len`] selects the nonce length (the default
+//! [`SaturninShortAead::new`] keeps the 16-byte nonce, 15-byte plaintext limit). The shorter
+//! nonce trades nonce space (and thus the number of distinct nonces usable under one key) for
+//! message room, so callers must keep nonces unique within the reduced space.
 //!
 //! ## Side-channel and API contract
 //!
@@ -70,11 +81,20 @@ use zeroize::{
 
 use crate::core::SaturninCore;
 
-/// Maximum plaintext length in bytes (`< 128` bits per the Saturnin specification).
-const MAX_PLAINTEXT_LEN: usize = 15;
+/// Default nonce length in bytes (128 bits).
+const DEFAULT_NONCE_LEN: usize = 16;
 
 /// Fixed ciphertext length: one 256-bit Saturnin block.
 const CIPHERTEXT_LEN: usize = 32;
+
+/// Largest supported nonce length: leaves at least one tail byte for the `0x80` terminator.
+const MAX_NONCE_LEN: usize = CIPHERTEXT_LEN - 1;
+
+/// Maximum plaintext length for a given nonce length (`block - nonce - 1` for the terminator).
+#[inline]
+const fn max_plaintext_for_nonce(nonce_len: usize) -> usize {
+    CIPHERTEXT_LEN - nonce_len - 1
+}
 
 /// `0xff` if `x == 0`, else `0` (constant-time classification for an OR-reduced `u8` status).
 #[inline]
@@ -98,18 +118,23 @@ fn short_auth_ok_mask(auth_or: u8) -> u8 {
 }
 
 /// Nonce check and padding parse (reference `decrypt.c`); `auth_or == 0` iff valid under `nonce`.
-fn short_parse_auth_and_padding(decrypted: &[u8; 32], nonce: &[u8; 16]) -> (u8, usize) {
+///
+/// Generalized over the nonce length: the first `nonce.len()` bytes bind the nonce and the
+/// remaining `32 - nonce.len()` tail bytes carry `pad(plaintext)`.
+fn short_parse_auth_and_padding(decrypted: &[u8; 32], nonce: &[u8]) -> (u8, usize) {
+    let nonce_len = nonce.len();
+    let tail_len = CIPHERTEXT_LEN - nonce_len;
     let mut auth_or = 0u8;
 
-    for (stored, expected) in decrypted[..16].iter().zip(nonce.iter()) {
+    for (stored, expected) in decrypted[..nonce_len].iter().zip(nonce.iter()) {
         auth_or |= stored ^ expected;
     }
 
     let mut notfound = 0xFFu8;
     let mut plaintext_len = 0usize;
 
-    for i in (0..16).rev() {
-        let byte = decrypted[16 + i];
+    for i in (0..tail_len).rev() {
+        let byte = decrypted[nonce_len + i];
         let hit = u16::from(byte ^ 0x80) + 0xFF;
         let is_pad_byte = 1u8.wrapping_sub((hit >> 8) as u8);
         let found = notfound & is_pad_byte.wrapping_neg();
@@ -124,15 +149,19 @@ fn short_parse_auth_and_padding(decrypted: &[u8; 32], nonce: &[u8; 16]) -> (u8, 
     (auth_or, plaintext_len)
 }
 
-/// Fixed-length candidate plaintext (`<= MAX_PLAINTEXT_LEN` pushes); selection uses `auth_ok_mask` only.
+/// Fixed-length candidate plaintext (`<= max_pt` pushes); selection uses `auth_ok_mask` only.
+///
+/// `tail` is the post-nonce region of the decrypted block and `max_pt` is `tail.len() - 1`
+/// (the terminator byte can never be plaintext).
 fn short_materialize_plaintext_candidate(
     auth_ok_mask: u8,
     plaintext_len: usize,
-    tail: &[u8; 16],
+    tail: &[u8],
+    max_pt: usize,
 ) -> Vec<u8> {
-    let len_for_mask = plaintext_len.min(MAX_PLAINTEXT_LEN);
-    let mut out = Vec::with_capacity(MAX_PLAINTEXT_LEN);
-    for (i, &byte) in tail[..MAX_PLAINTEXT_LEN].iter().enumerate() {
+    let len_for_mask = plaintext_len.min(max_pt);
+    let mut out = Vec::with_capacity(max_pt);
+    for (i, &byte) in tail[..max_pt].iter().enumerate() {
         let take = auth_ok_mask & ct_usize_lt(i, len_for_mask);
         out.push(byte & take);
     }
@@ -140,15 +169,38 @@ fn short_materialize_plaintext_candidate(
 }
 
 /// Saturnin-Short AEAD (`Saturnin^6`, 10 super-rounds).
+///
+/// The nonce length is configurable (see [`with_nonce_len`](Self::with_nonce_len)) per the
+/// update note's shorter-nonce tweak; [`new`](Self::new) keeps the default 16-byte nonce.
 pub struct SaturninShortAead {
     core: SaturninCore,
+    nonce_len: usize,
 }
 
 impl SaturninShortAead {
-    /// Create a new Saturnin-Short AEAD instance.
+    /// Create a new Saturnin-Short AEAD instance with the default 16-byte nonce.
     pub fn new() -> Self {
+        Self::with_nonce_len(DEFAULT_NONCE_LEN).expect("default nonce length is valid")
+    }
+
+    /// Create a Saturnin-Short AEAD instance with a custom nonce length (update note's
+    /// shorter-nonce tweak).
+    ///
+    /// A nonce of `nonce_len` bytes leaves `31 - nonce_len` bytes for plaintext. The block is
+    /// always `pad(nonce ‖ plaintext)`, so at least one tail byte is reserved for the `0x80`
+    /// terminator.
+    ///
+    /// # Errors
+    /// Returns [`Error::InvalidNonceSize`] if `nonce_len` is `0` or greater than `31`.
+    pub fn with_nonce_len(nonce_len: usize) -> Result<Self> {
+        if nonce_len == 0 || nonce_len > MAX_NONCE_LEN {
+            return Err(Error::InvalidNonceSize {
+                expected: DEFAULT_NONCE_LEN,
+                actual: nonce_len,
+            });
+        }
         let core = SaturninCore::new(10, 6).expect("Saturnin-Short uses domain 6");
-        Self { core }
+        Ok(Self { core, nonce_len })
     }
 
     /// Key size in bytes.
@@ -156,9 +208,14 @@ impl SaturninShortAead {
         32
     }
 
-    /// Nonce size in bytes.
-    pub const fn nonce_size() -> usize {
-        16
+    /// Nonce size in bytes (the configured nonce length).
+    pub const fn nonce_size_default() -> usize {
+        DEFAULT_NONCE_LEN
+    }
+
+    /// Nonce size in bytes for this instance.
+    pub const fn nonce_size(&self) -> usize {
+        self.nonce_len
     }
 
     /// Authenticated ciphertext size in bytes (fixed 32-byte block).
@@ -166,9 +223,9 @@ impl SaturninShortAead {
         CIPHERTEXT_LEN
     }
 
-    /// Maximum supported plaintext length in bytes.
-    pub const fn max_plaintext_len() -> usize {
-        MAX_PLAINTEXT_LEN
+    /// Maximum supported plaintext length in bytes for this instance's nonce length.
+    pub const fn max_plaintext_len(&self) -> usize {
+        max_plaintext_for_nonce(self.nonce_len)
     }
 
     fn validate_key(key: &[u8]) -> Result<[u8; 32]> {
@@ -178,11 +235,14 @@ impl SaturninShortAead {
         })
     }
 
-    fn validate_nonce(nonce: &[u8]) -> Result<[u8; 16]> {
-        nonce.try_into().map_err(|_| Error::InvalidNonceSize {
-            expected: Self::nonce_size(),
-            actual: nonce.len(),
-        })
+    fn validate_nonce(&self, nonce: &[u8]) -> Result<()> {
+        if nonce.len() != self.nonce_len {
+            return Err(Error::InvalidNonceSize {
+                expected: self.nonce_len,
+                actual: nonce.len(),
+            });
+        }
+        Ok(())
     }
 
     fn reject_associated_data(ad: Option<&[u8]>) -> Result<()> {
@@ -195,10 +255,11 @@ impl SaturninShortAead {
         Ok(())
     }
 
-    fn reject_plaintext_len(plaintext_len: usize) -> Result<()> {
-        if plaintext_len > MAX_PLAINTEXT_LEN {
+    fn reject_plaintext_len(&self, plaintext_len: usize) -> Result<()> {
+        let max = self.max_plaintext_len();
+        if plaintext_len > max {
             return Err(Error::InvalidMessageSize {
-                max: MAX_PLAINTEXT_LEN,
+                max,
                 actual: plaintext_len,
             });
         }
@@ -206,35 +267,38 @@ impl SaturninShortAead {
     }
 
     /// Build `pad(nonce || plaintext)` into a 32-byte block (reference `encrypt.c`).
-    fn encode_block(nonce: &[u8; 16], plaintext: &[u8]) -> [u8; 32] {
+    fn encode_block(&self, nonce: &[u8], plaintext: &[u8]) -> [u8; 32] {
         let mut block = [0u8; 32];
-        block[..16].copy_from_slice(nonce);
+        let nonce_len = self.nonce_len;
+        block[..nonce_len].copy_from_slice(nonce);
         let pt_len = plaintext.len();
         if pt_len > 0 {
-            block[16..16 + pt_len].copy_from_slice(plaintext);
+            block[nonce_len..nonce_len + pt_len].copy_from_slice(plaintext);
         }
-        block[16 + pt_len] = 0x80;
+        block[nonce_len + pt_len] = 0x80;
         block
     }
 
     /// Semantic verify outcome for Saturnin-Short (no plaintext bytes on failure).
     fn short_decrypt_semantic_inner(
+        &self,
         decrypted: &[u8; 32],
-        nonce: &[u8; 16],
+        nonce: &[u8],
     ) -> DecryptSemanticOutcome {
+        let nonce_len = self.nonce_len;
+        let max_pt = self.max_plaintext_len();
         let (auth_or, plaintext_len) = short_parse_auth_and_padding(decrypted, nonce);
         let auth_ok_mask = short_auth_ok_mask(auth_or);
 
-        let mut tail = [0u8; 16];
-        tail.copy_from_slice(&decrypted[16..32]);
+        let tail = &decrypted[nonce_len..CIPHERTEXT_LEN];
 
         let mut candidate =
-            short_materialize_plaintext_candidate(auth_ok_mask, plaintext_len, &tail);
+            short_materialize_plaintext_candidate(auth_ok_mask, plaintext_len, tail, max_pt);
         if auth_ok_mask != SHORT_AUTH_OK_MASK {
             candidate.zeroize();
             return DecryptSemanticOutcome::AuthenticationFailed;
         }
-        candidate.truncate(plaintext_len.min(MAX_PLAINTEXT_LEN));
+        candidate.truncate(plaintext_len.min(max_pt));
         DecryptSemanticOutcome::Success(Zeroizing::new(candidate))
     }
 
@@ -255,7 +319,7 @@ impl SaturninShortAead {
         }
 
         let key32 = Self::validate_key(key.as_bytes())?;
-        let nonce16 = Self::validate_nonce(nonce.as_bytes())?;
+        self.validate_nonce(nonce.as_bytes())?;
 
         let mut block: [u8; 32] =
             ciphertext
@@ -270,7 +334,7 @@ impl SaturninShortAead {
             return Err(e);
         }
 
-        let outcome = Self::short_decrypt_semantic_inner(&block, &nonce16);
+        let outcome = self.short_decrypt_semantic_inner(&block, nonce.as_bytes());
         block.zeroize();
         Ok(outcome)
     }
@@ -284,12 +348,12 @@ impl SaturninShortAead {
         ad: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
         Self::reject_associated_data(ad)?;
-        Self::reject_plaintext_len(plaintext.len())?;
+        self.reject_plaintext_len(plaintext.len())?;
 
         let key32 = Self::validate_key(key.as_bytes())?;
-        let nonce16 = Self::validate_nonce(nonce.as_bytes())?;
+        self.validate_nonce(nonce.as_bytes())?;
 
-        let mut block = Self::encode_block(&nonce16, plaintext);
+        let mut block = self.encode_block(nonce.as_bytes(), plaintext);
         self.core.encrypt_block_32(&key32, &mut block)?;
 
         Ok(block.to_vec())
@@ -380,11 +444,48 @@ mod tests {
 
     #[test]
     fn test_saturnin_short_creation() {
-        let _aead = SaturninShortAead::new();
+        let aead = SaturninShortAead::new();
         assert_eq!(SaturninShortAead::key_size(), 32);
-        assert_eq!(SaturninShortAead::nonce_size(), 16);
+        assert_eq!(SaturninShortAead::nonce_size_default(), 16);
+        assert_eq!(aead.nonce_size(), 16);
         assert_eq!(SaturninShortAead::tag_size(), 32);
-        assert_eq!(SaturninShortAead::max_plaintext_len(), 15);
+        assert_eq!(aead.max_plaintext_len(), 15);
+    }
+
+    #[test]
+    fn test_saturnin_short_shorter_nonce_tweak() -> Result<()> {
+        // 8-byte nonce frees 8 extra plaintext bytes: max = 31 - 8 = 23.
+        let aead = SaturninShortAead::with_nonce_len(8)?;
+        assert_eq!(aead.nonce_size(), 8);
+        assert_eq!(aead.max_plaintext_len(), 23);
+
+        let key = AeadKey::new(vec![0x42u8; 32]);
+        let nonce = Nonce::new(vec![0x11u8; 8]);
+        let plaintext = vec![0xABu8; 23]; // longer than the 15-byte default-nonce limit
+
+        let ct = aead.encrypt(&key, &nonce, &plaintext, None)?;
+        assert_eq!(ct.len(), 32);
+        assert_eq!(aead.decrypt(&key, &nonce, &ct, None)?, plaintext);
+
+        // 24 bytes must be rejected (one over the limit for an 8-byte nonce).
+        assert!(aead.encrypt(&key, &nonce, &[0u8; 24], None).is_err());
+        // Wrong-length nonce rejected.
+        assert!(
+            aead.encrypt(&key, &Nonce::new(vec![0u8; 16]), &plaintext, None)
+                .is_err()
+        );
+        // Tamper still caught.
+        let mut bad = ct.clone();
+        bad[30] ^= 1;
+        assert!(aead.decrypt(&key, &nonce, &bad, None).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_saturnin_short_invalid_nonce_len_config() {
+        assert!(SaturninShortAead::with_nonce_len(0).is_err());
+        assert!(SaturninShortAead::with_nonce_len(32).is_err());
+        assert!(SaturninShortAead::with_nonce_len(31).is_ok()); // degenerate: max_pt = 0
     }
 
     #[test]
