@@ -157,6 +157,17 @@ pub trait EncodedSizeUser {
 /// A byte array encoding a value the indicated size
 pub type Encoded<T> = Array<u8, <T as EncodedSizeUser>::EncodedSize>;
 
+/// Error returned when an imported key fails FIPS-203 input validation.
+///
+/// Produced by the checked decoders (`try_from_bytes`) when an encapsulation/decapsulation key is
+/// non-canonically encoded (a 12-bit coefficient `>= q`, i.e. it does not re-encode to itself) or
+/// when a decapsulation key's embedded hash `h` does not equal `H(ek)`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Error {
+    /// The imported key failed validation and must not be used.
+    InvalidKey,
+}
+
 /// A value that can be encapsulated to.  Note that this interface is not safe: In order for the
 /// KEM to be secure, the `m` input must be randomly generated.
 #[cfg(feature = "deterministic")]

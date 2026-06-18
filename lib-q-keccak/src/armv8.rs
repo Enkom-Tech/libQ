@@ -116,9 +116,12 @@ pub unsafe fn p1600_armv8_sha3_asm(state: &mut [u64; 25], round_count: usize) {
         st1.1d	{{v20-v23}}, [x0], #32
         st1.1d	{{v24}},     [x0]
     ",
-        in("x0") state.as_mut_ptr(),
-        in("x1") crate::RC[24-round_count..].as_ptr(),
-        in("x8") round_count,
+        // These registers are mutated by the routine (x0/x1 post-increment loads,
+        // x8 loop counter), so they must be `inout`, not read-only `in` — declaring
+        // a clobbered register as `in` is UB. Matches RustCrypto `keccak` 0.1.6.
+        inout("x0") state.as_mut_ptr() => _,
+        inout("x1") crate::RC[24-round_count..].as_ptr() => _,
+        inout("x8") round_count => _,
         clobber_abi("C"),
         options(nostack)
         );

@@ -365,7 +365,7 @@ impl<T: PRNG> Sampler<T> {
             let x = _mm_sub_sd(x, _mm_cvtsi32_sd(_mm_setzero_pd(), z2));
             let x = _mm_mul_sd(x, twop21);
             let z1 = _mm_cvttsd_si32(x);
-            let x = _mm_sub_sd(x, _mm_cvtsi32_sd(_mm_setzero_pd(), z2));
+            let x = _mm_sub_sd(x, _mm_cvtsi32_sd(_mm_setzero_pd(), z1));
             let x = _mm_mul_sd(x, twop21);
             let z0 = _mm_cvttsd_si32(x);
             ((z2 as i64) << 42) + ((z1 as i64) << 21) + (z0 as i64)

@@ -184,6 +184,24 @@ where
             rho: rho.clone(),
         }
     }
+
+    /// Parse and FIPS-203 validate an encryption key from `(t_hat || rho)`.
+    ///
+    /// Valid keys decode identically to [`Self::from_bytes`].
+    ///
+    /// # Errors
+    /// Returns [`crate::Error::InvalidKey`] if any 12-bit coefficient is non-canonical (`>= q`),
+    /// i.e. the input does not re-encode to itself (the FIPS-203 "modulus check").
+    pub fn try_from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, crate::Error> {
+        // `decode_u12` reduces each limb mod q, so a non-canonical limb (>= q) is silently
+        // changed; re-encoding and comparing detects exactly those limbs.
+        let key = Self::from_bytes(enc);
+        if key.as_bytes() == *enc {
+            Ok(key)
+        } else {
+            Err(crate::Error::InvalidKey)
+        }
+    }
 }
 
 #[cfg(test)]
