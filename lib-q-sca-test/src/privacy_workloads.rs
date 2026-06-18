@@ -140,7 +140,13 @@ pub fn touch_blind_signature_verify(
     tau: usize,
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
-    bundle.verify_blind_signature(issuer_params, genuine_issuer_com, base_ctx, tau, z_inf_bound)
+    bundle.verify_blind_signature(
+        issuer_params,
+        genuine_issuer_com,
+        base_ctx,
+        tau,
+        z_inf_bound,
+    )
 }
 
 /// Private Merkle membership pilot verifier.

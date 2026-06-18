@@ -4,8 +4,18 @@
 //! ceiling, and bulk. Compare against lib-q-saturnin / lib-q-duplex-aead /
 //! lib-q-romulus via lib-q-aead/benches for the cross-algorithm picture.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use lib_q_sah::{Sah256, Sah256Key, Sah256Nonce};
+use criterion::{
+    BenchmarkId,
+    Criterion,
+    Throughput,
+    criterion_group,
+    criterion_main,
+};
+use lib_q_sah::{
+    Sah256,
+    Sah256Key,
+    Sah256Nonce,
+};
 
 fn bench_seal(c: &mut Criterion) {
     let key = Sah256Key::new([0x42; 32]);

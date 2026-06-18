@@ -3,9 +3,10 @@
 //! Internal: operates on a raw `[u64; 8]` state plus the 4 key words. The
 //! public, typed API lives in `lib.rs`.
 
+use zeroize::Zeroize;
+
 use crate::params::*;
 use crate::round::permute;
-use zeroize::Zeroize;
 
 /// Working state: the 512-bit permutation state and the cached key words used
 /// for feedforward and tag extraction. Zeroized on drop.

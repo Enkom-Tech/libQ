@@ -530,10 +530,12 @@ where
     // disagree with the trusted set in count or name.
     let mut global_cumulative = BTreeMap::<&String, Vec<_>>::new();
     for (i, proof_data) in global_lookup_data.iter().enumerate() {
-        let trusted_global_names = all_lookups[i].iter().filter_map(|lookup| match &lookup.kind {
-            Kind::Global(name) => Some(name),
-            Kind::Local => None,
-        });
+        let trusted_global_names = all_lookups[i]
+            .iter()
+            .filter_map(|lookup| match &lookup.kind {
+                Kind::Global(name) => Some(name),
+                Kind::Local => None,
+            });
 
         let mut proof_iter = proof_data.iter();
         let mut matched = 0usize;

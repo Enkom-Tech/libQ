@@ -42,10 +42,7 @@ impl<F: Field> Zeroize for SecretFieldElement<F> {
         // SAFETY: `self.value` is a valid, aligned, initialized field element
         // for the duration of this method, and we hold `&mut self`.
         unsafe {
-            core::ptr::write_volatile(
-                core::ptr::addr_of_mut!(self.value),
-                F::ZERO,
-            );
+            core::ptr::write_volatile(core::ptr::addr_of_mut!(self.value), F::ZERO);
         }
         core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
     }

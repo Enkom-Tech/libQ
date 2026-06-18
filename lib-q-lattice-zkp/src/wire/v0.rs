@@ -395,11 +395,8 @@ pub fn decode_private_membership_proof_v0(
     if margin > PVTN_CLEARANCE_MARGIN_NORM_BETA as u32 {
         return Err(VerifyError::InvalidFormat);
     }
-    let recomposed = crate::sigma::hierarchical::encode_pvtn_leaf(
-        clearance_level,
-        &role_tag,
-        &parent_digest,
-    );
+    let recomposed =
+        crate::sigma::hierarchical::encode_pvtn_leaf(clearance_level, &role_tag, &parent_digest);
     if crate::sigma::hierarchical::leaf_hash(&recomposed) != leaf_digest {
         return Err(VerifyError::Rejected);
     }

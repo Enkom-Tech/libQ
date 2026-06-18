@@ -65,7 +65,8 @@ const LINEAR_U_FS_DOMAIN: &[u8] = b"lattice-zkp/sigma-linear/u/v0";
 /// ([`write_module_vec`]) is used on both prover and verifier sides.
 fn linear_fs_ctx(ctx: &[u8], u: &ModuleVec) -> alloc::vec::Vec<u8> {
     let u_wire = write_module_vec(&u.0);
-    let mut out = alloc::vec::Vec::with_capacity(ctx.len() + LINEAR_U_FS_DOMAIN.len() + u_wire.len());
+    let mut out =
+        alloc::vec::Vec::with_capacity(ctx.len() + LINEAR_U_FS_DOMAIN.len() + u_wire.len());
     out.extend_from_slice(ctx);
     out.extend_from_slice(LINEAR_U_FS_DOMAIN);
     out.extend_from_slice(&u_wire);
