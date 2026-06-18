@@ -186,6 +186,12 @@ pub mod block_cipher;
 #[cfg(feature = "hash")]
 pub mod hash;
 
+// Saturnin-QCB: one-pass AEAD on the Saturnin tweakable block cipher (update note).
+#[cfg(feature = "qcb")]
+pub mod qcb;
+#[cfg(feature = "qcb")]
+pub mod tbc;
+
 #[cfg(feature = "stream")]
 pub mod stream;
 
@@ -198,11 +204,15 @@ pub use aead_short::SaturninShortAead;
 pub use block_cipher::SaturninBlockCipher;
 #[cfg(feature = "hash")]
 pub use hash::SaturninHash;
+#[cfg(feature = "qcb")]
+pub use qcb::SaturninQcb;
 #[cfg(feature = "stream")]
 pub use stream::{
     SaturninKeystream,
     SaturninStream,
 };
+#[cfg(feature = "qcb")]
+pub use tbc::SaturninTbc;
 
 /// Get available Saturnin algorithm modes
 #[allow(clippy::vec_init_then_push, unused_mut)] // Can't use vec![] due to feature-gated content
@@ -214,6 +224,9 @@ pub fn available_modes() -> Vec<&'static str> {
 
     #[cfg(feature = "aead-short")]
     modes.push("aead-short");
+
+    #[cfg(feature = "qcb")]
+    modes.push("qcb");
 
     #[cfg(feature = "block-cipher")]
     modes.push("block-cipher");
@@ -234,6 +247,8 @@ pub fn create_saturnin(mode: &str) -> Result<Box<dyn Aead>> {
         "aead" => Ok(Box::new(SaturninAead::new())),
         #[cfg(feature = "aead-short")]
         "aead-short" => Ok(Box::new(SaturninShortAead::new())),
+        #[cfg(feature = "qcb")]
+        "qcb" => Ok(Box::new(SaturninQcb::new())),
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown Saturnin mode",
         }),

@@ -18,13 +18,15 @@ lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
-default = ["aead", "block-cipher", "hash", "stream", "alloc"]
+default = ["aead", "block-cipher", "hash", "stream", "qcb", "alloc"]
 std = ["alloc"]
 alloc = ["lib-q-core/alloc"]
 
 # Algorithm modes
 aead = ["dep:zeroize"]
 aead-short = ["dep:zeroize"]
+# Saturnin-QCB one-pass AEAD (tweakable-block-cipher mode from the update note)
+qcb = ["dep:zeroize"]
 block-cipher = []
 hash = []
 stream = ["dep:zeroize"]
