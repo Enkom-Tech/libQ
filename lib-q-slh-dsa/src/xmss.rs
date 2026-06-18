@@ -11,16 +11,23 @@ use crate::wots::{
     WotsSig,
 };
 use crate::{
-    PkSeed,
     SkSeed,
     address,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct XmssSig<P: XmssParams> {
     pub(crate) sig: WotsSig<P>,
     pub(crate) auth: Array<Array<u8, P::N>, P::HPrime>,
 }
+
+// Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound.
+impl<P: XmssParams> PartialEq for XmssSig<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.sig == other.sig && self.auth == other.auth
+    }
+}
+impl<P: XmssParams> Eq for XmssSig<P> {}
 
 impl<P: XmssParams> XmssSig<P> {
     pub const SIZE: usize = WotsSig::<P>::SIZE + P::HPrime::USIZE * P::N::USIZE;
@@ -68,10 +75,10 @@ pub(crate) trait XmssParams: WotsParams + Sized {
     type HPrime: ArraySize + Debug + Eq;
 
     fn xmss_node(
+        hasher: &Self,
         sk_seed: &SkSeed<Self::N>,
         node: u32,
         height: u32,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> Array<u8, Self::N> {
         debug_assert!(height <= Self::HPrime::U32);
@@ -79,33 +86,33 @@ pub(crate) trait XmssParams: WotsParams + Sized {
         if height == 0 {
             let mut adrs = adrs.clone();
             adrs.key_pair_adrs.set(node);
-            Self::wots_pk_gen(sk_seed, pk_seed, &adrs)
+            Self::wots_pk_gen(hasher, sk_seed, &adrs)
         } else {
-            let lnode = Self::xmss_node(sk_seed, 2 * node, height - 1, pk_seed, adrs);
-            let rnode = Self::xmss_node(sk_seed, 2 * node + 1, height - 1, pk_seed, adrs);
+            let lnode = Self::xmss_node(hasher, sk_seed, 2 * node, height - 1, adrs);
+            let rnode = Self::xmss_node(hasher, sk_seed, 2 * node + 1, height - 1, adrs);
             let mut adrs = adrs.tree_adrs();
             adrs.tree_height.set(height);
             adrs.tree_index.set(node);
-            Self::h(pk_seed, &adrs, &lnode, &rnode)
+            hasher.h(&adrs, &lnode, &rnode)
         }
     }
 
     fn xmss_sign(
+        hasher: &Self,
         m: &Array<u8, Self::N>,
         sk_seed: &SkSeed<Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         idx: u32,
         adrs: &address::WotsHash,
     ) -> XmssSig<Self> {
         let mut adrs = adrs.clone();
         adrs.key_pair_adrs.set(idx);
 
-        let sig = Self::wots_sign(m, sk_seed, pk_seed, &adrs);
+        let sig = Self::wots_sign(hasher, m, sk_seed, &adrs);
 
         let mut auth = Array::<Array<u8, Self::N>, Self::HPrime>::default();
         let mut idx = idx;
         for j in 0..Self::HPrime::U32 {
-            let node = Self::xmss_node(sk_seed, idx ^ 1, j, pk_seed, &adrs);
+            let node = Self::xmss_node(hasher, sk_seed, idx ^ 1, j, &adrs);
             idx >>= 1;
             auth[j as usize] = node;
         }
@@ -114,17 +121,17 @@ pub(crate) trait XmssParams: WotsParams + Sized {
     }
 
     fn xmss_pk_from_sig(
+        hasher: &Self,
         idx: u32,
         sig: &XmssSig<Self>,
         m: &Array<u8, Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> Array<u8, Self::N>
 where {
         let mut adrs = adrs.clone();
         adrs.key_pair_adrs.set(idx);
 
-        let mut node = Self::wots_pk_from_sig(&sig.sig, m, pk_seed, &adrs);
+        let mut node = Self::wots_pk_from_sig(hasher, &sig.sig, m, &adrs);
 
         let mut adrs = adrs.tree_adrs();
 
@@ -135,9 +142,9 @@ where {
             (idx, rem) = (idx >> 1, idx & 1);
             adrs.tree_index.set(idx);
             if rem == 0 {
-                node = Self::h(pk_seed, &adrs, &node, &sig.auth[j as usize]);
+                node = hasher.h(&adrs, &node, &sig.auth[j as usize]);
             } else {
-                node = Self::h(pk_seed, &adrs, &sig.auth[j as usize], &node);
+                node = hasher.h(&adrs, &sig.auth[j as usize], &node);
             }
         }
         node
@@ -154,7 +161,10 @@ mod tests {
     use typenum::Unsigned;
 
     use crate::address::WotsHash;
-    use crate::hashes::Shake128f;
+    use crate::hashes::{
+        HashSuite,
+        Shake128f,
+    };
     use crate::util::macros::test_parameter_sets;
     use crate::xmss::XmssParams;
     use crate::{
@@ -167,11 +177,12 @@ mod tests {
         let sk_seed = SkSeed(Array([1; 16]));
         let pk_seed = PkSeed(Array([2; 16]));
         let adrs = WotsHash::default();
+        let hasher = Shake128f::new_from_pk_seed(&pk_seed);
         let node = Shake128f::xmss_node(
+            &hasher,
             &sk_seed,
             0,
             <Shake128f as XmssParams>::HPrime::U32,
-            &pk_seed,
             &adrs,
         );
 
@@ -188,7 +199,8 @@ mod tests {
         let adrs = WotsHash::default();
         let m = Array([3; 16]);
         let idx = 3;
-        let sig = Shake128f::xmss_sign(&m, &sk_seed, &pk_seed, idx, &adrs);
+        let hasher = Shake128f::new_from_pk_seed(&pk_seed);
+        let sig = Shake128f::xmss_sign(&hasher, &m, &sk_seed, idx, &adrs);
 
         let expected = hex!(
             "
@@ -230,11 +242,12 @@ mod tests {
         let idx = rng.next_u32() % (1 << Xmss::HPrime::U32);
 
         let adrs = WotsHash::default();
+        let hasher = Xmss::new_from_pk_seed(&pk_seed);
 
-        let pk = Xmss::xmss_node(&sk_seed, 0, Xmss::HPrime::U32, &pk_seed, &adrs);
+        let pk = Xmss::xmss_node(&hasher, &sk_seed, 0, Xmss::HPrime::U32, &adrs);
 
-        let sig = Xmss::xmss_sign(&msg, &sk_seed, &pk_seed, idx, &adrs);
-        let pk_recovered = Xmss::xmss_pk_from_sig(idx, &sig, &msg, &pk_seed, &adrs);
+        let sig = Xmss::xmss_sign(&hasher, &msg, &sk_seed, idx, &adrs);
+        let pk_recovered = Xmss::xmss_pk_from_sig(&hasher, idx, &sig, &msg, &adrs);
 
         assert_eq!(pk, pk_recovered);
     }
@@ -255,15 +268,16 @@ mod tests {
         let idx = rng.next_u32() % (1 << Xmss::HPrime::U32);
 
         let adrs = WotsHash::default();
+        let hasher = Xmss::new_from_pk_seed(&pk_seed);
 
-        let pk = Xmss::xmss_node(&sk_seed, 0, Xmss::HPrime::U32, &pk_seed, &adrs);
+        let pk = Xmss::xmss_node(&hasher, &sk_seed, 0, Xmss::HPrime::U32, &adrs);
 
-        let sig = Xmss::xmss_sign(&msg, &sk_seed, &pk_seed, idx, &adrs);
+        let sig = Xmss::xmss_sign(&hasher, &msg, &sk_seed, idx, &adrs);
 
         // Tweak message
         msg[0] ^= 0xFF;
 
-        let pk_recovered = Xmss::xmss_pk_from_sig(idx, &sig, &msg, &pk_seed, &adrs);
+        let pk_recovered = Xmss::xmss_pk_from_sig(&hasher, idx, &sig, &msg, &adrs);
 
         assert_ne!(pk, pk_recovered);
     }

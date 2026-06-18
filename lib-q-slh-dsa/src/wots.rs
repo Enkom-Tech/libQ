@@ -10,7 +10,6 @@ use typenum::generic_const_mappings::U;
 use crate::hashes::HashSuite;
 use crate::util::base_2b;
 use crate::{
-    PkSeed,
     SkSeed,
     address,
 };
@@ -22,8 +21,17 @@ const LOG_W: usize = 4;
 const W: u32 = 16;
 const CK_LEN: usize = 3; // Length of a checksum in chunks
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct WotsSig<P: WotsParams>(Array<Array<u8, P::N>, P::WotsSigLen>);
+
+// Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound; the
+// hash suite `P` is not `Eq`, but the signature contents (`Array<u8, _>`) are.
+impl<P: WotsParams> PartialEq for WotsSig<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<P: WotsParams> Eq for WotsSig<P> {}
 
 impl<P: WotsParams> WotsSig<P> {
     pub const SIZE: usize = P::N::USIZE * P::WotsSigLen::USIZE;
@@ -66,10 +74,10 @@ pub(crate) trait WotsParams: HashSuite {
 
     /// Algorithm 4
     fn wots_chain(
+        hasher: &Self,
         x: &Array<u8, Self::N>,
         i: u32,
         s: u32,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> Array<u8, Self::N> {
         debug_assert!(i + s < 1 << LOG_W, "Invalid wots_chain index");
@@ -78,15 +86,15 @@ pub(crate) trait WotsParams: HashSuite {
         let mut adrs = adrs.clone(); // TODO: no clone
         for j in i..(i + s) {
             adrs.hash_adrs.set(j);
-            tmp = Self::f(pk_seed, &adrs, &tmp); // TODO: overwrite existing buffer
+            tmp = hasher.f(&adrs, &tmp); // TODO: overwrite existing buffer
         }
         tmp
     }
 
     /// Algorithm 5
     fn wots_pk_gen(
+        hasher: &Self,
         sk_seed: &SkSeed<Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> Array<u8, Self::N> {
         let mut adrs = adrs.clone();
@@ -96,18 +104,18 @@ pub(crate) trait WotsParams: HashSuite {
             let i: u32 = i.try_into().expect("i is less than 2^32");
             sk_adrs.chain_adrs.set(i);
             adrs.chain_adrs.set(i);
-            let sk = Self::prf_sk(pk_seed, sk_seed, &sk_adrs);
-            Self::wots_chain(&sk, 0, (1 << LOG_W) - 1, pk_seed, &adrs)
+            let sk = hasher.prf_sk(sk_seed, &sk_adrs);
+            Self::wots_chain(hasher, &sk, 0, (1 << LOG_W) - 1, &adrs)
         });
         let pk_adrs = adrs.pk_adrs();
-        Self::t(pk_seed, &pk_adrs, &tmp)
+        hasher.t(&pk_adrs, &tmp)
     }
 
     // Algorithm 6
     fn wots_sign(
+        hasher: &Self,
         m: &Array<u8, Self::N>,
         sk_seed: &SkSeed<Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> WotsSig<Self> {
         let msg = base_2b::<Self::WotsMsgLen, U<LOG_W>>(m.as_slice());
@@ -125,17 +133,17 @@ pub(crate) trait WotsParams: HashSuite {
             sk_adrs.chain_adrs.set(i);
             adrs.chain_adrs.set(i);
 
-            let sk = Self::prf_sk(pk_seed, sk_seed, &sk_adrs);
-            Self::wots_chain(&sk, 0, u32::from(*msg_csum.next().unwrap()), pk_seed, &adrs)
+            let sk = hasher.prf_sk(sk_seed, &sk_adrs);
+            Self::wots_chain(hasher, &sk, 0, u32::from(*msg_csum.next().unwrap()), &adrs)
         });
 
         WotsSig(sig)
     }
 
     fn wots_pk_from_sig(
+        hasher: &Self,
         sig: &WotsSig<Self>,
         m: &Array<u8, Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         adrs: &address::WotsHash,
     ) -> Array<u8, Self::N> {
         let msg = base_2b::<Self::WotsMsgLen, U<LOG_W>>(m.as_slice());
@@ -149,9 +157,9 @@ pub(crate) trait WotsParams: HashSuite {
             adrs.chain_adrs
                 .set(i.try_into().expect("i is less than 2^32"));
             let msg_i = u32::from(*msg_csum.next().unwrap());
-            Self::wots_chain(&sig.0[i], msg_i, W - 1 - msg_i, pk_seed, &adrs)
+            Self::wots_chain(hasher, &sig.0[i], msg_i, W - 1 - msg_i, &adrs)
         });
-        Self::t(pk_seed, &adrs.pk_adrs(), &tmp)
+        hasher.t(&adrs.pk_adrs(), &tmp)
     }
 }
 #[cfg(test)]
@@ -163,7 +171,10 @@ mod tests {
 
     use super::WotsParams;
     use crate::address::WotsHash;
-    use crate::hashes::Shake128f;
+    use crate::hashes::{
+        HashSuite,
+        Shake128f,
+    };
     use crate::util::macros::test_parameter_sets;
     use crate::{
         PkSeed,
@@ -182,11 +193,12 @@ mod tests {
         rng.fill_bytes(msg.as_mut_slice());
 
         let adrs = &WotsHash::default();
+        let hasher = Wots::new_from_pk_seed(&pk_seed);
 
-        let pk = Wots::wots_pk_gen(&sk_seed, &pk_seed, adrs);
+        let pk = Wots::wots_pk_gen(&hasher, &sk_seed, adrs);
 
-        let sig = Wots::wots_sign(&msg, &sk_seed, &pk_seed, adrs);
-        let pk_recovered = Wots::wots_pk_from_sig(&sig, &msg, &pk_seed, adrs);
+        let sig = Wots::wots_sign(&hasher, &msg, &sk_seed, adrs);
+        let pk_recovered = Wots::wots_pk_from_sig(&hasher, &sig, &msg, adrs);
 
         assert_eq!(pk, pk_recovered);
     }
@@ -205,18 +217,19 @@ mod tests {
         rng.fill_bytes(msg.as_mut_slice());
 
         let adrs = &WotsHash::default();
+        let hasher = Wots::new_from_pk_seed(&pk_seed);
 
         // Generate public key
-        let pk = Wots::wots_pk_gen(&sk_seed, &pk_seed, adrs);
+        let pk = Wots::wots_pk_gen(&hasher, &sk_seed, adrs);
 
         // Sign the message
-        let sig = Wots::wots_sign(&msg, &sk_seed, &pk_seed, adrs);
+        let sig = Wots::wots_sign(&hasher, &msg, &sk_seed, adrs);
 
         // Tweak the message
         msg[0] ^= 0xFF; // Invert the first byte of the message
 
         // Attempt to recover the public key from the tweaked message and signature
-        let pk_recovered = Wots::wots_pk_from_sig(&sig, &msg, &pk_seed, adrs);
+        let pk_recovered = Wots::wots_pk_from_sig(&hasher, &sig, &msg, adrs);
 
         // Check that the recovered public key does not match the original public key
         assert_ne!(
@@ -236,7 +249,8 @@ mod tests {
         // Generated by https://github.com/mjosaarinen/slh-dsa-py
         let expected = Array(hex!("98b63dd1574484876b1f8a1120421eac"));
 
-        let result = Shake128f::wots_pk_gen(&sk_seed, &pk_seed, &adrs);
+        let hasher = Shake128f::new_from_pk_seed(&pk_seed);
+        let result = Shake128f::wots_pk_gen(&hasher, &sk_seed, &adrs);
 
         assert_eq!(result, expected);
     }
@@ -270,7 +284,8 @@ mod tests {
             bc6e16d8458fc1917ff4ac57de461ee1"
         );
 
-        let result = Shake128f::wots_sign(&msg, &sk_seed, &pk_seed, adrs);
+        let hasher = Shake128f::new_from_pk_seed(&pk_seed);
+        let result = Shake128f::wots_sign(&hasher, &msg, &sk_seed, adrs);
         assert_eq!(result.to_vec(), expected.as_slice());
     }
 }

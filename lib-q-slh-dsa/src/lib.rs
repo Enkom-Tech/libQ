@@ -102,9 +102,7 @@ pub use verifying_key::{
 /// assert!(vk.verify(message, &sig).is_ok());
 /// ```
 #[allow(private_bounds)] // Intentionally un-usable type
-pub trait ParameterSet:
-    ForsParams + SigningKeyLen + VerifyingKeyLen + SignatureLen + PartialEq + Eq
-{
+pub trait ParameterSet: ForsParams + SigningKeyLen + VerifyingKeyLen + SignatureLen {
     /// Human-readable name for parameter set, matching the FIPS-205 designations
     ///
     /// # Examples
