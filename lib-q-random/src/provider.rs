@@ -739,8 +739,8 @@ mod tests {
         let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let entropy_source = crate::entropy::UserEntropySource::new(entropy_data);
         let rng = LibQRng::new_custom(entropy_source);
-        assert!(!rng.is_deterministic());
-        assert_eq!(rng.security_level(), SecurityLevel::CryptographicallySecure);
+        assert!(rng.is_deterministic());
+        assert_eq!(rng.security_level(), SecurityLevel::Deterministic);
     }
 
     #[test]

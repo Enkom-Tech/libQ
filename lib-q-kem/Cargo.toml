@@ -18,28 +18,28 @@ ignored = [
     "lib-q-sha3",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 
 # RustCrypto ML-KEM implementation (FIPS 203 standard)
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.8", optional = true, default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", optional = true, default-features = false }
 
 # Classical McEliece KEM implementation
-lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.8", optional = true, default-features = false }
+lib-q-cb-kem = { path = "../lib-q-cb-kem", version = "0.0.7", optional = true, default-features = false }
 
 # HQC KEM implementation
-lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.8", optional = true, default-features = false }
+lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.7", optional = true, default-features = false }
 
 # SHA3 for authentication proofs
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", optional = true, default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", optional = true, default-features = false }
 
 # Random dependencies for the ml-kem feature
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true }
 
 # WASM bindings
 wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
 
 [features]
 default = []

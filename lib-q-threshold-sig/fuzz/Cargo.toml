@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-threshold-sig-fuzz"
-version = "0.0.8"
+version = "0.0.7"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false
@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 lib-q-threshold-sig = { path = "..", default-features = false, features = ["std", "random"] }
-lib-q-random = { path = "../../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
+lib-q-random = { path = "../../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
 libfuzzer-sys = "0.4.12"
 
 [[bin]]
