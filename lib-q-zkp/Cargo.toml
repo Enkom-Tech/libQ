@@ -20,26 +20,26 @@ ignored = [
     "lib-q-stark-rayon",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false, features = ["std"] }
-lib-q-stark = { path = "../lib-q-stark", version = "0.0.7", default-features = false, features = ["alloc"] }
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7" }
-lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.7" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.7" }
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.7" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.7" }
-lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.7" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.7" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.7", optional = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7" }
-lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, features = ["std"] }
+lib-q-stark = { path = "../lib-q-stark", version = "0.0.8", default-features = false, features = ["alloc"] }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8" }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.8" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.8" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.8" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.8" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.8" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.8", optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
+lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.8", default-features = false, features = ["alloc"] }
 digest = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false }
 postcard = { workspace = true, features = ["alloc"] }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
-lib-q-plonky = { path = "../lib-q-plonky", version = "0.0.7", optional = true }
+lib-q-plonky = { path = "../lib-q-plonky", version = "0.0.8", optional = true }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
@@ -95,8 +95,8 @@ harness = false
 required-features = ["zkp"]
 
 [dev-dependencies]
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.8" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
 wasm-bindgen-test = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }

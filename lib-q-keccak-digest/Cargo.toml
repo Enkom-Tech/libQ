@@ -17,7 +17,7 @@ categories = ["cryptography", "no-std"]
 [dependencies]
 digest = { workspace = true }
 # v1: sponge core lives in `lib-q-sha3::block_api`; a slimmer dep graph is ADR 002
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false }
 
 [dev-dependencies]
 blobby = { workspace = true, features = ["alloc"] }
