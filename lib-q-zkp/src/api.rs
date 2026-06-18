@@ -548,9 +548,8 @@ mod tests {
             Err(lib_q_core::Error::NotImplemented { .. })
         ));
 
-        let dummy = empty_stark_proof_with_metadata(ProofMetadata::HashPreimageNist {
-            output_size: 32,
-        });
+        let dummy =
+            empty_stark_proof_with_metadata(ProofMetadata::HashPreimageNist { output_size: 32 });
         let mut dummy = dummy;
         dummy.data = vec![1u8; 8];
         assert!(matches!(

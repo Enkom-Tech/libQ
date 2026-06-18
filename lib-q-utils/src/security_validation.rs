@@ -350,7 +350,10 @@ mod tests {
 
         // All checks are stub-only — they must fail loudly rather than silently pass.
         assert!(report.summary.total_checks > 0);
-        assert!(!report.summary.is_success(), "stub validator must not report success");
+        assert!(
+            !report.summary.is_success(),
+            "stub validator must not report success"
+        );
         assert!(report.summary.failed > 0);
     }
 
@@ -385,7 +388,10 @@ mod tests {
         let r = v.validate();
         assert!(r.summary.total_checks > 0);
         // Stub checks must signal failure, not silently pass.
-        assert!(!r.summary.is_success(), "stub validator must not report success");
+        assert!(
+            !r.summary.is_success(),
+            "stub validator must not report success"
+        );
     }
 
     #[test]
