@@ -82,6 +82,7 @@ pub enum Algorithm {
     TweakAead,
     RomulusN,
     RomulusM,
+    RoccaS,
 
     /// Privacy-protocol identifiers (not standalone KEM/sig/hash providers).
     LatticeRingSignature,
@@ -172,6 +173,7 @@ impl Algorithm {
             Algorithm::TweakAead => 4,
             Algorithm::RomulusN => 1,
             Algorithm::RomulusM => 1,
+            Algorithm::RoccaS => 1,
 
             Algorithm::LatticeRingSignature |
             Algorithm::LatticeBlindIssuance |
@@ -247,7 +249,8 @@ impl Algorithm {
             Algorithm::DuplexSpongeAead |
             Algorithm::TweakAead |
             Algorithm::RomulusN |
-            Algorithm::RomulusM => AlgorithmCategory::Aead,
+            Algorithm::RomulusM |
+            Algorithm::RoccaS => AlgorithmCategory::Aead,
 
             Algorithm::LatticeRingSignature |
             Algorithm::LatticeBlindIssuance |
@@ -326,7 +329,8 @@ impl Algorithm {
             Algorithm::DuplexSpongeAead |
             Algorithm::TweakAead |
             Algorithm::RomulusN |
-            Algorithm::RomulusM => category == AlgorithmCategory::Aead,
+            Algorithm::RomulusM |
+            Algorithm::RoccaS => category == AlgorithmCategory::Aead,
 
             Algorithm::LatticeRingSignature |
             Algorithm::LatticeBlindIssuance |
@@ -439,6 +443,7 @@ impl core::fmt::Display for Algorithm {
             Algorithm::TweakAead => write!(f, "Tweak-AEAD"),
             Algorithm::RomulusN => write!(f, "Romulus-N"),
             Algorithm::RomulusM => write!(f, "Romulus-M"),
+            Algorithm::RoccaS => write!(f, "Rocca-S"),
 
             // Additional algorithms
             Algorithm::Kt128 => write!(f, "KT128"),

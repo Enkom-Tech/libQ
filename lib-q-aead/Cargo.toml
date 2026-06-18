@@ -28,6 +28,7 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true }
 lib-q-duplex-aead = { path = "../lib-q-duplex-aead", version = "0.0.7", optional = true }
 lib-q-tweak-aead = { path = "../lib-q-tweak-aead", version = "0.0.7", optional = true }
 lib-q-romulus = { path = "../lib-q-romulus", version = "0.0.7", optional = true, default-features = false }
+lib-q-rocca-s = { path = "../lib-q-rocca-s", version = "0.0.7", optional = true, default-features = false }
 subtle = { workspace = true, default-features = false }
 zeroize = { workspace = true, default-features = false, optional = true }
 once_cell = "1.21.4"
@@ -72,6 +73,11 @@ romulus-m = [
     "lib-q-romulus/alloc",
 ]
 romulus = ["romulus-n", "romulus-m"]
+rocca-s = [
+    "dep:lib-q-rocca-s",
+    "lib-q-rocca-s/aead",
+    "lib-q-rocca-s/alloc",
+]
 wasm = [
     "alloc",
     "dep:wasm-bindgen",

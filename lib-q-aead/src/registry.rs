@@ -84,6 +84,7 @@ impl AeadRegistry {
             Algorithm::TweakAead,
             Algorithm::RomulusN,
             Algorithm::RomulusM,
+            Algorithm::RoccaS,
         ];
 
         for algorithm in known_algorithms {
