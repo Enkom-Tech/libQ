@@ -40,7 +40,7 @@ Shared utility helpers. See `lib_q_utils.d.ts`.
 
 ## `@lib-q/aead`
 
-AEAD encrypt/decrypt (Saturnin, Romulus, duplex-sponge per CD features). See `lib_q_aead.d.ts`.
+AEAD encrypt/decrypt (Saturnin, Rocca-S, Romulus, duplex-sponge per CD features). See `lib_q_aead.d.ts`.
 
 ## `@lib-q/hpke`
 
