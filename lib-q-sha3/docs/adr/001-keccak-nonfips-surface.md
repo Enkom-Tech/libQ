@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted — Option B (separate crate).** Raw Keccak-224–512 and `Keccak256Full` live in [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest). [`lib-q-sha3`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sha3) exposes NIST-traceable SHA-3, SHAKE, cSHAKE, TurboSHAKE, and [`block_api`](https://docs.rs/lib-q-sha3) for composition.
+**Accepted — Option B (separate crate).** Raw Keccak-224–512 and `Keccak256Full` live in [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest). [`lib-q-sha3`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-sha3) exposes NIST-traceable SHA-3, SHAKE, cSHAKE, TurboSHAKE, and [`block_core`](https://docs.rs/lib-q-sha3) for composition.
 
 ## Context
 
@@ -15,7 +15,7 @@ These have different padding from SHA-3. A single re-export surface mixed `Sha3_
 
 1. **Separate crate** [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest) (package / lib `lib_q_keccak_digest`) holds all raw Keccak fixed-output types.
 2. **No** re-export of those types from `lib-q-sha3` at the crate root. **No** default prelude in either crate that blurs FIPS vs pre-FIPS.
-3. **v1 implementation:** `lib-q-keccak-digest` uses `lib_q_sha3::block_api::SpongeHasherCore` and `KECCAK_DIGEST_PAD` from `block_api` so the sponge **core** stays a single implementation. A **slimmer** dependency graph for Keccak-only consumers (without a full `lib-q-sha3` line in `cargo tree` for every use case) is a **follow-up** — see [ADR 002](../../lib-q-keccak-digest/docs/adr/002-keccak-digest-dependency-extraction.md).
+3. **v1 implementation:** `lib-q-keccak-digest` uses `lib_q_sha3::block_core::SpongeHasherCore` and `KECCAK_DIGEST_PAD` from `block_core` so the sponge **core** stays a single implementation. A **slimmer** dependency graph for Keccak-only consumers (without a full `lib-q-sha3` line in `cargo tree` for every use case) is a **follow-up** — see [ADR 002](../../lib-q-keccak-digest/docs/adr/002-keccak-digest-dependency-extraction.md).
 
 ## Options considered (record)
 

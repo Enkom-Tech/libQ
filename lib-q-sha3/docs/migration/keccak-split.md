@@ -5,7 +5,7 @@
 ## Summary
 
 - **Before:** `Keccak224` … `Keccak512`, `Keccak256Full` were at the **crate root** of `lib_q_sha3`.
-- **After:** those types are only in **`lib_q_keccak_digest`**. `lib_q_sha3` is NIST-aligned (SHA-3, SHAKE, cSHAKE, TurboSHAKE) and `block_api` for composition.
+- **After:** those types are only in **`lib_q_keccak_digest`**. `lib_q_sha3` is NIST-aligned (SHA-3, SHAKE, cSHAKE, TurboSHAKE) and `block_core` for composition.
 
 `lib-q-hash` re-exports both crates; `HashAlgorithm` / `Algorithm` names are unchanged.
 
