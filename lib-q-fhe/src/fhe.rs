@@ -46,7 +46,11 @@ pub enum FheError {
 impl core::fmt::Display for FheError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            FheError::DimensionMismatch { expected, body_len, mask_len } => write!(
+            FheError::DimensionMismatch {
+                expected,
+                body_len,
+                mask_len,
+            } => write!(
                 f,
                 "ciphertext dimension mismatch: params.dimension={expected}, \
                  body.len={body_len}, mask.len={mask_len}"

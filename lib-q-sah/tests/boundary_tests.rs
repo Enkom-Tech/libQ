@@ -1,6 +1,10 @@
 //! Boundary-length and shape roundtrip tests (PLAN Part 8).
 
-use lib_q_sah::{Sah256, Sah256Key, Sah256Nonce};
+use lib_q_sah::{
+    Sah256,
+    Sah256Key,
+    Sah256Nonce,
+};
 
 fn kn() -> (Sah256Key, Sah256Nonce) {
     let mut k = [0u8; 32];
@@ -18,7 +22,7 @@ fn kn() -> (Sah256Key, Sah256Nonce) {
 fn fill(buf: &mut [u8], seed: u8) {
     let mut x = seed;
     for b in buf.iter_mut() {
-        x = x.wrapping_mul(0x1f).wrapping_add(0x3b);
+        x = x.wrapping_mul(0x1F).wrapping_add(0x3B);
         *b = x;
     }
 }
@@ -55,9 +59,15 @@ fn aad_only_and_msg_only_and_empty() {
 
     // aad-only
     let s = Sah256::seal(&k, &n, b"associated-only", b"").unwrap();
-    assert_eq!(Sah256::open(&k, &n, b"associated-only", &s).unwrap(), Vec::<u8>::new());
+    assert_eq!(
+        Sah256::open(&k, &n, b"associated-only", &s).unwrap(),
+        Vec::<u8>::new()
+    );
 
     // msg-only
     let s = Sah256::seal(&k, &n, b"", b"message-only-payload").unwrap();
-    assert_eq!(Sah256::open(&k, &n, b"", &s).unwrap(), b"message-only-payload");
+    assert_eq!(
+        Sah256::open(&k, &n, b"", &s).unwrap(),
+        b"message-only-payload"
+    );
 }

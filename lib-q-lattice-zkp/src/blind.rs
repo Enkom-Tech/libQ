@@ -13,11 +13,11 @@ use lib_q_sha3::{
     Update,
     XofReader,
 };
-use subtle::ConstantTimeEq;
 use rand_core::{
     CryptoRng,
     Rng,
 };
+use subtle::ConstantTimeEq;
 use zeroize::{
     Zeroize,
     ZeroizeOnDrop,
@@ -219,7 +219,13 @@ pub trait BlindSignature {
         tau: usize,
         z_inf_bound: i32,
     ) -> Result<(), VerifyError> {
-        self.verify_blind_signature(issuer_params, genuine_issuer_com, base_ctx, tau, z_inf_bound)
+        self.verify_blind_signature(
+            issuer_params,
+            genuine_issuer_com,
+            base_ctx,
+            tau,
+            z_inf_bound,
+        )
     }
 }
 
@@ -756,7 +762,13 @@ mod tests {
         let bundle =
             BlindIssuance::finalize_message(user_st, resp, digest).expect("finalize message");
         bundle
-            .verify_signature(&issuer_params, &genuine_issuer_com, b"realm-ms", 39, 20_000_000)
+            .verify_signature(
+                &issuer_params,
+                &genuine_issuer_com,
+                b"realm-ms",
+                39,
+                20_000_000,
+            )
             .expect("BlindSignature::verify_signature alias");
 
         let mut bad = bundle.clone();

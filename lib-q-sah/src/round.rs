@@ -4,7 +4,13 @@
 //! secret-dependent branches or memory indices (the S-box is the bitsliced
 //! Boyar–Peralta circuit, not a table lookup — see `sbox`).
 
-use crate::params::{ARX_TUPLES, PI, RHO, ROTATIONS, ROUND_CONSTANTS};
+use crate::params::{
+    ARX_TUPLES,
+    PI,
+    RHO,
+    ROTATIONS,
+    ROUND_CONSTANTS,
+};
 use crate::sbox::layer_bitsliced;
 
 #[inline(always)]

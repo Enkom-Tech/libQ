@@ -266,8 +266,8 @@ impl LibQRng {
             crate::traits::EntropySourceType::OperatingSystem => {
                 SecurityLevel::CryptographicallySecure
             }
-            crate::traits::EntropySourceType::Deterministic
-            | crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
+            crate::traits::EntropySourceType::Deterministic |
+            crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
         };
 
         let deterministic =

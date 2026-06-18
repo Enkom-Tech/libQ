@@ -1,6 +1,11 @@
 //! Tamper-rejection and domain-separation tests (PLAN Part 8).
 
-use lib_q_sah::{Sah256, Sah256Key, Sah256Nonce, SahError};
+use lib_q_sah::{
+    Sah256,
+    Sah256Key,
+    Sah256Nonce,
+    SahError,
+};
 
 fn kn() -> (Sah256Key, Sah256Nonce) {
     (Sah256Key::new([0x24; 32]), Sah256Nonce::new([0x91; 16]))
@@ -22,7 +27,10 @@ fn wrong_tag_rejected_each_bit() {
                 Sah256::open_detached(&k, &n, b"aad", &ct, &bad, &mut out),
                 Err(SahError::AuthenticationFailed)
             );
-            assert!(out.iter().all(|&b| b == 0), "plaintext not zeroized on failure");
+            assert!(
+                out.iter().all(|&b| b == 0),
+                "plaintext not zeroized on failure"
+            );
         }
     }
     // unmodified tag still verifies
@@ -101,7 +109,10 @@ fn s2_padding_is_injective() {
     Sah256::seal_detached(&k, &n, &d, msg, &mut c1).unwrap();
     let mut c2 = vec![0u8; msg.len()];
     Sah256::seal_detached(&k, &n, &d2, msg, &mut c2).unwrap();
-    assert_ne!(c1, c2, "pad10* must make these AADs produce distinct ciphertext");
+    assert_ne!(
+        c1, c2,
+        "pad10* must make these AADs produce distinct ciphertext"
+    );
 }
 
 #[test]
