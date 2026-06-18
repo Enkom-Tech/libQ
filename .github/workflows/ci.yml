@@ -88,6 +88,7 @@ jobs:
           - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
           - package: "lib-q-blind-pcs"
+          - package: "lib-q-rocca-s"
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
