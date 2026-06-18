@@ -20,7 +20,7 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 | `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206) |
 | `@lib-q/hash` | `lib-q-hash` | SHA-3 family façade |
 | `@lib-q/utils` | `lib-q-utils` | Shared helpers |
-| `@lib-q/aead` | `lib-q-aead` | AEAD (Saturnin, Romulus, duplex-sponge) |
+| `@lib-q/aead` | `lib-q-aead` | AEAD (Saturnin, Rocca-S, Romulus, duplex-sponge) |
 | `@lib-q/hpke` | `lib-q-hpke` | HPKE (ML-KEM + symmetric) |
 | `@lib-q/zkp` | `lib-q-zkp` | High-level preimage STARK proofs (JSON API) |
 | `@lib-q/random` | `lib-q-random` | `secureRandomBytes` |
