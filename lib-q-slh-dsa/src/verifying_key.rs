@@ -65,11 +65,20 @@ impl<N: ArraySize> PkSeed<N> {
 /// A `VerifyingKey` is an SLH-DSA public key, allowing
 /// verification of signatures created with the corresponding
 /// `SigningKey`
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct VerifyingKey<P: ParameterSet> {
     pub(crate) pk_seed: PkSeed<P::N>,
     pub(crate) pk_root: Array<u8, P::N>,
 }
+
+// Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound; the hash
+// suite `P` is not `Eq`, but the key material is.
+impl<P: ParameterSet> PartialEq for VerifyingKey<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.pk_seed == other.pk_seed && self.pk_root == other.pk_root
+    }
+}
+impl<P: ParameterSet> Eq for VerifyingKey<P> {}
 
 impl<P: ParameterSet + VerifyingKeyLen> VerifyingKey<P> {
     #[doc(hidden)]
@@ -94,12 +103,13 @@ impl<P: ParameterSet + VerifyingKeyLen> VerifyingKey<P> {
         let fors_sig = &signature.fors_sig;
         let ht_sig = &signature.ht_sig;
 
-        let digest = P::h_msg(randomizer, pk_seed, &self.pk_root, msg);
+        let hasher = P::new_from_pk_seed(pk_seed);
+        let digest = hasher.h_msg(randomizer, &self.pk_root, msg);
         let (md, idx_tree, idx_leaf) = split_digest::<P>(&digest);
 
         let adrs = ForsTree::new(idx_tree, idx_leaf);
-        let fors_pk = P::fors_pk_from_sig(fors_sig, md, pk_seed, &adrs);
-        P::ht_verify(&fors_pk, ht_sig, pk_seed, idx_tree, idx_leaf, &self.pk_root)
+        let fors_pk = P::fors_pk_from_sig(&hasher, fors_sig, md, &adrs);
+        P::ht_verify(&hasher, &fors_pk, ht_sig, idx_tree, idx_leaf, &self.pk_root)
             .then_some(())
             .ok_or(Error::new())
     }

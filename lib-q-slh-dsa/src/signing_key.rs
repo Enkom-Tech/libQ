@@ -186,12 +186,23 @@ impl<N: ArraySize> SkPrf<N> {
 /// // let sig = sk.sign_with_rng(&mut rng, message).expect("Signing failed");
 /// // assert!(vk.verify(message, &sig).is_ok());
 /// ```
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct SigningKey<P: ParameterSet> {
     pub(crate) sk_seed: SkSeed<P::N>,
     pub(crate) sk_prf: SkPrf<P::N>,
     pub(crate) verifying_key: VerifyingKey<P>,
 }
+
+// Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound; the hash
+// suite `P` is not `Eq`, but the key material is.
+impl<P: ParameterSet> PartialEq for SigningKey<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.sk_seed == other.sk_seed &&
+            self.sk_prf == other.sk_prf &&
+            self.verifying_key == other.verifying_key
+    }
+}
+impl<P: ParameterSet> Eq for SigningKey<P> {}
 
 impl<P: ParameterSet> Drop for SigningKey<P> {
     fn drop(&mut self) {
@@ -254,7 +265,8 @@ impl<P: ParameterSet> SigningKey<P> {
         let mut adrs = WotsHash::default();
         adrs.layer_adrs.set(P::D::U32 - 1);
 
-        let pk_root = P::xmss_node(&sk_seed, 0, P::HPrime::U32, &pk_seed, &adrs);
+        let hasher = P::new_from_pk_seed(&pk_seed);
+        let pk_root = P::xmss_node(&hasher, &sk_seed, 0, P::HPrime::U32, &adrs);
         let verifying_key = VerifyingKey { pk_seed, pk_root };
         SigningKey {
             sk_seed,
@@ -292,16 +304,17 @@ impl<P: ParameterSet> SigningKey<P> {
 
         let sk_seed = &self.sk_seed;
         let pk_seed = &self.verifying_key.pk_seed;
+        let hasher = P::new_from_pk_seed(pk_seed);
 
-        let randomizer = P::prf_msg(&self.sk_prf, rand, msg);
+        let randomizer = hasher.prf_msg(&self.sk_prf, rand, msg);
 
-        let digest = P::h_msg(&randomizer, pk_seed, &self.verifying_key.pk_root, msg);
+        let digest = hasher.h_msg(&randomizer, &self.verifying_key.pk_root, msg);
         let (md, idx_tree, idx_leaf) = split_digest::<P>(&digest);
         let adrs = ForsTree::new(idx_tree, idx_leaf);
-        let fors_sig = P::fors_sign(md, sk_seed, pk_seed, &adrs);
+        let fors_sig = P::fors_sign(&hasher, md, sk_seed, &adrs);
 
-        let fors_pk = P::fors_pk_from_sig(&fors_sig, md, pk_seed, &adrs);
-        let ht_sig = P::ht_sign(&fors_pk, sk_seed, pk_seed, idx_tree, idx_leaf);
+        let fors_pk = P::fors_pk_from_sig(&hasher, &fors_sig, md, &adrs);
+        let ht_sig = P::ht_sign(&hasher, &fors_pk, sk_seed, idx_tree, idx_leaf);
 
         Signature {
             randomizer,

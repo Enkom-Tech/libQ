@@ -40,10 +40,17 @@ use crate::{
 
 /// Implementation of the component hash functions using SHAKE256
 ///
-/// Follows section 10.1 of FIPS-205
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Shake<N, M> {
-    _n: core::marker::PhantomData<N>,
+/// Follows section 10.1 of FIPS-205.
+///
+/// SHAKE256 has no SHA-2-style block midstate to cache, so the suite simply stores the
+/// pre-built `Shake256` absorbing `pk_seed` and clones it per call. This keeps parity with
+/// the SHA-2 suites' instance-method API at negligible cost.
+#[derive(Debug, Clone)]
+pub struct Shake<N: ArraySize, M> {
+    /// `Shake256` pre-updated with `pk_seed`; cloned by `f`/`h`/`t`/`prf_sk`.
+    shake256: Shake256,
+    /// Raw `pk_seed`, needed by `h_msg` (which absorbs `rand` before `pk_seed`).
+    pk_seed: PkSeed<N>,
     _m: core::marker::PhantomData<M>,
 }
 
@@ -55,7 +62,18 @@ where
     type N = N;
     type M = M;
 
+    fn new_from_pk_seed(pk_seed: &PkSeed<Self::N>) -> Self {
+        let mut shake256 = Shake256::default();
+        shake256.update(pk_seed.as_ref());
+        Self {
+            shake256,
+            pk_seed: pk_seed.clone(),
+            _m: core::marker::PhantomData,
+        }
+    }
+
     fn prf_msg(
+        &self,
         sk_prf: &SkPrf<Self::N>,
         opt_rand: &Array<u8, Self::N>,
         msg: &[&[impl AsRef<[u8]>]],
@@ -73,14 +91,15 @@ where
     }
 
     fn h_msg(
+        &self,
         rand: &Array<u8, Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         pk_root: &Array<u8, Self::N>,
         msg: &[&[impl AsRef<[u8]>]],
     ) -> Array<u8, Self::M> {
+        // `rand` precedes `pk_seed`, so the cached `shake256` state cannot be reused here.
         let mut hasher = Shake256::default();
         hasher.update(rand.as_slice());
-        hasher.update(pk_seed.as_ref());
+        hasher.update(self.pk_seed.as_ref());
         hasher.update(pk_root.as_ref());
         msg.iter()
             .copied()
@@ -91,13 +110,8 @@ where
         output
     }
 
-    fn prf_sk(
-        pk_seed: &PkSeed<Self::N>,
-        sk_seed: &SkSeed<Self::N>,
-        adrs: &impl Address,
-    ) -> Array<u8, Self::N> {
-        let mut hasher = Shake256::default();
-        hasher.update(pk_seed.as_ref());
+    fn prf_sk(&self, sk_seed: &SkSeed<Self::N>, adrs: &impl Address) -> Array<u8, Self::N> {
+        let mut hasher = self.shake256.clone();
         hasher.update(adrs.as_ref());
         hasher.update(sk_seed.as_ref());
         let mut output = Array::<u8, Self::N>::default();
@@ -106,12 +120,11 @@ where
     }
 
     fn t<L: ArraySize>(
-        pk_seed: &PkSeed<Self::N>,
+        &self,
         adrs: &impl Address,
         m: &Array<Array<u8, Self::N>, L>,
     ) -> Array<u8, Self::N> {
-        let mut hasher = Shake256::default();
-        hasher.update(pk_seed.as_ref());
+        let mut hasher = self.shake256.clone();
         hasher.update(adrs.as_ref());
         for i in 0..L::USIZE {
             hasher.update(m[i].as_slice());
@@ -122,13 +135,12 @@ where
     }
 
     fn h(
-        pk_seed: &PkSeed<Self::N>,
+        &self,
         adrs: &impl Address,
         m1: &Array<u8, Self::N>,
         m2: &Array<u8, Self::N>,
     ) -> Array<u8, Self::N> {
-        let mut hasher = Shake256::default();
-        hasher.update(pk_seed.as_ref());
+        let mut hasher = self.shake256.clone();
         hasher.update(adrs.as_ref());
         hasher.update(m1.as_slice());
         hasher.update(m2.as_slice());
@@ -137,13 +149,8 @@ where
         output
     }
 
-    fn f(
-        pk_seed: &PkSeed<Self::N>,
-        adrs: &impl Address,
-        m: &Array<u8, Self::N>,
-    ) -> Array<u8, Self::N> {
-        let mut hasher = Shake256::default();
-        hasher.update(pk_seed.as_ref());
+    fn f(&self, adrs: &impl Address, m: &Array<u8, Self::N>) -> Array<u8, Self::N> {
+        let mut hasher = self.shake256.clone();
         hasher.update(adrs.as_ref());
         hasher.update(m.as_slice());
         let mut output = Array::<u8, Self::N>::default();
@@ -301,10 +308,12 @@ mod tests {
         let sk_prf = SkPrf(Array::<u8, H::N>::from_fn(|_| 0));
         let opt_rand = Array::<u8, H::N>::from_fn(|_| 1);
         let msg = [2u8; 32];
+        let pk_seed = PkSeed(Array::<u8, H::N>::from_fn(|_| 0));
+        let hasher = H::new_from_pk_seed(&pk_seed);
 
         let expected = hex!("bc5c062307df0a41aeeae19ad655f7b2");
 
-        let result = H::prf_msg(&sk_prf, &opt_rand, &[&[msg]]);
+        let result = hasher.prf_msg(&sk_prf, &opt_rand, &[&[msg]]);
 
         assert_eq!(result.as_slice(), expected);
     }

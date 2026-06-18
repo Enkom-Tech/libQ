@@ -6,7 +6,6 @@ use hybrid_array::{
 };
 use typenum::Unsigned;
 
-use crate::PkSeed;
 use crate::address::WotsHash;
 use crate::signing_key::SkSeed;
 use crate::xmss::{
@@ -14,8 +13,16 @@ use crate::xmss::{
     XmssSig,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct HypertreeSig<P: HypertreeParams>(Array<XmssSig<P>, P::D>);
+
+// Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound.
+impl<P: HypertreeParams> PartialEq for HypertreeSig<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+impl<P: HypertreeParams> Eq for HypertreeSig<P> {}
 
 impl<P: HypertreeParams> HypertreeSig<P> {
     pub const SIZE: usize = XmssSig::<P>::SIZE * P::D::USIZE;
@@ -61,9 +68,9 @@ pub trait HypertreeParams: XmssParams + Sized {
     type H: ArraySize; // HPrime * D
 
     fn ht_sign(
+        hasher: &Self,
         m: &Array<u8, Self::N>,
         sk_seed: &SkSeed<Self::N>,
-        pk_seed: &PkSeed<Self::N>,
         mut idx_tree: u64,
         mut idx_leaf: u32,
     ) -> HypertreeSig<Self> {
@@ -75,9 +82,8 @@ pub trait HypertreeParams: XmssParams + Sized {
         // Pre-allocate the array - Option should have no overhead after optimization
         let mut sig = Array::<_, Self::D>::default();
 
-        sig[0] = Some(Self::xmss_sign(m, sk_seed, pk_seed, idx_leaf, &adrs));
-        let mut root =
-            Self::xmss_pk_from_sig(idx_leaf, sig[0].as_ref().unwrap(), m, pk_seed, &adrs);
+        sig[0] = Some(Self::xmss_sign(hasher, m, sk_seed, idx_leaf, &adrs));
+        let mut root = Self::xmss_pk_from_sig(hasher, idx_leaf, sig[0].as_ref().unwrap(), m, &adrs);
 
         for j in 1..Self::D::U32 {
             // H' least significant bits of idx_leaf. H' is always less than 32 in FIPS-205 parameter sets
@@ -89,13 +95,13 @@ pub trait HypertreeParams: XmssParams + Sized {
             adrs.layer_adrs.set(j);
             adrs.tree_adrs_low.set(idx_tree);
 
-            sig[j as usize] = Some(Self::xmss_sign(&root, sk_seed, pk_seed, idx_leaf, &adrs));
+            sig[j as usize] = Some(Self::xmss_sign(hasher, &root, sk_seed, idx_leaf, &adrs));
             if j != Self::D::U32 - 1 {
                 root = Self::xmss_pk_from_sig(
+                    hasher,
                     idx_leaf,
                     sig[j as usize].as_ref().unwrap(),
                     &root,
-                    pk_seed,
                     &adrs,
                 );
             }
@@ -105,9 +111,9 @@ pub trait HypertreeParams: XmssParams + Sized {
     }
 
     fn ht_verify(
+        hasher: &Self,
         m: &Array<u8, Self::N>,
         sig: &HypertreeSig<Self>,
-        pk_seed: &PkSeed<Self::N>,
         mut idx_tree: u64,
         mut idx_leaf: u32,
         pk_root: &Array<u8, Self::N>,
@@ -115,7 +121,7 @@ pub trait HypertreeParams: XmssParams + Sized {
         let mut adrs = WotsHash::default();
         adrs.tree_adrs_low.set(idx_tree);
 
-        let mut root = Self::xmss_pk_from_sig(idx_leaf, &sig.0[0], m, pk_seed, &adrs);
+        let mut root = Self::xmss_pk_from_sig(hasher, idx_leaf, &sig.0[0], m, &adrs);
 
         for j in 1..Self::D::U32 {
             // H' least significant bits of idx_leaf. H' is always less than 32 in FIPS-205 parameter sets
@@ -127,7 +133,7 @@ pub trait HypertreeParams: XmssParams + Sized {
             adrs.layer_adrs.set(j);
             adrs.tree_adrs_low.set(idx_tree);
 
-            root = Self::xmss_pk_from_sig(idx_leaf, &sig.0[j as usize], &root, pk_seed, &adrs);
+            root = Self::xmss_pk_from_sig(hasher, idx_leaf, &sig.0[j as usize], &root, &adrs);
         }
         &root == pk_root
     }
@@ -141,7 +147,10 @@ mod tests {
 
     use super::*;
     use crate::PkSeed;
-    use crate::hashes::Shake128f;
+    use crate::hashes::{
+        HashSuite,
+        Shake128f,
+    };
     use crate::util::macros::test_parameter_sets;
 
     fn test_ht_sign_verify<HTMode: HypertreeParams>() {
@@ -165,12 +174,13 @@ mod tests {
         adrs.tree_adrs_low.set(0);
         adrs.layer_adrs.set(HTMode::D::U32 - 1);
 
-        let pk_root = HTMode::xmss_node(&sk_seed, 0, HTMode::HPrime::U32, &pk_seed, &adrs);
+        let hasher = HTMode::new_from_pk_seed(&pk_seed);
+        let pk_root = HTMode::xmss_node(&hasher, &sk_seed, 0, HTMode::HPrime::U32, &adrs);
 
-        let sig = HTMode::ht_sign(&m, &sk_seed, &pk_seed, idx_tree, idx_leaf);
+        let sig = HTMode::ht_sign(&hasher, &m, &sk_seed, idx_tree, idx_leaf);
 
         assert!(HTMode::ht_verify(
-            &m, &sig, &pk_seed, idx_tree, idx_leaf, &pk_root
+            &hasher, &m, &sig, idx_tree, idx_leaf, &pk_root
         ));
     }
 
@@ -197,16 +207,17 @@ mod tests {
         adrs.tree_adrs_low.set(0);
         adrs.layer_adrs.set(HTMode::D::U32 - 1);
 
-        let pk_root = HTMode::xmss_node(&sk_seed, 0, HTMode::HPrime::U32, &pk_seed, &adrs);
+        let hasher = HTMode::new_from_pk_seed(&pk_seed);
+        let pk_root = HTMode::xmss_node(&hasher, &sk_seed, 0, HTMode::HPrime::U32, &adrs);
 
-        let sig = HTMode::ht_sign(&m, &sk_seed, &pk_seed, idx_tree, idx_leaf);
+        let sig = HTMode::ht_sign(&hasher, &m, &sk_seed, idx_tree, idx_leaf);
 
         // Tweak the message to ensure verification fails
         m[0] ^= 0xFF; // Invert the first byte of the message
 
         // Verification should fail since the message was tweaked
         assert!(!HTMode::ht_verify(
-            &m, &sig, &pk_seed, idx_tree, idx_leaf, &pk_root
+            &hasher, &m, &sig, idx_tree, idx_leaf, &pk_root
         ));
     }
 
@@ -223,7 +234,8 @@ mod tests {
         let pk_seed = PkSeed(Array([2; 16]));
         let m = Array([3; 16]);
 
-        let sig = <Shake128f as HypertreeParams>::ht_sign(&m, &sk_seed, &pk_seed, 3, 5);
+        let hasher = Shake128f::new_from_pk_seed(&pk_seed);
+        let sig = <Shake128f as HypertreeParams>::ht_sign(&hasher, &m, &sk_seed, 3, 5);
 
         let sig_flattened = sig.to_vec();
 
