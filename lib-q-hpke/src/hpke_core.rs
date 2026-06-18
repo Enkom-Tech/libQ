@@ -648,7 +648,7 @@ pub fn setup_sender_with_mode<P: HpkeCryptoProvider + ?Sized>(
         aead: cipher_suite.aead,
         encapsulated_key: final_encapsulated_key,
         sequence_number: 0,
-        max_sequence_number: u32::MAX - 1,
+        max_sequence_number: u64::MAX - 1,
         state: HpkeContextState::Active,
         hpke_crypto,
     })
@@ -782,7 +782,7 @@ pub fn setup_receiver_with_mode<P: HpkeCryptoProvider + ?Sized>(
         cipher_suite: *cipher_suite,
         aead: cipher_suite.aead,
         sequence_number: 0,
-        max_sequence_number: u32::MAX - 1,
+        max_sequence_number: u64::MAX - 1,
         state: HpkeContextState::Active,
         hpke_crypto,
     })
@@ -1065,7 +1065,7 @@ pub fn seal_message<P: HpkeCryptoProvider + ?Sized>(
     aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
-    sequence_number: u32,
+    sequence_number: u64,
     aad: &[u8],
     plaintext: &[u8],
     provider: &P,
@@ -1081,7 +1081,7 @@ pub fn open_message<P: HpkeCryptoProvider + ?Sized>(
     aead: HpkeAead,
     key: &[u8],
     base_nonce: &[u8],
-    sequence_number: u32,
+    sequence_number: u64,
     aad: &[u8],
     ciphertext: &[u8],
     provider: &P,
@@ -1129,13 +1129,13 @@ pub fn export<P: HpkeCryptoProvider + ?Sized>(
 /// Compute nonce from base nonce and sequence number
 ///
 /// RFC 9180 Section 5.2: `seq_bytes = I2OSP(seq, Nn)` then XOR into `base_nonce`.
-fn compute_nonce(base_nonce: &[u8], sequence_number: u32) -> Zeroizing<Vec<u8>> {
+fn compute_nonce(base_nonce: &[u8], sequence_number: u64) -> Zeroizing<Vec<u8>> {
     let mut nonce = Zeroizing::new(base_nonce.to_vec());
     let n = nonce.len();
     if n == 0 {
         return nonce;
     }
-    let seq = sequence_number as u64;
+    let seq = sequence_number;
     for i in 0..n {
         let shift = 8usize.saturating_mul(n.saturating_sub(1).saturating_sub(i));
         let seq_byte = if shift < 64 {

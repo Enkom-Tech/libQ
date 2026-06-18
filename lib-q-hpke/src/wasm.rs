@@ -226,8 +226,8 @@ struct SenderWire {
     kem: &'static str,
     kdf: &'static str,
     aead: &'static str,
-    sequence_number: u32,
-    max_sequence_number: u32,
+    sequence_number: u64,
+    max_sequence_number: u64,
     state: &'static str,
 }
 
@@ -300,9 +300,8 @@ fn sender_from_wire(w: &serde_json::Value) -> Result<HpkeSenderContext, JsValue>
         cipher_suite,
         aead,
         encapsulated_key: hex_encap("encapsulated_key_hex")?,
-        sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
-        max_sequence_number: u32::try_from(max_seq)
-            .map_err(|_| js_err("max_sequence_number overflow"))?,
+        sequence_number: seq,
+        max_sequence_number: max_seq,
         state: state_from_str(state_s)?,
         hpke_crypto,
     })
@@ -361,8 +360,8 @@ struct ReceiverWire {
     kem: &'static str,
     kdf: &'static str,
     aead: &'static str,
-    sequence_number: u32,
-    max_sequence_number: u32,
+    sequence_number: u64,
+    max_sequence_number: u64,
     state: &'static str,
 }
 
@@ -426,9 +425,8 @@ fn receiver_from_wire(w: &serde_json::Value) -> Result<HpkeReceiverContext, JsVa
         nonce: hex_secret("nonce_hex")?,
         cipher_suite,
         aead,
-        sequence_number: u32::try_from(seq).map_err(|_| js_err("sequence_number overflow"))?,
-        max_sequence_number: u32::try_from(max_seq)
-            .map_err(|_| js_err("max_sequence_number overflow"))?,
+        sequence_number: seq,
+        max_sequence_number: max_seq,
         state: state_from_str(state_s)?,
         hpke_crypto,
     })
