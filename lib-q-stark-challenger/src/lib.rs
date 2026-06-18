@@ -8,7 +8,6 @@ mod complex_field_challenger;
 mod duplex_challenger;
 mod grinding_challenger;
 mod hash_challenger;
-mod multi_field_challenger;
 mod serializing_challenger;
 
 use alloc::vec::Vec;
@@ -27,7 +26,6 @@ use lib_q_stark_sha3_256::Sha3_256Hash;
 // Convenience type aliases for hash-based challengers
 use lib_q_stark_shake128::Shake128Hash;
 use lib_q_stark_shake256::Shake256Hash;
-pub use multi_field_challenger::*;
 pub use serializing_challenger::*;
 
 /// A SHAKE128-based challenger for 32-bit prime fields.
