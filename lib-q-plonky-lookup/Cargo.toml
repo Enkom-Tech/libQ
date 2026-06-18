@@ -34,16 +34,16 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [dependencies]
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.8" }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 tracing = { workspace = true }
 
 [dev-dependencies]
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8" }
 
 [features]
 default = ["alloc"]
