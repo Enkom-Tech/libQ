@@ -58,6 +58,7 @@ use crate::{
     MlKem768Params,
     MlKem1024,
     MlKem1024Params,
+    Seed,
 };
 
 /// Copy `secret` into a new `Uint8Array` for the JS boundary without returning an owned `Vec<u8>`.
@@ -84,6 +85,36 @@ impl MlKemKeypair {
     #[wasm_bindgen(getter)]
     pub fn public_key(&self) -> Vec<u8> {
         self.public_key.clone()
+    }
+}
+
+/// An ML-KEM key pair plus the 64-byte key-generation seed (`d ‖ z`) that produced it.
+///
+/// Persisting `seed` (64 bytes) instead of the larger `secret_key` is the recommended compact key
+/// representation; pass it to [`ml_kem_keypair_from_seed`] to reconstruct the same pair.
+#[wasm_bindgen]
+pub struct MlKemKeypairWithSeed {
+    secret_key: Zeroizing<Vec<u8>>,
+    public_key: Vec<u8>,
+    seed: Zeroizing<Vec<u8>>,
+}
+
+#[wasm_bindgen]
+impl MlKemKeypairWithSeed {
+    #[wasm_bindgen(getter)]
+    pub fn secret_key(&self) -> Uint8Array {
+        secret_bytes_to_uint8_array(self.secret_key.as_slice())
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn public_key(&self) -> Vec<u8> {
+        self.public_key.clone()
+    }
+
+    /// The 64-byte key-generation seed (`d ‖ z`). Treat it as secret key material.
+    #[wasm_bindgen(getter)]
+    pub fn seed(&self) -> Uint8Array {
+        secret_bytes_to_uint8_array(self.seed.as_slice())
     }
 }
 
@@ -140,6 +171,75 @@ pub fn ml_kem_generate_keypair(variant: u8) -> Result<MlKemKeypair, JsError> {
         }
         2 => {
             let (dk, ek) = MlKem1024::generate(&mut rng);
+            Ok(MlKemKeypair {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+            })
+        }
+        _ => Err(variant_err()),
+    }
+}
+
+/// Generate an ML-KEM keypair (`variant`: 0 / 1 / 2) and also return the 64-byte seed (`d ‖ z`).
+///
+/// Store the returned `seed` (64 bytes) as a compact alternative to the full secret key and
+/// reconstruct the pair later with [`ml_kem_keypair_from_seed`].
+#[wasm_bindgen]
+pub fn ml_kem_generate_keypair_with_seed(variant: u8) -> Result<MlKemKeypairWithSeed, JsError> {
+    let mut rng = lib_q_random::new_secure_rng().map_err(rng_err)?;
+    match variant {
+        0 => {
+            let (seed, dk, ek) = MlKem512::generate_with_seed(&mut rng);
+            Ok(MlKemKeypairWithSeed {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+                seed: Zeroizing::new(seed.as_slice().to_vec()),
+            })
+        }
+        1 => {
+            let (seed, dk, ek) = MlKem768::generate_with_seed(&mut rng);
+            Ok(MlKemKeypairWithSeed {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+                seed: Zeroizing::new(seed.as_slice().to_vec()),
+            })
+        }
+        2 => {
+            let (seed, dk, ek) = MlKem1024::generate_with_seed(&mut rng);
+            Ok(MlKemKeypairWithSeed {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+                seed: Zeroizing::new(seed.as_slice().to_vec()),
+            })
+        }
+        _ => Err(variant_err()),
+    }
+}
+
+/// Reconstruct an ML-KEM keypair from a 64-byte seed (`d ‖ z`); `variant` selects the parameter set.
+///
+/// The reconstructed pair is byte-identical to the one originally produced from the seed.
+#[wasm_bindgen]
+pub fn ml_kem_keypair_from_seed(variant: u8, seed: &[u8]) -> Result<MlKemKeypair, JsError> {
+    let seed = Seed::try_from(seed)
+        .map_err(|_| JsError::new("invalid ML-KEM seed length: expected 64 bytes"))?;
+    match variant {
+        0 => {
+            let (dk, ek) = MlKem512::generate_from_seed(&seed);
+            Ok(MlKemKeypair {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+            })
+        }
+        1 => {
+            let (dk, ek) = MlKem768::generate_from_seed(&seed);
+            Ok(MlKemKeypair {
+                secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
+                public_key: ek.as_bytes().as_slice().to_vec(),
+            })
+        }
+        2 => {
+            let (dk, ek) = MlKem1024::generate_from_seed(&seed);
             Ok(MlKemKeypair {
                 secret_key: Zeroizing::new(dk.as_bytes().as_slice().to_vec()),
                 public_key: ek.as_bytes().as_slice().to_vec(),

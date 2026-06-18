@@ -94,6 +94,7 @@ use hybrid_array::typenum::{
     U5,
     U10,
     U11,
+    U64,
     Unsigned,
 };
 use rand_core::CryptoRng;
@@ -219,6 +220,27 @@ pub trait KemCore: Clone {
         rng: &mut R,
     ) -> (Self::DecapsulationKey, Self::EncapsulationKey);
 
+    /// Generate a new key pair and return its 64-byte [`Seed`] (`d ‖ z`) alongside it.
+    ///
+    /// The seed is sourced from `rng` and can be persisted (64 bytes) as a compact representation
+    /// of the key pair; pass it back to [`generate_from_seed`](KemCore::generate_from_seed) to
+    /// reconstruct an identical pair. The returned seed is wrapped in [`Zeroizing`] so it is
+    /// cleared from the stack on drop.
+    fn generate_with_seed<R: CryptoRng + ?Sized>(
+        rng: &mut R,
+    ) -> (
+        Zeroizing<Seed>,
+        Self::DecapsulationKey,
+        Self::EncapsulationKey,
+    );
+
+    /// Reconstruct a key pair from a 64-byte key-generation [`Seed`] (`d ‖ z`).
+    ///
+    /// This is the inverse of persisting the seed returned by
+    /// [`generate_with_seed`](KemCore::generate_with_seed): the reconstructed pair is byte-identical
+    /// to the original. See [`Seed`] for the security requirements on the seed's provenance.
+    fn generate_from_seed(seed: &Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey);
+
     /// Generate a new (decapsulation, encapsulation) key pair deterministically
     #[cfg(feature = "deterministic")]
     fn generate_deterministic(d: &B32, z: &B32)
@@ -269,6 +291,23 @@ pub type SharedKey<K> = Array<u8, <K as KemCore>::SharedKeySize>;
 
 /// A ciphertext produced by the KEM `K`
 pub type Ciphertext<K> = Array<u8, <K as KemCore>::CiphertextSize>;
+
+/// A 64-byte ML-KEM key-generation seed: the concatenation `d ‖ z` of the two 32-byte random
+/// values consumed by FIPS-203 key generation (Algorithm 16, `ML-KEM.KeyGen`).
+///
+/// Storing the seed (64 bytes) instead of the expanded decapsulation key (1632/2400/3168 bytes for
+/// ML-KEM-512/768/1024) is the recommended compact key representation: the full key pair is
+/// deterministically reconstructed from the seed via [`KemCore::generate_from_seed`].
+///
+/// # Security
+///
+/// The seed is secret key material with the same sensitivity as the decapsulation key. It must be
+/// produced by a cryptographically secure RNG (use [`KemCore::generate_with_seed`]) and stored
+/// with the same protections you would apply to the expanded key.
+pub type Seed = Array<u8, U64>;
+
+/// Size in bytes of an ML-KEM key-generation [`Seed`] (`d ‖ z`); always 64.
+pub const SEED_SIZE: usize = U64::USIZE;
 
 /// ML-KEM with the parameter set for security category 1, corresponding to key search on a block
 /// cipher with a 128-bit key.
