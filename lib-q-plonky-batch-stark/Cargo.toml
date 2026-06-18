@@ -34,27 +34,27 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [dependencies]
-lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.8" }
-lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.8" }
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.8" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.8" }
+lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.7" }
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.7" }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.7" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.7" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
 itertools = { workspace = true }
 serde = { workspace = true, features = ["derive", "alloc"], default-features = false }
 tracing = { workspace = true }
 
 [dev-dependencies]
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.8" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.8" }
-lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.8" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8", features = ["test-utils"] }
-lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.8" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.8" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.7" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.7" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.7" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.7" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.7" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.7" }
 
 [features]
 default = ["alloc"]

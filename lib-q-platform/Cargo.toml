@@ -17,7 +17,7 @@ ignored = [
     "lib-q-core",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
 
 [features]
 default = ["std"]

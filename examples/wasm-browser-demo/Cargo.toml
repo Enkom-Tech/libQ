@@ -16,7 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 wasm-bindgen = { workspace = true }
-lib-q-ml-dsa = { path = "../../lib-q-ml-dsa", version = "0.0.8", default-features = false, features = ["mldsa44"] }
+lib-q-ml-dsa = { path = "../../lib-q-ml-dsa", version = "0.0.7", default-features = false, features = ["mldsa44"] }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
