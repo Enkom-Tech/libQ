@@ -160,7 +160,8 @@ pub fn ml_kem_encapsulate(
         0 => {
             let ek_enc = Encoded::<EncapsulationKey<MlKem512Params>>::try_from(public_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-512 public key length"))?;
-            let ek = EncapsulationKey::<MlKem512Params>::from_bytes(&ek_enc);
+            let ek = EncapsulationKey::<MlKem512Params>::try_from_bytes(&ek_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-512 public key"))?;
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
@@ -172,7 +173,8 @@ pub fn ml_kem_encapsulate(
         1 => {
             let ek_enc = Encoded::<EncapsulationKey<MlKem768Params>>::try_from(public_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-768 public key length"))?;
-            let ek = EncapsulationKey::<MlKem768Params>::from_bytes(&ek_enc);
+            let ek = EncapsulationKey::<MlKem768Params>::try_from_bytes(&ek_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-768 public key"))?;
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
@@ -184,7 +186,8 @@ pub fn ml_kem_encapsulate(
         2 => {
             let ek_enc = Encoded::<EncapsulationKey<MlKem1024Params>>::try_from(public_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-1024 public key length"))?;
-            let ek = EncapsulationKey::<MlKem1024Params>::from_bytes(&ek_enc);
+            let ek = EncapsulationKey::<MlKem1024Params>::try_from_bytes(&ek_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-1024 public key"))?;
             let (ct, ss) = ek
                 .encapsulate(&mut rng)
                 .map_err(|e| kem_err("ML-KEM encapsulate", e))?;
@@ -208,7 +211,8 @@ pub fn ml_kem_decapsulate(
         0 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem512Params>>::try_from(secret_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-512 secret key length"))?;
-            let dk = DecapsulationKey::<MlKem512Params>::from_bytes(&dk_enc);
+            let dk = DecapsulationKey::<MlKem512Params>::try_from_bytes(&dk_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-512 secret key"))?;
             let ct_enc = Ciphertext::<MlKem512>::try_from(ciphertext)
                 .map_err(|_| JsError::new("invalid ML-KEM-512 ciphertext length"))?;
             let ss = dk
@@ -220,7 +224,8 @@ pub fn ml_kem_decapsulate(
         1 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem768Params>>::try_from(secret_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-768 secret key length"))?;
-            let dk = DecapsulationKey::<MlKem768Params>::from_bytes(&dk_enc);
+            let dk = DecapsulationKey::<MlKem768Params>::try_from_bytes(&dk_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-768 secret key"))?;
             let ct_enc = Ciphertext::<MlKem768>::try_from(ciphertext)
                 .map_err(|_| JsError::new("invalid ML-KEM-768 ciphertext length"))?;
             let ss = dk
@@ -232,7 +237,8 @@ pub fn ml_kem_decapsulate(
         2 => {
             let dk_enc = Encoded::<DecapsulationKey<MlKem1024Params>>::try_from(secret_key)
                 .map_err(|_| JsError::new("invalid ML-KEM-1024 secret key length"))?;
-            let dk = DecapsulationKey::<MlKem1024Params>::from_bytes(&dk_enc);
+            let dk = DecapsulationKey::<MlKem1024Params>::try_from_bytes(&dk_enc)
+                .map_err(|_| JsError::new("invalid ML-KEM-1024 secret key"))?;
             let ct_enc = Ciphertext::<MlKem1024>::try_from(ciphertext)
                 .map_err(|_| JsError::new("invalid ML-KEM-1024 ciphertext length"))?;
             let ss = dk
