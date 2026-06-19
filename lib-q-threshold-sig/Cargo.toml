@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL SHAKE256-based threshold signature crate (FROST-like, pre-standard)"
-keywords = ["cryptography", "post-quantum", "threshold", "signature", "shake256", "wasm"]
+keywords = ["cryptography", "post-quantum", "threshold", "signature", "shake256"]
 categories = ["cryptography", "wasm"]
 
 
