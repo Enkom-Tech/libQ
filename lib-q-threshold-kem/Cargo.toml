@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
 description = "PROVISIONAL lattice threshold KEM built on ML-KEM-768 and Shamir shares"
-keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem", "wasm"]
+keywords = ["cryptography", "post-quantum", "threshold", "kem", "ml-kem"]
 categories = ["cryptography", "wasm"]
 
 
