@@ -1140,8 +1140,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: v${{ needs.pre-release-validation.outputs.version }}
+          name: Release v${{ needs.pre-release-validation.outputs.version }}
           files: sbom/*.cdx.json
           fail_on_unmatched_files: true
           body: |
