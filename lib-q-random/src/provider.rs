@@ -408,12 +408,14 @@ impl SecureRng for LibQRng {
         // Get entropy from the source
         self.entropy_source.get_entropy(dest)?;
 
-        // Validate entropy quality if not deterministic
-        if !self.deterministic {
-            // Only validate if we have enough data
-            if dest.len() >= 8 {
-                self.validator.validate_entropy(dest)?;
-            }
+        // Validate entropy quality if not deterministic.
+        // Skip validation for buffers < 64 bytes: statistical quality tests are
+        // unreliable on small samples and produce false positives that abort the
+        // process.  For larger buffers, validate only the first 64 bytes so we
+        // never exceed the validator's max_entropy_bits / 8 limit (1 KB) even
+        // when the caller requests several kilobytes at once.
+        if !self.deterministic && dest.len() >= 64 {
+            self.validator.validate_entropy(&dest[..64])?;
         }
 
         // Update counters
