@@ -40,6 +40,9 @@ pub const WIRE_BUDGET_DKG_ROUND1_BYTES: usize = 786_432;
 /// Byte budget for an encoded complaint (discloses the share value, randomness, and proof).
 pub const WIRE_BUDGET_DKG_COMPLAINT_BYTES: usize = 1_048_576;
 
+/// Byte budget for an encoded share evaluation (the share value, randomness, and proof).
+pub const WIRE_BUDGET_DKG_SHARE_BYTES: usize = 1_048_576;
+
 /// Encode a dealer's round-1 coefficient commitments.
 pub fn encode_round1_commitments(c: &CoeffCommitments) -> Result<Vec<u8>, DkgError> {
     let n = u16::try_from(c.commitments.len()).map_err(|_| DkgError::LengthOverflow)?;
@@ -84,22 +87,40 @@ pub fn decode_round1_commitments(wire: &[u8]) -> Result<CoeffCommitments, DkgErr
     })
 }
 
+/// Encode a share evaluation (the share value, randomness, and proof).
+pub fn encode_share_evaluation(s: &ShareEvaluation) -> Result<Vec<u8>, DkgError> {
+    let mut out = alloc::vec![WIRE_VERSION_V1, PROFILE_ID_V1];
+    write_share_body(&mut out, s)?;
+    if out.len() > WIRE_BUDGET_DKG_SHARE_BYTES {
+        return Err(DkgError::BudgetExceeded {
+            actual: out.len(),
+            budget: WIRE_BUDGET_DKG_SHARE_BYTES,
+        });
+    }
+    Ok(out)
+}
+
+/// Decode a share evaluation.
+pub fn decode_share_evaluation(wire: &[u8]) -> Result<ShareEvaluation, DkgError> {
+    if wire.len() > WIRE_BUDGET_DKG_SHARE_BYTES {
+        return Err(DkgError::BudgetExceeded {
+            actual: wire.len(),
+            budget: WIRE_BUDGET_DKG_SHARE_BYTES,
+        });
+    }
+    let mut cur = 0usize;
+    expect_header(wire, &mut cur)?;
+    let share = read_share_body(wire, &mut cur)?;
+    if cur != wire.len() {
+        return Err(DkgError::WireTruncated);
+    }
+    Ok(share)
+}
+
 /// Encode a complaint (discloses the disputed share value, randomness, and proof).
 pub fn encode_complaint(c: &Complaint) -> Result<Vec<u8>, DkgError> {
-    let mut out = alloc::vec![
-        WIRE_VERSION_V1,
-        PROFILE_ID_V1,
-        c.dealer,
-        c.recipient,
-        c.share.dealer,
-        c.share.recipient,
-        c.share.threshold,
-    ];
-    write_rq(&mut out, &c.share.value);
-    write_rq_vec(&mut out, &c.share.rand)?;
-    // Proof: challenge then response vector.
-    write_rq(&mut out, &c.share.proof.c);
-    write_rq_vec(&mut out, &c.share.proof.z)?;
+    let mut out = alloc::vec![WIRE_VERSION_V1, PROFILE_ID_V1, c.dealer, c.recipient];
+    write_share_body(&mut out, &c.share)?;
     if out.len() > WIRE_BUDGET_DKG_COMPLAINT_BYTES {
         return Err(DkgError::BudgetExceeded {
             actual: out.len(),
@@ -121,34 +142,53 @@ pub fn decode_complaint(wire: &[u8]) -> Result<Complaint, DkgError> {
     expect_header(wire, &mut cur)?;
     let dealer = read_u8(wire, &mut cur)?;
     let recipient = read_u8(wire, &mut cur)?;
-    let share_dealer = read_u8(wire, &mut cur)?;
-    let share_recipient = read_u8(wire, &mut cur)?;
-    let threshold = read_u8(wire, &mut cur)?;
-    let value = read_rq(wire, &mut cur)?;
-    let rand = read_rq_vec(wire, &mut cur)?;
-    if rand.len() != KAPPA {
-        return Err(DkgError::Encoding);
-    }
-    let c = read_rq(wire, &mut cur)?;
-    let z = read_rq_vec(wire, &mut cur)?;
+    let share = read_share_body(wire, &mut cur)?;
     if cur != wire.len() {
         return Err(DkgError::WireTruncated);
     }
     Ok(Complaint {
         dealer,
         recipient,
-        share: ShareEvaluation {
-            dealer: share_dealer,
-            recipient: share_recipient,
-            threshold,
-            value,
-            rand,
-            proof: ShareProof { c, z },
-        },
+        share,
     })
 }
 
 // ---------------------------------------------------------------------------
+
+/// Write a `ShareEvaluation` body (no version/profile header).
+fn write_share_body(out: &mut Vec<u8>, s: &ShareEvaluation) -> Result<(), DkgError> {
+    out.push(s.dealer);
+    out.push(s.recipient);
+    out.push(s.threshold);
+    write_rq(out, &s.value);
+    write_rq_vec(out, &s.rand)?;
+    // Proof: challenge then response vector.
+    write_rq(out, &s.proof.c);
+    write_rq_vec(out, &s.proof.z)?;
+    Ok(())
+}
+
+/// Read a `ShareEvaluation` body (no version/profile header).
+fn read_share_body(wire: &[u8], cur: &mut usize) -> Result<ShareEvaluation, DkgError> {
+    let dealer = read_u8(wire, cur)?;
+    let recipient = read_u8(wire, cur)?;
+    let threshold = read_u8(wire, cur)?;
+    let value = read_rq(wire, cur)?;
+    let rand = read_rq_vec(wire, cur)?;
+    if rand.len() != KAPPA {
+        return Err(DkgError::Encoding);
+    }
+    let c = read_rq(wire, cur)?;
+    let z = read_rq_vec(wire, cur)?;
+    Ok(ShareEvaluation {
+        dealer,
+        recipient,
+        threshold,
+        value,
+        rand,
+        proof: ShareProof { c, z },
+    })
+}
 
 fn write_commitment(out: &mut Vec<u8>, c: &Commitment) {
     for p in &c.t0 {
