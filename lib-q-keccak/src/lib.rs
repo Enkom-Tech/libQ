@@ -121,6 +121,27 @@ fn armv8_sha3_runtime_available() -> bool {
 #[cfg(all(target_arch = "x86_64", feature = "asm"))]
 mod x86;
 
+// Stable AVX2 batched (×4) permutation, built on `core::arch` intrinsics (not
+// inline asm, so it is independent of the `asm` feature). It is compiled when
+// AVX2 is either a compile-time guarantee (`target_feature = "avx2"`, e.g.
+// `-C target-cpu=native`) or selectable at runtime (`std`); otherwise `p1600x4`
+// uses the scalar fallback.
+#[cfg(all(
+    target_arch = "x86_64",
+    not(cross_compile),
+    any(target_feature = "avx2", feature = "std")
+))]
+mod x86_simd;
+
+// Stable AVX-512 batched (×8) permutation — the 8-wide sibling of `x86_simd`. Same
+// compile-time-or-runtime gating, keyed on `avx512f` instead of `avx2`.
+#[cfg(all(
+    target_arch = "x86_64",
+    not(cross_compile),
+    any(target_feature = "avx512f", feature = "std")
+))]
+mod x86_simd_avx512;
+
 #[cfg(all(feature = "simd", keccak_portable_simd))]
 mod advanced_simd;
 
@@ -282,6 +303,96 @@ pub fn f1600(state: &mut [u64; PLEN]) {
         unsafe { armv8::p1600_armv8_sha3_asm(state, 24) }
     } else {
         keccak_p(state, u64::KECCAK_F_ROUND_COUNT);
+    }
+}
+
+/// Apply Keccak-p\[1600, `round_count`\] to **four independent states** at once.
+///
+/// On x86_64 with the `asm` and `std` features this uses a single AVX2 register
+/// to drive all four states in parallel when the CPU supports `avx2` (detected at
+/// runtime), which is substantially faster than four separate permutations for
+/// batchable workloads (tree hashing such as KangarooTwelve, parallel SHAKE in
+/// hash-based signatures, lattice sampling). On any other target — or when AVX2
+/// is absent — it falls back to four scalar [`p1600`] calls, so the result is
+/// identical everywhere.
+///
+/// `round_count` follows the same convention as [`p1600`]: e.g. `24` for
+/// Keccak-f\[1600\], `12` for the TurboSHAKE/K12 reduced-round permutation.
+pub fn p1600x4(states: &mut [[u64; PLEN]; 4], round_count: usize) {
+    // Compile-time AVX2 (e.g. `-C target-cpu=native`): sound without any runtime
+    // check, and no `std` required.
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
+    {
+        // SAFETY: the target is compiled with AVX2 enabled.
+        unsafe { x86_simd::p1600x4_avx2(states, round_count) };
+        return;
+    }
+
+    // Otherwise, detect AVX2 at runtime when `std` is available.
+    #[cfg(all(
+        target_arch = "x86_64",
+        feature = "std",
+        not(target_feature = "avx2"),
+        not(cross_compile)
+    ))]
+    {
+        if std::arch::is_x86_feature_detected!("avx2") {
+            // SAFETY: `avx2` was just confirmed available at runtime.
+            unsafe { x86_simd::p1600x4_avx2(states, round_count) };
+            return;
+        }
+    }
+
+    // Scalar fallback (omitted when AVX2 is a compile-time guarantee, where the
+    // first branch already returned).
+    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile))))]
+    for state in states.iter_mut() {
+        p1600(state, round_count);
+    }
+}
+
+/// Apply Keccak-p\[1600, `round_count`\] to **eight independent states** at once.
+///
+/// The 8-wide AVX-512 counterpart of [`p1600x4`]: on x86_64 it drives all eight
+/// states through one `__m512i` when the CPU supports `avx512f` (a compile-time
+/// guarantee via `target_feature`, or detected at runtime under `std`). On any other
+/// target — or when AVX-512 is absent — it falls back to eight scalar [`p1600`]
+/// calls, so the result is identical everywhere.
+///
+/// `round_count` follows the same convention as [`p1600`] (`24` for Keccak-f, `12`
+/// for the TurboSHAKE/K12 reduced-round permutation).
+///
+/// AVX-512 is absent on many consumer CPUs (and all AMD Zen 1–3). The batched XOF
+/// helpers therefore default to [`p1600x4`]; reach for `p1600x8` only where AVX-512
+/// is expected and has been validated on the target hardware.
+pub fn p1600x8(states: &mut [[u64; PLEN]; 8], round_count: usize) {
+    // Compile-time AVX-512 (e.g. `-C target-cpu=native` on an AVX-512 host).
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
+    {
+        // SAFETY: the target is compiled with AVX-512F enabled.
+        unsafe { x86_simd_avx512::p1600x8_avx512(states, round_count) };
+        return;
+    }
+
+    // Otherwise, detect AVX-512F at runtime when `std` is available.
+    #[cfg(all(
+        target_arch = "x86_64",
+        feature = "std",
+        not(target_feature = "avx512f"),
+        not(cross_compile)
+    ))]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            // SAFETY: `avx512f` was just confirmed available at runtime.
+            unsafe { x86_simd_avx512::p1600x8_avx512(states, round_count) };
+            return;
+        }
+    }
+
+    // Scalar fallback (omitted when AVX-512 is a compile-time guarantee).
+    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile))))]
+    for state in states.iter_mut() {
+        p1600(state, round_count);
     }
 }
 

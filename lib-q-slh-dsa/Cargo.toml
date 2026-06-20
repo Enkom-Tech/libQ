@@ -87,6 +87,9 @@ std = [
     "lib-q-random/std",
     "lib-q-random/secure",
     "lib-q-random/zeroize",
+    # Links std into lib-q-keccak so the batched `p1600x4` behind the WOTS+ hash-chain
+    # batching can detect AVX2 at runtime (no `-C target-cpu=native` needed).
+    "lib-q-sha3/std",
 ]
 no_std = [
     "getrandom",

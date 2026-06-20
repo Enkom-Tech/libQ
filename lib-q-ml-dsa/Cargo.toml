@@ -67,7 +67,9 @@ mldsa87 = []  # ML-DSA-87: Security Category 5
 
 # Platform optimizations
 simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]  # ARM NEON optimizations
-simd256 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd256"]  # x86_64 AVX2 optimizations
+# `lib-q-keccak/std` lets the batched `p1600x4` behind the 4-way SHAKE (matrix/mask sampling)
+# detect AVX2 at runtime, so the avx2 variant's SHAKE is real SIMD (not 4 sequential scalar perms).
+simd256 = ["lib-q-sha3/asm", "lib-q-keccak/std", "lib-q-intrinsics/simd256"]  # x86_64 AVX2 optimizations
 
 # Standard library support
 std = []

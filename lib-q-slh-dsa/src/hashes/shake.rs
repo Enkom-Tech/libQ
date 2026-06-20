@@ -23,6 +23,7 @@ use hybrid_array::{
     ArraySize,
 };
 use lib_q_sha3::Shake256;
+use lib_q_sha3::parallel::shake256_x4;
 use typenum::U;
 
 use crate::address::Address;
@@ -156,6 +157,100 @@ where
         let mut output = Array::<u8, Self::N>::default();
         hasher.finalize_xof_into(&mut output);
         output
+    }
+
+    /// Batched `f` over four independent WOTS+/FORS hash inputs — `SHAKE256(pk_seed ‖ adrs ‖ m)`,
+    /// bit-for-bit identical to four scalar [`f`](Self::f) calls (the permutation falls back to four
+    /// scalar rounds without AVX2, so this is never slower and never differs).
+    fn f_x4<A: Address>(
+        &self,
+        adrs: &[A; 4],
+        m: &[Array<u8, Self::N>; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        Self::batch_shake256_x4(|lane, buf| {
+            let pk = self.pk_seed.as_ref();
+            let mut p = write_at(buf, 0, pk);
+            p = write_at(buf, p, adrs[lane].as_ref());
+            write_at(buf, p, m[lane].as_slice())
+        })
+    }
+
+    /// Batched `h` (Merkle node) — `SHAKE256(pk_seed ‖ adrs ‖ m1 ‖ m2)`, used to fold FORS levels.
+    fn h_x4<A: Address>(
+        &self,
+        adrs: &[A; 4],
+        m1: &[Array<u8, Self::N>; 4],
+        m2: &[Array<u8, Self::N>; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        Self::batch_shake256_x4(|lane, buf| {
+            let pk = self.pk_seed.as_ref();
+            let mut p = write_at(buf, 0, pk);
+            p = write_at(buf, p, adrs[lane].as_ref());
+            p = write_at(buf, p, m1[lane].as_slice());
+            write_at(buf, p, m2[lane].as_slice())
+        })
+    }
+
+    /// Batched `prf_sk` — `SHAKE256(pk_seed ‖ adrs ‖ sk_seed)`, used to generate four FORS/WOTS
+    /// secret values at once.
+    fn prf_sk_x4<A: Address>(
+        &self,
+        sk_seed: &SkSeed<Self::N>,
+        adrs: &[A; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        Self::batch_shake256_x4(|lane, buf| {
+            let pk = self.pk_seed.as_ref();
+            let mut p = write_at(buf, 0, pk);
+            p = write_at(buf, p, adrs[lane].as_ref());
+            write_at(buf, p, sk_seed.as_ref())
+        })
+    }
+}
+
+/// Copy `src` into `buf` starting at `off`, returning the new offset. Small inline cursor used by
+/// the batched SHAKE builders.
+#[inline]
+fn write_at(buf: &mut [u8], off: usize, src: &[u8]) -> usize {
+    buf[off..off + src.len()].copy_from_slice(src);
+    off + src.len()
+}
+
+impl<N: ArraySize, M> Shake<N, M> {
+    /// Build four equal-length SHAKE256 input blocks via `fill` (which returns each lane's length),
+    /// hash them with [`shake256_x4`], and return the four `N`-byte digests. All SLH-DSA SHAKE
+    /// component hashes fit a single 136-byte rate block: `pk_seed (N≤32) + ADRS (32) + up to two
+    /// N-byte messages ≤ 128`, so a 128-byte per-lane scratch buffer always suffices.
+    #[inline]
+    fn batch_shake256_x4<F>(fill: F) -> [Array<u8, N>; 4]
+    where
+        F: Fn(usize, &mut [u8; 128]) -> usize,
+    {
+        let mut bufs = [[0u8; 128]; 4];
+        let mut len = 0usize;
+        for (lane, buf) in bufs.iter_mut().enumerate() {
+            len = fill(lane, buf);
+        }
+        debug_assert!(len <= 128);
+
+        let mut outs: [Array<u8, N>; 4] = core::array::from_fn(|_| Array::default());
+        {
+            let [o0, o1, o2, o3] = &mut outs;
+            shake256_x4(
+                [
+                    &bufs[0][..len],
+                    &bufs[1][..len],
+                    &bufs[2][..len],
+                    &bufs[3][..len],
+                ],
+                [
+                    o0.as_mut_slice(),
+                    o1.as_mut_slice(),
+                    o2.as_mut_slice(),
+                    o3.as_mut_slice(),
+                ],
+            );
+        }
+        outs
     }
 }
 

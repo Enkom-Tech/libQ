@@ -33,8 +33,11 @@ nightly = []   # Enable nightly-only features like benchmarking
 advanced-simd = ["simd"]  # Enable advanced SIMD features (requires nightly)
 arm64_sha3 = [] # Enable ARM64 SHA3 hardware acceleration (requires native ARM64 build)
 alloc = []     # Enable alloc support for no_std environments
-std = ["alloc", "num_cpus", "nix"]  # Enable std support (required for multi-threading)
-multithreading = ["std", "thread-affinity", "simd"]  # Enable multi-threading support with thread affinity
+# `std` only links the std crate (e.g. for x86 runtime AVX2 detection in `p1600x4`).
+# The heavyweight multi-threading deps moved to the `multithreading` feature so that
+# enabling `std` stays cheap for `no_std`-first dependents (sha3, k12, …).
+std = ["alloc"]  # Enable std support (runtime CPU feature detection, etc.)
+multithreading = ["std", "num_cpus", "nix", "thread-affinity", "simd"]  # Multi-threading with thread affinity
 core_affinity = ["dep:core_affinity"]                 # Named feature for optional dep (workspace metadata / `dep:`).
 thread-affinity = ["core_affinity"]                   # Enable thread affinity support
 no_std_panic_handler = []  # Enable panic handler for pure no_std builds only
