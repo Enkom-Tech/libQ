@@ -46,6 +46,9 @@ alloc = ["digest/alloc"]
 oid = ["digest/oid"] # Enable OID support.
 zeroize = ["digest/zeroize"]
 asm = ["lib-q-keccak/asm"] # Enable ASM (currently ARMv8 only).
+# Link std in lib-q-keccak so its x86 `p1600x4` can detect AVX2 at runtime, giving
+# the batched TurboSHAKE path (`parallel::*`) without needing `-C target-cpu=native`.
+std = ["lib-q-keccak/std"]
 
 [lib]
 bench = false

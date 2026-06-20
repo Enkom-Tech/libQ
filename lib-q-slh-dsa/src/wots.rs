@@ -21,6 +21,29 @@ const LOG_W: usize = 4;
 const W: u32 = 16;
 const CK_LEN: usize = 3; // Length of a checksum in chunks
 
+/// Largest `WotsSigLen` across all parameter sets (`2·N + 3`, N ≤ 32) — sizes the on-stack scratch
+/// for per-index chain lengths so the batched paths need no allocation.
+const MAX_WOTS_SIG_LEN: usize = 67;
+
+/// Whether 4-way hash batching is worth it for **variable-length** chains.
+///
+/// Unlike `wots_pk_gen` (every chain runs the full `W-1` steps, no wasted work), `wots_sign` /
+/// `wots_pk_from_sig` chains have per-index lengths, so lockstep batching wastes the steps a
+/// finished lane would have skipped. That is a net win only when the batched permutation is itself
+/// faster than the scalar one — i.e. on a CPU with AVX2. Off AVX2 (or no `std` for runtime
+/// detection) the scalar path is used, which never does the wasted work.
+#[inline]
+fn variable_chain_batching_beneficial() -> bool {
+    #[cfg(all(feature = "std", target_arch = "x86_64"))]
+    {
+        std::arch::is_x86_feature_detected!("avx2")
+    }
+    #[cfg(not(all(feature = "std", target_arch = "x86_64")))]
+    {
+        false
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct WotsSig<P: WotsParams>(Array<Array<u8, P::N>, P::WotsSigLen>);
 
@@ -91,6 +114,41 @@ pub(crate) trait WotsParams: HashSuite {
         tmp
     }
 
+    /// Run four WOTS+ chains in lockstep through [`f_x4`](crate::hashes::HashSuite::f_x4): lane `k`
+    /// starts from `cur[k]` at hash index `starts[k]` and applies `lens[k]` steps. Lanes that finish
+    /// early are frozen — their surplus `f_x4` lanes are computed but discarded — so callers gate on
+    /// [`variable_chain_batching_beneficial`]. Byte-identical to four scalar [`wots_chain`] calls.
+    fn wots_chain_x4(
+        hasher: &Self,
+        base_adrs: &address::WotsHash,
+        chain_idx: [u32; 4],
+        starts: [u32; 4],
+        lens: [u32; 4],
+        mut cur: [Array<u8, Self::N>; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        let max_len = lens.iter().copied().max().unwrap_or(0);
+        let mut adrs: [address::WotsHash; 4] = core::array::from_fn(|k| {
+            let mut a = base_adrs.clone();
+            a.chain_adrs.set(chain_idx[k]);
+            a.hash_adrs.set(starts[k]);
+            a
+        });
+        for g in 0..max_len {
+            for k in 0..4 {
+                if g < lens[k] {
+                    adrs[k].hash_adrs.set(starts[k] + g);
+                }
+            }
+            let res = hasher.f_x4(&adrs, &cur);
+            for k in 0..4 {
+                if g < lens[k] {
+                    cur[k] = res[k].clone();
+                }
+            }
+        }
+        cur
+    }
+
     /// Algorithm 5
     fn wots_pk_gen(
         hasher: &Self,
@@ -99,16 +157,50 @@ pub(crate) trait WotsParams: HashSuite {
     ) -> Array<u8, Self::N> {
         let mut adrs = adrs.clone();
         let mut sk_adrs = adrs.prf_adrs();
+        let total = Self::WotsSigLen::USIZE;
+        let mut tmp = Array::<Array<u8, Self::N>, Self::WotsSigLen>::default();
 
-        let tmp = Array::<Array<u8, Self::N>, Self::WotsSigLen>::from_fn(|i: usize| {
-            let i: u32 = i.try_into().expect("i is less than 2^32");
-            sk_adrs.chain_adrs.set(i);
-            adrs.chain_adrs.set(i);
+        // The `total` chains are independent, and in `pk_gen` every chain runs the full `W-1`
+        // steps, so we batch them four at a time and step the four chains in lockstep through
+        // `f_x4`. This is byte-for-byte identical to the scalar `from_fn` it replaces (the SHAKE
+        // suites override `f_x4` with a 4-way Keccak permutation; everyone else falls back to four
+        // scalar `f` calls).
+        let mut i = 0;
+        while i + 4 <= total {
+            let mut chain_adrs: [address::WotsHash; 4] = core::array::from_fn(|lane| {
+                let mut a = adrs.clone();
+                a.chain_adrs
+                    .set((i + lane).try_into().expect("i is less than 2^32"));
+                a
+            });
+            let mut cur: [Array<u8, Self::N>; 4] = core::array::from_fn(|lane| {
+                sk_adrs
+                    .chain_adrs
+                    .set((i + lane).try_into().expect("i is less than 2^32"));
+                hasher.prf_sk(sk_seed, &sk_adrs)
+            });
+            for j in 0..(W - 1) {
+                for a in &mut chain_adrs {
+                    a.hash_adrs.set(j);
+                }
+                cur = hasher.f_x4(&chain_adrs, &cur);
+            }
+            for (lane, c) in cur.into_iter().enumerate() {
+                tmp[i + lane] = c;
+            }
+            i += 4;
+        }
+        // Tail chains (`total % 4`): scalar.
+        while i < total {
+            let ci = u32::try_from(i).expect("i is less than 2^32");
+            sk_adrs.chain_adrs.set(ci);
+            adrs.chain_adrs.set(ci);
             let sk = hasher.prf_sk(sk_seed, &sk_adrs);
-            Self::wots_chain(hasher, &sk, 0, (1 << LOG_W) - 1, &adrs)
-        });
-        let pk_adrs = adrs.pk_adrs();
-        hasher.t(&pk_adrs, &tmp)
+            tmp[i] = Self::wots_chain(hasher, &sk, 0, (1 << LOG_W) - 1, &adrs);
+            i += 1;
+        }
+
+        hasher.t(&adrs.pk_adrs(), &tmp)
     }
 
     // Algorithm 6
@@ -127,17 +219,53 @@ pub(crate) trait WotsParams: HashSuite {
 
         let mut adrs = adrs.clone();
         let mut sk_adrs = adrs.prf_adrs();
+        let total = Self::WotsSigLen::USIZE;
 
-        let sig = Array::<Array<u8, Self::N>, Self::WotsSigLen>::from_fn(|i: usize| {
-            let i: u32 = i.try_into().expect("i is less than 2^32");
-            sk_adrs.chain_adrs.set(i);
-            adrs.chain_adrs.set(i);
+        if variable_chain_batching_beneficial() {
+            // Per-index chain length = message/checksum digit (each in `0..W`).
+            let mut steps = [0u16; MAX_WOTS_SIG_LEN];
+            for (slot, v) in steps.iter_mut().zip(msg_csum.by_ref()) {
+                *slot = *v;
+            }
+            let mut sig = Array::<Array<u8, Self::N>, Self::WotsSigLen>::default();
+            let mut i = 0;
+            while i + 4 <= total {
+                let sks: [Array<u8, Self::N>; 4] = core::array::from_fn(|k| {
+                    sk_adrs
+                        .chain_adrs
+                        .set((i + k).try_into().expect("i is less than 2^32"));
+                    hasher.prf_sk(sk_seed, &sk_adrs)
+                });
+                let chain_idx =
+                    core::array::from_fn(|k| u32::try_from(i + k).expect("i is less than 2^32"));
+                let lens = core::array::from_fn(|k| u32::from(steps[i + k]));
+                let res = Self::wots_chain_x4(hasher, &adrs, chain_idx, [0; 4], lens, sks);
+                for (k, c) in res.into_iter().enumerate() {
+                    sig[i + k] = c;
+                }
+                i += 4;
+            }
+            while i < total {
+                let ci = u32::try_from(i).expect("i is less than 2^32");
+                sk_adrs.chain_adrs.set(ci);
+                adrs.chain_adrs.set(ci);
+                let sk = hasher.prf_sk(sk_seed, &sk_adrs);
+                sig[i] = Self::wots_chain(hasher, &sk, 0, u32::from(steps[i]), &adrs);
+                i += 1;
+            }
+            WotsSig(sig)
+        } else {
+            let sig = Array::<Array<u8, Self::N>, Self::WotsSigLen>::from_fn(|i: usize| {
+                let i: u32 = i.try_into().expect("i is less than 2^32");
+                sk_adrs.chain_adrs.set(i);
+                adrs.chain_adrs.set(i);
 
-            let sk = hasher.prf_sk(sk_seed, &sk_adrs);
-            Self::wots_chain(hasher, &sk, 0, u32::from(*msg_csum.next().unwrap()), &adrs)
-        });
+                let sk = hasher.prf_sk(sk_seed, &sk_adrs);
+                Self::wots_chain(hasher, &sk, 0, u32::from(*msg_csum.next().unwrap()), &adrs)
+            });
 
-        WotsSig(sig)
+            WotsSig(sig)
+        }
     }
 
     fn wots_pk_from_sig(
@@ -153,12 +281,43 @@ pub(crate) trait WotsParams: HashSuite {
         let mut msg_csum = msg.iter().chain(csum_chunks.iter());
 
         let mut adrs = adrs.clone();
-        let tmp = Array::<Array<u8, Self::N>, Self::WotsSigLen>::from_fn(|i: usize| {
-            adrs.chain_adrs
-                .set(i.try_into().expect("i is less than 2^32"));
-            let msg_i = u32::from(*msg_csum.next().unwrap());
-            Self::wots_chain(hasher, &sig.0[i], msg_i, W - 1 - msg_i, &adrs)
-        });
+        let total = Self::WotsSigLen::USIZE;
+        let tmp = if variable_chain_batching_beneficial() {
+            // Chain `i` starts at `msg_i` and runs `W-1-msg_i` steps from `sig[i]`.
+            let mut msg_i = [0u16; MAX_WOTS_SIG_LEN];
+            for (slot, v) in msg_i.iter_mut().zip(msg_csum.by_ref()) {
+                *slot = *v;
+            }
+            let mut tmp = Array::<Array<u8, Self::N>, Self::WotsSigLen>::default();
+            let mut i = 0;
+            while i + 4 <= total {
+                let chain_idx =
+                    core::array::from_fn(|k| u32::try_from(i + k).expect("i is less than 2^32"));
+                let starts = core::array::from_fn(|k| u32::from(msg_i[i + k]));
+                let lens = core::array::from_fn(|k| W - 1 - u32::from(msg_i[i + k]));
+                let cur: [Array<u8, Self::N>; 4] = core::array::from_fn(|k| sig.0[i + k].clone());
+                let res = Self::wots_chain_x4(hasher, &adrs, chain_idx, starts, lens, cur);
+                for (k, c) in res.into_iter().enumerate() {
+                    tmp[i + k] = c;
+                }
+                i += 4;
+            }
+            while i < total {
+                adrs.chain_adrs
+                    .set(i.try_into().expect("i is less than 2^32"));
+                let m_i = u32::from(msg_i[i]);
+                tmp[i] = Self::wots_chain(hasher, &sig.0[i], m_i, W - 1 - m_i, &adrs);
+                i += 1;
+            }
+            tmp
+        } else {
+            Array::<Array<u8, Self::N>, Self::WotsSigLen>::from_fn(|i: usize| {
+                adrs.chain_adrs
+                    .set(i.try_into().expect("i is less than 2^32"));
+                let msg_i = u32::from(*msg_csum.next().unwrap());
+                Self::wots_chain(hasher, &sig.0[i], msg_i, W - 1 - msg_i, &adrs)
+            })
+        };
         hasher.t(&adrs.pk_adrs(), &tmp)
     }
 }

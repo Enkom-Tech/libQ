@@ -49,6 +49,8 @@ pub use digest::{
 pub mod block_core;
 /// cSHAKE-128 and cSHAKE-256 (NIST SP 800-185). Types are re-exported at the crate root.
 pub mod cshake;
+/// Four-way batched TurboSHAKE (AVX2-accelerated leaf hashing for KangarooTwelve).
+pub mod parallel;
 /// TurboSHAKE-128 and TurboSHAKE-256. Types are re-exported at the crate root.
 pub mod turbo_shake;
 

@@ -8,6 +8,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, unreachable_pub)]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub use digest;
 
 /// Block-level types

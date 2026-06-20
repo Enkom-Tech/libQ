@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::fmt;
 
 use digest::block_api::{
@@ -23,6 +25,11 @@ use digest::{
     Update,
     XofReader,
 };
+#[cfg(feature = "alloc")]
+use lib_q_sha3::parallel::{
+    turbo_shake128_x4,
+    turbo_shake256_x4,
+};
 use lib_q_sha3::{
     TurboShake128,
     TurboShake128Reader,
@@ -31,12 +38,15 @@ use lib_q_sha3::{
 };
 
 const CHUNK_SIZE: usize = 8192;
+/// Number of leaves hashed together by the AVX2-accelerated batched path.
+#[cfg(feature = "alloc")]
+const LEAF_BATCH: usize = 4;
 const LENGTH_ENCODE_SIZE: usize = 255;
 
 macro_rules! impl_k12_core {
     (
-        $name:ident, $reader_name:ident, $ts_name:ident, $ts_reader_name:ident, $cv_size:literal,
-        $alg_name:literal,
+        $name:ident, $reader_name:ident, $ts_name:ident, $ts_reader_name:ident, $batch_fn:path,
+        $cv_size:literal, $alg_name:literal,
     ) => {
         #[doc = "Core"]
         #[doc = $alg_name]
@@ -50,6 +60,12 @@ macro_rules! impl_k12_core {
             final_tshk: $ts_name<0x06>,
             chain_tshk: $ts_name<0x0B>,
             chain_length: usize,
+            /// Completed full leaf chunks awaiting batched (×4) hashing.
+            #[cfg(feature = "alloc")]
+            pending: Vec<[u8; CHUNK_SIZE]>,
+            /// Whether the K12 inner-node separator has been emitted to `final_tshk`.
+            #[cfg(feature = "alloc")]
+            separator_emitted: bool,
         }
 
         impl<'cs> $name<'cs> {
@@ -66,9 +82,98 @@ macro_rules! impl_k12_core {
                     final_tshk: Default::default(),
                     chain_tshk: Default::default(),
                     chain_length: 0usize,
+                    #[cfg(feature = "alloc")]
+                    pending: Vec::new(),
+                    #[cfg(feature = "alloc")]
+                    separator_emitted: false,
                 }
             }
 
+            // ---- Batched (×4) leaf path — enabled with the `alloc` feature ----
+            //
+            // A completed full leaf is queued in `pending` rather than hashed
+            // immediately; once four have accumulated they are hashed together
+            // through the AVX2 `p1600x4` permutation. The chaining values are
+            // emitted to `final_tshk` in strict chunk order with the inner-node
+            // separator written exactly once, so the digest is byte-identical to
+            // the scalar path.
+            #[cfg(feature = "alloc")]
+            fn process_chunk(&mut self) {
+                debug_assert!(self.bufpos == CHUNK_SIZE);
+                if self.chain_length == 0 {
+                    self.final_tshk.update(&self.buffer);
+                } else {
+                    self.pending.push(self.buffer);
+                    if self.pending.len() == LEAF_BATCH {
+                        self.flush_full_batches();
+                    }
+                }
+
+                self.chain_length += 1;
+                self.buffer = [0u8; CHUNK_SIZE];
+                self.bufpos = 0;
+            }
+
+            /// Emit a chaining value, writing the one-time inner-node separator first.
+            #[cfg(feature = "alloc")]
+            fn emit_chaining_value(&mut self, cv: &[u8]) {
+                if !self.separator_emitted {
+                    self.final_tshk
+                        .update(&[0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                    self.separator_emitted = true;
+                }
+                self.final_tshk.update(cv);
+            }
+
+            /// Hash queued leaves four at a time via the batched TurboSHAKE.
+            #[cfg(feature = "alloc")]
+            fn flush_full_batches(&mut self) {
+                while self.pending.len() >= LEAF_BATCH {
+                    let mut cvs = [[0u8; Self::CHAINING_VALUE_SIZE]; LEAF_BATCH];
+                    {
+                        let [c0, c1, c2, c3] = &mut cvs;
+                        let p = &self.pending;
+                        $batch_fn(
+                            0x0B,
+                            [&p[0][..], &p[1][..], &p[2][..], &p[3][..]],
+                            [
+                                c0.as_mut_slice(),
+                                c1.as_mut_slice(),
+                                c2.as_mut_slice(),
+                                c3.as_mut_slice(),
+                            ],
+                        );
+                    }
+                    for cv in &cvs {
+                        self.emit_chaining_value(cv);
+                    }
+                    self.pending.drain(0..LEAF_BATCH);
+                }
+            }
+
+            /// Hash any remaining (< `LEAF_BATCH`) queued leaves with scalar TurboSHAKE.
+            #[cfg(feature = "alloc")]
+            fn flush_remaining_scalar(&mut self) {
+                let pending = core::mem::take(&mut self.pending);
+                for chunk in pending {
+                    let mut result = [0u8; Self::CHAINING_VALUE_SIZE];
+                    self.chain_tshk.update(&chunk);
+                    self.chain_tshk.finalize_xof_reset_into(&mut result);
+                    self.emit_chaining_value(&result);
+                }
+            }
+
+            #[cfg(feature = "alloc")]
+            fn process_chaining_chunk(&mut self) {
+                debug_assert!(self.bufpos != 0);
+                let mut result = [0u8; Self::CHAINING_VALUE_SIZE];
+                self.chain_tshk.update(&self.buffer[..self.bufpos]);
+                self.chain_tshk.finalize_xof_reset_into(&mut result);
+                self.emit_chaining_value(&result);
+            }
+
+            // ---- Scalar leaf path — used when `alloc` is disabled ----
+            #[cfg(not(feature = "alloc"))]
             fn process_chunk(&mut self) {
                 debug_assert!(self.bufpos == CHUNK_SIZE);
                 if self.chain_length == 0 {
@@ -82,6 +187,7 @@ macro_rules! impl_k12_core {
                 self.bufpos = 0;
             }
 
+            #[cfg(not(feature = "alloc"))]
             fn process_chaining_chunk(&mut self) {
                 debug_assert!(self.bufpos != 0);
                 if self.chain_length == 1 {
@@ -152,6 +258,14 @@ macro_rules! impl_k12_core {
                     return $reader_name { tshk };
                 }
 
+                // Flush queued full leaves (batched, then any scalar remainder)
+                // before the final leftover leaf so chaining values stay in order.
+                #[cfg(feature = "alloc")]
+                {
+                    self.flush_full_batches();
+                    self.flush_remaining_scalar();
+                }
+
                 // Calculate last chaining value
                 self.process_chaining_chunk();
 
@@ -176,6 +290,10 @@ macro_rules! impl_k12_core {
                     final_tshk: Default::default(),
                     chain_tshk: Default::default(),
                     chain_length: 0usize,
+                    #[cfg(feature = "alloc")]
+                    pending: Vec::new(),
+                    #[cfg(feature = "alloc")]
+                    separator_emitted: false,
                 }
             }
         }
@@ -207,6 +325,14 @@ macro_rules! impl_k12_core {
                     self.buffer.zeroize();
                     self.bufpos.zeroize();
                     self.chain_length.zeroize();
+                    #[cfg(feature = "alloc")]
+                    {
+                        for chunk in self.pending.iter_mut() {
+                            chunk.zeroize();
+                        }
+                        self.pending.clear();
+                        self.separator_emitted.zeroize();
+                    }
                 }
             }
         }
@@ -241,6 +367,7 @@ impl_k12_core!(
     Kt128ReaderCore,
     TurboShake128,
     TurboShake128Reader,
+    turbo_shake128_x4,
     32,
     "KT128",
 );
@@ -249,6 +376,7 @@ impl_k12_core!(
     Kt256ReaderCore,
     TurboShake256,
     TurboShake256Reader,
+    turbo_shake256_x4,
     64,
     "KT256",
 );

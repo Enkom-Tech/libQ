@@ -421,109 +421,181 @@ pub mod avx2 {
             }
         }
 
+        /// Incremental 4-way SHAKE driven by [`lib_q_keccak::p1600x4`] — true SIMD when AVX2 is
+        /// available at runtime, a scalar fallback (four `p1600`s) otherwise, **bit-identical either
+        /// way**. This replaced a wrapper around four *sequential* scalar SHAKE instances, which made
+        /// the `avx2` ML-DSA variant no faster than `portable` on the SHAKE-bound signing path
+        /// (matrix Â expansion + per-rejection mask `y` sampling both stream through here).
+        ///
+        /// Output matches the scalar reader byte-for-byte: `absorb_final` pads and runs the final
+        /// permutation (state → block 0), `squeeze_first_*` extracts block 0 then permutes between
+        /// further blocks, and `squeeze_next_*` permutes before extracting (continuation). All SLH-
+        /// style seeds here are a single rate block, so the multi-block absorb path is just for safety.
         pub mod incremental {
-            use super::super::super::incremental;
+            use lib_q_keccak::{
+                p1600,
+                p1600x4,
+            };
 
-            /// The Keccak state for the incremental API
-            /// Uses portable implementation wrapped for x4 interface
+            const RATE_128: usize = 168;
+            const RATE_256: usize = 136;
+            const SHAKE_DS: u8 = 0x1F;
+            const ROUNDS: usize = 24;
+
+            /// Four independent Keccak-f\[1600\] states; lane `k` carries input/output stream `k`.
             pub struct KeccakStateX4 {
-                states: [super::super::super::KeccakState; 4],
+                states: [[u64; 25]; 4],
             }
 
             impl KeccakStateX4 {
                 pub fn new() -> Self {
                     Self {
-                        states: [
-                            incremental::shake128_init(),
-                            incremental::shake128_init(),
-                            incremental::shake128_init(),
-                            incremental::shake128_init(),
-                        ],
+                        states: [[0u64; 25]; 4],
                     }
                 }
             }
 
-            // Add missing functions that libcrux API expects
+            impl Default for KeccakStateX4 {
+                fn default() -> Self {
+                    Self::new()
+                }
+            }
+
             pub fn init() -> KeccakStateX4 {
                 KeccakStateX4::new()
             }
 
-            pub fn shake128_absorb_final(
-                state: &mut KeccakStateX4,
-                input0: &[u8],
-                input1: &[u8],
-                input2: &[u8],
-                input3: &[u8],
+            /// XOR a (partial) block into one state, little-endian (mirrors `lib_q_sha3`'s absorb).
+            #[inline]
+            fn xor_block(state: &mut [u64; 25], block: &[u8]) {
+                let mut lane = 0;
+                let mut chunks = block.chunks_exact(8);
+                for c in &mut chunks {
+                    let mut b = [0u8; 8];
+                    b.copy_from_slice(c);
+                    state[lane] ^= u64::from_le_bytes(b);
+                    lane += 1;
+                }
+                let rem = chunks.remainder();
+                if !rem.is_empty() {
+                    let mut b = [0u8; 8];
+                    b[..rem.len()].copy_from_slice(rem);
+                    state[lane] ^= u64::from_le_bytes(b);
+                }
+            }
+
+            /// Extract `out.len()` (≤ RATE) bytes from the rate region of one state, little-endian.
+            #[inline]
+            fn squeeze_block(state: &[u64; 25], out: &mut [u8]) {
+                for (chunk, s) in out.chunks_mut(8).zip(state.iter()) {
+                    chunk.copy_from_slice(&s.to_le_bytes()[..chunk.len()]);
+                }
+            }
+
+            /// Absorb each input (one rate block in practice), apply SHAKE pad10*1, and run the final
+            /// permutation across all four lanes — leaving the states positioned at output block 0.
+            #[inline]
+            fn absorb_final<const RATE: usize>(states: &mut [[u64; 25]; 4], inputs: [&[u8]; 4]) {
+                for (state, input) in states.iter_mut().zip(inputs.iter()) {
+                    let mut off = 0;
+                    while off + RATE <= input.len() {
+                        xor_block(state, &input[off..off + RATE]);
+                        p1600(state, ROUNDS);
+                        off += RATE;
+                    }
+                    let rem = input.len() - off;
+                    let mut block = [0u8; RATE];
+                    block[..rem].copy_from_slice(&input[off..]);
+                    block[rem] = SHAKE_DS;
+                    block[RATE - 1] |= 0x80;
+                    xor_block(state, &block);
+                }
+                p1600x4(states, ROUNDS);
+            }
+
+            /// Squeeze `out0.len()/RATE` blocks into the four outputs. `first` extracts block 0 from
+            /// the current (already-permuted) state, then permutes between blocks; `!first` permutes
+            /// before the first extraction (stream continuation).
+            #[inline]
+            fn squeeze<const RATE: usize>(
+                states: &mut [[u64; 25]; 4],
+                out0: &mut [u8],
+                out1: &mut [u8],
+                out2: &mut [u8],
+                out3: &mut [u8],
+                first: bool,
             ) {
-                incremental::shake128_absorb_final(&mut state.states[0], input0);
-                incremental::shake128_absorb_final(&mut state.states[1], input1);
-                incremental::shake128_absorb_final(&mut state.states[2], input2);
-                incremental::shake128_absorb_final(&mut state.states[3], input3);
+                let nblocks = out0.len() / RATE;
+                for blk in 0..nblocks {
+                    if blk > 0 || !first {
+                        p1600x4(states, ROUNDS);
+                    }
+                    let r = blk * RATE..(blk + 1) * RATE;
+                    squeeze_block(&states[0], &mut out0[r.clone()]);
+                    squeeze_block(&states[1], &mut out1[r.clone()]);
+                    squeeze_block(&states[2], &mut out2[r.clone()]);
+                    squeeze_block(&states[3], &mut out3[r]);
+                }
+            }
+
+            pub fn shake128_absorb_final(
+                s: &mut KeccakStateX4,
+                i0: &[u8],
+                i1: &[u8],
+                i2: &[u8],
+                i3: &[u8],
+            ) {
+                absorb_final::<RATE_128>(&mut s.states, [i0, i1, i2, i3]);
             }
 
             pub fn shake128_squeeze_first_five_blocks(
-                state: &mut KeccakStateX4,
-                out0: &mut [u8],
-                out1: &mut [u8],
-                out2: &mut [u8],
-                out3: &mut [u8],
+                s: &mut KeccakStateX4,
+                o0: &mut [u8],
+                o1: &mut [u8],
+                o2: &mut [u8],
+                o3: &mut [u8],
             ) {
-                incremental::shake128_squeeze_first_five_blocks(&mut state.states[0], out0);
-                incremental::shake128_squeeze_first_five_blocks(&mut state.states[1], out1);
-                incremental::shake128_squeeze_first_five_blocks(&mut state.states[2], out2);
-                incremental::shake128_squeeze_first_five_blocks(&mut state.states[3], out3);
+                squeeze::<RATE_128>(&mut s.states, o0, o1, o2, o3, true);
             }
 
             pub fn shake128_squeeze_next_block(
-                state: &mut KeccakStateX4,
-                out0: &mut [u8],
-                out1: &mut [u8],
-                out2: &mut [u8],
-                out3: &mut [u8],
+                s: &mut KeccakStateX4,
+                o0: &mut [u8],
+                o1: &mut [u8],
+                o2: &mut [u8],
+                o3: &mut [u8],
             ) {
-                incremental::shake128_squeeze_next_block(&mut state.states[0], out0);
-                incremental::shake128_squeeze_next_block(&mut state.states[1], out1);
-                incremental::shake128_squeeze_next_block(&mut state.states[2], out2);
-                incremental::shake128_squeeze_next_block(&mut state.states[3], out3);
+                squeeze::<RATE_128>(&mut s.states, o0, o1, o2, o3, false);
             }
 
             pub fn shake256_absorb_final(
-                state: &mut KeccakStateX4,
-                input0: &[u8],
-                input1: &[u8],
-                input2: &[u8],
-                input3: &[u8],
+                s: &mut KeccakStateX4,
+                i0: &[u8],
+                i1: &[u8],
+                i2: &[u8],
+                i3: &[u8],
             ) {
-                incremental::shake256_absorb_final(&mut state.states[0], input0);
-                incremental::shake256_absorb_final(&mut state.states[1], input1);
-                incremental::shake256_absorb_final(&mut state.states[2], input2);
-                incremental::shake256_absorb_final(&mut state.states[3], input3);
+                absorb_final::<RATE_256>(&mut s.states, [i0, i1, i2, i3]);
             }
 
             pub fn shake256_squeeze_first_block(
-                state: &mut KeccakStateX4,
-                out0: &mut [u8],
-                out1: &mut [u8],
-                out2: &mut [u8],
-                out3: &mut [u8],
+                s: &mut KeccakStateX4,
+                o0: &mut [u8],
+                o1: &mut [u8],
+                o2: &mut [u8],
+                o3: &mut [u8],
             ) {
-                incremental::shake256_squeeze_first_block(&mut state.states[0], out0);
-                incremental::shake256_squeeze_first_block(&mut state.states[1], out1);
-                incremental::shake256_squeeze_first_block(&mut state.states[2], out2);
-                incremental::shake256_squeeze_first_block(&mut state.states[3], out3);
+                squeeze::<RATE_256>(&mut s.states, o0, o1, o2, o3, true);
             }
 
             pub fn shake256_squeeze_next_block(
-                state: &mut KeccakStateX4,
-                out0: &mut [u8],
-                out1: &mut [u8],
-                out2: &mut [u8],
-                out3: &mut [u8],
+                s: &mut KeccakStateX4,
+                o0: &mut [u8],
+                o1: &mut [u8],
+                o2: &mut [u8],
+                o3: &mut [u8],
             ) {
-                incremental::shake256_squeeze_next_block(&mut state.states[0], out0);
-                incremental::shake256_squeeze_next_block(&mut state.states[1], out1);
-                incremental::shake256_squeeze_next_block(&mut state.states[2], out2);
-                incremental::shake256_squeeze_next_block(&mut state.states[3], out3);
+                squeeze::<RATE_256>(&mut s.states, o0, o1, o2, o3, false);
             }
         }
     }
@@ -1171,5 +1243,100 @@ mod tests {
         s.squeeze(&mut second);
         assert_ne!(first[..32], second[..32]);
         assert!(first.iter().chain(second.iter()).any(|&b| b != 0));
+    }
+}
+
+#[cfg(all(test, feature = "simd256"))]
+mod x4_incremental_equiv {
+    //! The AVX2 incremental 4-way SHAKE must equal four independent scalar `lib_q_sha3` SHAKE
+    //! readers, byte for byte (validates the `p1600x4`-driven rewrite independently of the rest of
+    //! the ML-DSA avx2 pipeline).
+    use lib_q_sha3::digest::{
+        ExtendableOutput,
+        Update,
+        XofReader,
+    };
+    use lib_q_sha3::{
+        Shake128,
+        Shake256,
+    };
+
+    use super::avx2::x4::incremental as x4;
+
+    fn fill<const N: usize>() -> [[u8; N]; 4] {
+        [
+            core::array::from_fn(|i| (i as u8).wrapping_mul(7).wrapping_add(1)),
+            core::array::from_fn(|i| (i as u8).wrapping_mul(13).wrapping_add(2)),
+            [0u8; N],
+            core::array::from_fn(|i| 0xA5u8 ^ i as u8),
+        ]
+    }
+
+    #[test]
+    fn shake128_x4_matches_scalar() {
+        // 34-byte seed = ML-DSA matrix Â expansion input (rho ‖ i ‖ j).
+        let s = fill::<34>();
+        let mut st = x4::init();
+        x4::shake128_absorb_final(&mut st, &s[0], &s[1], &s[2], &s[3]);
+        let mut five = [[0u8; 168 * 5]; 4];
+        let [a, b, c, d] = &mut five;
+        x4::shake128_squeeze_first_five_blocks(&mut st, a, b, c, d);
+        let mut nxt = [[0u8; 168]; 4];
+        let [a, b, c, d] = &mut nxt;
+        x4::shake128_squeeze_next_block(&mut st, a, b, c, d);
+
+        for lane in 0..4 {
+            let mut h = Shake128::default();
+            h.update(&s[lane]);
+            let mut r = h.finalize_xof();
+            let mut want = [0u8; 168 * 6];
+            r.read(&mut want);
+            assert_eq!(
+                five[lane][..],
+                want[..168 * 5],
+                "shake128 lane {lane} first-five"
+            );
+            assert_eq!(
+                nxt[lane][..],
+                want[168 * 5..168 * 6],
+                "shake128 lane {lane} next"
+            );
+        }
+    }
+
+    #[test]
+    fn shake256_x4_matches_scalar() {
+        // 66-byte seed = ML-DSA mask `y` sampling input (rho'' ‖ kappa+i).
+        let s = fill::<66>();
+        let mut st = x4::init();
+        x4::shake256_absorb_final(&mut st, &s[0], &s[1], &s[2], &s[3]);
+        let mut first = [[0u8; 136]; 4];
+        let [a, b, c, d] = &mut first;
+        x4::shake256_squeeze_first_block(&mut st, a, b, c, d);
+        let mut n1 = [[0u8; 136]; 4];
+        let [a, b, c, d] = &mut n1;
+        x4::shake256_squeeze_next_block(&mut st, a, b, c, d);
+        let mut n2 = [[0u8; 136]; 4];
+        let [a, b, c, d] = &mut n2;
+        x4::shake256_squeeze_next_block(&mut st, a, b, c, d);
+
+        for lane in 0..4 {
+            let mut h = Shake256::default();
+            h.update(&s[lane]);
+            let mut r = h.finalize_xof();
+            let mut want = [0u8; 136 * 3];
+            r.read(&mut want);
+            assert_eq!(first[lane][..], want[..136], "shake256 lane {lane} first");
+            assert_eq!(
+                n1[lane][..],
+                want[136..136 * 2],
+                "shake256 lane {lane} next1"
+            );
+            assert_eq!(
+                n2[lane][..],
+                want[136 * 2..136 * 3],
+                "shake256 lane {lane} next2"
+            );
+        }
     }
 }
