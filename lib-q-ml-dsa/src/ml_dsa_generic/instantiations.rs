@@ -205,7 +205,7 @@ instantiate! {portable,
 }
 
 // AVX2 generic implementation.
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 pub mod avx2;
 
 // NEON generic implementation (AArch64 only; multiplexing uses it only on aarch64).

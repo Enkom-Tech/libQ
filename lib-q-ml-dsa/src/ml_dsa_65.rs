@@ -233,7 +233,7 @@ macro_rules! instantiate {
 
 // Instantiations
 instantiate! {portable, "Portable ML-DSA 65"}
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 instantiate! {avx2, "AVX2 Optimised ML-DSA 65"}
 #[cfg(feature = "simd128")]
 instantiate! {neon, "Neon Optimised ML-DSA 65"}

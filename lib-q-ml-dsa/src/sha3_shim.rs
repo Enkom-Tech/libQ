@@ -303,7 +303,7 @@ pub mod portable {
 
 // SIMD-optimized SHAKE256 implementations using lib-q-keccak parallel processing
 // These provide true SIMD acceleration for cryptographic operations
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 pub mod avx2 {
     pub mod x4 {
         /// Perform 4 SHAKE256 operations in parallel using true SIMD
@@ -744,7 +744,7 @@ mod tests {
         assert_eq!(output1, output2);
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn test_avx2_simd_parallel_processing() {
         // Test AVX2 SIMD parallel processing
@@ -857,7 +857,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn test_avx2_incremental_simd() {
         // Test AVX2 incremental SIMD API
@@ -987,7 +987,7 @@ mod tests {
         }
         let _sequential_time = start.elapsed();
 
-        #[cfg(feature = "simd256")]
+        #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
         {
             // Measure SIMD performance
             let start = std::time::Instant::now();
@@ -1040,7 +1040,7 @@ mod tests {
             let mut sequential_output = [0u8; 32];
             shake256(&mut sequential_output, input);
 
-            #[cfg(feature = "simd256")]
+            #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
             {
                 let simd_output = [0u8; 32];
                 // Create separate arrays to avoid borrow checker issues
@@ -1156,7 +1156,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "simd256"))]
+#[cfg(all(test, feature = "simd256", target_arch = "x86_64"))]
 mod x4_incremental_equiv {
     //! The AVX2 incremental 4-way SHAKE must equal four independent scalar `lib_q_sha3` SHAKE
     //! readers, byte for byte (validates the `p1600x4`-driven rewrite independently of the rest of

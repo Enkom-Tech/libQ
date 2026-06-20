@@ -79,7 +79,7 @@ fn test_power2round_generic<SIMDUnit: Operations>() {
     assert_eq!(out, expected_high);
 }
 
-#[cfg(not(feature = "simd256"))]
+#[cfg(not(all(feature = "simd256", target_arch = "x86_64")))]
 mod portable {
     use super::{
         test_decompose_generic,
@@ -96,7 +96,7 @@ mod portable {
     }
 }
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 mod avx2 {
     use super::{
         test_decompose_generic,

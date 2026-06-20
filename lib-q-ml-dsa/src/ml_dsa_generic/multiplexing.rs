@@ -4,7 +4,7 @@ macro_rules! parameter_set {
     ($parameter_module:ident, $feature:literal) => {
         #[cfg(feature = $feature)]
         pub mod $parameter_module {
-            #[cfg(all(feature = "simd256", feature = $feature))]
+            #[cfg(all(feature = "simd256", target_arch = "x86_64", feature = $feature))]
             use super::instantiations::avx2::$parameter_module::{
                 generate_key_pair as generate_key_pair_avx2,
                 sign as sign_avx2,
@@ -12,7 +12,7 @@ macro_rules! parameter_set {
                 verify as verify_avx2,
                 verify_pre_hashed_shake128 as verify_pre_hashed_shake128_avx2,
             };
-            #[cfg(all(feature = "simd256", feature = "acvp", feature = $feature))]
+            #[cfg(all(feature = "simd256", target_arch = "x86_64", feature = "acvp", feature = $feature))]
             use super::instantiations::avx2::$parameter_module::{
                 sign_internal as sign_internal_avx2,
                 verify_internal as verify_internal_avx2,
