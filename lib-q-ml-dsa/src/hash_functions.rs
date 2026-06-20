@@ -1009,3 +1009,30 @@ pub(crate) mod neon {
         }
     }
 }
+
+#[cfg(all(test, feature = "simd256"))]
+mod mask_shake_equiv {
+    //! The portable and AVX2 4-way SHAKE256 used to sample the ML-DSA mask `y` (ExpandMask, 576/640
+    //! bytes per lane) must agree byte-for-byte; otherwise the two backends produce different (but
+    //! individually valid) signatures.
+    use super::shake256::XofX4;
+
+    #[test]
+    fn portable_vs_avx2_shake256_x4_576() {
+        let s0 = [0x11u8; 66];
+        let s1 = [0x22u8; 66];
+        let s2 = [0x33u8; 66];
+        let s3 = [0x44u8; 66];
+        let mut p = [[0u8; 576]; 4];
+        let mut a = [[0u8; 576]; 4];
+        {
+            let [p0, p1, p2, p3] = &mut p;
+            super::portable::Shake256X4::shake256_x4::<576>(&s0, &s1, &s2, &s3, p0, p1, p2, p3);
+        }
+        {
+            let [a0, a1, a2, a3] = &mut a;
+            super::simd256::Shake256x4::shake256_x4::<576>(&s0, &s1, &s2, &s3, a0, a1, a2, a3);
+        }
+        assert_eq!(p, a, "portable vs avx2 mask SHAKE256 diverge");
+    }
+}

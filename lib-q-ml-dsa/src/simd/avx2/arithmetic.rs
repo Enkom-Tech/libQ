@@ -139,37 +139,21 @@ pub(super) fn montgomery_multiply(lhs: &mut Vec256, rhs: &Vec256) {
 // Not using inline always here regresses performance significantly.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
-#[hax_lib::requires(
-    hax_lib::eq(inverse_of_modulus_mod_montgomery_r, mm256_set1_epi32(INVERSE_OF_MODULUS_MOD_MONTGOMERY_R as i32))
-)]
-#[hax_lib::ensures(|_| fstar!(r#"
-    forall i. to_i32x8 ${simd_unit}_future i == 
-              Spec.MLDSA.Math.mont_mul (to_i32x8 ${simd_unit} i) (2 ^! $SHIFT_BY)
-"#))]
+// Barrett-reduce `coeff << SHIFT_BY` to a centered representative mod q (q ~ 2^23). This mirrors the
+// portable `reduce_element(coeff << SHIFT_BY)` and upstream libcrux. The previous version computed a
+// malformed Montgomery product (multiplying by the modulus inverse twice and subtracting from the
+// shifted value), which left coefficients unreduced — corrupting verify's `t1 * 2^d` reconstruction.
 pub(super) fn shift_left_then_reduce<const SHIFT_BY: i32>(simd_unit: &mut Vec256) {
-    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_mul) (Spec.MLDSA.Math.mont_mul)");
-
-    let inverse_of_modulus_mod_montgomery_r =
-        mm256_set1_epi32(INVERSE_OF_MODULUS_MOD_MONTGOMERY_R as i32);
+    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.barrett_red) (Spec.MLDSA.Math.barrett_red)");
 
     let shifted = mm256_slli_epi32::<SHIFT_BY>(*simd_unit);
-    let prod02 = mm256_mul_epi32(shifted, inverse_of_modulus_mod_montgomery_r);
-    let prod13 = mm256_mul_epi32(
-        mm256_shuffle_epi32::<0b11_11_01_01>(shifted),
-        mm256_shuffle_epi32::<0b11_11_01_01>(inverse_of_modulus_mod_montgomery_r),
-    );
 
-    let field_modulus = mm256_set1_epi32(FIELD_MODULUS);
-    let k02 = mm256_mul_epi32(prod02, inverse_of_modulus_mod_montgomery_r);
-    let k13 = mm256_mul_epi32(prod13, inverse_of_modulus_mod_montgomery_r);
+    let quotient = mm256_add_epi32(shifted, mm256_set1_epi32(1 << 22));
+    let quotient = mm256_srai_epi32::<23>(quotient);
 
-    let c02 = mm256_mul_epi32(k02, field_modulus);
-    let c13 = mm256_mul_epi32(k13, field_modulus);
+    let quotient_times_field_modulus = mm256_mullo_epi32(quotient, mm256_set1_epi32(FIELD_MODULUS));
 
-    let res02 = mm256_sub_epi32(shifted, c02);
-    let res13 = mm256_sub_epi32(shifted, c13);
-    let res02_shifted = mm256_shuffle_epi32::<0b11_11_01_01>(res02);
-    *simd_unit = mm256_blend_epi32::<0b10101010>(res02_shifted, res13);
+    *simd_unit = mm256_sub_epi32(shifted, quotient_times_field_modulus);
 }
 
 #[inline(always)]
@@ -276,15 +260,12 @@ pub(super) fn compute_hint(low: &Vec256, high: &Vec256, gamma2: i32, hint: &mut 
         "reveal_opaque (`%Spec.MLDSA.Math.compute_hint) (Spec.MLDSA.Math.compute_hint)"
     );
 
-    let r = mm256_add_epi32(*low, *high);
-    let ceil_of_r_by_128 = mm256_add_epi32(r, mm256_set1_epi32(127));
-    let _r_shifted = mm256_srai_epi32::<7>(ceil_of_r_by_128);
-
     let minus_gamma2 = mm256_set1_epi32(-gamma2);
     let gamma2_vec = mm256_set1_epi32(gamma2);
 
     let low_within_bound = mm256_cmpgt_epi32(mm256_abs_epi32(*low), gamma2_vec);
     let low_equals_minus_gamma2 = mm256_cmpeq_epi32(*low, minus_gamma2);
+    // If a lane in `high` is 0 the output lane is 0; otherwise its MSB is set.
     let low_equals_minus_gamma2_and_high_is_nonzero =
         mm256_sign_epi32(low_equals_minus_gamma2, *high);
 
@@ -296,7 +277,10 @@ pub(super) fn compute_hint(low: &Vec256, high: &Vec256, gamma2: i32, hint: &mut 
     let hints_mask = mm256_movemask_ps(mm256_castsi256_ps(*hint));
     *hint = mm256_and_si256(*hint, mm256_set1_epi32(0x1));
 
-    hints_mask as usize
+    // Return the NUMBER of set hints (population count of the lane mask), not the raw mask — the
+    // signer sums these across all SIMD units and rejects when the total exceeds OMEGA. Returning the
+    // bitmask (0..=255) inflated the count and made every signing attempt reject (RejectionSamplingError).
+    hints_mask.count_ones() as usize
 }
 
 #[inline(always)]
@@ -306,39 +290,32 @@ pub(super) fn compute_hint(low: &Vec256, high: &Vec256, gamma2: i32, hint: &mut 
 pub(super) fn use_hint(gamma2: Gamma2, r: &Vec256, hint: &mut Vec256) {
     hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.use_hint) (Spec.MLDSA.Math.use_hint)");
 
-    let mut r0 = mm256_setzero_si256();
-    let mut r1 = mm256_setzero_si256();
+    let (mut r0, mut r1) = (mm256_setzero_si256(), mm256_setzero_si256());
     decompose(gamma2, r, &mut r0, &mut r1);
 
     let all_zeros = mm256_setzero_si256();
-    let _negate_hints = vec256_blendv_epi32(all_zeros, *hint, r0);
 
-    let alpha = if gamma2 == GAMMA2_V261_888 { 261 } else { 95 };
-    let r0_tmp = mm256_mullo_epi32(r1, mm256_set1_epi32(alpha));
-    let r0_tmp = mm256_sub_epi32(*r, r0_tmp);
-    let field_modulus_and_mask = mm256_set1_epi32(FIELD_MODULUS - 1);
-    r0 = mm256_sub_epi32(r0_tmp, field_modulus_and_mask);
+    // FIPS 204 UseHint: add the hint to r1 when r0 > 0, subtract it when r0 <= 0 (note: r0 == 0
+    // subtracts). A plain sign-bit test would wrongly treat r0 == 0 as positive, so mask on the
+    // strict `r0 > 0` comparison: keep |hint| only where r0 <= 0, then double-and-subtract to flip
+    // those lanes to -hint.
+    let r0_is_positive = mm256_cmpgt_epi32(r0, all_zeros);
+    let negate_hints = mm256_andnot_si256(r0_is_positive, *hint);
+    let negate_hints = mm256_slli_epi32::<1>(negate_hints);
+    let hints = mm256_sub_epi32(*hint, negate_hints);
 
-    let minus_gamma2 = mm256_set1_epi32(-gamma2);
-    let gamma2_vec = mm256_set1_epi32(gamma2);
-
-    let low_within_bound = mm256_cmpgt_epi32(mm256_abs_epi32(r0), gamma2_vec);
-    let low_equals_minus_gamma2 = mm256_cmpeq_epi32(r0, minus_gamma2);
-    let low_equals_minus_gamma2_and_high_is_nonzero = mm256_sign_epi32(low_equals_minus_gamma2, r1);
-
-    *hint = mm256_or_si256(
-        low_within_bound,
-        low_equals_minus_gamma2_and_high_is_nonzero,
-    );
-
-    let r1_plus_hints = mm256_add_epi32(r1, *hint);
-    let max_hint = if gamma2 == GAMMA2_V261_888 { 261 } else { 95 };
-    let greater_than_or_equal_to_max = mm256_cmpge_epi32(r1_plus_hints, mm256_set1_epi32(max_hint));
+    let mut r1_plus_hints = mm256_add_epi32(r1, hints);
 
     if gamma2 == GAMMA2_V261_888 {
-        *hint = vec256_blendv_epi32(r1_plus_hints, all_zeros, greater_than_or_equal_to_max);
-    } else {
+        // r1 in [0, 16): wrap mod 16.
         *hint = mm256_and_si256(r1_plus_hints, mm256_set1_epi32(15));
+    } else {
+        // GAMMA2_V95_232: r1 in [0, 44). A negative r1_plus_hints means r1 was 0 -> wrap to max (43);
+        // anything strictly greater than 43 wraps to 0.
+        let max = mm256_set1_epi32(43);
+        r1_plus_hints = vec256_blendv_epi32(r1_plus_hints, max, r1_plus_hints);
+        let greater_than_max = mm256_cmpgt_epi32(r1_plus_hints, max);
+        *hint = vec256_blendv_epi32(r1_plus_hints, all_zeros, greater_than_max);
     }
 }
 
