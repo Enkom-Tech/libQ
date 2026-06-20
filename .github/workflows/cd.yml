@@ -467,6 +467,9 @@ jobs:
           - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
           - package: "lib-q-blind-pcs"
+          - package: "lib-q-dkg"
+          - package: "lib-q-threshold-raccoon"
+          - package: "lib-q-blind-token"
     steps:
       - uses: actions/checkout@v5
       - name: Authenticate with crates.io
@@ -1055,6 +1058,18 @@ jobs:
           - working-directory: "lib-q-threshold-sig"
             package-name: "@lib-q/threshold-sig"
             package-description: "PROVISIONAL threshold signatures (FROST-like) for Node.js"
+            package-keywords: "cryptography,post-quantum,threshold,signature,wasm"
+            features: "wasm,std,random"
+            out-dir: "pkg"
+          - working-directory: "lib-q-dkg"
+            package-name: "@lib-q/dkg"
+            package-description: "PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for Node.js"
+            package-keywords: "cryptography,post-quantum,dkg,threshold,wasm"
+            features: "wasm,std,random"
+            out-dir: "pkg"
+          - working-directory: "lib-q-threshold-raccoon"
+            package-name: "@lib-q/threshold-raccoon"
+            package-description: "PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js"
             package-keywords: "cryptography,post-quantum,threshold,signature,wasm"
             features: "wasm,std,random"
             out-dir: "pkg"

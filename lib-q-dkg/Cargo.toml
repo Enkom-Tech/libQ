@@ -1,0 +1,83 @@
+[package]
+name = "lib-q-dkg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "PROVISIONAL lattice dealerless DKG / verifiable secret sharing (binding BDLOP commitments + FS proof of correct sharing, pre-standard)"
+keywords = ["cryptography", "post-quantum", "lattice", "dkg", "threshold"]
+categories = ["cryptography", "wasm"]
+
+[package.metadata.cargo-machete]
+ignored = [
+    # wasm-only / target-gated dependencies, not seen by the default host build.
+    "getrandom",
+    "lib-q-random",
+]
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc"] }
+rand_core = { workspace = true }
+# wasm-only optional dependencies (pulled in by the `wasm` feature).
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true, default-features = false, features = ["std"] }
+wasm-bindgen = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+serde-wasm-bindgen = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true, default-features = false }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
+hex = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+wasm-bindgen-test = { workspace = true }
+dudect-bencher = "0.7"
+
+[features]
+default = ["std", "random"]
+std = []
+random = []
+wasm = [
+    "wasm-bindgen",
+    "std",
+    "random",
+    "dep:serde_json",
+    "dep:serde-wasm-bindgen",
+    "dep:lib-q-core",
+    "lib-q-core/std",
+    "lib-q-core/wasm",
+    "dep:lib-q-random",
+    "lib-q-random/wasm",
+    "dep:getrandom",
+]
+getrandom = ["dep:getrandom"]
+
+[lib]
+name = "lib_q_dkg"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm", "random"]
+
+[[bench]]
+name = "ct_dudect"
+path = "benches/ct_dudect.rs"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("std", "random", "wasm", "getrandom"))',
+] }

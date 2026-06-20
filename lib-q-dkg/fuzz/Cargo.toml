@@ -1,0 +1,31 @@
+[package]
+name = "lib-q-dkg-fuzz"
+version = "0.0.7"
+edition = "2024"
+rust-version = "1.96.0"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+lib-q-dkg = { path = "..", default-features = false, features = ["std", "random"] }
+libfuzzer-sys = "0.4.12"
+
+[[bin]]
+name = "dkg_round1_decode"
+path = "fuzz_targets/dkg_round1_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dkg_complaint_decode"
+path = "fuzz_targets/dkg_complaint_decode.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
+resolver = "3"

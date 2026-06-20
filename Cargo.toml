@@ -41,6 +41,9 @@ members = [
     "lib-q-double-kem",
     "lib-q-fhe",
     "lib-q-blind-pcs",
+    "lib-q-dkg",
+    "lib-q-threshold-raccoon",
+    "lib-q-blind-token",
     # ZKP & lattice
     "lib-q-lattice-zkp",
     "lib-q-prf",
@@ -90,6 +93,8 @@ exclude = [
     "lib-q-threshold-sig/fuzz",
     "lib-q-threshold-kem/fuzz",
     "lib-q-double-kem/fuzz",
+    "lib-q-dkg/fuzz",
+    "lib-q-threshold-raccoon/fuzz",
 ]
 # Also outside the workspace: `benches/` (standalone Criterion runner) and
 # `lib-q-fn-dsa/fn-dsa-*` (nested path deps under `lib-q-fn-dsa`).
@@ -182,6 +187,12 @@ inherits = "dev"
 panic = "abort"
 
 # Crate-specific profiles
+# NOTE: lib-q-blind-token's secure instance does heavy f64 (canonical-embedding perturbation
+# sampler, per-slot Cholesky), large-modulus NTT, and millions of RNG draws per keygen; at
+# opt-level 0 a single keygen takes minutes. Like lib-q-fn-dsa, its test suite is intended to run
+# optimized — use `cargo test --release -p lib-q-blind-token` (CI runs it under `release-ci` and
+# skips the unoptimized dev pass). A `[profile.test.package]` override cannot help here because such
+# overrides do not apply to the root crate being tested, only to its dependencies.
 [profile.dev-cb-kem]
 inherits = "dev"
 opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
