@@ -176,7 +176,7 @@ mod tests {
         assert_eq!(re.to_i32_array(), expected_coefficients);
     }
 
-    #[cfg(not(feature = "simd256"))]
+    #[cfg(not(all(feature = "simd256", target_arch = "x86_64")))]
     mod portable {
         use super::{
             test_invert_ntt_montgomery_generic,
@@ -248,7 +248,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     mod avx2 {
         use super::{
             test_invert_ntt_montgomery_generic,

@@ -16,12 +16,14 @@ categories = ["cryptography", "no-std"]
 ignored = [
     "lib-q-core",
 ]
+# `default-features = false`: lib-q-core defaults to `std` (pulls `once_cell/std`), which breaks
+# bare-metal no_std targets that depend on this crate. Forward our own `std` to core's instead.
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false }
 
 [features]
 default = ["std"]
-std = []
+std = ["lib-q-core/std"]
 
 [lib]
 name = "lib_q_platform"
