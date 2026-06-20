@@ -5,17 +5,12 @@
 # Upstream is flagged unmaintained (RUSTSEC-2026-0173); the vendored copy is
 # maintained in-tree and pinned via [patch.crates-io].
 #
-# The ansi_term / atty advisories below are pulled in transitively only by
-# `dudect-bencher` (clap 2.34 → ansi_term/atty), a dev/bench-only dependency of
-# lib-q-dkg / lib-q-threshold-raccoon used for constant-time (dudect) timing
-# tests. They are unmaintained/unsound advisories in dev tooling that never ships
-# in any library artifact; upstream dudect-bencher pins the old clap, so there is
-# no non-forking fix. Scoped-ignored until dudect-bencher updates clap.
+# NOTE: the ansi_term (RUSTSEC-2021-0139) and atty (RUSTSEC-2024-0375 / -2021-0145)
+# advisories are NOT ignored here — they were fixed at the source by vendoring
+# dudect-bencher with clap's `color` feature disabled (see vendor/dudect-bencher),
+# which removes both crates from the tree entirely. No ignore needed.
 
 [advisories]
 ignore = [
     "RUSTSEC-2026-0173", # vendored maintained copy: vendor/proc-macro-error2 ([patch.crates-io])
-    "RUSTSEC-2021-0139", # ansi_term unmaintained — dev-only via dudect-bencher→clap 2.34
-    "RUSTSEC-2024-0375", # atty unmaintained — dev-only via dudect-bencher→clap 2.34
-    "RUSTSEC-2021-0145", # atty unsound (unaligned read) — dev-only via dudect-bencher→clap 2.34
 ]
