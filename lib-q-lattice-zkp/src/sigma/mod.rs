@@ -1,5 +1,6 @@
 //! Fiat–Shamir sigma protocols over module-SIS/Ajtai commitments.
 
+pub mod accumulator;
 pub mod amortise;
 pub mod hierarchical;
 pub mod linear;
