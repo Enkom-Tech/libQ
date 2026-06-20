@@ -96,7 +96,17 @@ Scope note: only Saturnin (production default) and Romulus actually wrapped; Dup
 already took `&[u8]`. Tests green: lib-q-saturnin (AEAD KAT + round-trip), lib-q-romulus (24),
 gip-crypto (125 lib, incl. `saturnin_/romulus_round_trip_via_record_api`), gip-session/gip-packet.
 A `lib-q-core` `Aead` trait borrowing method is still a reasonable future cleanup for *all* impls, but
-isn't needed for the GIP hot path. **Left uncommitted** pending owner review.
+isn't needed for the GIP hot path.
+
+> **✅ COMMIT STATUS (libQ-PERF agent, 2026-06-20) — libQ side is committed + pushed.** The
+> `lib-q-saturnin` + `lib-q-romulus` `encrypt_bytes`/`decrypt_bytes` changes landed as their own commit
+> **`ae6ebeb`** ("feat(romulus,saturnin): allocation-free encrypt_bytes/decrypt_bytes APIs") and are on
+> `origin/main` (tip `eef5f7b`), fmt/clippy/audit-clean. **So: do NOT re-commit the libQ files** — they
+> are no longer in the working tree. Answer to the open question: the libQ and GIP halves are already
+> split — `ae6ebeb` is the libQ commit; the **`gip-crypto`** edits (the `SaturninEngine`/`RomulusM1Engine`
+> call-site switch to the slice methods) are in the GIP repo and remain **yours to commit** there. The
+> trait-promotion cleanup below is now a refactor on *committed* code, not on uncommitted working-tree
+> changes.
 
 ### ➡️ Remaining cleanup — HANDED TO THE libQ-PERF AGENT (2026-06-20)
 
