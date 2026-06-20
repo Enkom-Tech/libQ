@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use hybrid_array::{
@@ -160,19 +162,118 @@ pub(crate) trait ForsParams: HypertreeParams {
     ) -> Array<u8, Self::N> {
         debug_assert!(z <= Self::A::U32);
         debug_assert!(i < (Self::K::U32 << (Self::A::U32 - z)));
-        let mut adrs = adrs.clone(); // TODO: do we really need clone or should we take mut ref?
-        if z == 0 {
-            let sk = Self::fors_sk_gen(hasher, sk_seed, &adrs, i);
-            adrs.tree_height.set(0);
-            adrs.tree_index.set(i);
-            hasher.f(&adrs, &sk)
-        } else {
-            let lnode = Self::fors_node(hasher, sk_seed, 2 * i, z - 1, &adrs);
-            let rnode = Self::fors_node(hasher, sk_seed, 2 * i + 1, z - 1, &adrs);
-            adrs.tree_height.set(z);
-            adrs.tree_index.set(i);
-            hasher.h(&adrs, &lnode, &rnode)
+        // The recursive form recomputes one node at a time. With `alloc` we instead build the
+        // height-`z` subtree iteratively — all leaves first, then fold level by level — which lets
+        // us batch the independent `f`/`h`/`prf` calls four at a time (`shake256_x4`). Byte-identical
+        // to the recursion below (gated on the full FORS KAT + ACVP suites).
+        #[cfg(feature = "alloc")]
+        {
+            Self::fors_subtree_batched(hasher, sk_seed, i, z, adrs)
         }
+        #[cfg(not(feature = "alloc"))]
+        {
+            let mut adrs = adrs.clone();
+            if z == 0 {
+                let sk = Self::fors_sk_gen(hasher, sk_seed, &adrs, i);
+                adrs.tree_height.set(0);
+                adrs.tree_index.set(i);
+                hasher.f(&adrs, &sk)
+            } else {
+                let lnode = Self::fors_node(hasher, sk_seed, 2 * i, z - 1, &adrs);
+                let rnode = Self::fors_node(hasher, sk_seed, 2 * i + 1, z - 1, &adrs);
+                adrs.tree_height.set(z);
+                adrs.tree_index.set(i);
+                hasher.h(&adrs, &lnode, &rnode)
+            }
+        }
+    }
+
+    /// Iterative, 4-way-batched build of the height-`z` FORS subtree rooted at index `i`.
+    ///
+    /// Leaves carry global tree indices `i·2^z .. (i+1)·2^z`; level `l` (1..=z) holds `2^(z-l)`
+    /// nodes with indices `(i << (z-l)) + m`, matching the recursion in [`fors_node`]. Independent
+    /// `prf`/`f` (leaves) and `h` (each fold level) calls are grouped into fours via
+    /// [`prf_sk_x4`](crate::hashes::HashSuite::prf_sk_x4) /
+    /// [`f_x4`](crate::hashes::HashSuite::f_x4) / [`h_x4`](crate::hashes::HashSuite::h_x4); the
+    /// `< 4` tail of each group falls back to the scalar primitive.
+    #[cfg(feature = "alloc")]
+    fn fors_subtree_batched(
+        hasher: &Self,
+        sk_seed: &SkSeed<Self::N>,
+        i: u32,
+        z: u32,
+        adrs: &address::ForsTree,
+    ) -> Array<u8, Self::N> {
+        let n_leaves = 1usize << z;
+        let base = i << z; // global index of the first leaf
+
+        // Leaves: node[k] = f(adrs@height0,index=base+k, prf_sk(prf_adrs@index=base+k)).
+        let mut nodes: Vec<Array<u8, Self::N>> = Vec::with_capacity(n_leaves);
+        let mut k = 0usize;
+        while k + 4 <= n_leaves {
+            let prf_adrs: [address::ForsPrf; 4] = core::array::from_fn(|t| {
+                let mut a = adrs.prf_adrs();
+                a.tree_index
+                    .set(base + u32::try_from(k + t).expect("leaf index fits in u32"));
+                a
+            });
+            let sks = hasher.prf_sk_x4(sk_seed, &prf_adrs);
+            let leaf_adrs: [address::ForsTree; 4] = core::array::from_fn(|t| {
+                let mut a = adrs.clone();
+                a.tree_height.set(0);
+                a.tree_index
+                    .set(base + u32::try_from(k + t).expect("leaf index fits in u32"));
+                a
+            });
+            nodes.extend(hasher.f_x4(&leaf_adrs, &sks));
+            k += 4;
+        }
+        while k < n_leaves {
+            let g = base + u32::try_from(k).expect("leaf index fits in u32");
+            let sk = Self::fors_sk_gen(hasher, sk_seed, adrs, g);
+            let mut a = adrs.clone();
+            a.tree_height.set(0);
+            a.tree_index.set(g);
+            nodes.push(hasher.f(&a, &sk));
+            k += 1;
+        }
+
+        // Fold up `z` levels, four parents at a time.
+        for level in 1..=z {
+            let count = 1usize << (z - level);
+            let row_base = i << (z - level); // index of the first node on this level
+            let mut next: Vec<Array<u8, Self::N>> = Vec::with_capacity(count);
+            let mut m = 0usize;
+            while m + 4 <= count {
+                let h_adrs: [address::ForsTree; 4] = core::array::from_fn(|t| {
+                    let mut a = adrs.clone();
+                    a.tree_height.set(level);
+                    a.tree_index
+                        .set(row_base + u32::try_from(m + t).expect("node index fits in u32"));
+                    a
+                });
+                let l: [Array<u8, Self::N>; 4] =
+                    core::array::from_fn(|t| nodes[2 * (m + t)].clone());
+                let r: [Array<u8, Self::N>; 4] =
+                    core::array::from_fn(|t| nodes[2 * (m + t) + 1].clone());
+                next.extend(hasher.h_x4(&h_adrs, &l, &r));
+                m += 4;
+            }
+            while m < count {
+                let mut a = adrs.clone();
+                a.tree_height.set(level);
+                a.tree_index
+                    .set(row_base + u32::try_from(m).expect("node index fits in u32"));
+                next.push(hasher.h(&a, &nodes[2 * m], &nodes[2 * m + 1]));
+                m += 1;
+            }
+            nodes = next;
+        }
+
+        nodes
+            .into_iter()
+            .next()
+            .expect("a height-z FORS subtree folds to exactly one root")
     }
 
     fn fors_sign(

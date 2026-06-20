@@ -34,6 +34,9 @@ harness = false
 default = ["alloc"]
 alloc = ["digest/alloc"]
 zeroize = ["digest/zeroize", "lib-q-sha3/zeroize"]
+# Enable runtime AVX2 detection for the batched leaf-hashing path (no `-C
+# target-cpu=native` needed). Implies `alloc` (the batching buffer is heap-backed).
+std = ["alloc", "lib-q-sha3/std"]
 
 [lib]
 bench = false

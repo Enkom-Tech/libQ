@@ -393,6 +393,86 @@ const GAMMA: [FieldElement; 128] = {
     gamma
 };
 
+// --- Signed Montgomery arithmetic for the default (non-hardened) NTT/INTT ------------------------
+//
+// The default NTT/INTT keep coefficients in *normal* domain (NOT Montgomery), exactly as the rest of
+// the crate expects: the transform output is byte-encoded directly into keys and ciphertexts. The
+// Montgomery trick here only replaces the per-butterfly modular multiply.
+//
+// `FieldElement::barrett_reduce` does a 64-bit multiply whose latency the butterflies serialize on.
+// Signed Montgomery multiplication (`fqmul`) reduces a 32-bit product with 16-bit operations and no
+// data-dependent branch, shortening the dependency chain so the butterflies pipeline. To keep the
+// data in normal domain, each twiddle is pre-multiplied by R = 2^16 (`ZETA_MONT`): then
+// `fqmul(zeta * R, x) == zeta * x (mod q)`, so no Montgomery factor accumulates on the coefficients.
+//
+// This mirrors the reference (PQClean/RustCrypto) signed `int16_t` NTT; correctness is gated on the
+// full ACVP KAT suite (`tests/key-gen.rs`, `tests/encap-decap.rs`), not just the unit round-trip.
+
+/// `q^{-1} mod 2^16`, as the `i16` bit pattern (`62209 ≡ -3327`); satisfies `q * QINV ≡ 1 (mod 2^16)`.
+#[cfg(not(feature = "hardened"))]
+const MONT_QINV: i16 = -3327;
+
+/// Signed Montgomery reduction: for `|a| <= q * 2^15`, returns `a * 2^{-16} mod q` in `(-q, q)`.
+#[cfg(not(feature = "hardened"))]
+#[inline(always)]
+const fn montgomery_reduce(a: i32) -> i16 {
+    // Low 16 bits of `a * q^{-1}` (the i16 truncation takes the product mod 2^16).
+    let m = (a as i16).wrapping_mul(MONT_QINV);
+    // `a - m*q` is divisible by 2^16; the arithmetic shift yields the representative in (-q, q).
+    ((a - (m as i32) * FieldElement::Q as i32) >> 16) as i16
+}
+
+/// Montgomery multiply: `a * b * 2^{-16} mod q`, result in `(-q, q)`.
+#[cfg(not(feature = "hardened"))]
+#[inline(always)]
+const fn fqmul(a: i16, b: i16) -> i16 {
+    montgomery_reduce(a as i32 * b as i32)
+}
+
+/// Centered Barrett reduction: maps any `i16` to a same-class representative in `[-q/2, q/2]`.
+#[cfg(not(feature = "hardened"))]
+#[inline(always)]
+const fn barrett_reduce_i16(a: i16) -> i16 {
+    const V: i32 = ((1 << 26) + (FieldElement::Q as i32) / 2) / FieldElement::Q as i32; // 20159
+    let t = ((V * a as i32 + (1 << 25)) >> 26) as i16;
+    a - t * FieldElement::Q as i16
+}
+
+/// Normalize a representative in `(-q, q)` to the canonical `[0, q)` range (branchless: add `q` iff
+/// negative — `a >> 15` is all-ones for negative `i16`, else zero).
+#[cfg(not(feature = "hardened"))]
+#[inline(always)]
+const fn to_canonical(a: i16) -> u16 {
+    (a + ((a >> 15) & FieldElement::Q as i16)) as u16
+}
+
+/// Twiddles in Montgomery form: `ZETA_MONT[i] = center(zeta^{BitRev7(i)} * 2^16 mod q)`. Derived from
+/// `ZETA_POW_BITREV` so there is no hand-transcribed table to drift from the FIPS-203 values.
+#[cfg(not(feature = "hardened"))]
+const ZETA_MONT: [i16; 128] = {
+    let mut t = [0i16; 128];
+    let mut i = 0;
+    #[allow(
+        clippy::integer_division_remainder_used,
+        clippy::cast_possible_truncation
+    )]
+    while i < 128 {
+        let m = (ZETA_POW_BITREV[i].0 as u64 * (1u64 << 16)) % FieldElement::Q64; // in [0, q)
+        t[i] = if m > FieldElement::Q64 / 2 {
+            (m as i32 - FieldElement::Q as i32) as i16
+        } else {
+            m as i16
+        };
+        i += 1;
+    }
+    t
+};
+
+/// Post-INTT scale by `128^{-1} (= 3303)`, expressed as a Montgomery multiplier so the result lands
+/// back in normal domain: `fqmul(x, 512) == x * 3303 (mod q)` since `512 == 3303 * 2^16 mod q`.
+#[cfg(not(feature = "hardened"))]
+const INV_NTT_SCALE_MONT: i16 = 512;
+
 // Algorithm 10. MuliplyNTTs
 impl Mul<&NttPolynomial> for &NttPolynomial {
     type Output = NttPolynomial;
@@ -446,16 +526,28 @@ impl Polynomial {
 
         let mut f = self.0;
         #[cfg(not(feature = "hardened"))]
-        for len in [128, 64, 32, 16, 8, 4, 2] {
-            for start in (0..256).step_by(2 * len) {
-                let zeta = ZETA_POW_BITREV[k];
-                k += 1;
+        {
+            // Signed Montgomery butterflies in normal domain (twiddles carry the R factor). The
+            // coefficients enter in `[0, q)` so they fit `i16` directly; over the 7 layers `|r|`
+            // grows to `< 8q < 2^15`, so no intermediate reduction is needed.
+            let mut r = [0i16; 256];
+            for (dst, src) in r.iter_mut().zip(f.iter()) {
+                *dst = src.0 as i16;
+            }
+            for len in [128, 64, 32, 16, 8, 4, 2] {
+                for start in (0..256).step_by(2 * len) {
+                    let zeta = ZETA_MONT[k];
+                    k += 1;
 
-                for j in start..(start + len) {
-                    let t = zeta * f[j + len];
-                    f[j + len] = f[j] - t;
-                    f[j] = f[j] + t;
+                    for j in start..(start + len) {
+                        let t = fqmul(zeta, r[j + len]);
+                        r[j + len] = r[j] - t;
+                        r[j] = r[j] + t;
+                    }
                 }
+            }
+            for (dst, &v) in f.iter_mut().zip(r.iter()) {
+                dst.0 = to_canonical(barrett_reduce_i16(v));
             }
         }
         #[cfg(feature = "hardened")]
@@ -497,24 +589,40 @@ impl Polynomial {
 impl NttPolynomial {
     #[allow(clippy::many_single_char_names)]
     pub fn ntt_inverse(&self) -> Polynomial {
+        // The non-hardened path reads `f` into a signed scratch buffer; only the hardened path
+        // mutates it in place (blinding/shuffle), hence the cfg-gated `mut`.
+        #[cfg(not(feature = "hardened"))]
+        let f: Array<FieldElement, U256> = self.0.clone();
+        #[cfg(feature = "hardened")]
         let mut f: Array<FieldElement, U256> = self.0.clone();
 
         let mut k = 127;
         #[cfg(not(feature = "hardened"))]
         {
+            // Gentleman-Sande butterflies in normal domain via signed Montgomery multiply. `r[j]` is
+            // Barrett-reduced each layer to keep it bounded; `r[j + len]` stays in `(-q, q)` (fqmul
+            // output). The final `fqmul(·, 512)` applies the `128^{-1}` scale, then we canonicalize.
+            let mut r = [0i16; 256];
+            for (dst, src) in r.iter_mut().zip(f.iter()) {
+                *dst = src.0 as i16;
+            }
             for len in [2, 4, 8, 16, 32, 64, 128] {
                 for start in (0..256).step_by(2 * len) {
-                    let zeta = ZETA_POW_BITREV[k];
+                    let zeta = ZETA_MONT[k];
                     k -= 1;
 
                     for j in start..(start + len) {
-                        let t = f[j];
-                        f[j] = t + f[j + len];
-                        f[j + len] = zeta * (f[j + len] - t);
+                        let t = r[j];
+                        r[j] = barrett_reduce_i16(t + r[j + len]);
+                        r[j + len] = fqmul(zeta, r[j + len] - t);
                     }
                 }
             }
-            FieldElement(3303) * &Polynomial(f)
+            let mut out = Array::<FieldElement, U256>::default();
+            for (o, &v) in out.iter_mut().zip(r.iter()) {
+                o.0 = to_canonical(fqmul(v, INV_NTT_SCALE_MONT));
+            }
+            Polynomial(out)
         }
         #[cfg(feature = "hardened")]
         {

@@ -93,6 +93,45 @@ pub(crate) trait HashSuite: Sized + Clone + Debug {
     /// Hash function that takes an N-byte input to an N-byte output
     /// Used for the WOTS+ chain function
     fn f(&self, adrs: &impl Address, m: &Array<u8, Self::N>) -> Array<u8, Self::N>;
+
+    /// Four-way batched [`f`](Self::f): computes `f` for four independent (address, message)
+    /// pairs at once. The WOTS+ chains over the `WotsSigLen` indices are independent, so a hash
+    /// suite backed by a batchable permutation (SHAKE → [`p1600x4`](lib_q_keccak::p1600x4)) can run
+    /// four of them in lockstep.
+    ///
+    /// The default implementation simply calls [`f`](Self::f) four times, so it is byte-for-byte
+    /// identical to the scalar path; suites override it only to go faster. SHA-2 suites keep the
+    /// default (there is no batched SHA-256 here).
+    fn f_x4<A: Address>(
+        &self,
+        adrs: &[A; 4],
+        m: &[Array<u8, Self::N>; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        core::array::from_fn(|i| self.f(&adrs[i], &m[i]))
+    }
+
+    /// Four-way batched [`h`](Self::h) (Merkle node), for four independent `(adrs, m1, m2)` triples.
+    /// Used to fold FORS / Merkle-tree levels four nodes at a time. Default = four scalar `h` calls
+    /// (byte-identical); SHAKE suites override it.
+    fn h_x4<A: Address>(
+        &self,
+        adrs: &[A; 4],
+        m1: &[Array<u8, Self::N>; 4],
+        m2: &[Array<u8, Self::N>; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        core::array::from_fn(|i| self.h(&adrs[i], &m1[i], &m2[i]))
+    }
+
+    /// Four-way batched [`prf_sk`](Self::prf_sk), for four independent addresses sharing one
+    /// `sk_seed`. Used to generate four FORS/WOTS secret values at once. Default = four scalar
+    /// `prf_sk` calls (byte-identical); SHAKE suites override it.
+    fn prf_sk_x4<A: Address>(
+        &self,
+        sk_seed: &SkSeed<Self::N>,
+        adrs: &[A; 4],
+    ) -> [Array<u8, Self::N>; 4] {
+        core::array::from_fn(|i| self.prf_sk(sk_seed, &adrs[i]))
+    }
 }
 
 #[cfg(test)]
