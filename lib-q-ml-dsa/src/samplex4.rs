@@ -95,7 +95,7 @@ pub(crate) mod neon {
 }
 
 /// AVX2 sampling
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 pub(crate) mod avx2 {
     use super::*;
 

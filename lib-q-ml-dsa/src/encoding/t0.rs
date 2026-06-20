@@ -170,7 +170,7 @@ mod tests {
         test_deserialize_generic::<simd::portable::PortableSIMDUnit>();
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn test_serialize_simd256() {
         // Test with same deterministic input as portable to ensure consistency
@@ -234,7 +234,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn debug_simd_portable_mismatch() {
         let coefficients = [
@@ -303,7 +303,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn debug_simd_portable_detailed_analysis() {
         // Test with a simpler case to understand the issue - need full 256 coefficients
@@ -337,7 +337,7 @@ mod tests {
             );
         }
     }
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn test_deserialize_simd256() {
         test_deserialize_generic::<simd::avx2::AVX2SIMDUnit>();
