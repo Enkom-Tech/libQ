@@ -1,0 +1,34 @@
+# VENDORED + PATCHED COPY (libQ). Upstream: https://github.com/rozbb/dudect-bencher (0.7.0),
+# MIT OR Apache-2.0. Source under `src/` is byte-for-byte the published 0.7.0 crate.
+#
+# Why vendored: upstream depends on `clap = "2"` with default features, whose `color` feature
+# pulls the unmaintained/unsound `atty` (RUSTSEC-2024-0375, RUSTSEC-2021-0145) and unmaintained
+# `ansi_term` (RUSTSEC-2021-0139). This dev/bench-only constant-time harness uses only clap's
+# `App`/`Arg` builder (see `src/macros.rs` — no colored help, no tty detection), so we disable
+# clap's default features and keep just `suggestions` + `vec_map`. That drops all three advisories
+# from the workspace tree with zero behavior change. Pinned via `[patch.crates-io]` in the root
+# Cargo.toml. Remove this vendor once dudect-bencher migrates off EOL clap 2.
+[package]
+authors = ["Michael Rosenberg <michael@mrosenberg.pub>"]
+name = "dudect-bencher"
+version = "0.7.0"
+edition = "2021"
+rust-version = "1.85"
+
+license = "MIT OR Apache-2.0"
+
+repository = "https://github.com/rozbb/dudect-bencher/"
+documentation = "https://docs.rs/dudect-bencher/"
+readme = "README.md"
+
+description = "An implementation of the DudeCT constant-time function tester"
+
+keywords = ["constant", "constant-time", "crypto", "benchmark"]
+
+[dependencies]
+# default-features = false drops clap's `color` feature (→ atty + ansi_term). Keep the other two
+# default features so help output / arg matching are unchanged.
+clap = { version = "2", default-features = false, features = ["suggestions", "vec_map"] }
+ctrlc = "3"
+rand = "0.10"
+rand_chacha = "0.10"
