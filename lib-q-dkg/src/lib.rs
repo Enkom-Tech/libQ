@@ -67,9 +67,12 @@ pub use profile::{
 pub use wire::{
     WIRE_BUDGET_DKG_COMPLAINT_BYTES,
     WIRE_BUDGET_DKG_ROUND1_BYTES,
+    WIRE_BUDGET_DKG_SHARE_BYTES,
     WIRE_VERSION_V1,
     decode_complaint,
     decode_round1_commitments,
+    decode_share_evaluation,
     encode_complaint,
     encode_round1_commitments,
+    encode_share_evaluation,
 };
