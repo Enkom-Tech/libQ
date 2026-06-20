@@ -245,3 +245,6 @@ opt-level = 2
 # `pub extern crate proc_macro` so nested `pub use proc_macro` in `__export` is legal.
 [patch.crates-io]
 proc-macro-error2 = { path = "vendor/proc-macro-error2" }
+# Vendored to disable clap's `color` feature (→ unmaintained atty/ansi_term). See
+# vendor/dudect-bencher/Cargo.toml. Dev/bench-only (lib-q-dkg ct_dudect bench).
+dudect-bencher = { path = "vendor/dudect-bencher" }
