@@ -1,0 +1,18 @@
+==================================================================
+ lib-q-dkg / lib-q-threshold-raccoon - ARCHIVED estimator run
+ FINAL params: N=1024  q=281474976694273 (~2^48)  MU=6  KAPPA=9
+ HIDING M-LWE (BDLOP HNF): n=(KAPPA-MU)*N=3072 secret + MU*N=6144 ternary error, m=6144
+ deny_list=('arora-gb','bkw')  [never optimal here; the slow attacks]
+==================================================================
+
+--- HIDING: LWE.estimate full attack table ---
+usvp                 :: rop: ≈2^215.4, red: ≈2^215.4, δ: 1.002810, β: 652, d: 5874, tag: usvp
+bdd                  :: rop: ≈2^214.2, red: ≈2^213.8, svp: ≈2^212.0, β: 646, η: 683, d: 5963, tag: bdd
+dual                 :: rop: ≈2^218.8, mem: ≈2^146.1, m: ≈2^11.5, β: 660, d: 6062, ↻: 1, tag: dual
+dual_hybrid          :: rop: ≈2^212.3, red: ≈2^212.1, guess: ≈2^209.6, β: 636, p: 3, ζ: 0, t: 120, β': 636, N: ≈2^130.9, m: ≈2^11.6
+
+>>> BEST attack: rop=2^212.3  beta=636  =>  core-SVP 186-bit classical / 169-bit quantum
+>>> Gate: PASS (>=128 quantum core-SVP)
+
+--- BINDING: SIS.estimate on B0 (l2 target = relaxed-extractor gap 2^29.5; expect infeasible) ---
+>>> BEST SIS: rop=2^inf  (infeasible <=> target below GH kernel vector 2^36.5)
