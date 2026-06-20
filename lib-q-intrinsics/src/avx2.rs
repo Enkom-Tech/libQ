@@ -437,46 +437,16 @@ pub fn mm_sllv_epi32(vector: Vec128, counts: Vec128) -> Vec128 {
     unsafe { _mm_sllv_epi32(vector, counts) }
 }
 
-/// Shift right logical 128-bit integers
-/// This is a custom intrinsic that performs a bit shift right logical operation
-/// on 128-bit elements within a 256-bit vector
-/// Each 128-bit lane is shifted independently by SHIFT_BY * 8 bits to the right
+/// Byte-shift each 128-bit lane of a 256-bit vector right by `SHIFT_BY` bytes, shifting in zeros.
+///
+/// This is the `_mm256_srli_si256`/`_mm256_bsrli_epi128` semantics: each 128-bit lane is treated
+/// as one 16-byte integer and shifted as a whole (carrying across its two 64-bit halves), NOT the
+/// two halves shifted independently. A previous hand-rolled version did per-`epi64` shifts, which
+/// silently dropped the carry between halves (and returned 0 for `SHIFT_BY == 8`, since
+/// `psrlq` by 64 yields 0) — corrupting e.g. `gamma1` z-encoding in ML-DSA. Use the real intrinsic.
 #[inline(always)]
 pub fn mm256_bsrli_epi128<const SHIFT_BY: i32>(x: Vec256) -> Vec256 {
-    unsafe {
-        // Extract the two 128-bit lanes
-        let low_lane = _mm256_extracti128_si256::<0>(x);
-        let high_lane = _mm256_extracti128_si256::<1>(x);
-
-        // Perform the shift on each 128-bit lane by SHIFT_BY * 8 bits
-        // We need to handle different shift amounts manually since const expressions are limited
-        let shifted_low = match SHIFT_BY {
-            1 => _mm_srli_epi64::<8>(low_lane),
-            2 => _mm_srli_epi64::<16>(low_lane),
-            3 => _mm_srli_epi64::<24>(low_lane),
-            4 => _mm_srli_epi64::<32>(low_lane),
-            5 => _mm_srli_epi64::<40>(low_lane),
-            6 => _mm_srli_epi64::<48>(low_lane),
-            7 => _mm_srli_epi64::<56>(low_lane),
-            8 => _mm_srli_epi64::<64>(low_lane),
-            _ => _mm_setzero_si128(), // For unsupported shift amounts
-        };
-        let shifted_high = match SHIFT_BY {
-            1 => _mm_srli_epi64::<8>(high_lane),
-            2 => _mm_srli_epi64::<16>(high_lane),
-            3 => _mm_srli_epi64::<24>(high_lane),
-            4 => _mm_srli_epi64::<32>(high_lane),
-            5 => _mm_srli_epi64::<40>(high_lane),
-            6 => _mm_srli_epi64::<48>(high_lane),
-            7 => _mm_srli_epi64::<56>(high_lane),
-            8 => _mm_srli_epi64::<64>(high_lane),
-            _ => _mm_setzero_si128(), // For unsupported shift amounts
-        };
-
-        // Combine the shifted lanes back into a 256-bit vector
-        let result = _mm256_inserti128_si256::<0>(_mm256_setzero_si256(), shifted_low);
-        _mm256_inserti128_si256::<1>(result, shifted_high)
-    }
+    unsafe { _mm256_bsrli_epi128::<SHIFT_BY>(x) }
 }
 
 // Bitwise operations

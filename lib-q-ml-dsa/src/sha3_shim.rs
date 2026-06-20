@@ -306,9 +306,6 @@ pub mod portable {
 #[cfg(feature = "simd256")]
 pub mod avx2 {
     pub mod x4 {
-        #[cfg(ml_dsa_keccak_portable_simd)]
-        use lib_q_keccak::advanced::parallel;
-
         /// Perform 4 SHAKE256 operations in parallel using true SIMD
         #[allow(clippy::too_many_arguments)]
         #[cfg_attr(tarpaulin, inline(never))]
@@ -323,102 +320,15 @@ pub mod avx2 {
             out2: &mut [u8],
             out3: &mut [u8],
         ) {
-            // True SIMD parallel processing using lib-q-keccak parallel functions
-            let mut states = [
-                [0u64; 25], // State 0
-                [0u64; 25], // State 1
-                [0u64; 25], // State 2
-                [0u64; 25], // State 3
-            ];
-
-            // Initialize states with SHAKE256 domain separator and absorb inputs
-            for (state, input) in states
-                .iter_mut()
-                .zip([input0, input1, input2, input3].iter())
-            {
-                // Initialize Keccak state for SHAKE256 (domain separator 0x06)
-                state[0] = 0x06;
-
-                // Absorb input data following SHAKE specification
-                let mut offset = 0;
-                while offset + 8 <= input.len() {
-                    let value = u64::from_le_bytes([
-                        input[offset],
-                        input[offset + 1],
-                        input[offset + 2],
-                        input[offset + 3],
-                        input[offset + 4],
-                        input[offset + 5],
-                        input[offset + 6],
-                        input[offset + 7],
-                    ]);
-                    let lane_index = offset / 8;
-                    // Ensure we don't access beyond the 25-lane Keccak state
-                    if lane_index < 25 {
-                        state[lane_index] ^= value;
-                    }
-                    offset += 8;
-                }
-
-                // Handle remaining bytes
-                if offset < input.len() {
-                    let mut remaining = [0u8; 8];
-                    remaining[..input.len() - offset].copy_from_slice(&input[offset..]);
-                    let value = u64::from_le_bytes(remaining);
-                    let lane_index = offset / 8;
-                    // Ensure we don't access beyond the 25-lane Keccak state
-                    if lane_index < 25 {
-                        state[lane_index] ^= value;
-                    }
-                }
-
-                // Apply SHAKE256 padding: 0x1F << (input.len() % 8) * 8
-                if !input.is_empty() {
-                    let padding_lane = input.len() / 8;
-                    // Ensure we don't access beyond the 25-lane Keccak state
-                    if padding_lane < 25 {
-                        state[padding_lane] ^= 0x1F << ((input.len() % 8) * 8);
-                    }
-                } else {
-                    // For empty input, apply padding at position 0
-                    state[0] ^= 0x1F;
-                }
-                // Final padding: 0x8000000000000000 at position 16
-                state[16] ^= 0x8000000000000000;
-            }
-
-            // Process all 4 states (SIMD batch on nightly; scalar Keccak-f on stable)
-            #[cfg(ml_dsa_keccak_portable_simd)]
-            parallel::p1600_parallel_4x(&mut states);
-
-            #[cfg(not(ml_dsa_keccak_portable_simd))]
-            {
-                for state in &mut states {
-                    lib_q_keccak::keccak_p(state, 24);
-                }
-            }
-
-            // Squeeze output data from all states in parallel
-            let mut outputs = [out0, out1, out2, out3];
-            for (state, output) in states.iter().zip(outputs.iter_mut()) {
-                let squeeze_state = *state;
-
-                // For the first squeeze, we already have the state from the parallel processing
-                // Extract bytes following SHAKE specification
-                let bytes_available = output.len().min(200); // Max 200 bytes (25 lanes * 8)
-                for i in 0..bytes_available {
-                    let lane = i / 8;
-                    let bit_offset = (i % 8) * 8;
-                    // Ensure we don't access beyond the 25-lane Keccak state
-                    if lane < 25 {
-                        output[i] = (squeeze_state[lane] >> bit_offset) as u8;
-                    } else {
-                        // If we need more bytes than available in the state,
-                        // we need to apply another permutation
-                        break;
-                    }
-                }
-            }
+            // 4-way SHAKE256 via the FIPS-202 batched permutation in lib-q-sha3 (real AVX2 at runtime
+            // through lib-q-keccak/p1600x4, scalar fallback otherwise — bit-identical to the scalar
+            // reader). The previous hand-rolled body absorbed past the rate, squeezed the capacity
+            // lanes, and capped output at 200 bytes with no inter-block permutation — so ExpandMask's
+            // 576/640-byte mask requests returned garbage, making every avx2 signing attempt reject.
+            lib_q_sha3::parallel::shake256_x4(
+                [input0, input1, input2, input3],
+                [out0, out1, out2, out3],
+            );
         }
 
         /// Incremental 4-way SHAKE driven by [`lib_q_keccak::p1600x4`] — true SIMD when AVX2 is
