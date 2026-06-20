@@ -1,0 +1,6 @@
+{
+  "regenerate": "cargo test -p lib-q-dkg kat_regenerate_vectors -- --ignored",
+  "round1_budget_bytes": 786432,
+  "round1_wire_bytes": 129030,
+  "schema": "dkg-kat-v1"
+}
