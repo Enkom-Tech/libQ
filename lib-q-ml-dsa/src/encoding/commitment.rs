@@ -114,7 +114,7 @@ mod tests {
         test_serialize_generic::<simd::portable::PortableSIMDUnit>();
     }
 
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     #[test]
     fn test_serialize_simd256() {
         test_serialize_generic::<simd::avx2::AVX2SIMDUnit>();
