@@ -329,24 +329,28 @@ impl SaturninAead {
 
     /// Shared decrypt core for Layer A ([`Aead::decrypt`](lib_q_core::Aead::decrypt)) and Layer B
     /// ([`AeadDecryptSemantic::decrypt_semantic`](lib_q_core::AeadDecryptSemantic::decrypt_semantic)).
+    ///
+    /// Takes key/nonce as byte slices: the `Aead`/`AeadDecryptSemantic` trait methods forward
+    /// `key.as_bytes()`/`nonce.as_bytes()` here, and the allocation-free [`Self::decrypt_bytes`]
+    /// passes its slices directly — neither path materializes an `AeadKey`/`Nonce` wrapper.
     fn decrypt_core(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<DecryptSemanticOutcome> {
-        if key.as_bytes().len() != Self::key_size() {
+        if key.len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
-                actual: key.as_bytes().len(),
+                actual: key.len(),
             });
         }
 
-        if nonce.as_bytes().len() != Self::nonce_size() {
+        if nonce.len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
-                actual: nonce.as_bytes().len(),
+                actual: nonce.len(),
             });
         }
 
@@ -370,9 +374,9 @@ impl SaturninAead {
         let received_tag = &ciphertext[plaintext_len..];
 
         let mut key_staged = Zeroizing::new([0u8; 32]);
-        key_staged.copy_from_slice(key.as_bytes());
+        key_staged.copy_from_slice(key);
         let mut nonce_staged = Zeroizing::new([0u8; 16]);
-        nonce_staged.copy_from_slice(nonce.as_bytes());
+        nonce_staged.copy_from_slice(nonce);
         let kb = key_staged.as_slice();
         let nb = nonce_staged.as_slice();
 
@@ -395,37 +399,28 @@ impl SaturninAead {
             Ok(DecryptSemanticOutcome::AuthenticationFailed)
         }
     }
-}
 
-impl Aead for SaturninAead {
-    /// Encrypt data with authentication
-    ///
-    /// # Arguments
-    /// * `key` - 256-bit encryption key
-    /// * `nonce` - 128-bit nonce
-    /// * `plaintext` - Data to encrypt
-    /// * `associated_data` - Additional authenticated data
-    ///
-    /// # Returns
-    /// Encrypted data with authentication tag appended
-    fn encrypt(
+    /// Allocation-free encrypt: takes key/nonce as byte slices, avoiding the `AeadKey`/`Nonce`
+    /// `Vec` wrappers that [`Aead::encrypt`] requires. Per-packet callers (e.g. GIP record sealing)
+    /// use this to skip two heap allocations on every record; the trait method forwards here.
+    pub fn encrypt_bytes(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         plaintext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        if key.as_bytes().len() != Self::key_size() {
+        if key.len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
-                actual: key.as_bytes().len(),
+                actual: key.len(),
             });
         }
 
-        if nonce.as_bytes().len() != Self::nonce_size() {
+        if nonce.len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
-                actual: nonce.as_bytes().len(),
+                actual: nonce.len(),
             });
         }
 
@@ -440,9 +435,9 @@ impl Aead for SaturninAead {
         let ad = associated_data.unwrap_or(&[]);
 
         let mut key_staged = Zeroizing::new([0u8; 32]);
-        key_staged.copy_from_slice(key.as_bytes());
+        key_staged.copy_from_slice(key);
         let mut nonce_staged = Zeroizing::new([0u8; 16]);
-        nonce_staged.copy_from_slice(nonce.as_bytes());
+        nonce_staged.copy_from_slice(nonce);
         let kb = key_staged.as_slice();
         let nb = nonce_staged.as_slice();
 
@@ -468,11 +463,12 @@ impl Aead for SaturninAead {
         Ok(ciphertext)
     }
 
-    /// Decrypt and verify data (Layer A); shares one decrypt core with [`lib_q_core::AeadDecryptSemantic`].
-    fn decrypt(
+    /// Allocation-free Layer A decrypt: byte-slice counterpart to [`Aead::decrypt`]. Returns the
+    /// plaintext on success, or [`Error::VerificationFailed`] on tag mismatch.
+    pub fn decrypt_bytes(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
@@ -486,6 +482,44 @@ impl Aead for SaturninAead {
     }
 }
 
+impl Aead for SaturninAead {
+    /// Encrypt data with authentication
+    ///
+    /// # Arguments
+    /// * `key` - 256-bit encryption key
+    /// * `nonce` - 128-bit nonce
+    /// * `plaintext` - Data to encrypt
+    /// * `associated_data` - Additional authenticated data
+    ///
+    /// # Returns
+    /// Encrypted data with authentication tag appended
+    fn encrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        self.encrypt_bytes(key.as_bytes(), nonce.as_bytes(), plaintext, associated_data)
+    }
+
+    /// Decrypt and verify data (Layer A); shares one decrypt core with [`lib_q_core::AeadDecryptSemantic`].
+    fn decrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        self.decrypt_bytes(
+            key.as_bytes(),
+            nonce.as_bytes(),
+            ciphertext,
+            associated_data,
+        )
+    }
+}
+
 impl AeadDecryptSemantic for SaturninAead {
     /// Layer B semantic decrypt; see `docs/adr/003-aead-decrypt-layers.md`.
     fn decrypt_semantic(
@@ -495,7 +529,12 @@ impl AeadDecryptSemantic for SaturninAead {
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<DecryptSemanticOutcome> {
-        self.decrypt_core(key, nonce, ciphertext, associated_data)
+        self.decrypt_core(
+            key.as_bytes(),
+            nonce.as_bytes(),
+            ciphertext,
+            associated_data,
+        )
     }
 }
 

@@ -220,30 +220,24 @@ impl RomulusMAead {
     pub const fn tag_size() -> usize {
         16
     }
-}
 
-impl Default for RomulusMAead {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Aead for RomulusMAead {
-    fn encrypt(
+    /// Allocation-free encrypt: takes key/nonce as byte slices, avoiding the `AeadKey`/`Nonce`
+    /// `Vec` wrappers required by [`Aead::encrypt`]. The trait method forwards here.
+    pub fn encrypt_bytes(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         plaintext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        let kb = key.as_bytes();
+        let kb = key;
         if kb.len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
                 actual: kb.len(),
             });
         }
-        let nb = nonce.as_bytes();
+        let nb = nonce;
         if nb.len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
@@ -275,21 +269,22 @@ impl Aead for RomulusMAead {
         Ok(buf)
     }
 
-    fn decrypt(
+    /// Allocation-free Layer A decrypt: byte-slice counterpart to [`Aead::decrypt`].
+    pub fn decrypt_bytes(
         &self,
-        key: &AeadKey,
-        nonce: &Nonce,
+        key: &[u8],
+        nonce: &[u8],
         ciphertext: &[u8],
         associated_data: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        let kb = key.as_bytes();
+        let kb = key;
         if kb.len() != Self::key_size() {
             return Err(Error::InvalidKeySize {
                 expected: Self::key_size(),
                 actual: kb.len(),
             });
         }
-        let nb = nonce.as_bytes();
+        let nb = nonce;
         if nb.len() != Self::nonce_size() {
             return Err(Error::InvalidNonceSize {
                 expected: Self::nonce_size(),
@@ -319,6 +314,39 @@ impl Aead for RomulusMAead {
             },
         )?;
         Ok(buf)
+    }
+}
+
+impl Default for RomulusMAead {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Aead for RomulusMAead {
+    fn encrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        self.encrypt_bytes(key.as_bytes(), nonce.as_bytes(), plaintext, associated_data)
+    }
+
+    fn decrypt(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        self.decrypt_bytes(
+            key.as_bytes(),
+            nonce.as_bytes(),
+            ciphertext,
+            associated_data,
+        )
     }
 }
 
