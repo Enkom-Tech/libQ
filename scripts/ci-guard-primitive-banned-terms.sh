@@ -12,6 +12,9 @@ CRATES=(
   lib-q-double-kem
   lib-q-fhe
   lib-q-blind-pcs
+  lib-q-dkg
+  lib-q-threshold-raccoon
+  lib-q-blind-token
 )
 
 # Case-insensitive for libq/sybil/vault; PoP is matched case-sensitively only (avoids

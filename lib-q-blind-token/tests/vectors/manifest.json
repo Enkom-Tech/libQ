@@ -1,0 +1,7 @@
+{
+  "budget_bytes": 524288,
+  "note": "token is a re-randomized ZK proof; bytes vary per redemption (RNG-seeded here)",
+  "regenerate": "cargo test -p lib-q-blind-token kat_regenerate_vectors -- --ignored",
+  "schema": "blind-token-kat-v1",
+  "token_bytes": 417802
+}

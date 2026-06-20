@@ -88,6 +88,9 @@ jobs:
           - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
           - package: "lib-q-blind-pcs"
+          - package: "lib-q-dkg"
+          - package: "lib-q-threshold-raccoon"
+          - package: "lib-q-blind-token"
           - package: "lib-q-rocca-s"
     steps:
       - uses: actions/checkout@v5
@@ -195,6 +198,15 @@ jobs:
           - name: "lib-q-blind-pcs experimental"
             features: "blind-pcs"
             package: "lib-q-blind-pcs"
+          - name: "lib-q-dkg"
+            features: "std,random"
+            package: "lib-q-dkg"
+          - name: "lib-q-threshold-raccoon"
+            features: "std,random"
+            package: "lib-q-threshold-raccoon"
+          - name: "lib-q-blind-token"
+            features: "std,random"
+            package: "lib-q-blind-token"
           - name: "lib-q-prf"
             features: "alloc"
             package: "lib-q-prf"
@@ -423,6 +435,8 @@ jobs:
           - lib-q-fhe
           - lib-q-threshold-kem
           - lib-q-threshold-sig
+          - lib-q-dkg
+          - lib-q-threshold-raccoon
     steps:
       - uses: actions/checkout@v5
 
@@ -478,6 +492,8 @@ jobs:
             lib-q-fhe) echo "features=wasm,fhe" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-sig) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-dkg) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-threshold-raccoon) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             *) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
           esac
 

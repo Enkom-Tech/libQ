@@ -1,0 +1,36 @@
+[package]
+name = "lib-q-blind-token"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "PROVISIONAL post-quantum blind-signature token (homomorphic Module-lattice blind issuance; not 2HashDH/RSA, pre-standard)"
+keywords = ["cryptography", "post-quantum", "lattice", "blind-signature", "token"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
+hex = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+
+[features]
+default = ["std", "random"]
+std = []
+random = []
+
+[lib]
+name = "lib_q_blind_token"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("std", "random"))',
+] }
