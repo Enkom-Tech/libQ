@@ -20,7 +20,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 3 | Poseidon2 in-circuit gadget (AIR) + property test | **BUILT + TESTED** (7 tests: in-circuit==permute + valid `check_constraints` + 5 corruption rejections); default-features wasm32 clean — see F7 |
 | 4 | wide sponge over BabyBear (t16/r7/c9/w9) | **BUILT + TESTED** (6 tests; reusable `constrain_permutation` factored out) |
 | 4 | 2-to-1 compress + wide Merkle path AIR over BabyBear | **BUILT + TESTED** (6 tests; `compress_bb` + `WideMerklePathBbAir`; wide_hash/wide_merkle folded into these) |
-| 5 | `unlinkable_membership` AIR over BabyBear | NOT STARTED |
+| 5 | `unlinkable_membership` AIR over BabyBear | **BUILT + TESTED** (10 tests incl unlinkability-across-ctx / linkability-within-ctx / 5 corruption); domain mirrors Arm A — see F8 |
 | 6 | prover/verifier (BabyBear `TwoAdicFriPcs` config), transparent + ZK | NOT STARTED |
 | — | dual-arm measurement table | NOT STARTED |
 | — | Arm B obligation packet | NOT STARTED |
@@ -147,6 +147,31 @@ replays the value-level `permute_with_trace`. **7 tests green** — `gadget_outp
 begin-sbox / begin-post / partial-post-sbox / end-sbox) — the under-constrained-column hunt: every
 stored column class is pinned. Built on the value-level constants exposed `pub` from
 `poseidon2_baby_bear`. Tier RED (computes Poseidon2 correctly + fully constrained ≠ parameters sound).
+
+### F8 — `domain` derivation: build spec says K12, Arm A uses its own Poseidon hash; Arm B follows Arm A.
+The build spec's step 5 says `domain = first cells of K12("libq.zkfri.membership.v0")`. But the
+**Arm A reference** (`unlinkable_membership.rs`) actually bakes `domain = first cells of
+poseidon256_wide_hash(bytes_to_poseidon_field(separator))` — its OWN in-circuit hash of the string,
+not K12. Arm B mirrors Arm A (uses `poseidon2_wide_hash_bb` of the separator) for structural
+parallelism and to avoid a `lib-q-k12` dependency. **This is purely an off-circuit constant
+derivation** — the circuit bakes `DOMAIN_ELEMS` constant cells regardless of how they were computed,
+so neither soundness nor the (disjoint, tag-0x01-vs-0x02) wire variants are affected. The separator
+STRING is unchanged. **Decision for the cryptographer:** keep the in-family Poseidon derivation
+(parallel to Arm A) or switch BOTH arms to a K12-derived constant for cross-family domain
+separation — a trivial off-circuit change. Flagged so the paper states the actual derivation, not
+the spec's aspirational one.
+
+## Step 5 — unlinkable membership AIR (DONE, tested)
+
+`lib-q-zkp/src/air/unlinkable_membership_baby_bear.rs`: `UnlinkableMembershipBbAir` (1643 cols/row;
+public `[root(9)‖ctx(4)‖N(9)]` = 22). Statement `∃(L,t,path): L=H(t) ∧ MerklePath(L→root) ∧
+N=H(domain‖t‖ctx)`, revealing only `(root,ctx,N)`. Same-`t` binding is structural (leaf + nullifier
+blocks read the same `t` columns). Leaf/nullifier sponges run on every row (max degree stays 7);
+row 0 carries the real witness, rows 1.. hash a zero preimage, bindings gated to row 0.
+`SECRET_T_ELEMS=6` (~185-bit secret — 3 base-field cells would be only ~93). **10 tests green**:
+honest roundtrip (depths 1/2/4/8); **unlinkability-across-ctx**; **linkability-within-ctx**; a
+circuit-level "same member under two ctx ⇒ both verify with different public N"; and 5 corruption
+rejections (public nullifier / ctx / root, wrong sibling, wrong secret `t`). Tier RED.
 
 ## Open scope (honest)
 
