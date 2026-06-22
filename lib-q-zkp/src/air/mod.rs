@@ -68,6 +68,7 @@ pub mod hash_preimage_nist;
 pub mod identity_proof;
 pub mod merkle_inclusion;
 pub mod opening_verifier;
+pub mod poseidon2_gadget;
 pub mod poseidon_gadget;
 pub mod poseidon_hash;
 pub mod range_proof;

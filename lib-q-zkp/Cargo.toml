@@ -23,6 +23,7 @@ ignored = [
 lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false, features = ["std"] }
 lib-q-stark = { path = "../lib-q-stark", version = "0.0.7", default-features = false, features = ["alloc"] }
 lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.7" }
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
 lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7" }
 lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.7" }

@@ -17,7 +17,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 1 | `lib-q-stark-baby-bear` base field (modulus, Montgomery, 2-adic table) | **BUILT + KAT-GREEN** (24 tests; wasm + no_std clean) |
 | 1 | …degree-4 binomial extension for FRI challenges + DFT exposure | TODO (deferred to step 6 — only the PCS needs it; steps 2-5 are base-field) |
 | 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 reference vectors; wasm + no_std clean) — see Finding F6 on validation level |
-| 3 | Poseidon2 in-circuit gadget (AIR) + property test | DESIGN LOCKED (membership-arm-b-poseidon2-gadget-design.md); impl + tests next |
+| 3 | Poseidon2 in-circuit gadget (AIR) + property test | **BUILT + TESTED** (7 tests: in-circuit==permute + valid `check_constraints` + 5 corruption rejections); default-features wasm32 clean — see F7 |
 | 4 | wide sponge/hash/merkle/merkle_path over BabyBear (t16/r7/c9/w9) | NOT STARTED |
 | 5 | `unlinkable_membership` AIR over BabyBear | NOT STARTED |
 | 6 | prover/verifier (BabyBear `TwoAdicFriPcs` config), transparent + ZK | NOT STARTED |
@@ -120,6 +120,32 @@ party (published vector, or upstream binary if the sandbox is later allowed) bef
 (`R_F=8=4+4`, `R_P=13`, S-box `x^7`). Constants Grain-LFSR (`field_type=1, alpha=7, n=31, t=16`).
 4 tests green (3 KAT + a diffusion smoke), `wasm32` + `--no-default-features` clean. Generator:
 `lib-q-poseidon/tools/gen_poseidon2_ref.py`.
+
+### F7 — `lib-q-zkp` is wasm-clean only WITH `std`; its `--no-default-features` no_std build is pre-existing-broken.
+The project's wasm path (CI `ci.yml` "full workspace wasm32 compile, default features") builds
+`lib-q-zkp` with its **default `std` feature**, and `std` *does* compile for
+`wasm32-unknown-unknown` (providing `format!`/`ToString`). `cargo build -p lib-q-zkp --target
+wasm32-unknown-unknown` (default features) **passes** with the Arm B gadget — verified. However,
+`--no-default-features` (true no_std) fails to compile in `lib-q-zkp/src/ip/recovery_policy*.rs`
+(they `use alloc::vec::Vec` but call `format!` without `use alloc::format`), plus a couple of
+`air/mod.rs`/`lib.rs` sites. These are **untouched-by-Arm-B modules** — a pre-existing gap, not a
+regression. Arm B's own code IS no_std-clean: `lib-q-stark-baby-bear` and `lib-q-poseidon`'s
+`poseidon2_baby_bear` build `--no-default-features`/wasm cleanly (verified steps 1–2), and the
+gadget module uses only `alloc::vec::Vec` + field ops. **Note for the paper / freeze:** the Arm B
+*membership verify* path's true-no_std story depends on either fixing those `recovery_policy`
+`format!` sites (1-line `use alloc::format;` each) or feature-gating the `ip` module out of no_std
+builds. Flagged for the human; out of scope for the Arm B layers themselves.
+
+## Step 3 — in-circuit Poseidon2-BabyBear AIR gadget (DONE, tested)
+
+`lib-q-zkp/src/air/poseidon2_gadget.rs`: a 285-column single-permutation `Poseidon2Air` (`BaseAir`
+width 285 + `Air::eval` over BabyBear, `AB::F = BabyBear`), max constraint degree 7. `generate_poseidon2_row`
+replays the value-level `permute_with_trace`. **7 tests green** — `gadget_output_matches_value_level`
+(32 inputs: in-circuit digest == `permute`), `constraints_hold_on_valid_trace`
+(`check_constraints` accepts 8 honest permutations), and 5 `#[should_panic]` corruption cases (input /
+begin-sbox / begin-post / partial-post-sbox / end-sbox) — the under-constrained-column hunt: every
+stored column class is pinned. Built on the value-level constants exposed `pub` from
+`poseidon2_baby_bear`. Tier RED (computes Poseidon2 correctly + fully constrained ≠ parameters sound).
 
 ## Open scope (honest)
 
