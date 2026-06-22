@@ -139,8 +139,13 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
    deployment as configured; needs a larger challenge extension. (Arm B's 124-bit is fine; 155 if 128 is hard.)
 5. **(deployment)** Is `num_queries=100, pow=16` deployment-grade for the target bit-level? Conjectured
    FRI soundness, not proven.
-6. **(engineering)** Arm B envelope/FFI decode (tag `0x02`) is unwritten — **must** use
-   canonical-checked field decode (don't repeat Arm A's non-injective `from_int`).
+6. **(engineering) — DONE.** Arm B statement-bytes codec + FFI verify entry implemented in
+   `stark_baby_bear.rs` (`membership_statement_bytes_bb` / `membership_statement_from_bytes_bb` /
+   `verify_membership_bb_bytes`): `root(36)‖ctx(16)‖N(36)` = 88 bytes, each cell canonical LE `u32`,
+   decode **canonical-checked** (rejects any limb ≥ p ⇒ injective; no `from_int` reduction). Tests
+   cover roundtrip, non-canonical rejection (`==p` and `0xFFFFFFFF`), wrong-length, verify-from-bytes
+   roundtrip + tamper + malformed-no-panic. The 1-byte instantiation tag (`0x02` vs Arm A `0x01`)
+   remains the consuming envelope's responsibility (the downgrade guard).
 7. **(validation)** Deployed-constant Poseidon2 KAT from an authoritative third party (F6).
 8. **(domain)** F8 — confirm in-family Poseidon-derived `domain` vs a K12-derived constant; pick one for
    both arms.
