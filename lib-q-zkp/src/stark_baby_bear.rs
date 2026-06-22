@@ -465,12 +465,15 @@ mod tests {
             SECRET_T_ELEMS as A_T,
             membership_leaf,
         };
+        use crate::air::wide_hash::WideDigest as AWideDigest;
         use crate::membership::{
             MembershipWitness,
             prove_unlinkable_membership,
+            prove_unlinkable_membership_zk,
             verify_unlinkable_membership,
+            verify_unlinkable_membership_zk,
         };
-        use crate::merkle::WidePoseidonMerkleTree;
+        use crate::merkle::wide_node_hash;
 
         let m31p = 2_147_483_647u32; // 2^31 - 1
         let fe = |x: u32| Complex::<Mersenne31>::from(Mersenne31::new(x % m31p));
@@ -488,40 +491,107 @@ mod tests {
                 fe(x)
             })
         };
-
-        println!("ARM_A,mode,depth,trace_w,result");
-        for depth in [4usize, 8] {
-            let n = 1usize << depth;
-            let secrets: Vec<_> = (0..n as u32).map(secret).collect();
-            let leaves: Vec<_> = secrets.iter().map(membership_leaf).collect();
-            let tree = WidePoseidonMerkleTree::from_leaf_digests(&leaves).expect("tree");
-            let idx = n / 3;
-            let (path_bits, siblings) = tree.path(idx).expect("path");
-            let root = tree.root();
-            let c = ctx_of(depth as u32);
-            let witness = MembershipWitness { t: secrets[idx], ctx: c, path_bits, siblings };
-
-            let t0 = Instant::now();
-            let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                prove_unlinkable_membership(&witness)
-            }));
-            match res {
-                Ok(Ok((null, proof))) => {
-                    let prove_ms = t0.elapsed().as_secs_f64() * 1e3;
-                    let bytes = proof.data.len();
-                    let t1 = Instant::now();
-                    let ok = verify_unlinkable_membership(&proof, &root, &c, &null).unwrap_or(false);
-                    let verify_ms = t1.elapsed().as_secs_f64() * 1e3;
-                    println!(
-                        "ARM_A,transparent,{depth},17152,OK prove_ms={:.1} verify_ms={:.1} proof_bytes={bytes} verify_ok={ok}",
-                        prove_ms, verify_ms
-                    );
+        let digest_of = |s: u32| -> AWideDigest {
+            let mut x = s.wrapping_add(7);
+            core::array::from_fn(|_| {
+                x = x.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                fe(x)
+            })
+        };
+        // Synthesize a depth-`depth` authentication path DIRECTLY (no `2^depth` tree — depths 16/32
+        // would OOM): pick arbitrary sibling digests + direction bits and fold the leaf up to a
+        // root with the same `wide_node_hash` compressor the prover/verifier use. The membership
+        // AIR only ever sees (leaf, path bits, siblings → root); a synthesized path produces an
+        // IDENTICAL trace shape to a tree-derived one, so timing/size are fully representative.
+        // All measured depths (4,8,16,32) are powers of two ⇒ the prover applies no padding, so
+        // the synthesized root below is exactly the root the verifier checks against. Mirrors the
+        // Arm B harness `path_for` for an apples-to-apples comparison.
+        let path_for_a =
+            |leaf: AWideDigest, depth: usize, seed: u32| -> (Vec<bool>, Vec<AWideDigest>, AWideDigest) {
+                let (mut bits, mut sibs) = (Vec::new(), Vec::new());
+                let mut running = leaf;
+                for level in 0..depth {
+                    let sib = digest_of(seed.wrapping_mul(1009).wrapping_add(level as u32 + 1));
+                    let dir = ((seed as usize + level) & 1) == 1;
+                    bits.push(dir);
+                    sibs.push(sib);
+                    running = if dir {
+                        wide_node_hash(&sib, &running)
+                    } else {
+                        wide_node_hash(&running, &sib)
+                    };
                 }
-                Ok(Err(e)) => println!("ARM_A,transparent,{depth},17152,PROVE_ERR {:?}", e),
-                Err(_) => println!(
-                    "ARM_A,transparent,{depth},17152,PANIC (default_config log_blowup=2 insufficient for degree-10 membership AIR)"
-                ),
+                (bits, sibs, running)
+            };
+
+        let reps = 5usize;
+        let trace_w = 17_152usize;
+        let median = |mut v: Vec<f64>| -> f64 {
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            v[v.len() / 2]
+        };
+        println!(
+            "ARM_A,mode,depth,trace_w,trace_h,total_cells,prove_ms_median,verify_ms_median,proof_bytes"
+        );
+
+        // Transparent: depths 4, 8, 16, 32.
+        for depth in [4usize, 8, 16, 32] {
+            let t = secret(depth as u32);
+            let c = ctx_of(depth as u32);
+            let leaf = membership_leaf(&t);
+            let (path_bits, siblings, root) = path_for_a(leaf, depth, depth as u32 * 7 + 1);
+            let witness = MembershipWitness { t, ctx: c, path_bits, siblings };
+
+            let (mut pv, mut vv) = (Vec::new(), Vec::new());
+            let mut bytes = 0usize;
+            let mut ok_all = true;
+            for _ in 0..reps {
+                let t0 = Instant::now();
+                let (null, proof) =
+                    prove_unlinkable_membership(&witness).expect("arm A transparent prove");
+                pv.push(t0.elapsed().as_secs_f64() * 1e3);
+                bytes = proof.data.len();
+                let t1 = Instant::now();
+                ok_all &= verify_unlinkable_membership(&proof, &root, &c, &null).unwrap_or(false);
+                vv.push(t1.elapsed().as_secs_f64() * 1e3);
             }
+            assert!(ok_all, "Arm A transparent depth {depth} must verify");
+            println!(
+                "ARM_A,transparent,{depth},{trace_w},{depth},{},{:.1},{:.1},{bytes}",
+                trace_w * depth,
+                median(pv),
+                median(vv)
+            );
+        }
+
+        // ZK (hiding): depths 8, 16, 32 (mirrors the Arm B ZK rows; MIN_ZK_DEPTH = 8).
+        for depth in [8usize, 16, 32] {
+            let t = secret(depth as u32 + 50);
+            let c = ctx_of(depth as u32 + 60);
+            let leaf = membership_leaf(&t);
+            let (path_bits, siblings, root) = path_for_a(leaf, depth, depth as u32 * 13 + 5);
+            let witness = MembershipWitness { t, ctx: c, path_bits, siblings };
+
+            let (mut pv, mut vv) = (Vec::new(), Vec::new());
+            let mut bytes = 0usize;
+            let mut ok_all = true;
+            for _ in 0..reps {
+                let t0 = Instant::now();
+                let (null, proof) =
+                    prove_unlinkable_membership_zk(&witness, [1u8; 32], [2u8; 32]).expect("arm A zk prove");
+                pv.push(t0.elapsed().as_secs_f64() * 1e3);
+                bytes = proof.data.len();
+                let t1 = Instant::now();
+                ok_all &= verify_unlinkable_membership_zk(&proof, &root, &c, &null).unwrap_or(false);
+                vv.push(t1.elapsed().as_secs_f64() * 1e3);
+            }
+            assert!(ok_all, "Arm A zk depth {depth} must verify");
+            println!(
+                "ARM_A,zk,{depth},{trace_w},{depth},{},{:.1},{:.1},{bytes}",
+                trace_w * depth,
+                median(pv),
+                median(vv)
+            );
         }
     }
 

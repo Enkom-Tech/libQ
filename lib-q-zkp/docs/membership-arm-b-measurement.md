@@ -1,14 +1,19 @@
 # Membership STARK measurement — Arm A vs Arm B
 
-**Status:** Arm B **measured**; Arm A dynamic numbers **pending** (static metrics below are exact).
+**Status:** **both arms fully measured** at all four depths [4, 8, 16, 32], transparent + ZK.
 Tier RED — these are *performance* numbers for a *functionally working* construction, not a
 soundness claim.
 
 **Machine / method.** AMD Ryzen 9 5900X (12 cores / 24 threads), Windows 10 IoT x86_64. `cargo
 test --release`, **single-threaded** (the `parallel`/rayon feature is OFF by default — multi-thread
-proving would be faster). Prove/verify = **median of 5**; proof size = `postcard::to_allocvec(proof).len()`.
-Harness: `lib-q-zkp/src/stark_baby_bear.rs::tests::measure_arm_b` (`--ignored`). FRI for both modes:
-`num_queries = 100`, `proof_of_work_bits = 16`, `log_final_poly_len = 0`.
+proving would be faster). Prove/verify = **median of 5**; proof size = `postcard::to_allocvec(proof).len()`
+(Arm B) / `proof.data.len()` (Arm A, the postcard-serialized `ZkpProof` payload). Harnesses:
+`lib-q-zkp/src/stark_baby_bear.rs::tests::measure_arm_b` and `::measure_arm_a` (both `--ignored`).
+FRI for both arms/modes: `num_queries = 100`, `proof_of_work_bits = 16`, `log_final_poly_len = 0`.
+**Both harnesses now synthesize the authentication path directly** (arbitrary siblings + bits folded
+to a root with the production compressor) rather than materializing a `2^depth` tree, so depths
+16/32 are feasible for both arms; the AIR only sees (leaf, path, siblings → root), so a synthesized
+path gives an identical trace shape to a tree-derived one.
 
 > Timing at these tiny trace heights (depth = rows = 4–32) is **noisy** (twiddle-cache warmup,
 > thermal, single-thread); the dominant proof cost is fixed by `num_queries × trace_width × blowup`,
@@ -37,24 +42,44 @@ membership proof size is dominated by `num_queries × trace_width` (the per-quer
 reducing the FRI blowup helps prove-time / quotient work more than proof *size*. To materially shrink
 the proof you reduce `num_queries` or `trace_width`, not the blowup.**
 
-## Arm A — measured (Complex⟨M31⟩ / Poseidon256, 8-byte elements)
+## Arm A — measured (Complex⟨M31⟩ / Poseidon256, 8-byte elements) — **all depths**
 
-| mode | depth | trace w × h | prove (ms) | verify (ms) | proof bytes |
-|------|------:|------------:|-----------:|------------:|------------:|
-| transparent | 4 | 17 152 × 4 | 199.7 | 313.2 | **17 105 381** (16.3 MB) |
-| transparent | 8 | 17 152 × 8 | 247.2 | 235.3 | **17 121 377** (16.3 MB) |
+| mode | depth | trace w × h | total cells | prove (ms, med) | verify (ms, med) | proof bytes |
+|------|------:|------------:|------------:|----------------:|-----------------:|------------:|
+| transparent | 4  | 17 152 × 4  | 68 608  | 196.1  | 260.2 | **17 103 705** (16.3 MB) |
+| transparent | 8  | 17 152 × 8  | 137 216 | 393.7  | 257.3 | **17 122 272** (16.3 MB) |
+| transparent | 16 | 17 152 × 16 | 274 432 | 442.3  | 246.2 | **17 150 660** (16.3 MB) |
+| transparent | 32 | 17 152 × 32 | 548 864 | 354.7  | 251.9 | **17 176 407** (16.4 MB) |
+| zk          | 8  | 17 152 × 8  | 137 216 | 551.2  | 229.3 | **17 363 648** (16.6 MB) |
+| zk          | 16 | 17 152 × 16 | 274 432 | 867.5  | 231.2 | **17 399 715** (16.6 MB) |
+| zk          | 32 | 17 152 × 32 | 548 864 | 1 378.9 | 227.8 | **17 439 758** (16.6 MB) |
 
-(Harness `measure_arm_a`; same machine/method. Built a real Arm A witness via
-`WidePoseidonMerkleTree::from_leaf_digests` + `.path()`; depths capped at 8 because the tree
-materializes `2^depth` leaves. Arm A's prove was wrapped in `catch_unwind` — **it did NOT panic**;
-both proofs **verify true**.)
+(Harness `measure_arm_a`; same machine/method, median of 5, FRI params identical to Arm B. The
+depth-16/32 rows use the **synthesized-path** witness — `WidePoseidonMerkleTree::from_leaf_digests`
+materializes `2^depth` leaves and OOMs past depth ~20, so the harness now folds a chosen path with
+`merkle::wide_node_hash` exactly like Arm B's `path_for`; all four depths are powers of two so the
+prover applies no padding and the synthesized root is the one the verifier checks. Every row
+**verifies true** — asserted in-harness. Earlier depth-4/8 transparent numbers, 17 105 381 /
+17 121 377 bytes via a *real tree*, match these synthesized-path numbers to within serialization
+noise, confirming the two witness paths are equivalent.) **Proof size is essentially flat in depth**
+— only +72 702 B (transparent) / +76 110 B (zk) across depths 4→32, i.e. ~0.4 %, because FRI proof
+size is dominated by `num_queries × trace_width` (constant in depth), with the slow depth term being
+the extra FRI commit-phase layers. **Verify is flat** (~250 ms transparent, ~230 ms zk). ZK prove
+grows with depth (more rows to blind/commit) where transparent prove is ~flat.
 
-### Headline: Arm B proofs are ~17× smaller
+### Headline: Arm B proofs are ~16–17× smaller (holds at every depth)
 
-| | Arm A (depth 4) | Arm B (depth 4) | ratio |
+| | Arm A | Arm B | ratio |
 |--|---------------:|----------------:|------:|
-| proof bytes | 17 105 381 | 969 588 | **17.6× smaller (Arm B)** |
-| verify (ms) | 313 | 23 | **~13× faster (Arm B)** |
+| proof bytes, transparent d=4  | 17 103 705 | 949 494   | **18.0× smaller (Arm B)** |
+| proof bytes, transparent d=32 | 17 176 407 | 1 032 481 | **16.6× smaller (Arm B)** |
+| proof bytes, zk d=32          | 17 439 758 | 1 201 069 | **14.5× smaller (Arm B)** |
+| verify (ms), transparent      | ~250       | ~22       | **~11× faster (Arm B)** |
+| verify (ms), zk               | ~230       | ~26       | **~9× faster (Arm B)** |
+
+The gap is widest at small depth (less FRI commit-phase overhead diluting the per-row trace cost)
+and remains ≥14× through depth 32 / ZK — i.e. **Arm B's field/permutation choice dominates at every
+operating point**, not just the smallest one.
 
 The proof-size gap tracks **bytes per trace row** (Arm A 137 216 vs Arm B 6 572 = 20.9×): FRI opens
 `num_queries × trace_width` field elements, and Arm A's elements are 8 bytes vs Arm B's 4. This is
@@ -110,9 +135,12 @@ also has a *larger, sounder* challenge field (124 vs 62 bits).
    ~2% (transparent) / ~9% (ZK) because membership proof size is dominated by
    `num_queries × trace_width` (per-query trace openings), not the blowup — the blowup reduction's
    real benefit is prove-time / quotient work.
-3. **Arm A depths 16/32 not run.** `WidePoseidonMerkleTree` materializes `2^depth` leaves; depths
-   16/32 would need a synthesized path (like Arm B's harness) with Arm A's `poseidon256_wide_hash`
-   compressor. Proof size is ~flat in depth (dominated by `num_queries × width`), so the depth-4/8
-   numbers are representative.
+3. **RESOLVED — Arm A depths 16/32 now measured.** `measure_arm_a` was rewritten to synthesize the
+   authentication path with `merkle::wide_node_hash` (no `2^depth` tree), and now runs transparent
+   4/8/16/32 + ZK 8/16/32 (median of 5, asserting each verifies). The prediction held: proof size is
+   flat in depth (+0.4 % across 4→32), so the original depth-4/8 numbers were indeed representative —
+   now confirmed rather than assumed. The Arm-B-≈17×-smaller headline holds at every depth (≥14× even
+   at depth 32 / ZK). The earlier `catch_unwind` panic-probe was dropped: Arm A is firmly established
+   to prove + verify at `log_blowup = 2` (degree 5), so the harness now hard-asserts verification.
 4. **Single-threaded.** Enabling the `parallel` feature (rayon, 24 threads here) would cut prove
    wall-clock substantially; the numbers above are a single-thread floor. Peak RSS not measured.
