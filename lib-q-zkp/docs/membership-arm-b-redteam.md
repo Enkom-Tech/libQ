@@ -146,7 +146,12 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
    cover roundtrip, non-canonical rejection (`==p` and `0xFFFFFFFF`), wrong-length, verify-from-bytes
    roundtrip + tamper + malformed-no-panic. The 1-byte instantiation tag (`0x02` vs Arm A `0x01`)
    remains the consuming envelope's responsibility (the downgrade guard).
-7. **(validation)** Deployed-constant Poseidon2 KAT from an authoritative third party (F6).
+7. **(validation) — DONE.** Deployed-constant Poseidon2 KAT from an authoritative third party (F6)
+   obtained: our `kat_file_random_input` is byte-identical to Plonky3's published production-constant
+   vector (`test_default_babybear_poseidon2_width_16`, the `default_babybear_poseidon2_16()` output),
+   and our Rust `permute` reproduces it — Rust == independent Python ref == Plonky3 published output.
+   The premise of the old item (Plonky3 only ships an RNG-instance vector) was false. No longer a
+   freeze blocker.
 8. **(domain)** F8 — confirm in-family Poseidon-derived `domain` vs a K12-derived constant; pick one for
    both arms.
 9. **(perf, optional)** Reduce Arm B membership to degree 7 (store the direction-selected node input)
