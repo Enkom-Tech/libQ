@@ -161,9 +161,21 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
     `ip/recovery_policy*` and dequalified two `String::from` sites in `air/mod.rs` (F7 resolved). The
     membership FFI verify path is now true-no_std-buildable; no behavior change (53 lib tests green,
     std + wasm32 builds unchanged).
+11. **(claims) — KEY FINDING.** Computed the actual PCS-layer soundness
+    (`membership-arm-b-soundness-params.md`, reproducible via `tools/fri_soundness.py`): the default
+    config is **≈116-bit conjectured / ≈99-bit fully-provable**, NOT 128-bit. Bound by the 124-bit
+    challenge field (conjectured) and the FRI query phase (ρ=1/8, 100 queries — provable). This is
+    normal for BabyBear inner-FRI layers (SP1/Plonky3 target ~100-bit), but the **paper must not claim
+    128-bit** for the proof; the 128-bit figure is the Poseidon2 *primitive* target only. To actually
+    reach 128: quintic challenge field (F_{p⁵}≈155b) + `num_queries ≥ 135` (or `log_blowup 4`).
+12. **(audit) — DONE.** Exhaustive under-constraint mutation audit (every column of all 4 Arm B AIRs
+    mutated → rejection; non-vacuous via +ZERO negative control) + full negative-proof matrix (wrong
+    root/ctx/nullifier, cross-instance, forged-root-unprovable, tampered proof bytes, ZK wrong-inputs)
+    + transparent-determinism / ZK-hiding-active tests. No under-constrained column found.
 
-**Bottom line:** no circuit-soundness break was found in Arm B's AIRs (every stored column is pinned and
-corruption-tested); the open items are the genuine cryptographic obligations + a handful of
-engineering/validation hardening tasks. Arm B's distinguishing, defensible win is that its soundness
+**Bottom line:** no circuit-soundness break was found in Arm B's AIRs (now **every** column — not a
+sample — is mutation-audited to be constrained; the full negative-proof matrix rejects every wrong
+statement). The open items are the genuine cryptographic obligations, the honest **~116-bit claims
+point** (#11), and the domain choice (F8). Arm B's distinguishing, defensible win is that its soundness
 gate has **no off-envelope field hazard** — and, measured, its proofs are **~17× smaller** than Arm A's.
 Both arms remain **tier RED** pending the human cryptographer.
