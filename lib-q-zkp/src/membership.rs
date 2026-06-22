@@ -1,4 +1,4 @@
-//! Public API for unlinkable set-membership proofs — libQ `libq.zkfri.membership.v0`.
+//! Public API for unlinkable set-membership proofs — `libq.zkfri.membership.v0`.
 //!
 //! Proves the Semaphore/Tornado statement
 //!
@@ -572,13 +572,13 @@ pub fn verify_unlinkable_membership_bytes(
 }
 
 // ---------------------------------------------------------------------------
-// Frozen wire envelope (libQ `libq.zkfri.membership.v0`) — byte-oriented FFI verify
+// Frozen wire envelope (`libq.zkfri.membership.v0`) — byte-oriented FFI verify
 // ---------------------------------------------------------------------------
 //
 // FROZEN as of wire v0 (see `docs/membership-wire-v0-FROZEN.md`). The *public statement*
 // (`PUBLIC_STATEMENT_BYTES` = 96) and the *envelope header* (8 bytes below) are frozen; the
 // opaque FRI proof body is NOT frozen (its math/length is a parameter of the proof system,
-// per libq-unlinkable-membership-v0 §7). The envelope exists because the raw
+// per unlinkable-membership-v0 §7). The envelope exists because the raw
 // `postcard(StarkProof)` bytes carry neither the public statement nor the
 // `ProofMetadata{tree_depth, digest_width, zk}` the verifier needs to reconstruct the AIR —
 // so a byte-only (FFI) consumer would otherwise be unable to verify.
@@ -590,7 +590,7 @@ pub const MEMBERSHIP_ENVELOPE_HEADER_BYTES: usize = 8;
 /// `flags` bit 0: set iff the proof was produced with the hiding (zero-knowledge) PCS.
 pub const MEMBERSHIP_ENVELOPE_FLAG_ZK: u8 = 0x01;
 
-/// Encode a membership [`ZkpProof`] into the frozen wire envelope so a byte-only consumer (a libQ
+/// Encode a membership [`ZkpProof`] into the frozen wire envelope so a byte-only consumer (an
 /// FFI caller) can carry the metadata the verifier needs alongside the opaque FRI proof bytes.
 ///
 /// Layout (little-endian; see `docs/membership-wire-v0-FROZEN.md`):
@@ -716,7 +716,7 @@ pub fn decode_membership_envelope(envelope: &[u8]) -> Result<ZkpProof> {
 /// proof envelope ([`encode_membership_envelope`]). Returns `true` iff the proof verifies against
 /// the canonical root encoded in the statement. **Never panics**; any malformed input → `false`.
 ///
-/// This is the single entry point a libQ `Verify(root, ctx, nullifier, proof)` FFI seam needs: it
+/// This is the single entry point a consumer's `Verify(root, ctx, nullifier, proof)` FFI seam needs: it
 /// takes only `&[u8]` and the envelope carries the `ProofMetadata{tree_depth, digest_width, zk}`
 /// (the raw `postcard(StarkProof)` body does not). Uses the production STARK config; a proof must
 /// have been produced with the production prover (`prove_unlinkable_membership[_zk_auto]`).

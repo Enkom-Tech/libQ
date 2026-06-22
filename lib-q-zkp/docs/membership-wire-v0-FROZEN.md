@@ -1,4 +1,4 @@
-# FROZEN WIRE — libQ unlinkable set-membership proof (`libq.zkfri.membership.v0`)
+# FROZEN WIRE — unlinkable set-membership proof (`libq.zkfri.membership.v0`)
 
 **Crate:** `lib-q-zkp` · **Wire version:** `v0` (envelope version byte `0x01`) ·
 **Status: FROZEN (byte layout) — TIER RED, PENDING HUMAN CRYPTOGRAPHER SIGN-OFF.**
@@ -7,13 +7,12 @@
 > encoding and the envelope header below MUST NOT change under wire version `v0`. Freezing the
 > *bytes* is independent of the *security* sign-off — the soundness / zero-knowledge claims of
 > the underlying proof remain **RED** and gated on the O1–O4 obligations in
-> [`membership-adr113-freeze-gate-review.md`](membership-adr113-freeze-gate-review.md). A libQ
+> [`membership-adr113-freeze-gate-review.md`](membership-adr113-freeze-gate-review.md). A
 > consumer MAY pin these bytes for interop; it MUST NOT treat the privacy/soundness as
 > load-bearing until O1–O4 are signed off by a human cryptographer.
 
-This is the lib-Q side of `lib-q-zk-fri` per
-[`libq-unlinkable-membership-v0.md`](../../../libQ-SPEC/spec/security/libq-unlinkable-membership-v0.md)
-§5.2 / §7 / §9 and the PQ-hash duality contract (§9). It backs libQ modes **M1** (pseudonymous)
+This is the lib-Q side of `lib-q-zk-fri` per the unlinkable-membership-v0 spec
+§5.2 / §7 / §9 and the PQ-hash duality contract (§9). It backs consumer modes **M1** (pseudonymous)
 and **M2** (unlinkable).
 
 ---
@@ -30,7 +29,7 @@ and **M2** (unlinkable).
 
 A "wide digest" (root / leaf / Merkle node / nullifier) is **5 field elements** =
 `WIDE_DIGEST_ELEMS`, i.e. **40 bytes** (`WIDE_DIGEST_BYTES`). Five ~62-bit `GF(p²)` cells clear
-the ≥256-bit digest / ≥128-bit-collision requirement of libq-unlinkable-membership §9.
+the ≥256-bit digest / ≥128-bit-collision requirement of unlinkable-membership-v0 §9.
 
 ---
 
@@ -48,13 +47,13 @@ The verifier-visible statement is `root ‖ ctx ‖ N`:
 Built/parsed by `membership::public_statement_bytes` / the byte decoders. This matches the
 freeze-gate review's "Public values = `[root(5) ‖ ctx(2) ‖ N(5)]` (12 elements)".
 
-### 2.1 `ctx` reconciliation with libQ (HANDOFF ITEM — libQ-side decision)
+### 2.1 `ctx` reconciliation with the consumer (HANDOFF ITEM — consumer-side decision)
 
-libQ derives `ctx` as a **32-byte K12 digest** under label `libq.member.ctx.v0`
-(`group_id ‖ epoch ‖ topic`), per libq-unlinkable-membership §5.1/§9 and the K12 registry. The
-lib-Q **circuit input is 2 `GF(p²)` elements = 16 bytes**, NOT 32. The mapping from libQ's 32-byte
-K12 `ctx` into the circuit's `[2 × GF(p²)]` input is **libQ's to fix** and MUST be deterministic
-and identical on prover and verifier.
+The consumer derives `ctx` as a **32-byte K12 digest** under label `libq.member.ctx.v0`
+(`group_id ‖ epoch ‖ topic`), per unlinkable-membership-v0 §5.1/§9 and the K12 domain-separation
+registry. The lib-Q **circuit input is 2 `GF(p²)` elements = 16 bytes**, NOT 32. The mapping from
+the consumer's 32-byte K12 `ctx` into the circuit's `[2 × GF(p²)]` input is **the consumer's to fix**
+and MUST be deterministic and identical on prover and verifier.
 
 **Effective ctx separation = ~124 bits (corrected; card t_bab219ba).** Each `GF(p²)` element is a
 **pair** `(real, imag)` of canonical `Mersenne31` limbs (`< 2³¹−1`, ~31 bits *each*), so one
@@ -64,24 +63,24 @@ both whole elements (`state[absorbed] += e` over the full extension element, RAT
 binding `ctx_cols[i] == pub_ctx[i]` is full extension-field equality — so there is **no in-circuit
 entropy reduction**. Consequently: **any-pair birthday ≈ 2⁶²**, **targeted de-link
 (second-preimage, force a chosen context onto a victim's `ctx`) ≈ 2¹²⁴**. The verifier *pins* `ctx`
-to the expected operation context (libq-unlinkable-membership §5.4 `BadContext`), so the operative
+to the expected operation context (unlinkable-membership-v0 §5.4 `BadContext`), so the operative
 de-link attack is the **targeted ~2¹²⁴**, not the birthday. lib-Q's byte decode is **injective**
 (O6), so two distinct accepted 16-byte `ctx` never collide in-circuit — the *only* collision surface
-is libQ's own 32→16-byte compression into the 124-bit canonical domain.
+is the consumer's own 32→16-byte compression into the 124-bit canonical domain.
 > An earlier draft of this section said "~62 bits / ~2³¹ birthday" — that was an **undercount** (it
 > counted one limb, ~31 bits, per `GF(p²)` element instead of the real+imag pair, ~62 bits). The
 > correct figures are ~124 bits / ~2⁶² birthday / ~2¹²⁴ targeted.
 
-**libQ mapping note (corrected rejection rate).** lib-Q's decoders **reject** any limb `≥ 2³¹−1`, and
+**Consumer mapping note (corrected rejection rate).** lib-Q's decoders **reject** any limb `≥ 2³¹−1`, and
 a uniform 4-byte word is non-canonical with probability `(2³¹+1)/2³² ≈ ½` (NOT ~`2·2⁻³¹`), so a
-naïve "decode the first 16 bytes" lands fully canonical only ~`1/16` of the time. libQ's mapping must
+naïve "decode the first 16 bytes" lands fully canonical only ~`1/16` of the time. The consumer's mapping must
 therefore land in the canonical domain — recommended: derive each of the 4 `Mersenne31` limbs by
 reducing a fresh ≥40-bit K12 word mod `2³¹−1` (negligible ~`2⁻³³` bias) and serialize canonically
 (`as_canonical_u32` LE), giving the full ~124-bit `ctx` with no rejection loop.
 
 **Freeze decision.** `CTX_ELEMS = 2` / `CTX_BYTES = 16` is **frozen for `v0`**: ~2¹²⁴ targeted /
 ~2⁶² birthday is sufficient for the linkage-domain-separation role (`ctx` is not a security-bearing
-collision target like the Merkle nodes, which are 5 elements / ≥128-bit by §9). If libQ later needs
+collision target like the Merkle nodes, which are 5 elements / ≥128-bit by §9). If the consumer later needs
 full 256-bit in-circuit `ctx` separation, that requires a **wider `CTX_ELEMS`** at a future wire
 revision (`v1`).
 
@@ -110,7 +109,7 @@ consumer can verify from `&[u8]` alone.
 | `2` | `1` | `digest_width` | `= 5` (`WIDE_DIGEST_ELEMS`). Other values rejected. |
 | `3` | `1` | `flags` | bit `0` = `zk` (hiding/ZK proof); bits `1..7` **reserved = 0** (set ⇒ reject). |
 | `4` | `4` | `proof_len` | `u32` little-endian = `proof_bytes.len()`. |
-| `8` | `proof_len` | `proof_bytes` | `postcard(StarkProof)` — **opaque, NOT frozen** (proof math/length is a parameter of the proof system per libq-unlinkable-membership §7). |
+| `8` | `proof_len` | `proof_bytes` | `postcard(StarkProof)` — **opaque, NOT frozen** (proof math/length is a parameter of the proof system per unlinkable-membership-v0 §7). |
 
 `tree_depth` is **authenticated** at verify time against the proof's actual STARK trace height
 (`1 << degree_bits == next_pow2(tree_depth)`; ZK path: `== 2·next_pow2(tree_depth)`) — the
@@ -120,7 +119,7 @@ Codec: `membership::encode_membership_envelope` / `decode_membership_envelope`.
 
 ---
 
-## 5. Byte-oriented FFI verify (the libQ seam)
+## 5. Byte-oriented FFI verify (the consumer seam)
 
 ```rust
 // returns true iff the proof verifies against the canonical root in the statement.
@@ -131,7 +130,7 @@ pub fn verify_membership_envelope(
 ) -> bool
 ```
 
-This is the single entry point a libQ `Verify(root, ctx, nullifier, proof) → bool` FFI seam needs.
+This is the single entry point a consumer `Verify(root, ctx, nullifier, proof) → bool` FFI seam needs.
 Internally: `decode_membership_envelope` → `verify_unlinkable_membership_bytes` →
 transparent/hiding verifier (selected by the `zk` flag) on the production config.
 

@@ -86,7 +86,7 @@ impl PoseidonGadget {
     /// WIDE-DIGEST NOTE: a sponge's collision resistance is bounded by its capacity, not
     /// just its output width. Over `Complex<Mersenne31>` (~62-bit elements), Poseidon-128
     /// (capacity 3) caps at ~93-bit collision resistance regardless of output truncation;
-    /// reaching ≥128-bit (libq §9) requires Poseidon-256 (capacity 5 → ~155-bit). Round
+    /// reaching ≥128-bit (unlinkable-membership-v0 §9) requires Poseidon-256 (capacity 5 → ~155-bit). Round
     /// counts over GF(p²) remain unverified — see the crate freeze-gate (ADR 113).
     pub fn with_params(params: PoseidonParams) -> Self {
         Self { params }

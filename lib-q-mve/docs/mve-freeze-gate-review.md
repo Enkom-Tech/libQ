@@ -6,13 +6,13 @@
 > Engineering analyses of the four mVE obligations (M1–M4), to the standard a human cryptographer
 > would review. **NOT** a sign-off; nothing here flips the tier. Generated 2026-06-22.
 
-Implements [`libq-mve-rekey-v0`](../../../libQ-SPEC/spec/security/libq-mve-rekey-v0.md) §4/§7.
+Implements the mve-rekey-v0 spec §4/§7.
 
 ## 1. Construction under review
 
 ```text
 key_commitment = K12(msg = "libq.mve.commit.v0" ‖ key_len(2BE) ‖ K ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE), C="", 32 B)
-                 # §4.3 canonical; label = LEADING MESSAGE PREFIX under EMPTY K12 customization (libQ registry); outside circuit
+                 # §4.3 canonical; label = LEADING MESSAGE PREFIX under EMPTY K12 customization (the K12 domain-separation registry); outside circuit
 per recipient i:  (ss_i, kem_ct_i) = ML-KEM.Encaps(update_pk_i)
                   w_i = K + H_zk(ss_i)                                 # field-additive wrap
 proof π (FRI/AIR, hiding PCS, hash_suite_id = 5):
@@ -26,14 +26,14 @@ recipient: ss_i = Decaps(sk_i, kem_ct_i); K = w_i − H_zk(ss_i); check key_comm
 - `H_zk` = the truncated Poseidon-256 wide sponge shared with the membership AIR (`hash_suite_id = 5`).
 - Proof system: lib-q-zkp `StarkProver`/`StarkVerifier` with the **hiding** PCS (`HidingFriPcs` +
   `Kt128Rng`, fresh OS-CSPRNG blinding seeds per proof). PQ-sound (hash-based), transparent setup.
-- `K`, `r`, encaps randomness are RED-zone (libq-mve-rekey §5): never logged / FFI-exported.
+- `K`, `r`, encaps randomness are RED-zone (mve-rekey-v0 §5): never logged / FFI-exported.
 
 ## 2. What is proven vs. residual (the honest scope)
 
 The proof **soundly** establishes: there is a **single** `K` such that every wire wrap `w_i`
 equals `K + H_zk(ss_i)` for a shared secret `ss_i` the producer knows. A "split" (different `K` to
 different recipients) violates the cross-row constant-`K` constraint and admits **no** verifying
-proof. This is the core anti-split guarantee (libq-mve-rekey §7 property 1).
+proof. This is the core anti-split guarantee (mve-rekey-v0 §7 property 1).
 
 It does **NOT** prove `ss_i` is the ML-KEM shared secret of `kem_ct_i` under `update_pk_i` (full
 ML-KEM-encaps-in-circuit). See **M1**.
@@ -54,7 +54,7 @@ Poseidon/FRI AIR — exactly the arithmetization-unfriendliness that motivates t
 
 **Why this is acceptable for the tier's guarantee (not a silent split).** A producer pairing a
 valid wrap with a mismatched/garbage `kem_ct_i` makes recipient `i` decapsulate `ss_i' ≠ ss_i`,
-unwrap `K'' ≠ K`, and **fail the recipient commitment check** (libq-mve-rekey §4.3) — an
+unwrap `K'' ≠ K`, and **fail the recipient commitment check** (mve-rekey-v0 §4.3) — an
 *availability* failure that honest recipients **detect**, which §6/§8 explicitly bound as
 acceptable (the relay-less fallback has the same property). The mVE proof upgrades this from
 "detected post-hoc" to "single-`K` consistency proven up-front"; the residual is only the
@@ -89,7 +89,7 @@ HUMAN SIGN-OFF — tier stays RED** (the round counts are not human-verified for
 ## M3 — Zero-knowledge of `(K, r)` (analogue of membership O4)
 
 **Claim under review:** confidentiality — `(key_commitment, {kem_ct_i, w_i}, π)` reveals nothing
-about `K` (and `r`) to the relay / any non-recipient (libq-mve-rekey §7 property 2).
+about `K` (and `r`) to the relay / any non-recipient (mve-rekey-v0 §7 property 2).
 
 **What holds.**
 - `K` is **never** a public input. The proof's only public value is `acc` (a Poseidon hash-chain of

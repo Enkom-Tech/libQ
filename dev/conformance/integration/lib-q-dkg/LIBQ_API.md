@@ -1,6 +1,6 @@
 # lib-q-dkg — LIBQ_API contract (v1, PROVISIONAL)
 
-libQ-agnostic contract for the dealerless DKG / lattice VSS crate. This document is the normative
+Consumer-protocol-agnostic contract for the dealerless DKG / lattice VSS crate. This document is the normative
 description of what the crate guarantees; it carries no consumer-protocol references.
 
 ## 1. Scheme choice (for RED-zone review)

@@ -56,7 +56,7 @@ Threaded acceleration (`rayon` / `parallel` features in the STARK stack and `par
 
 ### `lib-q-lattice-zkp` (wire v0)
 
-[`lib-q-lattice-zkp`](lib-q-lattice-zkp/) ships a **frozen wire v0** profile with compact encodings, exportable KATs, and CI byte-budget gates. Suitable for downstream integration (e.g. libQ Phase 5C); not a substitute for independent audit or side-channel certification:
+[`lib-q-lattice-zkp`](lib-q-lattice-zkp/) ships a **frozen wire v0** profile with compact encodings, exportable KATs, and CI byte-budget gates. Suitable for downstream integration; not a substitute for independent audit or side-channel certification:
 
 - Opening Fiat–Shamir uses a committed-first-message transform with **QROM** claims (see below).
 - Blind issuance v0 is **issuer-keyed** via [`IssuerCommitmentParams`](lib-q-lattice-zkp/src/blind.rs); shared-CRS blind pilot is non-conformant.

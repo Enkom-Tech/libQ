@@ -1,6 +1,6 @@
 # lib-q-blind-token — LIBQ_API contract (v1, PROVISIONAL)
 
-libQ-agnostic contract for the post-quantum unlinkable blind-token crate. This document is the
+Consumer-protocol-agnostic contract for the post-quantum unlinkable blind-token crate. This document is the
 normative description of what the crate guarantees; it carries no consumer-protocol references.
 
 ## 1. Scheme choice (for RED-zone review)

@@ -401,7 +401,7 @@ impl SaturninAead {
     }
 
     /// Allocation-free encrypt: takes key/nonce as byte slices, avoiding the `AeadKey`/`Nonce`
-    /// `Vec` wrappers that [`Aead::encrypt`] requires. Per-packet callers (e.g. libQ record sealing)
+    /// `Vec` wrappers that [`Aead::encrypt`] requires. Per-packet callers (e.g. per-packet record sealing)
     /// use this to skip two heap allocations on every record; the trait method forwards here.
     pub fn encrypt_bytes(
         &self,

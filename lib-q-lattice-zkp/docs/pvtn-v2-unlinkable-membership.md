@@ -2,8 +2,8 @@
 
 > **Status: DRAFT — RED / research-grade. NO CODE MERGES from this design without a written,
 > cryptographer-reviewed soundness/ZK argument and a RED sign-off recorded in the PR.** This document
-> is the design-first deliverable that [libQ ADR 095](../../../libQ/sdk/adr/095-pvtn-unlinkable-presentation.md)
-> and [HANDOFF-65](../../../libQ/sdk/docs/handoffs/HANDOFF-65-pvtn-unlinkable-membership.md) call for
+> is the design-first deliverable that ADR 095 (pvtn-unlinkable-presentation)
+> and HANDOFF-65 (pvtn-unlinkable-membership) call for
 > *before* implementation. It is authored as a starting draft for the `lib-q-lattice-zkp` cryptographer
 > to review, correct, and complete — not as a finished, self-attested construction. Audit 2026-06-17
 > finding **#65**. Until landed and reviewed, #65 stays **descoped (trusted-realm-only)**.
@@ -359,9 +359,9 @@ Companion scaffold on this branch (`feat/pvtn-v2-unlinkable`):
   This is the cryptographer's core task and must not land until §11 is completed and reviewed.
 - 🟡 **range leg (§7)** — reuses `prove_linear`; wired only after §6's witness layout is fixed.
 
-Sequencing follows [HANDOFF-65 §9](../../../libQ/sdk/docs/handoffs/HANDOFF-65-pvtn-unlinkable-membership.md):
+Sequencing follows HANDOFF-65 §9 (pvtn-unlinkable-membership):
 finish §11 argument → review gate → implement §6 → wire+KATs → swap SDK consumers
-(`libq-sybil/src/pvtn.rs:116`, `libq-anon-cred/.../interop_tests.rs:108`) → flip #65.
+(the consumer crates' PVTN and interop-test call sites) → flip #65.
 
 ## 15. Acceptance criteria (from the handoff)
 
