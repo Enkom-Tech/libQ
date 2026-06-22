@@ -356,6 +356,84 @@ mod tests {
         }
     }
 
+    /// Arm A measurement (run: `cargo test -p lib-q-zkp --release --lib
+    /// stark_baby_bear::tests::measure_arm_a -- --ignored --nocapture`). Builds a real Arm A
+    /// witness and times prove/verify; wraps prove in `catch_unwind` to surface whether Arm A's
+    /// `default_config` (log_blowup 2) actually supports its degree-10 membership AIR.
+    #[test]
+    #[ignore]
+    fn measure_arm_a() {
+        use std::time::Instant;
+
+        use lib_q_poseidon::PoseidonField;
+        use lib_q_stark_field::extension::Complex;
+        use lib_q_stark_mersenne31::Mersenne31;
+
+        use crate::air::unlinkable_membership::{
+            CTX_ELEMS as A_CTX,
+            SECRET_T_ELEMS as A_T,
+            membership_leaf,
+        };
+        use crate::membership::{
+            MembershipWitness,
+            prove_unlinkable_membership,
+            verify_unlinkable_membership,
+        };
+        use crate::merkle::WidePoseidonMerkleTree;
+
+        let m31p = 2_147_483_647u32; // 2^31 - 1
+        let fe = |x: u32| Complex::<Mersenne31>::from(Mersenne31::new(x % m31p));
+        let secret = |s: u32| -> [PoseidonField; A_T] {
+            let mut x = s.wrapping_add(1);
+            core::array::from_fn(|_| {
+                x = x.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                fe(x)
+            })
+        };
+        let ctx_of = |s: u32| -> [PoseidonField; A_CTX] {
+            let mut x = s.wrapping_add(99);
+            core::array::from_fn(|_| {
+                x = x.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                fe(x)
+            })
+        };
+
+        println!("ARM_A,mode,depth,trace_w,result");
+        for depth in [4usize, 8] {
+            let n = 1usize << depth;
+            let secrets: Vec<_> = (0..n as u32).map(secret).collect();
+            let leaves: Vec<_> = secrets.iter().map(membership_leaf).collect();
+            let tree = WidePoseidonMerkleTree::from_leaf_digests(&leaves).expect("tree");
+            let idx = n / 3;
+            let (path_bits, siblings) = tree.path(idx).expect("path");
+            let root = tree.root();
+            let c = ctx_of(depth as u32);
+            let witness = MembershipWitness { t: secrets[idx], ctx: c, path_bits, siblings };
+
+            let t0 = Instant::now();
+            let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                prove_unlinkable_membership(&witness)
+            }));
+            match res {
+                Ok(Ok((null, proof))) => {
+                    let prove_ms = t0.elapsed().as_secs_f64() * 1e3;
+                    let bytes = proof.data.len();
+                    let t1 = Instant::now();
+                    let ok = verify_unlinkable_membership(&proof, &root, &c, &null).unwrap_or(false);
+                    let verify_ms = t1.elapsed().as_secs_f64() * 1e3;
+                    println!(
+                        "ARM_A,transparent,{depth},17152,OK prove_ms={:.1} verify_ms={:.1} proof_bytes={bytes} verify_ok={ok}",
+                        prove_ms, verify_ms
+                    );
+                }
+                Ok(Err(e)) => println!("ARM_A,transparent,{depth},17152,PROVE_ERR {:?}", e),
+                Err(_) => println!(
+                    "ARM_A,transparent,{depth},17152,PANIC (default_config log_blowup=2 insufficient for degree-10 membership AIR)"
+                ),
+            }
+        }
+    }
+
     #[test]
     fn membership_zk_prove_verify_roundtrip() {
         let val_seed = [7u8; 32];
