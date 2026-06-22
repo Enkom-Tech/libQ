@@ -583,8 +583,26 @@ pub fn merkle_root_from_bytes(bytes: &[u8]) -> Result<PoseidonField, AirError> {
     let mut imag_bytes = [0u8; 4];
     real_bytes.copy_from_slice(&bytes[0..4]);
     imag_bytes.copy_from_slice(&bytes[4..8]);
-    let real = Mersenne31::from_int(u32::from_le_bytes(real_bytes));
-    let imag = Mersenne31::from_int(u32::from_le_bytes(imag_bytes));
+    // Freeze-gate O6: canonical-checked decode (reject `int >= 2^31-1`) so the byte encoding
+    // of a public root is injective. A reducing `from_int` would alias `v` and `v+p`, letting a
+    // caller key a nullifier/double-spend set on a non-canonical byte string that decodes to the
+    // same field element. Mirrors `membership::field_from_canonical_le` / `wide_digest_from_bytes`.
+    let real =
+        Mersenne31::from_canonical_checked(u32::from_le_bytes(real_bytes)).ok_or_else(|| {
+            AirError::InvalidInput {
+                reason: alloc::string::String::from(
+                    "non-canonical real limb in merkle root (>= 2^31-1)",
+                ),
+            }
+        })?;
+    let imag =
+        Mersenne31::from_canonical_checked(u32::from_le_bytes(imag_bytes)).ok_or_else(|| {
+            AirError::InvalidInput {
+                reason: alloc::string::String::from(
+                    "non-canonical imag limb in merkle root (>= 2^31-1)",
+                ),
+            }
+        })?;
     Ok(Complex::new_complex(real, imag))
 }
 
