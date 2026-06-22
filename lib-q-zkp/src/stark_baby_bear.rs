@@ -33,7 +33,6 @@ use lib_q_stark_challenger::Shake256Challenger32;
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::BinomialExtensionField;
 use lib_q_stark_field::{
-    Field,
     PrimeCharacteristicRing,
     PrimeField32,
 };
@@ -69,8 +68,18 @@ pub type BbVal = BabyBear;
 /// FRI challenge field: the degree-4 extension (~124 bits).
 pub type BbChallenge = BinomialExtensionField<BabyBear, 4>;
 /// Main-trace Merkle commitment (SHAKE256, NIST-track hash).
+///
+/// The leaf type is the **scalar** `BabyBear`, not `<BabyBear as Field>::Packing`. On the default
+/// (no-SIMD) build `Packing == BabyBear`, so this is identical; under `+avx2`/`+neon`, `Packing`
+/// is a SIMD vector (`PackedMontyField31{AVX2,Neon}`) which is deliberately **not** a `Field`, so
+/// `SerializingHasher`'s `CryptographicHasher<F: Field>` impl does not apply to it — that is the
+/// architecture-dependent build break. We commit over the scalar field instead: SHAKE256 is a
+/// serial sponge with **no SIMD-vectorized hashing**, so packed Merkle leaves buy nothing here
+/// (packing only helps Poseidon2-style compressors, which is why Plonky3 defaults to it). The
+/// Merkle commitment is independent of the leaf-packing width, so proofs are unchanged. This makes
+/// the config build identically on every target architecture.
 pub type BbValMmcs = MerkleTreeMmcs<
-    <BabyBear as Field>::Packing,
+    BabyBear,
     u8,
     SerializingHasher<Shake256Hash>,
     CompressionFunctionFromHasher<Shake256Hash, 2, 32>,
@@ -142,9 +151,10 @@ pub fn verify_membership_bb(
 // ============================= ZK / hiding variant ==============================
 
 /// Hiding (ZK) main-trace Merkle commitment: salts each leaf with a `Kt128Rng` so the proof
-/// reveals nothing about the witness trace.
+/// reveals nothing about the witness trace. Scalar `BabyBear` leaf type — see [`BbValMmcs`] for
+/// why (SHAKE256 is not SIMD-vectorized; arch-independent build).
 pub type ZkBbValMmcs = MerkleTreeHidingMmcs<
-    <BabyBear as Field>::Packing,
+    BabyBear,
     u8,
     SerializingHasher<Shake256Hash>,
     CompressionFunctionFromHasher<Shake256Hash, 2, 32>,

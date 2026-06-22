@@ -29,10 +29,11 @@ impl MontyParameters for BabyBearParameters {
     const MONTY_MU: u32 = 0x8800_0001;
 }
 
-// On the default host build and on `wasm32-unknown-unknown`, neither avx2/avx512/neon
-// is enabled, so `PackedMontyParameters` reduces to `MontyParameters` (scalar backend).
-// SIMD packing (which would require `MontyParametersAVX2`/etc. with vectorized constants)
-// is an out-of-scope optional optimization — see the build spec's measurement section.
+// On the default host build and on `wasm32-unknown-unknown`, neither avx2/avx512/neon is enabled,
+// so `PackedMontyParameters` reduces to `MontyParameters` (scalar backend). Under `+avx2`/`+neon`/
+// `+avx512` it additionally requires `MontyParameters{AVX2,Neon,AVX512}` — now provided by a blanket
+// impl in `lib-q-stark-monty31` that derives the vectorized `PACKED_P`/`PACKED_MU` from the scalar
+// `PRIME`/`MONTY_MU`, so SIMD packing is supported on every target architecture (not just scalar).
 impl PackedMontyParameters for BabyBearParameters {}
 
 impl BarrettParameters for BabyBearParameters {}
