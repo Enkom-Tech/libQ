@@ -14,7 +14,8 @@
 //!
 //! ## Construction (mVE-v0)
 //!
-//! - `key_commitment = K12(libq.mve.commit.v0 ‖ K ‖ r ‖ epoch_ctx)` — **outside** the circuit (32 B).
+//! - `key_commitment = K12(libq.mve.commit.v0 ‖ key_len ‖ K ‖ r_len ‖ r ‖ epoch_id)` — canonical
+//!   length-prefixed §4.3 layout, **outside** the circuit (32 B).
 //! - Per recipient `i`: `ct_i = ML-KEM.Encaps(update_pk_i) → (ss_i, kem_ct_i)`; the delivered wrap
 //!   is `w_i = K + H_zk(ss_i)` (field-additive one-time wrap; `H_zk` = `hash_suite_id = 5`
 //!   Poseidon-256). The recipient decapsulates `ss_i` from `kem_ct_i` and recovers
@@ -111,19 +112,39 @@ pub(crate) fn ss_to_felts(ss: &[u8]) -> [PoseidonField; SS_ELEMS] {
     })
 }
 
-/// `key_commitment = K12(libq.mve.commit.v0 ‖ K ‖ r ‖ epoch_ctx)` (libq-mve-rekey §4.3).
-/// Hiding + binding commitment to the distributed key; the value every recipient checks against.
-pub fn key_commitment(key: &Key, r: &[u8], epoch_ctx: &[u8]) -> [u8; COMMITMENT_BYTES] {
+/// `key_commitment = K12(libq.mve.commit.v0 ‖ key_len ‖ K ‖ r_len ‖ r ‖ epoch_id)` (libq-mve-rekey §4.3).
+///
+/// **Canonical length-prefixed layout** (matches libQ `libq-crypto::key_commitment` and the pinned
+/// spec §4.3). The K12 message, customized with [`MVE_COMMIT_LABEL`] and squeezed to
+/// [`COMMITMENT_BYTES`], is exactly:
+///
+/// ```text
+/// key_len(2 B, u16 BE = KEY_BYTES) ‖ serialize(K)(KEY_BYTES) ‖ r_len(2 B, u16 BE) ‖ r ‖ epoch_id(4 B, u32 BE)
+/// ```
+///
+/// The `key_len` / `r_len` prefixes make the encoding **injective**, so the commitment binds
+/// `(K, r, epoch_id)` unambiguously regardless of `r`'s length (a prefix-free `K ‖ r ‖ epoch_ctx`
+/// is ambiguous between a variable-length `r` and a variable-length context). `epoch_id` is the
+/// fixed-width `MveRekeyEnvelopeV0::epoch_id`, not an opaque context blob.
+///
+/// This commitment lives **outside** the circuit (a plain K12 hash), so this framing does **not**
+/// touch the AIR, the RED proof, or any O1–M4 obligation. Hiding + binding commitment to the
+/// distributed key; the value every recipient recomputes and checks against (libq-mve-rekey §4.3).
+pub fn key_commitment(key: &Key, r: &[u8], epoch_id: u32) -> [u8; COMMITMENT_BYTES] {
     use lib_q_k12::Kt128;
     use lib_q_k12::digest::{
         ExtendableOutput,
         Update,
         XofReader,
     };
+    let key_bytes = poseidon_field_to_bytes(key);
+    debug_assert_eq!(key_bytes.len(), KEY_BYTES, "K serializes to KEY_BYTES");
     let mut h = Kt128::new(MVE_COMMIT_LABEL);
-    h.update(&poseidon_field_to_bytes(key));
-    h.update(r);
-    h.update(epoch_ctx);
+    h.update(&(KEY_BYTES as u16).to_be_bytes()); // key_len (2 B, BE)
+    h.update(&key_bytes); //                        serialize(K) (KEY_BYTES)
+    h.update(&(r.len() as u16).to_be_bytes()); //   r_len (2 B, BE)
+    h.update(r); //                                 r
+    h.update(&epoch_id.to_be_bytes()); //           epoch_id (4 B, BE)
     let mut out = [0u8; COMMITMENT_BYTES];
     h.finalize_xof().read(&mut out);
     out
@@ -218,6 +239,15 @@ mod value_tests {
 
     use super::*;
 
+    /// Frozen KAT vector for [`key_commitment`] over the canonical §4.3 layout with the inputs in
+    /// `commitment_canonical_layout_kat` (`k = key(5)`, `r = 01 02 03 04`, `epoch_id = 0xDEADBEEF`).
+    /// Hex: `6c06790114e90fb8efabfe4bc9421b6a3b0d5ea4fc6976aa13905161a18da5c7`. Regression pin —
+    /// cross-check this exact vector against libQ `libq-crypto::key_commitment` for true interop.
+    const MVE_COMMIT_KAT: [u8; COMMITMENT_BYTES] = [
+        108, 6, 121, 1, 20, 233, 15, 184, 239, 171, 254, 75, 201, 66, 27, 106, 59, 13, 94, 164,
+        252, 105, 118, 170, 19, 144, 81, 97, 161, 141, 165, 199,
+    ];
+
     fn fe(x: u32) -> PoseidonField {
         Complex::<Mersenne31>::from(Mersenne31::new(x))
     }
@@ -253,17 +283,74 @@ mod value_tests {
     }
 
     #[test]
-    fn commitment_binds_key_and_randomizer() {
+    fn commitment_binds_key_randomizer_and_epoch() {
         let k = key(5);
-        let c1 = key_commitment(&k, &[1u8; 32], b"epoch:9");
-        let c2 = key_commitment(&k, &[2u8; 32], b"epoch:9");
-        let c3 = key_commitment(&key(6), &[1u8; 32], b"epoch:9");
+        let c1 = key_commitment(&k, &[1u8; 32], 9);
+        let c2 = key_commitment(&k, &[2u8; 32], 9);
+        let c3 = key_commitment(&key(6), &[1u8; 32], 9);
+        let c4 = key_commitment(&k, &[1u8; 32], 10);
         assert_ne!(c1, c2, "different randomizer ⇒ different commitment");
         assert_ne!(c1, c3, "different key ⇒ different commitment");
+        assert_ne!(c1, c4, "different epoch_id ⇒ different commitment");
+        assert_eq!(c1, key_commitment(&k, &[1u8; 32], 9), "deterministic");
+    }
+
+    /// The length prefixes make the encoding injective: shifting a byte across the `r` field
+    /// boundary cannot produce a colliding message (a prefix-free `K ‖ r ‖ ctx` could). Here two
+    /// distinct randomizers of *different* lengths whose raw bytes would concatenate identically
+    /// must still yield different commitments because `r_len` is bound.
+    #[test]
+    fn commitment_length_prefix_is_injective() {
+        let k = key(5);
+        // Without the r_len prefix, `r = [0xAA, 0xBB]` and `r = [0xAA]` (with the 0xBB absorbed by
+        // a neighbouring variable-length field) could collide. epoch_id is fixed-width u32, so the
+        // only variable field is `r`; the r_len prefix disambiguates it.
+        let c_long = key_commitment(&k, &[0xAA, 0xBB], 0);
+        let c_short = key_commitment(&k, &[0xAA], 0);
+        assert_ne!(
+            c_long, c_short,
+            "r_len prefix ⇒ length is bound, not just bytes"
+        );
+    }
+
+    /// Known-answer test pinning the **exact** canonical §4.3 byte layout. Re-derived independently
+    /// of `key_commitment`'s body from the documented field order/widths/prefixes — if any of those
+    /// drift, this fails. The same fixed inputs must produce the same 32 bytes under libQ's
+    /// `libq-crypto::key_commitment` (cross-impl interop check; see `docs/mve-freeze-gate-review.md`).
+    #[test]
+    fn commitment_canonical_layout_kat() {
+        use lib_q_k12::Kt128;
+        use lib_q_k12::digest::{
+            ExtendableOutput,
+            Update,
+            XofReader,
+        };
+        let k = key(5);
+        let r: &[u8] = b"\x01\x02\x03\x04";
+        let epoch_id: u32 = 0xDEAD_BEEF;
+
+        // Independent re-derivation of: key_len(2BE) ‖ K(KEY_BYTES) ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE)
+        let kb = poseidon_field_to_bytes(&k);
+        assert_eq!(kb.len(), KEY_BYTES);
+        let mut h = Kt128::new(MVE_COMMIT_LABEL);
+        h.update(&(KEY_BYTES as u16).to_be_bytes());
+        h.update(&kb);
+        h.update(&(r.len() as u16).to_be_bytes());
+        h.update(r);
+        h.update(&epoch_id.to_be_bytes());
+        let mut expected = [0u8; COMMITMENT_BYTES];
+        h.finalize_xof().read(&mut expected);
+
         assert_eq!(
-            c1,
-            key_commitment(&k, &[1u8; 32], b"epoch:9"),
-            "deterministic"
+            key_commitment(&k, r, epoch_id),
+            expected,
+            "key_commitment must use the canonical §4.3 length-prefixed layout"
+        );
+
+        // Frozen vector (pin against accidental drift; cross-check against libQ for interop).
+        assert_eq!(
+            expected, MVE_COMMIT_KAT,
+            "canonical §4.3 commitment KAT vector drifted"
         );
     }
 
