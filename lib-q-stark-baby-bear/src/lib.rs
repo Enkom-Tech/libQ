@@ -19,3 +19,9 @@ extern crate alloc;
 
 mod baby_bear;
 pub use baby_bear::*;
+
+/// Radix-2 two-adic DFT over BabyBear (`TwoAdicSubgroupDft<BabyBear>`), for the STARK PCS.
+/// BabyBear's 2-adicity 27 means the native radix-2 DFT works (unlike Mersenne31's circle DFT).
+pub use lib_q_stark_monty31::dft::RecursiveDft;
+/// Convenience alias: the BabyBear DFT used by the FRI PCS config.
+pub type BabyBearDft = RecursiveDft<BabyBear>;

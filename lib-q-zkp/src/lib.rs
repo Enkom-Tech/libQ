@@ -88,6 +88,10 @@ pub use lib_q_plonky as plonky;
 #[cfg(feature = "zkp")]
 pub mod stark;
 
+/// BabyBear / Poseidon2 zk-STARK config + membership prover/verifier (Arm B).
+#[cfg(feature = "zkp")]
+pub mod stark_baby_bear;
+
 /// Circuit builder for arithmetic constraints
 #[cfg(feature = "zkp")]
 pub mod circuit;
