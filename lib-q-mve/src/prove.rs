@@ -66,7 +66,6 @@ pub fn mve_prove(
     key: &Key,
     randomizer: &[u8],
     epoch_id: u32,
-    epoch_ctx: &[u8],
     recipient_ids: &[Vec<u8>],
     recipient_eks: &[MveEncapsulationKey],
     encaps_coins: &[[u8; 32]],
@@ -131,7 +130,7 @@ pub fn mve_prove(
     Ok(MveRekeyEnvelopeV0 {
         epoch_id,
         recipient_ids: recipient_ids.to_vec(),
-        key_commitment: key_commitment(key, randomizer, epoch_ctx),
+        key_commitment: key_commitment(key, randomizer, epoch_id),
         ciphertexts,
         proof: zkp.data,
     })
@@ -238,7 +237,7 @@ mod tests {
         let (eks, dks) = make_recipients(3);
         let ids: Vec<Vec<u8>> = (0..3u8).map(|i| vec![i]).collect();
         let coins: Vec<[u8; 32]> = (0..3u8).map(|i| [i + 7; 32]).collect();
-        let env = mve_prove(&k, &[1u8; 32], 9, b"epoch:9", &ids, &eks, &coins).expect("prove");
+        let env = mve_prove(&k, &[1u8; 32], 9, &ids, &eks, &coins).expect("prove");
 
         let kc = env.key_commitment;
         assert!(
@@ -267,8 +266,8 @@ mod tests {
         let (eks, _dks) = make_recipients(2);
         let ids: Vec<Vec<u8>> = (0..2u8).map(|i| vec![i]).collect();
         let coins: Vec<[u8; 32]> = (0..2u8).map(|i| [i + 1; 32]).collect();
-        let e1 = mve_prove(&k, &[1u8; 32], 1, b"e", &ids, &eks, &coins).expect("prove1");
-        let e2 = mve_prove(&k, &[1u8; 32], 1, b"e", &ids, &eks, &coins).expect("prove2");
+        let e1 = mve_prove(&k, &[1u8; 32], 1, &ids, &eks, &coins).expect("prove1");
+        let e2 = mve_prove(&k, &[1u8; 32], 1, &ids, &eks, &coins).expect("prove2");
         assert_eq!(
             e1.ciphertexts[0].wrap, e2.ciphertexts[0].wrap,
             "deterministic encaps coins ⇒ identical wraps"
@@ -289,7 +288,7 @@ mod tests {
         let (eks, _dks) = make_recipients(2);
         let ids: Vec<Vec<u8>> = (0..2u8).map(|i| vec![i]).collect();
         let coins: Vec<[u8; 32]> = (0..2u8).map(|i| [i + 3; 32]).collect();
-        let mut env = mve_prove(&k, &[2u8; 32], 1, b"epoch:1", &ids, &eks, &coins).expect("prove");
+        let mut env = mve_prove(&k, &[2u8; 32], 1, &ids, &eks, &coins).expect("prove");
 
         // Tamper: overwrite recipient 1's wrap to deliver k2 (a group split) — the proof was made
         // for the single key k, so the relay must reject the tampered envelope.
