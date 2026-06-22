@@ -351,4 +351,43 @@ mod tests {
     fn corrupt_end_sbox_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(end_sbox_col(1, 0)), &[]);
     }
+
+    /// EXHAUSTIVE under-constraint audit: mutate every one of the 285 columns (+1, trying each
+    /// row) of a valid 8-row trace and require rejection. A surviving column would be a free
+    /// witness in the permutation gadget. Covers all columns, not the 5 hand-picked classes above.
+    #[test]
+    fn under_constraint_audit_every_column() {
+        use std::panic::{
+            AssertUnwindSafe,
+            catch_unwind,
+        };
+        let trace =
+            RowMajorMatrix::new(trace_values(&[0, 1, 2, 3, 4, 5, 6, 7]), POSEIDON2_ROW_WIDTH);
+        let width = POSEIDON2_ROW_WIDTH;
+        let height = trace.values.len() / width;
+        check_constraints(&Poseidon2Air, &trace, &[]);
+
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let mut survived = Vec::new();
+        for col in 0..width {
+            let mut rejected = false;
+            for row in 0..height {
+                let mut tr = trace.clone();
+                let idx = row * width + col;
+                tr.values[idx] = tr.values[idx] + BabyBear::ONE;
+                if catch_unwind(AssertUnwindSafe(|| check_constraints(&Poseidon2Air, &tr, &[])))
+                    .is_err()
+                {
+                    rejected = true;
+                    break;
+                }
+            }
+            if !rejected {
+                survived.push(col);
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(survived.is_empty(), "UNCONSTRAINED columns: {survived:?}");
+    }
 }
