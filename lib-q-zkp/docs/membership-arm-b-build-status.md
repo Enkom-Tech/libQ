@@ -21,7 +21,8 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 4 | wide sponge over BabyBear (t16/r7/c9/w9) | **BUILT + TESTED** (6 tests; reusable `constrain_permutation` factored out) |
 | 4 | 2-to-1 compress + wide Merkle path AIR over BabyBear | **BUILT + TESTED** (6 tests; `compress_bb` + `WideMerklePathBbAir`; wide_hash/wide_merkle folded into these) |
 | 5 | `unlinkable_membership` AIR over BabyBear | **BUILT + TESTED** (10 tests incl unlinkability-across-ctx / linkability-within-ctx / 5 corruption); domain mirrors Arm A — see F8 |
-| 6 | prover/verifier (BabyBear `TwoAdicFriPcs` config), transparent + ZK | NOT STARTED |
+| 6 | …degree-4 challenge extension F_{p^4} (W=11) | **BUILT + KAT** (30 field tests; 124-bit challenge field) |
+| 6 | prover/verifier (BabyBear TwoAdicFriPcs config, transparent + ZK) | NEXT (6b/6c: config + prove/verify) |
 | — | dual-arm measurement table | NOT STARTED |
 | — | Arm B obligation packet | NOT STARTED |
 | — | red-team / known-weaknesses list | accumulating in this doc |
