@@ -80,6 +80,7 @@ pub mod stark_verifier;
 pub mod state_transition;
 pub mod transaction;
 pub mod unlinkable_membership;
+pub mod unlinkable_membership_baby_bear;
 pub mod verifier_utils;
 pub mod wide_hash;
 pub mod wide_merkle;
