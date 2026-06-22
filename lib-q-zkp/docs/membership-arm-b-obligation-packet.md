@@ -59,7 +59,8 @@ Gröbner-basis/FreeLunch, higher-order differential) attacks at the target secur
 Poseidon2 the count is fixed by the formulas in the Poseidon2 paper (Grassi, Khovratovich, Roy,
 Schofnegger, *Poseidon2*, ePrint **2023/323**) as a function of `(p, α, t, security)`. The values
 `R_F = 8, R_P = 13` for `(BabyBear, α=7, t=16)` are **exactly the deployed Plonky3 / SP1 instance**
-(Grain-LFSR generated, `field_type=1, alpha=7, n=31, t=16`; transcribed verbatim — see F6). The
+(Grain-LFSR generated, `field_type=1, alpha=7, n=31, t=16`; transcribed verbatim, and the
+permutation is now anchored to Plonky3's published production-constant KAT — F6 RESOLVED). The
 algebraic degree after `R_F + R_P` rounds is `α^(R_F+R_P) = 7^21`, far exceeding the
 interpolation/Gröbner bound at 128 bits.
 - **Why GREEN-leaning:** this is a *textbook prime-field* parameter set with **no GF(p²)
@@ -134,7 +135,8 @@ an off-envelope or non-standard-field hazard** — the distinguishing, decisive 
 whose O1 (Poseidon STATE over GF(p²)) is precisely such a hazard. In short: **Arm B's sign-off is the
 same gate as Arm A's, but every item on it is the easy, well-precedented version.**
 
-Functional evidence on file (NOT soundness): value-level Poseidon2 KAT (3 vectors); in-circuit
+Functional evidence on file (NOT soundness): value-level Poseidon2 KAT (3 vectors, one byte-identical
+to Plonky3's published production-constant vector — third-party anchor, F6 resolved); in-circuit
 gadget == value-level (32 inputs) + 5 corruption rejections; wide-sponge digest == reference (all
 lengths) + 3 corruption rejections; Merkle path roundtrip (depths 1–8) + 4 corruption rejections;
 membership unlinkability-across-ctx / linkability-within-ctx + 5 corruption rejections; transparent +

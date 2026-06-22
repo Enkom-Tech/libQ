@@ -16,7 +16,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 |------|------|-------|
 | 1 | `lib-q-stark-baby-bear` base field (modulus, Montgomery, 2-adic table) | **BUILT + KAT-GREEN** (24 tests; wasm + no_std clean) |
 | 1 | …degree-4 binomial extension for FRI challenges + DFT exposure | TODO (deferred to step 6 — only the PCS needs it; steps 2-5 are base-field) |
-| 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 reference vectors; wasm + no_std clean) — see Finding F6 on validation level |
+| 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 vectors; wasm + no_std clean). F6 RESOLVED: the random-input vector is byte-identical to Plonky3's published **production-constant** KAT (`test_default_babybear_poseidon2_width_16`) — Rust == Python ref == Plonky3 published output |
 | 3 | Poseidon2 in-circuit gadget (AIR) + property test | **BUILT + TESTED** (7 tests: in-circuit==permute + valid `check_constraints` + 5 corruption rejections); default-features wasm32 clean — see F7 |
 | 4 | wide sponge over BabyBear (t16/r7/c9/w9) | **BUILT + TESTED** (6 tests; reusable `constrain_permutation` factored out) |
 | 4 | 2-to-1 compress + wide Merkle path AIR over BabyBear | **BUILT + TESTED** (6 tests; `compress_bb` + `WideMerklePathBbAir`; wide_hash/wide_merkle folded into these) |
@@ -103,24 +103,37 @@ numeric constant is now machine-verified by `gen_constants.py`, not transcribed.
 
 ---
 
-### F6 — Poseidon2 value-level KAT is cross-implementation, NOT a third-party binary KAT. **(open item)**
-The deployed Poseidon2-BabyBear constants live in Plonky3's `baby-bear/src/poseidon2.rs`. The
-in-file test vector there uses **RNG-generated** constants (`new_from_rng_128(Xoroshiro128Plus(1))`),
-not the deployed Grain-LFSR constants Arm B needs — so it cannot directly anchor our permutation.
-The intended gold-standard anchor (compile upstream `default_babybear_poseidon2_16()` and diff one
-output) was **blocked by the sandbox** (executing an external git dependency is disallowed; the repo
-expects vendored crates). Current validation, in lieu of that:
-- **Constants**: parsed mechanically from the upstream source file by `gen_poseidon2_ref.py`
-  (source → parser → emitted Rust literals); no hand-retyping of the 141 field constants.
-- **Linear layers**: each is algebraically cross-checked against its *documented matrix form* in
-  the generator (external `M_E` block-circulant from `M4=[[2,3,1,1],…]`; internal `1+diag(V)`),
-  so the layer formulas are validated, not just copied.
-- **Permutation**: the Rust impl (`lib-q-poseidon/src/poseidon2_baby_bear.rs`) reproduces output
-  vectors from an **independent Python re-implementation** of the same algorithm (3 KATs green).
+### F6 — RESOLVED: our permutation matches Plonky3's published **production-constant** binary KAT.
+The earlier open-item rested on a false premise — that Plonky3's only width-16 vector used the
+**RNG** instance (`new_from_rng_128(Xoroshiro128Plus(1))`). It does not. Plonky3's
+`baby-bear/src/poseidon2.rs` *also* contains `tests::test_default_babybear_poseidon2_width_16`, which
+runs the **deployed** `default_babybear_poseidon2_16()` (Grain-LFSR: field_type=1, alpha=7, n=31,
+t=16) and asserts a **hardcoded `expected: [F;16]` literal** — i.e. a vector computed by Plonky3's
+*compiled* code and committed as data. Reading that literal needs no upstream execution (so the
+sandbox block on running external crates is irrelevant). The decisive finding:
 
-This is honest but weaker than an upstream-binary KAT: a *shared* misreading of the round structure
-could pass both. **Open item:** obtain a deployed-constant KAT vector from an authoritative third
-party (published vector, or upstream binary if the sandbox is later allowed) before the wire freezes.
+> Our existing `kat_file_random_input` (in `poseidon2_baby_bear.rs`) uses an input+output that is
+> **byte-for-byte identical** to that Plonky3 production literal — and our Rust `permute` reproduces
+> it (test green).
+
+So three independent implementations agree on the deployed-constant width-16 permutation for this
+input: **(1)** Plonky3's published binary output, **(2)** the independent Python scalar reference
+`gen_poseidon2_ref.py` (re-confirmed: parses the constants from source, runs a separate permute,
+emits the same `516096821, 90309867, …` output), and **(3)** our Rust. The original worry ("a shared
+misreading of the round structure could pass both [Rust + Python]") is now strongly mitigated: a
+shared misreading would have to be replicated across all three — including THE reference deployment.
+
+Validation stack, for the record:
+- **Constants**: parsed mechanically from the upstream source file by `gen_poseidon2_ref.py`; no
+  hand-retyping of the 141 field constants.
+- **Linear layers**: each algebraically cross-checked against its documented matrix form (external
+  `M_E` block-circulant from `M4=[[2,3,1,1],…]`; internal `1+diag(V)`) by the generator's self-checks.
+- **Permutation**: Rust == independent Python == **Plonky3 published binary vector** (this fix).
+
+Residual caveat (honest): all three share the *same constants* (parsed from Plonky3) — by design,
+since Arm B deliberately uses the deployed Plonky3 instance; the constants are validated separately
+(mechanical parse). Tier RED still holds — this anchors the permutation, it is not a parameter-
+soundness proof. **No longer a freeze blocker.**
 
 ## Step 2 — value-level Poseidon2-BabyBear (DONE, KAT-green; see F6 for caveat)
 

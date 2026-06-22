@@ -237,8 +237,20 @@ mod tests {
         v.map(BabyBear::new)
     }
 
-    /// KAT vs the independent Python reference (tools/gen_poseidon2_ref.py),
-    /// deployed Grain-LFSR constants. See module docs for validation level.
+    /// THIRD-PARTY DEPLOYED-CONSTANT KAT (closes F6). This input→output pair is **byte-for-byte
+    /// identical** to Plonky3's published production vector in
+    /// `Plonky3/baby-bear/src/poseidon2.rs::tests::test_default_babybear_poseidon2_width_16`,
+    /// whose `expected` literal was computed by Plonky3's *compiled* `default_babybear_poseidon2_16()`
+    /// (the deployed Grain-LFSR instance: field_type=1, alpha=7, n=31, t=16 — NOT the
+    /// `new_from_rng_128`/Xoroshiro test instance). Reading that literal requires no upstream
+    /// execution. Three independent implementations agree on this vector: (1) Plonky3's published
+    /// binary output, (2) the independent Python scalar reference `tools/gen_poseidon2_ref.py`
+    /// (run: `python tools/gen_poseidon2_ref.py <plonky3>/baby-bear/src/poseidon2.rs`), and (3) this
+    /// Rust `permute`. A shared misreading of the round structure (the F6 worry) would have to be
+    /// replicated across all three to pass — implausible. The `kat_iota_input` / `kat_all_ones_input`
+    /// vectors below are the Python reference's (Plonky3 publishes only this random-input vector for
+    /// width 16). Tier RED still holds: this anchors the *permutation* to the deployed instance; it
+    /// is not a parameter-soundness proof.
     #[test]
     fn kat_file_random_input() {
         let input = arr([
