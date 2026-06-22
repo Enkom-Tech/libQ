@@ -24,9 +24,14 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 6 | …degree-4 challenge extension F_{p^4} (W=11) | **BUILT + KAT** (30 field tests; 124-bit challenge field) |
 | 6 | prover/verifier — **transparent** (BabyBear TwoAdicFriPcs) | **BUILT + WORKS** (prove→verify roundtrip + tampered-reject, depth 4) — see F9 |
 | 6 | prover/verifier — ZK/hiding (HidingFriPcs) | NEXT |
-| — | dual-arm measurement table | NOT STARTED |
-| — | Arm B obligation packet | NOT STARTED |
-| — | red-team / known-weaknesses list | accumulating in this doc |
+| — | dual-arm measurement table | **DONE** — `membership-arm-b-measurement.md` (both arms measured; Arm B proofs ~17× smaller) |
+| — | Arm B obligation packet | **DONE** — `membership-arm-b-obligation-packet.md` (6 obligations, GREEN/RED; tier RED) |
+| — | red-team / known-weaknesses list | **DONE** — `membership-arm-b-redteam.md` (both arms; 10-item open-questions list) |
+
+**Build complete.** All 6 build-order steps + measurement + obligation packet + red-team delivered.
+~58 Arm-B tests green (field 30, Poseidon2 4, lib-q-zkp Arm-B AIRs/prover 24), transparent + ZK
+prove→verify working, default-features wasm32 clean. **Tier RED** — functionally built, tested, and
+measured; soundness obligations enumerated, none discharged (no human cryptographer sign-off).
 
 ---
 
