@@ -78,17 +78,23 @@ assert TWO_ADIC[0] == 1 and TWO_ADIC[27] == w27
 for i in range(1, ta + 1):
     assert pow(TWO_ADIC[i], 2, P) == TWO_ADIC[i - 1], f"chain break at {i}"
 
-# ---- ROOTS_8 (first 3 8th-roots: [1, w8, w8^2]) ; ROOTS_8[1] == TWO_ADIC[3] ----
+# ---- ROOTS_8: the radix-2 DFT's `forward_pass` asserts roots.len() == input.len()/2, so a
+# size-8 block needs HALF_N = 4 roots: [w8^0, w8^1, w8^2, w8^3]. ROOTS_8[1] == TWO_ADIC[3]. ----
 w8 = TWO_ADIC[3]
-ROOTS_8 = [pow(w8, k, P) for k in range(3)]
+ROOTS_8 = [pow(w8, k, P) for k in range(4)]
 INV_ROOTS_8 = [inv(x, P) for x in ROOTS_8]
 assert ROOTS_8[1] == TWO_ADIC[3]
 
-# ---- ROOTS_16 (first 7 16th-roots: [1, w16, ..., w16^6]) ; ROOTS_16[1] == TWO_ADIC[4] ----
+# ---- ROOTS_16: size-16 block needs HALF_N = 8 roots: [w16^0, ..., w16^7]. ROOTS_16[1]==TWO_ADIC[4]. ----
 w16 = TWO_ADIC[4]
-ROOTS_16 = [pow(w16, k, P) for k in range(7)]
+ROOTS_16 = [pow(w16, k, P) for k in range(8)]
 INV_ROOTS_16 = [inv(x, P) for x in ROOTS_16]
 assert ROOTS_16[1] == TWO_ADIC[4]
+# Cross-check against canonical Plonky3 BabyBear values.
+assert ROOTS_8 == [0x1, 0x5ee99486, 0x67055c21, 0xc9ea3ba], ROOTS_8
+assert ROOTS_16 == [0x1, 0xbb4c4e4, 0x5ee99486, 0x4b49e08, 0x67055c21, 0x5376917a, 0xc9ea3ba, 0x563112a7], ROOTS_16
+assert INV_ROOTS_8 == [0x1, 0x6b615c47, 0x10faa3e0, 0x19166b7b], INV_ROOTS_8
+assert INV_ROOTS_16 == [0x1, 0x21ceed5a, 0x6b615c47, 0x24896e87, 0x10faa3e0, 0x734b61f9, 0x19166b7b, 0x6c4b3b1d], INV_ROOTS_16
 
 def rust_arr(vals):
     body = ",\n    ".join(f"MontyField31::new({v})" for v in vals)

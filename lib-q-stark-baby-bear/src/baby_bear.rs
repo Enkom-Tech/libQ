@@ -80,20 +80,24 @@ impl TwoAdicData for BabyBearParameters {
         MontyField31::new(440564289),
     ];
 
-    /// First three 8th-roots of unity `[1, w8, w8^2]`; `ROOTS_8[1] == TWO_ADIC_GENERATORS[3]`.
+    /// First HALF of the 8th-roots `[w8^0..w8^3]` (the radix-2 DFT needs `len == 8/2 = 4`);
+    /// `ROOTS_8[1] == TWO_ADIC_GENERATORS[3]`.
     const ROOTS_8: Self::ArrayLike = &[
         MontyField31::new(1),
         MontyField31::new(1592366214),
         MontyField31::new(1728404513),
+        MontyField31::new(211723194),
     ];
 
     const INV_ROOTS_8: Self::ArrayLike = &[
         MontyField31::new(1),
         MontyField31::new(1801542727),
         MontyField31::new(284861408),
+        MontyField31::new(420899707),
     ];
 
-    /// First seven 16th-roots of unity `[1, w16, ..., w16^6]`; `ROOTS_16[1] == TWO_ADIC_GENERATORS[4]`.
+    /// First HALF of the 16th-roots `[w16^0..w16^7]` (DFT needs `len == 16/2 = 8`);
+    /// `ROOTS_16[1] == TWO_ADIC_GENERATORS[4]`.
     const ROOTS_16: Self::ArrayLike = &[
         MontyField31::new(1),
         MontyField31::new(196396260),
@@ -102,6 +106,7 @@ impl TwoAdicData for BabyBearParameters {
         MontyField31::new(1728404513),
         MontyField31::new(1400279418),
         MontyField31::new(211723194),
+        MontyField31::new(1446056615),
     ];
 
     const INV_ROOTS_16: Self::ArrayLike = &[
@@ -112,6 +117,7 @@ impl TwoAdicData for BabyBearParameters {
         MontyField31::new(284861408),
         MontyField31::new(1934320121),
         MontyField31::new(420899707),
+        MontyField31::new(1816869661),
     ];
 }
 
