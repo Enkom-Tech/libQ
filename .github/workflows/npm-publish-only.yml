@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Resolve version
         id: version
         run: |
@@ -169,7 +169,7 @@ jobs:
             features: "wasm,alloc"
             out-dir: "pkg"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build WASM
         uses: ./.github/actions/wasm-build
         with:
@@ -195,7 +195,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
         with:
