@@ -11,7 +11,8 @@ Implements [`libq-mve-rekey-v0`](../../../libQ-SPEC/spec/security/libq-mve-rekey
 ## 1. Construction under review
 
 ```text
-key_commitment = K12(libq.mve.commit.v0 ‖ key_len(2BE) ‖ K ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE), 32 B)  # §4.3 canonical, outside circuit
+key_commitment = K12(msg = "libq.mve.commit.v0" ‖ key_len(2BE) ‖ K ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE), C="", 32 B)
+                 # §4.3 canonical; label = LEADING MESSAGE PREFIX under EMPTY K12 customization (libQ registry); outside circuit
 per recipient i:  (ss_i, kem_ct_i) = ML-KEM.Encaps(update_pk_i)
                   w_i = K + H_zk(ss_i)                                 # field-additive wrap
 proof π (FRI/AIR, hiding PCS, hash_suite_id = 5):

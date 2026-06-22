@@ -77,7 +77,9 @@ pub const COMMITMENT_BYTES: usize = 32;
 /// Maximum recipient count for one envelope (DoS bound; trace height padded to a power of two).
 pub const MAX_RECIPIENTS: usize = 1024;
 
-/// K12 domain label for the distributed-key commitment (libq-mve-rekey §4.3).
+/// K12 domain label for the distributed-key commitment (libq-mve-rekey §4.3). Used as the **leading
+/// message prefix** with **empty** K12 customization (libQ K12 registry discipline), not as the K12
+/// customization string. See [`key_commitment`].
 pub const MVE_COMMIT_LABEL: &[u8] = b"libq.mve.commit.v0";
 
 /// Mersenne31 prime modulus.
@@ -114,12 +116,15 @@ pub(crate) fn ss_to_felts(ss: &[u8]) -> [PoseidonField; SS_ELEMS] {
 
 /// `key_commitment = K12(libq.mve.commit.v0 ‖ key_len ‖ K ‖ r_len ‖ r ‖ epoch_id)` (libq-mve-rekey §4.3).
 ///
-/// **Canonical length-prefixed layout** (matches libQ `libq-crypto::key_commitment` and the pinned
-/// spec §4.3). The K12 message, customized with [`MVE_COMMIT_LABEL`] and squeezed to
-/// [`COMMITMENT_BYTES`], is exactly:
+/// **Canonical layout** (matches libQ `libq-crypto::key_commitment` and the pinned spec §4.3). The
+/// label is a **leading message prefix** under **empty** K12 customization — the libQ K12 registry
+/// discipline (`cryptographic-algorithms.md` K12 domain-separation registry): every `K12("label" ‖ …)`
+/// row means `K12(message = label ‖ …, customization = "")`, **not** `K12(message = …, C = "label")`
+/// (those are distinct KangarooTwelve digests; only KMAC rows use the customization-string form).
+/// The K12 message, squeezed to [`COMMITMENT_BYTES`], is exactly:
 ///
 /// ```text
-/// key_len(2 B, u16 BE = KEY_BYTES) ‖ serialize(K)(KEY_BYTES) ‖ r_len(2 B, u16 BE) ‖ r ‖ epoch_id(4 B, u32 BE)
+/// MVE_COMMIT_LABEL ‖ key_len(2 B, u16 BE = KEY_BYTES) ‖ serialize(K)(KEY_BYTES) ‖ r_len(2 B, u16 BE) ‖ r ‖ epoch_id(4 B, u32 BE)
 /// ```
 ///
 /// The `key_len` / `r_len` prefixes make the encoding **injective**, so the commitment binds
@@ -139,12 +144,13 @@ pub fn key_commitment(key: &Key, r: &[u8], epoch_id: u32) -> [u8; COMMITMENT_BYT
     };
     let key_bytes = poseidon_field_to_bytes(key);
     debug_assert_eq!(key_bytes.len(), KEY_BYTES, "K serializes to KEY_BYTES");
-    let mut h = Kt128::new(MVE_COMMIT_LABEL);
-    h.update(&(KEY_BYTES as u16).to_be_bytes()); // key_len (2 B, BE)
-    h.update(&key_bytes); //                        serialize(K) (KEY_BYTES)
-    h.update(&(r.len() as u16).to_be_bytes()); //   r_len (2 B, BE)
-    h.update(r); //                                 r
-    h.update(&epoch_id.to_be_bytes()); //           epoch_id (4 B, BE)
+    let mut h = Kt128::default(); //                 EMPTY K12 customization (libQ registry discipline)
+    h.update(MVE_COMMIT_LABEL); //                   label as leading message prefix
+    h.update(&(KEY_BYTES as u16).to_be_bytes()); //  key_len (2 B, BE)
+    h.update(&key_bytes); //                         serialize(K) (KEY_BYTES)
+    h.update(&(r.len() as u16).to_be_bytes()); //    r_len (2 B, BE)
+    h.update(r); //                                  r
+    h.update(&epoch_id.to_be_bytes()); //            epoch_id (4 B, BE)
     let mut out = [0u8; COMMITMENT_BYTES];
     h.finalize_xof().read(&mut out);
     out
@@ -241,11 +247,14 @@ mod value_tests {
 
     /// Frozen KAT vector for [`key_commitment`] over the canonical §4.3 layout with the inputs in
     /// `commitment_canonical_layout_kat` (`k = key(5)`, `r = 01 02 03 04`, `epoch_id = 0xDEADBEEF`).
-    /// Hex: `6c06790114e90fb8efabfe4bc9421b6a3b0d5ea4fc6976aa13905161a18da5c7`. Regression pin —
-    /// cross-check this exact vector against libQ `libq-crypto::key_commitment` for true interop.
+    /// Hex: `6a8ac35f47bcb57dc83f2d2a6480a85ad8285b6d399224cc138d62faf98d3e9b`. This is the
+    /// **authoritative libQ vector** (`libq-crypto::key_commitment`, test `mve_commitment_libq_interop_kat`,
+    /// commit 282f1d6) — label as leading message prefix under empty K12 customization. Matching it
+    /// here proves cross-impl wire compatibility.
     const MVE_COMMIT_KAT: [u8; COMMITMENT_BYTES] = [
-        108, 6, 121, 1, 20, 233, 15, 184, 239, 171, 254, 75, 201, 66, 27, 106, 59, 13, 94, 164,
-        252, 105, 118, 170, 19, 144, 81, 97, 161, 141, 165, 199,
+        0x6A, 0x8A, 0xC3, 0x5F, 0x47, 0xBC, 0xB5, 0x7D, 0xC8, 0x3F, 0x2D, 0x2A, 0x64, 0x80, 0xA8,
+        0x5A, 0xD8, 0x28, 0x5B, 0x6D, 0x39, 0x92, 0x24, 0xCC, 0x13, 0x8D, 0x62, 0xFA, 0xF9, 0x8D,
+        0x3E, 0x9B,
     ];
 
     fn fe(x: u32) -> PoseidonField {
@@ -329,10 +338,12 @@ mod value_tests {
         let r: &[u8] = b"\x01\x02\x03\x04";
         let epoch_id: u32 = 0xDEAD_BEEF;
 
-        // Independent re-derivation of: key_len(2BE) ‖ K(KEY_BYTES) ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE)
+        // Independent re-derivation of (label as leading message prefix, EMPTY customization):
+        //   label ‖ key_len(2BE) ‖ K(KEY_BYTES) ‖ r_len(2BE) ‖ r ‖ epoch_id(4BE)
         let kb = poseidon_field_to_bytes(&k);
         assert_eq!(kb.len(), KEY_BYTES);
-        let mut h = Kt128::new(MVE_COMMIT_LABEL);
+        let mut h = Kt128::default();
+        h.update(MVE_COMMIT_LABEL);
         h.update(&(KEY_BYTES as u16).to_be_bytes());
         h.update(&kb);
         h.update(&(r.len() as u16).to_be_bytes());
