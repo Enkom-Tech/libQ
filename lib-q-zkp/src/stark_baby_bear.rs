@@ -666,4 +666,144 @@ mod tests {
         // Malformed length → false, no panic across the FFI boundary.
         assert!(!verify_membership_bb_bytes(&config, &proof, &stmt[..50]), "short statement rejected");
     }
+
+    // ===================== Negative-proof matrix (real prove/verify) =====================
+    //
+    // Cross-config (transparent ↔ ZK) confusion is prevented at COMPILE TIME, not runtime:
+    // `verify_membership_bb` takes `StarkProof<BbConfig>` and `verify_membership_bb_zk` takes
+    // `StarkProof<ZkBbConfig>` — distinct types, so a transparent proof cannot even be passed to
+    // the ZK verifier (or vice versa). No runtime test is possible; the type system is the guard.
+
+    /// An honest proof must be REJECTED against any wrong public input (root / ctx / each
+    /// nullifier cell). The verifier binds all three; flipping any one breaks verification.
+    #[test]
+    fn negative_wrong_public_inputs_rejected() {
+        let config = default_config_bb();
+        let t = t_from_seed(31);
+        let ctx = ctx_from_seed(32);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, 4, 5);
+        let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        assert!(verify_membership_bb(&config, &proof, &root, &ctx, &null), "honest verifies");
+
+        let wrong_root = digest_from_seed(987_654);
+        assert!(
+            !verify_membership_bb(&config, &proof, &wrong_root, &ctx, &null),
+            "wrong root rejected"
+        );
+        let wrong_ctx = ctx_from_seed(123_456);
+        assert!(
+            !verify_membership_bb(&config, &proof, &root, &wrong_ctx, &null),
+            "wrong ctx rejected"
+        );
+        for i in 0..WIDE_DIGEST_ELEMS {
+            let mut bad = null;
+            bad[i] = bad[i] + BabyBear::ONE;
+            assert!(
+                !verify_membership_bb(&config, &proof, &root, &ctx, &bad),
+                "wrong nullifier cell {i} rejected"
+            );
+        }
+    }
+
+    /// Cross-instance: a proof for witness A must not verify against witness B's statement
+    /// (transparent API and the FFI bytes API).
+    #[test]
+    fn negative_cross_instance_rejected() {
+        let config = default_config_bb();
+        let (ta, ca) = (t_from_seed(1), ctx_from_seed(1));
+        let (tb, cb) = (t_from_seed(2), ctx_from_seed(2));
+        let (ba, sa, ra) = path_for(membership_leaf_bb(&ta), 4, 3);
+        let (bb_, sb, rb) = path_for(membership_leaf_bb(&tb), 4, 9);
+        let (na, pa) = prove_membership_bb(&config, &ta, &ca, &ba, &sa, &ra).unwrap();
+        let (nb, _pb) = prove_membership_bb(&config, &tb, &cb, &bb_, &sb, &rb).unwrap();
+
+        assert!(verify_membership_bb(&config, &pa, &ra, &ca, &na), "A honest verifies");
+        assert!(
+            !verify_membership_bb(&config, &pa, &rb, &cb, &nb),
+            "A proof under B's full statement rejected"
+        );
+        assert!(
+            !verify_membership_bb(&config, &pa, &ra, &ca, &nb),
+            "A proof with B's nullifier rejected"
+        );
+        // FFI bytes path, cross-instance.
+        let stmt_b = membership_statement_bytes_bb(&rb, &cb, &nb);
+        assert!(
+            !verify_membership_bb_bytes(&config, &pa, &stmt_b),
+            "A proof vs B statement bytes rejected"
+        );
+    }
+
+    /// Soundness-adjacent: a root INCONSISTENT with the authentication path is unprovable —
+    /// the prover either errors/panics, or yields a proof that fails to verify. Never a false
+    /// accept. (The membership AIR's boundary constraint pins the folded path output to the
+    /// public root.)
+    #[test]
+    fn negative_forged_root_unprovable() {
+        let config = default_config_bb();
+        let t = t_from_seed(7);
+        let ctx = ctx_from_seed(8);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, _real_root) = path_for(leaf, 4, 5);
+        let forged_root = digest_from_seed(424_242); // not the path's actual root
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &forged_root)
+        }));
+        if let Ok(Ok((null, proof))) = res {
+            assert!(
+                !verify_membership_bb(&config, &proof, &forged_root, &ctx, &null),
+                "forged-root proof must not verify"
+            );
+        }
+        // Err(_) (prover panicked) or Ok(Err(_)) (prover refused) ⇒ also unprovable: pass.
+    }
+
+    /// Flipping a single byte of the serialized proof must cause rejection (or a clean decode
+    /// failure) — never a false accept.
+    #[test]
+    fn negative_tampered_proof_bytes_rejected() {
+        let config = default_config_bb();
+        let t = t_from_seed(11);
+        let ctx = ctx_from_seed(12);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, 4, 5);
+        let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let bytes = postcard::to_allocvec(&proof).unwrap();
+        let mut tampered = bytes.clone();
+        let mid = tampered.len() / 2;
+        tampered[mid] ^= 0x01;
+        match postcard::from_bytes::<StarkProof<BbConfig>>(&tampered) {
+            Ok(p2) => assert!(
+                !verify_membership_bb(&config, &p2, &root, &ctx, &null),
+                "tampered-byte proof rejected"
+            ),
+            Err(_) => { /* decode failure is also a rejection */ }
+        }
+    }
+
+    /// ZK variant: wrong root / wrong ctx rejected (mirrors the transparent matrix).
+    #[test]
+    fn negative_zk_wrong_public_inputs_rejected() {
+        let config = default_zk_config_bb([3u8; 32], [9u8; 32]);
+        let t = t_from_seed(15);
+        let ctx = ctx_from_seed(16);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, MIN_ZK_DEPTH, 7);
+        let (null, proof) = prove_membership_bb_zk(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        assert!(
+            verify_membership_bb_zk(&config, &proof, &root, &ctx, &null),
+            "honest ZK verifies"
+        );
+        let wrong_root = digest_from_seed(321);
+        assert!(
+            !verify_membership_bb_zk(&config, &proof, &wrong_root, &ctx, &null),
+            "ZK wrong root rejected"
+        );
+        let wrong_ctx = ctx_from_seed(999);
+        assert!(
+            !verify_membership_bb_zk(&config, &proof, &root, &wrong_ctx, &null),
+            "ZK wrong ctx rejected"
+        );
+    }
 }
