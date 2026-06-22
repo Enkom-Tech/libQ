@@ -523,4 +523,57 @@ mod tests {
         let pubs = membership_public_values_bb(&root, &ctx, &null);
         check_constraints(&UnlinkableMembershipBbAir, &trace, &pubs);
     }
+
+    /// EXHAUSTIVE under-constraint audit. For an otherwise-valid trace, mutate EVERY column
+    /// (trying each row) by +1 and require `check_constraints` to reject. A column whose
+    /// mutation is never rejected is unconstrained by the AIR — a malicious prover could set it
+    /// freely, the classic STARK soundness hole. This complements the hand-picked corruption
+    /// tests above by covering all 1661 columns, not a representative sample. The depth-4
+    /// witness (leaf_index 6) exercises both direction-bit branches and the first/transition/last
+    /// boundary rows. NOTE (honest scope): this proves every column is read by *some* satisfied
+    /// constraint that the +1 perturbation breaks; it is not a completeness proof of the relation.
+    #[test]
+    fn under_constraint_audit_every_column() {
+        use std::panic::{
+            AssertUnwindSafe,
+            catch_unwind,
+        };
+        let (t, ctx, bits, sibs, root) = setup();
+        let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
+        let null = membership_nullifier_bb(&t, &ctx);
+        let pubs = membership_public_values_bb(&root, &ctx, &null);
+        let width = MEMBERSHIP_ROW_WIDTH;
+        let height = trace.values.len() / width;
+
+        // Sanity: the honest trace passes before we start mutating.
+        check_constraints(&UnlinkableMembershipBbAir, &trace, &pubs);
+
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {})); // silence expected per-mutation panics
+        let mut survived = Vec::new();
+        for col in 0..width {
+            let mut rejected = false;
+            for row in 0..height {
+                let mut tr = trace.clone();
+                let idx = row * width + col;
+                tr.values[idx] = tr.values[idx] + BabyBear::ONE;
+                if catch_unwind(AssertUnwindSafe(|| {
+                    check_constraints(&UnlinkableMembershipBbAir, &tr, &pubs)
+                }))
+                .is_err()
+                {
+                    rejected = true;
+                    break;
+                }
+            }
+            if !rejected {
+                survived.push(col);
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(
+            survived.is_empty(),
+            "UNCONSTRAINED columns (+1 mutation rejected at no row): {survived:?}"
+        );
+    }
 }

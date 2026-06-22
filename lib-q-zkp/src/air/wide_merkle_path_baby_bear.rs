@@ -309,4 +309,46 @@ mod tests {
         pubs[WIDE_DIGEST_ELEMS] = pubs[WIDE_DIGEST_ELEMS] + BabyBear::ONE; // corrupt public root
         check_constraints(&WideMerklePathBbAir, &trace, &pubs);
     }
+
+    /// EXHAUSTIVE under-constraint audit: mutate every one of the 844 columns (+1, trying each
+    /// row) of a valid depth-4 path trace and require rejection. A surviving column would be a
+    /// free witness — the classic STARK soundness hole. Covers all columns, not a sample.
+    #[test]
+    fn under_constraint_audit_every_column() {
+        use std::panic::{
+            AssertUnwindSafe,
+            catch_unwind,
+        };
+        let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
+        let trace = generate_path_trace_bb(&leaf, &bits, &sibs);
+        let pubs = path_public_values_bb(&leaf, &root);
+        let width = PATH_ROW_WIDTH;
+        let height = trace.values.len() / width;
+        check_constraints(&WideMerklePathBbAir, &trace, &pubs);
+
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let mut survived = Vec::new();
+        for col in 0..width {
+            let mut rejected = false;
+            for row in 0..height {
+                let mut tr = trace.clone();
+                let idx = row * width + col;
+                tr.values[idx] = tr.values[idx] + BabyBear::ONE;
+                if catch_unwind(AssertUnwindSafe(|| {
+                    check_constraints(&WideMerklePathBbAir, &tr, &pubs)
+                }))
+                .is_err()
+                {
+                    rejected = true;
+                    break;
+                }
+            }
+            if !rejected {
+                survived.push(col);
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(survived.is_empty(), "UNCONSTRAINED columns: {survived:?}");
+    }
 }

@@ -286,4 +286,33 @@ mod tests {
         let (a, t) = corrupt_at(&input, 0); // first preimage cell
         check_constraints(&a, &t, &[]);
     }
+
+    /// EXHAUSTIVE under-constraint audit: mutate every column (+1) of a valid len-14 (3-permutation)
+    /// sponge row and require rejection. A surviving column would be a free witness. Covers every
+    /// preimage / intermediate / digest cell, not a sample. len-14 exercises multi-permutation
+    /// chaining (the running capacity is carried between permutations).
+    #[test]
+    fn under_constraint_audit_every_column() {
+        use std::panic::{
+            AssertUnwindSafe,
+            catch_unwind,
+        };
+        let input: Vec<BabyBear> = (0..14u32).map(|i| fe(i * 7 + 3)).collect();
+        let (air, trace) = fixture_row(&input);
+        let width = trace.values.len(); // single row
+        check_constraints(&air, &trace, &[]);
+
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let mut survived = Vec::new();
+        for col in 0..width {
+            let mut tr = trace.clone();
+            tr.values[col] = tr.values[col] + BabyBear::ONE;
+            if catch_unwind(AssertUnwindSafe(|| check_constraints(&air, &tr, &[]))).is_ok() {
+                survived.push(col);
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(survived.is_empty(), "UNCONSTRAINED columns: {survived:?}");
+    }
 }
