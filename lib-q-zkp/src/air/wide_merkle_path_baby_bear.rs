@@ -46,10 +46,15 @@ pub type WideDigestBb = [BabyBear; WIDE_DIGEST_ELEMS];
 const RUNNING_START: usize = 0;
 const SIBLING_START: usize = WIDE_DIGEST_ELEMS; // 9
 const DIR_COL: usize = 2 * WIDE_DIGEST_ELEMS; // 18
-const PERM_INTERM_START: usize = 2 * WIDE_DIGEST_ELEMS + 1; // 19
+/// The direction-selected node input `left‖right`, **stored as `Var`s** (degree-7 optimization):
+/// feeding the sponge a degree-1 `Var` instead of the degree-2 selection expression drops the max
+/// constraint degree from 14 (deg-2 dir-select × x⁷) to 7. The stored cells are pinned to the
+/// selection by a degree-2 constraint.
+const NODE_INPUT_START: usize = DIR_COL + 1; // 19
+const PERM_INTERM_START: usize = NODE_INPUT_START + NODE_INPUT_LEN; // 37
 /// A node hashes `left ‖ right` = 18 inputs.
 pub const NODE_INPUT_LEN: usize = 2 * WIDE_DIGEST_ELEMS;
-/// Columns per path row: control (19) + node-sponge intermediates (3·269 = 807) = 826.
+/// Columns per path row: control (19) + node_input (18) + node-sponge intermediates (3·269 = 807) = 844.
 pub const PATH_ROW_WIDTH: usize = PERM_INTERM_START + wide_sponge_bb_interm_cols(NODE_INPUT_LEN);
 /// Public values: `leaf(9) ‖ root(9)`.
 pub const PATH_NUM_PUBLIC: usize = 2 * WIDE_DIGEST_ELEMS;
@@ -74,8 +79,8 @@ impl<F: Field> BaseAir<F> for WideMerklePathBbAir {
 
 impl<AB: AirBuilder<F = BabyBear>> Air<AB> for WideMerklePathBbAir {
     fn eval(&self, builder: &mut AB) {
-        // Read control columns (drop the `main` borrow before any gadget call).
-        let (running, sibling, dir_expr, dir_var) = {
+        // Read control + stored node-input columns (drop the `main` borrow before gadget calls).
+        let (running, sibling, dir_expr, dir_var, node_input) = {
             let main = builder.main();
             let local = main.current_slice();
             let running: Vec<AB::Expr> =
@@ -84,29 +89,31 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for WideMerklePathBbAir {
                 (0..WIDE_DIGEST_ELEMS).map(|i| local[SIBLING_START + i].into()).collect();
             let dir_var = local[DIR_COL];
             let dir_expr: AB::Expr = local[DIR_COL].into();
-            (running, sibling, dir_expr, dir_var)
+            let node_input: Vec<AB::Expr> =
+                (0..NODE_INPUT_LEN).map(|i| local[NODE_INPUT_START + i].into()).collect();
+            (running, sibling, dir_expr, dir_var, node_input)
         };
 
         // Direction bit must be boolean.
         builder.assert_bool(dir_var);
 
-        // Build the 18-element node input `left ‖ right` (direction-selected):
+        // Pin the stored node-input columns to the direction-selected `left ‖ right` (degree-2
+        // selection constraint):
         //   left[i]  = running[i] + dir·(sibling[i] − running[i])   (= running if dir==0)
         //   right[i] = sibling[i] + dir·(running[i] − sibling[i])   (= sibling if dir==0)
-        let mut input: Vec<AB::Expr> = Vec::with_capacity(NODE_INPUT_LEN);
         for i in 0..WIDE_DIGEST_ELEMS {
-            input.push(
+            builder.assert_eq(
+                node_input[i].clone(),
                 running[i].clone() + dir_expr.clone() * (sibling[i].clone() - running[i].clone()),
             );
-        }
-        for i in 0..WIDE_DIGEST_ELEMS {
-            input.push(
+            builder.assert_eq(
+                node_input[WIDE_DIGEST_ELEMS + i].clone(),
                 sibling[i].clone() + dir_expr.clone() * (running[i].clone() - sibling[i].clone()),
             );
         }
 
-        // Constrain the node hash `parent = H(left ‖ right)`.
-        let parent = constrain_wide_sponge_bb(builder, &input, PERM_INTERM_START);
+        // The sponge now receives degree-1 `Var` inputs ⇒ max constraint degree 7 (the x⁷ S-box).
+        let parent = constrain_wide_sponge_bb(builder, &node_input, PERM_INTERM_START);
 
         // FIRST ROW: running entering level 0 is the (public) leaf.
         {
@@ -171,6 +178,7 @@ pub fn generate_path_trace_bb(
         cells.extend_from_slice(&running);
         cells.extend_from_slice(&sib);
         cells.push(if dir { BabyBear::ONE } else { BabyBear::ZERO });
+        cells.extend_from_slice(&input); // stored direction-selected node input (degree-7 opt)
 
         let (interm, parent) = generate_wide_sponge_bb_cells(&input);
         cells.extend_from_slice(&interm);
@@ -233,9 +241,21 @@ mod tests {
     }
 
     #[test]
-    fn row_width_is_826() {
-        assert_eq!(PATH_ROW_WIDTH, 826);
+    fn row_width_is_844() {
+        assert_eq!(PATH_ROW_WIDTH, 844); // 19 control + 18 node_input + 807 sponge interm
         assert_eq!(NODE_INPUT_LEN, 18);
+    }
+
+    /// The stored node-input columns are pinned by the degree-2 selection constraint — corrupting
+    /// one must be rejected (the under-constrained-column hunt for the degree-7 optimization).
+    #[test]
+    #[should_panic]
+    fn wrong_node_input_rejected() {
+        let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
+        let mut trace = generate_path_trace_bb(&leaf, &bits, &sibs);
+        trace.values[NODE_INPUT_START + 2] = trace.values[NODE_INPUT_START + 2] + BabyBear::ONE;
+        let pubs = path_public_values_bb(&leaf, &root);
+        check_constraints(&WideMerklePathBbAir, &trace, &pubs);
     }
 
     #[test]

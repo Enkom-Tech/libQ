@@ -10,8 +10,10 @@
 //! Same-`t` binding is structural: the leaf block and the nullifier block read the SAME `t`
 //! columns. `domain` is a baked circuit constant (statement-bound, not a witness/public input).
 //!
-//! Row layout (one row = one Merkle level; leaf/nullifier live in row 0; width 1643):
-//! `[ running(9)|sibling(9)|dir(1)|m_interm(807) ]  [ t(6)|leaf_interm(269) ]  [ ctx(4)|null_interm(538) ]`.
+//! Row layout (one row = one Merkle level; leaf/nullifier live in row 0; width 1661):
+//! `[ running(9)|sibling(9)|dir(1)|node_input(18)|m_interm(807) ]  [ t(6)|leaf_interm(269) ]  [ ctx(4)|null_interm(538) ]`.
+//! `node_input` stores the direction-selected Merkle `left‖right` as `Var`s so the AIR's max
+//! constraint degree is 7 (the x⁷ S-box) rather than 14 — see `M_NODE_INPUT_START`.
 //! The leaf/nullifier **sponges run on EVERY row** (so max constraint degree stays at 7, the x⁷
 //! S-box; gating them would raise it). Rows 1.. carry valid hashes of a ZERO preimage — only the
 //! row-0 bindings (`running==L`, `ctx==pub ctx`, `N==pub N`) give `t`/`ctx`/`N` meaning.
@@ -69,14 +71,18 @@ const NULL_INPUT_LEN: usize = DOMAIN_ELEMS + SECRET_T_ELEMS + CTX_ELEMS; // 12
 const M_RUNNING_START: usize = 0;
 const M_SIBLING_START: usize = WIDE_DIGEST_ELEMS; // 9
 const M_DIR_COL: usize = 2 * WIDE_DIGEST_ELEMS; // 18
-const M_INTERM_START: usize = 2 * WIDE_DIGEST_ELEMS + 1; // 19
-const LEAF_REGION_START: usize = M_INTERM_START + wide_sponge_bb_interm_cols(NODE_INPUT_LEN); // 826
-const T_START: usize = LEAF_REGION_START; // 826
-const LEAF_INTERM_START: usize = T_START + SECRET_T_ELEMS; // 832
-const NULL_REGION_START: usize = LEAF_INTERM_START + wide_sponge_bb_interm_cols(SECRET_T_ELEMS); // 1101
-const CTX_START: usize = NULL_REGION_START; // 1101
-const NULL_INTERM_START: usize = CTX_START + CTX_ELEMS; // 1105
-/// Total columns per membership row (= 1643).
+/// Direction-selected Merkle node input `left‖right`, **stored as `Var`s** (degree-7
+/// optimization): feeds the node sponge degree-1 `Var`s so the membership AIR's max constraint
+/// degree is 7 (the x⁷ S-box on leaf/nullifier/node) rather than 14 (deg-2 dir-select × x⁷).
+const M_NODE_INPUT_START: usize = M_DIR_COL + 1; // 19
+const M_INTERM_START: usize = M_NODE_INPUT_START + NODE_INPUT_LEN; // 37
+const LEAF_REGION_START: usize = M_INTERM_START + wide_sponge_bb_interm_cols(NODE_INPUT_LEN); // 844
+const T_START: usize = LEAF_REGION_START; // 844
+const LEAF_INTERM_START: usize = T_START + SECRET_T_ELEMS; // 850
+const NULL_REGION_START: usize = LEAF_INTERM_START + wide_sponge_bb_interm_cols(SECRET_T_ELEMS); // 1119
+const CTX_START: usize = NULL_REGION_START; // 1119
+const NULL_INTERM_START: usize = CTX_START + CTX_ELEMS; // 1123
+/// Total columns per membership row (= 1661).
 pub const MEMBERSHIP_ROW_WIDTH: usize =
     NULL_INTERM_START + wide_sponge_bb_interm_cols(NULL_INPUT_LEN);
 
@@ -158,14 +164,23 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for UnlinkableMembershipBbAir {
         // === Merkle level (every row) ===
         builder.assert_bool(m_dir_var);
 
-        let mut node_input: Vec<AB::Expr> = Vec::with_capacity(NODE_INPUT_LEN);
+        // Stored direction-selected node input (degree-7 optimization): read the columns as
+        // `Var`s, pin them to the direction selection (degree-2), and feed the `Var`s to the
+        // sponge so its first S-box sees a degree-1 input ⇒ membership AIR max degree 7.
+        let node_input: Vec<AB::Expr> = {
+            let main = builder.main();
+            let local = main.current_slice();
+            (0..NODE_INPUT_LEN).map(|i| local[M_NODE_INPUT_START + i].into()).collect()
+        };
         for i in 0..WIDE_DIGEST_ELEMS {
-            node_input
-                .push(m_running[i].clone() + m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()));
-        }
-        for i in 0..WIDE_DIGEST_ELEMS {
-            node_input
-                .push(m_sibling[i].clone() + m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()));
+            builder.assert_eq(
+                node_input[i].clone(),
+                m_running[i].clone() + m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
+            );
+            builder.assert_eq(
+                node_input[WIDE_DIGEST_ELEMS + i].clone(),
+                m_sibling[i].clone() + m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
+            );
         }
         let parent = constrain_wide_sponge_bb(builder, &node_input, M_INTERM_START);
 
@@ -259,6 +274,7 @@ pub fn generate_membership_trace_bb(
         cells.extend_from_slice(&running);
         cells.extend_from_slice(&sib);
         cells.push(if dir { BabyBear::ONE } else { zero });
+        cells.extend_from_slice(&node_input); // stored direction-selected node input (degree-7 opt)
         let (node_cells, parent) = generate_wide_sponge_bb_cells(&node_input);
         cells.extend_from_slice(&node_cells);
 
@@ -360,7 +376,7 @@ mod tests {
 
     #[test]
     fn row_width_and_publics() {
-        assert_eq!(MEMBERSHIP_ROW_WIDTH, 1643);
+        assert_eq!(MEMBERSHIP_ROW_WIDTH, 1661);
         assert_eq!(MEMBERSHIP_NUM_PUBLIC, 22);
         // domain constant is deterministic and nonzero.
         let d = membership_domain_bb();
@@ -478,6 +494,19 @@ mod tests {
         let (t, ctx, bits, mut sibs, root) = setup();
         sibs[1][0] = sibs[1][0] + BabyBear::ONE; // wrong authentication-path sibling
         let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
+        let null = membership_nullifier_bb(&t, &ctx);
+        let pubs = membership_public_values_bb(&root, &ctx, &null);
+        check_constraints(&UnlinkableMembershipBbAir, &trace, &pubs);
+    }
+
+    /// Degree-7 optimization: the stored node-input column is pinned by the degree-2 selection
+    /// constraint; corrupting it must be rejected (under-constrained-column hunt).
+    #[test]
+    #[should_panic]
+    fn corrupt_node_input_rejected() {
+        let (t, ctx, bits, sibs, root) = setup();
+        let mut trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
+        trace.values[M_NODE_INPUT_START + 3] = trace.values[M_NODE_INPUT_START + 3] + BabyBear::ONE;
         let null = membership_nullifier_bb(&t, &ctx);
         let pubs = membership_public_values_bb(&root, &ctx, &null);
         check_constraints(&UnlinkableMembershipBbAir, &trace, &pubs);

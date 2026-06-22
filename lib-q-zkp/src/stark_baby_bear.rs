@@ -88,14 +88,13 @@ pub fn default_config_bb() -> BbConfig {
     let val_mmcs = BbValMmcs::new(hash, compress);
     let challenge_mmcs = BbChallengeMmcs::new(val_mmcs.clone());
     let dft = BabyBearDft::default();
-    // log_blowup = 4 (blowup 16): the membership AIR's max constraint degree is 14 — the
-    // Merkle direction-select `left = running + dir·(sibling−running)` is degree 2, and feeding
-    // it into the degree-7 S-box gives degree 14 (quotient degree 13 → blowup ≥ 16). A pure
-    // hash AIR (leaf/nullifier, degree-1 inputs) needs only log_blowup = 3. Storing the
-    // direction-selected node input in witness columns would drop the membership AIR to degree
-    // 7 / log_blowup 3 — a measured optimization, noted for the measurement table.
+    // log_blowup = 3 (blowup 8): with the degree-7 optimization applied (the Merkle
+    // direction-selected node input is stored in witness columns and pinned by a degree-2
+    // selection constraint, so the sponge sees degree-1 `Var`s), the membership AIR's max
+    // constraint degree is 7 (the x⁷ S-box) → quotient degree 6 → blowup ≥ 8. (Before the
+    // optimization it was degree 14 / log_blowup 4.)
     let fri_params = FriParameters {
-        log_blowup: 4,
+        log_blowup: 3,
         log_final_poly_len: 0,
         num_queries: 100,
         proof_of_work_bits: 16,
@@ -185,10 +184,10 @@ pub fn zk_config_bb(
     StarkConfig::new(pcs, challenger)
 }
 
-/// Default ZK config: `log_blowup = 4` (membership max degree 14), `num_queries = 100`,
+/// Default ZK config: `log_blowup = 3` (degree-7-optimized membership AIR), `num_queries = 100`,
 /// `proof_of_work_bits = 16`.
 pub fn default_zk_config_bb(val_seed: [u8; 32], pcs_seed: [u8; 32]) -> ZkBbConfig {
-    zk_config_bb(4, 100, 16, val_seed, pcs_seed)
+    zk_config_bb(3, 100, 16, val_seed, pcs_seed)
 }
 
 /// Prove an unlinkable-membership statement in zero knowledge. `path_bits.len()` must be a
