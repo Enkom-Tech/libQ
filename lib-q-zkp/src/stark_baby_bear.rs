@@ -806,4 +806,52 @@ mod tests {
             "ZK wrong ctx rejected"
         );
     }
+
+    /// Determinism: the transparent prover is a pure function of the witness (deterministic
+    /// Shake256 Fiat-Shamir challenger, non-hiding PCS) — identical inputs ⇒ byte-identical proof.
+    #[test]
+    fn transparent_proof_is_deterministic() {
+        let config = default_config_bb();
+        let t = t_from_seed(55);
+        let ctx = ctx_from_seed(66);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, 4, 5);
+        let (n1, p1) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let (n2, p2) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        assert_eq!(n1, n2, "nullifier is deterministic");
+        assert_eq!(
+            postcard::to_allocvec(&p1).unwrap(),
+            postcard::to_allocvec(&p2).unwrap(),
+            "transparent proof bytes are deterministic"
+        );
+    }
+
+    /// The ZK prover is reproducible GIVEN its blinding seeds, but two DIFFERENT seed pairs yield
+    /// different proofs — i.e. the hiding randomness actually varies the proof (it is not a no-op),
+    /// and either proof still verifies (the verifier needs no prover seed).
+    #[test]
+    fn zk_proof_reproducible_in_seeds_but_varies_across_seeds() {
+        let t = t_from_seed(70);
+        let ctx = ctx_from_seed(71);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, MIN_ZK_DEPTH, 9);
+
+        let cfg_a1 = default_zk_config_bb([1u8; 32], [2u8; 32]);
+        let cfg_a2 = default_zk_config_bb([1u8; 32], [2u8; 32]); // identical seeds
+        let cfg_b = default_zk_config_bb([9u8; 32], [8u8; 32]); // different seeds
+
+        let (_, pa1) = prove_membership_bb_zk(&cfg_a1, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let (_, pa2) = prove_membership_bb_zk(&cfg_a2, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let (_, pb) = prove_membership_bb_zk(&cfg_b, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let ba1 = postcard::to_allocvec(&pa1).unwrap();
+        let ba2 = postcard::to_allocvec(&pa2).unwrap();
+        let bb = postcard::to_allocvec(&pb).unwrap();
+        assert_eq!(ba1, ba2, "ZK proof reproducible for identical blinding seeds");
+        assert_ne!(ba1, bb, "ZK proof varies across blinding seeds (hiding randomness is active)");
+
+        let null = membership_nullifier_bb(&t, &ctx);
+        let vcfg = default_zk_config_bb([1u8; 32], [2u8; 32]);
+        assert!(verify_membership_bb_zk(&vcfg, &pa1, &root, &ctx, &null), "seed-A proof verifies");
+        assert!(verify_membership_bb_zk(&vcfg, &pb, &root, &ctx, &null), "seed-B proof verifies");
+    }
 }
