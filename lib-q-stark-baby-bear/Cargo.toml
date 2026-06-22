@@ -1,0 +1,26 @@
+[package]
+name = "lib-q-stark-baby-bear"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "An implementation of the BabyBear prime field F_p, where p = 2^31 - 2^27 + 1, as a lib-q-stark-monty31 instance."
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
+lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.7" }
+
+[features]
+default = ["alloc"]
+std = ["alloc"]
+alloc = []
+no_std = []
+test-utils = []
+
+[dev-dependencies]
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.7" }
+num-bigint = { workspace = true }
+rand = { workspace = true, default-features = false }
