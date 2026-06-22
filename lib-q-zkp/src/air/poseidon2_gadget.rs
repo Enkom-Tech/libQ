@@ -134,90 +134,133 @@ impl<F: Field> BaseAir<F> for Poseidon2Air {
     }
 }
 
+/// Intermediate columns one permutation consumes (everything except the 16 initial-state
+/// columns): `2·4·32 + 13 = 269`. The reuse unit for the wide sponge / Merkle AIRs.
+pub const POSEIDON2_PERM_INTERM_COLS: usize =
+    2 * HALF_FULL_ROUNDS * FULL_ROUND_COLS + PARTIAL_ROUNDS;
+
+const PARTIAL_REL: usize = HALF_FULL_ROUNDS * FULL_ROUND_COLS; // 128
+const END_REL: usize = PARTIAL_REL + PARTIAL_ROUNDS; // 141
+
+/// Constrain one Poseidon2 permutation of `initial_state` (16 expressions). This permutation's
+/// intermediate columns occupy `[interm_start, interm_start + POSEIDON2_PERM_INTERM_COLS)`.
+/// Applies the initial external linear layer internally; returns the final-state expressions
+/// (the last ending round's `post` columns). Reuse entry point for the sponge / Merkle AIRs.
+pub fn constrain_permutation<AB: AirBuilder<F = BabyBear>>(
+    builder: &mut AB,
+    initial_state: &[AB::Expr],
+    interm_start: usize,
+) -> Vec<AB::Expr> {
+    let main = builder.main();
+    let local = main.current_slice();
+
+    let mut state: Vec<AB::Expr> = external_linear_expr(initial_state);
+
+    // Beginning full rounds.
+    for r in 0..HALF_FULL_ROUNDS {
+        let base = interm_start + FULL_ROUND_COLS * r;
+        for i in 0..WIDTH {
+            let arc = state[i].clone() + AB::Expr::from(RC_EXTERNAL_INITIAL[r][i]);
+            builder.assert_eq(local[base + i].into(), pow7(arc));
+        }
+        let sbox_state: Vec<AB::Expr> = (0..WIDTH).map(|i| local[base + i].into()).collect();
+        let post = external_linear_expr(&sbox_state);
+        for i in 0..WIDTH {
+            builder.assert_eq(local[base + WIDTH + i].into(), post[i].clone());
+        }
+        state = (0..WIDTH).map(|i| local[base + WIDTH + i].into()).collect();
+    }
+
+    // Partial rounds (single S-box on lane 0; internal matmul folded).
+    let diag = internal_diag();
+    for r in 0..PARTIAL_ROUNDS {
+        let ps = interm_start + PARTIAL_REL + r;
+        let arc = state[0].clone() + AB::Expr::from(RC_INTERNAL[r]);
+        builder.assert_eq(local[ps].into(), pow7(arc));
+
+        let mut pre: Vec<AB::Expr> = Vec::with_capacity(WIDTH);
+        pre.push(local[ps].into());
+        for i in 1..WIDTH {
+            pre.push(state[i].clone());
+        }
+        let mut sum = AB::Expr::ZERO;
+        for e in &pre {
+            sum = sum + e.clone();
+        }
+        state = (0..WIDTH)
+            .map(|i| AB::Expr::from(diag[i]) * pre[i].clone() + sum.clone())
+            .collect();
+    }
+
+    // Ending full rounds.
+    for r in 0..HALF_FULL_ROUNDS {
+        let base = interm_start + END_REL + FULL_ROUND_COLS * r;
+        for i in 0..WIDTH {
+            let arc = state[i].clone() + AB::Expr::from(RC_EXTERNAL_FINAL[r][i]);
+            builder.assert_eq(local[base + i].into(), pow7(arc));
+        }
+        let sbox_state: Vec<AB::Expr> = (0..WIDTH).map(|i| local[base + i].into()).collect();
+        let post = external_linear_expr(&sbox_state);
+        for i in 0..WIDTH {
+            builder.assert_eq(local[base + WIDTH + i].into(), post[i].clone());
+        }
+        state = (0..WIDTH).map(|i| local[base + WIDTH + i].into()).collect();
+    }
+
+    state
+}
+
 impl<AB: AirBuilder<F = BabyBear>> Air<AB> for Poseidon2Air {
     fn eval(&self, builder: &mut AB) {
-        let main = builder.main();
-        let local = main.current_slice();
-
-        // Initial state = input columns; apply the initial external linear layer (folded).
-        let inputs: Vec<AB::Expr> = (0..WIDTH).map(|i| local[i].into()).collect();
-        let mut state: Vec<AB::Expr> = external_linear_expr(&inputs);
-
-        // Beginning full rounds.
-        for r in 0..HALF_FULL_ROUNDS {
-            for i in 0..WIDTH {
-                let arc = state[i].clone() + AB::Expr::from(RC_EXTERNAL_INITIAL[r][i]);
-                builder.assert_eq(local[begin_sbox_col(r, i)].into(), pow7(arc));
-            }
-            let sbox_state: Vec<AB::Expr> =
-                (0..WIDTH).map(|i| local[begin_sbox_col(r, i)].into()).collect();
-            let post = external_linear_expr(&sbox_state);
-            for i in 0..WIDTH {
-                builder.assert_eq(local[begin_post_col(r, i)].into(), post[i].clone());
-            }
-            state = (0..WIDTH).map(|i| local[begin_post_col(r, i)].into()).collect();
-        }
-
-        // Partial rounds (single S-box on lane 0; internal matmul folded).
-        let diag = internal_diag();
-        for r in 0..PARTIAL_ROUNDS {
-            let arc = state[0].clone() + AB::Expr::from(RC_INTERNAL[r]);
-            builder.assert_eq(local[partial_col(r)].into(), pow7(arc));
-
-            let mut pre: Vec<AB::Expr> = Vec::with_capacity(WIDTH);
-            pre.push(local[partial_col(r)].into());
-            for i in 1..WIDTH {
-                pre.push(state[i].clone());
-            }
-            let mut sum = AB::Expr::ZERO;
-            for e in &pre {
-                sum = sum + e.clone();
-            }
-            state = (0..WIDTH)
-                .map(|i| AB::Expr::from(diag[i]) * pre[i].clone() + sum.clone())
-                .collect();
-        }
-
-        // Ending full rounds.
-        for r in 0..HALF_FULL_ROUNDS {
-            for i in 0..WIDTH {
-                let arc = state[i].clone() + AB::Expr::from(RC_EXTERNAL_FINAL[r][i]);
-                builder.assert_eq(local[end_sbox_col(r, i)].into(), pow7(arc));
-            }
-            let sbox_state: Vec<AB::Expr> =
-                (0..WIDTH).map(|i| local[end_sbox_col(r, i)].into()).collect();
-            let post = external_linear_expr(&sbox_state);
-            for i in 0..WIDTH {
-                builder.assert_eq(local[end_post_col(r, i)].into(), post[i].clone());
-            }
-            state = (0..WIDTH).map(|i| local[end_post_col(r, i)].into()).collect();
-        }
-
-        // `state` now equals the ending-round post columns (the digest), already constrained.
-        let _ = state;
+        // Initial state = input columns (0..16); intermediates at [16, 285).
+        let inputs: Vec<AB::Expr> = {
+            let main = builder.main();
+            let local = main.current_slice();
+            (0..WIDTH).map(|i| local[i].into()).collect()
+        };
+        let _final_state = constrain_permutation(builder, &inputs, BEGIN_START);
     }
 }
 
-/// Fill one trace row from `input` by replaying the value-level permutation.
-pub fn generate_poseidon2_row(input: [BabyBear; WIDTH]) -> [BabyBear; POSEIDON2_ROW_WIDTH] {
-    let tr = permute_with_trace(input);
-    let mut row = [BabyBear::ZERO; POSEIDON2_ROW_WIDTH];
-    row[..WIDTH].copy_from_slice(&input);
+/// Fill one permutation's 269 intermediate cells (in `constrain_permutation` column order)
+/// AND return the final-state output. Reuse unit for the sponge / Merkle generators.
+pub fn generate_permutation_cells_and_output(
+    initial_state: [BabyBear; WIDTH],
+) -> ([BabyBear; POSEIDON2_PERM_INTERM_COLS], [BabyBear; WIDTH]) {
+    let tr = permute_with_trace(initial_state);
+    let mut cells = [BabyBear::ZERO; POSEIDON2_PERM_INTERM_COLS];
     for r in 0..HALF_FULL_ROUNDS {
+        let base = FULL_ROUND_COLS * r;
         for i in 0..WIDTH {
-            row[begin_sbox_col(r, i)] = tr.begin_sbox[r][i];
-            row[begin_post_col(r, i)] = tr.begin_post[r][i];
+            cells[base + i] = tr.begin_sbox[r][i];
+            cells[base + WIDTH + i] = tr.begin_post[r][i];
         }
     }
     for r in 0..PARTIAL_ROUNDS {
-        row[partial_col(r)] = tr.partial_post_sbox[r];
+        cells[PARTIAL_REL + r] = tr.partial_post_sbox[r];
     }
     for r in 0..HALF_FULL_ROUNDS {
+        let base = END_REL + FULL_ROUND_COLS * r;
         for i in 0..WIDTH {
-            row[end_sbox_col(r, i)] = tr.end_sbox[r][i];
-            row[end_post_col(r, i)] = tr.end_post[r][i];
+            cells[base + i] = tr.end_sbox[r][i];
+            cells[base + WIDTH + i] = tr.end_post[r][i];
         }
     }
+    (cells, tr.output)
+}
+
+/// Just the 269 intermediate cells (see [`generate_permutation_cells_and_output`]).
+pub fn generate_permutation_cells(
+    initial_state: [BabyBear; WIDTH],
+) -> [BabyBear; POSEIDON2_PERM_INTERM_COLS] {
+    generate_permutation_cells_and_output(initial_state).0
+}
+
+/// Fill one standalone-AIR trace row: `inputs(16) ‖ intermediates(269)`.
+pub fn generate_poseidon2_row(input: [BabyBear; WIDTH]) -> [BabyBear; POSEIDON2_ROW_WIDTH] {
+    let mut row = [BabyBear::ZERO; POSEIDON2_ROW_WIDTH];
+    row[..WIDTH].copy_from_slice(&input);
+    row[BEGIN_START..].copy_from_slice(&generate_permutation_cells(input));
     row
 }
 

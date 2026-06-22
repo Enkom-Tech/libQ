@@ -85,6 +85,7 @@ pub mod wide_hash;
 pub mod wide_merkle;
 pub mod wide_merkle_path;
 pub mod wide_sponge;
+pub mod wide_sponge_baby_bear;
 
 pub use anonymous_auth::{
     AnonymousAuthAir,
