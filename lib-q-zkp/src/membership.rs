@@ -571,6 +571,168 @@ pub fn verify_unlinkable_membership_bytes(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Frozen wire envelope (libQ `libq.zkfri.membership.v0`) — byte-oriented FFI verify
+// ---------------------------------------------------------------------------
+//
+// FROZEN as of wire v0 (see `docs/membership-wire-v0-FROZEN.md`). The *public statement*
+// (`PUBLIC_STATEMENT_BYTES` = 96) and the *envelope header* (8 bytes below) are frozen; the
+// opaque FRI proof body is NOT frozen (its math/length is a parameter of the proof system,
+// per libq-unlinkable-membership-v0 §7). The envelope exists because the raw
+// `postcard(StarkProof)` bytes carry neither the public statement nor the
+// `ProofMetadata{tree_depth, digest_width, zk}` the verifier needs to reconstruct the AIR —
+// so a byte-only (FFI) consumer would otherwise be unable to verify.
+
+/// Version byte of the frozen membership proof envelope (`ZkMembershipV0`). `0x00` is reserved.
+pub const MEMBERSHIP_ENVELOPE_VERSION: u8 = 0x01;
+/// Fixed envelope header size: `version(1) ‖ tree_depth(1) ‖ digest_width(1) ‖ flags(1) ‖ proof_len(u32 LE)`.
+pub const MEMBERSHIP_ENVELOPE_HEADER_BYTES: usize = 8;
+/// `flags` bit 0: set iff the proof was produced with the hiding (zero-knowledge) PCS.
+pub const MEMBERSHIP_ENVELOPE_FLAG_ZK: u8 = 0x01;
+
+/// Encode a membership [`ZkpProof`] into the frozen wire envelope so a byte-only consumer (a libQ
+/// FFI caller) can carry the metadata the verifier needs alongside the opaque FRI proof bytes.
+///
+/// Layout (little-endian; see `docs/membership-wire-v0-FROZEN.md`):
+///
+/// ```text
+/// off 0: u8   envelope_version   (= MEMBERSHIP_ENVELOPE_VERSION = 0x01)
+/// off 1: u8   tree_depth         (real Merkle depth, 1..=MAX_DEPTH)
+/// off 2: u8   digest_width       (= WIDE_DIGEST_ELEMS = 5)
+/// off 3: u8   flags              (bit0 = zk/hiding; bits 1..7 reserved = 0)
+/// off 4: u32  proof_len          (= proof_bytes.len(), little-endian)
+/// off 8: [u8; proof_len]         postcard(StarkProof) — opaque, length NOT frozen
+/// ```
+pub fn encode_membership_envelope(proof: &ZkpProof) -> Result<Vec<u8>> {
+    let (tree_depth, digest_width, zk) = match &proof.metadata {
+        ProofMetadata::UnlinkableMembership {
+            tree_depth,
+            digest_width,
+            zk,
+        } => (*tree_depth, *digest_width, *zk),
+        _ => {
+            return Err(Error::InvalidState {
+                operation: "encode_membership_envelope".into(),
+                reason: "proof metadata is not UnlinkableMembership".into(),
+            });
+        }
+    };
+    if proof.proof_type != ProofType::Stark {
+        return Err(Error::InvalidState {
+            operation: "encode_membership_envelope".into(),
+            reason: "proof_type is not Stark".into(),
+        });
+    }
+    let proof_len: u32 = proof
+        .data
+        .len()
+        .try_into()
+        .map_err(|_| Error::InvalidState {
+            operation: "encode_membership_envelope".into(),
+            reason: "proof body exceeds u32::MAX bytes".into(),
+        })?;
+    let mut out = Vec::with_capacity(MEMBERSHIP_ENVELOPE_HEADER_BYTES + proof.data.len());
+    out.push(MEMBERSHIP_ENVELOPE_VERSION);
+    out.push(tree_depth);
+    out.push(digest_width);
+    out.push(if zk { MEMBERSHIP_ENVELOPE_FLAG_ZK } else { 0 });
+    out.extend_from_slice(&proof_len.to_le_bytes());
+    out.extend_from_slice(&proof.data);
+    Ok(out)
+}
+
+/// Decode a frozen membership envelope back into a [`ZkpProof`]. Rejects an unknown version, a
+/// reserved flag bit, a zero / over-`MAX_DEPTH` depth, a wrong `digest_width`, or a body whose
+/// length does not match the declared `proof_len` (no trailing slack, no truncation).
+pub fn decode_membership_envelope(envelope: &[u8]) -> Result<ZkpProof> {
+    if envelope.len() < MEMBERSHIP_ENVELOPE_HEADER_BYTES {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: alloc::format!(
+                "envelope shorter than {MEMBERSHIP_ENVELOPE_HEADER_BYTES}-byte header"
+            ),
+        });
+    }
+    if envelope[0] != MEMBERSHIP_ENVELOPE_VERSION {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: alloc::format!("unknown envelope version {:#x}", envelope[0]),
+        });
+    }
+    let tree_depth = envelope[1];
+    let digest_width = envelope[2];
+    let flags = envelope[3];
+    if flags & !MEMBERSHIP_ENVELOPE_FLAG_ZK != 0 {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: "reserved envelope flag bit set".into(),
+        });
+    }
+    let zk = flags & MEMBERSHIP_ENVELOPE_FLAG_ZK != 0;
+    if tree_depth == 0 || tree_depth as usize > MAX_DEPTH {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: alloc::format!("tree_depth {tree_depth} out of 1..={MAX_DEPTH}"),
+        });
+    }
+    if digest_width as usize != WIDE_DIGEST_ELEMS {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: alloc::format!("digest_width {digest_width} != {WIDE_DIGEST_ELEMS}"),
+        });
+    }
+    let mut len_b = [0u8; 4];
+    len_b.copy_from_slice(&envelope[4..8]);
+    let proof_len = u32::from_le_bytes(len_b) as usize;
+    let expected = MEMBERSHIP_ENVELOPE_HEADER_BYTES
+        .checked_add(proof_len)
+        .ok_or_else(|| Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: "proof_len overflow".into(),
+        })?;
+    if envelope.len() != expected {
+        return Err(Error::InvalidState {
+            operation: "decode_membership_envelope".into(),
+            reason: alloc::format!(
+                "envelope length {} != header + proof_len ({expected})",
+                envelope.len()
+            ),
+        });
+    }
+    Ok(ZkpProof {
+        data: envelope[MEMBERSHIP_ENVELOPE_HEADER_BYTES..].to_vec(),
+        proof_type: ProofType::Stark,
+        security_level: 1,
+        metadata: ProofMetadata::UnlinkableMembership {
+            tree_depth,
+            digest_width,
+            zk,
+        },
+    })
+}
+
+/// **Byte-oriented FFI verify.** Verifies a membership proof from frozen wire bytes alone — a
+/// 96-byte public statement (`root(40) ‖ ctx(16) ‖ N(40)`, see [`PUBLIC_STATEMENT_BYTES`]) and a
+/// proof envelope ([`encode_membership_envelope`]). Returns `true` iff the proof verifies against
+/// the canonical root encoded in the statement. **Never panics**; any malformed input → `false`.
+///
+/// This is the single entry point a libQ `Verify(root, ctx, nullifier, proof)` FFI seam needs: it
+/// takes only `&[u8]` and the envelope carries the `ProofMetadata{tree_depth, digest_width, zk}`
+/// (the raw `postcard(StarkProof)` body does not). Uses the production STARK config; a proof must
+/// have been produced with the production prover (`prove_unlinkable_membership[_zk_auto]`).
+///
+/// RED / freeze-gate: the underlying soundness/ZK claims are PENDING HUMAN SIGN-OFF (O1–O4).
+pub fn verify_membership_envelope(
+    public_statement_bytes: &[u8],
+    proof_envelope_bytes: &[u8],
+) -> bool {
+    let proof = match decode_membership_envelope(proof_envelope_bytes) {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    verify_unlinkable_membership_bytes(&proof, public_statement_bytes).unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::extension::Complex;
@@ -802,5 +964,114 @@ mod tests {
             assert_ne!(a, [0u8; 32], "entropy must not be all-zero");
         }
         // If getrandom is unavailable, the auto prover returns an error rather than weak seeds.
+    }
+
+    #[test]
+    fn envelope_round_trips_metadata_and_body() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 4, 2);
+        let (_n, proof) =
+            prove_unlinkable_membership_with_config(&w, fast_proof_config()).expect("prove");
+        let env = encode_membership_envelope(&proof).expect("encode");
+        assert_eq!(
+            env.len(),
+            MEMBERSHIP_ENVELOPE_HEADER_BYTES + proof.data.len()
+        );
+        assert_eq!(env[0], MEMBERSHIP_ENVELOPE_VERSION);
+        assert_eq!(env[1], 3, "tree_depth");
+        assert_eq!(env[2], WIDE_DIGEST_ELEMS as u8, "digest_width");
+        assert_eq!(env[3], 0, "transparent ⇒ zk flag clear");
+        let decoded = decode_membership_envelope(&env).expect("decode");
+        assert_eq!(decoded.data, proof.data);
+        assert_eq!(decoded.metadata, proof.metadata);
+        assert_eq!(decoded.proof_type, ProofType::Stark);
+    }
+
+    #[test]
+    fn envelope_zk_flag_set_for_hiding_proof() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 1, 5);
+        let (_n, proof) = prove_unlinkable_membership_zk_with_config(
+            &w,
+            zk_config_with_seed_bytes(3, 2, 1, [7u8; 32], [9u8; 32]),
+        )
+        .expect("zk prove");
+        let env = encode_membership_envelope(&proof).expect("encode");
+        assert_eq!(
+            env[3] & MEMBERSHIP_ENVELOPE_FLAG_ZK,
+            MEMBERSHIP_ENVELOPE_FLAG_ZK
+        );
+        let decoded = decode_membership_envelope(&env).expect("decode");
+        assert!(matches!(
+            decoded.metadata,
+            ProofMetadata::UnlinkableMembership { zk: true, .. }
+        ));
+    }
+
+    #[test]
+    fn envelope_rejects_malformed() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 2, 3);
+        let (nullifier, proof) =
+            prove_unlinkable_membership_with_config(&w, fast_proof_config()).expect("prove");
+        let good = encode_membership_envelope(&proof).expect("encode");
+        let stmt = public_statement_bytes(&tree.root(), &w.ctx, &nullifier);
+
+        // Truncated header.
+        assert!(decode_membership_envelope(&good[..4]).is_err());
+        assert!(!verify_membership_envelope(&stmt, &good[..4]));
+        // Unknown version.
+        let mut bad = good.clone();
+        bad[0] = 0xFF;
+        assert!(decode_membership_envelope(&bad).is_err());
+        assert!(!verify_membership_envelope(&stmt, &bad));
+        // Reserved flag bit set.
+        let mut bad = good.clone();
+        bad[3] |= 0x02;
+        assert!(decode_membership_envelope(&bad).is_err());
+        // Wrong digest_width.
+        let mut bad = good.clone();
+        bad[2] = WIDE_DIGEST_ELEMS as u8 + 1;
+        assert!(decode_membership_envelope(&bad).is_err());
+        // Zero depth.
+        let mut bad = good.clone();
+        bad[1] = 0;
+        assert!(decode_membership_envelope(&bad).is_err());
+        // Trailing slack (length mismatch).
+        let mut bad = good.clone();
+        bad.push(0u8);
+        assert!(decode_membership_envelope(&bad).is_err());
+        // Short public statement.
+        assert!(!verify_membership_envelope(
+            &stmt[..PUBLIC_STATEMENT_BYTES - 1],
+            &good
+        ));
+    }
+
+    /// Full byte-only FFI path on the **production** config (the config
+    /// [`verify_membership_envelope`] uses internally): prove → encode envelope →
+    /// verify from `&[u8]` alone. A tampered public statement must fail.
+    #[test]
+    fn ffi_verify_membership_envelope_end_to_end() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 4, 2);
+        let (nullifier, proof) =
+            prove_unlinkable_membership_with_config(&w, crate::stark::default_config())
+                .expect("prove");
+        let env = encode_membership_envelope(&proof).expect("encode");
+        let stmt = public_statement_bytes(&tree.root(), &w.ctx, &nullifier);
+        assert_eq!(stmt.len(), PUBLIC_STATEMENT_BYTES);
+        assert!(
+            verify_membership_envelope(&stmt, &env),
+            "valid envelope must verify from bytes alone"
+        );
+
+        // Tampered statement (flip a low bit of root) must fail.
+        let mut bad_stmt = stmt.clone();
+        bad_stmt[0] ^= 0x01;
+        assert!(
+            !verify_membership_envelope(&bad_stmt, &env),
+            "wrong root must not verify"
+        );
     }
 }
