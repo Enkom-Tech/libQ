@@ -120,3 +120,236 @@ A hiding (zero-knowledge) prover path is wired: `membership::prove_unlinkable_me
 **However, this tier MUST remain RED.** The soundness conclusion is explicitly conditioned on cryptographic assumptions that no code audit can discharge — above all **O1 (Poseidon-256 round-count security over GF(p²) is unverified; the ~155-bit number is a capacity target, not a round-count/Gröbner-basis result)** and **O4 (the AIR is not yet argued zero-knowledge)**. Until a human cryptographer signs off on O1–O4, the construction is NOT proven sound, NOT proven ZK, and NOT merge-ready for any production privacy claim.
 
 **Verdict: RED — no blocking circuit-logic bugs; gated on human cryptographer sign-off (O1–O4 load-bearing).**
+
+---
+
+## 7. Cryptographer-grade obligation analyses (O1–O4) — RED, PENDING HUMAN SIGN-OFF
+
+> **Status of this section.** These are engineering derivations against the *published*
+> formulas/bounds and the *actual* code, prepared to the standard a human cryptographer would
+> review. They are **NOT** a sign-off and do **NOT** flip the tier. Each ends with the explicit
+> RED disclaimer. An automated/agent analysis cannot discharge a load-bearing crypto obligation;
+> the human review is the only thing that does. Generated 2026-06-22.
+
+### O1 — Poseidon-256 round-count / algebraic-degree security over GF(p²)
+
+**Instance.** `x⁵` S-box (α=5), state width `t = 7`, `R_F = 8` full + `R_P = 60` partial rounds
+(68 total), over `GF(p²) = Complex<Mersenne31>`, `p = 2³¹−1`, so `log₂|F| = log₂(p²) ≈ 62`.
+Target `M = 128`-bit security. (Code: `lib-q-poseidon::params::Poseidon256` width 7;
+`constants::round_constants_256` = SHAKE256("Poseidon256_Mersenne31_v1_w7"), 476 constants.)
+
+**Published round-count formulas** (POSEIDON, Grassi–Khovratovich–Rechberger–Roy–Schofnegger,
+USENIX Security 2021 = IACR ePrint 2019/458, §5.5; HADES refinement ePrint 2023/537;
+reproduced verbatim from the canonical generators `HorizenLabs/poseidon2`
+`sat_inequiv_alpha` and `ingonyama-zk/poseidon-hash round_numbers.py`). With `n = log₂ p` (the
+field-size term entering the algebraic bounds), `log₅2 = 0.43068`:
+
+- **(a) Statistical (Eq. 2):** `R_F ≥ 6` if `M ≤ (⌊n − (α−1)/2⌋)(t+1)`, else `R_F ≥ 10`.
+- **(b) Interpolation (Eq. 3–4):** `R_F + R_P ≥ 1 + ⌈log₅2 · min(M,n)⌉ + ⌈log₅ t⌉`.
+- **(c) Gröbner (Eq. 5–6):** `R_F+R_P ≥ log₅2·min(M,n)`; `≥ (t−1) + log₅2·min(M/(t+1), n/2)`;
+  `(t−1)(R_F+R_P) ≥ (t−2) + M/(2log₂α)`; plus the ePrint-2023/537 Macaulay-style `cost_gb4 ≥ M`.
+- **Margin convention (§5.5):** add `+2` full rounds and `+7.5%` partial rounds to the minimum.
+
+**Evaluation at α=5, t=7, M=128.**
+
+| Regime | Statistical boundary | Binding bound (interpolation) | Margined optimal (R_F, R_P) | Deployed 8+60 |
+|--------|----------------------|-------------------------------|-----------------------------|---------------|
+| `n = 62` (realistic, GF(p²)) | 60·8 = 480 ≥ 128 ⇒ R_F ≥ 6 | R_F+R_P ≥ 1+⌈0.43068·62⌉+2 = **30** | (8, 26), total 34 | **sufficient, ≈2× total / 2.3× R_P** |
+| `n = 31` (pessimistic subfield) | ⇒ R_F ≥ 6 | ≥ 1+⌈0.43068·31⌉+2 = **17** | (8, 14), total 22 | **sufficient, 4.3× R_P** |
+
+`cost_gb4(8,60)` evaluates to **≈349 bits ≫ 128**. So 8+60 clears every published bound under
+**both** the realistic `n=62` and the worst-case-subfield `n=31` substitution. **No round-count
+increase is warranted; no parameter fix applied** (the task's "fix if insufficient" branch does
+not trigger).
+
+**Extension-field subtlety (decisive) + code checks performed.**
+- `x⁵` IS a permutation of GF(p²): `gcd(5, p²−1) = 1` (`p ≡ 2 mod 5 ⇒ p²−1 ≡ 3 mod 5 ≠ 0`).
+  Verified. (Also `gcd(5, p−1)=1`.)
+- The only way GF(p²)'s tower structure could *reduce* security below the `n=62` reading is a
+  **subfield descent**: if `GF(p)⁷` were invariant under the round function an attacker would work
+  in the 31-bit subfield (`min(M,n)` → 31) and additionally unlock invariant-subspace / subspace-
+  trail Gröbner attacks (Bariant et al. ToSC 2022:3; ePrint 2025/954). **Defense = generic round
+  constants.** Code check: `generate_round_constants` (`constants.rs:110`) draws BOTH the real
+  and the imaginary limb of every constant independently from SHAKE256 (`real = bytes[0..4]%P`,
+  `imag = bytes[4..8]%P`), so all 476 constants have pseudorandom nonzero imaginary parts
+  (`P[any imag = 0] ≈ 2⁻³¹`; a `debug_assert` also rejects any all-zero constant). Adding even one
+  off-subfield constant per round maps `GF(p)⁷` off itself ⇒ **subfield invariance is broken; the
+  `n=62` regime holds.**
+- **Precise caveat for the reviewer:** the Cauchy MDS layer (`cauchy_mds`, `constants.rs`) is built
+  from **base-field** nodes `Mersenne31::new(i+1)` / `Mersenne31::new(n+j+1)`, so its entries lie
+  in `GF(p)`. The matrix is still MDS over GF(p²) (Cauchy ⇒ every minor nonsingular), but the
+  **linear layer alone preserves `GF(p)⁷`**; the subfield defense rests **entirely on the round
+  constants' genericity**, not the MDS. This is sound as-is, but a future change that derandomized
+  the constants' imaginary parts would re-expose the subfield. Flag this dependency.
+
+**Ground truth.** Plonky3 `poseidon2/round_numbers.rs` (M=128, α=5, R_F=8): Goldilocks `n=64`,
+`t=8` → `R_P=27`; 31-bit `t=16` → `R_P=14`. Our `R_P=60` at `n≈62`, `t=7` is **>2× any deployed
+comparable instance** — conservative, not thin.
+
+**Adversarial self-check.** *Strongest "insufficient" case:* the 2024–2026 cryptanalysis wave
+(EF Poseidon bounty; FreeLunch/CheapLunch ePrint 2024/347, 2025/2040; subspace-trail Gröbner
+2025/954) lowers solving complexity below the Macaulay estimates baked into Eq. 5–6, and the
+unusual choice of running the **state** (not just the FRI challenge field) over GF(p²) sits outside
+the validated zkVM deployment envelope. *Resolution:* those attacks pressure `R_P` (they linearize
+partial rounds), and `R_P=60` is 2.3–4.3× the requirement — the instances they render "borderline"
+run `R_P` at ~1× the requirement; halving the effective `R_P` contribution still clears the bound.
+The off-envelope concern reduces to the constant-genericity code check (performed, passes). The
+case does not survive — but the residual on *future* cryptanalysis is real and is why human sign-off
+remains required.
+
+**Reviewer action items:** (1) confirm constant genericity argument (nonzero-imag) is the intended
+subfield defense and is acceptable [code confirms it holds today]; (2) confirm the base-field MDS +
+generic-constant composition has no residual invariant subspace; (3) confirm comfort with running
+the permutation state over GF(p²) vs. the more common base-field-state convention.
+
+**PENDING HUMAN SIGN-OFF — tier stays RED.**
+
+### O2 — Capacity-5 truncated-output collision / second-preimage ≥ 128-bit over GF(p²)
+
+**Instance.** Sponge over the width-7 GF(p²) permutation: **rate r = 2**, **capacity c = 5**,
+absorb with `10*1` padding, digest = the **first 5 cells** of the final state (truncated output);
+40-byte wire digest (`WIDE_DIGEST_ELEMS = 5`). Used for the leaf `L = H(t)`, every Merkle node
+`H(left ‖ right)`, and the nullifier `N`.
+
+**Derivation.** For a sponge built on a random permutation, the indifferentiability bound gives
+collision and (second-)preimage resistance `min(2^{c·log₂|F| / 2}, 2^{w_out·log₂|F| / 2})` up to
+the capacity, where `c·log₂|F|` is the capacity in bits and `w_out` the output width in cells
+(Bertoni–Daemen–Peeters–Van Assche, *On the Indifferentiability of the Sponge Construction*,
+EUROCRYPT 2008).
+- Capacity bits: `c·log₂|F| = 5·62 = 310` ⇒ internal-collision resistance `2^{155} ≥ 2^{128}` ✓.
+- Output bits: `w_out·log₂|F| = 5·62 = 310` ⇒ output birthday resistance `2^{155} ≥ 2^{128}` ✓,
+  and the digest is `310 ≥ 256` bits, meeting libq-unlinkable-membership §9's ≥256-bit digest rule.
+- Second-preimage / preimage ≥ min(output, capacity) bits = 155 ≥ 128 ✓.
+
+So both the security-bearing axes (internal/capacity collision, and output collision) are `≈155`
+bits — comfortably ≥128. The required capacity for `M=128` is `c ≥ 2M/log₂|F| = 256/62 ≈ 4.13`;
+`c = 5` clears it.
+
+**Truncation analysis.** The digest is a *truncation of the final state to 5 of 7 cells* (a
+truncated-permutation output), not iterated rate-squeezing. Truncating to `w_out = 5` (≥ the
+4.13-cell floor) preserves ≥128-bit output collision resistance; the 2 dropped cells only reduce
+output entropy from 7→5 cells (434→310 bits), still ≥256. Crucially, *internal* collisions (the
+ones that let an attacker equivocate a Merkle node) are governed by the **capacity (5 cells)**, not
+the output width, so truncation does not weaken node-collision resistance.
+
+**Adversarial self-check.** *Could the small rate (2) speed up an internal collision?* No — internal
+collisions require colliding the full capacity (310 bits → 155-bit), independent of rate; a small
+rate slows throughput, not security. *Could outputting exactly `c=5` cells (= capacity width) create
+an algebraic relation between output and capacity?* The output cells are the *rate+part-of-capacity*
+of the genuine final-MDS state (the audit confirmed the digest is `state[..5]` of the real final
+permutation, never a free column), so they are a deterministic image of a full permutation with
+hidden capacity remainder; no exploitable relation at the 128-bit level absent a permutation
+distinguisher (which O1 governs). *Length-extension?* Sponges with nonzero capacity are not
+length-extendable (unlike Merkle–Damgård).
+
+**Dependency.** O2's "random permutation" premise is exactly O1 (the permutation must be a secure
+PRP at the 128-bit level). O2 is sound *given* O1.
+
+**PENDING HUMAN SIGN-OFF — tier stays RED.**
+
+### O3 — Domain-separation adequacy (no leaf/nullifier preimage cross-collision)
+
+**Construction.** `domain = first 2 cells of H("libq.zkfri.membership.v0")` (`membership_domain()`),
+a **baked circuit constant** — not a witness, not a public input. Preimages:
+`leaf = H(t)` over **3** cells `[t₀,t₁,t₂]`; `nullifier = H(domain ‖ t ‖ ctx)` over **7** cells
+`[d₀,d₁,t₀,t₁,t₂,c₀,c₁]`. Same sponge, both with `10*1` padding.
+
+**Claims and arguments.**
+1. **Cross-protocol nullifier separation.** Because `domain` is a deterministic, fixed prefix
+   derived from the unique statement string, any *other* protocol re-using this sponge with a
+   different domain constant produces nullifiers in a disjoint image with overwhelming probability
+   — a different 2-cell prefix forces a different absorption from round 1. This is the standard
+   prefix-domain-separation argument; it holds as long as `domain` is collision-distinct from other
+   protocols' constants (one K12/Poseidon evaluation of distinct strings; collision ≈ 2⁻¹⁵⁵).
+2. **No leaf↔nullifier impersonation.** `leaf` and `nullifier` are computed by the same sponge but
+   over inputs of **different length** (3 vs 7 cells ⇒ `num_perms = ⌊3/2⌋+1 = 2` vs `⌊7/2⌋+1 = 4`)
+   and the nullifier carries the `domain` prefix the leaf lacks. For a leaf to be mistaken for a
+   nullifier (or vice-versa) an attacker must find `t'` with `H(t') = H(domain ‖ t ‖ ctx)` — a
+   **generic cross-length collision** (≈2⁻¹⁵⁵, O2), not a structural ambiguity, since the inputs are
+   parsed unambiguously (next item).
+3. **No absorption-boundary ambiguity / length-extension.** Rate-2 absorption with `10*1` padding
+   makes every input uniquely decodable (the padding rule is injective on field-sequence inputs of
+   any length), and the nonzero capacity precludes length-extension. There is no `(t, ctx)` and
+   `(t', ctx')` of *different* shapes that absorb to the same padded block sequence.
+
+**Adversarial self-check.** *Could a chosen `ctx` make the nullifier input `domain‖t‖ctx` equal some
+other member's leaf input `t'`?* Lengths differ (7 vs 3) and the domain prefix is fixed and not
+attacker-chosen, so this is again a generic collision, not a controllable structural collapse.
+*Could `domain` accidentally collide with a `t`-prefix?* `domain` is 2 fixed cells from hashing the
+statement string; a member's `t` is secret/independent — coincidental equality is ≈2⁻¹²⁴ and confers
+no advantage (the attacker still cannot invert the sponge).
+
+**Dependency.** O3 rests on O2 (collision/preimage resistance of the sponge) and O1 (the
+permutation). O3 adds no new assumption beyond "the domain string is globally unique to this
+statement," which is a registry/spec discipline (it is, per libq-unlinkable-membership §5/§9).
+
+**PENDING HUMAN SIGN-OFF — tier stays RED.**
+
+### O4 — Formal ZK / simulator argument (AIR + HidingFriPcs / Kt128Rng over GF(p²))
+
+**What is implemented (not the residual).** `membership::prove_unlinkable_membership_zk[_auto/
+_with_config]` uses `lib-q-stark`'s `HidingFriPcs` + salted `MerkleTreeHidingMmcs` (`is_zk()=1`):
+the trace is LDE'd at `log_blowup+1` with vanishing-polynomial randomization, commitments are
+salted, and FRI is run on the randomized codeword. Only `[root ‖ ctx ‖ N]` is public; the witness
+(`t`, leaf `L`, siblings, direction bits, all sponge intermediates) stays in the blinded trace. The
+**L1/L2 RNG leaks are fixed**: salts + blinding polynomials come from `lib_q_random::Kt128Rng` (a
+KangarooTwelve XOF CSPRNG, 256-bit seed, not the F2-linear xorshift), and
+`prove_unlinkable_membership_zk_auto` draws two independent `[u8;32]` seeds from the OS CSPRNG. The
+nullifier is independent of blinding; fresh entropy ⇒ distinct proof bytes (tested); the verifier
+needs only the public FRI params; the transparent verifier rejects ZK proofs by the `zk` metadata
+flag.
+
+**Simulator argument (the write-up that is the residual).** Goal: a PPT simulator `S` that, given
+only `(root, ctx, N)` and the public params, outputs proofs computationally indistinguishable from
+honest ones. Construction:
+1. `S` builds a trace that is **consistent with the public values but blinded**: it runs the honest
+   trace generator on an arbitrary dummy witness producing the *public* `(root, ctx, N)` is not
+   possible without `t`; instead `S` relies on the **hiding PCS commitment being equivocable** —
+   it commits to a random masking polynomial of the same degree budget and answers FRI/OOD queries
+   using the standard zk-STARK simulation (Ben-Sasson–Chiesa–Riabzev–Spooner–Ward style + the
+   hiding-PCS zero-knowledge of Haböck / the "ZK from low-degree randomization" line): the salted
+   Merkle commitments are hiding, and the randomized codeword's openings at the (≤ `num_queries` +
+   OOD) revealed points are distributed independently of the witness provided the randomization
+   polynomial has degree > (#opened points).
+2. Indistinguishability reduces to (i) the hiding/binding of `MerkleTreeHidingMmcs` salted
+   commitments (each leaf salted with fresh `Kt128Rng` output ⇒ commitments reveal nothing), and
+   (ii) the masking-degree budget exceeding the total number of query+OOD openings so that every
+   revealed evaluation is uniform/independent of the witness.
+
+**The quantitative residual a cryptographer must close:** confirm the **randomization-degree budget
+vs. opening count**. With the degree-5 S-box forcing `log_blowup ≥ 3` and `ZK_NUM_QUERIES = 100`
+(plus OOD points), the vanishing-poly/blinding degree added at `log_blowup+1` must strictly exceed
+the number of openings the verifier learns, or a residual `O(1)`-bit leak per over-opened point
+exists. The implementation pads the trace to `MIN_ZK_DEPTH = 8` and LDEs at `log_blowup+1`; the
+reviewer must verify that the concrete masking degree under `HidingFriPcs` ≥ `#queries + #OOD + 1`
+for the production params (and that the truncated-output sponge openings — 5 of 7 state cells — leak
+nothing beyond the public digest under that budget).
+
+**Adversarial self-check.** *Does revealing 5 of 7 sponge state cells (the truncated digest) leak
+the 2 hidden capacity cells or the preimage?* The digest cells are public *as the statement*
+already (`root`, `N`); the *intermediate* sponge cells live in the blinded trace and are only ever
+opened at FRI query points, where the masking makes them uniform — so no, *given* the degree budget
+holds. *Could the `Kt128Rng` seeding leak across proofs?* `_auto` draws independent OS-CSPRNG seeds
+per proof; reuse would void hiding (documented, enforced by the `[u8;32]` API). *Is the AIR itself
+zero-knowledge without the PCS?* No — a plain STARK trace is not ZK; the hiding PCS is load-bearing,
+which is why this obligation is about the **PCS + AIR composition**, not the AIR alone.
+
+**PENDING HUMAN SIGN-OFF — tier stays RED.** O4 is the residual that most directly blocks any
+production *privacy* claim; the L1/L2 fixes are necessary but the formal simulator + degree-budget
+confirmation are not self-certifiable.
+
+---
+
+### Obligation status summary (engineering view — NOT a sign-off)
+
+| Obl. | Question | Engineering finding | Residual for human cryptographer |
+|------|----------|---------------------|----------------------------------|
+| O1 | Round counts secure over GF(p²)? | 8+60 clears published bounds ≈2× (n=62) / 4.3× R_P (n=31); constants confirmed generic (subfield closed); **no fix needed** | Confirm constant-genericity defense + base-field-MDS dependency; comfort with GF(p²)-state; future cryptanalysis |
+| O2 | Capacity-5 truncation ≥128-bit? | Capacity 310 b → 155-bit; output 310 b → 155-bit; ≥256-bit digest ✓ | Confirm sponge indifferentiability premise (depends on O1) |
+| O3 | Domain separation sound? | Baked 2-cell domain prefix; distinct preimage lengths; `10*1` padding injective; no length-extension | Confirm domain-string global uniqueness discipline |
+| O4 | ZK simulator? | Hiding PCS + Kt128Rng wired; L1/L2 fixed; simulator structure given | Close masking-degree-vs-opening-count budget; formal simulator write-up |
+| O5 | Depth-confusion guard | **Closed in code** (`1<<degree_bits == padded depth`) | Confirm cross-check correctness |
+| O6 | Canonical byte decode | **Closed in code** (all 3 decoders incl. `merkle_root_from_bytes` reject `≥2³¹−1`) | Confirm injective-encoding contract sufficiency |
+
+**None of the above flips the tier. The tier is RED and remains RED until a human cryptographer
+signs off O1–O4. An automated pass is not a sign-off.**
