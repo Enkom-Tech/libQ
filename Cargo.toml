@@ -34,7 +34,7 @@ members = [
     "lib-q-romulus",
     "lib-q-saturnin",
     "lib-q-tweak-aead",
-    # libQ-agnostic advanced primitives (opt-in; pre-standard cores marked PROVISIONAL)
+    # consumer-protocol-agnostic advanced primitives (opt-in; pre-standard cores marked PROVISIONAL)
     "lib-q-mac",
     "lib-q-threshold-sig",
     "lib-q-threshold-kem",

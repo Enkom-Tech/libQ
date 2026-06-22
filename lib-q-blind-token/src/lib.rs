@@ -12,7 +12,7 @@
 //! See the crate's `LIBQ_API.md` contract for the scheme choice, the blindness /
 //! one-more-unforgeability arguments, and the limitations recorded for RED-zone review.
 //!
-//! This crate is **PROVISIONAL** and libQ-agnostic: it carries no consumer-protocol references.
+//! This crate is **PROVISIONAL** and consumer-protocol-agnostic: it carries no consumer-protocol references.
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]

@@ -11,7 +11,7 @@
 
 ## 1. Scope & Statement
 
-This packet covers the soundness of the in-circuit (AIR/STARK) proof of the libQ unlinkable membership statement:
+This packet covers the soundness of the in-circuit (AIR/STARK) proof of the unlinkable membership statement:
 
 ```text
 ∃ (secret t, path):
@@ -218,7 +218,7 @@ the capacity, where `c·log₂|F|` is the capacity in bits and `w_out` the outpu
 EUROCRYPT 2008).
 - Capacity bits: `c·log₂|F| = 5·62 = 310` ⇒ internal-collision resistance `2^{155} ≥ 2^{128}` ✓.
 - Output bits: `w_out·log₂|F| = 5·62 = 310` ⇒ output birthday resistance `2^{155} ≥ 2^{128}` ✓,
-  and the digest is `310 ≥ 256` bits, meeting libq-unlinkable-membership §9's ≥256-bit digest rule.
+  and the digest is `310 ≥ 256` bits, meeting unlinkable-membership-v0 §9's ≥256-bit digest rule.
 - Second-preimage / preimage ≥ min(output, capacity) bits = 155 ≥ 128 ✓.
 
 So both the security-bearing axes (internal/capacity collision, and output collision) are `≈155`
@@ -281,7 +281,7 @@ no advantage (the attacker still cannot invert the sponge).
 
 **Dependency.** O3 rests on O2 (collision/preimage resistance of the sponge) and O1 (the
 permutation). O3 adds no new assumption beyond "the domain string is globally unique to this
-statement," which is a registry/spec discipline (it is, per libq-unlinkable-membership §5/§9).
+statement," which is a registry/spec discipline (it is, per unlinkable-membership-v0 §5/§9).
 
 **PENDING HUMAN SIGN-OFF — tier stays RED.**
 

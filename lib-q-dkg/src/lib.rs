@@ -13,7 +13,7 @@
 //! `R_q` (`Z_q`-coefficient) encodings. See the crate's `LIBQ_API.md` contract for the scheme
 //! choice, the 1:1 type mapping, and the assumptions recorded for RED-zone review.
 //!
-//! This crate is **PROVISIONAL** and libQ-agnostic: it carries no consumer-protocol references.
+//! This crate is **PROVISIONAL** and consumer-protocol-agnostic: it carries no consumer-protocol references.
 
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]

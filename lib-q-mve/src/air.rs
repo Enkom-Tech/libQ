@@ -1,4 +1,4 @@
-//! mVE key-consistency AIR (RED — libq-mve-rekey freeze-gate).
+//! mVE key-consistency AIR (RED — mve-rekey-v0 freeze-gate).
 //!
 //! Proves, in zero knowledge of `(K, {ss_i})`, that a **single** key `K` is wrapped to every
 //! recipient:

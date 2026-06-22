@@ -9,11 +9,11 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **`lib-q-saturnin` — Saturnin update ("An Update on Saturnin"):** new **Saturnin-QCB** one-pass AEAD (`qcb` feature, default) built on a reusable Saturnin tweakable block cipher `SaturninTbc` (`Saturnin16^d_{K⊕T}`); message blocks use domain 9, the tag domain 10, AD domain 11. Also adds the **shorter-nonce tweak** for Saturnin-Short (`SaturninShortAead::with_nonce_len`, max plaintext `31 - nonce_len`). QCB is a spec-faithful interpretation pinned to derived self-consistency vectors — no official designer KATs exist; see `lib-q-saturnin/SECURITY.md`.
 - **npm WASM packages for tier-4b primitives** (parity with crates.io 0.0.6): `@lib-q/mac`, `@lib-q/blind-pcs`, `@lib-q/double-kem`, `@lib-q/fhe`, `@lib-q/threshold-kem`, `@lib-q/threshold-sig` — each with `wasm` feature, `src/wasm.rs`, wasm-bindgen smoke tests, CI wasm-build/bindgen-test matrix entries, and CD `publish-wasm-packages` rows.
 - **`@lib-q/types`:** TypeScript interfaces for MAC, double-KEM, FHE, and threshold KEM/sig wire shapes.
-- **`lib-q-duplex-aead`:** Wire format v0 frozen — 32-byte key, 16-byte nonce, 32-byte tag, Keccak-f[1600] duplex-sponge. KAT fixtures in `tests/kat.rs` and `examples/dump_duplex_kat.rs`. libQ integration: `aead_id = 2` via `libq-crypto` feature `duplex-sponge`.
+- **`lib-q-duplex-aead`:** Wire format v0 frozen — 32-byte key, 16-byte nonce, 32-byte tag, Keccak-f[1600] duplex-sponge. KAT fixtures in `tests/kat.rs` and `examples/dump_duplex_kat.rs`. Crypto integration: `aead_id = 2` via the `duplex-sponge` feature.
 - **`lib-q-rocca-s`:** Rocca-S AEAD (IETF draft-nakano-rocca-s) — 256-bit key, 128-bit nonce, 256-bit authentication tag, AES-accelerated. Wired into `lib-q-aead` as `rocca-s` feature and into `@lib-q/aead` npm package. Published at crates.io tier-1 (before `lib-q-aead` in CD order).
 - **`lib-q-ml-kem`:** `hardened` feature enables Boolean masked decapsulation, shuffled NTT, `subtle` constant-time comparisons. Dudect smoke test: `tests/hardened_dudect_smoke.rs`.
 - **`lib-q-ml-dsa`:** `hardened` feature enables masked signing path. Dudect smoke test: `tests/hardened_dudect_smoke.rs` (requires `dudect-smoke-tests`).
-- **Attestation:** `docs/hardened-attestation.md` documents hardening scope, CI evidence requirements, and libQ `LIBQ_CRYPTO_HARDENED_ATTESTATION` contract.
+- **Attestation:** `docs/hardened-attestation.md` documents hardening scope, CI evidence requirements, and the hardened-attestation contract.
 
 ### Changed
 

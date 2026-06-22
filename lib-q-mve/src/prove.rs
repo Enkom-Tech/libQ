@@ -60,7 +60,7 @@ pub type MveEncapsulationKey = <MlKem768 as KemCore>::EncapsulationKey;
 type Val = Complex<Mersenne31>;
 
 /// Build an [`MveRekeyEnvelopeV0`]: encapsulate `K` to each recipient and prove all wraps carry
-/// the same `K` (libq-mve-rekey §5). `encaps_coins[i]` is the (RED-zone) ML-KEM encapsulation
+/// the same `K` (mve-rekey-v0 §5). `encaps_coins[i]` is the (RED-zone) ML-KEM encapsulation
 /// randomness for recipient `i` — production MUST pass fresh independent CSPRNG draws.
 pub fn mve_prove(
     key: &Key,
@@ -136,7 +136,7 @@ pub fn mve_prove(
     })
 }
 
-/// Relay verification gate (libq-mve-rekey §6): recipient-set/length checks + the consistency
+/// Relay verification gate (mve-rekey-v0 §6): recipient-set/length checks + the consistency
 /// proof. Returns `true` iff the envelope is well-formed and the proof shows every wrap carries a
 /// single `K`. Never panics.
 ///
@@ -280,7 +280,7 @@ mod tests {
     }
 
     /// A divergent-key envelope (recipient 1 wrapped under a different K) must be REJECTED by the
-    /// relay — the core insider-robustness property (libq-mve-rekey §7 property 1).
+    /// relay — the core insider-robustness property (mve-rekey-v0 §7 property 1).
     #[test]
     fn divergent_key_envelope_rejected() {
         let k = key(1);

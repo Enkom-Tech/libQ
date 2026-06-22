@@ -1,6 +1,6 @@
 # lib-q-threshold-raccoon — LIBQ_API contract (v1, PROVISIONAL)
 
-libQ-agnostic contract for the lattice threshold signature that consumes `lib-q-dkg` shares. Normative
+Consumer-protocol-agnostic contract for the lattice threshold signature that consumes `lib-q-dkg` shares. Normative
 description of what the crate guarantees; no consumer-protocol references. The quantitative security
 analysis (core-SVP estimates, flooding/Rényi signature budget, unforgeability reduction, constant-time
 analysis) lives in [`SECURITY_ANALYSIS.md`](SECURITY_ANALYSIS.md) (reproduce via `security_estimate.py`).

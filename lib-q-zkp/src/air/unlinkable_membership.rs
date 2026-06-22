@@ -1,6 +1,6 @@
 //! Unlinkable set-membership AIR (M3/M4, RED — ADR 113 freeze-gate).
 //!
-//! Proves the libQ unlinkable membership statement (Semaphore/Tornado nullifier shape, for
+//! Proves the unlinkable membership statement (Semaphore/Tornado nullifier shape, for
 //! Sybil / domain admission):
 //!
 //! ```text

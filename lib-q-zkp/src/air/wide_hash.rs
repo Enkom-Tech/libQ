@@ -1,6 +1,6 @@
 //! Wide-digest Poseidon-256 hashing primitive (M1, RED — ADR 113 freeze-gate).
 //!
-//! The unlinkable membership proof (`libq-unlinkable-membership-v0`) pins **≥128-bit
+//! The unlinkable membership proof (`unlinkable-membership-v0`) pins **≥128-bit
 //! collision resistance NOW** for every digest (leaf `L`, every Merkle node, nullifier
 //! `N`). A sponge's collision resistance is bounded by its **capacity**, not its output
 //! width: Poseidon-128 (capacity 3) caps at `3·log₂|F|/2 ≈ 93` bit over

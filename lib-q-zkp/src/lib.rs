@@ -115,7 +115,7 @@ pub mod api;
 #[cfg(feature = "zkp")]
 pub mod wire;
 
-/// Unlinkable set-membership proofs (libQ `libq.zkfri.membership.v0`): Semaphore/Tornado
+/// Unlinkable set-membership proofs (`libq.zkfri.membership.v0`): Semaphore/Tornado
 /// nullifier shape over the Poseidon-256 wide-digest Merkle tree. RED (ADR 113 freeze-gate).
 #[cfg(feature = "zkp")]
 pub mod membership;

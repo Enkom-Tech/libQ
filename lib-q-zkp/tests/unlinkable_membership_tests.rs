@@ -1,5 +1,5 @@
 //! Integration tests for the public unlinkable membership API
-//! (`lib_q_zkp::membership`, libQ `libq.zkfri.membership.v0`).
+//! (`lib_q_zkp::membership`, `libq.zkfri.membership.v0`).
 //!
 //! Exercises the prove/verify contract, the nullifier properties (determinism, context
 //! unlinkability, double-use linkability), verifier negatives, input validation / DoS limits,

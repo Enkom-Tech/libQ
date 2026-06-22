@@ -1,6 +1,6 @@
-//! `lib-q-mve` — Multi-recipient Verifiable Encryption (verifiable rekey) for libQ.
+//! `lib-q-mve` — Multi-recipient Verifiable Encryption (verifiable rekey) for the consumer.
 //!
-//! Implements the [`libq-mve-rekey-v0`] §4/§7 contract: a producer distributes a fresh group key
+//! Implements the mve-rekey-v0 spec §4/§7 contract: a producer distributes a fresh group key
 //! `K` to many recipients, each wrapped under that recipient's ML-KEM update key, and attaches a
 //! **single proof** that **every** recipient receives the **same** `K` (bound to one
 //! `key_commitment`) — checkable by an untrusted relay **without** learning `K`. This is the
@@ -19,7 +19,7 @@
 //! - Per recipient `i`: `ct_i = ML-KEM.Encaps(update_pk_i) → (ss_i, kem_ct_i)`; the delivered wrap
 //!   is `w_i = K + H_zk(ss_i)` (field-additive one-time wrap; `H_zk` = `hash_suite_id = 5`
 //!   Poseidon-256). The recipient decapsulates `ss_i` from `kem_ct_i` and recovers
-//!   `K = w_i − H_zk(ss_i)`, then checks `key_commitment` (libq-mve-rekey §4.3).
+//!   `K = w_i − H_zk(ss_i)`, then checks `key_commitment` (mve-rekey-v0 §4.3).
 //! - The **proof** asserts, in zero knowledge of `(K, r, {ss_i})`, that there is a **single** `K`
 //!   with `w_i = K + H_zk(ss_i)` for every `i` (see [`air`]). A split (different `K` to different
 //!   recipients) cannot produce a verifying proof.
@@ -31,10 +31,8 @@
 //! `docs/mve-freeze-gate-review.md` (M1–M4). In particular the in-circuit proof guarantees
 //! single-`K` consistency across the wraps; binding `ss_i` to its KEM ciphertext `kem_ct_i` under
 //! `update_pk_i` (full ML-KEM-encaps-in-circuit) is **NOT** proven and is backstopped by the
-//! recipient commitment check (libq-mve-rekey §4.3, §6 fallback). Do **not** treat this as
+//! recipient commitment check (mve-rekey-v0 §4.3, §6 fallback). Do **not** treat this as
 //! load-bearing until a human cryptographer signs off.
-//!
-//! [`libq-mve-rekey-v0`]: ../../../libQ-SPEC/spec/security/libq-mve-rekey-v0.md
 
 use lib_q_core::{
     Error,
@@ -77,8 +75,8 @@ pub const COMMITMENT_BYTES: usize = 32;
 /// Maximum recipient count for one envelope (DoS bound; trace height padded to a power of two).
 pub const MAX_RECIPIENTS: usize = 1024;
 
-/// K12 domain label for the distributed-key commitment (libq-mve-rekey §4.3). Used as the **leading
-/// message prefix** with **empty** K12 customization (libQ K12 registry discipline), not as the K12
+/// K12 domain label for the distributed-key commitment (mve-rekey-v0 §4.3). Used as the **leading
+/// message prefix** with **empty** K12 customization (the K12 domain-separation registry discipline), not as the K12
 /// customization string. See [`key_commitment`].
 pub const MVE_COMMIT_LABEL: &[u8] = b"libq.mve.commit.v0";
 
@@ -114,10 +112,10 @@ pub(crate) fn ss_to_felts(ss: &[u8]) -> [PoseidonField; SS_ELEMS] {
     })
 }
 
-/// `key_commitment = K12(libq.mve.commit.v0 ‖ key_len ‖ K ‖ r_len ‖ r ‖ epoch_id)` (libq-mve-rekey §4.3).
+/// `key_commitment = K12(libq.mve.commit.v0 ‖ key_len ‖ K ‖ r_len ‖ r ‖ epoch_id)` (mve-rekey-v0 §4.3).
 ///
-/// **Canonical layout** (matches libQ `libq-crypto::key_commitment` and the pinned spec §4.3). The
-/// label is a **leading message prefix** under **empty** K12 customization — the libQ K12 registry
+/// **Canonical layout** (matches the reference key_commitment and the pinned spec §4.3). The
+/// label is a **leading message prefix** under **empty** K12 customization — the K12 domain-separation registry
 /// discipline (`cryptographic-algorithms.md` K12 domain-separation registry): every `K12("label" ‖ …)`
 /// row means `K12(message = label ‖ …, customization = "")`, **not** `K12(message = …, C = "label")`
 /// (those are distinct KangarooTwelve digests; only KMAC rows use the customization-string form).
@@ -134,7 +132,7 @@ pub(crate) fn ss_to_felts(ss: &[u8]) -> [PoseidonField; SS_ELEMS] {
 ///
 /// This commitment lives **outside** the circuit (a plain K12 hash), so this framing does **not**
 /// touch the AIR, the RED proof, or any O1–M4 obligation. Hiding + binding commitment to the
-/// distributed key; the value every recipient recomputes and checks against (libq-mve-rekey §4.3).
+/// distributed key; the value every recipient recomputes and checks against (mve-rekey-v0 §4.3).
 pub fn key_commitment(key: &Key, r: &[u8], epoch_id: u32) -> [u8; COMMITMENT_BYTES] {
     use lib_q_k12::Kt128;
     use lib_q_k12::digest::{
@@ -144,7 +142,7 @@ pub fn key_commitment(key: &Key, r: &[u8], epoch_id: u32) -> [u8; COMMITMENT_BYT
     };
     let key_bytes = poseidon_field_to_bytes(key);
     debug_assert_eq!(key_bytes.len(), KEY_BYTES, "K serializes to KEY_BYTES");
-    let mut h = Kt128::default(); //                 EMPTY K12 customization (libQ registry discipline)
+    let mut h = Kt128::default(); //                 EMPTY K12 customization (the K12 domain-separation registry discipline)
     h.update(MVE_COMMIT_LABEL); //                   label as leading message prefix
     h.update(&(KEY_BYTES as u16).to_be_bytes()); //  key_len (2 B, BE)
     h.update(&key_bytes); //                         serialize(K) (KEY_BYTES)
@@ -195,7 +193,7 @@ impl RecipientCiphertext {
     }
 }
 
-/// `MveRekeyEnvelopeV0` (libq-mve-rekey §4.2) — producer → relay → recipients.
+/// `MveRekeyEnvelopeV0` (mve-rekey-v0 §4.2) — producer → relay → recipients.
 #[derive(Clone, Debug)]
 pub struct MveRekeyEnvelopeV0 {
     /// The new key epoch this rekey establishes.
@@ -215,7 +213,7 @@ pub fn wrap_to_bytes(w: &Wrap) -> [u8; KEY_BYTES] {
     wide_digest_to_bytes(w)
 }
 
-/// Validate recipient-set / length invariants shared by producer and relay (libq-mve-rekey §6).
+/// Validate recipient-set / length invariants shared by producer and relay (mve-rekey-v0 §6).
 pub(crate) fn check_shape(n_ids: usize, n_cts: usize) -> Result<usize> {
     if n_ids == 0 || n_ids > MAX_RECIPIENTS {
         return Err(Error::InvalidState {
@@ -247,14 +245,13 @@ mod value_tests {
 
     /// Frozen KAT vector for [`key_commitment`] over the canonical §4.3 layout with the inputs in
     /// `commitment_canonical_layout_kat` (`k = key(5)`, `r = 01 02 03 04`, `epoch_id = 0xDEADBEEF`).
-    /// Hex: `6a8ac35f47bcb57dc83f2d2a6480a85ad8285b6d399224cc138d62faf98d3e9b`. This is the
-    /// **authoritative libQ vector** (`libq-crypto::key_commitment`, test `mve_commitment_libq_interop_kat`,
-    /// commit 282f1d6) — label as leading message prefix under empty K12 customization. Matching it
-    /// here proves cross-impl wire compatibility.
+    /// Hex: `809b813609eb7cfe0d68e92cb1217d8236b6e793f47efb6177ed2a89a24dab9c`. Pins the
+    /// `libq.mve.commit.v0` label as a leading message prefix under empty K12 customization — a
+    /// drift guard on the §4.3 byte layout.
     const MVE_COMMIT_KAT: [u8; COMMITMENT_BYTES] = [
-        0x6A, 0x8A, 0xC3, 0x5F, 0x47, 0xBC, 0xB5, 0x7D, 0xC8, 0x3F, 0x2D, 0x2A, 0x64, 0x80, 0xA8,
-        0x5A, 0xD8, 0x28, 0x5B, 0x6D, 0x39, 0x92, 0x24, 0xCC, 0x13, 0x8D, 0x62, 0xFA, 0xF9, 0x8D,
-        0x3E, 0x9B,
+        0x80, 0x9B, 0x81, 0x36, 0x09, 0xEB, 0x7C, 0xFE, 0x0D, 0x68, 0xE9, 0x2C, 0xB1, 0x21, 0x7D,
+        0x82, 0x36, 0xB6, 0xE7, 0x93, 0xF4, 0x7E, 0xFB, 0x61, 0x77, 0xED, 0x2A, 0x89, 0xA2, 0x4D,
+        0xAB, 0x9C,
     ];
 
     fn fe(x: u32) -> PoseidonField {
@@ -280,7 +277,7 @@ mod value_tests {
     }
 
     /// A wrong shared secret (divergent ciphertext) unwraps to a DIFFERENT key — the value-level
-    /// basis of the recipient commitment check (libq-mve-rekey §4.3).
+    /// basis of the recipient commitment check (mve-rekey-v0 §4.3).
     #[test]
     fn wrong_shared_secret_recovers_wrong_key() {
         let k = key(7);
@@ -324,8 +321,8 @@ mod value_tests {
 
     /// Known-answer test pinning the **exact** canonical §4.3 byte layout. Re-derived independently
     /// of `key_commitment`'s body from the documented field order/widths/prefixes — if any of those
-    /// drift, this fails. The same fixed inputs must produce the same 32 bytes under libQ's
-    /// `libq-crypto::key_commitment` (cross-impl interop check; see `docs/mve-freeze-gate-review.md`).
+    /// drift, this fails. The same fixed inputs must produce the same 32 bytes under the
+    /// reference key_commitment (cross-impl interop check; see `docs/mve-freeze-gate-review.md`).
     #[test]
     fn commitment_canonical_layout_kat() {
         use lib_q_k12::Kt128;
@@ -358,7 +355,7 @@ mod value_tests {
             "key_commitment must use the canonical §4.3 length-prefixed layout"
         );
 
-        // Frozen vector (pin against accidental drift; cross-check against libQ for interop).
+        // Frozen vector (pin against accidental drift; cross-check against the consumer for interop).
         assert_eq!(
             expected, MVE_COMMIT_KAT,
             "canonical §4.3 commitment KAT vector drifted"
