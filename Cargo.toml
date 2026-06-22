@@ -46,6 +46,7 @@ members = [
     "lib-q-blind-token",
     # ZKP & lattice
     "lib-q-lattice-zkp",
+    "lib-q-mve",
     "lib-q-prf",
     "lib-q-ring",
     "lib-q-zkp",
