@@ -78,7 +78,12 @@ pub mod session_key;
 pub mod stark_verifier;
 pub mod state_transition;
 pub mod transaction;
+pub mod unlinkable_membership;
 pub mod verifier_utils;
+pub mod wide_hash;
+pub mod wide_merkle;
+pub mod wide_merkle_path;
+pub mod wide_sponge;
 
 pub use anonymous_auth::{
     AnonymousAuthAir,
@@ -166,6 +171,45 @@ pub use session_key::{
     KdfParams,
     SessionKeyDerivationAir,
     SessionKeyInput,
+};
+pub use unlinkable_membership::{
+    CTX_ELEMS,
+    MEMBERSHIP_DOMAIN_STR,
+    MEMBERSHIP_NUM_PUBLIC,
+    MEMBERSHIP_ROW_WIDTH,
+    SECRET_T_ELEMS,
+    UnlinkableMembershipAir,
+    generate_membership_trace,
+    membership_domain,
+    membership_leaf,
+    membership_nullifier,
+    membership_public_values,
+};
+pub use wide_hash::{
+    WIDE_DIGEST_ELEMS,
+    WideDigest,
+    poseidon256_perm_truncated,
+    poseidon256_wide_hash,
+};
+pub use wide_merkle::{
+    NODE_NUM_PERMS,
+    NODE_ROW_WIDTH,
+    WideNodeHashAir,
+    generate_node_trace,
+    node_public_values,
+};
+pub use wide_merkle_path::{
+    PATH_NUM_PUBLIC,
+    PATH_ROW_WIDTH,
+    WideMerklePathAir,
+    generate_path_trace,
+    path_public_values,
+};
+pub use wide_sponge::{
+    constrain_wide_sponge,
+    generate_wide_sponge_cells,
+    wide_sponge_interm_cols,
+    wide_sponge_num_perms,
 };
 /// Trait for PCS commitments that are Poseidon Merkle roots. Used by the recursive verifier.
 /// The only implementation is when `recursive-proofs-experimental` is enabled (Hash in stark_verifier).

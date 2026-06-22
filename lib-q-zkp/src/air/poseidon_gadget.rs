@@ -79,6 +79,27 @@ impl PoseidonGadget {
         }
     }
 
+    /// Create a PoseidonGadget with explicit parameters (e.g. `Poseidon256::params()`
+    /// for capacity-5, wide-digest hashing). The constraint logic is width-generic over
+    /// `params.state_width` / round counts.
+    ///
+    /// WIDE-DIGEST NOTE: a sponge's collision resistance is bounded by its capacity, not
+    /// just its output width. Over `Complex<Mersenne31>` (~62-bit elements), Poseidon-128
+    /// (capacity 3) caps at ~93-bit collision resistance regardless of output truncation;
+    /// reaching ≥128-bit (libq §9) requires Poseidon-256 (capacity 5 → ~155-bit). Round
+    /// counts over GF(p²) remain unverified — see the crate freeze-gate (ADR 113).
+    pub fn with_params(params: PoseidonParams) -> Self {
+        Self { params }
+    }
+
+    /// Number of intermediate columns this gadget consumes for ONE permutation, for the
+    /// configured parameter set: `(full_rounds + partial_rounds) * (state_width * 3)`.
+    /// Equals [`Self::COLUMNS_PER_HASH`] for Poseidon-128 (width 5 → 960); Poseidon-256
+    /// (width 7, 8 + 60 rounds) → 1428.
+    pub fn columns_per_hash(&self) -> usize {
+        (self.params.full_rounds + self.params.partial_rounds) * (self.params.state_width * 3)
+    }
+
     /// Get the Poseidon parameters
     pub fn params(&self) -> &PoseidonParams {
         &self.params
@@ -128,6 +149,74 @@ impl PoseidonGadget {
         output: AB::Expr,
         intermediate_start_col: usize,
     ) -> Result<(), AirError>
+    where
+        AB::F: Field + BasedVectorSpace<Mersenne31>,
+    {
+        let state = self.constrain_rounds(builder, initial_state, intermediate_start_col)?;
+        builder.assert_eq(state[0].clone(), output);
+        Ok(())
+    }
+
+    /// Like [`Self::constrain_full_state`] but binds the first `outputs.len()` elements of the
+    /// final permutation state to `outputs` — used for WIDE digests. Reaching ≥128-bit
+    /// collision resistance over `Complex<Mersenne31>` needs capacity ≥ 5 (i.e.
+    /// `Poseidon256::params()`) AND a multi-element output (≥5 elements). `outputs.len()` must
+    /// not exceed the state width.
+    pub fn constrain_full_state_wide<AB: AirBuilder>(
+        &self,
+        builder: &mut AB,
+        initial_state: &[AB::Expr],
+        outputs: &[AB::Expr],
+        intermediate_start_col: usize,
+    ) -> Result<(), AirError>
+    where
+        AB::F: Field + BasedVectorSpace<Mersenne31>,
+    {
+        if outputs.len() > self.params.state_width {
+            return Err(AirError::InvalidDimensions {
+                reason: alloc::format!(
+                    "wide output has {} elements, exceeds state width {}",
+                    outputs.len(),
+                    self.params.state_width
+                ),
+            });
+        }
+        let state = self.constrain_rounds(builder, initial_state, intermediate_start_col)?;
+        for (i, out) in outputs.iter().enumerate() {
+            builder.assert_eq(state[i].clone(), out.clone());
+        }
+        Ok(())
+    }
+
+    /// Constrain every round of one Poseidon permutation and RETURN the final-state
+    /// expressions (all `state_width` of them), without binding any output.
+    ///
+    /// Used by multi-row sponge AIRs (M2 wide Merkle / nullifier) that need the FULL output
+    /// state — not just `state[0]` — to carry the capacity into the next permutation row.
+    /// `initial_state` must have exactly `self.params.state_width` elements;
+    /// `intermediate_start_col` is the first trace column holding this permutation's
+    /// intermediate round values ([`Self::columns_per_hash`] columns are consumed).
+    pub fn constrain_permutation<AB: AirBuilder>(
+        &self,
+        builder: &mut AB,
+        initial_state: &[AB::Expr],
+        intermediate_start_col: usize,
+    ) -> Result<Vec<AB::Expr>, AirError>
+    where
+        AB::F: Field + BasedVectorSpace<Mersenne31>,
+    {
+        self.constrain_rounds(builder, initial_state, intermediate_start_col)
+    }
+
+    /// Constrain every round of one permutation and return the final state expressions.
+    /// Shared by [`Self::constrain_full_state`] and [`Self::constrain_full_state_wide`];
+    /// width-generic over `self.params`.
+    fn constrain_rounds<AB: AirBuilder>(
+        &self,
+        builder: &mut AB,
+        initial_state: &[AB::Expr],
+        intermediate_start_col: usize,
+    ) -> Result<Vec<AB::Expr>, AirError>
     where
         AB::F: Field + BasedVectorSpace<Mersenne31>,
     {
@@ -190,8 +279,7 @@ impl PoseidonGadget {
             )?;
         }
 
-        builder.assert_eq(state[0].clone(), output);
-        Ok(())
+        Ok(state)
     }
 
     fn constrain_full_round<AB: AirBuilder>(

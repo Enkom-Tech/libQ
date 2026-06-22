@@ -115,6 +115,11 @@ pub mod api;
 #[cfg(feature = "zkp")]
 pub mod wire;
 
+/// Unlinkable set-membership proofs (libQ `libq.zkfri.membership.v0`): Semaphore/Tornado
+/// nullifier shape over the Poseidon-256 wide-digest Merkle tree. RED (ADR 113 freeze-gate).
+#[cfg(feature = "zkp")]
+pub mod membership;
+
 #[cfg(feature = "zkp")]
 pub use api::{
     MerklePath,
@@ -223,6 +228,19 @@ pub enum ProofMetadata {
         /// Circuit air id
         air_id: u8,
     },
+    /// Unlinkable set-membership proof metadata (`libq.zkfri.membership.v0`)
+    UnlinkableMembership {
+        /// Real Merkle path depth. The verifier authenticates this against the proof's actual
+        /// STARK trace height so the declared depth cannot be relabelled (the depth-confusion
+        /// guard; see `membership::verify_unlinkable_membership_with_config`).
+        tree_depth: u8,
+        /// Wide-digest width in field elements (5 for Poseidon-256)
+        digest_width: u8,
+        /// Whether the proof was produced with the hiding (zero-knowledge) PCS. Selects the
+        /// STARK config type at verification — a ZK proof (`StarkProof<ZkConfig>`) and a
+        /// transparent proof (`StarkProof<DefaultConfig>`) are distinct serialized types.
+        zk: bool,
+    },
 }
 
 /// A zero-knowledge proof
@@ -282,6 +300,7 @@ impl ZkpProof {
     pub fn merkle_tree_depth(&self) -> Option<u8> {
         match &self.metadata {
             ProofMetadata::MerkleInclusion { tree_depth } => Some(*tree_depth),
+            ProofMetadata::UnlinkableMembership { tree_depth, .. } => Some(*tree_depth),
             _ => None,
         }
     }
@@ -745,6 +764,9 @@ impl ZkpVerifier {
                 verify_secret_value_nist_impl(&proof, public_statement)
             }
             ProofMetadata::MerkleInclusion { .. } => verify_membership(&proof, public_statement),
+            ProofMetadata::UnlinkableMembership { .. } => {
+                membership::verify_unlinkable_membership_bytes(&proof, public_statement)
+            }
             _ => Ok(false),
         }
     }

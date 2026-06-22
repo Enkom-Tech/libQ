@@ -204,6 +204,9 @@ pub mod no_std_rng;
 // Deterministic RNG for STARK/ZKP use
 pub mod deterministic_rng;
 pub use deterministic_rng::DeterministicRng;
+
+// Cryptographic (KT128-backed) RNG for ZK hiding salts/blinding
+pub mod kt128_rng;
 pub use kt128_expander::{
     DOMAIN_HPKE_RNG,
     DOMAIN_LIBQ_DET_RNG,
@@ -211,6 +214,7 @@ pub use kt128_expander::{
     KT128_DET_GOLDEN_ZERO_SEED_64,
     Kt128Expander,
 };
+pub use kt128_rng::Kt128Rng;
 
 // Custom entropy source system for no_std/WASM environments
 #[cfg(feature = "custom-entropy")]

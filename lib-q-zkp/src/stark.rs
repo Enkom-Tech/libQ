@@ -91,13 +91,13 @@ pub type ZkValMmcs = MerkleTreeHidingMmcs<
     u8,
     SerializingHasher<Shake256Hash>,
     CompressionFunctionFromHasher<Shake256Hash, 2, 32>,
-    lib_q_random::DeterministicRng,
+    lib_q_random::Kt128Rng,
     32,
     4,
 >;
 pub type ZkChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigVal, ZkValMmcs>;
 pub type ZkPcs =
-    HidingFriPcs<ConfigVal, ConfigDft, ZkValMmcs, ZkChallengeMmcs, lib_q_random::DeterministicRng>;
+    HidingFriPcs<ConfigVal, ConfigDft, ZkValMmcs, ZkChallengeMmcs, lib_q_random::Kt128Rng>;
 pub type ZkConfig =
     StarkConfig<ZkPcs, ConfigVal, ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>>;
 
@@ -800,7 +800,7 @@ pub fn zk_config_with_seeds(val_mmcs_seed: u64, pcs_seed: u64) -> ZkConfig {
     let val_mmcs = ValMmcs::new(
         hash,
         compress,
-        lib_q_random::DeterministicRng::seed_from_u64(val_mmcs_seed),
+        lib_q_random::Kt128Rng::from_u64(val_mmcs_seed),
     );
     let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
     let dft = Dft::default();
@@ -810,7 +810,117 @@ pub fn zk_config_with_seeds(val_mmcs_seed: u64, pcs_seed: u64) -> ZkConfig {
         val_mmcs,
         fri_params,
         4,
-        lib_q_random::DeterministicRng::seed_from_u64(pcs_seed),
+        lib_q_random::Kt128Rng::from_u64(pcs_seed),
+    );
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+
+    StarkConfig::new(pcs, challenger)
+}
+
+/// ZK config with explicit FRI parameters and RNG seeds.
+///
+/// The hiding PCS LDEs the (randomized) trace at `log_blowup + 1`. High-degree AIRs (e.g. the
+/// Poseidon `x⁵` S-box, constraint degree 5) need a LARGER `log_blowup` than low-degree AIRs so
+/// the quotient-evaluation domain stays within the committed LDE — the hiding PCS's
+/// extrapolation fallback for out-of-LDE domains is not implemented. For degree-5 AIRs use
+/// `log_blowup >= 3`.
+#[doc(hidden)]
+pub fn zk_config_with_params(
+    log_blowup: usize,
+    num_queries: usize,
+    proof_of_work_bits: usize,
+    val_mmcs_seed: u64,
+    pcs_seed: u64,
+) -> ZkConfig {
+    use lib_q_stark_fri::FriParameters;
+
+    type ValMmcs = ZkValMmcs;
+    type ChallengeMmcs = ZkChallengeMmcs;
+    type Dft = ConfigDft;
+    type Pcs = ZkPcs;
+    type MyHash = SerializingHasher<Shake256Hash>;
+    type MyCompress = CompressionFunctionFromHasher<Shake256Hash, 2, 32>;
+    type BaseChallenger = Shake256Challenger32<Mersenne31>;
+    type Challenger = ComplexFieldChallenger<BaseChallenger>;
+
+    let shake256 = Shake256Hash {};
+    let hash = MyHash::new(shake256);
+    let compress = MyCompress::new(shake256);
+    let val_mmcs = ValMmcs::new(
+        hash,
+        compress,
+        lib_q_random::Kt128Rng::from_u64(val_mmcs_seed),
+    );
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 0,
+        num_queries,
+        proof_of_work_bits,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = Pcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        lib_q_random::Kt128Rng::from_u64(pcs_seed),
+    );
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Production ZK config seeded from **256-bit CSPRNG entropy** (the hiding secret). Use this
+/// for real zero-knowledge proofs. `val_seed` (hiding-MMCS salts) and `pcs_seed` (blinding
+/// polynomials) MUST be INDEPENDENT, fresh, unpredictable CSPRNG draws — sharing or predicting
+/// them voids hiding. The KT128-backed [`lib_q_random::Kt128Rng`] expands each 256-bit seed
+/// into a cryptographically pseudorandom stream (unlike the xorshift64 `DeterministicRng` used
+/// by the `*_with_seeds`/`*_with_params` test helpers).
+pub fn zk_config_with_seed_bytes(
+    log_blowup: usize,
+    num_queries: usize,
+    proof_of_work_bits: usize,
+    val_seed: [u8; 32],
+    pcs_seed: [u8; 32],
+) -> ZkConfig {
+    use lib_q_stark_fri::FriParameters;
+
+    type ValMmcs = ZkValMmcs;
+    type ChallengeMmcs = ZkChallengeMmcs;
+    type Dft = ConfigDft;
+    type Pcs = ZkPcs;
+    type MyHash = SerializingHasher<Shake256Hash>;
+    type MyCompress = CompressionFunctionFromHasher<Shake256Hash, 2, 32>;
+    type BaseChallenger = Shake256Challenger32<Mersenne31>;
+    type Challenger = ComplexFieldChallenger<BaseChallenger>;
+
+    let shake256 = Shake256Hash {};
+    let hash = MyHash::new(shake256);
+    let compress = MyCompress::new(shake256);
+    let val_mmcs = ValMmcs::new(
+        hash,
+        compress,
+        lib_q_random::Kt128Rng::from_seed_bytes(val_seed),
+    );
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 0,
+        num_queries,
+        proof_of_work_bits,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = Pcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        lib_q_random::Kt128Rng::from_seed_bytes(pcs_seed),
     );
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
