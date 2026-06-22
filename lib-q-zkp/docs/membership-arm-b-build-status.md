@@ -22,7 +22,8 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 4 | 2-to-1 compress + wide Merkle path AIR over BabyBear | **BUILT + TESTED** (6 tests; `compress_bb` + `WideMerklePathBbAir`; wide_hash/wide_merkle folded into these) |
 | 5 | `unlinkable_membership` AIR over BabyBear | **BUILT + TESTED** (10 tests incl unlinkability-across-ctx / linkability-within-ctx / 5 corruption); domain mirrors Arm A — see F8 |
 | 6 | …degree-4 challenge extension F_{p^4} (W=11) | **BUILT + KAT** (30 field tests; 124-bit challenge field) |
-| 6 | prover/verifier (BabyBear TwoAdicFriPcs config, transparent + ZK) | NEXT (6b/6c: config + prove/verify) |
+| 6 | prover/verifier — **transparent** (BabyBear TwoAdicFriPcs) | **BUILT + WORKS** (prove→verify roundtrip + tampered-reject, depth 4) — see F9 |
+| 6 | prover/verifier — ZK/hiding (HidingFriPcs) | NEXT |
 | — | dual-arm measurement table | NOT STARTED |
 | — | Arm B obligation packet | NOT STARTED |
 | — | red-team / known-weaknesses list | accumulating in this doc |
@@ -173,6 +174,33 @@ row 0 carries the real witness, rows 1.. hash a zero preimage, bindings gated to
 honest roundtrip (depths 1/2/4/8); **unlinkability-across-ctx**; **linkability-within-ctx**; a
 circuit-level "same member under two ctx ⇒ both verify with different public N"; and 5 corruption
 rejections (public nullifier / ctx / root, wrong sibling, wrong secret `t`). Tier RED.
+
+### F9 — Membership AIR max constraint degree is 14 (→ FRI log_blowup 4), and a step-1 DFT-roots bug the unit tests missed.
+Two things surfaced building the real prover (`stark_baby_bear.rs`):
+- **Degree 14 / log_blowup 4.** The Merkle direction-select `left = running + dir·(sibling−running)`
+  is degree 2; fed into the degree-7 Poseidon2 S-box it yields a **degree-14** constraint, so the
+  FRI `log_blowup` must be **4** (blowup 16). A pure-hash AIR (leaf/nullifier, degree-1 inputs) is
+  degree 7 → log_blowup 3. **Arm A has the analogous issue** (degree-2 select × x⁵ ⇒ degree 10).
+  *Optimization (noted for the measurement):* storing the direction-selected node input in witness
+  columns (with a degree-2 selection constraint) drops the membership AIR to degree 7 / log_blowup 3
+  and shrinks proofs — the measurement table should either apply this to both arms or report the
+  un-optimized degree honestly so the A-vs-B comparison is apples-to-apples.
+- **Step-1 bug caught by the prover.** `lib-q-stark-baby-bear`'s `ROOTS_8`/`ROOTS_16` were length
+  3/7 (I followed a misleading `data_traits` "first 3/7" comment); the radix-2 DFT `forward_pass`
+  asserts `roots.len() == input.len()/2`, requiring **4/8**. The 30 field unit tests passed anyway
+  (they don't exercise the size-16 DFT block); only the end-to-end prover hit it. Fixed + cross-checked
+  vs canonical Plonky3 in `gen_constants.py`. **Lesson for the paper: unit-green ≠ exercised** — the
+  integration prover is what validated the DFT path.
+
+## Step 6 — BabyBear STARK prover/verifier (transparent DONE; ZK next)
+
+`lib-q-zkp/src/stark_baby_bear.rs`: `BbConfig = StarkConfig<TwoAdicFriPcs<BabyBear, RecursiveDft,
+MerkleTreeMmcs<…Shake256…>, ExtensionMmcs>, BinomialExtensionField<BabyBear,4>,
+Shake256Challenger32<BabyBear>>`. The challenger is the prime-field `SerializingChallenger` directly
+(BabyBear is `PrimeField32`) — no `ComplexFieldChallenger` wrapper (Arm A needs one because its Val
+is a complex field). `prove_membership_bb`/`verify_membership_bb` **work end-to-end**: a depth-4
+roundtrip proves, verifies, and rejects a tampered nullifier (~4.7s debug). FRI: `log_blowup=4`,
+`num_queries=100`, `proof_of_work_bits=16`. Tier RED — a working STARK is not a *sound* one.
 
 ## Open scope (honest)
 
