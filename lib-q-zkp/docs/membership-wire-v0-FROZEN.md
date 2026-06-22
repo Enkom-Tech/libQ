@@ -54,14 +54,36 @@ libQ derives `ctx` as a **32-byte K12 digest** under label `libq.member.ctx.v0`
 (`group_id ‖ epoch ‖ topic`), per libq-unlinkable-membership §5.1/§9 and the K12 registry. The
 lib-Q **circuit input is 2 `GF(p²)` elements = 16 bytes**, NOT 32. The mapping from libQ's 32-byte
 K12 `ctx` into the circuit's `[2 × GF(p²)]` input is **libQ's to fix** and MUST be deterministic
-and identical on prover and verifier. Recommended (to be confirmed in the libQ spec): derive the
-2 field elements by canonical-checked decode of the **first 16 bytes** of the K12 `ctx` digest
-(rejection-resampling/re-squeeze the K12 stream on the ~`2·2⁻³¹` chance a 4-byte limb lands
-`≥ 2³¹−1`). **Caveat:** the circuit `ctx` carries ~62 bits of entropy (2 cells), so distinct libQ
-`ctx` strings collide in the circuit domain at a ~`2³¹` birthday bound; this affects *linkage
-domain separation*, not membership soundness. If libQ needs full 256-bit `ctx` separation in the
-circuit it must request a **wider `ctx` input** (`CTX_ELEMS`) at the next wire revision. lib-Q
-freezes `CTX_ELEMS = 2` / `CTX_BYTES = 16` for `v0`.
+and identical on prover and verifier.
+
+**Effective ctx separation = ~124 bits (corrected; card t_bab219ba).** Each `GF(p²)` element is a
+**pair** `(real, imag)` of canonical `Mersenne31` limbs (`< 2³¹−1`, ~31 bits *each*), so one
+element ≈ 62 bits and the 2-element / 4-limb `ctx` domain is `(2³¹−1)⁴ ≈ 2¹²⁴`. The AIR ingests
+`ctx` at **full width** — `field_from_canonical_le` fills both limbs; the nullifier sponge absorbs
+both whole elements (`state[absorbed] += e` over the full extension element, RATE 2); and the row-0
+binding `ctx_cols[i] == pub_ctx[i]` is full extension-field equality — so there is **no in-circuit
+entropy reduction**. Consequently: **any-pair birthday ≈ 2⁶²**, **targeted de-link
+(second-preimage, force a chosen context onto a victim's `ctx`) ≈ 2¹²⁴**. The verifier *pins* `ctx`
+to the expected operation context (libq-unlinkable-membership §5.4 `BadContext`), so the operative
+de-link attack is the **targeted ~2¹²⁴**, not the birthday. lib-Q's byte decode is **injective**
+(O6), so two distinct accepted 16-byte `ctx` never collide in-circuit — the *only* collision surface
+is libQ's own 32→16-byte compression into the 124-bit canonical domain.
+> An earlier draft of this section said "~62 bits / ~2³¹ birthday" — that was an **undercount** (it
+> counted one limb, ~31 bits, per `GF(p²)` element instead of the real+imag pair, ~62 bits). The
+> correct figures are ~124 bits / ~2⁶² birthday / ~2¹²⁴ targeted.
+
+**libQ mapping note (corrected rejection rate).** lib-Q's decoders **reject** any limb `≥ 2³¹−1`, and
+a uniform 4-byte word is non-canonical with probability `(2³¹+1)/2³² ≈ ½` (NOT ~`2·2⁻³¹`), so a
+naïve "decode the first 16 bytes" lands fully canonical only ~`1/16` of the time. libQ's mapping must
+therefore land in the canonical domain — recommended: derive each of the 4 `Mersenne31` limbs by
+reducing a fresh ≥40-bit K12 word mod `2³¹−1` (negligible ~`2⁻³³` bias) and serialize canonically
+(`as_canonical_u32` LE), giving the full ~124-bit `ctx` with no rejection loop.
+
+**Freeze decision.** `CTX_ELEMS = 2` / `CTX_BYTES = 16` is **frozen for `v0`**: ~2¹²⁴ targeted /
+~2⁶² birthday is sufficient for the linkage-domain-separation role (`ctx` is not a security-bearing
+collision target like the Merkle nodes, which are 5 elements / ≥128-bit by §9). If libQ later needs
+full 256-bit in-circuit `ctx` separation, that requires a **wider `CTX_ELEMS`** at a future wire
+revision (`v1`).
 
 ---
 
