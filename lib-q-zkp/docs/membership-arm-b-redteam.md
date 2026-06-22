@@ -151,8 +151,11 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
    both arms.
 9. **(perf, optional)** Reduce Arm B membership to degree 7 (store the direction-selected node input)
    for a fair `log_blowup` row and ~halved proofs.
-10. **(scope)** `lib-q-zkp` `--no-default-features` no_std is pre-existing-broken (`ip/recovery_policy*`,
-    F7); not an Arm-B regression, but the membership FFI verify path's true-no_std story depends on it.
+10. **(scope) — DONE.** `lib-q-zkp` true-no_std (`--no-default-features --features alloc,zkp`) now
+    builds clean: added the missing `alloc::format` / `alloc::string::ToString` imports to
+    `ip/recovery_policy*` and dequalified two `String::from` sites in `air/mod.rs` (F7 resolved). The
+    membership FFI verify path is now true-no_std-buildable; no behavior change (53 lib tests green,
+    std + wasm32 builds unchanged).
 
 **Bottom line:** no circuit-soundness break was found in Arm B's AIRs (every stored column is pinned and
 corruption-tested); the open items are the genuine cryptographic obligations + a handful of

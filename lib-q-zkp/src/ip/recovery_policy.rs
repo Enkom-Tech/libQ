@@ -2,6 +2,8 @@
 
 extern crate alloc;
 
+use alloc::format;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 
 use lib_q_core::Result;
