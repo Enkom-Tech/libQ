@@ -17,7 +17,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 1 | `lib-q-stark-baby-bear` base field (modulus, Montgomery, 2-adic table) | **BUILT + KAT-GREEN** (24 tests; wasm + no_std clean) |
 | 1 | …degree-4 binomial extension for FRI challenges + DFT exposure | TODO (deferred to step 6 — only the PCS needs it; steps 2-5 are base-field) |
 | 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 reference vectors; wasm + no_std clean) — see Finding F6 on validation level |
-| 3 | Poseidon2 in-circuit gadget (AIR) + property test | NOT STARTED |
+| 3 | Poseidon2 in-circuit gadget (AIR) + property test | DESIGN LOCKED (membership-arm-b-poseidon2-gadget-design.md); impl + tests next |
 | 4 | wide sponge/hash/merkle/merkle_path over BabyBear (t16/r7/c9/w9) | NOT STARTED |
 | 5 | `unlinkable_membership` AIR over BabyBear | NOT STARTED |
 | 6 | prover/verifier (BabyBear `TwoAdicFriPcs` config), transparent + ZK | NOT STARTED |
