@@ -53,6 +53,7 @@ members = [
     # STARK
     "lib-q-stark",
     "lib-q-stark-air",
+    "lib-q-stark-baby-bear",
     "lib-q-stark-challenger",
     "lib-q-stark-commit",
     "lib-q-stark-dft",

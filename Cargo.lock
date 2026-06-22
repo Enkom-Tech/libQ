@@ -1811,6 +1811,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-stark-baby-bear"
+version = "0.0.7"
+dependencies = [
+ "lib-q-stark-field",
+ "lib-q-stark-field-testing",
+ "lib-q-stark-monty31",
+ "num-bigint",
+ "rand 0.10.1",
+]
+
+[[package]]
 name = "lib-q-stark-challenger"
 version = "0.0.7"
 dependencies = [
