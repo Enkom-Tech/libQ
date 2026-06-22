@@ -1434,6 +1434,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-mve"
+version = "0.0.7"
+dependencies = [
+ "lib-q-core",
+ "lib-q-k12",
+ "lib-q-ml-kem",
+ "lib-q-poseidon",
+ "lib-q-random",
+ "lib-q-stark",
+ "lib-q-stark-air",
+ "lib-q-stark-field",
+ "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
+ "lib-q-zkp",
+]
+
+[[package]]
 name = "lib-q-platform"
 version = "0.0.7"
 dependencies = [
