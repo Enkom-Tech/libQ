@@ -6,6 +6,7 @@
 
 use lib_q_stark_monty31::{
     BarrettParameters,
+    BinomialExtensionData,
     FieldParameters,
     MontyField31,
     MontyParameters,
@@ -114,6 +115,40 @@ impl TwoAdicData for BabyBearParameters {
     ];
 }
 
+/// Degree-4 binomial extension `F_{p^4} = F_p[x]/(x^4 - 11)` — the FRI **challenge field**
+/// (`4 * log2 p ≈ 124` bits). BabyBear's base field (31 bits) is far too small to double as the
+/// challenge field (unlike Arm A's `Complex<Mersenne31>` at 62 bits), so this extension is
+/// mandatory for FRI soundness. Constants transcribed verbatim from canonical Plonky3 and
+/// independently re-validated by `tools/gen_constants.py` (x^4-11 irreducible, `DTH_ROOT`,
+/// `EXT_TWO_ADICITY = 29`, the 2^28/2^29 extension generators).
+impl BinomialExtensionData<4> for BabyBearParameters {
+    const W: MontyField31<Self> = MontyField31::new(11);
+    const DTH_ROOT: MontyField31<Self> = MontyField31::new(1728404513);
+    const EXT_GENERATOR: [MontyField31<Self>; 4] = [
+        MontyField31::new(8),
+        MontyField31::new(1),
+        MontyField31::new(0),
+        MontyField31::new(0),
+    ];
+    const EXT_TWO_ADICITY: usize = 29;
+
+    type ArrayLike = [[MontyField31<Self>; 4]; 2];
+    const TWO_ADIC_EXTENSION_GENERATORS: Self::ArrayLike = [
+        [
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(1996171314),
+            MontyField31::new(0),
+        ],
+        [
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(124907976),
+        ],
+    ];
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
@@ -151,4 +186,19 @@ mod tests {
     test_prime_field_64!(crate::BabyBear, &super::ZEROS, &super::ONES);
     test_prime_field_32!(crate::BabyBear, &super::ZEROS, &super::ONES);
     test_two_adic_field!(crate::BabyBear);
+}
+
+/// Degree-4 binomial extension `F_{p^4}` (the FRI challenge field) — in its own module so the
+/// `test_two_adic_extension_field!` macro's internal `test_two_adic_field` import does not clash.
+#[cfg(test)]
+mod ext4_tests {
+    use lib_q_stark_field_testing::{
+        test_extension_field,
+        test_two_adic_extension_field,
+    };
+
+    type EF4 = lib_q_stark_field::extension::BinomialExtensionField<crate::BabyBear, 4>;
+
+    test_extension_field!(crate::BabyBear, super::EF4);
+    test_two_adic_extension_field!(crate::BabyBear, super::EF4);
 }

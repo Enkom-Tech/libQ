@@ -102,4 +102,45 @@ print("const INV_ROOTS_8:  &[MontyField31<BabyBearParameters>; 3] = &" + rust_ar
 print("const ROOTS_16:     &[MontyField31<BabyBearParameters>; 7] = &" + rust_arr(ROOTS_16) + ";")
 print("const INV_ROOTS_16: &[MontyField31<BabyBearParameters>; 7] = &" + rust_arr(INV_ROOTS_16) + ";")
 
+# ===== Degree-4 binomial extension F_{p^4} = F_p[x]/(x^4 - W4), W4 = 11 (FRI challenge field) =====
+W4 = 11
+def e_mul(a, b):
+    r = [0] * 7
+    for i in range(4):
+        for j in range(4):
+            r[i + j] = (r[i + j] + a[i] * b[j]) % P
+    for k in range(6, 3, -1):  # x^4=W4, x^5=W4*x, x^6=W4*x^2
+        r[k - 4] = (r[k - 4] + W4 * r[k]) % P
+        r[k] = 0
+    return r[:4]
+def e_pow(a, n):
+    res, base = [1, 0, 0, 0], a[:]
+    while n > 0:
+        if n & 1:
+            res = e_mul(res, base)
+        base = e_mul(base, base)
+        n >>= 1
+    return res
+ONE_E = [1, 0, 0, 0]
+X = [0, 1, 0, 0]
+# x^4 - 11 irreducible iff x has degree 4 over F_p:
+assert e_pow(X, P) != X and e_pow(X, P * P) != X and e_pow(X, P**4) == X, "x^4-11 not irreducible"
+dth4 = pow(W4, (P - 1) // 4, P)
+print(f"\ndeg4 W=11  DTH_ROOT = {dth4}  (expect 1728404513)")
+assert dth4 == 1728404513
+o = P**4 - 1
+ta4 = 0
+while o % 2 == 0:
+    o //= 2; ta4 += 1
+print(f"deg4 EXT_TWO_ADICITY = {ta4}  (expect 29)")
+assert ta4 == 29
+g28 = [0, 0, 1996171314, 0]
+g29 = [0, 0, 0, 124907976]
+assert e_pow(g28, 2**28) == ONE_E and e_pow(g28, 2**27) != ONE_E, "TWO_ADIC_EXT_GEN[0] not order 2^28"
+assert e_pow(g29, 2**29) == ONE_E and e_pow(g29, 2**28) != ONE_E, "TWO_ADIC_EXT_GEN[1] not order 2^29"
+EG = [8, 1, 0, 0]  # EXT_GENERATOR = 8 + x
+assert e_pow(EG, P) != EG and e_pow(EG, P * P) != EG, "EXT_GENERATOR not a degree-4 (primitive-field) element"
+print("DEG-4 EXTENSION CHECKS PASSED: irreducible x^4-11, DTH_ROOT, two-adicity 29, ext 2-adic gens (orders 2^28/2^29), EXT_GENERATOR degree 4")
+print("(EXT_GENERATOR full multiplicative-generator order requires factoring p^4-1; value transcribed verbatim from canonical Plonky3.)")
+
 print("\nALL CHECKS PASSED")
