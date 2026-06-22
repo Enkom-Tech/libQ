@@ -33,11 +33,16 @@ use lib_q_stark_challenger::Shake256Challenger32;
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::Field;
 use lib_q_stark_field::extension::BinomialExtensionField;
+use lib_q_random::Kt128Rng;
 use lib_q_stark_fri::{
     FriParameters,
+    HidingFriPcs,
     TwoAdicFriPcs,
 };
-use lib_q_stark_merkle::MerkleTreeMmcs;
+use lib_q_stark_merkle::{
+    MerkleTreeHidingMmcs,
+    MerkleTreeMmcs,
+};
 use lib_q_stark_shake256::Shake256Hash;
 use lib_q_stark_symmetric::{
     CompressionFunctionFromHasher,
@@ -130,6 +135,91 @@ pub fn verify_membership_bb(
     verify(config, &UnlinkableMembershipBbAir, proof, &pubs).is_ok()
 }
 
+// ============================= ZK / hiding variant ==============================
+
+/// Hiding (ZK) main-trace Merkle commitment: salts each leaf with a `Kt128Rng` so the proof
+/// reveals nothing about the witness trace.
+pub type ZkBbValMmcs = MerkleTreeHidingMmcs<
+    <BabyBear as Field>::Packing,
+    u8,
+    SerializingHasher<Shake256Hash>,
+    CompressionFunctionFromHasher<Shake256Hash, 2, 32>,
+    Kt128Rng,
+    32,
+    4,
+>;
+/// Hiding challenge-field commitment.
+pub type ZkBbChallengeMmcs = ExtensionMmcs<BabyBear, BbChallenge, ZkBbValMmcs>;
+/// Hiding FRI PCS (randomized openings + blinded trace).
+pub type ZkBbPcs = HidingFriPcs<BabyBear, BabyBearDft, ZkBbValMmcs, ZkBbChallengeMmcs, Kt128Rng>;
+/// Zero-knowledge BabyBear STARK config.
+pub type ZkBbConfig = StarkConfig<ZkBbPcs, BbChallenge, BbChallenger>;
+
+/// Minimum ZK trace depth (rows) — the hiding randomization needs enough rows; mirrors Arm A.
+pub const MIN_ZK_DEPTH: usize = 8;
+
+/// Construct a ZK/hiding BabyBear config. `val_seed` (MMCS leaf salts) and `pcs_seed` (FRI
+/// blinding) MUST be independent 32-byte CSPRNG seeds in production.
+pub fn zk_config_bb(
+    log_blowup: usize,
+    num_queries: usize,
+    proof_of_work_bits: usize,
+    val_seed: [u8; 32],
+    pcs_seed: [u8; 32],
+) -> ZkBbConfig {
+    let shake = Shake256Hash {};
+    let hash = SerializingHasher::new(shake);
+    let compress = CompressionFunctionFromHasher::new(shake);
+    let val_mmcs = ZkBbValMmcs::new(hash, compress, Kt128Rng::from_seed_bytes(val_seed));
+    let challenge_mmcs = ZkBbChallengeMmcs::new(val_mmcs.clone());
+    let dft = BabyBearDft::default();
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 0,
+        num_queries,
+        proof_of_work_bits,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = ZkBbPcs::new(dft, val_mmcs, fri_params, 4, Kt128Rng::from_seed_bytes(pcs_seed));
+    let challenger = BbChallenger::from_hasher(Vec::new(), Shake256Hash {});
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Default ZK config: `log_blowup = 4` (membership max degree 14), `num_queries = 100`,
+/// `proof_of_work_bits = 16`.
+pub fn default_zk_config_bb(val_seed: [u8; 32], pcs_seed: [u8; 32]) -> ZkBbConfig {
+    zk_config_bb(4, 100, 16, val_seed, pcs_seed)
+}
+
+/// Prove an unlinkable-membership statement in zero knowledge. `path_bits.len()` must be a
+/// power of two and `>= MIN_ZK_DEPTH` (the trace height).
+pub fn prove_membership_bb_zk(
+    config: &ZkBbConfig,
+    t: &[BabyBear; SECRET_T_ELEMS],
+    ctx: &[BabyBear; CTX_ELEMS],
+    path_bits: &[bool],
+    siblings: &[WideDigestBb],
+    root: &WideDigestBb,
+) -> Result<(WideDigestBb, StarkProof<ZkBbConfig>), ProverError> {
+    let trace = generate_membership_trace_bb(t, ctx, path_bits, siblings);
+    let nullifier = membership_nullifier_bb(t, ctx);
+    let pubs = membership_public_values_bb(root, ctx, &nullifier);
+    let proof = prove(config, &UnlinkableMembershipBbAir, trace, &pubs)?;
+    Ok((nullifier, proof))
+}
+
+/// Verify a ZK unlinkable-membership proof.
+pub fn verify_membership_bb_zk(
+    config: &ZkBbConfig,
+    proof: &StarkProof<ZkBbConfig>,
+    root: &WideDigestBb,
+    ctx: &[BabyBear; CTX_ELEMS],
+    nullifier: &WideDigestBb,
+) -> bool {
+    let pubs = membership_public_values_bb(root, ctx, nullifier);
+    verify(config, &UnlinkableMembershipBbAir, proof, &pubs).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
@@ -203,5 +293,31 @@ mod tests {
         let mut bad = nullifier;
         bad[0] = bad[0] + BabyBear::ONE;
         assert!(!verify_membership_bb(&config, &proof, &root, &ctx, &bad), "tampered nullifier rejected");
+    }
+
+    #[test]
+    fn membership_zk_prove_verify_roundtrip() {
+        let val_seed = [7u8; 32];
+        let pcs_seed = [42u8; 32]; // independent of val_seed
+        let config = default_zk_config_bb(val_seed, pcs_seed);
+        let depth = MIN_ZK_DEPTH; // 8 = power of two, no path padding needed
+        let t = t_from_seed(5);
+        let ctx = ctx_from_seed(6);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, depth, 11);
+
+        let (nullifier, proof) =
+            prove_membership_bb_zk(&config, &t, &ctx, &bits, &sibs, &root).expect("zk prove");
+        assert!(
+            verify_membership_bb_zk(&config, &proof, &root, &ctx, &nullifier),
+            "honest ZK proof verifies"
+        );
+
+        let mut bad = nullifier;
+        bad[0] = bad[0] + BabyBear::ONE;
+        assert!(
+            !verify_membership_bb_zk(&config, &proof, &root, &ctx, &bad),
+            "tampered ZK nullifier rejected"
+        );
     }
 }
