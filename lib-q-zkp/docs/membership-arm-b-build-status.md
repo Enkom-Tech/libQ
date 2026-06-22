@@ -129,20 +129,32 @@ party (published vector, or upstream binary if the sandbox is later allowed) bef
 4 tests green (3 KAT + a diffusion smoke), `wasm32` + `--no-default-features` clean. Generator:
 `lib-q-poseidon/tools/gen_poseidon2_ref.py`.
 
-### F7 — `lib-q-zkp` is wasm-clean only WITH `std`; its `--no-default-features` no_std build is pre-existing-broken.
+### F7 — RESOLVED: the membership verify path now builds **true no_std** (`no_std + alloc`).
 The project's wasm path (CI `ci.yml` "full workspace wasm32 compile, default features") builds
 `lib-q-zkp` with its **default `std` feature**, and `std` *does* compile for
-`wasm32-unknown-unknown` (providing `format!`/`ToString`). `cargo build -p lib-q-zkp --target
-wasm32-unknown-unknown` (default features) **passes** with the Arm B gadget — verified. However,
-`--no-default-features` (true no_std) fails to compile in `lib-q-zkp/src/ip/recovery_policy*.rs`
-(they `use alloc::vec::Vec` but call `format!` without `use alloc::format`), plus a couple of
-`air/mod.rs`/`lib.rs` sites. These are **untouched-by-Arm-B modules** — a pre-existing gap, not a
-regression. Arm B's own code IS no_std-clean: `lib-q-stark-baby-bear` and `lib-q-poseidon`'s
-`poseidon2_baby_bear` build `--no-default-features`/wasm cleanly (verified steps 1–2), and the
-gadget module uses only `alloc::vec::Vec` + field ops. **Note for the paper / freeze:** the Arm B
-*membership verify* path's true-no_std story depends on either fixing those `recovery_policy`
-`format!` sites (1-line `use alloc::format;` each) or feature-gating the `ip` module out of no_std
-builds. Flagged for the human; out of scope for the Arm B layers themselves.
+`wasm32-unknown-unknown` (providing `format!`/`ToString`). That always worked. The gap was the
+**true no_std** build — `--no-default-features --features alloc,zkp` — which failed to compile in a
+handful of **untouched-by-Arm-B modules**:
+- `ip/recovery_policy.rs`, `ip/recovery_policy_hybrid.rs`: `use alloc::vec::Vec` but called `format!`
+  (no `use alloc::format`) and `.to_string()` on `AirError` (no `use alloc::string::ToString`).
+- `air/mod.rs`: two `alloc::string::String::from(...)` sites tripped `#![deny(unused_qualifications)]`
+  in the no_std config (`String` is already imported).
+
+**Fix (this branch):** added `use alloc::format;` + `use alloc::string::ToString;` to both
+`recovery_policy*` files, and dequalified the two `String::from` sites in `air/mod.rs`. Purely
+additive imports + a cosmetic dequalification — **no behavior change** (recovery_policy 7 + membership
+46 lib tests still green; default `std` build + `wasm32` build unchanged). The canonical true-no_std
+invocation is now:
+
+```
+cargo build -p lib-q-zkp --no-default-features --features alloc,zkp
+```
+
+This **compiles clean** (only 4 pre-existing dead-code warnings for unused `*_col` helpers in
+`poseidon2_gadget.rs`, present in the std build too). Note `--no-default-features` with *no* `alloc`
+can never compile — the crate's core public types (`ZkpProof::data: Vec<u8>`, `ProofMetadata`) require
+`alloc`; "no_std" here means *no_std + alloc*, the embedded/wasm sense. Arm B's own lower layers were
+already no_std-clean (`lib-q-stark-baby-bear`, `lib-q-poseidon::poseidon2_baby_bear`, the gadget).
 
 ## Step 3 — in-circuit Poseidon2-BabyBear AIR gadget (DONE, tested)
 

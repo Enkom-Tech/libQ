@@ -594,17 +594,13 @@ pub fn merkle_root_from_bytes(bytes: &[u8]) -> Result<PoseidonField, AirError> {
     let real =
         Mersenne31::from_canonical_checked(u32::from_le_bytes(real_bytes)).ok_or_else(|| {
             AirError::InvalidInput {
-                reason: alloc::string::String::from(
-                    "non-canonical real limb in merkle root (>= 2^31-1)",
-                ),
+                reason: String::from("non-canonical real limb in merkle root (>= 2^31-1)"),
             }
         })?;
     let imag =
         Mersenne31::from_canonical_checked(u32::from_le_bytes(imag_bytes)).ok_or_else(|| {
             AirError::InvalidInput {
-                reason: alloc::string::String::from(
-                    "non-canonical imag limb in merkle root (>= 2^31-1)",
-                ),
+                reason: String::from("non-canonical imag limb in merkle root (>= 2^31-1)"),
             }
         })?;
     Ok(Complex::new_complex(real, imag))
