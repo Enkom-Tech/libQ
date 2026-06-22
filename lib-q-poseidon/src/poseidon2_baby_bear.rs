@@ -43,28 +43,32 @@ pub const SBOX_DEGREE: u64 = 7;
 // ---- Round constants (canonical form; `new` converts to Montgomery). ----
 // Emitted by tools/gen_poseidon2_ref.py from Plonky3 baby-bear/src/poseidon2.rs.
 
-const RC_EXTERNAL_INITIAL: [[BabyBear; 16]; 4] = [
+/// Initial external round constants (4 rounds × 16). `pub` for the in-circuit AIR gadget.
+pub const RC_EXTERNAL_INITIAL: [[BabyBear; 16]; 4] = [
     [BabyBear::new(1774958255), BabyBear::new(1185780729), BabyBear::new(1621102414), BabyBear::new(1796380621), BabyBear::new(588815102), BabyBear::new(1932426223), BabyBear::new(1925334750), BabyBear::new(747903232), BabyBear::new(89648862), BabyBear::new(360728943), BabyBear::new(977184635), BabyBear::new(1425273457), BabyBear::new(256487465), BabyBear::new(1200041953), BabyBear::new(572403254), BabyBear::new(448208942)],
     [BabyBear::new(1215789478), BabyBear::new(944884184), BabyBear::new(953948096), BabyBear::new(547326025), BabyBear::new(646827752), BabyBear::new(889997530), BabyBear::new(1536873262), BabyBear::new(86189867), BabyBear::new(1065944411), BabyBear::new(32019634), BabyBear::new(333311454), BabyBear::new(456061748), BabyBear::new(1963448500), BabyBear::new(1827584334), BabyBear::new(1391160226), BabyBear::new(1348741381)],
     [BabyBear::new(88424255), BabyBear::new(104111868), BabyBear::new(1763866748), BabyBear::new(79691676), BabyBear::new(1988915530), BabyBear::new(1050669594), BabyBear::new(359890076), BabyBear::new(573163527), BabyBear::new(222820492), BabyBear::new(159256268), BabyBear::new(669703072), BabyBear::new(763177444), BabyBear::new(889367200), BabyBear::new(256335831), BabyBear::new(704371273), BabyBear::new(25886717)],
     [BabyBear::new(51754520), BabyBear::new(1833211857), BabyBear::new(454499742), BabyBear::new(1384520381), BabyBear::new(777848065), BabyBear::new(1053320300), BabyBear::new(1851729162), BabyBear::new(344647910), BabyBear::new(401996362), BabyBear::new(1046925956), BabyBear::new(5351995), BabyBear::new(1212119315), BabyBear::new(754867989), BabyBear::new(36972490), BabyBear::new(751272725), BabyBear::new(506915399)],
 ];
 
-const RC_EXTERNAL_FINAL: [[BabyBear; 16]; 4] = [
+/// Terminal external round constants (4 rounds × 16). `pub` for the in-circuit AIR gadget.
+pub const RC_EXTERNAL_FINAL: [[BabyBear; 16]; 4] = [
     [BabyBear::new(1922082829), BabyBear::new(1870549801), BabyBear::new(1502529704), BabyBear::new(1990744480), BabyBear::new(1700391016), BabyBear::new(1702593455), BabyBear::new(321330495), BabyBear::new(528965731), BabyBear::new(183414327), BabyBear::new(1886297254), BabyBear::new(1178602734), BabyBear::new(1923111974), BabyBear::new(744004766), BabyBear::new(549271463), BabyBear::new(1781349648), BabyBear::new(542259047)],
     [BabyBear::new(1536158148), BabyBear::new(715456982), BabyBear::new(503426110), BabyBear::new(340311124), BabyBear::new(1558555932), BabyBear::new(1226350925), BabyBear::new(742828095), BabyBear::new(1338992758), BabyBear::new(1641600456), BabyBear::new(1843351545), BabyBear::new(301835475), BabyBear::new(43203215), BabyBear::new(386838401), BabyBear::new(1520185679), BabyBear::new(1235297680), BabyBear::new(904680097)],
     [BabyBear::new(1491801617), BabyBear::new(1581784677), BabyBear::new(913384905), BabyBear::new(247083962), BabyBear::new(532844013), BabyBear::new(107190701), BabyBear::new(213827818), BabyBear::new(1979521776), BabyBear::new(1358282574), BabyBear::new(1681743681), BabyBear::new(1867507480), BabyBear::new(1530706910), BabyBear::new(507181886), BabyBear::new(695185447), BabyBear::new(1172395131), BabyBear::new(1250800299)],
     [BabyBear::new(1503161625), BabyBear::new(817684387), BabyBear::new(498481458), BabyBear::new(494676004), BabyBear::new(1404253825), BabyBear::new(108246855), BabyBear::new(59414691), BabyBear::new(744214112), BabyBear::new(890862029), BabyBear::new(1342765939), BabyBear::new(1417398904), BabyBear::new(1897591937), BabyBear::new(1066647396), BabyBear::new(1682806907), BabyBear::new(1015795079), BabyBear::new(1619482808)],
 ];
 
-const RC_INTERNAL: [BabyBear; 13] = [
+/// Internal (partial) round constants (13). `pub` for the in-circuit AIR gadget.
+pub const RC_INTERNAL: [BabyBear; 13] = [
     BabyBear::new(1518359488), BabyBear::new(1765533241), BabyBear::new(945325693), BabyBear::new(422793067), BabyBear::new(311365592), BabyBear::new(1311448267), BabyBear::new(1629555936), BabyBear::new(1009879353), BabyBear::new(190525218), BabyBear::new(786108885), BabyBear::new(557776863), BabyBear::new(212616710), BabyBear::new(605745517),
 ];
 
 /// The internal-layer diagonal `V` (= `mat_internal_diag_m_1`), computed from the
 /// documented BabyBear width-16 vector. `M_internal = 1 (all-ones) + diag(V)`.
+/// The internal-layer diagonal `V` (`pub` for the in-circuit AIR gadget).
 #[inline]
-fn internal_diag() -> [BabyBear; WIDTH] {
+pub fn internal_diag() -> [BabyBear; WIDTH] {
     let one = BabyBear::ONE;
     let three = BabyBear::new(3);
     let four = BabyBear::new(4);
@@ -153,36 +157,76 @@ fn internal_linear_layer(state: &mut [BabyBear; WIDTH], diag: &[BabyBear; WIDTH]
     }
 }
 
-/// The full width-16 Poseidon2 permutation over BabyBear.
-pub fn permute(mut state: [BabyBear; WIDTH]) -> [BabyBear; WIDTH] {
+/// All intermediate values of one permutation, in the order the in-circuit AIR gadget
+/// stores them. `begin_sbox[r]`/`end_sbox[r]` are the post-S-box states of full round `r`;
+/// `begin_post[r]`/`end_post[r]` are the states after that round's external linear layer;
+/// `partial_post_sbox[r]` is the lane-0 S-box output of partial round `r`. `output` is the
+/// final state (`= end_post[HALF_FULL_ROUNDS-1]`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Poseidon2Trace {
+    pub begin_sbox: [[BabyBear; WIDTH]; HALF_FULL_ROUNDS],
+    pub begin_post: [[BabyBear; WIDTH]; HALF_FULL_ROUNDS],
+    pub partial_post_sbox: [BabyBear; PARTIAL_ROUNDS],
+    pub end_sbox: [[BabyBear; WIDTH]; HALF_FULL_ROUNDS],
+    pub end_post: [[BabyBear; WIDTH]; HALF_FULL_ROUNDS],
+    pub output: [BabyBear; WIDTH],
+}
+
+/// The full width-16 Poseidon2 permutation over BabyBear, recording every intermediate
+/// value the AIR gadget needs. This is the single source of truth: [`permute`] is a thin
+/// wrapper returning only `.output`.
+pub fn permute_with_trace(mut state: [BabyBear; WIDTH]) -> Poseidon2Trace {
     let diag = internal_diag();
+    let z = BabyBear::ZERO;
+    let mut begin_sbox = [[z; WIDTH]; HALF_FULL_ROUNDS];
+    let mut begin_post = [[z; WIDTH]; HALF_FULL_ROUNDS];
+    let mut partial_post_sbox = [z; PARTIAL_ROUNDS];
+    let mut end_sbox = [[z; WIDTH]; HALF_FULL_ROUNDS];
+    let mut end_post = [[z; WIDTH]; HALF_FULL_ROUNDS];
 
     // Initial external linear layer.
     external_linear_layer(&mut state);
 
     // Initial full rounds.
-    for rc in RC_EXTERNAL_INITIAL.iter() {
+    for r in 0..HALF_FULL_ROUNDS {
         for i in 0..WIDTH {
-            state[i] = sbox(state[i] + rc[i]);
+            state[i] = sbox(state[i] + RC_EXTERNAL_INITIAL[r][i]);
         }
+        begin_sbox[r] = state;
         external_linear_layer(&mut state);
+        begin_post[r] = state;
     }
 
     // Internal (partial) rounds.
-    for &rc in RC_INTERNAL.iter() {
-        state[0] = sbox(state[0] + rc);
+    for r in 0..PARTIAL_ROUNDS {
+        state[0] = sbox(state[0] + RC_INTERNAL[r]);
+        partial_post_sbox[r] = state[0];
         internal_linear_layer(&mut state, &diag);
     }
 
     // Terminal full rounds.
-    for rc in RC_EXTERNAL_FINAL.iter() {
+    for r in 0..HALF_FULL_ROUNDS {
         for i in 0..WIDTH {
-            state[i] = sbox(state[i] + rc[i]);
+            state[i] = sbox(state[i] + RC_EXTERNAL_FINAL[r][i]);
         }
+        end_sbox[r] = state;
         external_linear_layer(&mut state);
+        end_post[r] = state;
     }
 
-    state
+    Poseidon2Trace {
+        begin_sbox,
+        begin_post,
+        partial_post_sbox,
+        end_sbox,
+        end_post,
+        output: state,
+    }
+}
+
+/// The full width-16 Poseidon2 permutation over BabyBear (output only).
+pub fn permute(state: [BabyBear; WIDTH]) -> [BabyBear; WIDTH] {
+    permute_with_trace(state).output
 }
 
 #[cfg(test)]
