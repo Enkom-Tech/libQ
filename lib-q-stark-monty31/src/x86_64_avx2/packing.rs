@@ -53,7 +53,6 @@ use lib_q_stark_field::{
     mm256_mod_sub,
 };
 use lib_q_stark_util::reconstitute_from_base;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
@@ -74,6 +73,15 @@ const WIDTH: usize = 8;
 pub trait MontyParametersAVX2 {
     const PACKED_P: __m256i;
     const PACKED_MU: __m256i;
+}
+
+/// The packed AVX2 Montgomery constants are just SIMD broadcasts of the scalar `PRIME` /
+/// `MONTY_MU`, identical for every `MontyParameters` field — so derive them generically (this
+/// restores the Plonky3 wiring and makes `PackedMontyField31AVX2<FP>` a full `Field` for any
+/// Monty31 field, not only those that hand-write the broadcasts).
+impl<MP: crate::MontyParameters> MontyParametersAVX2 for MP {
+    const PACKED_P: __m256i = unsafe { transmute([MP::PRIME; WIDTH]) };
+    const PACKED_MU: __m256i = unsafe { transmute([MP::MONTY_MU; WIDTH]) };
 }
 
 /// Vectorized AVX2 implementation of `MontyField31<FP>` arithmetic.

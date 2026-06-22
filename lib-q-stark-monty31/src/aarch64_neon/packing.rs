@@ -54,7 +54,6 @@ use lib_q_stark_field::{
     uint32x4_mod_sub,
 };
 use lib_q_stark_util::reconstitute_from_base;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
@@ -74,6 +73,14 @@ const WIDTH: usize = 4;
 pub trait MontyParametersNeon {
     const PACKED_P: uint32x4_t;
     const PACKED_MU: int32x4_t;
+}
+
+/// The packed NEON Montgomery constants are SIMD broadcasts of the scalar `PRIME` / `MONTY_MU`,
+/// identical for every `MontyParameters` field — derive them generically (restores the Plonky3
+/// wiring so `PackedMontyField31Neon<FP>` is a full `Field` for any Monty31 field).
+impl<MP: crate::MontyParameters> MontyParametersNeon for MP {
+    const PACKED_P: uint32x4_t = unsafe { transmute([MP::PRIME; WIDTH]) };
+    const PACKED_MU: int32x4_t = unsafe { transmute([MP::MONTY_MU; WIDTH]) };
 }
 
 /// A trait to allow functions to be generic over scalar `MontyField31` and packed `PackedMontyField31Neon`.

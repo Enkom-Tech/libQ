@@ -63,7 +63,6 @@ use lib_q_stark_field::{
     mm512_mod_sub,
 };
 use lib_q_stark_util::reconstitute_from_base;
-use rand::Rng;
 use rand::distr::{
     Distribution,
     StandardUniform,
@@ -83,6 +82,14 @@ const WIDTH: usize = 16;
 pub trait MontyParametersAVX512 {
     const PACKED_P: __m512i;
     const PACKED_MU: __m512i;
+}
+
+/// The packed AVX-512 Montgomery constants are SIMD broadcasts of the scalar `PRIME` / `MONTY_MU`,
+/// identical for every `MontyParameters` field — derive them generically (restores the Plonky3
+/// wiring so `PackedMontyField31AVX512<FP>` is a full `Field` for any Monty31 field).
+impl<MP: crate::MontyParameters> MontyParametersAVX512 for MP {
+    const PACKED_P: __m512i = unsafe { transmute([MP::PRIME; WIDTH]) };
+    const PACKED_MU: __m512i = unsafe { transmute([MP::MONTY_MU; WIDTH]) };
 }
 
 const EVENS: __mmask16 = 0b0101010101010101;
