@@ -31,8 +31,12 @@ use lib_q_stark_baby_bear::{
 };
 use lib_q_stark_challenger::Shake256Challenger32;
 use lib_q_stark_commit::ExtensionMmcs;
-use lib_q_stark_field::Field;
 use lib_q_stark_field::extension::BinomialExtensionField;
+use lib_q_stark_field::{
+    Field,
+    PrimeCharacteristicRing,
+    PrimeField32,
+};
 use lib_q_random::Kt128Rng;
 use lib_q_stark_fri::{
     FriParameters,
@@ -58,6 +62,7 @@ use crate::air::unlinkable_membership_baby_bear::{
     membership_public_values_bb,
 };
 use crate::air::wide_merkle_path_baby_bear::WideDigestBb;
+use crate::air::wide_sponge_baby_bear::WIDE_DIGEST_ELEMS;
 
 /// STARK value (trace) field.
 pub type BbVal = BabyBear;
@@ -217,6 +222,93 @@ pub fn verify_membership_bb_zk(
 ) -> bool {
     let pubs = membership_public_values_bb(root, ctx, nullifier);
     verify(config, &UnlinkableMembershipBbAir, proof, &pubs).is_ok()
+}
+
+// ===================== Wire / FFI statement-bytes codec (tag 0x02) =====================
+//
+// The Arm B public statement serializes as `root ‖ ctx ‖ N`, each BabyBear cell as its canonical
+// little-endian `u32` (4 bytes). The 1-byte instantiation tag (`0x02`; Arm A = `0x01`) lives in
+// the CONSUMING envelope, not here — this module exposes the statement bytes + a byte-decoding
+// verify entry (the FFI surface). Decode is **canonical-checked** (rejects any limb ≥ p), so the
+// 36‖16‖36-byte fields are injective — avoiding the non-canonical `from_int` hazard the ADR-113
+// review flagged in Arm A's legacy single-element decoder.
+
+/// BabyBear cell byte width (canonical LE `u32`).
+pub const BB_CELL_BYTES: usize = 4;
+/// A wide digest = 9 cells = 36 bytes.
+pub const BB_WIDE_DIGEST_BYTES: usize = WIDE_DIGEST_ELEMS * BB_CELL_BYTES; // 36
+/// `ctx` = 4 cells = 16 bytes.
+pub const BB_CTX_BYTES: usize = CTX_ELEMS * BB_CELL_BYTES; // 16
+/// Full public statement `root(36) ‖ ctx(16) ‖ N(36)` = 88 bytes.
+pub const BB_PUBLIC_STATEMENT_BYTES: usize = 2 * BB_WIDE_DIGEST_BYTES + BB_CTX_BYTES; // 88
+
+#[inline]
+fn bb_cell_to_bytes(x: BabyBear, out: &mut Vec<u8>) {
+    out.extend_from_slice(&x.as_canonical_u32().to_le_bytes());
+}
+
+/// Canonical-checked decode of one BabyBear cell from 4 LE bytes: rejects any value ≥ p
+/// (`0x78000001`) so the encoding is injective (no silent modular reduction).
+#[inline]
+fn bb_cell_from_bytes(b: &[u8]) -> Option<BabyBear> {
+    let v = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
+    // BabyBear p = 2^31 - 2^27 + 1 = 0x78000001.
+    if v < 0x7800_0001 { Some(BabyBear::new(v)) } else { None }
+}
+
+fn bb_decode_cells<const N: usize>(bytes: &[u8]) -> Option<[BabyBear; N]> {
+    if bytes.len() < N * BB_CELL_BYTES {
+        return None;
+    }
+    let mut out = [BabyBear::ZERO; N];
+    for (i, slot) in out.iter_mut().enumerate() {
+        *slot = bb_cell_from_bytes(&bytes[i * BB_CELL_BYTES..(i + 1) * BB_CELL_BYTES])?;
+    }
+    Some(out)
+}
+
+/// Serialize the Arm B public statement `root ‖ ctx ‖ N` to its 88 canonical bytes.
+pub fn membership_statement_bytes_bb(
+    root: &WideDigestBb,
+    ctx: &[BabyBear; CTX_ELEMS],
+    nullifier: &WideDigestBb,
+) -> Vec<u8> {
+    let mut out = Vec::with_capacity(BB_PUBLIC_STATEMENT_BYTES);
+    for &c in root.iter().chain(ctx.iter()).chain(nullifier.iter()) {
+        bb_cell_to_bytes(c, &mut out);
+    }
+    out
+}
+
+/// Canonical-checked decode of `(root, ctx, N)` from the 88-byte statement. Returns `None` if the
+/// length is wrong or any limb is ≥ p (non-canonical) — the injective-decode guarantee.
+#[allow(clippy::type_complexity)]
+pub fn membership_statement_from_bytes_bb(
+    bytes: &[u8],
+) -> Option<(WideDigestBb, [BabyBear; CTX_ELEMS], WideDigestBb)> {
+    if bytes.len() != BB_PUBLIC_STATEMENT_BYTES {
+        return None;
+    }
+    let root: WideDigestBb = bb_decode_cells::<WIDE_DIGEST_ELEMS>(&bytes[..BB_WIDE_DIGEST_BYTES])?;
+    let ctx: [BabyBear; CTX_ELEMS] = bb_decode_cells::<CTX_ELEMS>(
+        &bytes[BB_WIDE_DIGEST_BYTES..BB_WIDE_DIGEST_BYTES + BB_CTX_BYTES],
+    )?;
+    let nullifier: WideDigestBb =
+        bb_decode_cells::<WIDE_DIGEST_ELEMS>(&bytes[BB_WIDE_DIGEST_BYTES + BB_CTX_BYTES..])?;
+    Some((root, ctx, nullifier))
+}
+
+/// FFI-friendly verify: canonical-checked-decode the 88-byte statement and verify `proof` against
+/// it. Returns `false` on any malformed/non-canonical statement (no panic across the FFI boundary).
+pub fn verify_membership_bb_bytes(
+    config: &BbConfig,
+    proof: &StarkProof<BbConfig>,
+    statement_bytes: &[u8],
+) -> bool {
+    match membership_statement_from_bytes_bb(statement_bytes) {
+        Some((root, ctx, nullifier)) => verify_membership_bb(config, proof, &root, &ctx, &nullifier),
+        None => false,
+    }
 }
 
 #[cfg(test)]
@@ -457,5 +549,51 @@ mod tests {
             !verify_membership_bb_zk(&config, &proof, &root, &ctx, &bad),
             "tampered ZK nullifier rejected"
         );
+    }
+
+    #[test]
+    fn statement_bytes_roundtrip_and_canonical_decode() {
+        let t = t_from_seed(77);
+        let ctx = ctx_from_seed(88);
+        let root = membership_leaf_bb(&t); // any 9-cell digest works for the codec test
+        let null = membership_nullifier_bb(&t, &ctx);
+
+        let bytes = membership_statement_bytes_bb(&root, &ctx, &null);
+        assert_eq!(bytes.len(), BB_PUBLIC_STATEMENT_BYTES);
+        assert_eq!(bytes.len(), 88);
+        let (r2, c2, n2) = membership_statement_from_bytes_bb(&bytes).expect("decode");
+        assert_eq!(r2, root);
+        assert_eq!(c2, ctx);
+        assert_eq!(n2, null);
+
+        // Non-canonical limb (== p) is rejected (injective decode).
+        let mut bad = bytes.clone();
+        bad[0..4].copy_from_slice(&0x7800_0001u32.to_le_bytes());
+        assert!(membership_statement_from_bytes_bb(&bad).is_none(), "limb == p rejected");
+        // 0xFFFFFFFF (>> p) rejected.
+        let mut bad2 = bytes.clone();
+        bad2[4..8].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        assert!(membership_statement_from_bytes_bb(&bad2).is_none(), "limb 0xFFFFFFFF rejected");
+        // Wrong length rejected.
+        assert!(membership_statement_from_bytes_bb(&bytes[..87]).is_none(), "short rejected");
+    }
+
+    #[test]
+    fn verify_from_bytes_roundtrip_and_tamper() {
+        let config = default_config_bb();
+        let t = t_from_seed(21);
+        let ctx = ctx_from_seed(22);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, 4, 5);
+        let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+
+        let stmt = membership_statement_bytes_bb(&root, &ctx, &null);
+        assert!(verify_membership_bb_bytes(&config, &proof, &stmt), "honest statement verifies");
+        // Tampered statement byte → reject.
+        let mut bad = stmt.clone();
+        bad[0] ^= 0x01;
+        assert!(!verify_membership_bb_bytes(&config, &proof, &bad), "tampered statement rejected");
+        // Malformed length → false, no panic across the FFI boundary.
+        assert!(!verify_membership_bb_bytes(&config, &proof, &stmt[..50]), "short statement rejected");
     }
 }
