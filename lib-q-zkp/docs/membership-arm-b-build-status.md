@@ -19,7 +19,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 reference vectors; wasm + no_std clean) — see Finding F6 on validation level |
 | 3 | Poseidon2 in-circuit gadget (AIR) + property test | **BUILT + TESTED** (7 tests: in-circuit==permute + valid `check_constraints` + 5 corruption rejections); default-features wasm32 clean — see F7 |
 | 4 | wide sponge over BabyBear (t16/r7/c9/w9) | **BUILT + TESTED** (6 tests; reusable `constrain_permutation` factored out) |
-| 4 | …wide_hash 2-to-1 + wide_merkle + wide_merkle_path | NEXT |
+| 4 | 2-to-1 compress + wide Merkle path AIR over BabyBear | **BUILT + TESTED** (6 tests; `compress_bb` + `WideMerklePathBbAir`; wide_hash/wide_merkle folded into these) |
 | 5 | `unlinkable_membership` AIR over BabyBear | NOT STARTED |
 | 6 | prover/verifier (BabyBear `TwoAdicFriPcs` config), transparent + ZK | NOT STARTED |
 | — | dual-arm measurement table | NOT STARTED |
