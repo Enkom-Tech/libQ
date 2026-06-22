@@ -251,29 +251,26 @@ mod tests {
             BabyBear::new(x % P)
         })
     }
+    /// Synthesize a depth-`depth` authentication path directly (no full `2^depth` tree — that
+    /// would OOM at depth 32): pick arbitrary sibling digests and direction bits, hash the leaf
+    /// up to a root. The membership statement only needs a consistent leaf→root path. `seed`
+    /// varies the siblings/directions.
     fn path_for(
         leaf: WideDigestBb,
         depth: usize,
-        idx0: usize,
+        seed: usize,
     ) -> (Vec<bool>, Vec<WideDigestBb>, WideDigestBb) {
-        let n = 1usize << depth;
-        let mut level: Vec<WideDigestBb> =
-            (0..n as u32).map(|i| if i as usize == idx0 { leaf } else { digest_from_seed(i + 100) }).collect();
-        let mut idx = idx0;
         let (mut bits, mut sibs) = (Vec::new(), Vec::new());
-        while level.len() > 1 {
-            sibs.push(level[idx ^ 1]);
-            bits.push((idx & 1) == 1);
-            let mut next = Vec::with_capacity(level.len() / 2);
-            let mut j = 0;
-            while j < level.len() {
-                next.push(compress_bb(&level[j], &level[j + 1]));
-                j += 2;
-            }
-            level = next;
-            idx /= 2;
+        let mut running = leaf;
+        for level in 0..depth {
+            let sib = digest_from_seed((seed as u32).wrapping_mul(1009) + level as u32 + 1);
+            let dir = ((seed + level) & 1) == 1;
+            bits.push(dir);
+            sibs.push(sib);
+            let (l, r) = if dir { (sib, running) } else { (running, sib) };
+            running = compress_bb(&l, &r);
         }
-        (bits, sibs, level[0])
+        (bits, sibs, running)
     }
 
     #[test]
@@ -293,6 +290,70 @@ mod tests {
         let mut bad = nullifier;
         bad[0] = bad[0] + BabyBear::ONE;
         assert!(!verify_membership_bb(&config, &proof, &root, &ctx, &bad), "tampered nullifier rejected");
+    }
+
+    /// Measurement harness for Arm B (run: `cargo test -p lib-q-zkp --release --lib
+    /// stark_baby_bear::tests::measure_arm_b -- --ignored --nocapture`). Prints prove/verify
+    /// wall-clock and serialized proof size at several depths, transparent + ZK.
+    #[test]
+    #[ignore]
+    fn measure_arm_b() {
+        use std::time::Instant;
+        use crate::air::unlinkable_membership_baby_bear::MEMBERSHIP_ROW_WIDTH;
+
+        let reps = 5usize;
+        println!("ARM_B,mode,depth,trace_w,trace_h,total_cells,prove_ms_median,verify_ms_median,proof_bytes");
+        let tcfg = default_config_bb();
+        for depth in [4usize, 8, 16, 32] {
+            let t = t_from_seed(depth as u32);
+            let ctx = ctx_from_seed(depth as u32 + 1);
+            let leaf = membership_leaf_bb(&t);
+            let (bits, sibs, root) = path_for(leaf, depth, (1 << depth) / 3);
+
+            let mut pv = Vec::new();
+            let mut vv = Vec::new();
+            let mut bytes = 0usize;
+            for _ in 0..reps {
+                let t0 = Instant::now();
+                let (null, proof) = prove_membership_bb(&tcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
+                pv.push(t0.elapsed().as_secs_f64() * 1e3);
+                bytes = postcard::to_allocvec(&proof).unwrap().len();
+                let t1 = Instant::now();
+                assert!(verify_membership_bb(&tcfg, &proof, &root, &ctx, &null));
+                vv.push(t1.elapsed().as_secs_f64() * 1e3);
+            }
+            pv.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            vv.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            println!(
+                "ARM_B,transparent,{depth},{},{depth},{},{:.1},{:.1},{bytes}",
+                MEMBERSHIP_ROW_WIDTH, MEMBERSHIP_ROW_WIDTH * depth, pv[reps / 2], vv[reps / 2]
+            );
+        }
+        for depth in [8usize, 16, 32] {
+            let zcfg = default_zk_config_bb([1u8; 32], [2u8; 32]);
+            let t = t_from_seed(depth as u32 + 50);
+            let ctx = ctx_from_seed(depth as u32 + 60);
+            let leaf = membership_leaf_bb(&t);
+            let (bits, sibs, root) = path_for(leaf, depth, (1 << depth) / 3);
+            let mut pv = Vec::new();
+            let mut vv = Vec::new();
+            let mut bytes = 0usize;
+            for _ in 0..reps {
+                let t0 = Instant::now();
+                let (null, proof) = prove_membership_bb_zk(&zcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
+                pv.push(t0.elapsed().as_secs_f64() * 1e3);
+                bytes = postcard::to_allocvec(&proof).unwrap().len();
+                let t1 = Instant::now();
+                assert!(verify_membership_bb_zk(&zcfg, &proof, &root, &ctx, &null));
+                vv.push(t1.elapsed().as_secs_f64() * 1e3);
+            }
+            pv.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            vv.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            println!(
+                "ARM_B,zk,{depth},{},{depth},{},{:.1},{:.1},{bytes}",
+                MEMBERSHIP_ROW_WIDTH, MEMBERSHIP_ROW_WIDTH * depth, pv[reps / 2], vv[reps / 2]
+            );
+        }
     }
 
     #[test]
