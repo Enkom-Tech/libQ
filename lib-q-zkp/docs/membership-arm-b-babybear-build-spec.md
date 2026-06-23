@@ -10,6 +10,12 @@
 > works natively, exactly as Arm A uses it over `GF(p²)`). It is a distinct wire variant of the
 > frozen `libq.zkfri.membership.v0` statement, selected by a 1-byte instantiation tag (Arm A = `0x01`,
 > this BabyBear arm = `0x02`); its public-statement byte widths are fixed only when this build freezes.
+>
+> **Terminology anchor:** throughout the committed `membership-arm-b-*.md` doc set and the paper,
+> **"Arm B" denotes this BabyBear / Poseidon2 instantiation** — NOT the earlier base-field-**M31**
+> widening that `membership-m31-profiling-scope.md` / `membership-gfp2-state-rationale.md` explore
+> (those are superseded scoping notes; the M31 widening was never built). "Arm A" = the
+> `Complex<Mersenne31>` / Poseidon256 instantiation.
 
 ---
 

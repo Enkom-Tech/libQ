@@ -46,17 +46,26 @@ membership proof size is dominated by `num_queries × trace_width` (the per-quer
 reducing the FRI blowup helps prove-time / quotient work more than proof *size*. To materially shrink
 the proof you reduce `num_queries` or `trace_width`, not the blowup.**
 
-## Arm A — measured (Complex⟨M31⟩ / Poseidon256, 8-byte elements) — **all depths**
+## Arm A — measured (Complex⟨M31⟩ / Poseidon256, 8-byte elements) — **128-bit PQ, all depths**
 
-| mode | depth | trace w × h | total cells | prove (ms, med) | verify (ms, med) | proof bytes |
+Arm A is now at its **128-bit-PQ** config too: degree-3 challenge field over `Complex<Mersenne31>`
+(`GF(p⁶)` ~186 bits), `log_blowup 3`, `q 96`, `PoW 20` (was deg-2/~62-bit, lb2/q100/pow16). See
+`membership-arm-a-soundness-params.md`.
+
+| mode | depth | trace w × h | total cells | prove (ms, med)¹ | verify (ms, med) | proof bytes |
 |------|------:|------------:|------------:|----------------:|-----------------:|------------:|
-| transparent | 4  | 17 152 × 4  | 68 608  | 196.1  | 260.2 | **17 103 705** (16.3 MB) |
-| transparent | 8  | 17 152 × 8  | 137 216 | 393.7  | 257.3 | **17 122 272** (16.3 MB) |
-| transparent | 16 | 17 152 × 16 | 274 432 | 442.3  | 246.2 | **17 150 660** (16.3 MB) |
-| transparent | 32 | 17 152 × 32 | 548 864 | 354.7  | 251.9 | **17 176 407** (16.4 MB) |
-| zk          | 8  | 17 152 × 8  | 137 216 | 551.2  | 229.3 | **17 363 648** (16.6 MB) |
-| zk          | 16 | 17 152 × 16 | 274 432 | 867.5  | 231.2 | **17 399 715** (16.6 MB) |
-| zk          | 32 | 17 152 × 32 | 548 864 | 1 378.9 | 227.8 | **17 439 758** (16.6 MB) |
+| transparent | 4  | 17 152 × 4  | 68 608  | 604  | 519.8 | **17 127 373** (16.3 MB) |
+| transparent | 8  | 17 152 × 8  | 137 216 | 2292 | 514.5 | **17 152 895** (16.4 MB) |
+| transparent | 16 | 17 152 × 16 | 274 432 | 709  | 504.3 | **17 178 348** (16.4 MB) |
+| transparent | 32 | 17 152 × 32 | 548 864 | 3642 | 497.4 | **17 211 227** (16.4 MB) |
+| zk          | 8  | 17 152 × 8  | 137 216 | 653  | 536.4 | **17 392 874** (16.6 MB) |
+| zk          | 16 | 17 152 × 16 | 274 432 | 1200 | 524.3 | **17 430 134** (16.6 MB) |
+| zk          | 32 | 17 152 × 32 | 548 864 | 2164 | 531.8 | **17 471 240** (16.7 MB) |
+
+¹ Prove time is grinding-dominated and noisy (PoW 20). Proof size barely grew vs the pre-128-bit
+config (~17.1 MB → ~17.2 MB) — the bigger challenge field + blowup are offset by q 100→96. **Verify
+roughly doubled (~250 → ~510 ms)**: the degree-3 challenge-field arithmetic (`GF(p⁶)`) and larger
+PoW check are the cost of raising Arm A to 128-bit.
 
 (Harness `measure_arm_a`; same machine/method, median of 5, FRI params identical to Arm B. The
 depth-16/32 rows use the **synthesized-path** witness — `WidePoseidonMerkleTree::from_leaf_digests`
@@ -71,17 +80,20 @@ size is dominated by `num_queries × trace_width` (constant in depth), with the 
 the extra FRI commit-phase layers. **Verify is flat** (~250 ms transparent, ~230 ms zk). ZK prove
 grows with depth (more rows to blind/commit) where transparent prove is ~flat.
 
-### Headline: Arm B proofs are ~16–17× smaller (holds at every depth)
+### Headline: Arm B proofs are ~16–18× smaller — at EQUAL 128-bit-PQ security
 
-(Arm B at its **128-bit-PQ** config; Arm A unchanged.)
+**Both arms are now at their 128-bit-PQ configs** (Arm A: deg-3 challenge `GF(p⁶)`, lb3/q96/PoW20;
+Arm B: deg-5 challenge `GF(q⁵)`, lb4/q96/PoW20; both bind on SHAKE256 at 128 — see the two
+`*-soundness-params.md`). So this is an **apples-to-apples comparison at the same security level**, not
+a security-for-size trade.
 
 | | Arm A | Arm B | ratio |
 |--|---------------:|----------------:|------:|
-| proof bytes, transparent d=4  | 17 103 705 | 947 600   | **18.0× smaller (Arm B)** |
-| proof bytes, transparent d=32 | 17 176 407 | 1 038 028 | **16.5× smaller (Arm B)** |
-| proof bytes, zk d=32          | 17 439 758 | 1 211 498 | **14.4× smaller (Arm B)** |
-| verify (ms), transparent      | ~250       | ~29       | **~9× faster (Arm B)** |
-| verify (ms), zk               | ~230       | ~33       | **~7× faster (Arm B)** |
+| proof bytes, transparent d=4  | 17 127 373 | 947 600   | **18.1× smaller (Arm B)** |
+| proof bytes, transparent d=32 | 17 211 227 | 1 038 028 | **16.6× smaller (Arm B)** |
+| proof bytes, zk d=32          | 17 471 240 | 1 211 498 | **14.4× smaller (Arm B)** |
+| verify (ms), transparent      | ~510       | ~29       | **~18× faster (Arm B)** |
+| verify (ms), zk               | ~530       | ~33       | **~16× faster (Arm B)** |
 
 The gap is widest at small depth (less FRI commit-phase overhead diluting the per-row trace cost)
 and remains ≥14× through depth 32 / ZK — i.e. **Arm B's field/permutation choice dominates at every
