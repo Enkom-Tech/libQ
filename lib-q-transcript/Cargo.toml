@@ -1,0 +1,43 @@
+[package]
+name = "lib-q-transcript"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "Shared CFRG sigma / Fiat-Shamir duplex-transcript discipline for lib-Q ZK proofs — K12 (out-of-circuit) and Poseidon-256 (in-circuit) instantiations (RED, PENDING HUMAN SIGN-OFF on the construction + labels)"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "fiat-shamir", "transcript", "zkp", "post-quantum"]
+categories = ["cryptography", "no-std"]
+readme.workspace = true
+
+[dependencies]
+# Out-of-circuit transcript (K12) — bare-metal no_std capable (only needs alloc).
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.8", default-features = false, features = ["alloc"] }
+# In-circuit transcript (Poseidon-256) — optional, gated behind the `poseidon` feature to keep the
+# K12-only build's dependency surface small. Both builds are bare-metal no_std (alloc) capable.
+lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.8", default-features = false, features = ["alloc"], optional = true }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8", optional = true }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8", optional = true }
+
+[lib]
+name = "lib_q_transcript"
+path = "src/lib.rs"
+
+[features]
+default = ["std", "poseidon"]
+alloc = []
+# `std` links the standard library on std-capable targets (host, wasm32) so a `#[panic_handler]` is
+# present; it propagates std into k12/poseidon. Bare-metal no_std consumers omit it
+# (`--no-default-features --features alloc[,poseidon]`), where the firmware provides the panic handler.
+std = ["alloc", "lib-q-k12/std", "lib-q-poseidon?/std"]
+# In-circuit Poseidon-256 transcript. Optional only to keep the K12-only dependency surface small;
+# it builds bare-metal no_std too (`--no-default-features --features alloc,poseidon`).
+poseidon = ["dep:lib-q-poseidon", "dep:lib-q-stark-field", "dep:lib-q-stark-mersenne31"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }

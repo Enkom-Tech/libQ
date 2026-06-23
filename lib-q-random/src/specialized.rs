@@ -5,7 +5,9 @@
 
 use core::fmt;
 
-#[cfg_attr(not(feature = "rand"), allow(unused_imports))]
+// `Rng` is only referenced on the `all(rand, std)` ThreadRng path (see `FnDsaRng`); allow it to be
+// unused whenever that path is off (no `rand`, or `rand` without `std`, e.g. bare-metal builds).
+#[cfg_attr(not(all(feature = "rand", feature = "std")), allow(unused_imports))]
 use rand_core::{
     Rng,
     TryCryptoRng,
@@ -329,7 +331,9 @@ impl TryCryptoRng for Kt128Rng {}
 
 /// FN-DSA compatible RNG with environment-specific implementations
 pub struct FnDsaRng {
-    #[cfg(feature = "rand")]
+    // `rand::rngs::ThreadRng` lives in `std` (it needs `rand`'s `thread_rng`). On `no_std` — even
+    // when `rand` is enabled — there is no ThreadRng, so fall back to getrandom/deterministic below.
+    #[cfg(all(feature = "rand", feature = "std"))]
     rng: Option<rand::rngs::ThreadRng>,
 }
 
@@ -343,13 +347,13 @@ impl FnDsaRng {
     /// Create a new FN-DSA compatible RNG
     #[must_use]
     pub fn new() -> Self {
-        #[cfg(feature = "rand")]
+        #[cfg(all(feature = "rand", feature = "std"))]
         {
             Self {
                 rng: Some(rand::rng()),
             }
         }
-        #[cfg(not(feature = "rand"))]
+        #[cfg(not(all(feature = "rand", feature = "std")))]
         {
             Self {}
         }
@@ -360,7 +364,7 @@ impl TryRng for FnDsaRng {
     type Error = core::convert::Infallible;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        #[cfg(feature = "rand")]
+        #[cfg(all(feature = "rand", feature = "std"))]
         {
             if let Some(ref mut rng) = self.rng {
                 Ok(rng.next_u32())
@@ -370,7 +374,7 @@ impl TryRng for FnDsaRng {
                 Ok(u32::from_le_bytes(bytes))
             }
         }
-        #[cfg(not(feature = "rand"))]
+        #[cfg(not(all(feature = "rand", feature = "std")))]
         {
             #[cfg(feature = "getrandom")]
             {
@@ -381,7 +385,7 @@ impl TryRng for FnDsaRng {
             #[cfg(not(feature = "getrandom"))]
             {
                 panic!(
-                    "FnDsaRng requires either 'rand' or 'getrandom' feature. \
+                    "FnDsaRng requires the 'std' (ThreadRng) or 'getrandom' feature. \
                        Use deterministic RNG for testing without these features."
                 );
             }
@@ -389,14 +393,14 @@ impl TryRng for FnDsaRng {
     }
 
     fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        #[cfg(all(feature = "getrandom", not(feature = "rand")))]
+        #[cfg(all(feature = "getrandom", not(all(feature = "rand", feature = "std"))))]
         {
             let mut bytes = [0u8; 8];
             getrandom::fill(&mut bytes).expect("Failed to get random bytes from getrandom");
             Ok(u64::from_le_bytes(bytes))
         }
 
-        #[cfg(not(all(feature = "getrandom", not(feature = "rand"))))]
+        #[cfg(not(all(feature = "getrandom", not(all(feature = "rand", feature = "std")))))]
         {
             let upper = u64::from(self.try_next_u32()?);
             let lower = u64::from(self.try_next_u32()?);
@@ -408,13 +412,13 @@ impl TryRng for FnDsaRng {
         // `rand` disabled + `getrandom` enabled (e.g. WASM with `wasm_js`): fill the whole buffer in
         // one call. The default path uses `try_next_u32` per 4-byte chunk, which would invoke
         // `getrandom::fill` once per chunk and amplify syscall / JS bridge overhead.
-        #[cfg(all(feature = "getrandom", not(feature = "rand")))]
+        #[cfg(all(feature = "getrandom", not(all(feature = "rand", feature = "std"))))]
         {
             getrandom::fill(dest).expect("Failed to get random bytes from getrandom");
             Ok(())
         }
 
-        #[cfg(not(all(feature = "getrandom", not(feature = "rand"))))]
+        #[cfg(not(all(feature = "getrandom", not(all(feature = "rand", feature = "std")))))]
         {
             for chunk in dest.chunks_mut(4) {
                 let bytes = self.try_next_u32()?.to_le_bytes();

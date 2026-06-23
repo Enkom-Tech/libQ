@@ -232,8 +232,11 @@ pub use provider::LibQRng;
 pub use specialized::ClassicalMcElieceRng;
 #[cfg(feature = "fn-dsa")]
 pub use specialized::FnDsaRng;
-#[cfg(all(feature = "hpke", feature = "hash"))]
-pub use specialized::Kt128Rng;
+// NOTE: `specialized::Kt128Rng` (the HPKE/RFC-9861 RNG) is deliberately NOT re-exported here.
+// The canonical crate-root `Kt128Rng` is the seedable `kt128_rng::Kt128Rng` (re-exported above and
+// used across the workspace via `from_u64`/`from_seed_bytes`, e.g. lib-q-zkp, lib-q-hpke). Adding a
+// second `pub use specialized::Kt128Rng` collided with it (E0252) under `hpke + hash` — a different
+// type with the same name. The HPKE variant remains reachable as `lib_q_random::specialized::Kt128Rng`.
 #[cfg(feature = "alloc")]
 pub use traits::RngProvider;
 pub use traits::{

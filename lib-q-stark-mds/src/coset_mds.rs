@@ -104,11 +104,8 @@ mod tests {
     };
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_symmetric::Permutation;
-    use rand::rngs::SmallRng;
-    use rand::{
-        RngExt,
-        SeedableRng,
-    };
+    use lib_q_random::new_deterministic_rng;
+    use rand::RngExt;
 
     use crate::coset_mds::CosetMds;
 
@@ -118,7 +115,7 @@ mod tests {
         type F = Mersenne31;
         const N: usize = 8;
 
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = new_deterministic_rng([1u8; 32]);
         let mut arr: [F; N] = rng.random();
 
         let shift = F::GENERATOR;

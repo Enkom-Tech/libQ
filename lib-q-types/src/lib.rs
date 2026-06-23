@@ -97,6 +97,17 @@ pub enum Algorithm {
     MixOnionRouting,
     /// SHAKE256 session token and stateless retry-cookie derivation for resumption handshakes.
     SessionResumptionBinding,
+
+    // Reserved diversity signatures (registered DISABLED; not implemented)
+    /// **Reserved** FAEST / VOLE-in-the-Head signature (symmetric-only / AES assumptions).
+    ///
+    /// An assumption-diversity hedge against a structured-lattice break of the default ML-DSA: FAEST
+    /// rests on symmetric-primitive hardness alone, with no Module-LWE/Module-SIS structure. It is
+    /// large and slow relative to ML-DSA, so it is **never a default** — it is registered with
+    /// `enabled = false` and is intended to be activated only on a lattice-cryptanalysis event.
+    /// Supersedes Picnic (deprecated). Identifier only — no signing/verification is implemented.
+    /// See `lib-q-sig/docs/FAEST_EVALUATION.md`.
+    FaestReserved,
 }
 
 impl Algorithm {
@@ -183,6 +194,9 @@ impl Algorithm {
             Algorithm::LatticeDualRingLb |
             Algorithm::MixOnionRouting |
             Algorithm::SessionResumptionBinding => 3,
+
+            // Reserved diversity signature (Level 3 ≈ ML-DSA-65 class)
+            Algorithm::FaestReserved => 3,
         }
     }
 
@@ -260,6 +274,9 @@ impl Algorithm {
             Algorithm::LatticeDualRingLb |
             Algorithm::MixOnionRouting |
             Algorithm::SessionResumptionBinding => AlgorithmCategory::PrivacyProtocol,
+
+            // Reserved diversity signature
+            Algorithm::FaestReserved => AlgorithmCategory::Signature,
         }
     }
 
@@ -340,6 +357,9 @@ impl Algorithm {
             Algorithm::LatticeDualRingLb |
             Algorithm::MixOnionRouting |
             Algorithm::SessionResumptionBinding => category == AlgorithmCategory::PrivacyProtocol,
+
+            // Reserved diversity signature
+            Algorithm::FaestReserved => category == AlgorithmCategory::Signature,
         }
     }
 }
@@ -465,6 +485,9 @@ impl core::fmt::Display for Algorithm {
             Algorithm::LatticeDualRingLb => write!(f, "Lattice-DualRing-LB"),
             Algorithm::MixOnionRouting => write!(f, "Mix-Onion-Routing"),
             Algorithm::SessionResumptionBinding => write!(f, "Session-Resumption-Binding"),
+
+            // Reserved diversity signature
+            Algorithm::FaestReserved => write!(f, "FAEST-Reserved"),
         }
     }
 }

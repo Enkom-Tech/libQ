@@ -264,6 +264,19 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
+        // Reserved diversity signature: registered but DISABLED. FAEST (VOLE-in-the-Head) rests on
+        // symmetric-only assumptions — a hedge against a structured-lattice break of ML-DSA. Large
+        // and slow vs ML-DSA, so never a default; activate only on a lattice-cryptanalysis event.
+        // Identifier only (no implementation). Supersedes Picnic. See lib-q-sig/docs/FAEST_EVALUATION.md.
+        self.register(AlgorithmMetadata {
+            algorithm: Algorithm::FaestReserved,
+            category: AlgorithmCategory::Signature,
+            security_level: 3,
+            name: "FAEST-Reserved",
+            description: "RESERVED FAEST/VOLE-in-the-Head diversity signature (symmetric assumptions); disabled — activate only on a lattice-cryptanalysis event",
+            enabled: false,
+        });
+
         // Hash algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::Shake128,

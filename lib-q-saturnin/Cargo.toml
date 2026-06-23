@@ -12,14 +12,14 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
 
 # Optional dependencies for specific features
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
-default = ["aead", "block-cipher", "hash", "stream", "qcb", "alloc"]
-std = ["alloc"]
+default = ["std", "aead", "block-cipher", "hash", "stream", "qcb", "alloc"]
+std = ["alloc", "lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 
 # Algorithm modes

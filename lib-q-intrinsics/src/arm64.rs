@@ -2,11 +2,17 @@
 //!
 //! This module provides ARM64 SIMD intrinsics for lib-Q cryptographic operations.
 //! It serves as a replacement for libcrux-intrinsics ARM64 module.
+//!
+//! Each wrapper forwards to the corresponding `core::arch::aarch64` intrinsic
+//! via its fully-qualified path. The intrinsic names are deliberately NOT
+//! glob-imported into bare scope: doing so would let each `pub fn` shadow the
+//! intrinsic of the same name and call itself instead, which previously caused
+//! `vminq_u8`/`vminq_u32` (and the rest) to recurse infinitely.
 
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use core::arch::aarch64::*;
+use core::arch::aarch64::{uint16x8_t, uint32x4_t, uint64x2_t, uint8x16_t};
 
 /// 128-bit vector of 8-bit integers
 pub type Vec128 = uint8x16_t;
@@ -23,7 +29,7 @@ pub type Vec128_64 = uint64x2_t;
 pub fn vst1q_u8(output: &mut [u8], vector: Vec128) {
     debug_assert_eq!(output.len(), 16);
     unsafe {
-        vst1q_u8(output.as_mut_ptr(), vector);
+        core::arch::aarch64::vst1q_u8(output.as_mut_ptr(), vector);
     }
 }
 
@@ -31,7 +37,7 @@ pub fn vst1q_u8(output: &mut [u8], vector: Vec128) {
 #[inline(always)]
 pub fn vld1q_u8(input: &[u8]) -> Vec128 {
     debug_assert_eq!(input.len(), 16);
-    unsafe { vld1q_u8(input.as_ptr()) }
+    unsafe { core::arch::aarch64::vld1q_u8(input.as_ptr()) }
 }
 
 /// Store 128-bit vector of 32-bit integers to unaligned memory
@@ -39,7 +45,7 @@ pub fn vld1q_u8(input: &[u8]) -> Vec128 {
 pub fn vst1q_u32(output: &mut [u32], vector: Vec128_32) {
     debug_assert_eq!(output.len(), 4);
     unsafe {
-        vst1q_u32(output.as_mut_ptr(), vector);
+        core::arch::aarch64::vst1q_u32(output.as_mut_ptr(), vector);
     }
 }
 
@@ -47,162 +53,173 @@ pub fn vst1q_u32(output: &mut [u32], vector: Vec128_32) {
 #[inline(always)]
 pub fn vld1q_u32(input: &[u32]) -> Vec128_32 {
     debug_assert_eq!(input.len(), 4);
-    unsafe { vld1q_u32(input.as_ptr()) }
+    unsafe { core::arch::aarch64::vld1q_u32(input.as_ptr()) }
 }
 
 // Vector creation operations
-/// Create 128-bit vector with all elements set to zero
+/// Create 128-bit vector with all 8-bit elements set to the same value
 #[inline(always)]
 pub fn vdupq_n_u8(a: u8) -> Vec128 {
-    unsafe { vdupq_n_u8(a) }
+    unsafe { core::arch::aarch64::vdupq_n_u8(a) }
 }
 
 /// Create 128-bit vector with all 32-bit elements set to the same value
 #[inline(always)]
 pub fn vdupq_n_u32(a: u32) -> Vec128_32 {
-    unsafe { vdupq_n_u32(a) }
+    unsafe { core::arch::aarch64::vdupq_n_u32(a) }
 }
 
 // Arithmetic operations
 /// Add 8-bit integers
 #[inline(always)]
 pub fn vaddq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vaddq_u8(a, b) }
+    unsafe { core::arch::aarch64::vaddq_u8(a, b) }
 }
 
 /// Add 32-bit integers
 #[inline(always)]
 pub fn vaddq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vaddq_u32(a, b) }
+    unsafe { core::arch::aarch64::vaddq_u32(a, b) }
 }
 
 /// Subtract 8-bit integers
 #[inline(always)]
 pub fn vsubq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vsubq_u8(a, b) }
+    unsafe { core::arch::aarch64::vsubq_u8(a, b) }
 }
 
 /// Subtract 32-bit integers
 #[inline(always)]
 pub fn vsubq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vsubq_u32(a, b) }
+    unsafe { core::arch::aarch64::vsubq_u32(a, b) }
 }
 
 /// Multiply 32-bit integers (low 32 bits of result)
 #[inline(always)]
 pub fn vmulq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vmulq_u32(a, b) }
+    unsafe { core::arch::aarch64::vmulq_u32(a, b) }
 }
 
 // Shift operations
-/// Shift left 32-bit integers
+//
+// The hardware immediate-shift intrinsics (`vshlq_n_u32`/`vshrq_n_u32`) take a
+// const-generic shift amount, but these wrappers accept a runtime `n`. We
+// therefore lower to the variable-shift intrinsic `vshlq_u32`, which shifts each
+// lane by a signed per-lane count (negative counts shift right).
+/// Shift left 32-bit integers by a runtime amount
 #[inline(always)]
 pub fn vshlq_n_u32(a: Vec128_32, n: i32) -> Vec128_32 {
-    unsafe { vshlq_n_u32(a, n) }
+    unsafe {
+        let count = core::arch::aarch64::vdupq_n_s32(n);
+        core::arch::aarch64::vshlq_u32(a, count)
+    }
 }
 
-/// Shift right 32-bit integers
+/// Shift right (logical) 32-bit integers by a runtime amount
 #[inline(always)]
 pub fn vshrq_n_u32(a: Vec128_32, n: i32) -> Vec128_32 {
-    unsafe { vshrq_n_u32(a, n) }
+    unsafe {
+        let count = core::arch::aarch64::vdupq_n_s32(-n);
+        core::arch::aarch64::vshlq_u32(a, count)
+    }
 }
 
 // Bitwise operations
 /// Bitwise AND
 #[inline(always)]
 pub fn vandq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vandq_u8(a, b) }
+    unsafe { core::arch::aarch64::vandq_u8(a, b) }
 }
 
 /// Bitwise AND for 32-bit integers
 #[inline(always)]
 pub fn vandq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vandq_u32(a, b) }
+    unsafe { core::arch::aarch64::vandq_u32(a, b) }
 }
 
 /// Bitwise OR
 #[inline(always)]
 pub fn vorrq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vorrq_u8(a, b) }
+    unsafe { core::arch::aarch64::vorrq_u8(a, b) }
 }
 
 /// Bitwise OR for 32-bit integers
 #[inline(always)]
 pub fn vorrq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vorrq_u32(a, b) }
+    unsafe { core::arch::aarch64::vorrq_u32(a, b) }
 }
 
 /// Bitwise XOR
 #[inline(always)]
 pub fn veorq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { veorq_u8(a, b) }
+    unsafe { core::arch::aarch64::veorq_u8(a, b) }
 }
 
 /// Bitwise XOR for 32-bit integers
 #[inline(always)]
 pub fn veorq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { veorq_u32(a, b) }
+    unsafe { core::arch::aarch64::veorq_u32(a, b) }
 }
 
 // Comparison operations
 /// Compare 32-bit integers for greater than
 #[inline(always)]
 pub fn vcgtq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vcgtq_u32(a, b) }
+    unsafe { core::arch::aarch64::vcgtq_u32(a, b) }
 }
 
 /// Compare 32-bit integers for greater than or equal
 #[inline(always)]
 pub fn vcgeq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vcgeq_u32(a, b) }
+    unsafe { core::arch::aarch64::vcgeq_u32(a, b) }
 }
 
 // Shuffle and blend operations
-/// Table lookup
+/// Table lookup over a 16-byte table (out-of-range indices yield 0)
 #[inline(always)]
 pub fn vtbl1_u8(table: Vec128, indices: Vec128) -> Vec128 {
-    unsafe { vtbl1_u8(table, indices) }
+    unsafe { core::arch::aarch64::vqtbl1q_u8(table, indices) }
 }
 
-/// Extended table lookup
+/// Extended table lookup over a 16-byte table (out-of-range indices keep `a`)
 #[inline(always)]
 pub fn vtbx1_u8(a: Vec128, table: Vec128, indices: Vec128) -> Vec128 {
-    unsafe { vtbx1_u8(a, table, indices) }
+    unsafe { core::arch::aarch64::vqtbx1q_u8(a, table, indices) }
 }
 
 // Additional helper functions
 /// Absolute difference
 #[inline(always)]
 pub fn vabdq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vabdq_u8(a, b) }
+    unsafe { core::arch::aarch64::vabdq_u8(a, b) }
 }
 
 /// Absolute difference for 32-bit integers
 #[inline(always)]
 pub fn vabdq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vabdq_u32(a, b) }
+    unsafe { core::arch::aarch64::vabdq_u32(a, b) }
 }
 
 /// Maximum
 #[inline(always)]
 pub fn vmaxq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vmaxq_u8(a, b) }
+    unsafe { core::arch::aarch64::vmaxq_u8(a, b) }
 }
 
 /// Maximum for 32-bit integers
 #[inline(always)]
 pub fn vmaxq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vmaxq_u32(a, b) }
+    unsafe { core::arch::aarch64::vmaxq_u32(a, b) }
 }
 
 /// Minimum
 #[inline(always)]
 pub fn vminq_u8(a: Vec128, b: Vec128) -> Vec128 {
-    unsafe { vminq_u8(a, b) }
+    unsafe { core::arch::aarch64::vminq_u8(a, b) }
 }
 
 /// Minimum for 32-bit integers
 #[inline(always)]
 pub fn vminq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
-    unsafe { vminq_u32(a, b) }
+    unsafe { core::arch::aarch64::vminq_u32(a, b) }
 }

@@ -14,7 +14,7 @@ categories = ["cryptography", "no-std"]
 # `default-features = false`: this crate is `#![no_std]`; pulling lib-q-platform's default `std`
 # would force lib-q-core into std (and `once_cell/std`), breaking bare-metal no_std consumers.
 [dependencies]
-lib-q-platform = { path = "../lib-q-platform", version = "0.0.7", default-features = false }
+lib-q-platform = { path = "../lib-q-platform", version = "0.0.8", default-features = false }
 
 [features]
 default = []

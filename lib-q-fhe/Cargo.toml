@@ -12,7 +12,7 @@ keywords = ["cryptography", "post-quantum", "fhe", "experimental", "wasm"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
 sha2 = { workspace = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
@@ -21,7 +21,7 @@ serde_json = { workspace = true, optional = true, features = ["std"] }
 serde-wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-blind-pcs = { path = "../lib-q-blind-pcs", version = "0.0.7", default-features = false, features = ["blind-pcs"] }
+lib-q-blind-pcs = { path = "../lib-q-blind-pcs", version = "0.0.8", default-features = false, features = ["blind-pcs"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
 wasm-bindgen-test = { workspace = true }

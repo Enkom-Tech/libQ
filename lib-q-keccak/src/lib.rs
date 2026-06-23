@@ -318,6 +318,10 @@ pub fn f1600(state: &mut [u64; PLEN]) {
 ///
 /// `round_count` follows the same convention as [`p1600`]: e.g. `24` for
 /// Keccak-f\[1600\], `12` for the TurboSHAKE/K12 reduced-round permutation.
+// The compile-time-AVX2 branch's `return` mirrors the runtime branch for symmetry/readability
+// and is only flagged `needless` in the all-compile-time-SIMD cfg (where the scalar fallback below
+// is `cfg`-excluded, making it the last statement). Suppress rather than break that symmetry.
+#[allow(clippy::needless_return)]
 pub fn p1600x4(states: &mut [[u64; PLEN]; 4], round_count: usize) {
     // Compile-time AVX2 (e.g. `-C target-cpu=native`): sound without any runtime
     // check, and no `std` required.
@@ -365,6 +369,9 @@ pub fn p1600x4(states: &mut [[u64; PLEN]; 4], round_count: usize) {
 /// AVX-512 is absent on many consumer CPUs (and all AMD Zen 1–3). The batched XOF
 /// helpers therefore default to [`p1600x4`]; reach for `p1600x8` only where AVX-512
 /// is expected and has been validated on the target hardware.
+// See `p1600x4`: the compile-time-AVX-512 branch's `return` is only `needless` in the
+// all-compile-time-SIMD cfg (scalar fallback `cfg`-excluded); suppressed for symmetry/readability.
+#[allow(clippy::needless_return)]
 pub fn p1600x8(states: &mut [[u64; PLEN]; 8], round_count: usize) {
     // Compile-time AVX-512 (e.g. `-C target-cpu=native` on an AVX-512 host).
     #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]

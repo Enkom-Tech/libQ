@@ -17,13 +17,13 @@ ignored = [
 ]
 
 [dependencies]
-lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.7", default-features = false, features = ["std", "random"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.8", default-features = false, features = ["std", "random"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 rand_core = { workspace = true }
 # wasm-only optional dependencies (pulled in by the `wasm` feature).
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true, default-features = false, features = ["std"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, default-features = false, features = ["std"] }
 wasm-bindgen = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true, features = ["std"] }
 serde-wasm-bindgen = { workspace = true, optional = true }
@@ -33,7 +33,7 @@ getrandom = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
 hex = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 wasm-bindgen-test = { workspace = true }

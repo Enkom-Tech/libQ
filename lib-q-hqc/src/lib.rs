@@ -82,6 +82,12 @@
 #![allow(clippy::manual_memcpy)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::unusual_byte_groupings)]
+// Without `random` (e.g. a bare-metal `no_std` build), the provider / KEM-operation code paths that
+// consume several `alloc` / `rand_core::Rng` / `lib_q_core` imports are `cfg`-gated out
+// (`#[cfg(all(feature = "alloc", feature = "random"))]` in `provider.rs` etc.), leaving those imports
+// unused in that one configuration. Suppress unused-import warnings only there; the default
+// (`random`) build — what CI compiles — keeps full unused-import checking.
+#![cfg_attr(not(feature = "random"), allow(unused_imports))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

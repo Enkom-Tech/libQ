@@ -90,11 +90,8 @@ mod tests {
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_symmetric::Permutation;
     use lib_q_stark_util::reverse_slice_index_bits;
-    use rand::rngs::SmallRng;
-    use rand::{
-        RngExt,
-        SeedableRng,
-    };
+    use lib_q_random::new_deterministic_rng;
+    use rand::RngExt;
 
     use crate::integrated_coset_mds::IntegratedCosetMds;
 
@@ -104,7 +101,7 @@ mod tests {
     #[test]
     #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for N=16 (log_size=4). Requires field with higher two-adicity.
     fn matches_naive() {
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = new_deterministic_rng([1u8; 32]);
         let mut arr: [F; N] = rng.random();
 
         let mut arr_rev = arr.to_vec();

@@ -18,10 +18,10 @@ ignored = [
     "serde",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", optional = true, default-features = false }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", default-features = false, features = ["std", "random"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.8", default-features = false, features = ["std", "random"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }

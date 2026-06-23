@@ -12,23 +12,25 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
 
 # Optional: zeroization of key/plaintext staging buffers.
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
-default = ["aead", "alloc"]
-std = ["alloc"]
+default = ["std", "aead", "alloc"]
+std = ["alloc", "lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 
 # AEAD mode (the only mode Rocca-S provides).
 aead = ["dep:zeroize"]
 
 # Performance: runtime-dispatched hardware AES round.
+# Both backends use runtime CPU feature detection (`is_x86_feature_detected!` /
+# `is_aarch64_feature_detected!`), which lives in `std::arch`, so both require `std`.
 simd = ["simd-aesni", "simd-neon"]
 simd-aesni = ["std"]
-simd-neon = []
+simd-neon = ["std"]
 
 # Explicit zeroize toggle (also satisfies workspace `cargo metadata --features zeroize`).
 zeroize = ["dep:zeroize"]

@@ -18,14 +18,14 @@ ignored = [
 ]
 [dependencies]
 block-buffer = { workspace = true }
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
 zeroize = { workspace = true }
 digest = { workspace = true }
 sha2 = { workspace = true, default-features = false }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.7", default-features = false }
-lib-q-k12 = { path = "../lib-q-k12", version = "0.0.7" }
-lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.7" }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.8", default-features = false }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.8" }
+lib-q-keccak-digest = { path = "../lib-q-keccak-digest", version = "0.0.8" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
 rayon = { workspace = true, optional = true }
 subtle = { workspace = true }
 
@@ -35,8 +35,11 @@ hex-literal = { workspace = true }
 base16ct = { workspace = true }
 
 [features]
-default = ["alloc", "oid"]
-alloc = ["digest/alloc"]
+# std-by-default; bare-metal/no_std consumers build with `--no-default-features --features alloc`.
+default = ["std", "alloc", "oid"]
+alloc = ["digest/alloc", "lib-q-core/alloc"]
+# The lib-q-core edge is `default-features = false`, so std is forwarded explicitly here.
+std = ["alloc", "lib-q-core/std"]
 oid = ["digest/oid"]
 zeroize = ["digest/zeroize"]
 asm = ["lib-q-keccak/asm"] # ARMv8 only

@@ -55,9 +55,13 @@ use lib_q_zkp::membership::{
 };
 
 pub mod air;
-pub mod prove;
+// `producer` (was `prove`): mVE producer/relay entry points. Renamed off the bare `prove` to avoid
+// a name clash with `lib_q_stark::prove` / `lib_q_zkp::prove` that tripped the structural quality
+// gate's suffix-based import resolver into reporting a false `mve <-> zkp` dependency cycle. The
+// public surface is unchanged: `mve_prove` / `mve_verify` are re-exported at the crate root.
+pub mod producer;
 
-pub use prove::{
+pub use producer::{
     MveEncapsulationKey,
     mve_prove,
     mve_verify,

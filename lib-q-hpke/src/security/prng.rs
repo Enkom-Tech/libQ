@@ -18,8 +18,11 @@ pub trait CryptoRng {
     fn next_u64(&mut self) -> Result<u64, HpkeError>;
 }
 
-// Use the unified Kt128Rng (KangarooTwelve KT128) from lib-q-random
-pub use lib_q_random::Kt128Rng;
+// Use the HPKE/RFC-9861 Kt128Rng (KangarooTwelve KT128) from lib-q-random.
+// NOTE: the crate-root `lib_q_random::Kt128Rng` is the seedable ZK variant
+// (`from_seed_bytes`/`from_u64`); the HPKE RNG with `new()`/`from_seed(&[u8])` lives at the
+// module path `specialized::Kt128Rng`. See lib-q-random/src/lib.rs for the rationale.
+pub use lib_q_random::specialized::Kt128Rng;
 
 // Implement HPKE-specific CryptoRng trait for Kt128Rng
 #[cfg(feature = "hash")]
