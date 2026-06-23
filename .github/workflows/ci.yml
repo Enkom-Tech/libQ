@@ -33,7 +33,7 @@ jobs:
     outputs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js (npm guards)
         uses: actions/setup-node@v5
@@ -92,8 +92,12 @@ jobs:
           - package: "lib-q-threshold-raccoon"
           - package: "lib-q-blind-token"
           - package: "lib-q-rocca-s"
+          # New paper crates (IACR membership work): guard they stay in cd.yml + keep version-pinned deps.
+          - package: "lib-q-mve"
+          - package: "lib-q-transcript"
+          - package: "lib-q-stark-baby-bear"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -221,7 +225,7 @@ jobs:
             package: "lib-q"
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Run tests
         uses: ./.github/actions/rust-test
@@ -239,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -360,7 +364,7 @@ jobs:
             check-only: "false"
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Build WASM
         uses: ./.github/actions/wasm-build
@@ -377,7 +381,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -438,7 +442,7 @@ jobs:
           - lib-q-dkg
           - lib-q-threshold-raccoon
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -552,7 +556,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -578,7 +582,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -658,7 +662,7 @@ jobs:
             install-cross-compiler: false
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -819,7 +823,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -842,7 +846,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -887,7 +891,7 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Generate and verify benchmark matrix JSON
         id: matrix
@@ -911,7 +915,7 @@ jobs:
       max-parallel: 12
       matrix: ${{ fromJson(needs.bench-matrix.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Run benchmark shard
         uses: ./.github/actions/run-bench-shard
@@ -927,7 +931,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -1046,7 +1050,7 @@ jobs:
             test-algorithms: "hqc128,hqc192,hqc256"
     
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Run algorithm tests
         uses: ./.github/actions/test-keccak
@@ -1178,7 +1182,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -1212,7 +1216,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -1263,7 +1267,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -1346,7 +1350,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
@@ -1378,7 +1382,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@master

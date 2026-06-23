@@ -227,6 +227,12 @@ Cargo.audit.toml
 *bom.cdx.xml
 cyclonedx-bom.json
 
+# Local research scratch + crash dumps (kept locally, never committed)
+*.stackdump
+arxiv_*.pdf
+arxiv_*.txt
+llnw16.txt
+
 /reference
 .cursor/
 .claude/
