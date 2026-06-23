@@ -2,6 +2,25 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.8
+
+### Added
+
+- **`lib-q-transcript`:** Shared CFRG sigma / Fiat–Shamir duplex-transcript discipline for lib-Q ZK proofs, with two instantiations — **K12** (out-of-circuit) and **Poseidon-256** (in-circuit, behind the optional `poseidon` feature). `no_std` + `alloc` capable; bare-metal builds via `--no-default-features --features alloc[,poseidon]`. **STATUS: RED — experimental / research, not proven sound, not audited, not production-ready; pending human sign-off on the construction + labels.**
+- **`lib-q-mve`:** Multi-recipient verifiable encryption ("verifiable rekey"). A producer distributes a fresh group key `K` to many recipients (each wrapped under that recipient's ML-KEM update key) with a **single** proof that every recipient receives the **same** `K`, checkable by an untrusted relay **without** the relay learning `K` (insider-robustness / anti-split). **STATUS: RED — experimental / research, not proven sound, not audited, not production-ready; pending human cryptographer sign-off.**
+- **`lib-q-stark-baby-bear`:** The BabyBear prime field `F_p` (`p = 2^31 - 2^27 + 1`), implemented as a `lib-q-stark-monty31` instance; the base field for the Arm B membership STARK.
+- **`lib-q-zkp` — unlinkable set-membership proof** (Fiat–Shamir domain `libq.zkfri.membership.v0`), in two arms:
+  - **Arm A:** value field `Complex<Mersenne31> = GF(p^2)`, FRI challenge field a degree-3 extension `GF(p^6)` (~186 bits). Reaches **128-bit post-quantum** *only at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment); the Poseidon-over-`GF(p^2)` round-count soundness obligation (O1) is **still unverified**, so this is not a complete soundness proof.
+  - **Arm B:** BabyBear base field + Poseidon2. Conjectured **~116-bit** / provable **~99-bit** soundness — **NOT 128-bit**.
+  - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (ADR-113 freeze gate; the construction was submitted to IACR ePrint and is under review).
+
+### Changed
+
+- **Workspace:** Version **0.0.7 → 0.0.8**; all intra-workspace path dependency pins repinned to **0.0.8**.
+- **CD (`.github/workflows/cd.yml`):** Publish pipeline gains `lib-q-stark-baby-bear` at **tier 10**, and `lib-q-mve` + `lib-q-transcript` at a new **tier 16b** (after `lib-q-zkp` tier 16, before the `lib-q` umbrella tier 17). The three new crates are **crates.io-only** (no npm / wasm packages).
+- **CI:** `lib-q-blind-token` is crates.io-only (`crate-type = ["rlib"]`, no wasm-pack bindings) and is now **exempt from the tier-4b npm-parity guard** (`scripts/ci-guard-new-crates-and-npm.sh`).
+- **Workspace:** Workspace-wide `no_std` / `wasm32` / SIMD (AVX2 / NEON / AVX-512) cross-compile hardening.
+
 ## 0.0.7
 
 ### Added

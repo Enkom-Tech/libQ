@@ -3,11 +3,11 @@
 lib-Q ships **two release surfaces**:
 
 1. **crates.io** — full workspace (50+ crates), including `lib-q-stark-*`, `lib-q-plonky-*`, research crates, and infrastructure.
-2. **npm (`@lib-q/*`)** — **28** scoped packages built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers.
+2. **npm (`@lib-q/*`)** — **30** scoped packages: **29** built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers, plus the TypeScript-only `@lib-q/types`.
 
 npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate name.
 
-## Package map (28 npm packages)
+## Package map (30 npm packages)
 
 ### Core cryptography (17, published in 0.0.2)
 
@@ -43,7 +43,7 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 
 Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-npm-ordered.sh`).
 
-### Advanced primitives (6, tier-4b npm parity in 0.0.7)
+### Advanced primitives (8, tier-4b npm parity)
 
 | npm | Rust crate | Role |
 |-----|------------|------|
@@ -53,6 +53,10 @@ Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-np
 | `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE |
 | `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM |
 | `@lib-q/threshold-sig` | `lib-q-threshold-sig` | PROVISIONAL threshold signatures |
+| `@lib-q/dkg` | `lib-q-dkg` | PROVISIONAL lattice dealerless DKG |
+| `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | PROVISIONAL PQ lattice threshold signature |
+
+(`lib-q-blind-token` is tier-4b on crates.io but **crates.io-only** — `crate-type = ["rlib"]`, no wasm-pack bindings — so it has no `@lib-q/*` package; it is exempt from the tier-4b npm-parity guard.)
 
 ## What stays Rust-only on npm
 
@@ -68,6 +72,19 @@ These **compile for `wasm32`** in CI (`cargo check` / `check-only` wasm gate) bu
 | Research | `lib-q-lattice-zkp` (full sigma API), `lib-q-ring` (full arithmetic) | `@lib-q/lattice-zkp`, `@lib-q/ring` (initial WASM exports), Rust for production |
 
 Deliberately **not** publishing one npm package per `lib-q-stark-*` crate keeps install size and versioning manageable. Consumers who need low-level STARK building blocks should use **Rust** or extend WASM bindings in the umbrella crates above.
+
+### crates.io-only crates (no npm / wasm-pack package)
+
+Some crates ship to **crates.io only** — they are Rust libraries with no corresponding `@lib-q/*` tarball, and several are explicitly exempt from (or simply outside) the **tier-4b npm-parity CI guard** (`scripts/ci-guard-new-crates-and-npm.sh`).
+
+| Rust crate | Status | Why crates.io-only |
+|------------|--------|--------------------|
+| `lib-q-blind-token` | PROVISIONAL (pre-standard) | `crate-type = ["rlib"]` with no `wasm-pack` bindings; secure-params keygen is impractical in wasm (debug keygen is on the order of minutes). **Exempt** from the tier-4b npm-parity guard. |
+| `lib-q-transcript` | **RED** — experimental / research, NOT proven sound, NOT audited; pending human cryptographer sign-off (IACR review) | Rust-only Fiat-Shamir duplex-transcript discipline (K12 out-of-circuit, Poseidon-256 in-circuit); no npm consumer surface, like the other STARK subcrates. |
+| `lib-q-mve` | **RED** — experimental / research, NOT proven sound, NOT audited; pending human cryptographer sign-off (IACR review) | Rust-only multi-recipient verifiable encryption (verifiable rekey); no npm package, like the other STARK subcrates. |
+| `lib-q-stark-baby-bear` | New in 0.0.8 | BabyBear prime field (a `lib-q-stark-monty31` instance); a low-level STARK subcrate — used from JS via `@lib-q/stark` / `@lib-q/zkp` or Rust, never its own tarball. |
+
+These are **new in 0.0.8** (except `lib-q-blind-token`, which was already crates.io-only) and intentionally have **no npm / wasm packages**, matching the policy above for low-level STARK subcrates.
 
 ## Choosing a package
 

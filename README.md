@@ -76,7 +76,9 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-romulus`** | Romulus AEAD (Skinny-based) |
 | **`lib-q-hpke`** | HPKE (RFC 9180) |
 | **`lib-q-utils`** | Shared utilities |
-| **`lib-q-zkp`** | ZKP public API (STARK-backed) |
+| **`lib-q-zkp`** | ZKP public API (STARK-backed); includes the experimental unlinkable set-membership proof (**RED**) |
+| **`lib-q-mve`** | Multi-recipient verifiable encryption / verifiable rekey — single proof that every recipient is wrapped the same group key, relay-checkable without learning it (**RED / research, pending cryptographer sign-off**) |
+| **`lib-q-transcript`** | Shared Fiat–Shamir / CFRG-sigma duplex-transcript discipline for lib-Q ZK proofs (K12 out-of-circuit, Poseidon-256 in-circuit; no_std + alloc) (**RED / research, pending sign-off**) |
 | **`lib-q-fn-dsa`** | FN-DSA (FIPS 206) |
 | **`lib-q-slh-dsa`** | SLH-DSA (FIPS 205) |
 | **`lib-q-cb-kem`** | Classic McEliece–family CB-KEM |
@@ -97,6 +99,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-stark-merkle`** | Merkle trees |
 | **`lib-q-stark-mersenne31`** | Mersenne-31 field |
 | **`lib-q-stark-monty31`** | Monty-31 field |
+| **`lib-q-stark-baby-bear`** | BabyBear prime field (p = 2³¹ − 2²⁷ + 1) as a Monty-31 instance |
 | **`lib-q-stark-rayon`** | Optional Rayon parallelism |
 | **`lib-q-stark-symmetric`** | Symmetric primitives for STARKs |
 | **`lib-q-stark-util`** | STARK utilities |
@@ -113,7 +116,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 
 ### npm packages (npmjs.com)
 
-**22** `@lib-q/*` packages are built with `wasm-pack` in CD. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface).
+**30** `@lib-q/*` packages are published in CD: **29** WASM bundles built with `wasm-pack` (the `publish-wasm-packages` matrix in [`cd.yml`](.github/workflows/cd.yml)) plus the TypeScript-only **`@lib-q/types`** package. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface). The newest crates — `lib-q-mve`, `lib-q-transcript`, and `lib-q-stark-baby-bear` — are **crates.io-only** (no npm/WASM packages).
 
 - **`@lib-q/core`** — Umbrella WASM bundle (all algorithms path used in CD)
 - **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
@@ -226,6 +229,10 @@ npm install @lib-q/aead @lib-q/hpke @lib-q/zkp @lib-q/random @lib-q/hqc @lib-q/s
 - **Proof generation and verification** via `lib-q-zkp` (built on the workspace STARK crates)
 - **WASM**: `lib-q-zkp` is checked for `wasm32-unknown-unknown` in CI when the relevant features are enabled
 - **Deeper stack**: `lib-q-plonky` and related crates host the Plonky3-derived STARK pipeline (including univariate and batch STARK, Keccak AIR, and lookup support), gated by features for selective compilation
+- **Experimental / RED — not proven, not audited, pending human cryptographer sign-off (IACR review):**
+  - **Unlinkable set-membership proof** in `lib-q-zkp` (Fiat–Shamir domain `libq.zkfri.membership.v0`), in two arms. **Arm A** uses value field `Complex<Mersenne31>` = GF(p²) with a degree-3 FRI challenge extension (~186 bits) and reaches 128-bit post-quantum security **only at the PCS/commitment layer** (binding on the SHAKE256 Merkle commitment); its Poseidon-over-GF(p²) round-count soundness is still unverified. **Arm B** uses the BabyBear base field with Poseidon2 and is ~116-bit conjectured / ~99-bit provable (**not** 128-bit). Both arms are RED and gated behind ADR-113 freeze review.
+  - **Verifiable rekey** (`lib-q-mve`): multi-recipient verifiable encryption — a producer distributes one fresh group key to many recipients (each wrapped under that recipient's ML-KEM update key) with a single proof that everyone receives the same key, checkable by an untrusted relay without it learning the key (insider-robustness / anti-split).
+  - **Fiat–Shamir transcript discipline** (`lib-q-transcript`): a shared duplex transcript for new lib-Q ZK proofs, with K12 (out-of-circuit) and Poseidon-256 (in-circuit) instantiations.
 
 ## Architecture
 
