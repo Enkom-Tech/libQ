@@ -31,8 +31,8 @@ reveal only (root, ctx, N);  L and t stay private.
   `MEMBERSHIP_DOMAIN_STR = "libq.zkfri.membership.v0"`), not a witness/public input — see **(v)** and
   Finding **F8**.
 - Public values `[ root(9) ‖ ctx(4) ‖ N(9) ]` (22 cells = 88 B). Trace = one row / Merkle level; row 0
-  carries the leaf + nullifier sponge blocks. Challenge field = `BinomialExtensionField⟨BabyBear,4⟩`
-  (≈ 124 bits).
+  carries the leaf + nullifier sponge blocks. Challenge field = `BinomialExtensionField⟨BabyBear,5⟩`
+  = `GF(q⁵)` (≈ 155 bits).
 - **PCS-layer security level (computed — `membership-arm-b-soundness-params.md`):** the config
   (degree-**5** challenge field `F_{p^5}`≈155b, `log_blowup 4`, `num_queries 96`, PoW 20) delivers
   **≈128-bit post-quantum** proof soundness (≈128 classical conjectured & provable-Johnson), binding on

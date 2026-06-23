@@ -15,7 +15,7 @@ build in progress; soundness obligations unmet — see `membership-arm-b-babybea
 | Step | Item | State |
 |------|------|-------|
 | 1 | `lib-q-stark-baby-bear` base field (modulus, Montgomery, 2-adic table) | **BUILT + KAT-GREEN** (24 tests; wasm + no_std clean) |
-| 1 | …degree-4 binomial extension for FRI challenges + DFT exposure | TODO (deferred to step 6 — only the PCS needs it; steps 2-5 are base-field) |
+| 1 | …degree-**5** binomial extension `GF(q⁵)` for FRI challenges (128-bit PQ) + DFT exposure | **DONE** (BinomialExtensionData<5>, Sage-verified; was deg-4/~124b, raised to deg-5/~155b for 128-bit) |
 | 2 | BabyBear Poseidon2 value-level permutation + KAT vs reference | **BUILT + KAT-GREEN** (3 vectors; wasm + no_std clean). F6 RESOLVED: the random-input vector is byte-identical to Plonky3's published **production-constant** KAT (`test_default_babybear_poseidon2_width_16`) — Rust == Python ref == Plonky3 published output |
 | 3 | Poseidon2 in-circuit gadget (AIR) + property test | **BUILT + TESTED** (7 tests: in-circuit==permute + valid `check_constraints` + 5 corruption rejections); default-features wasm32 clean — see F7 |
 | 4 | wide sponge over BabyBear (t16/r7/c9/w9) | **BUILT + TESTED** (6 tests; reusable `constrain_permutation` factored out) |
@@ -195,7 +195,8 @@ the spec's aspirational one.
 
 ## Step 5 — unlinkable membership AIR (DONE, tested)
 
-`lib-q-zkp/src/air/unlinkable_membership_baby_bear.rs`: `UnlinkableMembershipBbAir` (1643 cols/row;
+`lib-q-zkp/src/air/unlinkable_membership_baby_bear.rs`: `UnlinkableMembershipBbAir` (1661 cols/row,
+after the degree-7 optimization's +18 stored node-input columns;
 public `[root(9)‖ctx(4)‖N(9)]` = 22). Statement `∃(L,t,path): L=H(t) ∧ MerklePath(L→root) ∧
 N=H(domain‖t‖ctx)`, revealing only `(root,ctx,N)`. Same-`t` binding is structural (leaf + nullifier
 blocks read the same `t` columns). Leaf/nullifier sponges run on every row (max degree stays 7);
@@ -225,12 +226,13 @@ Two things surfaced building the real prover (`stark_baby_bear.rs`):
 ## Step 6 — BabyBear STARK prover/verifier (transparent DONE; ZK next)
 
 `lib-q-zkp/src/stark_baby_bear.rs`: `BbConfig = StarkConfig<TwoAdicFriPcs<BabyBear, RecursiveDft,
-MerkleTreeMmcs<…Shake256…>, ExtensionMmcs>, BinomialExtensionField<BabyBear,4>,
+MerkleTreeMmcs<…Shake256…>, ExtensionMmcs>, BinomialExtensionField<BabyBear,5>,
 Shake256Challenger32<BabyBear>>`. The challenger is the prime-field `SerializingChallenger` directly
 (BabyBear is `PrimeField32`) — no `ComplexFieldChallenger` wrapper (Arm A needs one because its Val
 is a complex field). `prove_membership_bb`/`verify_membership_bb` **work end-to-end**: a depth-4
-roundtrip proves, verifies, and rejects a tampered nullifier (~4.7s debug). FRI: `log_blowup=4`,
-`num_queries=100`, `proof_of_work_bits=16`. Tier RED — a working STARK is not a *sound* one.
+roundtrip proves, verifies, and rejects a tampered nullifier. **128-bit-PQ FRI**: `log_blowup=4`,
+`num_queries=96`, `proof_of_work_bits=20` (challenge field `BinomialExtensionField<BabyBear,5>` ~155
+bits). Tier RED — a working STARK is not a *sound* one.
 
 ## Open scope (honest)
 
