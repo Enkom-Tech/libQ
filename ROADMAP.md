@@ -174,6 +174,42 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 - [x] Module-lattice / sigma ZKP research path (`lib-q-lattice-zkp` on `lib-q-ring`; algebraic lattice relations, not the STARK AIR stack)
   - [ ] Protocol-level hardening, parameter audit, and API stability (research-grade today)
 
+#### RED — experimental ZK constructions (0.0.8; NOT proven sound, NOT audited, NOT production-ready)
+
+> **All items in this subsection are RED / research-grade.** The code is implemented and tested, but
+> the underlying constructions, domain-separation labels, and soundness arguments are **pending human
+> cryptographer sign-off** — the membership construction was submitted to IACR ePrint and is under
+> review (ADR-113 freeze gate). Implementation completeness here does **not** imply proven soundness;
+> do not treat any of these as load-bearing without hiding residual implementation risk.
+
+- [ ] **Unlinkable set-membership STARK** (`lib-q-zkp`, Fiat-Shamir domain `libq.zkfri.membership.v0`)
+  - [x] Construction implemented (transparent STARK, two field/hash arms)
+  - [x] Negative-proof matrix + proof-determinism tests
+  - [ ] **Arm A** — value field `Complex<Mersenne31>` = GF(p²); FRI challenge field = degree-3
+    extension GF(p⁶) (~186 bits). Reaches **128-bit post-quantum *only at the PCS/commitment layer***
+    (binding on the SHAKE256 Merkle commitment). The Poseidon-over-GF(p²) round-count soundness
+    (obligation **O1**) is **STILL UNVERIFIED** — this is **not** a complete soundness proof.
+  - [ ] **Arm B** — BabyBear base field (`lib-q-stark-baby-bear`, `p = 2³¹ − 2²⁷ + 1`) + Poseidon2.
+    Soundness is **~116-bit conjectured / ~99-bit provable — NOT 128-bit.**
+  - [ ] Human cryptographer sign-off (IACR ePrint review; ADR-113 freeze gate)
+- [ ] **Verifiable rekey / multi-recipient verifiable encryption** (`lib-q-mve`, crates.io-only)
+  - [x] mVE-v0 construction implemented: a producer distributes a fresh group key `K` to many
+    recipients (each wrapped under that recipient's ML-KEM update key) with a **single proof** that
+    every recipient receives the **same** `K`, checkable by an untrusted relay **without** learning
+    `K` (insider-robustness / anti-split)
+  - [ ] In-circuit binding of each `ss_i` to its KEM ciphertext is **NOT** proven (backstopped by the
+    recipient commitment check, mve-rekey-v0 §4.3/§6); shares the membership AIR's unverified
+    Poseidon-256-over-GF(p²) obligations
+  - [ ] Human cryptographer sign-off (`docs/mve-freeze-gate-review.md` M1–M4)
+- [ ] **Shared Fiat-Shamir duplex transcript** (`lib-q-transcript`, `no_std` + `alloc`, crates.io-only)
+  - [x] One hash-agnostic chaining-value duplex transcript discipline; two instantiations —
+    `K12Transcript` (out-of-circuit, KangarooTwelve) and `PoseidonTranscript` (in-circuit,
+    Poseidon-256, behind the `poseidon` feature)
+  - [ ] Construction + label domain-separation strings are engineering drafts; **not** a certified
+    Fiat-Shamir transform. Deliberately **not** retrofitted into the frozen `lib-q-mve` / membership
+    wire formats
+  - [ ] Human cryptographer sign-off on the construction + labels
+
 ### Performance optimization
 - [x] SIMD optimizations (Saturnin AVX2/NEON dispatch and kernels)
 - [ ] Parallel processing

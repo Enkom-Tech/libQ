@@ -18,6 +18,61 @@ This section is the single source of truth for where ZKP/STARK/Plonky functional
 
 - **Security**: The STARK / Plonky paths use NIST-approved primitives (SHAKE256) for the challenger and Merkle hashing in the default pipeline. Some AIRs and Merkle trees use **Poseidon** for in-circuit efficiency (for example `ZkpProver::prove_secret_value`, Merkle inclusion, and `SessionKeyDerivationAir` commitments, as documented on those APIs). Use `prove_secret_value_nist` / `HashPreimageNistAir` when you need hash commitments inside the proof to stay on cSHAKE256-only rails. The lattice ZKP crate documents its own assumptions and is not interchangeable with the STARK verifier API.
 
+## Unlinkable set-membership proof — RED / research (NOT signed off)
+
+> **RED — experimental research, pending human cryptographer sign-off.** Everything in this
+> section is gated behind the **ADR-113 freeze review**; the construction has been submitted to
+> IACR ePrint and is **under review**. It is **NOT proven sound, NOT audited, NOT
+> production-ready**, and carries hiding residual implementation risk. Do not deploy it as a
+> security boundary until a human cryptographer signs off.
+
+`lib-q-zkp` gained an **unlinkable set-membership** proof under the Fiat–Shamir domain
+**`libq.zkfri.membership.v0`** (`lib-q-zkp/src/membership.rs`). It proves a Semaphore/Tornado-style
+statement over a Poseidon-256 wide-digest Merkle tree:
+
+```text
+∃ (secret trapdoor t, path):  MerkleVerify(root, L = H(t), path)  ∧  N = H(domain ‖ t ‖ ctx)
+reveal only (root, ctx, N);  the leaf L and the trapdoor t stay private.
+```
+
+A single secret trapdoor `t` produces both the Merkle leaf and a context-scoped nullifier `N`, so a
+member proves admission while the verifier learns only an **unlinkable** nullifier (double-use under
+one `ctx` collides on `N`). The wire format is frozen as **v0**
+(`lib-q-zkp/docs/membership-wire-v0-FROZEN.md`). It ships in two arms; **both are RED / not signed
+off**:
+
+- **Arm A** — value field `Complex<Mersenne31>` = GF(p²); the **FRI challenge field is the degree-3
+  extension GF(p⁶)** (~186 bits). It reaches **128-bit post-quantum security at the PCS / commitment
+  layer**, where soundness is **binding on the SHAKE256 Merkle commitment** (128-bit). **Caveat:**
+  the Poseidon-over-GF(p²) round-count soundness (the in-circuit wide-hash, obligation **O1**) is
+  **STILL UNVERIFIED** — Arm A is therefore **not** a complete soundness proof, only a binding
+  argument at the commitment layer. (`lib-q-zkp/src/air/unlinkable_membership.rs`,
+  `lib-q-zkp/src/air/wide_hash.rs`.)
+
+- **Arm B** — BabyBear base field (`p = 2³¹ − 2²⁷ + 1`, via `lib-q-stark-baby-bear`) with
+  **Poseidon2**. Arm B is **~116-bit conjectured / ~99-bit provable** soundness; it **does NOT reach
+  128-bit** — never describe it as 128-bit. (`lib-q-zkp/src/air/unlinkable_membership_baby_bear.rs`;
+  see `lib-q-zkp/docs/membership-arm-b-*` for the build spec, obligation packet, and status.)
+
+### Supporting crates (also RED / pending human sign-off)
+
+- **lib-q-stark-baby-bear** — the BabyBear prime field `F_p` (`p = 2³¹ − 2²⁷ + 1`) implemented as a
+  `lib-q-stark-monty31` instance; the base field for the Arm B membership STARK. (crates.io-only; no
+  npm / wasm package.)
+
+- **lib-q-mve** — multi-recipient verifiable encryption ("**verifiable rekey**"). A producer
+  distributes a fresh group key `K` to many recipients (each wrapped under that recipient's ML-KEM
+  update key) together with a **single proof that every recipient receives the same `K`**, checkable
+  by an untrusted relay **without learning `K`** (insider-robustness / anti-split). **STATUS: RED,
+  pending human cryptographer sign-off.** (crates.io-only; no npm / wasm package.)
+
+- **lib-q-transcript** — the shared **CFRG sigma / Fiat–Shamir duplex-transcript** discipline for
+  lib-Q ZK proofs, in two instantiations: **K12** (out-of-circuit) and **Poseidon-256**
+  (in-circuit). `no_std` + `alloc` capable (bare-metal builds with
+  `--no-default-features --features alloc[,poseidon]`). Use it for **new** proving code; do **not**
+  retrofit it into the frozen `lib-q-mve` / membership wire. **STATUS: RED, pending human sign-off
+  on the construction + labels.** (crates.io-only; no npm / wasm package.)
+
 ## Strategic Alignment
 
 - **Post-quantum security**: zk-STARKs use collision-resistant hash functions
