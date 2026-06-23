@@ -9,8 +9,9 @@ fully built, functionally tested, and measured (see `membership-arm-b-build-stat
 > statement. It is the input to a human cryptographer's review; it is **not** sign-off. Each item is
 > marked GREEN (arithmetic/structure settled at this level) or RED (needs human/cryptographer
 > discharge). **Functional green tests prove the construction RUNS correctly; they do NOT prove
-> soundness.** Arm B's obligations do **not** inherit Arm A's O1–O4 — but, as argued per item, each
-> is an *easier and better-precedented* sign-off than Arm A's.
+> soundness.** Arm B's obligations do **not** inherit Arm A's O1–O4; each is stated for independent
+> assessment per item below. (Where an item notes prior precedent — e.g. a standard prime-field
+> Poseidon2 parameter set — that is context for the reviewer, not a claim that sign-off is assured.)
 
 ---
 
@@ -60,7 +61,7 @@ Poseidon2 width-16 is a *deployed, published* instance. Every obligation below i
 
 ## 3. Obligations
 
-### (i) Round counts `R_F = 8`, `R_P = 13` at `α = 7`, `t = 16`, `n ≈ 30.9` — **RED (citation-grade; easiest possible)**
+### (i) Round counts `R_F = 8`, `R_P = 13` at `α = 7`, `t = 16`, `n ≈ 30.9` — **RED (citation-grade)**
 The round counts must resist statistical (differential/linear) and algebraic (interpolation,
 Gröbner-basis/FreeLunch, higher-order differential) attacks at the target security level. For
 Poseidon2 the count is fixed by the formulas in the Poseidon2 paper (Grassi, Khovratovich, Roy,
@@ -138,9 +139,10 @@ property is a property of the hiding-PCS + AIR composition (standard in the Plon
 
 **RED.** Items (iii) and (iv) are GREEN at the arithmetic/structure level but are *conditional* on
 (i)/(ii); items (i), (ii), (v-F8), (vi) require human/cryptographer discharge. **No item is blocked by
-an off-envelope or non-standard-field hazard** — the distinguishing, decisive advantage over Arm A,
-whose O1 (Poseidon STATE over GF(p²)) is precisely such a hazard. In short: **Arm B's sign-off is the
-same gate as Arm A's, but every item on it is the easy, well-precedented version.**
+an off-envelope or non-standard-field hazard** — a structural difference from Arm A, whose O1
+(Poseidon STATE over GF(p²)) is such a hazard. In short: **Arm B's sign-off is the same gate as Arm
+A's; the items differ because Arm B operates over a standard prime field.** Whether each item actually
+discharges is the reviewer's determination, not asserted here.
 
 Functional evidence on file (NOT soundness): value-level Poseidon2 KAT (3 vectors, one byte-identical
 to Plonky3's published production-constant vector — third-party anchor, F6 resolved); in-circuit

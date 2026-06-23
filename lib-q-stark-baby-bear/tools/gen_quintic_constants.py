@@ -32,14 +32,19 @@ print(f"TWO_ADICITY(base)      = {ta_base}")
 print(f"EXT_TWO_ADICITY(p^5-1) = {ta_ext}")
 assert ta_ext == ta_base == 27, "odd-degree extension must not add 2-adic structure"
 
-# A VERIFIED multiplicative generator of F_{p^5}^* (order p^5 - 1), in basis {1,a,...,a^4}.
+# VERIFY the DEPLOYED EXT_GENERATOR has full multiplicative order p^5 - 1. We check the exact literal
+# shipped in baby_bear.rs (g = 8 + a, i.e. [8,1,0,0,0] in basis {1,a,a^2,a^3,a^4}) rather than emitting
+# Sage's own multiplicative_generator() — that picker is non-canonical (its choice can vary by Sage
+# version), so a third party re-running this script must reproduce the EXACT deployed literal, not a
+# different valid generator. (Sage's multiplicative_generator() does return 8+a here, which is how the
+# deployed value was originally chosen; we now pin it deterministically.)
 K = GF(p**5, name='a', modulus=x**5 - Fp(W))
-g = K.multiplicative_generator()
-assert g.multiplicative_order() == p**5 - 1, "EXT_GENERATOR must generate the full group"
-coeffs = [int(c) for c in g.polynomial().list()]
-coeffs += [0] * (5 - len(coeffs))
-print(f"EXT_GENERATOR = {coeffs}")
-print(f"(verified: order == p^5-1 = {p**5-1})")
+a = K.gen()
+coeffs = [8, 1, 0, 0, 0]  # deployed EXT_GENERATOR (baby_bear.rs): g = 8 + a
+g = sum(K(c) * a**i for i, c in enumerate(coeffs))
+assert g.multiplicative_order() == p**5 - 1, "deployed EXT_GENERATOR [8,1,0,0,0] must generate F_{p^5}^*"
+print(f"EXT_GENERATOR = {coeffs}  (deployed literal; verified order == p^5-1)")
+print(f"(p^5-1 = {p**5-1})")
 print(f"p^5-1 factorization 2-part: {factor(p**5-1)[0]}")
 
 print("\n--- Rust (impl BinomialExtensionData<5> for BabyBearParameters) ---")
