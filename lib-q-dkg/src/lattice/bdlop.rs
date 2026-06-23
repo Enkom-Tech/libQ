@@ -284,7 +284,12 @@ fn phi(key: &CommitKey, blocks: &[[Rq; KAPPA]], powers: &[i64]) -> Vec<Rq> {
         out.extend(b0_apply(key, block));
     }
     // Σ_i jⁱ·ρ_i  (column-wise over the KAPPA randomness slots).
-    let mut combined: [Rq; KAPPA] = core::array::from_fn(|_| Rq::zero());
+    // Heap-backed (`Vec`, not `[Rq; KAPPA]`): each `Rq` is `[i64; N=1024]` ≈ 8 KiB, so an inline
+    // `[Rq; KAPPA]` is a ~72 KiB stack temporary that is *live across* the deep `b0_apply`/`ring_mul`/
+    // `ntt` call chain. Keeping the BDLOP working set on the heap is what lets the DKG ceremony run on
+    // a normal thread stack (retires the 64 MiB dedicated-thread band-aid). `b1_apply` takes `&[Rq]`,
+    // so the `Vec` derefs without any signature change; arithmetic and RNG draw order are unchanged.
+    let mut combined: Vec<Rq> = (0..KAPPA).map(|_| Rq::zero()).collect();
     for (i, block) in blocks.iter().enumerate() {
         for (slot, bc) in block.iter().enumerate() {
             combined[slot] = ring_add(&combined[slot], &scalar_mul(bc, powers[i]));
@@ -315,7 +320,9 @@ fn recompute_w(
         }
     }
     // Last component: ⟨b1, Σ_i jⁱ·z_i⟩ − c·(T1_j − s_j).
-    let mut combined: [Rq; KAPPA] = core::array::from_fn(|_| Rq::zero());
+    // Heap-backed for the same reason as in `phi`: avoid a ~72 KiB inline `[Rq; KAPPA]` stack
+    // temporary on the verify hot path. `b1_apply` takes `&[Rq]`; the `Vec` derefs unchanged.
+    let mut combined: Vec<Rq> = (0..KAPPA).map(|_| Rq::zero()).collect();
     for (i, _) in commitments.iter().enumerate() {
         let zi = &z[i * KAPPA..(i + 1) * KAPPA];
         for (slot, zc) in zi.iter().enumerate() {

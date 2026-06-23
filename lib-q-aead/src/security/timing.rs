@@ -247,7 +247,7 @@ impl TimingProtection {
     #[cfg_attr(all(feature = "std", not(target_arch = "wasm32")), allow(dead_code))]
     #[inline]
     fn monotonic_tick_counter() -> u64 {
-        use core::sync::atomic::AtomicU64;
+        use portable_atomic::AtomicU64;
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         COUNTER.fetch_add(1, Ordering::SeqCst)
     }
@@ -279,8 +279,8 @@ use std::sync::{
 static GLOBAL_TIMING_PROTECTION: std::sync::OnceLock<Arc<RwLock<TimingProtection>>> =
     std::sync::OnceLock::new();
 #[cfg(not(feature = "std"))]
-static GLOBAL_TIMING_PROTECTION: once_cell::sync::Lazy<spin::Mutex<TimingProtection>> =
-    once_cell::sync::Lazy::new(|| spin::Mutex::new(TimingProtection::default()));
+static GLOBAL_TIMING_PROTECTION: spin::LazyLock<spin::Mutex<TimingProtection>> =
+    spin::LazyLock::new(|| spin::Mutex::new(TimingProtection::default()));
 
 /// Get the global timing protection configuration.
 pub fn get_timing_protection() -> TimingProtection {

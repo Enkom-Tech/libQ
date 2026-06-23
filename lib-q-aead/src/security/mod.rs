@@ -204,10 +204,9 @@ impl SecurityContext {
         // still gives consistent relative measurements.
         #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
         {
-            use core::sync::atomic::{
-                AtomicU64,
-                Ordering,
-            };
+            use core::sync::atomic::Ordering;
+
+            use portable_atomic::AtomicU64;
             static COUNTER: AtomicU64 = AtomicU64::new(0);
             COUNTER.fetch_add(1, Ordering::SeqCst)
         }

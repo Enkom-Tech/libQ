@@ -185,7 +185,7 @@ pub mod interleave {
     fn interleave1_antidiagonal(x: __m512i, y: __m512i) -> __m512i {
         const INTERLEAVE1_INDICES: __m512i = unsafe {
             // Safety: `[u32; 16]` is trivially transmutable to `__m512i`.
-            transmute::<[u32; WIDTH], _>([
+            transmute::<[u32; 16], _>([
                 0x01, 0x10, 0x03, 0x12, 0x05, 0x14, 0x07, 0x16, 0x09, 0x18, 0x0B, 0x1A, 0x0D, 0x1C,
                 0x0F, 0x1E,
             ])

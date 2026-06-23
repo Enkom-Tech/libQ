@@ -2,10 +2,10 @@
 //!
 //! This crate provides utility functions used across lib-Q.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
-#[cfg(feature = "std")]
-extern crate std;
+// `lib-q-utils` is std-only by design: every helper wraps `lib_q_core::Utils` RNG/hex routines that
+// need an OS entropy source (`rand`/`thread_rng`) and returns `Vec`/`String`. There is no sensible
+// bare-metal `no_std` build (no entropy on `*-none-*` targets), so this crate does not declare
+// `#![no_std]`. A `no_std` consumer should depend on `lib-q-core` / `lib-q-random` directly.
 
 // Re-export core types for public use
 pub use lib_q_core::{

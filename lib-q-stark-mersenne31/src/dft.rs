@@ -203,14 +203,11 @@ impl Mersenne31Dft {
 
 #[cfg(test)]
 mod tests {
+    use lib_q_random::new_deterministic_rng;
+    use rand::RngExt;
     use rand::distr::{
         Distribution,
         StandardUniform,
-    };
-    use rand::rngs::SmallRng;
-    use rand::{
-        RngExt,
-        SeedableRng,
     };
 
     use super::*;
@@ -225,7 +222,7 @@ mod tests {
         StandardUniform: Distribution<Base>,
     {
         const N: usize = 1 << 12;
-        let rng = SmallRng::seed_from_u64(1);
+        let rng = new_deterministic_rng([1u8; 32]);
         let input = rng
             .sample_iter(StandardUniform)
             .take(N)
@@ -242,7 +239,7 @@ mod tests {
         StandardUniform: Distribution<Base>,
     {
         const N: usize = 1 << 6;
-        let rng = SmallRng::seed_from_u64(1);
+        let rng = new_deterministic_rng([1u8; 32]);
         let v = rng
             .sample_iter(StandardUniform)
             .take(2 * N)

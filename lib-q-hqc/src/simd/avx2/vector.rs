@@ -66,11 +66,10 @@ pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
 /// * `distance` - Number of bits to shift right
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
 pub fn shift_xor_avx2(dest: &mut [u64], source: &[u64], distance: usize) {
-    // TODO: Implement AVX2 shift_xor
-    // This is a placeholder that will be implemented in Phase 2
-
-    // For now, fall back to portable implementation
-    super::super::portable::shift_xor_portable(dest, source, distance);
+    // The optimized AVX2 shift-XOR lives in `polynomial::shift_xor_avx2` — that is the one the
+    // `Avx2` dispatcher (`simd::avx2::mod`) actually calls. Delegate to it so this (otherwise
+    // unused) entry point shares the single real implementation instead of the portable fallback.
+    super::polynomial::shift_xor_avx2(dest, source, distance);
 }
 
 // Fallback implementations for when AVX2 is not available

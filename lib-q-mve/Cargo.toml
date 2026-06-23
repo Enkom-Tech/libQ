@@ -12,19 +12,19 @@ categories = ["cryptography"]
 readme.workspace = true
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false, features = ["std"] }
-lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.7", default-features = false, features = ["std", "zkp"] }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.7", features = ["deterministic"] }
-lib-q-k12 = { path = "../lib-q-k12", version = "0.0.7" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
-lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.7", default-features = false, features = ["alloc"] }
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.7" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.7" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, features = ["std"] }
+lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.8", default-features = false, features = ["std", "zkp"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.8", features = ["deterministic"] }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.8" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
+lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.8", default-features = false, features = ["alloc"] }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
 
 [dev-dependencies]
-lib-q-stark = { path = "../lib-q-stark", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-stark = { path = "../lib-q-stark", version = "0.0.8", default-features = false, features = ["alloc"] }
 
 [lib]
 name = "lib_q_mve"

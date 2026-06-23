@@ -21,9 +21,9 @@ ignored = [
 ]
 [dependencies]
 # libQ dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["classical-mceliece"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["classical-mceliece"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
 
 # External dependencies
 aes = { workspace = true, default-features = false, optional = true }
@@ -49,13 +49,15 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 ## generation CI job
 # alloc := enable, if the platform supports dynamic memory allocation
 # zeroize := enable to nullify sensitive memory sections after they go out of scope
-default = ["alloc", "zeroize"]
+# std-by-default; bare-metal consumers build with `--no-default-features --features alloc,zeroize,cbkemNNN`
+# (plus an integrator-supplied `getrandom` custom backend for `ClassicalMcElieceRng`).
+default = ["std", "alloc", "zeroize"]
 no-default-features = []
 alloc = []
 zeroize = ["dep:zeroize"]
 
 # Standard library support
-std = []
+std = ["lib-q-core/std", "lib-q-random/std"]
 
 # WASM support
 wasm = [

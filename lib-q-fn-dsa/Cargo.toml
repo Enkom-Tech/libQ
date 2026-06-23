@@ -33,11 +33,11 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dependencies]
 # Core libQ types
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["fn-dsa", "rand", "getrandom"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["fn-dsa", "rand", "getrandom"] }
 
 # FN-DSA implementation (the actual algorithm)
-lib-q-fn-dsa-alg = { path = "fn-dsa", version = "0.0.7" }
+lib-q-fn-dsa-alg = { path = "fn-dsa", version = "0.0.8" }
 
 # Standard library features
 rand_core = { workspace = true }
@@ -50,8 +50,8 @@ web-sys = { workspace = true, optional = true, features = ["console"] }
 
 [features]
 default = ["std", "alloc"]
-std = ["alloc"]
-alloc = []
+std = ["alloc", "lib-q-core/std", "lib-q-random/std"]
+alloc = ["lib-q-core/alloc"]
 # Marker for CI/scripts that pass `--features std,rand`; RNG is provided via `lib-q-random` on the default dependency path.
 rand = []
 

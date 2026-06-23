@@ -357,8 +357,8 @@ use std::sync::{
 static GLOBAL_VALIDATOR: std::sync::OnceLock<Arc<RwLock<InputValidator>>> =
     std::sync::OnceLock::new();
 #[cfg(not(feature = "std"))]
-static GLOBAL_VALIDATOR: once_cell::sync::Lazy<spin::Mutex<InputValidator>> =
-    once_cell::sync::Lazy::new(|| spin::Mutex::new(InputValidator::new()));
+static GLOBAL_VALIDATOR: spin::LazyLock<spin::Mutex<InputValidator>> =
+    spin::LazyLock::new(|| spin::Mutex::new(InputValidator::new()));
 
 /// Get the global input validator
 pub fn get_input_validator() -> InputValidator {

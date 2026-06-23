@@ -12,11 +12,11 @@ keywords = ["cryptography", "post-quantum", "lattice", "blind-signature", "token
 categories = ["cryptography", "no-std"]
 
 [dependencies]
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
 rand_core = { workspace = true }
 
 [dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", default-features = false, features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
 hex = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 

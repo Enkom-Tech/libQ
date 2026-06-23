@@ -13,7 +13,7 @@ keywords = ["cryptography", "post-quantum", "security", "core", "nist"]
 categories = ["cryptography", "wasm"]
 
 [dependencies]
-lib-q-types = { path = "../lib-q-types", version = "0.0.7", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.8", default-features = false }
 # Core cryptographic dependencies - no_std compatible
 getrandom = { workspace = true, optional = true, default-features = false }
 # rand_core 0.10 has no optional features; OS RNG comes from getrandom/rand when std is enabled
@@ -54,12 +54,18 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 default = ["std"]
 std = ["getrandom", "alloc", "rand", "once_cell", "once_cell/std"]
 alloc = []
-# `no_std` includes the aborting `#[panic_handler]` so `cargo check -p lib-q-core --no-default-features --features no_std,getrandom` works with `crate-type` cdylib+rlib.
-# On stable, also pass `--profile dev-no-std` (workspace root) or `RUSTFLAGS=-Cpanic=abort` so the root crate is built with `panic=abort` (unwinding is unavailable without std).
-# Firmware that supplies its own `#[panic_handler]` should depend with `default-features = false` and enable `spin` / `getrandom` / `alloc` explicitly without the `no_std` feature name.
-no_std = ["spin", "no_std_panic_handler"]
-# Kept as an empty alias so older manifests and CI flags that pass `no_std_panic_handler` remain valid.
+# `no_std` enables the spin-based global registry for bare-metal targets. The aborting
+# `#[panic_handler]` is now provided by DEFAULT in any non-`wasm` `no_std` build (it is required
+# because the `cdylib` crate-type below is built on every target — see src/lib.rs), so it no longer
+# needs to be opted into. Standalone no_std checks still need `panic=abort`: pass
+# `--profile dev-no-std` (workspace root) or `RUSTFLAGS=-Cpanic=abort` (unwinding is unavailable
+# without std). Example: `cargo check -p lib-q-core --no-default-features --features getrandom --profile dev-no-std`.
+no_std = ["spin"]
+# Back-compat alias (no-op): the panic handler is no longer feature-gated to opt-in.
 no_std_panic_handler = []
+# Firmware/integrators that supply their OWN `#[panic_handler]` opt out of ours: depend with
+# `default-features = false` and enable this feature (plus `spin` / `getrandom` / `alloc` as needed).
+no_panic_handler = []
 # Random number generation - requires platform-specific configuration for no_std
 # In no_std environments, applications must provide custom entropy sources
 getrandom = ["dep:getrandom"]

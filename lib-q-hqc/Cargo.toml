@@ -28,16 +28,16 @@ ignored = [
 ]
 [dependencies]
 # Core libQ dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.7" }
-lib-q-types = { path = "../lib-q-types", version = "0.0.7", default-features = false }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.7" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.7", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.8", default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.8", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true }
 
 # Core cryptographic primitives
 hybrid-array = { workspace = true }
 rand_core = { workspace = true } # RNG traits
-hex = { workspace = true }       # Hex encoding for test vectors
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] } # Hex (direct dep so default-features can be disabled for no_std)
 
 # Platform-specific dependencies
 heapless = { version = "0.9.3", optional = true }              # no_std collections
@@ -56,14 +56,14 @@ aes = { workspace = true, default-features = false, optional = true } # AES for 
 
 [dev-dependencies]
 # Test dependencies
-lib-q-random = { path = "../lib-q-random", version = "0.0.7", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
 rand = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 
 # Benchmarking dependencies (host targets only)
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.7" }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.8" }
 
 [[test]]
 name = "nist_kem_kat"
@@ -104,13 +104,16 @@ path = "tests/wasm_smoke.rs"
 required-features = ["wasm", "hqc", "random", "serialization"]
 
 [features]
-default = ["alloc", "random"]
+# std-by-default; bare-metal/no_std consumers build with `--no-default-features --features no_std`.
+default = ["std", "alloc", "random"]
 
 # Core features
-std = []                            # Standard library support (compatibility feature)
-alloc = []                          # Heap allocation support (required for std builds)
+std = ["lib-q-core/std"]            # Standard library support
+alloc = ["lib-q-core/alloc"]        # Heap allocation support (required for std builds)
 heapless = ["dep:heapless"]         # Named feature for optional dep (workspace `cargo metadata --features heapless`).
-no_std = ["heapless"]               # Embedded/no_std with heapless collections
+# Embedded/no_std: heapless collections + alloc (HQC's PKE/contexts use `alloc` and `lib_q_core::KemContext`,
+# which is alloc-gated). A bare-metal final artifact additionally needs an integrator getrandom custom backend.
+no_std = ["heapless", "alloc"]
 
 # HQC algorithm variants (NIST security levels)
 hqc128 = ["alloc", "random", "zeroize", "lib-q-core/std", "lib-q-core/alloc"]  # 128-bit security (Level 1)

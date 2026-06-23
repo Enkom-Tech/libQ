@@ -160,7 +160,7 @@ static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::ne
 /// This uses thread-safe initialization for WASM and other targets that require Sync.
 /// For true no_std environments without threading, this is still safe.
 #[cfg(not(feature = "std"))]
-static REGISTRY: once_cell::sync::Lazy<AeadRegistry> = once_cell::sync::Lazy::new(|| {
+static REGISTRY: spin::LazyLock<AeadRegistry> = spin::LazyLock::new(|| {
     let registry = AeadRegistry::new();
 
     // Register built-in algorithms

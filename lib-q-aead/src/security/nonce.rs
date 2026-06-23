@@ -4,10 +4,9 @@
 //! It implements proper nonce management to prevent nonce reuse attacks.
 
 use alloc::vec::Vec;
-use core::sync::atomic::{
-    AtomicU64,
-    Ordering,
-};
+use core::sync::atomic::Ordering;
+
+use portable_atomic::AtomicU64;
 #[cfg(all(feature = "alloc", feature = "std"))]
 #[allow(clippy::disallowed_types)]
 use std::collections::HashSet;

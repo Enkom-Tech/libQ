@@ -49,6 +49,7 @@ members = [
     "lib-q-mve",
     "lib-q-prf",
     "lib-q-ring",
+    "lib-q-transcript",
     "lib-q-zkp",
     # STARK
     "lib-q-stark",
@@ -109,7 +110,7 @@ homepage = "https://github.com/Enkom-Tech/libQ"
 edition = "2024"
 repository = "https://github.com/Enkom-Tech/libQ"
 readme = "README.md"
-version = "0.0.7"
+version = "0.0.8"
 rust-version = "1.96.0"
 description = "Post-quantum cryptography library"
 keywords = ["cryptography", "post-quantum", "security", "wasm"]
@@ -133,11 +134,11 @@ sha2 = { version = "0.11.0", default-features = false }
 block-buffer = "0.12.0"
 aead = { version = "0.6.1", default-features = false }
 aes = { version = "0.9.1", default-features = false }
-crypto-bigint = { version = "0.7.3", default-features = false }
+crypto-bigint = { version = "0.7.4", default-features = false }
 # RNG & entropy
 rand_core = { version = "0.10.1", default-features = false }
 rand = { version = "0.10.1", default-features = false }
-getrandom = { version = "0.4.2", default-features = false }
+getrandom = { version = "0.4.3", default-features = false }
 # Serialization
 serde = { version = "1.0.228", default-features = false }
 serde_json = { version = "1.0.150", default-features = false }

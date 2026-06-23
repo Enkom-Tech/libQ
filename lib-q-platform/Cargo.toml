@@ -19,7 +19,7 @@ ignored = [
 # `default-features = false`: lib-q-core defaults to `std` (pulls `once_cell/std`), which breaks
 # bare-metal no_std targets that depend on this crate. Forward our own `std` to core's instead.
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.7", default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
 
 [features]
 default = ["std"]

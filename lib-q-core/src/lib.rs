@@ -102,13 +102,30 @@ pub fn create_signature_context() -> SignatureContext {
     SignatureContext::new()
 }
 
-#[cfg(all(not(feature = "std"), feature = "no_std_panic_handler"))]
+// Aborting `#[panic_handler]` for `no_std` builds. Required because `lib-q-core` declares a
+// `cdylib` crate-type (for `wasm-pack`), and Cargo builds that cdylib on every target — a cdylib
+// is a final artifact and so needs a panic handler even when it is merely a transitive dependency
+// of another `no_std` crate (e.g. `lib-q-intrinsics`). Providing it by default keeps standalone
+// `cargo check --profile dev-no-std` of any `no_std` consumer working.
+//
+// It is deliberately excluded when:
+//   - `std` is enabled — `std` supplies the handler;
+//   - `wasm` is enabled — the `wasm-bindgen` cdylib links `std`, which supplies the handler;
+//     defining our own would be a duplicate `panic_impl` lang item;
+//   - `no_panic_handler` is set — firmware/integrators that supply their own handler opt out.
+#[cfg(all(
+    not(feature = "std"),
+    not(feature = "wasm"),
+    not(feature = "no_panic_handler")
+))]
 mod no_std_panic_handler {
     use core::panic::PanicInfo;
 
     #[panic_handler]
     #[allow(clippy::empty_loop)]
     fn panic(_info: &PanicInfo) -> ! {
+        // `panic = "abort"` is required for `no_std` final artifacts (see the `dev-no-std`
+        // profile); spin so the divergent handler is a valid `-> !` with no `std` unwinder.
         loop {}
     }
 }

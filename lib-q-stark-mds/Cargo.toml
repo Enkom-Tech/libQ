@@ -15,12 +15,17 @@ ignored = [
     "criterion",
 ]
 [dependencies]
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.7" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.7" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.7" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.7" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.8" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.8" }
 
-rand = { workspace = true, default-features = false, features = ["std"] }
+# `rand` is used only by tests (the `Distribution`/`RngExt` sampling traits); the RNG instances come
+# from `lib-q-random`. Keeping it out of `[dependencies]` is what lets consumers build bare-metal
+# `no_std` — a regular `rand`/std dep here previously forced std across the whole STARK leaf graph.
+[dev-dependencies]
+rand = { workspace = true, default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.8" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }

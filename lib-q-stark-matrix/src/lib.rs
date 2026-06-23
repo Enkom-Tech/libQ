@@ -526,9 +526,8 @@ mod tests {
         BinomialExtensionField,
         Complex,
     };
+    use lib_q_random::new_deterministic_rng;
     use lib_q_stark_mersenne31::Mersenne31;
-    use rand::SeedableRng;
-    use rand::rngs::SmallRng;
 
     use super::*;
 
@@ -539,7 +538,7 @@ mod tests {
         // Mersenne31 doesn't support direct degree 4 extensions. Use Complex<Mersenne31> with degree 2.
         type EF = BinomialExtensionField<Complex<Mersenne31>, 2>;
 
-        let mut rng = SmallRng::seed_from_u64(1);
+        let mut rng = new_deterministic_rng([1u8; 32]);
         let m = RowMajorMatrix::<F>::rand(&mut rng, 1 << 8, 1 << 4);
         let v = RowMajorMatrix::<EF>::rand(&mut rng, 1 << 8, 1).values;
 
