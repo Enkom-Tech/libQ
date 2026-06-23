@@ -49,13 +49,13 @@ use alloc::string::String;
 use alloc::string::ToString;
 
 mod constants;
-/// Value-level Poseidon2 permutation over BabyBear (width 16, the deployed
-/// Plonky3/SP1 instance). `no_std`/`alloc`-free; used by the Arm B membership AIR.
-pub mod poseidon2_baby_bear;
 #[cfg(feature = "alloc")]
 mod params;
 #[cfg(feature = "alloc")]
 mod permutation;
+/// Value-level Poseidon2 permutation over BabyBear (width 16, the deployed
+/// Plonky3/SP1 instance). `no_std`/`alloc`-free; used by the Arm B membership AIR.
+pub mod poseidon2_baby_bear;
 #[cfg(feature = "alloc")]
 mod sponge;
 

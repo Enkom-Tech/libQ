@@ -521,12 +521,12 @@ mod tests {
     };
 
     use itertools::izip;
+    use lib_q_random::new_deterministic_rng;
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::{
         BinomialExtensionField,
         Complex,
     };
-    use lib_q_random::new_deterministic_rng;
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

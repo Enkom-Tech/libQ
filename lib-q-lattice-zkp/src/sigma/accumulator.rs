@@ -85,7 +85,11 @@ impl AccParams {
         Self {
             a0: ModuleMatrix::expand_from_seed(&derive_seed(base, SEED_DOMAIN_A0), rows, cols),
             a1: ModuleMatrix::expand_from_seed(&derive_seed(base, SEED_DOMAIN_A1), rows, cols),
-            a_leaf: ModuleMatrix::expand_from_seed(&derive_seed(base, SEED_DOMAIN_ALEAF), rows, cols),
+            a_leaf: ModuleMatrix::expand_from_seed(
+                &derive_seed(base, SEED_DOMAIN_ALEAF),
+                rows,
+                cols,
+            ),
         }
     }
 }
@@ -130,7 +134,12 @@ pub fn recompose(node: &AccNode) -> ModuleVec {
     ModuleVec(out)
 }
 
-fn matrix_apply_sum(a0: &ModuleMatrix, left: &AccNode, a1: &ModuleMatrix, right: &AccNode) -> ModuleVec {
+fn matrix_apply_sum(
+    a0: &ModuleMatrix,
+    left: &AccNode,
+    a1: &ModuleMatrix,
+    right: &AccNode,
+) -> ModuleVec {
     let mut v = a0.mul_vec(&left.0);
     let vr = a1.mul_vec(&right.0);
     for (vp, rp) in v.0.iter_mut().zip(vr.0.iter()) {
@@ -260,7 +269,11 @@ pub fn acc_membership_witness(levels: &[Vec<AccNode>], leaf_index: usize) -> (u3
     let mut siblings = Vec::with_capacity(levels.len() - 1);
     let mut idx = leaf_index;
     for level in &levels[..levels.len() - 1] {
-        let sib = if idx.is_multiple_of(2) { idx + 1 } else { idx - 1 };
+        let sib = if idx.is_multiple_of(2) {
+            idx + 1
+        } else {
+            idx - 1
+        };
         siblings.push(level[sib].clone());
         idx /= 2;
     }
@@ -286,7 +299,8 @@ mod tests {
         for j in 0..ACC_K_ACC {
             let mut p = Poly::zero();
             for c in 0..N {
-                p.coeffs[c] = (((c as i64 * 7919 + j as i64 * 104_729) % Q) as i32).rem_euclid(Q as i32);
+                p.coeffs[c] =
+                    (((c as i64 * 7919 + j as i64 * 104_729) % Q) as i32).rem_euclid(Q as i32);
             }
             polys.push(p);
         }
@@ -301,7 +315,11 @@ mod tests {
         let v2 = recompose(&bits);
         for (a, b) in v.0.iter().zip(v2.0.iter()) {
             for c in 0..N {
-                assert_eq!(a.coeffs[c].rem_euclid(Q as i32), b.coeffs[c], "roundtrip coeff");
+                assert_eq!(
+                    a.coeffs[c].rem_euclid(Q as i32),
+                    b.coeffs[c],
+                    "roundtrip coeff"
+                );
             }
         }
     }
@@ -321,7 +339,11 @@ mod tests {
             }
         }
         // swapping children changes the node (A0 ≠ A1)
-        assert_ne!(acc_compress(&params, &r, &l), n1, "left/right not symmetric");
+        assert_ne!(
+            acc_compress(&params, &r, &l),
+            n1,
+            "left/right not symmetric"
+        );
     }
 
     #[test]

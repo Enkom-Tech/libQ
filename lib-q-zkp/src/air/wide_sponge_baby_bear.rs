@@ -180,7 +180,11 @@ mod tests {
         for len in [0usize, 1, 6, 7, 8, 13, 14, 20] {
             let input: Vec<BabyBear> = (0..len as u32).map(|i| fe(i + 1)).collect();
             let (cells, digest) = generate_wide_sponge_bb_cells(&input);
-            assert_eq!(cells.len(), wide_sponge_bb_interm_cols(len), "cells len for {len}");
+            assert_eq!(
+                cells.len(),
+                wide_sponge_bb_interm_cols(len),
+                "cells len for {len}"
+            );
             assert_eq!(
                 digest,
                 poseidon2_wide_hash_bb(&input),
@@ -248,7 +252,10 @@ mod tests {
         }
     }
 
-    fn corrupt_at(input: &[BabyBear], col: usize) -> (SpongeFixtureBbAir, RowMajorMatrix<BabyBear>) {
+    fn corrupt_at(
+        input: &[BabyBear],
+        col: usize,
+    ) -> (SpongeFixtureBbAir, RowMajorMatrix<BabyBear>) {
         let air = SpongeFixtureBbAir { len: input.len() };
         let (cells, digest) = generate_wide_sponge_bb_cells(input);
         let mut row: Vec<BabyBear> = Vec::new();

@@ -308,13 +308,7 @@ pub fn verify_unlinkable_membership(
     ctx: &[PoseidonField; CTX_ELEMS],
     nullifier: &WideDigest,
 ) -> Result<bool> {
-    verify_unlinkable_membership_with_config(
-        proof,
-        root,
-        ctx,
-        nullifier,
-        membership_config(),
-    )
+    verify_unlinkable_membership_with_config(proof, root, ctx, nullifier, membership_config())
 }
 
 /// Verify an unlinkable membership proof with an explicit STARK config (must match the prover).

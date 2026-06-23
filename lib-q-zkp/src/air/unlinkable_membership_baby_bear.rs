@@ -99,8 +99,11 @@ pub const MEMBERSHIP_DOMAIN_STR: &str = "libq.zkfri.membership.v0";
 /// The baked domain constants: first `DOMAIN_ELEMS` cells of the wide hash of the separator
 /// (bytes → one BabyBear cell each, mirroring Arm A's `bytes_to_poseidon_field`).
 pub fn membership_domain_bb() -> [BabyBear; DOMAIN_ELEMS] {
-    let felts: Vec<BabyBear> =
-        MEMBERSHIP_DOMAIN_STR.as_bytes().iter().map(|b| BabyBear::new(*b as u32)).collect();
+    let felts: Vec<BabyBear> = MEMBERSHIP_DOMAIN_STR
+        .as_bytes()
+        .iter()
+        .map(|b| BabyBear::new(*b as u32))
+        .collect();
     let h = poseidon2_wide_hash_bb(&felts);
     core::array::from_fn(|i| h[i])
 }
@@ -138,26 +141,33 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for UnlinkableMembershipBbAir {
         let (m_running, m_sibling, m_dir_var, m_dir, t_cols, ctx_cols) = {
             let main = builder.main();
             let local = main.current_slice();
-            let m_running: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| local[M_RUNNING_START + i].into()).collect();
-            let m_sibling: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| local[M_SIBLING_START + i].into()).collect();
+            let m_running: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| local[M_RUNNING_START + i].into())
+                .collect();
+            let m_sibling: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| local[M_SIBLING_START + i].into())
+                .collect();
             let m_dir_var = local[M_DIR_COL];
             let m_dir: AB::Expr = local[M_DIR_COL].into();
-            let t_cols: Vec<AB::Expr> =
-                (0..SECRET_T_ELEMS).map(|i| local[T_START + i].into()).collect();
-            let ctx_cols: Vec<AB::Expr> =
-                (0..CTX_ELEMS).map(|i| local[CTX_START + i].into()).collect();
+            let t_cols: Vec<AB::Expr> = (0..SECRET_T_ELEMS)
+                .map(|i| local[T_START + i].into())
+                .collect();
+            let ctx_cols: Vec<AB::Expr> = (0..CTX_ELEMS)
+                .map(|i| local[CTX_START + i].into())
+                .collect();
             (m_running, m_sibling, m_dir_var, m_dir, t_cols, ctx_cols)
         };
         let (pub_root, pub_ctx, pub_null) = {
             let pubs = builder.public_values();
-            let pub_root: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| pubs[PUB_ROOT_START + i].into()).collect();
-            let pub_ctx: Vec<AB::Expr> =
-                (0..CTX_ELEMS).map(|i| pubs[PUB_CTX_START + i].into()).collect();
-            let pub_null: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| pubs[PUB_NULL_START + i].into()).collect();
+            let pub_root: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| pubs[PUB_ROOT_START + i].into())
+                .collect();
+            let pub_ctx: Vec<AB::Expr> = (0..CTX_ELEMS)
+                .map(|i| pubs[PUB_CTX_START + i].into())
+                .collect();
+            let pub_null: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| pubs[PUB_NULL_START + i].into())
+                .collect();
             (pub_root, pub_ctx, pub_null)
         };
 
@@ -170,16 +180,20 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for UnlinkableMembershipBbAir {
         let node_input: Vec<AB::Expr> = {
             let main = builder.main();
             let local = main.current_slice();
-            (0..NODE_INPUT_LEN).map(|i| local[M_NODE_INPUT_START + i].into()).collect()
+            (0..NODE_INPUT_LEN)
+                .map(|i| local[M_NODE_INPUT_START + i].into())
+                .collect()
         };
         for i in 0..WIDE_DIGEST_ELEMS {
             builder.assert_eq(
                 node_input[i].clone(),
-                m_running[i].clone() + m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
+                m_running[i].clone() +
+                    m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
             );
             builder.assert_eq(
                 node_input[WIDE_DIGEST_ELEMS + i].clone(),
-                m_sibling[i].clone() + m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
+                m_sibling[i].clone() +
+                    m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
             );
         }
         let parent = constrain_wide_sponge_bb(builder, &node_input, M_INTERM_START);
@@ -189,7 +203,9 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for UnlinkableMembershipBbAir {
             let next_running: Vec<AB::Expr> = {
                 let main = builder.main();
                 let next = main.next_slice();
-                (0..WIDE_DIGEST_ELEMS).map(|i| next[M_RUNNING_START + i].into()).collect()
+                (0..WIDE_DIGEST_ELEMS)
+                    .map(|i| next[M_RUNNING_START + i].into())
+                    .collect()
             };
             let mut b = builder.when_transition();
             for i in 0..WIDE_DIGEST_ELEMS {
@@ -354,8 +370,15 @@ mod tests {
         leaf_index: usize,
     ) -> (Vec<bool>, Vec<WideDigestBb>, WideDigestBb) {
         let n = 1usize << depth;
-        let mut level: Vec<WideDigestBb> =
-            (0..n as u32).map(|i| if i as usize == leaf_index { leaf } else { digest_from_seed(i + 100) }).collect();
+        let mut level: Vec<WideDigestBb> = (0..n as u32)
+            .map(|i| {
+                if i as usize == leaf_index {
+                    leaf
+                } else {
+                    digest_from_seed(i + 100)
+                }
+            })
+            .collect();
         let mut idx = leaf_index;
         let mut bits = Vec::new();
         let mut sibs = Vec::new();
@@ -421,7 +444,10 @@ mod tests {
         );
         // Different t, same ctx ⇒ different nullifier.
         let t2 = t_from_seed(43);
-        assert_ne!(membership_nullifier_bb(&t, &ctx), membership_nullifier_bb(&t2, &ctx));
+        assert_ne!(
+            membership_nullifier_bb(&t, &ctx),
+            membership_nullifier_bb(&t2, &ctx)
+        );
     }
 
     /// Circuit-level: the SAME member proves under two ctx; both verify, with DIFFERENT public N.

@@ -44,7 +44,10 @@ fn byte_to_felt(b: u8) -> PoseidonField {
 
 /// A small non-negative count as one field element (`count < 2³¹`).
 fn count_to_felt(n: usize) -> PoseidonField {
-    debug_assert!(n < (1usize << 31), "transcript length must fit in Mersenne31");
+    debug_assert!(
+        n < (1usize << 31),
+        "transcript length must fit in Mersenne31"
+    );
     Complex::new_real(Mersenne31::new(n as u32))
 }
 

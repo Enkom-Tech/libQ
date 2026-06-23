@@ -56,6 +56,12 @@
 #![allow(clippy::manual_is_multiple_of)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unnecessary_lazy_evaluations)]
+// AIR trace/gadget construction reads clearest with explicit indexing and `a = a + b`
+// accumulation; suppress these style lints crate-wide (same approach as lib-q-hqc's SIMD code).
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::manual_memcpy)]
+#![allow(clippy::double_must_use)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

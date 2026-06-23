@@ -73,7 +73,9 @@ impl WidePoseidonMerkleTreeBb {
         if depth > MAX_TREE_DEPTH_BB {
             return Err(lib_q_core::Error::InvalidState {
                 operation: "WidePoseidonMerkleTreeBb::from_leaf_digests".into(),
-                reason: alloc::format!("leaf count (padded {padded}) exceeds 2^{MAX_TREE_DEPTH_BB}"),
+                reason: alloc::format!(
+                    "leaf count (padded {padded}) exceeds 2^{MAX_TREE_DEPTH_BB}"
+                ),
             });
         }
 
@@ -93,13 +95,20 @@ impl WidePoseidonMerkleTreeBb {
             layers.push(next);
         }
 
-        Ok(Self { layers, num_real_leaves: n })
+        Ok(Self {
+            layers,
+            num_real_leaves: n,
+        })
     }
 
     /// Root digest.
     #[must_use]
     pub fn root(&self) -> WideDigestBb {
-        self.layers.last().and_then(|v| v.first()).copied().unwrap_or_else(wide_empty_leaf_bb)
+        self.layers
+            .last()
+            .and_then(|v| v.first())
+            .copied()
+            .unwrap_or_else(wide_empty_leaf_bb)
     }
 
     /// Tree depth (number of path levels).
@@ -133,7 +142,10 @@ impl WidePoseidonMerkleTreeBb {
         let mut siblings = Vec::with_capacity(self.depth());
         let mut idx = leaf_index;
         for layer in self.layers.iter().take(self.depth()) {
-            let sibling = layer.get(idx ^ 1).copied().unwrap_or_else(wide_empty_leaf_bb);
+            let sibling = layer
+                .get(idx ^ 1)
+                .copied()
+                .unwrap_or_else(wide_empty_leaf_bb);
             siblings.push(sibling);
             path_bits.push((idx & 1) == 1);
             idx >>= 1;
@@ -154,7 +166,11 @@ impl WidePoseidonMerkleTreeBb {
         }
         let mut cur = *leaf;
         for (bit, sib) in path_bits.iter().zip(siblings.iter()) {
-            cur = if *bit { compress_bb(sib, &cur) } else { compress_bb(&cur, sib) };
+            cur = if *bit {
+                compress_bb(sib, &cur)
+            } else {
+                compress_bb(&cur, sib)
+            };
         }
         cur == *root
     }
@@ -191,8 +207,9 @@ mod tests {
     #[test]
     fn build_root_path_verify_roundtrip() {
         // 6 members → padded to 8 leaves → depth 3 (non-power-of-two leaf count exercises padding).
-        let leaves: Vec<WideDigestBb> =
-            (0..6u32).map(|i| membership_leaf_bb(&t_from_seed(i))).collect();
+        let leaves: Vec<WideDigestBb> = (0..6u32)
+            .map(|i| membership_leaf_bb(&t_from_seed(i)))
+            .collect();
         let tree = WidePoseidonMerkleTreeBb::from_leaf_digests(&leaves).unwrap();
         assert_eq!(tree.depth(), 3);
         assert_eq!(tree.num_leaves(), 6);
@@ -208,13 +225,19 @@ mod tests {
         // A wrong leaf must NOT verify against a real path.
         let (bits, sibs) = tree.path(2).unwrap();
         let wrong = membership_leaf_bb(&t_from_seed(999));
-        assert!(!WidePoseidonMerkleTreeBb::verify_path(&tree.root(), &wrong, &bits, &sibs));
+        assert!(!WidePoseidonMerkleTreeBb::verify_path(
+            &tree.root(),
+            &wrong,
+            &bits,
+            &sibs
+        ));
     }
 
     #[test]
     fn path_index_out_of_range_rejected() {
-        let leaves: Vec<WideDigestBb> =
-            (0..4u32).map(|i| membership_leaf_bb(&t_from_seed(i))).collect();
+        let leaves: Vec<WideDigestBb> = (0..4u32)
+            .map(|i| membership_leaf_bb(&t_from_seed(i)))
+            .collect();
         let tree = WidePoseidonMerkleTreeBb::from_leaf_digests(&leaves).unwrap();
         assert!(tree.path(4).is_err());
     }
