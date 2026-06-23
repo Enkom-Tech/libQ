@@ -13,9 +13,8 @@
 >
 > **Terminology anchor:** throughout the committed `membership-arm-b-*.md` doc set and the paper,
 > **"Arm B" denotes this BabyBear / Poseidon2 instantiation** — NOT the earlier base-field-**M31**
-> widening that `membership-m31-profiling-scope.md` / `membership-gfp2-state-rationale.md` explore
-> (those are superseded scoping notes; the M31 widening was never built). "Arm A" = the
-> `Complex<Mersenne31>` / Poseidon256 instantiation.
+> widening explored during scoping but never built (those superseded scratch scoping notes have been
+> removed). "Arm A" = the `Complex<Mersenne31>` / Poseidon256 instantiation.
 
 ---
 
