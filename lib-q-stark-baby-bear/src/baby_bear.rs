@@ -156,6 +156,32 @@ impl BinomialExtensionData<4> for BabyBearParameters {
     ];
 }
 
+/// Degree-5 binomial extension `F_{p^5} = F_p[x]/(x^5 - 2)` — the FRI **challenge field** for the
+/// 128-bit **post-quantum** Arm B config (`5 * log2 p ≈ 155` bits). The degree-4 field (≈124 bits)
+/// caps the proof's Fiat–Shamir/DEEP soundness below 128, so the quintic is required to reach
+/// 128-bit PQ (see `lib-q-zkp/docs/membership-arm-b-soundness-params.md`). `x^5 - 2` is irreducible
+/// over BabyBear (2 is a non-5th-power and `5 | p - 1`). Constants derived **and verified** by
+/// `tools/gen_quintic_constants.py` under SageMath: `EXT_GENERATOR` was checked to have full
+/// multiplicative order `p^5 - 1` (Sage factored the 155-bit group order), and because 5 is odd,
+/// `v_2(p^5 - 1) = v_2(p - 1) = 27` — the extension adds no 2-adic structure, so there are no
+/// extension-only two-adic generators (the base field's two-adicity 27 already covers every FRI
+/// evaluation domain up to `2^27` rows).
+impl BinomialExtensionData<5> for BabyBearParameters {
+    const W: MontyField31<Self> = MontyField31::new(2);
+    const DTH_ROOT: MontyField31<Self> = MontyField31::new(815036133);
+    const EXT_GENERATOR: [MontyField31<Self>; 5] = [
+        MontyField31::new(8),
+        MontyField31::new(1),
+        MontyField31::new(0),
+        MontyField31::new(0),
+        MontyField31::new(0),
+    ];
+    const EXT_TWO_ADICITY: usize = 27;
+
+    type ArrayLike = [[MontyField31<Self>; 5]; 0];
+    const TWO_ADIC_EXTENSION_GENERATORS: Self::ArrayLike = [];
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
@@ -208,4 +234,18 @@ mod ext4_tests {
 
     test_extension_field!(crate::BabyBear, super::EF4);
     test_two_adic_extension_field!(crate::BabyBear, super::EF4);
+}
+
+/// Degree-5 binomial extension `F_{p^5} = F_p[x]/(x^5 - 2)` (the 128-bit-PQ FRI challenge field).
+/// `test_extension_field!` re-validates the extension arithmetic AND that `EXT_GENERATOR` truly
+/// generates `F_{p^5}^*` (the property Sage verified in `tools/gen_quintic_constants.py`). There is
+/// no `test_two_adic_extension_field!` because, 5 being odd, the extension adds no 2-adic structure
+/// over the base (`EXT_TWO_ADICITY == TWO_ADICITY == 27`).
+#[cfg(test)]
+mod ext5_tests {
+    use lib_q_stark_field_testing::test_extension_field;
+
+    type EF5 = lib_q_stark_field::extension::BinomialExtensionField<crate::BabyBear, 5>;
+
+    test_extension_field!(crate::BabyBear, super::EF5);
 }

@@ -161,13 +161,15 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
     `ip/recovery_policy*` and dequalified two `String::from` sites in `air/mod.rs` (F7 resolved). The
     membership FFI verify path is now true-no_std-buildable; no behavior change (53 lib tests green,
     std + wasm32 builds unchanged).
-11. **(claims) — KEY FINDING.** Computed the actual PCS-layer soundness
-    (`membership-arm-b-soundness-params.md`, reproducible via `tools/fri_soundness.py`): the default
-    config is **≈116-bit conjectured / ≈99-bit fully-provable**, NOT 128-bit. Bound by the 124-bit
-    challenge field (conjectured) and the FRI query phase (ρ=1/8, 100 queries — provable). This is
-    normal for BabyBear inner-FRI layers (SP1/Plonky3 target ~100-bit), but the **paper must not claim
-    128-bit** for the proof; the 128-bit figure is the Poseidon2 *primitive* target only. To actually
-    reach 128: quintic challenge field (F_{p⁵}≈155b) + `num_queries ≥ 135` (or `log_blowup 4`).
+11. **(claims) — RESOLVED: now 128-bit PQ.** The original config was found to deliver only
+    **≈116-bit conjectured / ≈99-bit provable** (bound by the 124-bit deg-4 challenge field + the FRI
+    query phase), NOT 128-bit. **Fixed:** the challenge field was enlarged to a **quintic** extension
+    `F_{p⁵}` (≈155b, new `BinomialExtensionData<5>`, constants Sage-verified) and FRI retuned to
+    `log_blowup 4` / `q=96` / `PoW 20`. The config now computes to **≈128-bit post-quantum** (binding
+    on the SHAKE256 Merkle commitment, NIST Cat-2), with field/DEEP ~147 and query 212–404 above it —
+    see `membership-arm-b-soundness-params.md` / `tools/fri_soundness.py`. Proof size grew <0.5%
+    (still ~1 MB). The paper may now claim 128-bit PQ for the PCS layer (the AIR-soundness obligations
+    remain separate / RED).
 12. **(audit) — DONE.** Exhaustive under-constraint mutation audit (every column of all 4 Arm B AIRs
     mutated → rejection; non-vacuous via +ZERO negative control) + full negative-proof matrix (wrong
     root/ctx/nullifier, cross-instance, forged-root-unprovable, tampered proof bytes, ZK wrong-inputs)
