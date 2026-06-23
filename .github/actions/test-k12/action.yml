@@ -31,7 +31,8 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy
-    
+        targets: thumbv7em-none-eabi
+
     - name: Cache dependencies
       uses: actions/cache@v5
       with:
@@ -144,16 +145,28 @@ runs:
         cargo check --target wasm32-unknown-unknown --features "${{ inputs.features }},wasm_js" --lib
         echo "WASM compilation test completed"
     
-    - name: Feature powerset test
+    - name: Feature combination tests (no_std bare-metal + host run)
       shell: bash
+      env:
+        # lib-q-core declares a `cdylib` (for wasm-pack) that Cargo builds on every target; a no_std
+        # cdylib needs std on a hosted target. So the no_std-portable surface is compile-verified on a
+        # bare-metal target (where the unsupported cdylib is dropped), and std feature combinations are
+        # RUN on the host. (A blanket `cargo hack --feature-powerset` enumerated non-compiling combos:
+        # lib-q-hash requires `alloc`, and `std` pulls std-only deps such as once_cell.)
+        CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
       run: |
-        echo "Testing feature combinations..."
+        echo "Checking no_std-portable feature combinations on thumbv7em-none-eabi..."
         cd ${{ inputs.working-directory }}
-        cargo install cargo-hack
-        # Limit feature combinations to prevent timeouts
-        # Note: --feature-powerset and --each-feature cannot be used together
-        cargo hack test --feature-powerset --exclude-features default --skip advanced-simd,multithreading,parallelhash,simd
-        echo "Feature powerset test completed"
+        for feats in "alloc" "alloc,oid" "alloc,zeroize" "alloc,oid,zeroize"; do
+          echo "  no_std check: $feats"
+          cargo check --no-default-features --features "$feats" --target thumbv7em-none-eabi
+        done
+        echo "Running std feature combinations on the host..."
+        for feats in "std" "std,oid" "std,zeroize" "std,oid,zeroize"; do
+          echo "  host test: $feats"
+          cargo test --no-default-features --features "$feats"
+        done
+        echo "Feature combination tests completed"
     
     - name: Run benchmarks (nightly only)
       if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'

@@ -503,7 +503,10 @@ jobs:
 
       - name: wasm-pack test (Node)
         env:
-          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+          # `-z stack-size`: heavy lattice keygen (DKG / threshold-raccoon) overflows the default 1 MiB
+          # wasm stack in debug; wasm has no stack guard page, so an overflow is "memory access out of
+          # bounds". 16 MiB gives ample headroom (harmless for the lighter crates in the matrix).
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort -C link-arg=-z -C link-arg=stack-size=16777216'
         run: |
           cd ${{ matrix.crate }}
           F="${{ steps.wpt.outputs.features }}"
@@ -516,7 +519,7 @@ jobs:
 
       - name: wasm-pack test (headless Chrome)
         env:
-          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort -C link-arg=-z -C link-arg=stack-size=16777216'
         run: |
           cd ${{ matrix.crate }}
           F="${{ steps.wpt.outputs.features }}"
@@ -534,7 +537,7 @@ jobs:
 
       - name: wasm-pack test (headless Firefox)
         env:
-          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort -C link-arg=-z -C link-arg=stack-size=16777216'
         run: |
           cd ${{ matrix.crate }}
           F="${{ steps.wpt.outputs.features }}"

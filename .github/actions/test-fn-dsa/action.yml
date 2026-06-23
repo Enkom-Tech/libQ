@@ -39,7 +39,8 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src
-    
+        targets: thumbv7em-none-eabi
+
     - name: Cache dependencies
       uses: actions/cache@v5
       with:
@@ -95,13 +96,18 @@ runs:
         cargo build --features "${{ inputs.features }}" --release
         echo "✅ Build completed"
     
-    - name: Build with no default features (no_std compatibility)
+    - name: Verify no_std build (bare-metal thumbv7em)
       shell: bash
+      env:
+        # lib-q-core/lib-q-random declare a `cdylib` (for wasm-pack) that Cargo builds on every
+        # target; a no_std cdylib needs std on a hosted target, so the no_std surface is checked on a
+        # bare-metal target where the unsupported cdylib is dropped and only the rlib is checked.
+        CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
       run: |
-        echo "🔨 Building with no default features for no_std compatibility..."
+        echo "🔨 Checking no_std build on thumbv7em-none-eabi..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features --features "alloc,rand"
-        echo "✅ no_std build completed"
+        cargo check --no-default-features --features "alloc,rand" --target thumbv7em-none-eabi
+        echo "✅ no_std check completed"
     
     - name: Run quick FN-DSA smoke tests
       shell: bash
