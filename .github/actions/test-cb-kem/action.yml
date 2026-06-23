@@ -39,6 +39,7 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src
+        targets: thumbv7em-none-eabi
 
     - name: Toolchain fingerprint (cache)
       id: toolchain-fp
@@ -103,15 +104,20 @@ runs:
         cargo clippy --all-targets --all-features -- -D warnings
         echo "Clippy linting completed"
     
-    - name: Build with no default features
+    - name: Verify no_std build (bare-metal thumbv7em)
       shell: bash
+      env:
+        # lib-q-core/lib-q-random declare a `cdylib` (for wasm-pack) that Cargo builds on every
+        # target; a no_std cdylib needs std on a hosted target, so the no_std surface is checked on a
+        # bare-metal target where the unsupported cdylib is dropped and only the rlib is checked.
+        CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
       run: |
-        echo "Building with no default features..."
+        echo "Checking no_std build on thumbv7em-none-eabi..."
         cd ${{ inputs.working-directory }}
         # Keep `alloc`/`zeroize` with algorithm features so the library matches integration tests
-        # (`LibQCbKemProvider` is `alloc`-gated) and CI does not build empty test harnesses.
-        cargo build --no-default-features --features "cbkem348864,alloc,zeroize"
-        echo "Build completed"
+        # (`LibQCbKemProvider` is `alloc`-gated).
+        cargo check --no-default-features --features "cbkem348864,alloc,zeroize" --target thumbv7em-none-eabi
+        echo "no_std check completed"
     
     - name: Build with all features
       shell: bash
@@ -121,12 +127,15 @@ runs:
         cargo build --features "${{ inputs.features }}"
         echo "Build with features completed"
     
-    - name: Run tests with no default features
+    - name: Run tests (minimal features + std harness)
       shell: bash
       run: |
-        echo "Running tests with no default features..."
+        echo "Running tests with minimal features (no_std surface compile-verified on bare-metal above)..."
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features --features "cbkem348864,alloc,zeroize"
+        # no_std test EXECUTION is impossible on a hosted target (lib-q-core's wasm `cdylib` needs
+        # std); `std` is added only to link the libtest harness — the library code under test is the
+        # same minimal-feature surface.
+        cargo test --no-default-features --features "cbkem348864,alloc,zeroize,std"
         echo "Tests completed"
     
     - name: Run tests with all features
@@ -195,7 +204,9 @@ runs:
         # Test each variant individually (includes 8192128f for NIST AES RNG / nist_aes_rng)
         for variant in cbkem348864 cbkem460896 cbkem6688128 cbkem6960119 cbkem8192128 cbkem8192128f; do
           echo "Testing $variant..."
-          cargo test --no-default-features --features "$variant,alloc,zeroize"
+          # `std` links the libtest harness (no_std test execution is impossible on a hosted target
+          # because lib-q-core's wasm `cdylib` needs std); the variant surface under test is unchanged.
+          cargo test --no-default-features --features "$variant,alloc,zeroize,std"
         done
         
         echo "All CB-KEM variants tested successfully"

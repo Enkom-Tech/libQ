@@ -38,6 +38,11 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features =
 hex = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 wasm-bindgen-test = { workspace = true }
+
+# `dudect-bencher` pulls `ctrlc`, which does not compile for `wasm32-unknown-unknown`. The
+# constant-time bench (`ct_dudect`) that uses it is host-only, so keep this dev-dependency off the
+# wasm target — otherwise the wasm_smoke test build fails compiling ctrlc on wasm32.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 dudect-bencher = "0.7"
 
 [features]

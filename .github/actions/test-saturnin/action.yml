@@ -31,7 +31,8 @@ runs:
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src
-    
+        targets: thumbv7em-none-eabi
+
     - name: Cache dependencies
       uses: actions/cache@v5
       with:
@@ -82,20 +83,25 @@ runs:
         fi
         echo "Clippy linting completed"
     
-    - name: Build with no default features
+    - name: Verify no_std build (bare-metal thumbv7em)
       shell: bash
+      env:
+        # lib-q-core (and lib-q-random) declare a `cdylib` crate-type for wasm-pack, and Cargo builds
+        # that cdylib on every target. On a hosted target a no_std cdylib needs std (global allocator +
+        # unwinder), so the no_std surface is verified on a bare-metal target where the unsupported
+        # cdylib is dropped and only the rlib is checked. getrandom needs an explicit backend here.
+        CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
       run: |
-        echo "Building with no default features..."
+        echo "Checking no_std build on thumbv7em-none-eabi..."
         cd ${{ inputs.working-directory }}
         WORKING_DIR="${{ inputs.working-directory }}"
         if [[ "$WORKING_DIR" == "lib-q-saturnin" ]]; then
-          echo "Building lib-q-saturnin with no_std support"
-          # Saturnin supports no_std with alloc feature
-          cargo build --no-default-features --features "alloc"
+          # Saturnin supports no_std with the alloc feature
+          cargo check --no-default-features --features "alloc" --target thumbv7em-none-eabi
         else
-          cargo build --no-default-features
+          cargo check --no-default-features --target thumbv7em-none-eabi
         fi
-        echo "Build completed"
+        echo "no_std check completed"
     
     - name: Build with all features
       shell: bash

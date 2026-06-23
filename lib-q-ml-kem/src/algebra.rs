@@ -1,3 +1,15 @@
+// This module is ML-KEM field/NTT arithmetic over the centered `i16` representation. The casts and
+// inlining below are intentional and load-bearing for the signed-Montgomery fast path; they are
+// exercised by the FIPS-203 KATs. Allow the pedantic/style lints that flag the modular-arithmetic
+// idioms here (`-D warnings` would otherwise promote the crate-level `warn(pedantic)` /
+// `warn(integer_division_remainder_used)` to hard errors under `--all-features`).
+#![allow(clippy::inline_always)] // hot-path reductions (montgomery/barrett/fqmul/to_canonical)
+#![allow(clippy::cast_possible_truncation)] // i32->i16 truncation IS the mod-2^16 reduction
+#![allow(clippy::cast_possible_wrap)] // u16->i16 reinterpret of canonical reps in (-q, q)
+#![allow(clippy::cast_sign_loss)] // i16->u16 canonicalization to [0, q)
+#![allow(clippy::assign_op_pattern)] // explicit `r[j] = r[j] - t` mirrors the butterfly notation
+#![allow(clippy::integer_division_remainder_used)] // const-evaluated Barrett constant only
+
 use core::ops::{
     Add,
     Mul,
