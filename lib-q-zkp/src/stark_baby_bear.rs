@@ -330,6 +330,89 @@ pub fn verify_membership_bb_bytes(
     }
 }
 
+// ============================ Arm B wire envelope (tag 0x02) ============================
+//
+// The Arm A analogue lives in `membership.rs` (`MEMBERSHIP_ENVELOPE_*`, tag 0x01). Arm B's proofs
+// are bare `StarkProof<…>` (no metadata-carrying `ZkpProof` wrapper), so this envelope transports
+// the `(tree_depth, digest_width, zk)` a byte-only consumer needs, with the **instantiation tag
+// `0x02`** in the version byte that distinguishes Arm B from Arm A on the wire (the downgrade guard).
+
+/// Version / instantiation-tag byte of the Arm B membership envelope (`0x02`; Arm A = `0x01`).
+pub const BB_ENVELOPE_VERSION: u8 = 0x02;
+/// Fixed header: `version(1) ‖ tree_depth(1) ‖ digest_width(1) ‖ flags(1) ‖ proof_len(u32 LE)`.
+pub const BB_ENVELOPE_HEADER_BYTES: usize = 8;
+/// `flags` bit 0: set iff the proof was produced with the hiding (zero-knowledge) PCS.
+pub const BB_ENVELOPE_FLAG_ZK: u8 = 0x01;
+
+fn encode_env_bb(body: &[u8], tree_depth: u8, zk: bool) -> Vec<u8> {
+    let mut out = Vec::with_capacity(BB_ENVELOPE_HEADER_BYTES + body.len());
+    out.push(BB_ENVELOPE_VERSION);
+    out.push(tree_depth);
+    out.push(WIDE_DIGEST_ELEMS as u8); // 9
+    out.push(if zk { BB_ENVELOPE_FLAG_ZK } else { 0 });
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend_from_slice(body);
+    out
+}
+
+/// Encode a **transparent** Arm B membership proof into the 0x02 wire envelope (header ‖
+/// `postcard(proof)`). `tree_depth` is `path_bits.len()` (carried so the consumer can size things).
+pub fn encode_membership_envelope_bb(proof: &StarkProof<BbConfig>, tree_depth: u8) -> Vec<u8> {
+    let body = postcard::to_allocvec(proof).unwrap_or_default();
+    encode_env_bb(&body, tree_depth, false)
+}
+
+/// Encode a **hiding (ZK)** Arm B membership proof into the 0x02 wire envelope (flag bit 0 set).
+pub fn encode_membership_envelope_bb_zk(proof: &StarkProof<ZkBbConfig>, tree_depth: u8) -> Vec<u8> {
+    let body = postcard::to_allocvec(proof).unwrap_or_default();
+    encode_env_bb(&body, tree_depth, true)
+}
+
+/// **Byte-only FFI verify.** Verify an Arm B membership proof from frozen wire bytes alone — the
+/// 88-byte public statement (`root(36) ‖ ctx(16) ‖ N(36)`, [`membership_statement_bytes_bb`]) and a
+/// 0x02 envelope. Returns `true` iff the proof verifies against the canonical root in the statement.
+/// **Never panics**; any malformed input (wrong tag, reserved flag, wrong digest width, length
+/// mismatch, undecodable proof, non-canonical statement) → `false`. The verifier reconstructs the
+/// production config; the ZK verifier needs no prover entropy (fixed dummy seeds, matching FRI
+/// params). RED — underlying soundness/ZK claims pending human sign-off.
+pub fn verify_membership_envelope_bb(statement_bytes: &[u8], envelope: &[u8]) -> bool {
+    if envelope.len() < BB_ENVELOPE_HEADER_BYTES || envelope[0] != BB_ENVELOPE_VERSION {
+        return false;
+    }
+    let digest_width = envelope[2];
+    let flags = envelope[3];
+    if flags & !BB_ENVELOPE_FLAG_ZK != 0 || digest_width as usize != WIDE_DIGEST_ELEMS {
+        return false;
+    }
+    let mut len_b = [0u8; 4];
+    len_b.copy_from_slice(&envelope[4..8]);
+    let proof_len = u32::from_le_bytes(len_b) as usize;
+    let Some(expected) = BB_ENVELOPE_HEADER_BYTES.checked_add(proof_len) else {
+        return false;
+    };
+    if envelope.len() != expected {
+        return false;
+    }
+    let body = &envelope[BB_ENVELOPE_HEADER_BYTES..];
+    if flags & BB_ENVELOPE_FLAG_ZK != 0 {
+        // ZK verify needs only matching FRI params, not the prover's hiding seeds.
+        let cfg = default_zk_config_bb([0u8; 32], [1u8; 32]);
+        match postcard::from_bytes::<StarkProof<ZkBbConfig>>(body) {
+            Ok(proof) => match membership_statement_from_bytes_bb(statement_bytes) {
+                Some((root, ctx, null)) => verify_membership_bb_zk(&cfg, &proof, &root, &ctx, &null),
+                None => false,
+            },
+            Err(_) => false,
+        }
+    } else {
+        let cfg = default_config_bb();
+        match postcard::from_bytes::<StarkProof<BbConfig>>(body) {
+            Ok(proof) => verify_membership_bb_bytes(&cfg, &proof, statement_bytes),
+            Err(_) => false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
@@ -684,6 +767,39 @@ mod tests {
         assert!(!verify_membership_bb_bytes(&config, &proof, &bad), "tampered statement rejected");
         // Malformed length → false, no panic across the FFI boundary.
         assert!(!verify_membership_bb_bytes(&config, &proof, &stmt[..50]), "short statement rejected");
+    }
+
+    /// Arm B wire **envelope** (tag 0x02): byte-only encode → verify, plus the malformed-input
+    /// rejections (wrong instantiation tag, tampered statement, length mismatch, reserved flag).
+    #[test]
+    fn envelope_roundtrip_and_tamper_bb() {
+        let config = default_config_bb();
+        let t = t_from_seed(31);
+        let ctx = ctx_from_seed(32);
+        let leaf = membership_leaf_bb(&t);
+        let (bits, sibs, root) = path_for(leaf, 4, 5);
+        let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
+        let stmt = membership_statement_bytes_bb(&root, &ctx, &null);
+
+        let env = encode_membership_envelope_bb(&proof, bits.len() as u8);
+        assert_eq!(env[0], BB_ENVELOPE_VERSION, "instantiation tag 0x02");
+        assert_eq!(env[2] as usize, WIDE_DIGEST_ELEMS, "digest_width = 9");
+        assert!(verify_membership_envelope_bb(&stmt, &env), "honest envelope verifies");
+
+        // Wrong instantiation tag (Arm A's 0x01) → reject (downgrade guard).
+        let mut bad_ver = env.clone();
+        bad_ver[0] = 0x01;
+        assert!(!verify_membership_envelope_bb(&stmt, &bad_ver), "wrong tag rejected");
+        // Tampered statement → reject.
+        let mut bad_stmt = stmt.clone();
+        bad_stmt[0] ^= 0x01;
+        assert!(!verify_membership_envelope_bb(&bad_stmt, &env), "tampered statement rejected");
+        // Length mismatch (truncated) → reject, no panic.
+        assert!(!verify_membership_envelope_bb(&stmt, &env[..env.len() - 1]), "short envelope rejected");
+        // Reserved flag bit set → reject.
+        let mut bad_flag = env.clone();
+        bad_flag[3] = 0x02;
+        assert!(!verify_membership_envelope_bb(&stmt, &bad_flag), "reserved flag rejected");
     }
 
     // ===================== Negative-proof matrix (real prove/verify) =====================
