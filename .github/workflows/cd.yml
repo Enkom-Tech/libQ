@@ -29,7 +29,7 @@ jobs:
       version: ${{ steps.extract-version.outputs.version }}
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -114,7 +114,7 @@ jobs:
           - package: "lib-q-core"
           - package: "lib-q-keccak"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -134,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -166,7 +166,7 @@ jobs:
           - package: "lib-q-ring"
           - package: "lib-q-prf"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -190,7 +190,7 @@ jobs:
           - package: "lib-q-k12"
           - package: "lib-q-intrinsics"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -210,7 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -228,7 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -247,7 +247,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -273,7 +273,7 @@ jobs:
           - package: "lib-q-fn-dsa-sign"
             working-directory: "lib-q-fn-dsa/fn-dsa-sign"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -292,7 +292,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -311,7 +311,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -330,7 +330,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -355,7 +355,7 @@ jobs:
           - package: "lib-q-slh-dsa"
           - package: "lib-q-lattice-zkp"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -374,7 +374,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -393,7 +393,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -418,7 +418,7 @@ jobs:
           - package: "lib-q-sig"
           - package: "lib-q-ring-sig"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -441,7 +441,7 @@ jobs:
           - package: "lib-q-hpke"
           - package: "lib-q-sca-test"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -471,7 +471,7 @@ jobs:
           - package: "lib-q-threshold-raccoon"
           - package: "lib-q-blind-token"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -495,7 +495,7 @@ jobs:
           - package: "lib-q-stark-util"
           - package: "lib-q-stark-rayon"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -513,7 +513,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -531,7 +531,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -549,7 +549,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -572,7 +572,7 @@ jobs:
           - package: "lib-q-stark-dft"
           - package: "lib-q-stark-commit"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -596,7 +596,7 @@ jobs:
           - package: "lib-q-stark-shake128"
           - package: "lib-q-stark-sha3-256"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -619,7 +619,7 @@ jobs:
           - package: "lib-q-stark-mds"
           - package: "lib-q-stark-field-testing"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -642,7 +642,7 @@ jobs:
           - package: "lib-q-stark-mersenne31"
           - package: "lib-q-stark-monty31"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -664,8 +664,11 @@ jobs:
         include:
           - package: "lib-q-stark-challenger"
           - package: "lib-q-stark-interpolation"
+          # baby-bear deps (stark-field t6, stark-monty31 t9) are published by tier 9;
+          # its dependents (lib-q-poseidon t11, lib-q-zkp t16) come after — so tier 10 is correct.
+          - package: "lib-q-stark-baby-bear"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -688,7 +691,7 @@ jobs:
           - package: "lib-q-stark-air"
           - package: "lib-q-poseidon"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -706,7 +709,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -724,7 +727,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -746,7 +749,7 @@ jobs:
         include:
           - package: "lib-q-stark"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -769,7 +772,7 @@ jobs:
           - package: "lib-q-plonky-multilinear-util"
           - package: "lib-q-plonky-lookup"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -787,7 +790,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -805,7 +808,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -823,7 +826,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -841,7 +844,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -863,7 +866,33 @@ jobs:
         include:
           - package: "lib-q-zkp"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
+  # mve depends on lib-q-zkp (tier 16); transcript depends on lib-q-poseidon (tier 11) + lib-q-k12.
+  # Both have NO workspace dependents, so they publish after zkp. Threaded before tier 17 (umbrella)
+  # so a failure here blocks the release (post-release/cd-summary gate on tier 17).
+  publish-rust-tier-16b:
+    name: Publish Rust (tier 16b — mve, transcript)
+    needs: [publish-rust-tier-16]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-mve"
+          - package: "lib-q-transcript"
+    steps:
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -877,11 +906,11 @@ jobs:
 
   publish-rust-tier-17:
     name: Publish Rust (tier 17 — lib-q umbrella)
-    needs: [publish-rust-tier-16]
+    needs: [publish-rust-tier-16b]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
@@ -1075,7 +1104,7 @@ jobs:
             out-dir: "pkg"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       
       - name: Build WASM
         uses: ./.github/actions/wasm-build
@@ -1104,7 +1133,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
         with:
@@ -1122,7 +1151,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -1197,7 +1226,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
