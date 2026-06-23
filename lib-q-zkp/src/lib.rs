@@ -112,6 +112,10 @@ pub mod ip;
 #[cfg(feature = "zkp")]
 pub mod merkle;
 
+/// BabyBear / Poseidon2 wide-digest Merkle tree builder (Arm B analogue of `merkle`).
+#[cfg(feature = "zkp")]
+pub mod merkle_baby_bear;
+
 /// High-level lib q API
 #[cfg(feature = "zkp")]
 pub mod api;
