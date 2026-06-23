@@ -258,21 +258,9 @@ pub fn shift_xor_avx2(dest: &mut [u64], source: &[u64], distance: usize) {
     }
 }
 
-/// AVX2-optimized vector addition (XOR)
-///
-/// Computes `output = a ^ b` using AVX2 instructions.
-///
-/// # Arguments
-/// * `output` - Output buffer
-/// * `a` - First input vector
-/// * `b` - Second input vector
-#[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
-    // The optimized AVX2 vector-add (XOR) lives in `vector::vect_add_avx2` — that is the one the
-    // `Avx2` dispatcher (`simd::avx2::mod`) actually calls. Delegate to it so this (otherwise
-    // unused) entry point shares the single real implementation instead of the portable fallback.
-    super::vector::vect_add_avx2(output, a, b);
-}
+// Note: the AVX2 vector-add (XOR) lives in `vector::vect_add_avx2` (the one the `Avx2` dispatcher
+// uses); there is intentionally no `polynomial::vect_add_avx2` (a duplicate would create a
+// polynomial<->vector module cycle).
 
 // Fallback implementations for when AVX2 is not available
 #[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]
@@ -289,9 +277,4 @@ pub fn sparse_dense_mul_avx2(
 #[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]
 pub fn shift_xor_avx2(dest: &mut [u64], source: &[u64], distance: usize) {
     super::super::portable::shift_xor_portable(dest, source, distance);
-}
-
-#[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]
-pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
-    super::super::portable::vect_add_portable(output, a, b);
 }
