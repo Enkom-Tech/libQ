@@ -19,25 +19,29 @@ path gives an identical trace shape to a tree-derived one.
 > thermal, single-thread); the dominant proof cost is fixed by `num_queries × trace_width × blowup`,
 > so prove time is roughly *flat* in depth and proof size grows only slowly (more FRI layers).
 
-## Arm B — measured (BabyBear / Poseidon2, 4-byte elements) — **degree-7 optimized**
+## Arm B — measured (BabyBear / Poseidon2, 4-byte elements) — **128-bit PQ, degree-7 optimized**
 
-These are the numbers **after** the degree-7 optimization (the Merkle direction-selected node input
-is stored in 18 witness columns pinned by a degree-2 selection constraint, so the membership AIR is
-degree 7 / `log_blowup 3` — see "Resolved findings" below). Row width is 1661 (was 1643: +18 columns).
+These are the numbers for the **128-bit-PQ config**: degree-5 challenge field `F_{p^5}`, `log_blowup 4`,
+`num_queries 96`, `PoW 20`, degree-7 membership AIR (row width 1661). Median of 5; single-thread.
 
-| mode | depth | trace w × h | total cells | prove (ms, med) | verify (ms, med) | proof bytes |
+| mode | depth | trace w × h | total cells | prove (ms, med)¹ | verify (ms, med) | proof bytes |
 |------|------:|------------:|------------:|----------------:|-----------------:|------------:|
-| transparent | 4  | 1661 × 4  | 6 644  | 108.5 | 21.9 | 949 494 |
-| transparent | 8  | 1661 × 8  | 13 288 | 187.7 | 21.9 | 973 826 |
-| transparent | 16 | 1661 × 16 | 26 576 | 70.2  | 21.7 | 1 001 362 |
-| transparent | 32 | 1661 × 32 | 53 152 | 108.9 | 22.7 | 1 032 481 |
-| zk          | 8  | 1661 × 8  | 13 288 | 49.2  | 24.9 | 1 125 859 |
-| zk          | 16 | 1661 × 16 | 26 576 | 108.6 | 26.2 | 1 161 844 |
-| zk          | 32 | 1661 × 32 | 53 152 | 130.6 | 26.1 | 1 201 069 |
+| transparent | 4  | 1661 × 4  | 6 644  | 686  | 26.0 | 947 600 |
+| transparent | 8  | 1661 × 8  | 13 288 | 2510 | 30.1 | 974 371 |
+| transparent | 16 | 1661 × 16 | 26 576 | 386  | 29.3 | 1 004 502 |
+| transparent | 32 | 1661 × 32 | 53 152 | 1001 | 29.2 | 1 038 028 |
+| zk          | 8  | 1661 × 8  | 13 288 | 1274 | 31.8 | 1 131 439 |
+| zk          | 16 | 1661 × 16 | 26 576 | 752  | 33.4 | 1 169 596 |
+| zk          | 32 | 1661 × 32 | 53 152 | 1394 | 32.3 | 1 211 498 |
 
-Proof ≈ **0.93–1.03 MB** transparent, **1.13–1.20 MB** ZK; verify ≈ **22–26 ms**. (Peak RSS not
-measured.) **Pre-optimization (degree 14 / log_blowup 4)** the figures were ≈ 0.95–1.06 MB / 1.18–1.32
-MB — i.e. dropping `log_blowup` 4→3 shrank ZK proofs ~9% and transparent only ~2%. **Honest finding:
+¹ Prove time is now **grinding-dominated and noisy**: `PoW 20` draws ≈2²⁰ SHAKE evaluations whose count
+varies with grinding luck (the depth-4 vs depth-8 spread is grinding variance, not a depth effect).
+
+Proof ≈ **0.95–1.04 MB** transparent, **1.13–1.21 MB** ZK; verify ≈ **26–33 ms**. **The 128-bit-PQ
+upgrade cost essentially nothing in proof size** (within ~0.5% of the prior ≈116-bit config): the
+quintic field + `log_blowup 4` are offset by dropping `num_queries` 100→96, and proof size is
+`num_queries × trace_width`-dominated. Verify is ~4–7 ms slower (deg-5 extension arithmetic + larger
+PoW check). **Honest finding:
 membership proof size is dominated by `num_queries × trace_width` (the per-query trace openings), so
 reducing the FRI blowup helps prove-time / quotient work more than proof *size*. To materially shrink
 the proof you reduce `num_queries` or `trace_width`, not the blowup.**
@@ -69,13 +73,15 @@ grows with depth (more rows to blind/commit) where transparent prove is ~flat.
 
 ### Headline: Arm B proofs are ~16–17× smaller (holds at every depth)
 
+(Arm B at its **128-bit-PQ** config; Arm A unchanged.)
+
 | | Arm A | Arm B | ratio |
 |--|---------------:|----------------:|------:|
-| proof bytes, transparent d=4  | 17 103 705 | 949 494   | **18.0× smaller (Arm B)** |
-| proof bytes, transparent d=32 | 17 176 407 | 1 032 481 | **16.6× smaller (Arm B)** |
-| proof bytes, zk d=32          | 17 439 758 | 1 201 069 | **14.5× smaller (Arm B)** |
-| verify (ms), transparent      | ~250       | ~22       | **~11× faster (Arm B)** |
-| verify (ms), zk               | ~230       | ~26       | **~9× faster (Arm B)** |
+| proof bytes, transparent d=4  | 17 103 705 | 947 600   | **18.0× smaller (Arm B)** |
+| proof bytes, transparent d=32 | 17 176 407 | 1 038 028 | **16.5× smaller (Arm B)** |
+| proof bytes, zk d=32          | 17 439 758 | 1 211 498 | **14.4× smaller (Arm B)** |
+| verify (ms), transparent      | ~250       | ~29       | **~9× faster (Arm B)** |
+| verify (ms), zk               | ~230       | ~33       | **~7× faster (Arm B)** |
 
 The gap is widest at small depth (less FRI commit-phase overhead diluting the per-row trace cost)
 and remains ≥14× through depth 32 / ZK — i.e. **Arm B's field/permutation choice dominates at every
@@ -105,7 +111,8 @@ FRI blowup (see the corrected degree analysis below), i.e. Arm B's field/permuta
 | **Max membership constraint degree** | **5** (gadget STORES the ARC column, so the degree-2 dir-select is absorbed into a low-degree ARC constraint reading a `Var`) | **7** — degree-7 optimization APPLIED (the dir-selected node input is stored as `Var`s; only the x⁷ S-box is high-degree). The 2-vs-3 gap is now the *fundamental* x⁵-vs-x⁷ difference. |
 | FRI `log_blowup` (membership) | **2** (blowup 4 — empirically verified) | **3** (blowup 8) — empirically verified (prove+verify succeed; would panic at <3) |
 | Quotient chunks (membership) | ≈ 4 | ≈ 8 |
-| Challenge field | Complex⟨M31⟩ (≈ 62 bits, = value field) | BinomialExtensionField⟨BabyBear,4⟩ (≈ 124 bits) |
+| Challenge field | Complex⟨M31⟩ (≈ 62 bits, = value field) | BinomialExtensionField⟨BabyBear,**5**⟩ (≈ 155 bits — quintic, for 128-bit PQ; was deg-4/≈124b) |
+| FRI params (membership) | log_blowup 2, q 100, PoW 16 | **log_blowup 4, q 96, PoW 20** (128-bit-PQ tuned; was 3/100/16) |
 
 **The headline:** Arm B's trace is **~10× narrower and ~21× smaller in bytes** per row (Poseidon2's
 21 rounds / width-16 / rate-7 vs Poseidon256's 68 rounds / width-7 / rate-2). Since FRI proof size

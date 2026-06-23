@@ -32,12 +32,13 @@ reveal only (root, ctx, N);  L and t stay private.
 - Public values `[ root(9) ‖ ctx(4) ‖ N(9) ]` (22 cells = 88 B). Trace = one row / Merkle level; row 0
   carries the leaf + nullifier sponge blocks. Challenge field = `BinomialExtensionField⟨BabyBear,4⟩`
   (≈ 124 bits).
-- **PCS-layer security level (computed — `membership-arm-b-soundness-params.md`):** the default config
-  (`log_blowup 3`, `num_queries 100`, PoW 16) delivers **≈116-bit conjectured / ≈99-bit fully-provable**
-  proof soundness, bounded by the 124-bit challenge field and the FRI query phase respectively — **not
-  128-bit**. The "128-bit" target below is the **Poseidon2 round-count** (primitive) obligation; it does
-  *not* lift the proof-system soundness. **Paper-claims obligation:** report ≈116-bit (conjectured),
-  or adopt a quintic challenge field + `num_queries ≥ 135` (or `log_blowup 4`) to reach 128.
+- **PCS-layer security level (computed — `membership-arm-b-soundness-params.md`):** the config
+  (degree-**5** challenge field `F_{p^5}`≈155b, `log_blowup 4`, `num_queries 96`, PoW 20) delivers
+  **≈128-bit post-quantum** proof soundness (≈128 classical conjectured & provable-Johnson), binding on
+  the SHAKE256 Merkle commitment (NIST Cat-2); field/DEEP ~147 and query 212–404 sit above it. This was
+  upgraded from the original deg-4 config (≈116-bit conjectured / ≈99-bit provable). Reproduce with
+  `tools/fri_soundness.py`. (Independent of the Poseidon2 round-count obligation below, which concerns
+  the *primitive*.)
 - Files: `air/{poseidon2_gadget, wide_sponge_baby_bear, wide_merkle_path_baby_bear,
   unlinkable_membership_baby_bear}.rs`, `stark_baby_bear.rs`; `lib-q-poseidon/src/poseidon2_baby_bear.rs`;
   `lib-q-stark-baby-bear/src/baby_bear.rs`.
