@@ -17,9 +17,9 @@ CRATES=(
   lib-q-blind-token
 )
 
-# Case-insensitive for libq/sybil/vault; PoP is matched case-sensitively only (avoids
+# Case-insensitive for gip/sybil/vault; PoP is matched case-sensitively only (avoids
 # false positives on neutral slugs such as threshold-sig-pop-v1.json).
-PATTERN='(?i:libq|sybil|vault)|PoP'
+PATTERN='(?i:gip|sybil|vault)|PoP'
 
 failed=0
 for crate in "${CRATES[@]}"; do
