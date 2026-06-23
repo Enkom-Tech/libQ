@@ -56,12 +56,13 @@ use crate::air::{
 };
 use crate::merkle::wide_node_hash;
 use crate::stark::{
-    DefaultConfig,
+    MembershipConfig,
+    MembershipZkConfig,
     StarkProver,
     StarkVerifier,
-    ZkConfig,
-    zk_config_with_params,
-    zk_config_with_seed_bytes,
+    membership_config,
+    membership_zk_config_with_params,
+    membership_zk_config_with_seed_bytes,
 };
 use crate::{
     ProofMetadata,
@@ -84,13 +85,16 @@ pub const PUBLIC_STATEMENT_BYTES: usize = WIDE_DIGEST_BYTES + CTX_BYTES + WIDE_D
 /// zero siblings, exactly like the power-of-two padding.
 pub const MIN_ZK_DEPTH: usize = 8;
 
-// Production hiding-PCS FRI parameters. `log_blowup` MUST be >= 3: under the hiding PCS the
-// committed trace is randomized to ~2x its degree, so the degree-5 Poseidon S-box quotient
-// needs a larger LDE than the transparent config (the hiding PCS has no out-of-LDE
-// extrapolation fallback). Queries/PoW match the transparent production config.
+// Production hiding-PCS FRI parameters — 128-bit-PQ (matches the transparent `default_config` +
+// the degree-3 challenge field over `Complex<Mersenne31>` ~186 bits; binding term is the SHAKE256
+// commitment at 128 bits). `log_blowup` MUST be >= 3: under the hiding PCS the committed trace is
+// randomized to ~2x its degree, so the degree-5 Poseidon S-box quotient needs a larger LDE than a
+// minimal transparent config (the hiding PCS has no out-of-LDE extrapolation fallback). At
+// log_blowup 3 / q 96 the query phase clears 128-bit on the conjectured (288) and Johnson (144)
+// bounds; PoW 20 grinds (Grover-halved to 10 under quantum).
 const ZK_LOG_BLOWUP: usize = 3;
-const ZK_NUM_QUERIES: usize = 100;
-const ZK_POW_BITS: usize = 16;
+const ZK_NUM_QUERIES: usize = 96;
+const ZK_POW_BITS: usize = 20;
 
 /// The statement domain separator string (`libq.zkfri.membership.v0`).
 pub fn statement_domain() -> &'static str {
@@ -235,14 +239,14 @@ fn pad_root(root: &WideDigest, extra: usize) -> WideDigest {
 /// Returns `(nullifier, proof)`. The verifier checks the proof against the **canonical** tree
 /// root (it re-derives the padded root internally).
 pub fn prove_unlinkable_membership(witness: &MembershipWitness) -> Result<(WideDigest, ZkpProof)> {
-    prove_unlinkable_membership_with_config(witness, crate::stark::default_config())
+    prove_unlinkable_membership_with_config(witness, membership_config())
 }
 
 /// Prove unlinkable membership with an explicit STARK config (use
 /// [`crate::stark::fast_proof_config`] for tests).
 pub fn prove_unlinkable_membership_with_config(
     witness: &MembershipWitness,
-    config: DefaultConfig,
+    config: MembershipConfig,
 ) -> Result<(WideDigest, ZkpProof)> {
     let depth = witness.path_bits.len();
     if depth == 0 || depth > MAX_DEPTH {
@@ -309,7 +313,7 @@ pub fn verify_unlinkable_membership(
         root,
         ctx,
         nullifier,
-        crate::stark::default_config(),
+        membership_config(),
     )
 }
 
@@ -319,7 +323,7 @@ pub fn verify_unlinkable_membership_with_config(
     root: &WideDigest,
     ctx: &[PoseidonField; CTX_ELEMS],
     nullifier: &WideDigest,
-    config: DefaultConfig,
+    config: MembershipConfig,
 ) -> Result<bool> {
     if proof.proof_type != ProofType::Stark || proof.data.is_empty() {
         return Ok(false);
@@ -347,7 +351,7 @@ pub fn verify_unlinkable_membership_with_config(
     let padded_root = pad_root(root, padded - depth);
     let public_values = membership_public_values(&padded_root, ctx, nullifier);
 
-    let stark_proof = proof.to_stark_proof::<DefaultConfig>()?;
+    let stark_proof = proof.to_stark_proof::<MembershipConfig>()?;
 
     // Depth-confusion guard (freeze-gate O5): the proof's actual STARK trace height must equal
     // the padded depth implied by the declared `tree_depth`. Without this, a prover could
@@ -374,7 +378,7 @@ pub fn verify_unlinkable_membership_with_config(
 ///
 /// `salt_seed` (hiding-MMCS commitment salts) and `blinding_seed` (FRI blinding polynomials)
 /// MUST be **INDEPENDENT, fresh, unpredictable 256-bit CSPRNG draws** per proof. They are
-/// expanded through KangarooTwelve ([`crate::stark::zk_config_with_seed_bytes`] →
+/// expanded through KangarooTwelve ([`crate::stark::membership_zk_config_with_seed_bytes`] →
 /// `lib_q_random::Kt128Rng`), so the hiding randomness is cryptographic (not the non-crypto
 /// xorshift64 used by the `*_with_params` test path). Reusing, predicting, or sharing the two
 /// seeds **voids** the zero-knowledge property.
@@ -387,7 +391,7 @@ pub fn prove_unlinkable_membership_zk(
     salt_seed: [u8; 32],
     blinding_seed: [u8; 32],
 ) -> Result<(WideDigest, ZkpProof)> {
-    let config = zk_config_with_seed_bytes(
+    let config = membership_zk_config_with_seed_bytes(
         ZK_LOG_BLOWUP,
         ZK_NUM_QUERIES,
         ZK_POW_BITS,
@@ -427,10 +431,10 @@ pub fn prove_unlinkable_membership_zk_auto(
 
 /// Hiding membership proof with an explicit ZK config (the config carries the blinding entropy
 /// and FRI params). The config's `log_blowup` MUST be >= 3 for the degree-5 AIR (see
-/// [`MIN_ZK_DEPTH`] / [`crate::stark::zk_config_with_params`]); tests use fast query params.
+/// [`MIN_ZK_DEPTH`] / [`crate::stark::membership_zk_config_with_params`]); tests use fast query params.
 pub fn prove_unlinkable_membership_zk_with_config(
     witness: &MembershipWitness,
-    config: ZkConfig,
+    config: MembershipZkConfig,
 ) -> Result<(WideDigest, ZkpProof)> {
     let depth = witness.path_bits.len();
     if depth == 0 || depth > MAX_DEPTH {
@@ -493,7 +497,7 @@ pub fn verify_unlinkable_membership_zk(
     ctx: &[PoseidonField; CTX_ELEMS],
     nullifier: &WideDigest,
 ) -> Result<bool> {
-    let config = zk_config_with_params(ZK_LOG_BLOWUP, ZK_NUM_QUERIES, ZK_POW_BITS, 0, 1);
+    let config = membership_zk_config_with_params(ZK_LOG_BLOWUP, ZK_NUM_QUERIES, ZK_POW_BITS, 0, 1);
     verify_unlinkable_membership_zk_with_config(proof, root, ctx, nullifier, config)
 }
 
@@ -504,7 +508,7 @@ pub fn verify_unlinkable_membership_zk_with_config(
     root: &WideDigest,
     ctx: &[PoseidonField; CTX_ELEMS],
     nullifier: &WideDigest,
-    config: ZkConfig,
+    config: MembershipZkConfig,
 ) -> Result<bool> {
     if proof.proof_type != ProofType::Stark || proof.data.is_empty() {
         return Ok(false);
@@ -531,7 +535,7 @@ pub fn verify_unlinkable_membership_zk_with_config(
     let padded_root = pad_root(root, padded - depth);
     let public_values = membership_public_values(&padded_root, ctx, nullifier);
 
-    let stark_proof = proof.to_stark_proof::<ZkConfig>()?;
+    let stark_proof = proof.to_stark_proof::<MembershipZkConfig>()?;
 
     // Depth-confusion guard (ZK): the hiding prover uses ONE extra degree bit for randomization,
     // so the proof's trace degree is `padded * 2`.
@@ -740,7 +744,7 @@ mod tests {
 
     use super::*;
     use crate::merkle::WidePoseidonMerkleTree;
-    use crate::stark::fast_proof_config;
+    use crate::stark::membership_fast_config;
 
     fn fe(x: u32) -> PoseidonField {
         Complex::<Mersenne31>::from(Mersenne31::new(x))
@@ -802,7 +806,7 @@ mod tests {
         let (tree, secrets) = build(6);
         assert_eq!(tree.depth(), 3);
         let w = witness_for(&tree, &secrets, 4, 2);
-        let cfg = fast_proof_config();
+        let cfg = membership_fast_config();
         let (nullifier, proof) =
             prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");
 
@@ -818,7 +822,7 @@ mod tests {
     fn verify_rejects_wrong_root_ctx_nullifier() {
         let (tree, secrets) = build(6);
         let w = witness_for(&tree, &secrets, 1, 7);
-        let cfg = fast_proof_config();
+        let cfg = membership_fast_config();
         let (nullifier, proof) =
             prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");
 
@@ -858,7 +862,7 @@ mod tests {
     fn generic_bytes_dispatch_round_trip() {
         let (tree, secrets) = build(6);
         let w = witness_for(&tree, &secrets, 5, 3);
-        let cfg = fast_proof_config();
+        let cfg = membership_fast_config();
         let (nullifier, proof) = prove_unlinkable_membership_with_config(&w, cfg).expect("prove");
 
         // NOTE: the byte dispatch path uses the production config, so it can only be exercised
@@ -894,12 +898,12 @@ mod tests {
         // Cryptographic ([u8;32] KT128-seeded) hiding path with fast query params.
         let (n1, p1) = prove_unlinkable_membership_zk_with_config(
             &w,
-            zk_config_with_seed_bytes(3, 2, 1, [11u8; 32], [22u8; 32]),
+            membership_zk_config_with_seed_bytes(3, 2, 1, [11u8; 32], [22u8; 32]),
         )
         .expect("zk prove 1");
         let (n2, p2) = prove_unlinkable_membership_zk_with_config(
             &w,
-            zk_config_with_seed_bytes(3, 2, 1, [33u8; 32], [44u8; 32]),
+            membership_zk_config_with_seed_bytes(3, 2, 1, [33u8; 32], [44u8; 32]),
         )
         .expect("zk prove 2");
 
@@ -921,7 +925,7 @@ mod tests {
                     &tree.root(),
                     &w.ctx,
                     &n1,
-                    zk_config_with_seed_bytes(3, 2, 1, [0u8; 32], [1u8; 32])
+                    membership_zk_config_with_seed_bytes(3, 2, 1, [0u8; 32], [1u8; 32])
                 )
                 .expect("zk verify")
             );
@@ -933,7 +937,7 @@ mod tests {
                 &membership_leaf(&secret(999)),
                 &w.ctx,
                 &n1,
-                zk_config_with_seed_bytes(3, 2, 1, [0u8; 32], [1u8; 32])
+                membership_zk_config_with_seed_bytes(3, 2, 1, [0u8; 32], [1u8; 32])
             )
             .unwrap()
         );
@@ -944,7 +948,7 @@ mod tests {
                 &tree.root(),
                 &w.ctx,
                 &n1,
-                fast_proof_config()
+                membership_fast_config()
             )
             .unwrap()
         );
@@ -971,7 +975,7 @@ mod tests {
         let (tree, secrets) = build(6);
         let w = witness_for(&tree, &secrets, 4, 2);
         let (_n, proof) =
-            prove_unlinkable_membership_with_config(&w, fast_proof_config()).expect("prove");
+            prove_unlinkable_membership_with_config(&w, membership_fast_config()).expect("prove");
         let env = encode_membership_envelope(&proof).expect("encode");
         assert_eq!(
             env.len(),
@@ -993,7 +997,7 @@ mod tests {
         let w = witness_for(&tree, &secrets, 1, 5);
         let (_n, proof) = prove_unlinkable_membership_zk_with_config(
             &w,
-            zk_config_with_seed_bytes(3, 2, 1, [7u8; 32], [9u8; 32]),
+            membership_zk_config_with_seed_bytes(3, 2, 1, [7u8; 32], [9u8; 32]),
         )
         .expect("zk prove");
         let env = encode_membership_envelope(&proof).expect("encode");
@@ -1013,7 +1017,7 @@ mod tests {
         let (tree, secrets) = build(6);
         let w = witness_for(&tree, &secrets, 2, 3);
         let (nullifier, proof) =
-            prove_unlinkable_membership_with_config(&w, fast_proof_config()).expect("prove");
+            prove_unlinkable_membership_with_config(&w, membership_fast_config()).expect("prove");
         let good = encode_membership_envelope(&proof).expect("encode");
         let stmt = public_statement_bytes(&tree.root(), &w.ctx, &nullifier);
 
@@ -1056,8 +1060,7 @@ mod tests {
         let (tree, secrets) = build(6);
         let w = witness_for(&tree, &secrets, 4, 2);
         let (nullifier, proof) =
-            prove_unlinkable_membership_with_config(&w, crate::stark::default_config())
-                .expect("prove");
+            prove_unlinkable_membership_with_config(&w, membership_config()).expect("prove");
         let env = encode_membership_envelope(&proof).expect("encode");
         let stmt = public_statement_bytes(&tree.root(), &w.ctx, &nullifier);
         assert_eq!(stmt.len(), PUBLIC_STATEMENT_BYTES);

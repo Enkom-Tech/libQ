@@ -37,7 +37,10 @@ use lib_q_stark_commit::{
     Pcs,
     PolynomialSpace,
 };
-use lib_q_stark_field::extension::Complex;
+use lib_q_stark_field::extension::{
+    BinomialExtensionField,
+    Complex,
+};
 use lib_q_stark_field::{
     BasedVectorSpace,
     PrimeCharacteristicRing,
@@ -61,6 +64,12 @@ use lib_q_stark_symmetric::{
 // Concrete config type aliases (used as return types for config factory functions).
 // Public so that pub type DefaultConfig/ZkConfig/PoseidonConfig satisfy private_interfaces.
 pub type ConfigVal = Complex<Mersenne31>;
+/// FRI **challenge field**: the degree-3 extension over `Complex<Mersenne31>`, i.e. `GF(p^6)`
+/// (~186 bits). Upgraded from using the value field itself (`Complex<Mersenne31>` = `GF(p^2)`,
+/// ~62 bits) as the challenge field — ~62 bits was a hard ceiling on Fiat–Shamir/DEEP soundness far
+/// below 128. Constants are Sage-verified in `lib-q-stark-mersenne31/src/extension.rs`
+/// (`HasComplexBinomialExtension<3>`: `y^3 - 5i`). See `membership-arm-a-soundness-params.md`.
+pub type ConfigChallenge = BinomialExtensionField<ConfigVal, 3>;
 pub type ConfigDft = Mersenne31ComplexRadix2Dit;
 pub type DefaultValMmcs = MerkleTreeMmcs<
     <ConfigVal as lib_q_stark_field::Field>::Packing,
@@ -73,6 +82,23 @@ pub type DefaultChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigVal, DefaultValMm
 pub type DefaultPcs = TwoAdicFriPcs<ConfigVal, ConfigDft, DefaultValMmcs, DefaultChallengeMmcs>;
 pub type DefaultConfig =
     StarkConfig<DefaultPcs, ConfigVal, ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>>;
+
+// ---------------------------------------------------------------------------
+// Arm A **membership** config — 128-bit-PQ variant of `DefaultConfig` with a larger FRI challenge
+// field. The shared `DefaultConfig` keeps the value field (`Complex<Mersenne31>`, ~62 bits) as its
+// challenge field (the recursive-aggregation verifier in `air/recursive_types.rs` hardcodes that
+// width); the membership prover/verifier instead use the degree-3 challenge extension `GF(p^6)`
+// (~186 bits) so the unlinkable-membership proof clears 128-bit (FS/DEEP no longer the binder; the
+// binding term is the SHAKE256 commitment at 128). Same value field, DFT, and Merkle commitment as
+// `DefaultConfig`; only the challenge field + FRI params differ.
+pub type MembershipChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigChallenge, DefaultValMmcs>;
+pub type MembershipPcs =
+    TwoAdicFriPcs<ConfigVal, ConfigDft, DefaultValMmcs, MembershipChallengeMmcs>;
+pub type MembershipConfig = StarkConfig<
+    MembershipPcs,
+    ConfigChallenge,
+    ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>,
+>;
 
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_merkle::PoseidonMmcs as PoseidonMmcsType;
@@ -100,6 +126,17 @@ pub type ZkPcs =
     HidingFriPcs<ConfigVal, ConfigDft, ZkValMmcs, ZkChallengeMmcs, lib_q_random::Kt128Rng>;
 pub type ZkConfig =
     StarkConfig<ZkPcs, ConfigVal, ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>>;
+
+/// Arm A **membership** hiding (ZK) config — 128-bit-PQ variant of [`ZkConfig`] with the degree-3
+/// challenge field (`GF(p^6)` ~186 bits). See [`MembershipConfig`].
+pub type MembershipZkChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigChallenge, ZkValMmcs>;
+pub type MembershipZkPcs =
+    HidingFriPcs<ConfigVal, ConfigDft, ZkValMmcs, MembershipZkChallengeMmcs, lib_q_random::Kt128Rng>;
+pub type MembershipZkConfig = StarkConfig<
+    MembershipZkPcs,
+    ConfigChallenge,
+    ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>,
+>;
 
 /// FRI query parameters used when replaying the verifier (e.g. for recursive aggregation).
 #[derive(Clone, Debug)]
@@ -664,6 +701,36 @@ pub fn default_config() -> DefaultConfig {
     StarkConfig::new(pcs, challenger)
 }
 
+/// Construct the Arm A **membership** transparent config — 128-bit-PQ ([`MembershipConfig`]).
+/// Identical to [`default_config`] except: (1) the FRI challenge field is the degree-3 extension
+/// `GF(p^6)` (~186 bits) instead of the ~62-bit value field, and (2) FRI `log_blowup = 3`
+/// (ρ = 1/8), `num_queries = 96`, `proof_of_work_bits = 20`. With the larger challenge field the
+/// FS/DEEP term is no longer the binder; the binding soundness term is the SHAKE256 commitment at
+/// 128 bits, and the query phase clears 128-bit on the conjectured (288) and provable-Johnson (144)
+/// bounds. (The shared `default_config` stays ~62-bit because the recursive-aggregation verifier in
+/// `air/recursive_types.rs` hardcodes the value-field challenge width; membership does not recurse.)
+pub fn membership_config() -> MembershipConfig {
+    use lib_q_stark_fri::FriParameters;
+
+    let shake256 = Shake256Hash {};
+    let hash = SerializingHasher::<Shake256Hash>::new(shake256);
+    let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
+    let val_mmcs = DefaultValMmcs::new(hash, compress);
+    let challenge_mmcs = MembershipChallengeMmcs::new(val_mmcs.clone());
+    let dft = ConfigDft::default();
+    let fri_params = FriParameters {
+        log_blowup: 3,
+        log_final_poly_len: 0,
+        num_queries: 96,
+        proof_of_work_bits: 20,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = MembershipPcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = ComplexFieldChallenger::new(base_challenger);
+    StarkConfig::new(pcs, challenger)
+}
+
 /// STARK configuration for **tests and local development only**.
 ///
 /// Same construction as [`default_config`], but FRI uses
@@ -697,6 +764,24 @@ pub fn fast_proof_config() -> DefaultConfig {
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
 
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Fast (minimal-FRI) [`MembershipConfig`] for tests — the degree-3-challenge-field analogue of
+/// [`fast_proof_config`]. Not sound for production; only for round-trip tests.
+pub fn membership_fast_config() -> MembershipConfig {
+    use lib_q_stark_fri::create_test_fri_params;
+
+    let shake256 = Shake256Hash {};
+    let hash = SerializingHasher::<Shake256Hash>::new(shake256);
+    let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
+    let val_mmcs = DefaultValMmcs::new(hash, compress);
+    let challenge_mmcs = MembershipChallengeMmcs::new(val_mmcs.clone());
+    let dft = ConfigDft::default();
+    let fri_params = create_test_fri_params(challenge_mmcs, 0);
+    let pcs = MembershipPcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = ComplexFieldChallenger::new(base_challenger);
     StarkConfig::new(pcs, challenger)
 }
 
@@ -925,6 +1010,81 @@ pub fn zk_config_with_seed_bytes(
     let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
     let challenger = Challenger::new(base_challenger);
 
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Arm A **membership** hiding-PCS ZK config from 256-bit CSPRNG seeds — 128-bit-PQ
+/// ([`MembershipZkConfig`], degree-3 challenge field). Mirrors [`zk_config_with_seed_bytes`].
+pub fn membership_zk_config_with_seed_bytes(
+    log_blowup: usize,
+    num_queries: usize,
+    proof_of_work_bits: usize,
+    val_seed: [u8; 32],
+    pcs_seed: [u8; 32],
+) -> MembershipZkConfig {
+    use lib_q_stark_fri::FriParameters;
+
+    let shake256 = Shake256Hash {};
+    let hash = SerializingHasher::<Shake256Hash>::new(shake256);
+    let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
+    let val_mmcs =
+        ZkValMmcs::new(hash, compress, lib_q_random::Kt128Rng::from_seed_bytes(val_seed));
+    let challenge_mmcs = MembershipZkChallengeMmcs::new(val_mmcs.clone());
+    let dft = ConfigDft::default();
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 0,
+        num_queries,
+        proof_of_work_bits,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = MembershipZkPcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        lib_q_random::Kt128Rng::from_seed_bytes(pcs_seed),
+    );
+    let base_challenger = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = ComplexFieldChallenger::new(base_challenger);
+    StarkConfig::new(pcs, challenger)
+}
+
+/// Arm A **membership** ZK config with explicit FRI params + xorshift test seeds — 128-bit-PQ
+/// ([`MembershipZkConfig`]). Mirrors [`zk_config_with_params`]; used by the verifier (FRI params
+/// must match the prover; the verifier needs no hiding entropy).
+#[doc(hidden)]
+pub fn membership_zk_config_with_params(
+    log_blowup: usize,
+    num_queries: usize,
+    proof_of_work_bits: usize,
+    val_mmcs_seed: u64,
+    pcs_seed: u64,
+) -> MembershipZkConfig {
+    use lib_q_stark_fri::FriParameters;
+
+    let shake256 = Shake256Hash {};
+    let hash = SerializingHasher::<Shake256Hash>::new(shake256);
+    let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
+    let val_mmcs = ZkValMmcs::new(hash, compress, lib_q_random::Kt128Rng::from_u64(val_mmcs_seed));
+    let challenge_mmcs = MembershipZkChallengeMmcs::new(val_mmcs.clone());
+    let dft = ConfigDft::default();
+    let fri_params = FriParameters {
+        log_blowup,
+        log_final_poly_len: 0,
+        num_queries,
+        proof_of_work_bits,
+        mmcs: challenge_mmcs,
+    };
+    let pcs = MembershipZkPcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        lib_q_random::Kt128Rng::from_u64(pcs_seed),
+    );
+    let base_challenger = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = ComplexFieldChallenger::new(base_challenger);
     StarkConfig::new(pcs, challenger)
 }
 
