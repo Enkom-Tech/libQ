@@ -561,7 +561,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown, thumbv7em-none-eabi
 
       - name: lib-q-romulus (stack-only, no alloc)
         run: |
@@ -569,11 +569,15 @@ jobs:
           cargo check -p lib-q-romulus --no-default-features --target wasm32-unknown-unknown
 
       - name: lib-q-aead + romulus (alloc, no lib-q-aead default features)
+        # Verify the true no_std+alloc graph on a bare-metal *-none-* target. lib-q-core declares a
+        # wasm-pack `cdylib` crate-type that Cargo builds on hosted targets (host, wasm32); a
+        # no_std+alloc cdylib needs a `#[global_allocator]` that a library must not provide, so
+        # `cargo check` of a no_std core-dependent crate cannot succeed on host/wasm32. thumbv7em
+        # (no cdylib) is the correct no_std gate; aead-with-std on wasm32 is covered by the workspace WASM gate.
         env:
-          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+          CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
         run: |
-          cargo check -p lib-q-aead --no-default-features --features alloc,romulus
-          cargo check -p lib-q-aead --no-default-features --features alloc,romulus --target wasm32-unknown-unknown
+          cargo check -p lib-q-aead --no-default-features --features alloc,romulus --target thumbv7em-none-eabi
 
   # K12: no_std + alloc + wasm32 + thumb (depends on lib-q-sha3 / lib-q-keccak without keccak `std`)
   k12-no-std-wasm:
