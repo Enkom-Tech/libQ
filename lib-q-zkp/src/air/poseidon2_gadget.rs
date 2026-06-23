@@ -19,6 +19,9 @@
 //! HONESTY: this proves the gadget *computes Poseidon2 correctly and is fully constrained*.
 //! It does NOT establish the round-count / parameter soundness (obligation packet; tier RED).
 
+// Column-index helpers below document the layout; some are not yet referenced (RED/WIP gadget).
+#![allow(dead_code)]
+
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -116,7 +119,9 @@ fn external_linear_expr<E: PrimeCharacteristicRing + Clone>(state: &[E]) -> Vec<
         }
         *slot = acc;
     }
-    (0..WIDTH).map(|i| s[i].clone() + sums[i % 4].clone()).collect()
+    (0..WIDTH)
+        .map(|i| s[i].clone() + sums[i % 4].clone())
+        .collect()
 }
 
 /// The in-circuit Poseidon2-BabyBear AIR: one permutation per row, no cross-row constraints.
@@ -310,7 +315,8 @@ mod tests {
 
     #[test]
     fn constraints_hold_on_valid_trace() {
-        let trace = RowMajorMatrix::new(trace_values(&[0, 1, 2, 3, 4, 5, 6, 7]), POSEIDON2_ROW_WIDTH);
+        let trace =
+            RowMajorMatrix::new(trace_values(&[0, 1, 2, 3, 4, 5, 6, 7]), POSEIDON2_ROW_WIDTH);
         check_constraints(&Poseidon2Air, &trace, &[]);
     }
 
@@ -376,8 +382,10 @@ mod tests {
                 let mut tr = trace.clone();
                 let idx = row * width + col;
                 tr.values[idx] = tr.values[idx] + BabyBear::ONE;
-                if catch_unwind(AssertUnwindSafe(|| check_constraints(&Poseidon2Air, &tr, &[])))
-                    .is_err()
+                if catch_unwind(AssertUnwindSafe(|| {
+                    check_constraints(&Poseidon2Air, &tr, &[])
+                }))
+                .is_err()
                 {
                     rejected = true;
                     break;

@@ -130,8 +130,13 @@ pub type ZkConfig =
 /// Arm A **membership** hiding (ZK) config — 128-bit-PQ variant of [`ZkConfig`] with the degree-3
 /// challenge field (`GF(p^6)` ~186 bits). See [`MembershipConfig`].
 pub type MembershipZkChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigChallenge, ZkValMmcs>;
-pub type MembershipZkPcs =
-    HidingFriPcs<ConfigVal, ConfigDft, ZkValMmcs, MembershipZkChallengeMmcs, lib_q_random::Kt128Rng>;
+pub type MembershipZkPcs = HidingFriPcs<
+    ConfigVal,
+    ConfigDft,
+    ZkValMmcs,
+    MembershipZkChallengeMmcs,
+    lib_q_random::Kt128Rng,
+>;
 pub type MembershipZkConfig = StarkConfig<
     MembershipZkPcs,
     ConfigChallenge,
@@ -1027,8 +1032,11 @@ pub fn membership_zk_config_with_seed_bytes(
     let shake256 = Shake256Hash {};
     let hash = SerializingHasher::<Shake256Hash>::new(shake256);
     let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
-    let val_mmcs =
-        ZkValMmcs::new(hash, compress, lib_q_random::Kt128Rng::from_seed_bytes(val_seed));
+    let val_mmcs = ZkValMmcs::new(
+        hash,
+        compress,
+        lib_q_random::Kt128Rng::from_seed_bytes(val_seed),
+    );
     let challenge_mmcs = MembershipZkChallengeMmcs::new(val_mmcs.clone());
     let dft = ConfigDft::default();
     let fri_params = FriParameters {
@@ -1066,7 +1074,11 @@ pub fn membership_zk_config_with_params(
     let shake256 = Shake256Hash {};
     let hash = SerializingHasher::<Shake256Hash>::new(shake256);
     let compress = CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake256);
-    let val_mmcs = ZkValMmcs::new(hash, compress, lib_q_random::Kt128Rng::from_u64(val_mmcs_seed));
+    let val_mmcs = ZkValMmcs::new(
+        hash,
+        compress,
+        lib_q_random::Kt128Rng::from_u64(val_mmcs_seed),
+    );
     let challenge_mmcs = MembershipZkChallengeMmcs::new(val_mmcs.clone());
     let dft = ConfigDft::default();
     let fri_params = FriParameters {

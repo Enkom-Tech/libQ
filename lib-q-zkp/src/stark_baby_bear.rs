@@ -20,6 +20,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+use lib_q_random::Kt128Rng;
 use lib_q_stark::{
     Proof as StarkProof,
     ProverError,
@@ -38,7 +39,6 @@ use lib_q_stark_field::{
     PrimeCharacteristicRing,
     PrimeField32,
 };
-use lib_q_random::Kt128Rng;
 use lib_q_stark_fri::{
     FriParameters,
     HidingFriPcs,
@@ -203,7 +203,13 @@ pub fn zk_config_bb(
         proof_of_work_bits,
         mmcs: challenge_mmcs,
     };
-    let pcs = ZkBbPcs::new(dft, val_mmcs, fri_params, 4, Kt128Rng::from_seed_bytes(pcs_seed));
+    let pcs = ZkBbPcs::new(
+        dft,
+        val_mmcs,
+        fri_params,
+        4,
+        Kt128Rng::from_seed_bytes(pcs_seed),
+    );
     let challenger = BbChallenger::from_hasher(Vec::new(), Shake256Hash {});
     StarkConfig::new(pcs, challenger)
 }
@@ -272,7 +278,11 @@ fn bb_cell_to_bytes(x: BabyBear, out: &mut Vec<u8>) {
 fn bb_cell_from_bytes(b: &[u8]) -> Option<BabyBear> {
     let v = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
     // BabyBear p = 2^31 - 2^27 + 1 = 0x78000001.
-    if v < 0x7800_0001 { Some(BabyBear::new(v)) } else { None }
+    if v < 0x7800_0001 {
+        Some(BabyBear::new(v))
+    } else {
+        None
+    }
 }
 
 fn bb_decode_cells<const N: usize>(bytes: &[u8]) -> Option<[BabyBear; N]> {
@@ -325,7 +335,9 @@ pub fn verify_membership_bb_bytes(
     statement_bytes: &[u8],
 ) -> bool {
     match membership_statement_from_bytes_bb(statement_bytes) {
-        Some((root, ctx, nullifier)) => verify_membership_bb(config, proof, &root, &ctx, &nullifier),
+        Some((root, ctx, nullifier)) => {
+            verify_membership_bb(config, proof, &root, &ctx, &nullifier)
+        }
         None => false,
     }
 }
@@ -399,7 +411,9 @@ pub fn verify_membership_envelope_bb(statement_bytes: &[u8], envelope: &[u8]) ->
         let cfg = default_zk_config_bb([0u8; 32], [1u8; 32]);
         match postcard::from_bytes::<StarkProof<ZkBbConfig>>(body) {
             Ok(proof) => match membership_statement_from_bytes_bb(statement_bytes) {
-                Some((root, ctx, null)) => verify_membership_bb_zk(&cfg, &proof, &root, &ctx, &null),
+                Some((root, ctx, null)) => {
+                    verify_membership_bb_zk(&cfg, &proof, &root, &ctx, &null)
+                }
                 None => false,
             },
             Err(_) => false,
@@ -477,12 +491,18 @@ mod tests {
 
         let (nullifier, proof) =
             prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).expect("prove");
-        assert!(verify_membership_bb(&config, &proof, &root, &ctx, &nullifier), "honest proof verifies");
+        assert!(
+            verify_membership_bb(&config, &proof, &root, &ctx, &nullifier),
+            "honest proof verifies"
+        );
 
         // Tampered public nullifier must be rejected.
         let mut bad = nullifier;
         bad[0] = bad[0] + BabyBear::ONE;
-        assert!(!verify_membership_bb(&config, &proof, &root, &ctx, &bad), "tampered nullifier rejected");
+        assert!(
+            !verify_membership_bb(&config, &proof, &root, &ctx, &bad),
+            "tampered nullifier rejected"
+        );
     }
 
     /// Measurement harness for Arm B (run: `cargo test -p lib-q-zkp --release --lib
@@ -492,10 +512,13 @@ mod tests {
     #[ignore]
     fn measure_arm_b() {
         use std::time::Instant;
+
         use crate::air::unlinkable_membership_baby_bear::MEMBERSHIP_ROW_WIDTH;
 
         let reps = 5usize;
-        println!("ARM_B,mode,depth,trace_w,trace_h,total_cells,prove_ms_median,verify_ms_median,proof_bytes");
+        println!(
+            "ARM_B,mode,depth,trace_w,trace_h,total_cells,prove_ms_median,verify_ms_median,proof_bytes"
+        );
         let tcfg = default_config_bb();
         for depth in [4usize, 8, 16, 32] {
             let t = t_from_seed(depth as u32);
@@ -508,7 +531,8 @@ mod tests {
             let mut bytes = 0usize;
             for _ in 0..reps {
                 let t0 = Instant::now();
-                let (null, proof) = prove_membership_bb(&tcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
+                let (null, proof) =
+                    prove_membership_bb(&tcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
                 pv.push(t0.elapsed().as_secs_f64() * 1e3);
                 bytes = postcard::to_allocvec(&proof).unwrap().len();
                 let t1 = Instant::now();
@@ -519,7 +543,10 @@ mod tests {
             vv.sort_by(|a, b| a.partial_cmp(b).unwrap());
             println!(
                 "ARM_B,transparent,{depth},{},{depth},{},{:.1},{:.1},{bytes}",
-                MEMBERSHIP_ROW_WIDTH, MEMBERSHIP_ROW_WIDTH * depth, pv[reps / 2], vv[reps / 2]
+                MEMBERSHIP_ROW_WIDTH,
+                MEMBERSHIP_ROW_WIDTH * depth,
+                pv[reps / 2],
+                vv[reps / 2]
             );
         }
         for depth in [8usize, 16, 32] {
@@ -533,7 +560,8 @@ mod tests {
             let mut bytes = 0usize;
             for _ in 0..reps {
                 let t0 = Instant::now();
-                let (null, proof) = prove_membership_bb_zk(&zcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
+                let (null, proof) =
+                    prove_membership_bb_zk(&zcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
                 pv.push(t0.elapsed().as_secs_f64() * 1e3);
                 bytes = postcard::to_allocvec(&proof).unwrap().len();
                 let t1 = Instant::now();
@@ -544,7 +572,10 @@ mod tests {
             vv.sort_by(|a, b| a.partial_cmp(b).unwrap());
             println!(
                 "ARM_B,zk,{depth},{},{depth},{},{:.1},{:.1},{bytes}",
-                MEMBERSHIP_ROW_WIDTH, MEMBERSHIP_ROW_WIDTH * depth, pv[reps / 2], vv[reps / 2]
+                MEMBERSHIP_ROW_WIDTH,
+                MEMBERSHIP_ROW_WIDTH * depth,
+                pv[reps / 2],
+                vv[reps / 2]
             );
         }
     }
@@ -608,23 +639,25 @@ mod tests {
         // All measured depths (4,8,16,32) are powers of two ⇒ the prover applies no padding, so
         // the synthesized root below is exactly the root the verifier checks against. Mirrors the
         // Arm B harness `path_for` for an apples-to-apples comparison.
-        let path_for_a =
-            |leaf: AWideDigest, depth: usize, seed: u32| -> (Vec<bool>, Vec<AWideDigest>, AWideDigest) {
-                let (mut bits, mut sibs) = (Vec::new(), Vec::new());
-                let mut running = leaf;
-                for level in 0..depth {
-                    let sib = digest_of(seed.wrapping_mul(1009).wrapping_add(level as u32 + 1));
-                    let dir = ((seed as usize + level) & 1) == 1;
-                    bits.push(dir);
-                    sibs.push(sib);
-                    running = if dir {
-                        wide_node_hash(&sib, &running)
-                    } else {
-                        wide_node_hash(&running, &sib)
-                    };
-                }
-                (bits, sibs, running)
-            };
+        let path_for_a = |leaf: AWideDigest,
+                          depth: usize,
+                          seed: u32|
+         -> (Vec<bool>, Vec<AWideDigest>, AWideDigest) {
+            let (mut bits, mut sibs) = (Vec::new(), Vec::new());
+            let mut running = leaf;
+            for level in 0..depth {
+                let sib = digest_of(seed.wrapping_mul(1009).wrapping_add(level as u32 + 1));
+                let dir = ((seed as usize + level) & 1) == 1;
+                bits.push(dir);
+                sibs.push(sib);
+                running = if dir {
+                    wide_node_hash(&sib, &running)
+                } else {
+                    wide_node_hash(&running, &sib)
+                };
+            }
+            (bits, sibs, running)
+        };
 
         let reps = 5usize;
         let trace_w = 17_152usize;
@@ -642,7 +675,12 @@ mod tests {
             let c = ctx_of(depth as u32);
             let leaf = membership_leaf(&t);
             let (path_bits, siblings, root) = path_for_a(leaf, depth, depth as u32 * 7 + 1);
-            let witness = MembershipWitness { t, ctx: c, path_bits, siblings };
+            let witness = MembershipWitness {
+                t,
+                ctx: c,
+                path_bits,
+                siblings,
+            };
 
             let (mut pv, mut vv) = (Vec::new(), Vec::new());
             let mut bytes = 0usize;
@@ -672,19 +710,25 @@ mod tests {
             let c = ctx_of(depth as u32 + 60);
             let leaf = membership_leaf(&t);
             let (path_bits, siblings, root) = path_for_a(leaf, depth, depth as u32 * 13 + 5);
-            let witness = MembershipWitness { t, ctx: c, path_bits, siblings };
+            let witness = MembershipWitness {
+                t,
+                ctx: c,
+                path_bits,
+                siblings,
+            };
 
             let (mut pv, mut vv) = (Vec::new(), Vec::new());
             let mut bytes = 0usize;
             let mut ok_all = true;
             for _ in 0..reps {
                 let t0 = Instant::now();
-                let (null, proof) =
-                    prove_unlinkable_membership_zk(&witness, [1u8; 32], [2u8; 32]).expect("arm A zk prove");
+                let (null, proof) = prove_unlinkable_membership_zk(&witness, [1u8; 32], [2u8; 32])
+                    .expect("arm A zk prove");
                 pv.push(t0.elapsed().as_secs_f64() * 1e3);
                 bytes = proof.data.len();
                 let t1 = Instant::now();
-                ok_all &= verify_unlinkable_membership_zk(&proof, &root, &c, &null).unwrap_or(false);
+                ok_all &=
+                    verify_unlinkable_membership_zk(&proof, &root, &c, &null).unwrap_or(false);
                 vv.push(t1.elapsed().as_secs_f64() * 1e3);
             }
             assert!(ok_all, "Arm A zk depth {depth} must verify");
@@ -741,13 +785,22 @@ mod tests {
         // Non-canonical limb (== p) is rejected (injective decode).
         let mut bad = bytes.clone();
         bad[0..4].copy_from_slice(&0x7800_0001u32.to_le_bytes());
-        assert!(membership_statement_from_bytes_bb(&bad).is_none(), "limb == p rejected");
+        assert!(
+            membership_statement_from_bytes_bb(&bad).is_none(),
+            "limb == p rejected"
+        );
         // 0xFFFFFFFF (>> p) rejected.
         let mut bad2 = bytes.clone();
         bad2[4..8].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
-        assert!(membership_statement_from_bytes_bb(&bad2).is_none(), "limb 0xFFFFFFFF rejected");
+        assert!(
+            membership_statement_from_bytes_bb(&bad2).is_none(),
+            "limb 0xFFFFFFFF rejected"
+        );
         // Wrong length rejected.
-        assert!(membership_statement_from_bytes_bb(&bytes[..87]).is_none(), "short rejected");
+        assert!(
+            membership_statement_from_bytes_bb(&bytes[..87]).is_none(),
+            "short rejected"
+        );
     }
 
     #[test]
@@ -760,13 +813,22 @@ mod tests {
         let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
 
         let stmt = membership_statement_bytes_bb(&root, &ctx, &null);
-        assert!(verify_membership_bb_bytes(&config, &proof, &stmt), "honest statement verifies");
+        assert!(
+            verify_membership_bb_bytes(&config, &proof, &stmt),
+            "honest statement verifies"
+        );
         // Tampered statement byte → reject.
         let mut bad = stmt.clone();
         bad[0] ^= 0x01;
-        assert!(!verify_membership_bb_bytes(&config, &proof, &bad), "tampered statement rejected");
+        assert!(
+            !verify_membership_bb_bytes(&config, &proof, &bad),
+            "tampered statement rejected"
+        );
         // Malformed length → false, no panic across the FFI boundary.
-        assert!(!verify_membership_bb_bytes(&config, &proof, &stmt[..50]), "short statement rejected");
+        assert!(
+            !verify_membership_bb_bytes(&config, &proof, &stmt[..50]),
+            "short statement rejected"
+        );
     }
 
     /// Arm B wire **envelope** (tag 0x02): byte-only encode → verify, plus the malformed-input
@@ -784,22 +846,37 @@ mod tests {
         let env = encode_membership_envelope_bb(&proof, bits.len() as u8);
         assert_eq!(env[0], BB_ENVELOPE_VERSION, "instantiation tag 0x02");
         assert_eq!(env[2] as usize, WIDE_DIGEST_ELEMS, "digest_width = 9");
-        assert!(verify_membership_envelope_bb(&stmt, &env), "honest envelope verifies");
+        assert!(
+            verify_membership_envelope_bb(&stmt, &env),
+            "honest envelope verifies"
+        );
 
         // Wrong instantiation tag (Arm A's 0x01) → reject (downgrade guard).
         let mut bad_ver = env.clone();
         bad_ver[0] = 0x01;
-        assert!(!verify_membership_envelope_bb(&stmt, &bad_ver), "wrong tag rejected");
+        assert!(
+            !verify_membership_envelope_bb(&stmt, &bad_ver),
+            "wrong tag rejected"
+        );
         // Tampered statement → reject.
         let mut bad_stmt = stmt.clone();
         bad_stmt[0] ^= 0x01;
-        assert!(!verify_membership_envelope_bb(&bad_stmt, &env), "tampered statement rejected");
+        assert!(
+            !verify_membership_envelope_bb(&bad_stmt, &env),
+            "tampered statement rejected"
+        );
         // Length mismatch (truncated) → reject, no panic.
-        assert!(!verify_membership_envelope_bb(&stmt, &env[..env.len() - 1]), "short envelope rejected");
+        assert!(
+            !verify_membership_envelope_bb(&stmt, &env[..env.len() - 1]),
+            "short envelope rejected"
+        );
         // Reserved flag bit set → reject.
         let mut bad_flag = env.clone();
         bad_flag[3] = 0x02;
-        assert!(!verify_membership_envelope_bb(&stmt, &bad_flag), "reserved flag rejected");
+        assert!(
+            !verify_membership_envelope_bb(&stmt, &bad_flag),
+            "reserved flag rejected"
+        );
     }
 
     // ===================== Negative-proof matrix (real prove/verify) =====================
@@ -819,7 +896,10 @@ mod tests {
         let leaf = membership_leaf_bb(&t);
         let (bits, sibs, root) = path_for(leaf, 4, 5);
         let (null, proof) = prove_membership_bb(&config, &t, &ctx, &bits, &sibs, &root).unwrap();
-        assert!(verify_membership_bb(&config, &proof, &root, &ctx, &null), "honest verifies");
+        assert!(
+            verify_membership_bb(&config, &proof, &root, &ctx, &null),
+            "honest verifies"
+        );
 
         let wrong_root = digest_from_seed(987_654);
         assert!(
@@ -853,7 +933,10 @@ mod tests {
         let (na, pa) = prove_membership_bb(&config, &ta, &ca, &ba, &sa, &ra).unwrap();
         let (nb, _pb) = prove_membership_bb(&config, &tb, &cb, &bb_, &sb, &rb).unwrap();
 
-        assert!(verify_membership_bb(&config, &pa, &ra, &ca, &na), "A honest verifies");
+        assert!(
+            verify_membership_bb(&config, &pa, &ra, &ca, &na),
+            "A honest verifies"
+        );
         assert!(
             !verify_membership_bb(&config, &pa, &rb, &cb, &nb),
             "A proof under B's full statement rejected"
@@ -981,12 +1064,24 @@ mod tests {
         let ba1 = postcard::to_allocvec(&pa1).unwrap();
         let ba2 = postcard::to_allocvec(&pa2).unwrap();
         let bb = postcard::to_allocvec(&pb).unwrap();
-        assert_eq!(ba1, ba2, "ZK proof reproducible for identical blinding seeds");
-        assert_ne!(ba1, bb, "ZK proof varies across blinding seeds (hiding randomness is active)");
+        assert_eq!(
+            ba1, ba2,
+            "ZK proof reproducible for identical blinding seeds"
+        );
+        assert_ne!(
+            ba1, bb,
+            "ZK proof varies across blinding seeds (hiding randomness is active)"
+        );
 
         let null = membership_nullifier_bb(&t, &ctx);
         let vcfg = default_zk_config_bb([1u8; 32], [2u8; 32]);
-        assert!(verify_membership_bb_zk(&vcfg, &pa1, &root, &ctx, &null), "seed-A proof verifies");
-        assert!(verify_membership_bb_zk(&vcfg, &pb, &root, &ctx, &null), "seed-B proof verifies");
+        assert!(
+            verify_membership_bb_zk(&vcfg, &pa1, &root, &ctx, &null),
+            "seed-A proof verifies"
+        );
+        assert!(
+            verify_membership_bb_zk(&vcfg, &pb, &root, &ctx, &null),
+            "seed-B proof verifies"
+        );
     }
 }

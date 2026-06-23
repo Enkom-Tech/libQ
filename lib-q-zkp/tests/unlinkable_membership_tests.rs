@@ -32,7 +32,7 @@ use lib_q_zkp::membership::{
     wide_digest_to_bytes,
 };
 use lib_q_zkp::merkle::WidePoseidonMerkleTree;
-use lib_q_zkp::stark::fast_proof_config;
+use lib_q_zkp::stark::membership_fast_config;
 
 type Fe = Complex<Mersenne31>;
 
@@ -72,7 +72,7 @@ fn witness(
 fn round_trip_every_member() {
     // 6 members → depth 3 (padded to height 4 internally).
     let (tree, secrets) = build(6);
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     for index in 0..6usize {
         let w = witness(&tree, &secrets, index, index as u32);
         let (nullifier, proof) =
@@ -96,7 +96,7 @@ fn round_trip_power_of_two_depth() {
     // 16 members → depth 4 (already a power of two ⇒ no padding).
     let (tree, secrets) = build(16);
     assert_eq!(tree.depth(), 4);
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     let w = witness(&tree, &secrets, 13, 1);
     let (nullifier, proof) =
         prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");
@@ -109,7 +109,7 @@ fn round_trip_power_of_two_depth() {
 #[test]
 fn nullifier_determinism_and_unlinkability() {
     let (tree, secrets) = build(8);
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
 
     // Same member + same ctx ⇒ identical nullifier (double-use is detectable).
     let w1 = witness(&tree, &secrets, 2, 5);
@@ -135,7 +135,7 @@ fn nullifier_determinism_and_unlinkability() {
 #[test]
 fn verify_rejects_wrong_public_inputs() {
     let (tree, secrets) = build(8);
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     let w = witness(&tree, &secrets, 1, 9);
     let (nullifier, proof) =
         prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");
@@ -176,7 +176,7 @@ fn non_member_secret_does_not_verify_against_tree_root() {
     // A non-member presents a real member's authentication path with their own secret. The
     // prover folds a DIFFERENT root, so verification against the canonical tree root fails.
     let (tree, secrets) = build(8);
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     let real = witness(&tree, &secrets, 4, 2);
 
     let forged = MembershipWitness {
@@ -202,7 +202,7 @@ fn non_member_secret_does_not_verify_against_tree_root() {
 
 #[test]
 fn input_validation_and_dos_limits() {
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     let zero_sib: WideDigest = [fe(0); 5];
 
     // Depth 0 (empty path) is rejected.
@@ -267,7 +267,7 @@ fn rejects_mismatched_declared_depth() {
     // trace height; relabelling it (so next_pow2(depth) != height) must be rejected.
     use lib_q_zkp::ProofMetadata;
     let (tree, secrets) = build(6); // 6 members → depth 3 → padded height 4
-    let cfg = fast_proof_config();
+    let cfg = membership_fast_config();
     let w = witness(&tree, &secrets, 2, 1);
     let (nullifier, mut proof) =
         prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");

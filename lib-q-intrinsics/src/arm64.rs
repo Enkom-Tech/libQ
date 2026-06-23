@@ -12,7 +12,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use core::arch::aarch64::{uint16x8_t, uint32x4_t, uint64x2_t, uint8x16_t};
+use core::arch::aarch64::{
+    uint8x16_t,
+    uint16x8_t,
+    uint32x4_t,
+    uint64x2_t,
+};
 
 /// 128-bit vector of 8-bit integers
 pub type Vec128 = uint8x16_t;

@@ -83,14 +83,17 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for WideMerklePathBbAir {
         let (running, sibling, dir_expr, dir_var, node_input) = {
             let main = builder.main();
             let local = main.current_slice();
-            let running: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| local[RUNNING_START + i].into()).collect();
-            let sibling: Vec<AB::Expr> =
-                (0..WIDE_DIGEST_ELEMS).map(|i| local[SIBLING_START + i].into()).collect();
+            let running: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| local[RUNNING_START + i].into())
+                .collect();
+            let sibling: Vec<AB::Expr> = (0..WIDE_DIGEST_ELEMS)
+                .map(|i| local[SIBLING_START + i].into())
+                .collect();
             let dir_var = local[DIR_COL];
             let dir_expr: AB::Expr = local[DIR_COL].into();
-            let node_input: Vec<AB::Expr> =
-                (0..NODE_INPUT_LEN).map(|i| local[NODE_INPUT_START + i].into()).collect();
+            let node_input: Vec<AB::Expr> = (0..NODE_INPUT_LEN)
+                .map(|i| local[NODE_INPUT_START + i].into())
+                .collect();
             (running, sibling, dir_expr, dir_var, node_input)
         };
 
@@ -132,7 +135,9 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for WideMerklePathBbAir {
             let next_running: Vec<AB::Expr> = {
                 let main = builder.main();
                 let next = main.next_slice();
-                (0..WIDE_DIGEST_ELEMS).map(|i| next[RUNNING_START + i].into()).collect()
+                (0..WIDE_DIGEST_ELEMS)
+                    .map(|i| next[RUNNING_START + i].into())
+                    .collect()
             };
             let mut b = builder.when_transition();
             for i in 0..WIDE_DIGEST_ELEMS {
@@ -144,7 +149,9 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for WideMerklePathBbAir {
         {
             let pub_root: Vec<AB::Expr> = {
                 let pubs = builder.public_values();
-                (0..WIDE_DIGEST_ELEMS).map(|i| pubs[WIDE_DIGEST_ELEMS + i].into()).collect()
+                (0..WIDE_DIGEST_ELEMS)
+                    .map(|i| pubs[WIDE_DIGEST_ELEMS + i].into())
+                    .collect()
             };
             let mut b = builder.when_last_row();
             for i in 0..WIDE_DIGEST_ELEMS {

@@ -34,6 +34,11 @@
 //! recipient commitment check (mve-rekey-v0 §4.3, §6 fallback). Do **not** treat this as
 //! load-bearing until a human cryptographer signs off.
 
+// AIR constraint/trace code: explicit indexing and row-major `r * WIDTH` offsets read clearest
+// here; suppress these style lints crate-wide (same approach as lib-q-zkp / lib-q-hqc).
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::identity_op)]
+
 use lib_q_core::{
     Error,
     Result,

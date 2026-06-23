@@ -5,8 +5,6 @@
 
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
-
-use portable_atomic::AtomicU64;
 #[cfg(all(feature = "alloc", feature = "std"))]
 #[allow(clippy::disallowed_types)]
 use std::collections::HashSet;
@@ -16,6 +14,7 @@ use lib_q_core::{
     Nonce,
     Result,
 };
+use portable_atomic::AtomicU64;
 
 /// Nonce management configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

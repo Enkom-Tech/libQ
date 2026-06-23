@@ -94,6 +94,7 @@ fn bowers_g_t<F: Field, A: Algebra<F>, const N: usize>(values: &mut [A; N], twid
 
 #[cfg(any())]
 mod tests {
+    use lib_q_random::new_deterministic_rng;
     use lib_q_stark_dft::{
         NaiveDft,
         TwoAdicSubgroupDft,
@@ -104,7 +105,6 @@ mod tests {
     };
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_symmetric::Permutation;
-    use lib_q_random::new_deterministic_rng;
     use rand::RngExt;
 
     use crate::coset_mds::CosetMds;

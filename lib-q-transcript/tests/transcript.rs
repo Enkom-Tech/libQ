@@ -4,11 +4,6 @@
 
 extern crate alloc;
 
-use lib_q_transcript::{
-    DuplexTranscript,
-    K12Transcript,
-};
-
 #[cfg(feature = "poseidon")]
 use lib_q_poseidon::PoseidonField;
 #[cfg(feature = "poseidon")]
@@ -19,6 +14,10 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 #[cfg(feature = "poseidon")]
 use lib_q_transcript::PoseidonTranscript;
+use lib_q_transcript::{
+    DuplexTranscript,
+    K12Transcript,
+};
 
 #[cfg(feature = "poseidon")]
 fn felts(xs: &[u32]) -> alloc::vec::Vec<PoseidonField> {
@@ -193,7 +192,7 @@ fn poseidon_absorb_bytes_is_deterministic() {
 fn k12_kat_lock() {
     let mut t = K12Transcript::new(b"libq.kat");
     t.absorb(b"statement", b"hello");
-    t.absorb(b"commitment", &[0xaa, 0xbb, 0xcc]);
+    t.absorb(b"commitment", &[0xAA, 0xBB, 0xCC]);
     let c = t.challenge(b"beta", 32);
     let hex: alloc::string::String = c.iter().map(|b| alloc::format!("{b:02x}")).collect();
     assert_eq!(

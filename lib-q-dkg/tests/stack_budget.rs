@@ -63,7 +63,10 @@ fn assert_runs_within(stack_bytes: usize, label: &str) {
     let verified = handle
         .join()
         .unwrap_or_else(|_| panic!("DKG ceremony panicked on the {label} stack budget"));
-    assert!(verified, "share failed to verify on the {label} stack budget");
+    assert!(
+        verified,
+        "share failed to verify on the {label} stack budget"
+    );
 }
 
 /// Primary regression guard: the ceremony runs on the **OS-default 1 MiB stack** (the size the
