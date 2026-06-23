@@ -237,7 +237,15 @@ wasm_dirs = set(re.findall(r'working-directory:\s*"(lib-q-[^"]+)"', wasm_block))
 if "." in wasm_dirs:
     wasm_dirs.add("lib-q")
 
-missing = sorted(crate for crate in tier4b_crates if crate not in wasm_dirs)
+# Tier-4b crates that are intentionally crates.io-only: `crate-type = ["rlib"]`, no wasm-pack
+# bindings, so they cannot be a wasm-pack npm package (e.g. lib-q-blind-token, whose secure-params
+# keygen is also impractical in wasm). They publish to crates.io but are exempt from npm parity.
+crates_io_only = {"lib-q-blind-token"}
+missing = sorted(
+    crate
+    for crate in tier4b_crates
+    if crate not in wasm_dirs and crate not in crates_io_only
+)
 if missing:
     print(
         "ERROR: tier-4b publish-rust crates missing from cd.yml publish-wasm-packages matrix:",
