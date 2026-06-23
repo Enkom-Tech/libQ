@@ -1,15 +1,17 @@
 //! BabyBear STARK prover/verifier config (Arm B, build-spec step 6) — the BabyBear analogue of
 //! `stark.rs` (which uses `ConfigVal = Complex<Mersenne31>`).
 //!
-//! Key structural difference from Arm A: Arm A's value field `Complex<Mersenne31>` (62 bits)
-//! doubles as the FRI **challenge** field. BabyBear (31 bits) is far too small for that, so the
-//! challenge field is the **degree-4 extension** `BinomialExtensionField<BabyBear, 4>` (~124 bits)
-//! — a soundness improvement. And because BabyBear *is* `PrimeField32` (unlike a complex field),
-//! the challenger is `Shake256Challenger32<BabyBear>` directly — no `ComplexFieldChallenger` wrapper.
+//! Key structural difference from Arm A: BabyBear (31 bits) is far too small to double as the FRI
+//! challenge field, so the challenge field is the **degree-5 extension**
+//! `BinomialExtensionField<BabyBear, 5>` = `GF(q^5)` (~155 bits) — chosen so the Fiat–Shamir/DEEP
+//! soundness clears **128-bit post-quantum** (see `docs/membership-arm-b-soundness-params.md`). And
+//! because BabyBear *is* `PrimeField32` (unlike Arm A's complex field), the challenger is
+//! `Shake256Challenger32<BabyBear>` directly — no `ComplexFieldChallenger` wrapper.
 //!
-//! FRI `log_blowup = 3` (blowup 8): the degree-7 Poseidon2 S-box gives quotient degree 6, so the
-//! LDE blowup must be ≥ 8 (vs Arm A's `log_blowup = 2` for its degree-5 S-box) — the spec's
-//! "degree 5 → 7 raises the FRI blowup". `num_queries = 100`, `proof_of_work_bits = 16`.
+//! FRI `log_blowup = 4` (blowup 16, rate ρ = 1/16): the degree-7 Poseidon2 S-box gives quotient
+//! degree 6 (needs blowup ≥ 8 ⇒ log_blowup ≥ 3), and blowup 16 clears 128-bit on the provable
+//! list-decoding bound too. `num_queries = 96`, `proof_of_work_bits = 20`. (Arm A's membership
+//! config uses log_blowup 3 for its degree-5 S-box; both bind on the SHAKE256 commitment at 128.)
 //!
 //! Tier RED: a passing prove→verify roundtrip shows the construction is a WORKING STARK; it does
 //! NOT establish the parameters' cryptographic soundness (obligation packet).

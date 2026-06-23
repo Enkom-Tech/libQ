@@ -9,7 +9,8 @@ test --release`, **single-threaded** (the `parallel`/rayon feature is OFF by def
 proving would be faster). Prove/verify = **median of 5**; proof size = `postcard::to_allocvec(proof).len()`
 (Arm B) / `proof.data.len()` (Arm A, the postcard-serialized `ZkpProof` payload). Harnesses:
 `lib-q-zkp/src/stark_baby_bear.rs::tests::measure_arm_b` and `::measure_arm_a` (both `--ignored`).
-FRI for both arms/modes: `num_queries = 100`, `proof_of_work_bits = 16`, `log_final_poly_len = 0`.
+FRI (both arms now at 128-bit-PQ): `num_queries = 96`, `proof_of_work_bits = 20`,
+`log_final_poly_len = 0`; `log_blowup = 3` for Arm A (degree-5 S-box) and `4` for Arm B (degree-7).
 **Both harnesses now synthesize the authentication path directly** (arbitrary siblings + bits folded
 to a root with the production compressor) rather than materializing a `2^depth` tree, so depths
 16/32 are feasible for both arms; the AIR only sees (leaf, path, siblings → root), so a synthesized
@@ -121,10 +122,11 @@ FRI blowup (see the corrected degree analysis below), i.e. Arm B's field/permuta
 | Public-statement bytes | 96 = 40‖16‖40 | 88 = 36‖16‖36 |
 | S-box constraint degree (hash) | 5 | 7 |
 | **Max membership constraint degree** | **5** (gadget STORES the ARC column, so the degree-2 dir-select is absorbed into a low-degree ARC constraint reading a `Var`) | **7** — degree-7 optimization APPLIED (the dir-selected node input is stored as `Var`s; only the x⁷ S-box is high-degree). The 2-vs-3 gap is now the *fundamental* x⁵-vs-x⁷ difference. |
-| FRI `log_blowup` (membership) | **2** (blowup 4 — empirically verified) | **3** (blowup 8) — empirically verified (prove+verify succeed; would panic at <3) |
+| FRI `log_blowup` (membership) | **3** (blowup 8; ≥ the degree-5 minimum of 2, raised for 128-bit) | **4** (blowup 16; ≥ the degree-7 minimum of 3, raised for 128-bit) |
 | Quotient chunks (membership) | ≈ 4 | ≈ 8 |
-| Challenge field | Complex⟨M31⟩ (≈ 62 bits, = value field) | BinomialExtensionField⟨BabyBear,**5**⟩ (≈ 155 bits — quintic, for 128-bit PQ; was deg-4/≈124b) |
-| FRI params (membership) | log_blowup 2, q 100, PoW 16 | **log_blowup 4, q 96, PoW 20** (128-bit-PQ tuned; was 3/100/16) |
+| Challenge field | **degree-3 over Complex⟨M31⟩ = GF(p⁶)** (≈ 186 bits, for 128-bit PQ; was the ≈62-bit value field) | BinomialExtensionField⟨BabyBear,**5**⟩ = GF(q⁵) (≈ 155 bits, for 128-bit PQ; was deg-4/≈124b) |
+| FRI params (membership) | **log_blowup 3, q 96, PoW 20** (128-bit-PQ; was 2/100/16) | **log_blowup 4, q 96, PoW 20** (128-bit-PQ; was 3/100/16) |
+| **PCS soundness (both bind on SHAKE256 @128)** | **≈128-bit PQ** (`membership-arm-a-soundness-params.md`) | **≈128-bit PQ** (`membership-arm-b-soundness-params.md`) |
 
 **The headline:** Arm B's trace is **~10× narrower and ~21× smaller in bytes** per row (Poseidon2's
 21 rounds / width-16 / rate-7 vs Poseidon256's 68 rounds / width-7 / rate-2). Since FRI proof size

@@ -74,26 +74,27 @@ Tested at the circuit level (`unlinkable_membership_baby_bear.rs`):
 
 ## 4. FRI conjectured-soundness — sanity for BOTH arms
 
-Both arms: `num_queries = 100`, `proof_of_work_bits = 16`. Conjectured FRI soundness ≈
-`num_queries · log₂(blowup) + pow_bits` bits against the query phase, **bounded above by the challenge
-field size** for the out-of-domain / DEEP sampling.
+**RESOLVED — both arms are now 128-bit-PQ** (membership configs; computed + reproducible via
+`tools/fri_soundness.py` which reports both, and the two `*-soundness-params.md` docs). Both use
+`num_queries = 96`, `proof_of_work_bits = 20`; the binding soundness term for each is the SHAKE256
+Merkle commitment (256-bit → 128-bit collision, NIST Cat-2), with the challenge-field and FRI-query
+terms above 128.
 
-- **Arm A — the 62-bit challenge field is the real concern.** Arm A sets `Challenge = ConfigVal =
-  Complex⟨Mersenne31⟩` — value field **and** challenge field are the **same ≈ 62-bit** field
-  (`stark.rs:75`). Out-of-domain quotient sampling and DEEP-ALI soundness are then capped near **62
-  bits**, regardless of query count. For a *deployment* targeting 128-bit soundness this is **marginal
-  to inadequate** — the standard Mersenne31 STARK uses a *degree-3 extension over the complex* (≈186
-  bits) for challenges, not the bare complex field. **A reviewer would push on this hard. State it
-  plainly in the paper: Arm A's challenge field as configured is ~62 bits.**
-- **Arm B — better by construction.** `Challenge = BinomialExtensionField⟨BabyBear,4⟩ ≈ 124 bits`,
-  distinct from the 31-bit value field. 124 bits is the standard, deployed BabyBear challenge field
-  (SP1/Plonky3) and is adequate for ~100–124-bit conjectured soundness. **This is a genuine Arm-B
-  advantage** and follows necessarily from BabyBear being too small to self-serve as the challenge
-  field. (If 128 is the hard target, a degree-5 extension ≈155 bits is the lever.)
-- **Both arms:** `log_blowup` differs (Arm A 2, Arm B 4 as-built / 3 optimized). FRI query soundness
-  `~100·log₂(blowup)` is comfortably > 128 in all cases; the binding constraint is the **challenge
-  field**, not the query count. **Whether `num_queries=100, pow=16` is deployment-grade depends on the
-  target bit-level and the (conjectured, not proven) FRI soundness bound — a cryptographer call.**
+- **Arm A — RAISED from the ~62-bit concern.** Originally `Challenge = ConfigVal = Complex⟨Mersenne31⟩`
+  (value field doubling as challenge field, ≈62 bits) — a hard ceiling capping soundness near 54–62
+  bits, which a query-only test (`security_parameter_tests.rs`) used to *falsely* certify at ≥200/≥100.
+  **Fixed:** the membership config now uses the **degree-3 extension over the complex = `GF(p⁶)` ≈186
+  bits** (`MembershipConfig`, `log_blowup 3 / q 96 / PoW 20`), exactly the standard Mersenne31-STARK
+  challenge field, and the test now computes the honest `min(field, query, hash)`. Arm A membership →
+  ≈128-bit PQ. (The shared `default_config` — recursion/auth/credential — stays ~62-bit and is out of
+  scope for the paper; the recursive verifier hardcodes the value-field challenge width.)
+- **Arm B — RAISED to a clean 128.** `Challenge = BinomialExtensionField⟨BabyBear,5⟩ = GF(q⁵) ≈155
+  bits` (was deg-4/≈124b), `log_blowup 4 / q 96 / PoW 20`. → ≈128-bit PQ.
+- **Both arms** clear 128-bit on the conjectured AND provable-Johnson FRI query bounds; the query phase
+  is not the binder (the SHAKE256 hash is). `log_blowup` differs by S-box degree (Arm A 3 for x⁵, Arm B
+  4 for x⁷). The remaining honest caveat is the **PQ model** (mainstream/deployed QROM; see the
+  soundness docs) — a cryptographer should confirm the model, but no arm is over-claimed: both report
+  128-bit PQ binding on the hash, not on an inflated query count.
 
 ## 5. Arm A — the off-envelope Poseidon-over-GF(p²) concern, stated plainly
 
@@ -135,10 +136,14 @@ analysis goes badly under review, Arm B is the fallback with no such hazard.
 2. **(cryptographer)** Internal-diagonal / external-MDS width-16 no-subspace-trail check — re-run or cite.
 3. **(cryptographer)** Formal **ZK simulator** for the membership AIR with the hiding PCS (incl. the
    ungated zero-preimage rows). Mechanism present; argument not written.
-4. **(deployment)** **Arm A's 62-bit challenge field** — almost certainly inadequate for a 128-bit
-   deployment as configured; needs a larger challenge extension. (Arm B's 124-bit is fine; 155 if 128 is hard.)
-5. **(deployment)** Is `num_queries=100, pow=16` deployment-grade for the target bit-level? Conjectured
-   FRI soundness, not proven.
+4. **(deployment) — DONE.** Arm A's 62-bit challenge field is RESOLVED: the membership config was
+   raised to the degree-3 extension over the complex = `GF(p⁶)` ≈186 bits (`MembershipConfig`), and
+   Arm B to deg-5 `GF(q⁵)` ≈155 bits. Both → ≈128-bit PQ (`*-soundness-params.md`, `fri_soundness.py`).
+   (The non-membership Arm A proofs sharing `default_config` remain ~62-bit and out of paper scope.)
+5. **(deployment) — DONE.** FRI params are now `q 96 / PoW 20` (log_blowup 3 Arm A / 4 Arm B), chosen
+   so the query phase clears 128-bit on the conjectured AND provable-Johnson bounds; the binding term
+   is the SHAKE256 hash at 128. Remaining caveat is the conjectured-vs-proven FRI model + QROM model
+   (a cryptographer call; documented in the soundness docs).
 6. **(engineering) — DONE.** Arm B statement-bytes codec + FFI verify entry implemented in
    `stark_baby_bear.rs` (`membership_statement_bytes_bb` / `membership_statement_from_bytes_bb` /
    `verify_membership_bb_bytes`): `root(36)‖ctx(16)‖N(36)` = 88 bytes, each cell canonical LE `u32`,
