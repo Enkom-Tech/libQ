@@ -8,7 +8,10 @@
 extern crate alloc;
 
 use lib_q_stark_field::BasedVectorSpace;
-use lib_q_stark_field::extension::Complex;
+use lib_q_stark_field::extension::{
+    BinomialExtensionField,
+    Complex,
+};
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_stark_symmetric::Hash;
 
@@ -80,6 +83,64 @@ where
 }
 
 impl<BaseChallenger> FieldChallenger<Complex<Mersenne31>> for ComplexFieldChallenger<BaseChallenger>
+where
+    BaseChallenger: FieldChallenger<Mersenne31> + Clone + Send + Sync,
+    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
+{
+}
+
+// ---------------------------------------------------------------------------
+// Degree-3 extension OVER `Complex<Mersenne31>` (the FRI challenge field for the 128-bit Arm A
+// config ⇒ `GF(p^6)` ~186 bits). Since `ComplexFieldChallenger` is itself a
+// `FieldChallenger<Complex<Mersenne31>>`, it can sample/observe a `BasedVectorSpace<Complex>` by
+// delegating to the algebra-element methods over the `Complex` layer (which in turn draw from the
+// base `Mersenne31` challenger). This lets the STARK use a challenge field strictly larger than the
+// ~62-bit value field without a bespoke challenger. (Concrete D = 3: the bridge
+// `Complex<Mersenne31>: BinomiallyExtendable<3>` only exists for D ∈ {2,3}, so this is not generic.)
+type ChallengeExt3 = BinomialExtensionField<Complex<Mersenne31>, 3>;
+
+impl<BaseChallenger> CanObserve<ChallengeExt3> for ComplexFieldChallenger<BaseChallenger>
+where
+    BaseChallenger: FieldChallenger<Mersenne31> + Clone + Send + Sync,
+    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
+{
+    fn observe(&mut self, value: ChallengeExt3) {
+        // Disambiguate: observe `value` as an algebra element OVER the `Complex` layer (self also
+        // implements FieldChallenger<ChallengeExt3>, so an unqualified call is ambiguous).
+        <Self as FieldChallenger<Complex<Mersenne31>>>::observe_algebra_element(self, value);
+    }
+
+    fn observe_slice(&mut self, values: &[ChallengeExt3])
+    where
+        ChallengeExt3: Clone + Copy,
+    {
+        for value in values {
+            self.observe(*value);
+        }
+    }
+}
+
+impl<BaseChallenger> CanSample<ChallengeExt3> for ComplexFieldChallenger<BaseChallenger>
+where
+    BaseChallenger: FieldChallenger<Mersenne31> + Clone + Send + Sync,
+    Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
+{
+    fn sample(&mut self) -> ChallengeExt3 {
+        // Sample as an algebra element OVER the `Complex` layer (disambiguate from the
+        // FieldChallenger<ChallengeExt3> impl on self).
+        <Self as FieldChallenger<Complex<Mersenne31>>>::sample_algebra_element(self)
+    }
+
+    fn sample_array<const N: usize>(&mut self) -> [ChallengeExt3; N] {
+        core::array::from_fn(|_| self.sample())
+    }
+
+    fn sample_vec(&mut self, n: usize) -> alloc::vec::Vec<ChallengeExt3> {
+        (0..n).map(|_| self.sample()).collect()
+    }
+}
+
+impl<BaseChallenger> FieldChallenger<ChallengeExt3> for ComplexFieldChallenger<BaseChallenger>
 where
     BaseChallenger: FieldChallenger<Mersenne31> + Clone + Send + Sync,
     Complex<Mersenne31>: BasedVectorSpace<Mersenne31>,
