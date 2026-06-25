@@ -21,9 +21,10 @@ This section is the single source of truth for where ZKP/STARK/Plonky functional
 ## Unlinkable set-membership proof — RED / research (NOT signed off)
 
 > **RED — experimental research, pending human cryptographer sign-off.** Everything in this
-> section is gated behind the **ADR-113 freeze review**; the construction has been submitted to
-> IACR ePrint and is **under review**. It is **NOT proven sound, NOT audited, NOT
-> production-ready**, and carries hiding residual implementation risk. Do not deploy it as a
+> section is gated behind the **ADR-113 freeze review**. The construction is **not peer-reviewed** —
+> an IACR ePrint submission was desk-rejected, and it is now self-published as a preprint with an
+> open-source reproduction artifact. It is **NOT proven sound, NOT audited, NOT
+> production-ready**, and carries residual implementation risk. Do not deploy it as a
 > security boundary until a human cryptographer signs off.
 
 `lib-q-zkp` gained an **unlinkable set-membership** proof under the Fiat–Shamir domain

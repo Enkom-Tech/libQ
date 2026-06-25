@@ -12,7 +12,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **`lib-q-zkp` — unlinkable set-membership proof** (Fiat–Shamir domain `libq.zkfri.membership.v0`), in two arms:
   - **Arm A:** value field `Complex<Mersenne31> = GF(p^2)`, FRI challenge field a degree-3 extension `GF(p^6)` (~186 bits). Reaches **128-bit post-quantum** *only at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment); the Poseidon-over-`GF(p^2)` round-count soundness obligation (O1) is **still unverified**, so this is not a complete soundness proof.
   - **Arm B:** BabyBear base field + Poseidon2. Conjectured **~116-bit** / provable **~99-bit** soundness — **NOT 128-bit**.
-  - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (ADR-113 freeze gate; the construction was submitted to IACR ePrint and is under review).
+  - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (ADR-113 freeze gate). Not peer-reviewed: an IACR ePrint submission was desk-rejected; a self-published preprint + open-source reproduction artifact accompany it for review.
 
 ### Changed
 

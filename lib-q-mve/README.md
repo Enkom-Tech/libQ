@@ -9,8 +9,9 @@ relay **without** the relay learning `K`.
 > ## ⚠️ RED — PENDING HUMAN CRYPTOGRAPHER SIGN-OFF
 >
 > This crate is **RED / experimental / research code**. It is **NOT proven sound, NOT audited, and
-> NOT production-ready**, and it is pending human cryptographer sign-off (the construction was
-> submitted to IACR ePrint and is under review). The in-circuit proof guarantees single-`K`
+> NOT production-ready**, and it is pending human cryptographer sign-off. It is **not peer-reviewed**:
+> an IACR ePrint submission was desk-rejected; a self-published preprint + open-source reproduction
+> artifact accompany it. The in-circuit proof guarantees single-`K`
 > consistency across the wraps; the binding of each ML-KEM shared secret `ss_i` to its KEM
 > ciphertext `kem_ct_i` under `update_pk_i` (full ML-KEM-encaps-in-circuit) is **NOT** proven — it
 > is backstopped by the recipient-side commitment check (mve-rekey-v0 §4.3, §6 fallback). The proof
