@@ -36,6 +36,9 @@ jobs:
   coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
+    # Backstop so a pathologically slow workspace pass can't hold a runner for the default 6h.
+    # The gating per-crate step (~65m) + the bounded workspace pass (40m, below) + setup fit well under this.
+    timeout-minutes: 150
     permissions:
       contents: write
     strategy:
@@ -154,7 +157,14 @@ jobs:
           done
       
       # Aggregate workspace report for badges/artifacts only (denominator is entire repo; do not gate on this %).
+      # This pass instruments the WHOLE workspace under tarpaulin in debug — including the large STARK/plonky3
+      # suite and slow crypto crates (blind-token/fn-dsa keygen) added in the 0.0.8 cycle — so it can run for
+      # hours. It is purely informational (badge/artifact); the real gate is the per-crate step above, which
+      # stays fatal. Bound it and never let it fail the workflow: a slow/incomplete badge must not turn a green
+      # gated run red. On timeout the badge step falls back to a 0% reading (see Extract coverage percentage).
       - name: Run coverage for entire workspace
+        timeout-minutes: 40
+        continue-on-error: true
         run: |
           bash scripts/run-coverage.sh --threshold 0 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
           
