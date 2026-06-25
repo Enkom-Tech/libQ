@@ -357,7 +357,12 @@ runs:
             TARPAULIN_CMD="$TARPAULIN_CMD --features \"std,random,acvp,fips-mode,hardened,mldsa44,mldsa65,mldsa87\""
           fi
         elif [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD --features \"simd256,simd128,simd512\""
+          # lib-q-platform/std pulls std into the platform -> lib-q-core chain. Intrinsics is
+          # #![no_std] and pins lib-q-platform with default-features=false, so without this the
+          # chain builds no_std and lib-q-core's no_std #[panic_handler] requires panic=abort,
+          # which tarpaulin's panic=unwind test harness rejects ("unwinding panics are not
+          # supported without std"). See scripts/run-coverage.sh for the matching gate path.
+          TARPAULIN_CMD="$TARPAULIN_CMD --features \"simd256,simd128,simd512,lib-q-platform/std\""
         elif [[ -n "$FEATURES" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --features \"$FEATURES\""
         fi
