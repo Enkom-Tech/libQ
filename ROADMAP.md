@@ -182,7 +182,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 > — an IACR ePrint submission was desk-rejected (review-soliciting note); a self-published preprint and
 > open-source reproduction artifact accompany it for review. Implementation completeness here does
 > **not** imply proven soundness;
-> do not treat any of these as load-bearing without hiding residual implementation risk.
+> do not treat any of these as load-bearing, and do not hide their residual implementation risk.
 
 - [ ] **Unlinkable set-membership STARK** (`lib-q-zkp`, Fiat-Shamir domain `libq.zkfri.membership.v0`)
   - [x] Construction implemented (transparent STARK, two field/hash arms)
