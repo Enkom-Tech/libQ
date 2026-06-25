@@ -14,7 +14,8 @@ This field is the **base field for the Arm B membership STARK** (BabyBear + Pose
 
 > **Status: RED / experimental.** The Arm B membership construction is **not** proven sound, not
 > audited, and not production-ready — it is pending human cryptographer sign-off (ADR-113 freeze
-> gate; under IACR ePrint review). Arm B reaches **~116-bit conjectured / ~99-bit provable**
+> gate). It is **not peer-reviewed**: an IACR ePrint submission was desk-rejected; a self-published
+> preprint + open-source reproduction artifact accompany it. Arm B reaches **~116-bit conjectured / ~99-bit provable**
 > soundness — **not** 128-bit. This crate is the field layer only; the soundness caveats live with
 > the proof system. Use it without hiding residual implementation risk.
 

@@ -178,8 +178,10 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 
 > **All items in this subsection are RED / research-grade.** The code is implemented and tested, but
 > the underlying constructions, domain-separation labels, and soundness arguments are **pending human
-> cryptographer sign-off** — the membership construction was submitted to IACR ePrint and is under
-> review (ADR-113 freeze gate). Implementation completeness here does **not** imply proven soundness;
+> cryptographer sign-off** (ADR-113 freeze gate). The membership construction is **not peer-reviewed**
+> — an IACR ePrint submission was desk-rejected (review-soliciting note); a self-published preprint and
+> open-source reproduction artifact accompany it for review. Implementation completeness here does
+> **not** imply proven soundness;
 > do not treat any of these as load-bearing without hiding residual implementation risk.
 
 - [ ] **Unlinkable set-membership STARK** (`lib-q-zkp`, Fiat-Shamir domain `libq.zkfri.membership.v0`)
@@ -191,7 +193,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
     (obligation **O1**) is **STILL UNVERIFIED** — this is **not** a complete soundness proof.
   - [ ] **Arm B** — BabyBear base field (`lib-q-stark-baby-bear`, `p = 2³¹ − 2²⁷ + 1`) + Poseidon2.
     Soundness is **~116-bit conjectured / ~99-bit provable — NOT 128-bit.**
-  - [ ] Human cryptographer sign-off (IACR ePrint review; ADR-113 freeze gate)
+  - [ ] Human cryptographer sign-off (ADR-113 freeze gate; not peer-reviewed — ePrint submission desk-rejected, self-published preprint instead)
 - [ ] **Verifiable rekey / multi-recipient verifiable encryption** (`lib-q-mve`, crates.io-only)
   - [x] mVE-v0 construction implemented: a producer distributes a fresh group key `K` to many
     recipients (each wrapped under that recipient's ML-KEM update key) with a **single proof** that
