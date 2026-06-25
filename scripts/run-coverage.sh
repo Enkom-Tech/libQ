@@ -141,6 +141,14 @@ elif [[ "$CRATE" == "lib-q" ]]; then
 elif [[ "$CRATE" == "lib-q-keccak" ]]; then
   CMD="$CMD --include-files 'lib-q-keccak/src/*' --include-files 'lib-q-keccak/src/**' --include-files 'lib-q-keccak\\src\\*'"
   CMD="$CMD --exclude-files 'lib-q-keccak/src/advanced_simd.rs' --exclude-files 'lib-q-keccak\\src\\advanced_simd.rs'"
+  # AVX-512 batched permutation and the x86 SIMD absorption entrypoints are behind
+  # `#[target_feature]` / `target_feature` cfgs; on a runner without AVX-512/AVX2 the
+  # intrinsic bodies never execute (the equivalence tests take the scalar fallback),
+  # so they read as 0/N. Exclude them from the denominator — same rationale as
+  # advanced_simd.rs above and the ml-dsa AVX2 excludes below. (multithreading.rs is
+  # std-gated, not SIMD, so it stays measured.)
+  CMD="$CMD --exclude-files 'lib-q-keccak/src/x86_simd_avx512.rs' --exclude-files 'lib-q-keccak\\src\\x86_simd_avx512.rs'"
+  CMD="$CMD --exclude-files 'lib-q-keccak/src/x86.rs' --exclude-files 'lib-q-keccak\\src\\x86.rs'"
 elif [[ "$CRATE" == "lib-q-hash" ]]; then
   CMD="$CMD --include-files 'lib-q-hash/src/*' --include-files 'lib-q-hash/src/**' --include-files 'lib-q-hash\\src\\*'"
 elif [[ -n "$CRATE" ]]; then

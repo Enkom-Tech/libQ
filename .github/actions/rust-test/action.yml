@@ -380,6 +380,11 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-keccak/src/*\" --include-files \"lib-q-keccak/src/**\" --include-files \"lib-q-keccak\\\\src\\\\*\""
           # advanced_simd is nightly/simd-only; stable PR coverage does not execute it — drop from the gate denominator.
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/advanced_simd.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\advanced_simd.rs\""
+          # AVX-512 batched permutation + x86 SIMD absorption entrypoints are target_feature-gated;
+          # the runner without AVX-512/AVX2 takes the scalar fallback, so the intrinsic bodies read 0/N.
+          # Drop them from the denominator (same rationale as advanced_simd.rs and the ml-dsa AVX2 excludes).
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/x86_simd_avx512.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\x86_simd_avx512.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-keccak/src/x86.rs\" --exclude-files \"lib-q-keccak\\\\src\\\\x86.rs\""
         elif [[ "$PACKAGE" == "lib-q-hash" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD --include-files \"lib-q-hash/src/*\" --include-files \"lib-q-hash/src/**\" --include-files \"lib-q-hash\\\\src\\\\*\""
         elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
