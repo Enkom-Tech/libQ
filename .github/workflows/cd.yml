@@ -23,8 +23,12 @@ jobs:
   pre-release-validation:
     name: Pre-Release Validation
     runs-on: ubuntu-latest
-    # audit/fmt/clippy + rust-test (std,all-algorithms); CI test-matrix allows 60m for that shard alone.
-    timeout-minutes: 150
+    # audit/fmt/clippy + rust-test (std,all-algorithms) for the WHOLE umbrella in one job. Unlike CI —
+    # which shards per-algorithm — this compiles and tests every crate together, so it scales with the
+    # workspace. The 0.0.8 cycle added the STARK/plonky3 suite (~30 crates), pushing a cold run past the
+    # old 150m cap (it was cancelled mid-run at 2h26m while tests were still passing healthily, not hung).
+    # Give it real headroom (warm cache makes re-runs faster); publish tiers downstream stay at 30m each.
+    timeout-minutes: 330
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
       cache-key: ${{ steps.cache-key.outputs.value }}
