@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Multi-recipient verifiable encryption (verifiable rekey) for the consumer — lib-q-mve (RED, PENDING HUMAN SIGN-OFF)"
 license.workspace = true
 repository.workspace = true
-keywords = ["cryptography", "post-quantum", "verifiable-encryption", "zkp"]
+keywords = ["cryptography", "post-quantum", "verifiable", "encryption", "zkp"]
 categories = ["cryptography"]
 readme.workspace = true
 
