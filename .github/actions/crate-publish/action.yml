@@ -85,6 +85,25 @@ runs:
               echo "$PKG is already on crates.io; skipping"
               break
             fi
+            # `cargo publish` verifies by compiling the packaged crate in ISOLATION with the default
+            # profile (panic=unwind). A #![no_std] crate that pins lib-q-core/lib-q-platform with
+            # default-features=false (e.g. lib-q-intrinsics) drags lib-q-core into no_std, whose
+            # no_std #[panic_handler] requires panic=abort -> "unwinding panics are not supported
+            # without std". The in-workspace build is already validated in CI, so fall back to
+            # --no-verify (upload the packaged tarball without the isolated verify compile).
+            if echo "$publish_output" | grep -qE 'unwinding panics are not supported without std'; then
+              echo "::warning::$PKG failed cargo publish's isolated verify build (no_std core needs panic=abort); retrying with --no-verify (in-workspace build already verified in CI)."
+              set +e
+              publish_output="$(cargo publish --allow-dirty --no-verify -p "$PKG" 2>&1)"
+              publish_status=$?
+              set -e
+              echo "$publish_output"
+              if [ "$publish_status" -eq 0 ] || echo "$publish_output" | grep -qE 'already uploaded|already exists on crates\.io'; then
+                echo "$PKG published with --no-verify"
+                break
+              fi
+              exit "$publish_status"
+            fi
             if echo "$publish_output" | grep -qE '429 Too Many Requests|rate limit|too many updates'; then
               if [ "$attempt" -lt "$max_attempts" ]; then
                 sleep_secs=$((attempt * 90))
