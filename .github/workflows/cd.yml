@@ -472,7 +472,6 @@ jobs:
           - package: "lib-q-fhe"
           - package: "lib-q-blind-pcs"
           - package: "lib-q-dkg"
-          - package: "lib-q-threshold-raccoon"
           - package: "lib-q-blind-token"
     steps:
       - uses: actions/checkout@v7
@@ -487,10 +486,31 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  # lib-q-threshold-raccoon depends on lib-q-dkg, so it CANNOT share the tier-4b matrix with it
+  # (matrix jobs publish in parallel; raccoon's verify build then can't resolve dkg from crates.io
+  # yet — "no matching package named lib-q-dkg found"). Publish it after tier-4b completes.
+  publish-rust-tier-4b-raccoon:
+    name: Publish lib-q-threshold-raccoon
+    needs: [publish-rust-tier-4b-new-primitives]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: lib-q-threshold-raccoon
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
   publish-rust-tier-5:
     name: Publish Rust (tier 5)
-    needs: [publish-rust-tier-4b-new-primitives]
+    needs: [publish-rust-tier-4b-raccoon]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
