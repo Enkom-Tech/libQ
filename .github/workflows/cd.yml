@@ -504,7 +504,9 @@ jobs:
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
-          package: lib-q-threshold-raccoon
+          # Quoted so scripts/publish-readiness-pr.sh's `package:\s*"(lib-q...)"` regex finds this
+          # crate in cd.yml (the publish-readiness CI guard fails otherwise).
+          package: "lib-q-threshold-raccoon"
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
