@@ -494,6 +494,14 @@ jobs:
     needs: [publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # One-entry matrix on purpose: the `- package: "..."` form is the only one that satisfies BOTH
+    # cd.yml guards — publish-readiness-pr.sh wants it quoted (`package:\s*"(lib-q...)"`) while
+    # ci-guard-new-crates-and-npm.sh's single-crate regex wants it UNQUOTED. The matrix line matches
+    # the guard's `- package: "..."` regex and the readiness quoted regex at once.
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-threshold-raccoon"
     steps:
       - uses: actions/checkout@v7
       - name: Authenticate with crates.io
@@ -504,9 +512,7 @@ jobs:
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
-          # Quoted so scripts/publish-readiness-pr.sh's `package:\s*"(lib-q...)"` regex finds this
-          # crate in cd.yml (the publish-readiness CI guard fails otherwise).
-          package: "lib-q-threshold-raccoon"
+          package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
