@@ -740,7 +740,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01a33cb227f97ee5c419064c31d7c55a7d895f28d8019ccdadc311cc036500c4"
 dependencies = [
  "hax-lib-macros",
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-traits",
 ]
 
@@ -1125,7 +1125,7 @@ version = "0.0.8"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
- "num-bigint",
+ "num-bigint 0.5.1",
  "num-traits",
  "sha2 0.11.0",
  "zeroize",
@@ -1687,7 +1687,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pastey",
  "pkcs8",
  "proptest",
@@ -1754,7 +1754,7 @@ dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-field-testing",
  "lib-q-stark-monty31",
- "num-bigint",
+ "num-bigint 0.5.1",
  "rand 0.10.1",
 ]
 
@@ -1808,7 +1808,7 @@ dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pastey",
  "rand 0.10.1",
  "serde",
@@ -1826,7 +1826,7 @@ dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-matrix",
  "lib-q-stark-util",
- "num-bigint",
+ "num-bigint 0.5.1",
  "rand 0.10.1",
  "serde",
  "serde_json",
@@ -1936,7 +1936,7 @@ dependencies = [
  "lib-q-stark-mds",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pastey",
  "rand 0.10.1",
  "serde",
@@ -1955,7 +1955,7 @@ dependencies = [
  "lib-q-stark-rayon",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "num-bigint",
+ "num-bigint 0.5.1",
  "pastey",
  "rand 0.10.1",
  "serde",
@@ -2223,9 +2223,19 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
-version = "0.4.6"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
+checksum = "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367"
+dependencies = [
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93e7820bc0a80a0238e650327316f929ba18d5be054b647490a3a6a339f3e7c0"
 dependencies = [
  "num-integer",
  "num-traits",
@@ -2246,7 +2256,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
 dependencies = [
- "num-bigint",
+ "num-bigint 0.4.8",
  "num-integer",
  "num-traits",
 ]
