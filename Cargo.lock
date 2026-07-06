@@ -560,7 +560,7 @@ version = "0.7.0"
 dependencies = [
  "clap 2.34.0",
  "ctrlc",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_chacha 0.10.0",
 ]
 
@@ -972,7 +972,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -990,7 +990,7 @@ dependencies = [
  "js-sys",
  "lib-q-types",
  "once_cell",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1092,7 +1092,7 @@ dependencies = [
  "lib-q-fn-dsa-alg",
  "lib-q-random",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "wasm-bindgen",
  "web-sys",
@@ -1212,7 +1212,7 @@ dependencies = [
  "lib-q-sca-test",
  "lib-q-sha3",
  "lib-q-types",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
  "serde-big-array",
@@ -1544,7 +1544,7 @@ dependencies = [
  "lib-q-k12",
  "lib-q-saturnin",
  "proptest",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1726,7 +1726,7 @@ dependencies = [
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
  "postcard",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "subtle",
  "thiserror",
@@ -1755,7 +1755,7 @@ dependencies = [
  "lib-q-stark-field-testing",
  "lib-q-stark-monty31",
  "num-bigint",
- "rand 0.10.1",
+ "rand 0.10.2",
 ]
 
 [[package]]
@@ -1796,7 +1796,7 @@ dependencies = [
  "lib-q-stark-matrix",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
- "rand 0.10.1",
+ "rand 0.10.2",
  "spin",
  "tracing",
 ]
@@ -1810,7 +1810,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint",
  "pastey",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "subtle",
  "tracing",
@@ -1827,7 +1827,7 @@ dependencies = [
  "lib-q-stark-matrix",
  "lib-q-stark-util",
  "num-bigint",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "serde_json",
 ]
@@ -1851,7 +1851,7 @@ dependencies = [
  "lib-q-stark-shake256",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "subtle",
  "thiserror",
@@ -1879,7 +1879,7 @@ dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "tracing",
  "transpose",
@@ -1896,7 +1896,7 @@ dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.1",
+ "rand 0.10.2",
 ]
 
 [[package]]
@@ -1916,7 +1916,7 @@ dependencies = [
  "lib-q-stark-shake256",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "thiserror",
  "tracing",
@@ -1938,7 +1938,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint",
  "pastey",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "subtle",
 ]
@@ -1957,7 +1957,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint",
  "pastey",
- "rand 0.10.1",
+ "rand 0.10.2",
  "serde",
  "spin",
  "tracing",
@@ -2013,7 +2013,7 @@ name = "lib-q-stark-util"
 version = "0.0.8"
 dependencies = [
  "criterion",
- "rand 0.10.1",
+ "rand 0.10.2",
  "rayon",
  "serde",
  "serde_json",
@@ -2454,7 +2454,7 @@ checksum = "95c589f335db0f6aaa168a7cd27b1fc6920f5e1470c804f814d9cd6e62a0f70b"
 dependencies = [
  "env_logger",
  "log",
- "rand 0.10.1",
+ "rand 0.10.2",
 ]
 
 [[package]]
@@ -2501,9 +2501,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
+checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -2835,7 +2835,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys",
