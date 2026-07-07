@@ -114,9 +114,53 @@ pub use lib_q_core::{
 // Import RNG traits and implementations
 use rand_core::CryptoRng;
 
+// KangarooTwelve-backed deterministic CSPRNG (seedable). Used by the `*_from_seed` entry points so
+// FN-DSA key generation and signing are reproducible from a fixed seed (KAT / conformance vectors),
+// while remaining cryptographically secure when the seed is fresh CSPRNG entropy.
+use lib_q_random::Kt128Rng;
+
 /// Get an appropriate RNG for the current environment
 fn get_rng() -> impl CryptoRng {
     lib_q_random::FnDsaRng::new()
+}
+
+/// Deterministic FN-DSA key generation from a 32-byte seed.
+///
+/// The seed is expanded through the KangarooTwelve XOF ([`Kt128Rng`]) to supply the key-generation
+/// randomness, so a fixed seed yields a fixed keypair. This is exactly equivalent, security-wise, to
+/// seeding any CSPRNG from a hardware entropy source: production callers MUST pass fresh 256-bit
+/// CSPRNG entropy as `seed`. A fixed seed is intended only for reproducible KAT / conformance
+/// vectors and deterministic identity derivation.
+fn keygen_from_seed_bytes(logn: u32, seed: &[u8; 32]) -> Result<SigKeypair> {
+    let mut kg = KeyPairGeneratorStandard::default();
+    let mut sign_key = vec![0u8; sign_key_size(logn)];
+    let mut vrfy_key = vec![0u8; vrfy_key_size(logn)];
+    let mut rng = Kt128Rng::from_seed_bytes(*seed);
+    kg.keygen(logn, &mut rng, &mut sign_key, &mut vrfy_key);
+    Ok(SigKeypair::new(vrfy_key, sign_key))
+}
+
+/// Deterministic FN-DSA signing from a 32-byte seed.
+///
+/// See [`keygen_from_seed_bytes`] for the seed security requirements. FN-DSA signing is randomized
+/// (Gaussian sampling); production callers pass fresh CSPRNG entropy per signature so signatures
+/// stay randomized, whereas a fixed seed reproduces a single KAT signature.
+fn sign_from_seed_bytes(
+    logn: u32,
+    secret_key: &SigSecretKey,
+    message: &[u8],
+    seed: &[u8; 32],
+) -> Result<Vec<u8>> {
+    let mut sk = SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| {
+        Error::InvalidKeySize {
+            expected: sign_key_size(logn),
+            actual: secret_key.as_bytes().len(),
+        }
+    })?;
+    let mut signature = vec![0u8; signature_size(logn)];
+    let mut rng = Kt128Rng::from_seed_bytes(*seed);
+    sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, message, &mut signature);
+    Ok(signature)
 }
 
 /// FN-DSA security level enumeration
@@ -168,6 +212,24 @@ impl FnDsa512 {
         Self {
             _phantom: PhantomData,
         }
+    }
+
+    /// Deterministically generate a keypair from a 32-byte seed (reproducible KAT / identity
+    /// derivation). The seed MUST be fresh CSPRNG entropy in production; see
+    /// [`keygen_from_seed_bytes`].
+    pub fn generate_keypair_from_seed(&self, seed: &[u8; 32]) -> Result<SigKeypair> {
+        keygen_from_seed_bytes(FN_DSA_LOGN_512, seed)
+    }
+
+    /// Deterministically sign `message` from a 32-byte seed. Production callers pass fresh CSPRNG
+    /// entropy per signature; a fixed seed reproduces a KAT signature. See [`sign_from_seed_bytes`].
+    pub fn sign_from_seed(
+        &self,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        seed: &[u8; 32],
+    ) -> Result<Vec<u8>> {
+        sign_from_seed_bytes(FN_DSA_LOGN_512, secret_key, message, seed)
     }
 }
 
@@ -274,6 +336,24 @@ impl FnDsa1024 {
         Self {
             _phantom: PhantomData,
         }
+    }
+
+    /// Deterministically generate a keypair from a 32-byte seed (reproducible KAT / identity
+    /// derivation). The seed MUST be fresh CSPRNG entropy in production; see
+    /// [`keygen_from_seed_bytes`].
+    pub fn generate_keypair_from_seed(&self, seed: &[u8; 32]) -> Result<SigKeypair> {
+        keygen_from_seed_bytes(FN_DSA_LOGN_1024, seed)
+    }
+
+    /// Deterministically sign `message` from a 32-byte seed. Production callers pass fresh CSPRNG
+    /// entropy per signature; a fixed seed reproduces a KAT signature. See [`sign_from_seed_bytes`].
+    pub fn sign_from_seed(
+        &self,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        seed: &[u8; 32],
+    ) -> Result<Vec<u8>> {
+        sign_from_seed_bytes(FN_DSA_LOGN_1024, secret_key, message, seed)
     }
 }
 
@@ -676,6 +756,75 @@ mod tests {
 
         let is_valid = fn_dsa.verify(&keypair.public_key, message, &signature)?;
         assert!(is_valid, "Signature should be valid");
+        Ok(())
+    }
+
+    // --- Deterministic seed-based keygen/sign (KAT reproducibility) ---
+
+    #[test]
+    fn seeded_keygen_is_deterministic_512() -> TestResult {
+        let fn_dsa = FnDsa512::new();
+        let seed = [0x11u8; 32];
+        let kp_a = fn_dsa.generate_keypair_from_seed(&seed)?;
+        let kp_b = fn_dsa.generate_keypair_from_seed(&seed)?;
+        assert_eq!(
+            kp_a.public_key.as_bytes(),
+            kp_b.public_key.as_bytes(),
+            "same seed => same verifying key"
+        );
+        assert_eq!(
+            kp_a.secret_key.as_bytes(),
+            kp_b.secret_key.as_bytes(),
+            "same seed => same signing key"
+        );
+        // A different seed must yield a different key.
+        let kp_c = fn_dsa.generate_keypair_from_seed(&[0x22u8; 32])?;
+        assert_ne!(
+            kp_a.public_key.as_bytes(),
+            kp_c.public_key.as_bytes(),
+            "different seed => different key"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn seeded_keygen_is_deterministic_1024() -> TestResult {
+        let fn_dsa = FnDsa1024::new();
+        let seed = [0x33u8; 32];
+        let kp_a = fn_dsa.generate_keypair_from_seed(&seed)?;
+        let kp_b = fn_dsa.generate_keypair_from_seed(&seed)?;
+        assert_eq!(kp_a.public_key.as_bytes(), kp_b.public_key.as_bytes());
+        assert_eq!(kp_a.secret_key.as_bytes(), kp_b.secret_key.as_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn seeded_sign_is_deterministic_and_verifies_512() -> TestResult {
+        let fn_dsa = FnDsa512::new();
+        let kp = fn_dsa.generate_keypair_from_seed(&[0x44u8; 32])?;
+        let message = b"seeded FN-DSA-512 KAT";
+        let sig_seed = [0x55u8; 32];
+        let sig_a = fn_dsa.sign_from_seed(&kp.secret_key, message, &sig_seed)?;
+        let sig_b = fn_dsa.sign_from_seed(&kp.secret_key, message, &sig_seed)?;
+        assert_eq!(sig_a, sig_b, "same (key, msg, seed) => same signature");
+        // A different signing seed yields a different (still valid) signature.
+        let sig_c = fn_dsa.sign_from_seed(&kp.secret_key, message, &[0x66u8; 32])?;
+        assert_ne!(sig_a, sig_c, "different seed => different signature");
+        // Both signatures verify under the seed-derived key.
+        assert!(fn_dsa.verify(&kp.public_key, message, &sig_a)?);
+        assert!(fn_dsa.verify(&kp.public_key, message, &sig_c)?);
+        Ok(())
+    }
+
+    #[test]
+    fn seeded_sign_verifies_1024() -> TestResult {
+        let fn_dsa = FnDsa1024::new();
+        let kp = fn_dsa.generate_keypair_from_seed(&[0x77u8; 32])?;
+        let message = b"seeded FN-DSA-1024 KAT";
+        let sig = fn_dsa.sign_from_seed(&kp.secret_key, message, &[0x88u8; 32])?;
+        assert!(fn_dsa.verify(&kp.public_key, message, &sig)?);
+        // Cross-check: a signature over the seeded key must fail for a tampered message.
+        assert!(!fn_dsa.verify(&kp.public_key, b"tampered", &sig)?);
         Ok(())
     }
 }

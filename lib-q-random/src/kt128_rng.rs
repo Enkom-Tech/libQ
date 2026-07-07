@@ -15,6 +15,7 @@ use core::convert::Infallible;
 
 use rand_core::{
     SeedableRng,
+    TryCryptoRng,
     TryRng,
 };
 
@@ -74,6 +75,12 @@ impl SeedableRng for Kt128Rng {
         Self::from_seed_bytes(seed)
     }
 }
+
+// KangarooTwelve is a cryptographically secure XOF, so its output stream is a CSPRNG: mark
+// `Kt128Rng` accordingly. This lets it satisfy `CryptoRng` bounds (e.g. FN-DSA seeded keygen/sign
+// for reproducible KAT vectors). Seed-entropy adequacy is the caller's responsibility, as with any
+// CSPRNG — use `from_seed_bytes` (256-bit seed) for production, `from_u64` only for tests.
+impl TryCryptoRng for Kt128Rng {}
 
 #[cfg(test)]
 mod tests {
