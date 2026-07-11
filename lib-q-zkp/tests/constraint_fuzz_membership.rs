@@ -337,6 +337,9 @@ impl XorShift64 {
 /// This is the must-pass green test. It also sanity-checks that the AIR actually emitted a
 /// non-trivial number of constraints (so a builder that silently records nothing can't pass).
 #[test]
+// Skipped under coverage: GF(p²) full-trace re-eval is too slow under tarpaulin instrumentation
+// (the fast Arm B variant below keeps the RecordingBuilder paths covered).
+#[cfg_attr(tarpaulin, ignore)]
 fn honest_trace_all_residuals_zero() {
     let (tree, secrets) = build_tree();
     assert_eq!(tree.depth(), 4);
@@ -471,6 +474,8 @@ fn deep_statement_sweep() {
 /// public side. `t` starts at the (documented) leaf region column; mutating it breaks the
 /// `running == H(t)` leaf binding and the nullifier binding.
 #[test]
+// Skipped under coverage: GF(p²) full-trace re-eval is too slow under tarpaulin instrumentation.
+#[cfg_attr(tarpaulin, ignore)]
 fn tampered_secret_trips_a_constraint() {
     let (tree, secrets) = build_tree();
     let air = UnlinkableMembershipAir;
@@ -505,6 +510,9 @@ fn tampered_secret_trips_a_constraint() {
 /// (running==root, ctx==pub, N==pub) can catch the swap. A nonzero residual there is required. If
 /// ANY pairing leaves all residuals zero, that is a genuine cross-member forgery finding.
 #[test]
+// Skipped under coverage: GF(p²) full-trace re-eval is too slow under tarpaulin instrumentation
+// (cross_member_forgery_bb keeps this path covered).
+#[cfg_attr(tarpaulin, ignore)]
 fn cross_member_forgery_arm_a() {
     let (tree, secrets) = build_tree();
     let air = UnlinkableMembershipAir;
@@ -613,6 +621,9 @@ fn honest_trace_all_residuals_zero_bb() {
 /// (`[root ‖ ctx ‖ N]`) must trip at least one constraint. Arm B is fast, so we run a healthy,
 /// un-`#[ignore]`d sweep. Any mutation that leaves all residuals zero is a genuine finding.
 #[test]
+// Skipped under coverage: 1500-case sweep is too slow under tarpaulin instrumentation
+// (the cheap Arm B honest/tampered/forgery tests keep the mutation paths covered).
+#[cfg_attr(tarpaulin, ignore)]
 fn statement_changing_mutation_trips_a_constraint_bb() {
     let (tree, secrets) = build_tree_bb();
     let air = UnlinkableMembershipBbAir;
