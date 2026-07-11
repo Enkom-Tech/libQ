@@ -41,6 +41,8 @@ impl<P: ForsParams> ForsMTSig<P> {
             "Writing FORS MT sig to slice of incorrect length"
         );
 
+        // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         slice
             .chunks_exact_mut(P::N::USIZE)
             .enumerate()
@@ -123,6 +125,8 @@ impl<P: ForsParams> ForsSignature<P> {
             "Writing FORS sig to slice of incorrect length"
         );
 
+        // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         slice
             .chunks_exact_mut(ForsMTSig::<P>::SIZE)
             .enumerate()
