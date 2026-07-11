@@ -311,9 +311,7 @@ impl<P: HqcParams> ReedMuller<P> {
     /// Takes i32 message to match reference signature exactly
     fn encode_byte(&self, message: i32, codeword: &mut RmCodeword) {
         // Initialize codeword to 0
-        for item in &mut codeword.u8 {
-            *item = 0;
-        }
+        codeword.u8.fill(0);
 
         // Apply encoding as per reference implementation using BIT0MASK
         // The reference uses int32_t for first_word, so we need to be careful with the casting
