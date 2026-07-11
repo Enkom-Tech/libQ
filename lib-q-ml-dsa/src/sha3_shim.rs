@@ -378,15 +378,12 @@ pub mod avx2 {
             /// XOR a (partial) block into one state, little-endian (mirrors `lib_q_sha3`'s absorb).
             #[inline]
             fn xor_block(state: &mut [u64; 25], block: &[u8]) {
+                let (chunks, rem) = block.as_chunks::<8>();
                 let mut lane = 0;
-                let mut chunks = block.chunks_exact(8);
-                for c in &mut chunks {
-                    let mut b = [0u8; 8];
-                    b.copy_from_slice(c);
-                    state[lane] ^= u64::from_le_bytes(b);
+                for c in chunks {
+                    state[lane] ^= u64::from_le_bytes(*c);
                     lane += 1;
                 }
-                let rem = chunks.remainder();
                 if !rem.is_empty() {
                     let mut b = [0u8; 8];
                     b[..rem.len()].copy_from_slice(rem);

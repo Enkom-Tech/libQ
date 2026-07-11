@@ -111,14 +111,11 @@ const DEFAULT_ROUND_COUNT: usize = 24;
 pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
     assert!(block.len() < 8 * PLEN);
 
-    let mut chunks = block.chunks_exact(8);
-    for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        let mut lane = [0u8; 8];
-        lane.copy_from_slice(chunk);
-        *s ^= u64::from_le_bytes(lane);
+    let (chunks, rem) = block.as_chunks::<8>();
+    for (s, chunk) in state.iter_mut().zip(chunks) {
+        *s ^= u64::from_le_bytes(*chunk);
     }
 
-    let rem = chunks.remainder();
     if !rem.is_empty() {
         let mut buf = [0u8; 8];
         buf[..rem.len()].copy_from_slice(rem);

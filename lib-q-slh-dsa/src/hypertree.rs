@@ -35,6 +35,8 @@ impl<P: HypertreeParams> HypertreeSig<P> {
             Self::SIZE
         );
 
+        // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         buf.chunks_exact_mut(XmssSig::<P>::SIZE)
             .zip(self.0.iter())
             .for_each(|(buf, sig)| sig.write_to(buf));

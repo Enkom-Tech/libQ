@@ -10,11 +10,10 @@ use crate::params::{
 /// XOR `data` into the rate (first `data.len()` bytes, LE lanes).
 pub fn xor_into_rate(state: &mut [u64; PLEN], data: &[u8]) {
     debug_assert!(data.len() <= RATE_BYTES);
-    let mut chunks = data.chunks_exact(8);
-    for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        *s ^= u64::from_le_bytes(chunk.try_into().unwrap());
+    let (chunks, rem) = data.as_chunks::<8>();
+    for (s, chunk) in state.iter_mut().zip(chunks) {
+        *s ^= u64::from_le_bytes(*chunk);
     }
-    let rem = chunks.remainder();
     if !rem.is_empty() {
         let mut buf = [0u8; 8];
         buf[..rem.len()].copy_from_slice(rem);

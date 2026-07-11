@@ -250,9 +250,9 @@ where
 
     fn serialize(&self) -> SerializedState<Self> {
         let mut serialized_state = SerializedState::<Self>::default();
-        let chunks = serialized_state.chunks_exact_mut(8);
+        let (chunks, _rem) = serialized_state.as_chunks_mut::<8>();
         for (val, chunk) in self.state.iter().zip(chunks) {
-            chunk.copy_from_slice(&val.to_le_bytes());
+            *chunk = val.to_le_bytes();
         }
 
         serialized_state

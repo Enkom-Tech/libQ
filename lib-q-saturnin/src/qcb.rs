@@ -166,7 +166,8 @@ impl SaturninQcb {
             return Ok(auth);
         }
         let padded = Self::pad(ad);
-        for (j, chunk) in padded.chunks_exact(BLOCK).enumerate() {
+        let (padded_blocks, _rem) = padded.as_chunks::<BLOCK>();
+        for (j, chunk) in padded_blocks.iter().enumerate() {
             let tweak = Self::ad_tweak(j as u64);
             let mut block = [0u8; BLOCK];
             block.copy_from_slice(chunk);
@@ -254,7 +255,8 @@ impl SaturninQcb {
         // Decrypt every block and accumulate the checksum (full work, no early exit).
         let mut plain = Zeroizing::new(Vec::with_capacity(body_len));
         let mut checksum = Zeroizing::new([0u8; BLOCK]);
-        for (i, chunk) in body.chunks_exact(BLOCK).enumerate() {
+        let (body_blocks, _rem) = body.as_chunks::<BLOCK>();
+        for (i, chunk) in body_blocks.iter().enumerate() {
             let tweak = Self::tweak(&nonce16, i as u64);
             let mut block = [0u8; BLOCK];
             block.copy_from_slice(chunk);
@@ -322,7 +324,8 @@ impl Aead for SaturninQcb {
 
         let mut output = Vec::with_capacity(padded.len() + BLOCK);
         let mut checksum = Zeroizing::new([0u8; BLOCK]);
-        for (i, chunk) in padded.chunks_exact(BLOCK).enumerate() {
+        let (padded_blocks, _rem) = padded.as_chunks::<BLOCK>();
+        for (i, chunk) in padded_blocks.iter().enumerate() {
             for k in 0..BLOCK {
                 checksum[k] ^= chunk[k];
             }

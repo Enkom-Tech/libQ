@@ -37,6 +37,8 @@ impl<P: XmssParams> XmssSig<P> {
 
         let (wots, auth) = buf.split_at_mut(WotsSig::<P>::SIZE);
         self.sig.write_to(wots);
+        // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         auth.chunks_exact_mut(P::N::USIZE)
             .zip(self.auth.iter())
             .for_each(|(buf, auth)| buf.copy_from_slice(auth.as_slice()));
