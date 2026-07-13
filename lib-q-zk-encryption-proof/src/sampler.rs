@@ -916,6 +916,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::test_macros::assert_air_rejects;
 
     fn xof_bytes(seed: &[u8], n: usize) -> Vec<u8> {
         let mut h = lib_q_sha3::Shake256::default();
@@ -1009,15 +1010,7 @@ mod tests {
         }
 
         let pubs = ternary_public_values(num);
-        match StarkProver::new(default_config()).prove(&air, trace, &pubs) {
-            Err(_) => {} // prover rejects an unsatisfiable trace
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&air, &proof, &pubs)
-                    .is_err(),
-                "a tampered coefficient must not verify"
-            ),
-        }
+        assert_air_rejects!(&air, trace, &pubs, "a tampered coefficient must not verify");
     }
 
     /// Reference bounded sampler (the centered values `xof_bounded_poly` emits before `rem_euclid`).
@@ -1106,15 +1099,7 @@ mod tests {
         }
 
         let pubs = bounded_public_values(num);
-        match StarkProver::new(default_config()).prove(&air, trace, &pubs) {
-            Err(_) => {} // prover rejects an unsatisfiable trace
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&air, &proof, &pubs)
-                    .is_err(),
-                "a tampered coefficient must not verify"
-            ),
-        }
+        assert_air_rejects!(&air, trace, &pubs, "a tampered coefficient must not verify");
     }
 
     #[test]
@@ -1163,15 +1148,7 @@ mod tests {
         assert!(forged_one, "expected at least one forgeable accepted row");
 
         let pubs = bounded_public_values(num);
-        match StarkProver::new(default_config()).prove(&air, trace, &pubs) {
-            Err(_) => {} // prover rejects: forged R violates R ∈ [0, span)
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&air, &proof, &pubs)
-                    .is_err(),
-                "a non-canonical remainder must not verify"
-            ),
-        }
+        assert_air_rejects!(&air, trace, &pubs, "a non-canonical remainder must not verify");
     }
 
     #[test]
@@ -1219,14 +1196,6 @@ mod tests {
         assert!(tampered, "expected at least one accepted row to tamper");
 
         let pubs = bounded_public_values(num);
-        match StarkProver::new(default_config()).prove(&air, trace, &pubs) {
-            Err(_) => {} // prover rejects: lift chain no longer holds
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&air, &proof, &pubs)
-                    .is_err(),
-                "a tampered lift limb must not verify"
-            ),
-        }
+        assert_air_rejects!(&air, trace, &pubs, "a tampered lift limb must not verify");
     }
 }

@@ -186,7 +186,7 @@ fn fuzz_modreduce_air() {
     for inst in 0..N {
         // Build a random spread of u128 values: small, near q, and large (< 2^90).
         let seed = rng.next_u64();
-        let mut inst_rng = Rng::new(seed ^ (inst as u64 * 0x9E3779B97F4A7C15));
+        let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0x9E3779B97F4A7C15));
 
         let count = (inst_rng.below(8) as usize) + 2; // 2..9 values
         let mut values: Vec<u128> = Vec::with_capacity(count);
@@ -245,7 +245,7 @@ fn fuzz_horner_fold_air() {
 
     for inst in 0..N {
         let seed = rng.next_u64();
-        let mut inst_rng = Rng::new(seed ^ (inst as u64 * 0x517CC1B727220A95));
+        let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0x517CC1B727220A95));
 
         // coeffs: length 4..12, each < q
         let len = (inst_rng.below(9) as usize) + 4; // 4..12
@@ -286,7 +286,7 @@ fn fuzz_relation_check_air() {
 
     for inst in 0..N {
         let seed = rng.next_u64();
-        let mut inst_rng = Rng::new(seed ^ (inst as u64 * 0xA0761D6478BD642F));
+        let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0xA0761D6478BD642F));
 
         // L in 3..8
         let l = (inst_rng.below(6) as usize) + 3; // 3..8
@@ -342,7 +342,7 @@ fn fuzz_encode_mu_fold_air() {
 
     for inst in 0..EM_N {
         let seed = rng.next_u64();
-        let mut inst_rng = Rng::new(seed ^ (inst as u64 * 0x2545_F491_4F6C_DD1D));
+        let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0x2545_F491_4F6C_DD1D));
 
         // Random 32-byte message and random ζ < q.
         let mut mu = [0u8; 32];
@@ -395,7 +395,7 @@ fn fuzz_shake_sponge_air() {
 
     for inst in 0..SP_N {
         let seed = rng.next_u64();
-        let mut inst_rng = Rng::new(seed ^ (inst as u64 * 0xD1B5_4A32_D192_ED03));
+        let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0xD1B5_4A32_D192_ED03));
 
         // Real encap preimage `DOM_FO_SEED ‖ pk_digest ‖ μ` (random pk_digest + μ; the label is the
         // pinned constant), 2 permutations. The pk_digest public values must be passed or the AIR's

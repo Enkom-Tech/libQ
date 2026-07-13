@@ -41,4 +41,7 @@ pub mod squeeze_byte;
 pub mod zq;
 
 #[cfg(test)]
+mod test_macros;
+
+#[cfg(test)]
 mod fuzz;
