@@ -68,3 +68,69 @@ jobs:
         with:
           name: security-critical-coverage-lib-q-sig
           path: coverage-sc/
+
+  # Threshold-KEM-lattice: masked partial decapsulation, FO re-encryption check, and combine are
+  # security-critical. Runs tarpaulin in RELEASE — the lattice math is prohibitively slow in debug
+  # (same reason the crate is debug-skipped in rust-test and absent from coverage.yml's per-crate
+  # debug-tarpaulin lists alongside lib-q-dkg / lib-q-threshold-raccoon / lib-q-blind-token).
+  lib-q-threshold-kem-lattice-critical:
+    name: lib-q-threshold-kem-lattice scoped coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rust-src, llvm-tools-preview
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-sec-cov-tkeml-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate scoped Cobertura
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-sc
+          cargo tarpaulin --engine llvm -p lib-q-threshold-kem-lattice --release \
+            --features std,random \
+            --ignore-tests --ignore-panics \
+            --exclude-files 'target/*' --exclude-files 'benches/*' --exclude-files 'examples/*' \
+            --include-files 'lib-q-threshold-kem-lattice/src/lib.rs' \
+            --include-files 'lib-q-threshold-kem-lattice/src/kem.rs' \
+            --include-files 'lib-q-threshold-kem-lattice/src/threshold.rs' \
+            --include-files 'lib-q-threshold-kem-lattice\\src\\lib.rs' \
+            --include-files 'lib-q-threshold-kem-lattice\\src\\kem.rs' \
+            --include-files 'lib-q-threshold-kem-lattice\\src\\threshold.rs' \
+            --out Xml --out Html --output-dir coverage-sc
+
+      - name: Check thresholds
+        run: |
+          set -euo pipefail
+          # Tuned 2026-07-10: measured baseline is 70.3–70.6% (identical under `release` and
+          # `release-ci` — reproducible, not noise). The report systematically UNDER-counts: thin
+          # generic wrappers called once from the integration tests (keygen_shares,
+          # public_key_from_dkg) are inlined into the test crate and fall outside the scoped
+          # mapping even though they execute. 65 gives real regression margin against that biased
+          # baseline; raise it if the suite grows direct wrapper exercise.
+          bash scripts/check-coverage-metrics.sh \
+            --dir coverage-sc \
+            --line-min 65 \
+            --branch-min 100
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-critical-coverage-lib-q-threshold-kem-lattice
+          path: coverage-sc/

@@ -16,12 +16,16 @@ ignored = [
     # wasm-only / target-gated dependencies, not seen by the default host build.
     "getrandom",
     "lib-q-random",
+    # no_std-only f64 math (referenced only under `cfg(not(feature = "std"))`).
+    "libm",
 ]
 
 [dependencies]
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 rand_core = { workspace = true }
+once_cell = { workspace = true, features = ["alloc", "race"] }
+libm = { workspace = true }
 # wasm-only optional dependencies (pulled in by the `wasm` feature).
 lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, default-features = false, features = ["std"] }

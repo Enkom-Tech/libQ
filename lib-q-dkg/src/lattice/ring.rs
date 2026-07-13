@@ -13,7 +13,10 @@
 //! The ring (negacyclic NTT, Montgomery `modmul`) is validated against the schoolbook product so the
 //! crate depends on no fixed external modulus.
 
-use std::sync::OnceLock;
+extern crate alloc;
+
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 use lib_q_sha3::{
     ExtendableOutput,
@@ -70,6 +73,62 @@ impl Rq {
     }
 }
 
+impl zeroize::Zeroize for Rq {
+    fn zeroize(&mut self) {
+        self.coeffs.zeroize();
+    }
+}
+
+/// An element of `R_q` in the NTT (evaluation) domain.
+///
+/// Sums and pointwise products in this domain commute exactly with the coefficient domain
+/// (`intt` is `Z_q`-linear and the NTT round-trip is the identity — see the
+/// `ntt_roundtrip_is_identity` / `ntt_inner_matches_per_pair_products` tests), so accumulating
+/// many products before a single inverse transform gives **bit-identical** results to summing
+/// individual [`ring_mul`]s while skipping the redundant per-product transforms.
+#[derive(Clone, Debug)]
+pub struct RqNtt {
+    evals: [i64; N],
+}
+
+impl RqNtt {
+    /// The zero element (also zero in the evaluation domain).
+    #[must_use]
+    pub fn zero() -> Self {
+        Self { evals: [0i64; N] }
+    }
+}
+
+impl zeroize::Zeroize for RqNtt {
+    fn zeroize(&mut self) {
+        self.evals.zeroize();
+    }
+}
+
+/// Forward transform into the NTT domain.
+#[must_use]
+pub fn to_ntt(p: &Rq) -> RqNtt {
+    let mut evals = p.coeffs;
+    ntt(&mut evals);
+    RqNtt { evals }
+}
+
+/// Inverse transform back to the coefficient domain.
+#[must_use]
+pub fn from_ntt(p: &RqNtt) -> Rq {
+    let mut coeffs = p.evals;
+    intt(&mut coeffs);
+    Rq { coeffs }
+}
+
+/// `acc += a ∘ b` (pointwise product) in the NTT domain — the accumulation step of an NTT-domain
+/// inner product (`Σ_i a_i·b_i` costs one `intt` total instead of one per term).
+pub fn ntt_mul_acc(acc: &mut RqNtt, a: &RqNtt, b: &RqNtt) {
+    for i in 0..N {
+        acc.evals[i] = modadd(acc.evals[i], modmul(a.evals[i], b.evals[i]));
+    }
+}
+
 /// Constant-time conditional subtract of `q` from `r ∈ [0, 2q)`: returns `r mod q` with **no
 /// secret-dependent branch**. `d = r − q` underflows (sets bit 63) iff `r < q`; the all-ones/all-zero
 /// mask then conditionally adds `q` back. Used by the Montgomery reduction (operates on secret·public
@@ -120,9 +179,11 @@ fn bitrev(mut x: usize, bits: u32) -> usize {
     r
 }
 
-/// Bit-reversed powers of `ζ`: `z[i] = ζ^{bitrev(i)} mod q`.
+/// Bit-reversed powers of `ζ`: `z[i] = ζ^{bitrev(i)} mod q`. Cached process-wide with a lock-free
+/// racy init (`once_cell::race`) so the table works without `std` (a lost racer recomputes the same
+/// deterministic table and is dropped).
 fn zetas() -> &'static [i64; N] {
-    static T: OnceLock<[i64; N]> = OnceLock::new();
+    static T: once_cell::race::OnceBox<[i64; N]> = once_cell::race::OnceBox::new();
     T.get_or_init(|| {
         let mut pw = [0i64; N];
         let mut acc = 1i64;
@@ -134,7 +195,7 @@ fn zetas() -> &'static [i64; N] {
         for (i, ti) in t.iter_mut().enumerate() {
             *ti = pw[bitrev(i, LOG_N)];
         }
-        t
+        Box::new(t)
     })
 }
 
@@ -259,16 +320,18 @@ pub fn poly_from_i64(coeffs: &[i64; N]) -> Rq {
 }
 
 /// Centered representatives in `(-q/2, q/2]` of each coefficient.
+///
+/// **Branchless**: the decapsulation path calls this on the secret decode input `w`, so the
+/// conditional subtract of `q` must not branch on the coefficient value (same discipline as
+/// [`csub_q_u64`]). `rem_euclid` by the constant `Q` compiles to a multiply-shift, not a division.
 #[must_use]
 pub fn centered_coeffs(p: &Rq) -> [i64; N] {
     let half = Q / 2;
     let mut out = [0i64; N];
     for (o, &c) in out.iter_mut().zip(p.coeffs.iter()) {
-        let mut v = c.rem_euclid(Q);
-        if v > half {
-            v -= Q;
-        }
-        *o = v;
+        let v = c.rem_euclid(Q);
+        let mask = (half - v) >> 63; // all-ones iff v > half, else 0
+        *o = v - (Q & mask);
     }
     out
 }
@@ -371,11 +434,18 @@ pub const RQ_BYTES: usize = N * COEFF_BYTES;
 #[must_use]
 pub fn rq_to_le_bytes(p: &Rq) -> Vec<u8> {
     let mut out = Vec::with_capacity(RQ_BYTES);
+    rq_write_le_bytes(p, &mut out);
+    out
+}
+
+/// Append the canonical serialization of `p` to `out` — same bytes as [`rq_to_le_bytes`] without
+/// the intermediate allocation (for callers assembling multi-element encodings).
+pub fn rq_write_le_bytes(p: &Rq, out: &mut Vec<u8>) {
+    out.reserve(RQ_BYTES);
     for &c in &p.coeffs {
         let v = c.rem_euclid(Q) as u64;
         out.extend_from_slice(&v.to_le_bytes()[..COEFF_BYTES]);
     }
-    out
 }
 
 /// Parse a ring element from exactly [`RQ_BYTES`] bytes; rejects non-canonical coefficients (`≥ q`).
@@ -479,6 +549,53 @@ mod tests {
         ntt(&mut f);
         intt(&mut f);
         assert_eq!(f, a.coeffs);
+    }
+
+    #[test]
+    fn ntt_inner_matches_per_pair_products() {
+        // NTT-domain accumulation (one intt total) must be bit-identical to summing individual
+        // ring_muls — the identity every NTT-domain inner-product caller relies on.
+        let mut rng = new_deterministic_rng([0x7Eu8; 32]);
+        let a: Vec<Rq> = (0..5).map(|_| sample_uniform_poly(&mut rng)).collect();
+        let b: Vec<Rq> = (0..5).map(|_| sample_uniform_poly(&mut rng)).collect();
+        let mut acc = RqNtt::zero();
+        for (ai, bi) in a.iter().zip(b.iter()) {
+            ntt_mul_acc(&mut acc, &to_ntt(ai), &to_ntt(bi));
+        }
+        let got = from_ntt(&acc);
+        let mut want = Rq::zero();
+        for (ai, bi) in a.iter().zip(b.iter()) {
+            want = ring_add(&want, &ring_mul(ai, bi));
+        }
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn centered_coeffs_branchless_matches_reference() {
+        let mut rng = new_deterministic_rng([0x7Bu8; 32]);
+        let half = Q / 2;
+        for _ in 0..10 {
+            let a = sample_uniform_poly(&mut rng);
+            let got = centered_coeffs(&a);
+            for (g, &c) in got.iter().zip(a.coeffs.iter()) {
+                let mut v = c.rem_euclid(Q);
+                if v > half {
+                    v -= Q;
+                }
+                assert_eq!(*g, v);
+            }
+        }
+        // Boundary values: 0, half, half+1, Q-1 must center to 0, half, -(half), -1.
+        let mut coeffs = [0i64; N];
+        coeffs[0] = 0;
+        coeffs[1] = half;
+        coeffs[2] = half + 1;
+        coeffs[3] = Q - 1;
+        let c = centered_coeffs(&Rq::from_coeffs(coeffs));
+        assert_eq!(c[0], 0);
+        assert_eq!(c[1], half);
+        assert_eq!(c[2], half + 1 - Q);
+        assert_eq!(c[3], -1);
     }
 
     #[test]

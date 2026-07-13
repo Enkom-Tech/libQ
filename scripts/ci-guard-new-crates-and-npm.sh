@@ -223,6 +223,10 @@ import sys
 root = pathlib.Path(".")
 cd = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8")
 
+# The scan spans from the tier-4b-new-primitives job to tier-5, which INTENTIONALLY includes the
+# solo sequenced jobs between them (publish-rust-tier-4b-raccoon, publish-rust-tier-4b-kem-lattice):
+# those crates ship npm packages too and must stay under parity enforcement. A new solo job added in
+# that span is automatically covered; a crates.io-only solo crate belongs in `crates_io_only` below.
 tier4b_block = ""
 if "publish-rust-tier-4b-new-primitives:" in cd:
     tier4b_block = cd.split("publish-rust-tier-4b-new-primitives:", 1)[1]
@@ -254,7 +258,7 @@ if missing:
     for crate in missing:
         print(f"  - {crate}", file=sys.stderr)
     print(
-        "Every crate in publish-rust-tier-4b-new-primitives must have a matching npm package.",
+        "Every crate published between tier-4b-new-primitives and tier-5 (matrix AND solo jobs) must have a matching npm package or a crates_io_only exemption.",
         file=sys.stderr,
     )
     sys.exit(1)
