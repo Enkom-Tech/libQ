@@ -58,7 +58,8 @@ fn rejection_sample_fill_poly(
     tmp: &mut [i32; 263],
 ) -> bool {
     let mut done = false;
-    for random_bytes in randomness.chunks_exact(24) {
+    let (random_blocks, _rem) = randomness.as_chunks::<24>();
+    for random_bytes in random_blocks {
         if !done {
             let n = rejection_sample_less_than_field_modulus(
                 random_bytes,

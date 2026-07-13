@@ -260,9 +260,9 @@ where
 
     fn serialize(&self) -> SerializedState<Self> {
         let mut serialized_state = SerializedState::<Self>::default();
-        let chunks = serialized_state.chunks_exact_mut(8);
+        let (chunks, _rem) = serialized_state.as_chunks_mut::<8>();
         for (val, chunk) in self.state.iter().zip(chunks) {
-            chunk.copy_from_slice(&val.to_le_bytes());
+            *chunk = val.to_le_bytes();
         }
 
         serialized_state
@@ -272,9 +272,9 @@ where
         serialized_state: &SerializedState<Self>,
     ) -> Result<Self, DeserializeStateError> {
         let mut state = [0; PLEN];
-        let chunks = serialized_state.chunks_exact(8);
+        let (chunks, _rem) = serialized_state.as_chunks::<8>();
         for (val, chunk) in state.iter_mut().zip(chunks) {
-            *val = u64::from_le_bytes(chunk.try_into().unwrap());
+            *val = u64::from_le_bytes(*chunk);
         }
 
         Ok(Self {
@@ -366,12 +366,11 @@ impl<Rate, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop for Sha3ReaderCor
 pub(crate) fn xor_block(state: &mut [u64; PLEN], block: &[u8]) {
     assert!(block.len() < 8 * PLEN);
 
-    let mut chunks = block.chunks_exact(8);
-    for (s, chunk) in state.iter_mut().zip(&mut chunks) {
-        *s ^= u64::from_le_bytes(chunk.try_into().unwrap());
+    let (chunks, rem) = block.as_chunks::<8>();
+    for (s, chunk) in state.iter_mut().zip(chunks) {
+        *s ^= u64::from_le_bytes(*chunk);
     }
 
-    let rem = chunks.remainder();
     if !rem.is_empty() {
         let mut buf = [0u8; 8];
         buf[..rem.len()].copy_from_slice(rem);

@@ -706,10 +706,9 @@ impl<P: HqcParams> HqcPke<P> {
 
             // Convert aligned portion to u64s
             let full_words = aligned_size / 8;
-            for (i, chunk) in aligned_bytes.chunks_exact(8).enumerate().take(full_words) {
-                let mut u64_bytes = [0u8; 8];
-                u64_bytes.copy_from_slice(chunk);
-                output[i] = u64::from_le_bytes(u64_bytes);
+            let (aligned_chunks, _rem) = aligned_bytes.as_chunks::<8>();
+            for (i, chunk) in aligned_chunks.iter().enumerate().take(full_words) {
+                output[i] = u64::from_le_bytes(*chunk);
             }
 
             // Handle the last partial word using tmp (only first 'remainder' bytes)
