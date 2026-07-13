@@ -1206,6 +1206,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::test_macros::assert_air_rejects;
 
     #[test]
     fn q_limbs_are_correct() {
@@ -1251,15 +1252,7 @@ mod tests {
         let mut trace = generate_modreduce_trace(&values).expect("trace generation");
         // Bump r's low limb by 1 without fixing the carry chain: breaks κ·q + r = V.
         trace.values[ZW_R] += ConfigVal::ONE;
-        match StarkProver::new(default_config()).prove(&ModReduceAir, trace, &[]) {
-            Err(_) => {}
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&ModReduceAir, &proof, &[])
-                    .is_err(),
-                "a tampered remainder must not verify"
-            ),
-        }
+        assert_air_rejects!(&ModReduceAir, trace, &[], "a tampered remainder must not verify");
     }
 
     #[test]
@@ -1326,15 +1319,12 @@ mod tests {
         }
         assert_eq!(borrow, 1, "forged r' ≥ q must underflow the borrow chain");
 
-        match StarkProver::new(default_config()).prove(&ModReduceAir, trace, &[]) {
-            Err(_) => {}
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&ModReduceAir, &proof, &[])
-                    .is_err(),
-                "a non-canonical remainder (r ≥ q) must not verify"
-            ),
-        }
+        assert_air_rejects!(
+            &ModReduceAir,
+            trace,
+            &[],
+            "a non-canonical remainder (r ≥ q) must not verify"
+        );
     }
 
     /// Reference polynomial evaluation `Σ_i c_i·ζ^i (mod q)` (Horner, high-order first).
@@ -1398,15 +1388,7 @@ mod tests {
         trace.values[last + HW_R] += ConfigVal::ONE;
 
         let pubs = horner_public_values(zeta);
-        match StarkProver::new(default_config()).prove(&HornerFoldAir, trace, &pubs) {
-            Err(_) => {}
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&HornerFoldAir, &proof, &pubs)
-                    .is_err(),
-                "a tampered fold result must not verify"
-            ),
-        }
+        assert_air_rejects!(&HornerFoldAir, trace, &pubs, "a tampered fold result must not verify");
     }
 
     #[test]
@@ -1450,15 +1432,7 @@ mod tests {
         // Corrupt w_0's low limb: the relation no longer holds mod q.
         trace.values[0] += ConfigVal::ONE;
 
-        match StarkProver::new(default_config()).prove(&air, trace, &pubs) {
-            Err(_) => {}
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&air, &proof, &pubs)
-                    .is_err(),
-                "a tampered witness must not verify"
-            ),
-        }
+        assert_air_rejects!(&air, trace, &pubs, "a tampered witness must not verify");
     }
 
     #[test]
@@ -1536,14 +1510,6 @@ mod tests {
         // violated (w_1 stayed 0 but HALFQ_1·1 = 4094 ≠ 0).
         trace.values[EMW_MUBIT] += ConfigVal::ONE;
 
-        match StarkProver::new(default_config()).prove(&EncodeMuFoldAir, trace, &pubs) {
-            Err(_) => {}
-            Ok(proof) => assert!(
-                StarkVerifier::new(default_config())
-                    .verify(&EncodeMuFoldAir, &proof, &pubs)
-                    .is_err(),
-                "a tampered μ-bit must not verify"
-            ),
-        }
+        assert_air_rejects!(&EncodeMuFoldAir, trace, &pubs, "a tampered μ-bit must not verify");
     }
 }
