@@ -43,6 +43,7 @@ members = [
     "lib-q-blind-pcs",
     "lib-q-dkg",
     "lib-q-threshold-raccoon",
+    "lib-q-threshold-kem-lattice",
     "lib-q-blind-token",
     # ZKP & lattice
     "lib-q-lattice-zkp",
@@ -50,6 +51,7 @@ members = [
     "lib-q-prf",
     "lib-q-ring",
     "lib-q-transcript",
+    "lib-q-zk-encryption-proof",
     "lib-q-zkp",
     # STARK
     "lib-q-stark",
@@ -125,6 +127,9 @@ wasm-bindgen = "0.2.122"
 js-sys = "0.3.99"
 web-sys = "0.3.99"
 wasm-bindgen-test = "0.3.72"
+# no_std support (lazy statics without std::sync::OnceLock; f64 math without std intrinsics)
+once_cell = { version = "1.21.3", default-features = false }
+libm = { version = "0.2.15", default-features = false }
 # Crypto & security
 zeroize = { version = "1.8.2", default-features = false }
 subtle = { version = "2.6.1", default-features = false }

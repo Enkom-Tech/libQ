@@ -1,5 +1,5 @@
 [package]
-name = "lib-q-dkg"
+name = "lib-q-threshold-kem-lattice"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,8 +7,8 @@ rust-version.workspace = true
 homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
-description = "PROVISIONAL lattice dealerless DKG / verifiable secret sharing (binding BDLOP commitments + FS proof of correct sharing, pre-standard)"
-keywords = ["cryptography", "post-quantum", "lattice", "dkg", "threshold"]
+description = "PROVISIONAL post-quantum lattice threshold KEM (dual-Regev over a BDLOP-committed key; dealerless keygen via lib-q-dkg; pre-standard)"
+keywords = ["cryptography", "post-quantum", "lattice", "threshold", "kem"]
 categories = ["cryptography", "wasm"]
 
 [package.metadata.cargo-machete]
@@ -16,16 +16,13 @@ ignored = [
     # wasm-only / target-gated dependencies, not seen by the default host build.
     "getrandom",
     "lib-q-random",
-    # no_std-only f64 math (referenced only under `cfg(not(feature = "std"))`).
-    "libm",
 ]
 
 [dependencies]
+lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.8", default-features = false }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 rand_core = { workspace = true }
-once_cell = { workspace = true, features = ["alloc", "race"] }
-libm = { workspace = true }
 # wasm-only optional dependencies (pulled in by the `wasm` feature).
 lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, default-features = false, features = ["std"] }
@@ -39,20 +36,14 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 
 [dev-dependencies]
 lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false, features = ["std"] }
-hex = { workspace = true }
 serde_json = { workspace = true, features = ["std"] }
 wasm-bindgen-test = { workspace = true }
-
-# `dudect-bencher` pulls `ctrlc`, which does not compile for `wasm32-unknown-unknown`. The
-# constant-time bench (`ct_dudect`) that uses it is host-only, so keep this dev-dependency off the
-# wasm target — otherwise the wasm_smoke test build fails compiling ctrlc on wasm32.
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-dudect-bencher = "0.7"
+hex = { workspace = true }
 
 [features]
 default = ["std", "random"]
-std = []
-random = []
+std = ["lib-q-dkg/std"]
+random = ["lib-q-dkg/random"]
 wasm = [
     "wasm-bindgen",
     "std",
@@ -69,7 +60,7 @@ wasm = [
 getrandom = ["dep:getrandom"]
 
 [lib]
-name = "lib_q_dkg"
+name = "lib_q_threshold_kem_lattice"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
@@ -80,11 +71,6 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 name = "wasm_smoke"
 path = "tests/wasm_smoke.rs"
 required-features = ["wasm", "random"]
-
-[[bench]]
-name = "ct_dudect"
-path = "benches/ct_dudect.rs"
-harness = false
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

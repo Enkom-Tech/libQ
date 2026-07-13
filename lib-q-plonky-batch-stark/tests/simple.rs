@@ -315,6 +315,111 @@ fn batch_prover_wrong_public_values_rejected() {
     assert!(res.is_err(), "verifier must reject wrong public values");
 }
 
+/// A width-1 AIR with NO algebraic constraints of its own — its single column is constrained
+/// only by a self-balancing `Kind::Global` LogUp lookup (Send `[c]` then Receive `[c]`, net zero
+/// per row). Used to regression-test the batch prover's LogUp path end-to-end.
+#[derive(Clone)]
+struct SelfLookupAir;
+
+impl BaseAir<Val> for SelfLookupAir {
+    fn width(&self) -> usize {
+        1
+    }
+    fn num_public_values(&self) -> usize {
+        0
+    }
+}
+
+impl<AB: lib_q_stark_air::AirBuilder<F = Val>> Air<AB> for SelfLookupAir {
+    fn eval(&self, _builder: &mut AB) {
+        // No AIR constraints; the lookup argument is the only thing constraining this trace.
+    }
+}
+
+/// The self-balancing Global lookup for [`SelfLookupAir`]: one lookup that both Sends and Receives
+/// `[column 0]` with multiplicity 1, so every row contributes `-1/(α-c) + 1/(α-c) = 0` and the
+/// running sum (and the global cumulative) stay zero — a balanced, verifying instance.
+///
+/// This exercises the Global-lookup `when_last_row` constraint, whose degree is `1 + inner`
+/// (`inner` = degree of the running-sum update). Before the `LogUpGadget::constraint_degree`
+/// selector-degree fix, the quotient domain was sized for `inner` instead of `inner + 1`, so this
+/// round-trip failed with `OodEvaluationMismatch`. It is the regression guard for that fix.
+fn self_lookup() -> lib_q_plonky_lookup::lookup_traits::Lookup<Val> {
+    use lib_q_plonky_lookup::lookup_traits::{
+        Direction,
+        Kind,
+        Lookup,
+    };
+    use lib_q_stark_air::symbolic::{
+        BaseEntry,
+        SymbolicExpression,
+        SymbolicVariable,
+    };
+
+    let col0 = SymbolicExpression::from(SymbolicVariable::<Val>::new(
+        BaseEntry::Main { offset: 0 },
+        0,
+    ));
+    let one = SymbolicExpression::from(Val::ONE);
+    Lookup::new(
+        Kind::Global("batch.selftest.v0".into()),
+        alloc::vec![alloc::vec![col0.clone()], alloc::vec![col0]],
+        alloc::vec![
+            Direction::Send.multiplicity(one.clone()),
+            Direction::Receive.multiplicity(one),
+        ],
+        alloc::vec![0],
+    )
+}
+
+/// Regression guard: a `Kind::Global` LogUp lookup driven end-to-end through
+/// `prove_batch`/`verify_batch`. Balanced → must verify. This is the first end-to-end exercise of
+/// the batch LogUp path; it pins the `constraint_degree` selector-degree fix (without it, the
+/// quotient domain is undersized and verification fails with `OodEvaluationMismatch`).
+#[test]
+fn batch_prover_global_lookup_round_trip() {
+    use lib_q_plonky_batch_stark::{
+        CommonData,
+        ProverOnlyData,
+    };
+
+    let shake256 = Shake256Hash {};
+    let hash = MyHash::new(shake256);
+    let compress = MyCompress::new(shake256);
+    let val_mmcs = ValMmcs::new(hash, compress);
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = create_test_fri_params(challenge_mmcs, 2);
+    let pcs = MyPcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+    let config = StarkConfig::new(pcs, challenger);
+
+    // Arbitrary width-1 trace (no AIR constraints to satisfy); height a power of two, large enough
+    // for the test FRI params (log_final_poly_len + log_blowup) once the degree-4 Global lookup
+    // splits the quotient into multiple chunks.
+    let trace = RowMajorMatrix::new((0..64).map(Val::from_u64).collect::<Vec<_>>(), 1);
+
+    let air = SelfLookupAir;
+    let airs = vec![SelfLookupAir];
+    let lookup = self_lookup();
+    let common = CommonData::new(None, vec![vec![lookup.clone()]]);
+    let prover_data = ProverData {
+        common,
+        prover_only: ProverOnlyData::empty(),
+    };
+    let instance = StarkInstance {
+        air: &air,
+        trace: &trace,
+        public_values: Vec::new(),
+        lookups: vec![lookup],
+    };
+
+    let proof = prove_batch(&config, &[instance], &prover_data).expect("prove_batch with lookup");
+    verify_batch(&config, &airs, &proof, &[Vec::new()], &prover_data.common)
+        .expect("balanced Global lookup must verify");
+}
+
 /// Single-instance round-trip via uni-stark to validate AIR and config.
 #[test]
 fn uni_stark_round_trip() {

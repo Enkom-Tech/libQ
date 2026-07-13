@@ -89,7 +89,11 @@ jobs:
             "combined-coverage/${{ matrix.rust }}/utils" \
             "combined-coverage/${{ matrix.rust }}/full"
           
-          # Define critical cryptographic crates
+          # Define critical cryptographic crates.
+          # DELIBERATELY absent: the heavy lattice crates (lib-q-dkg, lib-q-threshold-raccoon,
+          # lib-q-threshold-kem-lattice, lib-q-blind-token) — their keygen is far too slow under
+          # debug tarpaulin (this step builds debug). lib-q-threshold-kem-lattice gets a scoped
+          # RELEASE tarpaulin gate in security-critical-coverage.yml instead.
           CORE_CRATES="lib-q-core lib-q-keccak lib-q-hash lib-q-sha3 lib-q-keccak-digest lib-q-k12"
           CRYPTO_CRATES="lib-q-kem lib-q-ml-kem lib-q-ml-dsa lib-q-sig lib-q-aead lib-q-hpke lib-q-fn-dsa lib-q-cb-kem"
           UTIL_CRATES="lib-q-platform lib-q-intrinsics lib-q-utils lib-q-zkp"

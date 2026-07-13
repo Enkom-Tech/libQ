@@ -43,6 +43,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_sha3::{
@@ -54,12 +55,17 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use zeroize::Zeroize;
 
+use super::fmath;
 use super::ring::{
     N,
     Q,
     Rq,
+    RqNtt,
     centered_coeffs,
+    from_ntt,
+    ntt_mul_acc,
     ring_add,
     ring_mul,
     ring_sub,
@@ -67,6 +73,7 @@ use super::ring::{
     sample_in_ball,
     sample_ternary_poly,
     scalar_mul,
+    to_ntt,
 };
 
 /// Binding rows of `B0` (height of the `t0` part of a commitment).
@@ -96,7 +103,7 @@ pub const COMMIT_MATRIX_SEED: [u8; 32] = *b"lib-q-dkg/bdlop/crs/v1\0\0\0\0\0\0\0
 /// Masking width `s_y(t) ≈ 11·‖c·ρ‖₂` (grows with the degree `t-1` polynomial's witness size).
 #[must_use]
 pub fn mask_width(threshold: usize) -> f64 {
-    11.0 * ((threshold * KAPPA * N * TAU) as f64).sqrt()
+    11.0 * fmath::sqrt((threshold * KAPPA * N * TAU) as f64)
 }
 
 /// Verifier infinity-norm bound on each response coordinate (`≈ 12·s_y`, far below `q/2 ≈ 2^47`).
@@ -111,6 +118,18 @@ pub struct CommitKey {
     b0: Vec<Rq>,
     /// Message row `b1` (`KAPPA` ring elements).
     b1: Vec<Rq>,
+}
+
+impl CommitKey {
+    /// The public row-major `B0 ∈ R_q^{MU×KAPPA}` matrix (cell `(r, c)` at index `r·KAPPA + c`).
+    /// `B0` is public CRS (deterministically expanded from [`COMMIT_MATRIX_SEED`]), so exposing it
+    /// leaks nothing. Consumers that must evaluate individual `B0_{r,c}` polynomials use this — e.g.
+    /// the `lib-q-zk-encryption-proof` relation assembly needs `B0_{r,k}(ζ)` as public relation
+    /// coefficients (the aggregate [`b0_transpose_apply`] does not expose per-cell values).
+    #[must_use]
+    pub fn b0(&self) -> &[Rq] {
+        &self.b0
+    }
 }
 
 /// A BDLOP commitment `C = (t0, t1)`.
@@ -131,12 +150,13 @@ pub struct ShareProof {
     pub z: Vec<Rq>,
 }
 
-/// Process-wide cached commitment key (the CRS matrices are deterministic, so expand once).
+/// Process-wide cached commitment key (the CRS matrices are deterministic, so expand once). The
+/// cache is a lock-free racy init (`once_cell::race`) so it works without `std`; a lost racer
+/// recomputes the same deterministic key and is dropped.
 #[must_use]
 pub fn key() -> &'static CommitKey {
-    use std::sync::OnceLock;
-    static K: OnceLock<CommitKey> = OnceLock::new();
-    K.get_or_init(commit_key)
+    static K: once_cell::race::OnceBox<CommitKey> = once_cell::race::OnceBox::new();
+    K.get_or_init(|| Box::new(commit_key()))
 }
 
 /// Expand the public commitment key from [`COMMIT_MATRIX_SEED`].
@@ -185,37 +205,95 @@ pub fn sample_randomness<R: CryptoRng + Rng>(rng: &mut R) -> [Rq; KAPPA] {
     core::array::from_fn(|_| sample_ternary_poly(rng))
 }
 
+/// `B0·ρ` given `ρ` already in the NTT domain: each output row is one NTT-domain inner product
+/// (one inverse transform per row instead of one per matrix cell — bit-identical values).
+fn b0_apply_ntt(key: &CommitKey, rho_ntt: &[RqNtt]) -> Vec<Rq> {
+    debug_assert_eq!(rho_ntt.len(), KAPPA);
+    let mut out = Vec::with_capacity(MU);
+    for r in 0..MU {
+        let mut acc = RqNtt::zero();
+        for (c, rc) in rho_ntt.iter().enumerate() {
+            ntt_mul_acc(&mut acc, &to_ntt(&key.b0[r * KAPPA + c]), rc);
+        }
+        out.push(from_ntt(&acc));
+    }
+    out
+}
+
 /// `B0·ρ` (`MU` ring elements).
 fn b0_apply(key: &CommitKey, rho: &[Rq]) -> Vec<Rq> {
     debug_assert_eq!(rho.len(), KAPPA);
-    let mut out = Vec::with_capacity(MU);
-    for r in 0..MU {
-        let mut acc = Rq::zero();
-        for (c, rc) in rho.iter().enumerate() {
-            acc = ring_add(&acc, &ring_mul(&key.b0[r * KAPPA + c], rc));
+    let mut rho_ntt: Vec<RqNtt> = rho.iter().map(to_ntt).collect();
+    let out = b0_apply_ntt(key, &rho_ntt);
+    rho_ntt.zeroize(); // ρ is the (secret) commitment randomness — clear its NTT image too
+    out
+}
+
+/// `B0ᵀ·e` given `e` already in the NTT domain — lets a caller that needs several products of the
+/// same `e` (e.g. `B0ᵀ·e` *and* `⟨t0, e⟩` in one dual-Regev encryption) forward-transform it once.
+/// Values are bit-identical to [`b0_transpose_apply`].
+#[must_use]
+pub fn b0_transpose_apply_ntt(key: &CommitKey, e_ntt: &[RqNtt]) -> Vec<Rq> {
+    debug_assert_eq!(e_ntt.len(), MU);
+    let mut out = Vec::with_capacity(KAPPA);
+    for c in 0..KAPPA {
+        let mut acc = RqNtt::zero();
+        for (r, er) in e_ntt.iter().enumerate() {
+            ntt_mul_acc(&mut acc, &to_ntt(&key.b0[r * KAPPA + c]), er);
         }
-        out.push(acc);
+        out.push(from_ntt(&acc));
     }
     out
+}
+
+/// `B0ᵀ·e` (`KAPPA` ring elements) — the **transpose**-apply of the binding matrix.
+///
+/// Exposed for consumers that encrypt *to* a BDLOP-committed key: the group key's `t0 = B0·r` is a
+/// dual-Regev / GPV public key whose short decryption key is `r`, and a dual-Regev ciphertext needs
+/// `B0ᵀ·e` for its ephemeral secret `e ∈ R_q^MU` (see `lib-q-threshold-kem-lattice`). The adjoint
+/// identity `⟨B0·r, e⟩ = ⟨r, B0ᵀ·e⟩` (bilinear ring inner product, no conjugation) is what makes
+/// threshold decapsulation `⟨r, ·⟩` a **linear** function of the DKG-shared randomness. Additive
+/// accessor only — it does not touch the commitment, proof, or wire surface.
+#[must_use]
+pub fn b0_transpose_apply(key: &CommitKey, e: &[Rq]) -> Vec<Rq> {
+    debug_assert_eq!(e.len(), MU);
+    let mut e_ntt: Vec<RqNtt> = e.iter().map(to_ntt).collect();
+    let out = b0_transpose_apply_ntt(key, &e_ntt);
+    e_ntt.zeroize(); // e is the (secret) ephemeral encryption vector
+    out
+}
+
+/// `⟨b1, ρ⟩` given `ρ` already in the NTT domain.
+fn b1_apply_ntt(key: &CommitKey, rho_ntt: &[RqNtt]) -> Rq {
+    debug_assert_eq!(rho_ntt.len(), KAPPA);
+    let mut acc = RqNtt::zero();
+    for (c, rc) in rho_ntt.iter().enumerate() {
+        ntt_mul_acc(&mut acc, &to_ntt(&key.b1[c]), rc);
+    }
+    from_ntt(&acc)
 }
 
 /// `⟨b1, ρ⟩` (one ring element).
 fn b1_apply(key: &CommitKey, rho: &[Rq]) -> Rq {
     debug_assert_eq!(rho.len(), KAPPA);
-    let mut acc = Rq::zero();
-    for (c, rc) in rho.iter().enumerate() {
-        acc = ring_add(&acc, &ring_mul(&key.b1[c], rc));
-    }
-    acc
+    let mut rho_ntt: Vec<RqNtt> = rho.iter().map(to_ntt).collect();
+    let out = b1_apply_ntt(key, &rho_ntt);
+    rho_ntt.zeroize();
+    out
 }
 
 /// Commit to message `a` with randomness `ρ`: `C = (B0·ρ, ⟨b1, ρ⟩ + a)`.
+///
+/// `ρ` is forward-transformed **once** and shared by the `B0·ρ` and `⟨b1, ρ⟩` products.
 #[must_use]
 pub fn commit(key: &CommitKey, a: &Rq, rho: &[Rq; KAPPA]) -> Commitment {
-    Commitment {
-        t0: b0_apply(key, rho),
-        t1: ring_add(&b1_apply(key, rho), a),
-    }
+    let mut rho_ntt: Vec<RqNtt> = rho.iter().map(to_ntt).collect();
+    let out = Commitment {
+        t0: b0_apply_ntt(key, &rho_ntt),
+        t1: ring_add(&b1_apply_ntt(key, &rho_ntt), a),
+    };
+    rho_ntt.zeroize();
+    out
 }
 
 /// The zero commitment (identity for [`commit_add`]).
@@ -456,11 +534,11 @@ pub fn prove_share<R: CryptoRng + Rng>(
 
         // Lyubashevsky rejection: accepted z ~ D_{s_y} independent of ρ.
         let norm_v_sq = l2_sq(&v);
-        let norm_v = norm_v_sq.sqrt();
+        let norm_v = fmath::sqrt(norm_v_sq);
         let zv = inner(&z, &v) as f64;
         let log_ratio = -core::f64::consts::PI * (2.0 * zv - norm_v_sq) / s2;
-        let log_m = REJECT_KAPPA * norm_v * (2.0 * core::f64::consts::PI).sqrt() / s_y;
-        let accept = (log_ratio - log_m).exp().min(1.0);
+        let log_m = REJECT_KAPPA * norm_v * fmath::sqrt(2.0 * core::f64::consts::PI) / s_y;
+        let accept = fmath::exp(log_ratio - log_m).min(1.0);
         // Isochronous accept/abort: evaluate both predicates every iteration (no `&&` short-circuit).
         // The proof of correct sharing is HVZK and the witness ρ is short ternary, but the iteration
         // count and the float `exp` remain data-dependent — see `SECURITY_ANALYSIS.md` §8.
@@ -541,6 +619,32 @@ mod tests {
         let sum_rho: [Rq; KAPPA] = core::array::from_fn(|i| ring_add(&ra[i], &rb[i]));
         let direct = commit(&key, &ring_add(&a, &b), &sum_rho);
         assert_eq!(commit_add(&ca, &cb), direct);
+    }
+
+    #[test]
+    fn b0_transpose_adjoint_identity() {
+        // The *ring* adjoint identity `Σ_i (B0·r)_i · e_i == Σ_k r_k · (B0ᵀ·e)_k` (each product a
+        // negacyclic ring multiply) — this is the identity a dual-Regev threshold KEM relies on to
+        // make decapsulation `⟨r, ·⟩` a linear function of the DKG-shared randomness. (The *scalar*
+        // coefficient-wise inner product does NOT satisfy it; the ring bilinear form does.)
+        use crate::lattice::ring::sample_uniform_poly;
+        let mut rng = new_deterministic_rng([0x5Au8; 32]);
+        let key = commit_key();
+        let r: Vec<Rq> = (0..KAPPA).map(|_| sample_uniform_poly(&mut rng)).collect();
+        let e: Vec<Rq> = (0..MU).map(|_| sample_uniform_poly(&mut rng)).collect();
+        let b0r = b0_apply(&key, &r); // MU elements
+        let b0te = b0_transpose_apply(&key, &e); // KAPPA elements
+
+        let ring_inner = |a: &[Rq], b: &[Rq]| -> Rq {
+            let mut acc = Rq::zero();
+            for (ai, bi) in a.iter().zip(b.iter()) {
+                acc = ring_add(&acc, &ring_mul(ai, bi));
+            }
+            acc
+        };
+        let lhs = ring_inner(&b0r, &e); // Σ_i (B0·r)_i · e_i
+        let rhs = ring_inner(&r, &b0te); // Σ_k r_k · (B0ᵀ·e)_k
+        assert_eq!(centered_coeffs(&lhs), centered_coeffs(&rhs));
     }
 
     #[test]

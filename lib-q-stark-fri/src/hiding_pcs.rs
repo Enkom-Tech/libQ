@@ -58,7 +58,13 @@ use crate::{
 
 /// A hiding FRI PCS. Both MMCSs must also be hiding; this is not enforced at compile time so it's
 /// the user's responsibility to configure.
-#[derive(Debug)]
+///
+/// `Clone` is derived so this PCS can back the `lib-q-plonky-uni-stark`/`-batch-stark`
+/// `StarkGenericConfig`, whose blanket impl requires `Pcs: Clone` (a compile-time bound; the batch
+/// prover/verifier never actually clone the PCS at runtime, so the blinding RNG state is not
+/// duplicated during proving). All fields are `Clone` (both the deterministic test RNG and the
+/// production `Kt128Rng` are `Clone`).
+#[derive(Clone, Debug)]
 pub struct HidingFriPcs<Val, Dft, InputMmcs, FriMmcs, R> {
     inner: TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs>,
     num_random_codewords: usize,
