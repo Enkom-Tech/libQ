@@ -80,7 +80,12 @@ jobs:
     name: Test Coverage
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 45 min: the heaviest affected-crate case is lib-q-zkp, whose instrumented lib-tests
+    # alone run ~10 min under `tarpaulin --engine llvm` (full STARK prove/verify round-trips),
+    # and with tarpaulin install + doctests + the other zkp test binaries the single-crate
+    # pass lands at ~29-30 min — chronically grazing the old 30-min cap. Bumped so zkp-touching
+    # PRs don't red-out on a wall-clock timeout that isn't a real test/coverage-threshold failure.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       
