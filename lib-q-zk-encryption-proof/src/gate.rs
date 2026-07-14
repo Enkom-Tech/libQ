@@ -27,10 +27,23 @@
 //! (e.g. the `f = δ·unitₖ` spike) therefore produces a **fully-verifying** relation-layer proof.
 //!
 //! **Using `verify_relation_layer` alone as the production `proof_verifies` yields a gate that admits
-//! malformed ciphertexts — it blocks nothing of the insider-probe class.** The full byte-provenance
-//! binding is validated only as a `#[cfg(test)]` toy-parameter vertical slice in [`crate::compose`];
-//! composing it into a production-parameter batch (sharing the fold instances) is an **open task** and
-//! is NOT yet wired. Until it is, this gate must not be relied on as a malformed-ciphertext closure.
+//! malformed ciphertexts — it blocks nothing of the insider-probe class.**
+//!
+//! ## The sound closure — [`crate::encryption_proof`] (wired for the `e`-probe class)
+//! [`crate::encryption_proof::assemble_e_provenance_prover`] / `..._verifier` compose the sponge +
+//! squeeze-byte + ternary-sampler byte-provenance joins into the SAME `prove_batch` as the R3b
+//! relation, at real (incl. **production**) FRI params. A `proof_verifies` closure that runs that
+//! composed `verify_batch` (rebuilding the verifier from `(t0, ct)` — never prover claims) IS a sound
+//! closure for the `e`-probe class: a witness `e` that is not the ternary `XOF(pk ‖ μ)` expansion
+//! cannot produce a verifying proof (join unbalances / sampler range fails), so the gate refuses it.
+//! See `encryption_proof::tests::gate_uses_composed_byte_provenance_closure` for the exact wiring and
+//! `..::spike_tampered_e_witness_rejected` for the non-vacuousness proof.
+//!
+//! **Remaining (RED):** that path binds `e` (ternary) + the R3b `v`-equation; it does NOT yet bind
+//! `f` (the R3a `p`-equations' bounded errors) or `g`'s byte-provenance. The classic `f = δ·unitₖ`
+//! R3a spike therefore still needs the `f`-sampler extension (bounded sampler at the XOF byte-offset
+//! after `e`) before the gate is a *complete* malformed-ciphertext closure. Until `f`/`g` are bound,
+//! do not rely on this gate against an `f`/`g`-class malformed ciphertext.
 //!
 //! ## Why the gate lives here (not in `tkem`)
 //! `lib-q-zk-encryption-proof` already depends on `lib-q-threshold-kem-lattice`; putting the gate in
@@ -78,7 +91,8 @@ use crate::error::EncProofError;
 ///
 /// **Do NOT** pass [`crate::prove::verify_relation_layer`] alone as `proof_verifies`: it checks only
 /// the R3 linear relations over free `(e, f, g)`, so a malformed ciphertext passes it and the gate
-/// would admit it. That full binding is not yet wired into a production-parameter proof.
+/// would admit it. Use the composed byte-provenance closure from [`crate::encryption_proof`] instead
+/// (sound for the `e`-probe class at production params; `f`/`g` binding still pending — see module docs).
 pub fn gated_partial_decap_masked<R, V>(
     proof_verifies: V,
     share: &SecretShare,
@@ -117,8 +131,9 @@ mod tests {
     /// structurally before `partial_decap_masked`). A *verified* proof (`|| true`) forwards past the
     /// gate into `partial_decap_masked` (here it then errors on the placeholder share — hence NOT
     /// `ProofRejected`; a full success needs a real DKG share, covered by the KEM's own tests). The
-    /// production closure runs `verify_batch` over the ciphertext's encryption proof
-    /// (`crate::prove::verify_relation_layer` ⇒ this gate).
+    /// sound production closure runs `verify_batch` over the composed byte-provenance proof
+    /// (`crate::encryption_proof::assemble_e_provenance_verifier` ⇒ this gate) — exercised end-to-end in
+    /// `encryption_proof::tests::gate_uses_composed_byte_provenance_closure`.
     #[test]
     fn gate_refuses_unverified_ciphertext() {
         let t0: Vec<Rq> = (0..MU)
