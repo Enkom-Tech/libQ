@@ -19,11 +19,11 @@ ignored = [
     "zeroize",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, optional = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
-lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.8" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", default-features = false, optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9", default-features = false, features = ["alloc"] }
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.9" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.9" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.9" }
 digest = { workspace = true }
 zeroize = { workspace = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true }

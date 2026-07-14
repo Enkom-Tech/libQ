@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-fn-dsa-alg"
-version = "0.0.8"
+version = "0.0.9"
 authors.workspace = true
 categories.workspace = true
 description = "FN-DSA algorithm facade (lib-Q; not the crates.io `fn-dsa` package by pornin)"
@@ -17,10 +17,10 @@ name = "fn_dsa"
 bench = false
 
 [dependencies]
-lib-q-fn-dsa-comm = { version = "0.0.8", path = "../fn-dsa-comm" }
-lib-q-fn-dsa-kgen = { version = "0.0.8", path = "../fn-dsa-kgen" }
-lib-q-fn-dsa-sign = { version = "0.0.8", path = "../fn-dsa-sign" }
-lib-q-fn-dsa-vrfy = { version = "0.0.8", path = "../fn-dsa-vrfy" }
+lib-q-fn-dsa-comm = { version = "0.0.9", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-kgen = { version = "0.0.9", path = "../fn-dsa-kgen" }
+lib-q-fn-dsa-sign = { version = "0.0.9", path = "../fn-dsa-sign" }
+lib-q-fn-dsa-vrfy = { version = "0.0.9", path = "../fn-dsa-vrfy" }
 
 [dev-dependencies]
 hex = { workspace = true }

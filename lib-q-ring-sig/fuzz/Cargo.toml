@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-ring-sig-fuzz"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false
@@ -10,9 +10,9 @@ cargo-fuzz = true
 
 [dependencies]
 lib-q-ring-sig = { path = "..", default-features = false, features = ["std", "pilot-insecure-prf-transcript"] }
-lib-q-prf = { path = "../../lib-q-prf", version = "0.0.8" }
-lib-q-lattice-zkp = { path = "../../lib-q-lattice-zkp", version = "0.0.8", default-features = false, features = ["alloc"] }
-lib-q-ring = { path = "../../lib-q-ring", version = "0.0.8", default-features = false, features = ["alloc"] }
+lib-q-prf = { path = "../../lib-q-prf", version = "0.0.9" }
+lib-q-lattice-zkp = { path = "../../lib-q-lattice-zkp", version = "0.0.9", default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../../lib-q-ring", version = "0.0.9", default-features = false, features = ["alloc"] }
 libfuzzer-sys = "0.4.12"
 
 [[bin]]
