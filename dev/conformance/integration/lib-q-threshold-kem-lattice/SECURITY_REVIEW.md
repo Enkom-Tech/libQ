@@ -19,10 +19,16 @@ soundness, implementation hygiene), with the load-bearing finding re-verified ag
 > independent Fiat–Shamir challenges, verified at **production FRI params** and wired into the gate.
 > Both the classic `f = δ·unitₖ` R3a spike and a tampered `e` are rejected. This **closes C1, C2, H2,
 > and H4** (production params + `m`-challenge + pk-bound ζ) and **C3** (trace zeroization). The proof
-> is also **zero-knowledge** under the hiding-FRI config (#32, demonstrated). **RED still stands** only
-> for the *remaining, non-proof-soundness* items: the KEM's FO re-encryption uses variable-time samplers
-> (H1); the key-instance estimator is not reproduced in-tree (H3); and external cryptographer sign-off
-> on the cross-AIR composition is still owed.
+> is also **zero-knowledge** under the hiding-FRI config (#32, demonstrated).
+>
+> **UPDATE 2026-07-14 — H1 CLOSED.** The FO encryption samplers are now **constant-time**: fixed byte
+> budgets, branch-free rejection, and constant-time compaction of the first `N` accepts (no secret-
+> dependent branch, byte-consumption, or memory index). The emitted coefficients are bit-identical to
+> the previous rejection sampling (same distribution → §3/§4 analyses unchanged); only the consumption
+> boundary is fixed, a `v1 → v2` wire change (KATs regenerated). The byte-provenance proof was
+> re-synced to the fixed budget (emission-quota `still`/`emit` columns) and re-verified at production
+> params, ZK, and spike-rejection. **RED now stands only for:** the key-instance estimator not
+> reproduced in-tree (H3), and external cryptographer sign-off on the cross-AIR composition.
 
 ---
 
@@ -78,7 +84,7 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
 | C1 | Critical | Gated proof is vacuous — verifies any ciphertext incl. the insider spike | **CLOSED (§7)** — full `e`+`f`+`g` / all-R3a+R3b closure; `f=δ·unitₖ` spike rejected |
 | C2 | Critical | `(e,f,g)` never bound to `XOF(pk‖μ)` / ternary / bounded in any production-param proof | **CLOSED (§7)** — all three bound at production params over `m` challenges |
 | C3 | Critical | Secret μ + FO witness copied into non-zeroizing `Vec`s (`prove.rs:245,265,279,280,287`) | **CLOSED** — `Zeroizing` lifts + `Drop`-wipe of returned traces (`encryption_proof.rs`) |
-| H1 | High | FO⊥ re-encryption uses variable-time rejection sampling on attacker-influenced input → decap-latency timing oracle on the share; flooding/budget do not cover timing | **OPEN** — KEM-wire concern (const-time sampling changes byte consumption + KATs) |
+| H1 | High | FO⊥ re-encryption uses variable-time rejection sampling on attacker-influenced input → decap-latency timing oracle on the share; flooding/budget do not cover timing | **CLOSED** 2026-07-14 — fixed-budget branch-free samplers + constant-time compaction (`kem.rs`); v1→v2 KAT; proof re-synced (emission quota) + re-verified at production params, ZK, spike-rejection |
 | H2 | High | No threshold IND-CCA — the ~63-query malformed-ct insider probe is only operationally mitigated (budget/rotation), not cryptographically closed (this is what C1 was meant to fix) | **CLOSED (§7)** — the sound gate now cryptographically rejects the malformed-ct probe |
 | H3 | High | Key-instance bit-security number is imported from a sibling-repo estimator run; only `ciphertext_estimate.py` is in-tree — not reproducible here | **OPEN** — estimator vendoring (tooling) |
 | H4 | High | Gate exercised only at toy FRI params; nothing at 128-bit; FS challenge ζ omits `pk_digest`/`t0` (`relation_assembly.rs:80–100`) | **CLOSED (§7)** — production params (~128-bit) + `m`-challenge (~2⁻⁵²ᵐ) + pk-bound ζ |
@@ -143,6 +149,12 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
 3. **Close H3** — vendor and reproduce the key-instance estimator config + log in-tree.
 4. **Close H1** — constant-time (branchless / fixed-draw) rejection samplers on the FO re-encryption
    path.
+   - **DONE (2026-07-14):** `kem.rs` samplers draw fixed budgets (`E_TERNARY_ATTEMPTS`,
+     `bounded_attempts(n)`), evaluate every attempt branch-free (masking), and constant-time-compact
+     the first `N` accepts. Coefficients are bit-identical to the old rejection sampling; the fixed
+     consumption boundary is a v1→v2 wire change (KATs regenerated; KEM suite green). The byte-
+     provenance proof was re-synced (emission-quota `still`/`emit` columns so the drained tail keeps
+     the sponge join balanced) and re-verified at production params + ZK + spike-rejection.
 5. **Finish C3** — zeroize the returned STARK traces (`ProverRelationLayer.traces`) after
    `prove_batch` consumes them (the local witness copies are handled in this pass; the traces are the
    remaining secret-bearing artifact).
