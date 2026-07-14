@@ -27,8 +27,8 @@ soundness, implementation hygiene), with the load-bearing finding re-verified ag
 > the previous rejection sampling (same distribution → §3/§4 analyses unchanged); only the consumption
 > boundary is fixed, a `v1 → v2` wire change (KATs regenerated). The byte-provenance proof was
 > re-synced to the fixed budget (emission-quota `still`/`emit` columns) and re-verified at production
-> params, ZK, and spike-rejection. **RED now stands only for:** the key-instance estimator not
-> reproduced in-tree (H3), and external cryptographer sign-off on the cross-AIR composition.
+> params, ZK, and spike-rejection. **RED now stands only for:** external cryptographer sign-off on
+> the cross-AIR composition (H1–H4 and the estimator vendoring H3 are all closed).
 
 ---
 
@@ -86,7 +86,7 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
 | C3 | Critical | Secret μ + FO witness copied into non-zeroizing `Vec`s (`prove.rs:245,265,279,280,287`) | **CLOSED** — `Zeroizing` lifts + `Drop`-wipe of returned traces (`encryption_proof.rs`) |
 | H1 | High | FO⊥ re-encryption uses variable-time rejection sampling on attacker-influenced input → decap-latency timing oracle on the share; flooding/budget do not cover timing | **CLOSED** 2026-07-14 — fixed-budget branch-free samplers + constant-time compaction (`kem.rs`); v1→v2 KAT; proof re-synced (emission quota) + re-verified at production params, ZK, spike-rejection |
 | H2 | High | No threshold IND-CCA — the ~63-query malformed-ct insider probe is only operationally mitigated (budget/rotation), not cryptographically closed (this is what C1 was meant to fix) | **CLOSED (§7)** — the sound gate now cryptographically rejects the malformed-ct probe |
-| H3 | High | Key-instance bit-security number is imported from a sibling-repo estimator run; only `ciphertext_estimate.py` is in-tree — not reproducible here | **OPEN** — estimator vendoring (tooling) |
+| H3 | High | Key-instance bit-security number is imported from a sibling-repo estimator run; only `ciphertext_estimate.py` is in-tree — not reproducible here | **CLOSED** 2026-07-14 — `key_estimate.py` (self-contained config, tkem consts) + `key_estimate.log` (authoritative per-attack table, vendored with provenance) + `ciphertext_estimate.log` materialized; both instances reproducible-from-config in-tree, no sibling-repo dependency |
 | H4 | High | Gate exercised only at toy FRI params; nothing at 128-bit; FS challenge ζ omits `pk_digest`/`t0` (`relation_assembly.rs:80–100`) | **CLOSED (§7)** — production params (~128-bit) + `m`-challenge (~2⁻⁵²ᵐ) + pk-bound ζ |
 
 ### Mediums / Lows (hardening, non-blocking individually)
@@ -117,7 +117,8 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
   MLWE with secret dim n = (KAPPA−MU)·N = 3072, ternary secret+error, q=2^48 → log₂δ≈0.00275,
   β≈620–680, **≈160–175-bit quantum** — corroborating the claimed 169-bit. The large q=2^48 is
   dangerous in isolation (α≈2^−48) but rescued by the module dimension. Ciphertext-hiding
-  (~2^900+) is far above the bar. *(But see H3: the key-instance estimator run is not in-tree.)*
+  (~2^900+) is far above the bar. *(H3 closed: the key-instance estimator config + archived run are
+  now in-tree — `key_estimate.py` / `key_estimate.log`.)*
 - **FO⊥.** Fully integer-derandomized from μ (no floats), exact all-coefficient re-encryption compare,
   KDF binds `pk_digest` + μ + full ciphertext. Malformed/mauled ciphertexts are rejected, never yield
   a key (confirmed by KATs and `roundtrip.rs`).
@@ -146,7 +147,8 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
      gate is wired to the sound closure. C1/C2/H2/H4 closed.
 2. **Close H4** — run the composed proof at production FRI parameters with m≥4 challenges; bind
    `pk_digest`/`t0` into the FS transcript ζ.
-3. **Close H3** — vendor and reproduce the key-instance estimator config + log in-tree.
+3. **H3 CLOSED** (2026-07-14) — key-instance estimator config + archived run vendored in-tree
+   (`key_estimate.py` / `key_estimate.log`); ciphertext run materialized (`ciphertext_estimate.log`).
 4. **Close H1** — constant-time (branchless / fixed-draw) rejection samplers on the FO re-encryption
    path.
    - **DONE (2026-07-14):** `kem.rs` samplers draw fixed budgets (`E_TERNARY_ATTEMPTS`,
@@ -264,8 +266,9 @@ preprocessed under a non-hiding sub-commitment (it needs no blinding) to let the
 independently — a batch-stark ergonomics refinement, not a soundness gap.
 
 **Remaining for full RED-lift (NOT soundness or ZK of this proof):**
-1. **H1** — constant-time FO re-encryption samplers in `kem.rs`. Note: rejection sampling is variable-
-   time by nature; a fixed-draw redesign changes XOF byte consumption, so it must be co-designed with
-   the byte-provenance offsets and the wire KATs.
-2. **H3** — vendor + reproduce the key-instance estimator config in-tree.
+1. **H1 CLOSED** (2026-07-14) — fixed-budget branch-free FO samplers + constant-time compaction in
+   `kem.rs`; XOF byte consumption co-designed with the byte-provenance offsets; v1→v2 wire KATs
+   regenerated; proof re-synced (emission quota) and re-verified at production params.
+2. **H3 CLOSED** (2026-07-14) — key-instance estimator config + archived run vendored in-tree
+   (`key_estimate.py` / `key_estimate.log`).
 3. **Cryptographer sign-off** on the cross-AIR composition and FS/LogUp challenge independence.

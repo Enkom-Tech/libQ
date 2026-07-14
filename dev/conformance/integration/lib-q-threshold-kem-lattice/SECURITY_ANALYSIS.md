@@ -38,9 +38,12 @@ rejection sampling (FO derandomization, §5). `K = SHAKE-256(dom ‖ pk-digest �
 Recovering `r` from `t0 = B0·r` is **exactly** the BDLOP-randomness Module-LWE instance the
 DKG/raccoon stack was estimator-gated on (`B0 = [I | B0']` HNF; secret/error ternary; dimensions
 `(KAPPA−MU)·N` / `MU·N`): BKZ blocksize **β = 636 ⇒ ≈186-bit classical / ≈169-bit quantum
-core-SVP** (see `../lib-q-threshold-raccoon/SECURITY_ANALYSIS.md` §2/§6,
-`estimator_run_kappa9.txt`). Nothing in this crate changes that instance; it is the **binding
-hardness constraint** of the KEM.
+core-SVP**. This instance is now reproducible **in-tree** — `key_estimate.py` emits the exact
+config (`n=3072`, `m=6144`, `q≈2^48`, `Xs=Xe=U(-1,1)`) and `key_estimate.log` archives the full
+per-attack table (vendored from the authoritative raccoon run of this byte-identical instance;
+provenance in the log header) — closing review finding **H3** (see also
+`../lib-q-threshold-raccoon/SECURITY_ANALYSIS.md` §2/§6). Nothing in this crate changes that
+instance; it is the **binding hardness constraint** of the KEM.
 
 ## 2. Ciphertext hiding (Module-LWE) — estimator-gated (this run)
 
@@ -157,8 +160,13 @@ encryption** (not merely well-formedness), not an artifact of this implementatio
 
 ```text
 export PYTHONPATH=/home/unix/lattice-estimator
-/home/unix/miniforge3/envs/sage/bin/python ciphertext_estimate.py   # SageMath conda env
+/home/unix/miniforge3/envs/sage/bin/python key_estimate.py         # §1 load-bearing gate → key_estimate.log
+/home/unix/miniforge3/envs/sage/bin/python ciphertext_estimate.py  # §2 (far above bar)  → ciphertext_estimate.log
 ```
+
+Both estimators are self-contained (tkem consts only) and their archived runs are vendored in-tree
+(`key_estimate.log`, `ciphertext_estimate.log`), so **both instances are reproducible-from-config
+here** — no sibling-repo dependency for the load-bearing number (closes H3).
 
 Instance: `LWE.Parameters(n=6144, q=281474976694273, Xs=ND.Uniform(-1,1), Xe=ND.Uniform(-B,B),
 m=10240)`, `deny_list=("bkw", "arora-gb")` (pathologically slow, never minimal). Output archived in

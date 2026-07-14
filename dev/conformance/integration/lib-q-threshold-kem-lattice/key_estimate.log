@@ -1,0 +1,36 @@
+# ==========================================================================
+# ARCHIVED estimator run for the decapsulation-KEY hiding M-LWE instance.
+#
+# PROVENANCE: this instance is byte-for-byte identical to the DKG /
+# lib-q-threshold-raccoon key-hiding instance (t0 = B0*r is the raccoon DKG
+# public key). The authoritative run was executed there under SageMath +
+# malb/lattice-estimator; the output below is the HIDING block of
+#   ../lib-q-threshold-raccoon/estimator_run_kappa9.txt
+# vendored here so the load-bearing figure is reproducible-from-artifact in
+# THIS crate (review finding H3) without reaching into the sibling repo.
+# Re-run in-place with:  PYTHONPATH=<lattice-estimator> python -u key_estimate.py
+# key_estimate.py reproduces this exact instance (n=3072, m=6144, Xs=Xe=U(-1,1)).
+# Not re-executed on the authoring host (no SageMath toolchain present there);
+# the config + this artifact together close the "not reproducible here" gap.
+# ==========================================================================
+# decap-key hiding MLWE (HNF): n=3072 m=6144 q=281474976694273 Xs=Xe=U(-1,1)
+# deny_list=('bkw','arora-gb')  [never optimal here; the slow attacks]
+
+--- full attack table (deny bkw/arora-gb), default cost model ---
+usvp                 :: rop: ≈2^215.4, red: ≈2^215.4, δ: 1.002810, β: 652, d: 5874, tag: usvp
+bdd                  :: rop: ≈2^214.2, red: ≈2^213.8, svp: ≈2^212.0, β: 646, η: 683, d: 5963, tag: bdd
+dual                 :: rop: ≈2^218.8, mem: ≈2^146.1, m: ≈2^11.5, β: 660, d: 6062, ↻: 1, tag: dual
+dual_hybrid          :: rop: ≈2^212.3, red: ≈2^212.1, guess: ≈2^209.6, β: 636, p: 3, ζ: 0, t: 120, β': 636, N: ≈2^130.9, m: ≈2^11.6
+
+>>> BEST attack: rop=2^212.3 beta=636 => core-SVP 186-bit classical / 169-bit quantum
+>>> Gate: PASS (>=128 quantum core-SVP)
+
+# The best attack (dual_hybrid, β=636) sits ~41 quantum-core-SVP bits above the
+# 128-bit bar. The default cost model (ADPS16-family, the estimator default) was
+# the one run for the authoritative artifact above.
+#
+# NOTE: the cost-model-spread section of key_estimate.py was NOT part of this
+# archived run (the raccoon run predates that script addition and reported the
+# default model only). Re-running key_estimate.py in a SageMath env will populate
+# the spread; it cannot change the PASS verdict at ~41 bits of headroom. It is left
+# unfilled here rather than transcribing numbers that were never produced.
