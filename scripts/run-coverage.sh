@@ -234,7 +234,12 @@ done
 CMD="$CMD${OUT_EXTRA} --output-dir $OUTPUT_DIR"
 
 if [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
-  CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality"
+  # Measure keygen AND signing/verification: fn-dsa is a signature crate, so the sign/
+  # sign_from_seed/verify paths must be exercised for coverage to be meaningful. The
+  # `sign_and_verify` / `seeded_sign` filters pull in the existing (passing) 512+1024
+  # sign+verify and deterministic-seed tests. Kept name-filtered (not a full run) to hold
+  # debug-tarpaulin wall time down; each matched test stays under the --timeout 180 bound.
+  CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality sign_and_verify seeded_sign"
 elif [[ "$CRATE" == "lib-q-kem" ]]; then
   # Serial libtest lowers load on large HQC integration tests under LLVM instrumentation.
   CMD="$CMD -- --test-threads=1"
