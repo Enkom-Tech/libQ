@@ -272,3 +272,123 @@ independently — a batch-stark ergonomics refinement, not a soundness gap.
 2. **H3 CLOSED** (2026-07-14) — key-instance estimator config + archived run vendored in-tree
    (`key_estimate.py` / `key_estimate.log`).
 3. **Cryptographer sign-off** on the cross-AIR composition and FS/LogUp challenge independence.
+   → **Executed 2026-07-14 as the structured process a cryptographer would run (no external human
+   available — see §8). The composition is structurally sound; the process found two real issues —
+   S1 (challenge field was ~62-bit) and S2 (ZK trusted prover preprocessed) — and BOTH ARE NOW FIXED
+   and re-verified green at GF(p⁶). Residual is purely the external human signature. See §8.**
+
+---
+
+## 8. Cryptographer sign-off pass — cross-AIR composition + FS/LogUp challenge independence (2026-07-14)
+
+**What this is.** With no external cryptographer available, we ran the *process* a reviewer would:
+decompose the residual item into its four checkable obligations, audit each against source
+adversarially (four independent expert lenses), and re-verify every load-bearing claim by hand against
+the framework source. **This is an in-house adversarial review, not an external human signature** — it
+raises assurance from "unexamined composition" to "examined by a documented, reproducible process," but
+the residual item is not *closed*; it is *reduced to two named, actionable findings*.
+
+**Scope.** The batch prover/verifier (`lib-q-plonky-batch-stark`), the LogUp gadget
+(`lib-q-plonky-lookup`), the challenger (`lib-q-stark-challenger`), and this crate's bus wiring
+(`encryption_proof.rs` / `logup_join.rs` / `compose.rs` / `sampler.rs` / `sponge_air.rs`).
+
+### 8.1 What checks out (independently corroborated, hand-verified)
+
+- **FS transcript ordering — SOUND.** Reconstructed the exact observe/sample sequence on both sides.
+  Every challenge is sampled strictly *after* the commitments it must bind: main-trace commit
+  (`prover.rs:370`) → LogUp α/β (`:382`) → permutation/aux commit + cumulated sums (`:406-411`) →
+  constraint-combine α (`:415`) → quotient commit (`:502`) → OOD ζ (`:517`) → FRI. The **verifier
+  replays a byte-identical sequence** (`verifier.rs:215-251`) via the *same* helpers
+  (`observe_instance_binding`, `get_perm_challenges`), which structurally forecloses prover/verifier
+  drift. Public values + preprocessed ("pk") commitment are absorbed before any challenge. No
+  challenge-before-commit; no cross-role challenge reuse.
+- **LogUp accumulator + cross-AIR bus balance — SOUND.** Accumulator init (`s[0]=0`,
+  `logup.rs:204`), polynomial transition (`:220-232`), and final-row boundary pinning
+  `expected_cumulated` to the true per-AIR sum (`:224-225`) are correct. The **cross-AIR bus is
+  cryptographically forced to cancel to zero**: the verifier groups per-AIR cumulated sums by the
+  *verifier-trusted* bus name (`Kind::Global`, from its own config — not proof-supplied) and rejects
+  unless the global sum is exactly zero (`verify_global_final_value`, `logup.rs:280-284`;
+  `verifier.rs:525-565`). An unmatched Send/Receive cannot balance.
+- **m-challenge fan-out arithmetic — SOUND.** Each coefficient is Sent `m×` and Received once per
+  challenge set, with per-challenge fold bases partitioning the position axis
+  (`CHALLENGE_SPAN=(KAPPA+1)·R3A_BASE_SPAN`); counted from source — no off-by-one, no silent balance
+  against a wrong coefficient. The `m` per-relation points `ζ_i = SHAKE256(DOM_ZETA ‖ pk_digest ‖ ct)`
+  are **independent consecutive XOF draws** (`derive_zetas`, `relation_assembly.rs:80-100`), AND-combined
+  (one batch; any failing relation fails the proof), so the exponent `m` is real.
+- **Verifier-built public values — SOUND.** `pk_digest = pk_digest_of(t0)`, ζ_i, and every relation
+  coefficient `(a,c)` are rebuilt by the verifier from `(t0, ct)`; never prover-supplied.
+- **Sampler ranges — SOUND in composition.** `e ∈ {-1,0,1}` and `f,g ∈ [-B,B]` are pinned by the
+  sampler AIRs (boolean-gated lifts; the bounded `lift<Q` obligation is discharged by the composed
+  fold's `w<q` borrow check, present in every shipped `assemble_*`). Multiplicity columns are
+  boolean-gated expressions, not free columns — the standard LogUp "multiplicity range is the caller's
+  job" obligation IS met here.
+
+### 8.2 Findings the process surfaced (these are why it is NOT a clean sign-off)
+
+**S1 — High (concrete soundness LEVEL, not a break): the encryption proof runs on the ~62-bit
+challenge field.** The demonstrated configs use `DefaultPcs` / `DefaultChallengeMmcs` with
+`Challenge = Complex<Mersenne31> = GF(p²) ≈ 2⁶²` (`encryption_proof.rs:1254-1261`;
+`lib-q-zkp/src/stark.rs:81-88`). All *Layer-B* STARK-internal challenges (LogUp α/β, constraint-combine
+α, OOD ζ, FRI folding/batching) are therefore ~62-bit draws, capping the composed proof's own soundness
+**well below the "≈128-bit" claimed in §7** (that headline is FRI *query-phase* only; it does not bound
+the algebraic-combination terms over GF(p²)). The Layer-A `m`-challenge does **not** rescue this — it
+amplifies only the ciphertext-grinding/relation term (→ ~2⁻¹⁴⁸), a *different* error than the
+single-instance STARK soundness. **The same repo already fixes this for the sibling membership STARK:**
+`ConfigChallenge = BinomialExtensionField<ConfigVal, 3> = GF(p⁶) ≈ 186-bit`, "upgraded from using the
+value field itself" (`stark.rs:66-72`, `MembershipChallengeMmcs` `:94`). **Fix:** wire the encryption
+proof to the GF(p⁶) challenge config (as membership does) before asserting any ≥100-bit soundness. Until
+then the honest number is ~62-bit for the STARK's own soundness.
+> **S1 RESOLVED (2026-07-14).** `Cfg`/`ZkCfg` and the `test`/`production`/`zk` batch configs were
+> rewired from `DefaultPcs`/`GF(p²)` to `MembershipPcs`/`ConfigChallenge = GF(p⁶)` (~186-bit) — same
+> value field/DFT/Merkle commitment, larger FRI challenge extension, mirroring the sibling membership
+> STARK. Re-verified green at GF(p⁶): full non-ignored suite (92/0), and every heavy production-param
+> proof incl. `full_provenance_sound_multichallenge` (m=3) and `full_provenance_round_trip` (m=1)
+> (5/0, ~600 s). The composition is sound at the ≥128-bit challenge field; the ~62-bit ceiling is lifted.
+
+**S2 — Medium (conditional ZK-soundness gap): hiding-PCS preprocessed reuse.** The ZK path passes the
+prover's *blinded* preprocessed commitment (`prover_data.common`) to `verify_batch` with no independent
+rebuild (`encryption_proof.rs:1503-1514`). Preprocessed carries the sponge round-constants / position
+column that pin `e = XOF(pk‖μ)`; a doctored preprocessed could make the sponge AIR accept a witness that
+is not the true XOF output. Sound **only** under the deployment obligation, already named in-source
+(`:52-54`), to commit preprocessed under a *non-hiding* sub-commitment and rebuild+compare on the
+verifier (preprocessed carries no witness secret, so it needs no blinding). The current ZK round-trip
+test takes the trusting shortcut → it demonstrates *completeness*, not *soundness*, of preprocessed
+handling. **Fix:** production ZK gate MUST NOT trust prover preprocessed.
+> **S2 RESOLVED (2026-07-14).** `e_provenance_zero_knowledge_round_trip` no longer passes
+> `prover_data.common` to `verify_batch`; the verifier now **rebuilds** the preprocessed independently
+> from its own (public) AIRs via `build_preprocessed(&zk_batch_config(), &verifier.airs)` and verifies
+> against that — exactly the sound non-ZK pattern. This is sound (the verifier binds preprocessed to the
+> canonical AIR set, never to a prover claim) and loses no ZK: preprocessed is public/secret-free, so a
+> fresh config restarting the hiding-MMCS RNG at its fixed seed reproduces the commitment bit-identically
+> while only the witness-bearing main/aux/quotient matrices keep their blinding. Re-verified green at
+> GF(p⁶). The doctored-preprocessed attack is foreclosed. (A deployment building its own gate must follow
+> the same discipline — never trust a prover-supplied preprocessed commitment.)
+
+### 8.3 Hardening notes (non-blocking)
+
+- **HN1** `FOLD_E` disjoint-base disjointness is a *caller convention*, not a constraint
+  (`logup_join.rs:93-98`) — met by every shipped `assemble_*`, but a future caller reusing the helpers
+  with overlapping bases could cross-satisfy Sends/Receives. Add a typed base allocator or an assertion.
+- **HN2** The bounded sampler's canonical `lift<Q` soundness is contingent on the composed fold's `w<q`
+  check; a *standalone* bounded proof (no fold) is under-constrained. Document/assert the fold is
+  present.
+- **HN3** Reconcile the two per-challenge soundness figures in comments: `encryption_proof.rs:44` cites
+  `deg/|F| ≈ 2⁻⁵²` (over GF(p²)); `relation_assembly.rs:70` cites `(2N−2)/q ≈ 2⁻³⁷` (base field). The
+  `2⁻³⁷` base-field figure is the correct conservative one; the headline should be read against it.
+
+### 8.4 Verdict of this pass
+
+The cross-AIR composition and FS/LogUp challenge independence are **structurally sound** — no ordering
+break, no bus-balance escape, no vacuous-composition or challenge-reuse defect, corroborated by four
+independent lenses and by-hand source verification. The two findings this pass surfaced — **S1**
+(challenge field was ~62-bit) and **S2** (ZK trusted the prover's preprocessed) — **are both now FIXED
+and re-verified green at GF(p⁶)** (see the RESOLVED notes in §8.2): the composed proof runs at the
+~186-bit challenge field at production params (incl. m=3), and the ZK verifier rebuilds preprocessed
+rather than trusting it. Hardening notes HN1–HN3 remain open (non-blocking).
+
+**RED still stays — but the residual is now purely the terminal gate: an external human cryptographer's
+signature.** This pass ran the *process* one would run (four adversarial lenses + by-hand source
+verification), found two real issues, and closed them; that raises assurance from "unexamined
+composition" to "examined by a documented, reproducible process, findings fixed." It does **not**
+manufacture the accountability of an independent expert signature. An in-house process reduces — it does
+not replace — external sign-off.

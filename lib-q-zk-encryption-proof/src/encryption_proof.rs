@@ -1249,36 +1249,43 @@ mod tests {
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_shake256::Shake256Hash;
     use lib_q_zkp::stark::{
+        ConfigChallenge,
         ConfigDft,
-        DefaultChallengeMmcs,
-        DefaultPcs,
         DefaultValMmcs,
+        MembershipChallengeMmcs,
+        MembershipPcs,
     };
 
     use super::*;
 
     type TestChallenger = ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>;
-    type Cfg = StarkConfig<DefaultPcs, ConfigVal, TestChallenger>;
+    // S1 fix (SECURITY_REVIEW §8): the composed proof runs over the degree-3 challenge extension
+    // `ConfigChallenge = GF(p^6)` (~186 bits), NOT the value field `ConfigVal = GF(p^2)` (~62 bits).
+    // The 62-bit challenge field was a hard ceiling on Fiat–Shamir/DEEP/FRI-fold soundness far below
+    // 128, un-rescued by the m-challenge (which only amplifies the Layer-A ciphertext-grind term).
+    // `MembershipPcs` is the same value field / DFT / Merkle commitment as `DefaultPcs`; only the
+    // FRI challenge field is the larger extension. Mirrors the sibling membership STARK.
+    type Cfg = StarkConfig<MembershipPcs, ConfigChallenge, TestChallenger>;
 
     /// Assemble a `StarkConfig` from a set of FRI parameters (shared plumbing for the test and
     /// production configs).
     fn config_from_fri(
-        fri_params: FriParameters<DefaultChallengeMmcs>,
+        fri_params: FriParameters<MembershipChallengeMmcs>,
         val_mmcs: DefaultValMmcs,
     ) -> Cfg {
         let dft = ConfigDft::default();
-        let pcs = DefaultPcs::new(dft, val_mmcs, fri_params);
+        let pcs = MembershipPcs::new(dft, val_mmcs, fri_params);
         let base = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
         StarkConfig::new(pcs, ComplexFieldChallenger::new(base))
     }
 
-    fn mmcs_pair() -> (DefaultValMmcs, DefaultChallengeMmcs) {
+    fn mmcs_pair() -> (DefaultValMmcs, MembershipChallengeMmcs) {
         let shake = Shake256Hash {};
         let hash = lib_q_stark_symmetric::SerializingHasher::<Shake256Hash>::new(shake);
         let compress =
             lib_q_stark_symmetric::CompressionFunctionFromHasher::<Shake256Hash, 2, 32>::new(shake);
         let val_mmcs = DefaultValMmcs::new(hash, compress);
-        let challenge_mmcs = DefaultChallengeMmcs::new(val_mmcs.clone());
+        let challenge_mmcs = MembershipChallengeMmcs::new(val_mmcs.clone());
         (val_mmcs, challenge_mmcs)
     }
 
@@ -1441,7 +1448,9 @@ mod tests {
         32,
         4,
     >;
-    type ZkChallengeMmcs = lib_q_stark_commit::ExtensionMmcs<ConfigVal, ConfigVal, ZkValMmcs>;
+    // S1 fix (SECURITY_REVIEW §8): ZK path also runs over the GF(p^6) challenge extension, not the
+    // ~62-bit value field. Mirrors `MembershipZkChallengeMmcs`/`MembershipZkConfig`.
+    type ZkChallengeMmcs = lib_q_stark_commit::ExtensionMmcs<ConfigVal, ConfigChallenge, ZkValMmcs>;
     type ZkPcs = lib_q_stark_fri::HidingFriPcs<
         ConfigVal,
         ConfigDft,
@@ -1449,7 +1458,7 @@ mod tests {
         ZkChallengeMmcs,
         lib_q_random::DeterministicRng,
     >;
-    type ZkCfg = StarkConfig<ZkPcs, ConfigVal, TestChallenger>;
+    type ZkCfg = StarkConfig<ZkPcs, ConfigChallenge, TestChallenger>;
 
     /// A hiding-FRI (zero-knowledge) config at test FRI params: `is_zk() == 1`, so the batch prover
     /// blinds the trace + randomizes the quotient (μ is blinded). The ZK code path a deployment uses.
@@ -1500,20 +1509,31 @@ mod tests {
             })
             .collect();
         let proof = prove_batch(&config, &instances, &prover_data).expect("prove_batch ZK");
-        // Under the hiding PCS the preprocessed commitment is randomized, so the verifier must use the
-        // prover's committed preprocessed (it is public / verifier-trusted — a deterministic function of
-        // the AIRs); it still recomputes ζ + all public values independently from `(t0, ct)`.
+        // S2 fix (SECURITY_REVIEW §8): the verifier MUST NOT trust the prover's committed preprocessed
+        // (`prover_data.common`). The preprocessed carries the sponge round-constants / position column
+        // that pin `e = XOF(pk‖μ)`; trusting a prover-supplied commitment lets a malicious prover doctor
+        // it and make the sponge AIR accept `e ≠ XOF(pk‖μ)`. Instead the verifier REBUILDS the
+        // preprocessed independently from its own (public) AIRs, exactly as the non-ZK path does. This
+        // is sound AND loses no zero-knowledge: the preprocessed is public and secret-free, so its
+        // commitment is a deterministic function of the AIR set and reproducing it reveals nothing about
+        // μ — only the witness-bearing main/aux/quotient matrices need (and keep) their blinding. A fresh
+        // `zk_batch_config()` restarts the hiding MMCS's RNG at its fixed seed, so the verifier's
+        // preprocessed commitment is bit-identical to the prover's canonical one.
         let verifier = assemble_e_provenance_verifier(&t0, &ct, shape);
+        let vconfig = zk_batch_config();
+        let (vglobal, _) = build_preprocessed(&vconfig, &verifier.airs);
+        let vcommon = CommonData::new(vglobal, verifier.lookups.clone());
         assert!(
             verify_batch(
                 &config,
                 &verifier.airs,
                 &proof,
                 &verifier.public_values,
-                &prover_data.common
+                &vcommon
             )
             .is_ok(),
-            "the e-provenance proof must verify under the hiding-FRI (zero-knowledge) config"
+            "the e-provenance proof must verify under the hiding-FRI (zero-knowledge) config with a \
+             verifier-rebuilt (not prover-trusted) preprocessed commitment"
         );
     }
 
