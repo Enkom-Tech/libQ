@@ -16,6 +16,12 @@ on:
   schedule:
     - cron: "0 5 * * 0"
 
+# Cancel superseded runs on PR branches only: a new push obsoletes the previous run's ~30 jobs.
+# Pushes to main/develop and scheduled runs are never cancelled (keep full per-commit history there).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -90,6 +96,7 @@ jobs:
           - package: "lib-q-blind-pcs"
           - package: "lib-q-dkg"
           - package: "lib-q-threshold-raccoon"
+          - package: "lib-q-threshold-kem-lattice"
           - package: "lib-q-blind-token"
           - package: "lib-q-rocca-s"
           # New paper crates (IACR membership work): guard they stay in cd.yml + keep version-pinned deps.
@@ -143,6 +150,9 @@ jobs:
             features: "std,zkp"
             package: ""
             packages: "lib-q lib-q-zkp"
+          - name: "lib-q-zk-encryption-proof"
+            features: "std"
+            package: "lib-q-zk-encryption-proof"
           - name: "lib-q-kem"
             features: "std,ml-kem"
             package: "lib-q-kem"
@@ -212,6 +222,9 @@ jobs:
           - name: "lib-q-threshold-raccoon"
             features: "std,random"
             package: "lib-q-threshold-raccoon"
+          - name: "lib-q-threshold-kem-lattice"
+            features: "std,random"
+            package: "lib-q-threshold-kem-lattice"
           - name: "lib-q-blind-token"
             features: "std,random"
             package: "lib-q-blind-token"
@@ -366,7 +379,16 @@ jobs:
           - working-directory: "lib-q-blind-pcs"
             features: "wasm,blind-pcs"
             check-only: "false"
-    
+          - working-directory: "lib-q-dkg"
+            features: "wasm,std,random"
+            check-only: "false"
+          - working-directory: "lib-q-threshold-raccoon"
+            features: "wasm,std,random"
+            check-only: "false"
+          - working-directory: "lib-q-threshold-kem-lattice"
+            features: "wasm,std,random"
+            check-only: "false"
+
     steps:
       - uses: actions/checkout@v7
       
@@ -391,6 +413,19 @@ jobs:
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown
+
+      # Same cache shape as the wasm-build action; without it this job cold-compiles the whole
+      # workspace for wasm32 every run (the largest single compile in CI).
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-wasm-workspace-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-workspace-
 
       - name: cargo check --workspace (wasm32)
         env:
@@ -445,6 +480,7 @@ jobs:
           - lib-q-threshold-sig
           - lib-q-dkg
           - lib-q-threshold-raccoon
+          - lib-q-threshold-kem-lattice
     steps:
       - uses: actions/checkout@v7
 
@@ -452,6 +488,19 @@ jobs:
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown
+
+      # One shared cache blob across the matrix (first shard to finish saves it; the rest restore).
+      # Mostly recovers the registry + shared lower-tier deps; without it all 25 shards cold-build.
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-wasm-smoke-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-wasm-smoke-
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -502,6 +551,7 @@ jobs:
             lib-q-threshold-sig) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-dkg) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-raccoon) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
+            lib-q-threshold-kem-lattice) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             *) echo "features=wasm" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
           esac
 
@@ -520,6 +570,19 @@ jobs:
           else
             wasm-pack test --node -- --test "$T"
           fi
+
+      # Validate the EXACT configuration CD publishes to npm: release profile, DEFAULT 1 MiB wasm
+      # stack (the wasm-build action sets no stack-size flag). The 16 MiB bump above is a DEBUG-only
+      # need — debug lattice frames overflow 1 MiB, release fits (verified 2026-07-10: DKG ceremony
+      # keygen, raccoon sign/verify, and kem-lattice encaps/decaps all pass at the default). Without
+      # this step no CI job ever executes wasm in the shipped configuration.
+      - name: wasm-pack test (Node, release, default stack — npm artifact config)
+        if: contains(fromJSON('["lib-q-dkg","lib-q-threshold-raccoon","lib-q-threshold-kem-lattice"]'), matrix.crate)
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
+        run: |
+          cd ${{ matrix.crate }}
+          wasm-pack test --node --release -- --features "${{ steps.wpt.outputs.features }}" --test "${{ steps.wpt.outputs.test }}"
 
       - name: wasm-pack test (headless Chrome)
         env:
@@ -556,7 +619,9 @@ jobs:
             wasm-pack test --headless --firefox -- --test "$T"
           fi
 
-  # Romulus: pure no_std crypto core + registry wiring without forcing lib-q-romulus/std
+  # Romulus: pure no_std crypto core + registry wiring without forcing lib-q-romulus/std.
+  # Also hosts the DKG + threshold-KEM-lattice thumb checks (same toolchain/target set — batching
+  # them here instead of a dedicated job saves a runner allocation per CI run).
   romulus-no-std-wasm:
     name: Romulus no_std / wasm32 smoke
     needs: core-validation
@@ -585,6 +650,14 @@ jobs:
           CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
         run: |
           cargo check -p lib-q-aead --no-default-features --features alloc,romulus --target thumbv7em-none-eabi
+
+      # DKG + threshold-KEM-lattice: true no_std+alloc graph on a bare-metal target (the cdylib
+      # crate-type is dropped on *-none-* targets; on hosted targets a no_std cdylib would demand a
+      # global allocator a library must not provide — see the aead step note above).
+      - name: lib-q-dkg + lib-q-threshold-kem-lattice (no_std + alloc)
+        run: |
+          cargo check -p lib-q-dkg --no-default-features --target thumbv7em-none-eabi
+          cargo check -p lib-q-threshold-kem-lattice --no-default-features --target thumbv7em-none-eabi
 
   # K12: no_std + alloc + wasm32 + thumb (depends on lib-q-sha3 / lib-q-keccak without keccak `std`)
   k12-no-std-wasm:

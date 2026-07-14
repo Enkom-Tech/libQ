@@ -201,8 +201,8 @@ runs:
               cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --verbose
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-            if [[ "$PACKAGE" == "lib-q-fn-dsa" || "$PACKAGE" == "lib-q-blind-token" || "$PACKAGE" == "lib-q-dkg" || "$PACKAGE" == "lib-q-threshold-raccoon" ]]; then
-              echo "Skipping full dev test suite for $PACKAGE (heavy lattice proofs; full suite runs in the release step only)"
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" || "$PACKAGE" == "lib-q-blind-token" || "$PACKAGE" == "lib-q-dkg" || "$PACKAGE" == "lib-q-threshold-raccoon" || "$PACKAGE" == "lib-q-threshold-kem-lattice" ]]; then
+              echo "Skipping full dev test suite for $PACKAGE (lattice keygen/proof math is far too slow in debug; full suite runs in the release step only)"
             else
               cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --verbose
             fi

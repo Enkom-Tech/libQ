@@ -311,7 +311,27 @@ impl LookupGadget for LogUpGadget {
             .max()
             .unwrap_or(0);
 
-        deg_denom_constr.max(deg_num)
+        // `inner` is the degree of the running-sum update polynomial
+        // `(s_next - s_local)·∏(α - eⱼ) - numerator` (`s` is the aux/running-sum column, degree 1).
+        let inner = deg_denom_constr.max(deg_num);
+
+        // The quotient domain must be sized for the ACTUAL emitted constraints, which
+        // [`Self::eval_update`] multiplies by row selectors — and the selectors carry degree
+        // (`IsFirstRow`/`IsLastRow` are degree 1; `IsTransition` is degree 0). Omitting them
+        // under-sizes the quotient domain and makes an otherwise-valid proof fail with
+        // `OodEvaluationMismatch`. The emitted constraints and their selector-inclusive degrees:
+        //   * `when_first_row(s_local)`                      → IsFirstRow(1)·s(1)      = 2   (both kinds)
+        //   * transition update                              → IsTransition(0)·inner  = inner
+        //     (Global uses `when_transition`; Local is unguarded — same degree either way)
+        //   * `when_last_row(update)` — GLOBAL ONLY          → IsLastRow(1)·inner      = inner + 1
+        // The AIR's own constraint-degree path already includes these selector factors (via the
+        // symbolic builder), so the lookup degree must too, or the two disagree.
+        let first_row_deg = 2;
+        let update_deg = match context.kind {
+            Kind::Global(_) => inner + 1, // `when_last_row` dominates the unguarded transition
+            Kind::Local => inner,
+        };
+        first_row_deg.max(update_deg)
     }
 
     #[instrument(name = "generate lookup permutation", skip_all, level = "debug")]

@@ -515,10 +515,39 @@ jobs:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
 
+  # lib-q-threshold-kem-lattice depends on lib-q-dkg, so it CANNOT share the tier-4b matrix with it
+  # (matrix jobs publish in parallel; kem-lattice's verify build then can't resolve dkg from crates.io
+  # yet). Publish it after tier-4b completes, same reason as raccoon.
+  publish-rust-tier-4b-kem-lattice:
+    name: Publish lib-q-threshold-kem-lattice
+    needs: [publish-rust-tier-4b-new-primitives]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # One-entry matrix on purpose: the `- package: "..."` form is the only one that satisfies BOTH
+    # cd.yml guards — publish-readiness-pr.sh wants it quoted (`package:\s*"(lib-q...)"`) while
+    # ci-guard-new-crates-and-npm.sh's single-crate regex wants it UNQUOTED. The matrix line matches
+    # the guard's `- package: "..."` regex and the readiness quoted regex at once.
+    strategy:
+      matrix:
+        include:
+          - package: "lib-q-threshold-kem-lattice"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: ./.github/actions/crates-io-auth
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate
+        uses: ./.github/actions/crate-publish
+        with:
+          package: ${{ matrix.package }}
+          token: ${{ steps.crates-io-auth.outputs.token }}
+
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
   publish-rust-tier-5:
     name: Publish Rust (tier 5)
-    needs: [publish-rust-tier-4b-raccoon]
+    needs: [publish-rust-tier-4b-raccoon, publish-rust-tier-4b-kem-lattice]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -914,7 +943,7 @@ jobs:
   # Both have NO workspace dependents, so they publish after zkp. Threaded before tier 17 (umbrella)
   # so a failure here blocks the release (post-release/cd-summary gate on tier 17).
   publish-rust-tier-16b:
-    name: Publish Rust (tier 16b — mve, transcript)
+    name: Publish Rust (tier 16b — mve, transcript, zk-encryption-proof)
     needs: [publish-rust-tier-16]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -923,6 +952,7 @@ jobs:
         include:
           - package: "lib-q-mve"
           - package: "lib-q-transcript"
+          - package: "lib-q-zk-encryption-proof"
     steps:
       - uses: actions/checkout@v7
       - name: Authenticate with crates.io
@@ -1132,6 +1162,12 @@ jobs:
             package-name: "@lib-q/threshold-raccoon"
             package-description: "PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js"
             package-keywords: "cryptography,post-quantum,threshold,signature,wasm"
+            features: "wasm,std,random"
+            out-dir: "pkg"
+          - working-directory: "lib-q-threshold-kem-lattice"
+            package-name: "@lib-q/threshold-kem-lattice"
+            package-description: "PROVISIONAL PQ lattice threshold KEM (dealerless keygen via lib-q-dkg) for Node.js"
+            package-keywords: "cryptography,post-quantum,threshold,kem,wasm"
             features: "wasm,std,random"
             out-dir: "pkg"
 

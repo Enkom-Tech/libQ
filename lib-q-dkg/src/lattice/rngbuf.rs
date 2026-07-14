@@ -51,6 +51,15 @@ impl<'a, R: Rng> BufRng<'a, R> {
     }
 }
 
+impl<R: Rng> Drop for BufRng<'_, R> {
+    /// Clear the buffered CSPRNG output on drop — the buffer can hold kilobytes of unspent
+    /// entropy that seeded secret samplers.
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.buf);
+        self.pos = CAP;
+    }
+}
+
 impl<R: Rng> TryRng for BufRng<'_, R> {
     type Error = Infallible;
 
