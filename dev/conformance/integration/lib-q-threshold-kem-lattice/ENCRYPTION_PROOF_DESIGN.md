@@ -281,10 +281,14 @@ are folded at *every* `ζ^(l)` (one commitment, evaluated at all points), the pr
 
 This soundness stacks *below* the STARK's own soundness (the AIR constraints prove the folds and the
 mod-`q` reductions were computed correctly). The fold's `2^-148` is the probability a prover with a
-**false** R3 passes; the STARK's `~2^99–2^116` provable / `~2^128+` conjectured soundness (per the
-BabyBear/Poseidon note and `membership_config`) is the probability a prover cheats the arithmetic.
-The proof's overall soundness is `min` of these — the honest paper claim is the **provable** STARK
-figure, not 128 (see the Arm-B soundness memo).
+**false** R3 passes; the STARK's soundness (governed by *this proof's own* production FRI params —
+`log_blowup = 2`, `num_queries = 64`, `pow = 16` ⇒ ≈128-bit conjectured, with a lower unique-decoding
+provable bound) is the probability a prover cheats the arithmetic. (Note: this is the encryption
+proof's own config, **not** the membership arm's — the membership Arm B was separately upgraded to a
+quintic `F_{p⁵}` challenge field and now reaches ≈128-bit-PQ conjectured *and* provable-Johnson; see
+`lib-q-zkp/docs/membership-arm-b-soundness-params.md`.) The proof's overall soundness is `min` of
+these — the honest paper claim is the **provable** STARK figure at these params, not the conjectured
+128.
 
 ### 4.3 Non-native `Z_q` MAC gadget
 

@@ -191,8 +191,12 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
     extension GF(p⁶) (~186 bits). Reaches **128-bit post-quantum *only at the PCS/commitment layer***
     (binding on the SHAKE256 Merkle commitment). The Poseidon-over-GF(p²) round-count soundness
     (obligation **O1**) is **STILL UNVERIFIED** — this is **not** a complete soundness proof.
-  - [ ] **Arm B** — BabyBear base field (`lib-q-stark-baby-bear`, `p = 2³¹ − 2²⁷ + 1`) + Poseidon2.
-    Soundness is **~116-bit conjectured / ~99-bit provable — NOT 128-bit.**
+  - [ ] **Arm B** — BabyBear base field (`lib-q-stark-baby-bear`, `p = 2³¹ − 2²⁷ + 1`) + Poseidon2,
+    with a **quintic `F_{p⁵}` challenge field** (≈155 bits). Reaches **128-bit post-quantum *only at
+    the PCS/commitment layer*** (binding on the SHAKE256 Merkle commitment; conjectured and
+    provable-Johnson query bounds both clear 128) — upgraded from the original degree-4 config that
+    capped at ~116-bit conjectured / ~99-bit provable. The Poseidon2 round-count soundness (obligations
+    **O1/O4**) is **STILL UNVERIFIED** — this is **not** a complete soundness proof.
   - [ ] Human cryptographer sign-off (ADR-113 freeze gate; not peer-reviewed — ePrint submission desk-rejected, self-published preprint instead)
 - [ ] **Verifiable rekey / multi-recipient verifiable encryption** (`lib-q-mve`, crates.io-only)
   - [x] mVE-v0 construction implemented: a producer distributes a fresh group key `K` to many

@@ -15,9 +15,13 @@ This field is the **base field for the Arm B membership STARK** (BabyBear + Pose
 > **Status: RED / experimental.** The Arm B membership construction is **not** proven sound, not
 > audited, and not production-ready — it is pending human cryptographer sign-off (ADR-113 freeze
 > gate). It is **not peer-reviewed**: an IACR ePrint submission was desk-rejected; a self-published
-> preprint + open-source reproduction artifact accompany it. Arm B reaches **~116-bit conjectured / ~99-bit provable**
-> soundness — **not** 128-bit. This crate is the field layer only; the soundness caveats live with
-> the proof system. Use it without hiding residual implementation risk.
+> preprint + open-source reproduction artifact accompany it. With the **quintic `F_{p⁵}` challenge
+> field** (this crate's `BinomialExtensionData<5>`), Arm B reaches **128-bit post-quantum at the
+> PCS/commitment layer** (binding on the SHAKE256 Merkle commitment) — the field layer this crate
+> provides is what lifted it there from the original degree-4 config (~116-bit conjectured / ~99-bit
+> provable). The AIR/Poseidon2 round-count soundness obligations remain unverified, so this is not a
+> complete soundness proof. This crate is the field layer only; the soundness caveats live with the
+> proof system. Use it without hiding residual implementation risk.
 
 ## What it provides
 
