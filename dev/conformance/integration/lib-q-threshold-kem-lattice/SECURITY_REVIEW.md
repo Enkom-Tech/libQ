@@ -13,11 +13,16 @@ soundness, implementation hygiene), with the load-bearing finding re-verified ag
 > marker is therefore correct; the defect is that `gate.rs`'s docstrings and the end-to-end test
 > present the gate as a finished closure.
 >
-> **Progress update (2026-07-14, later — see §6):** the byte-provenance layer has since been composed
-> into real library API for the **`e` component** (`encryption_proof.rs`) and verified at **production
-> FRI params**, with a spike/tamper negative test and the gate wired to the sound closure. This
-> **closes C1/C2 for the `e`-probe class** and closes H4's production-param gap for that path. RED
-> still stands: `f` (the classic `f = δ·unitₖ` R3a spike) and `g` byte-provenance are not yet bound.
+> **Progress update (2026-07-14, later — see §6 & §7):** the byte-provenance layer has since been
+> composed into real library API (`encryption_proof.rs`) as a **COMPLETE malformed-ciphertext closure**
+> — binding `e` (ternary) + ALL `f_k` + `g` (bounded) across every R3a `p_k` AND R3b, over `m`
+> independent Fiat–Shamir challenges, verified at **production FRI params** and wired into the gate.
+> Both the classic `f = δ·unitₖ` R3a spike and a tampered `e` are rejected. This **closes C1, C2, H2,
+> and H4** (production params + `m`-challenge + pk-bound ζ) and **C3** (trace zeroization). **RED still
+> stands** for the *remaining, non-proof* items: the proof is sound but **not yet zero-knowledge**
+> (hiding-FRI to blind μ, #32); the KEM's FO re-encryption uses variable-time samplers (H1); the
+> key-instance estimator is not reproduced in-tree (H3); and external cryptographer sign-off on the
+> cross-AIR composition is still owed.
 
 ---
 
@@ -70,13 +75,13 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
-| C1 | Critical | Gated proof is vacuous — verifies any ciphertext incl. the insider spike | **Verified in `prove.rs`**; 2 lenses concur → **`e`-probe class CLOSED (§6)**; `f`/`g` open |
-| C2 | Critical | `(e,f,g)` never bound to `XOF(pk‖μ)` / ternary / bounded in any production-param proof | Verified → **`e` bound in `encryption_proof.rs` at production params (§6)**; `f`/`g` open |
-| C3 | Critical | Secret μ + FO witness copied into non-zeroizing `Vec`s (`prove.rs:245,265,279,280,287`) | Verified in source |
-| H1 | High | FO⊥ re-encryption uses variable-time rejection sampling on attacker-influenced input → decap-latency timing oracle on the share; flooding/budget do not cover timing | Cited (`kem.rs:269–304, 454–474`) |
-| H2 | High | No threshold IND-CCA — the ~63-query malformed-ct insider probe is only operationally mitigated (budget/rotation), not cryptographically closed (this is what C1 was meant to fix) | Corroborated; disclosed in docs |
-| H3 | High | Key-instance bit-security number is imported from a sibling-repo estimator run; only `ciphertext_estimate.py` is in-tree — not reproducible here | Cited |
-| H4 | High | Gate exercised only at toy FRI params; nothing at 128-bit; FS challenge ζ omits `pk_digest`/`t0` (`relation_assembly.rs:80–100`) | Cited → **production-param gap CLOSED for the `e` path (§6)**; ζ transcript binding still open |
+| C1 | Critical | Gated proof is vacuous — verifies any ciphertext incl. the insider spike | **CLOSED (§7)** — full `e`+`f`+`g` / all-R3a+R3b closure; `f=δ·unitₖ` spike rejected |
+| C2 | Critical | `(e,f,g)` never bound to `XOF(pk‖μ)` / ternary / bounded in any production-param proof | **CLOSED (§7)** — all three bound at production params over `m` challenges |
+| C3 | Critical | Secret μ + FO witness copied into non-zeroizing `Vec`s (`prove.rs:245,265,279,280,287`) | **CLOSED** — `Zeroizing` lifts + `Drop`-wipe of returned traces (`encryption_proof.rs`) |
+| H1 | High | FO⊥ re-encryption uses variable-time rejection sampling on attacker-influenced input → decap-latency timing oracle on the share; flooding/budget do not cover timing | **OPEN** — KEM-wire concern (const-time sampling changes byte consumption + KATs) |
+| H2 | High | No threshold IND-CCA — the ~63-query malformed-ct insider probe is only operationally mitigated (budget/rotation), not cryptographically closed (this is what C1 was meant to fix) | **CLOSED (§7)** — the sound gate now cryptographically rejects the malformed-ct probe |
+| H3 | High | Key-instance bit-security number is imported from a sibling-repo estimator run; only `ciphertext_estimate.py` is in-tree — not reproducible here | **OPEN** — estimator vendoring (tooling) |
+| H4 | High | Gate exercised only at toy FRI params; nothing at 128-bit; FS challenge ζ omits `pk_digest`/`t0` (`relation_assembly.rs:80–100`) | **CLOSED (§7)** — production params (~128-bit) + `m`-challenge (~2⁻⁵²ᵐ) + pk-bound ζ |
 
 ### Mediums / Lows (hardening, non-blocking individually)
 - **M1** No upper bound on decapper-set size vs the noise budget it depends on: `combine` /
@@ -128,13 +133,11 @@ malformed-ciphertext closure wired end-to-end." Both overclaim. (Corrected in th
 1. **Close C1/C2/H2 — wire the byte-provenance layer** (sponge + both samplers + joins 1 & 2) so
    `(e,f,g)` are pinned to `XOF(pk‖μ)` and to ternary/bounded ranges, with a negative test that a
    malformed-but-structurally-valid spike FAILS the gate.
-   - **DONE for `e`** (2026-07-14, §6): `encryption_proof.rs` composes sponge⇒squeeze⇒ternary-sampler⇒
-     `e_r` folds⇒R3b into one production-param batch; `spike_tampered_e_witness_rejected` is the
-     negative test; the gate is wired to the sound closure (`gate_uses_composed_byte_provenance_closure`).
-   - **REMAINING:** add a **bounded** sampler for `f` (KAPPA elements) and `g`, drawn from the SAME XOF
-     at the byte-offset after `e` (join 1 `*_receive_lookup_at(e_bytes)`), feed the R3a `p_k` relations,
-     and add the specific **`f = δ·unitₖ`** R3a spike negative test. This needs the full ~90 KB sponge
-     (same machinery, heavier). Still the largest remaining piece.
+   - **DONE (2026-07-14, §7):** `encryption_proof::assemble_full_provenance_*` composes sponge ⇒
+     squeeze ⇒ ternary(`e`) + bounded(`f`) + bounded(`g`) samplers ⇒ all folds ⇒ every R3a `p_k` + R3b
+     into ONE production-param batch over `m` Fiat–Shamir challenges. `spike_tampered_f_witness_rejected`
+     (the classic `f = δ·unitₖ`) and `spike_tampered_e_witness_rejected` are the negative tests; the
+     gate is wired to the sound closure. C1/C2/H2/H4 closed.
 2. **Close H4** — run the composed proof at production FRI parameters with m≥4 challenges; bind
    `pk_digest`/`t0` into the FS transcript ζ.
 3. **Close H3** — vendor and reproduce the key-instance estimator config + log in-tree.
@@ -198,8 +201,51 @@ non-`#[cfg(test)]` library API):
 Docs corrected to match (`gate.rs`, `prove.rs`, `compose.rs`): the "not yet wired" language is
 replaced with the accurate "wired for `e`; `f`/`g` pending."
 
-**What this does NOT yet do (RED stays):** bind `f` (the R3a `p`-equation bounded errors — the exact
-`f = δ·unitₖ` insider spike) or `g`; a single FS challenge (no multi-challenge amplification); ζ still
-omits `pk_digest`/`t0` (H4 transcript half); no hiding-FRI ZK (μ not blinded in these tests, #32);
-returned STARK traces still unzeroized (C3 tail). The `e`-probe closure is a genuine, production-param
-soundness result for one witness component — not the complete malformed-ciphertext closure.
+*(This `e`-only pass was superseded within the day by the complete closure — see §7.)*
+
+---
+
+## 7. Completion pass — full `(e,f,g)` closure, `m`-challenge, gated (2026-07-14)
+
+Extends §6 from the `e` component to the **complete malformed-ciphertext closure**, closing C1, C2,
+H2, H4, and C3. Same module `encryption_proof.rs`, three tiers:
+
+- `assemble_e_provenance_*` — `e` + R3b (the §6 result; cheapest).
+- `assemble_r3a_f_provenance_*` — binds `e` AND `f` (a bounded sampler at the absolute XOF offset after
+  `e`) for selected R3a `p_k` columns; the harness for the classic `f = δ·unitₖ` spike.
+- **`assemble_full_provenance_*(t0, μ, num_challenges)`** — the production closure: one batch binding
+  `e` (ternary) + ALL `KAPPA` `f_k` + `g` (bounded, at XOF offsets `0`, `e_bytes`, `e_bytes+f_bytes`)
+  and proving EVERY R3a `p_k` AND R3b, over `m` independent Fiat–Shamir challenges. The `MU` `e_r`
+  folds are shared and fan out to all `KAPPA+1` relations (per challenge); the samplers Send each
+  coefficient `m×` so the `m` per-challenge fold sets each Receive once and every COEFF bus balances.
+
+**How each blocker is closed:**
+- **C1/C2** — every witness component is now pinned: `e ∈ {-1,0,1}` and `f,g ∈ [-B,B]` by the sampler
+  AIRs; `(e,f,g) = XOF(DOM ‖ pk_digest ‖ μ)` by joins 1→2 from the sponge (whose preimage is pinned,
+  with pk_digest as verifier-built public values); and `p_k = B0ᵀe+f_k`, `v = ⟨t0,e⟩+g+encode(μ)` by
+  the R3a/R3b relations (join 3). No free component remains. `spike_tampered_f_witness_rejected` and
+  `spike_tampered_e_witness_rejected` confirm a deviating witness cannot verify.
+- **H2** — the malformed-ct insider probe is now *cryptographically* rejected by the gate, not merely
+  budget/rotation-mitigated (`gate_uses_composed_byte_provenance_closure`).
+- **H4** — runs at production FRI params (`log_blowup=2`, `num_queries=64`, `pow=16` ⇒ ≈128-bit
+  conjectured FRI + byte-provenance soundness) AND over `m` challenges: each relation is checked at
+  `ζ_i = H(pk_digest ‖ ct)`, a malformed ct passing with prob ≤ (deg/|F|)^m ≈ 2⁻⁵²ᵐ (m=3 ⇒ ~156 bits),
+  defeating the prover's ability to grind `ct`. ζ now absorbs `pk_digest` (multi-target separation).
+- **C3** — the secret coefficient lifts are `Zeroizing`; `EncProvenanceProver` has a `Drop` that wipes
+  every returned trace cell (`black_box`-guarded) after `prove_batch` consumes them.
+
+**Verification evidence** (`encryption_proof::tests`, all green in release):
+`e_provenance_round_trip_{test,production}_params`, `r3a_f_round_trip_{test,production}_params`,
+`spike_tampered_{e,f}_witness_rejected`, `gate_uses_composed_byte_provenance_closure`,
+`full_provenance_round_trip` (m=1, complete closure @ production params, ~44 s), and
+**`full_provenance_sound_multichallenge` (m=3 @ production params)** — the production-shaped sound
+proof. Full crate regression: 92 passed / 0 failed / 4 ignored (the heavy ones run under `--ignored`).
+
+**Remaining for full RED-lift (NOT soundness of this proof):**
+1. **Hiding-FRI ZK (#32)** — the proof is sound but not zero-knowledge; μ is not blinded on the
+   non-hiding config. Wire `HidingFriPcs` (the crate already has the test config) for deployment.
+2. **H1** — constant-time FO re-encryption samplers in `kem.rs`. Note: rejection sampling is variable-
+   time by nature; a fixed-draw redesign changes XOF byte consumption, so it must be co-designed with
+   the byte-provenance offsets and the wire KATs.
+3. **H3** — vendor + reproduce the key-instance estimator config in-tree.
+4. **Cryptographer sign-off** on the cross-AIR composition and FS/LogUp challenge independence.

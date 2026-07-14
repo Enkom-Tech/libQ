@@ -22,11 +22,12 @@
 //! ciphertext at the Fiat-Shamir challenges `ζ = SHAKE256(DOM_ZETA ‖ ct)`. **Composition obligation:**
 //! binding those `(e, f, g)` to be the deterministic FO expansion of `μ` (so a *malformed* ciphertext
 //! is rejected) is the **byte-provenance** layer (join 1 sponge⇒squeeze⇒samplers + join 2
-//! samplers⇒folds). For the `e` component this is now DONE and lifted into real API —
-//! [`crate::encryption_proof`] composes sponge⇒squeeze⇒ternary-sampler⇒`e_r` folds⇒R3b into one batch
-//! at production FRI params (superseding this relation-only path for the `e`-probe class; `f`/`g`
-//! byte-provenance binding remains). `ζ` is verifier-recomputed from the ciphertext — never
-//! prover-supplied.
+//! samplers⇒folds). This is now DONE and lifted into real API — [`crate::encryption_proof`] composes
+//! the sponge + squeeze + ternary/bounded samplers + all folds into one batch that binds `e`, all `f`,
+//! and `g`, over `m` Fiat–Shamir challenges at production FRI params (the COMPLETE closure). **This
+//! relation-only path is therefore superseded** for malformed-ciphertext gating and is retained only
+//! as the lightweight linear-relation building block. `ζ` is verifier-recomputed from the ciphertext —
+//! never prover-supplied.
 //!
 //! Per-relation instances get **disjoint fold-E bus bases** so their joins don't alias (each relation
 //! `j` uses `[base_j, base_j + 4·L)` with `base_j = j·RELATION_BASE_SPAN`); each fold Sends to exactly

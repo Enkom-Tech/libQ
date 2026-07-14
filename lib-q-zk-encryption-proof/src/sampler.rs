@@ -866,6 +866,19 @@ pub fn bounded_receive_lookup_at(offset: u64) -> Vec<Lookup<ConfigVal>> {
 /// [`crate::zq::HornerFoldAir`] fold's `w < Q`, back-propagated through the multiset equality. Four
 /// single-tuple lookups (degree-3 each), mirroring the ternary and sponge-limb Sends.
 pub fn bounded_coeff_send_lookups_at(bus: &str, base: u64) -> Vec<Lookup<ConfigVal>> {
+    bounded_coeff_send_lookups_col(bus, base, 0)
+}
+
+/// As [`bounded_coeff_send_lookups_at`], but placing the four Send lookups' aux columns at
+/// `col_base..col_base + 4` instead of `0..4`. Needed when the bounded sampler ALSO carries its eight
+/// byte-Receive lookups (join 1) on aux columns `0..8` in the same instance: the coeff-Send must then
+/// use `col_base = 8` to avoid an aux-column collision (the composition of join 1 + join 2 on one
+/// bounded sampler — the `f`/`g` analogue of the ternary sampler's `col_base = 1`).
+pub fn bounded_coeff_send_lookups_col(
+    bus: &str,
+    base: u64,
+    col_base: usize,
+) -> Vec<Lookup<ConfigVal>> {
     let pos_base = sconst(base) + sconst(4) * mcol(W_CIDX);
     (0..4)
         .map(|j| {
@@ -876,7 +889,7 @@ pub fn bounded_coeff_send_lookups_at(bus: &str, base: u64) -> Vec<Lookup<ConfigV
                     mcol(W_LIFT + j),
                 ])]),
                 Vec::from([Direction::Send.multiplicity(mcol(W_ACCEPTED))]),
-                Vec::from([j]),
+                Vec::from([col_base + j]),
             )
         })
         .collect()
