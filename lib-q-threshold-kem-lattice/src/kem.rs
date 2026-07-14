@@ -61,7 +61,10 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
-use zeroize::Zeroize;
+use zeroize::{
+    Zeroize,
+    Zeroizing,
+};
 
 use crate::error::ThresholdKemError;
 
@@ -273,47 +276,135 @@ fn absorb_poly(h: &mut lib_q_sha3::Shake256, p: &Rq) {
 // Integer-only deterministic samplers (drive the FO re-encryption)
 // ---------------------------------------------------------------------------
 
-/// Ternary ring element from the XOF (coefficients i.i.d. uniform in `{-1, 0, +1}`, 2-bit
-/// rejection — same distribution as `lib_q_dkg`'s `sample_ternary_poly`, but XOF-driven).
-fn xof_ternary_poly(rd: &mut impl XofReader) -> Rq {
-    let mut coeffs = [0i64; N];
-    for c in &mut coeffs {
-        let v = loop {
-            let mut b = [0u8; 1];
-            rd.read(&mut b);
-            let two = b[0] & 0b11;
-            if two < 3 {
-                break i64::from(two) - 1;
-            }
-        };
-        *c = v.rem_euclid(Q);
-    }
-    Rq::from_coeffs(coeffs)
+// ---------------------------------------------------------------------------
+// Constant-time rejection sampling (H1)
+// ---------------------------------------------------------------------------
+//
+// The FO-derived samplers below draw a **fixed** byte budget, process every attempt with no
+// early exit and no data-dependent branch, and constant-time-compact the first `n` accepted
+// coefficients. Neither the number of XOF bytes consumed nor the accept/reject pattern — both
+// deterministic functions of the secret `μ` — is observable through timing or memory-access side
+// channels. The emitted coefficients are **bit-identical** to unbounded rejection sampling (they
+// are the first `n` accepts of the same byte stream); only the consumed-byte boundary becomes
+// fixed. That boundary move shifts where `f`/`g` begin in the XOF stream, so it is a `v1 → v2`
+// wire change (regenerate `tests/data/*_v1.bin`; see `tests/kat.rs`). The distribution is exactly
+// the analyzed one (uniform ternary / uniform `[-B, B]`), so the core-SVP analysis is unchanged.
+//
+// Budgets are sized so an underflow (fewer than `n` accepts in the budget) — which would degrade
+// to a zero-padded tail — occurs with probability `< 2^-128`, below the scheme's other failure
+// terms; a `debug_assert` catches it in tests.
+
+/// Fixed attempt budget for the whole ternary secret `e` (`MU·N` coefficients, 1 byte/attempt).
+/// Accept probability 3/4 per attempt; `P(fewer than MU·N=6144 accepts in 9216 attempts) < 2^-140`
+/// (Chernoff), and 9216 pads the proof's ternary trace to 16384 rows. **Public** so the ZK
+/// encryption-proof composition can slice `e`'s XOF sub-stream at the identical boundary.
+pub const E_TERNARY_ATTEMPTS: usize = 9216;
+/// Fixed attempt budget per bounded ring element (`N` coefficients, 8 bytes/attempt). The bounded
+/// rejection probability is `≈ 2^-43`, so this 128-coefficient slack drives underflow far below
+/// `2^-128`, and 1152 pads the proof's bounded trace to 2048 rows. **Public** for the same reason as
+/// [`E_TERNARY_ATTEMPTS`] (each `f_k`/`g` sub-stream is `BOUNDED_ATTEMPTS · 8` bytes wide).
+pub const BOUNDED_ATTEMPTS: usize = 1152;
+
+/// Rejection-sampling span for the bounded error `[-B, B]`: `2·B + 1`. A **compile-time constant**,
+/// so `r % SPAN` lowers to a branch-free multiply–shift (constant-time), unlike the old runtime
+/// `bound` parameter.
+const SPAN: u64 = 2 * (ENC_ERROR_BOUND as u64) + 1;
+/// Unbiased acceptance region: a draw `r` is accepted iff `r < ZONE` (removes modulo bias).
+const ZONE: u64 = u64::MAX - (u64::MAX % SPAN);
+
+/// Constant-time equality mask: all-ones (`u64::MAX`) iff `a == b`, else `0`.
+#[inline]
+fn ct_eq_mask(a: u64, b: u64) -> u64 {
+    let d = a ^ b;
+    // (d | -d) has its top bit set iff d != 0; shift to bit 0, then `x - 1` flips the sense.
+    let nz = ((d | d.wrapping_neg()) >> 63) & 1; // 1 iff d != 0
+    nz.wrapping_sub(1) // d != 0 -> 0 ; d == 0 -> all-ones
 }
 
-/// Ring element with coefficients i.i.d. uniform in `[-bound, bound]`, by unbiased rejection over
-/// `[0, 2·bound + 1)` from the XOF.
-fn xof_bounded_poly(rd: &mut impl XofReader, bound: i64) -> Rq {
-    debug_assert!(bound > 0);
-    let span = 2 * (bound as u64) + 1;
-    let zone = u64::MAX - (u64::MAX % span);
-    let mut coeffs = [0i64; N];
-    for c in &mut coeffs {
-        let v = loop {
-            let mut b = [0u8; 8];
-            rd.read(&mut b);
-            let r = u64::from_le_bytes(b);
-            if r < zone {
-                break (r % span) as i64 - bound;
-            }
-        };
-        *c = v.rem_euclid(Q);
-    }
-    Rq::from_coeffs(coeffs)
+/// Constant-time unsigned less-than mask: all-ones (`u64::MAX`) iff `a < b`, else `0`. Works over the
+/// **full** `u64` range (`r` and `ZONE` reach `≈ 2^64`) by comparing 32-bit halves — each half is
+/// `< 2^32`, so `wrapping_sub`'s bit 63 is exactly the half's borrow. No branch, no secret index.
+#[inline]
+fn ct_lt_mask(a: u64, b: u64) -> u64 {
+    // 1 iff x < y, for x, y < 2^32.
+    let lt32 = |x: u64, y: u64| (x.wrapping_sub(y) >> 63) & 1;
+    let (ah, al) = (a >> 32, a & 0xFFFF_FFFF);
+    let (bh, bl) = (b >> 32, b & 0xFFFF_FFFF);
+    let hi_eq = ct_eq_mask(ah, bh) & 1; // 1 iff high halves equal
+    let bit = lt32(ah, bh) | (hi_eq & lt32(al, bl));
+    bit.wrapping_neg()
 }
 
-/// Ring element with coefficients i.i.d. uniform in `[-bound, bound]` from an RNG (the flooding
-/// noise in [`crate::threshold::partial_decap_masked`] — fresh randomness, not FO-derived).
+/// Constant-time select: `x` where `mask` is all-ones, `y` where `mask` is `0`.
+#[inline]
+fn ct_select_i64(mask: u64, x: i64, y: i64) -> i64 {
+    (((x as u64) & mask) | ((y as u64) & !mask)) as i64
+}
+
+/// Constant-time stable compaction: write the first `out.len()` accepted `vals` (in stream order,
+/// `accs[k]` is the all-ones/`0` accept mask of attempt `k`) into `out`. `O(out.len() · vals.len())`
+/// selects; the running write index is never used to index memory (only compared via [`ct_eq_mask`]),
+/// so there is no secret-dependent branch or memory access. If fewer than `out.len()` attempts are
+/// accepted (probability `< 2^-128` at the chosen budgets), the tail keeps its initial value.
+fn ct_compact(vals: &[i64], accs: &[u64], out: &mut [i64]) {
+    debug_assert_eq!(vals.len(), accs.len());
+    let n = out.len() as u64;
+    let mut w: u64 = 0;
+    for k in 0..vals.len() {
+        let do_write = accs[k] & ct_lt_mask(w, n); // accepted AND not yet full
+        for (i, slot) in out.iter_mut().enumerate() {
+            let sel = do_write & ct_eq_mask(i as u64, w);
+            *slot = ct_select_i64(sel, vals[k], *slot);
+        }
+        w = w.wrapping_add(do_write & 1);
+    }
+    debug_assert_eq!(w, n, "constant-time sampler budget underflow (should be < 2^-128)");
+}
+
+/// The ternary secret `e ∈ R_q^MU` (`MU·N` coefficients i.i.d. uniform in `{-1, 0, +1}`), drawn
+/// from the XOF in **constant time** (see the module note). Fixed budget [`E_TERNARY_ATTEMPTS`],
+/// 2-bit rejection (`two = b & 0b11`, accept iff `two < 3`, value `two − 1`), branch-free.
+fn xof_ternary_e(rd: &mut impl XofReader) -> Vec<Rq> {
+    let mut buf = Zeroizing::new(alloc::vec![0u8; E_TERNARY_ATTEMPTS]);
+    rd.read(&mut buf);
+    let mut vals = Zeroizing::new(alloc::vec![0i64; E_TERNARY_ATTEMPTS]);
+    let mut accs = Zeroizing::new(alloc::vec![0u64; E_TERNARY_ATTEMPTS]);
+    for (k, &b) in buf.iter().enumerate() {
+        let two = u64::from(b & 0b11);
+        let acc = ct_lt_mask(two, 3); // all-ones iff two < 3
+        vals[k] = ct_select_i64(acc, two as i64 - 1, 0);
+        accs[k] = acc;
+    }
+    let mut flat = Zeroizing::new(alloc::vec![0i64; MU * N]);
+    ct_compact(&vals, &accs, &mut flat);
+    let mut polys = Vec::with_capacity(MU);
+    for r in 0..MU {
+        let mut coeffs = [0i64; N];
+        for (j, c) in coeffs.iter_mut().enumerate() {
+            *c = flat[r * N + j].rem_euclid(Q);
+        }
+        polys.push(Rq::from_coeffs(coeffs));
+    }
+    polys
+}
+
+/// One bounded error ring element (`N` coefficients i.i.d. uniform in `[-B, B]`), drawn from the XOF
+/// in **constant time**: fixed budget [`BOUNDED_ATTEMPTS`], unbiased 64-bit rejection (accept iff
+/// `r < ZONE`, value `(r mod SPAN) − B`), branch-free.
+fn xof_bounded_poly(rd: &mut impl XofReader) -> Rq {
+    let mut buf = Zeroizing::new(alloc::vec![0u8; BOUNDED_ATTEMPTS * 8]);
+    rd.read(&mut buf);
+    let mut coeffs = ct_bounded_from_bytes(&buf);
+    let poly = Rq::from_coeffs(coeffs);
+    coeffs.zeroize();
+    poly
+}
+
+/// Ring element with coefficients i.i.d. uniform in `[-bound, bound]` from an RNG (the flooding noise
+/// in [`crate::threshold::partial_decap_masked`] — **fresh** per-decap randomness at bound `2^40`, not
+/// the FO-derived encryption error). Its randomness is independent of the long-term secret `μ`, so its
+/// rejection timing is not an `μ` side channel (the H1 concern); it keeps the classic rejection loop
+/// with a runtime `bound`.
 pub(crate) fn sample_bounded_poly<R: CryptoRng + Rng>(rng: &mut R, bound: i64) -> Rq {
     debug_assert!(bound > 0);
     let span = 2 * (bound as u64) + 1;
@@ -331,6 +422,30 @@ pub(crate) fn sample_bounded_poly<R: CryptoRng + Rng>(rng: &mut R, bound: i64) -
         *c = v.rem_euclid(Q);
     }
     Rq::from_coeffs(coeffs)
+}
+
+/// Shared constant-time core of the bounded samplers: interpret `buf` as [`BOUNDED_ATTEMPTS`]
+/// little-endian `u64` draws and compact the first `N` accepted centered coefficients (mod `Q`).
+fn ct_bounded_from_bytes(buf: &[u8]) -> [i64; N] {
+    debug_assert_eq!(buf.len(), BOUNDED_ATTEMPTS * 8);
+    let mut vals = Zeroizing::new(alloc::vec![0i64; BOUNDED_ATTEMPTS]);
+    let mut accs = Zeroizing::new(alloc::vec![0u64; BOUNDED_ATTEMPTS]);
+    for k in 0..BOUNDED_ATTEMPTS {
+        let mut b8 = [0u8; 8];
+        b8.copy_from_slice(&buf[k * 8..k * 8 + 8]);
+        let r = u64::from_le_bytes(b8);
+        let acc = ct_lt_mask(r, ZONE); // all-ones iff r < ZONE
+        // `r % SPAN` is constant-time (SPAN is a compile-time constant); masked out on reject.
+        vals[k] = ct_select_i64(acc, (r % SPAN) as i64 - ENC_ERROR_BOUND, 0);
+        accs[k] = acc;
+    }
+    let mut flat = Zeroizing::new(alloc::vec![0i64; N]);
+    ct_compact(&vals, &accs, &mut flat);
+    let mut coeffs = [0i64; N];
+    for (c, f) in coeffs.iter_mut().zip(flat.iter()) {
+        *c = f.rem_euclid(Q);
+    }
+    coeffs
 }
 
 // ---------------------------------------------------------------------------
@@ -361,13 +476,14 @@ fn encapsulate_derand_with_digest(t0: &[Rq], pk_dig: &[u8; 32], mu: &[u8; 32]) -
     let mut rd = h.finalize_xof();
 
     // Ephemeral secret e ∈ R_q^MU (ternary) and errors f ∈ R_q^KAPPA, g ∈ R_q (uniform [-B, B]).
-    // XOF draw order (e, then f per p element, then g) is wire-frozen by the KATs.
-    let mut e: Vec<Rq> = (0..MU).map(|_| xof_ternary_poly(&mut rd)).collect();
+    // XOF draw order (e, then f per p element, then g) is wire-frozen by the KATs. All three are
+    // drawn in constant time (fixed byte budgets, see the sampler note).
+    let mut e: Vec<Rq> = xof_ternary_e(&mut rd);
     let mut e_ntt: Vec<RqNtt> = e.iter().map(to_ntt).collect();
     let b0te = bdlop::b0_transpose_apply_ntt(key, &e_ntt); // KAPPA elements
     let mut p = Vec::with_capacity(KAPPA);
     for pk in &b0te {
-        p.push(ring_add(pk, &xof_bounded_poly(&mut rd, ENC_ERROR_BOUND)));
+        p.push(ring_add(pk, &xof_bounded_poly(&mut rd)));
     }
 
     // ⟨t0, e⟩, reusing e's forward transform.
@@ -376,7 +492,7 @@ fn encapsulate_derand_with_digest(t0: &[Rq], pk_dig: &[u8; 32], mu: &[u8; 32]) -
         ntt_mul_acc(&mut te_acc, &to_ntt(ti), ei);
     }
     let mut te = from_ntt(&te_acc);
-    let g = xof_bounded_poly(&mut rd, ENC_ERROR_BOUND);
+    let g = xof_bounded_poly(&mut rd);
     let v = ring_add(&ring_add(&te, &g), &encode_msg(mu));
 
     e.zeroize();
@@ -426,11 +542,9 @@ pub fn fo_expand_witness(t0: &[Rq], mu: &[u8; 32]) -> FoWitness {
     h.update(&pk_dig);
     h.update(mu);
     let mut rd = h.finalize_xof();
-    let e: Vec<Rq> = (0..MU).map(|_| xof_ternary_poly(&mut rd)).collect();
-    let f: Vec<Rq> = (0..KAPPA)
-        .map(|_| xof_bounded_poly(&mut rd, ENC_ERROR_BOUND))
-        .collect();
-    let g = xof_bounded_poly(&mut rd, ENC_ERROR_BOUND);
+    let e: Vec<Rq> = xof_ternary_e(&mut rd);
+    let f: Vec<Rq> = (0..KAPPA).map(|_| xof_bounded_poly(&mut rd)).collect();
+    let g = xof_bounded_poly(&mut rd);
     FoWitness {
         e,
         f,

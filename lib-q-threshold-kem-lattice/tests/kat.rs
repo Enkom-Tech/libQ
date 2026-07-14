@@ -39,9 +39,14 @@ const SHARE_3: &[u8] = include_bytes!("data/kat_share_3_v1.bin");
 /// primes would have collided on the old blob). Ciphertext/shared-secret pins were unaffected.
 const PIN_PROFILE_DIGEST: &str = "a3a566b1112bf8e9e210357b5bbfcc9cd25189d27125de87b4efc8ddd909044e";
 /// SHA3-256 of the canonical ciphertext bytes for `μ = (0, 1, ..., 31)` under the fixture key.
-const PIN_CT_DIGEST: &str = "48b826f96610f5550aaddbb4ecbf82386bd4ad6ace191146a656c3a1cfab16b6";
-/// The shared secret `KDF(pk, μ, ct)` for that ciphertext.
-const PIN_SHARED_SECRET: &str = "c98a08e280675a7975b81c8b0c36a04f5091117da3f0cb0709cd57423a874158";
+///
+/// Pin history (pre-release, crate never published): `48b826f9…` → `ae12dda3…` on 2026-07-14, when
+/// the FO encryption samplers were made **constant-time** (fixed byte budgets + branch-free rejection
+/// + constant-time compaction; see `kem.rs`). The emitted coefficients are the same distribution, but
+/// the fixed consumption boundary shifts where `f`/`g` begin in the XOF stream, changing the wire.
+const PIN_CT_DIGEST: &str = "ae12dda3d06d1072180aaf5a020309e9cb55d7d48d63873d35a01ea7eb4e12cd";
+/// The shared secret `KDF(pk, μ, ct)` for that ciphertext (updated with the ciphertext, same change).
+const PIN_SHARED_SECRET: &str = "e878c20b6584e65b90ae42a35fb6994508324d28f92de4e2004e029c471fe462";
 
 fn fixture_pk() -> ThresholdKemLatticePublicKey {
     ThresholdKemLatticePublicKey {
