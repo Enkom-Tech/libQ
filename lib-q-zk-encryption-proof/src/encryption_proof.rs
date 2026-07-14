@@ -187,9 +187,7 @@ impl Drop for EncProvenanceProver {
         // dead write (the crate is `no_std`-compatible; this is a best-effort scrub, not a
         // constant-time guarantee — see the H1 note in the security review).
         for t in &mut self.traces {
-            for v in &mut t.values {
-                *v = ConfigVal::ZERO;
-            }
+            t.values.fill(ConfigVal::ZERO);
             core::hint::black_box(t.values.as_ptr());
         }
     }
