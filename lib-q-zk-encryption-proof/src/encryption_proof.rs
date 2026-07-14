@@ -74,6 +74,8 @@ use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_threshold_kem_lattice::kem::{
     Ciphertext,
+    E_TERNARY_ATTEMPTS,
+    bounded_attempts,
     encapsulate_derand,
     encode_msg,
     fo_expand_witness,
@@ -262,9 +264,10 @@ pub fn assemble_e_provenance_prover(
     let w = fo_expand_witness(t0, mu);
     let input = encap_preimage(&w.pk_digest, mu);
 
-    // e-sampler over the real XOF (MU·N ternary coeffs); sponge covers e's consumed bytes.
+    // e-sampler over the real XOF (MU·N ternary coeffs), consuming the KEM's fixed ternary budget so
+    // the proof binds e over the identical byte prefix the constant-time sampler drew; sponge covers it.
     let num_e = MU * N;
-    let bytes = shake256_xof(&input, num_e * 2 + 4096);
+    let bytes = shake256_xof(&input, E_TERNARY_ATTEMPTS);
     let e_sampler = generate_ternary_trace(&bytes, num_e)?;
     let consumed = active_rows(&e_sampler, SAMPLER_WIDTH);
     let sponge = generate_provable_sponge_trace(&input, consumed + RATE_BYTES);
@@ -518,12 +521,17 @@ pub fn assemble_r3a_f_provenance_prover(
     let input = encap_preimage(&w.pk_digest, mu);
     let b0 = key().b0();
 
-    // Samplers over the real XOF: e first (offset 0), then f (offset e_bytes).
+    // Samplers over the real XOF at the KEM's fixed budgets: e (ternary), then the whole flat f block.
+    // The f-sampler processes the KEM's entire `KAPPA·N` flat draw but *emits* only the first
+    // `f_num = f_cols·N` coefficients (`f_0..f_max`); the remaining accepts are drained (byte-Received
+    // for sponge balance, not folded), so a prefix of `f` is bound at a fixed byte boundary.
     let e_num = MU * N;
-    let bytes = shake256_xof(&input, e_num * 2 + f_num * 8 + 8192);
-    let e_sampler = generate_ternary_trace(&bytes, e_num)?;
+    let e_budget = E_TERNARY_ATTEMPTS;
+    let f_budget_bytes = bounded_attempts(KAPPA * N) * 8;
+    let bytes = shake256_xof(&input, e_budget + f_budget_bytes);
+    let e_sampler = generate_ternary_trace(&bytes[..e_budget], e_num)?;
     let e_bytes = active_rows(&e_sampler, SAMPLER_WIDTH);
-    let f_sampler = generate_bounded_trace(&bytes[e_bytes..], f_num)?;
+    let f_sampler = generate_bounded_trace(&bytes[e_budget..e_budget + f_budget_bytes], f_num)?;
     let f_bytes = active_rows(&f_sampler, BOUNDED_WIDTH) * 8;
     let total_consumed = e_bytes + f_bytes;
 
@@ -846,15 +854,24 @@ pub fn assemble_full_provenance_prover(
     let input = encap_preimage(&w.pk_digest, mu);
     let b0 = key().b0();
 
+    // Samplers over the real XOF at the KEM's fixed budgets: e (ternary), the flat f block (all KAPPA
+    // elements), then g — each a contiguous fixed-width byte range matching the constant-time sampler.
     let e_num = MU * N;
     let f_num = KAPPA * N;
     let g_num = N;
-    let bytes = shake256_xof(&input, (e_num + f_num + g_num) * 8 + 16384);
-    let e_sampler = generate_ternary_trace(&bytes, e_num)?;
+    let e_budget = E_TERNARY_ATTEMPTS;
+    let f_budget_bytes = bounded_attempts(f_num) * 8;
+    let g_budget_bytes = bounded_attempts(g_num) * 8;
+    let bytes = shake256_xof(&input, e_budget + f_budget_bytes + g_budget_bytes);
+    let e_sampler = generate_ternary_trace(&bytes[..e_budget], e_num)?;
     let e_bytes = active_rows(&e_sampler, SAMPLER_WIDTH);
-    let f_sampler = generate_bounded_trace(&bytes[e_bytes..], f_num)?;
+    let f_sampler =
+        generate_bounded_trace(&bytes[e_budget..e_budget + f_budget_bytes], f_num)?;
     let f_bytes = active_rows(&f_sampler, BOUNDED_WIDTH) * 8;
-    let g_sampler = generate_bounded_trace(&bytes[e_bytes + f_bytes..], g_num)?;
+    let g_sampler = generate_bounded_trace(
+        &bytes[e_budget + f_budget_bytes..e_budget + f_budget_bytes + g_budget_bytes],
+        g_num,
+    )?;
     let g_bytes = active_rows(&g_sampler, BOUNDED_WIDTH) * 8;
     let total_consumed = e_bytes + f_bytes + g_bytes;
 
