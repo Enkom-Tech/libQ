@@ -41,15 +41,16 @@
 //! Building [`prove_batch`]-with-lookups surfaced (and this crate fixed) a real degree-under-count bug
 //! in `lib-q-plonky-lookup` (the path had no end-to-end test repo-wide).
 //!
-//! **Status of #26 (updated 2026-07-14):** the `e`-provenance ⇒ R3b composition has been **lifted out
-//! of these tests into real library API** — [`crate::encryption_proof::assemble_e_provenance_prover`] /
-//! `..._verifier` build exactly this batch over a REAL ciphertext at N=1024, verified at **production
-//! FRI params** (`encryption_proof::tests`), with the verifier rebuilding every AIR + the pk-binding
-//! public values from `(t0, ct)` — never prover claims — and wired into the tkem partial-decap gate
-//! (#33). **Remaining:** bind `f` (R3a bounded errors, the classic `f = δ·unitₖ` spike) and `g` via a
-//! bounded sampler at the XOF byte-offset after `e`; multi-challenge amplification; and hiding-FRI ZK
-//! (blind μ, #32). The `#[cfg(test)]` assemblies below remain as the mechanism's provenance/regression
-//! suite (join-1/2/3 isolation, fan-out, the `f`/`g` bounded-sampler slices the extension will reuse).
+//! **Status of #26 (COMPLETE, 2026-07-14):** the full byte-provenance composition has been **lifted out
+//! of these tests into real library API** — [`crate::encryption_proof`] builds, over a REAL ciphertext
+//! at N=1024 and verified at **production FRI params**, the complete closure binding `e` (ternary) +
+//! ALL `f_k` + `g` (bounded) across every R3a `p_k` AND R3b, over `m` independent Fiat–Shamir
+//! challenges, with the verifier rebuilding every AIR + the pk-binding public values from `(t0, ct)` —
+//! never prover claims — and wired into the tkem partial-decap gate (#33). The classic `f = δ·unitₖ`
+//! spike and a tampered `e` are both rejected (`encryption_proof::tests`). The `#[cfg(test)]`
+//! assemblies below remain as the mechanism's provenance/regression suite (join-1/2/3 isolation,
+//! fan-out, single-component slices). **Remaining:** hiding-FRI ZK to blind μ (#32) — the proof is
+//! sound but not yet zero-knowledge — plus the KEM-side H1 (constant-time samplers) and H3 (estimator).
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;

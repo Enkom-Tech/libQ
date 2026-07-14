@@ -29,21 +29,27 @@
 //! **Using `verify_relation_layer` alone as the production `proof_verifies` yields a gate that admits
 //! malformed ciphertexts — it blocks nothing of the insider-probe class.**
 //!
-//! ## The sound closure — [`crate::encryption_proof`] (wired for the `e`-probe class)
-//! [`crate::encryption_proof::assemble_e_provenance_prover`] / `..._verifier` compose the sponge +
-//! squeeze-byte + ternary-sampler byte-provenance joins into the SAME `prove_batch` as the R3b
-//! relation, at real (incl. **production**) FRI params. A `proof_verifies` closure that runs that
-//! composed `verify_batch` (rebuilding the verifier from `(t0, ct)` — never prover claims) IS a sound
-//! closure for the `e`-probe class: a witness `e` that is not the ternary `XOF(pk ‖ μ)` expansion
-//! cannot produce a verifying proof (join unbalances / sampler range fails), so the gate refuses it.
-//! See `encryption_proof::tests::gate_uses_composed_byte_provenance_closure` for the exact wiring and
-//! `..::spike_tampered_e_witness_rejected` for the non-vacuousness proof.
+//! ## The sound closure — [`crate::encryption_proof`] (COMPLETE)
+//! [`crate::encryption_proof::assemble_full_provenance_prover`] / `..._verifier` compose the sponge +
+//! squeeze-byte + ternary sampler (`e`) + two bounded samplers (`f`, `g`) byte-provenance joins into
+//! the SAME `prove_batch` as EVERY R3a `p_k` equation AND the R3b `v` equation, over `m` independent
+//! Fiat–Shamir challenges, at **production** FRI params. A `proof_verifies` closure that runs that
+//! composed `verify_batch` (rebuilding the verifier from `(t0, ct)` — never prover claims) is a
+//! **complete** malformed-ciphertext closure: the whole witness `(e, f, g)` is pinned to the genuine
+//! `XOF(pk ‖ μ)` expansion with `e` ternary and `f, g` bounded, so NO component is left free for an
+//! insider to spike. In particular the classic `f = δ·unitₖ` R3a spike is rejected
+//! (`encryption_proof::tests::spike_tampered_f_witness_rejected`), as is a tampered `e`
+//! (`..::spike_tampered_e_witness_rejected`); the gate wiring is exercised end-to-end by
+//! `..::gate_uses_composed_byte_provenance_closure`.
 //!
-//! **Remaining (RED):** that path binds `e` (ternary) + the R3b `v`-equation; it does NOT yet bind
-//! `f` (the R3a `p`-equations' bounded errors) or `g`'s byte-provenance. The classic `f = δ·unitₖ`
-//! R3a spike therefore still needs the `f`-sampler extension (bounded sampler at the XOF byte-offset
-//! after `e`) before the gate is a *complete* malformed-ciphertext closure. Until `f`/`g` are bound,
-//! do not rely on this gate against an `f`/`g`-class malformed ciphertext.
+//! The lighter [`crate::encryption_proof::assemble_e_provenance_prover`] (binds `e` + R3b) and
+//! [`crate::encryption_proof::assemble_r3a_f_provenance_prover`] (binds `e` + `f` for selected R3a
+//! columns) remain as cheaper per-component entry points and as the spike-test harnesses.
+//!
+//! **Remaining (RED — not soundness of THIS proof):** constant-time samplers on the KEM's FO
+//! re-encryption path (H1, a `kem.rs` wire concern), reproducing the key-instance estimator in-tree
+//! (H3), hiding-FRI ZK to blind `μ` (#32, the proof is sound but not yet zero-knowledge), and external
+//! cryptographer sign-off on the cross-AIR composition.
 //!
 //! ## Why the gate lives here (not in `tkem`)
 //! `lib-q-zk-encryption-proof` already depends on `lib-q-threshold-kem-lattice`; putting the gate in
@@ -91,8 +97,9 @@ use crate::error::EncProofError;
 ///
 /// **Do NOT** pass [`crate::prove::verify_relation_layer`] alone as `proof_verifies`: it checks only
 /// the R3 linear relations over free `(e, f, g)`, so a malformed ciphertext passes it and the gate
-/// would admit it. Use the composed byte-provenance closure from [`crate::encryption_proof`] instead
-/// (sound for the `e`-probe class at production params; `f`/`g` binding still pending — see module docs).
+/// would admit it. Use the COMPLETE composed byte-provenance closure from
+/// [`crate::encryption_proof::assemble_full_provenance_verifier`] instead (binds `e`, all `f`, and `g`
+/// across all R3a + R3b at production params over `m` challenges — see module docs).
 pub fn gated_partial_decap_masked<R, V>(
     proof_verifies: V,
     share: &SecretShare,
