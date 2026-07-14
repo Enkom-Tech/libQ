@@ -11,7 +11,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **`lib-q-stark-baby-bear`:** The BabyBear prime field `F_p` (`p = 2^31 - 2^27 + 1`), implemented as a `lib-q-stark-monty31` instance; the base field for the Arm B membership STARK.
 - **`lib-q-zkp` — unlinkable set-membership proof** (Fiat–Shamir domain `libq.zkfri.membership.v0`), in two arms:
   - **Arm A:** value field `Complex<Mersenne31> = GF(p^2)`, FRI challenge field a degree-3 extension `GF(p^6)` (~186 bits). Reaches **128-bit post-quantum** *only at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment); the Poseidon-over-`GF(p^2)` round-count soundness obligation (O1) is **still unverified**, so this is not a complete soundness proof.
-  - **Arm B:** BabyBear base field + Poseidon2. Conjectured **~116-bit** / provable **~99-bit** soundness — **NOT 128-bit**.
+  - **Arm B:** BabyBear base field + Poseidon2, with a **quintic `F_{p^5}` challenge field** (≈155 bits). Reaches **128-bit post-quantum** *at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment; conjectured and provable-Johnson query bounds both clear 128) — upgraded from the original degree-4 config, which capped at ~116-bit conjectured / ~99-bit provable. The AIR/Poseidon2 round-count soundness obligations (O1/O4) remain **unverified**, so this is not a complete soundness proof.
   - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (ADR-113 freeze gate). Not peer-reviewed: an IACR ePrint submission was desk-rejected; a self-published preprint + open-source reproduction artifact accompany it for review.
 
 ### Changed
