@@ -1,20 +1,26 @@
 //! Ternary rejection-sampling AIR (design §5, R2 for the `e` component).
 //!
 //! Proves that a stream of ternary coefficients `∈ {-1, 0, +1}` is the **exact** 2-bit rejection
-//! sampling of a byte stream, matching `lib-q-threshold-kem-lattice::kem::xof_ternary_poly`
-//! byte-for-byte: read one byte, `two = byte & 0b11`; if `two < 3` emit `two − 1`, else reject and
-//! read the next byte.
+//! sampling of a byte stream, matching the constant-time `lib-q-threshold-kem-lattice::kem` ternary
+//! sampler byte-for-byte: read one byte, `two = byte & 0b11`; if `two < 3` the byte is *acceptable*
+//! (coefficient `two − 1`), else it is rejected and the next byte is read.
 //!
 //! Arithmetic is native `Mersenne31` — ternary coefficients are `{-1, 0, 1}` (the `mod q` lift is
-//! deferred to `LatticeCheckAir`). Two properties are load-bearing and are enforced by *explicit*
+//! deferred to `LatticeCheckAir`). Three properties are load-bearing and are enforced by *explicit*
 //! constraints, not by the (later) LogUp join to the sponge:
 //! - **Forced accept/reject:** on every active row `accepted = active · (1 − bit0·bit1)`, so a
 //!   prover cannot skip a valid byte or accept a rejected one.
+//! - **Emission quota (fixed-budget constant-time sampler):** the KEM draws a *fixed* byte budget and
+//!   compacts the first `num_coeffs` accepts, draining the rest. The trace mirrors this: `still`
+//!   (monotone 1→0) marks the emitting prefix, `emit = accepted · still` fires on exactly the first
+//!   `num_coeffs` accepts (pinned by `Σ emit = num_coeffs`), and only `emit` feeds the coefficient
+//!   bus. Every active row — emitted *or drained* — still Receives its consumed byte, so the sponge
+//!   join stays balanced over the whole fixed budget.
 //! - **Ordered consumption:** `stream_pos` is a monotone counter (`+active` per row); LogUp multiset
 //!   equality alone does not order the stream (design §5.1).
 //!
 //! Row = one byte-read attempt. Padding rows (`active = 0`) freeze the counters so the trace height
-//! is a power of two; the coefficient count is pinned to the public value `num_coeffs`.
+//! is a power of two; the emitted coefficient count is pinned to the public value `num_coeffs`.
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
@@ -59,11 +65,13 @@ const C_STREAM_POS: usize = 1; // absolute byte-stream position consumed at this
 const C_COEFF_IDX: usize = 2; // running count of coefficients emitted so far
 const C_BYTE: usize = 3; // the consumed byte
 const C_BIT0: usize = 4; // bits 0..8 occupy columns 4..12
-const C_ACCEPTED: usize = 12; // 1 = this attempt emitted a coefficient
-const C_COEFF_VAL: usize = 13; // the emitted signed coefficient (-1/0/1), else 0
+const C_ACCEPTED: usize = 12; // 1 = this attempt's byte is acceptable (two < 3)
+const C_COEFF_VAL: usize = 13; // the accepted signed coefficient (-1/0/1), else 0
+const C_STILL: usize = 14; // 1 while fewer than num_coeffs coeffs have been emitted (monotone 1→0)
+const C_EMIT: usize = 15; // 1 = this row emits a coefficient (= accepted · still); first N accepts only
 
 /// Trace width of [`TernarySamplerAir`].
-pub const SAMPLER_WIDTH: usize = 14;
+pub const SAMPLER_WIDTH: usize = 16;
 
 /// AIR proving `num_coeffs` ternary coefficients are the exact 2-bit rejection sampling of a byte
 /// stream, consumed in order. `num_coeffs` is bound as the single public value.
@@ -92,15 +100,21 @@ impl<AB: AirBuilder> Air<AB> for TernarySamplerAir {
             bits,
             accepted,
             coeff_val,
+            still,
+            emit,
             stream_pos,
             coeff_idx,
             n_active,
+            n_still,
             n_stream_pos,
             n_coeff_idx,
         ): (
             AB::Expr,
             AB::Expr,
             [AB::Expr; 8],
+            AB::Expr,
+            AB::Expr,
+            AB::Expr,
             AB::Expr,
             AB::Expr,
             AB::Expr,
@@ -118,9 +132,12 @@ impl<AB: AirBuilder> Air<AB> for TernarySamplerAir {
                 array::from_fn(|i| local[C_BIT0 + i].into()),
                 local[C_ACCEPTED].into(),
                 local[C_COEFF_VAL].into(),
+                local[C_STILL].into(),
+                local[C_EMIT].into(),
                 local[C_STREAM_POS].into(),
                 local[C_COEFF_IDX].into(),
                 next[C_ACTIVE].into(),
+                next[C_STILL].into(),
                 next[C_STREAM_POS].into(),
                 next[C_COEFF_IDX].into(),
             )
@@ -145,7 +162,10 @@ impl<AB: AirBuilder> Air<AB> for TernarySamplerAir {
         builder.assert_zero((AB::Expr::ONE - active.clone()) * byte);
 
         // accepted = active · (1 − bit0·bit1). `bit0·bit1 = 1` iff `two == 3` (the rejection case),
-        // so a valid byte is always accepted and a rejected byte never is.
+        // so a valid byte is always accepted and a rejected byte never is. NOTE: with the fixed-budget
+        // constant-time sampler, MORE than `num_coeffs` bytes may be acceptable; `accepted` marks every
+        // such byte, but only the first `num_coeffs` are *emitted* (see `emit` below). Padding rows
+        // (`active = 0`) have `accepted = 0`.
         builder.assert_bool(accepted.clone());
         let two_is_three = bits[0].clone() * bits[1].clone();
         builder.assert_zero(accepted.clone() - active.clone() * (AB::Expr::ONE - two_is_three));
@@ -155,6 +175,16 @@ impl<AB: AirBuilder> Air<AB> for TernarySamplerAir {
         builder.assert_zero(accepted.clone() * (coeff_val.clone() - two_minus_one));
         builder.assert_zero((AB::Expr::ONE - accepted.clone()) * coeff_val);
 
+        // --- emission quota (fixed-budget constant-time sampler) ---
+        // `still` (monotone 1→0) marks the prefix of rows before `num_coeffs` coefficients have been
+        // emitted; `emit = accepted · still` fires on exactly the first `num_coeffs` acceptable rows.
+        // The coefficient bus is fed by `emit` (below), so the drained tail (acceptable rows past the
+        // quota) contributes no coefficient, while every active row still Receives its consumed byte —
+        // keeping the sponge join balanced over the full fixed budget.
+        builder.assert_bool(still.clone());
+        builder.assert_bool(emit.clone());
+        builder.assert_zero(emit.clone() - accepted.clone() * still.clone());
+
         // --- boundary + transition constraints ---
         builder.when_first_row().assert_zero(stream_pos.clone());
         builder.when_first_row().assert_zero(coeff_idx.clone());
@@ -163,19 +193,26 @@ impl<AB: AirBuilder> Air<AB> for TernarySamplerAir {
         builder
             .when_transition()
             .assert_zero(n_active * (AB::Expr::ONE - active.clone()));
-        // stream_pos advances by one byte per active row (rejections consume a byte too).
+        // `still` is non-increasing (emitting prefix, then drained/padding tail): it may go 1→0 but
+        // never 0→1, so `emit` marks a genuine prefix of the accepts.
+        builder
+            .when_transition()
+            .assert_zero(n_still * (AB::Expr::ONE - still.clone()));
+        // stream_pos advances by one byte per active row (rejections and drained accepts consume a byte too).
         builder
             .when_transition()
             .assert_zero(n_stream_pos - stream_pos - active);
-        // coeff_idx advances only when a coefficient is emitted.
+        // coeff_idx advances only when a coefficient is *emitted*.
         builder
             .when_transition()
-            .assert_zero(n_coeff_idx - coeff_idx.clone() - accepted.clone());
+            .assert_zero(n_coeff_idx - coeff_idx.clone() - emit.clone());
 
-        // exactly `num_coeffs` coefficients were emitted over the whole trace.
+        // exactly `num_coeffs` coefficients were emitted over the whole trace. Combined with the
+        // monotone `still` and `emit = accepted · still`, this forces `emit` onto the first
+        // `num_coeffs` accepts (no earlier, no later).
         builder
             .when_last_row()
-            .assert_zero(coeff_idx + accepted - pub_num_coeffs);
+            .assert_zero(coeff_idx + emit - pub_num_coeffs);
     }
 }
 
@@ -190,24 +227,25 @@ fn cv(x: u32) -> ConfigVal {
     })
 }
 
-/// Generate a [`TernarySamplerAir`] trace: consume `bytes` under the exact 2-bit rejection rule until
-/// `num_coeffs` coefficients are emitted, then pad to a power-of-two height. Fails if `bytes` is
-/// exhausted before `num_coeffs` coefficients are produced.
+/// Generate a [`TernarySamplerAir`] trace over a **fixed budget**: process *every* byte of `bytes`
+/// under the 2-bit rejection rule (matching the constant-time KEM sampler, which draws a fixed budget
+/// and compacts the first `num_coeffs` accepts), emitting the first `num_coeffs` accepted coefficients
+/// and *draining* any further accepts, then pad to a power-of-two height. The caller sizes `bytes` to
+/// the KEM's fixed budget (`kem::E_TERNARY_ATTEMPTS` for the full `e`). Fails if fewer than
+/// `num_coeffs` bytes are acceptable in the whole budget (probability `< 2^-128` for a real stream).
 pub fn generate_ternary_trace(
     bytes: &[u8],
     num_coeffs: usize,
 ) -> Result<RowMajorMatrix<ConfigVal>, EncProofError> {
     let mut rows: Vec<[ConfigVal; SAMPLER_WIDTH]> = Vec::new();
     let mut stream_pos: u32 = 0;
-    let mut coeff_idx: u32 = 0;
-    let mut i = 0usize;
+    let mut coeff_idx: u32 = 0; // count of *emitted* coefficients
+    let mut still = true; // still within the first-`num_coeffs`-accepts prefix
 
-    while (coeff_idx as usize) < num_coeffs {
-        let byte = *bytes.get(i).ok_or(EncProofError::TraceGeneration(
-            "ternary sampler: XOF stream exhausted",
-        ))?;
+    for &byte in bytes {
         let two = byte & 0b11;
         let accepted = two < 3;
+        let emit = accepted && still;
 
         let mut row = [ConfigVal::ZERO; SAMPLER_WIDTH];
         row[C_ACTIVE] = ConfigVal::ONE;
@@ -226,16 +264,30 @@ pub fn generate_ternary_trace(
             row[C_ACCEPTED] = ConfigVal::ONE;
             row[C_COEFF_VAL] = cv(u32::from(two)) - ConfigVal::ONE; // two − 1 ∈ {-1,0,1}
         }
+        if still {
+            row[C_STILL] = ConfigVal::ONE;
+        }
+        if emit {
+            row[C_EMIT] = ConfigVal::ONE;
+        }
         rows.push(row);
 
         stream_pos += 1;
-        i += 1;
-        if accepted {
+        if emit {
             coeff_idx += 1;
+            if coeff_idx as usize == num_coeffs {
+                still = false;
+            }
         }
+    }
+    if (coeff_idx as usize) < num_coeffs {
+        return Err(EncProofError::TraceGeneration(
+            "ternary sampler: fewer than num_coeffs acceptable bytes in the budget",
+        ));
     }
 
     // Pad to a power-of-two height (≥ 2 for transition constraints); freeze the counters.
+    // Padding rows have active = still = emit = 0.
     let height = rows.len().next_power_of_two().max(2);
     while rows.len() < height {
         let mut row = [ConfigVal::ZERO; SAMPLER_WIDTH];
@@ -305,9 +357,9 @@ const Z_BYTES: [u8; 8] = Z.to_le_bytes();
 
 // Column layout (width [`BOUNDED_WIDTH`]).
 const W_ACTIVE: usize = 0; // 1 = real 8-byte attempt, 0 = padding
-const W_ACCEPTED: usize = 1; // 1 = this attempt emitted a coefficient (r < zone)
+const W_ACCEPTED: usize = 1; // 1 = this attempt's draw is acceptable (r < zone)
 const W_STREAM: usize = 2; // absolute byte-stream position consumed at this row
-const W_CIDX: usize = 3; // running count of coefficients emitted so far
+const W_CIDX: usize = 3; // running count of coefficients *emitted* so far
 const W_COEFF: usize = 4; // emitted centered coefficient (R − BOUND), else 0
 const W_R: usize = 5; // remainder R = r mod span
 const W_RBYTE: usize = 6; // r's 8 little-endian bytes: W_RBYTE .. W_RBYTE+8
@@ -324,9 +376,12 @@ const W_LIFTBIT: usize = 327; // lift limb bits: bit j of limb k at W_LIFTBIT + 
 const W_NEG: usize = 375; // neg = [R < BOUND] (1 iff the centered coeff is negative)   (1)
 const W_LCARRY: usize = 376; // lift-chain signed carries c_1..c_3 (offset by 2^15): W_LCARRY .. +3   (3)
 const W_LCARRYBIT: usize = 379; // lift-chain carry bits: bit j of carry k at W_LCARRYBIT + 16*k + j   (3*16 = 48)
+// --- emission quota (fixed-budget constant-time sampler), see the ternary sampler for the rationale ---
+const W_STILL: usize = 427; // 1 while fewer than num_coeffs coeffs emitted (monotone 1→0)   (1)
+const W_EMIT: usize = 428; // 1 = this row emits a coefficient (= accepted · still)   (1)
 
 /// Trace width of [`BoundedSamplerAir`].
-pub const BOUNDED_WIDTH: usize = 427;
+pub const BOUNDED_WIDTH: usize = 429;
 /// Lift-chain signed-carry range-check width (honest `|c| < 2`, offset-encoded; loose bound keeps every
 /// carry-chain term `< 2^27 < p`).
 const LCARRY_BITS: usize = 16;
@@ -372,7 +427,14 @@ impl<AB: AirBuilder> Air<AB> for BoundedSamplerAir {
     fn eval(&self, builder: &mut AB) {
         // Read all current-row cells into owned `AB::Expr` (releases the `&self` borrow from
         // `builder.main()` before the `&mut builder` assertions), plus the three next-row counters.
-        let (loc, nxt_active, nxt_stream, nxt_cidx): (Vec<AB::Expr>, AB::Expr, AB::Expr, AB::Expr) = {
+        #[allow(clippy::type_complexity)]
+        let (loc, nxt_active, nxt_still, nxt_stream, nxt_cidx): (
+            Vec<AB::Expr>,
+            AB::Expr,
+            AB::Expr,
+            AB::Expr,
+            AB::Expr,
+        ) = {
             let main = builder.main();
             let local = main.current_slice();
             let next = main.next_slice();
@@ -380,6 +442,7 @@ impl<AB: AirBuilder> Air<AB> for BoundedSamplerAir {
             (
                 loc,
                 next[W_ACTIVE].into(),
+                next[W_STILL].into(),
                 next[W_STREAM].into(),
                 next[W_CIDX].into(),
             )
@@ -388,8 +451,17 @@ impl<AB: AirBuilder> Air<AB> for BoundedSamplerAir {
 
         let active = loc[W_ACTIVE].clone();
         let accepted = loc[W_ACCEPTED].clone();
+        let still = loc[W_STILL].clone();
+        let emit = loc[W_EMIT].clone();
         builder.assert_bool(active.clone());
         builder.assert_bool(accepted.clone());
+        // Emission quota (fixed-budget constant-time sampler): `emit = accepted · still`, `still`
+        // monotone 1→0 (enforced on transition below). The coefficient bus is fed by `emit` (first
+        // `num_coeffs` accepts); every active row still Receives its 8 bytes, so the drained tail
+        // keeps the sponge join balanced. See the ternary sampler for the full rationale.
+        builder.assert_bool(still.clone());
+        builder.assert_bool(emit.clone());
+        builder.assert_zero(emit.clone() - accepted.clone() * still.clone());
 
         // --- range checks via bit decomposition (values are the prover's; nothing else pins them) ---
         // Q limbs: value = Σ bit_i·2^i over 8 boolean bits (⇒ Q_k ∈ [0,256)).
@@ -563,44 +635,50 @@ impl<AB: AirBuilder> Air<AB> for BoundedSamplerAir {
         builder
             .when_transition()
             .assert_zero(nxt_active * (AB::Expr::ONE - active.clone()));
-        // stream_pos advances by 8 bytes per active attempt (accept and reject both consume 8).
+        // `still` is non-increasing (emitting prefix, then drained/padding tail).
+        builder
+            .when_transition()
+            .assert_zero(nxt_still * (AB::Expr::ONE - still.clone()));
+        // stream_pos advances by 8 bytes per active attempt (accept, reject and drain all consume 8).
         let eight = konst::<AB>(8);
         builder
             .when_transition()
             .assert_zero(nxt_stream - loc[W_STREAM].clone() - eight * active);
-        // coeff_idx advances only when a coefficient is emitted.
+        // coeff_idx advances only when a coefficient is *emitted*.
         builder
             .when_transition()
-            .assert_zero(nxt_cidx - loc[W_CIDX].clone() - accepted.clone());
-        // exactly `num_coeffs` coefficients over the whole trace.
+            .assert_zero(nxt_cidx - loc[W_CIDX].clone() - emit.clone());
+        // exactly `num_coeffs` coefficients *emitted* over the whole trace (forces `emit` onto the
+        // first `num_coeffs` accepts, as in the ternary sampler).
         builder
             .when_last_row()
-            .assert_zero(loc[W_CIDX].clone() + accepted - pub_num);
+            .assert_zero(loc[W_CIDX].clone() + emit - pub_num);
     }
 }
 
-/// Generate a [`BoundedSamplerAir`] trace: consume `bytes` under the exact 64-bit rejection rule
-/// until `num_coeffs` coefficients are emitted, then pad to a power-of-two height. Fails if `bytes`
-/// is exhausted before `num_coeffs` coefficients are produced.
+/// Generate a [`BoundedSamplerAir`] trace over a **fixed budget**: process *every* 8-byte draw in
+/// `bytes` under the 64-bit rejection rule (matching the constant-time KEM sampler), emitting the
+/// first `num_coeffs` accepted coefficients and *draining* any further accepts, then pad to a
+/// power-of-two height. The caller sizes `bytes` to the KEM's fixed budget
+/// (`kem::bounded_attempts(n) · 8` for a flat `n`-coefficient draw). Fails if fewer than `num_coeffs` draws are acceptable
+/// in the whole budget (probability `< 2^-128` for a real stream).
 pub fn generate_bounded_trace(
     bytes: &[u8],
     num_coeffs: usize,
 ) -> Result<RowMajorMatrix<ConfigVal>, EncProofError> {
     let mut rows: Vec<[ConfigVal; BOUNDED_WIDTH]> = Vec::new();
     let mut stream_pos: u32 = 0;
-    let mut coeff_idx: u32 = 0;
-    let mut i = 0usize;
+    let mut coeff_idx: u32 = 0; // count of *emitted* coefficients
+    let mut still = true; // still within the first-`num_coeffs`-accepts prefix
 
-    while (coeff_idx as usize) < num_coeffs {
-        if i + 8 > bytes.len() {
-            return Err(EncProofError::TraceGeneration(
-                "bounded sampler: XOF stream exhausted",
-            ));
-        }
+    let attempts = bytes.len() / 8;
+    for a in 0..attempts {
+        let i = a * 8;
         let mut b8 = [0u8; 8];
         b8.copy_from_slice(&bytes[i..i + 8]);
         let r = u64::from_le_bytes(b8);
         let accepted = r < ZONE;
+        let emit = accepted && still;
         let q = r / SPAN;
         let rem = r % SPAN;
 
@@ -611,6 +689,8 @@ pub fn generate_bounded_trace(
         } else {
             ConfigVal::ZERO
         };
+        row[W_STILL] = if still { ConfigVal::ONE } else { ConfigVal::ZERO };
+        row[W_EMIT] = if emit { ConfigVal::ONE } else { ConfigVal::ZERO };
         row[W_STREAM] = cv(stream_pos);
         row[W_CIDX] = cv(coeff_idx);
         row[W_R] = cv(rem as u32);
@@ -713,13 +793,21 @@ pub fn generate_bounded_trace(
 
         rows.push(row);
         stream_pos += 8;
-        i += 8;
-        if accepted {
+        if emit {
             coeff_idx += 1;
+            if coeff_idx as usize == num_coeffs {
+                still = false;
+            }
         }
+    }
+    if (coeff_idx as usize) < num_coeffs {
+        return Err(EncProofError::TraceGeneration(
+            "bounded sampler: fewer than num_coeffs acceptable draws in the budget",
+        ));
     }
 
     // Pad to a power-of-two height (≥ 2 for transition constraints); freeze the counters.
+    // Padding rows have active = still = emit = 0.
     let height = rows.len().next_power_of_two().max(2);
     while rows.len() < height {
         let mut row = [ConfigVal::ZERO; BOUNDED_WIDTH];
@@ -796,7 +884,8 @@ pub fn ternary_receive_lookup_at(offset: u64) -> Lookup<ConfigVal> {
 /// * `sel_one = (1−bit0)·bit1`   (`two = 2` ⇒ coeff `+1` ⇒ limb₀ = 1);
 /// * coeff `0` (`two = 1`) ⇒ all-zero limbs.
 ///
-/// Gated by [`C_ACCEPTED`], so rejected and padding rows Send nothing. The four limbs Receive into the
+/// Gated by [`C_EMIT`] (the first `num_coeffs` accepts only), so rejected, drained and padding rows
+/// Send nothing. The four limbs Receive into the
 /// matching [`crate::zq::HornerFoldAir`] fold's `w` limbs ([`crate::zq::horner_coeff_receive_lookups_at`]);
 /// the fold's canonicity + `w < q` checks make the binding sound (the lift is `−1 ↦ q−1`, `0 ↦ 0`,
 /// `+1 ↦ 1`, each `< q`). One single-tuple lookup per limb (degree-3 constraint) to keep the quotient
@@ -817,7 +906,7 @@ pub fn ternary_coeff_send_lookups_at(base: u64, col_base: usize) -> Vec<Lookup<C
             Lookup::new(
                 Kind::Global(COEFF_E_BUS.into()),
                 Vec::from([Vec::from([pos_base.clone() + sconst(j as u64), limb])]),
-                Vec::from([Direction::Send.multiplicity(mcol(C_ACCEPTED))]),
+                Vec::from([Direction::Send.multiplicity(mcol(C_EMIT))]),
                 Vec::from([col_base + j]),
             )
         })
@@ -861,7 +950,7 @@ pub fn bounded_receive_lookup_at(offset: u64) -> Vec<Lookup<ConfigVal>> {
 /// component's coefficient bus ([`COEFF_F_BUS`](crate::logup_join::COEFF_F_BUS) for `f`,
 /// [`COEFF_G_BUS`](crate::logup_join::COEFF_G_BUS) for `g`); `base` locates this ring element on that
 /// axis (`4·k·N` for `f_k`; `0` for a lone `g`); `coeff_idx` ([`W_CIDX`]) is the coefficient's global
-/// index. Gated by [`W_ACCEPTED`]. The lift value and `neg` are pinned by the in-AIR
+/// index. Gated by [`W_EMIT`] (the first `num_coeffs` accepts only). The lift value and `neg` are pinned by the in-AIR
 /// `lift + BOUND = R + neg·Q` chain; the `lift < Q` bound (hence the correct `neg`) is the matching
 /// [`crate::zq::HornerFoldAir`] fold's `w < Q`, back-propagated through the multiset equality. Four
 /// single-tuple lookups (degree-3 each), mirroring the ternary and sponge-limb Sends.
@@ -888,7 +977,7 @@ pub fn bounded_coeff_send_lookups_col(
                     pos_base.clone() + sconst(j as u64),
                     mcol(W_LIFT + j),
                 ])]),
-                Vec::from([Direction::Send.multiplicity(mcol(W_ACCEPTED))]),
+                Vec::from([Direction::Send.multiplicity(mcol(W_EMIT))]),
                 Vec::from([col_base + j]),
             )
         })

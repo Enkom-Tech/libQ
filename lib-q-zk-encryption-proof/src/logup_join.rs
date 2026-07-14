@@ -422,11 +422,16 @@ mod tests {
             ternary_receive_lookup_at,
         };
 
-        let bytes = xof_bytes(b"libq/join/global-offsets", 8192);
-        let e = generate_ternary_trace(&bytes, 128).expect("ternary trace");
-        let e_bytes = active_rows(&e, SAMPLER_WIDTH, 0); // 1 byte / active row
-        let f = generate_bounded_trace(&bytes[e_bytes..], 24).expect("bounded trace");
-        let f_bytes = active_rows(&f, BOUNDED_WIDTH, 0) * 8; // 8 bytes / active row
+        // The samplers now consume a *fixed budget* (they process the whole slice they are given,
+        // emitting the first `num` accepts and draining the rest), so slice `e` and `f` at explicit
+        // budget boundaries: 512 ternary attempts (≈ 384 accepts ≫ 128) then 24 + slack bounded draws.
+        let e_budget = 512usize;
+        let f_budget = (24 + 128) * 8; // kem::bounded_attempts(24) · 8
+        let bytes = xof_bytes(b"libq/join/global-offsets", e_budget + f_budget);
+        let e = generate_ternary_trace(&bytes[..e_budget], 128).expect("ternary trace");
+        let e_bytes = active_rows(&e, SAMPLER_WIDTH, 0); // = e_budget (all rows active)
+        let f = generate_bounded_trace(&bytes[e_budget..e_budget + f_budget], 24).expect("bounded trace");
+        let f_bytes = active_rows(&f, BOUNDED_WIDTH, 0) * 8; // = f_budget (all rows active)
         let total = e_bytes + f_bytes;
         let source = generate_xof_stream_table(&bytes[..total]);
 
