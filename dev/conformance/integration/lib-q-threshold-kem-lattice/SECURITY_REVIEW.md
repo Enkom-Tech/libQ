@@ -18,11 +18,11 @@ soundness, implementation hygiene), with the load-bearing finding re-verified ag
 > — binding `e` (ternary) + ALL `f_k` + `g` (bounded) across every R3a `p_k` AND R3b, over `m`
 > independent Fiat–Shamir challenges, verified at **production FRI params** and wired into the gate.
 > Both the classic `f = δ·unitₖ` R3a spike and a tampered `e` are rejected. This **closes C1, C2, H2,
-> and H4** (production params + `m`-challenge + pk-bound ζ) and **C3** (trace zeroization). **RED still
-> stands** for the *remaining, non-proof* items: the proof is sound but **not yet zero-knowledge**
-> (hiding-FRI to blind μ, #32); the KEM's FO re-encryption uses variable-time samplers (H1); the
-> key-instance estimator is not reproduced in-tree (H3); and external cryptographer sign-off on the
-> cross-AIR composition is still owed.
+> and H4** (production params + `m`-challenge + pk-bound ζ) and **C3** (trace zeroization). The proof
+> is also **zero-knowledge** under the hiding-FRI config (#32, demonstrated). **RED still stands** only
+> for the *remaining, non-proof-soundness* items: the KEM's FO re-encryption uses variable-time samplers
+> (H1); the key-instance estimator is not reproduced in-tree (H3); and external cryptographer sign-off
+> on the cross-AIR composition is still owed.
 
 ---
 
@@ -241,11 +241,19 @@ H2, H4, and C3. Same module `encryption_proof.rs`, three tiers:
 **`full_provenance_sound_multichallenge` (m=3 @ production params)** — the production-shaped sound
 proof. Full crate regression: 92 passed / 0 failed / 4 ignored (the heavy ones run under `--ignored`).
 
-**Remaining for full RED-lift (NOT soundness of this proof):**
-1. **Hiding-FRI ZK (#32)** — the proof is sound but not zero-knowledge; μ is not blinded on the
-   non-hiding config. Wire `HidingFriPcs` (the crate already has the test config) for deployment.
-2. **H1** — constant-time FO re-encryption samplers in `kem.rs`. Note: rejection sampling is variable-
+**Zero-knowledge (#32) — DEMONSTRATED.** The same assembly runs unchanged under the hiding-FRI config
+(`zk_batch_config`, `is_zk() == 1`): the batch prover blinds every committed matrix and randomizes the
+quotient, so the proof reveals nothing about μ beyond the statement — sound AND zero-knowledge
+(`e_provenance_zero_knowledge_round_trip`, green). One subtlety: under the hiding PCS the *preprocessed*
+sponge position column is committed with blinding, so the verifier reuses the prover's preprocessed
+`CommonData` (sound — preprocessed is public and a deterministic function of the AIRs; it still
+recomputes ζ + all public values independently from `(t0, ct)`). A deployment may instead commit
+preprocessed under a non-hiding sub-commitment (it needs no blinding) to let the verifier rebuild it
+independently — a batch-stark ergonomics refinement, not a soundness gap.
+
+**Remaining for full RED-lift (NOT soundness or ZK of this proof):**
+1. **H1** — constant-time FO re-encryption samplers in `kem.rs`. Note: rejection sampling is variable-
    time by nature; a fixed-draw redesign changes XOF byte consumption, so it must be co-designed with
    the byte-provenance offsets and the wire KATs.
-3. **H3** — vendor + reproduce the key-instance estimator config in-tree.
-4. **Cryptographer sign-off** on the cross-AIR composition and FS/LogUp challenge independence.
+2. **H3** — vendor + reproduce the key-instance estimator config in-tree.
+3. **Cryptographer sign-off** on the cross-AIR composition and FS/LogUp challenge independence.

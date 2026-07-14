@@ -46,10 +46,12 @@
 //! [`crate::encryption_proof::assemble_r3a_f_provenance_prover`] (binds `e` + `f` for selected R3a
 //! columns) remain as cheaper per-component entry points and as the spike-test harnesses.
 //!
+//! The closure is also **zero-knowledge** when run under the hiding-FRI config (blinds `μ`; task #32,
+//! demonstrated by `encryption_proof::tests::e_provenance_zero_knowledge_round_trip`).
+//!
 //! **Remaining (RED — not soundness of THIS proof):** constant-time samplers on the KEM's FO
 //! re-encryption path (H1, a `kem.rs` wire concern), reproducing the key-instance estimator in-tree
-//! (H3), hiding-FRI ZK to blind `μ` (#32, the proof is sound but not yet zero-knowledge), and external
-//! cryptographer sign-off on the cross-AIR composition.
+//! (H3), and external cryptographer sign-off on the cross-AIR composition.
 //!
 //! ## Why the gate lives here (not in `tkem`)
 //! `lib-q-zk-encryption-proof` already depends on `lib-q-threshold-kem-lattice`; putting the gate in

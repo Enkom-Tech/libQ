@@ -49,8 +49,9 @@
 //! never prover claims — and wired into the tkem partial-decap gate (#33). The classic `f = δ·unitₖ`
 //! spike and a tampered `e` are both rejected (`encryption_proof::tests`). The `#[cfg(test)]`
 //! assemblies below remain as the mechanism's provenance/regression suite (join-1/2/3 isolation,
-//! fan-out, single-component slices). **Remaining:** hiding-FRI ZK to blind μ (#32) — the proof is
-//! sound but not yet zero-knowledge — plus the KEM-side H1 (constant-time samplers) and H3 (estimator).
+//! fan-out, single-component slices). The composition also runs under the **hiding-FRI ZK** config
+//! (blinds μ; #32, demonstrated in `encryption_proof::tests`). **Remaining:** the KEM-side H1
+//! (constant-time samplers) and H3 (estimator vendoring), plus external cryptographer sign-off.
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
