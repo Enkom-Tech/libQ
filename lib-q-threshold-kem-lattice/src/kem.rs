@@ -348,7 +348,12 @@ fn ct_select_i64(mask: u64, x: i64, y: i64) -> i64 {
     (((x as u64) & mask) | ((y as u64) & !mask)) as i64
 }
 
-/// Constant-time stable compaction: write the first `out.len()` accepted `vals` (in stream order,
+/// Constant-time stable compaction (cost note: `O(out.len() · vals.len())` — for the flat `e`/`f`
+/// draws this is ~50–90 M masked selects per `encapsulate`, run twice per decapsulation via the FO
+/// re-encryption; acceptable for this research KEM but a candidate for a sorting-network compaction or
+/// per-element granularity if throughput matters).
+///
+/// Write the first `out.len()` accepted `vals` (in stream order,
 /// `accs[k]` is the all-ones/`0` accept mask of attempt `k`) into `out`. `O(out.len() · vals.len())`
 /// selects; the running write index is never used to index memory (only compared via [`ct_eq_mask`]),
 /// so there is no secret-dependent branch or memory access. If fewer than `out.len()` attempts are
