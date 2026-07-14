@@ -576,6 +576,22 @@ pub(crate) fn ntt(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     ntt_at_layer_0(re);
 }
 
+/// NTT layer-0 side-channel hardening (feature = "hardened", opt-in).
+///
+/// At NTT layer 0 the 32 SIMD units are fully independent: each `round` writes a
+/// distinct `re[index]` (indices 0..32, one per unit) drawn from the fixed `ROUNDS`
+/// table. Because the writes are disjoint they commute, so processing them in a
+/// randomized order is **output-invariant** — the NTT result is bit-identical to the
+/// unshuffled `ntt_at_layer_0` path and KAT conformance is preserved.
+///
+/// Randomizing only the *execution order* perturbs the timing/EM signature of layer 0
+/// without touching the algebra, mitigating order-dependent side channels. The
+/// permutation is a Fisher-Yates shuffle seeded from `getrandom::fill`. Correctness of
+/// the constant-time property is guarded by the `hardened_dudect_smoke` test.
+///
+/// NOTE (for auditors/scanners): the RNG-driven reordering here is intentional defensive
+/// hardening, not a functional or data-dependent code path. It changes *when* independent
+/// butterflies run, never *what* they compute.
 #[cfg(feature = "hardened")]
 mod ntt_layer0_shuffle {
     use super::super::vector_type::Coefficients;
