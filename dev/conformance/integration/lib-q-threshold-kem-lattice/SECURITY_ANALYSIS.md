@@ -197,11 +197,19 @@ refutations are as informative as the fixes and are noted where load-bearing).
   coefficient write, sign-fold absolute value and threshold-compare for the bit read. Previously
   both branched per message bit.
 - **Keygen secret sampling**: constant-time CDT (`sample_secret_coeff_ct`, shared with the DKG).
-- **Rejection samplers** (ternary `e`, uniform `f, g`, flooding): iteration counts are
-  data-dependent but depend only on *uniformity* of the XOF/RNG stream, not on the accepted
-  values; accepted-value computation is branch-free. Residual: an observer timing encapsulation
-  learns rejection counts — under the PRF assumption on SHAKE-256 these are geometric variables
-  independent of `μ` (audit-verified refutation of the naive "seeded by `μ'` ⇒ leaks `μ'`" claim).
+- **FO encryption samplers** (ternary `e`, uniform `f, g`): **fully constant-time** as of the H1 fix.
+  Each draws a **fixed byte budget** from the XOF (`E_TERNARY_ATTEMPTS`, `bounded_attempts(n)·8`),
+  evaluates *every* attempt branch-free (mask-select accept/value), and compacts the first `n` accepts
+  with an **oblivious Batcher sort** (`ct_compact` → `batcher_sort`; comparator schedule fixed by the
+  public budget, exchanges via `ct_cae`). Neither the byte-consumption boundary nor the accept-pattern
+  timing is a function of `μ` any longer — closing the H1 decap-latency oracle. Underflow probability
+  `< 2^-128` at the chosen budgets. *(The distribution is bit-identical to the old rejection sampling —
+  same acceptance region, only the consumption boundary is fixed — so §1/§2 hardness is unchanged; the
+  `ct_compact_ref` oracle test pins the equivalence and the frozen KATs pin the wire.)*
+- **Flooding sampler** (`sample_bounded_poly`, distributed decap): keeps a variable-time rejection loop
+  by design — its randomness is **fresh per-decap RNG** (bound `2^40`), independent of the long-term
+  secret `μ`, so its timing is not a `μ` side channel (the H1 concern is specifically the `μ`-derived
+  FO stream, now fixed above).
 - **FO comparison** (`ct_eq`): constant-time XOR fold over the coefficient arrays directly (no
   serialization, no allocation, no early exit within the data). The element-count guard is now a
   **hard, release-enforced** check — a hand-built ciphertext with the wrong `p` length compares
