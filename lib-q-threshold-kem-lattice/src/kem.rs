@@ -164,7 +164,7 @@ impl Ciphertext {
 /// `decode_rand`, `ThresholdKemLatticePublicKey::t0`) establish the invariant for all wire inputs.
 #[must_use]
 pub fn ring_inner(a: &[Rq], b: &[Rq]) -> Rq {
-    debug_assert_eq!(a.len(), b.len());
+    assert_eq!(a.len(), b.len(), "ring_inner: operand length mismatch");
     let mut acc = RqNtt::zero();
     for (ai, bi) in a.iter().zip(b.iter()) {
         ntt_mul_acc(&mut acc, &to_ntt(ai), &to_ntt(bi));
@@ -342,7 +342,7 @@ pub fn encapsulate_derand(t0: &[Rq], mu: &[u8; 32]) -> Ciphertext {
 /// products (bit-identical values, ~2.4× fewer transforms); `e` and its NTT image are zeroized
 /// before returning.
 fn encapsulate_derand_with_digest(t0: &[Rq], pk_dig: &[u8; 32], mu: &[u8; 32]) -> Ciphertext {
-    debug_assert_eq!(t0.len(), MU);
+    assert_eq!(t0.len(), MU, "encapsulate_derand_with_digest: t0 length must be MU");
     let key = bdlop::key();
 
     let mut h = lib_q_sha3::Shake256::default();
@@ -410,7 +410,7 @@ impl Drop for FoWitness {
 /// the same bytes the ciphertext committed. **Prover-only** — it requires the secret `μ`.
 #[must_use]
 pub fn fo_expand_witness(t0: &[Rq], mu: &[u8; 32]) -> FoWitness {
-    debug_assert_eq!(t0.len(), MU);
+    assert_eq!(t0.len(), MU, "fo_expand_witness: t0 length must be MU");
     let pk_dig = pk_digest(t0);
     let mut h = lib_q_sha3::Shake256::default();
     h.update(DOM_FO_SEED);

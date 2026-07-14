@@ -1,14 +1,36 @@
-//! The **malformed-ciphertext partial-decap gate** (task #33) — the assumption-free closure of the
-//! insider probe `lib-q-threshold-kem-lattice` documents.
+//! The **malformed-ciphertext partial-decap gate** (task #33) — the composition point at which a
+//! caller-supplied encryption-proof verification is enforced *before* a share is read.
 //!
-//! ## The threat and the closure
+//! ## The threat
 //! A threshold partial-decapsulation is a share-linear function of the ciphertext, so a malicious
 //! insider who submits a *malformed* ciphertext (a `(p, v)` that is structurally well-formed but whose
 //! `(e, f, g)` are NOT the Fiat–Shamir–Ω FO expansion of any message) can steer the leaked value to
 //! probe the secret share. `partial_decap_masked` already rejects *structurally* invalid ciphertexts,
-//! but not this class. The **assumption-free** fix is to require, alongside the ciphertext, a
-//! zero-knowledge **proof of correct encryption** (this crate) and to partial-decapsulate ONLY when it
-//! verifies — so every ciphertext that reaches the share is a genuine encryption of some message.
+//! but not this class. The intended fix is to require, alongside the ciphertext, a zero-knowledge
+//! **proof of correct encryption** and to partial-decapsulate ONLY when it verifies.
+//!
+//! ## What this gate does — and does NOT — guarantee
+//! The gate enforces **exactly what the caller-supplied `proof_verifies` closure checks, and nothing
+//! more**. It is a mechanism, not a proof: its soundness is entirely inherited from that closure.
+//!
+//! The **only sound** closure is one that verifies a proof of knowledge of a message `μ` such that
+//! `(e, f, g) = XOF(pk ‖ μ)` (the deterministic FO expansion) **AND** that `e` is ternary and `f, g`
+//! are bounded — i.e. the full **sponge + sampler + byte-provenance joins** layer that binds the
+//! witness to the ciphertext's public key and message. Only such a closure actually rejects a
+//! malformed ciphertext.
+//!
+//! ## `# WARNING` — do NOT gate on the relation layer alone
+//! [`crate::prove::verify_relation_layer`] (paired with [`crate::prove::prove_relation_layer`]) proves
+//! **ONLY** the R3 linear relations (`p = B0ᵀe + f`, `v = ⟨t0,e⟩ + g + encode(μ)`) with `(e, f, g)`
+//! as **free, prover-chosen** values. There is no sponge AIR, no ternary/bounded sampler AIR, and no
+//! join binding `(e, f, g)` to `XOF(pk ‖ μ)` or to any range in that path. A malformed ciphertext
+//! (e.g. the `f = δ·unitₖ` spike) therefore produces a **fully-verifying** relation-layer proof.
+//!
+//! **Using `verify_relation_layer` alone as the production `proof_verifies` yields a gate that admits
+//! malformed ciphertexts — it blocks nothing of the insider-probe class.** The full byte-provenance
+//! binding is validated only as a `#[cfg(test)]` toy-parameter vertical slice in [`crate::compose`];
+//! composing it into a production-parameter batch (sharing the fold instances) is an **open task** and
+//! is NOT yet wired. Until it is, this gate must not be relied on as a malformed-ciphertext closure.
 //!
 //! ## Why the gate lives here (not in `tkem`)
 //! `lib-q-zk-encryption-proof` already depends on `lib-q-threshold-kem-lattice`; putting the gate in
@@ -47,8 +69,16 @@ use crate::error::EncProofError;
 /// `proof_verifies` must run the encryption-proof verification (`verify_batch` over the ciphertext's
 /// proof, rebuilt from public inputs) and return whether it accepted. On `false` the gate refuses with
 /// [`EncProofError::ProofRejected`] **before** the share is read; otherwise it forwards to
-/// [`partial_decap_masked`] (wrapping any KEM error in [`EncProofError::Decap`]). This is the
-/// assumption-free malformed-ciphertext closure: no proof, no decapsulation.
+/// [`partial_decap_masked`] (wrapping any KEM error in [`EncProofError::Decap`]).
+///
+/// # Security
+/// The gate's guarantee is **only** as strong as `proof_verifies`; it enforces that closure and
+/// nothing more (see the module docs). A sound closure MUST verify knowledge of `μ` with
+/// `(e, f, g) = XOF(pk ‖ μ)` and `e` ternary / `f, g` bounded — the sponge + sampler + joins layer.
+///
+/// **Do NOT** pass [`crate::prove::verify_relation_layer`] alone as `proof_verifies`: it checks only
+/// the R3 linear relations over free `(e, f, g)`, so a malformed ciphertext passes it and the gate
+/// would admit it. That full binding is not yet wired into a production-parameter proof.
 pub fn gated_partial_decap_masked<R, V>(
     proof_verifies: V,
     share: &SecretShare,
