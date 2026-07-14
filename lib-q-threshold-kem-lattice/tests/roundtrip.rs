@@ -179,14 +179,18 @@ fn partial_decap_serialization_roundtrips() {
     let partials: Vec<_> = chosen
         .iter()
         .map(|s| {
-            let p = partial_decap_masked(s, &subset, &ct, &seeds, &mut rng).expect("masked partial");
+            let p =
+                partial_decap_masked(s, &subset, &ct, &seeds, &mut rng).expect("masked partial");
             let bytes = p.to_bytes();
             assert_eq!(bytes.len(), PartialDecap::BYTES);
             PartialDecap::from_bytes(&bytes).expect("decode")
         })
         .collect();
     let ss_decap = combine(&keygen.public_key, &partials, &ct).expect("combine");
-    assert_eq!(ss_encap, ss_decap, "wire-encoded masked partials combine to the secret");
+    assert_eq!(
+        ss_encap, ss_decap,
+        "wire-encoded masked partials combine to the secret"
+    );
 
     // A wrong length is rejected.
     assert_eq!(
@@ -199,11 +203,23 @@ fn partial_decap_serialization_roundtrips() {
 fn from_pairwise_rejects_non_canonical_entries() {
     use lib_q_threshold_kem_lattice::ThresholdKemError::InvalidSeedEntry;
     // Zero party index (either position).
-    assert_eq!(ZeroShareSeeds::from_pairwise(vec![(0, 1, [0u8; 32])]).err(), Some(InvalidSeedEntry));
-    assert_eq!(ZeroShareSeeds::from_pairwise(vec![(1, 0, [0u8; 32])]).err(), Some(InvalidSeedEntry));
+    assert_eq!(
+        ZeroShareSeeds::from_pairwise(vec![(0, 1, [0u8; 32])]).err(),
+        Some(InvalidSeedEntry)
+    );
+    assert_eq!(
+        ZeroShareSeeds::from_pairwise(vec![(1, 0, [0u8; 32])]).err(),
+        Some(InvalidSeedEntry)
+    );
     // Non-canonical ordering (entries must be i < j).
-    assert_eq!(ZeroShareSeeds::from_pairwise(vec![(3, 3, [0u8; 32])]).err(), Some(InvalidSeedEntry));
-    assert_eq!(ZeroShareSeeds::from_pairwise(vec![(4, 2, [0u8; 32])]).err(), Some(InvalidSeedEntry));
+    assert_eq!(
+        ZeroShareSeeds::from_pairwise(vec![(3, 3, [0u8; 32])]).err(),
+        Some(InvalidSeedEntry)
+    );
+    assert_eq!(
+        ZeroShareSeeds::from_pairwise(vec![(4, 2, [0u8; 32])]).err(),
+        Some(InvalidSeedEntry)
+    );
     // Duplicate unordered pair.
     assert_eq!(
         ZeroShareSeeds::from_pairwise(vec![(1, 2, [7u8; 32]), (1, 2, [8u8; 32])]).err(),
@@ -211,8 +227,12 @@ fn from_pairwise_rejects_non_canonical_entries() {
     );
     // A valid canonical set is accepted.
     assert!(
-        ZeroShareSeeds::from_pairwise(vec![(1, 2, [1u8; 32]), (1, 3, [2u8; 32]), (2, 3, [3u8; 32])])
-            .is_ok()
+        ZeroShareSeeds::from_pairwise(vec![
+            (1, 2, [1u8; 32]),
+            (1, 3, [2u8; 32]),
+            (2, 3, [3u8; 32])
+        ])
+        .is_ok()
     );
 }
 

@@ -266,7 +266,12 @@ fn absorb_poly(h: &mut lib_q_sha3::Shake256, p: &Rq) {
     // One buffered update per polynomial (identical absorbed stream to per-coefficient updates,
     // without N=1024 separate calls into the sponge).
     let mut buf = [0u8; 8 * N];
-    for (chunk, c) in buf.as_chunks_mut::<8>().0.iter_mut().zip(centered_coeffs(p)) {
+    for (chunk, c) in buf
+        .as_chunks_mut::<8>()
+        .0
+        .iter_mut()
+        .zip(centered_coeffs(p))
+    {
         chunk.copy_from_slice(&c.to_le_bytes());
     }
     h.update(&buf);
@@ -482,7 +487,9 @@ fn xof_bounded_flat(rd: &mut impl XofReader, n_polys: usize) -> Vec<Rq> {
 /// One bounded error ring element (the FO error `g`), drawn as a single-element flat run.
 fn xof_bounded_poly(rd: &mut impl XofReader) -> Rq {
     let mut polys = xof_bounded_flat(rd, 1);
-    polys.pop().expect("xof_bounded_flat(1) yields one ring element")
+    polys
+        .pop()
+        .expect("xof_bounded_flat(1) yields one ring element")
 }
 
 /// Ring element with coefficients i.i.d. uniform in `[-bound, bound]` from an RNG (the flooding noise
@@ -552,7 +559,11 @@ pub fn encapsulate_derand(t0: &[Rq], mu: &[u8; 32]) -> Ciphertext {
 /// products (bit-identical values, ~2.4× fewer transforms); `e` and its NTT image are zeroized
 /// before returning.
 fn encapsulate_derand_with_digest(t0: &[Rq], pk_dig: &[u8; 32], mu: &[u8; 32]) -> Ciphertext {
-    assert_eq!(t0.len(), MU, "encapsulate_derand_with_digest: t0 length must be MU");
+    assert_eq!(
+        t0.len(),
+        MU,
+        "encapsulate_derand_with_digest: t0 length must be MU"
+    );
     let key = bdlop::key();
 
     let mut h = lib_q_sha3::Shake256::default();
@@ -743,7 +754,15 @@ mod compaction_tests {
     fn ct_compact_matches_reference_oracle() {
         let mut rng = Xs(0x9E37_79B9_7F4A_7C15);
         // (budget, out) shapes incl. the production draws and small/edge sizes.
-        let shapes = [(1usize, 1usize), (4, 2), (16, 9), (64, 40), (129, 1), (9216, 6144), (9344, 9216)];
+        let shapes = [
+            (1usize, 1usize),
+            (4, 2),
+            (16, 9),
+            (64, 40),
+            (129, 1),
+            (9216, 6144),
+            (9344, 9216),
+        ];
         for &(budget, n) in &shapes {
             // Force ≥ n accepts, then randomly accept the rest, so compaction never underflows.
             let mut accs = alloc::vec![0u64; budget];
@@ -761,14 +780,18 @@ mod compaction_tests {
                     *a = u64::MAX;
                 }
             }
-            let vals: alloc::vec::Vec<i64> =
-                (0..budget).map(|_| (rng.next() % 2_000_003) as i64 - 1_000_001).collect();
+            let vals: alloc::vec::Vec<i64> = (0..budget)
+                .map(|_| (rng.next() % 2_000_003) as i64 - 1_000_001)
+                .collect();
 
             let mut got = alloc::vec![0i64; n];
             let mut want = alloc::vec![0i64; n];
             ct_compact(&vals, &accs, &mut got);
             ct_compact_ref(&vals, &accs, &mut want);
-            assert_eq!(got, want, "Batcher compaction diverged from oracle at budget={budget} n={n}");
+            assert_eq!(
+                got, want,
+                "Batcher compaction diverged from oracle at budget={budget} n={n}"
+            );
         }
     }
 
