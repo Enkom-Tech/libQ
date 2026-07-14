@@ -11,6 +11,10 @@ on:
 env:
   CARGO_INCREMENTAL: "0"
 
+permissions:
+  # Least-privilege default; jobs that need more elevate locally (e.g. coverage badge commit).
+  contents: read
+
 jobs:
   fuzz:
     name: cargo-fuzz (lib-q-zkp)
