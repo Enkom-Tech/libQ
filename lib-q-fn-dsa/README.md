@@ -32,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-fn-dsa = "0.0.5"
+lib-q-fn-dsa = "0.0.9"
 ```
 
 ### Node.js
@@ -176,7 +176,7 @@ This crate is fully integrated into the libQ ecosystem:
 
 ### Version Differences
 
-This implementation is based on the upstream `fn-dsa` reference implementation but uses version `0.0.5` of the internal crates (`fn-dsa-comm`, `fn-dsa-kgen`, `fn-dsa-sign`, `fn-dsa-vrfy`) rather than the upstream `0.3.0` version. This version difference was chosen during integration into the libQ workspace to maintain consistency with the libQ versioning scheme.
+This implementation is based on the upstream `fn-dsa` reference implementation but uses version `0.0.9` of the internal crates (`fn-dsa-comm`, `fn-dsa-kgen`, `fn-dsa-sign`, `fn-dsa-vrfy`) rather than the upstream `0.3.0` version. This version difference was chosen during integration into the libQ workspace to maintain consistency with the libQ versioning scheme.
 
 ### Security Improvements
 

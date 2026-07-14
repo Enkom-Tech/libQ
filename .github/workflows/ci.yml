@@ -30,6 +30,10 @@ env:
   # setup-node@v4 and other legacy JS actions; v5+ runs on Node 24 (GH Actions runner default Jun 2026).
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  # Least-privilege default; jobs that need more elevate locally (e.g. coverage badge commit).
+  contents: read
+
 jobs:
   # Core validation pipeline - runs first and fastest
   core-validation:
@@ -1038,6 +1042,12 @@ jobs:
         run: |
           cargo doc --all-features --no-deps
           cargo doc --all-features --no-deps --document-private-items
+
+      # READMEs are static on crates.io, so version/MSRV strings can drift from the
+      # workspace manifest. This gate keeps the root Cargo.toml the single source of
+      # truth; on failure run `python scripts/sync-readme-versions.py --fix`.
+      - name: README version/MSRV sync
+        run: python3 scripts/sync-readme-versions.py --check
 
   # Specialized algorithm testing - parallel execution
   algorithm-tests:

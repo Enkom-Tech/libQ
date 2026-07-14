@@ -38,7 +38,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-keccak = "0.0.5"
+lib-q-keccak = "0.0.9"
 ```
 
 ### Basic Example
@@ -54,7 +54,7 @@ f1600(&mut state);
 
 ```toml
 [dependencies]
-lib-q-keccak = { version = "0.0.5", features = ["simd", "multithreading"] }
+lib-q-keccak = { version = "0.0.9", features = ["simd", "multithreading"] }
 ```
 
 ## Feature Flags
@@ -70,7 +70,7 @@ lib-q-keccak = { version = "0.0.5", features = ["simd", "multithreading"] }
 
 ## Minimum Supported Rust Version
 
-Rust **1.89** or higher.
+Rust **1.96** or higher.
 
 ## SemVer Policy
 
@@ -97,7 +97,7 @@ additional terms or conditions.
 [build-image]: https://github.com/Enkom-Tech/libQ/workflows/CI/badge.svg
 [build-link]: https://github.com/Enkom-Tech/libQ/actions
 [license-image]: https://img.shields.io/badge/license-Apache2.0-blue.svg
-[rustc-image]: https://img.shields.io/badge/rustc-1.89+-blue.svg
+[rustc-image]: https://img.shields.io/badge/rustc-1.96+-blue.svg
 
 [//]: # (general links)
 
