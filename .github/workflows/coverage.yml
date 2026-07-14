@@ -123,6 +123,7 @@ jobs:
               CRATE_THRESH="$COVERAGE_THRESHOLD"
               case "$crate" in
                 lib-q-ml-dsa) CRATE_THRESH="60" ;;
+                lib-q-fn-dsa) CRATE_THRESH="68" ;; # keygen+sign+verify measured; calibrated backstop
                 lib-q-kem) CRATE_THRESH="65" ;;
                 lib-q-sig) CRATE_THRESH="66" ;;
                 lib-q-aead) CRATE_THRESH="68" ;;
