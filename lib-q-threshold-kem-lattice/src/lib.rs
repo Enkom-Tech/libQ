@@ -129,12 +129,23 @@ pub struct SecretShare {
 /// `value` is `λ_i·⟨rand(i), p⟩` (reference path) or `λ_i·⟨rand(i), p⟩ + m_i` (distributed masked
 /// path, [`threshold::partial_decap_masked`]). Either way [`combine`] just **sums** the `value`s to
 /// obtain `⟨r, p⟩`, so the two paths share one combiner.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct PartialDecap {
     /// Party index.
     pub index: u8,
     /// This party's pre-weighted (and possibly masked) contribution.
     pub value: Rq,
+}
+
+// Manual Debug: on the unmasked path `value` is a linear image of the secret share, so a derived
+// Debug would leak share material into logs. Print only the non-secret `index`; redact `value`.
+impl core::fmt::Debug for PartialDecap {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PartialDecap")
+            .field("index", &self.index)
+            .field("value", &"<redacted>")
+            .finish()
+    }
 }
 
 impl PartialDecap {
@@ -292,6 +303,10 @@ pub(crate) fn validate_share_subset(
     {
         return Err(ThresholdKemError::InvalidSubset);
     }
+    // Upper bound: the noise budget is sized for at most PROFILE_MAX_PARTIES_V1 contributions.
+    if subset.len() > usize::from(PROFILE_MAX_PARTIES_V1) {
+        return Err(ThresholdKemError::InvalidShareCount);
+    }
     let mut seen = [false; 256];
     for &j in subset {
         if j == 0 || seen[usize::from(j)] {
@@ -344,6 +359,10 @@ pub fn combine(
     if partials.is_empty() || partials.len() < usize::from(pk.threshold) {
         return Err(ThresholdKemError::InvalidSubset);
     }
+    // Upper bound: the noise budget is sized for at most PROFILE_MAX_PARTIES_V1 contributions.
+    if partials.len() > usize::from(PROFILE_MAX_PARTIES_V1) {
+        return Err(ThresholdKemError::InvalidShareCount);
+    }
     let mut seen = [false; 256];
     let mut rp = Rq::zero();
     for p in partials {
@@ -354,7 +373,11 @@ pub fn combine(
         rp = ring_add(&rp, &p.value);
     }
     let t0 = pk.t0()?;
-    kem::finish_decap(&t0, ct, &rp)
+    // `rp = Σ p.value` is an exact linear image of the secret share ("not private"); wipe it on
+    // every return path (Rq: Zeroize) after finish_decap consumes it.
+    let result = kem::finish_decap(&t0, ct, &rp);
+    rp.zeroize();
+    result
 }
 
 /// Convenience: full reference decapsulation from a subset of shares (trusted combiner).

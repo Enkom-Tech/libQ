@@ -52,6 +52,7 @@ use lib_q_threshold_kem_lattice::kem::{
     fo_expand_witness,
 };
 use lib_q_zkp::stark::ConfigVal;
+use zeroize::Zeroizing;
 
 use crate::compose::EncProofAir;
 use crate::error::EncProofError;
@@ -237,12 +238,17 @@ pub fn prove_relation_layer(
     num_challenges: usize,
     r3a_columns: &[usize],
 ) -> Result<(Ciphertext, ProverRelationLayer), EncProofError> {
+    // SECURITY: the local secret-witness copies below (`e_lifts`, `f_k`, `g_z`, `encode_z`, and the
+    // local μ copy) are wrapped in `Zeroizing` so they are wiped on drop. NOTE: the returned
+    // `ProverRelationLayer.traces` still hold witness-derived field elements (they are returned to the
+    // caller by design); full trace zeroization is a larger, separate change tracked as a follow-up.
     let ct = encapsulate_derand(t0, mu);
     let w = fo_expand_witness(t0, mu);
     let b0 = key().b0();
     let zetas = derive_zetas(&ct.to_bytes(), num_challenges);
 
-    let e_lifts: Vec<Vec<u64>> = w.e.iter().map(rq_coeffs_zq).collect();
+    let e_lifts: Zeroizing<Vec<Vec<u64>>> =
+        Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
     let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
     let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
@@ -262,13 +268,13 @@ pub fn prove_relation_layer(
                 (0..MU).map(|r| rq_coeffs_zq(&b0[r * KAPPA + k])).collect();
             let b0_cols: Vec<&[u64]> = b0_cols_owned.iter().map(|v| v.as_slice()).collect();
             let p_k = rq_coeffs_zq(&ct.p[k]);
-            let f_k = rq_coeffs_zq(&w.f[k]);
+            let f_k: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&w.f[k]));
             let (a, c) = r3a_public_coeffs(&b0_cols, &p_k, zeta, N);
             let hq = r3a_quotient_poly(&b0_cols, &e_ref, &f_k, &p_k, N).ok_or(
                 EncProofError::TraceGeneration("R3a numerator not divisible"),
             )?;
             let mut folds: Vec<FoldSpec> = e_lifts.iter().cloned().map(FoldSpec::Horner).collect();
-            folds.push(FoldSpec::Horner(f_k));
+            folds.push(FoldSpec::Horner((*f_k).clone()));
             folds.push(FoldSpec::Horner(hq));
             assemble_relation_prover(&a, c, &folds, zeta, ordinal * RELATION_BASE_SPAN, &mut out)?;
             ordinal += 1;
@@ -276,15 +282,18 @@ pub fn prove_relation_layer(
 
         // R3b.
         let v_z = rq_coeffs_zq(&ct.v);
-        let g_z = rq_coeffs_zq(&w.g);
-        let encode_z = rq_coeffs_zq(&encode_msg(mu));
+        let g_z: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&w.g));
+        let encode_z: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&encode_msg(mu)));
         let (a, c) = r3b_public_coeffs(&t0_cols, &v_z, zeta, N);
         let hb = r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N).ok_or(
             EncProofError::TraceGeneration("R3b numerator not divisible"),
         )?;
         let mut folds: Vec<FoldSpec> = e_lifts.iter().cloned().map(FoldSpec::Horner).collect();
-        folds.push(FoldSpec::Horner(g_z));
-        folds.push(FoldSpec::Encode(*mu));
+        folds.push(FoldSpec::Horner((*g_z).clone()));
+        // Local μ copy kept in `Zeroizing` so it is wiped on drop; `FoldSpec::Encode` still copies the
+        // raw bytes into the trace generator (returned-trace zeroization is the tracked follow-up).
+        let mu_local = Zeroizing::new(*mu);
+        folds.push(FoldSpec::Encode(*mu_local));
         folds.push(FoldSpec::Horner(hb));
         assemble_relation_prover(&a, c, &folds, zeta, ordinal * RELATION_BASE_SPAN, &mut out)?;
         ordinal += 1;
@@ -455,17 +464,22 @@ mod tests {
         .expect("the ciphertext's lattice relations must verify from public inputs");
     }
 
-    /// **End-to-end #33: prove ⇒ gate ⇒ real threshold decapsulation.** A full trusted-dealer keygen,
-    /// a real `encapsulate_derand` ciphertext, an encryption proof (`prove_relation_layer` +
-    /// `prove_batch`), then — for a threshold subset — [`crate::gate::gated_partial_decap_masked`] with
-    /// a closure that VERIFIES the proof (`verify_relation_layer` + `verify_batch`) before each masked
-    /// partial decap. The gated partials `combine` to the same secret as the reference decap, and a
-    /// **tampered/mismatched proof makes the gate refuse** (`ProofRejected`) so no partial is produced —
-    /// the assumption-free malformed-ciphertext closure, wired end-to-end through the real KEM. (The
-    /// proof here is the lattice-relation layer; the full proof adds the byte-provenance layer validated
-    /// in `crate::compose` — the gate/flow are identical.)
+    /// **Gate MECHANISM/wiring exercise (#33) — NOT a sound malformed-ciphertext closure.** A full
+    /// trusted-dealer keygen, a real `encapsulate_derand` ciphertext, a relation-layer proof
+    /// (`prove_relation_layer` + `prove_batch`), then — for a threshold subset —
+    /// [`crate::gate::gated_partial_decap_masked`] with a closure that verifies the relation-layer proof
+    /// (`verify_relation_layer` + `verify_batch`) before each masked partial decap. It shows the gated
+    /// partials `combine` to the same secret as the reference decap, and that a proof verified against a
+    /// *different* ciphertext makes the gate refuse (`ProofRejected`).
+    ///
+    /// **This does NOT prove the malformed-ciphertext closure.** The relation layer proves only the R3
+    /// linear relations over free, prover-chosen `(e, f, g)`; the sponge/sampler byte-provenance binding
+    /// (`(e, f, g) = XOF(pk ‖ μ)`, `e` ternary, `f, g` bounded) is NOT composed into this proof. A
+    /// malformed-but-structurally-valid ciphertext (e.g. the `f = δ·unitₖ` spike) would ALSO pass this
+    /// closure and be admitted by the gate. This test therefore exercises the gate's wiring/ordering
+    /// only, not its soundness.
     #[test]
-    fn gated_decap_end_to_end_real_proof() {
+    fn gated_decap_flow_wiring_only_not_a_sound_closure() {
         use lib_q_random::new_deterministic_rng;
         use lib_q_threshold_kem_lattice::kem::encapsulate_derand;
         use lib_q_threshold_kem_lattice::threshold::ZeroShareSeeds;
