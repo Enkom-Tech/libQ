@@ -407,6 +407,15 @@ fn konst<AB: AirBuilder>(x: u64) -> AB::Expr {
 
 /// AIR proving `num_coeffs` bounded coefficients are the exact 64-bit rejection sampling of a byte
 /// stream, consumed in order (8 bytes per attempt). `num_coeffs` is bound as the single public value.
+///
+/// **HN2 (SECURITY_REVIEW §8.3) — canonical-`lift < q` soundness is contingent on a composed fold.**
+/// This AIR pins each emitted coefficient to the accept/reject decision over the XOF bytes, but on its
+/// own it does NOT range-reduce the lifted value: the canonical `lift < q` guarantee is discharged by
+/// the composed Horner fold's own `w < q` canonicity check, which back-propagates through the COEFF-bus
+/// multiset equality to pin every sampler limb. A **standalone** bounded proof (this AIR with no fold on
+/// its COEFF bus) is therefore under-constrained and MUST NOT be used as a range proof. Every shipped
+/// `assemble_*` composes each `BoundedSamplerAir` with its fold (see `full_lookups`), so the invariant
+/// holds by construction; a new assembly reusing this AIR must preserve that pairing.
 #[derive(Debug, Clone)]
 pub struct BoundedSamplerAir {
     /// Number of coefficients the trace must emit (e.g. `N` per `f`/`g` ring element).

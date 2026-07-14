@@ -40,11 +40,14 @@
 //!   soundness (~128 bits at production params). The ternary/bounded sampler AIRs pin `e ∈ {-1,0,1}`
 //!   and `f,g ∈ [-B,B]`; the sponge pins the XOF preimage to `DOM ‖ pk_digest ‖ μ` (pk-bound public
 //!   values, verifier-built from `ct`).
-//! * Each lattice relation is a polynomial identity checked at `ζ`; a malformed ciphertext fails it
-//!   with probability ≤ deg/|F| ≈ 2^-52 per challenge over `Complex<Mersenne31>`. Since the prover
-//!   picks `ct` (grinding `ζ = H(pk_digest‖ct)`), `num_challenges = m` raises this to ≈ `2^-52m`
-//!   (`m = 3` ⇒ ~156 bits). The `m` per-challenge fold sets each Receive the (shared) sampler
-//!   coefficients once via the samplers' `m×`-repeated coefficient Sends, so every COEFF bus balances.
+//! * Each lattice relation is a polynomial identity of degree `≤ 2N−2` checked at `ζ`; a malformed
+//!   ciphertext fails it with probability ≤ `(2N−2)/q ≈ 2^-37` per challenge — the **conservative
+//!   base-field figure** (`ζ ∈ [0, q)`, the lattice modulus, per `relation_assembly::statement_zetas`),
+//!   NOT the larger challenge-field bound `deg/|F|`. Since the prover picks `ct` (grinding
+//!   `ζ = H(pk_digest‖ct)`), `num_challenges = m` raises this to ≈ `((2N−2)/q)^m` (`m = 4` ⇒ ~2^-148);
+//!   read the headline soundness against this base-field figure. The `m` per-challenge fold sets each
+//!   Receive the (shared) sampler coefficients once via the samplers' `m×`-repeated coefficient Sends,
+//!   so every COEFF bus balances.
 //! * **Zero-knowledge (task #32):** the same assembly runs unchanged under a **hiding-FRI** config
 //!   (`is_zk() == 1`), which blinds every committed matrix and randomizes the quotient, so the proof
 //!   reveals nothing about `μ` beyond the statement — sound AND zero-knowledge. Demonstrated by
@@ -470,6 +473,13 @@ fn e_provenance_public_values(
 /// R3a relation: `MU` e-folds + `F_k` + quotient). Distinct relations use `[i·SPAN, i·SPAN + 4·(MU+2))`.
 const R3A_BASE_SPAN: u64 = ((MU + 3) as u64) * 4;
 
+// HN1 (SECURITY_REVIEW §8.3): make the disjoint-base convention a compile-time constraint, not a
+// caller convention. Each relation instance occupies `[base, base + 4·L)` on FOLD_E_BUS (L = term
+// count). The widest consumer is R3b (`MU + 3` terms); R3a has `MU + 2`. If a future edit shrinks the
+// span below the widest term count, adjacent instances would alias (one instance's Send matching
+// another's Receive) — this static assertion turns that silent aliasing into a build error.
+const _: () = assert!(R3A_BASE_SPAN >= 4 * (MU as u64 + 3));
+
 /// Public shape of an R3a+f byte-provenance proof — the sizes the verifier rebuilds AIRs/lookups
 /// against (see [`EncProofShape`] for why these are public, not secret).
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -794,6 +804,11 @@ fn r3a_f_public_values(
 /// (`KAPPA` R3a + 1 R3b), each `R3A_BASE_SPAN` wide. Challenge `i`'s relations live in
 /// `[i·CHALLENGE_SPAN, (i+1)·CHALLENGE_SPAN)`, disjoint across challenges.
 const CHALLENGE_SPAN: u64 = ((KAPPA + 1) as u64) * R3A_BASE_SPAN;
+
+// HN1 (SECURITY_REVIEW §8.3): the R3b slot lives at index `KAPPA` (base `KAPPA·R3A_BASE_SPAN`) and is
+// `MU + 3` terms wide; assert it fits inside one challenge block so R3b cannot overrun into the next
+// challenge's range. Compile-time enforcement of the per-challenge disjointness (see `full_lookups`).
+const _: () = assert!((KAPPA as u64) * R3A_BASE_SPAN + 4 * (MU as u64 + 3) <= CHALLENGE_SPAN);
 
 /// Public shape of a full-provenance proof.
 #[derive(Clone, Debug, Eq, PartialEq)]

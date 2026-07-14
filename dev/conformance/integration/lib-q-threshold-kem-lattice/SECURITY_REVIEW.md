@@ -364,17 +364,22 @@ handling. **Fix:** production ZK gate MUST NOT trust prover preprocessed.
 > GF(p⁶). The doctored-preprocessed attack is foreclosed. (A deployment building its own gate must follow
 > the same discipline — never trust a prover-supplied preprocessed commitment.)
 
-### 8.3 Hardening notes (non-blocking)
+### 8.3 Hardening notes — **all RESOLVED 2026-07-14**
 
-- **HN1** `FOLD_E` disjoint-base disjointness is a *caller convention*, not a constraint
-  (`logup_join.rs:93-98`) — met by every shipped `assemble_*`, but a future caller reusing the helpers
-  with overlapping bases could cross-satisfy Sends/Receives. Add a typed base allocator or an assertion.
-- **HN2** The bounded sampler's canonical `lift<Q` soundness is contingent on the composed fold's `w<q`
-  check; a *standalone* bounded proof (no fold) is under-constrained. Document/assert the fold is
-  present.
-- **HN3** Reconcile the two per-challenge soundness figures in comments: `encryption_proof.rs:44` cites
-  `deg/|F| ≈ 2⁻⁵²` (over GF(p²)); `relation_assembly.rs:70` cites `(2N−2)/q ≈ 2⁻³⁷` (base field). The
-  `2⁻³⁷` base-field figure is the correct conservative one; the headline should be read against it.
+- **HN1 — RESOLVED.** `FOLD_E` disjoint-base disjointness was a *caller convention* documented at
+  `logup_join.rs:93-98`. It is now a **compile-time constraint**: two `const _: () = assert!(…)` static
+  assertions in `encryption_proof.rs` (next to `R3A_BASE_SPAN` and `CHALLENGE_SPAN`) require the per-
+  instance span to hold the widest relation (`MU + 3` terms, R3b) and the R3b slot to fit inside one
+  challenge block. A future edit shrinking either span now fails the build instead of silently aliasing
+  Sends/Receives.
+- **HN2 — RESOLVED.** The bounded sampler's canonical `lift < q` soundness is contingent on the composed
+  fold's `w < q` check; a *standalone* bounded proof is under-constrained. `BoundedSamplerAir`
+  (`sampler.rs`) now carries a doc contract stating this explicitly — the AIR must not be used as a
+  standalone range proof, and every shipped `assemble_*` pairs it with its fold by construction.
+- **HN3 — RESOLVED.** The two per-challenge soundness figures are reconciled to the conservative
+  base-field bound. `encryption_proof.rs` module doc now cites `(2N−2)/q ≈ 2⁻³⁷` per challenge (matching
+  `relation_assembly.rs:70`), explicitly directs the reader to read the headline against the base-field
+  figure rather than the larger challenge-field `deg/|F|`, and uses the `m = 4 ⇒ ~2⁻¹⁴⁸` example.
 
 ### 8.4 Verdict of this pass
 
@@ -384,7 +389,7 @@ independent lenses and by-hand source verification. The two findings this pass s
 (challenge field was ~62-bit) and **S2** (ZK trusted the prover's preprocessed) — **are both now FIXED
 and re-verified green at GF(p⁶)** (see the RESOLVED notes in §8.2): the composed proof runs at the
 ~186-bit challenge field at production params (incl. m=3), and the ZK verifier rebuilds preprocessed
-rather than trusting it. Hardening notes HN1–HN3 remain open (non-blocking).
+rather than trusting it. Hardening notes HN1–HN3 are now **all resolved** (2026-07-14, §8.3).
 
 **RED still stays — but the residual is now purely the terminal gate: an external human cryptographer's
 signature.** This pass ran the *process* one would run (four adversarial lenses + by-hand source
