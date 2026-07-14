@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-threshold-raccoon-fuzz"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false

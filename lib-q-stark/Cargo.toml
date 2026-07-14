@@ -17,15 +17,15 @@ ignored = [
     "subtle",
 ]
 [dependencies]
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.8" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.8" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.8" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.8" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.8" }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.9" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.9" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.9" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.9" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.9" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.9" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.9" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.9" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.9" }
 
 itertools = { workspace = true }
 postcard = { workspace = true, features = ["alloc"] }
@@ -34,22 +34,22 @@ subtle = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true, features = ["derive"], default-features = false }
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", default-features = false, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.8" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.8" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.8" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
-lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.8" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8", features = ["test-utils"] }
-lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.8" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.8" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.9" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.9" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.9" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.9" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.9" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.9" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.9", features = ["test-utils"] }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.9" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.9" }
 
 postcard = { workspace = true, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", default-features = false }
 rand = { workspace = true, default-features = false }
 wasm-bindgen-test = { workspace = true }
 

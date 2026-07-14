@@ -13,12 +13,12 @@ readme.workspace = true
 
 [dependencies]
 # Out-of-circuit transcript (K12) — bare-metal no_std capable (only needs alloc).
-lib-q-k12 = { path = "../lib-q-k12", version = "0.0.8", default-features = false, features = ["alloc"] }
+lib-q-k12 = { path = "../lib-q-k12", version = "0.0.9", default-features = false, features = ["alloc"] }
 # In-circuit transcript (Poseidon-256) — optional, gated behind the `poseidon` feature to keep the
 # K12-only build's dependency surface small. Both builds are bare-metal no_std (alloc) capable.
-lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.8", default-features = false, features = ["alloc"], optional = true }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8", optional = true }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8", optional = true }
+lib-q-poseidon = { path = "../lib-q-poseidon", version = "0.0.9", default-features = false, features = ["alloc"], optional = true }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.9", optional = true }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.9", optional = true }
 
 [lib]
 name = "lib_q_transcript"

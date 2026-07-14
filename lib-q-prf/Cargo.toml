@@ -17,8 +17,8 @@ ignored = [
 ]
 [dependencies]
 crypto-bigint = { workspace = true, default-features = false, features = ["zeroize"] }
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, optional = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", default-features = false, optional = true }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9", default-features = false }
 rand_core = { workspace = true }
 subtle = { workspace = true }
 zeroize = { workspace = true, features = ["derive", "alloc"] }

@@ -18,9 +18,9 @@ ignored = [
     "serde",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", optional = true, default-features = false }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", optional = true, default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
@@ -36,7 +36,7 @@ wasm-bindgen-test = { workspace = true }
 
 # Host-only test deps: proptest pulls `getrandom` 0.3 without `wasm_js` and breaks wasm-pack smoke builds.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std"] }
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }

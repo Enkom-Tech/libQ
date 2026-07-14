@@ -28,11 +28,11 @@ ignored = [
 ]
 [dependencies]
 # Core libQ dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false }
-lib-q-types = { path = "../lib-q-types", version = "0.0.8", default-features = false }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.8", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.9", default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.9", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", optional = true }
 
 # Core cryptographic primitives
 hybrid-array = { workspace = true }
@@ -56,14 +56,14 @@ aes = { workspace = true, default-features = false, optional = true } # AES for 
 
 [dev-dependencies]
 # Test dependencies
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std"] }
 rand = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 
 # Benchmarking dependencies (host targets only)
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.8" }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.9" }
 
 [[test]]
 name = "nist_kem_kat"

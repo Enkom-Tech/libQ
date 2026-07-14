@@ -16,10 +16,10 @@ ignored = [
     "proptest",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.8", default-features = false, optional = true }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.8", default-features = false, features = ["std"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", optional = true, default-features = false, features = ["alloc"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.9", default-features = false, optional = true }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.9", default-features = false, features = ["std"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
@@ -42,8 +42,8 @@ required-features = ["hardened"]
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 hex = { workspace = true }
 criterion = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.8", default-features = false, features = ["privacy"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std"] }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.9", default-features = false, features = ["privacy"] }
 proptest = { workspace = true }
 rand_core = { workspace = true }
 

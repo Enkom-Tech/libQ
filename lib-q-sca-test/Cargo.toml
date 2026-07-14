@@ -20,18 +20,18 @@ lattice-zkp-hardened = ["privacy", "lib-q-lattice-zkp/hardened"]
 hqc-hardened = ["dep:lib-q-hqc"]
 
 [dependencies]
-lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.8", optional = true, default-features = false, features = ["alloc", "hqc", "random", "hardened"] }
-lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.8", optional = true, default-features = false, features = ["alloc"] }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.8", optional = true, default-features = false, features = ["alloc"] }
-lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.8", optional = true, default-features = false, features = ["std", "hardened", "random"] }
-lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.8", optional = true, default-features = false, features = ["hardened", "random", "mldsa44"] }
-lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.8", optional = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.9", optional = true, default-features = false, features = ["alloc", "hqc", "random", "hardened"] }
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.9", optional = true, default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.9", optional = true, default-features = false, features = ["alloc"] }
+lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.9", optional = true, default-features = false, features = ["std", "hardened", "random"] }
+lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.9", optional = true, default-features = false, features = ["hardened", "random", "mldsa44"] }
+lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.9", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std"] }
 rand_core = { workspace = true }
 
 [dev-dependencies]
 rand_core = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.8", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(sca_test)'] }

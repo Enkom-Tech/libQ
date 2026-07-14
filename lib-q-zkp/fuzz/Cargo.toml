@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-zkp-fuzz"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false
@@ -9,9 +9,9 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-lib-q-stark = { path = "../../lib-q-stark", version = "0.0.8" }
-lib-q-stark-field = { path = "../../lib-q-stark-field", version = "0.0.8" }
-lib-q-stark-mersenne31 = { path = "../../lib-q-stark-mersenne31", version = "0.0.8" }
+lib-q-stark = { path = "../../lib-q-stark", version = "0.0.9" }
+lib-q-stark-field = { path = "../../lib-q-stark-field", version = "0.0.9" }
+lib-q-stark-mersenne31 = { path = "../../lib-q-stark-mersenne31", version = "0.0.9" }
 lib-q-zkp = { path = "..", features = ["zkp", "std"] }
 libfuzzer-sys = "0.4.12"
 postcard = { version = "1.1.3", default-features = false, features = ["alloc"] }
