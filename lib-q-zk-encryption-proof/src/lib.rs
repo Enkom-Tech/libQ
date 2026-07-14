@@ -29,6 +29,7 @@ extern crate alloc;
 
 pub mod air;
 pub mod compose;
+pub mod encryption_proof;
 pub mod error;
 pub mod gate;
 pub mod logup_join;

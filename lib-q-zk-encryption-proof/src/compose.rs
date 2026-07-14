@@ -39,13 +39,17 @@
 //!     on cols 4..8) without collision, via each join constructor's `col_base`.
 //!
 //! Building [`prove_batch`]-with-lookups surfaced (and this crate fixed) a real degree-under-count bug
-//! in `lib-q-plonky-lookup` (the path had no end-to-end test repo-wide). **Remaining (#26):** scale the
-//! vertical slice across all `e`/`f`/`g` ring elements + all R3a/R3b relations, wired to a REAL
-//! ciphertext (`fo_expand_witness` + `rq_coeffs_zq` + `crate::relation_assembly`) at production FRI
-//! params (the crate `prove`/`verify` entry points); then hiding-FRI ZK (blind μ, #32) and the tkem
-//! partial-decap gate (#33). A load-bearing obligation: the *verifier* must build each AIR (esp. the
-//! sponge's `height` and the sponge public values from `ct.pk_digest`, and each fold's `ζ` public values
-//! from [`crate::relation_assembly::derive_zetas`]) itself — never from prover-supplied claims.
+//! in `lib-q-plonky-lookup` (the path had no end-to-end test repo-wide).
+//!
+//! **Status of #26 (updated 2026-07-14):** the `e`-provenance ⇒ R3b composition has been **lifted out
+//! of these tests into real library API** — [`crate::encryption_proof::assemble_e_provenance_prover`] /
+//! `..._verifier` build exactly this batch over a REAL ciphertext at N=1024, verified at **production
+//! FRI params** (`encryption_proof::tests`), with the verifier rebuilding every AIR + the pk-binding
+//! public values from `(t0, ct)` — never prover claims — and wired into the tkem partial-decap gate
+//! (#33). **Remaining:** bind `f` (R3a bounded errors, the classic `f = δ·unitₖ` spike) and `g` via a
+//! bounded sampler at the XOF byte-offset after `e`; multi-challenge amplification; and hiding-FRI ZK
+//! (blind μ, #32). The `#[cfg(test)]` assemblies below remain as the mechanism's provenance/regression
+//! suite (join-1/2/3 isolation, fan-out, the `f`/`g` bounded-sampler slices the extension will reuse).
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
