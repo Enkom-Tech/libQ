@@ -279,15 +279,15 @@ pub fn assemble_e_provenance_prover(
     // R3b public coefficients + quotient (over the real witness).
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
     let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
-    let e_lifts: Zeroizing<Vec<Vec<u64>>> =
-        Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
+    let e_lifts: Zeroizing<Vec<Vec<u64>>> = Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
     let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
     let v_z = rq_coeffs_zq(&ct.v);
     let g_z: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&w.g));
     let encode_z: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&encode_msg(mu)));
     let (a, c) = r3b_public_coeffs(&t0_cols, &v_z, zeta, N);
-    let hb = r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N)
-        .ok_or(EncProofError::TraceGeneration("R3b numerator not divisible"))?;
+    let hb = r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N).ok_or(
+        EncProofError::TraceGeneration("R3b numerator not divisible"),
+    )?;
 
     // Folds: MU byte-bound e_r folds, then g / encode / hb fed directly.
     let mut e_fold_traces = Vec::with_capacity(MU);
@@ -542,8 +542,7 @@ pub fn assemble_r3a_f_provenance_prover(
     let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
 
     // Shared e_r folds (byte-bound to the ternary sampler).
-    let e_lifts: Zeroizing<Vec<Vec<u64>>> =
-        Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
+    let e_lifts: Zeroizing<Vec<Vec<u64>>> = Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
     let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
     let mut e_fold_traces = Vec::with_capacity(MU);
     let mut e_evs = Vec::with_capacity(MU);
@@ -566,10 +565,10 @@ pub fn assemble_r3a_f_provenance_prover(
         let p_k = rq_coeffs_zq(&ct.p[k]);
         let f_k: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&w.f[k]));
         let (a, c) = r3a_public_coeffs(&b0_cols, &p_k, zeta, N);
-        let hk: Zeroizing<Vec<u64>> = Zeroizing::new(
-            r3a_quotient_poly(&b0_cols, &e_ref, &f_k, &p_k, N)
-                .ok_or(EncProofError::TraceGeneration("R3a numerator not divisible"))?,
-        );
+        let hk: Zeroizing<Vec<u64>> =
+            Zeroizing::new(r3a_quotient_poly(&b0_cols, &e_ref, &f_k, &p_k, N).ok_or(
+                EncProofError::TraceGeneration("R3a numerator not divisible"),
+            )?);
 
         let (f_trace, f_ev) = generate_horner_trace(&f_k, zeta)?;
         let (hk_trace, hk_ev) = generate_horner_trace(&hk, zeta)?;
@@ -603,7 +602,8 @@ pub fn assemble_r3a_f_provenance_prover(
     let lookups = r3a_f_lookups(columns, e_bytes as u64, &rc);
 
     // Traces.
-    let mut traces: Vec<RowMajorMatrix<ConfigVal>> = Vec::from([sponge, squeeze, e_sampler, f_sampler]);
+    let mut traces: Vec<RowMajorMatrix<ConfigVal>> =
+        Vec::from([sponge, squeeze, e_sampler, f_sampler]);
     traces.extend(e_fold_traces);
     for i in 0..columns.len() {
         traces.push(f_fold_traces[i].clone());
@@ -765,7 +765,6 @@ fn r3a_f_public_values(
     pubs
 }
 
-
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // FULL byte-provenance — the COMPLETE malformed-ciphertext closure, with m-challenge soundness.
 //
@@ -863,8 +862,7 @@ pub fn assemble_full_provenance_prover(
     let bytes = shake256_xof(&input, e_budget + f_budget_bytes + g_budget_bytes);
     let e_sampler = generate_ternary_trace(&bytes[..e_budget], e_num)?;
     let e_bytes = active_rows(&e_sampler, SAMPLER_WIDTH);
-    let f_sampler =
-        generate_bounded_trace(&bytes[e_budget..e_budget + f_budget_bytes], f_num)?;
+    let f_sampler = generate_bounded_trace(&bytes[e_budget..e_budget + f_budget_bytes], f_num)?;
     let f_bytes = active_rows(&f_sampler, BOUNDED_WIDTH) * 8;
     let g_sampler = generate_bounded_trace(
         &bytes[e_budget + f_budget_bytes..e_budget + f_budget_bytes + g_budget_bytes],
@@ -882,8 +880,7 @@ pub fn assemble_full_provenance_prover(
     let zetas = statement_zetas(&w.pk_digest, &ct, m);
 
     // Shared witness polynomials (computed once; folded per challenge).
-    let e_lifts: Zeroizing<Vec<Vec<u64>>> =
-        Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
+    let e_lifts: Zeroizing<Vec<Vec<u64>>> = Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
     let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
     let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
@@ -900,16 +897,18 @@ pub fn assemble_full_provenance_prover(
         let col_refs: Vec<&[u64]> = cols.iter().map(|v| v.as_slice()).collect();
         let p_k = rq_coeffs_zq(&ct.p[k]);
         let f_k: Zeroizing<Vec<u64>> = Zeroizing::new(rq_coeffs_zq(&w.f[k]));
-        let hk = r3a_quotient_poly(&col_refs, &e_ref, &f_k, &p_k, N)
-            .ok_or(EncProofError::TraceGeneration("R3a numerator not divisible"))?;
+        let hk = r3a_quotient_poly(&col_refs, &e_ref, &f_k, &p_k, N).ok_or(
+            EncProofError::TraceGeneration("R3a numerator not divisible"),
+        )?;
         b0_cols_all.push(cols);
         p_all.push(p_k);
         f_lifts.push(f_k);
         hk_polys.push(Zeroizing::new(hk));
     }
     let hb: Zeroizing<Vec<u64>> = Zeroizing::new(
-        r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N)
-            .ok_or(EncProofError::TraceGeneration("R3b numerator not divisible"))?,
+        r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N).ok_or(
+            EncProofError::TraceGeneration("R3b numerator not divisible"),
+        )?,
     );
 
     let rc_a = RelationCheckAir { num_terms: MU + 2 };
@@ -917,7 +916,8 @@ pub fn assemble_full_provenance_prover(
 
     // Per-challenge fold + relation traces (in the canonical order used by the AIR list below).
     let mut per_challenge_traces: Vec<Vec<RowMajorMatrix<ConfigVal>>> = Vec::with_capacity(m);
-    let mut per_challenge_relpubs: Vec<(Vec<Vec<ConfigVal>>, Vec<ConfigVal>)> = Vec::with_capacity(m);
+    let mut per_challenge_relpubs: Vec<(Vec<Vec<ConfigVal>>, Vec<ConfigVal>)> =
+        Vec::with_capacity(m);
     for &zeta in &zetas {
         let mut traces_i: Vec<RowMajorMatrix<ConfigVal>> = Vec::new();
         // MU e-folds.
@@ -995,8 +995,14 @@ pub fn assemble_full_provenance_prover(
     }
 
     // Public values.
-    let public_values =
-        full_public_values(&w.pk_digest, e_num, f_num, g_num, &zetas, &per_challenge_relpubs);
+    let public_values = full_public_values(
+        &w.pk_digest,
+        e_num,
+        f_num,
+        g_num,
+        &zetas,
+        &per_challenge_relpubs,
+    );
 
     let shape = FullProofShape {
         sponge_height: height,
@@ -1059,7 +1065,8 @@ pub fn assemble_full_provenance_verifier(
             num_coeffs: shape.g_num_coeffs,
         }),
     ]);
-    let mut per_challenge_relpubs: Vec<(Vec<Vec<ConfigVal>>, Vec<ConfigVal>)> = Vec::with_capacity(m);
+    let mut per_challenge_relpubs: Vec<(Vec<Vec<ConfigVal>>, Vec<ConfigVal>)> =
+        Vec::with_capacity(m);
     for &zeta in &zetas {
         for _ in 0..MU {
             airs.push(EncProofAir::HornerFold(HornerFoldAir));
@@ -1081,7 +1088,13 @@ pub fn assemble_full_provenance_verifier(
         per_challenge_relpubs.push((r3a_pubs_i, relation_public_values(&a_b, c_b)));
     }
 
-    let lookups = full_lookups(m, shape.f_offset as u64, shape.g_offset as u64, &rc_a, &rc_b);
+    let lookups = full_lookups(
+        m,
+        shape.f_offset as u64,
+        shape.g_offset as u64,
+        &rc_a,
+        &rc_b,
+    );
     let public_values = full_public_values(
         &pk_digest,
         shape.e_num_coeffs,
@@ -1144,7 +1157,12 @@ fn full_lookups(
                 let base = cbase + (k as u64) * R3A_BASE_SPAN;
                 fl.extend(horner_e_send_lookups_at(FOLD_E_BUS, base, r, 4 * (1 + k)));
             }
-            fl.extend(horner_e_send_lookups_at(FOLD_E_BUS, r3b_base, r, 4 * (1 + KAPPA)));
+            fl.extend(horner_e_send_lookups_at(
+                FOLD_E_BUS,
+                r3b_base,
+                r,
+                4 * (1 + KAPPA),
+            ));
             lookups.push(fl);
         }
         // R3a per column.
@@ -1222,7 +1240,9 @@ fn shake256_xof(input: &[u8], n: usize) -> Vec<u8> {
 
 /// Number of squeeze blocks (final-step rows) in a sponge trace of `height` rows.
 fn sponge_squeeze_blocks(height: usize) -> usize {
-    (0..height).filter(|r| r % NUM_ROUNDS == NUM_ROUNDS - 1).count()
+    (0..height)
+        .filter(|r| r % NUM_ROUNDS == NUM_ROUNDS - 1)
+        .count()
 }
 
 #[cfg(test)]
@@ -1410,8 +1430,8 @@ mod tests {
     /// verifier side from public inputs only. Returns whether `verify_batch` accepted. Panics on a
     /// prove error (a well-formed witness must always prove).
     fn prove_and_verify(config: &Cfg, t0: &[Rq], mu: &[u8; 32]) -> bool {
-        let (ct, shape, prover) =
-            assemble_e_provenance_prover(t0, mu).expect("prover assembly for a well-formed witness");
+        let (ct, shape, prover) = assemble_e_provenance_prover(t0, mu)
+            .expect("prover assembly for a well-formed witness");
         let (global, prover_only) = build_preprocessed(config, &prover.airs);
         let common = CommonData::new(global, prover.lookups.clone());
         let prover_data = ProverData {
@@ -1470,7 +1490,13 @@ mod tests {
         let challenge_mmcs = ZkChallengeMmcs::new(val_mmcs.clone());
         let dft = ConfigDft::default();
         let fri_params = lib_q_stark_fri::create_test_fri_params_zk(challenge_mmcs);
-        let pcs = ZkPcs::new(dft, val_mmcs, fri_params, 4, DeterministicRng::seed_from_u64(1));
+        let pcs = ZkPcs::new(
+            dft,
+            val_mmcs,
+            fri_params,
+            4,
+            DeterministicRng::seed_from_u64(1),
+        );
         let base = Shake256Challenger32::<Mersenne31>::from_hasher(Vec::new(), Shake256Hash);
         StarkConfig::new(pcs, ComplexFieldChallenger::new(base))
     }
@@ -1485,8 +1511,7 @@ mod tests {
         let t0 = test_t0();
         let mu = [0x6Bu8; 32];
         let config = zk_batch_config();
-        let (ct, shape, prover) =
-            assemble_e_provenance_prover(&t0, &mu).expect("prover assembly");
+        let (ct, shape, prover) = assemble_e_provenance_prover(&t0, &mu).expect("prover assembly");
         let (global, prover_only) = build_preprocessed(&config, &prover.airs);
         let common = CommonData::new(global, prover.lookups.clone());
         let prover_data = ProverData {
@@ -1848,8 +1873,8 @@ mod tests {
     #[test]
     fn gate_uses_composed_byte_provenance_closure() {
         use lib_q_random::new_deterministic_rng;
-        use lib_q_threshold_kem_lattice::threshold::ZeroShareSeeds;
         use lib_q_threshold_kem_lattice::SecretShare;
+        use lib_q_threshold_kem_lattice::threshold::ZeroShareSeeds;
         use zeroize::Zeroizing;
 
         use crate::gate::gated_partial_decap_masked;
@@ -1858,8 +1883,7 @@ mod tests {
         let mu = [0x6Bu8; 32];
         let config = test_batch_config();
 
-        let (ct, shape, prover) =
-            assemble_e_provenance_prover(&t0, &mu).expect("prover assembly");
+        let (ct, shape, prover) = assemble_e_provenance_prover(&t0, &mu).expect("prover assembly");
         let (global, prover_only) = build_preprocessed(&config, &prover.airs);
         let common = CommonData::new(global, prover.lookups.clone());
         let prover_data = ProverData {

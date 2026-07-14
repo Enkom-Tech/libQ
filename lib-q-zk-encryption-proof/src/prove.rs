@@ -250,8 +250,7 @@ pub fn prove_relation_layer(
     let b0 = key().b0();
     let zetas = derive_zetas(&ct.to_bytes(), num_challenges);
 
-    let e_lifts: Zeroizing<Vec<Vec<u64>>> =
-        Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
+    let e_lifts: Zeroizing<Vec<Vec<u64>>> = Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
     let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
     let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();

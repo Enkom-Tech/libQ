@@ -689,8 +689,16 @@ pub fn generate_bounded_trace(
         } else {
             ConfigVal::ZERO
         };
-        row[W_STILL] = if still { ConfigVal::ONE } else { ConfigVal::ZERO };
-        row[W_EMIT] = if emit { ConfigVal::ONE } else { ConfigVal::ZERO };
+        row[W_STILL] = if still {
+            ConfigVal::ONE
+        } else {
+            ConfigVal::ZERO
+        };
+        row[W_EMIT] = if emit {
+            ConfigVal::ONE
+        } else {
+            ConfigVal::ZERO
+        };
         row[W_STREAM] = cv(stream_pos);
         row[W_CIDX] = cv(coeff_idx);
         row[W_R] = cv(rem as u32);
@@ -1250,7 +1258,12 @@ mod tests {
         assert!(forged_one, "expected at least one forgeable accepted row");
 
         let pubs = bounded_public_values(num);
-        assert_air_rejects!(&air, trace, &pubs, "a non-canonical remainder must not verify");
+        assert_air_rejects!(
+            &air,
+            trace,
+            &pubs,
+            "a non-canonical remainder must not verify"
+        );
     }
 
     #[test]

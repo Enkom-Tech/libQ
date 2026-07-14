@@ -1252,7 +1252,12 @@ mod tests {
         let mut trace = generate_modreduce_trace(&values).expect("trace generation");
         // Bump r's low limb by 1 without fixing the carry chain: breaks κ·q + r = V.
         trace.values[ZW_R] += ConfigVal::ONE;
-        assert_air_rejects!(&ModReduceAir, trace, &[], "a tampered remainder must not verify");
+        assert_air_rejects!(
+            &ModReduceAir,
+            trace,
+            &[],
+            "a tampered remainder must not verify"
+        );
     }
 
     #[test]
@@ -1388,7 +1393,12 @@ mod tests {
         trace.values[last + HW_R] += ConfigVal::ONE;
 
         let pubs = horner_public_values(zeta);
-        assert_air_rejects!(&HornerFoldAir, trace, &pubs, "a tampered fold result must not verify");
+        assert_air_rejects!(
+            &HornerFoldAir,
+            trace,
+            &pubs,
+            "a tampered fold result must not verify"
+        );
     }
 
     #[test]
@@ -1510,6 +1520,11 @@ mod tests {
         // violated (w_1 stayed 0 but HALFQ_1·1 = 4094 ≠ 0).
         trace.values[EMW_MUBIT] += ConfigVal::ONE;
 
-        assert_air_rejects!(&EncodeMuFoldAir, trace, &pubs, "a tampered μ-bit must not verify");
+        assert_air_rejects!(
+            &EncodeMuFoldAir,
+            trace,
+            &pubs,
+            "a tampered μ-bit must not verify"
+        );
     }
 }

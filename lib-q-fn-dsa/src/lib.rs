@@ -111,13 +111,12 @@ pub use lib_q_core::{
     SigSecretKey,
     Signature,
 };
-// Import RNG traits and implementations
-use rand_core::CryptoRng;
-
 // KangarooTwelve-backed deterministic CSPRNG (seedable). Used by the `*_from_seed` entry points so
 // FN-DSA key generation and signing are reproducible from a fixed seed (KAT / conformance vectors),
 // while remaining cryptographically secure when the seed is fresh CSPRNG entropy.
 use lib_q_random::Kt128Rng;
+// Import RNG traits and implementations
+use rand_core::CryptoRng;
 
 /// Get an appropriate RNG for the current environment
 fn get_rng() -> impl CryptoRng {
@@ -151,15 +150,20 @@ fn sign_from_seed_bytes(
     message: &[u8],
     seed: &[u8; 32],
 ) -> Result<Vec<u8>> {
-    let mut sk = SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| {
-        Error::InvalidKeySize {
+    let mut sk =
+        SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| Error::InvalidKeySize {
             expected: sign_key_size(logn),
             actual: secret_key.as_bytes().len(),
-        }
-    })?;
+        })?;
     let mut signature = vec![0u8; signature_size(logn)];
     let mut rng = Kt128Rng::from_seed_bytes(*seed);
-    sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, message, &mut signature);
+    sk.sign(
+        &mut rng,
+        &DOMAIN_NONE,
+        &HASH_ID_RAW,
+        message,
+        &mut signature,
+    );
     Ok(signature)
 }
 

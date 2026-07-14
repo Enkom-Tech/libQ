@@ -430,7 +430,8 @@ mod tests {
         let bytes = xof_bytes(b"libq/join/global-offsets", e_budget + f_budget);
         let e = generate_ternary_trace(&bytes[..e_budget], 128).expect("ternary trace");
         let e_bytes = active_rows(&e, SAMPLER_WIDTH, 0); // = e_budget (all rows active)
-        let f = generate_bounded_trace(&bytes[e_budget..e_budget + f_budget], 24).expect("bounded trace");
+        let f = generate_bounded_trace(&bytes[e_budget..e_budget + f_budget], 24)
+            .expect("bounded trace");
         let f_bytes = active_rows(&f, BOUNDED_WIDTH, 0) * 8; // = f_budget (all rows active)
         let total = e_bytes + f_bytes;
         let source = generate_xof_stream_table(&bytes[..total]);
