@@ -266,7 +266,7 @@ fn absorb_poly(h: &mut lib_q_sha3::Shake256, p: &Rq) {
     // One buffered update per polynomial (identical absorbed stream to per-coefficient updates,
     // without N=1024 separate calls into the sponge).
     let mut buf = [0u8; 8 * N];
-    for (chunk, c) in buf.chunks_exact_mut(8).zip(centered_coeffs(p)) {
+    for (chunk, c) in buf.as_chunks_mut::<8>().0.iter_mut().zip(centered_coeffs(p)) {
         chunk.copy_from_slice(&c.to_le_bytes());
     }
     h.update(&buf);
