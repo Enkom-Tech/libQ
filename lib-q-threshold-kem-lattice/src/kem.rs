@@ -348,29 +348,85 @@ fn ct_select_i64(mask: u64, x: i64, y: i64) -> i64 {
     (((x as u64) & mask) | ((y as u64) & !mask)) as i64
 }
 
-/// Constant-time stable compaction (cost note: `O(out.len() · vals.len())` — for the flat `e`/`f`
-/// draws this is ~50–90 M masked selects per `encapsulate`, run twice per decapsulation via the FO
-/// re-encryption; acceptable for this research KEM but a candidate for a sorting-network compaction or
-/// per-element granularity if throughput matters).
+/// Constant-time select over `u64`: `x` where `mask` is all-ones, `y` where `mask` is `0`.
+#[inline]
+fn ct_select_u64(mask: u64, x: u64, y: u64) -> u64 {
+    (x & mask) | (y & !mask)
+}
+
+/// One oblivious compare-exchange of a sorting network: for indices `a < b`, put the smaller key
+/// (and its paired value) at `a`. Fixed indices, branch-free — constant-time.
+#[inline]
+fn ct_cae(key: &mut [u64], val: &mut [i64], a: usize, b: usize) {
+    let swap = ct_lt_mask(key[b], key[a]); // all-ones iff key[b] < key[a] ⇒ swap needed
+    let (ka, kb) = (key[a], key[b]);
+    key[a] = ct_select_u64(swap, kb, ka);
+    key[b] = ct_select_u64(swap, ka, kb);
+    let (va, vb) = (val[a], val[b]);
+    val[a] = ct_select_i64(swap, vb, va);
+    val[b] = ct_select_i64(swap, va, vb);
+}
+
+/// Batcher odd–even mergesort over a power-of-two-length `(key, val)` array, ascending by `key`.
+/// The comparator sequence depends only on the length (a public quantity), and every exchange is a
+/// branch-free [`ct_cae`], so the whole sort is constant-time. `O(n·log²n)` comparators.
+fn batcher_sort(key: &mut [u64], val: &mut [i64]) {
+    let n = key.len();
+    debug_assert!(n.is_power_of_two());
+    let mut p = 1;
+    while p < n {
+        let mut k = p;
+        while k >= 1 {
+            let mut j = k % p;
+            while j + k < n {
+                let mut i = 0;
+                while i < k {
+                    let (a, b) = (i + j, i + j + k);
+                    // Guard b < n and the odd–even partition predicate (public indices only).
+                    if b < n && (i + j) / (2 * p) == (i + j + k) / (2 * p) {
+                        ct_cae(key, val, a, b);
+                    }
+                    i += 1;
+                }
+                j += 2 * k;
+            }
+            k >>= 1;
+        }
+        p <<= 1;
+    }
+}
+
+/// Constant-time stable compaction: write the first `out.len()` accepted `vals` (in stream order;
+/// `accs[k]` is the all-ones/`0` accept mask of attempt `k`) into `out`.
 ///
-/// Write the first `out.len()` accepted `vals` (in stream order,
-/// `accs[k]` is the all-ones/`0` accept mask of attempt `k`) into `out`. `O(out.len() · vals.len())`
-/// selects; the running write index is never used to index memory (only compared via [`ct_eq_mask`]),
-/// so there is no secret-dependent branch or memory access. If fewer than `out.len()` attempts are
-/// accepted (probability `< 2^-128` at the chosen budgets), the tail keeps its initial value.
+/// Implemented as an oblivious **Batcher sort** (`O(budget·log²budget)` compare-exchanges) rather than
+/// the naïve `O(out.len()·budget)` masked scan — for the flat `e`/`f` draws this is ~1–2 M comparators
+/// vs ~50–90 M selects per `encapsulate` (run twice per decapsulation via FO re-encryption). Each
+/// attempt gets a **distinct** sort key — `k` if accepted, `budget + k` if rejected — so ascending sort
+/// carries the accepted values to the front *in original stream order* (identical output to the naïve
+/// compaction; the `#[cfg(test)] ct_compact_ref` oracle pins this). The comparator schedule depends
+/// only on the (public) budget and every exchange is branch-free, so no secret-dependent branch or
+/// memory access remains. If fewer than `out.len()` attempts are accepted (probability `< 2^-128` at
+/// the chosen budgets), a rejected (`≥ budget`) key lands in the prefix — caught by the debug assert.
 fn ct_compact(vals: &[i64], accs: &[u64], out: &mut [i64]) {
     debug_assert_eq!(vals.len(), accs.len());
-    let n = out.len() as u64;
-    let mut w: u64 = 0;
-    for k in 0..vals.len() {
-        let do_write = accs[k] & ct_lt_mask(w, n); // accepted AND not yet full
-        for (i, slot) in out.iter_mut().enumerate() {
-            let sel = do_write & ct_eq_mask(i as u64, w);
-            *slot = ct_select_i64(sel, vals[k], *slot);
-        }
-        w = w.wrapping_add(do_write & 1);
+    let budget = vals.len();
+    let n = out.len();
+    let np = budget.next_power_of_two();
+    // Distinct keys: accepted → k, rejected → budget + k, padding → u64::MAX (sorts to the tail).
+    // `key` encodes the accept pattern (a function of the secret μ), so it is zeroized alongside `val`.
+    let mut key = Zeroizing::new(alloc::vec![u64::MAX; np]);
+    let mut val = Zeroizing::new(alloc::vec![0i64; np]);
+    for k in 0..budget {
+        key[k] = ct_select_u64(accs[k], k as u64, (budget + k) as u64);
+        val[k] = vals[k];
     }
-    debug_assert_eq!(w, n, "constant-time sampler budget underflow (should be < 2^-128)");
+    batcher_sort(&mut key, &mut val);
+    out.copy_from_slice(&val[..n]);
+    debug_assert!(
+        n == 0 || key[n - 1] < budget as u64,
+        "constant-time sampler budget underflow (should be < 2^-128)"
+    );
 }
 
 /// The ternary secret `e ∈ R_q^MU` (`MU·N` coefficients i.i.d. uniform in `{-1, 0, +1}`), drawn
@@ -649,4 +705,87 @@ fn ct_eq(a: &Ciphertext, b: &Ciphertext) -> bool {
         diff |= x ^ y;
     }
     diff == 0
+}
+
+#[cfg(test)]
+mod compaction_tests {
+    use super::*;
+
+    /// Reference oracle for [`ct_compact`]: the naïve `O(out·budget)` masked scan the Batcher-sort
+    /// implementation replaced. Kept only to pin that the optimized path is **bit-identical**.
+    fn ct_compact_ref(vals: &[i64], accs: &[u64], out: &mut [i64]) {
+        let n = out.len() as u64;
+        let mut w: u64 = 0;
+        for k in 0..vals.len() {
+            let do_write = accs[k] & ct_lt_mask(w, n);
+            for (i, slot) in out.iter_mut().enumerate() {
+                let sel = do_write & ct_eq_mask(i as u64, w);
+                *slot = ct_select_i64(sel, vals[k], *slot);
+            }
+            w = w.wrapping_add(do_write & 1);
+        }
+    }
+
+    // Deterministic xorshift64 — reproducible pseudo-random accept patterns without an rng dep.
+    struct Xs(u64);
+    impl Xs {
+        fn next(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.0 = x;
+            x
+        }
+    }
+
+    #[test]
+    fn ct_compact_matches_reference_oracle() {
+        let mut rng = Xs(0x9E37_79B9_7F4A_7C15);
+        // (budget, out) shapes incl. the production draws and small/edge sizes.
+        let shapes = [(1usize, 1usize), (4, 2), (16, 9), (64, 40), (129, 1), (9216, 6144), (9344, 9216)];
+        for &(budget, n) in &shapes {
+            // Force ≥ n accepts, then randomly accept the rest, so compaction never underflows.
+            let mut accs = alloc::vec![0u64; budget];
+            let mut order: alloc::vec::Vec<usize> = (0..budget).collect();
+            // Fisher–Yates with the xorshift stream to pick which indices are guaranteed-accepted.
+            for i in (1..budget).rev() {
+                let j = (rng.next() as usize) % (i + 1);
+                order.swap(i, j);
+            }
+            for &idx in &order[..n] {
+                accs[idx] = u64::MAX;
+            }
+            for a in accs.iter_mut() {
+                if *a == 0 && (rng.next() & 1) == 0 {
+                    *a = u64::MAX;
+                }
+            }
+            let vals: alloc::vec::Vec<i64> =
+                (0..budget).map(|_| (rng.next() % 2_000_003) as i64 - 1_000_001).collect();
+
+            let mut got = alloc::vec![0i64; n];
+            let mut want = alloc::vec![0i64; n];
+            ct_compact(&vals, &accs, &mut got);
+            ct_compact_ref(&vals, &accs, &mut want);
+            assert_eq!(got, want, "Batcher compaction diverged from oracle at budget={budget} n={n}");
+        }
+    }
+
+    #[test]
+    fn batcher_sort_orders_values_by_key() {
+        let mut rng = Xs(0xDEAD_BEEF_CAFE_F00D);
+        for &len in &[1usize, 2, 4, 8, 64, 256] {
+            let mut key: alloc::vec::Vec<u64> = (0..len).map(|_| rng.next() % 1000).collect();
+            let mut val: alloc::vec::Vec<i64> = key.iter().map(|&k| k as i64).collect();
+            batcher_sort(&mut key, &mut val);
+            for w in key.windows(2) {
+                assert!(w[0] <= w[1], "batcher_sort left keys unsorted");
+            }
+            // paired value must track its key through the exchanges
+            for (k, v) in key.iter().zip(val.iter()) {
+                assert_eq!(*k as i64, *v);
+            }
+        }
+    }
 }
