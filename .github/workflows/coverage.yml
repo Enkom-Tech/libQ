@@ -32,6 +32,10 @@ env:
   RUSTFLAGS: "-D warnings"
   COVERAGE_THRESHOLD: "70"
 
+permissions:
+  # Least-privilege default; jobs that need more elevate locally (e.g. coverage badge commit).
+  contents: read
+
 jobs:
   coverage:
     name: Test Coverage
