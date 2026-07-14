@@ -17,12 +17,16 @@
 //!   `exp`). For masks this is acceptable in the *distributed* (rejection-free aggregation) path; the
 //!   single-signer rejection path must not be used against a timing adversary for secret keys.
 
-use std::sync::OnceLock;
+extern crate alloc;
+
+use alloc::boxed::Box;
 
 use rand_core::{
     CryptoRng,
     Rng,
 };
+
+use super::fmath;
 
 /// Tail cut: samples are confined to `c ± TAIL_CUT·s`. `ρ_s(TAIL_CUT·s) = exp(-π·TAIL_CUT²)` is
 /// `< 2^-650` at `TAIL_CUT = 12`, far below any statistical-distance budget we rely on.
@@ -66,17 +70,17 @@ const FAST_PATH_WIDTH: f64 = 50.0;
 pub fn sample_discrete_gaussian<R: CryptoRng + Rng>(rng: &mut R, s: f64, c: f64) -> i64 {
     debug_assert!(s > 0.0 && s.is_finite() && c.is_finite());
     if s >= FAST_PATH_WIDTH {
-        let sigma = s / (2.0 * core::f64::consts::PI).sqrt();
-        return (c + sigma * std_normal(rng)).round() as i64;
+        let sigma = s / fmath::sqrt(2.0 * core::f64::consts::PI);
+        return fmath::round(c + sigma * std_normal(rng)) as i64;
     }
-    let lo = (c - TAIL_CUT * s).floor() as i64;
-    let hi = (c + TAIL_CUT * s).ceil() as i64;
+    let lo = fmath::floor(c - TAIL_CUT * s) as i64;
+    let hi = fmath::ceil(c + TAIL_CUT * s) as i64;
     let span = (hi - lo + 1) as u64;
     let inv_s2 = 1.0 / (s * s);
     loop {
         let x = lo + uniform_below(rng, span) as i64;
         let diff = (x as f64) - c;
-        let rho = (-core::f64::consts::PI * diff * diff * inv_s2).exp();
+        let rho = fmath::exp(-core::f64::consts::PI * diff * diff * inv_s2);
         if uniform_unit(rng) < rho {
             return x;
         }
@@ -87,13 +91,13 @@ pub fn sample_discrete_gaussian<R: CryptoRng + Rng>(rng: &mut R, s: f64, c: f64)
 fn std_normal<R: CryptoRng + Rng>(rng: &mut R) -> f64 {
     let u1 = uniform_unit(rng).max(f64::MIN_POSITIVE);
     let u2 = uniform_unit(rng);
-    (-2.0 * u1.ln()).sqrt() * (2.0 * core::f64::consts::PI * u2).cos()
+    fmath::sqrt(-2.0 * fmath::ln(u1)) * fmath::cos(2.0 * core::f64::consts::PI * u2)
 }
 
 /// Standard deviation `σ = s / √(2π)` for the width parameter `s`.
 #[must_use]
 pub fn sigma_of(s: f64) -> f64 {
-    s / (2.0 * core::f64::consts::PI).sqrt()
+    s / fmath::sqrt(2.0 * core::f64::consts::PI)
 }
 
 // ---------------------------------------------------------------------------
@@ -118,17 +122,18 @@ fn ct_lt_u64(a: u64, b: u64) -> i64 {
 /// `s = CT_SECRET_WIDTH`. Magnitude `= Σ_m [r < cdt[m]]` for a uniform `r`, so the deeper the tail,
 /// the larger the magnitude — computed with a branchless count.
 fn secret_cdt() -> &'static [u64; CDT_ZMAX] {
-    static T: OnceLock<[u64; CDT_ZMAX]> = OnceLock::new();
+    /// `2^64` as an (exactly representable) `f64` — `f64::powi` is std-only.
+    const TWO64: f64 = 18_446_744_073_709_551_616.0;
+    static T: once_cell::race::OnceBox<[u64; CDT_ZMAX]> = once_cell::race::OnceBox::new();
     T.get_or_init(|| {
         let s = CT_SECRET_WIDTH;
         let inv_s2 = 1.0 / (s * s);
-        let rho = |x: i64| (-core::f64::consts::PI * (x * x) as f64 * inv_s2).exp();
+        let rho = |x: i64| fmath::exp(-core::f64::consts::PI * (x * x) as f64 * inv_s2);
         // a[0] = ρ(0); a[x] = 2·ρ(x) for x ≥ 1 (combine ±x into one magnitude).
         let mut z = rho(0);
         for x in 1..=(CDT_ZMAX as i64) {
             z += 2.0 * rho(x);
         }
-        let two64 = 2.0_f64.powi(64);
         let mut table = [0u64; CDT_ZMAX];
         for (m, slot) in table.iter_mut().enumerate() {
             // tail = Pr[mag ≥ m+1] = (Σ_{x≥m+1} 2·ρ(x)) / Z.
@@ -136,14 +141,14 @@ fn secret_cdt() -> &'static [u64; CDT_ZMAX] {
             for x in (m as i64 + 1)..=(CDT_ZMAX as i64) {
                 tail += 2.0 * rho(x);
             }
-            let scaled = (tail / z) * two64;
-            *slot = if scaled >= two64 {
+            let scaled = (tail / z) * TWO64;
+            *slot = if scaled >= TWO64 {
                 u64::MAX
             } else {
                 scaled as u64
             };
         }
-        table
+        Box::new(table)
     })
 }
 

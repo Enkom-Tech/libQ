@@ -14,7 +14,12 @@ CRATES=(
   lib-q-blind-pcs
   lib-q-dkg
   lib-q-threshold-raccoon
+  lib-q-threshold-kem-lattice
   lib-q-blind-token
+  lib-q-mve
+  lib-q-transcript
+  lib-q-stark-baby-bear
+  lib-q-zk-encryption-proof
 )
 
 # Case-insensitive for gip/sybil/vault; PoP is matched case-sensitively only (avoids

@@ -1009,6 +1009,8 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
+ "libm",
+ "once_cell",
  "rand_core 0.10.1",
  "serde-wasm-bindgen",
  "serde_json",
@@ -2039,6 +2041,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-threshold-kem-lattice"
+version = "0.0.8"
+dependencies = [
+ "getrandom 0.4.3",
+ "hex",
+ "lib-q-core",
+ "lib-q-dkg",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-threshold-raccoon"
 version = "0.0.8"
 dependencies = [
@@ -2112,6 +2132,34 @@ name = "lib-q-utils"
 version = "0.0.8"
 dependencies = [
  "lib-q-core",
+]
+
+[[package]]
+name = "lib-q-zk-encryption-proof"
+version = "0.0.8"
+dependencies = [
+ "lib-q-dkg",
+ "lib-q-plonky-batch-stark",
+ "lib-q-plonky-keccak-air",
+ "lib-q-plonky-lookup",
+ "lib-q-plonky-uni-stark",
+ "lib-q-random",
+ "lib-q-sha3",
+ "lib-q-stark",
+ "lib-q-stark-air",
+ "lib-q-stark-challenger",
+ "lib-q-stark-commit",
+ "lib-q-stark-field",
+ "lib-q-stark-fri",
+ "lib-q-stark-matrix",
+ "lib-q-stark-merkle",
+ "lib-q-stark-mersenne31",
+ "lib-q-stark-shake256",
+ "lib-q-stark-symmetric",
+ "lib-q-threshold-kem-lattice",
+ "lib-q-zkp",
+ "rand_core 0.10.1",
+ "zeroize",
 ]
 
 [[package]]

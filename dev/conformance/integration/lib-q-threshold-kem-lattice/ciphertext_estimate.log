@@ -1,0 +1,30 @@
+# ==========================================================================
+# ARCHIVED estimator run for the CIPHERTEXT hiding M-LWE instance.
+#
+# PROVENANCE: run under SageMath + malb/lattice-estimator via
+# `ciphertext_estimate.py`. The raw stdout was not preserved as a file in this
+# crate; the values below are transcribed verbatim from the run output already
+# quoted in SECURITY_ANALYSIS.md §6 (committed 2026-07-10), materialized here so
+# the §6 `ciphertext_estimate.log` reference resolves in-tree. Re-run in place:
+#   PYTHONPATH=<lattice-estimator> python -u ciphertext_estimate.py > ciphertext_estimate.log
+# ==========================================================================
+# ciphertext MLWE: n=6144 m=10240 q=281474976694273 Xs=U(-1,1) Xe=U(-B,B)
+## rough sweep (conservative ~half-bits; threshold location only)
+B=2^18: rough=inf   (no feasible attack located)
+B=2^20: rough=inf   (no feasible attack located)
+B=2^22: rough=inf   (no feasible attack located)
+B=2^24: rough=inf   (no feasible attack located)
+
+## full estimate (deny bkw/arora-gb), default cost model
+B=2^18: bdd ≈ 2^981.2 ; bdd_hybrid ≈ 2^971.0 (β=1755)   <- easiest swept point
+B=2^20: bdd ≈ 2^1376.9 ; bdd_hybrid ≈ 2^1344.9 (β=1755) <- deployed value (ENC_ERROR_BOUND=2^20)
+
+# The script's `B=2^20: full=inf` summary line is a float64 overflow (2^1344 > 2^1024);
+# the per-attack rop values above carry the real costs.
+#
+# Sweep TERMINATED after bracketing B=2^18..2^20: hardness is monotone in B, the
+# easiest swept point (B=2^18, ~971 bits) is ~800 bits above the 128-bit bar, and
+# cost-model spread cannot change the verdict at this altitude. B=2^22 and B=2^24
+# were not run to completion (only harder than the bracket). The ciphertext side is
+# nowhere near the bottleneck — the decap-key instance (key_estimate.log, 169-bit
+# quantum) is the load-bearing gate.

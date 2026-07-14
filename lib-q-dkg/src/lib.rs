@@ -18,22 +18,19 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(feature = "std")]
 pub mod dkg;
 pub mod error;
 pub mod profile;
-#[cfg(feature = "std")]
 pub mod wire;
 
 /// Self-contained lattice machinery (ring + BDLOP commitment + FS proof of correct sharing).
-#[cfg(feature = "std")]
+/// `no_std + alloc`-capable: lazy tables use `once_cell::race`, `f64` math falls back to `libm`.
 pub mod lattice;
 
 /// WASM bindings (`@lib-q/dkg`), gated behind the `wasm` feature.
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-#[cfg(feature = "std")]
 pub use dkg::{
     CoeffCommitments,
     Complaint,
@@ -63,7 +60,6 @@ pub use profile::{
     PROFILE_MAX_PARTIES_V1,
     setup,
 };
-#[cfg(feature = "std")]
 pub use wire::{
     WIRE_BUDGET_DKG_COMPLAINT_BYTES,
     WIRE_BUDGET_DKG_ROUND1_BYTES,

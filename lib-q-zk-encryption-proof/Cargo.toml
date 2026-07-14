@@ -1,0 +1,66 @@
+[package]
+name = "lib-q-zk-encryption-proof"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "RED/unsigned: ZK-STARK proof of correct encryption (proof-of-knowledge of message mu) for lib-q-threshold-kem-lattice ciphertexts."
+license.workspace = true
+repository.workspace = true
+keywords = ["zk", "stark", "lattice", "kem", "post-quantum"]
+categories = ["cryptography", "no-std"]
+readme.workspace = true
+autobenches = false
+
+[dependencies]
+lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.8" }
+lib-q-plonky-keccak-air = { path = "../lib-q-plonky-keccak-air", version = "0.0.8" }
+lib-q-plonky-batch-stark = { path = "../lib-q-plonky-batch-stark", version = "0.0.8" }
+lib-q-plonky-uni-stark = { path = "../lib-q-plonky-uni-stark", version = "0.0.8" }
+lib-q-plonky-lookup = { path = "../lib-q-plonky-lookup", version = "0.0.8" }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.8" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.8" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.8" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.8" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.8" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.8" }
+lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.8" }
+lib-q-threshold-kem-lattice = { path = "../lib-q-threshold-kem-lattice", version = "0.0.8" }
+zeroize = { workspace = true }
+# The malformed-ciphertext partial-decap gate (task #33) forwards an RNG to `partial_decap_masked`.
+rand_core = { workspace = true }
+
+[dev-dependencies]
+lib-q-stark = { path = "../lib-q-stark", version = "0.0.8", default-features = false, features = ["alloc"] }
+# Batch-STARK composition round-trip tests need a uni-stark-stack config (distinct from the
+# lib-q-stark single-AIR StarkProver used by the per-AIR tests). These build that config.
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.8" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.8" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.8" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.8" }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.8" }
+# Hiding-FRI (zero-knowledge) config round-trip test needs a deterministic RNG for the blinding.
+lib-q-random = { path = "../lib-q-random", version = "0.0.8" }
+
+[features]
+default = ["std"]
+std = ["alloc"]
+alloc = []
+no_std = []
+
+[lib]
+bench = false
+name = "lib_q_zk_encryption_proof"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(hax)',
+    'cfg(eurydice)',
+    'cfg(doc_cfg)',
+] }
