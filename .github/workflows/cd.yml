@@ -358,6 +358,7 @@ jobs:
           - package: "lib-q-hqc"
           - package: "lib-q-slh-dsa"
           - package: "lib-q-lattice-zkp"
+          - package: "lib-q-mayo"  # deps: lib-q-sha3 + external aes only
     steps:
       - uses: actions/checkout@v7
       - name: Authenticate with crates.io

@@ -1,0 +1,63 @@
+[package]
+name = "lib-q-mayo"
+version.workspace = true
+description = "MAYO multivariate signature scheme (NIST additional-signatures round 2), MAYO_2 parameter set"
+keywords = ["cryptography", "post-quantum", "mayo", "multivariate", "signatures"]
+categories = ["cryptography", "no-std"]
+
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme = "README.md"
+rust-version.workspace = true
+autobenches = false
+
+[lib]
+bench = false
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9" }
+aes = { workspace = true }
+zeroize = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std", "nist-drbg"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.9" }
+
+[[test]]
+name = "hardened_dudect_smoke"
+path = "tests/hardened_dudect_smoke.rs"
+required-features = ["hardened", "mayo2", "dudect-smoke-tests"]
+
+[features]
+default = ["std", "mayo2"]
+
+# Parameter sets (NIST additional signatures, round 2)
+mayo2 = []  # MAYO_2: security level 1, vk 4912 B / sig 186 B
+
+# Standard library support
+std = []
+
+# Security hardening. Constant-time masks + optimizer barriers are always on
+# (not feature-gated); `hardened` adds zeroize-backed wiping.
+zeroize = ["dep:zeroize"]
+hardened = ["zeroize"]
+
+# Testing and validation
+dudect-smoke-tests = []  # Wall-clock timing smoke; enabled only in dedicated CI matrix rows
+
+[[bench]]
+name = "mayo"
+harness = false
+required-features = ["mayo2"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "wasm32-unknown-unknown"]

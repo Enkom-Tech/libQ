@@ -1322,6 +1322,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-mayo"
+version = "0.0.9"
+dependencies = [
+ "aes",
+ "criterion",
+ "hex",
+ "lib-q-random",
+ "lib-q-sca-test",
+ "lib-q-sha3",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-ml-dsa"
 version = "0.0.9"
 dependencies = [
