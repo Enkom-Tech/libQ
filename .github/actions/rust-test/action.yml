@@ -201,13 +201,17 @@ runs:
               cargo test $SHARED_FLAGS "${FEAT_ARGS[@]}" --verbose
             fi
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
-            if [[ "$PACKAGE" == "lib-q-fn-dsa" || "$PACKAGE" == "lib-q-blind-token" || "$PACKAGE" == "lib-q-dkg" || "$PACKAGE" == "lib-q-threshold-raccoon" || "$PACKAGE" == "lib-q-threshold-kem-lattice" ]]; then
+            if [[ "$PACKAGE" == "lib-q-fn-dsa" || "$PACKAGE" == "lib-q-blind-token" || "$PACKAGE" == "lib-q-dkg" || "$PACKAGE" == "lib-q-threshold-raccoon" || "$PACKAGE" == "lib-q-threshold-kem-lattice" || "$PACKAGE" == "lib-q-zk-encryption-proof" ]]; then
               echo "Skipping full dev test suite for $PACKAGE (lattice keygen/proof math is far too slow in debug; full suite runs in the release step only)"
             else
               cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --verbose
             fi
           else
-            cargo test "${FEAT_ARGS[@]}" --verbose
+            # Whole-workspace debug pass (std / all-algorithms shards). Exclude the heavy STARK
+            # crate lib-q-zk-encryption-proof: its debug proving is far too slow (same rationale as
+            # the per-package skip list above) and was tipping these already-tight shards over their
+            # timeout caps. It is fully covered by its own dedicated release-ci shard.
+            cargo test "${FEAT_ARGS[@]}" --workspace --exclude lib-q-zk-encryption-proof --verbose
           fi
         fi
         echo "Tests completed"
@@ -304,7 +308,10 @@ runs:
               cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --profile release-ci --verbose
             fi
           else
-            cargo test "${FEAT_ARGS[@]}" --profile release-ci --verbose
+            # Whole-workspace release pass (std / all-algorithms shards). Exclude
+            # lib-q-zk-encryption-proof (covered by its own dedicated release-ci shard) so these
+            # shards stay under their timeout caps; see the matching exclude in the debug pass above.
+            cargo test "${FEAT_ARGS[@]}" --workspace --exclude lib-q-zk-encryption-proof --profile release-ci --verbose
           fi
         fi
         echo "Release tests completed"
