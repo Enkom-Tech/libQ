@@ -7,8 +7,8 @@
 /// Wire version byte.
 pub const WIRE_VERSION_V1: u8 = 1;
 
-/// Byte budget for an encoded token value. The secure instance (`N = 1024`, `q ≈ 2^46`, 6 bytes
-/// per coefficient) yields a proof of `(1 + WITNESS_LEN)·N·6 ≈ 399 KB`; the budget leaves headroom.
+/// Byte budget for an encoded token value. The secure instance (`N = 1024`, `q ≈ 2^51`, 7 bytes
+/// per coefficient) yields a proof of `(1 + WITNESS_LEN)·N·7 ≈ 497 KB`; the budget leaves headroom.
 pub const WIRE_BUDGET_BLIND_TOKEN_BYTES: usize = 524_288;
 
 #[cfg(feature = "std")]
@@ -39,8 +39,8 @@ mod imp {
     };
     use crate::profile::PROFILE_ID_V1;
 
-    /// Bytes per coefficient (`q < 2^48` ⇒ 6 bytes suffice).
-    const COEFF_BYTES: usize = 6;
+    /// Bytes per coefficient (`q < 2^56` ⇒ 7 bytes suffice; the `q ≈ 2^51` instance needs 7).
+    const COEFF_BYTES: usize = 7;
     /// Encoded size of one ring element.
     const ELT_BYTES: usize = N * COEFF_BYTES;
 

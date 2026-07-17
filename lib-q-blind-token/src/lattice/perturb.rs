@@ -311,7 +311,7 @@ mod tests {
         let roots = make_roots();
         let mut rng = new_deterministic_rng([0x90u8; 32]);
         // embed is only ever applied to *small* values (trapdoor entries, continuous Gaussians);
-        // a uniform poly (coeffs ~ q ≈ 2^46) would lose the 1e-3 tolerance to f64 rounding.
+        // a uniform poly (coeffs ~ q ≈ 2^51) would lose the 1e-3 tolerance to f64 rounding.
         let p = crate::lattice::ring::sample_gaussian_poly(&mut rng, 50.0);
         let c = centered_coeffs(&p);
         let cf: [f64; N] = core::array::from_fn(|t| c[t] as f64);

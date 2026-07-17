@@ -8,7 +8,7 @@
 //!
 //! `m̄` is chosen so that `[Ā | Ā·R]` is statistically close to uniform (leftover-hash trapdoor
 //! hiding), so the issuer matrix `A` is indistinguishable from uniform *without* a Module-LWE
-//! assumption — see `LIBQ_API.md` §3. For `q ≈ 2^48`, `s_r = 4`, this needs `m̄ = 18`.
+//! assumption — see `LIBQ_API.md` §3. For `q ≈ 2^51`, `s_r = 4`, this needs `m̄ = 18`.
 //!
 //! Preimage sampling ([`Trapdoor::sample_preimage`]) uses the Micciancio–Peikert perturbation
 //! method (see [`super::perturb`]) so the output `x` is a spherical discrete Gaussian whose
@@ -38,7 +38,7 @@ use super::ring::{
 };
 
 /// Width of the `Ā = [1, a_1, …, a_{m̄-1}]` part. Chosen for statistical trapdoor hiding at
-/// `q ≈ 2^48`, `s_r = 4` (leftover-hash leftover `≥ 2λ`).
+/// `q ≈ 2^51`, `s_r = 4` (leftover-hash leftover `≥ 2λ`).
 pub const MBAR: usize = 18;
 
 /// Total number of ring elements in `A` and in a preimage `x`.
