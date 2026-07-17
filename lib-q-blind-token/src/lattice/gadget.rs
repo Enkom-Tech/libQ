@@ -155,11 +155,11 @@ impl GadgetSampler {
             }
         }
         // Lattice point w = Σ_j coeffs_j · b_j (exact integer), then z = z0 − w.
+        // Data-oblivious: no early-out on `coeffs[j] == 0` — skipping a zero coefficient would
+        // leak the secret Klein zero-pattern through the reconstruction timing. Multiply through
+        // unconditionally (the bidiagonal integer basis keeps this cheap either way).
         let mut z = z0;
         for j in 0..k {
-            if coeffs[j] == 0 {
-                continue;
-            }
             for i in 0..k {
                 z[i] -= coeffs[j] * self.basis_int[i][j];
             }
