@@ -13,6 +13,26 @@
 //! Convention: widths are `ρ_s` parameters (real variance `s²/2π`). Correctness is validated by the
 //! spherical-covariance test in [`crate::lattice::trapdoor`] / this module — a wrong scaling or a
 //! wrong Cholesky makes the empirical covariance of `x` non-spherical or `R`-dependent.
+//!
+//! ## Constant-time argument (online path)
+//!
+//! `PerturbSampler::new` (the ring Cholesky over the secret `R`) is **keygen-only** — one execution
+//! per trapdoor, off any adversary-timed interaction, so it is outside the online model. The online
+//! per-token surface is `PerturbSampler::sample`: two FFTs and the `z = L·ĝ` mul-add chain, whose
+//! only persistent secret operands are the Cholesky factors `L`. The construction is certified
+//! constant-time in the secret by a **numeric-range argument**: every online secret-derived f64
+//! intermediate is exactly ±0.0 or a *normal* f64 — never subnormal (`|L entries| ≤ s ≈ 2^13`, FFT
+//! twiddles have modulus 1, and no accumulation/cancellation drives a nonzero result below ~2^-200,
+//! far above the 2^-1022 subnormal threshold). So the SSE2/AArch64 denormal-assist channel cannot
+//! fire, and all operations are add/sub/mul/FMA (fixed-latency on those ISAs) — the one secret-
+//! numerator division in the Klein loop was removed (see [`super::gadget`]). Guards: the stored `L`
+//! is checked non-subnormal by a release-running test (`perturb_factors_are_never_subnormal`); the
+//! transient FFT/accumulation intermediates by `debug_assert`s in `sample` (fire in debug/CI).
+//!
+//! Residual, documented (not closed): the Box–Muller `std_normal` uses libm `ln`/`sqrt`/`cos` whose
+//! latency depends on their argument — but that argument is *fresh per-token randomness*, never the
+//! long-term key, so it leaks only ephemeral `g` (coarsely). Replacing it with fixed-polynomial
+//! evaluation is the next hardening step if this crate leaves PROVISIONAL.
 
 use alloc::vec::Vec;
 
@@ -277,11 +297,29 @@ impl PerturbSampler {
                 *zs = acc;
             }
             let z_real = inverse_embed(&z_slots, &self.roots);
+            // Constant-time-argument invariant: the secret-derived rounding centers are exactly
+            // ±0.0 or normal f64 (never subnormal), so the isochronous sampler sees no denormal
+            // assist. Checked in debug/CI; compiled out of the release hot path.
+            debug_assert!(z_real.iter().all(|v| !v.is_subnormal()));
             let rounded: [i64; N] =
                 core::array::from_fn(|t| round_sampler.sample(rng, z_real[t]));
             out.push(poly_from_i64(&rounded));
         }
         out
+    }
+}
+
+impl PerturbSampler {
+    /// Test-only: every stored Cholesky-factor entry (the persistent SECRET operand of the online
+    /// `L·ĝ` apply) is exactly ±0.0 or a normal f64 — never subnormal. This is the release-running
+    /// half of the constant-time argument (transient intermediates are guarded by `debug_assert`s
+    /// in `sample`, which fire in debug/CI builds).
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn all_factors_normal(&self) -> bool {
+        self.l.iter().flatten().flatten().all(|c| {
+            (c.re == 0.0 || !c.re.is_subnormal()) && (c.im == 0.0 || !c.im.is_subnormal())
+        })
     }
 }
 

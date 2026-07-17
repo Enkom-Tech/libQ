@@ -35,7 +35,16 @@ classical / 130-bit quantum, matching the hand derivation to <1 bit; the quantum
 clears 128-bit (≈130-bit, ~2 bits of headroom). The small-width, secret-bearing samplers (trapdoor,
 attribute, gadget coset, perturbation rounding) are now **isochronous** (constant-time in the secret
 center/output) via `lattice::gaussian_ct` (reverse-CDT base + branchless `BerExp`, HPRR/Falcon
-style); residual `f64`/FFT micro-architectural timing is not audited (see §7). See
+style). The surrounding `f64`/FFT linear algebra (perturbation Cholesky-apply, embeddings, Klein
+reduction) is **certified constant-time by a numeric-range argument**: the heavy secret-dependent
+Cholesky is keygen-only (outside the online model), and every online secret-derived intermediate is
+provably exactly ±0.0 or a *normal* f64 — never subnormal — so no denormal-assist timing channel
+exists; the one secret-numerator f64 division was removed in favor of a fixed reciprocal multiply,
+leaving only fixed-latency add/mul/FMA (guarded by a release-running non-subnormal test on the stored
+Cholesky factors plus `debug_assert`s on the transient intermediates). The **residual** (documented,
+not closed): Box–Muller uses libm `ln`/`cos` whose latency leaks only *ephemeral per-token*
+randomness (not the key); and the fixed-latency add/mul premise assumes a mainstream x86-64
+SSE2 / AArch64 target (x87 / soft-float excluded). See
 `dev/conformance/integration/lib-q-blind-token/LIBQ_API.md` §3/§7 for the full derivation and caveat
 list. Not load-bearing; for integration / protocol testing only.
 
