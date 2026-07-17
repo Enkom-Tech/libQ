@@ -22,8 +22,15 @@ extern crate alloc;
 pub mod blind_token;
 pub mod error;
 /// Lattice trapdoor machinery (GPV-preimage blind signature). Std-gated: the samplers need `f64`.
-/// Research-grade: the small-width secret-bearing Gaussians are isochronous (constant-time in the
-/// secret center; see `lattice::gaussian_ct`), but residual `f64`/FFT timing is not audited.
+/// Research-grade constant-time posture: the small-width secret-bearing Gaussians are isochronous
+/// (constant-time in the secret center; see `lattice::gaussian_ct`), and the surrounding f64/FFT
+/// linear algebra is certified by a numeric-range argument — every online secret-derived intermediate
+/// is exactly ±0.0 or a normal f64 (never subnormal), so no denormal-assist channel exists, and the
+/// one secret-numerator division was removed (see `lattice::perturb` / `lattice::gadget` module docs).
+/// Residual (documented, not closed): Box–Muller libm latency leaks only *ephemeral* per-token
+/// randomness; keygen Cholesky is not constant-time (single-execution, outside the online model);
+/// and fixed-latency add/mul is a documented assumption for mainstream x86-64 SSE2 / AArch64 (x87 /
+/// soft-float targets excluded).
 #[cfg(feature = "std")]
 pub mod lattice;
 pub mod profile;
