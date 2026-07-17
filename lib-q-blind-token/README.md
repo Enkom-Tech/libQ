@@ -28,9 +28,14 @@ reach ≈143-bit classical / ≈130-bit quantum Module-SIS (binding / one-more-u
 `τ = 16` (≈128-bit knowledge soundness), with the trapdoor hidden **statistically** (`m̄ = 18`, no
 Module-LWE assumption). This is the profile-2 raise from the earlier `q ≈ 2^48` instance (≈131-bit
 classical / ≈119-bit quantum), which cleared classical but sat under a 128-bit **quantum** floor.
-Consequences: keys/tokens are large (public key ≈ 483 KB, token ≈ 497 KB — up from ≈396/≈408 KB) and
-the samplers are not constant-time. The security level is a cost-model **estimate**, not a proof; the
-quantum core-SVP margin now clears 128-bit (≈130-bit). See
+Consequence: keys/tokens are large (public key ≈ 483 KB, token ≈ 497 KB — up from ≈396/≈408 KB). The
+security level is a cost-model **estimate**, not a proof, but it is **cross-checked against the
+`malb/lattice-estimator`** (SageMath), which independently returns BKZ blocksize `b = 491` → 143-bit
+classical / 130-bit quantum, matching the hand derivation to <1 bit; the quantum core-SVP margin
+clears 128-bit (≈130-bit, ~2 bits of headroom). The small-width, secret-bearing samplers (trapdoor,
+attribute, gadget coset, perturbation rounding) are now **isochronous** (constant-time in the secret
+center/output) via `lattice::gaussian_ct` (reverse-CDT base + branchless `BerExp`, HPRR/Falcon
+style); residual `f64`/FFT micro-architectural timing is not audited (see §7). See
 `dev/conformance/integration/lib-q-blind-token/LIBQ_API.md` §3/§7 for the full derivation and caveat
 list. Not load-bearing; for integration / protocol testing only.
 

@@ -16,8 +16,6 @@ use rand_core::{
     Rng,
 };
 
-use super::gaussian::sample_discrete_gaussian;
-
 /// Modulus `q` as an `i64` (from the self-contained ring).
 pub const Q: i64 = super::ring::Q;
 
@@ -76,8 +74,9 @@ pub struct GadgetSampler {
     gso: [[f64; GADGET_LEN]; GADGET_LEN],
     /// `‖b̃_j‖²`.
     gso_sq_norm: [f64; GADGET_LEN],
-    /// Width parameter `s`.
-    width: f64,
+    /// Per-GSO-level isochronous samplers. Level `j` has public width `sprime = s/‖b̃_j‖`; the
+    /// coset center `cprime` is secret, so each draw must be constant-time in the center.
+    samplers: alloc::vec::Vec<super::gaussian_ct::SamplerZ>,
 }
 
 impl GadgetSampler {
@@ -120,12 +119,17 @@ impl GadgetSampler {
             gso_sq_norm[j] = dot(&v, &v);
         }
 
+        // Precompute the per-level constant-time samplers (widths are public, from the fixed basis).
+        let samplers = (0..k)
+            .map(|j| super::gaussian_ct::SamplerZ::new(width / gso_sq_norm[j].sqrt()))
+            .collect();
+
         Self {
             basis,
             basis_int,
             gso,
             gso_sq_norm,
-            width,
+            samplers,
         }
     }
 
@@ -142,8 +146,8 @@ impl GadgetSampler {
         let mut coeffs = [0i64; GADGET_LEN];
         for j in (0..k).rev() {
             let cprime = dot(&c, &self.gso[j]) / self.gso_sq_norm[j];
-            let sprime = self.width / self.gso_sq_norm[j].sqrt();
-            let zj = sample_discrete_gaussian(rng, sprime, cprime);
+            // Isochronous draw: width `sprime` is public (baked into `samplers[j]`), center secret.
+            let zj = self.samplers[j].sample(rng, cprime);
             coeffs[j] = zj;
             // c := c − zj · b_j.
             for i in 0..k {

@@ -8,11 +8,11 @@ normative description of what the crate guarantees; it carries no consumer-proto
 - **Primitive:** an **unlinkable lattice blind token** in the keyed-verification anonymous-credential
   style of Agrawal–Kirshanova–Stehlé–Yadav (CCS 2022, "Practical, Round-Optimal Lattice-Based Blind
   Signatures") over a **self-contained** ring \(R_q = \mathbb{Z}_q[X]/(X^{1024}+1)\),
-  `q = 281 474 976 694 273` (prime, `q ≡ 1 (mod 2N)`, `q < 2^48`). The ring (NTT, sampler,
-  `sample_in_ball`) is implemented in-crate so the modulus/dimension are sized for *concrete
-  security* rather than borrowed from an ML-DSA ring. Two layers:
+  `q = 2 251 799 813 640 193` (prime, `q ≡ 1 (mod 2N)`, `2^50 < q < 2^51`; profile 2). The ring
+  (NTT, sampler, `sample_in_ball`) is implemented in-crate so the modulus/dimension are sized for
+  *concrete security* rather than borrowed from an ML-DSA ring. Two layers:
   1. **GPV signature with a Micciancio–Peikert gadget trapdoor.** The issuer key is a matrix `A`
-     (row of `PREIMAGE_LEN = 66` ring elements) with an MP trapdoor `A = [Ā | G − Ā·R]`,
+     (row of `PREIMAGE_LEN = 69` ring elements) with an MP trapdoor `A = [Ā | G − Ā·R]`,
      `Ā = [1, a_1, …, a_{m̄-1}]` (`m̄ = 18`), `R ∈ R_q^{m̄×k}` short Gaussian, `G = (1,2,…,2^{k-1})`
      (`k = 48`). A credential on a *hidden* attribute `a_tok` is a short preimage `x` with
      `A·x = d·a_tok + d0` (`d, d0` public), produced by GPV preimage sampling (Peikert convolution
@@ -116,14 +116,20 @@ until the interoperable wire freeze.
 
 ## 7. Assumptions / caveats surfaced for RED-zone review
 
-1. **Concrete security is a BKZ-cost-model estimate, not a proof.** The set targets ≈143-bit
-   classical / ≈130-bit quantum **core-SVP** (§3). Core-SVP is the standard conservative model used
-   by NIST PQC submissions, but it is a heuristic: the true cost depends on the lattice estimator
-   version, sieve/enumeration crossover, and memory model. The estimate should be re-run with an
-   up-to-date lattice estimator before this instance is treated as load-bearing. Both the classical
-   and the **quantum** core-SVP margins now clear 128-bit (≈130-bit quantum) — this is the property
-   the profile-2 raise (`q ≈ 2^48 → 2^51`) was for; the earlier profile-1 instance sat at ≈119-bit
-   quantum, under the floor.
+1. **Concrete security is a BKZ-cost-model estimate, not a proof — now cross-checked.** The set
+   targets ≈143-bit classical / ≈130-bit quantum **core-SVP** (§3). Core-SVP is the standard
+   conservative model used by NIST PQC submissions, but it is a heuristic: the true cost depends on
+   the lattice estimator version, sieve/enumeration crossover, and memory model. **Cross-checked
+   against the `malb/lattice-estimator` (SageMath):** feeding the flattened Z-SIS instance
+   (`n = N·1 = 1024`, `q = 2 251 799 813 640 193`, `β ≈ 5.0·10⁹`, ℓ₂) returns optimal BKZ blocksize
+   `b = 491` (`δ ≈ 1.003448`, `rop ≈ 2^169.6`), giving `0.292·491 = 143.4`-bit classical /
+   `0.265·491 = 130.1`-bit quantum — matching the hand derivation to <1 bit. The module→flattened-SIS
+   reduction is the community-standard (mildly conservative) modeling, not a tight equivalence, so
+   this remains an estimate; but it is no longer a single hand-rolled model. Both the classical and
+   the **quantum** core-SVP margins clear 128-bit (≈130-bit quantum) — the property the profile-2
+   raise (`q ≈ 2^48 → 2^51`) was for; the earlier profile-1 instance sat at ≈119-bit quantum, under
+   the floor. Note the quantum margin is thin (~2 bits over 128); re-run the estimator on any future
+   `β`/dimension change.
 2. **Large keys / proofs.** Public key `≈ 483 KB` (`A` is 69 ring elements at 7 KB each), token
    `≈ 497 KB` (up from ≈396 KB / ≈408 KB at profile 1 — the cost of the `q`/`k` raise: `+1` byte per
    coefficient and `k = 48 → 51`). This is inherent to a statistically-hidden gadget trapdoor at this
@@ -132,11 +138,22 @@ until the interoperable wire freeze.
    smallest modulus that both clears the 7-byte-per-coefficient threshold (`> 2^48`) and gives the
    quantum margin, with `k = ⌈log₂q⌉ = 51` (a larger `q` would inflate `k`, hence `PREIMAGE_LEN`,
    for no size benefit).
-3. **Samplers are not constant-time.** The discrete Gaussian / gadget / perturbation samplers are
-   research-grade (data-dependent branches, `f64`); a production build needs constant-time base
-   samplers (CDT / Karney) and a hardened FFT-domain perturbation sampler. The perturbation FFT uses
-   `f64` canonical embedding; its numerical error budget vs. the smoothing parameter is not formally
-   bounded in-repo.
+3. **Samplers: algorithmic timing leak closed; residual float/FFT timing not audited.** The
+   small-width, secret-bearing discrete Gaussians — trapdoor `R` (`S_R`), attribute (`S_A`), the
+   gadget coset sampler (secret center `cprime`), and the perturbation rounding (secret center
+   `z_real`) — are now drawn with an **isochronous** sampler (`lattice::gaussian_ct`): a
+   constant-time reverse-CDT base sampler (full table scan, no early exit) plus a branchless
+   `BerExp` (fixed-degree polynomial `exp`, no `libm` call, no data-dependent branch), following the
+   Howe–Prest–Ricosset–Rossi / Falcon construction. The accept/reject loop count depends only on the
+   **public** width, not on the secret center or output; a regression guard
+   (`rng_consumption_independent_of_center`) asserts RNG consumption is center-independent to <5%.
+   The large-`σ` sites (`S_SIGN`, `S_Y`) use branchless continuous-rounding (no rejection), already
+   isochronous. **Residual (not closed):** this removes the *control-flow / branch / loop-count*
+   leak only — it does not certify against `f64` micro-architectural timing (subnormals, platform
+   FPU quirks) of the polynomial arithmetic, and the upstream perturbation FFT / GSO float linear
+   algebra (canonical embedding) is not audited for constant-time, nor is its numerical error budget
+   vs. the smoothing parameter formally bounded in-repo. This is a research-grade hardening of the
+   dominant leak, not a certified constant-time implementation.
 4. **Soundness/ZK conventions vs. the literature.** The Lyubashevsky rejection uses a `κ = 12`-σ tail
    factor with a clamp on the rare overflow; the resulting statistical distance must be re-derived
    for a target bound. The perturbation sampler's covariance scaling is validated empirically

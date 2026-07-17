@@ -271,10 +271,21 @@ pub fn ring_infinity_norm(p: &Rq) -> i64 {
 }
 
 /// Sample a ring element with i.i.d. `D_{Z,s,0}` coefficients (short Gaussian).
+///
+/// For small widths (the secret-bearing trapdoor / attribute draws) this uses the isochronous
+/// constant-time sampler, built once and reused across all `N` coefficients. Large widths keep the
+/// branchless continuous-rounding fast path.
 pub fn sample_gaussian_poly<R: CryptoRng + Rng>(rng: &mut R, s: f64) -> Rq {
     let mut coeffs = [0i64; N];
-    for c in &mut coeffs {
-        *c = sample_discrete_gaussian(rng, s, 0.0);
+    if s < super::gaussian::FAST_PATH_WIDTH {
+        let sampler = super::gaussian_ct::SamplerZ::new(s);
+        for c in &mut coeffs {
+            *c = sampler.sample(rng, 0.0);
+        }
+    } else {
+        for c in &mut coeffs {
+            *c = sample_discrete_gaussian(rng, s, 0.0);
+        }
     }
     poly_from_i64(&coeffs)
 }

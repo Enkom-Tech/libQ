@@ -22,7 +22,6 @@ use rand_core::{
 };
 
 use super::gadget::GADGET_LEN;
-use super::gaussian::sample_discrete_gaussian;
 use super::ring::{
     N,
     Rq,
@@ -264,6 +263,9 @@ impl PerturbSampler {
         }
 
         // z_a[slot] = Σ_b L_slot[a][b] · ĝ_b[slot]; then inverse-embed and round with width r.
+        // ROUND_WIDTH is small and fixed, but the per-coefficient centers `z_real[t]` are secret,
+        // so use the isochronous constant-time sampler (built once, reused across all draws).
+        let round_sampler = super::gaussian_ct::SamplerZ::new(ROUND_WIDTH);
         let mut out = Vec::with_capacity(DIM);
         for a_idx in 0..DIM {
             let mut z_slots = alloc::vec![Cpx::ZERO; N];
@@ -276,7 +278,7 @@ impl PerturbSampler {
             }
             let z_real = inverse_embed(&z_slots, &self.roots);
             let rounded: [i64; N] =
-                core::array::from_fn(|t| sample_discrete_gaussian(rng, ROUND_WIDTH, z_real[t]));
+                core::array::from_fn(|t| round_sampler.sample(rng, z_real[t]));
             out.push(poly_from_i64(&rounded));
         }
         out

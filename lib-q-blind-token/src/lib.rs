@@ -21,8 +21,9 @@ extern crate alloc;
 
 pub mod blind_token;
 pub mod error;
-/// Lattice trapdoor machinery (GPV-preimage blind signature). Std-gated: the Gaussian base sampler
-/// needs `f64::exp`. Research-grade and not constant-time.
+/// Lattice trapdoor machinery (GPV-preimage blind signature). Std-gated: the samplers need `f64`.
+/// Research-grade: the small-width secret-bearing Gaussians are isochronous (constant-time in the
+/// secret center; see `lattice::gaussian_ct`), but residual `f64`/FFT timing is not audited.
 #[cfg(feature = "std")]
 pub mod lattice;
 pub mod profile;
