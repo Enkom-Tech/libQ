@@ -51,7 +51,10 @@ fn next_u64<R: Rng>(rng: &mut R) -> u64 {
 /// Branchless `exp(-r)` for `r ∈ [0, ln2]`, returning a value in `(0.5, 1]`.
 ///
 /// Degree-10 Taylor series of `e^{-r}` evaluated by Horner. Over `[0, ln2]` the truncation error is
-/// `< r^11/11! < (ln2)^11/11! ≈ 3·10^-11`, well under the sampler's statistical-distance budget.
+/// `< r^11/11! < (ln2)^11/11! ≈ 3·10^-11 ≈ 2^-35`. This is a per-trial acceptance bias, not a formal
+/// statistical-distance bound at the 128-bit level (Falcon uses a ≈2^-47 minimax polynomial + a Rényi
+/// argument); it is adequate for this crate's PROVISIONAL unlinkability, and the degree can be raised
+/// to Falcon's minimax coefficients drop-in (same branchless structure) if a formal bound is needed.
 /// It is a fixed sequence of `f64` fused multiply-adds with **no branch and no table index**, so it
 /// runs in data-oblivious time (unlike a `libm` `exp` call, whose latency is argument-dependent).
 #[inline]
@@ -146,7 +149,9 @@ impl SamplerZ {
         let mut tail = 0.0f64;
         for i in (0..cap).rev() {
             tail += weights[i + 1] / total; // P[X ≥ i+1]
-            // Clamp to [0, 2^64) fixed point.
+            // Fixed point in [0, 2^64). `scale - 1.0` rounds back to 2^64 in f64 so the `min` never
+            // bites; correctness rests on Rust's saturating float→int cast pinning any 2^64 value to
+            // u64::MAX (so rcdt[0] = u64::MAX ⇒ accept-prob 1 − 2^-64, negligible).
             let v = (tail * scale).min(scale - 1.0);
             rcdt[i] = v as u64;
         }
