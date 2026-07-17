@@ -5,12 +5,14 @@
 //!
 //! * the Fiat–Shamir masked response `z` fits below `q/2` even with a heavy challenge (128-bit
 //!   knowledge soundness, `τ = 16`), and
-//! * Module-SIS on the issuer matrix `A` (the binding / one-more-unforgeability assumption) stays
-//!   ≈128-bit classical against the BKZ core-SVP cost model — see `LIBQ_API.md` §3/§7.
+//! * Module-SIS on the issuer matrix `A` (the binding / one-more-unforgeability assumption) clears
+//!   a **128-bit quantum** floor against the BKZ core-SVP cost model — see `LIBQ_API.md` §3/§7.
 //!
-//! Parameters: `N = 1024`, `q = 281 474 976 694 273` (prime, `q ≡ 1 (mod 2N)`, `q < 2^48`). The
-//! ring is implemented from scratch here (negacyclic NTT, validated against the schoolbook product)
-//! so the crate does not depend on a fixed external modulus.
+//! Parameters: `N = 1024`, `q = 2 251 799 813 640 193` (prime, `q ≡ 1 (mod 2N)`, `q < 2^51`). The
+//! modulus was raised from the `q ≈ 2^48` profile-1 instance (≈119-bit quantum) to this `q ≈ 2^51`
+//! profile-2 instance so the quantum core-SVP margin clears 128-bit (≈130-bit; ≈143-bit classical).
+//! The ring is implemented from scratch here (negacyclic NTT, validated against the schoolbook
+//! product) so the crate does not depend on a fixed external modulus.
 
 use std::sync::OnceLock;
 
@@ -29,21 +31,21 @@ use super::gaussian::sample_discrete_gaussian;
 /// Ring dimension `N` (negacyclic, `X^N + 1`).
 pub const N: usize = 1024;
 
-/// Modulus `q` (prime, `q ≡ 1 (mod 2N)`, `q < 2^48`).
-pub const Q: i64 = 281_474_976_694_273;
+/// Modulus `q` (prime, `q ≡ 1 (mod 2N)`, `q < 2^51`).
+pub const Q: i64 = 2_251_799_813_640_193;
 
 /// Primitive `2N`-th root of unity mod `q` (`ζ^N = -1`).
-const ZETA: i64 = 223_324_776_709_556;
+const ZETA: i64 = 833_963_715_377_153;
 
 /// `N^{-1} mod q` (for the inverse NTT scaling).
-const N_INV: i64 = 281_200_098_787_345;
+const N_INV: i64 = 2_249_600_790_384_685;
 
 const LOG_N: u32 = 10; // log2(N)
 
 /// `-q^{-1} mod 2^64` (Montgomery).
-const QINV: u64 = 9_151_591_519_478_595_583;
+const QINV: u64 = 1_645_692_721_173_581_823;
 /// `(2^64)^2 mod q` (Montgomery `R²`).
-const R2: u64 = 140_741_850_411_009;
+const R2: u64 = 1_119_852_662_702_020;
 
 /// An element of `R_q`, coefficients in `[0, q)`.
 #[derive(Clone, Debug, Eq, PartialEq)]

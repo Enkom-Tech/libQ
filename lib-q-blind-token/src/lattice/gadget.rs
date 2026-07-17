@@ -21,8 +21,8 @@ use super::gaussian::sample_discrete_gaussian;
 /// Modulus `q` as an `i64` (from the self-contained ring).
 pub const Q: i64 = super::ring::Q;
 
-/// Gadget length `k` such that `2^{k-1} ≤ q < 2^k`. For `q ≈ 2^48`, `k = 48`.
-pub const GADGET_LEN: usize = 48;
+/// Gadget length `k` such that `2^{k-1} ≤ q < 2^k`. For `q ≈ 2^51`, `k = 51`.
+pub const GADGET_LEN: usize = 51;
 
 /// Default Gaussian width for the coset `G`-sampler. Must exceed `‖B̃‖ · η_ε(Z)`; the canonical
 /// `Λ^⊥_q(g^T)` basis has Gram–Schmidt norms `≤ √5 ≈ 2.236`, so `6.0` leaves comfortable margin.

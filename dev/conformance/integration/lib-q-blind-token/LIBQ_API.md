@@ -47,16 +47,23 @@ classical sieving `0.292·b`, quantum `0.265·b`), not borrowed. The set:
 
 | quantity | value |
 |----------|-------|
-| ring | `N = 1024`, `q ≈ 2^48` (prime, `q ≡ 1 mod 2N`) |
-| trapdoor | `m̄ = 18`, `k = 48`, `PREIMAGE_LEN = 66`, `s_r = 4`, `s = S_SIGN = 5248` |
-| proof | `WITNESS_LEN = 67`, `τ = 16`, `S_Y ≈ 2.4·10^7`, `BETA_Z = 1.21·10^8` |
+| ring | `N = 1024`, `q ≈ 2^51` (prime `q = 2 251 799 813 640 193`, `q ≡ 1 mod 2N`) |
+| trapdoor | `m̄ = 18`, `k = 51`, `PREIMAGE_LEN = 69`, `s_r = 4`, `s = S_SIGN = 5248` |
+| proof | `WITNESS_LEN = 70`, `τ = 16`, `S_Y ≈ 2.4·10^7`, `BETA_Z = 1.21·10^8` |
 
 - **One-more unforgeability ⇐ Module-SIS.** Forging a fresh accepting proof yields (by the
   knowledge extractor of the Σ-protocol) a short `(x̄, ā)` with `A·x̄ = d·ā` of `ℓ₂`-norm
   `β ≈ 2·‖z‖₂ ≈ 5.0·10^9`; finding one without the trapdoor is **Module-SIS** on `A`. At
-  `n·N = 1024` rows and modulus `q`, the cost model gives **≈131-bit classical** (BKZ-450),
-  **≈119-bit quantum** core-SVP. (Core-SVP is conservative — it charges one SVP call and ignores
-  the large per-call sieve overhead — so the realistic quantum margin is higher.)
+  `n·N = 1024` rows and modulus `q ≈ 2^51`, the cost model gives **≈143-bit classical** (BKZ-491),
+  **≈130-bit quantum** core-SVP. This is the profile-2 raise from the earlier `q ≈ 2^48` instance
+  (≈131-bit classical / ≈119-bit quantum, BKZ-450); raising `q` to `≈2^51` while holding `β` and
+  `N` fixed lifts the required BKZ blocksize `450 → 491`, pushing the **quantum** core-SVP cost
+  `0.265·491 ≈ 130-bit` over the 128-bit floor (classical `0.292·491 ≈ 143-bit`). Derivation: the
+  SIS attack achieves length `2^{2√(N·log₂q·log₂δ(b))}` at blocksize `b`; setting this `= β` and
+  inverting the root-Hermite `δ(b)` gives `b(q=2^48)=450`, `b(q=2^51)=491`. `β`, `τ`, and the
+  `z < q/2` correctness bound are unchanged by the `q` raise (`BETA_Z = 1.21·10^8 ≪ q/2 ≈ 1.13·10^15`).
+  (Core-SVP is conservative — it charges one SVP call and ignores the large per-call sieve overhead —
+  so the realistic quantum margin is higher.)
 - **Trapdoor hiding is statistical, *not* Module-LWE.** `m̄ = 18` is chosen so `[Ā | Ā·R]` is within
   `2^{-128}` statistical distance of uniform (ring leftover-hash), so `A` is indistinguishable from a
   uniform matrix unconditionally — the issuer's `R` does not leak from the public key. (A small
@@ -97,26 +104,34 @@ separation / replay binding).
 
 ## 6. Wire (v1, provisional)
 
-`encode_token_value` / `decode_token_value`. Header `[ver=1][profile=1]`, then length-prefixed
-`w_commit` (1 ring element) and `z` (`WITNESS_LEN = 67` ring elements). Each ring element is `N = 1024`
-coefficients encoded as **6 little-endian bytes** each (canonical residue in `[0, q)`, validated on
-decode), i.e. `6144` bytes/element, so a token is `≈ 408 KB`. Budget-gated by
+`encode_token_value` / `decode_token_value`. Header `[ver=1][profile=2]`, then length-prefixed
+`w_commit` (1 ring element) and `z` (`WITNESS_LEN = 70` ring elements). Each ring element is `N = 1024`
+coefficients encoded as **7 little-endian bytes** each (canonical residue in `[0, q)`, `q ≈ 2^51`,
+validated on decode), i.e. `7168` bytes/element, so a token is `≈ 497 KB` (`508 928` bytes). The
+`profile` byte was bumped `1 → 2` with the `q ≈ 2^48 → 2^51` raise, so profile-2 tokens are
+wire-incompatible with the retired profile-1 (6-byte-coefficient) tokens. Budget-gated by
 `WIRE_BUDGET_BLIND_TOKEN_BYTES = 524 288`. The token is a re-randomized proof, so its bytes vary per
 redemption (this is intended — it is what makes redemptions unlinkable). Layouts are provisional
 until the interoperable wire freeze.
 
 ## 7. Assumptions / caveats surfaced for RED-zone review
 
-1. **Concrete security is a BKZ-cost-model estimate, not a proof.** The set targets ≈131-bit
-   classical / ≈119-bit quantum **core-SVP** (§3). Core-SVP is the standard conservative model used
+1. **Concrete security is a BKZ-cost-model estimate, not a proof.** The set targets ≈143-bit
+   classical / ≈130-bit quantum **core-SVP** (§3). Core-SVP is the standard conservative model used
    by NIST PQC submissions, but it is a heuristic: the true cost depends on the lattice estimator
    version, sieve/enumeration crossover, and memory model. The estimate should be re-run with an
-   up-to-date lattice estimator before this instance is treated as load-bearing. The classical
-   margin clears 128-bit; the quantum core-SVP margin (119-bit) is just under a 128-bit *quantum*
-   target — closing it fully needs a larger `q` (and larger keys), a documented trade-off.
-2. **Large keys / proofs.** Public key `≈ 396 KB` (`A` is 66 ring elements at 6 KB each), token
-   `≈ 408 KB`. This is inherent to a statistically-hidden gadget trapdoor at this modulus; a smaller
-   instance would need a Module-LWE hiding argument (see §3) or a different construction.
+   up-to-date lattice estimator before this instance is treated as load-bearing. Both the classical
+   and the **quantum** core-SVP margins now clear 128-bit (≈130-bit quantum) — this is the property
+   the profile-2 raise (`q ≈ 2^48 → 2^51`) was for; the earlier profile-1 instance sat at ≈119-bit
+   quantum, under the floor.
+2. **Large keys / proofs.** Public key `≈ 483 KB` (`A` is 69 ring elements at 7 KB each), token
+   `≈ 497 KB` (up from ≈396 KB / ≈408 KB at profile 1 — the cost of the `q`/`k` raise: `+1` byte per
+   coefficient and `k = 48 → 51`). This is inherent to a statistically-hidden gadget trapdoor at this
+   modulus; a smaller instance would need a Module-LWE hiding argument (see §3) or a different
+   construction. Chosen as the size-optimal point on the security/size curve: `q ≈ 2^51` is the
+   smallest modulus that both clears the 7-byte-per-coefficient threshold (`> 2^48`) and gives the
+   quantum margin, with `k = ⌈log₂q⌉ = 51` (a larger `q` would inflate `k`, hence `PREIMAGE_LEN`,
+   for no size benefit).
 3. **Samplers are not constant-time.** The discrete Gaussian / gadget / perturbation samplers are
    research-grade (data-dependent branches, `f64`); a production build needs constant-time base
    samplers (CDT / Karney) and a hardened FFT-domain perturbation sampler. The perturbation FFT uses

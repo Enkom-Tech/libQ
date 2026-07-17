@@ -15,11 +15,11 @@
 //!   with `A·x = d·a_tok + d0`; without the trapdoor this is ISIS on `A` (→ one-more-ISIS), so a
 //!   user cannot redeem more tokens than were issued.
 //!
-//! **Concrete security (this instance).** The self-contained ring (`N = 1024`, `q ≈ 2^48`, see
+//! **Concrete security (this instance).** The self-contained ring (`N = 1024`, `q ≈ 2^51`, see
 //! [`super::ring`]) is sized against a BKZ core-SVP cost model so that, together: the challenge
 //! weight `τ = 16` gives ≈128-bit knowledge soundness, the masked response `z` still fits below
-//! `q/2`, and Module-SIS on `A` (binding / one-more-unforgeability) is ≈131-bit classical
-//! (≈119-bit quantum). The trapdoor is hidden statistically (`m̄ = 18`), so no Module-LWE
+//! `q/2`, and Module-SIS on `A` (binding / one-more-unforgeability) is ≈143-bit classical
+//! (≈130-bit quantum, BKZ-491). The trapdoor is hidden statistically (`m̄ = 18`), so no Module-LWE
 //! assumption is needed. See `LIBQ_API.md` §3/§7 for the full derivation and caveats.
 
 use alloc::vec::Vec;
