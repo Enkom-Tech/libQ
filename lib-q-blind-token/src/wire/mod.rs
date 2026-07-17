@@ -13,7 +13,11 @@ pub const WIRE_BUDGET_BLIND_TOKEN_BYTES: usize = 524_288;
 
 #[cfg(feature = "std")]
 pub use imp::{
+    decode_issue_request,
+    decode_issue_response,
     decode_token_value,
+    encode_issue_request,
+    encode_issue_response,
     encode_token_value,
 };
 
@@ -34,9 +38,12 @@ mod imp {
         Rq,
     };
     use crate::lattice::scheme::{
+        IssueRequest,
+        IssueResponse,
         TokenProof,
         WITNESS_LEN,
     };
+    use crate::lattice::trapdoor::PREIMAGE_LEN;
     use crate::profile::PROFILE_ID_V1;
 
     /// Bytes per coefficient (`q < 2^56` ⇒ 7 bytes suffice; the `q ≈ 2^51` instance needs 7).
@@ -96,6 +103,84 @@ mod imp {
             w_commit: w_polys.into_iter().next().unwrap(),
             z,
         })
+    }
+
+    /// Serialize an [`IssueRequest`] (client → issuer): `[ver][profile] framed(a_tok)`. The hidden
+    /// attribute is a single ring element. Issuance is interactive but **not** blind — unlinkability
+    /// comes from redemption — so this carries a fresh random attribute, never an identity.
+    pub fn encode_issue_request(req: &IssueRequest) -> Result<Vec<u8>, BlindTokenError> {
+        let mut out = alloc::vec![WIRE_VERSION_V1, PROFILE_ID_V1];
+        append_framed(&mut out, core::slice::from_ref(&req.a_tok))?;
+        Ok(out)
+    }
+
+    /// Parse an [`IssueRequest`].
+    pub fn decode_issue_request(wire: &[u8]) -> Result<IssueRequest, BlindTokenError> {
+        let mut cur = 0usize;
+        read_header(wire, &mut cur)?;
+        let polys = read_framed(wire, &mut cur)?;
+        if polys.len() != 1 {
+            return Err(BlindTokenError::Encoding);
+        }
+        if cur != wire.len() {
+            return Err(BlindTokenError::WireTruncated);
+        }
+        Ok(IssueRequest {
+            a_tok: polys.into_iter().next().unwrap(),
+        })
+    }
+
+    /// Serialize an [`IssueResponse`] (issuer → client): `[ver][profile] framed(x)` where `x` is the
+    /// GPV preimage (`PREIMAGE_LEN` ring elements).
+    pub fn encode_issue_response(resp: &IssueResponse) -> Result<Vec<u8>, BlindTokenError> {
+        let mut out = alloc::vec![WIRE_VERSION_V1, PROFILE_ID_V1];
+        append_framed(&mut out, &resp.x)?;
+        if out.len() > WIRE_BUDGET_BLIND_TOKEN_BYTES {
+            return Err(BlindTokenError::BudgetExceeded {
+                actual: out.len(),
+                budget: WIRE_BUDGET_BLIND_TOKEN_BYTES,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Parse an [`IssueResponse`]; the preimage must be exactly `PREIMAGE_LEN` ring elements.
+    pub fn decode_issue_response(wire: &[u8]) -> Result<IssueResponse, BlindTokenError> {
+        if wire.len() > WIRE_BUDGET_BLIND_TOKEN_BYTES {
+            return Err(BlindTokenError::BudgetExceeded {
+                actual: wire.len(),
+                budget: WIRE_BUDGET_BLIND_TOKEN_BYTES,
+            });
+        }
+        let mut cur = 0usize;
+        read_header(wire, &mut cur)?;
+        let x = read_framed(wire, &mut cur)?;
+        if x.len() != PREIMAGE_LEN {
+            return Err(BlindTokenError::Encoding);
+        }
+        if cur != wire.len() {
+            return Err(BlindTokenError::WireTruncated);
+        }
+        Ok(IssueResponse { x })
+    }
+
+    /// Read and validate the `[ver][profile]` header shared by every message.
+    fn read_header(wire: &[u8], cur: &mut usize) -> Result<(), BlindTokenError> {
+        let version = read_u8(wire, cur)?;
+        if version != WIRE_VERSION_V1 {
+            return Err(BlindTokenError::WireVersionMismatch {
+                expected: WIRE_VERSION_V1,
+                found: version,
+            });
+        }
+        let profile = read_u8(wire, cur)?;
+        if profile != PROFILE_ID_V1 {
+            return Err(BlindTokenError::WireProfileMismatch {
+                expected: PROFILE_ID_V1,
+                found: profile,
+            });
+        }
+        Ok(())
     }
 
     fn append_framed(out: &mut Vec<u8>, polys: &[Rq]) -> Result<(), BlindTokenError> {
@@ -177,5 +262,52 @@ mod imp {
         let out = &wire[*cur..end];
         *cur = end;
         Ok(out)
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
+mod issuance_wire_tests {
+    use lib_q_random::new_deterministic_rng;
+
+    use super::{
+        decode_issue_request,
+        decode_issue_response,
+        encode_issue_request,
+        encode_issue_response,
+    };
+    use crate::{
+        blind,
+        blind_sign,
+        keygen_issuer,
+    };
+
+    #[test]
+    fn issue_request_and_response_round_trip() {
+        let mut rng = new_deterministic_rng([0x9au8; 32]);
+        let (public, secret) = keygen_issuer(&mut rng, 3, 5);
+
+        let (req, _state) = blind(&mut rng, &public);
+        let req_bytes = encode_issue_request(&req).unwrap();
+        let req2 = decode_issue_request(&req_bytes).unwrap();
+        // Canonical: re-encoding the decoded message is byte-identical.
+        assert_eq!(encode_issue_request(&req2).unwrap(), req_bytes);
+
+        let resp = blind_sign(&mut rng, &secret, &req2);
+        let resp_bytes = encode_issue_response(&resp).unwrap();
+        let resp2 = decode_issue_response(&resp_bytes).unwrap();
+        assert_eq!(encode_issue_response(&resp2).unwrap(), resp_bytes);
+    }
+
+    #[test]
+    fn issue_wire_rejects_truncation_and_bad_header() {
+        let mut rng = new_deterministic_rng([0x9bu8; 32]);
+        let (public, _secret) = keygen_issuer(&mut rng, 1, 1);
+        let (req, _state) = blind(&mut rng, &public);
+        let bytes = encode_issue_request(&req).unwrap();
+
+        assert!(decode_issue_request(&bytes[..bytes.len() - 1]).is_err());
+        let mut bad = bytes.clone();
+        bad[0] ^= 0xFF; // corrupt version
+        assert!(decode_issue_request(&bad).is_err());
     }
 }
