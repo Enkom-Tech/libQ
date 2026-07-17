@@ -72,8 +72,11 @@ pub struct GadgetSampler {
     basis_int: [[i64; GADGET_LEN]; GADGET_LEN],
     /// Gram–Schmidt vectors `b̃_j`.
     gso: [[f64; GADGET_LEN]; GADGET_LEN],
-    /// `‖b̃_j‖²`.
-    gso_sq_norm: [f64; GADGET_LEN],
+    /// `1/‖b̃_j‖²`, precomputed (from the PUBLIC fixed basis) so the online Klein loop reduces the
+    /// coset center with a multiply, never a division: f64 division has data-dependent latency on
+    /// some x86 cores and the numerator `dot(&c, &gso[j])` is secret, so a division there is a
+    /// (weak) timing channel. A multiply by a fixed reciprocal is fixed-latency.
+    inv_gso_sq_norm: [f64; GADGET_LEN],
     /// Per-GSO-level isochronous samplers. Level `j` has public width `sprime = s/‖b̃_j‖`; the
     /// coset center `cprime` is secret, so each draw must be constant-time in the center.
     samplers: alloc::vec::Vec<super::gaussian_ct::SamplerZ>,
@@ -119,6 +122,12 @@ impl GadgetSampler {
             gso_sq_norm[j] = dot(&v, &v);
         }
 
+        // Reciprocal GSO norms: public constants, so the online center reduction is a multiply.
+        let mut inv_gso_sq_norm = [0.0f64; GADGET_LEN];
+        for j in 0..k {
+            inv_gso_sq_norm[j] = 1.0 / gso_sq_norm[j];
+        }
+
         // Precompute the per-level constant-time samplers (widths are public, from the fixed basis).
         let samplers = (0..k)
             .map(|j| super::gaussian_ct::SamplerZ::new(width / gso_sq_norm[j].sqrt()))
@@ -128,7 +137,7 @@ impl GadgetSampler {
             basis,
             basis_int,
             gso,
-            gso_sq_norm,
+            inv_gso_sq_norm,
             samplers,
         }
     }
@@ -145,7 +154,10 @@ impl GadgetSampler {
         let mut c = target;
         let mut coeffs = [0i64; GADGET_LEN];
         for j in (0..k).rev() {
-            let cprime = dot(&c, &self.gso[j]) / self.gso_sq_norm[j];
+            // Multiply by the precomputed reciprocal (no secret-numerator f64 division). The center
+            // is exactly ±0.0 or a normal f64 here — never subnormal — so no denormal-assist timing.
+            let cprime = dot(&c, &self.gso[j]) * self.inv_gso_sq_norm[j];
+            debug_assert!(!cprime.is_subnormal());
             // Isochronous draw: width `sprime` is public (baked into `samplers[j]`), center secret.
             let zj = self.samplers[j].sample(rng, cprime);
             coeffs[j] = zj;

@@ -237,6 +237,27 @@ mod tests {
         }
     }
 
+    /// Constant-time regression guard: the persistent secret f64 operands of the online
+    /// perturbation apply (the Cholesky factors) are never subnormal, so no denormal-assist timing
+    /// channel exists on the `L·ĝ` mul-add chain. Runs in release (debug_asserts are compiled out
+    /// there); pairs with the `debug_assert`s covering the transient FFT/accumulation intermediates.
+    #[test]
+    fn perturb_factors_are_never_subnormal() {
+        for seed in [0x01u8, 0x5A, 0xC3] {
+            let mut rng = new_deterministic_rng([seed; 32]);
+            let (_public, td) = trapdoor_gen(
+                &mut rng,
+                4.0,
+                5248.0,
+                super::super::gadget::GADGET_GAUSSIAN_WIDTH,
+            );
+            assert!(
+                td.perturb.all_factors_normal(),
+                "Cholesky factor held a subnormal f64 (seed {seed:#x}) — CT range argument broken",
+            );
+        }
+    }
+
     /// Security validator: the preimage `x` must be a *spherical* discrete Gaussian of width `s`
     /// (per-coefficient variance `s²/2π`, no cross-coordinate correlation), independent of `R`. A
     /// broken perturbation (wrong covariance/scaling) makes the variance wrong or the coordinates
