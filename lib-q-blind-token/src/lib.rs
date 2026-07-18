@@ -12,6 +12,13 @@
 //! See the crate's `LIBQ_API.md` contract for the scheme choice, the blindness /
 //! one-more-unforgeability arguments, and the limitations recorded for RED-zone review.
 //!
+//! Constant-time posture (integer layer): the `R_q` modular arithmetic that carries secret
+//! coefficients through the NTT — `modadd`/`modsub`, the Montgomery reduction's conditional
+//! subtraction, and `centered_coeffs`' centering — uses **branchless masks**, not value-dependent
+//! `if`s, so no secret coefficient steers control flow. The issuer-signature check in [`unblind`]
+//! compares the (secret-attribute-derived) coefficient vectors with a **constant-time** equality
+//! (`subtle::ConstantTimeEq`) rather than a short-circuiting `!=`.
+//!
 //! This crate is **PROVISIONAL** and consumer-protocol-agnostic: it carries no consumer-protocol references.
 
 #![forbid(unsafe_code)]
