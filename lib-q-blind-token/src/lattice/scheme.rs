@@ -33,6 +33,7 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use subtle::ConstantTimeEq;
 
 use super::gadget::GADGET_GAUSSIAN_WIDTH;
 use super::ring::{
@@ -192,7 +193,10 @@ pub fn unblind(
 ) -> Option<Credential> {
     let u = ring_add(&ring_mul(&public.d, &state.a_tok), &public.d0);
     let ax = public.a.apply(&resp.x);
-    if centered_coeffs(&ax) != centered_coeffs(&u) {
+    // Constant-time equality: `u` is derived from the *secret* hidden attribute `a_tok`, so a
+    // short-circuiting `!=` would leak (via timing) the first coefficient where the issuer's
+    // signature check fails. Compare the whole centered-coefficient vectors in constant time.
+    if centered_coeffs(&ax)[..].ct_eq(&centered_coeffs(&u)[..]).unwrap_u8() == 0 {
         return None;
     }
     Some(Credential {

@@ -69,12 +69,18 @@ impl Rq {
 }
 
 /// Montgomery reduction: `t·R^{-1} mod q` for `t < q·R` (`R = 2^64`). No division.
+///
+/// Constant-time: the final conditional subtraction is a branchless mask, not an `if`, so the
+/// reduction of a *secret* coefficient (this runs inside the NTT of the trapdoor `R`, the credential
+/// `x`, and the redemption witness) has data-independent control flow.
 #[inline]
 fn mont_reduce(t: u128) -> i64 {
     let m = (t as u64).wrapping_mul(QINV);
-    let r = ((t + (m as u128) * (Q as u128)) >> 64) as u64;
-    let r = if r >= Q as u64 { r - Q as u64 } else { r };
-    r as i64
+    let r = ((t + (m as u128) * (Q as u128)) >> 64) as i64; // r ∈ [0, 2q)
+    // Branchless conditional subtract: r - (q if r >= q else 0).
+    let d = r - Q; // ∈ [-q, q)
+    let mask = d >> 63; // all-ones iff d < 0 (i.e. r < q), else 0
+    (d + (mask & Q)) as i64
 }
 
 /// `a·b mod q` for `a, b ∈ [0, q)`, via two Montgomery reductions (division-free; far faster than
@@ -85,16 +91,21 @@ fn modmul(a: i64, b: i64) -> i64 {
     mont_reduce(ab as u128 * R2 as u128)
 }
 
+/// `a + b mod q` for `a, b ∈ [0, q)`. Branchless conditional subtraction — data-independent control
+/// flow so the NTT/`ring_add` of secret coefficients does not branch on their value.
 #[inline]
 fn modadd(a: i64, b: i64) -> i64 {
-    let s = a + b;
-    if s >= Q { s - Q } else { s }
+    let s = a + b - Q; // ∈ [-q, q)
+    let mask = s >> 63; // all-ones iff s < 0 (a+b < q), else 0
+    s + (mask & Q)
 }
 
+/// `a - b mod q` for `a, b ∈ [0, q)`. Branchless conditional addition (see [`modadd`]).
 #[inline]
 fn modsub(a: i64, b: i64) -> i64 {
-    let s = a - b;
-    if s < 0 { s + Q } else { s }
+    let s = a - b; // ∈ (-q, q)
+    let mask = s >> 63; // all-ones iff s < 0, else 0
+    s + (mask & Q)
 }
 
 #[inline]
@@ -251,11 +262,12 @@ pub fn centered_coeffs(p: &Rq) -> [i64; N] {
     let half = Q / 2;
     let mut out = [0i64; N];
     for (o, &c) in out.iter_mut().zip(p.coeffs.iter()) {
-        let mut v = c.rem_euclid(Q);
-        if v > half {
-            v -= Q;
-        }
-        *o = v;
+        let v = c.rem_euclid(Q);
+        // Branchless center: subtract q iff v > q/2. `(half - v) >> 63` is all-ones exactly when
+        // v > half. Secret coefficients pass through here (unblind/redeem/absorb), so no data
+        // branch on the value.
+        let mask = (half - v) >> 63;
+        *o = v - (mask & Q);
     }
     out
 }
