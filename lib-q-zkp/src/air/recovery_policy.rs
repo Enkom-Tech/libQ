@@ -324,7 +324,10 @@ where
         // byte). Binding the commitment ties the proof to the specific recovery policy via the
         // Fiat-Shamir transcript, so a proof for one policy cannot be replayed for another.
         let pubs = builder.public_values();
-        if !pubs.is_empty() {
+        if pubs.is_empty() {
+            // A missing public value must not silently drop the threshold binding.
+            builder.assert_zero(AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE));
+        } else {
             let threshold_pub: AB::Expr = pubs[0].into();
             let threshold_f = AB::F::from_prime_subfield(
                 <<AB::F as PrimeCharacteristicRing>::PrimeSubfield as QuotientMap<u32>>::from_int(

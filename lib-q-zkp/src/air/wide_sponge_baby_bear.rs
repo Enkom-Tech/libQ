@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_digest_rejected() {
         let input: Vec<BabyBear> = (0..8u32).map(|i| fe(i + 1)).collect();
         let air = SpongeFixtureBbAir { len: input.len() };
@@ -277,7 +277,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_intermediate_rejected() {
         let input: Vec<BabyBear> = (0..8u32).map(|i| fe(i + 1)).collect();
         let air = SpongeFixtureBbAir { len: input.len() };
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_preimage_rejected() {
         let input: Vec<BabyBear> = (0..8u32).map(|i| fe(i + 1)).collect();
         let (a, t) = corrupt_at(&input, 0); // first preimage cell

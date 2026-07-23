@@ -329,31 +329,31 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_input_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(0), &[]);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_begin_sbox_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(begin_sbox_col(0, 5)), &[]);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_begin_post_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(begin_post_col(2, 9)), &[]);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_partial_post_sbox_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(partial_col(6)), &[]);
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_end_sbox_rejected() {
         check_constraints(&Poseidon2Air, &corrupted_trace(end_sbox_col(1, 0)), &[]);
     }

@@ -499,7 +499,11 @@ where
         // pattern in `identity_proof.rs`. (For tree_depth == 0 the leaf hash at column 0 is the
         // root, which `previous_hash_col` already points to.)
         let pubs = builder.public_values();
-        if !pubs.is_empty() {
+        if pubs.is_empty() {
+            // A missing public value must not silently drop the root binding.
+            use lib_q_stark_field::PrimeCharacteristicRing;
+            builder.assert_zero(AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE));
+        } else {
             let expected_root: AB::Expr = pubs[0].into();
             let computed_root: AB::Expr = local[previous_hash_col].into();
             builder.assert_eq(computed_root, expected_root);

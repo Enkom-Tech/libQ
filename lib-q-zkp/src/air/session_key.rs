@@ -1,21 +1,42 @@
-//! Session Key Derivation AIR - Proves correct KDF derivation from ML-KEM shared secret
+//! Session Key Derivation AIR - Proves correct KDF derivation from an ML-KEM shared secret
 //!
-//! This AIR proves that session keys were correctly derived from an ML-KEM
-//! shared secret using a Poseidon sponge KDF, without revealing the shared
-//! secret or session keys.
+//! This AIR proves that session keys were correctly derived from an ML-KEM shared
+//! secret using a Poseidon sponge KDF, without revealing the shared secret or the
+//! session keys.
 //!
-//! # Design
+//! # Statement
 //!
-//! Multi-row Poseidon sponge trace (same pattern as IdentityProofAir):
-//! - Each row = one Poseidon permutation (state_in, inputs, intermediates, state_out)
-//! - Absorb shared_secret in pairs; final row's state_out_0 = commitment to session keys
-//! - Public value: Poseidon(session_key_bytes)
+//! Public: `C` — a single field element, `C = Poseidon128(k_0, .., k_{n-1})`, the
+//! commitment to the derived key material.
+//!
+//! Witness: the shared secret `ss`.
+//!
+//! Proven: there exists `ss` such that squeezing the Poseidon sponge that absorbed
+//! `ss` yields key elements `k_0..k_{n-1}`, and hashing those elements yields `C`.
+//! Both the derivation (sponge 1) and the commitment (sponge 2) are constrained
+//! in-trace, so `C` is bound to the derivation rather than merely accompanying it.
+//!
+//! # Trace layout
+//!
+//! Every row carries **two** Poseidon-128 permutations:
+//! - **sponge 1** (`s1`) absorbs the shared secret, then pads (10*1) and squeezes.
+//!   Each squeeze row's `s1_out[0..2]` is one rate block of key material.
+//! - **sponge 2** (`s2`) absorbs those key elements as they are produced — one rate
+//!   block per squeeze row, which is why it can be constrained row-locally without
+//!   any cross-row copy argument — then pads on the commit row, whose `s2_out[0]`
+//!   is bound to the public commitment.
+//!
+//! Row roles are marked by selector columns (`sel_sq[0..B]`, `sel_commit`) that are
+//! forced to be one-hot and consecutive by a chain constraint plus a running-sum
+//! column `acc`, so a prover cannot simply zero every selector to escape the
+//! commitment binding.
 //!
 //! # Security
 //!
-//! - Full Poseidon constraints via PoseidonGadget per row
-//! - Shared secret and session keys remain secret in the witness
-//! - Only the commitment is public
+//! - Full Poseidon constraints via `PoseidonGadget` for both permutations per row,
+//!   binding the **entire** output state (`constrain_full_state_wide`) so the sponge
+//!   capacity cannot be forged between rows.
+//! - Shared secret and session keys remain secret in the witness; only `C` is public.
 
 extern crate alloc;
 
@@ -30,6 +51,7 @@ use lib_q_poseidon::{
     Poseidon,
     Poseidon128,
     PoseidonField,
+    PoseidonSponge,
 };
 use lib_q_stark_air::{
     Air,
@@ -50,7 +72,10 @@ use super::{
     AirError,
     TraceGenerator,
     bytes_to_poseidon_field,
+    compute_poseidon_row,
+    merkle_root_from_bytes,
     next_power_of_two,
+    poseidon_field_to_bytes,
     poseidon_to_field,
     validate_trace_dimensions,
 };
@@ -58,14 +83,17 @@ use super::{
 /// Poseidon-128 hasher instance
 const POSEIDON_128: Poseidon128 = Poseidon128;
 
-/// Row layout: state_in (3) + input (2) + intermediates (576) + state_out (3) = 584 (same as IdentityProofAir)
-const STATE_IN_COLS: usize = 3;
+/// Poseidon-128 state width (rate 2 + capacity 3).
+const STATE_COLS: usize = 5;
+/// Absorbed rate elements recorded per row.
 const INPUT_COLS: usize = 2;
-const STATE_OUT_COLS: usize = 3;
-
-fn row_width() -> usize {
-    STATE_IN_COLS + INPUT_COLS + PoseidonGadget::COLUMNS_PER_HASH + STATE_OUT_COLS
-}
+/// Sponge rate.
+const RATE: usize = 2;
+/// Bytes per `Complex<Mersenne31>` (4 real + 4 imaginary, little-endian).
+const BYTES_PER_ELEM: usize = 8;
+/// Key material is squeezed a full rate block at a time, so the output length must be
+/// a whole number of rate blocks: `RATE * BYTES_PER_ELEM` bytes.
+pub const OUTPUT_LENGTH_GRANULARITY: usize = RATE * BYTES_PER_ELEM;
 
 /// Maximum shared secret size in bytes
 pub const MAX_SHARED_SECRET_SIZE: usize = 32;
@@ -82,7 +110,8 @@ pub struct KdfParams {
     pub salt: Option<Vec<u8>>,
     /// Info (optional context)
     pub info: Option<Vec<u8>>,
-    /// Output key length in bytes
+    /// Output key length in bytes. Must be a non-zero multiple of
+    /// [`OUTPUT_LENGTH_GRANULARITY`] and at most [`MAX_SESSION_KEY_SIZE`].
     pub output_length: usize,
 }
 
@@ -107,16 +136,13 @@ impl Default for KdfParams {
 }
 
 /// AIR for proving session key derivation via Poseidon sponge.
-///
-/// Multi-row trace: each row = one Poseidon permutation. Transition constraints
-/// carry the sponge state. Final row's state_out_0 must equal public commitment.
 #[derive(Debug, Clone)]
 pub struct SessionKeyDerivationAir {
     kdf_params: KdfParams,
 }
 
 impl SessionKeyDerivationAir {
-    /// Create a new SessionKeyDerivationAir
+    /// Create a new `SessionKeyDerivationAir`.
     pub fn new(kdf_params: KdfParams) -> Result<Self, AirError> {
         if kdf_params.output_length == 0 {
             return Err(AirError::InvalidDimensions {
@@ -132,6 +158,18 @@ impl SessionKeyDerivationAir {
             });
         }
 
+        if !kdf_params
+            .output_length
+            .is_multiple_of(OUTPUT_LENGTH_GRANULARITY)
+        {
+            return Err(AirError::InvalidDimensions {
+                reason: format!(
+                    "Output length {} must be a multiple of {} (one sponge rate block)",
+                    kdf_params.output_length, OUTPUT_LENGTH_GRANULARITY
+                ),
+            });
+        }
+
         Ok(Self { kdf_params })
     }
 
@@ -140,8 +178,51 @@ impl SessionKeyDerivationAir {
         &self.kdf_params
     }
 
+    /// Number of field elements of key material squeezed from sponge 1.
+    fn num_key_elements(&self) -> usize {
+        self.kdf_params.output_length / BYTES_PER_ELEM
+    }
+
+    /// Number of squeeze rows (one rate block each).
+    fn num_blocks(&self) -> usize {
+        self.num_key_elements() / RATE
+    }
+
+    // --- column offsets -------------------------------------------------------
+
+    fn col_s1_in(&self) -> usize {
+        0
+    }
+    fn col_input(&self) -> usize {
+        STATE_COLS
+    }
+    fn col_s1_intermediates(&self) -> usize {
+        STATE_COLS + INPUT_COLS
+    }
+    fn col_s1_out(&self) -> usize {
+        self.col_s1_intermediates() + PoseidonGadget::COLUMNS_PER_HASH
+    }
+    fn col_s2_in(&self) -> usize {
+        self.col_s1_out() + STATE_COLS
+    }
+    fn col_s2_intermediates(&self) -> usize {
+        self.col_s2_in() + STATE_COLS
+    }
+    fn col_s2_out(&self) -> usize {
+        self.col_s2_intermediates() + PoseidonGadget::COLUMNS_PER_HASH
+    }
+    fn col_sel_sq(&self) -> usize {
+        self.col_s2_out() + STATE_COLS
+    }
+    fn col_sel_commit(&self) -> usize {
+        self.col_sel_sq() + self.num_blocks()
+    }
+    fn col_acc(&self) -> usize {
+        self.col_sel_commit() + 1
+    }
+
     fn trace_width_inner(&self) -> usize {
-        row_width()
+        self.col_acc() + 1
     }
 }
 
@@ -156,54 +237,169 @@ where
     AB::F: Field + BasedVectorSpace<Mersenne31>,
 {
     fn eval(&self, builder: &mut AB) {
+        let blocks = self.num_blocks();
+        let (c_s1_in, c_input, c_s1_int) = (
+            self.col_s1_in(),
+            self.col_input(),
+            self.col_s1_intermediates(),
+        );
+        let (c_s1_out, c_s2_in, c_s2_int, c_s2_out) = (
+            self.col_s1_out(),
+            self.col_s2_in(),
+            self.col_s2_intermediates(),
+            self.col_s2_out(),
+        );
+        let (c_sel_sq, c_sel_commit, c_acc) =
+            (self.col_sel_sq(), self.col_sel_commit(), self.col_acc());
+
         let main = builder.main();
         let local = main.current_slice();
         let next = main.next_slice();
 
-        let w = row_width();
-        let state_in_0 = local[0].into();
-        let state_in_1 = local[1].into();
-        let state_in_2 = local[2].into();
-        let input_0 = local[3].into();
-        let input_1 = local[4].into();
-        let intermediate_start = STATE_IN_COLS + INPUT_COLS;
-        let state_out_0 = local[w - 3].into();
-        let state_out_1 = local[w - 2].into();
-        let state_out_2 = local[w - 1].into();
+        let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
+        let get = |slice: &[AB::Var], i: usize| -> AB::Expr { slice[i].into() };
 
+        let s1_in: Vec<AB::Expr> = (0..STATE_COLS).map(|i| get(local, c_s1_in + i)).collect();
+        let s1_out: Vec<AB::Expr> = (0..STATE_COLS).map(|i| get(local, c_s1_out + i)).collect();
+        let s2_in: Vec<AB::Expr> = (0..STATE_COLS).map(|i| get(local, c_s2_in + i)).collect();
+        let s2_out: Vec<AB::Expr> = (0..STATE_COLS).map(|i| get(local, c_s2_out + i)).collect();
+        let acc = get(local, c_acc);
+        let sel_commit = get(local, c_sel_commit);
+
+        // --- first row ------------------------------------------------------
+        // Sponge 1 starts at (input_0, input_1, 0, 0, 0); sponge 2 starts at zero and
+        // no role selector may fire before the shared secret has been absorbed.
         {
+            let input_0 = get(local, c_input);
+            let input_1 = get(local, c_input + 1);
             let mut b = builder.when_first_row();
-            b.assert_zero(state_in_0.clone() - input_0.clone());
-            b.assert_zero(state_in_1.clone() - input_1.clone());
-            b.assert_zero(state_in_2);
+            b.assert_zero(s1_in[0].clone() - input_0);
+            b.assert_zero(s1_in[1].clone() - input_1);
+            for s in s1_in.iter().take(STATE_COLS).skip(RATE) {
+                b.assert_zero(s.clone());
+            }
+            for s in s2_in.iter() {
+                b.assert_zero(s.clone());
+            }
+            for j in 0..blocks {
+                b.assert_zero(get(local, c_sel_sq + j));
+            }
+            b.assert_zero(sel_commit.clone());
+            b.assert_zero(acc.clone());
         }
 
+        // --- transition -----------------------------------------------------
         {
-            let next_state_in_0 = next[0].into();
-            let next_state_in_1 = next[1].into();
-            let next_state_in_2 = next[2].into();
-            let next_input_0 = next[3].into();
-            let next_input_1 = next[4].into();
+            let next_sel_sq: Vec<AB::Expr> = (0..blocks).map(|j| get(next, c_sel_sq + j)).collect();
+            let next_sel_commit = get(next, c_sel_commit);
+            let next_acc = get(next, c_acc);
+            let next_s1_in: Vec<AB::Expr> =
+                (0..STATE_COLS).map(|i| get(next, c_s1_in + i)).collect();
+            let next_s1_out: Vec<AB::Expr> =
+                (0..STATE_COLS).map(|i| get(next, c_s1_out + i)).collect();
+            let next_s2_in: Vec<AB::Expr> =
+                (0..STATE_COLS).map(|i| get(next, c_s2_in + i)).collect();
+            let next_input_0 = get(next, c_input);
+            let next_input_1 = get(next, c_input + 1);
+
             let mut b = builder.when_transition();
-            b.assert_zero(next_state_in_0 - state_out_0.clone());
-            b.assert_zero(next_state_in_1 - (state_out_1.clone() + next_input_0));
-            b.assert_zero(next_state_in_2 - (state_out_2 + next_input_1));
+
+            for s in next_sel_sq.iter() {
+                b.assert_bool(s.clone());
+            }
+            b.assert_bool(next_sel_commit.clone());
+
+            // Exactly one row may open the squeeze phase: acc is a running count of
+            // sel_sq[0], starts at 0 and is checked to be 1 on the last row.
+            b.assert_zero(next_acc.clone() - (acc.clone() + next_sel_sq[0].clone()));
+            // ... and the remaining role rows are chained to be consecutive after it.
+            for j in 1..blocks {
+                b.assert_zero(next_sel_sq[j].clone() - get(local, c_sel_sq + j - 1));
+            }
+            b.assert_zero(next_sel_commit.clone() - get(local, c_sel_sq + blocks - 1));
+
+            // Sponge 1: rate absorbs the next row's input, except on the padding row
+            // (sel_sq[0]) where it absorbs the 10*1 pad; capacity always passes through.
+            let pad = next_sel_sq[0].clone();
+            b.assert_zero(
+                next_s1_in[0].clone() -
+                    (s1_out[0].clone() +
+                        (one.clone() - pad.clone()) * next_input_0.clone() +
+                        pad.clone()),
+            );
+            b.assert_zero(
+                next_s1_in[1].clone() -
+                    (s1_out[1].clone() +
+                        (one.clone() - pad.clone()) * next_input_1.clone() +
+                        pad.clone()),
+            );
+            for i in RATE..STATE_COLS {
+                b.assert_zero(next_s1_in[i].clone() - s1_out[i].clone());
+            }
+
+            // No secret may be absorbed once the squeeze phase has begun.
+            let sq_any = next_sel_sq.iter().cloned().fold(
+                AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ZERO),
+                |a, s| a + s,
+            );
+            let non_absorb = sq_any.clone() + next_sel_commit.clone();
+            b.assert_zero(non_absorb.clone() * next_input_0);
+            b.assert_zero(non_absorb * next_input_1);
+
+            // Sponge 2 is idle (held at zero) until the first squeeze row, then absorbs
+            // one rate block of key material per squeeze row, then the 10*1 pad on the
+            // commit row. `acc` gates the carry so the idle rows cannot leak in.
+            let absorb_0 = sq_any.clone() * next_s1_out[0].clone() + next_sel_commit.clone();
+            let absorb_1 = sq_any * next_s1_out[1].clone() + next_sel_commit;
+            b.assert_zero(
+                next_s2_in[0].clone() -
+                    next_acc.clone() * (acc.clone() * s2_out[0].clone() + absorb_0),
+            );
+            b.assert_zero(
+                next_s2_in[1].clone() -
+                    next_acc.clone() * (acc.clone() * s2_out[1].clone() + absorb_1),
+            );
+            for i in RATE..STATE_COLS {
+                b.assert_zero(
+                    next_s2_in[i].clone() - next_acc.clone() * acc.clone() * s2_out[i].clone(),
+                );
+            }
         }
 
-        // Poseidon permutation per row
-        let gadget = PoseidonGadget::new();
-        if gadget
-            .constrain(
-                builder,
-                state_in_0,
-                state_in_1,
-                state_out_0,
-                intermediate_start,
-            )
-            .is_err()
+        // --- last row -------------------------------------------------------
+        // The squeeze phase must have happened, and must have finished strictly before
+        // the end of the trace (so the chain above is fully witnessed).
         {
-            use lib_q_stark_field::PrimeCharacteristicRing;
-            builder.assert_zero(AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE));
+            let mut b = builder.when_last_row();
+            b.assert_zero(acc.clone() - one.clone());
+            for j in 0..blocks {
+                b.assert_zero(get(local, c_sel_sq + j));
+            }
+            b.assert_zero(sel_commit.clone());
+        }
+
+        // --- both permutations ----------------------------------------------
+        let gadget = PoseidonGadget::new();
+        let s1_ok = gadget
+            .constrain_full_state_wide(builder, &s1_in, &s1_out, c_s1_int)
+            .is_ok();
+        let s2_ok = gadget
+            .constrain_full_state_wide(builder, &s2_in, &s2_out, c_s2_int)
+            .is_ok();
+        if !(s1_ok && s2_ok) {
+            builder.assert_zero(one.clone());
+        }
+
+        // --- public binding ---------------------------------------------------
+        let pubs = builder.public_values();
+        if pubs.is_empty() {
+            // A missing public value must not silently drop the binding.
+            builder.assert_zero(one);
+        } else {
+            let expected: AB::Expr = pubs[0].into();
+            builder
+                .when(sel_commit)
+                .assert_eq(s2_out[0].clone(), expected);
         }
     }
 }
@@ -211,86 +407,63 @@ where
 /// Input for session key derivation proof
 #[derive(Debug, Clone)]
 pub struct SessionKeyInput {
-    /// ML-KEM shared secret (absorbed into sponge)
+    /// ML-KEM shared secret (absorbed into sponge 1)
     pub shared_secret: Vec<u8>,
-    /// Derived session keys (commitment = Poseidon(session_keys))
+    /// Derived session keys. Must equal `derive_session_keys(shared_secret, output_length)`;
+    /// `generate_trace` rejects any other value rather than proving a false statement.
     pub session_keys: Vec<u8>,
 }
 
-/// Compute one Poseidon permutation with intermediates (same as identity_proof)
-fn compute_poseidon_row(
-    state: &[PoseidonField; 3],
-    params: &lib_q_poseidon::PoseidonParams,
-) -> ([PoseidonField; 3], Vec<PoseidonField>) {
-    use lib_q_poseidon::sbox;
-    use lib_q_stark_field::PrimeCharacteristicRing;
+/// Field elements of the shared secret as absorbed by sponge 1 (padded to a whole
+/// number of rate blocks, which is what the trace's first rows replay).
+fn absorbed_secret_fields(shared_secret: &[u8]) -> Vec<PoseidonField> {
     use lib_q_stark_field::extension::Complex;
-    use lib_q_stark_mersenne31::Mersenne31;
 
-    let zero = Complex::<Mersenne31>::new_complex(Mersenne31::ZERO, Mersenne31::ZERO);
-    let mut intermediates = Vec::new();
-    let mut round_idx = 0usize;
-    let mut s = [state[0], state[1], state[2]];
-    let full_half = params.full_rounds / 2;
+    let mut fields = bytes_to_poseidon_field(shared_secret);
+    while !fields.len().is_multiple_of(RATE) {
+        fields.push(Complex::<Mersenne31>::new_complex(
+            Mersenne31::ZERO,
+            Mersenne31::ZERO,
+        ));
+    }
+    fields
+}
 
-    for _ in 0..full_half {
-        let after_arc = [
-            s[0] + params.round_constants[round_idx],
-            s[1] + params.round_constants[round_idx + 1],
-            s[2] + params.round_constants[round_idx + 2],
-        ];
-        round_idx += 3;
-        intermediates.extend_from_slice(&after_arc);
-        let after_sbox = [sbox(after_arc[0]), sbox(after_arc[1]), sbox(after_arc[2])];
-        intermediates.extend_from_slice(&after_sbox);
-        let mut next_s = [zero, zero, zero];
-        for (i, next_s_i) in next_s.iter_mut().enumerate() {
-            for (j, &after_sbox_j) in after_sbox.iter().enumerate() {
-                *next_s_i += params.mds_matrix[i][j] * after_sbox_j;
-            }
-        }
-        intermediates.extend_from_slice(&next_s);
-        s = next_s;
-    }
-    for _ in 0..params.partial_rounds {
-        let after_arc = [
-            s[0] + params.round_constants[round_idx],
-            s[1] + params.round_constants[round_idx + 1],
-            s[2] + params.round_constants[round_idx + 2],
-        ];
-        round_idx += 3;
-        intermediates.extend_from_slice(&after_arc);
-        let after_sbox = [sbox(after_arc[0]), after_arc[1], after_arc[2]];
-        intermediates.extend_from_slice(&after_sbox);
-        let mut next_s = [zero, zero, zero];
-        for (i, next_s_i) in next_s.iter_mut().enumerate() {
-            for (j, &after_sbox_j) in after_sbox.iter().enumerate() {
-                *next_s_i += params.mds_matrix[i][j] * after_sbox_j;
-            }
-        }
-        intermediates.extend_from_slice(&next_s);
-        s = next_s;
-    }
-    for _ in 0..full_half {
-        let after_arc = [
-            s[0] + params.round_constants[round_idx],
-            s[1] + params.round_constants[round_idx + 1],
-            s[2] + params.round_constants[round_idx + 2],
-        ];
-        round_idx += 3;
-        intermediates.extend_from_slice(&after_arc);
-        let after_sbox = [sbox(after_arc[0]), sbox(after_arc[1]), sbox(after_arc[2])];
-        intermediates.extend_from_slice(&after_sbox);
-        let mut next_s = [zero, zero, zero];
-        for (i, next_s_i) in next_s.iter_mut().enumerate() {
-            for (j, &after_sbox_j) in after_sbox.iter().enumerate() {
-                *next_s_i += params.mds_matrix[i][j] * after_sbox_j;
-            }
-        }
-        intermediates.extend_from_slice(&next_s);
-        s = next_s;
-    }
-    (s, intermediates)
+/// The KDF itself: absorb the shared secret, pad, squeeze `num_elements` elements.
+fn derive_key_elements(shared_secret: &[u8], num_elements: usize) -> Vec<PoseidonField> {
+    let mut sponge = PoseidonSponge::new(Poseidon128::params());
+    sponge.absorb(&absorbed_secret_fields(shared_secret));
+    sponge.finish_absorbing().squeeze(num_elements)
+}
+
+/// Derive `output_length` bytes of session key material from an ML-KEM shared secret.
+///
+/// This is the function the AIR proves was evaluated correctly. `output_length` must be
+/// a multiple of [`OUTPUT_LENGTH_GRANULARITY`].
+///
+/// # Not injective across secret lengths
+///
+/// The secret is absorbed one byte per field element and zero-padded to a whole rate
+/// block, with no length encoding, so a secret and that same secret with a trailing zero
+/// byte derive the SAME key material (`derive_session_keys(&[1, 2, 3], n) ==
+/// derive_session_keys(&[1, 2, 3, 0], n)`). This is harmless for fixed-width ML-KEM shared
+/// secrets, which is the intended input; do not feed this KDF variable-length secrets whose
+/// trailing zero bytes are meaningful.
+///
+/// Relatedly, [`MAX_SHARED_SECRET_SIZE`] is enforced by `generate_trace`, not by the
+/// constraints: the proved statement is "some absorbed sequence yields this commitment",
+/// which does not bound the secret's length.
+pub fn derive_session_keys(shared_secret: &[u8], output_length: usize) -> Vec<u8> {
+    let elements = derive_key_elements(shared_secret, output_length / BYTES_PER_ELEM);
+    poseidon_field_to_bytes(&elements)
+}
+
+/// Recover the key elements from their canonical byte encoding.
+fn key_elements_from_bytes(session_keys: &[u8]) -> Result<Vec<PoseidonField>, AirError> {
+    session_keys
+        .chunks(BYTES_PER_ELEM)
+        .map(merkle_root_from_bytes)
+        .collect()
 }
 
 impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKeyInput>
@@ -301,7 +474,6 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKe
         inputs: &SessionKeyInput,
     ) -> Result<RowMajorMatrix<lib_q_stark_field::extension::Complex<Mersenne31>>, AirError> {
         use lib_q_stark_field::extension::Complex;
-        use lib_q_stark_mersenne31::Mersenne31;
 
         type Val = Complex<Mersenne31>;
 
@@ -329,52 +501,127 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKe
             });
         }
 
-        let secret_fields = bytes_to_poseidon_field(&inputs.shared_secret);
-        let num_permutations = 1.max(secret_fields.len().div_ceil(2));
-        let num_rows_padded = next_power_of_two(num_permutations);
-        let trace_width = self.trace_width_inner();
-        validate_trace_dimensions(trace_width, num_rows_padded)?;
-
-        let mut trace_values = vec![Val::ZERO; num_rows_padded * trace_width];
-        let params = Poseidon128::params();
-        use lib_q_stark_field::PrimeCharacteristicRing;
-        let zero_f = Complex::<Mersenne31>::new_complex(Mersenne31::ZERO, Mersenne31::ZERO);
-
-        let mut state = [zero_f, zero_f, zero_f];
-        for row in 0..num_permutations {
-            let i0 = row * 2;
-            let i1 = row * 2 + 1;
-            let in0 = secret_fields.get(i0).cloned().unwrap_or(zero_f);
-            let in1 = secret_fields.get(i1).cloned().unwrap_or(zero_f);
-
-            if row == 0 {
-                state = [in0, in1, zero_f];
-            } else {
-                state = [state[0], state[1] + in0, state[2] + in1];
-            }
-
-            let state_in = state;
-            let (state_out, intermediates) = compute_poseidon_row(&state, &params);
-            state = state_out;
-
-            let base = row * trace_width;
-            trace_values[base] = poseidon_to_field(&state_in[0]);
-            trace_values[base + 1] = poseidon_to_field(&state_in[1]);
-            trace_values[base + 2] = poseidon_to_field(&state_in[2]);
-            trace_values[base + 3] = poseidon_to_field(&in0);
-            trace_values[base + 4] = poseidon_to_field(&in1);
-            for (k, v) in intermediates.iter().enumerate() {
-                if base + STATE_IN_COLS + INPUT_COLS + k < trace_values.len() {
-                    trace_values[base + STATE_IN_COLS + INPUT_COLS + k] = poseidon_to_field(v);
-                }
-            }
-            let out_start = base + trace_width - STATE_OUT_COLS;
-            trace_values[out_start] = poseidon_to_field(&state_out[0]);
-            trace_values[out_start + 1] = poseidon_to_field(&state_out[1]);
-            trace_values[out_start + 2] = poseidon_to_field(&state_out[2]);
+        // The AIR proves `session_keys == KDF(shared_secret)`. Refuse to build a trace for
+        // any other pair rather than emit one that cannot satisfy the constraints.
+        let expected_keys =
+            derive_session_keys(&inputs.shared_secret, self.kdf_params.output_length);
+        if expected_keys != inputs.session_keys {
+            return Err(AirError::InvalidInput {
+                reason: "Session keys are not the KDF output of this shared secret".to_string(),
+            });
         }
 
-        Ok(RowMajorMatrix::new(trace_values, trace_width))
+        let zero_f = Complex::<Mersenne31>::new_complex(Mersenne31::ZERO, Mersenne31::ZERO);
+        let one_f = Complex::<Mersenne31>::new_complex(Mersenne31::ONE, Mersenne31::ZERO);
+
+        let secret_fields = absorbed_secret_fields(&inputs.shared_secret);
+        let num_absorb = core::cmp::max(1, secret_fields.len() / RATE);
+        let blocks = self.num_blocks();
+        let pad_row = num_absorb; // sponge-1 padding row == first squeeze row
+        let commit_row = pad_row + blocks;
+
+        // Height must leave at least one trailing row after `commit_row`; the extra
+        // quotient headroom mirrors `IdentityProofAir`.
+        const QUOTIENT_CHUNKS_FACTOR: usize = 4;
+        let min_height = core::cmp::max(commit_row + 2, num_absorb * QUOTIENT_CHUNKS_FACTOR);
+        let num_rows = next_power_of_two(min_height);
+        let width = self.trace_width_inner();
+        validate_trace_dimensions(width, num_rows)?;
+
+        let params = Poseidon128::params();
+        let mut trace_values = vec![Val::ZERO; num_rows * width];
+
+        let mut s1 = vec![zero_f; STATE_COLS];
+        let mut s2 = vec![zero_f; STATE_COLS];
+
+        for row in 0..num_rows {
+            let (in0, in1) = if row < pad_row {
+                (
+                    secret_fields.get(row * RATE).copied().unwrap_or(zero_f),
+                    secret_fields.get(row * RATE + 1).copied().unwrap_or(zero_f),
+                )
+            } else {
+                (zero_f, zero_f)
+            };
+
+            // Sponge 1 input state for this row.
+            let s1_in: Vec<PoseidonField> = if row == 0 {
+                let mut v = vec![zero_f; STATE_COLS];
+                v[0] = in0;
+                v[1] = in1;
+                v
+            } else if row == pad_row {
+                // 10*1 padding: `absorbed` is 0 because the secret is padded to whole blocks.
+                let mut v = s1.clone();
+                v[0] += one_f;
+                v[1] += one_f;
+                v
+            } else {
+                let mut v = s1.clone();
+                v[0] += in0;
+                v[1] += in1;
+                v
+            };
+
+            let (s1_out, s1_int) = compute_poseidon_row(&s1_in, &params);
+
+            // Sponge 2 input state for this row.
+            let s2_in: Vec<PoseidonField> = if row < pad_row {
+                vec![zero_f; STATE_COLS]
+            } else {
+                let base = if row == pad_row {
+                    vec![zero_f; STATE_COLS]
+                } else {
+                    s2.clone()
+                };
+                let mut v = base;
+                if row < commit_row {
+                    // squeeze row: absorb this row's freshly squeezed rate block
+                    v[0] += s1_out[0];
+                    v[1] += s1_out[1];
+                } else if row == commit_row {
+                    v[0] += one_f;
+                    v[1] += one_f;
+                }
+                v
+            };
+
+            let (s2_out, s2_int) = compute_poseidon_row(&s2_in, &params);
+
+            let base = row * width;
+            for i in 0..STATE_COLS {
+                trace_values[base + self.col_s1_in() + i] = poseidon_to_field(&s1_in[i]);
+                trace_values[base + self.col_s1_out() + i] = poseidon_to_field(&s1_out[i]);
+                trace_values[base + self.col_s2_in() + i] = poseidon_to_field(&s2_in[i]);
+                trace_values[base + self.col_s2_out() + i] = poseidon_to_field(&s2_out[i]);
+            }
+            trace_values[base + self.col_input()] = poseidon_to_field(&in0);
+            trace_values[base + self.col_input() + 1] = poseidon_to_field(&in1);
+            for (k, v) in s1_int.iter().enumerate() {
+                trace_values[base + self.col_s1_intermediates() + k] = poseidon_to_field(v);
+            }
+            for (k, v) in s2_int.iter().enumerate() {
+                trace_values[base + self.col_s2_intermediates() + k] = poseidon_to_field(v);
+            }
+            for j in 0..blocks {
+                trace_values[base + self.col_sel_sq() + j] = if row == pad_row + j {
+                    Val::ONE
+                } else {
+                    Val::ZERO
+                };
+            }
+            trace_values[base + self.col_sel_commit()] = if row == commit_row {
+                Val::ONE
+            } else {
+                Val::ZERO
+            };
+            trace_values[base + self.col_acc()] = if row >= pad_row { Val::ONE } else { Val::ZERO };
+
+            s1 = s1_out;
+            s2 = s2_out;
+        }
+
+        Ok(RowMajorMatrix::new(trace_values, width))
     }
 
     fn public_values(
@@ -382,19 +629,19 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, SessionKe
         inputs: &SessionKeyInput,
     ) -> Vec<lib_q_stark_field::extension::Complex<Mersenne31>> {
         use lib_q_stark_field::extension::Complex;
-        use lib_q_stark_mersenne31::Mersenne31;
 
         type Val = Complex<Mersenne31>;
 
-        // Public value: commitment = Poseidon(session_key_bytes)
-        let key_fields = bytes_to_poseidon_field(&inputs.session_keys);
-        let commitment_hash = POSEIDON_128.hash(&key_fields);
-
-        if !commitment_hash.is_empty() {
-            vec![poseidon_to_field(&commitment_hash[0])]
-        } else {
-            vec![Val::ZERO]
+        // Public value: C = Poseidon128(k_0, .., k_{n-1}) over the key ELEMENTS (not the
+        // per-byte encoding), which is exactly what sponge 2 computes in the trace.
+        let Ok(key_elements) = key_elements_from_bytes(&inputs.session_keys) else {
+            return vec![Val::ZERO];
+        };
+        let commitment = POSEIDON_128.hash(&key_elements);
+        if commitment.is_empty() {
+            return vec![Val::ZERO];
         }
+        vec![poseidon_to_field(&commitment[0])]
     }
 }
 
@@ -410,35 +657,38 @@ mod tests {
 
     type TestField = Complex<Mersenne31>;
 
-    #[test]
-    fn test_session_key_air_creation() {
-        let params = KdfParams::default();
-        let air = SessionKeyDerivationAir::new(params).unwrap();
-        assert_eq!(air.kdf_params().output_length, 32);
-        assert_eq!(
-            <SessionKeyDerivationAir as BaseAir<TestField>>::width(&air),
-            row_width()
-        );
+    fn air(output_length: usize) -> SessionKeyDerivationAir {
+        SessionKeyDerivationAir::new(KdfParams {
+            output_length,
+            ..Default::default()
+        })
+        .expect("air")
+    }
+
+    fn honest_input(air: &SessionKeyDerivationAir, secret: &[u8]) -> SessionKeyInput {
+        SessionKeyInput {
+            shared_secret: secret.to_vec(),
+            session_keys: derive_session_keys(secret, air.kdf_params().output_length),
+        }
+    }
+
+    fn cell(trace: &RowMajorMatrix<TestField>, row: usize, col: usize) -> TestField {
+        trace.values[row * trace.width() + col]
+    }
+
+    fn set_cell(trace: &mut RowMajorMatrix<TestField>, row: usize, col: usize, v: TestField) {
+        let w = trace.width();
+        trace.values[row * w + col] = v;
     }
 
     #[test]
-    fn test_session_key_trace_generation() {
-        let params = KdfParams {
-            output_length: 32,
-            ..Default::default()
-        };
-        let air = SessionKeyDerivationAir::new(params).unwrap();
-
-        let input = SessionKeyInput {
-            shared_secret: vec![1, 2, 3, 4],
-            session_keys: vec![5u8; 32],
-        };
-
-        let trace = air.generate_trace(&input);
-        assert!(trace.is_ok());
-        let trace = trace.unwrap();
-        assert_eq!(trace.width(), row_width());
-        assert!(trace.height().is_power_of_two());
+    fn test_session_key_air_creation() {
+        let a = air(32);
+        assert_eq!(a.kdf_params().output_length, 32);
+        assert_eq!(
+            <SessionKeyDerivationAir as BaseAir<TestField>>::width(&a),
+            a.trace_width_inner()
+        );
     }
 
     #[test]
@@ -454,22 +704,33 @@ mod tests {
             ..Default::default()
         });
         assert!(matches!(too_large, Err(AirError::ExceedsMaxSize { .. })));
+
+        // Not a whole rate block: cannot be squeezed by this trace layout.
+        let unaligned = SessionKeyDerivationAir::new(KdfParams {
+            output_length: 24,
+            ..Default::default()
+        });
+        assert!(matches!(unaligned, Err(AirError::InvalidDimensions { .. })));
+    }
+
+    #[test]
+    fn test_session_key_trace_generation() {
+        let a = air(32);
+        let trace = a.generate_trace(&honest_input(&a, &[1, 2, 3, 4])).unwrap();
+        assert_eq!(trace.width(), a.trace_width_inner());
+        assert!(trace.height().is_power_of_two());
     }
 
     #[test]
     fn test_session_key_trace_generation_rejects_invalid_inputs() {
-        let params = KdfParams {
-            output_length: 32,
-            ..Default::default()
-        };
-        let air = SessionKeyDerivationAir::new(params).unwrap();
+        let a = air(32);
 
         let empty_secret = SessionKeyInput {
             shared_secret: vec![],
             session_keys: vec![1u8; 32],
         };
         assert!(matches!(
-            air.generate_trace(&empty_secret),
+            a.generate_trace(&empty_secret),
             Err(AirError::InvalidInput { .. })
         ));
 
@@ -478,7 +739,7 @@ mod tests {
             session_keys: vec![1u8; 32],
         };
         assert!(matches!(
-            air.generate_trace(&oversized_secret),
+            a.generate_trace(&oversized_secret),
             Err(AirError::ExceedsMaxSize { .. })
         ));
 
@@ -487,43 +748,126 @@ mod tests {
             session_keys: vec![1u8; 31],
         };
         assert!(matches!(
-            air.generate_trace(&wrong_key_len),
+            a.generate_trace(&wrong_key_len),
+            Err(AirError::InvalidInput { .. })
+        ));
+    }
+
+    /// The prover must not be able to obtain a trace for keys it did not derive.
+    #[test]
+    fn test_session_key_trace_rejects_keys_that_are_not_the_kdf_output() {
+        let a = air(32);
+        let mut input = honest_input(&a, &[1, 2, 3, 4]);
+        input.session_keys[0] ^= 1;
+        assert!(matches!(
+            a.generate_trace(&input),
             Err(AirError::InvalidInput { .. })
         ));
     }
 
     #[test]
     fn test_session_key_public_values_deterministic() {
-        let params = KdfParams {
-            output_length: 32,
-            ..Default::default()
-        };
-        let air = SessionKeyDerivationAir::new(params).unwrap();
-        let input = SessionKeyInput {
-            shared_secret: vec![9, 8, 7, 6],
-            session_keys: vec![5u8; 32],
-        };
-        let pv_a = air.public_values(&input);
-        let pv_b = air.public_values(&input);
+        let a = air(32);
+        let input = honest_input(&a, &[9, 8, 7, 6]);
+        let pv_a = a.public_values(&input);
+        let pv_b = a.public_values(&input);
         assert_eq!(pv_a, pv_b);
         assert_eq!(pv_a.len(), 1);
     }
 
+    /// The property the AIR previously did NOT have: an honest trace satisfies it.
     #[test]
-    #[should_panic]
     fn test_session_key_trace_satisfies_constraints() {
-        let params = KdfParams {
-            output_length: 32,
-            ..Default::default()
-        };
-        let air = SessionKeyDerivationAir::new(params).unwrap();
-        let input = SessionKeyInput {
-            shared_secret: vec![1, 2, 3, 4],
-            session_keys: vec![5u8; 32],
-        };
-        let trace = air.generate_trace(&input).expect("trace");
-        let public_values = air.public_values(&input);
+        for out_len in [16usize, 32, 64] {
+            for secret in [&b"k"[..], &b"shared-secret"[..], &[7u8; 32][..]] {
+                let a = air(out_len);
+                let input = honest_input(&a, secret);
+                let trace = a.generate_trace(&input).expect("trace");
+                let pubs = a.public_values(&input);
+                check_constraints(&a, &trace, &pubs);
+            }
+        }
+    }
 
-        check_constraints(&air, &trace, &public_values);
+    /// The commitment must be bound: a wrong public value must be rejected.
+    #[test]
+    #[should_panic(expected = "constraints had nonzero value on row")]
+    fn test_session_key_rejects_wrong_public_commitment() {
+        let a = air(32);
+        let input = honest_input(&a, &[1, 2, 3, 4]);
+        let trace = a.generate_trace(&input).expect("trace");
+        let mut pubs = a.public_values(&input);
+        pubs[0] += TestField::ONE;
+        check_constraints(&a, &trace, &pubs);
+    }
+
+    /// Zeroing the commit selector must not let a prover escape the binding.
+    #[test]
+    #[should_panic(expected = "constraints had nonzero value on row")]
+    fn test_session_key_rejects_disabled_commit_selector() {
+        let a = air(32);
+        let input = honest_input(&a, &[1, 2, 3, 4]);
+        let mut trace = a.generate_trace(&input).expect("trace");
+        let commit_row = (0..trace.height())
+            .find(|&r| cell(&trace, r, a.col_sel_commit()) == TestField::ONE)
+            .expect("commit row");
+        set_cell(&mut trace, commit_row, a.col_sel_commit(), TestField::ZERO);
+        check_constraints(&a, &trace, &pubs_of(&a, &input));
+    }
+
+    /// Zeroing the squeeze selectors (the other way to dodge the binding) must fail too.
+    #[test]
+    #[should_panic(expected = "constraints had nonzero value on row")]
+    fn test_session_key_rejects_disabled_squeeze_selectors() {
+        let a = air(32);
+        let input = honest_input(&a, &[1, 2, 3, 4]);
+        let mut trace = a.generate_trace(&input).expect("trace");
+        for row in 0..trace.height() {
+            for j in 0..a.num_blocks() {
+                set_cell(&mut trace, row, a.col_sel_sq() + j, TestField::ZERO);
+            }
+            set_cell(&mut trace, row, a.col_sel_commit(), TestField::ZERO);
+            set_cell(&mut trace, row, a.col_acc(), TestField::ZERO);
+        }
+        check_constraints(&a, &trace, &pubs_of(&a, &input));
+    }
+
+    /// Corrupting a squeezed key element must break the commitment sponge.
+    #[test]
+    #[should_panic(expected = "constraints had nonzero value on row")]
+    fn test_session_key_rejects_corrupted_key_material() {
+        let a = air(32);
+        let input = honest_input(&a, &[1, 2, 3, 4]);
+        let mut trace = a.generate_trace(&input).expect("trace");
+        let v = cell(&trace, 1, a.col_s1_out());
+        set_cell(&mut trace, 1, a.col_s1_out(), v + TestField::ONE);
+        check_constraints(&a, &trace, &pubs_of(&a, &input));
+    }
+
+    /// Corrupting the sponge-1 capacity must be caught (the old AIR left it unbound).
+    #[test]
+    #[should_panic(expected = "constraints had nonzero value on row")]
+    fn test_session_key_rejects_corrupted_capacity() {
+        let a = air(32);
+        let input = honest_input(&a, &[1, 2, 3, 4]);
+        let mut trace = a.generate_trace(&input).expect("trace");
+        let col = a.col_s1_out() + RATE;
+        let v = cell(&trace, 0, col);
+        set_cell(&mut trace, 0, col, v + TestField::ONE);
+        check_constraints(&a, &trace, &pubs_of(&a, &input));
+    }
+
+    fn pubs_of(a: &SessionKeyDerivationAir, input: &SessionKeyInput) -> Vec<TestField> {
+        a.public_values(input)
+    }
+
+    #[test]
+    fn test_derive_session_keys_is_deterministic_and_secret_dependent() {
+        let a = derive_session_keys(b"secret", 32);
+        let b = derive_session_keys(b"secret", 32);
+        let c = derive_session_keys(b"secreu", 32);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        assert_eq!(a.len(), 32);
     }
 }

@@ -84,9 +84,10 @@ fn test_arithmetic_air_trace_generation() {
 
 #[test]
 fn test_hash_preimage_air_creation() {
-    // state_in (5) + input (2) + intermediates (960) + state_out (5) + is_final_row (1) = 973.
+    // state_in (5) + input (2) + intermediates (960) + state_out (5) + is_final_row (1)
+    // + final_row_acc (1) = 974.
     let air = HashPreimageAir::new();
-    assert_eq!(BaseAir::<TestField>::width(&air), 973);
+    assert_eq!(BaseAir::<TestField>::width(&air), 974);
 }
 
 #[test]

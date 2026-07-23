@@ -282,7 +282,7 @@ mod tests {
     /// A divergent (split) envelope: recipient 1's wrap is built from a DIFFERENT key. The trace's
     /// constant-K constraint cannot hold ⇒ constraints must FAIL.
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn divergent_key_fails_constraints() {
         let k = key(1);
         let k2 = key(999);
