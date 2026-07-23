@@ -368,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn test_batch_constraints_detect_placeholder_trace() {
         let proof_a = sample_serialized_proof();
         let mut proof_b = sample_serialized_proof();

@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn sponge_fixture_rejects_corrupted_digest() {
         let (air, mut trace) = build_fixture_trace(7);
         let ds = air.digest_start();
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn sponge_fixture_rejects_corrupted_intermediate() {
         let (air, mut trace) = build_fixture_trace(7);
         let col = air.interm_start() + 50;
@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn sponge_fixture_rejects_corrupted_preimage() {
         // Changing the preimage without recomputing the hash must break the digest binding.
         let (air, mut trace) = build_fixture_trace(7);
