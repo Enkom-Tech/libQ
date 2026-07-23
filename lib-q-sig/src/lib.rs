@@ -142,24 +142,24 @@
 //! use js_sys::Uint8Array;
 //! use lib_q_sig::ml_dsa::MlDsa;
 //!
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create ML-DSA instance
-//!     let ml_dsa = MlDsa::ml_dsa_65();
+//! // The WASM bindings report errors as `JsValue`, which is not a `std::error::Error`, so
+//! // this example unwraps rather than using `?`.
+//! let ml_dsa = MlDsa::ml_dsa_65();
 //!
-//!     // Generate keypair (with optional randomness)
-//!     let keypair = ml_dsa.generate_keypair_wasm(None)?;
+//! // Generate keypair (with optional randomness)
+//! let keypair = ml_dsa.generate_keypair_wasm(None).unwrap();
 //!
-//!     // Sign message
-//!     let message = Uint8Array::from(b"Hello, WASM!");
-//!     let signature =
-//!         ml_dsa.sign_wasm(keypair.secret_key(), message, None)?;
+//! // Sign message
+//! let message = Uint8Array::from(&b"Hello, WASM!"[..]);
+//! let signature = ml_dsa
+//!     .sign_wasm(keypair.secret_key(), message.clone(), None)
+//!     .unwrap();
 //!
-//!     // Verify signature
-//!     let is_valid =
-//!         ml_dsa.verify_wasm(keypair.public_key(), message, signature)?;
-//!     assert!(is_valid);
-//!     Ok(())
-//! }
+//! // Verify signature
+//! let is_valid = ml_dsa
+//!     .verify_wasm(keypair.public_key(), message, signature)
+//!     .unwrap();
+//! assert!(is_valid);
 //! # }
 //! ```
 //!

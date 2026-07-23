@@ -490,6 +490,118 @@ impl SignatureOperations for LibQSignatureProvider {
             }),
         }
     }
+
+    /// ML-DSA is the only family wired for signing contexts here; every other algorithm keeps
+    /// the trait default (empty context delegates, non-empty context is rejected rather than
+    /// silently dropped).
+    fn sign_with_context(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        if context.is_empty() {
+            return self.sign(algorithm, secret_key, message, randomness);
+        }
+
+        // Validate algorithm category
+        self.security_validator.validate_algorithm_category(
+            algorithm,
+            lib_q_core::api::AlgorithmCategory::Signature,
+        )?;
+
+        // Validate secret key
+        self.security_validator
+            .validate_secret_key(algorithm, secret_key.as_bytes())?;
+
+        // Validate message
+        self.security_validator
+            .validate_signature_message(message)?;
+
+        // Validate randomness if provided
+        if let Some(rng) = randomness {
+            self.security_validator.validate_randomness(rng)?;
+        }
+
+        #[cfg(feature = "ml-dsa")]
+        {
+            let ml_dsa = match algorithm {
+                Algorithm::MlDsa44 => Some(MlDsa::ml_dsa_44()),
+                Algorithm::MlDsa65 => Some(MlDsa::ml_dsa_65()),
+                Algorithm::MlDsa87 => Some(MlDsa::ml_dsa_87()),
+                _ => None,
+            };
+            if let Some(ml_dsa) = ml_dsa {
+                return if let Some(rng) = randomness {
+                    let rng_array: [u8; 32] =
+                        rng.try_into().map_err(|_| Error::InvalidKeySize {
+                            expected: 32,
+                            actual: rng.len(),
+                        })?;
+                    ml_dsa.sign_with_randomness_and_context(secret_key, message, context, rng_array)
+                } else {
+                    ml_dsa.sign_with_context(secret_key, message, context)
+                };
+            }
+        }
+
+        Err(Error::NotImplemented {
+            feature: "signing contexts are only supported for ML-DSA".to_string(),
+        })
+    }
+
+    /// ML-DSA is the only family wired for signing contexts here; every other algorithm keeps
+    /// the trait default (empty context delegates, non-empty context is rejected rather than
+    /// verified without the context).
+    fn verify_with_context(
+        &self,
+        algorithm: Algorithm,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        if context.is_empty() {
+            return self.verify(algorithm, public_key, message, signature);
+        }
+
+        // Validate algorithm category
+        self.security_validator.validate_algorithm_category(
+            algorithm,
+            lib_q_core::api::AlgorithmCategory::Signature,
+        )?;
+
+        // Validate public key
+        self.security_validator
+            .validate_public_key(algorithm, public_key.as_bytes())?;
+
+        // Validate message
+        self.security_validator
+            .validate_signature_message(message)?;
+
+        // Validate signature
+        self.security_validator
+            .validate_signature(algorithm, signature)?;
+
+        #[cfg(feature = "ml-dsa")]
+        {
+            let ml_dsa = match algorithm {
+                Algorithm::MlDsa44 => Some(MlDsa::ml_dsa_44()),
+                Algorithm::MlDsa65 => Some(MlDsa::ml_dsa_65()),
+                Algorithm::MlDsa87 => Some(MlDsa::ml_dsa_87()),
+                _ => None,
+            };
+            if let Some(ml_dsa) = ml_dsa {
+                return ml_dsa.verify_with_context(public_key, message, context, signature);
+            }
+        }
+
+        Err(Error::NotImplemented {
+            feature: "signing contexts are only supported for ML-DSA".to_string(),
+        })
+    }
 }
 
 #[cfg(feature = "alloc")]

@@ -477,6 +477,91 @@ impl WasmSignatureContext {
         Ok(is_valid)
     }
 
+    /// Sign a message under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// The resulting signature verifies only under the same `context` bytes — see
+    /// [`Self::verify_with_context`]. An empty `context` matches [`Self::sign`].
+    pub fn sign_with_context(
+        &self,
+        algorithm: &str,
+        secret_key_data: &Uint8Array,
+        message: &Uint8Array,
+        context: &Uint8Array,
+        randomness: Option<Uint8Array>,
+    ) -> Result<Vec<u8>, JsValue> {
+        let algorithm = self
+            .parse_signature_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
+
+        if secret_key_data.length() == 0 {
+            return Err(JsValue::from_str("Invalid signature secret key: empty key"));
+        }
+
+        if message.length() == 0 {
+            return Err(JsValue::from_str("Invalid message size: empty data"));
+        }
+
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_bytes = randomness_vec.as_deref();
+
+        let secret_key = crate::traits::SigSecretKey::new(secret_key_data.to_vec());
+
+        let signature = self
+            .inner
+            .sign_with_context(
+                algorithm,
+                &secret_key,
+                &message.to_vec(),
+                &context.to_vec(),
+                randomness_bytes,
+            )
+            .map_err(error_to_js_value)?;
+        Ok(signature)
+    }
+
+    /// Verify a signature under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// Returns `false` unless `context` matches the context the signature was produced under.
+    /// An empty `context` matches [`Self::verify`].
+    pub fn verify_with_context(
+        &self,
+        algorithm: &str,
+        public_key_data: &Uint8Array,
+        message: &Uint8Array,
+        context: &Uint8Array,
+        signature: &Uint8Array,
+    ) -> Result<bool, JsValue> {
+        let algorithm = self
+            .parse_signature_algorithm(algorithm)
+            .map_err(error_to_js_value)?;
+
+        if public_key_data.length() == 0 {
+            return Err(JsValue::from_str("Invalid signature public key: empty key"));
+        }
+
+        if message.length() == 0 {
+            return Err(JsValue::from_str("Invalid message size: empty data"));
+        }
+
+        if signature.length() == 0 {
+            return Err(JsValue::from_str("Invalid signature: empty data"));
+        }
+
+        let public_key = crate::traits::SigPublicKey::new(public_key_data.to_vec());
+
+        let is_valid = self
+            .inner
+            .verify_with_context(
+                algorithm,
+                &public_key,
+                &message.to_vec(),
+                &context.to_vec(),
+                &signature.to_vec(),
+            )
+            .map_err(error_to_js_value)?;
+        Ok(is_valid)
+    }
+
     /// Get the security level of the context
     pub fn security_level(&self) -> u32 {
         256 // This would be determined by the provider

@@ -154,6 +154,79 @@ impl SignatureContext {
         }
     }
 
+    /// Sign a message under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// An empty `context` is equivalent to [`Self::sign`]. A non-empty context requires a
+    /// provider that supports contexts; others return
+    /// [`NotImplemented`](crate::error::Error::NotImplemented).
+    pub fn sign_with_context(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        if !self.inner.is_initialized() {
+            return Err(crate::error::Error::InvalidState {
+                operation: String::from("sign_with_context"),
+                reason: String::from("Context not initialized"),
+            });
+        }
+
+        if algorithm.category() != AlgorithmCategory::Signature {
+            return Err(crate::error::Error::InvalidAlgorithm {
+                algorithm: "Algorithm is not a signature algorithm",
+            });
+        }
+
+        match self.inner.provider().and_then(|p| p.signature()) {
+            Some(sig_ops) => {
+                sig_ops.sign_with_context(algorithm, secret_key, message, context, randomness)
+            }
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("signature"),
+            }),
+        }
+    }
+
+    /// Verify a signature under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// An empty `context` is equivalent to [`Self::verify`]. A non-empty context requires a
+    /// provider that supports contexts; others return
+    /// [`NotImplemented`](crate::error::Error::NotImplemented) rather than a `true`/`false`
+    /// verdict computed without the context.
+    pub fn verify_with_context(
+        &self,
+        algorithm: Algorithm,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        if !self.inner.is_initialized() {
+            return Err(crate::error::Error::InvalidState {
+                operation: String::from("verify_with_context"),
+                reason: String::from("Context not initialized"),
+            });
+        }
+
+        if algorithm.category() != AlgorithmCategory::Signature {
+            return Err(crate::error::Error::InvalidAlgorithm {
+                algorithm: "Algorithm is not a signature algorithm",
+            });
+        }
+
+        match self.inner.provider().and_then(|p| p.signature()) {
+            Some(sig_ops) => {
+                sig_ops.verify_with_context(algorithm, public_key, message, context, signature)
+            }
+            None => Err(crate::error::Error::ProviderNotConfigured {
+                operation: String::from("signature"),
+            }),
+        }
+    }
+
     /// Check if the context is initialized
     pub fn is_initialized(&self) -> bool {
         self.inner.is_initialized()
