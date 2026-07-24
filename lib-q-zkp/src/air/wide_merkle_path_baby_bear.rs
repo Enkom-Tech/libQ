@@ -256,7 +256,7 @@ mod tests {
     /// The stored node-input columns are pinned by the degree-2 selection constraint — corrupting
     /// one must be rejected (the under-constrained-column hunt for the degree-7 optimization).
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn wrong_node_input_rejected() {
         let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
         let mut trace = generate_path_trace_bb(&leaf, &bits, &sibs);
@@ -278,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn wrong_sibling_rejected() {
         let (leaf, bits, mut sibs, root) = build_tree_and_path(4, 3);
         sibs[1][0] = sibs[1][0] + BabyBear::ONE; // corrupt a sibling at level 1
@@ -288,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn wrong_direction_rejected() {
         let (leaf, mut bits, sibs, root) = build_tree_and_path(4, 3);
         bits[2] = !bits[2]; // flip a direction bit (changes child order → wrong parent)
@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn wrong_intermediate_rejected() {
         let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
         let mut trace = generate_path_trace_bb(&leaf, &bits, &sibs);
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn wrong_root_rejected() {
         let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
         let trace = generate_path_trace_bb(&leaf, &bits, &sibs);

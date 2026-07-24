@@ -266,7 +266,10 @@ where
         // Bind the effective threshold (public value 0) to the public values, tying the proof
         // to the declared threshold/cleartext-weight context.
         let pubs = builder.public_values();
-        if !pubs.is_empty() {
+        if pubs.is_empty() {
+            // A missing public value must not silently drop the threshold binding.
+            builder.assert_zero(AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE));
+        } else {
             let effective_threshold = self
                 .public
                 .threshold

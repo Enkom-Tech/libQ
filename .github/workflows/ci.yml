@@ -296,6 +296,14 @@ jobs:
             --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
             -- --test-threads=1
 
+      # These targets sit behind non-default features that no other job enables, so before this
+      # step they compiled nowhere and ran nowhere. Keep them here or delete the targets; a
+      # `required-features` gate that no workflow satisfies is a test suite that does not exist.
+      - name: Run feature-gated targets that no other job reaches
+        run: |
+          cargo test -p lib-q-mac --profile release-ci --features host-tests
+          cargo test -p lib-q --profile release-ci --features zkp-plonky --test zkp_plonky_umbrella_tests
+
   # WASM validation - parallel with test matrix
   wasm-validation:
     name: WASM Validation
