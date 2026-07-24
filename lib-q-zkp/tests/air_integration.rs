@@ -37,6 +37,19 @@ type TestField = Complex<Mersenne31>;
 // ArithmeticAir Tests
 // ============================================================================
 
+/// Assert that a verifier *ran to a verdict* and rejected.
+///
+/// `assert!(!verify(..).unwrap_or(false))` also passes when the verifier returns `Err`, so it
+/// cannot distinguish "correctly rejected" from "blew up before reaching a verdict".
+#[track_caller]
+fn assert_rejected<E: core::fmt::Debug>(result: Result<bool, E>, what: &str) {
+    match result {
+        Ok(false) => {}
+        Ok(true) => panic!("{what}: verifier accepted an invalid proof"),
+        Err(e) => panic!("{what}: verifier failed to reach a verdict: {e:?}"),
+    }
+}
+
 #[test]
 fn test_arithmetic_air_creation() {
     let air = ArithmeticAir::new(5).expect("Should create AIR with 5 operations");
@@ -410,20 +423,22 @@ fn test_hash_preimage_soundness() {
         verify_preimage,
     };
 
+    // `verify_preimage` takes the *preimage*, not a hash — it reconstructs the public
+    // commitment itself. The earlier version of this test passed hash-shaped byte strings and
+    // accepted any outcome, so it could not fail.
     let secret = b"correct secret";
     let proof = prove_preimage(secret).unwrap();
 
-    // Verify with correct hash
-    let correct_hash = b"expected hash"; // This would be the actual hash in practice
-    // Note: This test is simplified - in practice we'd compute the actual hash
-    // For now, we test that verification at least runs without panicking
-    let _result = verify_preimage(&proof, correct_hash);
+    assert!(
+        verify_preimage(&proof, secret).expect("verifier must reach a verdict"),
+        "the proof must verify against its own preimage"
+    );
 
-    // Test with wrong hash (should fail)
-    let wrong_hash = b"wrong hash";
-    let result = verify_preimage(&proof, wrong_hash);
-    // The verification should either return false or error
-    assert!(!result.unwrap_or(false), "Invalid proof must be rejected");
+    let wrong_secret = b"different secret";
+    assert_rejected(
+        verify_preimage(&proof, wrong_secret),
+        "preimage proof against a different preimage",
+    );
 }
 
 #[test]
@@ -447,12 +462,12 @@ fn test_merkle_membership_soundness() {
 
     let proof = prove_membership_with_config(leaf, &path, cfg.clone()).unwrap();
 
-    // Test with wrong root (should fail)
-    let wrong_root = b"wrong root hash";
-    let result = verify_membership_with_config(&proof, wrong_root, cfg);
-    assert!(
-        !result.unwrap_or(false),
-        "Invalid Merkle proof must be rejected"
+    // A root must be 32 bytes: a short byte string makes the verifier bail on input
+    // validation before it ever reaches a verdict, which is not what this test is about.
+    let wrong_root = [0xFFu8; 32];
+    assert_rejected(
+        verify_membership_with_config(&proof, &wrong_root, cfg),
+        "membership proof against a wrong root",
     );
 }
 
@@ -514,18 +529,22 @@ fn test_merkle_membership_with_explicit_depth() {
     // Verify the proof has the correct tree depth in metadata
     assert_eq!(proof.merkle_tree_depth(), Some(3));
 
-    // Test with wrong depth (should fail)
-    let wrong_root = b"expected root";
-    let result = verify_membership_with_depth_and_config(&proof, wrong_root, 2, cfg.clone());
-    assert!(
-        !result.unwrap_or(false),
-        "Proof with wrong tree depth must be rejected"
+    // Wrong depth must be rejected. Use a well-formed 32-byte root whose 4-byte limbs are
+    // canonical Mersenne31 elements, so the depth/root check is what decides the outcome
+    // rather than an input-validation bail-out on a non-canonical limb.
+    let wrong_root = [0x01u8; 32];
+    assert_rejected(
+        verify_membership_with_depth_and_config(&proof, &wrong_root, 2, cfg.clone()),
+        "membership proof at the wrong tree depth",
     );
 
-    // Test with correct depth but wrong root (should fail verification)
-    let result = verify_membership_with_depth_and_config(&proof, wrong_root, 3, cfg);
-    // This should pass the depth check but fail root verification
-    assert!(result.is_ok());
+    // Correct depth but wrong root: this passes the depth check and must then fail root
+    // verification. Asserting only `is_ok()` here (as this test used to) would also be
+    // satisfied by `Ok(true)` — i.e. by the verifier accepting a wrong root.
+    assert_rejected(
+        verify_membership_with_depth_and_config(&proof, &wrong_root, 3, cfg),
+        "membership proof at the right depth but a wrong root",
+    );
 }
 
 #[test]
