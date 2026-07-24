@@ -326,7 +326,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             + CanObserve<
                 <<<C as StarkGenericConfig>::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof as FriDataExtractor>::Commitment,
             >,
-    {
+{
         let config = &self.config;
         let pcs = config.pcs();
         let commitments = &proof.commitments;
@@ -491,7 +491,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
                 Witness = <<<C as StarkGenericConfig>::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof as FriDataExtractor>::Witness,
             >,
         <<<C as StarkGenericConfig>::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof as FriDataExtractor>::Witness: Clone,
-    {
+{
         let config = &self.config;
         let pcs = config.pcs();
         let commitments = &proof.commitments;
