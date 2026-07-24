@@ -1,4 +1,4 @@
-//! Regenerates `tests/vectors/blind-token-v1.json` + `manifest.json` (run with `--ignored`).
+//! Regenerates `tests/vectors/blind-token-v2.json` + `manifest.json` (run with `--ignored`).
 
 mod common;
 
@@ -15,7 +15,7 @@ use lib_q_blind_token::{
 };
 
 #[test]
-#[ignore = "regenerates tests/vectors/blind-token-v1.json"]
+#[ignore = "regenerates tests/vectors/blind-token-v2.json"]
 fn kat_regenerate_vectors() {
     use std::fs;
     use std::path::Path;
@@ -27,8 +27,8 @@ fn kat_regenerate_vectors() {
     assert!(verify(&issuer_pub, nonce, &token), "kat token must verify");
 
     let doc = serde_json::json!({
-        "format": "blind-token-kat-v1",
-        "spec_version": "v1",
+        "format": "blind-token-kat-v2",
+        "spec_version": "v2",
         "scheme": "gpv-mp-trapdoor + zk-proof-of-possession (unlinkable)",
         "issuer_key_id": ISSUER_KEY_ID,
         "epoch": EPOCH,
@@ -39,13 +39,13 @@ fn kat_regenerate_vectors() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/vectors");
     fs::create_dir_all(&dir).expect("mkdir vectors");
     fs::write(
-        dir.join("blind-token-v1.json"),
+        dir.join("blind-token-v2.json"),
         serde_json::to_string_pretty(&doc).expect("json"),
     )
     .expect("write kat");
 
     let manifest = serde_json::json!({
-        "schema": "blind-token-kat-v1",
+        "schema": "blind-token-kat-v2",
         "regenerate": "cargo test -p lib-q-blind-token kat_regenerate_vectors -- --ignored",
         "note": "token is a re-randomized ZK proof; bytes vary per redemption (RNG-seeded here)",
         "token_bytes": token.len(),

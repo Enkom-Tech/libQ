@@ -16,13 +16,11 @@ use rand_core::{
     Rng,
 };
 
-use super::gaussian::sample_discrete_gaussian;
-
 /// Modulus `q` as an `i64` (from the self-contained ring).
 pub const Q: i64 = super::ring::Q;
 
-/// Gadget length `k` such that `2^{k-1} ≤ q < 2^k`. For `q ≈ 2^48`, `k = 48`.
-pub const GADGET_LEN: usize = 48;
+/// Gadget length `k` such that `2^{k-1} ≤ q < 2^k`. For `q ≈ 2^51`, `k = 51`.
+pub const GADGET_LEN: usize = 51;
 
 /// Default Gaussian width for the coset `G`-sampler. Must exceed `‖B̃‖ · η_ε(Z)`; the canonical
 /// `Λ^⊥_q(g^T)` basis has Gram–Schmidt norms `≤ √5 ≈ 2.236`, so `6.0` leaves comfortable margin.
@@ -74,10 +72,14 @@ pub struct GadgetSampler {
     basis_int: [[i64; GADGET_LEN]; GADGET_LEN],
     /// Gram–Schmidt vectors `b̃_j`.
     gso: [[f64; GADGET_LEN]; GADGET_LEN],
-    /// `‖b̃_j‖²`.
-    gso_sq_norm: [f64; GADGET_LEN],
-    /// Width parameter `s`.
-    width: f64,
+    /// `1/‖b̃_j‖²`, precomputed (from the PUBLIC fixed basis) so the online Klein loop reduces the
+    /// coset center with a multiply, never a division: f64 division has data-dependent latency on
+    /// some x86 cores and the numerator `dot(&c, &gso[j])` is secret, so a division there is a
+    /// (weak) timing channel. A multiply by a fixed reciprocal is fixed-latency.
+    inv_gso_sq_norm: [f64; GADGET_LEN],
+    /// Per-GSO-level isochronous samplers. Level `j` has public width `sprime = s/‖b̃_j‖`; the
+    /// coset center `cprime` is secret, so each draw must be constant-time in the center.
+    samplers: alloc::vec::Vec<super::gaussian_ct::SamplerZ>,
 }
 
 impl GadgetSampler {
@@ -120,12 +122,23 @@ impl GadgetSampler {
             gso_sq_norm[j] = dot(&v, &v);
         }
 
+        // Reciprocal GSO norms: public constants, so the online center reduction is a multiply.
+        let mut inv_gso_sq_norm = [0.0f64; GADGET_LEN];
+        for j in 0..k {
+            inv_gso_sq_norm[j] = 1.0 / gso_sq_norm[j];
+        }
+
+        // Precompute the per-level constant-time samplers (widths are public, from the fixed basis).
+        let samplers = (0..k)
+            .map(|j| super::gaussian_ct::SamplerZ::new(width / gso_sq_norm[j].sqrt()))
+            .collect();
+
         Self {
             basis,
             basis_int,
             gso,
-            gso_sq_norm,
-            width,
+            inv_gso_sq_norm,
+            samplers,
         }
     }
 
@@ -141,9 +154,12 @@ impl GadgetSampler {
         let mut c = target;
         let mut coeffs = [0i64; GADGET_LEN];
         for j in (0..k).rev() {
-            let cprime = dot(&c, &self.gso[j]) / self.gso_sq_norm[j];
-            let sprime = self.width / self.gso_sq_norm[j].sqrt();
-            let zj = sample_discrete_gaussian(rng, sprime, cprime);
+            // Multiply by the precomputed reciprocal (no secret-numerator f64 division). The center
+            // is exactly ±0.0 or a normal f64 here — never subnormal — so no denormal-assist timing.
+            let cprime = dot(&c, &self.gso[j]) * self.inv_gso_sq_norm[j];
+            debug_assert!(!cprime.is_subnormal());
+            // Isochronous draw: width `sprime` is public (baked into `samplers[j]`), center secret.
+            let zj = self.samplers[j].sample(rng, cprime);
             coeffs[j] = zj;
             // c := c − zj · b_j.
             for i in 0..k {
@@ -151,11 +167,11 @@ impl GadgetSampler {
             }
         }
         // Lattice point w = Σ_j coeffs_j · b_j (exact integer), then z = z0 − w.
+        // Data-oblivious: no early-out on `coeffs[j] == 0` — skipping a zero coefficient would
+        // leak the secret Klein zero-pattern through the reconstruction timing. Multiply through
+        // unconditionally (the bidiagonal integer basis keeps this cheap either way).
         let mut z = z0;
         for j in 0..k {
-            if coeffs[j] == 0 {
-                continue;
-            }
             for i in 0..k {
                 z[i] -= coeffs[j] * self.basis_int[i][j];
             }
