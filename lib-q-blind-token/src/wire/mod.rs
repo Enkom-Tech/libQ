@@ -283,7 +283,7 @@ mod issuance_wire_tests {
 
     #[test]
     fn issue_request_and_response_round_trip() {
-        let mut rng = new_deterministic_rng([0x9au8; 32]);
+        let mut rng = new_deterministic_rng([0x9Au8; 32]);
         let (public, secret) = keygen_issuer(&mut rng, 3, 5);
 
         let (req, _state) = blind(&mut rng, &public);
@@ -300,7 +300,7 @@ mod issuance_wire_tests {
 
     #[test]
     fn issue_wire_rejects_truncation_and_bad_header() {
-        let mut rng = new_deterministic_rng([0x9bu8; 32]);
+        let mut rng = new_deterministic_rng([0x9Bu8; 32]);
         let (public, _secret) = keygen_issuer(&mut rng, 1, 1);
         let (req, _state) = blind(&mut rng, &public);
         let bytes = encode_issue_request(&req).unwrap();

@@ -80,7 +80,7 @@ fn mont_reduce(t: u128) -> i64 {
     // Branchless conditional subtract: r - (q if r >= q else 0).
     let d = r - Q; // ∈ [-q, q)
     let mask = d >> 63; // all-ones iff d < 0 (i.e. r < q), else 0
-    (d + (mask & Q)) as i64
+    d + (mask & Q)
 }
 
 /// `a·b mod q` for `a, b ∈ [0, q)`, via two Montgomery reductions (division-free; far faster than

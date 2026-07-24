@@ -301,8 +301,7 @@ impl PerturbSampler {
             // ±0.0 or normal f64 (never subnormal), so the isochronous sampler sees no denormal
             // assist. Checked in debug/CI; compiled out of the release hot path.
             debug_assert!(z_real.iter().all(|v| !v.is_subnormal()));
-            let rounded: [i64; N] =
-                core::array::from_fn(|t| round_sampler.sample(rng, z_real[t]));
+            let rounded: [i64; N] = core::array::from_fn(|t| round_sampler.sample(rng, z_real[t]));
             out.push(poly_from_i64(&rounded));
         }
         out
@@ -317,9 +316,11 @@ impl PerturbSampler {
     #[cfg(test)]
     #[must_use]
     pub(crate) fn all_factors_normal(&self) -> bool {
-        self.l.iter().flatten().flatten().all(|c| {
-            (c.re == 0.0 || !c.re.is_subnormal()) && (c.im == 0.0 || !c.im.is_subnormal())
-        })
+        self.l
+            .iter()
+            .flatten()
+            .flatten()
+            .all(|c| (c.re == 0.0 || !c.re.is_subnormal()) && (c.im == 0.0 || !c.im.is_subnormal()))
     }
 }
 
