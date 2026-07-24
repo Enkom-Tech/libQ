@@ -207,11 +207,20 @@ runs:
               cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --verbose
             fi
           else
-            # Whole-workspace debug pass (std / all-algorithms shards). Exclude the heavy STARK
-            # crate lib-q-zk-encryption-proof: its debug proving is far too slow (same rationale as
-            # the per-package skip list above) and was tipping these already-tight shards over their
-            # timeout caps. It is fully covered by its own dedicated release-ci shard.
-            cargo test "${FEAT_ARGS[@]}" --workspace --exclude lib-q-zk-encryption-proof --verbose
+            # Whole-workspace debug pass (std / all-algorithms shards). Exclude the heavy lattice /
+            # STARK crates whose *debug* keygen/proof math is far too slow — the exact set the
+            # per-package path (above) already skips in debug and runs in release-ci only. Testing
+            # them here in debug re-does that slow work for zero extra signal (they are covered by
+            # their own dedicated release-ci rows AND by the whole-workspace release pass below),
+            # and it was the single biggest contributor to these shards blowing their timeout caps.
+            cargo test "${FEAT_ARGS[@]}" --workspace \
+              --exclude lib-q-zk-encryption-proof \
+              --exclude lib-q-blind-token \
+              --exclude lib-q-dkg \
+              --exclude lib-q-threshold-raccoon \
+              --exclude lib-q-threshold-kem-lattice \
+              --exclude lib-q-fn-dsa \
+              --verbose
           fi
         fi
         echo "Tests completed"

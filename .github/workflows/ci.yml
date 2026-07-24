@@ -130,14 +130,18 @@ jobs:
           - name: "std"
             features: "std"
             package: ""
-            # TEMP (measurement probe): raised 60->150 to learn the true full-workspace runtime and
-            # surface any failures hidden behind the old cap. Revert/optimize once measured.
-            timeout_minutes: 150
+            # The whole-workspace debug pass no longer re-runs the slow lattice crates in debug
+            # (excluded in the rust-test action; they run release-ci in their own rows + the release
+            # pass here), so this row is well under the old 60m baseline. Kept at 90 for headroom
+            # until the first optimized run is measured, then trim toward 60.
+            timeout_minutes: 90
           - name: "all-algorithms"
             features: "std,all-algorithms"
             package: ""
-            # TEMP (measurement probe): raised 90->180 (CD pre-release-validation caps this at 150).
-            timeout_minutes: 180
+            # Same debug-lattice exclusion as the std row. Previously never finished at 180m; the
+            # exclusion removes that overrun. 120 is a conservative cap (CD pre-release-validation
+            # caps this at 150) pending the first measured optimized run.
+            timeout_minutes: 120
           - name: "ml-kem"
             features: "std,ml-kem,rand"
             package: ""
