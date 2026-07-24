@@ -66,6 +66,11 @@ criterion = { workspace = true, features = ["html_reports"] }
 lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.9" }
 
 [[test]]
+name = "compliance"
+path = "tests/compliance/main.rs"
+required-features = ["alloc", "hqc", "random"]
+
+[[test]]
 name = "nist_kem_kat"
 path = "tests/nist_kem_kat.rs"
 required-features = ["alloc", "hqc", "random"]
