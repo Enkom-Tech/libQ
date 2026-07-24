@@ -196,7 +196,11 @@ pub fn unblind(
     // Constant-time equality: `u` is derived from the *secret* hidden attribute `a_tok`, so a
     // short-circuiting `!=` would leak (via timing) the first coefficient where the issuer's
     // signature check fails. Compare the whole centered-coefficient vectors in constant time.
-    if centered_coeffs(&ax)[..].ct_eq(&centered_coeffs(&u)[..]).unwrap_u8() == 0 {
+    if centered_coeffs(&ax)[..]
+        .ct_eq(&centered_coeffs(&u)[..])
+        .unwrap_u8() ==
+        0
+    {
         return None;
     }
     Some(Credential {
