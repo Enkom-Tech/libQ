@@ -297,7 +297,7 @@ where
             >,
         <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment:
             crate::air::PoseidonCommitmentRoot,
-    {
+{
         if public_values_per_proof.len() != self.proofs.len() {
             return Err(lib_q_core::Error::InvalidState {
                 operation: "aggregate_single".to_string(),
@@ -478,7 +478,7 @@ where
             >,
         <C::Pcs as lib_q_stark_commit::Pcs<C::Challenge, C::Challenger>>::Commitment:
             crate::air::PoseidonCommitmentRoot,
-    {
+{
         if public_values_per_proof.len() != self.proofs.len() {
             return Err(lib_q_core::Error::InvalidState {
                 operation: "aggregate".to_string(),
