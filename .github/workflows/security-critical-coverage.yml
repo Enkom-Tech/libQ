@@ -40,7 +40,9 @@ jobs:
           key: ${{ runner.os }}-sec-cov-sig-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
 
       - name: Generate scoped Cobertura
         run: |
@@ -100,7 +102,9 @@ jobs:
           key: ${{ runner.os }}-sec-cov-tkeml-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
 
       - name: Generate scoped Cobertura
         run: |

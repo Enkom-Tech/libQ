@@ -80,8 +80,9 @@ jobs:
           key: ${{ runner.os }}-cargo-coverage-${{ matrix.rust }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           
       - name: Install tarpaulin
-        run: |
-          cargo install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
           
       # First run coverage for individual critical crates
       - name: Run coverage for core cryptographic crates
