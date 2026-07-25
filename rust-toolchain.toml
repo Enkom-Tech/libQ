@@ -1,5 +1,11 @@
 [toolchain]
-channel = "nightly"
+# PINNED, deliberately. A floating `nightly` means rustfmt and clippy change under us:
+# every few weeks the new nightly reformats otherwise-untouched files (e.g. fn-body braces
+# after a wrapped `where` clause) or starts emitting a new lint, which fails the fmt/clippy
+# gates on EVERY open branch at once and forces an unrelated style commit onto each one.
+# Bump this date deliberately in its own PR (run `cargo +nightly fmt --all` and
+# `cargo +nightly clippy --workspace --all-targets` in the same commit), never implicitly.
+channel = "nightly-2026-07-24"
 components = ["rustfmt", "clippy", "rust-src"]
 targets = [
     "wasm32-unknown-unknown",
