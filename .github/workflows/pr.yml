@@ -80,12 +80,14 @@ jobs:
     name: Test Coverage
     needs: core-validation
     runs-on: ubuntu-latest
-    # 45 min: the heaviest affected-crate case is lib-q-zkp, whose instrumented lib-tests
+    # 60 min: the heaviest affected-crate case is lib-q-zkp, whose instrumented lib-tests
     # alone run ~10 min under `tarpaulin --engine llvm` (full STARK prove/verify round-trips),
-    # and with tarpaulin install + doctests + the other zkp test binaries the single-crate
-    # pass lands at ~29-30 min — chronically grazing the old 30-min cap. Bumped so zkp-touching
-    # PRs don't red-out on a wall-clock timeout that isn't a real test/coverage-threshold failure.
-    timeout-minutes: 45
+    # and with doctests + the other zkp test binaries the single-crate pass lands at ~29-30 min.
+    # The 45-min cap was still too tight in practice: it passed on PR #61 but timed out on
+    # #62 and #63 at exactly 45:00 — a wall-clock cancel, not a test or coverage-threshold
+    # failure. Runner-speed variance alone spans that margin, so the cap needs real headroom.
+    # (The ~3 min tarpaulin source build is separately removed in .github/actions/rust-test.)
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       
