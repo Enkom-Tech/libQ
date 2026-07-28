@@ -156,6 +156,12 @@ use lib_q_core::traits::{
     SigSecretKey,
     Signature,
 };
+/// Maximum length of a FIPS-205 signing context, in bytes.
+///
+/// Re-exported so callers do not have to depend on `lib-q-slh-dsa` directly. See
+/// [`lib_q_slh_dsa::lib_q_integration::SLH_DSA_CONTEXT_MAX_LEN`].
+#[cfg(feature = "slh-dsa")]
+pub use lib_q_slh_dsa::lib_q_integration::SLH_DSA_CONTEXT_MAX_LEN;
 #[cfg(feature = "slh-dsa")]
 use lib_q_slh_dsa::{
     ParameterSet,
@@ -379,6 +385,28 @@ impl SlhDsa {
         message: &[u8],
         randomness: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
+        self.sign_for_algorithm_with_context(algorithm, secret_key, message, &[], randomness)
+    }
+
+    /// Sign a message under a FIPS-205 signing context, for a specific SLH-DSA algorithm.
+    ///
+    /// The `context` is domain-separation input bound into the signature: verification succeeds
+    /// only when the verifier supplies the *same* context bytes. Pass `&[]` for the behaviour of
+    /// [`Self::sign_for_algorithm`], which is what the context-free path already signs under —
+    /// so existing signatures remain valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `algorithm` is not an SLH-DSA algorithm, if `context` exceeds
+    /// [`SLH_DSA_CONTEXT_MAX_LEN`] bytes, or if signing fails.
+    pub fn sign_for_algorithm_with_context(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
         #[cfg(feature = "slh-dsa")]
         {
             // Validate algorithm is SLH-DSA
@@ -398,24 +426,18 @@ impl SlhDsa {
 
             // Sign based on algorithm
             match algorithm {
-                Algorithm::SlhDsaSha256128fRobust => {
-                    self.sign_impl::<Sha2_128f>(secret_key, message, randomness)
-                }
-                Algorithm::SlhDsaSha256192fRobust => {
-                    self.sign_impl::<Sha2_192f>(secret_key, message, randomness)
-                }
-                Algorithm::SlhDsaSha256256fRobust => {
-                    self.sign_impl::<Sha2_256f>(secret_key, message, randomness)
-                }
-                Algorithm::SlhDsaShake256128fRobust => {
-                    self.sign_impl::<Shake128f>(secret_key, message, randomness)
-                }
-                Algorithm::SlhDsaShake256192fRobust => {
-                    self.sign_impl::<Shake192f>(secret_key, message, randomness)
-                }
-                Algorithm::SlhDsaShake256256fRobust => {
-                    self.sign_impl::<Shake256f>(secret_key, message, randomness)
-                }
+                Algorithm::SlhDsaSha256128fRobust => self
+                    .sign_impl_with_context::<Sha2_128f>(secret_key, message, context, randomness),
+                Algorithm::SlhDsaSha256192fRobust => self
+                    .sign_impl_with_context::<Sha2_192f>(secret_key, message, context, randomness),
+                Algorithm::SlhDsaSha256256fRobust => self
+                    .sign_impl_with_context::<Sha2_256f>(secret_key, message, context, randomness),
+                Algorithm::SlhDsaShake256128fRobust => self
+                    .sign_impl_with_context::<Shake128f>(secret_key, message, context, randomness),
+                Algorithm::SlhDsaShake256192fRobust => self
+                    .sign_impl_with_context::<Shake192f>(secret_key, message, context, randomness),
+                Algorithm::SlhDsaShake256256fRobust => self
+                    .sign_impl_with_context::<Shake256f>(secret_key, message, context, randomness),
                 _ => unreachable!(), // Already validated above
             }
         }
@@ -433,6 +455,27 @@ impl SlhDsa {
         algorithm: Algorithm,
         public_key: &SigPublicKey,
         message: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        self.verify_for_algorithm_with_context(algorithm, public_key, message, &[], signature)
+    }
+
+    /// Verify a signature under a FIPS-205 signing context, for a specific SLH-DSA algorithm.
+    ///
+    /// Verification succeeds only when `context` matches the context the signature was produced
+    /// under, byte for byte. Pass `&[]` for the behaviour of [`Self::verify_for_algorithm`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `algorithm` is not an SLH-DSA algorithm or if `context` exceeds
+    /// [`SLH_DSA_CONTEXT_MAX_LEN`] bytes. An unrepresentable context is a caller bug, so it is a
+    /// hard error rather than a `false` verdict.
+    pub fn verify_for_algorithm_with_context(
+        &self,
+        algorithm: Algorithm,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
         signature: &[u8],
     ) -> Result<bool> {
         #[cfg(feature = "slh-dsa")]
@@ -454,24 +497,18 @@ impl SlhDsa {
 
             // Verify based on algorithm
             match algorithm {
-                Algorithm::SlhDsaSha256128fRobust => {
-                    self.verify_impl::<Sha2_128f>(public_key, message, signature)
-                }
-                Algorithm::SlhDsaSha256192fRobust => {
-                    self.verify_impl::<Sha2_192f>(public_key, message, signature)
-                }
-                Algorithm::SlhDsaSha256256fRobust => {
-                    self.verify_impl::<Sha2_256f>(public_key, message, signature)
-                }
-                Algorithm::SlhDsaShake256128fRobust => {
-                    self.verify_impl::<Shake128f>(public_key, message, signature)
-                }
-                Algorithm::SlhDsaShake256192fRobust => {
-                    self.verify_impl::<Shake192f>(public_key, message, signature)
-                }
-                Algorithm::SlhDsaShake256256fRobust => {
-                    self.verify_impl::<Shake256f>(public_key, message, signature)
-                }
+                Algorithm::SlhDsaSha256128fRobust => self
+                    .verify_impl_with_context::<Sha2_128f>(public_key, message, context, signature),
+                Algorithm::SlhDsaSha256192fRobust => self
+                    .verify_impl_with_context::<Sha2_192f>(public_key, message, context, signature),
+                Algorithm::SlhDsaSha256256fRobust => self
+                    .verify_impl_with_context::<Sha2_256f>(public_key, message, context, signature),
+                Algorithm::SlhDsaShake256128fRobust => self
+                    .verify_impl_with_context::<Shake128f>(public_key, message, context, signature),
+                Algorithm::SlhDsaShake256192fRobust => self
+                    .verify_impl_with_context::<Shake192f>(public_key, message, context, signature),
+                Algorithm::SlhDsaShake256256fRobust => self
+                    .verify_impl_with_context::<Shake256f>(public_key, message, context, signature),
                 _ => unreachable!(), // Already validated above
             }
         }
@@ -528,17 +565,18 @@ impl SlhDsa {
     }
 
     #[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-    fn sign_impl<P: ParameterSet + 'static>(
+    fn sign_impl_with_context<P: ParameterSet + 'static>(
         &self,
         secret_key: &SigSecretKey,
         message: &[u8],
+        context: &[u8],
         randomness: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
         let slh_dsa = SlhDsaSignature::<P>::new();
 
         if let Some(rand) = randomness {
             // Use provided randomness
-            slh_dsa.sign_with_randomness(secret_key, message, rand)
+            slh_dsa.sign_with_randomness_and_context(secret_key, message, context, rand)
         } else {
             // Use system RNG (requires std feature)
             #[cfg(feature = "slh-dsa-std")]
@@ -554,7 +592,12 @@ impl SlhDsa {
                 let mut signing_randomness = vec![0u8; 32]; // 32 bytes, works for all parameter sets
                 rng.fill_bytes(&mut signing_randomness);
 
-                slh_dsa.sign_with_randomness(secret_key, message, &signing_randomness)
+                slh_dsa.sign_with_randomness_and_context(
+                    secret_key,
+                    message,
+                    context,
+                    &signing_randomness,
+                )
             }
             #[cfg(not(feature = "slh-dsa-std"))]
             {
@@ -566,21 +609,23 @@ impl SlhDsa {
     }
 
     #[cfg(all(feature = "slh-dsa", feature = "alloc"))]
-    fn verify_impl<P: ParameterSet + 'static>(
+    fn verify_impl_with_context<P: ParameterSet + 'static>(
         &self,
         public_key: &SigPublicKey,
         message: &[u8],
+        context: &[u8],
         signature: &[u8],
     ) -> Result<bool> {
         let slh_dsa = SlhDsaSignature::<P>::new();
-        slh_dsa.verify(public_key, message, signature)
+        slh_dsa.verify_with_context(public_key, message, context, signature)
     }
 
     #[cfg(all(feature = "slh-dsa", not(feature = "alloc")))]
-    fn verify_impl<P: ParameterSet + 'static>(
+    fn verify_impl_with_context<P: ParameterSet + 'static>(
         &self,
         _public_key: &SigPublicKey,
         _message: &[u8],
+        _context: &[u8],
         _signature: &[u8],
     ) -> Result<bool> {
         Err(Error::NotImplemented {
@@ -856,6 +901,102 @@ impl SlhDsa {
         };
 
         Ok(is_valid)
+    }
+
+    /// Sign a message under a FIPS-205 signing context in a WASM (JavaScript) environment.
+    ///
+    /// This is the binding domain-separated signatures need; [`Self::sign_wasm`] remains the
+    /// context-free entry point and is unchanged, so existing JavaScript callers are unaffected.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `JsValue` error for an unknown algorithm, a context longer than
+    /// [`SLH_DSA_CONTEXT_MAX_LEN`] bytes, or a signing failure.
+    #[wasm_bindgen]
+    pub fn sign_with_context_wasm(
+        &self,
+        algorithm: &str,
+        secret_key: Uint8Array,
+        message: Uint8Array,
+        context: Uint8Array,
+        randomness: Option<Uint8Array>,
+    ) -> core::result::Result<Uint8Array, JsValue> {
+        let algorithm = match Self::algorithm_from_wasm_name(algorithm) {
+            Some(algorithm) => algorithm,
+            None => return Err(JsValue::from_str("Invalid algorithm")),
+        };
+
+        let secret_key = SigSecretKey::new(secret_key.to_vec());
+        let message = message.to_vec();
+        let context = context.to_vec();
+        let randomness_vec = randomness.map(|rand| rand.to_vec());
+        let randomness_slice = randomness_vec.as_deref();
+
+        let signature = self
+            .sign_for_algorithm_with_context(
+                algorithm,
+                &secret_key,
+                &message,
+                &context,
+                randomness_slice,
+            )
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        Ok(Uint8Array::from(signature.as_slice()))
+    }
+
+    /// Verify a signature under a FIPS-205 signing context in a WASM (JavaScript) environment.
+    ///
+    /// Returns `false` unless `context` matches the context the signature was produced under,
+    /// byte for byte. Pass an empty `context` for the behaviour of [`Self::verify_wasm`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a `JsValue` error for an unknown algorithm or a context longer than
+    /// [`SLH_DSA_CONTEXT_MAX_LEN`] bytes. A context mismatch is a `false` verdict, not an error.
+    #[wasm_bindgen]
+    pub fn verify_with_context_wasm(
+        &self,
+        algorithm: &str,
+        public_key: Uint8Array,
+        message: Uint8Array,
+        context: Uint8Array,
+        signature: Uint8Array,
+    ) -> core::result::Result<bool, JsValue> {
+        let algorithm = match Self::algorithm_from_wasm_name(algorithm) {
+            Some(algorithm) => algorithm,
+            None => return Err(JsValue::from_str("Invalid algorithm")),
+        };
+
+        let public_key = SigPublicKey::new(public_key.to_vec());
+        let message = message.to_vec();
+        let context = context.to_vec();
+        let signature = signature.to_vec();
+
+        self.verify_for_algorithm_with_context(
+            algorithm,
+            &public_key,
+            &message,
+            &context,
+            &signature,
+        )
+        .map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+}
+
+#[cfg(feature = "wasm")]
+impl SlhDsa {
+    /// Map the JavaScript algorithm name onto an [`Algorithm`].
+    fn algorithm_from_wasm_name(algorithm: &str) -> Option<Algorithm> {
+        match algorithm {
+            "SlhDsaSha256128fRobust" => Some(Algorithm::SlhDsaSha256128fRobust),
+            "SlhDsaSha256192fRobust" => Some(Algorithm::SlhDsaSha256192fRobust),
+            "SlhDsaSha256256fRobust" => Some(Algorithm::SlhDsaSha256256fRobust),
+            "SlhDsaShake256128fRobust" => Some(Algorithm::SlhDsaShake256128fRobust),
+            "SlhDsaShake256192fRobust" => Some(Algorithm::SlhDsaShake256192fRobust),
+            "SlhDsaShake256256fRobust" => Some(Algorithm::SlhDsaShake256256fRobust),
+            _ => None,
+        }
     }
 }
 

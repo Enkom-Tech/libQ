@@ -462,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn rejects_wrong_root() {
         let (tree, secrets) = build_tree();
         let (t, ctx) = (secrets[2], ctx_of(2));
@@ -475,7 +475,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn rejects_wrong_nullifier() {
         let (tree, secrets) = build_tree();
         let (t, ctx) = (secrets[7], ctx_of(7));
@@ -488,7 +488,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn rejects_ctx_mismatch_public_vs_witness() {
         // Public ctx differs from the witnessed ctx (the one the nullifier was built from):
         // the row-0 `ctx == public ctx` binding must fail.
@@ -503,7 +503,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn rejects_non_member_secret() {
         // A secret whose leaf is NOT in the tree, presented with a real member's path: the
         // recomputed root cannot match (would need a hash collision).
@@ -518,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn rejects_tampered_secret_breaks_leaf_binding() {
         // Change the witnessed t in row 0 without recomputing: L = H(t) no longer equals the
         // committed running digest (which still recomputes the original root).
@@ -534,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn rejects_tampered_running_carry() {
         let (tree, secrets) = build_tree();
         let (t, ctx) = (secrets[10], ctx_of(10));

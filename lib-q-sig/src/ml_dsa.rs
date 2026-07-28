@@ -67,9 +67,9 @@
 //! let keypair = ml_dsa.generate_keypair_wasm(None).unwrap();
 //!
 //! // Sign message
-//! let message = Uint8Array::from(b"Hello, ML-DSA!");
+//! let message = Uint8Array::from(&b"Hello, ML-DSA!"[..]);
 //! let signature = ml_dsa
-//!     .sign_wasm(keypair.secret_key(), message, None)
+//!     .sign_wasm(keypair.secret_key(), message.clone(), None)
 //!     .unwrap();
 //!
 //! // Verify signature
@@ -135,6 +135,24 @@ const MLDSA65_SIGNATURE_SIZE: usize = 3309;
 const MLDSA87_VERIFICATION_KEY_SIZE: usize = 2592;
 const MLDSA87_SIGNING_KEY_SIZE: usize = 4896;
 const MLDSA87_SIGNATURE_SIZE: usize = 4627;
+
+/// Maximum length of a FIPS-204 signing context, in bytes.
+///
+/// FIPS 204 encodes the context as a single length byte followed by its bytes, so a context
+/// longer than this cannot be represented. Passing a longer context to any `*_with_context`
+/// API is rejected with [`Error::InvalidAssociatedDataSize`](lib_q_core::Error::InvalidAssociatedDataSize).
+pub const ML_DSA_CONTEXT_MAX_LEN: usize = 255;
+
+#[inline]
+fn validate_context(context: &[u8]) -> Result<()> {
+    if context.len() > ML_DSA_CONTEXT_MAX_LEN {
+        return Err(lib_q_core::Error::InvalidAssociatedDataSize {
+            max: ML_DSA_CONTEXT_MAX_LEN,
+            actual: context.len(),
+        });
+    }
+    Ok(())
+}
 
 /// ML-DSA variants with their parameter sets
 #[derive(Debug, Clone, Copy)]
@@ -263,6 +281,49 @@ impl MlDsa {
         message: &[u8],
         randomness: [u8; SIGNING_RANDOMNESS_SIZE],
     ) -> Result<Vec<u8>> {
+        self.sign_with_randomness_and_context(secret_key, message, &[], randomness)
+    }
+
+    /// Sign a message under a FIPS-204 signing context, with provided randomness.
+    ///
+    /// The `context` is domain separation input bound into the signature: verification only
+    /// succeeds when the verifier supplies the *same* context bytes. Pass `&[]` for the
+    /// context-free behaviour of [`Self::sign_with_randomness`].
+    ///
+    /// # Arguments
+    /// * `secret_key` - The secret key for signing
+    /// * `message` - The message to sign
+    /// * `context` - The signing context (at most [`ML_DSA_CONTEXT_MAX_LEN`] bytes)
+    /// * `randomness` - Cryptographically secure random bytes for signing
+    ///
+    /// # Example
+    /// ```rust
+    /// use lib_q_core::SigSecretKey;
+    /// use lib_q_ml_dsa::constants::SIGNING_RANDOMNESS_SIZE;
+    /// use lib_q_sig::ml_dsa::MlDsa;
+    ///
+    /// let ml_dsa = MlDsa::ml_dsa_65();
+    /// let randomness = [0u8; SIGNING_RANDOMNESS_SIZE];
+    /// let secret_key = SigSecretKey::new(vec![0u8; 4032]);
+    /// let signature = ml_dsa
+    ///     .sign_with_randomness_and_context(
+    ///         &secret_key,
+    ///         b"msg",
+    ///         b"example.org/v0",
+    ///         randomness,
+    ///     )
+    ///     .unwrap();
+    /// ```
+    #[cfg(feature = "alloc")]
+    pub fn sign_with_randomness_and_context(
+        &self,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+    ) -> Result<Vec<u8>> {
+        validate_context(context)?;
+
         // Validate secret key size for the specific variant
         let expected_sk_size = match self.variant {
             MlDsaVariant::MlDsa44 => MLDSA44_SIGNING_KEY_SIZE,
@@ -285,12 +346,8 @@ impl MlDsa {
                     .as_mut_slice()
                     .copy_from_slice(secret_key.as_bytes());
 
-                let sig_result = ml_dsa_44::portable::sign(
-                    &signing_key,
-                    message,
-                    &[], // empty context
-                    randomness,
-                );
+                let sig_result =
+                    ml_dsa_44::portable::sign(&signing_key, message, context, randomness);
                 signing_key.as_mut_slice().zeroize();
                 sig_result
                     .map(|signature| signature.as_slice().to_vec())
@@ -304,12 +361,8 @@ impl MlDsa {
                     .as_mut_slice()
                     .copy_from_slice(secret_key.as_bytes());
 
-                let sig_result = ml_dsa_65::portable::sign(
-                    &signing_key,
-                    message,
-                    &[], // empty context
-                    randomness,
-                );
+                let sig_result =
+                    ml_dsa_65::portable::sign(&signing_key, message, context, randomness);
                 signing_key.as_mut_slice().zeroize();
                 sig_result
                     .map(|signature| signature.as_slice().to_vec())
@@ -323,12 +376,8 @@ impl MlDsa {
                     .as_mut_slice()
                     .copy_from_slice(secret_key.as_bytes());
 
-                let sig_result = ml_dsa_87::portable::sign(
-                    &signing_key,
-                    message,
-                    &[], // empty context
-                    randomness,
-                );
+                let sig_result =
+                    ml_dsa_87::portable::sign(&signing_key, message, context, randomness);
                 signing_key.as_mut_slice().zeroize();
                 sig_result
                     .map(|signature| signature.as_slice().to_vec())
@@ -351,6 +400,165 @@ impl MlDsa {
         Err(lib_q_core::Error::RandomGenerationFailed {
             operation: "ml-dsa signing requires alloc feature".to_string(),
         })
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    pub fn sign_with_randomness_and_context(
+        &self,
+        _secret_key: &SigSecretKey,
+        _message: &[u8],
+        _context: &[u8],
+        _randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+    ) -> Result<&'static [u8]> {
+        Err(lib_q_core::Error::RandomGenerationFailed {
+            operation: "ml-dsa signing requires alloc feature".to_string(),
+        })
+    }
+
+    /// Sign a message under a FIPS-204 signing context, drawing randomness from the system RNG.
+    ///
+    /// This is the context-taking counterpart of [`Signature::sign`]. Pass `&[]` for the
+    /// context-free behaviour.
+    ///
+    /// # Errors
+    /// Returns [`InvalidAssociatedDataSize`](lib_q_core::Error::InvalidAssociatedDataSize) if
+    /// `context` exceeds [`ML_DSA_CONTEXT_MAX_LEN`] bytes.
+    #[cfg(feature = "alloc")]
+    #[allow(unused_variables)]
+    pub fn sign_with_context(
+        &self,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+    ) -> Result<Vec<u8>> {
+        #[cfg(feature = "std")]
+        {
+            use lib_q_core::Utils;
+
+            let randomness = Utils::random_bytes(SIGNING_RANDOMNESS_SIZE).map_err(|_| {
+                lib_q_core::Error::RandomGenerationFailed {
+                    operation: "ml-dsa signing".to_string(),
+                }
+            })?;
+
+            let randomness_len = randomness.len();
+            let randomness_array: [u8; SIGNING_RANDOMNESS_SIZE] =
+                randomness
+                    .try_into()
+                    .map_err(|_| lib_q_core::Error::InvalidKeySize {
+                        expected: SIGNING_RANDOMNESS_SIZE,
+                        actual: randomness_len,
+                    })?;
+
+            self.sign_with_randomness_and_context(secret_key, message, context, randomness_array)
+        }
+
+        #[cfg(not(feature = "std"))]
+        {
+            Err(lib_q_core::Error::RandomGenerationFailed {
+                operation: "ml-dsa signing requires std feature or external randomness".to_string(),
+            })
+        }
+    }
+
+    /// Verify a signature under a FIPS-204 signing context.
+    ///
+    /// Verification succeeds only when `context` matches the context the signature was
+    /// produced under, byte for byte. Pass `&[]` for the context-free behaviour of
+    /// [`Signature::verify`].
+    ///
+    /// `signature` must equal the fixed ML-DSA serialized length for this variant. Shorter or
+    /// longer inputs are rejected with
+    /// [`InvalidSignatureSize`](lib_q_core::Error::InvalidSignatureSize) rather than padded or
+    /// truncated.
+    ///
+    /// # Errors
+    /// Returns [`InvalidAssociatedDataSize`](lib_q_core::Error::InvalidAssociatedDataSize) if
+    /// `context` exceeds [`ML_DSA_CONTEXT_MAX_LEN`] bytes. Note that this is a hard error, not
+    /// a `false` verdict: an unrepresentable context is a caller bug, not a bad signature.
+    pub fn verify_with_context(
+        &self,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        use lib_q_ml_dsa::types::{
+            MLDSASignature,
+            MLDSAVerificationKey,
+        };
+
+        validate_context(context)?;
+
+        // Convert public key bytes to ML-DSA verification key
+        let public_key_bytes = public_key.as_bytes();
+        let expected_vk_size = match self.variant {
+            MlDsaVariant::MlDsa44 => MLDSA44_VERIFICATION_KEY_SIZE,
+            MlDsaVariant::MlDsa65 => MLDSA65_VERIFICATION_KEY_SIZE,
+            MlDsaVariant::MlDsa87 => MLDSA87_VERIFICATION_KEY_SIZE,
+        };
+
+        // Validate public key size first
+        if public_key_bytes.len() != expected_vk_size {
+            return Err(lib_q_core::Error::InvalidKeySize {
+                expected: expected_vk_size,
+                actual: public_key_bytes.len(),
+            });
+        }
+
+        let expected_sig_size = match self.variant {
+            MlDsaVariant::MlDsa44 => MLDSA44_SIGNATURE_SIZE,
+            MlDsaVariant::MlDsa65 => MLDSA65_SIGNATURE_SIZE,
+            MlDsaVariant::MlDsa87 => MLDSA87_SIGNATURE_SIZE,
+        };
+        if signature.len() != expected_sig_size {
+            return Err(lib_q_core::Error::InvalidSignatureSize {
+                expected: expected_sig_size,
+                actual: signature.len(),
+            });
+        }
+
+        // Create verification key and verify for the specific variant
+        let result = match self.variant {
+            MlDsaVariant::MlDsa44 => {
+                let mut vk_bytes = [0u8; MLDSA44_VERIFICATION_KEY_SIZE];
+                vk_bytes.copy_from_slice(public_key_bytes);
+                let verification_key = MLDSAVerificationKey::new(vk_bytes);
+
+                let mut sig_bytes = [0u8; MLDSA44_SIGNATURE_SIZE];
+                sig_bytes.copy_from_slice(signature);
+                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
+
+                ml_dsa_44::portable::verify(&verification_key, message, context, &ml_dsa_signature)
+                    .is_ok()
+            }
+            MlDsaVariant::MlDsa65 => {
+                let mut vk_bytes = [0u8; MLDSA65_VERIFICATION_KEY_SIZE];
+                vk_bytes.copy_from_slice(public_key_bytes);
+                let verification_key = MLDSAVerificationKey::new(vk_bytes);
+
+                let mut sig_bytes = [0u8; MLDSA65_SIGNATURE_SIZE];
+                sig_bytes.copy_from_slice(signature);
+                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
+
+                ml_dsa_65::portable::verify(&verification_key, message, context, &ml_dsa_signature)
+                    .is_ok()
+            }
+            MlDsaVariant::MlDsa87 => {
+                let mut vk_bytes = [0u8; MLDSA87_VERIFICATION_KEY_SIZE];
+                vk_bytes.copy_from_slice(public_key_bytes);
+                let verification_key = MLDSAVerificationKey::new(vk_bytes);
+
+                let mut sig_bytes = [0u8; MLDSA87_SIGNATURE_SIZE];
+                sig_bytes.copy_from_slice(signature);
+                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
+
+                ml_dsa_87::portable::verify(&verification_key, message, context, &ml_dsa_signature)
+                    .is_ok()
+            }
+        };
+
+        Ok(result)
     }
 }
 
@@ -442,95 +650,8 @@ impl Signature for MlDsa {
     /// `signature` must equal the fixed ML-DSA serialized length for this variant. Shorter or longer
     /// inputs must not be padded or truncated; they are rejected with [`InvalidSignatureSize`](lib_q_core::Error::InvalidSignatureSize).
     fn verify(&self, public_key: &SigPublicKey, message: &[u8], signature: &[u8]) -> Result<bool> {
-        use lib_q_ml_dsa::types::{
-            MLDSASignature,
-            MLDSAVerificationKey,
-        };
-
-        // Convert public key bytes to ML-DSA verification key
-        let public_key_bytes = public_key.as_bytes();
-        let expected_vk_size = match self.variant {
-            MlDsaVariant::MlDsa44 => MLDSA44_VERIFICATION_KEY_SIZE,
-            MlDsaVariant::MlDsa65 => MLDSA65_VERIFICATION_KEY_SIZE,
-            MlDsaVariant::MlDsa87 => MLDSA87_VERIFICATION_KEY_SIZE,
-        };
-
-        // Validate public key size first
-        if public_key_bytes.len() != expected_vk_size {
-            return Err(lib_q_core::Error::InvalidKeySize {
-                expected: expected_vk_size,
-                actual: public_key_bytes.len(),
-            });
-        }
-
-        let expected_sig_size = match self.variant {
-            MlDsaVariant::MlDsa44 => MLDSA44_SIGNATURE_SIZE,
-            MlDsaVariant::MlDsa65 => MLDSA65_SIGNATURE_SIZE,
-            MlDsaVariant::MlDsa87 => MLDSA87_SIGNATURE_SIZE,
-        };
-        if signature.len() != expected_sig_size {
-            return Err(lib_q_core::Error::InvalidSignatureSize {
-                expected: expected_sig_size,
-                actual: signature.len(),
-            });
-        }
-
-        // Create verification key and verify for the specific variant
-        let result = match self.variant {
-            MlDsaVariant::MlDsa44 => {
-                let mut vk_bytes = [0u8; MLDSA44_VERIFICATION_KEY_SIZE];
-                vk_bytes.copy_from_slice(public_key_bytes);
-                let verification_key = MLDSAVerificationKey::new(vk_bytes);
-
-                let mut sig_bytes = [0u8; MLDSA44_SIGNATURE_SIZE];
-                sig_bytes.copy_from_slice(signature);
-                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
-
-                ml_dsa_44::portable::verify(
-                    &verification_key,
-                    message,
-                    &[], // empty context
-                    &ml_dsa_signature,
-                )
-                .is_ok()
-            }
-            MlDsaVariant::MlDsa65 => {
-                let mut vk_bytes = [0u8; MLDSA65_VERIFICATION_KEY_SIZE];
-                vk_bytes.copy_from_slice(public_key_bytes);
-                let verification_key = MLDSAVerificationKey::new(vk_bytes);
-
-                let mut sig_bytes = [0u8; MLDSA65_SIGNATURE_SIZE];
-                sig_bytes.copy_from_slice(signature);
-                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
-
-                ml_dsa_65::portable::verify(
-                    &verification_key,
-                    message,
-                    &[], // empty context
-                    &ml_dsa_signature,
-                )
-                .is_ok()
-            }
-            MlDsaVariant::MlDsa87 => {
-                let mut vk_bytes = [0u8; MLDSA87_VERIFICATION_KEY_SIZE];
-                vk_bytes.copy_from_slice(public_key_bytes);
-                let verification_key = MLDSAVerificationKey::new(vk_bytes);
-
-                let mut sig_bytes = [0u8; MLDSA87_SIGNATURE_SIZE];
-                sig_bytes.copy_from_slice(signature);
-                let ml_dsa_signature = MLDSASignature::new(sig_bytes);
-
-                ml_dsa_87::portable::verify(
-                    &verification_key,
-                    message,
-                    &[], // empty context
-                    &ml_dsa_signature,
-                )
-                .is_ok()
-            }
-        };
-
-        Ok(result)
+        // Empty context: see [`MlDsa::verify_with_context`] for the context-bound form.
+        self.verify_with_context(public_key, message, &[], signature)
     }
 }
 
@@ -827,6 +948,97 @@ impl MlDsa {
 
         let is_valid = self
             .verify(&public_key, &message, &signature)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
+
+        Ok(is_valid)
+    }
+
+    /// Sign a message under a FIPS-204 signing context in a WASM (JavaScript) environment
+    ///
+    /// The signature produced here verifies **only** under the same `context` bytes — use
+    /// [`Self::verify_with_context_wasm`]. This is the binding GIP-style domain-separated
+    /// signatures (e.g. `wapp.sh/entitlement-v0`) need; [`Self::sign_wasm`] remains the
+    /// empty-context path.
+    ///
+    /// # Arguments
+    /// * `secret_key` - The secret key as Uint8Array
+    /// * `message` - The message to sign as Uint8Array
+    /// * `context` - The signing context as Uint8Array (at most 255 bytes)
+    /// * `randomness` - Optional randomness as Uint8Array
+    ///
+    /// # Returns
+    /// * `Result<Uint8Array, JsValue>` - The signature or error
+    #[wasm_bindgen]
+    pub fn sign_with_context_wasm(
+        &self,
+        secret_key: Uint8Array,
+        message: Uint8Array,
+        context: Uint8Array,
+        randomness: Option<Uint8Array>,
+    ) -> core::result::Result<Uint8Array, JsValue> {
+        let secret_key = SigSecretKey::new(secret_key.to_vec());
+        let message = message.to_vec();
+        let context = context.to_vec();
+        let randomness_array = if let Some(rand) = randomness {
+            let rand_vec = rand.to_vec();
+            if rand_vec.len() != SIGNING_RANDOMNESS_SIZE {
+                return Err(JsValue::from_str("Invalid randomness size"));
+            }
+            let mut array = [0u8; SIGNING_RANDOMNESS_SIZE];
+            array.copy_from_slice(&rand_vec);
+            Some(array)
+        } else {
+            None
+        };
+
+        let signature: Vec<u8> = if let Some(rand) = randomness_array {
+            self.sign_with_randomness_and_context(&secret_key, &message, &context, rand)
+                .map_err(|e| JsValue::from_str(&e.to_string()))?
+        } else {
+            #[cfg(feature = "std")]
+            {
+                self.sign_with_context(&secret_key, &message, &context)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))?
+            }
+            #[cfg(not(feature = "std"))]
+            {
+                return Err(JsValue::from_str(
+                    "Randomness required for signing in no_std mode",
+                ));
+            }
+        };
+
+        Ok(Uint8Array::from(signature.as_slice()))
+    }
+
+    /// Verify a signature under a FIPS-204 signing context in a WASM (JavaScript) environment
+    ///
+    /// Returns `false` unless `context` matches the context the signature was produced under,
+    /// byte for byte. Pass an empty `context` for the behaviour of [`Self::verify_wasm`].
+    ///
+    /// # Arguments
+    /// * `public_key` - The public key as Uint8Array
+    /// * `message` - The message as Uint8Array
+    /// * `context` - The signing context as Uint8Array (at most 255 bytes)
+    /// * `signature` - The signature to verify as Uint8Array
+    ///
+    /// # Returns
+    /// * `Result<bool, JsValue>` - Verification result or error
+    #[wasm_bindgen]
+    pub fn verify_with_context_wasm(
+        &self,
+        public_key: Uint8Array,
+        message: Uint8Array,
+        context: Uint8Array,
+        signature: Uint8Array,
+    ) -> core::result::Result<bool, JsValue> {
+        let public_key = SigPublicKey::new(public_key.to_vec());
+        let message = message.to_vec();
+        let context = context.to_vec();
+        let signature = signature.to_vec();
+
+        let is_valid = self
+            .verify_with_context(&public_key, &message, &context, &signature)
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
         Ok(is_valid)
