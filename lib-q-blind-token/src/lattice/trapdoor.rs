@@ -8,7 +8,7 @@
 //!
 //! `m̄` is chosen so that `[Ā | Ā·R]` is statistically close to uniform (leftover-hash trapdoor
 //! hiding), so the issuer matrix `A` is indistinguishable from uniform *without* a Module-LWE
-//! assumption — see `LIBQ_API.md` §3. For `q ≈ 2^48`, `s_r = 4`, this needs `m̄ = 18`.
+//! assumption — see `LIBQ_API.md` §3. For `q ≈ 2^51`, `s_r = 4`, this needs `m̄ = 18`.
 //!
 //! Preimage sampling ([`Trapdoor::sample_preimage`]) uses the Micciancio–Peikert perturbation
 //! method (see [`super::perturb`]) so the output `x` is a spherical discrete Gaussian whose
@@ -38,7 +38,7 @@ use super::ring::{
 };
 
 /// Width of the `Ā = [1, a_1, …, a_{m̄-1}]` part. Chosen for statistical trapdoor hiding at
-/// `q ≈ 2^48`, `s_r = 4` (leftover-hash leftover `≥ 2λ`).
+/// `q ≈ 2^51`, `s_r = 4` (leftover-hash leftover `≥ 2λ`).
 pub const MBAR: usize = 18;
 
 /// Total number of ring elements in `A` and in a preimage `x`.
@@ -233,6 +233,27 @@ mod tests {
                 super::super::ring::centered_coeffs(&got),
                 super::super::ring::centered_coeffs(&gadget_poly(j)),
                 "A·[R;I] column {j} ≠ g_{j}",
+            );
+        }
+    }
+
+    /// Constant-time regression guard: the persistent secret f64 operands of the online
+    /// perturbation apply (the Cholesky factors) are never subnormal, so no denormal-assist timing
+    /// channel exists on the `L·ĝ` mul-add chain. Runs in release (debug_asserts are compiled out
+    /// there); pairs with the `debug_assert`s covering the transient FFT/accumulation intermediates.
+    #[test]
+    fn perturb_factors_are_never_subnormal() {
+        for seed in [0x01u8, 0x5A, 0xC3] {
+            let mut rng = new_deterministic_rng([seed; 32]);
+            let (_public, td) = trapdoor_gen(
+                &mut rng,
+                4.0,
+                5248.0,
+                super::super::gadget::GADGET_GAUSSIAN_WIDTH,
+            );
+            assert!(
+                td.perturb.all_factors_normal(),
+                "Cholesky factor held a subnormal f64 (seed {seed:#x}) — CT range argument broken",
             );
         }
     }

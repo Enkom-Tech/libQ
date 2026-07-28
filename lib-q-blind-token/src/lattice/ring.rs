@@ -5,12 +5,14 @@
 //!
 //! * the Fiat–Shamir masked response `z` fits below `q/2` even with a heavy challenge (128-bit
 //!   knowledge soundness, `τ = 16`), and
-//! * Module-SIS on the issuer matrix `A` (the binding / one-more-unforgeability assumption) stays
-//!   ≈128-bit classical against the BKZ core-SVP cost model — see `LIBQ_API.md` §3/§7.
+//! * Module-SIS on the issuer matrix `A` (the binding / one-more-unforgeability assumption) clears
+//!   a **128-bit quantum** floor against the BKZ core-SVP cost model — see `LIBQ_API.md` §3/§7.
 //!
-//! Parameters: `N = 1024`, `q = 281 474 976 694 273` (prime, `q ≡ 1 (mod 2N)`, `q < 2^48`). The
-//! ring is implemented from scratch here (negacyclic NTT, validated against the schoolbook product)
-//! so the crate does not depend on a fixed external modulus.
+//! Parameters: `N = 1024`, `q = 2 251 799 813 640 193` (prime, `q ≡ 1 (mod 2N)`, `q < 2^51`). The
+//! modulus was raised from the `q ≈ 2^48` profile-1 instance (≈119-bit quantum) to this `q ≈ 2^51`
+//! profile-2 instance so the quantum core-SVP margin clears 128-bit (≈130-bit; ≈143-bit classical).
+//! The ring is implemented from scratch here (negacyclic NTT, validated against the schoolbook
+//! product) so the crate does not depend on a fixed external modulus.
 
 use std::sync::OnceLock;
 
@@ -29,21 +31,21 @@ use super::gaussian::sample_discrete_gaussian;
 /// Ring dimension `N` (negacyclic, `X^N + 1`).
 pub const N: usize = 1024;
 
-/// Modulus `q` (prime, `q ≡ 1 (mod 2N)`, `q < 2^48`).
-pub const Q: i64 = 281_474_976_694_273;
+/// Modulus `q` (prime, `q ≡ 1 (mod 2N)`, `q < 2^51`).
+pub const Q: i64 = 2_251_799_813_640_193;
 
 /// Primitive `2N`-th root of unity mod `q` (`ζ^N = -1`).
-const ZETA: i64 = 223_324_776_709_556;
+const ZETA: i64 = 833_963_715_377_153;
 
 /// `N^{-1} mod q` (for the inverse NTT scaling).
-const N_INV: i64 = 281_200_098_787_345;
+const N_INV: i64 = 2_249_600_790_384_685;
 
 const LOG_N: u32 = 10; // log2(N)
 
 /// `-q^{-1} mod 2^64` (Montgomery).
-const QINV: u64 = 9_151_591_519_478_595_583;
+const QINV: u64 = 1_645_692_721_173_581_823;
 /// `(2^64)^2 mod q` (Montgomery `R²`).
-const R2: u64 = 140_741_850_411_009;
+const R2: u64 = 1_119_852_662_702_020;
 
 /// An element of `R_q`, coefficients in `[0, q)`.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -67,12 +69,18 @@ impl Rq {
 }
 
 /// Montgomery reduction: `t·R^{-1} mod q` for `t < q·R` (`R = 2^64`). No division.
+///
+/// Constant-time: the final conditional subtraction is a branchless mask, not an `if`, so the
+/// reduction of a *secret* coefficient (this runs inside the NTT of the trapdoor `R`, the credential
+/// `x`, and the redemption witness) has data-independent control flow.
 #[inline]
 fn mont_reduce(t: u128) -> i64 {
     let m = (t as u64).wrapping_mul(QINV);
-    let r = ((t + (m as u128) * (Q as u128)) >> 64) as u64;
-    let r = if r >= Q as u64 { r - Q as u64 } else { r };
-    r as i64
+    let r = ((t + (m as u128) * (Q as u128)) >> 64) as i64; // r ∈ [0, 2q)
+    // Branchless conditional subtract: r - (q if r >= q else 0).
+    let d = r - Q; // ∈ [-q, q)
+    let mask = d >> 63; // all-ones iff d < 0 (i.e. r < q), else 0
+    d + (mask & Q)
 }
 
 /// `a·b mod q` for `a, b ∈ [0, q)`, via two Montgomery reductions (division-free; far faster than
@@ -83,16 +91,21 @@ fn modmul(a: i64, b: i64) -> i64 {
     mont_reduce(ab as u128 * R2 as u128)
 }
 
+/// `a + b mod q` for `a, b ∈ [0, q)`. Branchless conditional subtraction — data-independent control
+/// flow so the NTT/`ring_add` of secret coefficients does not branch on their value.
 #[inline]
 fn modadd(a: i64, b: i64) -> i64 {
-    let s = a + b;
-    if s >= Q { s - Q } else { s }
+    let s = a + b - Q; // ∈ [-q, q)
+    let mask = s >> 63; // all-ones iff s < 0 (a+b < q), else 0
+    s + (mask & Q)
 }
 
+/// `a - b mod q` for `a, b ∈ [0, q)`. Branchless conditional addition (see [`modadd`]).
 #[inline]
 fn modsub(a: i64, b: i64) -> i64 {
-    let s = a - b;
-    if s < 0 { s + Q } else { s }
+    let s = a - b; // ∈ (-q, q)
+    let mask = s >> 63; // all-ones iff s < 0, else 0
+    s + (mask & Q)
 }
 
 #[inline]
@@ -249,11 +262,12 @@ pub fn centered_coeffs(p: &Rq) -> [i64; N] {
     let half = Q / 2;
     let mut out = [0i64; N];
     for (o, &c) in out.iter_mut().zip(p.coeffs.iter()) {
-        let mut v = c.rem_euclid(Q);
-        if v > half {
-            v -= Q;
-        }
-        *o = v;
+        let v = c.rem_euclid(Q);
+        // Branchless center: subtract q iff v > q/2. `(half - v) >> 63` is all-ones exactly when
+        // v > half. Secret coefficients pass through here (unblind/redeem/absorb), so no data
+        // branch on the value.
+        let mask = (half - v) >> 63;
+        *o = v - (mask & Q);
     }
     out
 }
@@ -269,10 +283,21 @@ pub fn ring_infinity_norm(p: &Rq) -> i64 {
 }
 
 /// Sample a ring element with i.i.d. `D_{Z,s,0}` coefficients (short Gaussian).
+///
+/// For small widths (the secret-bearing trapdoor / attribute draws) this uses the isochronous
+/// constant-time sampler, built once and reused across all `N` coefficients. Large widths keep the
+/// branchless continuous-rounding fast path.
 pub fn sample_gaussian_poly<R: CryptoRng + Rng>(rng: &mut R, s: f64) -> Rq {
     let mut coeffs = [0i64; N];
-    for c in &mut coeffs {
-        *c = sample_discrete_gaussian(rng, s, 0.0);
+    if s < super::gaussian::FAST_PATH_WIDTH {
+        let sampler = super::gaussian_ct::SamplerZ::new(s);
+        for c in &mut coeffs {
+            *c = sampler.sample(rng, 0.0);
+        }
+    } else {
+        for c in &mut coeffs {
+            *c = sample_discrete_gaussian(rng, s, 0.0);
+        }
     }
     poly_from_i64(&coeffs)
 }

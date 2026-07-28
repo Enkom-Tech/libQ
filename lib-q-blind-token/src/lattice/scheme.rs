@@ -15,11 +15,11 @@
 //!   with `A·x = d·a_tok + d0`; without the trapdoor this is ISIS on `A` (→ one-more-ISIS), so a
 //!   user cannot redeem more tokens than were issued.
 //!
-//! **Concrete security (this instance).** The self-contained ring (`N = 1024`, `q ≈ 2^48`, see
+//! **Concrete security (this instance).** The self-contained ring (`N = 1024`, `q ≈ 2^51`, see
 //! [`super::ring`]) is sized against a BKZ core-SVP cost model so that, together: the challenge
 //! weight `τ = 16` gives ≈128-bit knowledge soundness, the masked response `z` still fits below
-//! `q/2`, and Module-SIS on `A` (binding / one-more-unforgeability) is ≈131-bit classical
-//! (≈119-bit quantum). The trapdoor is hidden statistically (`m̄ = 18`), so no Module-LWE
+//! `q/2`, and Module-SIS on `A` (binding / one-more-unforgeability) is ≈143-bit classical
+//! (≈130-bit quantum, BKZ-491). The trapdoor is hidden statistically (`m̄ = 18`), so no Module-LWE
 //! assumption is needed. See `LIBQ_API.md` §3/§7 for the full derivation and caveats.
 
 use alloc::vec::Vec;
@@ -33,6 +33,7 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use subtle::ConstantTimeEq;
 
 use super::gadget::GADGET_GAUSSIAN_WIDTH;
 use super::ring::{
@@ -192,7 +193,14 @@ pub fn unblind(
 ) -> Option<Credential> {
     let u = ring_add(&ring_mul(&public.d, &state.a_tok), &public.d0);
     let ax = public.a.apply(&resp.x);
-    if centered_coeffs(&ax) != centered_coeffs(&u) {
+    // Constant-time equality: `u` is derived from the *secret* hidden attribute `a_tok`, so a
+    // short-circuiting `!=` would leak (via timing) the first coefficient where the issuer's
+    // signature check fails. Compare the whole centered-coefficient vectors in constant time.
+    if centered_coeffs(&ax)[..]
+        .ct_eq(&centered_coeffs(&u)[..])
+        .unwrap_u8() ==
+        0
+    {
         return None;
     }
     Some(Credential {
