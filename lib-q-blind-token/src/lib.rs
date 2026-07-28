@@ -12,6 +12,13 @@
 //! See the crate's `LIBQ_API.md` contract for the scheme choice, the blindness /
 //! one-more-unforgeability arguments, and the limitations recorded for RED-zone review.
 //!
+//! Constant-time posture (integer layer): the `R_q` modular arithmetic that carries secret
+//! coefficients through the NTT — `modadd`/`modsub`, the Montgomery reduction's conditional
+//! subtraction, and `centered_coeffs`' centering — uses **branchless masks**, not value-dependent
+//! `if`s, so no secret coefficient steers control flow. The issuer-signature check in [`unblind`]
+//! compares the (secret-attribute-derived) coefficient vectors with a **constant-time** equality
+//! (`subtle::ConstantTimeEq`) rather than a short-circuiting `!=`.
+//!
 //! This crate is **PROVISIONAL** and consumer-protocol-agnostic: it carries no consumer-protocol references.
 
 #![forbid(unsafe_code)]
@@ -21,8 +28,16 @@ extern crate alloc;
 
 pub mod blind_token;
 pub mod error;
-/// Lattice trapdoor machinery (GPV-preimage blind signature). Std-gated: the Gaussian base sampler
-/// needs `f64::exp`. Research-grade and not constant-time.
+/// Lattice trapdoor machinery (GPV-preimage blind signature). Std-gated: the samplers need `f64`.
+/// Research-grade constant-time posture: the small-width secret-bearing Gaussians are isochronous
+/// (constant-time in the secret center; see `lattice::gaussian_ct`), and the surrounding f64/FFT
+/// linear algebra is certified by a numeric-range argument — every online secret-derived intermediate
+/// is exactly ±0.0 or a normal f64 (never subnormal), so no denormal-assist channel exists, and the
+/// one secret-numerator division was removed (see `lattice::perturb` / `lattice::gadget` module docs).
+/// Residual (documented, not closed): Box–Muller libm latency leaks only *ephemeral* per-token
+/// randomness; keygen Cholesky is not constant-time (single-execution, outside the online model);
+/// and fixed-latency add/mul is a documented assumption for mainstream x86-64 SSE2 / AArch64 (x87 /
+/// soft-float targets excluded).
 #[cfg(feature = "std")]
 pub mod lattice;
 pub mod profile;

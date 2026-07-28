@@ -1,19 +1,22 @@
 //! Discrete Gaussian sampler `D_{Z,s,c}` over the integers.
 //!
 //! Convention: `ρ_s(x) = exp(-π (x - c)² / s²)`, so `s` is the Gaussian *width* parameter and the
-//! standard deviation is `σ = s / √(2π)`. Sampling is rejection-based over a tail-cut window; this
-//! is **research-grade and not constant-time** (the accept/reject branch and the `exp` are
-//! data-dependent). It is adequate for the provisional, non-load-bearing blind-signature prototype;
-//! a production instantiation must use a constant-time base sampler (e.g. a CDT or Karney sampler).
+//! standard deviation is `σ = s / √(2π)`.
+//!
+//! Two paths:
+//! * **small `σ`** (`s < FAST_PATH_WIDTH`) — routed to the isochronous constant-time sampler
+//!   [`super::gaussian_ct::SamplerZ`]; timing is independent of the secret center and output.
+//! * **large `σ`** (`s ≥ FAST_PATH_WIDTH`) — rounding of a continuous `N(c, σ²)` sample, which is
+//!   branchless (no rejection) and thus already isochronous. A CDT of size `≈12σ` is impractical
+//!   here, and the discrete/continuous statistical distance is negligible at these widths.
+//!
+//! Hot loops that draw many samples at one fixed width should build a [`super::gaussian_ct::SamplerZ`]
+//! once and reuse it (this free function rebuilds the base table per call).
 
 use rand_core::{
     CryptoRng,
     Rng,
 };
-
-/// Tail cut: samples are confined to `c ± TAIL_CUT·s`. `ρ_s(TAIL_CUT·s) = exp(-π·TAIL_CUT²)` is
-/// `< 2^-650` at `TAIL_CUT = 12`, far below any statistical-distance budget we rely on.
-const TAIL_CUT: f64 = 12.0;
 
 /// Draw a fresh `u64` from the RNG.
 #[inline]
@@ -21,23 +24,6 @@ fn next_u64<R: Rng>(rng: &mut R) -> u64 {
     let mut b = [0u8; 8];
     rng.fill_bytes(&mut b);
     u64::from_le_bytes(b)
-}
-
-/// Uniform integer in `[0, n)` (`n > 0`) by rejection (no modulo bias).
-#[inline]
-fn uniform_below<R: Rng>(rng: &mut R, n: u64) -> u64 {
-    debug_assert!(n > 0);
-    if n == 1 {
-        return 0;
-    }
-    // Largest multiple of `n` that fits in u64; reject the remainder zone.
-    let zone = u64::MAX - (u64::MAX % n);
-    loop {
-        let r = next_u64(rng);
-        if r < zone {
-            return r % n;
-        }
-    }
 }
 
 /// Uniform `f64` in `[0, 1)` with 53 bits of entropy.
@@ -50,7 +36,7 @@ fn uniform_unit<R: Rng>(rng: &mut R) -> f64 {
 /// Above this width the discrete Gaussian is statistically indistinguishable from a rounded
 /// continuous Gaussian (the per-step discretization error is far below any distance budget we use),
 /// so we take the fast non-rejection path. Small widths use the exact rejection sampler.
-const FAST_PATH_WIDTH: f64 = 50.0;
+pub const FAST_PATH_WIDTH: f64 = 50.0;
 
 /// Sample `x ∈ Z` from the discrete Gaussian `D_{Z,s,c}` with `ρ_s(x) = exp(-π (x-c)²/s²)`.
 ///
@@ -59,22 +45,13 @@ const FAST_PATH_WIDTH: f64 = 50.0;
 pub fn sample_discrete_gaussian<R: CryptoRng + Rng>(rng: &mut R, s: f64, c: f64) -> i64 {
     debug_assert!(s > 0.0 && s.is_finite() && c.is_finite());
     if s >= FAST_PATH_WIDTH {
-        // σ = s/√(2π); round a continuous N(c, σ²) sample.
+        // σ = s/√(2π); round a continuous N(c, σ²) sample. Branchless (no rejection).
         let sigma = s / (2.0 * core::f64::consts::PI).sqrt();
         return (c + sigma * std_normal(rng)).round() as i64;
     }
-    let lo = (c - TAIL_CUT * s).floor() as i64;
-    let hi = (c + TAIL_CUT * s).ceil() as i64;
-    let span = (hi - lo + 1) as u64;
-    let inv_s2 = 1.0 / (s * s);
-    loop {
-        let x = lo + uniform_below(rng, span) as i64;
-        let diff = (x as f64) - c;
-        let rho = (-core::f64::consts::PI * diff * diff * inv_s2).exp();
-        if uniform_unit(rng) < rho {
-            return x;
-        }
-    }
+    // Small width: isochronous constant-time sampler. Rebuilds the base table per call — callers in
+    // hot loops should hold a `SamplerZ` instead (see `sample_gaussian_poly`, `perturb`, `gadget`).
+    super::gaussian_ct::SamplerZ::new(s).sample(rng, c)
 }
 
 /// Standard normal `N(0,1)` via Box–Muller.
@@ -121,9 +98,9 @@ mod tests {
             (var - expected_var).abs() / expected_var < 0.05,
             "var {var} vs expected {expected_var}",
         );
-        // Tail cut respected.
+        // Tail cut respected (the isochronous sampler truncates the base at ≈13σ ≈ 5.2·s).
         assert!(
-            (max_abs as f64) <= TAIL_CUT * s,
+            (max_abs as f64) <= 12.0 * s,
             "sample {max_abs} beyond tail cut"
         );
     }
