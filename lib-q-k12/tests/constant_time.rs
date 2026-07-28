@@ -100,24 +100,59 @@ fn test_hash_constant_time() {
     }
 }
 
-/// Test that customization processing is constant-time
+/// Test that customization processing is constant-time in the customization's
+/// **content**.
+///
+/// Note carefully what this does and does not assert, because the earlier version
+/// asserted something that is false by construction.
+///
+/// A customization string is absorbed into the sponge, so its **length** changes how
+/// much work Kt128 does: a 100-byte customization costs strictly more than an empty
+/// one, and crossing a block boundary costs an extra permutation. That is the
+/// algorithm working as specified, not a leak. The customization is also *public*
+/// input — it is a domain separator, not key material — so a length-dependent timing
+/// is not a side channel even in principle.
+///
+/// The previous version compared `""` (0 bytes), `"short"` (5),
+/// `"medium_length_customization"` (27) and `[0xAA; 100]` against one 60% band. It
+/// passed only because hashing the 1000-byte message dominated that difference, and
+/// it failed intermittently on shared CI runners when noise ate the remaining margin
+/// — blocking unrelated PRs (a serde_json dependency bump, among others). A test
+/// that can only pass when the effect it measures is drowned out is not measuring
+/// anything.
+///
+/// What *is* worth asserting is that timing does not depend on the customization's
+/// content at a **fixed** length — the property that would matter if a customization
+/// ever carried secret material. So every input below is exactly [`CUSTOM_LEN`]
+/// bytes and differs only in its bytes, which makes the comparison meaningful and
+/// removes the systematic length bias.
+///
+/// This remains a coarse wall-clock smoke test, not a side-channel proof. Real
+/// leakage assessment lives in `lib-q-sca-test` and the dedicated "Constant-Time
+/// Verification" CI job; do not treat a pass here as evidence of constant-timeness.
 #[test]
 fn test_customization_constant_time() {
     let data = vec![0x42u8; 1000];
 
-    // Different customization strings
-    let customizations = [
-        b"".as_slice(),
-        b"short".as_slice(),
-        b"medium_length_customization".as_slice(),
-        &[0xAAu8; 100],
-    ];
+    /// Fixed customization length, so the comparison isolates content from length.
+    const CUSTOM_LEN: usize = 32;
+
+    // Same length, different content: all-zero, all-one, alternating, and a
+    // counter-derived pattern.
+    let zeros = [0x00u8; CUSTOM_LEN];
+    let ones = [0xFFu8; CUSTOM_LEN];
+    let alternating: Vec<u8> = (0..CUSTOM_LEN)
+        .map(|i| if i % 2 == 0 { 0x00 } else { 0xFF })
+        .collect();
+    let counter: Vec<u8> = (0..CUSTOM_LEN).map(|i| (i * 251) as u8).collect();
+
+    let customizations: [&[u8]; 4] = [zeros.as_slice(), ones.as_slice(), &alternating, &counter];
 
     let mut times = Vec::new();
 
     // Warm up
     for _ in 0..100 {
-        let mut hasher = Kt128::new(b"test");
+        let mut hasher = Kt128::new(&zeros);
         hasher.update(&data);
         let _ = hasher.finalize_boxed(32);
     }
@@ -132,9 +167,13 @@ fn test_customization_constant_time() {
         }));
     }
 
-    // Check timing consistency
+    // Check timing consistency. The band stays at 60% rather than being tightened:
+    // all four inputs now do provably identical work, so the only thing left for the
+    // band to absorb is runner noise, and this test's job is to catch a gross
+    // content-dependent difference, not to be a precise instrument. Tightening it
+    // would trade the bug just fixed for a new source of intermittent failures.
     let avg_time = times.iter().sum::<Duration>() / times.len() as u32;
-    let tolerance = avg_time * 60 / 100; // 60% tolerance for customization processing
+    let tolerance = avg_time * 60 / 100;
 
     for (i, time) in times.iter().enumerate() {
         let diff = (*time).abs_diff(avg_time);
