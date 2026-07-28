@@ -173,8 +173,10 @@ pub use recursive_types::{
 pub use session_key::{
     KdfAlgorithm,
     KdfParams,
+    OUTPUT_LENGTH_GRANULARITY,
     SessionKeyDerivationAir,
     SessionKeyInput,
+    derive_session_keys,
 };
 pub use unlinkable_membership::{
     CTX_ELEMS,

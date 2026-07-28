@@ -18,6 +18,19 @@ use lib_q_zkp::stark::{
     fast_proof_config,
 };
 
+/// Assert that a verifier *ran to a verdict* and rejected.
+///
+/// `assert!(!verify(..).unwrap_or(false))` also passes when the verifier returns `Err`, so it
+/// cannot distinguish "correctly rejected" from "blew up before reaching a verdict".
+#[track_caller]
+fn assert_rejected<E: core::fmt::Debug>(result: Result<bool, E>, what: &str) {
+    match result {
+        Ok(false) => {}
+        Ok(true) => panic!("{what}: verifier accepted an invalid proof"),
+        Err(e) => panic!("{what}: verifier failed to reach a verdict: {e:?}"),
+    }
+}
+
 /// Create and use (happy path): build tree, issue certificate, verify with correct root and depth.
 #[test]
 fn test_merkle_certificate_create_and_verify() {
@@ -54,10 +67,9 @@ fn test_merkle_certificate_wrong_root_rejected() {
     let proof = prove_membership_with_config(leaves[0], &path, cfg.clone()).unwrap();
 
     let wrong_root = [0xFFu8; 32];
-    let result = verify_membership_with_config(&proof, &wrong_root, cfg);
-    assert!(
-        !result.unwrap_or(false),
-        "certificate must not verify against wrong root"
+    assert_rejected(
+        verify_membership_with_config(&proof, &wrong_root, cfg),
+        "certificate against a wrong root",
     );
 }
 
@@ -72,10 +84,9 @@ fn test_merkle_certificate_wrong_depth_rejected() {
     let proof = prove_membership_with_config(leaves[0], &path, cfg.clone()).unwrap();
 
     let wrong_depth = tree.depth() + 1;
-    let result = verify_membership_with_depth_and_config(&proof, &root, wrong_depth, cfg);
-    assert!(
-        !result.unwrap_or(false),
-        "certificate must not verify with wrong tree depth"
+    assert_rejected(
+        verify_membership_with_depth_and_config(&proof, &root, wrong_depth, cfg),
+        "certificate at a wrong tree depth",
     );
 }
 
@@ -92,10 +103,9 @@ fn test_merkle_certificate_cross_tree_rejected() {
     let path_a = merkle_path_from_tree(&tree_a, 0).unwrap();
     let proof_a = prove_membership_with_config(leaves_a[0], &path_a, cfg.clone()).unwrap();
 
-    let result = verify_membership_with_config(&proof_a, &root_b, cfg);
-    assert!(
-        !result.unwrap_or(false),
-        "certificate for tree A must not verify against root of tree B"
+    assert_rejected(
+        verify_membership_with_config(&proof_a, &root_b, cfg),
+        "certificate for tree A against the root of tree B",
     );
 }
 

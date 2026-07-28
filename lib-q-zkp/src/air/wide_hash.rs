@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn wide_hash_perm_air_rejects_corrupted_digest() {
         let state = sample_state(99);
         let (mut trace, _digest) = build_trace(&state);
@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn wide_hash_perm_air_rejects_corrupted_intermediate() {
         let state = sample_state(123);
         let (mut trace, _digest) = build_trace(&state);

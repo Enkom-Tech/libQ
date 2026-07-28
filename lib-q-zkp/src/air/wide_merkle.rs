@@ -275,7 +275,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn node_air_rejects_corrupted_intermediate() {
         let (l, r) = (child(5), child(6));
         let mut trace = generate_node_trace::<TestField>(&l, &r);
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn node_air_rejects_broken_capacity_carry() {
         // Tamper a CAPACITY cell of row 3's input: it must equal row 2's output capacity.
         let (l, r) = (child(7), child(8));
@@ -299,7 +299,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn node_air_rejects_broken_rate_injection() {
         // Change an absorb-row injection without updating its state_in: the carry constraint
         // next.state_in[0] == prev.final[0] + next.inject[0] must break.
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn node_air_rejects_wrong_padding_constant() {
         // The last (padding) row's injection must be the 10*1 constant (1, 1). Setting it to
         // anything else must be rejected — directly by the `when_last_row` inject==1 binding
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn node_air_rejects_wrong_public_output() {
         let (l, r) = (child(13), child(14));
         let trace = generate_node_trace::<TestField>(&l, &r);

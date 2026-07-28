@@ -2352,7 +2352,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn test_stark_verifier_constraints_detect_placeholder_trace() {
         let serialized = sample_serialized_proof();
         let air = StarkVerifierAir::<TestField, TestField>::new(serialized, 4, 1, 2).unwrap();

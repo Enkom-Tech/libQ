@@ -30,11 +30,7 @@ use rand_core::{
 #[cfg(feature = "alloc")]
 use sha2::Digest;
 #[cfg(feature = "alloc")]
-use signature::{
-    Keypair,
-    RandomizedSigner,
-    Verifier,
-};
+use signature::Keypair;
 #[cfg(feature = "alloc")]
 use typenum::Unsigned;
 #[cfg(feature = "alloc")]
@@ -47,6 +43,26 @@ use crate::{
     SigningKey,
     VerifyingKey,
 };
+
+/// Maximum length of a FIPS-205 signing context, in bytes.
+///
+/// FIPS 205 encodes the context as a single length byte followed by its bytes, so a longer
+/// context cannot be represented on the wire. Passing a longer context to any `*_with_context`
+/// entry point is a hard error rather than a silent truncation: it is a caller bug, not a
+/// bad-signature verdict.
+pub const SLH_DSA_CONTEXT_MAX_LEN: usize = 255;
+
+/// Reject a context that cannot be encoded under FIPS 205.
+#[cfg(feature = "alloc")]
+fn validate_context(context: &[u8]) -> Result<()> {
+    if context.len() > SLH_DSA_CONTEXT_MAX_LEN {
+        return Err(Error::InvalidAssociatedDataSize {
+            max: SLH_DSA_CONTEXT_MAX_LEN,
+            actual: context.len(),
+        });
+    }
+    Ok(())
+}
 
 /// SLH-DSA implementation of lib-q-core's Signature trait
 ///
@@ -112,15 +128,9 @@ impl<P: ParameterSet> Signature for SlhDsaSignature<P> {
     }
 
     fn verify(&self, public_key: &SigPublicKey, message: &[u8], signature: &[u8]) -> Result<bool> {
-        // Convert lib-q-core types to SLH-DSA types
-        let verifying_key = sig_public_key_to_verifying_key::<P>(public_key)?;
-        let slh_signature = bytes_to_slh_signature::<P>(signature)?;
-
-        // Verify the signature
-        match verifying_key.verify(message, &slh_signature) {
-            Ok(()) => Ok(true),
-            Err(_) => Ok(false),
-        }
+        // The context-free `Verifier` impl verifies under an empty FIPS-205 context, so this
+        // delegates rather than duplicating; see [`Self::verify_with_context`].
+        self.verify_with_context(public_key, message, &[], signature)
     }
 }
 
@@ -177,21 +187,83 @@ impl<P: ParameterSet> SlhDsaSignature<P> {
         message: &[u8],
         randomness: &[u8],
     ) -> Result<Vec<u8>> {
+        self.sign_with_randomness_and_context(secret_key, message, &[], randomness)
+    }
+
+    /// Sign a message under a FIPS-205 signing context, with external randomness.
+    ///
+    /// The `context` is domain-separation input bound into the signature: verification
+    /// succeeds only when the verifier supplies the *same* context bytes. Passing `&[]`
+    /// reproduces [`Self::sign_with_randomness`] byte for byte — the context-free entry points
+    /// already sign under an empty context, so existing signatures stay valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `context` exceeds [`SLH_DSA_CONTEXT_MAX_LEN`] bytes, if the secret
+    /// key cannot be deserialized, or if signing fails.
+    #[cfg(feature = "alloc")]
+    pub fn sign_with_randomness_and_context(
+        &self,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: &[u8],
+    ) -> Result<Vec<u8>> {
+        validate_context(context)?;
+
         // Convert lib-q-core secret key to SLH-DSA signing key
         let signing_key = sig_secret_key_to_signing_key::<P>(secret_key)?;
 
         // Create a deterministic RNG from the provided randomness
         let mut rng = DeterministicRng::new(randomness);
 
-        // Sign the message
+        // `try_sign_with_rng` draws exactly `P::N` bytes as the FIPS-205 randomizer and then
+        // calls the same context-taking path with an empty context. Drawing the randomizer the
+        // same way here is what makes `context == &[]` byte-identical to the context-free path
+        // (asserted in `slh_dsa_context_tests`).
+        let mut randomizer = alloc::vec![0u8; P::N::USIZE];
+        rng.try_fill_bytes(&mut randomizer)
+            .map_err(|_| Error::RandomGenerationFailed {
+                operation: "SLH-DSA signing randomizer".to_string(),
+            })?;
+
         let signature = signing_key
-            .try_sign_with_rng(&mut rng, message)
+            .try_sign_with_context(message, context, Some(&randomizer))
             .map_err(|_| Error::SigningFailed {
                 operation: "SLH-DSA signing failed".to_string(),
             })?;
 
         // Convert signature to bytes
         Ok(slh_signature_to_bytes(&signature))
+    }
+
+    /// Verify a signature under a FIPS-205 signing context.
+    ///
+    /// Verification succeeds only when `context` matches the context the signature was produced
+    /// under, byte for byte. Pass `&[]` for the behaviour of the context-free `verify`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `context` exceeds [`SLH_DSA_CONTEXT_MAX_LEN`] bytes or if the key or
+    /// signature cannot be deserialized. An unrepresentable context is a caller bug, so it is a
+    /// hard error rather than a `false` verdict.
+    #[cfg(feature = "alloc")]
+    pub fn verify_with_context(
+        &self,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        validate_context(context)?;
+
+        let verifying_key = sig_public_key_to_verifying_key::<P>(public_key)?;
+        let slh_signature = bytes_to_slh_signature::<P>(signature)?;
+
+        match verifying_key.try_verify_with_context(message, context, &slh_signature) {
+            Ok(()) => Ok(true),
+            Err(_) => Ok(false),
+        }
     }
 }
 

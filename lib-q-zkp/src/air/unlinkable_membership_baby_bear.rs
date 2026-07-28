@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn corrupt_public_nullifier_rejected() {
         let (t, ctx, bits, sibs, root) = setup();
         let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
@@ -493,7 +493,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn corrupt_public_ctx_rejected() {
         let (t, ctx, bits, sibs, root) = setup();
         let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
@@ -504,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn corrupt_public_root_rejected() {
         let (t, ctx, bits, sibs, root) = setup();
         let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
@@ -515,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn corrupt_sibling_rejected() {
         let (t, ctx, bits, mut sibs, root) = setup();
         sibs[1][0] = sibs[1][0] + BabyBear::ONE; // wrong authentication-path sibling
@@ -528,7 +528,7 @@ mod tests {
     /// Degree-7 optimization: the stored node-input column is pinned by the degree-2 selection
     /// constraint; corrupting it must be rejected (under-constrained-column hunt).
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_node_input_rejected() {
         let (t, ctx, bits, sibs, root) = setup();
         let mut trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
@@ -540,7 +540,7 @@ mod tests {
 
     /// Corrupt the secret `t` column in row 0: leaf no longer matches the path's first running.
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "values didn't match on row")]
     fn corrupt_secret_t_rejected() {
         let (t, ctx, bits, sibs, root) = setup();
         let mut trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);

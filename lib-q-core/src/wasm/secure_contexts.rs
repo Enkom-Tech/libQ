@@ -401,6 +401,102 @@ impl SecureWasmSignatureContext {
         }
     }
 
+    /// Sign a message under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// The resulting signature verifies only under the same `context` bytes — see
+    /// [`Self::verify_with_context`]. An empty `context` matches [`Self::sign`].
+    pub fn sign_with_context(
+        &self,
+        algorithm: &str,
+        private_key: &Uint8Array,
+        message: &Uint8Array,
+        context: &Uint8Array,
+        randomness: Option<Uint8Array>,
+    ) -> Result<JsValue, JsValue> {
+        let algorithm = parse_algorithm_wasm(algorithm)?;
+
+        convert_result(
+            self.security_validator
+                .validate_algorithm_category(algorithm, AlgorithmCategory::Signature),
+        )?;
+
+        let private_key_bytes = private_key.to_vec();
+        let message_bytes = message.to_vec();
+        let context_bytes = context.to_vec();
+        let randomness_bytes = randomness.map(|rand| rand.to_vec());
+
+        convert_result(self.security_validator.validate_key_size(
+            algorithm,
+            &private_key_bytes,
+            true,
+        ))?;
+
+        convert_result(
+            self.security_validator
+                .validate_signature_message(&message_bytes),
+        )?;
+
+        let secret_key = crate::traits::SigSecretKey::new(private_key_bytes.to_vec());
+
+        let signature = convert_result(self.inner.sign_with_context(
+            algorithm,
+            &secret_key,
+            &message_bytes,
+            &context_bytes,
+            randomness_bytes.as_deref(),
+        ))?;
+
+        secure_serialize(&signature)
+    }
+
+    /// Verify a signature under a signing context (FIPS-204 / FIPS-205 domain separation)
+    ///
+    /// Returns `false` unless `context` matches the context the signature was produced under.
+    /// An empty `context` matches [`Self::verify`].
+    pub fn verify_with_context(
+        &self,
+        algorithm: &str,
+        public_key: &Uint8Array,
+        message: &Uint8Array,
+        context: &Uint8Array,
+        signature: &Uint8Array,
+    ) -> Result<JsValue, JsValue> {
+        let algorithm = parse_algorithm_wasm(algorithm)?;
+
+        convert_result(
+            self.security_validator
+                .validate_algorithm_category(algorithm, AlgorithmCategory::Signature),
+        )?;
+
+        let public_key_bytes = public_key.to_vec();
+        let message_bytes = message.to_vec();
+        let context_bytes = context.to_vec();
+        let signature_bytes = signature.to_vec();
+
+        convert_result(self.security_validator.validate_key_size(
+            algorithm,
+            &public_key_bytes,
+            false,
+        ))?;
+
+        convert_result(
+            self.security_validator
+                .validate_signature_message(&message_bytes),
+        )?;
+
+        let public_key = crate::traits::SigPublicKey::new(public_key_bytes.to_vec());
+
+        let is_valid = convert_result(self.inner.verify_with_context(
+            algorithm,
+            &public_key,
+            &message_bytes,
+            &context_bytes,
+            &signature_bytes,
+        ))?;
+
+        secure_serialize(&is_valid)
+    }
+
     /// Get supported algorithms
     pub fn get_supported_algorithms(&self) -> Result<JsValue, JsValue> {
         match secure_serialize(&WASM_SIGNATURE_ALGORITHM_IDS) {

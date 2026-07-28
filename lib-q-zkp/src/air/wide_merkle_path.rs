@@ -302,7 +302,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn path_air_rejects_wrong_root() {
         let (leaf, root, path_bits, siblings) = fixture(2);
         let trace = generate_path_trace::<TestField>(&leaf, &path_bits, &siblings);
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn path_air_rejects_wrong_leaf_public() {
         let (leaf, root, path_bits, siblings) = fixture(2);
         let trace = generate_path_trace::<TestField>(&leaf, &path_bits, &siblings);
@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn path_air_rejects_non_member_leaf() {
         // A leaf NOT in the tree, but presented with a real member's path: the recomputed
         // root cannot match the public root (would require a hash collision).
@@ -334,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn path_air_rejects_tampered_sibling() {
         let (leaf, root, path_bits, siblings) = fixture(4);
         let mut trace = generate_path_trace::<TestField>(&leaf, &path_bits, &siblings);
@@ -346,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "values didn't match on row")]
     fn path_air_rejects_tampered_intermediate() {
         let (leaf, root, path_bits, siblings) = fixture(0);
         let mut trace = generate_path_trace::<TestField>(&leaf, &path_bits, &siblings);
@@ -357,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn path_air_rejects_broken_running_carry() {
         // Corrupt row 1's running digest: it must equal row 0's computed parent.
         let (leaf, root, path_bits, siblings) = fixture(5);
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "")]
+    #[should_panic(expected = "constraints had nonzero value")]
     fn path_air_rejects_nonboolean_dir() {
         let (leaf, root, path_bits, siblings) = fixture(3);
         let mut trace = generate_path_trace::<TestField>(&leaf, &path_bits, &siblings);

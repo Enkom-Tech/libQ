@@ -95,6 +95,48 @@ pub trait SignatureOperations {
         message: &[u8],
         signature: &[u8],
     ) -> Result<bool>;
+
+    /// Sign under a signing context (FIPS-204 / FIPS-205 domain separation).
+    ///
+    /// The default implementation forwards an empty context to [`Self::sign`] and rejects any
+    /// non-empty context, so a provider that has not opted in cannot silently drop the context
+    /// and produce a signature that is not bound to it.
+    fn sign_with_context(
+        &self,
+        algorithm: Algorithm,
+        secret_key: &SigSecretKey,
+        message: &[u8],
+        context: &[u8],
+        randomness: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        if context.is_empty() {
+            return self.sign(algorithm, secret_key, message, randomness);
+        }
+        Err(crate::error::Error::NotImplemented {
+            feature: "signing context not supported by this provider".into(),
+        })
+    }
+
+    /// Verify under a signing context (FIPS-204 / FIPS-205 domain separation).
+    ///
+    /// The default implementation forwards an empty context to [`Self::verify`] and rejects any
+    /// non-empty context, so a provider that has not opted in cannot silently ignore the
+    /// context and report a context-bound signature as valid.
+    fn verify_with_context(
+        &self,
+        algorithm: Algorithm,
+        public_key: &SigPublicKey,
+        message: &[u8],
+        context: &[u8],
+        signature: &[u8],
+    ) -> Result<bool> {
+        if context.is_empty() {
+            return self.verify(algorithm, public_key, message, signature);
+        }
+        Err(crate::error::Error::NotImplemented {
+            feature: "signing context not supported by this provider".into(),
+        })
+    }
 }
 
 /// Hash operations
