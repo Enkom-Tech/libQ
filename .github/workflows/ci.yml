@@ -1302,16 +1302,14 @@ jobs:
   # compile-time override at all. Only the fn-dsa family has the "silently prefers SIMD, and you
   # can't turn it off" shape this job exists to cover.
   #
-  # lib-q-fn-dsa-kgen's own KAT/self-test (`test_keygen_ref_full_kat`, `test_keygen_self`) are
-  # `#[ignore]`d upstream for being slow, not because of this job, so they correctly don't run
-  # here either — same as every other job today. Separately (OBSERVED locally, timeout-bounded):
-  # the facade crate's own `self_test` (package `lib-q-fn-dsa-alg`, i.e. `lib-q-fn-dsa/fn-dsa/`)
-  # and the outer `lib-q-fn-dsa` crate's own tests all call live `keygen()` at n=512/1024 through
-  # the public API, which hits an open, input-dependent portable-keygen livelock on this branch
-  # (fix tracked on a separate branch) — so those two packages are compiled here (`--no-run`) but
-  # not executed yet; switch their step to a full `cargo test` once that fix lands. lib-q-fn-dsa
-  # -comm / -sign / -vrfy don't hit that call path today (vrfy's own KAT tests do call keygen, but
-  # with a fixed seed that happens not to trigger it) and run for real below.
+  # All six FN-DSA packages are executed here, not merely compiled. That is only possible as of
+  # the portable-keygen fix in this same branch (the n=2 unrolled arm of `poly_sub_scaled`):
+  # before it, every test in `lib-q-fn-dsa-alg` and the outer `lib-q-fn-dsa` livelocked under
+  # no_avx2, because they all generate a real key pair at n=512/1024 through the public API.
+  # `lib-q-fn-dsa-kgen`'s `test_keygen_ref_full_kat` and `test_keygen_self` were `#[ignore]`d as
+  # "slow" for that same reason — circularly, since the bug is what made them slow — and are
+  # un-ignored in this branch. They exercise portable keygen most directly and now run in well
+  # under a second, so this job runs them for real too.
   fn-dsa-no-avx2:
     name: FN-DSA Portable Path (no_avx2)
     needs: core-validation
@@ -1341,24 +1339,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-fndsa-no-avx2-
 
-      - name: Portable-path tests (comm / sign / kgen / vrfy)
+      - name: Portable-path tests (all FN-DSA packages)
         run: |
           cargo test -p lib-q-fn-dsa-comm --features no_avx2
-          cargo test -p lib-q-fn-dsa-sign --features no_avx2
-          # kgen's own two tests are #[ignore]d upstream (slow full keygen KAT / self-test) and
-          # correctly don't run here; this still compiles+links the portable keygen code under
-          # no_avx2 (previously never even compiled in CI) and runs its non-keygen unit tests
-          # (gauss/fxp/mp31/zint31/vect/poly — the math primitives portable keygen is built from).
+          # kgen is the crate the livelock lived in. Its two keygen tests (un-ignored in this
+          # branch) cover logn 2..=10 and assert the portable keys are byte-identical to the
+          # AVX2 ones, so a portable-only regression fails here rather than silently shipping.
           cargo test -p lib-q-fn-dsa-kgen --features no_avx2
+          cargo test -p lib-q-fn-dsa-sign --features no_avx2
           cargo test -p lib-q-fn-dsa-vrfy --features no_avx2
-
-      - name: Portable-path build check (fn-dsa-alg facade / outer lib-q-fn-dsa)
-        run: |
-          # Every test in these two packages generates a real key pair at n=512/1024 through the
-          # public API / self_test, which hits the open portable-keygen livelock on this branch —
-          # compile only for now (still catches a no_avx2 build break, which no job caught before).
-          cargo test -p lib-q-fn-dsa-alg --features no_avx2 --no-run
-          cargo test -p lib-q-fn-dsa --features no_avx2 --no-run
+          # The facade and the outer crate reach portable keygen through the public API
+          # (`self_test` sweeps logn 2..8; the outer tests generate keys at n=512/1024).
+          cargo test -p lib-q-fn-dsa-alg --features no_avx2
+          cargo test -p lib-q-fn-dsa --features no_avx2
 
   # SIMD debug verification for HQC
   simd-debug-tests:
