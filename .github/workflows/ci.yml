@@ -1286,6 +1286,73 @@ jobs:
           cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
           cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
 
+  # Portable (no_avx2) FN-DSA path — closes a CI blind spot: FN-DSA's field/keccak/poly/sampler
+  # code is dispatched AVX2-vs-portable at *runtime* (`has_avx2()`), and every existing x86_64
+  # runner in this workflow has AVX2, so no job anywhere ever compiled or executed the portable
+  # branch — a defect confined to it (e.g. a portable-keygen livelock) builds clean and passes
+  # every other row silently. Force the fallback with `--features no_avx2`, which lib-q-fn-dsa
+  # forwards to -comm/-kgen/-sign/-vrfy (see lib-q-fn-dsa/Cargo.toml:62 and
+  # lib-q-fn-dsa/fn-dsa/Cargo.toml:30), so the portable code actually runs on the runners we
+  # have, without waiting on real ARM/wasm hardware (tracked separately as a follow-up).
+  #
+  # No other workspace crate has a comparable *force*-portable feature: lib-q-hqc / lib-q-saturnin
+  # / lib-q-duplex-aead / lib-q-tweak-aead expose `simd-avx2` as opt-in-only (off by default, so
+  # the portable path they ship is already what every ordinary test row exercises); lib-q-keccak /
+  # lib-q-rocca-s / lib-q-platform / lib-q-random / lib-q-slh-dsa runtime-detect AVX2 with no
+  # compile-time override at all. Only the fn-dsa family has the "silently prefers SIMD, and you
+  # can't turn it off" shape this job exists to cover.
+  #
+  # All six FN-DSA packages are executed here, not merely compiled. That is only possible as of
+  # the portable-keygen fix in this same branch (the n=2 unrolled arm of `poly_sub_scaled`):
+  # before it, every test in `lib-q-fn-dsa-alg` and the outer `lib-q-fn-dsa` livelocked under
+  # no_avx2, because they all generate a real key pair at n=512/1024 through the public API.
+  # `lib-q-fn-dsa-kgen`'s `test_keygen_ref_full_kat` and `test_keygen_self` were `#[ignore]`d as
+  # "slow" for that same reason — circularly, since the bug is what made them slow — and are
+  # un-ignored in this branch. They exercise portable keygen most directly and now run in well
+  # under a second, so this job runs them for real too.
+  fn-dsa-no-avx2:
+    name: FN-DSA Portable Path (no_avx2)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Debug builds of dependencies (e.g. num-bigint pulled in by fn-dsa-kgen) are slow; this
+      # speeds up dep compilation without changing the crates under test.
+      CARGO_PROFILE_DEV_PACKAGE_ALL_OPT_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rust-src
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-fndsa-no-avx2-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-fndsa-no-avx2-
+
+      - name: Portable-path tests (all FN-DSA packages)
+        run: |
+          cargo test -p lib-q-fn-dsa-comm --features no_avx2
+          # kgen is the crate the livelock lived in. Its two keygen tests (un-ignored in this
+          # branch) cover logn 2..=10 and assert the portable keys are byte-identical to the
+          # AVX2 ones, so a portable-only regression fails here rather than silently shipping.
+          cargo test -p lib-q-fn-dsa-kgen --features no_avx2
+          cargo test -p lib-q-fn-dsa-sign --features no_avx2
+          cargo test -p lib-q-fn-dsa-vrfy --features no_avx2
+          # The facade and the outer crate reach portable keygen through the public API
+          # (`self_test` sweeps logn 2..8; the outer tests generate keys at n=512/1024).
+          cargo test -p lib-q-fn-dsa-alg --features no_avx2
+          cargo test -p lib-q-fn-dsa --features no_avx2
+
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification
@@ -1534,7 +1601,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
