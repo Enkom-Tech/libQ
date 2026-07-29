@@ -38,7 +38,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-keccak = "0.0.9"
+lib-q-keccak = "0.0.10"
 ```
 
 ### Basic Example
@@ -54,7 +54,7 @@ f1600(&mut state);
 
 ```toml
 [dependencies]
-lib-q-keccak = { version = "0.0.9", features = ["simd", "multithreading"] }
+lib-q-keccak = { version = "0.0.10", features = ["simd", "multithreading"] }
 ```
 
 ## Feature Flags
