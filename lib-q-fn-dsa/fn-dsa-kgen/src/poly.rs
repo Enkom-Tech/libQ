@@ -337,10 +337,13 @@ pub(crate) fn poly_sub_scaled(
             }
             1 => {
                 // n = 2
+                // F[0] -= (k0*f0 - k1*f1)*2^sc
+                // F[1] -= (k0*f1 + k1*f0)*2^sc
                 let kf0 = k[0].wrapping_neg() as i32;
                 let kf1 = k[1].wrapping_neg() as i32;
                 zint_add_scaled_mul_small(&mut F[0..], Flen, &f[0..], flen, 2, kf0, sch, scl);
-                zint_add_scaled_mul_small(&mut F[1..], Flen, &f[1..], flen, 2, kf1, sch, scl);
+                zint_add_scaled_mul_small(&mut F[1..], Flen, &f[1..], flen, 2, kf0, sch, scl);
+                zint_add_scaled_mul_small(&mut F[1..], Flen, &f[0..], flen, 2, kf1, sch, scl);
                 zint_add_scaled_mul_small(
                     &mut F[0..],
                     Flen,
