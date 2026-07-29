@@ -24,10 +24,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-random = "0.0.9"
+lib-q-random = "0.0.10"
 
 # For custom entropy sources in no_std/WASM environments
-lib-q-random = { version = "0.0.9", features = ["custom-entropy"] }
+lib-q-random = { version = "0.0.10", features = ["custom-entropy"] }
 ```
 
 ### Basic Usage
