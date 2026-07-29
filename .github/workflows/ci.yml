@@ -254,6 +254,20 @@ jobs:
           - name: "lib-q-prf"
             features: "alloc"
             package: "lib-q-prf"
+          # lib-q-tweak-aead's `simd-avx2` keystream was COMPILED on every PR (the workspace
+          # `cargo clippy --all-targets --all-features` pass in core-validation) but EXECUTED by
+          # nothing: no Cargo.toml forwards `lib-q-tweak-aead/simd-avx2` and no job enabled it, and
+          # the only `cargo test --all-features` in the repo (rust-build) is behind `run-tests`,
+          # which every caller sets to "false". The simd-avx2 row is the one that is genuinely new.
+          # The plain row is deliberate redundancy with the whole-workspace "std" shard: that shard
+          # names no package, so `grep tweak-aead .github/workflows/` found nothing and the crate
+          # read as untested. Making the coverage greppable is the point.
+          - name: "lib-q-tweak-aead"
+            features: "std"
+            package: "lib-q-tweak-aead"
+          - name: "lib-q-tweak-aead simd-avx2"
+            features: "std,simd-avx2"
+            package: "lib-q-tweak-aead"
           - name: "lib-q-ring-sig pilot-insecure-prf-transcript"
             features: "pilot-insecure-prf-transcript"
             package: "lib-q-ring-sig"
