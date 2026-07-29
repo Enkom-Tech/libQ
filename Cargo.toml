@@ -198,10 +198,11 @@ panic = "abort"
 # Crate-specific profiles
 # NOTE: lib-q-blind-token's secure instance does heavy f64 (canonical-embedding perturbation
 # sampler, per-slot Cholesky), large-modulus NTT, and millions of RNG draws per keygen; at
-# opt-level 0 a single keygen takes minutes. Like lib-q-fn-dsa, its test suite is intended to run
-# optimized — use `cargo test --release -p lib-q-blind-token` (CI runs it under `release-ci` and
-# skips the unoptimized dev pass). A `[profile.test.package]` override cannot help here because such
-# overrides do not apply to the root crate being tested, only to its dependencies.
+# opt-level 0 a single keygen takes minutes. It is now covered by the per-package opt-level
+# overrides below ([profile.dev.package]), which — verified via `cargo --unit-graph` on
+# nightly-2026-07-24 — DO apply to the root crate being tested as well as to dependencies
+# (the test profile inherits dev's package overrides). An earlier comment here claimed the
+# opposite; that claim was wrong for this toolchain.
 [profile.dev-cb-kem]
 inherits = "dev"
 opt-level = 1 # reduces runtime for KATNUM=2 from 281s to 11s
@@ -231,19 +232,109 @@ panic = "abort"
 strip = true
 debug = false
 
-# `cargo test` builds path dependencies with the dev profile. FN-DSA signing and
-# keygen at high logn are unusably slow without LLVM optimization (multi-minute
-# KAT/self tests in debug). Match the practical cost of `cargo test -p lib-q-fn-dsa-alg --release`.
-[profile.dev.package."lib-q-fn-dsa-alg"]
+# ---------------------------------------------------------------------------------------------
+# Per-package opt-level for the mathematical cores — makes `cargo test --workspace` runnable.
+#
+# Measured 2026-07-28 (Windows dev host, nightly-2026-07-24, warm cache): at dev/test opt-level 0
+# the workspace test gate does not terminate in practical time. Examples (test binary wall time):
+#   lib-q (umbrella) unit tests            > 420 s (killed)
+#   lib-q-slh-dsa / lib-q-fn-dsa unit      >  90 s each (killed)
+#   lib-q-blind-token budget_gates         >  90 s (killed)
+#   lib-q-sig crypto_operations_tests      >  90 s (killed)
+#   lib-q-lattice-zkp / lib-q-zkp unit     >  90 s each (killed)
+#   lib-q-hqc simd_correctness             >  90 s (killed)
+#   lib-q-zk-encryption-proof unit         >  90 s (killed)
+# The hot code is the crypto math itself: Keccak-f permutations (under SLH-DSA, SHAKE, K12, HQC,
+# the RNGs), NTT / lattice keygen and proofs, and STARK proving. At opt-level 2 the same binaries
+# finish in seconds (see the commit introducing this block for the full before/after table).
+#
+# Mechanism: per-package overrides raise ONLY `opt-level`. `debug-assertions` and
+# `overflow-checks` are deliberately NOT overridden — they inherit from dev/test and stay ON,
+# including the #[cfg(debug_assertions)] constraint checkers inside the STARK/plonky provers.
+# Verified via `cargo test --workspace --unit-graph`: a `[profile.dev.package.X]` override reaches
+# X both as a dependency and as the crate under test (the test profile inherits dev's package
+# overrides), so this covers `cargo test -p X` and every dependent's tests.
+#
+# Deliberately NOT listed (kept at opt-level 0 for debuggability): thin API / type / util /
+# provider crates — lib-q, lib-q-core, lib-q-sig, lib-q-kem, lib-q-types, lib-q-utils,
+# lib-q-random, the AEADs, lib-q-transcript, ... Their tests are fast once the math they call is
+# optimized. If a new crate with heavy in-crate math is added, add it here.
+#
+# CAUTION for maintainers of wall-clock timing tests (lib-q-k12/tests/constant_time.rs,
+# lib-q-sha3 constant_time/performance, the hardened_dudect_smoke tests, lib-q-sca-test):
+# these overrides change the codegen those tests measure (faster and less noisy than opt0 —
+# closer to what ships, but a different timing regime than unoptimized debug).
+
+# All external (non-workspace) dependencies: rand, sha2, hmac, crypto-bigint, proptest, ...
+# The "*" spec never matches workspace members, so workspace crates keep their dev settings
+# unless listed explicitly below.
+[profile.dev.package."*"]
 opt-level = 2
-[profile.dev.package."lib-q-fn-dsa-comm"]
-opt-level = 2
-[profile.dev.package."lib-q-fn-dsa-kgen"]
-opt-level = 2
-[profile.dev.package."lib-q-fn-dsa-sign"]
-opt-level = 2
-[profile.dev.package."lib-q-fn-dsa-vrfy"]
-opt-level = 2
+
+[profile.dev.package]
+# Hash cores — Keccak-f is the shared substrate under almost every slow suite above.
+"lib-q-keccak" = { opt-level = 2 }
+"lib-q-sha3" = { opt-level = 2 }
+"lib-q-keccak-digest" = { opt-level = 2 }
+"lib-q-k12" = { opt-level = 2 }
+"lib-q-hash" = { opt-level = 2 }
+"lib-q-poseidon" = { opt-level = 2 }
+# Algorithm cores with heavy in-crate math.
+"lib-q-ml-kem" = { opt-level = 2 }
+"lib-q-ml-dsa" = { opt-level = 2 }
+"lib-q-slh-dsa" = { opt-level = 2 }
+"lib-q-fn-dsa" = { opt-level = 2 }
+"lib-q-hqc" = { opt-level = 2 }
+"lib-q-cb-kem" = { opt-level = 2 }
+# Lattice / threshold / proof protocol crates (math lives in-crate; the set CI's rust-test
+# action skips in debug, plus the ones measured slow above).
+"lib-q-blind-token" = { opt-level = 2 }
+"lib-q-dkg" = { opt-level = 2 }
+"lib-q-threshold-raccoon" = { opt-level = 2 }
+"lib-q-threshold-kem-lattice" = { opt-level = 2 }
+"lib-q-lattice-zkp" = { opt-level = 2 }
+"lib-q-ring" = { opt-level = 2 }
+"lib-q-ring-sig" = { opt-level = 2 }
+"lib-q-mve" = { opt-level = 2 }
+"lib-q-zkp" = { opt-level = 2 }
+"lib-q-zk-encryption-proof" = { opt-level = 2 }
+# STARK / plonky proving stack (hot dependencies of lib-q-zkp, lib-q-zk-encryption-proof,
+# lib-q-mve; kept as one coherent unit).
+"lib-q-stark" = { opt-level = 2 }
+"lib-q-stark-air" = { opt-level = 2 }
+"lib-q-stark-baby-bear" = { opt-level = 2 }
+"lib-q-stark-challenger" = { opt-level = 2 }
+"lib-q-stark-commit" = { opt-level = 2 }
+"lib-q-stark-dft" = { opt-level = 2 }
+"lib-q-stark-field" = { opt-level = 2 }
+"lib-q-stark-field-testing" = { opt-level = 2 }
+"lib-q-stark-fri" = { opt-level = 2 }
+"lib-q-stark-interpolation" = { opt-level = 2 }
+"lib-q-stark-matrix" = { opt-level = 2 }
+"lib-q-stark-mds" = { opt-level = 2 }
+"lib-q-stark-merkle" = { opt-level = 2 }
+"lib-q-stark-mersenne31" = { opt-level = 2 }
+"lib-q-stark-monty31" = { opt-level = 2 }
+"lib-q-stark-rayon" = { opt-level = 2 }
+"lib-q-stark-shake128" = { opt-level = 2 }
+"lib-q-stark-shake256" = { opt-level = 2 }
+"lib-q-stark-sha3-256" = { opt-level = 2 }
+"lib-q-stark-symmetric" = { opt-level = 2 }
+"lib-q-stark-util" = { opt-level = 2 }
+"lib-q-plonky" = { opt-level = 2 }
+"lib-q-plonky-batch-stark" = { opt-level = 2 }
+"lib-q-plonky-keccak-air" = { opt-level = 2 }
+"lib-q-plonky-lookup" = { opt-level = 2 }
+"lib-q-plonky-multilinear-util" = { opt-level = 2 }
+"lib-q-plonky-uni-stark" = { opt-level = 2 }
+# FN-DSA nested path deps (outside the workspace; predate this block — FN-DSA signing and
+# keygen at high logn are unusably slow without LLVM optimization). Kept explicit for
+# documentation even though the "*" spec above would now cover them.
+"lib-q-fn-dsa-alg" = { opt-level = 2 }
+"lib-q-fn-dsa-comm" = { opt-level = 2 }
+"lib-q-fn-dsa-kgen" = { opt-level = 2 }
+"lib-q-fn-dsa-sign" = { opt-level = 2 }
+"lib-q-fn-dsa-vrfy" = { opt-level = 2 }
 
 # Root crate of `cargo test -p lib-q-fn-dsa-alg` uses the test profile for the library.
 [profile.test.package."lib-q-fn-dsa-alg"]
