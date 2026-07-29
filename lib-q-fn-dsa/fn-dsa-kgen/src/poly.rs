@@ -305,28 +305,6 @@ pub(crate) fn poly_sub_scaled(
     }
     let flen = core::cmp::min(flen, Flen - (sch as usize));
 
-    let mut run_general = |n: usize| {
-        for i in 0..n {
-            let kf = k[i].wrapping_neg() as i32;
-            for j in i..n {
-                zint_add_scaled_mul_small(&mut F[j..], Flen, &f[(j - i)..], flen, n, kf, sch, scl);
-            }
-            let kf = kf.wrapping_neg();
-            for j in 0..i {
-                zint_add_scaled_mul_small(
-                    &mut F[j..],
-                    Flen,
-                    &f[((j + n) - i)..],
-                    flen,
-                    n,
-                    kf,
-                    sch,
-                    scl,
-                );
-            }
-        }
-    };
-
     // Optimize for small degrees (logn <= 3) with unrolled loops
     if logn <= 3 {
         match logn {
@@ -415,10 +393,50 @@ pub(crate) fn poly_sub_scaled(
                     }
                 }
             }
-            _ => run_general(1usize << logn),
+            _ => poly_sub_scaled_general(1usize << logn, F, Flen, f, flen, k, sch, scl),
         }
     } else {
-        run_general(1usize << logn);
+        poly_sub_scaled_general(1usize << logn, F, Flen, f, flen, k, sch, scl);
+    }
+}
+
+// General O(n^2) negacyclic-convolution loop behind poly_sub_scaled(), for
+// n = 2^logn coefficients. This is exactly upstream fn-dsa's (Thomas
+// Pornin, fn-dsa v0.3.0) single un-specialized loop, used here directly
+// for logn > 3, and kept as a standalone fn (rather than inlined) so it
+// can also serve as the equivalence oracle for the logn <= 3 unrolled
+// arms above: their whole purpose is to be bit-identical to this loop,
+// just faster. See the `poly_sub_scaled_arms_match_general` test below,
+// and the fix in commit e101182 (the n=2 arm broke exactly this contract
+// for coefficient 1).
+fn poly_sub_scaled_general(
+    n: usize,
+    F: &mut [u32],
+    Flen: usize,
+    f: &[u32],
+    flen: usize,
+    k: &[u32],
+    sch: u32,
+    scl: u32,
+) {
+    for i in 0..n {
+        let kf = k[i].wrapping_neg() as i32;
+        for j in i..n {
+            zint_add_scaled_mul_small(&mut F[j..], Flen, &f[(j - i)..], flen, n, kf, sch, scl);
+        }
+        let kf = kf.wrapping_neg();
+        for j in 0..i {
+            zint_add_scaled_mul_small(
+                &mut F[j..],
+                Flen,
+                &f[((j + n) - i)..],
+                flen,
+                n,
+                kf,
+                sch,
+                scl,
+            );
+        }
     }
 }
 
@@ -760,6 +778,140 @@ mod tests {
         for logn in 1..11 {
             for prime in PRIMES.iter().take(5) {
                 inner_NTT(logn, prime.g, prime.ig, prime.p, prime.p0i, prime.R2);
+            }
+        }
+    }
+
+    // Deterministic splitmix64 step. NOT re-seeded per run -- this is a
+    // fixed-seed PRNG so a failing case reproduces exactly on every
+    // machine/run, not just "sometimes locally".
+    fn sm64_next(state: &mut u64) -> u64 {
+        *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = *state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    // A pseudo-random big-integer limb: any 31-bit pattern is a valid word
+    // in the base-2^31 signed representation used throughout this module
+    // (the sign of the whole multi-word value lives in bit 30 of the top
+    // word, which this naturally randomizes too).
+    fn rand_word(state: &mut u64) -> u32 {
+        (sm64_next(state) as u32) & 0x7FFF_FFFF
+    }
+
+    // A signed i32 coefficient for `k`, encoded the way poly_sub_scaled's
+    // `k: &[u32]` parameter expects (raw bit pattern of the i32). The
+    // first few draws per test case are forced to adversarial edge values
+    // (zero, +-1, extremes) rather than left to chance, since those are
+    // exactly the values most likely to expose a sign/overflow mistake in
+    // a hand-unrolled arm; later draws are pseudo-random fill.
+    fn rand_k(state: &mut u64, draw: usize) -> u32 {
+        const EDGES: [i32; 8] = [
+            0,
+            1,
+            -1,
+            i32::MAX,
+            i32::MIN,
+            i32::MIN + 1,
+            i32::MAX - 1,
+            -12345,
+        ];
+        if draw < EDGES.len() {
+            EDGES[draw] as u32
+        } else {
+            sm64_next(state) as u32
+        }
+    }
+
+    // Regression test for the poly_sub_scaled() small-degree (logn <= 3)
+    // unrolled arms added on top of upstream fn-dsa. Upstream has a single
+    // general O(n^2) loop for all degrees (poly_sub_scaled_general() here,
+    // extracted unchanged from that loop); the port's whole justification
+    // for special-casing logn <= 3 is that the unrolled arms are bit-for-
+    // bit equivalent to that general loop, just faster. This test checks
+    // exactly that contract, directly, for all four arms (logn = 0..=3),
+    // not just logn = 1 (n = 2), which is the arm that was actually wrong:
+    // it computed F[1] -= k1*f1 instead of F[1] -= (k0*f1 + k1*f0), i.e.
+    // it used the wrong half of the negacyclic product's cross term. That
+    // bug made Babai reduction diverge for any keygen reaching an n=2
+    // intermediate level (logn_top >= 3), so solve_NTRU never succeeded
+    // and keygen_from_seed's rejection loop livelocked forever on the
+    // portable path (fixed in commit e101182).
+    //
+    // Coverage: several (Flen, flen, sc) shapes per logn, chosen to hit
+    // flen == Flen, flen < Flen, sc == 0, and sc large enough to make sch
+    // (the whole-word part of the shift) nonzero -- the n=2 arm's bug was
+    // in the cross-term routing, not the shift math, but sch != 0 also
+    // exercises the "not enough source words -> sign-extend" path inside
+    // zint_add_scaled_mul_small for good measure. Per shape, k is drawn
+    // per-coefficient from rand_k() above, so early coefficients hit the
+    // zero/negative/extreme edge values and the rest are pseudo-random
+    // fill; F and f contents are pseudo-random 31-bit words (their actual
+    // magnitude doesn't matter for this test -- only that both code paths
+    // are fed the identical bytes and must produce the identical result).
+    #[test]
+    fn poly_sub_scaled_arms_match_general() {
+        const MAXN: usize = 8; // n for logn = 3
+        const MAXLEN: usize = 6; // largest Flen/flen exercised below
+
+        let shapes: [(usize, usize, u32); 7] = [
+            (1, 1, 0),
+            (2, 2, 0),
+            (2, 1, 0),
+            (3, 3, 5),
+            (4, 2, 31), // sch = 1, scl = 0
+            (5, 3, 47), // sch = 1, scl = 16
+            (6, 4, 93), // sch = 3, scl = 0
+        ];
+
+        let mut state: u64 = 0x1234_5678_9ABC_DEF0;
+        let mut case_idx = 0usize;
+        for logn in 0u32..=3 {
+            let n = 1usize << logn;
+            for &(Flen, flen, sc) in shapes.iter() {
+                assert!(Flen <= MAXLEN && flen <= MAXLEN);
+
+                let mut f = [0u32; MAXN * MAXLEN];
+                let mut k = [0u32; MAXN];
+                let mut F0 = [0u32; MAXN * MAXLEN];
+
+                for w in F0.iter_mut().take(n * Flen) {
+                    *w = rand_word(&mut state);
+                }
+                for w in f.iter_mut().take(n * flen) {
+                    *w = rand_word(&mut state);
+                }
+                for (i, kw) in k.iter_mut().take(n).enumerate() {
+                    *kw = rand_k(&mut state, case_idx + i);
+                }
+
+                let mut F_arm = F0;
+                let mut F_gen = F0;
+
+                poly_sub_scaled(logn, &mut F_arm, Flen, &f, flen, &k, sc);
+
+                // Mirror poly_sub_scaled's own sch/Flen/flen clipping
+                // exactly (via the same divrem31()) so the reference call
+                // sees precisely the inputs the arm under test saw.
+                let (sch, scl) = divrem31(sc);
+                if (sch as usize) < Flen {
+                    let flen_c = core::cmp::min(flen, Flen - (sch as usize));
+                    poly_sub_scaled_general(n, &mut F_gen, Flen, &f, flen_c, &k, sch, scl);
+                }
+
+                assert!(
+                    F_arm[..n * Flen] == F_gen[..n * Flen],
+                    "mismatch: logn={} Flen={} flen={} sc={} case={}",
+                    logn,
+                    Flen,
+                    flen,
+                    sc,
+                    case_idx
+                );
+
+                case_idx += 1;
             }
         }
     }
