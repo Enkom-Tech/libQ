@@ -118,13 +118,13 @@ if [[ -n "$CRATE" ]]; then
     fi
   elif [[ "$CRATE" == "lib-q-intrinsics" ]]; then
     # Enable SIMD feature gates so platform helpers and arch-specific modules are built.
-    # lib-q-platform/std pulls std into the lib-q-platform → lib-q-core dependency chain.
-    # Intrinsics pins lib-q-platform with default-features=false (it is #![no_std]), so without
-    # this the chain builds no_std and lib-q-core's no_std #[panic_handler] requires panic=abort —
-    # tarpaulin's instrumented test harness is panic=unwind, so the build fails with
-    # "unwinding panics are not supported without std". Turning on platform's std (not intrinsics'
-    # own SIMD code) lets the test binary link while still measuring intrinsics coverage.
-    CMD="$CMD --features simd256,simd128,simd512,lib-q-platform/std"
+    # `std` is no longer listed here: lib-q-intrinsics now has its own `std` feature
+    # (`std = ["lib-q-platform/std"]`) which is ON BY DEFAULT, so the lib-q-platform → lib-q-core
+    # chain builds with std and tarpaulin's panic=unwind harness links. Before that fix this line
+    # had to force `lib-q-platform/std` by hand, or the chain built no_std, lib-q-core's cdylib
+    # needed a panic runtime it could not get, and the build failed with
+    # "unwinding panics are not supported without std".
+    CMD="$CMD --features simd256,simd128,simd512"
   fi
 fi
 

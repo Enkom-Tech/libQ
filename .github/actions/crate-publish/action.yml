@@ -67,13 +67,16 @@ runs:
         fi
         
         # `cargo publish` verifies by compiling the packaged crate in ISOLATION with the default
-        # profile (panic=unwind). A #![no_std] crate that pins lib-q-core/lib-q-platform with
-        # default-features=false (e.g. lib-q-intrinsics) drags lib-q-core into no_std, whose
-        # no_std #[panic_handler] requires panic=abort -> "unwinding panics are not supported
-        # without std". The in-workspace build is already validated in CI, so both branches fall
-        # back to --no-verify on exactly that error. They MUST agree: a dry-run that hard-fails on
-        # a crate the real publish would ship is a false alarm that trains operators to ignore it,
-        # and it fails at the one moment the dry-run exists to be trusted.
+        # profile (panic=unwind). This error means some crate's DEFAULT feature set puts
+        # `lib-q-core` in no_std while `lib-q-core` still declares its `cdylib` crate-type.
+        #
+        # NEITHER branch falls back to --no-verify any more, and they MUST STAY IN AGREEMENT.
+        # The original invariant here worried about a dry run that hard-fails on a crate the real
+        # publish would ship — a false alarm that trains operators to ignore it. Now that the
+        # publish branch treats this error as a regression, the dangerous asymmetry is the mirror
+        # image: a dry run that PASSES via fallback on a crate the real publish will REJECT. That
+        # is worse, because it fails at the one moment the dry run exists to be trusted. So the
+        # dry run hard-fails on exactly the same condition, with the same guidance.
         no_verify_fallback_needed() {
           echo "$1" | grep -qE 'unwinding panics are not supported without std'
         }
@@ -87,11 +90,11 @@ runs:
           echo "$publish_output"
           if [ "$publish_status" -ne 0 ]; then
             if no_verify_fallback_needed "$publish_output"; then
-              echo "::warning::$PKG failed cargo publish's isolated verify build (no_std core needs panic=abort); retrying the dry run with --no-verify (in-workspace build already verified in CI)."
-              cargo publish --allow-dirty --no-verify -p "$PKG" --dry-run
-            else
-              exit "$publish_status"
+              echo "::error::$PKG failed cargo publish's isolated verify build: 'unwinding panics are not supported without std'."
+              echo "::error::REGRESSION: a crate's default features put lib-q-core in no_std while its cdylib crate-type still needs a panic runtime."
+              echo "::error::Fix the crate's default features (cf. lib-q-intrinsics: default = [\"std\"], std = [\"lib-q-platform/std\"]). Publishing with --no-verify is NOT an acceptable workaround - crates.io versions are immutable."
             fi
+            exit "$publish_status"
           fi
         else
           max_attempts=6
@@ -109,19 +112,27 @@ runs:
               echo "$PKG is already on crates.io; skipping"
               break
             fi
-            # Same no_std/panic=abort verify failure the dry-run branch handles above: fall back to
-            # --no-verify (upload the packaged tarball without the isolated verify compile).
-            if no_verify_fallback_needed "$publish_output"; then
-              echo "::warning::$PKG failed cargo publish's isolated verify build (no_std core needs panic=abort); retrying with --no-verify (in-workspace build already verified in CI)."
-              set +e
-              publish_output="$(cargo publish --allow-dirty --no-verify -p "$PKG" 2>&1)"
-              publish_status=$?
-              set -e
+            # This used to retry with `--no-verify`. It no longer does, deliberately.
+            #
+            # `cargo publish` verifies by compiling the packaged crate in ISOLATION with the default
+            # profile (panic=unwind). This error means some crate's DEFAULT feature set puts
+            # `lib-q-core` in no_std while `lib-q-core` still declares its `cdylib` crate-type: a
+            # cdylib is a final artifact and needs a panic runtime, and there is no unwinder
+            # without `std`. `lib-q-intrinsics` used to trip this because it had `default = []`
+            # and no `std` feature to forward to `lib-q-platform`; it now has
+            # `default = ["std"]` / `std = ["lib-q-platform/std"]` and verifies normally.
+            #
+            # Do NOT reinstate the fallback. `--no-verify` uploads a tarball that nobody ever
+            # compiled, and crates.io versions are immutable — a broken artifact is permanent, and
+            # the first person to discover it is a consumer. If this fires again it is a real
+            # regression in some crate's default features: fix the manifest so the default graph
+            # compiles standalone (reproduce locally with `cargo package -p <pkg>`, which runs the
+            # same isolated verify build), rather than skipping verification.
+            if echo "$publish_output" | grep -qE 'unwinding panics are not supported without std'; then
+              echo "::error::$PKG failed cargo publish's isolated verify build: 'unwinding panics are not supported without std'."
+              echo "::error::REGRESSION: a crate's default features put lib-q-core in no_std while its cdylib crate-type still needs a panic runtime."
+              echo "::error::Fix the crate's default features (cf. lib-q-intrinsics: default = [\"std\"], std = [\"lib-q-platform/std\"]). Publishing with --no-verify is NOT an acceptable workaround - crates.io versions are immutable."
               echo "$publish_output"
-              if [ "$publish_status" -eq 0 ] || echo "$publish_output" | grep -qE 'already uploaded|already exists on crates\.io'; then
-                echo "$PKG published with --no-verify"
-                break
-              fi
               exit "$publish_status"
             fi
             if echo "$publish_output" | grep -qE '429 Too Many Requests|rate limit|too many updates'; then
