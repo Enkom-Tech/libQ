@@ -179,18 +179,25 @@ Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
 | `thresholdKemVerifyShare` | Share proof check |
 | `thresholdKemEncodeWireV1` / `thresholdKemDecodeWireV1` | Canonical wire codec |
 
-## `@lib-q/threshold-sig` (0.0.7, PROVISIONAL)
+## `@lib-q/threshold-sig` — WITHDRAWN, not published
 
-| JS name | Description |
-|---------|-------------|
-| `thresholdSigSetup` | Profile metadata JSON |
-| `thresholdSigKeygenShares` | Keygen with `shareBytes` as `Uint8Array` |
-| `thresholdSigSignRound1` | Opaque `ThresholdSigRound1Handle` (nonce state) |
-| `thresholdSigSignRound2` | Round-2 partial JSON |
-| `thresholdSigAggregate` | Signature + wire JSON |
-| `thresholdSigVerify` | Boolean verify |
-| `thresholdSigIdentifyAbort` | Faulty signer indices |
-| `thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1` | Wire codec |
+**Not a signature scheme; provided no security.** `lib-q-threshold-sig`'s published verifying keys
+were the private Shamir shares, its group key was the master secret recoverable from public data,
+and verification contained no secret input — see
+[`lib-q-threshold-sig/README.md`](../lib-q-threshold-sig/README.md) for the analysis.
+
+As of 0.0.9 this package is **not published** to npm (removed from `cd.yml`'s
+`publish-wasm-packages` matrix) or to crates.io (`publish = false`). The API table this section
+used to carry (`thresholdSigSetup`, `thresholdSigKeygenShares`, `thresholdSigSignRound1/2`,
+`thresholdSigAggregate`, `thresholdSigVerify`, `thresholdSigIdentifyAbort`,
+`thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1`) is retained only as a name index: every
+one of those exports now unconditionally throws (`src/wasm.rs`), including the wire codecs — the
+JS surface keeps none of the "codec is separate from crypto" carve-out that the Rust API retains
+for legacy blob triage. If you build this crate from source anyway, expect every call to throw with
+a `LIB_Q_THRESHOLD_SIG` error explaining the withdrawal. TypeScript shapes remain in
+`@lib-q/types` (`ThresholdSigShareVerifier`, etc.), each annotated `@deprecated` for the same
+reason, so old call sites still type-check while being told at every use site that the scheme is
+withdrawn.
 
 ## `@lib-q/types`
 

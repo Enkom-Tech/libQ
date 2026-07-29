@@ -1,83 +1,81 @@
-//! wasm-bindgen-test smoke: threshold signature JS API on wasm32.
+//! wasm-bindgen-test smoke: every `@lib-q/threshold-sig` binding must fail closed.
+//!
+//! **What this test used to do:** drive the full JS ceremony — `thresholdSigKeygenShares`,
+//! two signing rounds, `thresholdSigAggregate` — and assert `thresholdSigVerify` returned
+//! `true`. It therefore asserted that a JavaScript caller could obtain key material and get a
+//! signature accepted, which is exactly what must no longer be possible.
+//!
+//! **What it does now:** asserts every export throws. The old keygen binding was the most
+//! damaging path to the defect, since it handed each party's raw secret share to the host both
+//! as `secretShares[].shareBytes` and, labelled as public data, as
+//! `shareVerifiers[].verifyingKeyHex`.
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use js_sys::{
-    Array,
-    Reflect,
-    Uint8Array,
-};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_threshold_sig::wasm::{
     threshold_sig_aggregate_wasm,
+    threshold_sig_decode_wire_v1_wasm,
+    threshold_sig_encode_wire_v1_wasm,
+    threshold_sig_identify_abort_wasm,
     threshold_sig_keygen_shares_wasm,
+    threshold_sig_setup_wasm,
     threshold_sig_sign_round1_wasm,
     threshold_sig_sign_round2_wasm,
     threshold_sig_verify_wasm,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use serde_wasm_bindgen::to_value;
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen::JsValue;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-fn get_prop(obj: &JsValue, key: &str) -> JsValue {
-    Reflect::get(obj, &JsValue::from_str(key)).expect("property")
-}
-
+/// No JavaScript caller can obtain key material, produce a signature, or get one accepted.
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 #[wasm_bindgen_test]
-fn threshold_sig_sign_verify_wasm() {
-    let message = b"wasm-threshold-sig-smoke";
-    let keygen_js = threshold_sig_keygen_shares_wasm(3, 5).expect("keygen");
-    let public_key = get_prop(&keygen_js, "publicKey");
-    let shares = Array::from(&get_prop(&keygen_js, "secretShares"));
+fn every_wasm_export_fails_closed() {
+    let message = b"wasm-threshold-sig-abuse-attempt";
 
-    let mut handles = Vec::new();
-    let mut commitments = Vec::new();
-    for i in 0..3 {
-        let share = shares.get(i);
-        let share_bytes: Uint8Array = get_prop(&share, "shareBytes").into();
-        let bytes = share_bytes.to_vec();
-        let index = get_prop(&share, "index").as_f64().expect("index") as u8;
-        let threshold = get_prop(&share, "threshold").as_f64().expect("threshold") as u8;
-        let handle =
-            threshold_sig_sign_round1_wasm(&bytes, index, threshold, message).expect("round1");
-        let commitment: serde_json::Value =
-            serde_wasm_bindgen::from_value(handle.commitment_json().expect("commitment"))
-                .expect("commitment json");
-        commitments.push(commitment);
-        handles.push((handle, bytes, index, threshold));
-    }
-
-    let commitments_value = to_value(&commitments).expect("commitments value");
-    let mut partials = Vec::new();
-    for (handle, bytes, index, threshold) in &handles {
-        let partial_js = threshold_sig_sign_round2_wasm(
-            handle,
-            public_key.clone(),
+    assert!(threshold_sig_setup_wasm().is_err(), "setup must throw");
+    assert!(
+        threshold_sig_keygen_shares_wasm(3, 5).is_err(),
+        "keygen must throw and must never hand shares to JS",
+    );
+    assert!(
+        threshold_sig_sign_round1_wasm(&[0u8; 32], 1, 3, message).is_err(),
+        "round1 must throw",
+    );
+    assert!(
+        threshold_sig_sign_round2_wasm(
+            JsValue::NULL,
+            JsValue::NULL,
             message,
-            bytes,
-            *index,
-            *threshold,
-            commitments_value.clone(),
+            &[0u8; 32],
+            1,
+            3,
+            JsValue::NULL,
         )
-        .expect("round2");
-        partials.push(
-            serde_wasm_bindgen::from_value::<serde_json::Value>(partial_js).expect("partial"),
-        );
-    }
-
-    let agg_js = threshold_sig_aggregate_wasm(
-        public_key.clone(),
-        message,
-        commitments_value,
-        to_value(&partials).expect("partials"),
-    )
-    .expect("aggregate");
-    let signature = get_prop(&agg_js, "signature");
-    assert!(threshold_sig_verify_wasm(public_key, message, signature).expect("verify"));
+        .is_err(),
+        "round2 must throw",
+    );
+    assert!(
+        threshold_sig_aggregate_wasm(JsValue::NULL, message, JsValue::NULL, JsValue::NULL).is_err(),
+        "aggregate must throw",
+    );
+    assert!(
+        threshold_sig_verify_wasm(JsValue::NULL, message, JsValue::NULL).is_err(),
+        "verify must throw — it must never return true",
+    );
+    assert!(
+        threshold_sig_identify_abort_wasm(JsValue::NULL, message, JsValue::NULL, JsValue::NULL)
+            .is_err(),
+        "identify_abort must throw",
+    );
+    assert!(
+        threshold_sig_encode_wire_v1_wasm("00", "00").is_err(),
+        "encode wire must throw",
+    );
+    assert!(
+        threshold_sig_decode_wire_v1_wasm(&[0u8; 8]).is_err(),
+        "decode wire must throw",
+    );
 }
 
 #[cfg(not(all(target_arch = "wasm32", feature = "wasm")))]

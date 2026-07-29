@@ -1,65 +1,57 @@
+//! KAT regeneration — permanently disabled.
+//!
+//! **What this test used to do:** it was an `#[ignore]`d generator, run on demand, that drove a
+//! 3-of-5 ceremony and wrote `tests/vectors/threshold-sig-pop-v1.json` plus a manifest. Those
+//! files were then exported as this crate's published known-answer vectors.
+//!
+//! **What it does now:** nothing can be regenerated, because `aggregate` refuses. Rather than
+//! leave a generator that silently produces nothing, this asserts the regeneration path is
+//! closed, so anyone who reaches for it gets a clear failure instead of an empty result. It is
+//! no longer `#[ignore]`d: the assertion is cheap and belongs in the normal run.
+
 mod common;
 
-use lib_q_threshold_sig::aggregate;
+#[allow(deprecated)]
+use lib_q_threshold_sig::{
+    ThresholdSigError,
+    aggregate,
+    setup,
+};
 
 #[test]
-#[ignore = "regenerates tests/vectors/threshold-sig-pop-v1.json"]
-fn kat_regenerate_vectors() {
-    use std::fs;
-    use std::path::Path;
+#[allow(deprecated)]
+fn kat_regeneration_is_closed() {
+    let profile = setup();
+    let pk = common::inert_public_key();
+    let commitments: Vec<_> = (1..=common::THRESHOLD)
+        .map(common::inert_commitment)
+        .collect();
+    let partials: Vec<_> = (1..=common::THRESHOLD).map(common::inert_partial).collect();
 
-    let (profile, keygen) = common::deterministic_keygen(0x66);
-    let message = b"kat-regenerate-message";
-    let signers = common::select_signers(&keygen.secret_shares);
-    let mut rng = common::deterministic_rng(0x67);
-    let states = common::build_round_states(&profile, &signers, message, &mut rng);
-    let commitments = states
-        .iter()
-        .map(|s| s.commitment.clone())
-        .collect::<Vec<_>>();
-    let partials = common::build_partials(
-        &profile,
-        &keygen.public_key,
-        &signers,
-        &states,
-        &commitments,
-        message,
+    assert_eq!(
+        aggregate(
+            &profile,
+            &pk,
+            b"kat-regenerate-message",
+            &commitments,
+            &partials,
+        )
+        .err(),
+        Some(ThresholdSigError::SchemeWithdrawn),
+        "no vector can be regenerated for a withdrawn scheme",
     );
-    let aggregate_out = aggregate(
-        &profile,
-        &keygen.public_key,
-        message,
-        &commitments,
-        &partials,
-    )
-    .expect("aggregate");
+}
 
-    let doc = serde_json::json!({
-        "format": "threshold-sig-kat-v1",
-        "spec_version": "v1",
-        "wire_hex": hex::encode(&aggregate_out.wire),
-        "wire_bytes": aggregate_out.wire.len(),
-        "message_hex": hex::encode(message),
-        "threshold": common::THRESHOLD,
-        "parties": common::PARTIES,
-    });
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/vectors");
-    fs::create_dir_all(&dir).expect("mkdir vectors");
-    fs::write(
-        dir.join("threshold-sig-pop-v1.json"),
-        serde_json::to_string_pretty(&doc).expect("json"),
-    )
-    .expect("write kat");
-
-    let manifest = serde_json::json!({
-        "schema": "threshold-sig-kat-v1",
-        "regenerate": "cargo test -p lib-q-threshold-sig kat_regenerate_vectors -- --ignored",
-        "wire_bytes": aggregate_out.wire.len(),
-        "budget_bytes": lib_q_threshold_sig::PROFILE_ENVELOPE_BUDGET_BYTES,
-    });
-    fs::write(
-        dir.join("manifest.json"),
-        serde_json::to_string_pretty(&manifest).expect("json"),
-    )
-    .expect("write manifest");
+/// The shipped vector file must carry the withdrawal notice, not a signature blob.
+#[test]
+fn shipped_vector_file_is_a_withdrawal_notice() {
+    let raw = include_str!("vectors/threshold-sig-pop-v1.json");
+    assert!(
+        raw.contains("WITHDRAWN"),
+        "vector file must state the withdrawal: {raw}",
+    );
+    assert!(
+        !raw.contains("wire_hex"),
+        "vector file must not ship a signature blob: {raw}",
+    );
 }

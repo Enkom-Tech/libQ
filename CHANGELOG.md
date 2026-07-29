@@ -2,6 +2,41 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## 0.0.9
+
+### Security
+
+- **`lib-q-threshold-sig` WITHDRAWN.** The crate is not a signature scheme and never provided any
+  security: its published verifying keys were the private Shamir shares, its group key was the
+  master secret recoverable from public data, and verification contained no secret input. The
+  defect is structural, not a matter of parameters — see
+  [`lib-q-threshold-sig/README.md`](lib-q-threshold-sig/README.md) for the analysis (deliberately
+  without forgery steps). `keygen_shares`, `sign_round1`, `sign_round2`, `aggregate`, `verify`,
+  `identify_abort`, and `proactive_refresh` now return `ThresholdSigError::SchemeWithdrawn`
+  unconditionally and are `#[deprecated]`; the vulnerable construction has been deleted from the
+  source rather than feature-gated, so it cannot be re-enabled by any downstream feature
+  unification. All `@lib-q/threshold-sig` WASM exports throw.
+- **Anyone who used this crate should treat any published, transmitted, logged, or persisted
+  `ThresholdSigPublicKey` as full disclosure of the signing key and of every party's share**, and
+  re-evaluate as unauthenticated any decision made on its output. Signatures it produced cannot be
+  validated retroactively.
+
+### Changed
+
+- **CD (`.github/workflows/cd.yml`):** `lib-q-threshold-sig` removed from the crates.io
+  `publish-rust-tier-4b-new-primitives` matrix and from the npm `publish-wasm-packages` matrix.
+  `scripts/publish-npm-ordered.sh` no longer lists it. The crate's `Cargo.toml` now sets
+  `publish = false`, so `cargo publish` refuses it even if run manually. It remains a workspace
+  member — compiled, tested (`cargo test`, wasm32 checks, wasm-bindgen smoke tests), and lint-gated
+  in CI — but ships to neither crates.io nor npm.
+- **CI (`.github/workflows/ci.yml`):** removed from the `publish-readiness` dry-run matrix (there is
+  nothing to ready a withdrawn, `publish = false` crate for). Left in place everywhere the
+  withdrawal itself is being verified: the `test-matrix`, `wasm-validation`, and
+  `wasm-bindgen-smoke` rows.
+- **Docs:** `README.md`, `docs/npm-coverage.md`, `docs/npm-packages.md`, and `docs/npm-wasm-api.md`
+  no longer describe `lib-q-threshold-sig` / `@lib-q/threshold-sig` as a usable package; npm package
+  counts updated accordingly (30 → 29 total, 29 → 28 wasm-pack bundles).
+
 ## 0.0.8
 
 ### Added

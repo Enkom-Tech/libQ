@@ -1,21 +1,36 @@
+//! Fuzz target: the withdrawn `identify_abort` refusal contract, plus the retained signature
+//! parser.
+//!
+//! This target previously generated real key material with `keygen_shares` and fuzzed
+//! `identify_abort` against it. Both of those depend on the construction that has been removed:
+//! `keygen_shares` now refuses, so the old body would bail out on its first statement and fuzz
+//! nothing at all — a harness that reports success while exercising no code.
+//!
+//! It now does two useful things instead. First it asserts the refusal contract holds for
+//! arbitrary attacker-shaped input: `identify_abort` must never return `Ok` no matter what it is
+//! handed. Second it fuzzes `decode_signature`, one of the retained pure-serialization codecs,
+//! which is a real byte parser and the only remaining place untrusted input reaches parsing
+//! logic.
+
 #![no_main]
 
 use lib_q_threshold_sig::{
     Round1Commitment,
     Round2Partial,
+    ThresholdSigError,
+    ThresholdSigPublicKey,
+    decode_signature,
     identify_abort,
-    keygen_shares,
     setup,
 };
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let profile = setup();
-    let mut rng = lib_q_random::new_deterministic_rng([0xA5; 32]);
-    let keygen = match keygen_shares(&profile, 3, 5, &mut rng) {
-        Ok(v) => v,
-        Err(_) => return,
-    };
 
+    // The retained parser: arbitrary bytes must never panic it.
+    let _ = decode_signature(data);
+
+    // The refusal contract: no input may coax `identify_abort` into returning `Ok`.
     let mut commitments = Vec::<Round1Commitment>::new();
     let mut partials = Vec::<Round2Partial>::new();
 
@@ -49,11 +64,23 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
         });
     }
 
-    let _ = identify_abort(
+    let public_key = ThresholdSigPublicKey {
+        profile_id: 1,
+        threshold: 3,
+        group_key: [0u8; 32],
+        share_verifiers: Vec::new(),
+    };
+
+    #[allow(deprecated)]
+    let outcome: Result<Vec<u8>, ThresholdSigError> = identify_abort(
         &profile,
-        &keygen.public_key,
+        &public_key,
         b"fuzz-identify-abort",
         commitments.as_slice(),
         partials.as_slice(),
+    );
+    assert!(
+        matches!(outcome, Err(ThresholdSigError::SchemeWithdrawn)),
+        "identify_abort must refuse every input",
     );
 });

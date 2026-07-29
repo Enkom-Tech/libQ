@@ -7,9 +7,17 @@ rust-version.workspace = true
 homepage.workspace = true
 repository.workspace = true
 readme = "README.md"
-description = "PROVISIONAL SHAKE256-based threshold signature crate (FROST-like, pre-standard)"
-keywords = ["cryptography", "post-quantum", "threshold", "signature", "shake256"]
+# WITHDRAWN: this crate is not a signature scheme and provides no security. Every signing and
+# verification entry point fails closed; the construction behind them has been deleted. See
+# README.md and the crate-level documentation.
+description = "WITHDRAWN — cryptographically unsound, provides no security; all entry points fail closed"
+keywords = ["cryptography", "withdrawn", "deprecated", "insecure", "threshold"]
 categories = ["cryptography", "wasm"]
+# Belt-and-suspenders alongside the deleted construction: `publish = false` means `cargo publish`
+# refuses this crate outright, even a manual `cargo publish -p lib-q-threshold-sig` run by a
+# maintainer. It is intentionally absent from cd.yml's crates.io and npm publish jobs; this makes
+# that absence load-bearing instead of merely incidental.
+publish = false
 
 
 [package.metadata.cargo-machete]
@@ -19,16 +27,11 @@ ignored = [
 ]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.9", optional = true, default-features = false }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9", default-features = false, features = ["alloc"] }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.9", default-features = false, features = ["alloc"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.9", default-features = false, features = ["std"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 rand_core = { workspace = true }
 wasm-bindgen = { workspace = true, optional = true }
-js-sys = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true, features = ["std"] }
-serde-wasm-bindgen = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, default-features = false }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
@@ -46,11 +49,8 @@ std = []
 random = []
 wasm = [
     "wasm-bindgen",
-    "js-sys",
     "std",
     "random",
-    "dep:serde_json",
-    "dep:serde-wasm-bindgen",
     "dep:lib-q-core",
     "lib-q-core/std",
     "lib-q-core/wasm",
@@ -63,9 +63,6 @@ getrandom = ["dep:getrandom"]
 name = "lib_q_threshold_sig"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[test]]
 name = "wasm_smoke"

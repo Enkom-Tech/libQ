@@ -102,7 +102,6 @@ jobs:
       matrix:
         include:
           - package: "lib-q-mac"
-          - package: "lib-q-threshold-sig"
           - package: "lib-q-threshold-kem"
           - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
