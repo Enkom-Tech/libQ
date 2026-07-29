@@ -507,7 +507,9 @@ fn flr_emu_matches_native_expm_p63() {
 /// still runs under every feature combination. `cfg`-ing the assertions away
 /// instead would leave `--features div_emu,sqrt_emu` -- the configuration a
 /// constant-time-conscious integrator actually ships -- with the signed-zero
-/// contract unchecked, and no CI row sets either feature to catch it.
+/// contract unchecked. CI's workspace-root `--all-features` clippy pass
+/// does compile-check that configuration, but no CI row runs tests under
+/// it, so a regression there would go untested.
 ///
 /// Provenance of each, and why it is not (currently) a signing hazard:
 ///

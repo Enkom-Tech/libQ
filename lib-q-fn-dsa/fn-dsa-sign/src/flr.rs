@@ -103,8 +103,10 @@ use zeroize::DefaultIsZeroes;
 // Anything that asserts what "the native backend" returns must therefore
 // say under which features it holds; see the pinned-divergence test in
 // `flr_emu_diff.rs`, whose expectations for the native side move with these
-// two flags. Note also that no CI row sets either feature today, so a claim
-// that only holds without them will not be caught by CI.
+// two flags. Note also that CI's workspace-root `--all-features` clippy
+// pass (not `-p`-scoped, so it does enable these) compile-checks both
+// flags, but no CI row actually runs tests under either one -- a runtime
+// claim that only holds without them could still go untested.
 //
 // Consequence of SELECTION: on a normal x86_64 CI runner, `flr_emu.rs` is
 // not compiled at all, so no amount of feature-toggling on that host
