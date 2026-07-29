@@ -467,7 +467,6 @@ jobs:
       matrix:
         include:
           - package: "lib-q-mac"
-          - package: "lib-q-threshold-sig"
           - package: "lib-q-threshold-kem"
           - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
@@ -1145,12 +1144,6 @@ jobs:
             package-name: "@lib-q/threshold-kem"
             package-description: "PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) for Node.js"
             package-keywords: "cryptography,post-quantum,threshold,kem,wasm"
-            features: "wasm,std,random"
-            out-dir: "pkg"
-          - working-directory: "lib-q-threshold-sig"
-            package-name: "@lib-q/threshold-sig"
-            package-description: "PROVISIONAL threshold signatures (FROST-like) for Node.js"
-            package-keywords: "cryptography,post-quantum,threshold,signature,wasm"
             features: "wasm,std,random"
             out-dir: "pkg"
           - working-directory: "lib-q-dkg"
