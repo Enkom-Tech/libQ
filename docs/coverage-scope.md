@@ -7,12 +7,79 @@ This document defines how [test-coverage.md](test-coverage.md) policy maps to **
 | Tier | Intent | Policy target | Current CI gate (see workflows) |
 |------|--------|---------------|----------------------------------|
 | Core library slice | `lib-q-core` sources under `lib-q-core/src`, excluding `wasm/` in PR coverage | ≥80% line on cryptographic API, validation, providers | **78%** line: PR `test-coverage` when `lib-q-core` is the affected package, the `lib-q-core` step in [coverage.yml](../.github/workflows/coverage.yml), and [`effective_threshold_for`](../scripts/verify-workspace-coverage.sh) for local workspace sweeps. |
-| Other affected crates | The package chosen by PR `test-coverage` when the diff hits a listed prefix (see below), or the `lib-q` / `lib-q-core` fallback | ≥80% line (policy); gates ratchet toward that | PR `test-coverage`: default **70%** line; **exceptions** (still below 70% measured portable line): `lib-q-ml-dsa` **60%**, `lib-q-keccak`/`lib-q-kem` **65%**, `lib-q-zkp` **65%**, `lib-q-sig` **66%**, `lib-q-hpke` **66%**, `lib-q-aead`/`lib-q-cb-kem` **68%**. [coverage.yml](../.github/workflows/coverage.yml) (push to `main`, path-filtered PRs, weekly schedule) uses the same exception list plus default **70** for all other crates in its scripted batches (including `lib-q-fn-dsa`, which has no lowered floor yet). |
+| Other affected crates | The package chosen by PR `test-coverage` when the diff hits a listed prefix (see below), or the `lib-q` / `lib-q-core` fallback | ≥80% line (policy); gates ratchet toward that | PR `test-coverage`: default **70%** line; **exceptions** (still below 70% measured portable line): `lib-q-ml-dsa` **60%**, `lib-q-keccak`/`lib-q-kem` **65%**, `lib-q-zkp` **65%**, `lib-q-sig` **66%**, `lib-q-hpke` **66%**, `lib-q-aead`/`lib-q-cb-kem` **68%**. [coverage.yml](../.github/workflows/coverage.yml) (push to `main`, path-filtered PRs, weekly schedule) uses the same exception list plus default **70** for all other crates in its scripted batches, and additionally floors `lib-q-fn-dsa` at **68%**. |
 | Security-critical subset | `lib-q-sig/src/lib.rs`, `ml_dsa.rs`, `provider.rs` (same sources built for `std`+`ml-dsa`) | ≥95% line, 100% branch when tooling emits branches | [security-critical-coverage.yml](../.github/workflows/security-critical-coverage.yml): **70%** line on that scoped set (other `src/*.rs` files are feature-gated and are not part of the denominator); **100%** branch when reported |
 
 **PR package selection:** [.github/workflows/pr.yml](../.github/workflows/pr.yml) picks a single package by scanning the diff against ordered lists (`CORE_CRATES`, `CRYPTO_CRATES`, `UTIL_CRATES`, then Stark/plonk workspace members). The first matching prefix wins. If none match, the job tests `lib-q` when `lib-q/`, `Cargo.toml`, or `Cargo.lock` changed, and otherwise defaults to `lib-q-core`. Workspace members outside those lists are not individually targeted by this job.
 
 For any PR package other than the umbrella `lib-q`, tarpaulin scopes `--include-files` to that package’s own sources (conventionally `<crate>/src/**`, or `examples/*.rs` for the example-only `lib-q-examples` member) so Cobertura `line-rate` is not dominated by dependency code. Resolution is shared by [scripts/print-tarpaulin-include-args.sh](../scripts/print-tarpaulin-include-args.sh) (used from the `rust-test` action and [scripts/run-coverage.sh](../scripts/run-coverage.sh)); CI fails the coverage step if a non-empty `-p`/`--packages` target would run without `--include-files`. Exceptions: `lib-q-core` additionally excludes other member crates and `wasm/` under PR settings; `lib-q-keccak` also excludes `advanced_simd.rs` (nightly/simd-only) plus `x86_simd_avx512.rs` and `x86.rs` (the AVX-512 batched permutation and the x86 SIMD absorption entrypoints — `target_feature`-gated, so a runner without AVX-512/AVX2 takes the scalar fallback and never executes the intrinsic bodies); `lib-q-ml-dsa` excludes `src/simd/avx2.rs`, the `src/simd/avx2/` tree, and `src/ml_dsa_generic/instantiations/avx2.rs` because those sources are built only with `simd256`, while default coverage runs use the portable backend; `lib-q-intrinsics` excludes the opposite-ISA file for the runner (`arm64.rs` on x86_64, `avx2.rs` on aarch64, both on other architectures). AVX2/simd256 behavior is still covered by tests in [.github/workflows/ci.yml](../.github/workflows/ci.yml) (`ml-dsa-compliance`, e.g. `determinism` with `simd256`). The scheduled/push [Test Coverage workflow](../.github/workflows/coverage.yml) also runs a second, **non-gated** tarpaulin pass for `lib-q-ml-dsa` with `--ml-dsa-simd256` (stable only); reports land under `combined-coverage/.../crypto/lib-q-ml-dsa-simd256/`. Local equivalent: `bash scripts/run-coverage.sh --crate lib-q-ml-dsa --ml-dsa-simd256 --threshold 0 --output-dir coverage-ml-dsa-avx2`. To sweep every workspace package from `cargo metadata`: [scripts/verify-workspace-coverage.sh](../scripts/verify-workspace-coverage.sh) — `effective_threshold_for` mirrors the per-crate floors in [pr.yml](../.github/workflows/pr.yml) and [coverage.yml](../.github/workflows/coverage.yml) (including **78%** for `lib-q-core` and the lowered floors below **70** where applicable).
+
+## What the gate can silently stop measuring
+
+A coverage percentage is a fraction, and both halves can be corrupted without the number ever
+looking wrong. [scripts/ci-guard-coverage-honesty.sh](../scripts/ci-guard-coverage-honesty.sh)
+(run on every PR from `core-validation` in [ci.yml](../.github/workflows/ci.yml)) asserts the
+failure modes this repository has actually hit:
+
+1. **Numerator — test-name filters.** No `cargo tarpaulin` command may pass test *names* after
+   libtest's `--` separator; only scheduling/output flags (`--test-threads=1` for `lib-q-kem`) are
+   allowed. A name filter shrinks the set of tests that runs while `--include-files` leaves the
+   denominator untouched, so the result describes the filter. `lib-q-fn-dsa` carried
+   `-- keypair_generation test_basic_fn_dsa_functionality sign_and_verify seeded_sign`, which ran
+   6 of its 34 tests and measured **69/161 = 42.86%** against a 68% floor; with the filter removed
+   the same code measures **129/161 = 80.12%** (measured locally, `x86_64-pc-windows-msvc`,
+   cargo-tarpaulin 0.32.8 `--engine llvm`; CI's Linux figure will differ slightly).
+   The files to inspect are **discovered** by walking the repo for shell/YAML/PowerShell files that
+   mention tarpaulin, not read off a list, and command text is reached by tainting every variable
+   that flows into the invocation — so neither a new workflow nor a different append idiom
+   (`CMD+=`, or a filter parked in a variable named nothing like "cmd") escapes it.
+2. **Selection — silently skipped packages.** The `coverage-skip` step in the
+   [rust-test action](../.github/actions/rust-test/action.yml) matched `*"lib-q-keccak"*` as a
+   substring, which also swallowed the unrelated sibling `lib-q-keccak-digest`: it took the no_std
+   compile-check path and its coverage never ran on any PR. The predicate is now an exact match,
+   and the guard runs the **shipped** predicate against every workspace package **under every
+   input shape the action accepts** — `package:`, `packages:`, a `packages:` entry carrying an
+   `@features` suffix, a package inside a longer `packages:` list, and a non-`no_std` `features:`
+   string. Driving only `package:` would leave the `$PACKAGES` arm unexercised, and `ci.yml` really
+   does pass `packages:`. Only packages on an explicit allowlist may be skipped; `lib-q-keccak`
+   remains skipped there (no_std rlib under a panic=abort profile) and is gated by `coverage.yml`
+   at 65% instead.
+3. **Denominator — source hidden in nested crates.** `--include-files '<crate>/src/**'` cannot see
+   a nested cargo package. The guard fails on any nested package inside a workspace member that is
+   neither a member itself nor in `[workspace].exclude`, unless it is recorded as a known gap.
+4. **Denominator — narrowed head-on.** A whole-crate `--include-files` must name a directory glob
+   (`<crate>/src/*`, `<crate>/src/**`, `*.rs`); pointing it at `<crate>/src/lib.rs` shrinks the
+   denominator to one file. Deliberately scoped tiers are allowed from `NARROW_INCLUDE_ALLOWLIST`,
+   keyed by *file* so the security-critical tier's narrow includes cannot license the same
+   narrowing in the whole-crate gate. Symmetrically, an `--exclude-files` reaching inside a
+   member's own `src/` must appear in `SRC_EXCLUDE_ALLOWLIST` — the ~15 existing ones are all
+   code the runner cannot execute (SIMD/arch-gated bodies, non-compiled cfgs) and each carries its
+   reason there. Excluding a file that merely lacks tests now fails the build.
+
+**What the guard does not cover** (a green run is not a proof the number is right): it is static
+and never runs tarpaulin; CHECK 1's taint analysis is per-file, so a command assembled across two
+files is not modelled; CHECK 4 does not allowlist coarse `<crate>/*` exclusions such as the
+sibling-crate list `lib-q-core` uses, so an exclusion naming the crate under `--packages` would
+pass; and discovery keys on the literal string `tarpaulin`, so a wrapper that never spells the
+tool's name is invisible. These are recorded in the script header rather than papered over.
+
+### Known gap: FN-DSA nested crates
+
+`lib-q-fn-dsa`'s gated percentage describes `lib-q-fn-dsa/src/lib.rs` (161 measurable lines) and
+nothing else. The five nested crates `lib-q-fn-dsa/fn-dsa{,-comm,-kgen,-sign,-vrfy}` hold roughly
+37k lines and are outside the denominator — including `fn-dsa-kgen/src/poly.rs`, where a portable
+keygen livelock survived from 2026-05-17 to 2026-07-27 with no coverage signal. **Read
+"lib-q-fn-dsa: 80%" as a statement about the wrapper, not about FN-DSA.**
+
+They cannot simply be added to `--include-files`: they are not workspace members, so
+`tarpaulin --packages lib-q-fn-dsa` never runs their own test suites, and widening the denominator
+without running those suites would crater the figure and break the gate blind. Closing this is
+measure-then-gate: add report-only (`--threshold 0`) tarpaulin rows for each nested crate to
+`coverage.yml` — the precedent already exists there for `lib-q-ml-dsa --ml-dsa-simd256` — then set
+floors from what CI prints. Note that `--packages <name>` will not resolve for a non-member, so
+those rows need a manifest-path invocation or the crates need to become workspace members first;
+that has not been verified on a Linux runner. The entry in `NESTED_PACKAGE_EXCEPTIONS` keeps the
+gap visible until then.
 
 ## Security-critical paths (line targets)
 

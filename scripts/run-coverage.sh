@@ -233,15 +233,18 @@ for part in "${FORMAT_PARTS[@]}"; do
 done
 CMD="$CMD${OUT_EXTRA} --output-dir $OUTPUT_DIR"
 
-if [[ "$CRATE" == "lib-q-fn-dsa" ]]; then
-  # Measure keygen AND signing/verification: fn-dsa is a signature crate, so the sign/
-  # sign_from_seed/verify paths must be exercised for coverage to be meaningful. The
-  # `sign_and_verify` / `seeded_sign` filters pull in the existing (passing) 512+1024
-  # sign+verify and deterministic-seed tests. Kept name-filtered (not a full run) to hold
-  # debug-tarpaulin wall time down; each matched test stays under the --timeout 180 bound.
-  CMD="$CMD -- keypair_generation test_basic_fn_dsa_functionality sign_and_verify seeded_sign"
-elif [[ "$CRATE" == "lib-q-kem" ]]; then
+# NEVER add a test-NAME filter here. A name filter shrinks the set of tests that runs while
+# leaving --include-files (the denominator) untouched, so the resulting percentage describes
+# the filter, not the crate. lib-q-fn-dsa used to carry
+#   -- keypair_generation test_basic_fn_dsa_functionality sign_and_verify seeded_sign
+# which ran 6 of the crate's 34 tests against all of lib-q-fn-dsa/src/lib.rs and scored
+# 69/161 = 42.86% against a 68% floor -- a red gate that said nothing about the code.
+# The identical filter in .github/actions/rust-test/action.yml was removed for the same
+# reason (see the comment there). scripts/ci-guard-coverage-honesty.sh enforces this:
+# only libtest FLAGS may follow the `--` separator, never test names.
+if [[ "$CRATE" == "lib-q-kem" ]]; then
   # Serial libtest lowers load on large HQC integration tests under LLVM instrumentation.
+  # A scheduling flag, not a test selector: every test still runs.
   CMD="$CMD -- --test-threads=1"
 fi
 
