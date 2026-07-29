@@ -101,24 +101,26 @@ mask needs `f64`. The `no_std` build exposes only `error` + `profile`.
   re-randomized, so a fresh verification-key set is published. Covered by
   `reshare_is_binding_and_preserves_secret`.
 
-## 5. Type mapping to `lib-q-threshold-sig` (drop-in target)
+## 5. Type mapping to `lib-q-threshold-raccoon` (drop-in target)
 
-| this crate | `lib-q-threshold-sig` | note |
-|------------|-----------------------|------|
+| this crate | `lib-q-threshold-raccoon` | note |
+|------------|---------------------------|------|
 | `SigningShare { index, threshold, share_bytes }` | `SecretShare` | `share_bytes` = `value ‖ rand` (`1 + KAPPA` `R_q` elements) |
 | `ShareVerifier { index, verifying_key }` | `ShareVerifier` | `verifying_key` = serialized `commit(value; rand)` (`MU` `t0` + `t1`) |
-| `VerificationKeySet { threshold, group_key, share_verifiers }` | `ThresholdSigPublicKey` | |
+| `VerificationKeySet { threshold, group_key, share_verifiers }` | `ThresholdRaccoonPublicKey` | |
 | `KeygenSharesOutput { public_key, secret_shares }` | `KeygenSharesOutput` | |
 
-The crate is intentionally **independent** of `lib-q-threshold-sig` (no dependency on a PROVISIONAL
-crate); shapes are mirrored, not re-exported. **Field-compatibility:** `lib-q-threshold-sig` is a
-**GF(256)** byte-wise Shamir/Schnorr placeholder over `[u8;32]` secrets — a `Z_q`/`R_q` lattice share
-cannot feed it. The PQ signer that *does* consume these shares is the co-designed
+The crate is intentionally **independent** of its consumers (no dependency on a PROVISIONAL crate);
+shapes are mirrored, not re-exported. The PQ signer that consumes these shares is the co-designed
 [`lib-q-threshold-raccoon`](../lib-q-threshold-raccoon/LIBQ_API.md): its `SecretShare` is
 byte-identical to [`SigningShare`] and its `ThresholdRaccoonPublicKey.group_key` equals
 [`VerificationKeySet::group_key`], so `dkg_run_honest` is a drop-in dealerless keygen for it (proven
 by that crate's `dealerless_dkg_key_signs_and_verifies` test). The secret constant term is sampled
 **short** ([`SECRET_KEY_WIDTH`]) precisely so the reconstructed key is a valid lattice signing key.
+
+An earlier revision of this document mapped these shapes onto `lib-q-threshold-sig`. That crate was
+a **GF(256)** byte-wise placeholder that could not consume a `Z_q`/`R_q` lattice share anyway; it
+was withdrawn as cryptographically unsound and has been removed from the workspace.
 
 ## 6. Wire (v1, provisional)
 

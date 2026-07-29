@@ -1,9 +1,0 @@
-{
-  "status": "WITHDRAWN",
-  "schema": "threshold-sig-withdrawn-v1",
-  "supersedes": "threshold-sig-kat-v1",
-  "vectors": [],
-  "reason": "lib-q-threshold-sig is withdrawn as cryptographically unsound. Its published key material was the private key and its verification relation contained no secret, so the verifier accepted signatures no participant had produced. The known-answer vector previously shipped here presented one such wire blob as a correct answer; because the original verifier accepted essentially any blob, that vector certified nothing and republishing it would be misleading.",
-  "replacement": "None. A withdrawn scheme has no correct answers to know. Select a threshold signature scheme with a stated hardness assumption and a published security analysis.",
-  "note": "This file is retained, rather than removed, so that vector-export tooling continues to run and propagates this notice instead of a signature blob."
-}
