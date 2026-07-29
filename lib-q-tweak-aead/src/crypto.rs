@@ -212,6 +212,10 @@ mod kat_tests {
         for (i, k) in key.iter_mut().enumerate() {
             *k = i as u8;
         }
+        // A known-answer test pins fixed inputs to fixed outputs; a fresh nonce would make the
+        // expected bytes below unverifiable, which is the whole point of a KAT. This value never
+        // leaves the test module and is not reachable from any production path.
+        // codeql[rust/hard-coded-cryptographic-value]
         let mut nonce = [0u8; NONCE_BYTES];
         for (i, n) in nonce.iter_mut().enumerate() {
             *n = 0x10 + i as u8;

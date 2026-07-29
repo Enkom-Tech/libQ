@@ -21,6 +21,9 @@ fn multi_block_inputs() -> ([u8; KEY_BYTES], [u8; NONCE_BYTES], &'static [u8], V
     for (i, k) in key.iter_mut().enumerate() {
         *k = i as u8;
     }
+    // Fixed by construction: this example regenerates the KAT expected bytes, so its inputs must
+    // match `kat_encrypt_multi_block_293` exactly. Never used to encrypt real data.
+    // codeql[rust/hard-coded-cryptographic-value]
     let mut nonce = [0u8; NONCE_BYTES];
     for (i, n) in nonce.iter_mut().enumerate() {
         *n = 0x10 + i as u8;
@@ -30,7 +33,10 @@ fn multi_block_inputs() -> ([u8; KEY_BYTES], [u8; NONCE_BYTES], &'static [u8], V
 }
 
 fn main() {
+    // Same fixed inputs as the pre-existing `kat_encrypt_libq_empty_ad` vector, for the same
+    // reason: this regenerates that KAT, it does not encrypt anything real.
     let key = [0u8; KEY_BYTES];
+    // codeql[rust/hard-coded-cryptographic-value]
     let nonce = [0u8; NONCE_BYTES];
     let mut out = [0u8; 4 + TAG_BYTES];
     lib_q_tweak_aead::crypto::encrypt(&key, &nonce, b"", b"libQ", &mut out).unwrap();
