@@ -166,6 +166,11 @@ fn compute_tag(
 #[cfg(test)]
 mod kat_tests {
     use super::encrypt;
+    use crate::params::{
+        KEY_BYTES,
+        NONCE_BYTES,
+        TAG_BYTES,
+    };
 
     #[test]
     fn kat_encrypt_libq_empty_ad() {
@@ -180,6 +185,61 @@ mod kat_tests {
             hex::decode("4b77faf686b79b9f0cb22a26a3d2f10882b40b801c15c8801bd8eb7c01d2f13b5e13661a")
                 .unwrap()
                 .as_slice()
+        );
+    }
+
+    /// Multi-block KAT: 293 bytes = 9 full 32-byte blocks + a 5-byte remainder.
+    ///
+    /// This length is chosen to drive **every** loop of the AVX2 keystream in one shot:
+    /// two iterations of the 4-way batched loop (blocks 0..4 and 4..8), one iteration of the
+    /// single-block tail loop (block 8), and the sub-block remainder (block 9). The pre-existing
+    /// `kat_encrypt_libq_empty_ad` vector is 4 bytes, so it only ever reached the remainder path
+    /// — it cannot detect a batched-loop defect.
+    ///
+    /// Why a KAT and not only `tests/simd_equivalence.rs`: this test is **branch-independent**.
+    /// `xor_body` picks AVX2 vs portable at runtime, and the differential test can only run when
+    /// the host CPU actually has AVX2 (it returns early otherwise). This one pins fixed bytes
+    /// whichever branch runs, so a build that takes the AVX2 branch must produce exactly the
+    /// portable answer or fail here. Regenerate with
+    /// `cargo run -p lib-q-tweak-aead --example dump_tweak_kat` (no `simd-avx2`, so the expected
+    /// bytes stay an independent oracle rather than a recording of the AVX2 path).
+    #[test]
+    fn kat_encrypt_multi_block_293() {
+        let mut key = [0u8; KEY_BYTES];
+        for (i, k) in key.iter_mut().enumerate() {
+            *k = i as u8;
+        }
+        let mut nonce = [0u8; NONCE_BYTES];
+        for (i, n) in nonce.iter_mut().enumerate() {
+            *n = 0x10 + i as u8;
+        }
+        let ad = b"lib-q tweak-aead KAT";
+        let mut pt = [0u8; 293];
+        for (i, p) in pt.iter_mut().enumerate() {
+            *p = i as u8;
+        }
+
+        let mut out = [0u8; 293 + TAG_BYTES];
+        encrypt(&key, &nonce, ad, &pt, &mut out).unwrap();
+
+        let expected = hex::decode(concat!(
+            "394feaffac29c1b3eb0b999fd7915ebae93b036d675a4829cac0c823eabf8b0cd35eaf556d6f60a7",
+            "b81a1d87d5cac535d9338ae11bffac70912a498436240736c865f2c75f7277b3278eb2fba75c0920",
+            "dd07dbd0ca8f9605f8630447de31b33ccd9970d50ed8497ae9de95753ef3a5a03c75300a178859b1",
+            "3da26b8a0c1e60046fd0275b8c6b4c1711978cfeee6a54b3c893eb8546f9dcadbd061257d27337dc",
+            "e57145a13903fa215fae05118c49ed9ead64e404adbdcee09be5cf9749fbda26493e58cdf04acc2b",
+            "f42bfae1e8f27a6e6d70ffbc553108687a00469f36b9d9de48d5ce5aaa24b8999e953b134b8b380a",
+            "2ae1fb58bc9612471967abe0e1798c7dcf5beb371c0e570e156e23ac52532a6eb5a0ff0045467082",
+            "c9000e6e71fd3bafe22deb597f5cb1345ef0fb0301b6f65f43ee1138064c57033a7e79826ad7831b",
+            "c4980fd1ce",
+        ))
+        .unwrap();
+        assert_eq!(out.len(), expected.len());
+        assert_eq!(
+            out.as_slice(),
+            expected.as_slice(),
+            "multi-block ciphertext+tag mismatch; first differing byte at index {:?}",
+            out.iter().zip(expected.iter()).position(|(a, b)| a != b)
         );
     }
 }
