@@ -464,9 +464,12 @@ runs:
           fi
         fi
         
-        if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
-          TARPAULIN_CMD="$TARPAULIN_CMD -- keypair_generation test_basic_fn_dsa_functionality"
-        elif [[ "$PACKAGE" == "lib-q-kem" ]]; then
+        # lib-q-fn-dsa used to filter down to `keypair_generation
+        # test_basic_fn_dsa_functionality` here. Coverage is measured against
+        # lib-q-fn-dsa/src/lib.rs, so running 2 of the crate's ~34 tests scored it at
+        # 129/199 = 64.82% and tripped the default 70% floor -- a number about the filter,
+        # not about the crate. Run the whole suite so the figure means something.
+        if [[ "$PACKAGE" == "lib-q-kem" ]]; then
           TARPAULIN_CMD="$TARPAULIN_CMD -- --test-threads=1"
         fi
         

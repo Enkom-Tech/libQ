@@ -1208,21 +1208,24 @@ mod tests {
         }
     }
 
-    /// Full SHA256 keygen KATs (degrees 256 / 512 / 1024). Too slow for routine `cargo test`
-    /// (NTRU solve); run before release or when touching keygen, e.g.
-    /// `cargo test -p lib-q-fn-dsa-kgen test_keygen_ref_full_kat -- --ignored --release --test-threads=1`
+    /// Full SHA256 keygen KATs (degrees 256 / 512 / 1024). Previously `#[ignore]`d as "too slow
+    /// for routine `cargo test`" -- that was an artifact of the portable `poly_sub_scaled` bug
+    /// fixed in commit e101182 (n=2 unrolled arm), which made NTRU keygen livelock (never
+    /// terminate) on any non-AVX2 build; x86 CI never noticed because it always took the AVX2
+    /// path. Post-fix this runs in well under a second in every profile (dev and release, with
+    /// and without `no_avx2`); see `poly::tests::poly_sub_scaled_arms_match_general` for the
+    /// direct regression guard on that bug.
     #[test]
-    #[ignore = "slow full keygen KAT; run with --ignored --release"]
     fn test_keygen_ref_full_kat() {
         inner_keygen_ref(8, &KAT_KG256);
         inner_keygen_ref(9, &KAT_KG512);
         inner_keygen_ref(10, &KAT_KG1024);
     }
 
-    /// NTRU identity check (all supported `logn`). Too slow for routine `cargo test` in debug;
-    /// run with `--ignored --release` (see also `test_keygen_ref_full_kat`).
+    /// NTRU identity check (all supported `logn`). Previously `#[ignore]`d for the same reason as
+    /// `test_keygen_ref_full_kat` above (portable keygen livelock, now fixed); runs in well under
+    /// a second post-fix.
     #[test]
-    #[ignore = "slow NTRU keygen self-test; run with --ignored --release"]
     fn test_keygen_self() {
         for logn in 2..11 {
             let n = 1usize << logn;
