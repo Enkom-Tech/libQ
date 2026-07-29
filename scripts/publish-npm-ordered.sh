@@ -80,7 +80,6 @@ lib-q-blind-pcs|@lib-q/blind-pcs|Experimental blind commitment demo (EXPERIMENTA
 lib-q-double-kem|@lib-q/double-kem|PROVISIONAL MAUL v1 double ML-KEM-768 for Node.js|cryptography,post-quantum,kem,ml-kem,double-kem,wasm|wasm,std,random|pkg|
 lib-q-fhe|@lib-q/fhe|Experimental toy lattice FHE demo (EXPERIMENTAL_NON_NIST)|cryptography,post-quantum,fhe,experimental,wasm|wasm,fhe|pkg|
 lib-q-threshold-kem|@lib-q/threshold-kem|PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
-lib-q-threshold-sig|@lib-q/threshold-sig|PROVISIONAL threshold signatures (FROST-like) for Node.js|cryptography,post-quantum,threshold,signature,wasm|wasm,std,random|pkg|
 EOF
 
 mapfile -t ROWS < <(printf '%s\n' "$PACKAGES")

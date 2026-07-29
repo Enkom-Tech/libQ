@@ -13,6 +13,11 @@ readme = "README.md"
 description = "WITHDRAWN — cryptographically unsound, provides no security; all entry points fail closed"
 keywords = ["cryptography", "withdrawn", "deprecated", "insecure", "threshold"]
 categories = ["cryptography", "wasm"]
+# Belt-and-suspenders alongside the deleted construction: `publish = false` means `cargo publish`
+# refuses this crate outright, even a manual `cargo publish -p lib-q-threshold-sig` run by a
+# maintainer. It is intentionally absent from cd.yml's crates.io and npm publish jobs; this makes
+# that absence load-bearing instead of merely incidental.
+publish = false
 
 
 [package.metadata.cargo-machete]
@@ -58,9 +63,6 @@ getrandom = ["dep:getrandom"]
 name = "lib_q_threshold_sig"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [[test]]
 name = "wasm_smoke"

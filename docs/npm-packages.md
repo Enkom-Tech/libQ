@@ -1,6 +1,10 @@
 # @lib-q npm packages
 
-**29** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
+**28** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
+
+`@lib-q/threshold-sig` is not among them: `lib-q-threshold-sig` is **WITHDRAWN — cryptographically
+unsound**, and is published to neither npm nor crates.io as of 0.0.9. See
+[`lib-q-threshold-sig/README.md`](../lib-q-threshold-sig/README.md).
 
 Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
 
@@ -37,7 +41,6 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/double-kem` | `lib-q-double-kem` | PROVISIONAL MAUL v1 double ML-KEM-768 |
 | `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE demo (**EXPERIMENTAL_NON_NIST**) |
 | `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) |
-| `@lib-q/threshold-sig` | `lib-q-threshold-sig` | PROVISIONAL threshold signatures (FROST-like) |
 
 `lib-q-stark-*` and `lib-q-plonky-*` subcrates remain **crates.io-only**; npm uses the umbrella rows above.
 
