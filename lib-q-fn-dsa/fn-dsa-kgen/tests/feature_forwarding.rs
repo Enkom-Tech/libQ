@@ -130,10 +130,18 @@ fn shake256x4_is_forwarded_to_the_crate_that_defines_it() {
                      `cargo check -p {dependent} --features {FEATURE}` counterpart lives in \
                      .github/actions/test-fn-dsa/action.yml.\n      \
                      Why the forward is required: `{dep_name}` declares `{FEATURE}` and gates \
-                     items on it, so `--features {FEATURE}` on `{dependent}` alone turns on \
-                     this crate's own `#[cfg(feature = \"{FEATURE}\")]` code while `{dep_name}` \
-                     is still built without the feature — anything that code reaches for \
-                     behind that gate is configured out (E0433/E0425).\n      \
+                     items on it. Without the forward, `--features {FEATURE}` on `{dependent}` \
+                     does not turn it on in `{dep_name}`, which stays built without it — and \
+                     this test cannot tell you what breaks as a result, because that depends on \
+                     `{dependent}`'s own code, not on manifest wiring. Where `{dependent}` \
+                     itself names an item that only exists under this same flag (e.g. `-kgen`/ \
+                     `-sign` naming `-comm`'s gated `SHAKE256x4`), that reference fails to \
+                     resolve and the build breaks: E0433/E0425. Where it does not — including \
+                     `{dependent}` having no `{FEATURE}`-gated code of its own — the build \
+                     succeeds and `{dependent}` silently keeps the un-forwarded behavior \
+                     instead: a correctness bug with no compiler diagnostic, caught only if \
+                     some downstream check happens to compare actual output, e.g. a KAT byte \
+                     comparison.\n      \
                      Fix: add \"{want}\" to `{FEATURE}`, or to a feature `{FEATURE}` enables, \
                      in {manifest}.",
                     dependent = m.name,
