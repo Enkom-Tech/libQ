@@ -6,6 +6,7 @@ license.workspace = true
 readme = "README.md"
 description = "Side-channel validation harnesses (TVLA, statistical timing) for libQ PQC crates"
 rust-version.workspace = true
+repository.workspace = true
 
 [features]
 default = ["mlkem", "mldsa", "privacy"]
