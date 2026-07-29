@@ -27,4 +27,9 @@ small_context = []
 no_avx2 = []
 div_emu = []
 sqrt_emu = []
-shake256x4 = []
+# MUST forward to `-comm`: the type this crate switches to under the feature
+# (`fn_dsa_comm::shake::SHAKE256x4`) is itself `#[cfg(feature = "shake256x4")]` inside
+# `-comm`. Declared empty (upstream fn-dsa 0.3.0 does the same), `cargo check -p
+# lib-q-fn-dsa-sign --features shake256x4` fails with E0425 — the signatures flip to a type
+# that was never compiled. Guarded by ../fn-dsa-kgen/tests/feature_forwarding.rs.
+shake256x4 = ["lib-q-fn-dsa-comm/shake256x4"]
