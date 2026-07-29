@@ -162,7 +162,6 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
     }
 
     let mut batched_vectors = 0usize;
-    let mut deep_counter_vectors = 0usize;
     for (set_idx, (key, nonce)) in key_nonce_sets().iter().enumerate() {
         for &len in LENGTHS {
             let mut pt = vec![0u8; len];
@@ -209,9 +208,6 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
             if len >= 4 * BLOCK_BYTES {
                 batched_vectors += 1;
             }
-            if batched_blocks(len) > 256 {
-                deep_counter_vectors += 1;
-            }
         }
     }
 
@@ -230,15 +226,17 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
     // driven inside it. With a 4096-byte maximum the batched loop never saw an index above 127,
     // so a counter narrowed to 8 bits was indistinguishable from the correct `u64`.
     //
-    // Deliberately phrased in `batched_blocks`, not bytes: a length can drive the counter past
-    // 255 while leaving every index above 255 to the scalar tail, where the mutation this guard
-    // exists for does not live. See `DEEP_COUNTER_BYTES`.
+    // This checks `LENGTHS` itself, not how many (key/nonce set, length) pairs it produces: the
+    // property that matters is that at least one length reaches past block index 255, and that
+    // does not get any truer or falser depending on how many key/nonce sets `key_nonce_sets()`
+    // happens to return. Counting pairs coupled the guard to `key_nonce_sets()`'s cardinality for
+    // no reason — trimming that function's loop for runtime would trip this assertion while
+    // `LENGTHS` and its deep-counter coverage stayed exactly as they were.
     assert!(
-        deep_counter_vectors >= 8,
-        "vector table no longer drives the AVX2 BATCHED loop past block index 255: only {} \
-         vectors reach it, so a block counter narrowed below 64 bits would pass unnoticed \
-         (needs len >= {} bytes, i.e. >= 260 full blocks)",
-        deep_counter_vectors,
+        LENGTHS.iter().any(|&len| batched_blocks(len) > 256),
+        "no length in LENGTHS drives the AVX2 BATCHED loop past block index 255: a block counter \
+         narrowed below 64 bits would pass unnoticed (needs a length with batched_blocks(len) > \
+         256, i.e. >= 260 full blocks == {} bytes)",
         260 * BLOCK_BYTES
     );
 }
