@@ -121,7 +121,12 @@ runs:
         FEATURES="${{ inputs.features }}"
         PACKAGE="${{ inputs.package }}"
         PACKAGES="${{ inputs.packages }}"
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+        # Exact package match, NOT a substring. `*"lib-q-keccak"*` also matched the sibling
+        # crate lib-q-keccak-digest, which is a normal testable rlib (its tests run in
+        # .github/actions/test-sha3) -- so it silently took the no_std compile-check path and
+        # had its coverage skipped on every PR that touched it. $PACKAGES is a space-separated
+        # list whose entries may carry an @features suffix, so match on those boundaries.
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == "lib-q-keccak" || " $PACKAGES " == *" lib-q-keccak "* || " $PACKAGES " == *" lib-q-keccak@"* ]]; then
           echo "skip=true" >> $GITHUB_OUTPUT
         else
           echo "skip=false" >> $GITHUB_OUTPUT
@@ -157,13 +162,18 @@ runs:
         if [[ -n "$FEATURES" ]]; then
           FEAT_ARGS=(--features "$FEATURES")
         fi
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+        # Exact package match, NOT a substring. `*"lib-q-keccak"*` also matched the sibling
+        # crate lib-q-keccak-digest, which is a normal testable rlib (its tests run in
+        # .github/actions/test-sha3) -- so it silently took the no_std compile-check path and
+        # had its coverage skipped on every PR that touched it. $PACKAGES is a space-separated
+        # list whose entries may carry an @features suffix, so match on those boundaries.
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == "lib-q-keccak" || " $PACKAGES " == *" lib-q-keccak "* || " $PACKAGES " == *" lib-q-keccak@"* ]]; then
           echo "Running no_std or no_std-compatible compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package: $PACKAGE"
             # Check that the specific package compiles in no_std mode
-            if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
+            if [[ "$PACKAGE" == "lib-q-keccak" ]]; then
               echo "Building no_std package $PACKAGE (rlib-only; no extra panic feature)"
               cargo check -p $PACKAGE --profile dev-no-std --no-default-features --features "${FEATURES:-alloc}" --verbose
             elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
@@ -262,13 +272,18 @@ runs:
         if [[ -n "$FEATURES" ]]; then
           FEAT_ARGS=(--features "$FEATURES")
         fi
-        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == *"lib-q-keccak"* || "$PACKAGES" == *"lib-q-keccak"* ]]; then
+        # Exact package match, NOT a substring. `*"lib-q-keccak"*` also matched the sibling
+        # crate lib-q-keccak-digest, which is a normal testable rlib (its tests run in
+        # .github/actions/test-sha3) -- so it silently took the no_std compile-check path and
+        # had its coverage skipped on every PR that touched it. $PACKAGES is a space-separated
+        # list whose entries may carry an @features suffix, so match on those boundaries.
+        if [[ "$FEATURES" == *"no_std"* || "$PACKAGE" == "lib-q-keccak" || " $PACKAGES " == *" lib-q-keccak "* || " $PACKAGES " == *" lib-q-keccak@"* ]]; then
           echo "Running no_std or no_std-compatible release compilation check"
           echo "Cannot run tests in no_std mode or for no_std-compatible packages"
           if [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             echo "Testing specific package in release: $PACKAGE"
             # Check that the specific package compiles in no_std mode for release
-            if [[ "$PACKAGE" == *"lib-q-keccak"* ]]; then
+            if [[ "$PACKAGE" == "lib-q-keccak" ]]; then
               echo "Building no_std package $PACKAGE in release mode (rlib-only)"
               cargo check -p $PACKAGE --profile release --no-default-features --features "${FEATURES:-alloc}" --verbose
             elif [[ "$PACKAGE" == "lib-q-core" || "$PACKAGE" == "lib-q-random" ]]; then
