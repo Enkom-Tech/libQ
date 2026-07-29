@@ -178,7 +178,10 @@ mod kat_tests {
         let nonce = [0u8; 16];
         let ad = b"";
         let pt = b"libQ";
-        let mut out = [0u8; 4 + 32];
+        // Deliberately DIRTY (see `kat_encrypt_multi_block_293`): `encrypt` must assign into the
+        // caller's buffer, not XOR into whatever it already held. A zeroed buffer cannot tell the
+        // two apart, since 0 is the XOR identity.
+        let mut out = [0xAAu8; 4 + 32];
         encrypt(&key, &nonce, ad, pt, &mut out).unwrap();
         assert_eq!(
             out.as_slice(),
@@ -219,7 +222,15 @@ mod kat_tests {
             *p = i as u8;
         }
 
-        let mut out = [0u8; 293 + TAG_BYTES];
+        // Deliberately DIRTY, not zeroed. `encrypt` is `pub` and writes into a caller-supplied
+        // `out`; a caller reusing one buffer across messages is the obvious way to avoid
+        // reallocating. A zeroed buffer cannot distinguish `ct[i] = pt[i] ^ ks[i]` from
+        // `ct[i] ^= pt[i] ^ ks[i]` (0 is the XOR identity), and every output buffer in this
+        // suite used to be zeroed: changing both AVX2 write sites to `^=` left all 12 tests
+        // green. Prefilling here pins assignment semantics on whichever branch `xor_body` takes,
+        // so it holds on AVX2-less runners too. The expected bytes are unchanged — that is the
+        // point.
+        let mut out = [0xAAu8; 293 + TAG_BYTES];
         encrypt(&key, &nonce, ad, &pt, &mut out).unwrap();
 
         let expected = hex::decode(concat!(

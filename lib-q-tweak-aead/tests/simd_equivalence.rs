@@ -13,6 +13,15 @@
 //! AVX2 4-way batched loop. Shorter inputs fall through to the same scalar `keystream_block`
 //! tail the portable implementation uses, so they can never disagree.
 //!
+//! Two properties are pinned here that a differential test does NOT get for free, and that this
+//! file did not have when it was first written:
+//!
+//! 1. **The counter is driven past block index 255** (`DEEP_COUNTER_BYTES`). A table that stops
+//!    at 4096 bytes only ever reaches index 127, so any narrowing of the block counter below
+//!    64 bits is invisible.
+//! 2. **Output buffers start dirty.** With a zeroed `ct`, assignment and XOR-accumulation are
+//!    indistinguishable, because 0 is the XOR identity.
+//!
 //! All data is generated from FIXED seeds (no clock, no system entropy) so any failure
 //! reproduces exactly from the printed set index and length.
 #![cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
@@ -30,12 +39,75 @@ use lib_q_tweak_aead::simd::{
     TweakAeadStreamOps,
 };
 
+/// Number of blocks the 4-way BATCHED loop handles for a buffer of `len` bytes.
+///
+/// `xor_keystream_avx2` runs `while block_idx + 4 <= full_blocks`, so the batched loop covers
+/// blocks `0..batched_blocks(len)` and everything above that is handed to the scalar tail
+/// (which calls the same `keystream_block` the portable path does). Getting this distinction
+/// right is what `DEEP_COUNTER_BYTES` turns on: a length can drive the *counter* past 255 while
+/// the *batched loop* never sees an index above 255.
+fn batched_blocks(len: usize) -> usize {
+    (len / BLOCK_BYTES) / 4 * 4
+}
+
+/// Smallest interesting length whose 4-way BATCHED loop is entered with `block_idx` = 256, i.e.
+/// the only place a block counter narrowed below 64 bits can be caught.
+///
+/// 8357 = 261 full blocks + 5. `batched_blocks(8357)` = 260, so the final batch covers blocks
+/// 256..259 — inside the batched loop — then the scalar tail takes block 260 and the remainder
+/// takes 261.
+///
+/// The arithmetic matters, and the obvious value is wrong. 8256 bytes (258 blocks) *does* drive
+/// the counter to 257, but `batched_blocks(8256)` = 256: indices 256 and 257 are handled by the
+/// scalar tail, not the batched loop. Truncating `block_idx + i as u64` to `u8` at
+/// `src/simd/avx2.rs:44` is therefore still invisible at 8256 — verified, the whole suite stayed
+/// green. The batched loop needs `full_blocks >= 260` before it touches index 256 at all.
+///
+/// This is not decoration. The table used to top out at 4096 = 128 blocks, so *any* defect that
+/// first shows above block index 127 was invisible — including the whole class of "the counter
+/// is materialised in something narrower than u64", which is what a vectorised-counter rewrite
+/// (broadcasting four lanes of `block_idx` into a `__m256i` instead of calling the scalar
+/// `setup_state_pre_f1600` four times) would introduce.
+const DEEP_COUNTER_BYTES: usize = 8357;
+
+/// The boundary itself: `batched_blocks(8192)` = 256, so the batched loop's highest index is
+/// exactly 255. Pairs with `DEEP_COUNTER_BYTES` to separate an off-by-one at the boundary from a
+/// wholesale wrap past it.
+const BOUNDARY_COUNTER_BYTES: usize = 8192;
+
 /// Every length at which `xor_keystream_avx2` changes which of its three loops runs: empty,
 /// sub-block, exact block multiples, block +/- 1, the 4-block batch boundary (128) and its
-/// neighbours, several whole batches, and a long buffer (4096 = 32 batches).
+/// neighbours, several whole batches, a long buffer (4096 = 32 batches), and finally the two
+/// lengths that push the block counter to and past index 255 (see `DEEP_COUNTER_BYTES`).
 const LENGTHS: &[usize] = &[
-    0, 1, 2, 15, 31, 32, 33, 63, 64, 65, 95, 96, 97, 127, 128, 129, 130, 159, 160, 161, 255, 256,
-    257, 384, 1000, 4096,
+    0,
+    1,
+    2,
+    15,
+    31,
+    32,
+    33,
+    63,
+    64,
+    65,
+    95,
+    96,
+    97,
+    127,
+    128,
+    129,
+    130,
+    159,
+    160,
+    161,
+    255,
+    256,
+    257,
+    384,
+    1000,
+    4096,
+    BOUNDARY_COUNTER_BYTES,
+    DEEP_COUNTER_BYTES,
 ];
 
 /// Deterministic filler (fixed seed in, same bytes out — never clock- or entropy-seeded).
@@ -90,21 +162,30 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
     }
 
     let mut batched_vectors = 0usize;
+    let mut deep_counter_vectors = 0usize;
     for (set_idx, (key, nonce)) in key_nonce_sets().iter().enumerate() {
         for &len in LENGTHS {
             let mut pt = vec![0u8; len];
-            fill_deterministic(0x3000 + (set_idx as u64) * 8192 + len as u64, &mut pt);
+            // Stride > max(LENGTHS) so (set_idx, len) -> seed stays injective: a reported
+            // "set N, len L" always names exactly one plaintext.
+            fill_deterministic(0x3000 + (set_idx as u64) * 100_000 + len as u64, &mut pt);
 
-            let mut avx2_out = vec![0u8; len];
+            // Every output buffer starts DIRTY, with a different pattern per implementation.
+            // A zeroed buffer cannot tell `ct[i] = pt[i] ^ ks[i]` apart from `ct[i] ^= ...`,
+            // because 0 is the XOR identity — and `crypto::encrypt` is `pub` and takes a
+            // caller-supplied `out`, so a reused or uninitialised buffer is a real caller. With
+            // distinct prefills, any implementation that accumulates instead of assigning carries
+            // its own pattern out and diverges from the other two.
+            let mut avx2_out = vec![0xAAu8; len];
             // SAFETY: guarded by the `has_avx2()` check above; `pt` and `avx2_out` are equal length.
             unsafe {
                 xor_keystream_avx2(key, nonce, &pt, &mut avx2_out);
             }
 
-            let mut portable_out = vec![0u8; len];
+            let mut portable_out = vec![0x55u8; len];
             <Portable as TweakAeadStreamOps>::xor_keystream(key, nonce, &pt, &mut portable_out);
 
-            let mut naive_out = vec![0u8; len];
+            let mut naive_out = vec![0x33u8; len];
             naive_xor_keystream(key, nonce, &pt, &mut naive_out);
 
             assert_eq!(
@@ -128,6 +209,9 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
             if len >= 4 * BLOCK_BYTES {
                 batched_vectors += 1;
             }
+            if batched_blocks(len) > 256 {
+                deep_counter_vectors += 1;
+            }
         }
     }
 
@@ -140,6 +224,79 @@ fn avx2_keystream_matches_portable_over_lengths_and_keys() {
         batched_vectors,
         4 * BLOCK_BYTES
     );
+
+    // Guard the table's CEILING, not just its floor. The `batched_vectors` floor above only
+    // proves the batched loop is entered; it says nothing about how far the block counter is
+    // driven inside it. With a 4096-byte maximum the batched loop never saw an index above 127,
+    // so a counter narrowed to 8 bits was indistinguishable from the correct `u64`.
+    //
+    // Deliberately phrased in `batched_blocks`, not bytes: a length can drive the counter past
+    // 255 while leaving every index above 255 to the scalar tail, where the mutation this guard
+    // exists for does not live. See `DEEP_COUNTER_BYTES`.
+    assert!(
+        deep_counter_vectors >= 8,
+        "vector table no longer drives the AVX2 BATCHED loop past block index 255: only {} \
+         vectors reach it, so a block counter narrowed below 64 bits would pass unnoticed \
+         (needs len >= {} bytes, i.e. >= 260 full blocks)",
+        deep_counter_vectors,
+        260 * BLOCK_BYTES
+    );
+}
+
+/// `xor_keystream_avx2` must **assign** into `ct`, never XOR-accumulate into it.
+///
+/// The distinction is invisible to any test whose output buffer starts zeroed, because 0 is the
+/// identity for XOR: `0 ^ x == x`, so `ct[i] = x` and `ct[i] ^= x` agree byte for byte. Every
+/// buffer in this crate's test suite used to be freshly zeroed, and changing both AVX2 write
+/// sites to `^=` left all 12 tests green.
+///
+/// It matters because the buffer is the CALLER's. `crypto::encrypt` is `pub` in a `pub mod
+/// crypto` and writes into a caller-supplied `out`; a caller that reuses one buffer across
+/// messages — the obvious thing to do to avoid reallocating — would get ciphertext silently
+/// XORed with the previous message's, which for a stream cipher leaks the XOR of two plaintexts.
+///
+/// Stated without reference to the portable path on purpose: encrypting the same input into a
+/// clean and a dirty buffer must give the same bytes, whatever those bytes are.
+#[test]
+fn avx2_output_is_assigned_not_xor_accumulated() {
+    // SAFETY GATE: see `avx2_keystream_matches_portable_over_lengths_and_keys`.
+    if !has_avx2() {
+        return;
+    }
+
+    let key = [0x11u8; KEY_BYTES];
+    let nonce = [0x22u8; NONCE_BYTES];
+
+    // 297 bytes = 9 full blocks + 9: two iterations of the 4-way batched loop (blocks 0..8), one
+    // iteration of the single-block tail (block 8) and a 9-byte remainder (block 9), so all
+    // three of the function's write sites run over dirty memory.
+    let mut pt = vec![0u8; 297];
+    fill_deterministic(0x0000_D147, &mut pt);
+
+    let mut from_clean = vec![0u8; pt.len()];
+    // SAFETY: guarded by the `has_avx2()` check above; buffers are equal length.
+    unsafe {
+        xor_keystream_avx2(&key, &nonce, &pt, &mut from_clean);
+    }
+
+    // 0xAA / 0x55 are complements, so between them every bit position is set in one run: an
+    // accumulate defect cannot cancel out for both.
+    for dirt in [0xAAu8, 0x55u8, 0xFFu8] {
+        let mut from_dirty = vec![dirt; pt.len()];
+        // SAFETY: guarded by the `has_avx2()` check above; buffers are equal length.
+        unsafe {
+            xor_keystream_avx2(&key, &nonce, &pt, &mut from_dirty);
+        }
+        assert_eq!(
+            from_dirty,
+            from_clean,
+            "output depends on what was already in `ct` (prefill {:#04x}, first differing byte \
+             {:?}): the AVX2 path is XOR-accumulating into the caller's buffer instead of \
+             assigning",
+            dirt,
+            first_diff(&from_dirty, &from_clean)
+        );
+    }
 }
 
 #[test]
