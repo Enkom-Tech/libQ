@@ -59,6 +59,15 @@ jobs:
 
       - name: Guard banned terms in new primitive crates
         run: bash ./scripts/ci-guard-primitive-banned-terms.sh
+
+      # Static (it never runs tarpaulin) and deliberately in core-validation rather than a coverage
+      # job: it must run on EVERY PR, including the ones that never trigger a tarpaulin run. The
+      # gaps it catches (a test-name filter shrinking the numerator, a package silently skipped,
+      # source hidden from the denominator in a nested crate, the denominator narrowed head-on)
+      # are invisible in a green coverage report. ~13s wall clock measured on a Windows dev box;
+      # not measured on this Linux runner, but it is a repo walk plus one bash process.
+      - name: Guard coverage-gate scope (numerator, selection, denominator)
+        run: bash ./scripts/ci-guard-coverage-honesty.sh
       
       - name: Core validation
         uses: ./.github/actions/rust-build
