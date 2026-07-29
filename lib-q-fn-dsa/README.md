@@ -32,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-fn-dsa = "0.0.9"
+lib-q-fn-dsa = "0.0.10"
 ```
 
 ### Node.js

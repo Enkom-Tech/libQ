@@ -2,7 +2,7 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
-## 0.0.9
+## 0.0.10
 
 ### Security
 
@@ -19,9 +19,75 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **Anyone who used this crate should treat any published, transmitted, logged, or persisted
   `ThresholdSigPublicKey` as full disclosure of the signing key and of every party's share**, and
   re-evaluate as unauthenticated any decision made on its output. Signatures it produced cannot be
-  validated retroactively.
+  validated retroactively. Versions 0.0.6–0.0.8 remain installable from crates.io and npm until
+  they are yanked.
+
+### Fixed
+
+- **`lib-q-fn-dsa` — portable key generation never terminated for degree n ≥ 8.** One arm of the
+  `poly_sub_scaled` n=2 negacyclic-product unroll computed the wrong result, so the portable keygen
+  path livelocked on every non-x86 target (aarch64, armv7, wasm32) — broken since the crate's first
+  import, and invisible on the AVX2 CI runners that never exercise the portable path. Added a
+  regression test asserting all four `logn <= 3` unrolled arms are bit-identical to the general
+  loop, un-ignored the two keygen tests that had been masking this, and added a `fn-dsa-no-avx2` CI
+  job that runs the portable path on every PR.
+- **`lib-q-fn-dsa`:** `shake256x4` was a fully-wired Cargo feature that could not actually be built
+  per-crate — the feature was not forwarded to `lib-q-fn-dsa-comm`, so enabling it standalone
+  failed to compile.
+- **CI (coverage gate):** the PR coverage gate was scoring `lib-q-fn-dsa` from 6 of 33 tests
+  (42.86%) instead of the true 80.12%, due to a stale test-name filter. Removed the filter,
+  tightened `coverage-skip` substring matching, and added a coverage-honesty guard
+  (`scripts/ci-guard-coverage-honesty.sh`) so a filter like this fails CI instead of silently
+  under-reporting.
+
+### Added
+
+- **`lib-q-sig` / `lib-q-slh-dsa`:** SLH-DSA (FIPS 205) gains signing-context support —
+  `sign_with_randomness_and_context` / `verify_with_context`, `SLH_DSA_CONTEXT_MAX_LEN` (255) —
+  and the WASM bindings now thread the ML-DSA (FIPS 204) signing context through instead of
+  hardcoding an empty one, so a domain-separated signature produced under a GIP context (e.g.
+  `wapp.sh/entitlement-v0`) is verifiable from a browser. Both algorithms reject an over-long
+  context as a hard error rather than truncating it silently. Context-free entry points are
+  unchanged — they delegate with `&[]` and are byte-identical to the prior output, KAT-pinned.
 
 ### Changed
+
+- **Workspace:** Version **0.0.9 → 0.0.10**; all intra-workspace path dependency pins repinned to
+  **0.0.10**.
+- **`lib-q-blind-token` (PROVISIONAL, not audited):** Module-SIS core-SVP raised over the 128-bit
+  quantum floor — modulus q ≈2^48 → ≈2^51 (BKZ blocksize 450 → 491; quantum soundness 119 → 130
+  bit, classical 131 → 143 bit), cost model cross-checked against `lattice-estimator`. Small-width
+  secret-bearing Gaussian samplers made isochronous (constant-time reverse-CDT + branchless
+  BerExp), a secret-dependent branch in gadget-coset reconstruction closed, and the remaining
+  f64/FFT timing caveat certified via a numeric-range argument. Wire format bumped profile 1 → 2
+  (incompatible; downgrade-guarded), KAT v1 → v2. Still RED / research-grade, not a completed
+  side-channel audit.
+- **Dev/test profile:** `opt-level = 2` for all external dependencies and 49 math-heavy workspace
+  crates (the hash stack, algorithm cores, lattice/threshold/proof crates, STARK+plonky proving
+  stacks), so `cargo test --workspace` finishes in practical time locally; `debug-assertions` and
+  `overflow-checks` stay on.
+- **Toolchain:** pinned to `nightly-2026-07-24` (previously a floating `nightly`, which could
+  reformat or re-lint otherwise-untouched files under CI without warning). Bumping the pin is now
+  a deliberate, self-contained PR.
+- **`lib-q-tweak-aead`:** the `simd-avx2` keystream compiled on every PR but was executed by
+  nothing — no workflow enabled the feature and CI's `cargo test --all-features` pass was gated
+  off. Added a differential test against the portable path and byte-pinned KATs reaching past the
+  batched loop's 256-block counter boundary; wired the crate into `ci.yml` with and without
+  `simd-avx2`.
+- **`lib-q-fn-dsa`:** `flr_emu.rs`, the software binary64 backend shipped to wasm32/armv7, was
+  executed by no test anywhere. Added a bit-exact differential against the native backend (which
+  it passed) and a CI job that runs it.
+- **`lib-q-k12`:** constant-time tests now compare timings at equal customization-string length
+  (a prior version compared across lengths, which is not a meaningful constant-time property) and
+  take the minimum of repeated measurements rather than one sample — tightening, not relaxing, the
+  existing tolerance bands.
+- **CI:** `cargo-tarpaulin` installed from a prebuilt binary instead of built from source (saved
+  ~3 min/job); PR coverage cap raised 45 → 60 min. Whole-workspace **debug** test rows no longer
+  re-run the slow lattice keygen/proof crates already covered by their own release-ci rows (their
+  release-mode coverage is unchanged). `.mcp.json` (Enkom-internal agent config) untracked from
+  the public repo.
+- **Dependencies:** serde 1.0.228 → 1.0.229, serde_json 1.0.150 → 1.0.151; thiserror 2.0.18 →
+  2.0.19; portable-atomic 1.13.1 → 1.14.0; aes 0.9.1 → 0.9.2; `actions/setup-node` 5 → 7.
 
 - **CD (`.github/workflows/cd.yml`):** `lib-q-threshold-sig` removed from the crates.io
   `publish-rust-tier-4b-new-primitives` matrix and from the npm `publish-wasm-packages` matrix.

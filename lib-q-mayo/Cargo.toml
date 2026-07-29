@@ -18,17 +18,17 @@ autobenches = false
 bench = false
 
 [dependencies]
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.9" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10" }
 aes = { workspace = true }
 zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
 hex = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.9", features = ["std", "nist-drbg"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.10", features = ["std", "nist-drbg"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.9" }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.10" }
 
 [[test]]
 name = "hardened_dudect_smoke"
