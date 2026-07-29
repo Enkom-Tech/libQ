@@ -75,15 +75,41 @@ use zeroize::DefaultIsZeroes;
 
 // BACKEND SELECTION -- and its test-coverage consequences.
 //
-// The floating-point backend is chosen by `target_arch` ALONE. It is *not*
-// influenced by any Cargo feature; in particular `no_avx2` selects the
-// portable *vector* path in poly.rs/sampler.rs and has no effect here.
+// Two different questions, which must not be conflated: WHICH backend module
+// is compiled, and how the compiled one BEHAVES.
+//
+// SELECTION is by `target_arch` ALONE. No Cargo feature moves it; in
+// particular `no_avx2` selects the portable *vector* path in
+// poly.rs/sampler.rs and has no effect here.
 //
 //   x86_64 / aarch64 / arm64ec / riscv64 -> flr_native.rs (hardware f64)
 //   everything else (wasm32, arm, x86, ...) -> flr_emu.rs (software f64)
 //
-// Consequence: on a normal x86_64 CI runner, `flr_emu.rs` is not compiled at
-// all, so no amount of feature-toggling on that host executes it. It is
+// BEHAVIOUR of the selected backend IS feature-dependent, for two of the
+// operations, and only on the native side:
+//
+//   * `div_emu`  replaces flr_native's `self.0 /= other.0` with the integer
+//                routine `Flr::div_emu()`;
+//   * `sqrt_emu` replaces flr_native's SSE2/NEON/RISC-V sqrt opcode with the
+//                integer routine `Flr::sqrt_emu()`.
+//
+// (Both exist for targets whose FPU divide/square-root is not constant-time;
+// they trade the opcode for a data-independent bit-by-bit loop.) Those two
+// routines are line-for-line ports of flr_emu.rs's own `set_div` and `sqrt`,
+// so under those features flr_native inherits flr_emu's signed-zero
+// behaviour -- which is NOT what the hardware opcodes do: `sqrt_emu`
+// assembles its result through `make_z(0, ..)` and so cannot return -0.0,
+// and `div_emu` clamps the quotient's sign bit to 0 for a zero dividend.
+// Anything that asserts what "the native backend" returns must therefore
+// say under which features it holds; see the pinned-divergence test in
+// `flr_emu_diff.rs`, whose expectations for the native side move with these
+// two flags. Note also that no CI row sets either feature today, so a claim
+// that only holds without them will not be caught by CI.
+//
+// Consequence of SELECTION: on a normal x86_64 CI runner, `flr_emu.rs` is
+// not compiled at all, so no amount of feature-toggling on that host
+// executes it (`div_emu`/`sqrt_emu` change flr_native, they do not pull
+// flr_emu in as the production backend). It is
 // covered by two things, and if you delete either one the emulated backend
 // goes dark again:
 //

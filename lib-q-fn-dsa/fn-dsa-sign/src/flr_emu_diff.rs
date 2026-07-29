@@ -28,9 +28,20 @@
 //!     be a defect.
 //!   * Functional equality only. Nothing here measures constant-timeness.
 //!
+//! No Cargo feature changes which backend is *selected* -- but two of them,
+//! `div_emu` and `sqrt_emu`, change how the native one *behaves*: they
+//! replace flr_native's hardware divide/square-root with integer routines
+//! ported from flr_emu.rs itself. So "the native backend" is not a single
+//! fixed answer here, and any pinned native value has to name the features
+//! it holds under. The tests below therefore run under every feature
+//! combination, with the two feature-sensitive expectations selected by
+//! `cfg`; do not add an unconditional assertion about `Nat::sqrt` or
+//! `Nat::set_div` without checking it under `--all-features` too.
+//!
 //! The two backends are *not* equal everywhere: four operations disagree
-//! when handed a negative zero. Those are pinned, with their exact current
-//! results on both sides and their provenance, in
+//! when handed a negative zero (two of the four only in the default build --
+//! `div_emu`/`sqrt_emu` make the native side agree). Those are pinned, with
+//! their exact current results on both sides and their provenance, in
 //! `flr_emu_negative_zero_divergences_are_pinned` below -- read that test
 //! before concluding "the backends agree".
 //!
@@ -480,6 +491,24 @@ fn flr_emu_matches_native_expm_p63() {
 /// of a negative zero changes, and the exhaustive sweep below means it also
 /// fires if a *new* divergence appears anywhere in the signed-zero domain.
 ///
+/// TWO OF THESE DEPEND ON CARGO FEATURES. `flr_native` is not one
+/// implementation of `sqrt()`/`set_div()` but two: `--features sqrt_emu`
+/// swaps the SSE2/NEON/RISC-V sqrt opcode for the integer `Flr::sqrt_emu()`,
+/// and `--features div_emu` swaps `self.0 /= other.0` for the integer
+/// `Flr::div_emu()` (both for targets whose FPU divide/sqrt is not
+/// constant-time). Those two routines are line-for-line ports of
+/// `flr_emu.rs`'s own `sqrt`/`set_div` -- `sqrt_emu` ends in the same
+/// `make_z(0, ..)` that cannot produce a sign bit, `div_emu` carries the
+/// same `s &= dm` zero-dividend clamp -- so under those features the native
+/// side adopts flr_emu's answer and the divergence DISAPPEARS.
+///
+/// That is asserted, not skipped: the expected *native* value moves with the
+/// feature (`NAT_SQRT_NZERO`, `NAT_ZERO_DIV` below) while every assertion
+/// still runs under every feature combination. `cfg`-ing the assertions away
+/// instead would leave `--features div_emu,sqrt_emu` -- the configuration a
+/// constant-time-conscious integrator actually ships -- with the signed-zero
+/// contract unchecked, and no CI row sets either feature to catch it.
+///
 /// Provenance of each, and why it is not (currently) a signing hazard:
 ///
 ///   * `abs(-0.0)`  emu -> +0.0, native -> -0.0.
@@ -489,11 +518,13 @@ fn flr_emu_matches_native_expm_p63() {
 ///     right. `abs()` is `#[allow(dead_code)]` in both backends and is
 ///     called only from tests in this crate.
 ///
-///   * `sqrt(-0.0)` emu -> +0.0, native -> -0.0.
-///     IEEE-754 defines sqrt(-0.0) = -0.0, so the native one is right;
-///     `flr_emu::sqrt` ends in `Self::make_z(0, e, q)` with the sign
-///     hardcoded to 0. In this crate `sqrt()` is only ever applied to a
-///     value taken from `g00_re`/`d11_re`-style FFT magnitudes.
+///   * `sqrt(-0.0)` emu -> +0.0, native -> -0.0 (native -> +0.0, i.e. no
+///     divergence at all, when built `--features sqrt_emu`).
+///     IEEE-754 defines sqrt(-0.0) = -0.0, so the hardware-opcode native one
+///     is right; `flr_emu::sqrt` ends in `Self::make_z(0, e, q)` with the
+///     sign hardcoded to 0, and so does `flr_native::sqrt_emu`. In this
+///     crate `sqrt()` is only ever applied to a value taken from
+///     `g00_re`/`d11_re`-style FFT magnitudes.
 ///
 ///   * `floor(-0.0)` emu -> -1, native -> 0.
 ///     Deliberate upstream behaviour: flr_emu.rs's own comment says "If
@@ -502,10 +533,12 @@ fn flr_emu_matches_native_expm_p63() {
 ///     reaches production code: `sampler.rs` computes `let s = mu.floor()`.
 ///     Whether `mu` can ever be exactly -0.0 is NOT established here.
 ///
-///   * `(+/-0.0) / x`  emu -> +0.0, native -> IEEE sign.
+///   * `(+/-0.0) / x`  emu -> +0.0, native -> IEEE sign (native -> +0.0,
+///     i.e. no divergence at all, when built `--features div_emu`).
 ///     `flr_emu::set_div`'s zero-dividend correction clamps the sign bit to
-///     0 ("and s to zero"). Every division in this crate is `Flr::ONE / x`,
-///     so the dividend is never zero.
+///     0 ("and s to zero"), and `flr_native::div_emu` carries that same
+///     clamp. Every division in this crate is `Flr::ONE / x`, so the
+///     dividend is never zero.
 ///
 ///   * `expm_p63(x, ccs)` with `ccs == 1` exactly: emu -> 0, native -> the
 ///     ordinary result. Root cause is `Flr::ONE.mul2p63().trunc()`, i.e.
@@ -517,16 +550,30 @@ fn flr_emu_negative_zero_divergences_are_pinned() {
     const PZ: u64 = 0x0000_0000_0000_0000;
     const NZ: u64 = 0x8000_0000_0000_0000;
 
-    // abs(-0.0)
-    assert!(bits_emu(Emu::NZERO.abs()) == PZ);
-    assert!(bits_nat(Nat::NZERO.abs()) == NZ);
+    // What flr_native returns for sqrt(-0.0) depends on which sqrt it was
+    // compiled with. See the feature note in this test's doc comment.
+    #[cfg(not(feature = "sqrt_emu"))]
+    const NAT_SQRT_NZERO: u64 = NZ; // hardware opcode: IEEE, keeps the sign
+    #[cfg(feature = "sqrt_emu")]
+    const NAT_SQRT_NZERO: u64 = PZ; // sqrt_emu(): make_z(0, ..), no sign bit
+
+    // abs(-0.0). Not feature-dependent: `flr_native::abs` is the same
+    // `if self.0 < 0.0` under every feature combination.
+    assert!(bits_emu(Emu::NZERO.abs()) == PZ, "emu abs(-0.0) != +0.0");
+    assert!(bits_nat(Nat::NZERO.abs()) == NZ, "native abs(-0.0) != -0.0");
     // ... and both agree on +0.0.
     assert!(bits_emu(Emu::ZERO.abs()) == PZ);
     assert!(bits_nat(Nat::ZERO.abs()) == PZ);
 
     // sqrt(-0.0)
-    assert!(bits_emu(Emu::NZERO.sqrt()) == PZ);
-    assert!(bits_nat(Nat::NZERO.sqrt()) == NZ);
+    assert!(bits_emu(Emu::NZERO.sqrt()) == PZ, "emu sqrt(-0.0) != +0.0");
+    assert!(
+        bits_nat(Nat::NZERO.sqrt()) == NAT_SQRT_NZERO,
+        "native sqrt(-0.0) = 0x{:016X}, pinned 0x{NAT_SQRT_NZERO:016X} \
+         (sqrt_emu = {})",
+        bits_nat(Nat::NZERO.sqrt()),
+        cfg!(feature = "sqrt_emu")
+    );
     assert!(bits_emu(Emu::ZERO.sqrt()) == PZ);
     assert!(bits_nat(Nat::ZERO.sqrt()) == PZ);
 
@@ -537,7 +584,14 @@ fn flr_emu_negative_zero_divergences_are_pinned() {
     assert!(Nat::ZERO.floor() == 0);
 
     // Zero dividend: emu clamps the quotient sign to +, native follows
-    // IEEE (sign = XOR of operand signs).
+    // IEEE (sign = XOR of operand signs) -- unless it was built with
+    // `div_emu`, which is flr_emu's algorithm and clamps identically, in
+    // which case the divergence is gone and all four are +0.0.
+    #[cfg(not(feature = "div_emu"))]
+    const NAT_ZERO_DIV: [u64; 4] = [PZ, NZ, NZ, PZ]; // IEEE: sign = XOR
+    #[cfg(feature = "div_emu")]
+    const NAT_ZERO_DIV: [u64; 4] = [PZ, PZ, PZ, PZ]; // div_emu: `s &= dm`
+
     let mone_e = {
         let mut v = Emu::ONE;
         v.set_neg();
@@ -548,18 +602,34 @@ fn flr_emu_negative_zero_divergences_are_pinned() {
         v.set_neg();
         v
     };
-    for (num_e, num_n, den_e, den_n, emu_want, nat_want) in [
-        (Emu::ZERO, Nat::ZERO, Emu::ONE, Nat::ONE, PZ, PZ),
-        (Emu::ZERO, Nat::ZERO, mone_e, mone_n, PZ, NZ),
-        (Emu::NZERO, Nat::NZERO, Emu::ONE, Nat::ONE, PZ, NZ),
-        (Emu::NZERO, Nat::NZERO, mone_e, mone_n, PZ, PZ),
-    ] {
+    // Order must match NAT_ZERO_DIV: (+0)/(+1), (+0)/(-1), (-0)/(+1),
+    // (-0)/(-1). The emulated side is +0.0 for all four regardless.
+    for (i, (num_e, num_n, den_e, den_n)) in [
+        (Emu::ZERO, Nat::ZERO, Emu::ONE, Nat::ONE),
+        (Emu::ZERO, Nat::ZERO, mone_e, mone_n),
+        (Emu::NZERO, Nat::NZERO, Emu::ONE, Nat::ONE),
+        (Emu::NZERO, Nat::NZERO, mone_e, mone_n),
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let mut e = num_e;
         let mut n = num_n;
         e.set_div(den_e);
         n.set_div(den_n);
-        assert!(bits_emu(e) == emu_want);
-        assert!(bits_nat(n) == nat_want);
+        assert!(
+            bits_emu(e) == PZ,
+            "emu zero-dividend div #{i} = 0x{:016X}, pinned 0x{PZ:016X}",
+            bits_emu(e)
+        );
+        assert!(
+            bits_nat(n) == NAT_ZERO_DIV[i],
+            "native zero-dividend div #{i} = 0x{:016X}, pinned 0x{:016X} \
+             (div_emu = {})",
+            bits_nat(n),
+            NAT_ZERO_DIV[i],
+            cfg!(feature = "div_emu")
+        );
     }
 
     // expm_p63 at the excluded ccs == 1 boundary, and its root cause.
