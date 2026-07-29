@@ -4,6 +4,24 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## 0.0.10
 
+### Security
+
+- **`lib-q-threshold-sig` WITHDRAWN.** The crate is not a signature scheme and never provided any
+  security: its published verifying keys were the private Shamir shares, its group key was the
+  master secret recoverable from public data, and verification contained no secret input. The
+  defect is structural, not a matter of parameters — see
+  [`lib-q-threshold-sig/README.md`](lib-q-threshold-sig/README.md) for the analysis (deliberately
+  without forgery steps). `keygen_shares`, `sign_round1`, `sign_round2`, `aggregate`, `verify`,
+  `identify_abort`, and `proactive_refresh` now return `ThresholdSigError::SchemeWithdrawn`
+  unconditionally and are `#[deprecated]`; the vulnerable construction has been deleted from the
+  source rather than feature-gated, so it cannot be re-enabled by any downstream feature
+  unification. All `@lib-q/threshold-sig` WASM exports throw.
+- **Anyone who used this crate should treat any published, transmitted, logged, or persisted
+  `ThresholdSigPublicKey` as full disclosure of the signing key and of every party's share**, and
+  re-evaluate as unauthenticated any decision made on its output. Signatures it produced cannot be
+  validated retroactively. Versions 0.0.6–0.0.8 remain installable from crates.io and npm until
+  they are yanked.
+
 ### Fixed
 
 - **`lib-q-fn-dsa` — portable key generation never terminated for degree n ≥ 8.** One arm of the
@@ -70,27 +88,6 @@ All notable changes to this workspace are documented here. Versions follow the s
   the public repo.
 - **Dependencies:** serde 1.0.228 → 1.0.229, serde_json 1.0.150 → 1.0.151; thiserror 2.0.18 →
   2.0.19; portable-atomic 1.13.1 → 1.14.0; aes 0.9.1 → 0.9.2; `actions/setup-node` 5 → 7.
-
-## 0.0.9
-
-### Security
-
-- **`lib-q-threshold-sig` WITHDRAWN.** The crate is not a signature scheme and never provided any
-  security: its published verifying keys were the private Shamir shares, its group key was the
-  master secret recoverable from public data, and verification contained no secret input. The
-  defect is structural, not a matter of parameters — see
-  [`lib-q-threshold-sig/README.md`](lib-q-threshold-sig/README.md) for the analysis (deliberately
-  without forgery steps). `keygen_shares`, `sign_round1`, `sign_round2`, `aggregate`, `verify`,
-  `identify_abort`, and `proactive_refresh` now return `ThresholdSigError::SchemeWithdrawn`
-  unconditionally and are `#[deprecated]`; the vulnerable construction has been deleted from the
-  source rather than feature-gated, so it cannot be re-enabled by any downstream feature
-  unification. All `@lib-q/threshold-sig` WASM exports throw.
-- **Anyone who used this crate should treat any published, transmitted, logged, or persisted
-  `ThresholdSigPublicKey` as full disclosure of the signing key and of every party's share**, and
-  re-evaluate as unauthenticated any decision made on its output. Signatures it produced cannot be
-  validated retroactively.
-
-### Changed
 
 - **CD (`.github/workflows/cd.yml`):** `lib-q-threshold-sig` removed from the crates.io
   `publish-rust-tier-4b-new-primitives` matrix and from the npm `publish-wasm-packages` matrix.
