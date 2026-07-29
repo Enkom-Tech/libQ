@@ -477,6 +477,105 @@ jobs:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'
         run: bash ./scripts/wasm-size-check.sh
 
+  # The ONLY job in this repo that EXECUTES `lib-q-fn-dsa/fn-dsa-sign/src/flr_emu.rs`
+  # -- the software binary64 backend that ships to wasm32 and armv7.
+  #
+  # flr.rs selects the float backend by `target_arch` alone, never by a feature, so no
+  # x86_64 job can reach it: `--features no_avx2` switches the portable *vector* path in
+  # poly.rs/sampler.rs and leaves the float backend on flr_native.rs. wasm32 selects
+  # flr_emu.rs *and* the generic variants of its four arch-gated helpers (lzcnt_nz,
+  # ursh, ulsh, irsh) -- the same combination armv7 ships.
+  #
+  # Complementary, not redundant: `flr_emu_diff.rs` compiles flr_emu.rs a second time
+  # under #[cfg(test)] on x86_64 and diffs it against the native backend operation by
+  # operation; that runs in the ordinary test-matrix rows and covers the arithmetic in
+  # far more detail than this job, but on a host it gets the *native* variants of those
+  # four helpers. Keep both.
+  #
+  # Deliberately NOT gated behind `if: github.event_name != 'pull_request'`. The
+  # aarch64/armv7 rows are PR-skipped, and being invisible on PRs is exactly how a
+  # portable-path FN-DSA defect survived two months of green CI.
+  fn-dsa-emulated-float:
+    name: FN-DSA emulated float backend (wasm32 execution)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime
+    steps:
+      - uses: actions/checkout@v7
+
+      # Read the channel out of rust-toolchain.toml rather than repeating it, so this
+      # job cannot silently drift off the pinned toolchain when that file is bumped.
+      - name: Resolve pinned toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          test -n "$CHANNEL"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "Using pinned toolchain: $CHANNEL"
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: wasm32-wasip1
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-fn-dsa-wasip1-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-fn-dsa-wasip1-
+
+      # Pinned to an exact release rather than a third-party setup action, so this job
+      # cannot go red for reasons unrelated to FN-DSA.
+      - name: Install wasmtime (pinned)
+        env:
+          WASMTIME_VERSION: v37.0.0
+        run: |
+          set -euo pipefail
+          curl -sSLf -o /tmp/wasmtime.tar.xz \
+            "https://github.com/bytecodealliance/wasmtime/releases/download/${WASMTIME_VERSION}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          mkdir -p /tmp/wasmtime
+          tar -xJf /tmp/wasmtime.tar.xz -C /tmp/wasmtime --strip-components=1
+          echo "/tmp/wasmtime" >> "$GITHUB_PATH"
+
+      - name: Show wasmtime version
+        run: wasmtime --version
+
+      # A green run here is only meaningful if the wasm32 build actually compiled the
+      # emulated backend. If wasm32 were ever added to flr.rs's native-arch list this
+      # job would otherwise keep passing while testing nothing at all -- the same
+      # silent-no-op failure mode that hid the AVX2 dispatch trap in `self_test`.
+      - name: Assert the wasm32 build selects flr_emu.rs
+        run: |
+          set -euo pipefail
+          cargo test --release --target wasm32-wasip1 -p lib-q-fn-dsa-sign --no-run
+          DEPFILES=(target/wasm32-wasip1/release/deps/fn_dsa_sign-*.d)
+          if ! grep -qh 'flr_emu\.rs' "${DEPFILES[@]}"; then
+            echo "::error::wasm32-wasip1 build did not compile flr_emu.rs; this job is no longer covering the emulated float backend"
+            exit 1
+          fi
+          if grep -qh 'flr_native\.rs' "${DEPFILES[@]}"; then
+            echo "::error::wasm32-wasip1 build compiled flr_native.rs; backend dispatch changed"
+            exit 1
+          fi
+          echo "OK: wasm32-wasip1 build compiled flr_emu.rs and not flr_native.rs"
+
+      # `flr::tests::test_spec` is upstream's golden-digest sweep over every Flr
+      # operation; `tests::sign_512` is a byte-exact FN-DSA-512 signature KAT. Both are
+      # existing tests -- they have simply never run on a target that picks flr_emu.
+      - name: Run fn-dsa-sign suite on wasm32-wasip1
+        run: |
+          set -euo pipefail
+          cargo test --release --target wasm32-wasip1 -p lib-q-fn-dsa-sign
+          cargo test --release --target wasm32-wasip1 -p lib-q-fn-dsa-sign --features small_context
+
   # Execute wasm-bindgen smoke tests added for research/zkp crates.
   wasm-bindgen-smoke:
     name: WASM bindgen smoke tests
@@ -1610,7 +1709,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
