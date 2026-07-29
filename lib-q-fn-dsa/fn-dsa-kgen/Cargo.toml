@@ -27,4 +27,9 @@ num-traits = { workspace = true }
 [features]
 default = []
 no_avx2 = []
-shake256x4 = []
+# MUST forward to `-comm`: the type this crate switches to under the feature
+# (`fn_dsa_comm::shake::SHAKE256x4`) is itself `#[cfg(feature = "shake256x4")]` inside
+# `-comm`. Declared empty (upstream fn-dsa 0.3.0 does the same), `cargo check -p
+# lib-q-fn-dsa-kgen --features shake256x4` fails with E0433 — the call sites flip to a type
+# that was never compiled. Guarded by tests/feature_forwarding.rs.
+shake256x4 = ["lib-q-fn-dsa-comm/shake256x4"]
