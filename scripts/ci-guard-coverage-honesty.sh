@@ -19,10 +19,31 @@
 #                    NESTED cargo package under that crate. lib-q-fn-dsa/src/lib.rs is 834 lines;
 #                    lib-q-fn-dsa/fn-dsa-*/src is ~37k lines and is not in the denominator. The
 #                    two-month FN-DSA portable-keygen livelock lived in that excluded tree.
+#                    The same half can also be narrowed head-on, by pointing --include-files at a
+#                    single file or by adding an --exclude-files for source that merely lacks
+#                    tests. Both raise the percentage without a line of new test code.
 #
-# Each check below corresponds to one of those three, and to a defect that was actually found in
-# this repository. Every check fails CLOSED: if it cannot locate what it is supposed to inspect,
-# it errors rather than silently passing.
+# Each check below corresponds to one of those failure modes, and to a defect that was actually
+# found in this repository. Every check fails CLOSED: if it cannot locate what it is supposed to
+# inspect, it errors rather than silently passing.
+#
+# WHAT THIS GUARD DOES *NOT* COVER
+# --------------------------------
+# Stated so the next reader does not mistake a green run for a proof of correctness:
+#
+#   * It is STATIC. It reads the command lines CI would build; it never runs tarpaulin and cannot
+#     tell you that a percentage is right -- only that the fraction was not rescoped behind your
+#     back.
+#   * CHECK 1 reaches command text by tainting variables that flow into a `cargo tarpaulin`
+#     invocation *within one file*. A command assembled across two files (a helper that echoes a
+#     filter which the caller interpolates) is not modelled.
+#   * CHECK 4 only requires an allowlist entry for an --exclude-files that reaches inside a
+#     workspace member's own `src/`. A coarse `<crate>/*` exclusion -- the idiom lib-q-core uses to
+#     keep sibling-crate lines out of its Cobertura -- is NOT allowlisted, because 15 entries whose
+#     only failure mode is excluding the crate you are measuring is friction that buys little. If
+#     you ever see a `<crate>/*` exclusion naming the crate under `--packages`, that is the gap.
+#   * Discovery is by file suffix (.sh/.ps1/.yml/...) plus the literal string "tarpaulin". A
+#     tarpaulin command reached through a wrapper that never spells the tool's name is unseen.
 #
 # Usage: bash scripts/ci-guard-coverage-honesty.sh [REPO_ROOT]
 

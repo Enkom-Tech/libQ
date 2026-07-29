@@ -18,7 +18,7 @@ For any PR package other than the umbrella `lib-q`, tarpaulin scopes `--include-
 
 A coverage percentage is a fraction, and both halves can be corrupted without the number ever
 looking wrong. [scripts/ci-guard-coverage-honesty.sh](../scripts/ci-guard-coverage-honesty.sh)
-(run on every PR from `core-validation` in [ci.yml](../.github/workflows/ci.yml)) asserts the three
+(run on every PR from `core-validation` in [ci.yml](../.github/workflows/ci.yml)) asserts the
 failure modes this repository has actually hit:
 
 1. **Numerator — test-name filters.** No `cargo tarpaulin` command may pass test *names* after
@@ -29,16 +29,39 @@ failure modes this repository has actually hit:
    6 of its 34 tests and measured **69/161 = 42.86%** against a 68% floor; with the filter removed
    the same code measures **129/161 = 80.12%** (measured locally, `x86_64-pc-windows-msvc`,
    cargo-tarpaulin 0.32.8 `--engine llvm`; CI's Linux figure will differ slightly).
+   The files to inspect are **discovered** by walking the repo for shell/YAML/PowerShell files that
+   mention tarpaulin, not read off a list, and command text is reached by tainting every variable
+   that flows into the invocation — so neither a new workflow nor a different append idiom
+   (`CMD+=`, or a filter parked in a variable named nothing like "cmd") escapes it.
 2. **Selection — silently skipped packages.** The `coverage-skip` step in the
    [rust-test action](../.github/actions/rust-test/action.yml) matched `*"lib-q-keccak"*` as a
    substring, which also swallowed the unrelated sibling `lib-q-keccak-digest`: it took the no_std
    compile-check path and its coverage never ran on any PR. The predicate is now an exact match,
-   and the guard evaluates the shipped predicate against every workspace package, allowing only
-   packages on an explicit allowlist to be skipped. `lib-q-keccak` remains skipped there (no_std
-   rlib under a panic=abort profile) and is gated by `coverage.yml` at 65% instead.
+   and the guard runs the **shipped** predicate against every workspace package **under every
+   input shape the action accepts** — `package:`, `packages:`, a `packages:` entry carrying an
+   `@features` suffix, a package inside a longer `packages:` list, and a non-`no_std` `features:`
+   string. Driving only `package:` would leave the `$PACKAGES` arm unexercised, and `ci.yml` really
+   does pass `packages:`. Only packages on an explicit allowlist may be skipped; `lib-q-keccak`
+   remains skipped there (no_std rlib under a panic=abort profile) and is gated by `coverage.yml`
+   at 65% instead.
 3. **Denominator — source hidden in nested crates.** `--include-files '<crate>/src/**'` cannot see
    a nested cargo package. The guard fails on any nested package inside a workspace member that is
    neither a member itself nor in `[workspace].exclude`, unless it is recorded as a known gap.
+4. **Denominator — narrowed head-on.** A whole-crate `--include-files` must name a directory glob
+   (`<crate>/src/*`, `<crate>/src/**`, `*.rs`); pointing it at `<crate>/src/lib.rs` shrinks the
+   denominator to one file. Deliberately scoped tiers are allowed from `NARROW_INCLUDE_ALLOWLIST`,
+   keyed by *file* so the security-critical tier's narrow includes cannot license the same
+   narrowing in the whole-crate gate. Symmetrically, an `--exclude-files` reaching inside a
+   member's own `src/` must appear in `SRC_EXCLUDE_ALLOWLIST` — the ~15 existing ones are all
+   code the runner cannot execute (SIMD/arch-gated bodies, non-compiled cfgs) and each carries its
+   reason there. Excluding a file that merely lacks tests now fails the build.
+
+**What the guard does not cover** (a green run is not a proof the number is right): it is static
+and never runs tarpaulin; CHECK 1's taint analysis is per-file, so a command assembled across two
+files is not modelled; CHECK 4 does not allowlist coarse `<crate>/*` exclusions such as the
+sibling-crate list `lib-q-core` uses, so an exclusion naming the crate under `--packages` would
+pass; and discovery keys on the literal string `tarpaulin`, so a wrapper that never spells the
+tool's name is invisible. These are recorded in the script header rather than papered over.
 
 ### Known gap: FN-DSA nested crates
 
