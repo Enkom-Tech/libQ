@@ -28,6 +28,15 @@
 //! The compile-level counterpart (`cargo check -p <leaf> --features shake256x4`) lives in
 //! `.github/actions/test-fn-dsa/action.yml`.
 //!
+//! WHAT THIS TEST DOES AND DOES NOT ESTABLISH
+//!
+//! It resolves feature entries the way cargo does — transitively within each manifest, since a
+//! bare entry names another feature of the *same* crate — and asserts that the forward is
+//! reachable from `shake256x4`. Indirect wiring (`shake256x4 = ["_x"]`, `_x = ["dep/x4"]`) is
+//! therefore accepted, because cargo accepts it. It runs no compiler, so it must never claim a
+//! build outcome: on failure it reports the resolved entry set it actually inspected and names
+//! the compile check it did *not* perform. A guard that misstates why it failed gets disabled.
+//!
 //! SCOPE: deliberately limited to `shake256x4`. `no_avx2` has the same missing forward in
 //! `-kgen`/`-sign`/`-vrfy`, but it gates only internal dispatch, not a cross-crate item, so
 //! it builds today; adding the forward there would change which SHAKE code path existing
@@ -46,12 +55,15 @@ const FEATURE: &str = "shake256x4";
 /// Pairs (`dependent`, `dependency`) that MUST be evaluated by this test. If a manifest is
 /// reshaped so the parser stops seeing them, the test fails as loudly as a real regression
 /// instead of silently passing on an empty set.
-const REQUIRED_PAIRS: [(&str, &str); 5] = [
+const REQUIRED_PAIRS: [(&str, &str); 6] = [
     ("lib-q-fn-dsa-kgen", "lib-q-fn-dsa-comm"),
     ("lib-q-fn-dsa-sign", "lib-q-fn-dsa-comm"),
     ("lib-q-fn-dsa-alg", "lib-q-fn-dsa-comm"),
     ("lib-q-fn-dsa-alg", "lib-q-fn-dsa-kgen"),
     ("lib-q-fn-dsa-alg", "lib-q-fn-dsa-sign"),
+    // The outermost link: `lib-q-fn-dsa` (the published facade) -> `-alg`. Every crate named
+    // in the `cargo check -p <crate> --features shake256x4` sweep is now pinned here.
+    ("lib-q-fn-dsa", "lib-q-fn-dsa-alg"),
 ];
 
 #[derive(Debug, Default)]
@@ -91,7 +103,7 @@ fn shake256x4_is_forwarded_to_the_crate_that_defines_it() {
 
     let mut evaluated: BTreeSet<(String, String)> = BTreeSet::new();
     for m in &manifests {
-        let Some(entries) = m.feature(FEATURE) else {
+        let Some(enabled) = resolve_feature(m, FEATURE) else {
             continue;
         };
         for (dep_key, dep_dir) in &m.path_deps {
@@ -106,15 +118,27 @@ fn shake256x4_is_forwarded_to_the_crate_that_defines_it() {
             // Cargo's two spellings: unconditional and "only if the optional dep is enabled".
             let want = format!("{dep_key}/{FEATURE}");
             let want_weak = format!("{dep_key}?/{FEATURE}");
-            if !entries.iter().any(|e| *e == want || *e == want_weak) {
+            if !enabled.contains(&want) && !enabled.contains(&want_weak) {
+                // Register discipline: state only what was inspected. No compiler ran here,
+                // so this must not predict a build outcome — see the module header.
                 problems.push(format!(
-                    "{}: feature `{FEATURE} = {entries:?}` does not enable `{want}`, but \
-                     `{}` gates items on `{FEATURE}`. `cargo check -p {} --features {FEATURE}` \
-                     will fail to compile. Fix: add \"{want}\" to that feature list in {}.",
-                    m.name,
-                    dep.name,
-                    m.name,
-                    m.dir.join("Cargo.toml").display(),
+                    "{dependent}: `{FEATURE}` does not forward to `{dep_name}`.\n      \
+                     Checked: the entries reachable from `{FEATURE}` in {manifest} — direct \
+                     entries plus the same-crate features they enable, resolved transitively \
+                     — are {enabled:?}; none of them is `{want}` or `{want_weak}`.\n      \
+                     NOT checked: whether anything compiles. This test runs no build; the \
+                     `cargo check -p {dependent} --features {FEATURE}` counterpart lives in \
+                     .github/actions/test-fn-dsa/action.yml.\n      \
+                     Why the forward is required: `{dep_name}` declares `{FEATURE}` and gates \
+                     items on it, so `--features {FEATURE}` on `{dependent}` alone turns on \
+                     this crate's own `#[cfg(feature = \"{FEATURE}\")]` code while `{dep_name}` \
+                     is still built without the feature — anything that code reaches for \
+                     behind that gate is configured out (E0433/E0425).\n      \
+                     Fix: add \"{want}\" to `{FEATURE}`, or to a feature `{FEATURE}` enables, \
+                     in {manifest}.",
+                    dependent = m.name,
+                    dep_name = dep.name,
+                    manifest = m.dir.join("Cargo.toml").display(),
                 ));
             }
         }
@@ -137,6 +161,41 @@ fn shake256x4_is_forwarded_to_the_crate_that_defines_it() {
         "`{FEATURE}` feature wiring is broken:\n  - {}",
         problems.join("\n  - ")
     );
+}
+
+/// Everything `--features <feature>` turns on for this crate, resolved the way cargo resolves
+/// it: an entry with no `/` and no `dep:` prefix names ANOTHER feature of the SAME crate, which
+/// cargo expands in turn. So `shake256x4 = ["_x"]` + `_x = ["lib-q-fn-dsa-comm/shake256x4"]`
+/// forwards exactly as the directly-written form does, and a guard that inspected only direct
+/// entries would report that manifest as broken when `cargo check` proves it is not.
+///
+/// Entries naming another crate (`dep/feat`, `dep?/feat`) or an optional dependency (`dep:name`)
+/// are collected but not followed — they are not features of this crate. `seen` makes a cyclic
+/// or self-referential manifest terminate rather than hang; cargo rejects feature cycles itself,
+/// so diagnosing one is not this guard's job.
+///
+/// `None` when the crate does not declare `feature` at all.
+fn resolve_feature(m: &Manifest, feature: &str) -> Option<BTreeSet<String>> {
+    let direct = m.feature(feature)?;
+
+    let mut enabled = BTreeSet::new();
+    let mut seen: BTreeSet<String> = BTreeSet::from([feature.to_string()]);
+    let mut queue: Vec<String> = direct.to_vec();
+
+    while let Some(entry) = queue.pop() {
+        if entry.contains('/') || entry.starts_with("dep:") {
+            enabled.insert(entry);
+            continue;
+        }
+        if !seen.insert(entry.clone()) {
+            continue;
+        }
+        if let Some(next) = m.feature(&entry) {
+            queue.extend(next.iter().cloned());
+        }
+        enabled.insert(entry);
+    }
+    Some(enabled)
 }
 
 /// Read `<root>/Cargo.toml` plus every `<root>/*/Cargo.toml`.
@@ -265,5 +324,92 @@ fn same_dir(a: &Path, b: &Path) -> bool {
     match (fs::canonicalize(a), fs::canonicalize(b)) {
         (Ok(a), Ok(b)) => a == b,
         _ => a == b,
+    }
+}
+
+/// Both directions of the guard, pinned against synthetic manifests so they hold without
+/// hand-editing (and hand-restoring) the real ones.
+///
+/// The guard's value is entirely in the gap between these two: it must fail on the wiring that
+/// really was broken on main, and pass on wiring cargo really does accept. A regression in
+/// either direction — a guard that stops catching the defect, or one that cries wolf until
+/// someone deletes it — is a guard that is not doing its job.
+#[cfg(test)]
+mod resolution {
+    use super::*;
+
+    /// Minimal manifest text; `$X4` is the `[features]` body under test.
+    fn manifest(features: &str) -> Manifest {
+        let text = format!(
+            "[package]\nname = \"probe\"\n\n\
+             [dependencies]\ncomm = {{ version = \"0.0.9\", path = \"../comm\" }}\n\n\
+             [features]\ndefault = []\n{features}\n"
+        );
+        parse_manifest(Path::new("."), &text)
+    }
+
+    fn forwards(features: &str) -> bool {
+        let m = manifest(features);
+        let enabled = resolve_feature(&m, FEATURE).expect("feature is declared");
+        enabled.contains(&format!("comm/{FEATURE}")) ||
+            enabled.contains(&format!("comm?/{FEATURE}"))
+    }
+
+    /// The defect that was live on main: declared, forwards nothing. MUST still be caught.
+    #[test]
+    fn empty_feature_list_is_rejected() {
+        assert!(!forwards("shake256x4 = []"));
+    }
+
+    /// A forward to some *other* feature of the dependency is not the forward we need.
+    #[test]
+    fn wrong_target_feature_is_rejected() {
+        assert!(!forwards("shake256x4 = [\"comm/no_avx2\"]"));
+    }
+
+    /// A same-crate feature that does not exist resolves to nothing useful — still rejected.
+    #[test]
+    fn dangling_indirection_is_rejected() {
+        assert!(!forwards("shake256x4 = [\"_typo\"]"));
+    }
+
+    #[test]
+    fn direct_forward_is_accepted() {
+        assert!(forwards("shake256x4 = [\"comm/shake256x4\"]"));
+    }
+
+    /// The false positive this module exists to prevent: `cargo check` accepts this wiring
+    /// (verified out of band, exit 0), so the guard must accept it too.
+    #[test]
+    fn indirect_forward_is_accepted() {
+        assert!(forwards(
+            "_comm_x4 = [\"comm/shake256x4\"]\nshake256x4 = [\"_comm_x4\"]"
+        ));
+    }
+
+    #[test]
+    fn multi_hop_and_weak_forward_are_accepted() {
+        assert!(forwards(
+            "shake256x4 = [\"a\"]\na = [\"b\"]\nb = [\"comm/shake256x4\"]"
+        ));
+        assert!(forwards("shake256x4 = [\"a\"]\na = [\"comm?/shake256x4\"]"));
+    }
+
+    /// A cyclic manifest must terminate rather than hang the test suite. Cargo rejects cycles
+    /// itself; the guard only has to not spin.
+    #[test]
+    fn cycles_terminate() {
+        assert!(!forwards(
+            "shake256x4 = [\"a\"]\na = [\"b\"]\nb = [\"a\", \"shake256x4\"]"
+        ));
+        assert!(forwards(
+            "shake256x4 = [\"a\"]\na = [\"shake256x4\", \"comm/shake256x4\"]"
+        ));
+    }
+
+    /// An undeclared feature is not a violation — nothing to forward.
+    #[test]
+    fn undeclared_feature_resolves_to_none() {
+        assert!(resolve_feature(&manifest("no_avx2 = []"), FEATURE).is_none());
     }
 }
