@@ -60,6 +60,17 @@ jobs:
       - name: Guard banned terms in new primitive crates
         run: bash ./scripts/ci-guard-primitive-banned-terms.sh
 
+      # ci-guard-new-crates-and-npm.sh (above) checks that every workspace crate REACHES cd.yml.
+      # This one checks the other direction: that the hand-maintained restatements of cd.yml — the
+      # crates.io/npm fallback scripts an operator uses when the tag-triggered CD path is not
+      # available, and the docs/npm-publish.md package table — still say what cd.yml says. Drift
+      # there does not error at publish time; it silently ships fewer crates (65 of 80 at 0.0.10)
+      # or a package built with the wrong features, and crates.io versions are immutable.
+      # Static and stdlib-only, same as the coverage-honesty guard: a cd.yml parse plus three file
+      # reads, no cargo, no network.
+      - name: Guard publish-order scripts against cd.yml
+        run: bash ./scripts/ci-guard-publish-order.sh
+
       # Static (it never runs tarpaulin) and deliberately in core-validation rather than a coverage
       # job: it must run on EVERY PR, including the ones that never trigger a tarpaulin run. The
       # gaps it catches (a test-name filter shrinking the numerator, a package silently skipped,

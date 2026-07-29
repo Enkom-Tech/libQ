@@ -1,6 +1,17 @@
 # Publish workspace crates to crates.io in CD dependency order (.github/workflows/cd.yml).
 # Requires: cargo login (API token). Stops on first hard failure.
 # Resume: -StartAt N (0-based index into $packages below).
+#
+# $packages MIRRORS cd.yml -- it does not define the order, it restates it. A restatement drifts:
+# at 0.0.10 this list held 65 of cd.yml's 80 crates, and the 15 it omitted would not have errored,
+# they would simply never have published. scripts/ci-guard-publish-order.sh now fails any pull
+# request where the two disagree, so regenerate rather than hand-edit:
+#
+#   python3 scripts/cd_publish_manifest.py --format crates
+#
+# The guard requires the SET to match cd.yml exactly and the ORDER to respect cd.yml's job `needs`
+# DAG. Order WITHIN one cd.yml matrix job is free (those entries publish in parallel there), which
+# is what lets lib-q-blind-pcs precede lib-q-fhe below.
 param([int]$StartAt = 0)
 
 Set-Location (Join-Path $PSScriptRoot "..")
@@ -10,27 +21,45 @@ $packages = @(
     "lib-q-core", "lib-q-keccak",
     "lib-q-sha3",
     "lib-q-keccak-digest", "lib-q-utils", "lib-q-platform", "lib-q-saturnin",
-    "lib-q-random", "lib-q-hqc-traits", "lib-q-duplex-aead", "lib-q-tweak-aead",
-    "lib-q-romulus", "lib-q-ring", "lib-q-prf",
-    "lib-q-k12", "lib-q-ml-kem", "lib-q-cb-kem",
+    "lib-q-hqc-traits", "lib-q-duplex-aead", "lib-q-tweak-aead", "lib-q-romulus",
+    "lib-q-rocca-s", "lib-q-ring", "lib-q-prf",
+    "lib-q-k12", "lib-q-intrinsics",
+    "lib-q-hash",
+    "lib-q-random",
     "lib-q-fn-dsa-comm", "lib-q-fn-dsa-kgen", "lib-q-fn-dsa-sign", "lib-q-fn-dsa-vrfy", "lib-q-fn-dsa-alg",
-    "lib-q-fn-dsa", "lib-q-intrinsics",
-    "lib-q-hqc", "lib-q-slh-dsa", "lib-q-lattice-zkp",
-    "lib-q-ml-dsa", "lib-q-hash", "lib-q-aead", "lib-q-kem", "lib-q-sig", "lib-q-ring-sig",
+    "lib-q-fn-dsa",
+    "lib-q-ml-kem", "lib-q-hqc", "lib-q-slh-dsa", "lib-q-lattice-zkp", "lib-q-mayo",
+    "lib-q-cb-kem",
+    "lib-q-ml-dsa",
+    "lib-q-aead", "lib-q-kem", "lib-q-sig", "lib-q-ring-sig",
     "lib-q-hpke", "lib-q-sca-test",
+    # tier 4b. lib-q-blind-pcs precedes lib-q-fhe: they share cd.yml's tier-4b matrix (parallel
+    # there, so cd.yml imposes no order), but lib-q-fhe dev-depends on lib-q-blind-pcs, and this
+    # script publishes sequentially without the dev-dep stripping CD's crate-publish action does.
+    "lib-q-mac", "lib-q-threshold-kem", "lib-q-double-kem",
+    "lib-q-blind-pcs", "lib-q-fhe", "lib-q-dkg", "lib-q-blind-token",
+    "lib-q-threshold-raccoon",
+    "lib-q-threshold-kem-lattice",
     "lib-q-stark-util", "lib-q-stark-rayon",
-    "lib-q-stark-field", "lib-q-stark-symmetric",
-    "lib-q-stark-matrix", "lib-q-stark-dft", "lib-q-stark-commit",
-    "lib-q-stark-mds", "lib-q-stark-field-testing", "lib-q-stark-shake256",
-    "lib-q-stark-shake128", "lib-q-stark-sha3-256",
+    "lib-q-stark-field",
+    "lib-q-stark-symmetric",
+    "lib-q-stark-matrix",
+    "lib-q-stark-dft", "lib-q-stark-commit",
+    "lib-q-stark-shake256", "lib-q-stark-shake128", "lib-q-stark-sha3-256",
+    "lib-q-stark-mds", "lib-q-stark-field-testing",
     "lib-q-stark-mersenne31", "lib-q-stark-monty31",
-    "lib-q-stark-challenger", "lib-q-stark-interpolation",
-    "lib-q-poseidon", "lib-q-stark-merkle", "lib-q-stark-fri", "lib-q-stark-air",
+    "lib-q-stark-challenger", "lib-q-stark-interpolation", "lib-q-stark-baby-bear",
+    "lib-q-stark-air", "lib-q-poseidon",
+    "lib-q-stark-merkle",
+    "lib-q-stark-fri",
     "lib-q-stark",
-    "lib-q-plonky-multilinear-util", "lib-q-plonky-keccak-air",
-    "lib-q-plonky-lookup", "lib-q-plonky-uni-stark",
-    "lib-q-plonky-batch-stark", "lib-q-plonky",
+    "lib-q-plonky-multilinear-util", "lib-q-plonky-lookup",
+    "lib-q-plonky-uni-stark",
+    "lib-q-plonky-keccak-air",
+    "lib-q-plonky-batch-stark",
+    "lib-q-plonky",
     "lib-q-zkp",
+    "lib-q-mve", "lib-q-transcript", "lib-q-zk-encryption-proof",
     "lib-q"
 )
 
