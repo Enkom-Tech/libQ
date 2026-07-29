@@ -73,6 +73,31 @@ use zeroize::DefaultIsZeroes;
 //    thus should take care not to leak information through
 //    side-channels, in particular timing.
 
+// BACKEND SELECTION -- and its test-coverage consequences.
+//
+// The floating-point backend is chosen by `target_arch` ALONE. It is *not*
+// influenced by any Cargo feature; in particular `no_avx2` selects the
+// portable *vector* path in poly.rs/sampler.rs and has no effect here.
+//
+//   x86_64 / aarch64 / arm64ec / riscv64 -> flr_native.rs (hardware f64)
+//   everything else (wasm32, arm, x86, ...) -> flr_emu.rs (software f64)
+//
+// Consequence: on a normal x86_64 CI runner, `flr_emu.rs` is not compiled at
+// all, so no amount of feature-toggling on that host executes it. It is
+// covered by two things, and if you delete either one the emulated backend
+// goes dark again:
+//
+//   1. `flr_emu_diff.rs` (below, test-only): on the native-backend arches it
+//      compiles `flr_emu.rs` a SECOND time under `#[cfg(test)]` and diffs it
+//      against the native backend, bit for bit. This runs in the ordinary
+//      `cargo test --workspace` CI rows -- no emulator needed. Caveat: a
+//      host build of `flr_emu.rs` picks the native variants of its own four
+//      arch-gated helpers (`lzcnt_nz`, `ursh`, `ulsh`, `irsh`), so it covers
+//      the float algorithm but not those four generic fallbacks.
+//   2. The `fn-dsa-emulated-float` CI job, which runs this crate's test suite
+//      on wasm32-wasip1 under wasmtime. wasm32 selects `flr_emu.rs` *and* the
+//      generic variants of those four helpers, i.e. exactly what wasm32 and
+//      armv7 ship.
 #[cfg(any(
     target_arch = "x86_64",
     target_arch = "aarch64",
@@ -92,6 +117,46 @@ mod backend;
 mod backend;
 
 pub(crate) use backend::Flr;
+
+// Test-only second compilation of the emulated backend, on the hosts where
+// the *production* backend is the native one. This is what makes the
+// differential test in `flr_emu_diff.rs` possible; production dispatch above
+// is untouched.
+//
+// The two `allow`s are deliberate and must NOT be "fixed" inside
+// `flr_emu.rs`. That file is a byte-faithful port of upstream fn-dsa v0.3.0;
+// editing it to satisfy a host lint would create a needless delta against
+// upstream in code that decides signature bytes. They are also, in
+// themselves, a symptom of the gap this module closes: because `flr_emu.rs`
+// is never compiled on the x86_64 host that runs `cargo clippy --workspace
+// --all-targets --all-features -- -D warnings`, these two findings
+// (`clippy::needless_range_loop` at flr_emu.rs:346, `clippy::let_and_return`
+// at flr_emu.rs:764) have never once been surfaced by the repo's own lint
+// gate. Compiling the file here is what makes them visible at all.
+#[cfg(all(
+    test,
+    any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "riscv64"
+    )
+))]
+#[path = "flr_emu.rs"]
+#[allow(clippy::needless_range_loop, clippy::let_and_return)]
+mod emu_ref;
+
+#[cfg(all(
+    test,
+    any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "riscv64"
+    )
+))]
+#[path = "flr_emu_diff.rs"]
+mod emu_diff;
 
 impl Default for Flr {
     fn default() -> Self {
