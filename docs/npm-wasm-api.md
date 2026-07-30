@@ -184,7 +184,7 @@ Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
 **Not a signature scheme; provided no security.** `lib-q-threshold-sig`'s published verifying keys
 were the private Shamir shares and its group key was the master secret recoverable from public
 data, so its verifier authenticated nothing. The defect was structural, so the crate was withdrawn
-in 0.0.9 (every entry point failing closed) and has since been deleted from the workspace.
+in 0.0.10 (every entry point failing closed) and has since been deleted from the workspace.
 
 There is no `@lib-q/threshold-sig` package on npm and no `lib-q-threshold-sig` crate on crates.io;
 no version that ever existed was sound, so do not install one from history. The former exports
