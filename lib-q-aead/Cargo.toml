@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 keywords = ["cryptography", "post-quantum", "aead", "encryption"]
 categories = ["cryptography"]
-readme.workspace = true
+readme = "README.md"
 
 
 [package.metadata.cargo-machete]

@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Plonky3-derived ZK proving components for lib-Q"
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 keywords = ["cryptography", "post-quantum", "zkp", "lib-q"]
 categories = ["cryptography"]
 

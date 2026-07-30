@@ -174,9 +174,14 @@ base16ct = { version = "1.0.0", features = ["alloc"] }
 inherits = "release"
 lto = false
 codegen-units = 256
-# `.cargo/config.toml` sets `[profile.release] panic = "abort"`. `cargo test --profile release-ci`
-# must use unwind so the lib test harness can link workspace crates that use mixed rustc outputs
-# (e.g. `lib-q-utils`, `lib-q-core`); abort in dependencies is rejected when the test crate is unwind.
+# Pinned explicitly, NOT inherited-and-corrected: nothing in this workspace defines
+# `[profile.release]`, and the tracked `.cargo/config.toml` has no `[profile]` section at all, so
+# `release` is cargo's default — which is already `panic = "unwind"`. This line is therefore a
+# no-op today and exists only to keep `cargo test --profile release-ci` linkable if someone later
+# adds `[profile.release] panic = "abort"`: the lib test harness links workspace crates built as
+# mixed rustc outputs (e.g. `lib-q-utils`, `lib-q-core`), and abort in dependencies is rejected
+# when the test crate is unwind. Do not delete it, and do not read it as evidence that some other
+# file sets abort.
 panic = "unwind"
 # Avoid incremental + `lib-q-core` fingerprint races that surface as E0460
 # ("possibly newer version of crate `lib_q_core`") when downstream rlibs link the unsuffixed

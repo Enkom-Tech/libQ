@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 keywords = ["cryptography", "fiat-shamir", "transcript", "zkp", "post-quantum"]
 categories = ["cryptography", "no-std"]
-readme.workspace = true
+readme = "README.md"
 
 [dependencies]
 # Out-of-circuit transcript (K12) — bare-metal no_std capable (only needs alloc).

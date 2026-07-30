@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 keywords = ["cryptography", "post-quantum", "zkp", "stark"]
 categories = ["cryptography"]
-readme.workspace = true
+readme = "README.md"
 autobenches = false
 
 
