@@ -49,11 +49,11 @@ Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-np
 |-----|------------|------|
 | `@lib-q/mac` | `lib-q-mac` | qCW-MAC symmetric authentication |
 | `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo |
-| `@lib-q/double-kem` | `lib-q-double-kem` | PROVISIONAL MAUL v1 double ML-KEM-768 |
 | `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE |
 | `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM |
 | `@lib-q/dkg` | `lib-q-dkg` | PROVISIONAL lattice dealerless DKG |
 | `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | PROVISIONAL PQ lattice threshold signature |
+| `@lib-q/threshold-kem-lattice` | `lib-q-threshold-kem-lattice` | PROVISIONAL PQ lattice threshold KEM (dealerless keygen via `lib-q-dkg`) |
 
 `lib-q-threshold-sig` (`@lib-q/threshold-sig`) was tier-4b through 0.0.8. It was withdrawn as
 cryptographically unsound and has since been deleted from the workspace — see
@@ -94,6 +94,7 @@ These are **new in 0.0.8** (except `lib-q-blind-token`, which was already crates
 | Rust crate | Status | Notes |
 |------------|--------|-------|
 | `lib-q-threshold-sig` (`@lib-q/threshold-sig`) | **WITHDRAWN then REMOVED — cryptographically unsound, provided no security** | Withdrawn in 0.0.9 (every entry point failed closed, `publish = false`, dropped from every publish matrix), then deleted from the workspace entirely. The defect was structural rather than a parameter choice, so there was nothing to repair and no reason to keep a fail-closed shell in the tree. No published version was ever sound; do not reinstate it from history. The threshold-signature capability is served by `lib-q-threshold-raccoon` (npm: `@lib-q/threshold-raccoon`), which has a stated hardness assumption and consumes `lib-q-dkg` shares. |
+| `lib-q-double-kem` (`@lib-q/double-kem`) | **REMOVED — misimplemented its cited construction** | The second KEM leg derived its shared secret from transmitted wire bytes and the public `ek_b` alone, so the second decapsulation key was never required by either party: it delivered plain ML-KEM-768 security (no dual-key property) at 1260 wire bytes versus 1088 for a single ML-KEM-768 ciphertext. The cited paper (Maul, ePrint 2025/1755) is sound; only this implementation of it was not, so it was deleted in 0.0.10 rather than repaired. Its only known consumer retracted the mode and permanently rejects its wire id. Use `@lib-q/ml-kem` instead. |
 
 ## Choosing a package
 
