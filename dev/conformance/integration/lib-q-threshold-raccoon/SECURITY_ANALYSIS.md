@@ -308,7 +308,10 @@ where `Q_h·ε_flood ≤ 2^{-128}` by the per-key budget (§4, `Q_h ≤ MAX_SIGN
 
 Single-signer EUF-CMA reduces to Module-LWE + statistical binding (Theorem 1, ROM). Threshold TS-UF-1
 reduces to the same plus a PRF assumption and the flooding budget (Theorem 2, ROM), with the
-relaxed-opening and QROM caveats explicit.
+relaxed-opening and QROM caveats explicit. TS-UF-1 under static corruptions is the **entire**
+distributed guarantee: no identifiable abort (a bad partial invalidates the aggregate without
+identifying its sender), no robustness, no proactive refresh. This matches Threshold-Raccoon itself;
+see `LIBQ_API.md` §7 caveat 5.
 
 ## 8. Constant-time / side-channel analysis (implementation status)
 
