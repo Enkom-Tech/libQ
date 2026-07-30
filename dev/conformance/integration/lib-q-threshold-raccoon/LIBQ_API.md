@@ -124,9 +124,14 @@ until the interoperable wire freeze.
    but consumed by no verification path). There is no robustness: any dropout or corrupt signer
    aborts the run. There is no proactive refresh or resharing: shares are static for the life of
    the key, matching the **static**-corruption TS-UF-1 model (`SECURITY_ANALYSIS.md` §7.2) — a
-   mobile adversary corrupting `t` parties over the key's lifetime is out of model. All of this is
-   **faithful to Threshold-Raccoon (CRYPTO 2024)**, which provides none of these properties either;
-   it is surfaced here because the withdrawn GF(256) `lib-q-threshold-sig` this crate replaces (§4)
+   mobile adversary corrupting `t` parties over the key's lifetime is out of model. These four
+   absences are **verified properties of this implementation** — read directly off the code cited
+   above, not asserted from the literature. This crate implements Threshold-Raccoon (del Pino–
+   Katsumata–Reichle–Takemure, CRYPTO 2024) per its own citation (`src/threshold.rs:3`), but this
+   project has **not** read the paper closely enough to say whether the paper's construction itself
+   lacks identifiable abort, robustness, and proactive refresh, or whether this implementation
+   simply omits properties the construction provides — a reader must not infer either. It is
+   surfaced here because the withdrawn GF(256) `lib-q-threshold-sig` this crate replaces (§4)
    exposed (fail-closed) `identify_abort` / `proactive_refresh` API surfaces, and a reader must not
    carry those capabilities across the swap. Identifiable abort or refresh, if required, are
    protocol extensions needing their own security analysis — not a patch on this crate.
