@@ -76,6 +76,15 @@ pub mod wasm;
 pub const SECRET_KEY_WIDTH: f64 = 8.0;
 
 /// Per-party verification key (the public BDLOP commitment to the party's share, serialized).
+///
+/// **Carried, not consumed.** No verification path in this crate reads `verifying_key` today. The
+/// homomorphic per-party check it would enable — `commit(z_s,i; z_r,i) = w_i + c·λ_i·V_i` — cannot
+/// be applied to what the distributed protocol actually broadcasts, because round-3 partials are
+/// zero-share-masked (`z_r,i + m_i`) and the mask is load-bearing for hiding the non-short
+/// `z_r,i`. Consuming it (identifiable abort / partial validation) is therefore a protocol
+/// extension with its own security analysis, not a local patch. It is kept in the public key
+/// because the DKG emits it and downstream tooling may audit shares out-of-band. See
+/// `LIBQ_API.md` §7 caveat 5.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShareVerifier {
     /// Party index `1..=n`.
@@ -91,7 +100,7 @@ pub struct ThresholdRaccoonPublicKey {
     pub threshold: u8,
     /// Serialized group commitment `T = commit(s; r)`.
     pub group_key: Vec<u8>,
-    /// Per-party verification keys.
+    /// Per-party verification keys (carried, not consumed — see [`ShareVerifier`]).
     pub share_verifiers: Vec<ShareVerifier>,
 }
 

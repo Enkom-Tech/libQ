@@ -18,6 +18,13 @@
 //! [`crate::signer::MAX_SIGNATURES_PER_KEY`]. Raise `S_SIGN` (≈∝√Q_s) to extend it. Threshold
 //! unforgeability is proven by reduction to BDLOP binding + Module-LWE in `SECURITY_ANALYSIS.md` §7
 //! (with the Threshold-Raccoon TS-UF-1 mapping). See also `LIBQ_API.md` §3a/§7.
+//!
+//! **Abort-only (no identifiable abort, no robustness, no refresh):** neither aggregation step
+//! identifies a misbehaving party. [`aggregate_commitment`] rejects a bad round-1 opening with an
+//! index-free error, and [`aggregate`] does no per-party verification of round-3 partials — one
+//! corrupt partial yields an aggregate that fails [`crate::verify`] with no indication of who
+//! cheated. Shares are static (no proactive refresh), matching the static-corruption TS-UF-1
+//! model. Faithful to Threshold-Raccoon; see `LIBQ_API.md` §7 caveat 5.
 
 extern crate alloc;
 

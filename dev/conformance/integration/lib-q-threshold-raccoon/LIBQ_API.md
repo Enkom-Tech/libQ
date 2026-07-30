@@ -67,7 +67,9 @@ DKG key) and `tampered_round1_opening_is_rejected`.
 is the same serialized commitment as `lib_q_dkg::VerificationKeySet.group_key`. So a dealerless DKG
 run is a drop-in keygen for this signer — verified by the `dkg_end_to_end` integration test
 (`dealerless_dkg_key_signs_and_verifies`). This replaces the GF(256) `lib-q-threshold-sig` (which a
-`Z_q`/`R_q` lattice share cannot feed) for PQ root/recovery keys.
+`Z_q`/`R_q` lattice share cannot feed) for PQ root/recovery keys. The replacement is **narrower**
+than the withdrawn crate's documented surface: it has no identifiable abort and no proactive
+refresh — see §7 caveat 5.
 
 ## 5. Load-bearing properties
 
@@ -79,6 +81,9 @@ run is a drop-in keygen for this signer — verified by the `dkg_end_to_end` int
 - **Unforgeability** rests on §2 (binding + Module-LWE). Single-signer EUF-CMA and distributed
   TS-UF-1 have paper-grade reductions to those assumptions (+ a PRF and the flooding budget) in
   `SECURITY_ANALYSIS.md` §7, with the relaxed-opening and QROM steps flagged.
+- **Unforgeability-only (TS-UF-1).** Unforgeability under up to `t−1` **static** corruptions is the
+  *entire* distributed-signing guarantee: the crate provides no identifiable abort, no
+  accountability, no robustness against dropouts, and no proactive share refresh (§7 caveat 5).
 
 ## 6. Wire (v1, provisional)
 
@@ -110,3 +115,23 @@ until the interoperable wire freeze.
    measurement campaign.
 4. **Research-grade.** A concrete published-candidate-style instantiation for evaluation, not a
    standardized scheme.
+5. **No identifiable abort, no accountability, no robustness, no proactive refresh.** The
+   distributed protocol (§3a) is abort-only. `aggregate_commitment` rejects a round-2 reveal that
+   fails its round-1 commitment check but returns an index-free error — it *detects* misbehaviour
+   without *identifying* the misbehaving party — and `aggregate` performs no per-party verification
+   of round-3 partials at all: one corrupt partial yields an aggregate that fails `verify`, with no
+   indication of who cheated (the per-party `ShareVerifier` material in the public key is carried
+   but consumed by no verification path). There is no robustness: any dropout or corrupt signer
+   aborts the run. There is no proactive refresh or resharing: shares are static for the life of
+   the key, matching the **static**-corruption TS-UF-1 model (`SECURITY_ANALYSIS.md` §7.2) — a
+   mobile adversary corrupting `t` parties over the key's lifetime is out of model. These four
+   absences are **verified properties of this implementation** — read directly off the code cited
+   above, not asserted from the literature. This crate implements Threshold-Raccoon (del Pino–
+   Katsumata–Reichle–Takemure, CRYPTO 2024) per its own citation (`src/threshold.rs:3`), but this
+   project has **not** read the paper closely enough to say whether the paper's construction itself
+   lacks identifiable abort, robustness, and proactive refresh, or whether this implementation
+   simply omits properties the construction provides — a reader must not infer either. It is
+   surfaced here because the withdrawn GF(256) `lib-q-threshold-sig` this crate replaces (§4)
+   exposed (fail-closed) `identify_abort` / `proactive_refresh` API surfaces, and a reader must not
+   carry those capabilities across the swap. Identifiable abort or refresh, if required, are
+   protocol extensions needing their own security analysis — not a patch on this crate.
