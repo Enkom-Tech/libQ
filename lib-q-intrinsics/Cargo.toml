@@ -11,13 +11,31 @@ description = "SIMD intrinsics for lib-Q cryptographic operations"
 keywords = ["cryptography", "intrinsics", "simd", "avx2", "neon"]
 categories = ["cryptography", "no-std"]
 
-# `default-features = false`: this crate is `#![no_std]`; pulling lib-q-platform's default `std`
-# would force lib-q-core into std (and `once_cell/std`), breaking bare-metal no_std consumers.
+# `default-features = false` on the edge, plus a forwarding `std` feature below — the same shape
+# `lib-q-platform` uses for its own `lib-q-core` edge. Keeping the edge itself feature-free is what
+# lets `--no-default-features` reach a genuine bare-metal no_std graph; `std` is what re-enables it.
 [dependencies]
 lib-q-platform = { path = "../lib-q-platform", version = "0.0.10", default-features = false }
 
 [features]
-default = []
+# `std` is ON by default, and must stay that way for this crate to be buildable at all.
+#
+# `lib-q-core` declares `crate-type = ["cdylib", "rlib"]` (the cdylib is for wasm-pack), and Cargo
+# builds every declared crate-type even when core is only a transitive dependency. A cdylib is a
+# *final* artifact, so it needs a panic runtime; with core in no_std under the default
+# `panic = "unwind"` profile there is no unwinder to link and rustc hard-errors with
+# "unwinding panics are not supported without std".
+#
+# This crate previously had `default = []` and no `std` feature at all, so its default graph forced
+# core into no_std and could not compile: `cargo check -p lib-q-intrinsics` and `cargo publish`'s
+# isolated verify build both failed. It only ever appeared to work inside a larger dependency graph
+# where some *other* crate unified `lib-q-core/std` back in (e.g. via `lib-q-ml-dsa`).
+#
+# Bare-metal consumers opt out with `default-features = false`, which reproduces the old graph
+# exactly; that configuration additionally needs `panic = "abort"` (workspace `dev-no-std` profile
+# or `RUSTFLAGS=-Cpanic=abort`), as documented on `lib-q-core`'s `no_std` feature.
+default = ["std"]
+std = ["lib-q-platform/std"]
 simd128 = []
 simd256 = []
 simd512 = []
