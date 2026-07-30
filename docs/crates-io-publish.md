@@ -4,7 +4,7 @@ Internal `path` dependencies must include a **version** (same as `[workspace.pac
 
 **First-time or clean-machine dry-run** may still report `no matching package named 'lib-q-…' on crates.io` until upstream workspace crates are published in order. Follow `.github/workflows/cd.yml`: `lib-q-types` → tier 0 (`lib-q-core`, `lib-q-keccak`) → `lib-q-sha3` → tier 1 (including `lib-q-keccak-digest` after `lib-q-sha3`).
 
-**FN-DSA nested crates** publish as `lib-q-fn-dsa-comm`, `lib-q-fn-dsa-kgen`, `lib-q-fn-dsa-sign`, `lib-q-fn-dsa-vrfy`, and `lib-q-fn-dsa-alg` (not `fn-dsa-*`; those names belong to [pornin/rust-fn-dsa](https://github.com/pornin/rust-fn-dsa) on crates.io). Use `scripts/publish-crates-io-ordered.ps1` for the full ordered list.
+**FN-DSA nested crates** publish as `lib-q-fn-dsa-comm`, `lib-q-fn-dsa-kgen`, `lib-q-fn-dsa-sign`, `lib-q-fn-dsa-vrfy`, and `lib-q-fn-dsa-alg` (not `fn-dsa-*`; those names belong to [pornin/rust-fn-dsa](https://github.com/pornin/rust-fn-dsa) on crates.io). Use `scripts/publish-crates-io-ordered.ps1` for the full ordered list — it restates `cd.yml`, and `scripts/ci-guard-publish-order.sh` fails CI if the two ever disagree (at 0.0.10 the script listed 65 of `cd.yml`'s 80 crates and skipped the other 15 without erroring). Regenerate it with `python3 scripts/cd_publish_manifest.py --format crates`.
 
 **`lib-q-stark-baby-bear` (tier 10)**: the BabyBear prime field (`p = 2^31 - 2^27 + 1`) implemented as a `lib-q-stark-monty31` instance; it is the base field for the Arm B membership STARK. Its dependencies — `lib-q-stark-field` (tier 6) and `lib-q-stark-monty31` (tier 9) — are already published by the time tier 10 runs, and its dependents — `lib-q-poseidon` (tier 11) and `lib-q-zkp` (tier 16) — come later, so tier 10 is the correct slot. It is published alongside `lib-q-stark-challenger` and `lib-q-stark-interpolation` in the `publish-rust-tier-10` matrix.
 
@@ -16,7 +16,13 @@ Internal `path` dependencies must include a **version** (same as `[workspace.pac
 
 **Bump:** When the workspace version changes, update every internal `version = "…"` on path dependencies to match, or re-run the script with `WS_VERSION` updated.
 
-**Not every workspace member is in `cd.yml`.** Research, fuzz-only, or internal crates (for example `lib-q-lattice-zkp`, `lib-q-ring-sig`, `lib-q-prf`, `lib-q-sca-test`, `lib-q-ring`) stay path-only until explicitly added to a publish tier; see [CI_CD_SETUP.md](../CI_CD_SETUP.md) and the root `Cargo.toml` `[workspace].members` list.
+**Not every workspace member is in `cd.yml`.** A member stays path-only until it is added to a publish tier. As of 0.0.10 the only members `cd.yml` does not publish are the ones that carry `publish = false` in their own `[package]` (a withdrawn crate, and `examples/`) — the research and internal crates this note used to list as path-only (`lib-q-lattice-zkp`, `lib-q-ring-sig`, `lib-q-prf`, `lib-q-sca-test`, `lib-q-ring`) have all since been added to tiers and do publish. Do not read a crate's publish status off this paragraph; derive it:
+
+```bash
+python3 scripts/cd_publish_manifest.py --format crates    # what cd.yml publishes, in CD order
+```
+
+`scripts/ci-guard-new-crates-and-npm.sh` fails CI when a publishable workspace member is missing from `cd.yml`; see also [CI_CD_SETUP.md](../CI_CD_SETUP.md) and the root `Cargo.toml` `[workspace].members` list.
 
 **crates.io-only crates (no npm parity).** A few crates publish to crates.io but ship **no npm / WASM package**, and are exempt from the npm-parity CI guards in `scripts/ci-guard-new-crates-and-npm.sh`:
 
