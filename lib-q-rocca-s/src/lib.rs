@@ -25,6 +25,13 @@
 //! **Constant-time note:** the scalar fallback uses a table-based S-box and is not
 //! constant-time. The hardware backends are constant-time. See `SECURITY.md`.
 //!
+//! ## Cargo features
+//!
+//! - `aead` + `alloc` (both, and both on by default) — gate [`RoccaSAead`], the
+//!   allocating AEAD wrapper. Without them only the borrowed-buffer API is built.
+//! - `std` — enables runtime CPU detection for the hardware AES backends.
+//! - `simd` / `simd-aesni` / `simd-neon` — hardware AES round (imply `std`).
+//!
 //! ## Example
 //!
 //! ```rust
@@ -49,7 +56,6 @@
 //! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

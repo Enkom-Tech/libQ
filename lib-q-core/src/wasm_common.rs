@@ -125,14 +125,14 @@ pub mod conversions {
 
     use js_sys::Uint8Array;
 
-    /// Convert Rust Vec<u8> to WASM Uint8Array
+    /// Convert Rust `Vec<u8>` to WASM `Uint8Array`
     pub fn vec_to_uint8array(data: &[u8]) -> Uint8Array {
         let array = Uint8Array::new_with_length(data.len() as u32);
         array.copy_from(data);
         array
     }
 
-    /// Convert WASM Uint8Array to Rust Vec<u8>
+    /// Convert WASM `Uint8Array` to Rust `Vec<u8>`
     pub fn uint8array_to_vec(array: &Uint8Array) -> Vec<u8> {
         let length = array.length() as usize;
         let mut vec = alloc::vec![0u8; length];

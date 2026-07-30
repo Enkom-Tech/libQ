@@ -7,7 +7,7 @@
 //! small, fixed-function primitive.
 //!
 //! The result is **bit-for-bit identical** to running four scalar
-//! [`TurboShake128`](crate::TurboShake128) / [`TurboShake256`](crate::TurboShake256)
+//! [`TurboShake128`] / [`TurboShake256`]
 //! instances; on targets without AVX2 the underlying permutation simply falls
 //! back to four scalar permutations, so output never changes.
 //!

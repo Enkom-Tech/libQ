@@ -80,7 +80,7 @@ pub const CTX_BYTES: usize = CTX_ELEMS * 8; // 16
 pub const PUBLIC_STATEMENT_BYTES: usize = WIDE_DIGEST_BYTES + CTX_BYTES + WIDE_DIGEST_BYTES; // 96
 
 /// Minimum padded path depth for the hiding (zero-knowledge) prover. The STARK trace height
-/// must clear the ZK FRI minimum (`log_min_height > log_blowup`); with [`ZK_LOG_BLOWUP`] = 3,
+/// must clear the ZK FRI minimum (`log_min_height > log_blowup`); with `ZK_LOG_BLOWUP` = 3,
 /// height 8 (depth 8) is the smallest that proves. Shallow trees are padded up to this with
 /// zero siblings, exactly like the power-of-two padding.
 pub const MIN_ZK_DEPTH: usize = 8;

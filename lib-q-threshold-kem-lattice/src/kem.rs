@@ -243,7 +243,7 @@ fn ct_digest(ct: &Ciphertext) -> [u8; 32] {
 /// Public accessor for the public-key digest of `t0` — `pk_digest(t0)`, the value absorbed into the
 /// FO seed `SHAKE256(dom ‖ pk_digest ‖ μ)`. Exposed so an encryption-proof **verifier** (which holds
 /// `t0` but never the witness) can rebuild the sponge's pk-binding public values itself, rather than
-/// trusting a prover-supplied digest. Thin wrapper over the internal [`pk_digest`].
+/// trusting a prover-supplied digest. Thin wrapper over the internal `pk_digest`.
 #[must_use]
 pub fn pk_digest_of(t0: &[Rq]) -> [u8; 32] {
     pk_digest(t0)

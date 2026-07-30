@@ -1,6 +1,6 @@
 //! cSHAKE-128 and cSHAKE-256 per [NIST SP 800-185](https://csrc.nist.gov/pubs/sp/800/185/final).
 //!
-//! The **function name** and **customization string** (NIST “N” and “S”) are encoded in the sponge state before message data. If both are empty, cSHAKE reduces to SHAKE for that rate (per the standard). The high-level types [`CShake128`](crate::CShake128) and [`CShake256`](crate::CShake256) are re-exported at the crate root.
+//! The **function name** and **customization string** (NIST “N” and “S”) are encoded in the sponge state before message data. If both are empty, cSHAKE reduces to SHAKE for that rate (per the standard). The high-level types [`CShake128`] and [`CShake256`] are re-exported at the crate root.
 //!
 //! Internal **core** types (`CShake128Core`, `CShake256Core`) support [`digest::common::hazmat::SerializableState`](https://docs.rs/digest/latest/digest/common/hazmat/trait.SerializableState.html) for advanced use; prefer the façade types for normal hashing.
 
@@ -190,7 +190,6 @@ macro_rules! impl_cshake {
             }
         }
 
-        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl digest::zeroize::ZeroizeOnDrop for $name {}
 

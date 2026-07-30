@@ -1,8 +1,8 @@
 //! Wide-digest (BabyBear / Poseidon2) binary Merkle tree — the Arm B analogue of
 //! [`crate::merkle::WidePoseidonMerkleTree`].
 //!
-//! Each node is a [`WideDigestBb`] (9 BabyBear elements) and the 2-to-1 compression is
-//! [`compress_bb`] — the SAME function the membership / wide-Merkle-path AIRs constrain
+//! Each node is a [`WideDigestBb`](crate::air::wide_merkle_path_baby_bear::WideDigestBb) (9 BabyBear elements) and the 2-to-1 compression is
+//! [`compress_bb`](crate::air::wide_merkle_path_baby_bear::compress_bb) — the SAME function the membership / wide-Merkle-path AIRs constrain
 //! (`air::wide_merkle_path_baby_bear`), so a tree's `root` and `path(idx)` are exactly what the
 //! circuit proves. This lets a caller build a real membership set over BabyBear and extract an
 //! authentication path by index, at parity with Arm A (Arm B previously only synthesized single

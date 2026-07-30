@@ -259,7 +259,7 @@ struct BlindOpeningSecrets {
 
 /// User-side state after [`BlindIssuance::request`].
 ///
-/// Dropping without finalizing scrubs [`BlindOpeningSecrets`] automatically.
+/// Dropping without finalizing scrubs `BlindOpeningSecrets` automatically.
 #[must_use = "consume via BlindIssuance::finalize or drop to scrub blind/user openings"]
 #[derive(Clone)]
 pub struct BlindUserState {
@@ -308,7 +308,7 @@ pub struct BlindResponse {
 
 /// Final bundle after [`BlindIssuance::finalize`].
 ///
-/// Cloning duplicates the secret [`token_opening`]; prefer references when possible.
+/// Cloning duplicates the secret [`token_opening`](Self::token_opening); prefer references when possible.
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct UnblindedIssuance {
     #[zeroize(skip)]

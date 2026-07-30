@@ -11,11 +11,11 @@
 //!
 //! Decapsulation keys and shared secrets are stored in [`zeroize::Zeroizing`] buffers so they are
 //! cleared on drop when WASM objects are garbage-collected on the Rust side. Serialized key bytes
-//! from [`EncodedSizeUser::as_bytes`](crate::EncodedSizeUser::as_bytes) use the same `Zeroizing`
+//! from [`EncodedSizeUser::as_bytes`] use the same `Zeroizing`
 //! pattern.
 //!
 //! Secret bytes are copied to `JavaScript` as [`js_sys::Uint8Array`] via `copy_from` (not as an owned
-//! non-zeroizing [`alloc::vec::Vec`] return), which avoids an extra full-size plaintext `Vec` in
+//! non-zeroizing `alloc::vec::Vec` return), which avoids an extra full-size plaintext `Vec` in
 //! Rust linear memory for each getter or decapsulate call.
 //!
 //! **`JavaScript` callers** must still treat returned `Uint8Array` values as sensitive: Rust cannot

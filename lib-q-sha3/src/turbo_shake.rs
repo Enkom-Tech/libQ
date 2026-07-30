@@ -1,6 +1,6 @@
 //! TurboSHAKE-128 and TurboSHAKE-256: Keccak-`p` with a **domain byte** `DS` (`0x01`..=`0x7F`) and 12 rounds (see [RFC 9861](https://www.rfc-editor.org/rfc/rfc9861.html) and the KangarooTwelve document). Used as the leaf primitive in [`lib_q_k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12).
 //!
-//! Use **distinct** `DS` values for independent protocols. [`TurboShake128`](crate::TurboShake128) and [`TurboShake256`](crate::TurboShake256) are re-exported at the crate root.
+//! Use **distinct** `DS` values for independent protocols. [`TurboShake128`] and [`TurboShake256`] are re-exported at the crate root.
 
 use core::fmt;
 
@@ -118,7 +118,6 @@ macro_rules! impl_turbo_shake {
             }
         }
 
-        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl<const DS: u8> digest::zeroize::ZeroizeOnDrop for $name<DS> {}
 

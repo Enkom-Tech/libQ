@@ -28,6 +28,11 @@ criterion-bench = ["criterion"]
 
 [package.metadata.docs.rs]
 features = ["criterion-bench"]
+# Every other published crate in this workspace sets `--cfg docsrs` here; this one was
+# missing it, so a future `cfg_attr(docsrs, ...)` added to this crate would silently never
+# see docsrs cfg on the real docs.rs build (the same class of gap that let four other
+# crates ship broken docs.rs builds undetected). Keep in sync with the workspace default.
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

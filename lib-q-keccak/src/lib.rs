@@ -25,7 +25,6 @@
 //! To disable loop unrolling (e.g. for constraint targets) use the `no_unroll` feature.
 
 #![cfg_attr(keccak_portable_simd, feature(portable_simd))]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/Enkom-Tech/libQ/main/docs/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/Enkom-Tech/libQ/main/docs/logo.svg"

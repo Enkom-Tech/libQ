@@ -1,5 +1,5 @@
 //! ZK-STARK proof of correct encryption (proof-of-knowledge of message `mu`)
-//! for [`lib-q-threshold-kem-lattice`] ciphertexts.
+//! for `lib-q-threshold-kem-lattice` ciphertexts.
 //!
 //! **Status: RED/unsigned — research add-on, not reviewed, not production-ready.**
 //!

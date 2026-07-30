@@ -25,8 +25,8 @@
 //!     M2** (the multi-row sponge AIR); here it is the value-level reference only.
 //!
 //! * **Circuit level:** the test fixture `WideHashPermAir` exercises
-//!   [`PoseidonGadget::with_params`]`(Poseidon256::params())` +
-//!   [`PoseidonGadget::constrain_full_state_wide`] binding 5 outputs, proving the
+//!   [`PoseidonGadget::with_params`](crate::air::poseidon_gadget::PoseidonGadget::with_params)`(Poseidon256::params())` +
+//!   [`PoseidonGadget::constrain_full_state_wide`](crate::air::poseidon_gadget::PoseidonGadget::constrain_full_state_wide) binding 5 outputs, proving the
 //!   wide-output constraint path is sound end-to-end. The multi-row sponge AIR (M2)
 //!   repeats exactly this per-row primitive with capacity carry.
 //!
@@ -58,7 +58,7 @@ pub type WideDigest = [PoseidonField; WIDE_DIGEST_ELEMS];
 /// [`WideDigest`] (first [`WIDE_DIGEST_ELEMS`] state cells).
 ///
 /// This is the per-permutation compression the in-circuit gadget path constrains
-/// ([`PoseidonGadget::constrain_full_state_wide`]) and the unit the multi-row sponge AIR
+/// ([`PoseidonGadget::constrain_full_state_wide`](crate::air::poseidon_gadget::PoseidonGadget::constrain_full_state_wide)) and the unit the multi-row sponge AIR
 /// (M2) stacks with capacity carry.
 ///
 /// `initial_state` must contain at least `state_width` (= 7) elements; only the first 7

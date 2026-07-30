@@ -3,7 +3,7 @@
 //! # Re-exports
 //!
 //! - [`digest`]: the `digest` crate (version unified with the workspace).
-//! - [`Digest`], [`Update`], [`ExtendableOutput`], [`ExtendableOutputReset`], [`XofReader`], [`CustomizedInit`], [`CollisionResistance`]: common [`digest`](https://docs.rs/digest) traits, re-exported at the root. For XOFs use [`Update`], [`ExtendableOutput`], and [`XofReader`]. If a module imports both [`Digest`] and [`Update`], disambiguate [`Digest::update`](Digest::update) and [`Update::update`](Update::update) with explicit trait paths.
+//! - [`Digest`], [`Update`], [`ExtendableOutput`], [`ExtendableOutputReset`], [`XofReader`], [`CustomizedInit`], [`CollisionResistance`]: common [`digest`](https://docs.rs/digest) traits, re-exported at the root. For XOFs use [`Update`], [`ExtendableOutput`], and [`XofReader`]. If a module imports both [`Digest`] and [`Update`], disambiguate [`Digest::update`] and [`Update::update`] with explicit trait paths.
 //!
 //! # Modules
 //!
@@ -16,8 +16,8 @@
 //! # Crate features
 //!
 //! Optional Cargo features: `alloc`, `oid`, `zeroize`, `asm` (see the README *Feature flags* table).
-//! On [docs.rs](https://docs.rs/lib-q-sha3), this crate is built with `all-features`; the `doc_cfg`
-//! rustdoc feature marks APIs that require a Cargo feature. The `zeroize` feature enables
+//! On [docs.rs](https://docs.rs/lib-q-sha3), this crate is built with `all-features`; rustdoc
+//! marks APIs that require a Cargo feature automatically. The `zeroize` feature enables
 //! [`ZeroizeOnDrop`](https://docs.rs/digest/latest/digest/trait.ZeroizeOnDrop.html) (from the `zeroize` feature) on supported types.
 //!
 //! # `sha3_256` vs `Sha3_256`
@@ -30,7 +30,6 @@
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg"
 )]
-#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 

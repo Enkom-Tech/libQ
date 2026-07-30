@@ -50,7 +50,7 @@ use core::arch::x86_64::{
 /// * `sparse` - Sparse polynomial (fixed weight, represented as bit positions)
 /// * `dense` - Dense polynomial (full representation)
 /// * `weight` - Weight of the sparse polynomial
-/// Sparse–dense product in GF(2)[x]/(x^n - 1) with correct cyclic reduction modulo `n_bits`.
+/// Sparse–dense product in `GF(2)[x]/(x^n - 1)` with correct cyclic reduction modulo `n_bits`.
 ///
 /// Uses the same bit-accurate reference as [`super::super::portable::sparse_dense_mul_portable`].
 /// AVX2-accelerated cyclic shifts can be layered in later without changing this API.

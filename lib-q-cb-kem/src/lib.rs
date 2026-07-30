@@ -26,6 +26,19 @@
 //! - **Memory safety**: Automatic zeroization of sensitive data
 //! - **Hash function**: SHA3 (SHAKE256) hash function
 //!
+//! ## Cargo features
+//!
+//! (Item names are written as plain code spans, not intra-doc links: each one exists
+//! only when its feature is enabled, so linking them would emit unresolved-link
+//! warnings in builds that do not enable every feature.)
+//!
+//! - `alloc` — heap helpers: `PublicKey::to_owned`, `SecretKey::to_owned`,
+//!   `SharedSecret::to_owned`, the `From<Box<[u8; _]>>` conversions, and
+//!   `LibQCbKemProvider`.
+//! - `nist-aes-rng` — the NIST SP 800-90A CTR_DRBG: `AesState`, `NistDrbgError`,
+//!   `MAX_BYTES_PER_REQUEST`, `RESEED_INTERVAL`, `SEEDLEN`.
+//! - `zeroize` — automatic zeroization of key material on drop.
+//!
 //! ## Usage
 //!
 //! ### With libQ Integration
@@ -74,7 +87,6 @@
 
 #![no_std]
 #![forbid(unsafe_code)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
 // Reference-style loops and explicit formulas match upstream crypto code; keep Clippy from blocking CI.
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::identity_op)]
@@ -105,7 +117,6 @@ mod uint64_sort;
 mod util;
 
 #[cfg(feature = "nist-aes-rng")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nist-aes-rng")))]
 mod nist_aes_rng;
 
 use core::fmt::Debug;
@@ -133,7 +144,6 @@ pub use lib_q_random::ClassicalMcElieceRng as LibQRng;
 #[cfg(feature = "alloc")]
 pub use libq_provider::LibQCbKemProvider;
 #[cfg(feature = "nist-aes-rng")]
-#[cfg_attr(docsrs, doc(cfg(feature = "nist-aes-rng")))]
 pub use nist_aes_rng::{
     AesState,
     MAX_BYTES_PER_REQUEST,
@@ -222,7 +232,6 @@ pub struct PublicKey<'a>(KeyBufferMut<'a, CRYPTO_PUBLICKEYBYTES>);
 
 impl PublicKey<'_> {
     /// Copies the key to the heap and makes it `'static`.
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     #[cfg(feature = "alloc")]
     pub fn to_owned(&self) -> PublicKey<'static> {
         PublicKey(self.0.to_owned())
@@ -245,7 +254,6 @@ impl<'a> From<&'a mut [u8; CRYPTO_PUBLICKEYBYTES]> for PublicKey<'a> {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 #[cfg(feature = "alloc")]
 impl From<Box<[u8; CRYPTO_PUBLICKEYBYTES]>> for PublicKey<'static> {
     fn from(data: Box<[u8; CRYPTO_PUBLICKEYBYTES]>) -> Self {
@@ -282,7 +290,6 @@ pub struct SecretKey<'a>(KeyBufferMut<'a, CRYPTO_SECRETKEYBYTES>);
 
 impl SecretKey<'_> {
     /// Copies the key to the heap and makes it `'static`.
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     #[cfg(feature = "alloc")]
     pub fn to_owned(&self) -> SecretKey<'static> {
         SecretKey(self.0.to_owned())
@@ -319,7 +326,6 @@ impl<'a> From<&'a mut [u8; CRYPTO_SECRETKEYBYTES]> for SecretKey<'a> {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 #[cfg(feature = "alloc")]
 impl From<Box<[u8; CRYPTO_SECRETKEYBYTES]>> for SecretKey<'static> {
     fn from(data: Box<[u8; CRYPTO_SECRETKEYBYTES]>) -> Self {
@@ -397,7 +403,6 @@ pub struct SharedSecret<'a>(KeyBufferMut<'a, CRYPTO_BYTES>);
 
 impl SharedSecret<'_> {
     /// Copies the secret to the heap and makes it `'static`.
-    #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
     #[cfg(feature = "alloc")]
     pub fn to_owned(&self) -> SharedSecret<'static> {
         SharedSecret(self.0.to_owned())
@@ -463,7 +468,6 @@ pub fn keypair<'public, 'secret, R: CryptoRng + Rng>(
 /// Convenient wrapper around [`keypair`] that stores the public and private keys on the heap
 /// and returns them with the ``'static`` lifetime.
 #[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub fn keypair_boxed<R: CryptoRng + Rng>(rng: &mut R) -> (PublicKey<'static>, SecretKey<'static>) {
     let mut public_key_buf = util::alloc_boxed_array::<CRYPTO_PUBLICKEYBYTES>();
     let mut secret_key_buf = util::alloc_boxed_array::<CRYPTO_SECRETKEYBYTES>();
@@ -503,7 +507,6 @@ pub fn encapsulate<'shared_secret, R: CryptoRng + Rng>(
 /// Convenient wrapper around [`encapsulate`] that stores the shared secret on the heap
 /// and returns it with the ``'static`` lifetime.
 #[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub fn encapsulate_boxed<R: CryptoRng + Rng>(
     public_key: &PublicKey<'_>,
     rng: &mut R,
@@ -544,7 +547,6 @@ pub fn decapsulate<'shared_secret>(
 /// Convenient wrapper around [`decapsulate`] that stores the shared secret on the heap
 /// and returns it with the ``'static`` lifetime.
 #[cfg(feature = "alloc")]
-#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub fn decapsulate_boxed(ciphertext: &Ciphertext, secret_key: &SecretKey) -> SharedSecret<'static> {
     let mut shared_secret_buf = KeyBufferMut::Owned(Box::new([0u8; CRYPTO_BYTES]));
 

@@ -2,7 +2,8 @@
 //!
 //! Port of [`reference/hqc/src/x86_64/common/hqc-*/gf2x.c`](../../../../../../reference/hqc/src/x86_64/common/hqc-1/gf2x.c):
 //! **Toom–Cook 3-way**, recursive **Karatsuba**, **PCLMUL**, then **reduce**, parameterized by
-//! [`HqcParams::PARAM_N_MULT`] and [`HqcParams::VEC_N_256_SIZE_64`].
+//! [`HqcParams::PARAM_N_MULT`](crate::HqcParams::PARAM_N_MULT) and
+//! [`HqcParams::VEC_N_256_SIZE_64`](crate::HqcParams::VEC_N_256_SIZE_64).
 //!
 //! # Safety
 //!

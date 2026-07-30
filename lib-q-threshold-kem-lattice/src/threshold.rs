@@ -123,7 +123,7 @@ impl DecapBudget {
 
 /// Symmetric pairwise seeds for the additive zero-sharing (one per unordered party pair).
 ///
-/// In a deployment these come from pairwise key agreement during/after the DKG; the [`setup`] helper
+/// In a deployment these come from pairwise key agreement during/after the DKG; the [`setup`](Self::setup) helper
 /// samples them for testing. `seed(i, j) == seed(j, i)`.
 ///
 /// The per-pair seed bytes are **secret** (they key the zero-share PRF), so the set zeroizes them on
@@ -161,7 +161,7 @@ impl ZeroShareSeeds {
     /// each `seed_ij` comes from pairwise key agreement established during the DKG (a shared secret only
     /// parties `i` and `j` can compute), rather than the random [`setup`](Self::setup) test source. Each
     /// entry is the canonical unordered pair `(i, j, seed)` with `0 < i < j`; a zero index, `i >= j`, or a
-    /// duplicate pair is rejected ([`ThresholdKemError::InvalidSeedEntry`]) so [`seed`](Self::seed) lookup
+    /// duplicate pair is rejected ([`ThresholdKemError::InvalidSeedEntry`]) so `seed` lookup
     /// is unambiguous and fail-closed. The seed bytes must be a *secret* shared by exactly `i` and `j`;
     /// deriving them from public material would forfeit the per-broadcast uniformity the zero-share
     /// provides (see the module security notes).

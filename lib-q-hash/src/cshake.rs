@@ -189,7 +189,6 @@ macro_rules! impl_cshake {
             }
         }
 
-        #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
         #[cfg(feature = "zeroize")]
         impl digest::zeroize::ZeroizeOnDrop for $name {}
 

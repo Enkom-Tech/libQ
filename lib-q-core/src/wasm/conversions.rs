@@ -45,7 +45,7 @@ impl WasmConversions {
         array
     }
 
-    /// Convert WASM Uint8Array to Rust Vec<u8>
+    /// Convert WASM `Uint8Array` to Rust `Vec<u8>`
     ///
     /// Validates input size to limit abuse; copies array contents into a new `Vec`.
     pub fn uint8array_to_vec(array: &Uint8Array) -> Result<Vec<u8>> {

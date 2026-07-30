@@ -15,7 +15,7 @@ pub fn ring_coefficient_count() -> u32 {
     COEFFICIENTS_IN_RING_ELEMENT as u32
 }
 
-/// Modulus `q` for \(R_q = Z_q[X]/(X^{256}+1)\).
+/// Modulus `q` for `R_q = Z_q[X]/(X^256+1)`.
 #[wasm_bindgen(js_name = ringModulusQ)]
 pub fn ring_modulus_q() -> u32 {
     FIELD_MODULUS as u32

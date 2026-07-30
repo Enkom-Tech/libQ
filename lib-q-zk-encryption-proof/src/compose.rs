@@ -25,7 +25,7 @@
 //! Validated end-to-end through `prove_batch`/`verify_batch` (cryptographic enforcement via the batch
 //! verifier's `verify_global_final_value`, not merely the debug `check_lookups`):
 //!   * the composition primitives — a `Kind::Global` cross-table lookup between two heterogeneous AIR
-//!     instances, and a **preprocessed** column feeding a lookup (via [`build_preprocessed`]);
+//!     instances, and a **preprocessed** column feeding a lookup (via `build_preprocessed`);
 //!   * the **byte-provenance chain** (join 1) — sponge (68 limb-Sends + preprocessed position column) ⇒
 //!     squeeze-byte table (limb-Receive + consumed-prefix byte-Send) ⇒ sampler (byte-Receive), verifying
 //!     iff the sampler consumed the genuine SHAKE output; a sponge proving a *different* μ is rejected;
@@ -38,7 +38,7 @@
 //!     instances carry two lookup groups (e.g. the fold's coeff-Receive on aux cols 0..4 + its `E`-Send
 //!     on cols 4..8) without collision, via each join constructor's `col_base`.
 //!
-//! Building [`prove_batch`]-with-lookups surfaced (and this crate fixed) a real degree-under-count bug
+//! Building `prove_batch`-with-lookups surfaced (and this crate fixed) a real degree-under-count bug
 //! in `lib-q-plonky-lookup` (the path had no end-to-end test repo-wide).
 //!
 //! **Status of #26 (COMPLETE, 2026-07-14):** the full byte-provenance composition has been **lifted out
