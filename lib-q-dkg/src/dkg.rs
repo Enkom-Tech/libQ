@@ -140,8 +140,8 @@ pub struct Complaint {
 
 /// A party's finalized signing share (sum of qualified dealers' sub-shares).
 ///
-/// `share_bytes` encodes `value ‖ rand` (`1 + KAPPA` `R_q` elements). Shape mirrors
-/// `lib-q-threshold-sig::SecretShare`; see `LIBQ_API.md` for the 1:1 mapping.
+/// `share_bytes` encodes `value ‖ rand` (`1 + KAPPA` `R_q` elements). Shape is byte-identical to
+/// `lib-q-threshold-raccoon::SecretShare`; see `LIBQ_API.md` for the 1:1 mapping.
 #[derive(Clone)]
 pub struct SigningShare {
     /// Party index `1..=n`.
@@ -172,10 +172,10 @@ pub struct VerificationKeySet {
     pub share_verifiers: Vec<ShareVerifier>,
 }
 
-/// Output of [`dkg_run_honest`]: shape mirrors `lib-q-threshold-sig::KeygenSharesOutput`.
+/// Output of [`dkg_run_honest`]: shape is 1:1 with `lib-q-threshold-raccoon::KeygenSharesOutput`.
 #[derive(Clone)]
 pub struct KeygenSharesOutput {
-    /// The verification-key set (analog of `ThresholdSigPublicKey`).
+    /// The verification-key set (analog of `lib-q-threshold-raccoon`'s public key).
     pub public_key: VerificationKeySet,
     /// One signing share per party.
     pub secret_shares: Vec<SigningShare>,

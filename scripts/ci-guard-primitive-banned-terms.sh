@@ -7,7 +7,6 @@ cd "$ROOT"
 
 CRATES=(
   lib-q-mac
-  lib-q-threshold-sig
   lib-q-threshold-kem
   lib-q-double-kem
   lib-q-fhe
@@ -22,8 +21,8 @@ CRATES=(
   lib-q-zk-encryption-proof
 )
 
-# Case-insensitive for gip/sybil/vault; PoP is matched case-sensitively only (avoids
-# false positives on neutral slugs such as threshold-sig-pop-v1.json).
+# Case-insensitive for gip/sybil/vault; PoP is matched case-sensitively only, so lowercase
+# `pop` inside neutral identifiers and KAT slugs does not trip the guard.
 PATTERN='(?i:gip|sybil|vault)|PoP'
 
 failed=0

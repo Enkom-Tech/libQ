@@ -55,9 +55,9 @@ Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-np
 | `@lib-q/dkg` | `lib-q-dkg` | PROVISIONAL lattice dealerless DKG |
 | `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | PROVISIONAL PQ lattice threshold signature |
 
-`lib-q-threshold-sig` (`@lib-q/threshold-sig`) was tier-4b through 0.0.8 and is **removed** as of
-0.0.9: the crate is **WITHDRAWN — cryptographically unsound**, not merely provisional. See
-[Withdrawn crates](#withdrawn-crates-published-nowhere) below.
+`lib-q-threshold-sig` (`@lib-q/threshold-sig`) was tier-4b through 0.0.8. It was withdrawn as
+cryptographically unsound and has since been deleted from the workspace — see
+[Removed crates](#removed-crates) below.
 
 (`lib-q-blind-token` is tier-4b on crates.io but **crates.io-only** — `crate-type = ["rlib"]`, no wasm-pack bindings — so it has no `@lib-q/*` package; it is exempt from the tier-4b npm-parity guard.)
 
@@ -89,11 +89,11 @@ Some crates ship to **crates.io only** — they are Rust libraries with no corre
 
 These are **new in 0.0.8** (except `lib-q-blind-token`, which was already crates.io-only) and intentionally have **no npm / wasm packages**, matching the policy above for low-level STARK subcrates.
 
-### Withdrawn crates (published nowhere)
+### Removed crates
 
-| Rust crate | Status | Why published nowhere |
-|------------|--------|------------------------|
-| `lib-q-threshold-sig` | **WITHDRAWN — cryptographically unsound, provides no security** | Not a "crates.io-only" case above — as of 0.0.9 it is removed from **both** the crates.io publish jobs and the npm `publish-wasm-packages` matrix in `cd.yml`, and its `Cargo.toml` sets `publish = false` so `cargo publish` refuses it outright. It stays a workspace member: compiled, `cargo test`-ed, and wasm32-built/tested in CI so the withdrawal itself (every entry point failing closed) stays verified. See [`lib-q-threshold-sig/README.md`](../lib-q-threshold-sig/README.md). |
+| Rust crate | Status | Notes |
+|------------|--------|-------|
+| `lib-q-threshold-sig` (`@lib-q/threshold-sig`) | **WITHDRAWN then REMOVED — cryptographically unsound, provided no security** | Withdrawn in 0.0.9 (every entry point failed closed, `publish = false`, dropped from every publish matrix), then deleted from the workspace entirely. The defect was structural rather than a parameter choice, so there was nothing to repair and no reason to keep a fail-closed shell in the tree. No published version was ever sound; do not reinstate it from history. The threshold-signature capability is served by `lib-q-threshold-raccoon` (npm: `@lib-q/threshold-raccoon`), which has a stated hardness assumption and consumes `lib-q-dkg` shares. |
 
 ## Choosing a package
 

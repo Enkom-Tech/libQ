@@ -8,10 +8,10 @@
 //! adaptive-dealer kernel-injection attack that a bare-Ajtai commitment admits. The group secret is
 //! never reconstructed.
 //!
-//! Outputs ([`SigningShare`], [`VerificationKeySet`], [`KeygenSharesOutput`]) mirror the shapes of
-//! `lib-q-threshold-sig` so they are drop-in for a future lattice signer; `share_bytes` carry the
-//! `R_q` (`Z_q`-coefficient) encodings. See the crate's `LIBQ_API.md` contract for the scheme
-//! choice, the 1:1 type mapping, and the assumptions recorded for RED-zone review.
+//! Outputs ([`SigningShare`], [`VerificationKeySet`], [`KeygenSharesOutput`]) are shaped to be
+//! drop-in for a lattice signer — `lib-q-threshold-raccoon` consumes them directly; `share_bytes`
+//! carry the `R_q` (`Z_q`-coefficient) encodings. See the crate's `LIBQ_API.md` contract for the
+//! scheme choice, the 1:1 type mapping, and the assumptions recorded for RED-zone review.
 //!
 //! This crate is **PROVISIONAL** and consumer-protocol-agnostic: it carries no consumer-protocol references.
 

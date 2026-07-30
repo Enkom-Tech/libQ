@@ -1,7 +1,0 @@
-{
-  "status": "WITHDRAWN",
-  "schema": "threshold-sig-withdrawn-v1",
-  "regenerate": "not possible — the signing and verification surface has been removed",
-  "reason": "See threshold-sig-pop-v1.json. The crate is withdrawn as cryptographically unsound; no known-answer vectors are published for it.",
-  "budget_bytes": 8192
-}

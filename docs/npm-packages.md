@@ -2,9 +2,9 @@
 
 **28** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
 
-`@lib-q/threshold-sig` is not among them: `lib-q-threshold-sig` is **WITHDRAWN — cryptographically
-unsound**, and is published to neither npm nor crates.io as of 0.0.9. See
-[`lib-q-threshold-sig/README.md`](../lib-q-threshold-sig/README.md).
+`@lib-q/threshold-sig` is not among them: `lib-q-threshold-sig` was withdrawn as
+**cryptographically unsound** and the crate has since been removed from the workspace. See
+[Removed crates](npm-coverage.md#removed-crates).
 
 Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
 

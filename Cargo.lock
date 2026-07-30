@@ -2091,23 +2091,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib-q-threshold-sig"
-version = "0.0.10"
-dependencies = [
- "getrandom 0.4.3",
- "hex",
- "lib-q-core",
- "lib-q-random",
- "rand_core 0.10.1",
- "serde",
- "serde_json",
- "subtle",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "zeroize",
-]
-
-[[package]]
 name = "lib-q-transcript"
 version = "0.0.10"
 dependencies = [

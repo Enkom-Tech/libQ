@@ -14,8 +14,8 @@ verifiable secret sharing (VSS) scheme for libQ.
   the verification-key set is the homomorphic sum of qualified commitments.
 - Resharing is **binding-verifiable** and preserves the group secret (the group-key commitment is
   re-randomized).
-- Output: `SigningShare` / `VerificationKeySet` / `KeygenSharesOutput` mirror the shapes of
-  `lib-q-threshold-sig` (`share_bytes` carry `R_q`/`Z_q` encodings).
+- Output: `SigningShare` / `VerificationKeySet` / `KeygenSharesOutput` are 1:1 with the shapes
+  `lib-q-threshold-raccoon` consumes (`share_bytes` carry `R_q`/`Z_q` encodings).
 - Wire format (`dkg` v1): `[ver=1][profile=1] …` length-prefixed, budget-gated.
 
 ## Profile

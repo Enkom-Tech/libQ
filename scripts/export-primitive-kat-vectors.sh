@@ -9,7 +9,6 @@ DEST="$ROOT/export/kat-vectors"
 mkdir -p "$DEST"
 
 cp lib-q-mac/tests/vectors/qcw-mac-v1.json "$DEST/qcw-mac-v1.json"
-cp lib-q-threshold-sig/tests/vectors/threshold-sig-pop-v1.json "$DEST/threshold-sig-pop-v1.json"
 cp lib-q-double-kem/tests/vectors/double-kem-v1.json "$DEST/double-kem-v1.json"
 cp lib-q-threshold-kem/tests/vectors/threshold-kem-v1.json "$DEST/threshold-kem-v1.json"
 
