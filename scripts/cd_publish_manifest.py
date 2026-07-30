@@ -76,7 +76,13 @@ class CdParseError(RuntimeError):
 def _leading_indent(line: str) -> int:
     stripped = line.lstrip(" ")
     n = len(line) - len(stripped)
-    if "\t" in line[:n]:
+    # `stripped` is whatever follows the leading spaces `lstrip(" ")` consumed, so if a tab sits
+    # in that indentation, `lstrip(" ")` stops there and `stripped` starts with it -- that is the
+    # reachable form of this check. (The previous form tested `"\t" in line[:n]`, i.e. the spaces
+    # already counted off by `n`, which by construction can never contain a tab: dead code that
+    # never fired. Parsing a tab-indented cd.yml still failed before this fix, just via the
+    # generic "unexpected indent" error further down the parser, not this tab-specific message.)
+    if stripped.startswith("\t"):
         raise CdParseError(f"tab in indentation: {line!r}")
     return n
 

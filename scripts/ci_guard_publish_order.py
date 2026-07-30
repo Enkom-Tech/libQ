@@ -59,8 +59,84 @@ def read(root: pathlib.Path, rel: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _strip_ps1_comments(text: str, source: str) -> str:
+    """Blank out PowerShell `# ...` line comments and `<# ... #>` block comments,
+    leaving string literals -- and every other character -- exactly where they
+    were (comment text is replaced with spaces, newlines are kept), so the
+    `re.MULTILINE`/`re.DOTALL` anchors the callers use still line up.
+
+    This is deliberately NOT `line.split('#')[0]`. PowerShell, like most
+    languages, does not treat `#` as a comment when it is inside a string --
+    `"lib-q-mac # not a comment"` is one 26-character string, not a crate name
+    truncated at the space. A naive split-on-`#` would silently mis-parse that
+    (and, worse, would fail to notice a REAL comment hiding a crate, which is
+    the bug this function exists to fix). So this walks the text one character
+    at a time and tracks whether it is inside a single-quoted string (`'...'`,
+    self-escaped as `''`), a double-quoted string (`"..."`, escaped with a
+    backtick or self-escaped as `""`), or a block comment -- `#` only starts a
+    line comment, and `<#` only starts a block comment, when none of those
+    apply. A tokenizer that tracks this one bit of state (in-string or not) is
+    harder to get subtly wrong than any regex/strip trick operating on whole
+    lines, because it can never misjudge a `#` by looking at the wrong side of
+    a quote.
+
+    Fails closed on here-strings (`@"` / `@'`): every restatement this scanner
+    reads is a flat list of plain quoted scalars, so a here-string appearing
+    here means a construct this scanner was not built to reason about has been
+    introduced. Guessing at where it ends is exactly the kind of blind spot
+    this guard exists to close, so this raises instead.
+    """
+    out: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        two = text[i : i + 2]
+        if two == "<#":
+            end = text.find("#>", i + 2)
+            if end == -1:
+                raise SystemExit(f"ci-guard-publish-order: unterminated <# comment #> in {source}")
+            out.append("".join(c if c == "\n" else " " for c in text[i : end + 2]))
+            i = end + 2
+            continue
+        if two in ('@"', "@'"):
+            raise SystemExit(
+                f"ci-guard-publish-order: here-string ({two}...) in {source} is not modelled by "
+                "this scanner -- rewrite the restatement using plain quoted entries"
+            )
+        ch = text[i]
+        if ch in "\"'":
+            quote = ch
+            j = i + 1
+            while j < n:
+                if quote == '"' and text[j] == "`" and j + 1 < n:
+                    j += 2
+                    continue
+                if text[j] == quote:
+                    if j + 1 < n and text[j + 1] == quote:
+                        j += 2
+                        continue
+                    j += 1
+                    break
+                j += 1
+            else:
+                raise SystemExit(f"ci-guard-publish-order: unterminated {quote}-quoted string in {source}")
+            out.append(text[i:j])
+            i = j
+            continue
+        if ch == "#":
+            end = text.find("\n", i)
+            if end == -1:
+                end = n
+            out.append(" " * (end - i))
+            i = end
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def ps1_packages(text: str) -> list[str]:
-    m = re.search(r"^\$packages\s*=\s*@\(\s*$(.*?)^\)\s*$", text, re.MULTILINE | re.DOTALL)
+    scanned = _strip_ps1_comments(text, PS1)
+    m = re.search(r"^\$packages\s*=\s*@\(\s*$(.*?)^\)\s*$", scanned, re.MULTILINE | re.DOTALL)
     if not m:
         raise SystemExit(f"ci-guard-publish-order: could not locate `$packages = @(...)` in {PS1}")
     names = re.findall(r'"([^"]+)"', m.group(1))
@@ -70,7 +146,8 @@ def ps1_packages(text: str) -> list[str]:
 
 
 def ps1_nested_manifests(text: str) -> dict[str, str]:
-    m = re.search(r"^\$nestedManifest\s*=\s*@\{\s*$(.*?)^\}\s*$", text, re.MULTILINE | re.DOTALL)
+    scanned = _strip_ps1_comments(text, PS1)
+    m = re.search(r"^\$nestedManifest\s*=\s*@\{\s*$(.*?)^\}\s*$", scanned, re.MULTILINE | re.DOTALL)
     if not m:
         raise SystemExit(f"ci-guard-publish-order: could not locate `$nestedManifest = @{{...}}` in {PS1}")
     pairs = re.findall(r'"([^"]+)"\s*=\s*"([^"]+)"', m.group(1))
@@ -78,6 +155,14 @@ def ps1_nested_manifests(text: str) -> dict[str, str]:
 
 
 def sh_npm_rows(text: str) -> list[dict[str, str]]:
+    # NOT vulnerable to the .ps1 comment-blindness bug (verified, not assumed): the row table
+    # lives inside `<<'EOF' ... EOF` -- a QUOTED bash heredoc. Quoting the delimiter disables
+    # every bit of shell interpretation of the body, `#` included, so a `#`-prefixed row is not
+    # a comment to bash either: the real script still reads it as a literal (malformed) data row
+    # and fails loudly trying to build/publish it, and this parser (which never special-cases
+    # `#`) sees the same row and reports it as a mismatch. Confirmed by mutation: prefixing a row
+    # with `#` here makes `bash`'s own `mapfile` still count it (30 rows, not 29) and this
+    # function's CHECK 4 fail on the corrupted working-directory -- neither reading is fooled.
     m = re.search(r"<<'EOF'.*?\n(.*?)\nEOF\n", text, re.DOTALL)
     if not m:
         raise SystemExit(f"ci-guard-publish-order: could not locate the PACKAGES heredoc in {NPM_SH}")
@@ -101,6 +186,13 @@ def sh_npm_rows(text: str) -> list[dict[str, str]]:
 
 
 def doc_npm_table(text: str) -> tuple[list[str], int | None]:
+    # NOT vulnerable to the .ps1 comment-blindness bug (verified, not assumed): wrapping a row in
+    # an HTML comment (`<!-- | ... | --> `) hides it from a rendered markdown VIEW, but this
+    # function -- like every markdown renderer's source input -- reads the raw file text, and an
+    # HTML comment does not remove or alter that text. Confirmed by mutation: wrapping the
+    # `@lib-q/mac` row in `<!-- -->` left the guard's row count and output unchanged (still found,
+    # still OK). There is no discrepancy between what this parser sees and what a renderer hides,
+    # so there is nothing here for a `#`-style scanner fix to close.
     m = re.search(r"^## Package list \(CD order\)\s*$(.*?)^## ", text, re.MULTILINE | re.DOTALL)
     if not m:
         raise SystemExit(
@@ -186,6 +278,7 @@ def check_nested_manifests(manifest: dict, nested: dict[str, str]) -> None:
 
 def check_npm(manifest: dict, rows: list[dict[str, str]]) -> None:
     cd_by_name = {item["package"]: item for item in manifest["npm"]}
+    row_names = [row["package"] for row in rows]
     sh_by_name = {row["package"]: row for row in rows}
     for name in cd_by_name:
         if name not in sh_by_name:
@@ -193,6 +286,9 @@ def check_npm(manifest: dict, rows: list[dict[str, str]]) -> None:
     for name in sh_by_name:
         if name not in cd_by_name:
             fail("CHECK 4", f"{NPM_SH} lists {name}, which cd.yml does not publish")
+    dupes = sorted({n for n in row_names if row_names.count(n) > 1})
+    if dupes:
+        fail("CHECK 4", f"{NPM_SH} lists these packages more than once: " + ", ".join(dupes))
     for name, item in cd_by_name.items():
         row = sh_by_name.get(name)
         if row is None:
@@ -228,10 +324,24 @@ def check_doc(manifest: dict, names: list[str], total: int | None) -> None:
     for name in names:
         if name not in cd_names:
             fail("CHECK 5", f"{NPM_DOC} package table lists {name}, which cd.yml does not publish")
+    dupes = sorted({n for n in names if names.count(n) > 1})
+    if dupes:
+        fail("CHECK 5", f"{NPM_DOC} package table lists these packages more than once: " + ", ".join(dupes))
     if total is None:
         fail("CHECK 5", f"{NPM_DOC} no longer states a '**Total: N packages**' count")
-    elif total != len(cd_names):
-        fail("CHECK 5", f"{NPM_DOC} claims {total} packages; cd.yml publishes {len(cd_names)}")
+    else:
+        if total != len(cd_names):
+            fail("CHECK 5", f"{NPM_DOC} claims {total} packages; cd.yml publishes {len(cd_names)}")
+        # Compare against the number of rows actually parsed too, not just cd.yml's count: a
+        # padding duplicate row (e.g. 31 rows for 30 distinct packages, still stated as "30")
+        # would pass the membership and the above checks -- every cd.yml package is present, the
+        # stated total matches cd.yml -- while the table itself has drifted from what it claims.
+        if total != len(names):
+            fail(
+                "CHECK 5",
+                f"{NPM_DOC} claims {total} packages but its table has {len(names)} rows "
+                f"({len(set(names))} distinct)",
+            )
 
 
 def main() -> int:
