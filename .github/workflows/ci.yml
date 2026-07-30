@@ -114,7 +114,6 @@ jobs:
         include:
           - package: "lib-q-mac"
           - package: "lib-q-threshold-kem"
-          - package: "lib-q-double-kem"
           - package: "lib-q-fhe"
           - package: "lib-q-blind-pcs"
           - package: "lib-q-dkg"
@@ -234,9 +233,6 @@ jobs:
           - name: "lib-q-mac no_std"
             features: "no_std"
             package: "lib-q-mac"
-          - name: "lib-q-double-kem"
-            features: "std,random"
-            package: "lib-q-double-kem"
           - name: "lib-q-threshold-kem"
             features: "std,random"
             package: "lib-q-threshold-kem"
@@ -417,9 +413,6 @@ jobs:
             features: "wasm,random"
             check-only: "false"
           - working-directory: "lib-q-threshold-kem"
-            features: "wasm,std,random"
-            check-only: "false"
-          - working-directory: "lib-q-double-kem"
             features: "wasm,std,random"
             check-only: "false"
           - working-directory: "lib-q-fhe"
@@ -622,7 +615,6 @@ jobs:
           - lib-q-random
           - lib-q-mac
           - lib-q-blind-pcs
-          - lib-q-double-kem
           - lib-q-fhe
           - lib-q-threshold-kem
           - lib-q-dkg
@@ -637,7 +629,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       # One shared cache blob across the matrix (first shard to finish saves it; the rest restore).
-      # Mostly recovers the registry + shared lower-tier deps; without it all 25 shards cold-build.
+      # Mostly recovers the registry + shared lower-tier deps; without it every shard cold-builds.
       - name: Cache cargo
         uses: actions/cache@v5
         with:
@@ -692,7 +684,6 @@ jobs:
             lib-q) echo "features=wasm,ml-kem" >> $GITHUB_OUTPUT; echo "test=wasm_integration" >> $GITHUB_OUTPUT ;;
             lib-q-mac) echo "features=wasm,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-blind-pcs) echo "features=wasm,blind-pcs" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
-            lib-q-double-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-fhe) echo "features=wasm,fhe" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-dkg) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;

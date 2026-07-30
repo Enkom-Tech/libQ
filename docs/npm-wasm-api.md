@@ -145,15 +145,18 @@ Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`)
 | `blindVerify` | Verify with hex opening fields |
 | `blindVerifyBytes` | Verify with raw byte slices |
 
-## `@lib-q/double-kem` (0.0.7, PROVISIONAL)
+## `@lib-q/double-kem` — REMOVED
 
-| JS name | Description |
-|---------|-------------|
-| `doubleKemWireBytes` | Fixed wire size (1260) |
-| `doubleKemEncapHex` | JSON `{ wireHex, sharedSecretHex }` from ML-KEM public keys |
-| `doubleKemDecap` | Decap with wire `Uint8Array` + hex secret keys |
-| `doubleKemCkFoUpgrade` | CK/FO upgrade of two 32-byte secrets |
-| `doubleKemWireFromBytes` / `doubleKemWireToBytes` | Canonical 1260-byte wire |
+**Removed from the workspace and from all publish matrices.** The crate misimplemented its cited
+construction (Maul, ePrint 2025/1755): its second KEM leg derived the shared secret from
+transmitted wire bytes and the public `ek_b` alone, so the second decapsulation key was never
+required by either party. It therefore delivered plain ML-KEM-768 security — no dual-key property —
+at 1260 wire bytes where a single ML-KEM-768 ciphertext (`@lib-q/ml-kem`) delivers the same security
+in 1088. Its only known consumer retracted the mode and permanently rejects its wire id. The paper's
+construction itself is sound; this implementation of it was not, and it is deleted rather than
+repaired. Do not use previously published `@lib-q/double-kem` / `lib-q-double-kem` artifacts (latest
+0.0.7): treat anything derived through them as single-ML-KEM-768 security, never as two-key custody.
+Use `@lib-q/ml-kem` instead; a faithful implementation of the paper may appear later as a new crate.
 
 ## `@lib-q/fhe` (0.0.7, EXPERIMENTAL_NON_NIST)
 

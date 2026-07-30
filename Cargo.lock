@@ -1021,27 +1021,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib-q-double-kem"
-version = "0.0.10"
-dependencies = [
- "getrandom 0.4.3",
- "hex",
- "js-sys",
- "lib-q-core",
- "lib-q-ml-kem",
- "lib-q-random",
- "lib-q-sha3",
- "rand_core 0.10.1",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "subtle",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "zeroize",
-]
-
-[[package]]
 name = "lib-q-duplex-aead"
 version = "0.0.10"
 dependencies = [

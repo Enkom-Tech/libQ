@@ -38,7 +38,6 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/ring` | `lib-q-ring` | ML-DSA ring \(R_q\) constants and shared arithmetic (Rust-heavy) |
 | `@lib-q/mac` | `lib-q-mac` | qCW-MAC sign/verify (`qcwMacGenerateKey`, `qcwMacSign`, `qcwMacVerify`) |
 | `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo (**EXPERIMENTAL_NON_NIST**) |
-| `@lib-q/double-kem` | `lib-q-double-kem` | PROVISIONAL MAUL v1 double ML-KEM-768 |
 | `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE demo (**EXPERIMENTAL_NON_NIST**) |
 | `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) |
 

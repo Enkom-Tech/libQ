@@ -36,7 +36,7 @@ $packages = @(
     # tier 4b. lib-q-blind-pcs precedes lib-q-fhe: they share cd.yml's tier-4b matrix (parallel
     # there, so cd.yml imposes no order), but lib-q-fhe dev-depends on lib-q-blind-pcs, and this
     # script publishes sequentially without the dev-dep stripping CD's crate-publish action does.
-    "lib-q-mac", "lib-q-threshold-kem", "lib-q-double-kem",
+    "lib-q-mac", "lib-q-threshold-kem",
     "lib-q-blind-pcs", "lib-q-fhe", "lib-q-dkg", "lib-q-blind-token",
     "lib-q-threshold-raccoon",
     "lib-q-threshold-kem-lattice",

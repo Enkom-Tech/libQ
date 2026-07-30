@@ -38,7 +38,6 @@ members = [
     # consumer-protocol-agnostic advanced primitives (opt-in; pre-standard cores marked PROVISIONAL)
     "lib-q-mac",
     "lib-q-threshold-kem",
-    "lib-q-double-kem",
     "lib-q-fhe",
     "lib-q-blind-pcs",
     "lib-q-dkg",
@@ -96,7 +95,6 @@ exclude = [
     "lib-q-ring-sig/fuzz",
     "lib-q-prf/fuzz",
     "lib-q-threshold-kem/fuzz",
-    "lib-q-double-kem/fuzz",
     "lib-q-dkg/fuzz",
     "lib-q-threshold-raccoon/fuzz",
 ]
