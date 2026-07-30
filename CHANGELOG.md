@@ -4,6 +4,40 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## 0.0.10
 
+### Removed
+
+- **`lib-q-threshold-sig` deleted from the workspace.** Following the withdrawal recorded below, the
+  crate has been removed outright rather than kept as a fail-closed shell. Its defect was structural
+  — the design rests on no hardness assumption, so there was no patch to make and nothing for a
+  future revision to build on. Keeping a withdrawn crate in the tree only invited someone to
+  "re-enable" it. The threshold-signature capability is served by **`lib-q-threshold-raccoon`**
+  (lattice, stated hardness assumption, consumes `lib-q-dkg` shares); it is not wire-compatible, so
+  keys and signatures must be regenerated.
+- Removed with it: the `lib-q-threshold-sig/` sources and its out-of-workspace `fuzz/` crate, both
+  root `Cargo.toml` workspace entries (`members` and the fuzz `exclude`), its `Cargo.lock` entry,
+  the `test-matrix` / `wasm-validation` / `wasm-bindgen-smoke` rows and feature selector in
+  `.github/workflows/ci.yml`, `export/kat-vectors/threshold-sig-pop-v1.json` and its
+  `scripts/export-primitive-kat-vectors.sh` copy step, the crate's entry in
+  `scripts/ci-guard-primitive-banned-terms.sh`, and the `ThresholdSig*` type declarations from
+  `npm/lib-q-types/index.d.ts`. `README.md`, `docs/npm-coverage.md`, `docs/npm-packages.md` and
+  `docs/npm-wasm-api.md` now describe it as removed rather than as a withdrawn workspace member.
+  Publish paths needed no change — the withdrawal had already dropped it from every `cd.yml` matrix
+  and from `scripts/publish-npm-ordered.sh`, and npm package counts are unaffected because
+  `@lib-q/threshold-sig` was already out of `publish-wasm-packages`.
+- **Supersedes the "Changed" notes below**, which described the crate as remaining a workspace
+  member compiled and CI-gated to keep the withdrawal verified, and its CI rows as deliberately
+  left in place. That is no longer the case: with the crate deleted there is nothing to fail
+  closed and nothing to verify, so those rows were removed too (a matrix row naming a package that
+  does not exist fails CI). Its link to `lib-q-threshold-sig/README.md` no longer resolves for the
+  same reason; the analysis it pointed to is preserved in this file and in the commit that
+  withdrew the crate. The rest of the withdrawal entry stands as written.
+- **No published version of this crate was ever sound.** Do not reinstate it from git history or
+  install any previously published `lib-q-threshold-sig` / `@lib-q/threshold-sig` artifact. The
+  guidance in the withdrawal entry below still applies in full to anyone who used it.
+- `lib-q-dkg`'s documentation previously described its share/key shapes as mirroring
+  `lib-q-threshold-sig`; it now names `lib-q-threshold-raccoon`, which is the signer that actually
+  consumes those shares. `lib-q-dkg`'s own types and wire format are unchanged.
+
 ### Security
 
 - **`lib-q-threshold-sig` WITHDRAWN.** The crate is not a signature scheme and never provided any

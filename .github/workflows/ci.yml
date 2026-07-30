@@ -223,9 +223,6 @@ jobs:
           - name: "lib-q-mac no_std"
             features: "no_std"
             package: "lib-q-mac"
-          - name: "lib-q-threshold-sig"
-            features: "std,random"
-            package: "lib-q-threshold-sig"
           - name: "lib-q-double-kem"
             features: "std,random"
             package: "lib-q-double-kem"
@@ -407,9 +404,6 @@ jobs:
             check-only: "false"
           - working-directory: "lib-q-mac"
             features: "wasm,random"
-            check-only: "false"
-          - working-directory: "lib-q-threshold-sig"
-            features: "wasm,std,random"
             check-only: "false"
           - working-directory: "lib-q-threshold-kem"
             features: "wasm,std,random"
@@ -620,7 +614,6 @@ jobs:
           - lib-q-double-kem
           - lib-q-fhe
           - lib-q-threshold-kem
-          - lib-q-threshold-sig
           - lib-q-dkg
           - lib-q-threshold-raccoon
           - lib-q-threshold-kem-lattice
@@ -691,7 +684,6 @@ jobs:
             lib-q-double-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-fhe) echo "features=wasm,fhe" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-kem) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
-            lib-q-threshold-sig) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-dkg) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-raccoon) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;
             lib-q-threshold-kem-lattice) echo "features=wasm,std,random" >> $GITHUB_OUTPUT; echo "test=wasm_smoke" >> $GITHUB_OUTPUT ;;

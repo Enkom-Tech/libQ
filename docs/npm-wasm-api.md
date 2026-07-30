@@ -179,25 +179,26 @@ Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
 | `thresholdKemVerifyShare` | Share proof check |
 | `thresholdKemEncodeWireV1` / `thresholdKemDecodeWireV1` | Canonical wire codec |
 
-## `@lib-q/threshold-sig` — WITHDRAWN, not published
+## `@lib-q/threshold-sig` — WITHDRAWN and REMOVED
 
 **Not a signature scheme; provided no security.** `lib-q-threshold-sig`'s published verifying keys
-were the private Shamir shares, its group key was the master secret recoverable from public data,
-and verification contained no secret input — see
-[`lib-q-threshold-sig/README.md`](../lib-q-threshold-sig/README.md) for the analysis.
+were the private Shamir shares and its group key was the master secret recoverable from public
+data, so its verifier authenticated nothing. The defect was structural, so the crate was withdrawn
+in 0.0.10 (every entry point failing closed) and has since been deleted from the workspace.
 
-As of 0.0.9 this package is **not published** to npm (removed from `cd.yml`'s
-`publish-wasm-packages` matrix) or to crates.io (`publish = false`). The API table this section
-used to carry (`thresholdSigSetup`, `thresholdSigKeygenShares`, `thresholdSigSignRound1/2`,
+There is no `@lib-q/threshold-sig` package on npm and no `lib-q-threshold-sig` crate on crates.io;
+no version that ever existed was sound, so do not install one from history. The former exports
+(`thresholdSigSetup`, `thresholdSigKeygenShares`, `thresholdSigSignRound1/2`,
 `thresholdSigAggregate`, `thresholdSigVerify`, `thresholdSigIdentifyAbort`,
-`thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1`) is retained only as a name index: every
-one of those exports now unconditionally throws (`src/wasm.rs`), including the wire codecs — the
-JS surface keeps none of the "codec is separate from crypto" carve-out that the Rust API retains
-for legacy blob triage. If you build this crate from source anyway, expect every call to throw with
-a `LIB_Q_THRESHOLD_SIG` error explaining the withdrawal. TypeScript shapes remain in
-`@lib-q/types` (`ThresholdSigShareVerifier`, etc.), each annotated `@deprecated` for the same
-reason, so old call sites still type-check while being told at every use site that the scheme is
-withdrawn.
+`thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1`) are listed here only so old call sites can
+be identified and removed; the corresponding `ThresholdSig*` TypeScript shapes are gone from
+`@lib-q/types`.
+
+**Migrating:** the threshold-signature capability is provided by `@lib-q/threshold-raccoon`
+(Rust: `lib-q-threshold-raccoon`), a lattice threshold signature with a stated hardness
+assumption that consumes `lib-q-dkg` shares. It is not
+wire-compatible — keys and signatures must be regenerated, and anything the old scheme "signed"
+should be re-evaluated as unauthenticated.
 
 ## `@lib-q/types`
 
