@@ -129,12 +129,6 @@ export interface BlindPcsOpenResult {
   blindHex: string;
 }
 
-/** `@lib-q/double-kem` */
-export interface DoubleKemEncapResult {
-  wireHex: string;
-  sharedSecretHex: string;
-}
-
 /** `@lib-q/fhe` */
 export interface FheKeygenResult {
   seed: string;

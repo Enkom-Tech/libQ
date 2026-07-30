@@ -64,7 +64,6 @@ check_one "lib-q-lattice-zkp" "wasm,random" 10400
 check_one "lib-q-ring" "wasm,alloc" 7000
 check_one "lib-q-mac" "wasm,random" 3500
 check_one "lib-q-blind-pcs" "wasm,blind-pcs" 2500
-check_one "lib-q-double-kem" "wasm,std,random" 7000
 check_one "lib-q-fhe" "wasm,fhe" 2500
 check_one "lib-q-threshold-kem" "wasm,std,random" 10400
 # Lattice threshold stack (measured 2026-07-10: dkg 272 KB, raccoon 264 KB, kem-lattice 260 KB —

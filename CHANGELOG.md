@@ -6,6 +6,31 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Removed
 
+- **`lib-q-double-kem` deleted from the workspace.** The crate misimplemented its cited
+  construction (Maul, ePrint 2025/1755): its second KEM leg derived the shared secret from
+  transmitted wire bytes and the public `ek_b` alone, so the second decapsulation key was never
+  required by either party. It therefore delivered plain ML-KEM-768 security — no dual-key
+  property — at 1260 wire bytes where a single ML-KEM-768 ciphertext (`lib-q-ml-kem`) delivers the
+  same security in 1088. The paper's construction itself is sound; this implementation of it was
+  not, and it is deleted rather than repaired. Its only known consumer retracted the mode and
+  permanently rejects its wire id (`kem_id = 8`).
+- Removed with it: the `lib-q-double-kem/` sources (the `fuzz/` exclude entry at `Cargo.toml` was
+  already stale — no fuzz crate existed), both root `Cargo.toml` workspace entries (`members` and
+  the fuzz `exclude`), its `Cargo.lock` entry, the publish-readiness / `test-matrix` /
+  `wasm-validation` / `wasm-bindgen-smoke` rows and feature selector in
+  `.github/workflows/ci.yml`, the `cd.yml` crates.io and npm publish rows, both operator fallback
+  scripts (`scripts/publish-crates-io-ordered.ps1`, `scripts/publish-npm-ordered.sh`),
+  `export/kat-vectors/double-kem-v1.json` and its `scripts/export-primitive-kat-vectors.sh` copy
+  step, the crate's entries in `scripts/ci-guard-primitive-banned-terms.sh` and
+  `scripts/wasm-size-check.sh`, and the `DoubleKemEncapResult` type declaration from
+  `npm/lib-q-types/index.d.ts`. Publish matrices are decremented accordingly: crates.io 80 → 79,
+  npm 30 → 29. `README.md`, `docs/npm-coverage.md`, `docs/npm-packages.md` and
+  `docs/npm-wasm-api.md` now describe it as removed; `docs/npm-coverage.md` also gains the
+  previously-missing `@lib-q/threshold-kem-lattice` row so its stated npm package map agrees with
+  `cd.yml`.
+- **No published version of this crate should be trusted for dual-key custody.** The published
+  `0.0.7` crates.io and npm artifacts are not yet yanked (operator decision pending); treat
+  anything derived through them as plain ML-KEM-768 security, never as two-key custody.
 - **`lib-q-threshold-sig` deleted from the workspace.** Following the withdrawal recorded below, the
   crate has been removed outright rather than kept as a fail-closed shell. Its defect was structural
   — the design rests on no hardness assumption, so there was no patch to make and nothing for a

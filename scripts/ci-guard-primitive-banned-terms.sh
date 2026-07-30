@@ -8,7 +8,6 @@ cd "$ROOT"
 CRATES=(
   lib-q-mac
   lib-q-threshold-kem
-  lib-q-double-kem
   lib-q-fhe
   lib-q-blind-pcs
   lib-q-dkg

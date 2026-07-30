@@ -80,7 +80,6 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-mve`** | Multi-recipient verifiable encryption / verifiable rekey — single proof that every recipient is wrapped the same group key, relay-checkable without learning it (**RED / research, pending cryptographer sign-off**) |
 | **`lib-q-transcript`** | Shared Fiat–Shamir / CFRG-sigma duplex-transcript discipline for lib-Q ZK proofs (K12 out-of-circuit, Poseidon-256 in-circuit; no_std + alloc) (**RED / research, pending sign-off**) |
 | **`lib-q-mac`** | Quantum Carter–Wegman MAC (qCW-MAC) |
-| **`lib-q-double-kem`** | Double ML-KEM-768 encapsulation profile with constrained wire budget (**provisional / pre-standard**) |
 | **`lib-q-threshold-kem`** | Threshold KEM over ML-KEM-768 + Shamir shares (**provisional / pre-standard**) |
 | **`lib-q-threshold-kem-lattice`** | Lattice threshold KEM (dual-Regev; dealerless keygen via `lib-q-dkg`) (**provisional / pre-standard**) |
 | **`lib-q-threshold-raccoon`** | Lattice threshold signature (Raccoon-family FS; consumes `lib-q-dkg` shares) (**provisional / pre-standard**) |
@@ -126,7 +125,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 
 ### npm packages (npmjs.com)
 
-**29** `@lib-q/*` packages are published in CD: **28** WASM bundles built with `wasm-pack` (the `publish-wasm-packages` matrix in [`cd.yml`](.github/workflows/cd.yml)) plus the TypeScript-only **`@lib-q/types`** package. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface). The newer crates — `lib-q-mve`, `lib-q-transcript`, `lib-q-stark-baby-bear`, and the provisional threshold/DKG family (`lib-q-dkg`, `lib-q-threshold-kem`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, `lib-q-blind-pcs`, `lib-q-double-kem`, `lib-q-mac`, `lib-q-fhe`, `lib-q-zk-encryption-proof`) — are **crates.io-only** (no npm/WASM packages).
+**29** `@lib-q/*` packages are published in CD: **28** WASM bundles built with `wasm-pack` (the `publish-wasm-packages` matrix in [`cd.yml`](.github/workflows/cd.yml)) plus the TypeScript-only **`@lib-q/types`** package. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface). The newer crates — `lib-q-mve`, `lib-q-transcript`, `lib-q-stark-baby-bear`, and the provisional threshold/DKG family (`lib-q-dkg`, `lib-q-threshold-kem`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, `lib-q-blind-pcs`, `lib-q-mac`, `lib-q-fhe`, `lib-q-zk-encryption-proof`) — are **crates.io-only** (no npm/WASM packages).
 
 - **`@lib-q/core`** — Umbrella WASM bundle (all algorithms path used in CD)
 - **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
@@ -294,7 +293,7 @@ The table above is the authoritative crate list; the `[workspace].members` table
 - **ZKP / STARK stack** (`lib-q-zkp` and supporting `lib-q-stark*` / `lib-q-plonky*` crates)
 - **Lattice infrastructure** (`lib-q-ring` for ML-DSA field arithmetic; `lib-q-lattice-zkp` for research-grade module-lattice proofs, separate from STARKs)
 - **PRF and ring-style opening pilots** (`lib-q-prf`, `lib-q-ring-sig`; research crates layered on lattice commitments—see per-crate READMEs)
-- **Threshold, DKG, and blind-issuance family** (`lib-q-dkg`, `lib-q-threshold-kem`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, and related `lib-q-mac` / `lib-q-double-kem` / `lib-q-blind-pcs` / `lib-q-fhe` / `lib-q-zk-encryption-proof`): **provisional / pre-standard** post-quantum multiparty primitives, not covered by NIST standardization—see per-crate READMEs. `lib-q-threshold-sig`, formerly listed here, was **withdrawn as cryptographically unsound** and has been removed from the workspace; the threshold-signature slot is served by `lib-q-threshold-raccoon`.
+- **Threshold, DKG, and blind-issuance family** (`lib-q-dkg`, `lib-q-threshold-kem`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, and related `lib-q-mac` / `lib-q-blind-pcs` / `lib-q-fhe` / `lib-q-zk-encryption-proof`): **provisional / pre-standard** post-quantum multiparty primitives, not covered by NIST standardization—see per-crate READMEs. `lib-q-threshold-sig`, formerly listed here, was **withdrawn as cryptographically unsound** and has been removed from the workspace; the threshold-signature slot is served by `lib-q-threshold-raccoon`.
 - **Side-channel tooling** (`lib-q-sca-test` for statistical leakage screening, not a certification claim)
 - **WASM** build paths for core scenarios (see CI and scripts referenced in the [no_std and WASM](#no_std-embedded-and-webassembly) section)
 - **Engineering**: consistent error types, security validation utilities, and GitHub Actions for build, test, coverage, and security checks
