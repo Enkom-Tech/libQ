@@ -894,14 +894,14 @@ pub fn ternary_receive_lookup_at(offset: u64) -> Lookup<ConfigVal> {
 /// Join-2 **Send** lookups the ternary sampler contributes (design §5, coefficient binding): on every
 /// **accepted** row, Send the mod-q lift of the emitted coefficient (`∈ {−1, 0, +1}`) as four 12-bit
 /// limbs on [`COEFF_E_BUS`], at position `base + 4·coeff_idx + j`. `base` locates this ring element on
-/// `e`'s coefficient axis (`4·r·N` for `e_r`; `0` for a lone element); `coeff_idx` ([`C_COEFF_IDX`]) is
+/// `e`'s coefficient axis (`4·r·N` for `e_r`; `0` for a lone element); `coeff_idx` (`C_COEFF_IDX`) is
 /// the emitted coefficient's global index. The lift limbs are pure expressions in the two low byte
 /// bits — no new trace columns:
-/// * `sel_neg = (1−bit0)(1−bit1)` (`two = 0` ⇒ coeff `−1` ⇒ limbs = `q−1`'s limbs [`QM1_LIMBS`]);
+/// * `sel_neg = (1−bit0)(1−bit1)` (`two = 0` ⇒ coeff `−1` ⇒ limbs = `q−1`'s limbs `QM1_LIMBS`);
 /// * `sel_one = (1−bit0)·bit1`   (`two = 2` ⇒ coeff `+1` ⇒ limb₀ = 1);
 /// * coeff `0` (`two = 1`) ⇒ all-zero limbs.
 ///
-/// Gated by [`C_EMIT`] (the first `num_coeffs` accepts only), so rejected, drained and padding rows
+/// Gated by `C_EMIT` (the first `num_coeffs` accepts only), so rejected, drained and padding rows
 /// Send nothing. The four limbs Receive into the
 /// matching [`crate::zq::HornerFoldAir`] fold's `w` limbs ([`crate::zq::horner_coeff_receive_lookups_at`]);
 /// the fold's canonicity + `w < q` checks make the binding sound (the lift is `−1 ↦ q−1`, `0 ↦ 0`,
@@ -963,11 +963,11 @@ pub fn bounded_receive_lookup_at(offset: u64) -> Vec<Lookup<ConfigVal>> {
 
 /// Join-2 **Send** lookups the bounded sampler contributes (design §5, coefficient binding): on every
 /// **accepted** row, Send the emitted coefficient's mod-q lift (`= (R − BOUND) mod Q`) as its four
-/// witnessed 12-bit [`W_LIFT`] limbs on `bus`, at position `base + 4·coeff_idx + j`. `bus` is the
+/// witnessed 12-bit `W_LIFT` limbs on `bus`, at position `base + 4·coeff_idx + j`. `bus` is the
 /// component's coefficient bus ([`COEFF_F_BUS`](crate::logup_join::COEFF_F_BUS) for `f`,
 /// [`COEFF_G_BUS`](crate::logup_join::COEFF_G_BUS) for `g`); `base` locates this ring element on that
-/// axis (`4·k·N` for `f_k`; `0` for a lone `g`); `coeff_idx` ([`W_CIDX`]) is the coefficient's global
-/// index. Gated by [`W_EMIT`] (the first `num_coeffs` accepts only). The lift value and `neg` are pinned by the in-AIR
+/// axis (`4·k·N` for `f_k`; `0` for a lone `g`); `coeff_idx` (`W_CIDX`) is the coefficient's global
+/// index. Gated by `W_EMIT` (the first `num_coeffs` accepts only). The lift value and `neg` are pinned by the in-AIR
 /// `lift + BOUND = R + neg·Q` chain; the `lift < Q` bound (hence the correct `neg`) is the matching
 /// [`crate::zq::HornerFoldAir`] fold's `w < Q`, back-propagated through the multiset equality. Four
 /// single-tuple lookups (degree-3 each), mirroring the ternary and sponge-limb Sends.

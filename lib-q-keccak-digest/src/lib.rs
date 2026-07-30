@@ -7,7 +7,7 @@
 //!
 //! # Security
 //!
-//! - [`Keccak256`](crate::Keccak256) and any [`lib_q_sha3::Sha3_256`](https://docs.rs/lib-q-sha3) produce **different** digests for the same input (different padding).
+//! - [`Keccak256`] and any [`lib_q_sha3::Sha3_256`](https://docs.rs/lib-q-sha3) produce **different** digests for the same input (different padding).
 //! - Do not substitute this crate for SHA-3 in a protocol without explicit specification.
 //!
 //! See the crate **README** for links, architecture ADR, and follow-up dependency extraction ADR.

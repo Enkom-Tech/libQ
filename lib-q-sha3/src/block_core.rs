@@ -2,9 +2,9 @@
 //!
 //! - [`SpongeHasherCore`]: generic sponge core (rate, output width, padding nibble, round count) backing SHA-3, SHAKE, cSHAKE, TurboSHAKE in this crate; pre-FIPS Keccak digests use the same core via [`lib-q-keccak-digest`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak-digest).
 //! - [`SpongeReaderCore`]: XOF output phase for Keccak-based XOFs.
-//! - `CShake128Core` / `CShake256Core` (re-exported from the [`cshake`](crate::cshake) module): cSHAKE without the `buffer_xof!` wrapper—only needed for trees or custom plumbing.
+//! - `CShake128Core` / `CShake256Core` (re-exported from the [`cshake`] module): cSHAKE without the `buffer_xof!` wrapper—only needed for trees or custom plumbing.
 //!
-//! For normal hashing, use the crate-root types ([`Sha3_256`], [`Shake128`], [`CShake128`](crate::CShake128)) or the separate [`lib-q-k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12) crate for KangarooTwelve. Manipulating cores directly is a **hazmat**-style API: incorrect padding or rate breaks security.
+//! For normal hashing, use the crate-root types ([`Sha3_256`], [`Shake128`], [`CShake128`]) or the separate [`lib-q-k12`](https://github.com/Enkom-Tech/libQ/tree/main/lib-q-k12) crate for KangarooTwelve. Manipulating cores directly is a **hazmat**-style API: incorrect padding or rate breaks security.
 
 use core::fmt;
 use core::marker::PhantomData;
@@ -230,7 +230,6 @@ where
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 #[cfg(feature = "zeroize")]
 impl<Rate, OutputSize, const PAD: u8, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop
     for SpongeHasherCore<Rate, OutputSize, PAD, ROUNDS>
@@ -341,7 +340,6 @@ where
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 #[cfg(feature = "zeroize")]
 impl<Rate, const ROUNDS: usize> digest::zeroize::ZeroizeOnDrop for SpongeReaderCore<Rate, ROUNDS> where
     Rate: BlockSizes + IsLessOrEqual<U200, Output = True>

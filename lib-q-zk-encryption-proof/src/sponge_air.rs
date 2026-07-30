@@ -21,7 +21,8 @@
 //!   `first_step: preimage == a`, this threads the running sponge state across permutations.
 //!
 //! ## Soundness scope / status (RED)
-//! Both constraint groups are validated by [`check_constraints`](lib_q_stark::check_constraints) on
+//! Both constraint groups are validated by `lib_q_stark::check_constraints` (a `lib-q-stark`
+//! dev-dependency helper, not linkable from the public API doc) on
 //! the **truncated** (exactly `24·num_perms`-row, unpadded) trace produced by [`generate_sponge_air_trace`]:
 //! every `step_flags[23]` boundary there is a *real* inter-block boundary, and the final one is
 //! excluded by `is_transition`. A STARK `prove`/`verify` runs over the power-of-two-height trace from
@@ -274,15 +275,15 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for ShakeSpongeAir {
     }
 }
 
-/// The [`RATE_LIMBS`] (= 68) per-rate-limb **Send** lookups the sponge contributes on
+/// The `RATE_LIMBS` (= 68) per-rate-limb **Send** lookups the sponge contributes on
 /// [`SQUEEZE_LIMB_BUS`] — the limb half of design join 1. For each rate limb `i`, Send
 /// `(RATE_BYTES·perm + 2·i, a‴_limb_i)` gated by the final-step selector `step_flags[NUM_ROUNDS-1]`:
 ///   * `RATE_BYTES·perm` is the preprocessed position column (col 0) — the squeeze-block byte offset;
 ///   * `2·i` is the per-limb constant offset (rate limb `i` covers output bytes `2i, 2i+1`);
 ///   * the sent value is the output-limb column `output_limb(i)` (the 16-bit `a‴` limb);
-///   * the multiplicity is main column [`STEP_LAST_COL`] (1 only on final-step rows).
+///   * the multiplicity is main column `STEP_LAST_COL` (1 only on final-step rows).
 ///
-/// Each lookup uses its own aux column `i`, so the sponge's permutation trace has [`RATE_LIMBS`]
+/// Each lookup uses its own aux column `i`, so the sponge's permutation trace has `RATE_LIMBS`
 /// columns. They are deliberately **single-tuple** (degree 3): one bundled 68-tuple lookup would
 /// have a 68-fold product denominator (degree ~69), blowing up the quotient domain.
 ///
@@ -336,7 +337,7 @@ pub fn sponge_public_values(pk_digest: &[u8; 32]) -> Vec<ConfigVal> {
 }
 
 /// Generate the **truncated** SHAKE-256 sponge trace — exactly `24·num_perms` rows, with no
-/// power-of-two zero-input padding — embedded into the STARK value field, for [`check_constraints`]
+/// power-of-two zero-input padding — embedded into the STARK value field, for `check_constraints`
 /// validation of [`ShakeSpongeAir`]. (The `prove`-time padded trace additionally needs the boundary
 /// selector; see the module docs.)
 pub fn generate_sponge_air_trace(input: &[u8], out_len: usize) -> RowMajorMatrix<ConfigVal> {

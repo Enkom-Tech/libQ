@@ -1169,7 +1169,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-docs-
       
+      # docs.rs builds every published crate with `--all-features` AND `--cfg docsrs`
+      # (see each crate's `[package.metadata.docs.rs]`). Without `--cfg docsrs` here,
+      # anything guarded by `cfg_attr(docsrs, ...)` is never compiled in CI, so a
+      # docs.rs-only breakage ships undetected — publishing does not gate on rustdoc,
+      # and crates.io versions are immutable. That is exactly how lib-q-keccak 0.0.9
+      # reached crates.io with a failed docs.rs build. Keep this flag in sync with
+      # the `rustdoc-args` in the manifests.
       - name: Generate documentation
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
         run: |
           cargo doc --all-features --no-deps
           cargo doc --all-features --no-deps --document-private-items

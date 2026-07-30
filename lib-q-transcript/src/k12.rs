@@ -2,7 +2,7 @@
 //!
 //! [`K12Transcript`] realises the [`DuplexTranscript`] discipline with `Unit = u8`. It is the layer
 //! that prover/verifier code uses to derive challenges on the wire. Every hash is a `Kt128` with an
-//! **empty customization string** and the instantiation label ([`labels::K12_TRANSCRIPT_V0`]) as a
+//! **empty customization string** and the instantiation label ([`labels::K12_TRANSCRIPT_V0`](crate::labels::K12_TRANSCRIPT_V0)) as a
 //! **leading message prefix** — the lib-Q KangarooTwelve domain-separation discipline.
 
 use alloc::vec;

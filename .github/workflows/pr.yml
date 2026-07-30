@@ -40,7 +40,11 @@ jobs:
           features: "all-algorithms"
           package: "lib-q"
       
+      # `--cfg docsrs` reproduces the docs.rs build; without it, docs.rs-only
+      # breakage is invisible to CI. See the same note in ci.yml.
       - name: Check documentation
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
         run: cargo doc --all-features --no-deps --document-private-items
 
       - name: Compile AVX-gated Keccak paths
@@ -189,6 +193,8 @@ jobs:
           toolchain: stable
       
       - name: Check documentation completeness
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
         run: |
           # Check that all public APIs are documented
           cargo doc --all-features --no-deps --document-private-items

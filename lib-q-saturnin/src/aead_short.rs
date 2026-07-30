@@ -34,7 +34,7 @@
 //! assembly). As with the full Saturnin AEAD path in `aead.rs` (constant-time tag check over
 //! the binding, then full CTR on the ciphertext, then map the outcome), the closing step maps
 //! the verification result to `Ok` versus
-//! `Err(Error::VerificationFailed)`; [`AeadDecryptSemantic`](lib_q_core::AeadDecryptSemantic)
+//! `Err(Error::VerificationFailed)`; [`AeadDecryptSemantic`]
 //! exposes `Ok(AuthenticationFailed)` instead for Layer B. A public `Result` API cannot
 //! expose both outcomes without that discriminant. Treat verification timing under the same
 //! remote-adversary assumptions as full AEAD unless a higher layer enforces additional timing

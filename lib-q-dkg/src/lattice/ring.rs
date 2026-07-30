@@ -323,7 +323,7 @@ pub fn poly_from_i64(coeffs: &[i64; N]) -> Rq {
 ///
 /// **Branchless**: the decapsulation path calls this on the secret decode input `w`, so the
 /// conditional subtract of `q` must not branch on the coefficient value (same discipline as
-/// [`csub_q_u64`]). `rem_euclid` by the constant `Q` compiles to a multiply-shift, not a division.
+/// `csub_q_u64`). `rem_euclid` by the constant `Q` compiles to a multiply-shift, not a division.
 #[must_use]
 pub fn centered_coeffs(p: &Rq) -> [i64; N] {
     let half = Q / 2;
