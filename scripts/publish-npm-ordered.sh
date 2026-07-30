@@ -52,6 +52,20 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 # working-directory|npm name|description|keywords|features|out-dir|skip-build(1=types only)
+#
+# This table MIRRORS cd.yml's `publish-wasm-packages` matrix plus `publish-npm-types`; it does not
+# define the release. It drifts two ways, and neither errors at run time: a MISSING row silently
+# never publishes (at 0.0.10: @lib-q/dkg, @lib-q/threshold-raccoon, @lib-q/threshold-kem-lattice),
+# and a wrong `features` column ships a package built differently from CD's (at 0.0.10 @lib-q/aead
+# was built without `rocca-s`, i.e. shipped without a cipher CD includes).
+# scripts/ci-guard-publish-order.sh now fails any pull request where a row disagrees with cd.yml
+# on crate dir, features or out-dir. Regenerate rather than hand-edit:
+#
+#   python3 scripts/cd_publish_manifest.py --format npm
+#
+# Row order is NOT constrained: cd.yml publishes every wasm package from one parallel matrix, so it
+# asserts no order between them. Rows are appended rather than resorted so that START_AT indices
+# already in an operator's notes keep pointing at the same package.
 read -r -d '' PACKAGES <<'EOF' || true
 lib-q|@lib-q/core|Post-quantum cryptography library for Node.js (complete package)|cryptography,post-quantum,security,wasm|wasm,all-algorithms,ml-kem|pkg|
 lib-q-ml-kem|@lib-q/ml-kem|NIST ML-KEM (Module-Lattice-based Key Encapsulation Mechanism) for Node.js|cryptography,post-quantum,ml-kem,key-encapsulation,nist,wasm|wasm|pkg|
@@ -60,7 +74,7 @@ lib-q-sig|@lib-q/sig|Post-quantum Digital Signatures for Node.js|cryptography,po
 lib-q-hash|@lib-q/hash|Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)|cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm|alloc,oid|pkg-hash|
 lib-q-utils|@lib-q/utils|Utility functions for post-quantum cryptography|cryptography,post-quantum,utilities,helpers,wasm||pkg-utils|
 lib-q-fn-dsa|@lib-q/fn-dsa|FN-DSA (FIPS 206) post-quantum digital signatures for Node.js|cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist|wasm,std,rand|pkg|
-lib-q-aead|@lib-q/aead|Post-quantum AEAD (Saturnin, Romulus, duplex-sponge) for Node.js|cryptography,post-quantum,aead,saturnin,wasm,nist|wasm,saturnin,romulus,duplex-sponge-aead|pkg|
+lib-q-aead|@lib-q/aead|Post-quantum AEAD (Saturnin, Romulus, Rocca-S, duplex-sponge) for Node.js|cryptography,post-quantum,aead,saturnin,romulus,rocca-s,wasm,nist|wasm,saturnin,romulus,rocca-s,duplex-sponge-aead|pkg|
 lib-q-hpke|@lib-q/hpke|Post-quantum HPKE (RFC 9180) for Node.js|cryptography,post-quantum,hpke,ml-kem,wasm|wasm,alloc,ml-kem,saturnin,shake256|pkg|
 lib-q-zkp|@lib-q/zkp|Post-quantum zero-knowledge proofs (STARK) for Node.js|cryptography,post-quantum,zkp,stark,wasm|wasm,zkp|pkg|
 lib-q-random|@lib-q/random|Secure random bytes for post-quantum libQ on Node.js and WASM|cryptography,random,entropy,wasm,getrandom|wasm|pkg|
@@ -80,6 +94,9 @@ lib-q-blind-pcs|@lib-q/blind-pcs|Experimental blind commitment demo (EXPERIMENTA
 lib-q-double-kem|@lib-q/double-kem|PROVISIONAL MAUL v1 double ML-KEM-768 for Node.js|cryptography,post-quantum,kem,ml-kem,double-kem,wasm|wasm,std,random|pkg|
 lib-q-fhe|@lib-q/fhe|Experimental toy lattice FHE demo (EXPERIMENTAL_NON_NIST)|cryptography,post-quantum,fhe,experimental,wasm|wasm,fhe|pkg|
 lib-q-threshold-kem|@lib-q/threshold-kem|PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
+lib-q-dkg|@lib-q/dkg|PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for Node.js|cryptography,post-quantum,dkg,threshold,wasm|wasm,std,random|pkg|
+lib-q-threshold-raccoon|@lib-q/threshold-raccoon|PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js|cryptography,post-quantum,threshold,signature,wasm|wasm,std,random|pkg|
+lib-q-threshold-kem-lattice|@lib-q/threshold-kem-lattice|PROVISIONAL PQ lattice threshold KEM (dealerless keygen via lib-q-dkg) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
 EOF
 
 mapfile -t ROWS < <(printf '%s\n' "$PACKAGES")

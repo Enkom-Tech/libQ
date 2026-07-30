@@ -43,7 +43,7 @@ The script skips packages that are already published at the target version (npm 
 | `@lib-q/hash` | `lib-q-hash` | `pkg-hash` |
 | `@lib-q/utils` | `lib-q-utils` | `pkg-utils` |
 | `@lib-q/fn-dsa` | `lib-q-fn-dsa` | |
-| `@lib-q/aead` | `lib-q-aead` | |
+| `@lib-q/aead` | `lib-q-aead` | `wasm,saturnin,romulus,rocca-s,duplex-sponge-aead` |
 | `@lib-q/hpke` | `lib-q-hpke` | |
 | `@lib-q/zkp` | `lib-q-zkp` | |
 | `@lib-q/random` | `lib-q-random` | |
@@ -58,8 +58,18 @@ The script skips packages that are already published at the target version (npm 
 | `@lib-q/poseidon` | `lib-q-poseidon` | `wasm`, `alloc` |
 | `@lib-q/lattice-zkp` | `lib-q-lattice-zkp` | `wasm`, `random` |
 | `@lib-q/ring` | `lib-q-ring` | `wasm`, `alloc` |
+| `@lib-q/mac` | `lib-q-mac` | `wasm`, `random` |
+| `@lib-q/blind-pcs` | `lib-q-blind-pcs` | `wasm`, `blind-pcs`; EXPERIMENTAL_NON_NIST |
+| `@lib-q/double-kem` | `lib-q-double-kem` | `wasm`, `std`, `random`; PROVISIONAL |
+| `@lib-q/fhe` | `lib-q-fhe` | `wasm`, `fhe`; EXPERIMENTAL_NON_NIST |
+| `@lib-q/threshold-kem` | `lib-q-threshold-kem` | `wasm`, `std`, `random`; PROVISIONAL |
+| `@lib-q/dkg` | `lib-q-dkg` | `wasm`, `std`, `random`; PROVISIONAL |
+| `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | `wasm`, `std`, `random`; PROVISIONAL |
+| `@lib-q/threshold-kem-lattice` | `lib-q-threshold-kem-lattice` | `wasm`, `std`, `random`; PROVISIONAL |
 
-**Total: 22 packages** (indices 0–21 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
+**Total: 30 packages** (indices 0–29 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
+
+This table is checked against `cd.yml` on every pull request by [`scripts/ci-guard-publish-order.sh`](../scripts/ci-guard-publish-order.sh) — it claimed 22 packages against `cd.yml`'s 30 at 0.0.10. Regenerate with `python3 scripts/cd_publish_manifest.py --format npm` rather than editing by hand.
 
 Dual-target layout (`pkg/web` + `pkg/nodejs`) and `integrity-manifest.json` are applied by [`scripts/npm-publish-annotate.mjs`](../scripts/npm-publish-annotate.mjs), same as [`.github/actions/npm-publish`](../.github/actions/npm-publish/action.yml).
 

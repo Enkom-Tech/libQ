@@ -10,6 +10,20 @@ PKG="${1:?usage: publish-readiness-pr.sh <package>}"
 ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
+# Probe by RUNNING each candidate: on Windows a `python3` App Execution Alias sits on PATH and
+# satisfies `command -v` while refusing to execute (same probe as scripts/ci-guard-*.sh).
+PY_BIN=""
+for candidate in python3 python py; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+    PY_BIN="$candidate"
+    break
+  fi
+done
+if [[ -z "$PY_BIN" ]]; then
+  echo "ERROR: publish-readiness-pr.sh needs a working python3 interpreter" >&2
+  exit 1
+fi
+
 WS_VERSION="$(
   sed -n '/^\[workspace\.package\]/,/^\[/p' Cargo.toml \
     | grep '^version = ' \
@@ -23,7 +37,7 @@ if [[ ! -f "$MANIFEST" ]]; then
   exit 1
 fi
 
-python3 - "$MANIFEST" "$WS_VERSION" "$PKG" <<'PY'
+"$PY_BIN" - "$MANIFEST" "$WS_VERSION" "$PKG" <<'PY'
 import pathlib
 import re
 import sys
@@ -52,9 +66,21 @@ for section in sections:
         if section == "dependencies":
             has_workspace_prod = True
 
-cd = (pathlib.Path("Cargo.toml").parent / ".github/workflows/cd.yml").read_text(encoding="utf-8")
-if pkg not in re.findall(r'package:\s*"(lib-q[^"]+)"', cd):
-    raise SystemExit(f"{pkg}: missing from cd.yml publish-rust jobs")
+# cd.yml publishes a crate in one of two shapes: a quoted matrix entry (`- package: "lib-q-foo"`)
+# or an unquoted single-package step (`package: lib-q-foo`). The old check here matched only the
+# quoted form, so 20 of cd.yml's 80 crates would have been reported "missing from cd.yml" — the
+# gate was self-consistent only because every crate ci.yml actually guards happened to be a quoted
+# entry. Moving any of them to a single-package job would have false-failed this gate. Resolve the
+# list through the shared derivation instead of re-implementing the match.
+sys.path.insert(0, str(pathlib.Path("scripts").resolve()))
+from cd_publish_manifest import crate_names  # noqa: E402
+
+published = crate_names(pathlib.Path("."))
+if pkg not in published:
+    raise SystemExit(
+        f"{pkg}: missing from cd.yml publish-rust jobs "
+        f"(cd.yml publishes {len(published)} crates; add it to a publish-rust-* job)"
+    )
 
 print(f"manifest pins: OK ({pkg})")
 
