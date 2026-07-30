@@ -682,7 +682,7 @@ pub fn horner_public_values(zeta: u64) -> Vec<ConfigVal> {
 
 /// Join-2 **Receive** lookups the fold contributes (design §5, coefficient binding): four single-limb
 /// `(position, w_limb)` tuples per row on `bus`, at absolute coefficient-limb position
-/// `base + 4·idx + j` where `idx` is [`HW_IDX`] (this row's ζ-power / coefficient degree) and
+/// `base + 4·idx + j` where `idx` is `HW_IDX` (this row's ζ-power / coefficient degree) and
 /// `base = 4·r·N` locates ring element `r` on the component's coefficient axis (`base = 0` for a lone
 /// ring element). One single-tuple lookup per limb (degree-3 constraint) rather than one 4-tuple
 /// lookup. **Every row Receives** (no gate): the fold height must equal its coefficient count `N`
@@ -707,10 +707,10 @@ pub fn horner_coeff_receive_lookups_at(bus: &str, base: u64) -> Vec<Lookup<Confi
 
 /// Join-3 **Send** lookups the fold contributes (design §4.1, the boundary opening): four single-limb
 /// `(position, r_limb)` tuples exposing the fold RESULT `E` (the last row's remainder `r` = the fold
-/// value) on `bus`, at position `base + 4·term + limb`, gated by [`HW_ISLAST`] (so exactly one copy of
+/// value) on `bus`, at position `base + 4·term + limb`, gated by `HW_ISLAST` (so exactly one copy of
 /// `E` is Sent). `term` is this fold's index `j` among the relation's witness terms; `base`
 /// distinguishes relation instances on the shared bus. The matching [`RelationCheckAir`] Receives it
-/// into `w_term` ([`relation_w_receive_lookups_at`]). Single-tuple lookups (degree-3). This closes the
+/// into `w_term` ([`relation_w_receive_lookups_at`](RelationCheckAir::relation_w_receive_lookups_at)). Single-tuple lookups (degree-3). This closes the
 /// "expose the result" composition obligation the standalone fold cannot self-supply.
 ///
 /// `col_base` is the first **permutation aux-column index** these four lookups occupy; a fold that also

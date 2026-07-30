@@ -4,9 +4,9 @@
 //!
 //! - Constant-time infinity-norm screening via [`lib_q_ring::polys_norm_within_bound`].
 //! - First-order additive witness masking before `c·wit` ring multiplies
-//!   ([`crate::sigma::secrets::MaskedWitness`]).
+//!   (`crate::sigma::secrets::MaskedWitness`).
 //! - Fixed-iteration rejection loops: every attempt runs norm screen + verification; the first
-//!   accepting transcript is merged with [`ct_select_polys`] (no early return on success).
+//!   accepting transcript is merged with `ct_select_polys` (no early return on success).
 //!
 //! # Rejection-attempt counts
 //!

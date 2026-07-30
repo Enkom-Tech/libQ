@@ -223,7 +223,7 @@ pub fn dualring_prf_verify_u256(
 /// otherwise this returns [`DualringPrfError::Rejected`],
 /// avoiding a timing signal correlated with which batch index failed first. Per-item failures
 /// that would surface as [`DualringPrfError::Prf`] or [`DualringPrfError::InvalidInput`]
-/// in single-item verify are folded into that aggregate [`Rejected`] outcome.
+/// in single-item verify are folded into that aggregate [`Rejected`](DualringPrfError::Rejected) outcome.
 #[must_use = "batch verification outcome must be checked"]
 pub fn verify_dualring_prf_batch_u256(
     ring: &[DualringPrfMemberSecrets256],

@@ -220,13 +220,13 @@ impl FnDsa512 {
 
     /// Deterministically generate a keypair from a 32-byte seed (reproducible KAT / identity
     /// derivation). The seed MUST be fresh CSPRNG entropy in production; see
-    /// [`keygen_from_seed_bytes`].
+    /// `keygen_from_seed_bytes`.
     pub fn generate_keypair_from_seed(&self, seed: &[u8; 32]) -> Result<SigKeypair> {
         keygen_from_seed_bytes(FN_DSA_LOGN_512, seed)
     }
 
     /// Deterministically sign `message` from a 32-byte seed. Production callers pass fresh CSPRNG
-    /// entropy per signature; a fixed seed reproduces a KAT signature. See [`sign_from_seed_bytes`].
+    /// entropy per signature; a fixed seed reproduces a KAT signature. See `sign_from_seed_bytes`.
     pub fn sign_from_seed(
         &self,
         secret_key: &SigSecretKey,
@@ -344,13 +344,13 @@ impl FnDsa1024 {
 
     /// Deterministically generate a keypair from a 32-byte seed (reproducible KAT / identity
     /// derivation). The seed MUST be fresh CSPRNG entropy in production; see
-    /// [`keygen_from_seed_bytes`].
+    /// `keygen_from_seed_bytes`.
     pub fn generate_keypair_from_seed(&self, seed: &[u8; 32]) -> Result<SigKeypair> {
         keygen_from_seed_bytes(FN_DSA_LOGN_1024, seed)
     }
 
     /// Deterministically sign `message` from a 32-byte seed. Production callers pass fresh CSPRNG
-    /// entropy per signature; a fixed seed reproduces a KAT signature. See [`sign_from_seed_bytes`].
+    /// entropy per signature; a fixed seed reproduces a KAT signature. See `sign_from_seed_bytes`.
     pub fn sign_from_seed(
         &self,
         secret_key: &SigSecretKey,

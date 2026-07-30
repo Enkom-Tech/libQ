@@ -49,7 +49,7 @@ impl SaturninTbc {
     /// Create a TBC instance for the given 4-bit domain separator.
     ///
     /// # Errors
-    /// Returns [`Error::InvalidAlgorithm`] if `domain > 15`.
+    /// Returns [`lib_q_core::Error::InvalidAlgorithm`] if `domain > 15`.
     pub fn new(domain: u8) -> Result<Self> {
         let core = SaturninCore::new(TBC_SUPER_ROUNDS, domain)?;
         Ok(Self { core, domain })
