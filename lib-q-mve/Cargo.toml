@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 keywords = ["cryptography", "post-quantum", "verifiable", "encryption", "zkp"]
 categories = ["cryptography"]
-readme.workspace = true
+readme = "README.md"
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false, features = ["std"] }

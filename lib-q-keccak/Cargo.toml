@@ -12,7 +12,7 @@ homepage = "https://github.com/Enkom-Tech/libQ/tree/main/lib-q-keccak"
 repository.workspace = true
 keywords = ["crypto", "keccak", "sponge", "hash", "lib-q"]
 categories = ["cryptography", "no-std"]
-readme.workspace = true
+readme = "README.md"
 edition.workspace = true
 rust-version.workspace = true
 

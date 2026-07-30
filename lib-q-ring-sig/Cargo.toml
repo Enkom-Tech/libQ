@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "Federation-style ring openings over Ajtai commitments (DualRing-LB CCS 2021 aggregated verify)"
 keywords = ["cryptography", "post-quantum", "lattice", "ring-signature", "no-std"]

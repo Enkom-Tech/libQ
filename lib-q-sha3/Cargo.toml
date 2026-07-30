@@ -6,7 +6,7 @@ lib-Q: SHA-3 (FIPS 202), SHAKE, cSHAKE (SP 800-185), TurboSHAKE; no_std-friendly
 """
 authors.workspace = true
 license.workspace = true
-readme.workspace = true
+readme = "README.md"
 edition.workspace = true
 rust-version.workspace = true
 documentation = "https://docs.rs/lib-q-sha3"

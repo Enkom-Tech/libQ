@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "Legendre and Gold (power-residue) PRFs over large prime fields (Fiat-Shamir transcript building blocks)"
 keywords = ["cryptography", "post-quantum", "prf", "legendre", "no-std"]

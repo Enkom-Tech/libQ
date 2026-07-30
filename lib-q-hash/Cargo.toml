@@ -9,7 +9,7 @@ repository.workspace = true
 description = "Post-quantum Hash Functions for lib-Q"
 keywords = ["cryptography", "post-quantum", "hash", "shake"]
 categories = ["cryptography"]
-readme.workspace = true
+readme = "README.md"
 
 
 [package.metadata.cargo-machete]

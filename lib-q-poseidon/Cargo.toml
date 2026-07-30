@@ -7,7 +7,7 @@ authors.workspace = true
 description = "Poseidon hash function optimized for zero-knowledge proofs"
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 keywords = ["cryptography", "post-quantum", "poseidon", "zkp", "hash"]
 categories = ["cryptography"]
 

@@ -7,7 +7,7 @@ authors.workspace = true
 description = "An implementation of the BabyBear prime field F_p, where p = 2^31 - 2^27 + 1, as a lib-q-stark-monty31 instance."
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 
 [dependencies]
 lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.10" }
