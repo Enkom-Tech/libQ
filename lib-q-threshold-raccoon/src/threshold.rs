@@ -106,6 +106,15 @@ pub struct Round1State {
     w: Commitment,
 }
 
+impl Drop for Round1State {
+    fn drop(&mut self) {
+        self.y_s.coeffs.fill(0);
+        for r in &mut self.y_r {
+            r.coeffs.fill(0);
+        }
+    }
+}
+
 /// Round-1 broadcast: a hiding commitment to the party's first message `w_i` (prevents rushing).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Round1Commit {
