@@ -64,8 +64,8 @@ check_one "lib-q-lattice-zkp" "wasm,random" 10400
 check_one "lib-q-ring" "wasm,alloc" 7000
 check_one "lib-q-mac" "wasm,random" 3500
 check_one "lib-q-blind-pcs" "wasm,blind-pcs" 2500
-check_one "lib-q-fhe" "wasm,fhe" 2500
-check_one "lib-q-threshold-kem" "wasm,std,random" 10400
+# lib-q-fhe and lib-q-threshold-kem were withdrawn (deleted) in 0.0.10 — see CHANGELOG.md and
+# board cards t_2a349708 / t_8ca3fd06. lib-q-threshold-kem-lattice below is the successor.
 # Lattice threshold stack (measured 2026-07-10: dkg 272 KB, raccoon 264 KB, kem-lattice 260 KB —
 # the working sets are heap-allocated at runtime, so the code footprint stays small).
 check_one "lib-q-dkg" "wasm,std,random" 700

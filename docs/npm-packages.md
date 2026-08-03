@@ -1,9 +1,12 @@
 # @lib-q npm packages
 
-**28** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
+**26** scoped packages (`@lib-q/*`) are built in release with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) from the matching workspace crate (see `.github/workflows/cd.yml`, job `publish-wasm-packages`). Each WASM package ships `*.js`, `*.d.ts`, and `*.wasm` under `pkg/web` and `pkg/nodejs` (or crate-specific `out-dir`).
 
-`@lib-q/threshold-sig` is not among them: `lib-q-threshold-sig` was withdrawn as
-**cryptographically unsound** and the crate has since been removed from the workspace. See
+`@lib-q/threshold-sig`, `@lib-q/fhe`, and `@lib-q/threshold-kem` are not among them: all three
+crates were withdrawn and have since been removed from the workspace —
+`lib-q-threshold-sig` as **cryptographically unsound**, `lib-q-fhe` because `decrypt` never read
+the key, and `lib-q-threshold-kem` because its partial-decapsulation shares disclosed the full
+ML-KEM-768 decapsulation key (board cards t_2a349708 / t_8ca3fd06). See
 [Removed crates](npm-coverage.md#removed-crates).
 
 Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
@@ -38,8 +41,6 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/ring` | `lib-q-ring` | ML-DSA ring \(R_q\) constants and shared arithmetic (Rust-heavy) |
 | `@lib-q/mac` | `lib-q-mac` | qCW-MAC sign/verify (`qcwMacGenerateKey`, `qcwMacSign`, `qcwMacVerify`) |
 | `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo (**EXPERIMENTAL_NON_NIST**) |
-| `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE demo (**EXPERIMENTAL_NON_NIST**) |
-| `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) |
 
 `lib-q-stark-*` and `lib-q-plonky-*` subcrates remain **crates.io-only**; npm uses the umbrella rows above.
 

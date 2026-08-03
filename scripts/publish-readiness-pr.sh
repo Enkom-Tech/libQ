@@ -84,15 +84,11 @@ if pkg not in published:
 
 print(f"manifest pins: OK ({pkg})")
 
-# lib-q-fhe dev-deps reference lib-q-blind-pcs (unpublished until tier 4b).
-skip_dry_run = has_workspace_prod or pkg == "lib-q-fhe"
-if skip_dry_run:
-    reason = (
-        "workspace prod deps"
-        if has_workspace_prod
-        else "dev-deps reference unpublished workspace crate"
+if has_workspace_prod:
+    print(
+        f"publish dry-run: skipped ({pkg}: workspace prod deps; "
+        "validated at CD tier publish)"
     )
-    print(f"publish dry-run: skipped ({pkg}: {reason}; validated at CD tier publish)")
     raise SystemExit(0)
 
 import subprocess

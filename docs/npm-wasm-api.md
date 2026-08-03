@@ -158,29 +158,41 @@ repaired. Do not use previously published `@lib-q/double-kem` / `lib-q-double-ke
 0.0.7): treat anything derived through them as single-ML-KEM-768 security, never as two-key custody.
 Use `@lib-q/ml-kem` instead; a faithful implementation of the paper may appear later as a new crate.
 
-## `@lib-q/fhe` (0.0.7, EXPERIMENTAL_NON_NIST)
+## `@lib-q/fhe` — REMOVED
 
-| JS name | Description |
-|---------|-------------|
-| `fheKeygen` | Deterministic key params JSON |
-| `fheEncrypt` | Encrypt `Int32Array` plaintext |
-| `fheEval` | Homomorphic op via tagged JSON (`addConstant`, `mulConstant`, `addCiphertext`) |
-| `fheDecrypt` | Decrypt to `Int32Array` |
-| `fheCiphertextToBytes` | Canonical ciphertext bytes |
+**Removed from the workspace and from all publish matrices.** `lib-q-fhe`'s `decrypt` never read
+the key: it computed `body[i] - mask[i]`, and both `body` and `mask` are public ciphertext fields,
+so "decryption" was public-data arithmetic with no confidentiality. `mask` is load-bearing for
+`eval` (`MulConstant` scales it, `AddCiphertext` adds them), so the defect could not be patched
+without a real RLWE rewrite; the crate was deleted in 0.0.10 rather than repaired. See board card
+t_2a349708.
 
-## `@lib-q/threshold-kem` (0.0.7, PROVISIONAL)
+There is no `@lib-q/fhe` package built from workspace `HEAD`; the former exports (`fheKeygen`,
+`fheEncrypt`, `fheEval`, `fheDecrypt`, `fheCiphertextToBytes`) are listed here only so old call
+sites can be identified and removed. Previously published `@lib-q/fhe` / `lib-q-fhe` artifacts
+(latest 0.0.9) remain installable pending an operator yank decision; do not rely on them for
+confidentiality — anyone who can see a ciphertext can recover the plaintext.
 
-Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
+## `@lib-q/threshold-kem` — REMOVED
 
-| JS name | Description |
-|---------|-------------|
-| `thresholdKemSetup` | Profile metadata JSON |
-| `thresholdKemKeygenShares` | `{ publicKey, secretShares[] }` with `shareBytes` as `Uint8Array` |
-| `thresholdKemEncap` | `{ sharedSecret, ciphertextHex, wire }` |
-| `thresholdKemPartialDecap` | Partial share JSON |
-| `thresholdKemCombineDecap` | Combined shared secret `Uint8Array` |
-| `thresholdKemVerifyShare` | Share proof check |
-| `thresholdKemEncodeWireV1` / `thresholdKemDecodeWireV1` | Canonical wire codec |
+**Removed from the workspace and from all publish matrices.** `lib-q-threshold-kem`'s
+`partial_decap` returned the party's raw Shamir share, so `t` partials reconstructed the
+underlying ML-KEM-768 decapsulation key in full. ML-KEM decapsulation is non-linear, so a
+Shamir-shared `dk` admits no correct partial-decapsulation function at all — the construction
+could not be patched, only replaced; the crate was deleted in 0.0.10 rather than repaired. See
+board card t_8ca3fd06.
+
+There is no `@lib-q/threshold-kem` package built from workspace `HEAD`; the former exports
+(`thresholdKemSetup`, `thresholdKemKeygenShares`, `thresholdKemEncap`, `thresholdKemPartialDecap`,
+`thresholdKemCombineDecap`, `thresholdKemVerifyShare`, `thresholdKemEncodeWireV1` /
+`thresholdKemDecodeWireV1`) are listed here only so old call sites can be identified and removed;
+the corresponding `ThresholdKem*` TypeScript shapes are gone from `@lib-q/types`. Previously
+published `@lib-q/threshold-kem` / `lib-q-threshold-kem` artifacts (latest 0.0.9) remain
+installable pending an operator yank decision.
+
+**Migrating:** the threshold-KEM capability is provided by `@lib-q/threshold-kem-lattice`
+(Rust: `lib-q-threshold-kem-lattice`), a dealerless dual-Regev KEM over a BDLOP-committed
+`lib-q-dkg` key. It is not wire-compatible — keys and ciphertexts must be regenerated.
 
 ## `@lib-q/threshold-sig` — WITHDRAWN and REMOVED
 

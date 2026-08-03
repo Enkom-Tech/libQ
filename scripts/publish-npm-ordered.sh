@@ -91,8 +91,6 @@ lib-q-lattice-zkp|@lib-q/lattice-zkp|Module-lattice commitments and sigma protoc
 lib-q-ring|@lib-q/ring|ML-DSA ring arithmetic R_q (shared with lattice-zkp)|cryptography,post-quantum,lattice,ml-dsa,wasm|wasm,alloc|pkg|
 lib-q-mac|@lib-q/mac|Quantum Carter-Wegman MAC (qCW-MAC) for Node.js|cryptography,post-quantum,mac,wasm|wasm,random|pkg|
 lib-q-blind-pcs|@lib-q/blind-pcs|Experimental blind commitment demo (EXPERIMENTAL_NON_NIST)|cryptography,post-quantum,commitment,experimental,wasm|wasm,blind-pcs|pkg|
-lib-q-fhe|@lib-q/fhe|Experimental toy lattice FHE demo (EXPERIMENTAL_NON_NIST)|cryptography,post-quantum,fhe,experimental,wasm|wasm,fhe|pkg|
-lib-q-threshold-kem|@lib-q/threshold-kem|PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
 lib-q-dkg|@lib-q/dkg|PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for Node.js|cryptography,post-quantum,dkg,threshold,wasm|wasm,std,random|pkg|
 lib-q-threshold-raccoon|@lib-q/threshold-raccoon|PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js|cryptography,post-quantum,threshold,signature,wasm|wasm,std,random|pkg|
 lib-q-threshold-kem-lattice|@lib-q/threshold-kem-lattice|PROVISIONAL PQ lattice threshold KEM (dealerless keygen via lib-q-dkg) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|

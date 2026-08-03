@@ -1047,21 +1047,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib-q-fhe"
-version = "0.0.10"
-dependencies = [
- "js-sys",
- "lib-q-blind-pcs",
- "lib-q-core",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "sha2 0.11.0",
- "wasm-bindgen",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "lib-q-fn-dsa"
 version = "0.0.10"
 dependencies = [
@@ -2010,27 +1995,6 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "lib-q-threshold-kem"
-version = "0.0.10"
-dependencies = [
- "getrandom 0.4.3",
- "hex",
- "js-sys",
- "lib-q-core",
- "lib-q-ml-kem",
- "lib-q-random",
- "lib-q-sha3",
- "rand_core 0.10.1",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "subtle",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "zeroize",
 ]
 
 [[package]]
