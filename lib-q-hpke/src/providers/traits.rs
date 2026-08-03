@@ -63,9 +63,13 @@ pub trait KemProvider {
     /// Check if the provider supports the given KEM algorithm
     fn supports_kem(&self, kem: HpkeKem) -> bool;
 
-    /// Authenticated encapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3)
+    /// Authenticated encapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3).
     ///
-    /// Returns `(encapsulated_key, shared_secret)` with shared secret in [`SecretBytes`].
+    /// **Disabled in [`crate::providers::post_quantum::PostQuantumProvider`] (B14, interim):**
+    /// that implementation's `AuthEncap` did not bind the sender's static secret key into the
+    /// authentication tag or shared secret, so it always returns an explicit error now rather
+    /// than silently authenticating nothing. Returns `(encapsulated_key, shared_secret)` with
+    /// shared secret in [`SecretBytes`] on the (currently unreachable) success path.
     fn auth_encapsulate(
         &self,
         kem: HpkeKem,
@@ -74,7 +78,10 @@ pub trait KemProvider {
         rng: &mut dyn CryptoRng,
     ) -> Result<KemPublicAndSecretBytes, HpkeError>;
 
-    /// Authenticated decapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3)
+    /// Authenticated decapsulation for Auth and AuthPSK modes (RFC 9180 Section 5.1.3).
+    ///
+    /// **Disabled in [`crate::providers::post_quantum::PostQuantumProvider`] (B14, interim)** —
+    /// see [`Self::auth_encapsulate`].
     fn auth_decapsulate(
         &self,
         kem: HpkeKem,

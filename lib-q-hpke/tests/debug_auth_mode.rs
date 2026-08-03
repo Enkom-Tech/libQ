@@ -1,4 +1,11 @@
 //! Debug test for Auth mode
+//!
+//! B14 interim fix: this test used to walk through Auth-mode sender/receiver setup step by step,
+//! printing intermediate sizes, and asserting the derived keys matched. Auth mode is now disabled
+//! (see `PostQuantumProvider::auth_mode_unavailable` and
+//! `lib-q-hpke/tests/auth_encap_validation_tests.rs` for why), so there is no successful setup
+//! left to walk through. This keeps the debug/diagnostic spirit of the original test — print what
+//! happens — while asserting the fail-closed outcome.
 
 #![cfg(feature = "std")]
 
@@ -8,10 +15,7 @@ use lib_q_core::{
     Algorithm,
     KemContext,
 };
-use lib_q_hpke::hpke_core::{
-    setup_receiver_with_mode,
-    setup_sender_with_mode,
-};
+use lib_q_hpke::hpke_core::setup_sender_with_mode;
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::HpkeCryptoProvider;
 use lib_q_hpke::types::{
@@ -66,9 +70,9 @@ fn debug_auth_mode() {
         sender_keypair.secret_key().as_bytes().len()
     );
 
-    // Setup sender context with Auth mode
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
-    let sender_ctx = setup_sender_with_mode(
+    // Setup sender context with Auth mode — B14: this now fails closed unconditionally.
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
+    let sender_result = setup_sender_with_mode(
         &mut kem_ctx,
         recipient_keypair.public_key(),
         b"test-info",
@@ -82,67 +86,12 @@ fn debug_auth_mode() {
         Some(sender_keypair.public_key()),
         HpkePskWireFormat::default(),
         hpke_crypto.clone(),
-    )
-    .expect("Auth mode sender setup should work");
-
-    println!(
-        "Sender encapsulated key size: {}",
-        sender_ctx.encapsulated_key.len()
-    );
-    println!(
-        "Sender shared secret size: {}",
-        sender_ctx.shared_secret.len()
-    );
-    println!("Sender key size: {}", sender_ctx.key.len());
-    println!("Sender nonce size: {}", sender_ctx.nonce.len());
-
-    // Setup receiver context with Auth mode
-    let receiver_ctx = setup_receiver_with_mode(
-        &mut kem_ctx,
-        &sender_ctx.encapsulated_key,
-        recipient_keypair.secret_key(),
-        b"test-info",
-        &cipher_suite,
-        hpke_crypto.as_ref(),
-        HpkeMode::Auth,
-        None,
-        None,
-        Some(sender_keypair.public_key()),
-        HpkePskWireFormat::default(),
-        hpke_crypto.clone(),
-    )
-    .expect("Auth mode receiver setup should work");
-
-    println!(
-        "Receiver shared secret size: {}",
-        receiver_ctx.shared_secret.len()
-    );
-    println!("Receiver key size: {}", receiver_ctx.key.len());
-    println!("Receiver nonce size: {}", receiver_ctx.nonce.len());
-
-    // Check if keys match
-    println!("Keys match: {}", sender_ctx.key == receiver_ctx.key);
-    println!("Nonces match: {}", sender_ctx.nonce == receiver_ctx.nonce);
-    println!(
-        "Shared secrets match: {}",
-        sender_ctx.shared_secret == receiver_ctx.shared_secret
     );
 
-    if sender_ctx.key != receiver_ctx.key {
-        println!("Sender key: {:?}", &sender_ctx.key[..8]);
-        println!("Receiver key: {:?}", &receiver_ctx.key[..8]);
-    }
-
-    if sender_ctx.shared_secret != receiver_ctx.shared_secret {
-        println!("Sender shared secret: {:?}", &sender_ctx.shared_secret[..8]);
-        println!(
-            "Receiver shared secret: {:?}",
-            &receiver_ctx.shared_secret[..8]
-        );
-    }
-
-    // This should pass if Auth mode is working correctly
-    assert_eq!(sender_ctx.key, receiver_ctx.key);
-    assert_eq!(sender_ctx.nonce, receiver_ctx.nonce);
-    assert_eq!(sender_ctx.shared_secret, receiver_ctx.shared_secret);
+    println!("Auth mode sender setup result: {:?}", sender_result.is_ok());
+    assert!(
+        sender_result.is_err(),
+        "Auth mode sender setup must fail closed (B14): sender authentication is not soundly \
+         bound to the sender's static secret key"
+    );
 }

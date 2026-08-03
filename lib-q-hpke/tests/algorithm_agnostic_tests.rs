@@ -109,7 +109,10 @@ fn test_kem_algorithm(
         &format!("{} PSK mode", kem_name),
     );
 
-    // Test Auth mode
+    // Auth / AuthPSK modes (B14 interim fix): both currently fail closed unconditionally — see
+    // `lib-q-hpke/tests/auth_encap_validation_tests.rs` for the forgery this replaced. Assert the
+    // fail-closed behavior here instead of routing through `test_hpke_mode` (which asserts
+    // success and is still correct for Base/PSK above).
     let (sender_pk_bytes, sender_sk_bytes) = hpke_crypto
         .as_ref()
         .generate_keypair(kem, rng)
@@ -120,39 +123,59 @@ fn test_kem_algorithm(
     let sender_pk = KemPublicKey::new(sender_pk_bytes);
     let sender_sk = KemSecretKey::new(sender_sk_bytes.to_vec());
 
-    test_hpke_mode(
-        hpke_crypto,
-        rng,
-        &cipher_suite,
+    let kem_provider_auth =
+        Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx_auth = KemContext::with_provider(kem_provider_auth);
+    let auth_result = seal_with_mode(
+        &mut kem_ctx_auth,
         &recipient_pk,
-        &recipient_sk,
         info,
         aad,
         plaintext,
+        &cipher_suite,
+        hpke_crypto.as_ref(),
+        rng,
         HpkeMode::Auth,
         None,
         None,
         Some(&sender_sk),
         Some(&sender_pk),
-        &format!("{} Auth mode", kem_name),
+        HpkePskWireFormat::default(),
     );
+    assert!(
+        auth_result.is_err(),
+        "Auth mode must fail closed (B14) in {} Auth mode",
+        kem_name
+    );
+    println!("    ✓ {} Auth mode correctly fails closed (B14)", kem_name);
 
-    // Test AuthPSK mode
-    test_hpke_mode(
-        hpke_crypto,
-        rng,
-        &cipher_suite,
+    let kem_provider_authpsk =
+        Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
+    let mut kem_ctx_authpsk = KemContext::with_provider(kem_provider_authpsk);
+    let authpsk_result = seal_with_mode(
+        &mut kem_ctx_authpsk,
         &recipient_pk,
-        &recipient_sk,
         info,
         aad,
         plaintext,
+        &cipher_suite,
+        hpke_crypto.as_ref(),
+        rng,
         HpkeMode::AuthPsk,
         Some(psk),
         Some(psk_id),
         Some(&sender_sk),
         Some(&sender_pk),
-        &format!("{} AuthPSK mode", kem_name),
+        HpkePskWireFormat::default(),
+    );
+    assert!(
+        authpsk_result.is_err(),
+        "AuthPSK mode must fail closed (B14) in {} AuthPSK mode",
+        kem_name
+    );
+    println!(
+        "    ✓ {} AuthPSK mode correctly fails closed (B14)",
+        kem_name
     );
 }
 

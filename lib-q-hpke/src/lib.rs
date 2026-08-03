@@ -65,6 +65,11 @@
 //! - Post-quantum primitives for the stated HPKE path; validate keys and suite agreement between peers
 //! - Authenticated encryption for application payloads (except export-only suite)
 //! - Constant-time helpers and zeroization where implemented; see `security` module and `docs/SECURITY_CONSIDERATIONS.md`
+//! - **[`HpkeMode::Auth`] / [`HpkeMode::AuthPsk`] are disabled (B14, interim)**: `AuthEncap`/`AuthDecap`
+//!   do not currently bind the sender's static secret key into the authentication tag or shared
+//!   secret (RFC 9180 Section 5.1.3 gap), so every call using these modes fails closed with an
+//!   explicit error rather than silently authenticating nothing. Use [`HpkeMode::Base`] or
+//!   [`HpkeMode::Psk`] until a cryptographer-reviewed redesign ships.
 //!
 //! ## Performance
 //!
@@ -259,7 +264,9 @@ impl HpkeContext {
         self.hpke_crypto.as_ref()
     }
 
-    /// Replace the RNG used for encapsulation and single-shot `seal` (tests may use [`crate::security::prng::SimpleRng`]).
+    /// Replace the RNG used for encapsulation and single-shot `seal` (tests may use
+    /// [`crate::security::test_rng::TestRng`], a deterministic KT128-backed `CryptoRng` — do not
+    /// use it, or any other deterministic RNG, in production).
     pub fn set_rng(&mut self, rng: Box<dyn CryptoRng + Send>) {
         self.rng = rng;
     }
@@ -367,7 +374,9 @@ impl HpkeContext {
         .map_err(|e| e.into())
     }
 
-    /// Setup sender with Auth mode
+    /// Setup sender with Auth mode.
+    ///
+    /// **Disabled (B14, interim):** always returns an error. See [`HpkeMode::Auth`].
     pub fn setup_sender_auth(
         &mut self,
         recipient_pk: &KemPublicKey,
@@ -394,6 +403,8 @@ impl HpkeContext {
     }
 
     /// Setup sender with AuthPSK mode.
+    ///
+    /// **Disabled (B14, interim):** always returns an error. See [`HpkeMode::AuthPsk`].
     ///
     /// Wire layout follows [`HpkeContext::psk_wire_format`]: either RFC 9180 (KEM ‖ auth) or the
     /// same with a libQ PSK commitment suffix when using [`HpkePskWireFormat::LibQCommitmentSuffix`].
@@ -456,7 +467,9 @@ impl HpkeContext {
         .map_err(|e| e.into())
     }
 
-    /// Setup receiver with Auth mode
+    /// Setup receiver with Auth mode.
+    ///
+    /// **Disabled (B14, interim):** always returns an error. See [`HpkeMode::Auth`].
     pub fn setup_receiver_auth(
         &mut self,
         encapsulated_key: &[u8],
@@ -482,6 +495,8 @@ impl HpkeContext {
     }
 
     /// Setup receiver with AuthPSK mode.
+    ///
+    /// **Disabled (B14, interim):** always returns an error. See [`HpkeMode::AuthPsk`].
     ///
     /// `encapsulated_key` layout must match [`HpkeContext::psk_wire_format`] on both peers.
     pub fn setup_receiver_auth_psk(

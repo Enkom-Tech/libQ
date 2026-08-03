@@ -105,56 +105,44 @@ impl NonceManager {
     }
 
     /// Generate a secure random nonce with collision detection
+    ///
+    /// # Errors
+    ///
+    /// SECURITY (B4): earlier versions filled `nonce_data` from a fixed-key `DefaultHasher` over
+    /// wall-clock time + a per-instance counter (std), or a bare LCG over that same
+    /// always-zero-at-construction counter (no_std / wasm32). Neither is a cryptographic entropy
+    /// source: the std path is fully predictable from public information (the approximate send
+    /// time) and the no_std/wasm32 path is 100% deterministic — every fresh `NonceManager` emitted
+    /// the same first nonce. This now routes through `lib-q-random` (OS/hardware entropy) and
+    /// fails closed — returning [`Error::RandomGenerationFailed`] — rather than falling back to a
+    /// non-cryptographic generator when the `shake256` feature (which pulls in `lib-q-random`) is
+    /// not enabled or the entropy source itself fails.
     fn generate_secure_nonce(&self) -> Result<Nonce> {
-        // Use cryptographically secure random number generation
-        let mut nonce_data = Vec::with_capacity(self.config.nonce_size);
+        // Retained for diagnostics / `get_counter()` back-compat; the nonce bytes below come
+        // entirely from a real entropy source, never from this counter.
+        self.counter.fetch_add(1, Ordering::SeqCst);
 
-        // Generate secure random bytes
-        #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+        let mut nonce_data = alloc::vec![0u8; self.config.nonce_size];
+
+        #[cfg(feature = "shake256")]
         {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{
-                Hash,
-                Hasher,
-            };
-            use std::time::{
-                SystemTime,
-                UNIX_EPOCH,
-            };
-
-            // Use system time and counter for entropy
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos() as u64;
-            let counter = self.counter.fetch_add(1, Ordering::SeqCst);
-
-            // Create a hash-based PRNG for better distribution
-            let mut hasher = DefaultHasher::new();
-            now.hash(&mut hasher);
-            counter.hash(&mut hasher);
-            let seed = hasher.finish();
-
-            // Generate nonce bytes using the seed
-            for i in 0..self.config.nonce_size {
-                let mut byte_hasher = DefaultHasher::new();
-                (seed + i as u64).hash(&mut byte_hasher);
-                nonce_data.push((byte_hasher.finish() & 0xFF) as u8);
-            }
+            lib_q_random::fill_entropy(&mut nonce_data).map_err(|e| {
+                Error::RandomGenerationFailed {
+                    operation: alloc::format!(
+                        "lib-q-aead secure nonce generation: entropy source unavailable: {e}"
+                    ),
+                }
+            })?;
         }
-
-        // wasm32-unknown-unknown has no working `SystemTime`, and no_std targets
-        // have no clock at all. Both use the counter-driven LCG fallback below.
-        #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
+        #[cfg(not(feature = "shake256"))]
         {
-            let counter = self.counter.fetch_add(1, Ordering::SeqCst);
-
-            // Use a better PRNG algorithm (LCG with good parameters)
-            let mut state = counter;
-            for _ in 0..self.config.nonce_size {
-                state = state.wrapping_mul(0x41C64E6D).wrapping_add(12345);
-                nonce_data.push((state >> 24) as u8);
-            }
+            return Err(Error::RandomGenerationFailed {
+                operation: alloc::string::String::from(
+                    "lib-q-aead secure nonce generation requires the `shake256` feature (it \
+                     pulls in lib-q-random for OS/hardware entropy); there is no \
+                     non-cryptographic fallback",
+                ),
+            });
         }
 
         // Check for collisions and regenerate if necessary
@@ -162,7 +150,6 @@ impl NonceManager {
             // If collision detected, try again with different seed
             return self.generate_secure_nonce();
         }
-        nonce_data.resize(self.config.nonce_size, 0);
 
         // Ensure the nonce is not all zeros or all ones
         if nonce_data.iter().all(|&b| b == 0) {
@@ -443,23 +430,12 @@ pub mod utils {
         Ok(Nonce::new(nonce_data))
     }
 
-    /// Generate a nonce from a key and counter
-    pub fn nonce_from_key_and_counter(key: &[u8], counter: u64, nonce_size: usize) -> Nonce {
-        let mut nonce_data = Vec::with_capacity(nonce_size);
-
-        // Add counter bytes
-        nonce_data.extend_from_slice(&counter.to_le_bytes());
-
-        // Add key bytes (truncated if needed)
-        let remaining = nonce_size.saturating_sub(8);
-        let key_bytes = key.len().min(remaining);
-        nonce_data.extend_from_slice(&key[..key_bytes]);
-
-        // Pad with zeros if needed
-        nonce_data.resize(nonce_size, 0);
-
-        Nonce::new(nonce_data)
-    }
+    // SECURITY (B4): `nonce_from_key_and_counter` was removed. It copied `key[..nonce_size - 8]`
+    // verbatim onto the wire after the counter bytes — for this crate's 16-byte nonce size and a
+    // 32-byte key, `key[0..8]` shipped in the clear as part of the nonce. It had no callers
+    // anywhere in this workspace (checked via `grep -rn nonce_from_key_and_counter` across all
+    // crates); deleting it removes the footgun outright rather than patching a construction with
+    // no legitimate use.
 }
 
 #[cfg(test)]
@@ -616,9 +592,107 @@ mod tests {
         let nonce2 = utils::nonce_from_random(&random_data, 16).unwrap();
         assert_eq!(nonce2.as_bytes().len(), 16);
 
-        // Test nonce_from_key_and_counter
-        let key = vec![1, 2, 3, 4, 5, 6, 7, 8];
-        let nonce3 = utils::nonce_from_key_and_counter(&key, 123, 16);
-        assert_eq!(nonce3.as_bytes().len(), 16);
+        // `utils::nonce_from_key_and_counter` was removed (B4): it leaked raw key bytes onto the
+        // wire and had no callers. See `test_nonce_from_key_and_counter_does_not_leak_key_bytes`'s
+        // (now-deleted) RED evidence in the fix commit for this crate.
     }
+
+    /// Regression sanity check: many independently-constructed `NonceManager`s should not emit
+    /// colliding first nonces. This is a statistical smoke test (not the RED-FIRST evidence for
+    /// B4a below — on this dev machine's high-resolution clock it already passed even against the
+    /// pre-fix generator, since the old std code's only entropy input, `SystemTime::now()`, rarely
+    /// repeats across a tight loop here; see `test_secure_nonce_is_predictable_from_public_clock_and_counter`
+    /// for the deterministic reproduction).
+    #[test]
+    fn test_fresh_nonce_managers_produce_different_first_nonce() {
+        const DRAWS: usize = 2000;
+        let mut nonces: Vec<Vec<u8>> = Vec::with_capacity(DRAWS);
+        for _ in 0..DRAWS {
+            let manager = NonceManager::new();
+            let nonce = manager.generate_nonce().unwrap();
+            nonces.push(nonce.as_bytes().to_vec());
+        }
+
+        nonces.sort();
+        let has_collision = nonces.windows(2).any(|pair| pair[0] == pair[1]);
+        assert!(
+            !has_collision,
+            "two fresh NonceManagers produced identical first nonces out of {DRAWS} draws \
+             (non-cryptographic/predictable generator)"
+        );
+    }
+
+    /// RED-FIRST (B4a), deterministic reproduction: before the fix, the std "secure" nonce path
+    /// (`generate_secure_nonce`'s `#[cfg(all(feature = "std", not(target_arch = "wasm32")))]`
+    /// branch) derived every byte from `SystemTime::now()` (public — an attacker who observes
+    /// roughly when a message was sent knows it to within microseconds) hashed with a FIXED-key
+    /// `DefaultHasher`, combined with a counter that is provably `0` for a fresh manager's first
+    /// call. That means the entire "secure" nonce is brute-forceable from public information: this
+    /// test brackets the wall-clock window around the real call, reproduces the exact (broken)
+    /// hash chain for every nanosecond in that window with counter fixed at 0, and checks whether
+    /// any candidate reproduces the real output byte-for-byte. It does, today — recorded as the
+    /// RED observation below — and must stop doing so once real entropy is used.
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+    #[test]
+    fn test_secure_nonce_is_predictable_from_public_clock_and_counter() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{
+            Hash,
+            Hasher,
+        };
+        use std::time::{
+            SystemTime,
+            UNIX_EPOCH,
+        };
+
+        let now_before = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        let manager = NonceManager::new();
+        let nonce = manager.generate_nonce().unwrap();
+        let now_after = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+
+        // A fresh manager's first call always observes counter == 0.
+        let counter: u64 = 0;
+        let mut predicted = false;
+        for now in now_before..=now_after {
+            let mut hasher = DefaultHasher::new();
+            now.hash(&mut hasher);
+            counter.hash(&mut hasher);
+            let seed = hasher.finish();
+
+            let mut candidate = Vec::with_capacity(16);
+            for i in 0..16u64 {
+                let mut byte_hasher = DefaultHasher::new();
+                (seed + i).hash(&mut byte_hasher);
+                candidate.push((byte_hasher.finish() & 0xFF) as u8);
+            }
+            if candidate == nonce.as_bytes() {
+                predicted = true;
+                break;
+            }
+        }
+
+        assert!(
+            !predicted,
+            "the 'secure' nonce was fully reproducible from public information (a wall-clock \
+             bracket spanning {} candidate nanoseconds + the always-zero starting counter) — it \
+             carries no real entropy",
+            now_after.saturating_sub(now_before) + 1
+        );
+    }
+
+    // RED-FIRST (B4b) evidence, recorded here rather than kept as a live test: before the fix,
+    // `utils::nonce_from_key_and_counter(&[0xABu8; 32], 123, 16)` returned a nonce whose bytes
+    // [8..16] were `[0xAB; 8]` — the leading 8 bytes of the key, copied verbatim. Observed failing
+    // assertion (`cargo test -p lib-q-aead --lib security::nonce`):
+    //   assertion `left != right` failed: nonce_from_key_and_counter leaked raw key bytes onto the wire
+    //     left: [171, 171, 171, 171, 171, 171, 171, 171]
+    //    right: [171, 171, 171, 171, 171, 171, 171, 171]
+    // The function had no callers anywhere in the workspace, so the fix deletes it outright (see
+    // `pub mod utils` above) instead of keeping a test for code that no longer exists.
 }
