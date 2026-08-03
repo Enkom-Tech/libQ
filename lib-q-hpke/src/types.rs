@@ -16,9 +16,20 @@ pub enum HpkeMode {
     Base = 0x00,
     /// PSK mode - pre-shared key authentication
     Psk = 0x01,
-    /// Auth mode - asymmetric authentication
+    /// Auth mode - asymmetric (sender) authentication.
+    ///
+    /// **Disabled (B14, interim, as of this release):** `AuthEncap`/`AuthDecap` do not currently
+    /// bind the sender's static secret key into the authentication tag or shared secret (RFC 9180
+    /// Section 5.1.3 gap) — every call using this mode returns an explicit error rather than
+    /// silently producing output that authenticates nothing. Use [`HpkeMode::Base`] or
+    /// [`HpkeMode::Psk`] instead until a cryptographer-reviewed fix ships. See
+    /// [`crate::providers::post_quantum::PostQuantumProvider`]'s `auth_mode_unavailable` (private)
+    /// for the full rationale.
     Auth = 0x02,
-    /// AuthPsk mode - both PSK and asymmetric authentication
+    /// AuthPsk mode - both PSK and asymmetric authentication.
+    ///
+    /// **Disabled (B14, interim)** for the same reason as [`HpkeMode::Auth`] — it routes through
+    /// the same `AuthEncap`/`AuthDecap` gap and fails closed identically.
     AuthPsk = 0x03,
 }
 

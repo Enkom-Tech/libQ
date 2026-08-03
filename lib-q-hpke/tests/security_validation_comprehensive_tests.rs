@@ -35,7 +35,14 @@ use lib_q_hpke::{
 };
 use lib_q_kem::LibQKemProvider;
 
-/// Test proper authentication implementation
+/// B14 interim fix: Auth mode does not currently bind the sender's static secret key into the
+/// authentication tag or shared secret (RFC 9180 Section 5.1.3 AuthEncap/AuthDecap gap) and so is
+/// disabled and fails closed. This replaces the pre-fix version of this test, which built a full
+/// authenticated round trip and then checked that a *wrong* sender public key was rejected at
+/// receiver setup — that check is moot now that a *correct* sender public key is rejected too. See
+/// `lib-q-hpke/tests/auth_encap_validation_tests.rs`'s
+/// `auth_decapsulate_rejects_forged_sender_identity_with_no_sender_secret_key` for the forgery
+/// this fail-closed behavior replaces.
 #[test]
 fn test_authentication_implementation_security() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
@@ -55,66 +62,27 @@ fn test_authentication_implementation_security() {
     let recipient_pk = KemPublicKey::new(recipient_keypair.public_key().as_bytes().to_vec());
     let recipient_sk = KemSecretKey::new(recipient_keypair.secret_key().as_bytes().to_vec());
 
-    // Test Auth mode setup
     let mut hpke_ctx = HpkeContext::with_provider(Box::new(
         LibQKemProvider::new().expect("Failed to create KEM provider"),
     ));
 
-    // Setup sender with authentication
+    // Setup sender with authentication: fails closed (B14), even with the correct sender keypair.
     let sender_ctx_result =
         hpke_ctx.setup_sender_auth(&recipient_pk, b"test info", &sender_sk, &sender_pk);
-
-    assert!(sender_ctx_result.is_ok(), "Auth mode setup should succeed");
-    let mut sender_ctx = sender_ctx_result.unwrap();
-
-    // Setup receiver with authentication
-    let receiver_ctx_result = hpke_ctx.setup_receiver_auth(
-        sender_ctx.encapsulated_key(),
-        &recipient_sk,
-        b"test info",
-        &sender_pk,
-    );
-
     assert!(
-        receiver_ctx_result.is_ok(),
-        "Auth mode receiver setup should succeed"
-    );
-    let mut receiver_ctx = receiver_ctx_result.unwrap();
-
-    // Test encryption and decryption with authentication
-    let message = b"Hello, authenticated HPKE!";
-    let aad = b"additional authenticated data";
-
-    let ciphertext = sender_ctx
-        .seal(aad, message)
-        .expect("Encryption should succeed");
-    let decrypted = receiver_ctx
-        .open(aad, &ciphertext)
-        .expect("Decryption should succeed");
-
-    assert_eq!(
-        decrypted, message,
-        "Decrypted message should match original"
+        sender_ctx_result.is_err(),
+        "Auth mode sender setup must fail closed (B14)"
     );
 
-    // Test that authentication prevents unauthorized access
-    // Try to decrypt with wrong sender public key
-    let wrong_sender_keypair = kem_ctx
-        .generate_keypair(Algorithm::MlKem512, None)
-        .expect("Wrong sender key generation should work");
-    let wrong_sender_pk = KemPublicKey::new(wrong_sender_keypair.public_key().as_bytes().to_vec());
-
-    let wrong_receiver_ctx_result = hpke_ctx.setup_receiver_auth(
-        sender_ctx.encapsulated_key(),
-        &recipient_sk,
-        b"test info",
-        &wrong_sender_pk,
-    );
-
-    // This should fail because the sender public key doesn't match
+    // With no valid sender context to build a real encapsulated key from, exercise receiver setup
+    // against a well-formed-sized placeholder — it must fail closed too, for the correct sender
+    // public key exactly as it would for a wrong one.
+    let placeholder_enc = vec![0u8; HpkeKem::MlKem512.enc_len() * 2 + 32];
+    let receiver_ctx_result =
+        hpke_ctx.setup_receiver_auth(&placeholder_enc, &recipient_sk, b"test info", &sender_pk);
     assert!(
-        wrong_receiver_ctx_result.is_err(),
-        "Wrong sender public key should be rejected"
+        receiver_ctx_result.is_err(),
+        "Auth mode receiver setup must fail closed (B14), even for the correct sender public key"
     );
 }
 
@@ -554,12 +522,17 @@ fn test_comprehensive_security_properties() {
                 continue;
             }
             HpkeMode::Auth => {
-                // Test Auth mode
-                let mut sender_ctx = hpke_ctx
-                    .setup_sender_auth(&recipient_pk, info, &sender_sk, &sender_pk)
-                    .unwrap();
-                let ciphertext = sender_ctx.seal(aad, message.as_bytes()).unwrap();
-                (sender_ctx.encapsulated_key().to_vec(), ciphertext)
+                // B14 interim fix: Auth mode fails closed unconditionally (sender authentication
+                // is not soundly bound to the sender's static secret key). Assert that and move
+                // on — there is no successful encapsulated key/ciphertext to carry into the
+                // decryption phase below.
+                let sender_result =
+                    hpke_ctx.setup_sender_auth(&recipient_pk, info, &sender_sk, &sender_pk);
+                assert!(
+                    sender_result.is_err(),
+                    "Auth mode sender setup must fail closed (B14)"
+                );
+                continue;
             }
             HpkeMode::AuthPsk => {
                 // Note: This would need proper AuthPSK mode implementation

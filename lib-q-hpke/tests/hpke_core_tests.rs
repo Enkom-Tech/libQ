@@ -17,7 +17,7 @@ use lib_q_hpke::providers::traits::{
     KdfProvider,
     KemProvider,
 };
-use lib_q_hpke::security::prng::SimpleRng;
+use lib_q_hpke::security::test_rng::TestRng;
 use lib_q_hpke::{
     HpkeAead,
     HpkeCipherSuite,
@@ -303,7 +303,7 @@ fn test_hpke_error_propagation() {
     // Test with mismatched encapsulated key size
     let provider = PostQuantumProvider::new();
     let (_public_key, secret_key) = provider
-        .generate_keypair(HpkeKem::MlKem512, &mut SimpleRng::new())
+        .generate_keypair(HpkeKem::MlKem512, &mut TestRng::new())
         .expect("Key generation should work");
 
     let recipient_sk = KemSecretKey::new(secret_key.to_vec());
