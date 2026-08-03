@@ -15,7 +15,12 @@ inputs:
     default: "stable"
     required: false
   test-algorithms:
-    description: Specific algorithms to test
+    description: >-
+      Unused (reserved for workflow matrix compatibility). Used to drive a per-algorithm
+      `cargo test --test "*$alg*"` loop; deleted because `--test` does not support globs, so that
+      loop failed with "no test target matches pattern" for every algorithm on every call,
+      silently, behind `|| true`. Every listed variant is covered directly by
+      cshake.rs/turboshake.rs/basic_functionality.rs/security.rs below.
     default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512,turboshake128,turboshake256"
     required: false
   run-benchmarks:
@@ -91,23 +96,15 @@ runs:
         cargo test --features "${{ inputs.features }}"
         echo "All tests completed"
     
-    - name: Run algorithm-specific tests
-      shell: bash
-      run: |
-        echo "Running algorithm-specific tests..."
-        cd ${{ inputs.working-directory }}
-        if [ -n "${{ inputs.test-algorithms }}" ] && [ "${{ inputs.test-algorithms }}" != "" ]; then
-          # Split comma-separated algorithms and test each one
-          IFS=',' read -ra ALGORITHMS <<< "${{ inputs.test-algorithms }}"
-          for alg in "${ALGORITHMS[@]}"; do
-            echo "Testing algorithm: $alg"
-            cargo test --features "${{ inputs.features }}" --test "*$alg*" || true
-          done
-        else
-          echo "No specific algorithms to test"
-        fi
-        echo "Algorithm-specific tests completed"
-    
+    # DELETED "Run algorithm-specific tests": it looped `cargo test --features ... --test
+    # "*$alg*" || true` over every algorithm name. `cargo test --test` takes an exact target
+    # name, not a glob -- confirmed locally that this fails with "no test target matches
+    # pattern `*$alg*`" (exit 101) for every single algorithm, unconditionally, and always did.
+    # `|| true` swallowed that for all 10 algorithms on every run, so the step always reported
+    # success while testing nothing it claimed to. Every algorithm it named is covered by the
+    # real per-file tests below (cshake.rs, cshake_blobby_kats.rs, turboshake.rs,
+    # basic_functionality.rs, security.rs) -- a deleted honest step, not a lost one.
+
     - name: Test SHA3 crate (FIPS-202 + SP-800-185; Keccak *types* are in lib-q-keccak-digest)
       shell: bash
       run: |
@@ -120,9 +117,10 @@ runs:
       shell: bash
       run: |
         echo "Verifying constant-time operations..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         # Run specific tests that verify constant-time behavior
-        cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-sha3
+        bash "$GUARD" -- cargo test --test constant_time --features "${{ inputs.features }}" -p lib-q-sha3
         echo "Constant-time verification completed"
     
     - name: Test Keccak digests (lib-q-keccak-digest)
