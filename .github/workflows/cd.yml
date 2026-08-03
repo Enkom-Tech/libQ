@@ -1311,9 +1311,18 @@ jobs:
       - name: Run security tests
         run: |
           echo "Running security validation tests..."
-          # Run constant_time tests for each package that has them
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # Run constant_time tests for each package that has them. No `--features
+          # "all-algorithms"`: neither lib-q-sha3 nor lib-q-k12 declares that feature (only the
+          # umbrella `lib-q` crate does), so combined with `-p` this was a hard cargo error on
+          # every run ("the package 'lib-q-sha3' does not contain this feature"), masked by
+          # `|| echo`. NOTE: this job (security-verification) runs AFTER publish-rust-* / the WASM
+          # and npm publish jobs -- it is a post-release sanity check, not the pre-publish gate.
+          # The actual pre-publish constant-time coverage is pre-release-validation's
+          # `rust-test` action, which runs `cargo test --workspace --features "std,all-algorithms"`
+          # (workspace-wide feature resolution tolerates a feature only some members declare).
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-sha3
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-k12
           echo "✅ Security tests completed successfully"
 
   # Final CD summary
