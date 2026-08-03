@@ -10,8 +10,8 @@
 #   python3 scripts/cd_publish_manifest.py --format crates
 #
 # The guard requires the SET to match cd.yml exactly and the ORDER to respect cd.yml's job `needs`
-# DAG. Order WITHIN one cd.yml matrix job is free (those entries publish in parallel there), which
-# is what lets lib-q-blind-pcs precede lib-q-fhe below.
+# DAG. Order WITHIN one cd.yml matrix job is free — those entries publish in parallel there, so this
+# script may sequence them to satisfy dev-dependencies that CD strips and this script does not.
 param([int]$StartAt = 0)
 
 Set-Location (Join-Path $PSScriptRoot "..")
@@ -33,11 +33,11 @@ $packages = @(
     "lib-q-ml-dsa",
     "lib-q-aead", "lib-q-kem", "lib-q-sig", "lib-q-ring-sig",
     "lib-q-hpke", "lib-q-sca-test",
-    # tier 4b. lib-q-blind-pcs precedes lib-q-fhe: they share cd.yml's tier-4b matrix (parallel
-    # there, so cd.yml imposes no order), but lib-q-fhe dev-depends on lib-q-blind-pcs, and this
-    # script publishes sequentially without the dev-dep stripping CD's crate-publish action does.
-    "lib-q-mac", "lib-q-threshold-kem",
-    "lib-q-blind-pcs", "lib-q-fhe", "lib-q-dkg", "lib-q-blind-token",
+    # tier 4b. (lib-q-fhe and lib-q-threshold-kem were dropped from the publish set in 0.0.10 —
+    # see the tier-4b matrix in cd.yml for why. The blind-pcs-before-fhe ordering note that used
+    # to live here went with them.)
+    "lib-q-mac",
+    "lib-q-blind-pcs", "lib-q-dkg", "lib-q-blind-token",
     "lib-q-threshold-raccoon",
     "lib-q-threshold-kem-lattice",
     "lib-q-stark-util", "lib-q-stark-rayon",

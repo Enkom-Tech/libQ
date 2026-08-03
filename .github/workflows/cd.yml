@@ -467,8 +467,16 @@ jobs:
       matrix:
         include:
           - package: "lib-q-mac"
-          - package: "lib-q-threshold-kem"
-          - package: "lib-q-fhe"
+          # lib-q-threshold-kem and lib-q-fhe are deliberately NOT published from 0.0.10 on.
+          # Both are unsound as constructed and neither is repairable in place:
+          #   lib-q-threshold-kem — `partial_decap` returns the party's raw Shamir share, so t
+          #     partials reconstruct the ML-KEM-768 decapsulation key. ML-KEM decap is non-linear,
+          #     so a Shamir-shared dk admits no partial-decap function at all; the successor is
+          #     lib-q-threshold-kem-lattice (published below). See board card t_8ca3fd06.
+          #   lib-q-fhe — `decrypt` never reads the key; it computes body[i] - mask[i] and both are
+          #     public ciphertext fields. The mask field is load-bearing for `eval`, so it cannot be
+          #     removed without a real RLWE rewrite. See board card t_2a349708.
+          # Do not re-add either without the corresponding card being closed.
           - package: "lib-q-blind-pcs"
           - package: "lib-q-dkg"
           - package: "lib-q-blind-token"
@@ -1127,18 +1135,9 @@ jobs:
             package-keywords: "cryptography,post-quantum,commitment,experimental,wasm"
             features: "wasm,blind-pcs"
             out-dir: "pkg"
-          - working-directory: "lib-q-fhe"
-            package-name: "@lib-q/fhe"
-            package-description: "Experimental toy lattice FHE demo (EXPERIMENTAL_NON_NIST)"
-            package-keywords: "cryptography,post-quantum,fhe,experimental,wasm"
-            features: "wasm,fhe"
-            out-dir: "pkg"
-          - working-directory: "lib-q-threshold-kem"
-            package-name: "@lib-q/threshold-kem"
-            package-description: "PROVISIONAL threshold KEM (ML-KEM-768 + Shamir) for Node.js"
-            package-keywords: "cryptography,post-quantum,threshold,kem,wasm"
-            features: "wasm,std,random"
-            out-dir: "pkg"
+          # @lib-q/fhe and @lib-q/threshold-kem are deliberately NOT published from 0.0.10 on —
+          # same reasons as the crates.io tier-4b matrix above (cards t_2a349708, t_8ca3fd06).
+          # The threshold-KEM successor @lib-q/threshold-kem-lattice is still published below.
           - working-directory: "lib-q-dkg"
             package-name: "@lib-q/dkg"
             package-description: "PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for Node.js"
