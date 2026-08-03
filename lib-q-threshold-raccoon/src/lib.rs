@@ -12,8 +12,26 @@
 //! production target replaces that GF(256) placeholder for PQ root/recovery keys.
 //!
 //! **Scope (research-grade):** the threshold *combine* ([`combine_opening`]) is a caller-side
-//! Lagrange sum; a fully threshold-native distributed signing round (Threshold-Raccoon: additive
-//! sharing + clearing factor) is the documented next phase. See `LIBQ_API.md` §7.
+//! Lagrange sum; the [`threshold`] module additionally implements a fully threshold-native
+//! distributed signing round (additive sharing + zero-share clearing) in which no party ever
+//! reconstructs the key.
+//!
+//! **Four absences, verified properties of this implementation** (see [`threshold`] and
+//! `LIBQ_API.md` §7 caveat 5 for the full analysis):
+//!
+//! - **No identifiable abort** — a corrupt round-3 partial makes the aggregate fail [`verify`]
+//!   silently, with no indication of who cheated.
+//! - **No accountability** — round broadcasts are unauthenticated, so no fault (even if detected) is
+//!   attributable to a specific party after the fact in a way that resists framing.
+//! - **No robustness** — any dropout or corrupt signer aborts the run; there is no way to exclude a
+//!   party and continue without a full retry.
+//! - **No proactive refresh** — shares are static for the life of the key, matching the
+//!   **static**-corruption TS-UF-1 model.
+//!
+//! This project has not read the cited Threshold-Raccoon paper (del Pino–Katsumata–Reichle–Takemure,
+//! CRYPTO 2024) closely enough to say whether the construction itself lacks these properties too, or
+//! whether this implementation simply omits properties the construction provides — a reader must not
+//! infer either.
 
 #![forbid(unsafe_code)]
 

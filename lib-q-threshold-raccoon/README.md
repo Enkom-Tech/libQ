@@ -20,7 +20,29 @@ The `threshold` module implements a 3-round distributed protocol (Threshold-Racc
 **no party reconstructs the key** — each uses only its own share. The Lagrange blowup of per-party
 randomness is hidden by **additive zero-sharing** (`Σ_{i∈S} m_i = 0`), which cancels on aggregation
 to leave a short, clean response. A single trusted-combine path (`combine_opening` + `sign`) is also
-available. Masks use noise flooding (research-grade; see `LIBQ_API.md` §3a/§7).
+available. Masks use noise flooding (research-grade).
+
+**Four absences.** Unforgeability under up to `t−1` static corruptions is the *entire* distributed-
+signing guarantee — the protocol is abort-only:
+
+- **No identifiable abort.** `aggregate_commitment` rejects a bad round-1 opening with an index-free
+  error, and `aggregate` performs no per-party verification of round-3 partials — one corrupt partial
+  yields an aggregate that fails `verify` with no indication of who cheated.
+- **No accountability.** Round broadcasts are not authenticated, so even a detected fault cannot be
+  attributed to a specific party after the fact in a way that resists framing.
+- **No robustness.** Any dropout or corrupt signer aborts the run; there is no way to exclude a party
+  and continue without a full retry.
+- **No proactive refresh.** Shares are static for the life of the key, matching the
+  **static**-corruption TS-UF-1 model — a mobile adversary corrupting `t` parties over the key's
+  lifetime is out of model.
+
+These are verified properties of **this implementation**, read directly off the code above. This
+project has not read the cited Threshold-Raccoon paper (del Pino–Katsumata–Reichle–Takemure, CRYPTO
+2024) closely enough to say whether the construction itself lacks them too, or whether this
+implementation simply omits properties the construction provides — a reader must not infer either.
+The full analysis lives in `LIBQ_API.md` §7 caveat 5 and `SECURITY_ANALYSIS.md`, both **repo-internal
+and not part of the published crate** — this section is the summary a crates.io/docs.rs reader
+actually gets.
 
 ## Validation
 
@@ -37,5 +59,6 @@ cargo +nightly fuzz run signature_decode               # in lib-q-threshold-racc
 
 ## Status
 
-**PROVISIONAL**, for controlled evaluation, not production standardization. See the `LIBQ_API.md`
-contract for the scheme choice and RED-zone assumptions.
+**PROVISIONAL**, for controlled evaluation, not production standardization. The four absences above
+are the load-bearing caveat for the distributed protocol; see `LIBQ_API.md` and `SECURITY_ANALYSIS.md`
+(repo-internal — not packaged with this crate) for the full scheme choice and RED-zone assumptions.

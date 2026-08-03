@@ -19,12 +19,16 @@
 //! unforgeability is proven by reduction to BDLOP binding + Module-LWE in `SECURITY_ANALYSIS.md` §7
 //! (with the Threshold-Raccoon TS-UF-1 mapping). See also `LIBQ_API.md` §3a/§7.
 //!
-//! **Abort-only (no identifiable abort, no robustness, no refresh):** neither aggregation step
-//! identifies a misbehaving party. [`aggregate_commitment`] rejects a bad round-1 opening with an
-//! index-free error, and [`aggregate`] does no per-party verification of round-3 partials — one
-//! corrupt partial yields an aggregate that fails [`crate::verify`] with no indication of who
-//! cheated. Shares are static (no proactive refresh), matching the static-corruption TS-UF-1
-//! model. Faithful to Threshold-Raccoon; see `LIBQ_API.md` §7 caveat 5.
+//! **Abort-only (no identifiable abort, no accountability, no robustness, no proactive refresh):**
+//! neither aggregation step identifies a misbehaving party. [`aggregate_commitment`] rejects a bad
+//! round-1 opening with an index-free error, and [`aggregate`] does no per-party verification of
+//! round-3 partials — one corrupt partial yields an aggregate that fails [`crate::verify`] with no
+//! indication of who cheated, and no broadcast is authenticated, so there is no after-the-fact way to
+//! hold a party accountable either. Shares are static (no proactive refresh), matching the
+//! static-corruption TS-UF-1 model. These four absences are verified properties of **this
+//! implementation** — this project has not read the cited construction closely enough to say whether
+//! it lacks them too, or whether this implementation simply omits properties the construction
+//! provides; a reader must not infer either. See `LIBQ_API.md` §7 caveat 5.
 
 extern crate alloc;
 
