@@ -49,6 +49,16 @@ For **PSK** and **AuthPSK**, the default `HpkePskWireFormat` is **RFC 9180** on 
 
 ## Known limitations
 
+- **Auth / AuthPSK mode is disabled (B14, interim).** `PostQuantumProvider::auth_encapsulate` /
+  `auth_decapsulate` implemented "authentication" as a hash over public values only
+  (`SHA3-256(shared_secret || sender_pk || encapsulated_key)`) — no sender secret key was ever an
+  input. Anyone who can encapsulate to the recipient's (public) key could compute that shared
+  secret themselves and forge a tag under an arbitrary claimed sender identity; `AuthDecap` would
+  accept it. Rather than leave that reachable, `auth_encapsulate` / `auth_decapsulate` now return
+  an explicit error unconditionally — `HpkeMode::Auth` and `HpkeMode::AuthPsk` (and the
+  `HpkeContext::setup_{sender,receiver}_auth[_psk]` convenience methods) fail closed. A correct
+  fix requires `AuthEncap`/`AuthDecap` that bind the sender's static secret key per RFC 9180
+  Section 5.1.3 and needs cryptographer sign-off before it ships. Use Base or PSK mode until then.
 - **Interop:** Peers must agree on the same cipher suite identifiers and, for PSK modes, the same `HpkePskWireFormat`.
 - **Software-only:** No mandatory hardware acceleration in this crate.
 - **Side channels:** Best-effort constant-time comparisons; full side-channel resistance depends on lower-level primitives and deployment.

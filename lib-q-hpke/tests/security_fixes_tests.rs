@@ -76,7 +76,10 @@ fn test_kangaroo_twelve_rng_availability() {
     }
 }
 
-/// Test that AuthEncap/AuthDecap implementations are properly fixed
+/// B14 interim fix: Auth mode used to look "fixed" here only because the round trip completed —
+/// it never actually bound a sender secret key (see `lib-q-hpke/tests/auth_encap_validation_tests.rs`'s
+/// `auth_decapsulate_rejects_forged_sender_identity_with_no_sender_secret_key`). It is now
+/// disabled and fails closed for valid keys just as it does for invalid ones.
 #[test]
 fn test_auth_encap_auth_decap_fixes() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
@@ -91,53 +94,42 @@ fn test_auth_encap_auth_decap_fixes() {
         .generate_keypair(Algorithm::MlKem512, None)
         .expect("Recipient key generation should work");
 
-    // Test AuthEncap/AuthDecap with proper validation
     let hpke_provider = lib_q_hpke::providers::post_quantum::PostQuantumProvider::new();
 
-    // Test AuthEncap
     let auth_encap_result = hpke_provider.auth_encapsulate(
         HpkeKem::MlKem512,
         sender_keypair.secret_key().as_bytes(),
         recipient_keypair.public_key().as_bytes(),
-        &mut lib_q_hpke::security::prng::SimpleRng::new(),
+        &mut lib_q_hpke::security::test_rng::TestRng::new(),
     );
 
     assert!(
-        auth_encap_result.is_ok(),
-        "AuthEncap should work with valid keys"
-    );
-    let auth_encapsulated_key = auth_encap_result.unwrap();
-
-    // Ciphertext is enc_len() bytes; PostQuantumProvider appends a 32-byte SHA-256 auth tag.
-    assert_eq!(
-        auth_encapsulated_key.0.len(),
-        HpkeKem::MlKem512.enc_len() + 32,
-        "ML-KEM-512 auth encapsulation should be ciphertext plus auth tag"
+        auth_encap_result.is_err(),
+        "AuthEncap must fail closed (B14) even with entirely valid keys"
     );
 
-    // Test AuthDecap
+    // No valid authenticated encapsulated key can be produced anymore; AuthDecap fails closed on
+    // a well-formed-sized placeholder too.
+    let placeholder_encapsulated_key = vec![0u8; HpkeKem::MlKem512.enc_len() + 32];
     let auth_decap_result = hpke_provider.auth_decapsulate(
         HpkeKem::MlKem512,
-        &auth_encapsulated_key.0,
+        &placeholder_encapsulated_key,
         recipient_keypair.secret_key().as_bytes(),
         sender_keypair.public_key().as_bytes(),
     );
 
     assert!(
-        auth_decap_result.is_ok(),
-        "AuthDecap should work with valid keys"
-    );
-    let auth_shared_secret = auth_decap_result.unwrap();
-
-    // Verify the shared secret has the correct size
-    assert_eq!(
-        auth_shared_secret.len(),
-        32,
-        "ML-KEM shared secret should be 32 bytes"
+        auth_decap_result.is_err(),
+        "AuthDecap must fail closed (B14) even with well-formed-sized input"
     );
 }
 
 /// Test that invalid key sizes are properly rejected
+/// NOTE (B14): since the interim fix, `auth_encapsulate` fails closed unconditionally, so these
+/// assertions no longer specifically exercise size validation — they still pass, now for the same
+/// reason as every other `auth_encapsulate` call (see `test_auth_encap_auth_decap_fixes`).
+/// Left as `is_err()` checks rather than removed: they document that invalid input still isn't
+/// silently accepted, which remains true.
 #[test]
 fn test_auth_encap_invalid_key_sizes() {
     let hpke_provider = lib_q_hpke::providers::post_quantum::PostQuantumProvider::new();
@@ -150,7 +142,7 @@ fn test_auth_encap_invalid_key_sizes() {
         HpkeKem::MlKem512,
         &invalid_sender_sk,
         &valid_recipient_pk,
-        &mut lib_q_hpke::security::prng::SimpleRng::new(),
+        &mut lib_q_hpke::security::test_rng::TestRng::new(),
     );
 
     assert!(
@@ -166,7 +158,7 @@ fn test_auth_encap_invalid_key_sizes() {
         HpkeKem::MlKem512,
         &valid_sender_sk,
         &invalid_recipient_pk,
-        &mut lib_q_hpke::security::prng::SimpleRng::new(),
+        &mut lib_q_hpke::security::test_rng::TestRng::new(),
     );
 
     assert!(
@@ -175,7 +167,9 @@ fn test_auth_encap_invalid_key_sizes() {
     );
 }
 
-/// Test that AuthDecap properly validates input sizes
+/// NOTE (B14): since the interim fix, `auth_decapsulate` fails closed unconditionally, so these
+/// assertions no longer specifically exercise size validation — see the note on
+/// `test_auth_encap_invalid_key_sizes` above.
 #[test]
 fn test_auth_decap_invalid_key_sizes() {
     let hpke_provider = lib_q_hpke::providers::post_quantum::PostQuantumProvider::new();
@@ -289,7 +283,7 @@ fn test_error_message_security() {
         HpkeKem::MlKem512,
         &invalid_key,
         &invalid_key,
-        &mut lib_q_hpke::security::prng::SimpleRng::new(),
+        &mut lib_q_hpke::security::test_rng::TestRng::new(),
     );
 
     assert!(result.is_err());
@@ -300,8 +294,11 @@ fn test_error_message_security() {
         !error_msg.contains("424242"),
         "Error message should not leak key material"
     );
+    // NOTE (B14): `auth_encapsulate` now fails closed with a fixed, static message (Auth mode is
+    // disabled) rather than a per-call size-validation message, so it no longer says "bytes" —
+    // check it mentions the actual reason instead.
     assert!(
-        error_msg.contains("bytes"),
-        "Error message should indicate size issue"
+        error_msg.to_lowercase().contains("auth"),
+        "Error message should explain that Auth mode is unavailable"
     );
 }

@@ -96,30 +96,42 @@ let mut sender_ctx = hpke_ctx.setup_sender_psk(
 )?;
 ```
 
-### Auth Mode
+### Auth Mode — **disabled (B14, interim)**
 Sender authentication using asymmetric keys.
 
+> **This mode currently fails closed.** `AuthEncap`/`AuthDecap` do not bind the sender's static
+> secret key into the authentication tag or shared secret (RFC 9180 Section 5.1.3 gap), so anyone
+> who can reach the recipient's public key could forge a tag under an arbitrary claimed sender
+> identity. Rather than ship that silently, every call using this mode returns an explicit error.
+> Use [Base](#basic-usage) or [PSK](#psk-mode) mode instead until a cryptographer-reviewed fix
+> ships. See `SECURITY.md` for details.
+
 ```rust
-let mut sender_ctx = hpke_ctx.setup_sender_auth(
+// Returns an error today (B14) — shown for the intended future API shape.
+let sender_ctx_result = hpke_ctx.setup_sender_auth(
     &recipient_pk,
     b"session-info",
     &sender_sk,
     &sender_pk,
-)?;
+);
+assert!(sender_ctx_result.is_err());
 ```
 
-### AuthPSK Mode
-Combined PSK and sender authentication.
+### AuthPSK Mode — **disabled (B14, interim)**
+Combined PSK and sender authentication. Routes through the same `AuthEncap`/`AuthDecap` gap as
+Auth mode above and fails closed identically.
 
 ```rust
-let mut sender_ctx = hpke_ctx.setup_sender_auth_psk(
+// Returns an error today (B14) — shown for the intended future API shape.
+let sender_ctx_result = hpke_ctx.setup_sender_auth_psk(
     &recipient_pk,
     b"session-info",
     psk,
     psk_id,
     &sender_sk,
     &sender_pk,
-)?;
+);
+assert!(sender_ctx_result.is_err());
 ```
 
 ### PSK / AuthPSK wire format

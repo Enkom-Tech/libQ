@@ -258,6 +258,24 @@ fn test_hpke_rfc9180_compliance() {
             _ => panic!("Unsupported mode: {}", test_vector.mode),
         };
 
+        // B14 interim fix: Auth and AuthPSK modes fail closed unconditionally (sender
+        // authentication is not soundly bound to the sender's static secret key — see
+        // `lib-q-hpke/tests/auth_encap_validation_tests.rs`). TV-003 (Auth) and TV-004 (AuthPSK)
+        // must observe that instead of a successful round trip.
+        let auth_mode_disabled = matches!(test_vector.mode.as_str(), "Auth" | "AuthPSK");
+        if auth_mode_disabled {
+            assert!(
+                sender_ctx_result.is_err(),
+                "Sender setup must fail closed (B14) for Auth/AuthPSK test vector {}",
+                test_vector.id
+            );
+            println!(
+                "✓ Test vector {} correctly fails closed (Auth mode disabled, B14)",
+                test_vector.id
+            );
+            continue;
+        }
+
         assert!(
             sender_ctx_result.is_ok(),
             "Sender setup should succeed for test vector {}",

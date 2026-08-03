@@ -142,50 +142,15 @@ impl CryptoRng for KmacRng {
     }
 }
 
-/// Simple PRNG implementation for testing
-pub struct SimpleRng {
-    counter: u64,
-}
-
-impl Default for SimpleRng {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SimpleRng {
-    /// Create a new simple PRNG
-    pub fn new() -> Self {
-        Self { counter: 0 }
-    }
-
-    /// Create a new simple PRNG with seed
-    pub fn from_seed(seed: u64) -> Self {
-        Self { counter: seed }
-    }
-}
-
-impl CryptoRng for SimpleRng {
-    fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
-        for byte in dest.iter_mut() {
-            *byte = (self.counter as u8).wrapping_add(0x42);
-            self.counter = self.counter.wrapping_add(1);
-        }
-        Ok(())
-    }
-
-    fn next_u32(&mut self) -> Result<u32, HpkeError> {
-        let mut bytes = [0u8; 4];
-        self.fill_bytes(&mut bytes)?;
-        Ok(u32::from_le_bytes(bytes))
-    }
-
-    fn next_u64(&mut self) -> Result<u64, HpkeError> {
-        let mut bytes = [0u8; 8];
-        self.fill_bytes(&mut bytes)?;
-        Ok(u64::from_le_bytes(bytes))
-    }
-}
+// SECURITY (B16): `SimpleRng` was removed. It was a plain wrapping counter (`fill_bytes` did
+// `*byte = (counter as u8).wrapping_add(0x42)`), had no `#[cfg(test)]` gate, implemented the real
+// `CryptoRng` trait, and was `pub` — reachable by any downstream production caller, with nothing
+// in its type signature distinguishing it from a real secure RNG. [`crate::HpkeContext::set_rng`]'s
+// doc comment used to point callers at it directly. Test harnesses that need a pluggable `CryptoRng`
+// should use [`crate::security::test_rng::TestRng`] instead (deterministic, KT128-backed, and
+// named so it cannot be mistaken for a secure source) — it already served this role for
+// `auth_encap_validation_tests.rs` and now does for every other test that used to reach for
+// `SimpleRng`.
 
 /// Cryptographic RNG backed by [`fill_random_bytes`] (OS / platform entropy via `lib-q-random`).
 ///
@@ -235,28 +200,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_rng() {
-        let mut rng = SimpleRng::new();
-
-        let mut bytes = [0u8; 32];
-        rng.fill_bytes(&mut bytes).unwrap();
-
-        // Check that we got some non-zero bytes
-        assert!(bytes.iter().any(|&b| b != 0));
-    }
-
-    #[test]
-    fn test_rng_determinism() {
-        let mut rng1 = SimpleRng::from_seed(42);
-        let mut rng2 = SimpleRng::from_seed(42);
-
-        let val1 = rng1.next_u32().unwrap();
-        let val2 = rng2.next_u32().unwrap();
-
-        assert_eq!(val1, val2);
-    }
-
-    #[test]
     fn test_fill_random_bytes() {
         let mut bytes = [0u8; 32];
         fill_random_bytes(&mut bytes).unwrap();
@@ -267,9 +210,8 @@ mod tests {
 
     #[test]
     fn test_random_u32() {
-        let mut rng = SimpleRng::new();
-        let val1 = rng.next_u32().unwrap();
-        let val2 = rng.next_u32().unwrap();
+        let val1 = random_u32().unwrap();
+        let val2 = random_u32().unwrap();
 
         // Very unlikely to be equal
         assert_ne!(val1, val2);
@@ -277,30 +219,11 @@ mod tests {
 
     #[test]
     fn test_random_u64() {
-        let mut rng = SimpleRng::new();
-        let val1 = rng.next_u64().unwrap();
-        let val2 = rng.next_u64().unwrap();
+        let val1 = random_u64().unwrap();
+        let val2 = random_u64().unwrap();
 
         // Very unlikely to be equal
         assert_ne!(val1, val2);
-    }
-
-    #[test]
-    fn test_simple_rng_fill_bytes_pattern() {
-        let mut rng = SimpleRng::from_seed(0);
-        let mut bytes = [0u8; 4];
-        rng.fill_bytes(&mut bytes).unwrap();
-        assert_eq!(bytes, [0x42, 0x43, 0x44, 0x45]);
-    }
-
-    #[test]
-    fn test_simple_rng_from_seed_u64_output() {
-        let mut rng = SimpleRng::from_seed(2);
-        let value = rng.next_u64().unwrap();
-        assert_eq!(
-            value,
-            u64::from_le_bytes([0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B])
-        );
     }
 
     #[cfg(feature = "hash")]

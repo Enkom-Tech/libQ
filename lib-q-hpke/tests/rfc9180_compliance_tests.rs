@@ -520,8 +520,10 @@ fn test_auth_mode() {
 
     let info = b"test-info";
 
-    // Test Auth mode setup
-    let sender_ctx = setup_sender_with_mode(
+    // Test Auth mode setup — B14 interim fix: Auth mode fails closed unconditionally (sender
+    // authentication is not soundly bound to the sender's static secret key; see
+    // `lib-q-hpke/tests/auth_encap_validation_tests.rs` for the forgery this replaced).
+    let sender_result = setup_sender_with_mode(
         &mut sender_kem_ctx,
         &recipient_pk,
         info,
@@ -535,14 +537,12 @@ fn test_auth_mode() {
         Some(&sender_pk),
         HpkePskWireFormat::default(),
         hpke_crypto.clone(),
-    )
-    .unwrap();
+    );
 
-    // Verify Auth mode was set up correctly
-    assert!(!sender_ctx.shared_secret.is_empty());
-    assert!(!sender_ctx.key.is_empty());
-    assert!(!sender_ctx.nonce.is_empty());
-    assert!(!sender_ctx.exporter_secret.is_empty());
+    assert!(
+        sender_result.is_err(),
+        "Auth mode sender setup must fail closed (B14)"
+    );
 }
 
 /// Test AuthPSK mode
@@ -603,8 +603,9 @@ fn test_auth_psk_mode() {
     let psk_id = b"test-psk-id";
     let info = b"test-info";
 
-    // Test AuthPSK mode setup
-    let sender_ctx = setup_sender_with_mode(
+    // Test AuthPSK mode setup — B14 interim fix: AuthPSK routes through the same
+    // AuthEncap/AuthDecap gap as Auth mode and fails closed unconditionally.
+    let sender_result = setup_sender_with_mode(
         &mut sender_kem_ctx,
         &recipient_pk,
         info,
@@ -618,12 +619,10 @@ fn test_auth_psk_mode() {
         Some(&sender_pk),
         HpkePskWireFormat::Rfc9180,
         hpke_crypto.clone(),
-    )
-    .unwrap();
+    );
 
-    // Verify AuthPSK mode was set up correctly
-    assert!(!sender_ctx.shared_secret.is_empty());
-    assert!(!sender_ctx.key.is_empty());
-    assert!(!sender_ctx.nonce.is_empty());
-    assert!(!sender_ctx.exporter_secret.is_empty());
+    assert!(
+        sender_result.is_err(),
+        "AuthPSK mode sender setup must fail closed (B14)"
+    );
 }

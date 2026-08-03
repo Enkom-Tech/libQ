@@ -90,7 +90,35 @@ fn test_secure_memory() {
 
 #[test]
 fn test_prng() {
-    let mut rng = SimpleRng::new();
+    // B16: lib-q-hpke no longer ships `SimpleRng` as a public, non-test-gated `CryptoRng` (it was
+    // a counter-based generator indistinguishable in its type signature from a real secure RNG).
+    // This test only needs *some* `CryptoRng` implementation to exercise the trait's default-ish
+    // plumbing, so it uses a tiny local, non-exported double instead of depending on library API
+    // surface meant for that purpose.
+    struct LocalCounterRng(u64);
+    impl CryptoRng for LocalCounterRng {
+        fn fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), HpkeError> {
+            for byte in dest.iter_mut() {
+                *byte = (self.0 as u8).wrapping_add(0x42);
+                self.0 = self.0.wrapping_add(1);
+            }
+            Ok(())
+        }
+
+        fn next_u32(&mut self) -> Result<u32, HpkeError> {
+            let mut bytes = [0u8; 4];
+            self.fill_bytes(&mut bytes)?;
+            Ok(u32::from_le_bytes(bytes))
+        }
+
+        fn next_u64(&mut self) -> Result<u64, HpkeError> {
+            let mut bytes = [0u8; 8];
+            self.fill_bytes(&mut bytes)?;
+            Ok(u64::from_le_bytes(bytes))
+        }
+    }
+
+    let mut rng = LocalCounterRng(0);
 
     let mut bytes = [0u8; 32];
     rng.fill_bytes(&mut bytes).unwrap();

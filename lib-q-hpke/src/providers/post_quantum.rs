@@ -212,258 +212,98 @@ impl KemProvider for PostQuantumProvider {
 
     fn auth_encapsulate(
         &self,
-        kem: HpkeKem,
-        sender_sk: &[u8],
-        recipient_pk: &[u8],
+        _kem: HpkeKem,
+        _sender_sk: &[u8],
+        _recipient_pk: &[u8],
         _rng: &mut dyn CryptoRng,
     ) -> Result<(Vec<u8>, Zeroizing<Vec<u8>>), HpkeError> {
-        // AuthEncap implementation according to RFC 9180 Section 5.1.3
-        // For ML-KEM, AuthEncap is implemented using regular KEM operations:
-        // 1. Use the sender's secret key to derive the sender's public key
-        // 2. Use regular KEM encapsulation with the recipient's public key
-        // 3. The authentication comes from the fact that only the sender can create
-        //    the correct shared secret that matches what the recipient derives
-
-        // Validate sender secret key length
-        let expected_sender_sk_len = kem.secret_key_len();
-        if sender_sk.len() != expected_sender_sk_len {
-            return Err(HpkeError::invalid_input(
-                "sender_sk",
-                format!("{} bytes", sender_sk.len()),
-                format!("{} bytes", expected_sender_sk_len),
-            ));
-        }
-
-        // Validate recipient public key length
-        let expected_recipient_pk_len = kem.public_key_len();
-        if recipient_pk.len() != expected_recipient_pk_len {
-            return Err(HpkeError::invalid_input(
-                "recipient_pk",
-                format!("{} bytes", recipient_pk.len()),
-                format!("{} bytes", expected_recipient_pk_len),
-            ));
-        }
-
-        // Note: We don't need to create a secret key object since we use the raw bytes
-
-        // Derive sender's public key from secret key for authentication
-        let sender_pk_bytes = self.derive_public_key(kem, sender_sk)?;
-        let sender_pk_obj = lib_q_core::KemPublicKey::new(sender_pk_bytes);
-
-        // Create recipient public key object
-        let recipient_pk_obj = lib_q_core::KemPublicKey::new(recipient_pk.to_vec());
-
-        // For ML-KEM, we implement authentication using a hash-based commitment scheme:
-        // 1. Create a commitment using the sender's secret key and the encapsulated key
-        // 2. Include the commitment in the encapsulated key for verification during decapsulation
-
-        // First, perform regular KEM encapsulation
-        let provider = Self::create_kem_provider()?;
-        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
-        let (encapsulated_key, shared_secret) = provider
-            .encapsulate(algorithm, &recipient_pk_obj, None)
-            .map_err(|e| HpkeError::CryptoError(format!("AuthEncap failed: {}", e)))?;
-        let shared_secret = Zeroizing::new(shared_secret);
-
-        // Create an authentication tag using the shared secret and sender's public key
-        // This provides stronger authentication than a simple commitment scheme
-        let auth_tag = self.create_auth_tag(
-            shared_secret.as_slice(),
-            sender_pk_obj.as_bytes(),
-            &encapsulated_key,
-        )?;
-
-        // Also create a sender commitment for additional authentication
-        let _sender_commitment = self.create_sender_commitment_with_pk(
-            sender_sk,
-            sender_pk_obj.as_bytes(),
-            &encapsulated_key,
-        )?;
-
-        // Create a basic sender commitment as well
-        let _basic_commitment = self.create_sender_commitment(sender_sk, &encapsulated_key)?;
-
-        // Append the authentication tag to the encapsulated key
-        let mut authenticated_encapsulated_key = encapsulated_key;
-        authenticated_encapsulated_key.extend_from_slice(&auth_tag);
-
-        Ok((authenticated_encapsulated_key, shared_secret))
+        // SECURITY (B14 interim fix) — see `Self::auth_mode_unavailable` for the full rationale.
+        // This used to perform a real (non-authenticated) KEM encapsulation and attach a tag
+        // computed only from public values, which looks like it "succeeds" while providing no
+        // sender authentication whatsoever. Fail closed instead: no ciphertext, no shared secret,
+        // just an explicit error.
+        Err(Self::auth_mode_unavailable())
     }
 
     fn auth_decapsulate(
         &self,
-        kem: HpkeKem,
-        encapsulated_key: &[u8],
-        recipient_sk: &[u8],
-        sender_pk: &[u8],
+        _kem: HpkeKem,
+        _encapsulated_key: &[u8],
+        _recipient_sk: &[u8],
+        _sender_pk: &[u8],
     ) -> Result<Zeroizing<Vec<u8>>, HpkeError> {
-        // AuthDecap implementation according to RFC 9180 Section 5.1.3
-        // For ML-KEM, AuthDecap is implemented using regular KEM operations:
-        // 1. Use the recipient's secret key to decapsulate the shared secret
-        // 2. The authentication comes from the key schedule and the fact that
-        //    both parties must have the correct keys to derive the same shared secret
-
-        // Validate encapsulated key length (should include authentication tag)
-        let auth_tag_len = self.get_auth_tag_length()?;
-        let expected_enc_len = kem.enc_len() + auth_tag_len;
-        if encapsulated_key.len() != expected_enc_len {
-            return Err(HpkeError::invalid_input(
-                "encapsulated_key",
-                format!("{} bytes", encapsulated_key.len()),
-                format!("{} bytes", expected_enc_len),
-            ));
-        }
-
-        // Validate recipient secret key length
-        let expected_recipient_sk_len = kem.secret_key_len();
-        if recipient_sk.len() != expected_recipient_sk_len {
-            return Err(HpkeError::invalid_input(
-                "recipient_sk",
-                format!("{} bytes", recipient_sk.len()),
-                format!("{} bytes", expected_recipient_sk_len),
-            ));
-        }
-
-        // Validate sender public key length
-        let expected_sender_pk_len = kem.public_key_len();
-        if sender_pk.len() != expected_sender_pk_len {
-            return Err(HpkeError::invalid_input(
-                "sender_pk",
-                format!("{} bytes", sender_pk.len()),
-                format!("{} bytes", expected_sender_pk_len),
-            ));
-        }
-
-        // Create key objects
-        let recipient_sk_obj = lib_q_core::KemSecretKey::new(recipient_sk.to_vec());
-        let sender_pk_obj = lib_q_core::KemPublicKey::new(sender_pk.to_vec());
-
-        // For ML-KEM, we implement authentication by verifying a commitment
-        // that was created during encapsulation. This provides authentication
-        // by ensuring that only someone with the correct sender secret key can
-        // create a valid encapsulated key.
-
-        // Verify that the sender's public key is valid for the KEM algorithm
-        if sender_pk_obj.as_bytes().is_empty() {
-            return Err(HpkeError::CryptoError(
-                "Invalid sender public key: empty key".into(),
-            ));
-        }
-
-        // Additional validation: verify the sender's public key format
-        if sender_pk_obj.as_bytes().iter().all(|&b| b == 0) {
-            return Err(HpkeError::CryptoError(
-                "Invalid sender public key: all zeros".into(),
-            ));
-        }
-
-        // Extract the authentication tag from the encapsulated key
-        // The encapsulated key contains: [original_encapsulated_key][auth_tag]
-        let auth_tag_len = self.get_auth_tag_length()?;
-        if encapsulated_key.len() < auth_tag_len {
-            return Err(HpkeError::CryptoError(
-                "Invalid authenticated encapsulated key: too short".into(),
-            ));
-        }
-
-        let (main_encapsulated_key, auth_tag) =
-            encapsulated_key.split_at(encapsulated_key.len() - auth_tag_len);
-
-        // Perform the decapsulation on the main encapsulated key first
-        let provider = Self::create_kem_provider()?;
-        let algorithm = Self::hpke_kem_to_algorithm(kem)?;
-        let shared_secret = provider
-            .decapsulate(algorithm, &recipient_sk_obj, main_encapsulated_key)
-            .map_err(|e| HpkeError::CryptoError(format!("AuthDecap failed: {}", e)))?;
-        let shared_secret = Zeroizing::new(shared_secret);
-
-        // Verify the authentication tag using the shared secret and sender's public key
-        self.verify_auth_tag(
-            shared_secret.as_slice(),
-            sender_pk,
-            main_encapsulated_key,
-            auth_tag,
-        )?;
-
-        // Validate the commitment length for additional security
-        let _commitment_len = self.get_commitment_length()?;
-
-        // The successful decapsulation provides cryptographic proof that:
-        // 1. The sender has the correct secret key corresponding to sender_pk
-        // 2. The recipient has the correct secret key
-        // 3. The encapsulated key was created by the authenticated sender
-
-        Ok(shared_secret)
+        // SECURITY (B14 interim fix) — see `Self::auth_mode_unavailable`. Reject unconditionally:
+        // the old verification recomputed the same public-values-only tag it checked against, so
+        // it "verified" forged sender identities as long as the caller could reach the recipient's
+        // public key (i.e. always). Fail closed rather than accept, or partially validate, input
+        // for a scheme that authenticates nothing.
+        Err(Self::auth_mode_unavailable())
     }
 }
 
 impl PostQuantumProvider {
-    /// Create a commitment over the encapsulated key using the sender's secret key
-    fn create_sender_commitment(
-        &self,
-        sender_sk: &[u8],
-        encapsulated_key: &[u8],
-    ) -> Result<Vec<u8>, HpkeError> {
-        // For ML-KEM authentication, we use a hash-based commitment scheme
-        // This provides authentication by proving that the sender has the correct secret key
-
-        // Create a commitment by hashing the sender's secret key with the encapsulated key
-        // This creates a binding commitment that can be verified during decapsulation
-        let mut commitment_input = Vec::new();
-        commitment_input.extend_from_slice(sender_sk);
-        commitment_input.extend_from_slice(encapsulated_key);
-
-        // Use SHA-256 to create the commitment
-        let commitment = lib_q_hash::Sha3_256::digest(&commitment_input);
-
-        Ok(commitment.to_vec())
+    /// HPKE Auth / AuthPSK mode is disabled pending a cryptographer-reviewed redesign (tracked as
+    /// **B14**).
+    ///
+    /// [`Self::auth_encapsulate`] / [`Self::auth_decapsulate`] used to implement "authentication"
+    /// as `SHA3-256(shared_secret || sender_pk || encapsulated_key)` (see the retired
+    /// [`Self::create_auth_tag`] / [`Self::verify_auth_tag`] below) — a value computable by
+    /// **anyone** who can encapsulate to the recipient's (public, by definition) public key. No
+    /// sender secret key was ever an input. So any party could encapsulate to the recipient, learn
+    /// the shared secret, and forge a tag under an arbitrary claimed sender identity; the two
+    /// commitments that DID hash the sender's secret key
+    /// ([`Self::create_sender_commitment`] / [`Self::create_sender_commitment_with_pk`], now
+    /// removed) were computed and immediately discarded — never transmitted, so they could not
+    /// have contributed to verification either.
+    ///
+    /// A correct fix requires `AuthEncap`/`AuthDecap` that bind the sender's static secret key per
+    /// RFC 9180 Section 5.1.3, and needs cryptographer sign-off before it ships. Until then, Auth
+    /// and AuthPSK modes (both route through these two functions — see `hpke_core::setup_sender_with_mode`
+    /// / `setup_receiver_with_mode`) fail closed: every call returns this error rather than
+    /// silently producing output that provides no real sender authentication. A mode that quietly
+    /// authenticates nothing is worse than one that errors.
+    fn auth_mode_unavailable() -> HpkeError {
+        HpkeError::not_implemented(
+            "HPKE Auth/AuthPSK mode (B14): sender authentication is not soundly bound to the \
+             sender's static secret key (RFC 9180 Section 5.1.3 AuthEncap/AuthDecap gap); disabled \
+             pending a cryptographer-reviewed redesign — use Base or PSK mode instead",
+        )
     }
 
-    /// Create an authentication tag using the shared secret and sender's public key
+    /// Retired B14 authentication tag scheme: `SHA3-256(shared_secret || sender_pk ||
+    /// encapsulated_key)`. No longer called from [`Self::auth_encapsulate`] /
+    /// [`Self::auth_decapsulate`] (both fail closed via [`Self::auth_mode_unavailable`]) because it
+    /// does not bind any sender secret key — see that function's doc for the full gap. Kept,
+    /// `#[allow(dead_code)]`, only as a paired reference alongside [`Self::verify_auth_tag`] for a
+    /// future correct redesign; not reachable from any production path.
+    #[allow(dead_code)]
     fn create_auth_tag(
         &self,
         shared_secret: &[u8],
         sender_pk: &[u8],
         encapsulated_key: &[u8],
     ) -> Result<Vec<u8>, HpkeError> {
-        // Create an authentication tag using the shared secret and sender's public key
-        // This provides stronger authentication than a simple commitment scheme
-
         let mut auth_input = Vec::new();
         auth_input.extend_from_slice(shared_secret);
         auth_input.extend_from_slice(sender_pk);
         auth_input.extend_from_slice(encapsulated_key);
 
-        // Use SHA-256 to create the authentication tag
         let auth_tag = lib_q_hash::Sha3_256::digest(&auth_input);
 
         Ok(auth_tag.to_vec())
     }
 
-    /// Create a commitment over the encapsulated key using the sender's secret key and public key
-    fn create_sender_commitment_with_pk(
-        &self,
-        sender_sk: &[u8],
-        sender_pk: &[u8],
-        encapsulated_key: &[u8],
-    ) -> Result<Vec<u8>, HpkeError> {
-        // For ML-KEM authentication, we use a hash-based commitment scheme
-        // This provides authentication by proving that the sender has the correct secret key
-
-        // Create a commitment by hashing the sender's secret key, public key, and encapsulated key
-        // This creates a binding commitment that can be verified during decapsulation
-        let mut commitment_input = Vec::new();
-        commitment_input.extend_from_slice(sender_sk);
-        commitment_input.extend_from_slice(sender_pk);
-        commitment_input.extend_from_slice(encapsulated_key);
-
-        // Use SHA-256 to create the commitment
-        let commitment = lib_q_hash::Sha3_256::digest(&commitment_input);
-
-        Ok(commitment.to_vec())
-    }
-
-    /// Verify an authentication tag using the shared secret and sender's public key
+    /// Retired B14 verification counterpart to [`Self::create_auth_tag`] — see that function's doc
+    /// and [`Self::auth_mode_unavailable`] for why this is no longer called from production code.
+    /// Kept only as a reference; not reachable from any production path.
+    ///
+    /// The tag comparison now goes through
+    /// [`crate::security::side_channel_protection::verify_auth_tag_constant_time`] instead of a
+    /// variable-time `!=`, as defence in depth in case this is ever revived directly (the
+    /// verified-refuted framing for the prior variable-time compare was a leaked tag for a shared
+    /// secret the attacker cannot use, not a byte-at-a-time forgery oracle — this is hardening, not
+    /// a re-escalation of that finding).
+    #[allow(dead_code)]
     fn verify_auth_tag(
         &self,
         shared_secret: &[u8],
@@ -471,48 +311,27 @@ impl PostQuantumProvider {
         encapsulated_key: &[u8],
         auth_tag: &[u8],
     ) -> Result<(), HpkeError> {
-        // For ML-KEM authentication, we verify an authentication tag
-        // This provides stronger authentication than a simple commitment scheme
-
-        // Basic validation
         if auth_tag.is_empty() {
             return Err(HpkeError::CryptoError(
                 "Invalid authentication tag: empty tag".into(),
             ));
         }
 
-        // Verify that the authentication tag has the expected length (32 bytes for SHA-256)
         if auth_tag.len() != 32 {
             return Err(HpkeError::CryptoError(
                 "Invalid authentication tag: wrong length".into(),
             ));
         }
 
-        // Create the expected authentication tag using the shared secret and sender's public key
         let expected_auth_tag = self.create_auth_tag(shared_secret, sender_pk, encapsulated_key)?;
 
-        // Verify that the provided authentication tag matches the expected one
-        // This provides strong authentication by ensuring that only someone with
-        // the correct shared secret and sender public key can create a valid tag
-        if auth_tag != expected_auth_tag.as_slice() {
-            return Err(HpkeError::CryptoError(
-                "Authentication failed: invalid authentication tag".into(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Get the length of a commitment for the authentication scheme
-    fn get_commitment_length(&self) -> Result<usize, HpkeError> {
-        // For SHA-256, the commitment length is 32 bytes
-        Ok(32)
-    }
-
-    /// Get the length of an authentication tag for the authentication scheme
-    fn get_auth_tag_length(&self) -> Result<usize, HpkeError> {
-        // For SHA-256, the authentication tag length is 32 bytes
-        Ok(32)
+        crate::security::side_channel_protection::verify_auth_tag_constant_time(
+            &expected_auth_tag,
+            auth_tag,
+        )
+        .map_err(|_| {
+            HpkeError::CryptoError("Authentication failed: invalid authentication tag".into())
+        })
     }
 }
 

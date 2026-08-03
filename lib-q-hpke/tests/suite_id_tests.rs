@@ -344,7 +344,7 @@ fn test_setup_sender_with_cipher_suite() {
     let mut kem_ctx_for_setup = KemContext::new();
     let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
         Arc::new(PostQuantumProvider::new());
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
     let result = hpke_core::setup_sender(
         &mut kem_ctx_for_setup,
         &recipient_pk,
