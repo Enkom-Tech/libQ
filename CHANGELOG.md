@@ -4,6 +4,21 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## 0.0.10
 
+> **Every libQ version prior to 0.0.10 is yanked from crates.io as of this release.**
+>
+> This is deliberate and applies to all crates, not only the withdrawn ones. Releases 0.0.6-0.0.9
+> carry defects that this release fixes, including a non-constant-time HQC decapsulation path, an
+> aarch64 ML-DSA masking function that was not SHAKE256, an HPKE Auth mode whose tag did not
+> authenticate the sender, and two predictable nonce/RNG sources reachable from safe public API.
+> See the Security section below.
+>
+> Yanking does **not** break existing builds — an already-resolved `Cargo.lock` continues to work.
+> It prevents new resolution onto an affected version. If a pre-0.0.10 libQ crate appears in your
+> lockfile, upgrade rather than relying on resolution to fail.
+>
+> npm deprecation is a separate action and is tracked independently; a yanked crate does not imply
+> a deprecated npm package.
+
 ### Removed
 
 - **`lib-q-double-kem` deleted from the workspace.** The crate misimplemented its cited
