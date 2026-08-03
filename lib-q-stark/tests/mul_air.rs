@@ -29,6 +29,7 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::{
     Field,
     PrimeCharacteristicRing,
+    TwoAdicField,
 };
 use lib_q_stark_fri::{
     FriParameters,
@@ -153,6 +154,7 @@ fn do_test<SC: StarkGenericConfig>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC::Challenger: Clone,
+    Val<SC>: TwoAdicField,
     StandardUniform: Distribution<Val<SC>>,
 {
     let trace = air.random_valid_trace(log_height, true);

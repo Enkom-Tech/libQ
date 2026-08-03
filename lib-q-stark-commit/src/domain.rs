@@ -84,7 +84,26 @@ pub trait PolynomialSpace: Copy {
     /// smaller than the `2`-adicity of the field.
     ///
     /// This fixes a canonical choice for prover/verifier determinism and LDE caching.
+    ///
+    /// # Panics
+    /// Implementations backed by a two-adic domain (the only kind in this workspace today) will
+    /// panic if `min_size` exceeds `1 << Val::TWO_ADICITY`. Callers that process
+    /// untrusted/adversarial `min_size` values (e.g. a proof verifier deriving it from a claimed
+    /// degree) MUST validate it themselves before calling this, or use
+    /// [`try_create_disjoint_domain`](Self::try_create_disjoint_domain) instead.
     fn create_disjoint_domain(&self, min_size: usize) -> Self;
+
+    /// Fallible sibling of [`create_disjoint_domain`](Self::create_disjoint_domain), for callers
+    /// (such as proof verifiers) that must reject an out-of-range `min_size` instead of panicking.
+    /// Returns `None` exactly under the conditions documented on `create_disjoint_domain`'s
+    /// `# Panics` section.
+    ///
+    /// The default implementation simply delegates to the infallible method, so it is only
+    /// non-panicking for implementations that override it; `TwoAdicMultiplicativeCoset` (the only
+    /// implementation in this workspace) overrides it with a genuinely non-panicking check.
+    fn try_create_disjoint_domain(&self, min_size: usize) -> Option<Self> {
+        Some(self.create_disjoint_domain(min_size))
+    }
 
     /// Split the `PolynomialSpace` into `num_chunks` smaller `PolynomialSpaces` of equal size.
     ///
@@ -170,9 +189,21 @@ impl<Val: TwoAdicField> PolynomialSpace for TwoAdicMultiplicativeCoset<Val> {
         // it does not lie in `K` and so `gf` cannot lie in `gK`.
         //
         // Thus `gH` and `gfK` are disjoint.
+        self.try_create_disjoint_domain(min_size)
+            .unwrap_or_else(|| {
+                panic!(
+                    "create_disjoint_domain: min_size {min_size} exceeds 1 << Val::TWO_ADICITY \
+                 ({}); use try_create_disjoint_domain to handle this without panicking",
+                    Val::TWO_ADICITY
+                )
+            })
+    }
 
-        // This panics if (and only if) `min_size` > `1 << Val::TWO_ADICITY`.
-        Self::new(self.shift() * Val::GENERATOR, log2_ceil_usize(min_size)).unwrap()
+    /// See [`PolynomialSpace::try_create_disjoint_domain`]. Never panics; returns `None` exactly
+    /// when `log2_ceil_usize(min_size) > Val::TWO_ADICITY` (the same condition under which
+    /// `create_disjoint_domain` would panic).
+    fn try_create_disjoint_domain(&self, min_size: usize) -> Option<Self> {
+        Self::new(self.shift() * Val::GENERATOR, log2_ceil_usize(min_size))
     }
 
     /// Given the coset `gH` and generator `h` of `H`, let `K = H^{num_chunks}`

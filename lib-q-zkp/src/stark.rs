@@ -44,6 +44,7 @@ use lib_q_stark_field::extension::{
 use lib_q_stark_field::{
     BasedVectorSpace,
     PrimeCharacteristicRing,
+    TwoAdicField,
 };
 use lib_q_stark_fri::{
     FriDataExtractor,
@@ -290,6 +291,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
         public_values: &[Val<C>],
     ) -> Result<(), VerificationError<lib_q_stark::PcsError<C>>>
     where
+        Val<C>: TwoAdicField,
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
     {
