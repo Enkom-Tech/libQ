@@ -126,7 +126,7 @@ Full sigma protocols, amortisation, and BLNS hooks are **Rust-only** (`lib-q-lat
 
 Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`).
 
-## `@lib-q/mac` (0.0.7)
+## `@lib-q/mac` (since 0.0.7, EXPERIMENTAL_NON_NIST)
 
 | JS name | Description |
 |---------|-------------|
@@ -136,7 +136,7 @@ Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`)
 | `qcwMacSign` | Sign `(key, msg, ad)` → tag `Uint8Array` |
 | `qcwMacVerify` | Constant-time verify |
 
-## `@lib-q/blind-pcs` (0.0.7, EXPERIMENTAL_NON_NIST)
+## `@lib-q/blind-pcs` (since 0.0.7, EXPERIMENTAL_NON_NIST)
 
 | JS name | Description |
 |---------|-------------|
@@ -158,7 +158,7 @@ repaired. Do not use previously published `@lib-q/double-kem` / `lib-q-double-ke
 0.0.7): treat anything derived through them as single-ML-KEM-768 security, never as two-key custody.
 Use `@lib-q/ml-kem` instead; a faithful implementation of the paper may appear later as a new crate.
 
-## `@lib-q/fhe` (0.0.7, EXPERIMENTAL_NON_NIST)
+## `@lib-q/fhe` (since 0.0.7, EXPERIMENTAL_NON_NIST)
 
 | JS name | Description |
 |---------|-------------|
@@ -168,7 +168,7 @@ Use `@lib-q/ml-kem` instead; a faithful implementation of the paper may appear l
 | `fheDecrypt` | Decrypt to `Int32Array` |
 | `fheCiphertextToBytes` | Canonical ciphertext bytes |
 
-## `@lib-q/threshold-kem` (0.0.7, PROVISIONAL)
+## `@lib-q/threshold-kem` (since 0.0.7, PROVISIONAL)
 
 Hybrid API: JSON for public artifacts, `Uint8Array` for secrets and wire blobs.
 
@@ -209,10 +209,11 @@ TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross
 
 ## Versioning
 
-All packages share the workspace version (e.g. `0.0.5`) on release. Pin in production:
+All packages share the workspace version on release — currently **0.0.10** (the single source of
+truth is `version` under `[workspace.package]` in the root `Cargo.toml`). Pin in production:
 
 ```bash
-npm install @lib-q/core@0.0.5 @lib-q/zkp@0.0.5
+npm install @lib-q/core@0.0.10 @lib-q/zkp@0.0.10
 ```
 
 ## Security

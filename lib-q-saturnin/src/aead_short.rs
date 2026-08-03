@@ -729,3 +729,213 @@ mod tests {
         Ok(())
     }
 }
+
+/// Key-commitment (CMT-1) tests.
+///
+/// Saturnin-Short has no tag. Its whole authenticity argument is redundancy *inside* the single
+/// encrypted block: `E_K(nonce ‖ pad(plaintext))`, verified on decrypt by checking that the
+/// recovered nonce field equals the nonce the caller supplied and that the tail carries a
+/// well-formed `10*` marker (`short_parse_auth_and_padding`).
+///
+/// That makes the construction **not key-committing**: CMT-1 lets the adversary choose the nonce
+/// on each side, and the nonce is precisely the redundancy. Given any ciphertext and any second
+/// key, read the second nonce straight out of the decrypted block; only the ~8 bits of padding
+/// structure remain, so a second key is found in ~256 tries at *any* nonce length, including the
+/// 16-byte default.
+///
+/// These tests live in-crate because the attack needs the raw inverse permutation
+/// (`SaturninCore::decrypt_block_32`, `pub(crate)`); the *verification* of every hit goes back
+/// through the public [`SaturninShortAead::decrypt`] API.
+#[cfg(test)]
+mod key_commitment_tests {
+    use alloc::vec;
+
+    use super::*;
+
+    /// Deterministic xorshift64* — test-only, not a CSPRNG.
+    struct Rng(u64);
+    impl Rng {
+        fn next_u64(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x >> 12;
+            x ^= x << 25;
+            x ^= x >> 27;
+            self.0 = x;
+            x.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        }
+        fn fill(&mut self, out: &mut [u8]) {
+            for chunk in out.chunks_mut(8) {
+                let v = self.next_u64().to_le_bytes();
+                let n = chunk.len();
+                chunk.copy_from_slice(&v[..n]);
+            }
+        }
+    }
+
+    /// The success oracle must be able to answer both ways, or "no hits found" would be vacuous.
+    #[test]
+    fn short_decrypt_oracle_discriminates() {
+        let aead = SaturninShortAead::new();
+        let good = AeadKey::new(vec![0x11u8; 32]);
+        let mut bad_bytes = vec![0x11u8; 32];
+        bad_bytes[0] ^= 0x01;
+        let bad = AeadKey::new(bad_bytes);
+        let nonce = Nonce::new(vec![0x33u8; 16]);
+        let ct = aead.encrypt(&good, &nonce, b"control", None).unwrap();
+
+        assert!(aead.decrypt(&good, &nonce, &ct, None).is_ok());
+        assert!(aead.decrypt(&bad, &nonce, &ct, None).is_err());
+    }
+
+    /// **CMT-1 break at the default 16-byte nonce.** One ciphertext, two distinct 256-bit keys.
+    #[test]
+    fn short_is_not_key_committing_at_default_nonce_len() {
+        let aead = SaturninShortAead::new();
+        assert_eq!(aead.nonce_size(), DEFAULT_NONCE_LEN);
+        let core = SaturninCore::new(10, 6).unwrap();
+
+        let k1 = [0x11u8; 32];
+        let n1 = [0x33u8; 16];
+        let key1 = AeadKey::new(k1.to_vec());
+        let nonce1 = Nonce::new(n1.to_vec());
+        let ct = aead.encrypt(&key1, &nonce1, b"first side", None).unwrap();
+        assert_eq!(ct.len(), CIPHERTEXT_LEN);
+
+        let mut rng = Rng(0x5EED_0000_0000_0001);
+        let mut trials = 0u32;
+        let mut hit = None;
+        for _ in 0..100_000u32 {
+            trials += 1;
+            let mut k2 = [0u8; 32];
+            rng.fill(&mut k2);
+            if k2 == k1 {
+                continue;
+            }
+            let mut block = [0u8; 32];
+            block.copy_from_slice(&ct);
+            core.decrypt_block_32(&k2, &mut block).unwrap();
+            // CMT-1 lets side 2 pick its own nonce: take it straight out of the block.
+            let n2 = &block[..DEFAULT_NONCE_LEN];
+            let key2 = AeadKey::new(k2.to_vec());
+            let nonce2 = Nonce::new(n2.to_vec());
+            if let Ok(pt2) = aead.decrypt(&key2, &nonce2, &ct, None) {
+                hit = Some((k2, n2.to_vec(), pt2));
+                break;
+            }
+        }
+
+        let (k2, n2, pt2) = hit.expect("no second key in 100k tries (expected ~256)");
+        assert_ne!(k1, k2);
+        // Re-verify both sides through the public API only.
+        assert!(aead.decrypt(&key1, &nonce1, &ct, None).is_ok());
+        assert!(
+            aead.decrypt(
+                &AeadKey::new(k2.to_vec()),
+                &Nonce::new(n2.clone()),
+                &ct,
+                None
+            )
+            .is_ok()
+        );
+        std::println!(
+            "Saturnin-Short CMT-1 break at nonce_len=16: 1 ciphertext ({} B) valid under 2 \
+             distinct keys after {} random-key trials; pt2 = {} B",
+            ct.len(),
+            trials,
+            pt2.len()
+        );
+    }
+
+    /// Count how many of `trials` random second keys are accepted for the same ciphertext.
+    ///
+    /// `free_nonce` selects the CMT-1 variant: `true` lets side 2 choose its nonce (read it out
+    /// of the block the candidate key decrypts to, which is the attack), `false` pins side 2 to
+    /// side 1's nonce (the restricted variant).
+    ///
+    /// Both variants run through *this* loop and *this* counter, which is what makes the pinned
+    /// result interpretable at all — see [`short_nonce_freedom_is_what_makes_the_attack_cheap`].
+    fn acceptance_count(seed: u64, trials: u32, free_nonce: bool) -> u32 {
+        let aead = SaturninShortAead::new();
+        let core = SaturninCore::new(10, 6).unwrap();
+        let k1 = [0x11u8; 32];
+        let n1 = [0x33u8; 16];
+        let ct = aead
+            .encrypt(
+                &AeadKey::new(k1.to_vec()),
+                &Nonce::new(n1.to_vec()),
+                b"rate",
+                None,
+            )
+            .unwrap();
+
+        let mut rng = Rng(seed);
+        let mut hits = 0u32;
+        for _ in 0..trials {
+            let mut k2 = [0u8; 32];
+            rng.fill(&mut k2);
+            let n2 = if free_nonce {
+                let mut block = [0u8; 32];
+                block.copy_from_slice(&ct);
+                core.decrypt_block_32(&k2, &mut block).unwrap();
+                block[..DEFAULT_NONCE_LEN].to_vec()
+            } else {
+                n1.to_vec()
+            };
+            if aead
+                .decrypt(&AeadKey::new(k2.to_vec()), &Nonce::new(n2), &ct, None)
+                .is_ok()
+            {
+                hits += 1;
+            }
+        }
+        hits
+    }
+
+    /// Measured acceptance rate for the free-nonce attack. Predicted ~2^-8 x (1/(1-2^-8))
+    /// = 0.003922 (only the `10*` padding of the 16-byte tail has to land), i.e. ~78 hits in
+    /// 20 000 trials. A build that added any further redundancy would drive this to zero and
+    /// fail the lower bound; a build that dropped the padding check would blow the upper bound.
+    #[test]
+    fn short_free_nonce_acceptance_rate_matches_prediction() {
+        let trials = 20_000u32;
+        let hits = acceptance_count(0x5EED_0000_0000_0003, trials, true);
+        std::println!(
+            "Saturnin-Short free-nonce acceptance: {hits}/{trials} = {:.5} (predicted 0.00392)",
+            f64::from(hits) / f64::from(trials)
+        );
+        assert!(
+            (30..=160).contains(&hits),
+            "acceptance rate {hits}/{trials} is outside the predicted band 30..=160"
+        );
+    }
+
+    /// Contrast, not proof: the *same* counting loop, with the only change being whether side 2
+    /// may choose its own nonce.
+    ///
+    /// Read this as "the cheapness of the break comes from the nonce degree of freedom", which is
+    /// what the two numbers printed side by side show. Do **not** read the pinned zero as
+    /// evidence that Saturnin-Short commits under a pinned nonce: at a predicted ~2^-136
+    /// acceptance rate, 20 000 trials return zero whether or not the construction commits, so
+    /// that zero is unfalsifiable on its own. It is meaningful only because the identical loop
+    /// returns ~78 when the nonce is freed, which is asserted here rather than assumed.
+    #[test]
+    fn short_nonce_freedom_is_what_makes_the_attack_cheap() {
+        let trials = 20_000u32;
+        let free = acceptance_count(0x5EED_0000_0000_0002, trials, true);
+        let pinned = acceptance_count(0x5EED_0000_0000_0002, trials, false);
+        std::println!(
+            "Saturnin-Short acceptance over {trials} random keys: free nonce = {free}, \
+             pinned nonce = {pinned} (the pinned zero is a contrast, not a commitment result)"
+        );
+        assert!(
+            free > 0,
+            "the counting loop reported no acceptance even with a free nonce — it cannot say \
+             \"hit\", so the pinned figure beside it would mean nothing"
+        );
+        assert!(
+            pinned < free,
+            "pinning the nonce did not reduce acceptance ({pinned} vs {free}) — the attack's \
+             stated cause (nonce freedom) is not what is driving it"
+        );
+    }
+}
