@@ -3,11 +3,11 @@
 lib-Q ships **two release surfaces**:
 
 1. **crates.io** — full workspace (50+ crates), including `lib-q-stark-*`, `lib-q-plonky-*`, research crates, and infrastructure.
-2. **npm (`@lib-q/*`)** — **29** scoped packages: **28** built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers, plus the TypeScript-only `@lib-q/types`.
+2. **npm (`@lib-q/*`)** — **27** scoped packages: **26** built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers, plus the TypeScript-only `@lib-q/types`.
 
 npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate name.
 
-## Package map (29 npm packages)
+## Package map (27 npm packages)
 
 ### Core cryptography (17, published in 0.0.2)
 
@@ -43,20 +43,19 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 
 Publish order and scripts: [npm-publish.md](npm-publish.md) (`scripts/publish-npm-ordered.sh`).
 
-### Advanced primitives (7, tier-4b npm parity)
+### Advanced primitives (5, tier-4b npm parity)
 
 | npm | Rust crate | Role |
 |-----|------------|------|
 | `@lib-q/mac` | `lib-q-mac` | qCW-MAC symmetric authentication |
 | `@lib-q/blind-pcs` | `lib-q-blind-pcs` | Experimental blind commitment demo |
-| `@lib-q/fhe` | `lib-q-fhe` | Experimental toy lattice FHE |
-| `@lib-q/threshold-kem` | `lib-q-threshold-kem` | PROVISIONAL threshold KEM |
 | `@lib-q/dkg` | `lib-q-dkg` | PROVISIONAL lattice dealerless DKG |
 | `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | PROVISIONAL PQ lattice threshold signature |
 | `@lib-q/threshold-kem-lattice` | `lib-q-threshold-kem-lattice` | PROVISIONAL PQ lattice threshold KEM (dealerless keygen via `lib-q-dkg`) |
 
-`lib-q-threshold-sig` (`@lib-q/threshold-sig`) was tier-4b through 0.0.8. It was withdrawn as
-cryptographically unsound and has since been deleted from the workspace — see
+`lib-q-threshold-sig` (`@lib-q/threshold-sig`) was tier-4b through 0.0.8. `lib-q-fhe`
+(`@lib-q/fhe`) and `lib-q-threshold-kem` (`@lib-q/threshold-kem`) were tier-4b through 0.0.9. All
+three were withdrawn and have since been deleted from the workspace — see
 [Removed crates](#removed-crates) below.
 
 (`lib-q-blind-token` is tier-4b on crates.io but **crates.io-only** — `crate-type = ["rlib"]`, no wasm-pack bindings — so it has no `@lib-q/*` package; it is exempt from the tier-4b npm-parity guard.)
@@ -95,6 +94,8 @@ These are **new in 0.0.8** (except `lib-q-blind-token`, which was already crates
 |------------|--------|-------|
 | `lib-q-threshold-sig` (`@lib-q/threshold-sig`) | **WITHDRAWN then REMOVED — cryptographically unsound, provided no security** | Withdrawn in 0.0.9 (every entry point failed closed, `publish = false`, dropped from every publish matrix), then deleted from the workspace entirely. The defect was structural rather than a parameter choice, so there was nothing to repair and no reason to keep a fail-closed shell in the tree. No published version was ever sound; do not reinstate it from history. The threshold-signature capability is served by `lib-q-threshold-raccoon` (npm: `@lib-q/threshold-raccoon`), which has a stated hardness assumption and consumes `lib-q-dkg` shares. |
 | `lib-q-double-kem` (`@lib-q/double-kem`) | **REMOVED — misimplemented its cited construction** | The second KEM leg derived its shared secret from transmitted wire bytes and the public `ek_b` alone, so the second decapsulation key was never required by either party: it delivered plain ML-KEM-768 security (no dual-key property) at 1260 wire bytes versus 1088 for a single ML-KEM-768 ciphertext. The cited paper (Maul, ePrint 2025/1755) is sound; only this implementation of it was not, so it was deleted in 0.0.10 rather than repaired. Its only known consumer retracted the mode and permanently rejects its wire id. Use `@lib-q/ml-kem` instead. |
+| `lib-q-threshold-kem` (`@lib-q/threshold-kem`) | **WITHDRAWN then REMOVED — Shamir shares disclosed the decapsulation key** | `partial_decap` returned the party's raw Shamir share, so `t` partials reconstructed the full ML-KEM-768 decapsulation key. ML-KEM decapsulation is non-linear, so a Shamir-shared `dk` admits no correct partial-decap function at all — a structural defect, not a parameter choice, so it was deleted in 0.0.10 rather than repaired (board card t_8ca3fd06). The successor is `lib-q-threshold-kem-lattice` (npm: `@lib-q/threshold-kem-lattice`), a dealerless dual-Regev KEM over a BDLOP-committed `lib-q-dkg` key; it is not wire-compatible. Crates.io 0.0.6-0.0.9 remain installable pending an operator yank decision. |
+| `lib-q-fhe` (`@lib-q/fhe`) | **WITHDRAWN then REMOVED — `decrypt` never read the key** | `decrypt` computed `body[i] - mask[i]`, and both fields are public ciphertext data, so "decryption" provided no confidentiality. `mask` is load-bearing for `eval` (`MulConstant` scales it, `AddCiphertext` adds them), so the defect could not be patched without a real RLWE rewrite; it was deleted in 0.0.10 rather than repaired (board card t_2a349708). Crates.io 0.0.6-0.0.9 remain installable pending an operator yank decision. |
 
 ## Choosing a package
 

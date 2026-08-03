@@ -5,11 +5,15 @@ decapsulation key is produced **dealerlessly** by [`lib-q-dkg`](../lib-q-dkg). I
 of [`lib-q-threshold-raccoon`](../lib-q-threshold-raccoon) (which is the signature analogue): both
 consume the same `lib-q-dkg` shares and the same BDLOP-committed group key.
 
-Unlike the ML-KEM-based [`lib-q-threshold-kem`](../lib-q-threshold-kem) — a trusted-dealer scheme that
-GF(256)-Shamir-shares an ML-KEM decapsulation key (a **non-linear** encoding no linear VSS can
-produce) — this crate is a **dual-Regev / GPV** KEM over the shared ring `R_q = Z_q[X]/(X^1024+1)`,
+Unlike the ML-KEM-based `lib-q-threshold-kem` — a trusted-dealer scheme that GF(256)-Shamir-shared
+an ML-KEM decapsulation key (a **non-linear** encoding no linear VSS can produce, so its
+`partial_decap` could only return the raw share, disclosing the full key to any `t` colluding
+parties) — this crate is a **dual-Regev / GPV** KEM over the shared ring `R_q = Z_q[X]/(X^1024+1)`,
 `q ≈ 2^48`. Its decryption is a **linear** map of the secret, so a distributed dealerless DKG can
 produce the key and a threshold of holders can decapsulate **without ever reconstructing it**.
+`lib-q-threshold-kem` was withdrawn and deleted from the workspace in 0.0.10 as unfixable in place
+(board card t_8ca3fd06); this crate is its replacement, not a variant of it, and is not
+wire-compatible with it.
 
 The crate is `no_std + alloc`-capable, ships wasm bindings (`@lib-q/threshold-kem-lattice`), and
 freezes its v1 wire with platform-exact KATs.

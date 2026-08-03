@@ -21,8 +21,8 @@ WHY ORDER IS CHECKED AS A DAG, NOT AS A SEQUENCE (CHECK 2)
 cd.yml runs matrix entries in PARALLEL, so it asserts no order between crates inside one job --
 only `needs` between jobs constrains anything. Demanding that the fallback script reproduce one
 particular linearization would encode an arbitrary choice as gospel and would forbid legitimate
-local-only reordering (e.g. publishing lib-q-blind-pcs before lib-q-fhe, which shares its tier-4b
-matrix but is a dev-dependency of it). So the rule is: for every pair where cd.yml makes job(A) a
+local-only reordering (e.g. publishing lib-q-blind-pcs before lib-q-dkg, which share a tier-4b
+matrix with no `needs` edge between them). So the rule is: for every pair where cd.yml makes job(A) a
 transitive prerequisite of job(B), the script must publish A before B.
 """
 

@@ -129,55 +129,6 @@ export interface BlindPcsOpenResult {
   blindHex: string;
 }
 
-/** `@lib-q/fhe` */
-export interface FheKeygenResult {
-  seed: string;
-  dimension: number;
-  modulus: number;
-}
-
-export interface FheCiphertextWire {
-  dimension: number;
-  modulus: number;
-  nonce: string;
-  plaintextLen: number;
-  body: number[];
-  mask: number[];
-}
-
-export type FheEvalOpWire =
-  | { op: "addConstant"; value: number }
-  | { op: "mulConstant"; value: number }
-  | { op: "addCiphertext"; ciphertext: FheCiphertextWire };
-
-/** `@lib-q/threshold-kem` */
-export interface ThresholdKemShareVerifier {
-  index: number;
-  commitmentHex: string;
-}
-
-export interface ThresholdKemPublicKeyWire {
-  profileId: number;
-  threshold: number;
-  mlKemPublicKeyHex: string;
-  shareVerifiers: ThresholdKemShareVerifier[];
-}
-
-export interface ThresholdKemPartialWire {
-  index: number;
-  shareBytesHex: string;
-  tagHex: string;
-}
-
-export interface ThresholdKemKeygenShare {
-  index: number;
-  threshold: number;
-  commitmentHex: string;
-  shareBytes: Uint8Array;
-}
-
-export interface ThresholdKemEncapResult {
-  sharedSecret: Uint8Array;
-  ciphertextHex: string;
-  wire: Uint8Array;
-}
+// `@lib-q/fhe` and `@lib-q/threshold-kem` type shapes were removed here when both crates were
+// withdrawn and deleted from the workspace in 0.0.10 (board cards t_2a349708, t_8ca3fd06). See
+// CHANGELOG.md and docs/npm-coverage.md#removed-crates.

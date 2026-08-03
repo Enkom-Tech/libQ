@@ -80,13 +80,11 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-mve`** | Multi-recipient verifiable encryption / verifiable rekey — single proof that every recipient is wrapped the same group key, relay-checkable without learning it (**RED / research, pending cryptographer sign-off**) |
 | **`lib-q-transcript`** | Shared Fiat–Shamir / CFRG-sigma duplex-transcript discipline for lib-Q ZK proofs (K12 out-of-circuit, Poseidon-256 in-circuit; no_std + alloc) (**RED / research, pending sign-off**) |
 | **`lib-q-mac`** | Quantum Carter–Wegman MAC (qCW-MAC) |
-| **`lib-q-threshold-kem`** | Threshold KEM over ML-KEM-768 + Shamir shares (**provisional / pre-standard**) |
 | **`lib-q-threshold-kem-lattice`** | Lattice threshold KEM (dual-Regev; dealerless keygen via `lib-q-dkg`) (**provisional / pre-standard**) |
 | **`lib-q-threshold-raccoon`** | Lattice threshold signature (Raccoon-family FS; consumes `lib-q-dkg` shares) (**provisional / pre-standard**) |
 | **`lib-q-dkg`** | Dealerless DKG / verifiable secret sharing (BDLOP commitments + FS proof of correct sharing) (**provisional / pre-standard**) |
 | **`lib-q-blind-token`** | Post-quantum blind-signature token (homomorphic Module-lattice blind issuance) (**provisional / pre-standard**) |
 | **`lib-q-blind-pcs`** | Blind polynomial commitment sketch (**experimental / research**) |
-| **`lib-q-fhe`** | Toy lattice FHE primitives for demos (**experimental / research**) |
 | **`lib-q-zk-encryption-proof`** | ZK-STARK proof of correct encryption (proof-of-knowledge of message μ) for `lib-q-threshold-kem-lattice` ciphertexts (**RED / research, pending sign-off**) |
 | **`lib-q-fn-dsa`** | FN-DSA (FIPS 206) |
 | **`lib-q-slh-dsa`** | SLH-DSA (FIPS 205) |
@@ -125,7 +123,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 
 ### npm packages (npmjs.com)
 
-**29** `@lib-q/*` packages are published in CD: **28** WASM bundles built with `wasm-pack` (the `publish-wasm-packages` matrix in [`cd.yml`](.github/workflows/cd.yml)) plus the TypeScript-only **`@lib-q/types`** package. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface). **Crates.io-only** (no npm/WASM package): `lib-q-mve`, `lib-q-transcript`, `lib-q-stark-baby-bear`, `lib-q-zk-encryption-proof`, and `lib-q-blind-token`. The rest of the provisional threshold/DKG family **does** ship npm packages — `@lib-q/dkg`, `@lib-q/threshold-kem`, `@lib-q/threshold-kem-lattice`, `@lib-q/threshold-raccoon`, `@lib-q/blind-pcs`, `@lib-q/mac` and `@lib-q/fhe` are all in the `publish-wasm-packages` matrix.
+**27** `@lib-q/*` packages are published in CD: **26** WASM bundles built with `wasm-pack` (the `publish-wasm-packages` matrix in [`cd.yml`](.github/workflows/cd.yml)) plus the TypeScript-only **`@lib-q/types`** package. See [docs/npm-coverage.md](docs/npm-coverage.md) for how npm maps to the Rust workspace (STARK/Plonky subcrates stay Rust-only; umbrella npm packages cover the JS surface). **Crates.io-only** (no npm/WASM package): `lib-q-mve`, `lib-q-transcript`, `lib-q-stark-baby-bear`, `lib-q-zk-encryption-proof`, and `lib-q-blind-token`. The rest of the provisional threshold/DKG family **does** ship npm packages — `@lib-q/dkg`, `@lib-q/threshold-kem-lattice`, `@lib-q/threshold-raccoon`, `@lib-q/blind-pcs`, and `@lib-q/mac` are all in the `publish-wasm-packages` matrix. `@lib-q/threshold-kem` and `@lib-q/fhe` were withdrawn and removed in 0.0.10 (board cards t_8ca3fd06, t_2a349708); see [docs/npm-coverage.md#removed-crates](docs/npm-coverage.md#removed-crates).
 
 - **`@lib-q/core`** — Umbrella WASM bundle (all algorithms path used in CD)
 - **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
@@ -293,7 +291,7 @@ The table above is the authoritative crate list; the `[workspace].members` table
 - **ZKP / STARK stack** (`lib-q-zkp` and supporting `lib-q-stark*` / `lib-q-plonky*` crates)
 - **Lattice infrastructure** (`lib-q-ring` for ML-DSA field arithmetic; `lib-q-lattice-zkp` for research-grade module-lattice proofs, separate from STARKs)
 - **PRF and ring-style opening pilots** (`lib-q-prf`, `lib-q-ring-sig`; research crates layered on lattice commitments—see per-crate READMEs)
-- **Threshold, DKG, and blind-issuance family** (`lib-q-dkg`, `lib-q-threshold-kem`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, and related `lib-q-mac` / `lib-q-blind-pcs` / `lib-q-fhe` / `lib-q-zk-encryption-proof`): **provisional / pre-standard** post-quantum multiparty primitives, not covered by NIST standardization—see per-crate READMEs. `lib-q-threshold-sig`, formerly listed here, was **withdrawn as cryptographically unsound** and has been removed from the workspace; the threshold-signature slot is served by `lib-q-threshold-raccoon`.
+- **Threshold, DKG, and blind-issuance family** (`lib-q-dkg`, `lib-q-threshold-kem-lattice`, `lib-q-threshold-raccoon`, `lib-q-blind-token`, and related `lib-q-mac` / `lib-q-blind-pcs` / `lib-q-zk-encryption-proof`): **provisional / pre-standard** post-quantum multiparty primitives, not covered by NIST standardization—see per-crate READMEs. Three crates formerly listed here were withdrawn and deleted from the workspace: `lib-q-threshold-sig` as **cryptographically unsound** (the threshold-signature slot is served by `lib-q-threshold-raccoon`); `lib-q-threshold-kem` because its partial-decapsulation shares disclosed the full ML-KEM-768 decapsulation key (served by `lib-q-threshold-kem-lattice`, board card t_8ca3fd06); and `lib-q-fhe` because `decrypt` never read the key (board card t_2a349708). See [docs/npm-coverage.md#removed-crates](docs/npm-coverage.md#removed-crates) and `CHANGELOG.md`.
 - **Side-channel tooling** (`lib-q-sca-test` for statistical leakage screening, not a certification claim)
 - **WASM** build paths for core scenarios (see CI and scripts referenced in the [no_std and WASM](#no_std-embedded-and-webassembly) section)
 - **Engineering**: consistent error types, security validation utilities, and GitHub Actions for build, test, coverage, and security checks

@@ -10,7 +10,7 @@ import sys
 STRIP_CRATES = frozenset(
     {
         "lib-q-sca-test",  # tier 4
-        "lib-q-blind-pcs",  # tier 4b (parallel with lib-q-fhe)
+        "lib-q-blind-pcs",  # tier 4b
     }
 )
 
