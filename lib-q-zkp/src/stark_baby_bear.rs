@@ -384,9 +384,14 @@ pub fn encode_membership_envelope_bb_zk(proof: &StarkProof<ZkBbConfig>, tree_dep
 /// 88-byte public statement (`root(36) ‖ ctx(16) ‖ N(36)`, [`membership_statement_bytes_bb`]) and a
 /// 0x02 envelope. Returns `true` iff the proof verifies against the canonical root in the statement.
 /// **Never panics**; any malformed input (wrong tag, reserved flag, wrong digest width, length
-/// mismatch, undecodable proof, non-canonical statement) → `false`. The verifier reconstructs the
-/// production config; the ZK verifier needs no prover entropy (fixed dummy seeds, matching FRI
-/// params). RED — underlying soundness/ZK claims pending human sign-off.
+/// mismatch, undecodable proof, non-canonical statement) → `false`. This includes a `degree_bits`
+/// field decoded from the envelope that is well-formed (a small, in-range `usize`) but would
+/// otherwise drive the STARK verifier's internal domain construction past BabyBear's two-adicity —
+/// `lib_q_stark::verifier` now rejects that with `Err(InvalidProofShape)` (mapped to `false` here)
+/// instead of panicking; previously an 84-byte envelope with `degree_bits` in `25..=30` panicked
+/// this function (an unauthenticated remote DoS). The verifier reconstructs the production config;
+/// the ZK verifier needs no prover entropy (fixed dummy seeds, matching FRI params). RED —
+/// underlying soundness/ZK claims pending human sign-off.
 pub fn verify_membership_envelope_bb(statement_bytes: &[u8], envelope: &[u8]) -> bool {
     if envelope.len() < BB_ENVELOPE_HEADER_BYTES || envelope[0] != BB_ENVELOPE_VERSION {
         return false;

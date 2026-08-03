@@ -731,6 +731,7 @@ where
     (Val<C>, C::Challenge): SameFieldOnly,
     C::Challenge: Into<Val<C>> + serde::Serialize,
     Val<C>: lib_q_stark_field::Field
+        + lib_q_stark_field::TwoAdicField
         + lib_q_stark_field::BasedVectorSpace<Mersenne31>
         + serde::Serialize
         + From<lib_q_poseidon::PoseidonField>
@@ -821,6 +822,7 @@ pub fn verify_batch<C, A>(
 ) -> Result<()>
 where
     C: StarkGenericConfig,
+    Val<C>: lib_q_stark_field::TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<C>>> + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
 {
     if public_values_per_proof.len() != proofs.len() {

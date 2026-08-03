@@ -1706,6 +1706,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-stark-air",
+ "lib-q-stark-baby-bear",
  "lib-q-stark-challenger",
  "lib-q-stark-commit",
  "lib-q-stark-dft",
