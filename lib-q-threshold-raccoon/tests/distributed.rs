@@ -53,9 +53,10 @@ fn run_protocol(
     let reveals: Vec<Round1Reveal> = states.iter().map(sign_round1_reveal).collect();
     let w = aggregate_commitment(&commits, &reveals).expect("aggregate commitment");
 
-    // Round 3: each party emits its masked partial.
+    // Round 3: each party emits its masked partial. `sign_round2` consumes `Round1State` by value
+    // (one-shot masking — see threshold.rs), so this takes `states` by ownership.
     let partials: Vec<PartialSignature> = states
-        .iter()
+        .into_iter()
         .map(|st| {
             let share = shares.iter().find(|s| s.index == st.index).expect("share");
             sign_round2(st, share, subset, &t, msg, &w, seeds).expect("round2")

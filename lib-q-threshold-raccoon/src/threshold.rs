@@ -184,9 +184,66 @@ pub fn aggregate_commitment(
 ///
 /// `subset` is the signing set (all participating indices, including this party). `t` is the group
 /// key, `w` the aggregated first message from [`aggregate_commitment`].
+///
+/// **Consumes `state` by value — one-shot by construction.** `y_s`/`y_r` must never mask two
+/// messages: `z_s,i = y_s,i + c·λ_i·value_i` broadcasts `y_s,i` unmasked, so a second call on the
+/// same masking (even from an honest retry loop after a network timeout, not only a malicious
+/// caller) lets an observer difference the two `z_s,i` values, cancel `y_s,i`, and recover
+/// `value_i` — the party's secret share. Taking `state` by value makes reuse a compile error
+/// (`E0382: use of moved value`) rather than a runtime hazard; see the `compile_fail` example below.
+///
+/// The setup below is real (not `todo!()`) on purpose: code reachable only through a diverging
+/// placeholder is dead code, and rustc's move-checker does not analyze dead code — a `todo!()`-based
+/// version of this example would compile "successfully" for the wrong reason and silently stop
+/// proving anything.
+///
+/// ```compile_fail
+/// use lib_q_dkg::lattice::bdlop::{self, KAPPA};
+/// use lib_q_dkg::lattice::ring::RQ_BYTES;
+/// use lib_q_threshold_raccoon::SecretShare;
+/// use lib_q_threshold_raccoon::threshold::{ZeroShareSeeds, sign_round1, sign_round2};
+/// use zeroize::Zeroizing;
+///
+/// // A minimal deterministic `Rng` (blanket-implements `rand_core::Rng` + `CryptoRng` via
+/// // `TryRng`/`TryCryptoRng` with `Error = Infallible`) — avoids a dev-dependency in this doctest.
+/// struct DemoRng(u64);
+/// impl rand_core::TryRng for DemoRng {
+///     type Error = core::convert::Infallible;
+///     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+///         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+///         Ok((self.0 >> 32) as u32)
+///     }
+///     fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+///         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+///         Ok(self.0)
+///     }
+///     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+///         for chunk in dst.chunks_mut(8) {
+///             let v = self.try_next_u64()?.to_le_bytes();
+///             chunk.copy_from_slice(&v[..chunk.len()]);
+///         }
+///         Ok(())
+///     }
+/// }
+/// impl rand_core::TryCryptoRng for DemoRng {}
+///
+/// let (state, _commit) = sign_round1(1, &mut DemoRng(1));
+/// let seeds = ZeroShareSeeds::setup(3, &mut DemoRng(2));
+/// let t = bdlop::commit_zero();
+/// let w = bdlop::commit_zero();
+/// let subset = [1u8, 2, 3];
+/// let share = SecretShare {
+///     index: 1,
+///     threshold: 2,
+///     share_bytes: Zeroizing::new(vec![0u8; RQ_BYTES * (1 + KAPPA)]),
+/// };
+///
+/// let _first = sign_round2(state, &share, &subset, &t, b"msg-a", &w, &seeds);
+/// let _second = sign_round2(state, &share, &subset, &t, b"msg-b", &w, &seeds); // E0382
+/// ```
 #[allow(clippy::too_many_arguments)]
 pub fn sign_round2(
-    state: &Round1State,
+    state: Round1State,
     share: &SecretShare,
     subset: &[u8],
     t: &Commitment,
