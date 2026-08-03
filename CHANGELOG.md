@@ -62,6 +62,42 @@ All notable changes to this workspace are documented here. Versions follow the s
 - `lib-q-dkg`'s documentation previously described its share/key shapes as mirroring
   `lib-q-threshold-sig`; it now names `lib-q-threshold-raccoon`, which is the signer that actually
   consumes those shares. `lib-q-dkg`'s own types and wire format are unchanged.
+- **`lib-q-threshold-kem` deleted from the workspace.** `partial_decap` returned the party's raw
+  Shamir share, so `t` partials reconstructed the underlying ML-KEM-768 decapsulation key in full.
+  ML-KEM decapsulation is a non-linear function of the decapsulation key, so a Shamir-shared `dk`
+  admits no correct partial-decapsulation function at all — a structural defect, not a parameter or
+  implementation bug, so it cannot be patched, only replaced. **`lib-q-threshold-kem-lattice`** is
+  the successor (dual-Regev / GPV KEM over a BDLOP-committed `lib-q-dkg` key, FO⊥ + flooding
+  hardened) and remains in the workspace, untouched by this change; it is not wire-compatible, so
+  ciphertexts must be regenerated. Card `t_8ca3fd06`.
+- **`lib-q-fhe` deleted from the workspace.** `decrypt` never read the key: it computed
+  `body[i] - mask[i]`, and both `body` and `mask` are public ciphertext fields, so "decryption" was
+  public-data arithmetic with no confidentiality. `mask` is load-bearing for `eval`
+  (`MulConstant` scales it, `AddCiphertext` adds them), so removing it as a fix would require a
+  real RLWE rewrite of the whole scheme — a structural defect, so the crate is deleted rather than
+  repaired. Card `t_2a349708`.
+- Removed with both: the `lib-q-threshold-kem/` and `lib-q-fhe/` sources (the
+  `lib-q-threshold-kem/fuzz` exclude entry at `Cargo.toml` was already stale — no fuzz crate
+  existed), both root `Cargo.toml` workspace entries (`members` and the fuzz `exclude`), their
+  `Cargo.lock` entries, the `publish-readiness` / `test-matrix` / `wasm-validation` /
+  `wasm-bindgen-smoke` rows and feature selectors in `.github/workflows/ci.yml` (already dropped
+  from every `cd.yml` matrix and from `scripts/publish-crates-io-ordered.ps1` in a preceding commit
+  on this branch), the remaining rows in `scripts/publish-npm-ordered.sh`,
+  `export/kat-vectors/threshold-kem-v1.json` and its
+  `scripts/export-primitive-kat-vectors.sh` copy step (`lib-q-fhe` had no KAT export), the crates'
+  entries in `scripts/ci-guard-primitive-banned-terms.sh` and `scripts/wasm-size-check.sh`, and the
+  `Fhe*` / `ThresholdKem*` type declarations from `npm/lib-q-types/index.d.ts`. Publish matrices are
+  decremented accordingly: crates.io 79 → 77, npm 29 → 27. `README.md`, `docs/npm-coverage.md`,
+  `docs/npm-packages.md`, `docs/npm-publish.md` and `docs/npm-wasm-api.md` now describe both as
+  removed; `lib-q-threshold-kem-lattice/README.md` and its `dev/conformance/integration/`
+  LIBQ_API.md no longer link to the deleted sibling.
+- **No published version of either crate should be trusted.** The published `0.0.6`–`0.0.9`
+  crates.io and npm artifacts for both `lib-q-threshold-kem` and `lib-q-fhe` remain installable —
+  yanking is an operator decision pending, not yet done. Treat any transmitted or logged set of `t`
+  `lib-q-threshold-kem` partial-decapsulation shares as full disclosure of the ML-KEM-768
+  decapsulation key, and any `lib-q-fhe` ciphertext as providing no confidentiality at all: anyone
+  who can see `body` and `mask` can recover the plaintext. Sources are archived (not merely
+  deleted) for forensic reference outside the repository.
 
 ### Security
 
