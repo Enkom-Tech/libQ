@@ -81,13 +81,16 @@ pub const MAX_ATTEMPTS: usize = 800;
 /// Certified per-key signature budget for the **distributed** (rejection-free / flooding) path.
 ///
 /// The distributed protocol's zero-knowledge rests on noise flooding rather than rejection, so the
-/// number of signatures produced under one key is a security parameter (Rényi divergence over the
-/// query budget). At the frozen params the certified worst-case (threshold `t = 2`, committee
-/// `n = 16`) is `2^20.07`, so the enforced counter `2^20` sits at-or-below the certified budget;
-/// larger thresholds tolerate more (≈`2^23` at `t = 16`). A deployment
-/// **MUST** enforce this as a per-key counter — it is stateful and therefore lives in the caller, not
-/// in these stateless protocol functions. The single-signer [`sign`] path is rejection-sampled and
-/// is **not** subject to this budget. See `SECURITY_ANALYSIS.md` §4.
+/// number of **round-3 broadcasts** emitted under one key — not the number of completed signatures —
+/// is the security parameter (Rényi divergence over the query budget). Every [`crate::threshold::sign_round2`]
+/// output is a real flooded sample of `z_r`, whether or not the aggregate that follows verifies: an
+/// aborted or retried run still leaks. At the frozen params the certified worst-case (threshold
+/// `t = 2`, committee `n = 16`) is `2^20.07`, so the enforced counter `2^20` sits at-or-below the
+/// certified budget; larger thresholds tolerate more (≈`2^23` at `t = 16`). A deployment
+/// **MUST** enforce this as a per-key counter incremented on every round-3 broadcast — it is stateful
+/// and therefore lives in the caller, not in these stateless protocol functions. The single-signer
+/// [`sign`] path is rejection-sampled and is **not** subject to this budget. See
+/// `SECURITY_ANALYSIS.md` §4.
 pub const MAX_SIGNATURES_PER_KEY: u64 = 1 << 20;
 
 /// A signature: challenge + masked responses for the message and randomness parts.

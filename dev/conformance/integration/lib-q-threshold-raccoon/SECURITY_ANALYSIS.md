@@ -118,13 +118,19 @@ The worst case (smallest threshold `t = 2`, largest committee `n = 16`) gives `Q
 enforced constant [`signer::MAX_SIGNATURES_PER_KEY`] = 2²⁰ therefore sits at-or-below the certified
 worst case — above the 2¹⁶ floor and at the 2²⁰ target. (`‖c·r_grp‖` rose from 1387 to 1471 with
 `KAPPA` 8→9 because `r_grp ∈ R_q^KAPPA`; `S_SIGN` was raised 268 000→290 000 to restore the
-worst-case budget to ≥ 2²⁰.) Because the budget is a Rényi/flooding parameter (not a convenience
-number), a deployment
-**MUST** enforce it as a per-key counter; the constant is exposed so callers can. The counter is
-stateful and therefore lives in the caller, not in these stateless protocol functions. The
-single-signer `sign` path is rejection-sampled and is **not** subject to this budget. To extend the
-budget, raise `S_SIGN` (roughly `∝ √Q_s`, at a `z_r`/signature-size and `BETA_R` cost — note `BETA_R`
-feeds the §1 binding gap, so re-check the binding margin if `S_SIGN` is raised).
+worst-case budget to ≥ 2²⁰.)
+
+`Q_s` counts **round-3 broadcasts**, not completed signatures. The bound above is a Rényi divergence
+over queries to the flooded distribution of `z_r`, and every `sign_round2` output is exactly one such
+query whether or not the aggregate that follows verifies — an aborted run (a bad partial, a dropout,
+a caller retry) still emits a real flooded `z_r` sample and spends the same budget as a signature that
+completes. Because the budget is a Rényi/flooding parameter (not a convenience number), a deployment
+**MUST** enforce it as a per-key counter incremented on every round-3 broadcast, not only on
+successful aggregation; the constant is exposed so callers can. The counter is stateful and therefore
+lives in the caller, not in these stateless protocol functions. The single-signer `sign` path is
+rejection-sampled and is **not** subject to this budget. To extend the budget, raise `S_SIGN`
+(roughly `∝ √Q_s`, at a `z_r`/signature-size and `BETA_R` cost — note `BETA_R` feeds the §1 binding
+gap, so re-check the binding margin if `S_SIGN` is raised).
 
 ## 5. Summary
 

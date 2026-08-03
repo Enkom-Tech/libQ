@@ -93,14 +93,16 @@ until the interoperable wire freeze.
 
 ## 7. Assumptions / caveats surfaced for RED-zone review
 
-1. **Distributed signing uses noise flooding (no rejection) → a per-key signature budget.** The
-   distributed t-of-n protocol (§3a) uses additive zero-sharing (no key reconstruction); masks are
-   flooded, so a Rényi bound caps signatures per key at `MAX_SIGNATURES_PER_KEY = 2^20` (worst case
-   `t=2, n=16`; up to `2^23` at `t=16`). A deployment **MUST** enforce this as a per-key counter
-   (`SECURITY_ANALYSIS.md` §4). The pairwise zero-share seeds are sampled by a helper here; a
-   deployment establishes them via authenticated pairwise key agreement during/after the DKG.
-   `combine_opening` + single-party `sign` (rejection-sampled, no budget) remain available for
-   trusted-combine settings.
+1. **Distributed signing uses noise flooding (no rejection) → a per-key round-3-broadcast budget.**
+   The distributed t-of-n protocol (§3a) uses additive zero-sharing (no key reconstruction); masks are
+   flooded, so a Rényi bound caps **round-3 broadcasts** per key at `MAX_SIGNATURES_PER_KEY = 2^20`
+   (worst case `t=2, n=16`; up to `2^23` at `t=16`) — not completed signatures: an aborted or retried
+   run still emits a real flooded `z_r` sample (`sign_round2`'s output) and spends the same budget as
+   a signature that completes. A deployment **MUST** enforce this as a per-key counter incremented on
+   every round-3 broadcast (`SECURITY_ANALYSIS.md` §4). The pairwise zero-share seeds are sampled by a
+   helper here; a deployment establishes them via authenticated pairwise key agreement during/after
+   the DKG. `combine_opening` + single-party `sign` (rejection-sampled, no budget) remain available
+   for trusted-combine settings.
 2. **Hiding is estimator-gated; binding is a Gaussian-heuristic statistical margin.** Hiding
    (Module-LWE) was run through malb's lattice-estimator (the gate): **β = 636 ⇒ 186-bit classical /
    169-bit quantum** core-SVP — clears ≥128 quantum with 41 bits of headroom. Binding is statistical:
