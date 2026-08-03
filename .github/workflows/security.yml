@@ -67,9 +67,15 @@ jobs:
       - name: Run cryptographic tests
         run: |
           echo "🔐 Running cryptographic validation tests..."
-          # Run constant_time tests for each package that has them
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # Run constant_time tests for each package that has them. NOTE: no `--features
+          # "all-algorithms"` -- lib-q-sha3/lib-q-k12 do not declare that feature (only the
+          # umbrella `lib-q` crate does), so `-p lib-q-sha3 --features "all-algorithms"` was a
+          # hard `error: the package 'lib-q-sha3' does not contain this feature` on every run,
+          # masked by `|| echo`. See ci.yml's constant-time job, which already had the correct
+          # (featureless) form.
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-sha3
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-k12
           echo "✅ Cryptographic tests completed successfully"
       
       - name: Validate KEM algorithms
@@ -83,8 +89,9 @@ jobs:
           echo "✍️  Validating signature algorithms..."
           # Check that only NIST-approved signatures are implemented
           echo "Validating FN-DSA (FIPS 206) implementation..."
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
           cd lib-q-fn-dsa
-          cargo test --test security_tests --features "std,rand" -- nist_compliance || echo "⚠️  nist_compliance test not available for lib-q-fn-dsa"
+          bash "$GUARD" -- cargo test --test security_tests --features "std,rand" -- nist_compliance
           echo "✅ Signature algorithm validation completed"
       
       - name: Validate hash functions
@@ -102,10 +109,16 @@ jobs:
       - name: Validate RNG systems
         run: |
           echo "🎲 Validating RNG systems..."
-          # Test RNG entropy quality and security
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # Test RNG entropy quality and security. NOTE: the first filter used to read
+          # `entropy::tests::test_entropy_quality_assessment` -- that test actually lives in
+          # validation.rs (`validation::tests::...`), so the old path matched nothing anywhere in
+          # the crate and this step ran 0 tests while reporting success (no `|| echo` needed to
+          # hide it -- a name filter matching zero tests is not a cargo error). See
+          # test-rng/action.yml for the same fix and the local repro.
           cd lib-q-random
-          cargo test --features "std,secure,zeroize,entropy-validation" entropy::tests::test_entropy_quality_assessment
-          cargo test --features "std,secure,zeroize,entropy-validation" validation::tests::test_entropy_validation
+          bash "$GUARD" -- cargo test --features "std,secure,zeroize,entropy-validation" validation::tests::test_entropy_quality_assessment
+          bash "$GUARD" -- cargo test --features "std,secure,zeroize,entropy-validation" validation::tests::test_entropy_validation
           echo "✅ RNG system validation completed"
 
   # Constant-time verification - critical for crypto
@@ -129,11 +142,14 @@ jobs:
       - name: Run constant-time tests
         run: |
           echo "⏱️  Testing constant-time operations..."
-          # Run constant_time tests for each package that has them
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-sha3 || echo "⚠️  constant_time test not available for lib-q-sha3"
-          cargo test --features "all-algorithms" --test constant_time -p lib-q-k12 || echo "⚠️  constant_time test not available for lib-q-k12"
-          cargo test --test security_tests -p lib-q-fn-dsa --features "std,rand" -- constant_time || echo "⚠️  constant_time test not available for lib-q-fn-dsa"
-          cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-random || echo "⚠️  constant_time test not available for lib-q-random"
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # Run constant_time tests for each package that has them. No `--features
+          # "all-algorithms"` for lib-q-sha3/lib-q-k12 -- see the crypto-validation job above for
+          # why that flag was always a hard cargo error there.
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-sha3
+          bash "$GUARD" -- cargo test --test constant_time -p lib-q-k12
+          bash "$GUARD" -- cargo test --test security_tests -p lib-q-fn-dsa --features "std,rand" -- constant_time
+          bash "$GUARD" -- cargo test --features "std,secure,zeroize" --test constant_time -p lib-q-random
           echo "✅ Constant-time tests completed successfully"
       
       - name: Check for timing side-channels

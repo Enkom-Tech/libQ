@@ -181,9 +181,12 @@ runs:
       shell: bash
       run: |
         echo "Running constant-time validation..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        # CB-KEM operations should be constant-time
-        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for CB-KEM"
+        # CB-KEM operations should be constant-time (tests/constant_time.rs: the FO
+        # implicit-rejection mask in operations::crypto_kem_dec must not leak via timing
+        # whether a ciphertext was valid).
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test constant_time
         echo "Constant-time validation completed"
     
     - name: Cross-compilation test (ARM64)
