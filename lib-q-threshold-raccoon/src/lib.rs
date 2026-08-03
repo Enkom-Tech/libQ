@@ -188,6 +188,19 @@ pub fn keygen_shares<R: CryptoRng + Rng>(
     })
 }
 
+/// `true` if `indices` contains any value more than once.
+///
+/// `error.rs`'s [`RaccoonError::InvalidSignerSet`] documents "empty, too small, or has a
+/// repeated/zero index" — this is the repeated-index half of that contract, shared by every
+/// function that assembles a signer subset ([`combine_opening`], [`threshold::aggregate_commitment`],
+/// [`threshold::aggregate`]). A duplicated index breaks the "exactly once per party" accounting the
+/// Lagrange combine and the round-3 aggregation both depend on.
+pub(crate) fn has_duplicate_index(indices: &[u8]) -> bool {
+    let mut sorted = indices.to_vec();
+    sorted.sort_unstable();
+    sorted.windows(2).any(|w| w[0] == w[1])
+}
+
 /// Recover the short signing opening `(s, r)` from a threshold subset of shares (Lagrange at zero).
 ///
 /// The provided `shares` define the reconstruction subset (`≥ threshold` distinct indices).
@@ -198,6 +211,9 @@ pub fn combine_opening(shares: &[SecretShare]) -> Result<(Rq, [Rq; KAPPA]), Racc
         return Err(RaccoonError::InvalidSignerSet);
     }
     let subset: Vec<u8> = shares.iter().map(|s| s.index).collect();
+    if has_duplicate_index(&subset) {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
     let mut s = Rq::zero();
     let mut r: Vec<Rq> = (0..KAPPA).map(|_| Rq::zero()).collect();
     for sh in shares {

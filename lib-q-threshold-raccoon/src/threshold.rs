@@ -166,6 +166,10 @@ pub fn aggregate_commitment(
     if commits.len() != reveals.len() || commits.is_empty() {
         return Err(RaccoonError::InvalidSignerSet);
     }
+    let reveal_indices: Vec<u8> = reveals.iter().map(|r| r.index).collect();
+    if crate::has_duplicate_index(&reveal_indices) {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
     let mut w = bdlop::commit_zero();
     for r in reveals {
         let c = commits
@@ -295,6 +299,10 @@ pub fn aggregate(
     w: &Commitment,
 ) -> Result<Signature, RaccoonError> {
     if partials.len() != subset.len() || partials.is_empty() {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
+    let partial_indices: Vec<u8> = partials.iter().map(|p| p.index).collect();
+    if crate::has_duplicate_index(&partial_indices) {
         return Err(RaccoonError::InvalidSignerSet);
     }
     let c = challenge(t, msg, w);
