@@ -12,8 +12,26 @@
 //! production target replaces that GF(256) placeholder for PQ root/recovery keys.
 //!
 //! **Scope (research-grade):** the threshold *combine* ([`combine_opening`]) is a caller-side
-//! Lagrange sum; a fully threshold-native distributed signing round (Threshold-Raccoon: additive
-//! sharing + clearing factor) is the documented next phase. See `LIBQ_API.md` §7.
+//! Lagrange sum; the [`threshold`] module additionally implements a fully threshold-native
+//! distributed signing round (additive sharing + zero-share clearing) in which no party ever
+//! reconstructs the key.
+//!
+//! **Four absences, verified properties of this implementation** (see [`threshold`] and
+//! `LIBQ_API.md` §7 caveat 5 for the full analysis):
+//!
+//! - **No identifiable abort** — a corrupt round-3 partial makes the aggregate fail [`verify`]
+//!   silently, with no indication of who cheated.
+//! - **No accountability** — round broadcasts are unauthenticated, so no fault (even if detected) is
+//!   attributable to a specific party after the fact in a way that resists framing.
+//! - **No robustness** — any dropout or corrupt signer aborts the run; there is no way to exclude a
+//!   party and continue without a full retry.
+//! - **No proactive refresh** — shares are static for the life of the key, matching the
+//!   **static**-corruption TS-UF-1 model.
+//!
+//! This project has not read the cited Threshold-Raccoon paper (del Pino–Katsumata–Reichle–Takemure,
+//! CRYPTO 2024) closely enough to say whether the construction itself lacks these properties too, or
+//! whether this implementation simply omits properties the construction provides — a reader must not
+//! infer either.
 
 #![forbid(unsafe_code)]
 
@@ -188,6 +206,19 @@ pub fn keygen_shares<R: CryptoRng + Rng>(
     })
 }
 
+/// `true` if `indices` contains any value more than once.
+///
+/// `error.rs`'s [`RaccoonError::InvalidSignerSet`] documents "empty, too small, or has a
+/// repeated/zero index" — this is the repeated-index half of that contract, shared by every
+/// function that assembles a signer subset ([`combine_opening`], [`threshold::aggregate_commitment`],
+/// [`threshold::aggregate`]). A duplicated index breaks the "exactly once per party" accounting the
+/// Lagrange combine and the round-3 aggregation both depend on.
+pub(crate) fn has_duplicate_index(indices: &[u8]) -> bool {
+    let mut sorted = indices.to_vec();
+    sorted.sort_unstable();
+    sorted.windows(2).any(|w| w[0] == w[1])
+}
+
 /// Recover the short signing opening `(s, r)` from a threshold subset of shares (Lagrange at zero).
 ///
 /// The provided `shares` define the reconstruction subset (`≥ threshold` distinct indices).
@@ -198,6 +229,9 @@ pub fn combine_opening(shares: &[SecretShare]) -> Result<(Rq, [Rq; KAPPA]), Racc
         return Err(RaccoonError::InvalidSignerSet);
     }
     let subset: Vec<u8> = shares.iter().map(|s| s.index).collect();
+    if has_duplicate_index(&subset) {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
     let mut s = Rq::zero();
     let mut r: Vec<Rq> = (0..KAPPA).map(|_| Rq::zero()).collect();
     for sh in shares {

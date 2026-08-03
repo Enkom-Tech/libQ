@@ -21,10 +21,13 @@ use lib_q_threshold_raccoon::threshold::{
     sign_round2,
 };
 use lib_q_threshold_raccoon::{
+    RaccoonError,
     SecretShare,
     ShareVerifier,
     ThresholdRaccoonPublicKey,
     group_commitment,
+    keygen_shares,
+    setup,
     verify,
 };
 
@@ -53,9 +56,10 @@ fn run_protocol(
     let reveals: Vec<Round1Reveal> = states.iter().map(sign_round1_reveal).collect();
     let w = aggregate_commitment(&commits, &reveals).expect("aggregate commitment");
 
-    // Round 3: each party emits its masked partial.
+    // Round 3: each party emits its masked partial. `sign_round2` consumes `Round1State` by value
+    // (one-shot masking — see threshold.rs), so this takes `states` by ownership.
     let partials: Vec<PartialSignature> = states
-        .iter()
+        .into_iter()
         .map(|st| {
             let share = shares.iter().find(|s| s.index == st.index).expect("share");
             sign_round2(st, share, subset, &t, msg, &w, seeds).expect("round2")
@@ -127,5 +131,80 @@ fn tampered_round1_opening_is_rejected() {
     assert!(
         aggregate_commitment(&commits, &reveals).is_err(),
         "a reveal inconsistent with its commitment must be rejected",
+    );
+}
+
+/// M0 item 2 (design §2.2): `error.rs` documents `InvalidSignerSet` as covering a "repeated/zero
+/// index", but `aggregate_commitment` only checked `commits.len() == reveals.len()` and
+/// non-emptiness — a multiset like `[c1, c1, c3]` / `[r1, r1, r3]` satisfied both.
+#[test]
+fn aggregate_commitment_rejects_duplicate_reveals() {
+    let subset = [1u8, 2, 3];
+    let mut states = Vec::new();
+    let mut commits = Vec::new();
+    for (k, &idx) in subset.iter().enumerate() {
+        let mut r = new_deterministic_rng([0x44 ^ idx ^ (k as u8); 32]);
+        let (st, com) = sign_round1(idx, &mut r);
+        states.push(st);
+        commits.push(com);
+    }
+    let reveals: Vec<Round1Reveal> = states.iter().map(sign_round1_reveal).collect();
+
+    // Replace party 3's slot with a second copy of party 1's (commit, reveal) pair.
+    let mut dup_commits = commits.clone();
+    dup_commits[2] = commits[0].clone();
+    let mut dup_reveals = reveals.clone();
+    dup_reveals[2] = reveals[0].clone();
+
+    assert_eq!(
+        aggregate_commitment(&dup_commits, &dup_reveals),
+        Err(RaccoonError::InvalidSignerSet),
+        "a reveal set with a repeated index must be rejected, not double-counted"
+    );
+}
+
+/// M0 item 2 (design §2.2): `aggregate` had the same shape of gap as `aggregate_commitment` — no
+/// check that `partials` covers each index exactly once.
+#[test]
+fn aggregate_rejects_duplicate_partials() {
+    let profile = setup();
+    let mut rng = new_deterministic_rng([0x77u8; 32]);
+    let kg = keygen_shares(&profile, 3, 5, &mut rng).expect("keygen");
+    let subset = [1u8, 2, 3];
+    let t = group_commitment(&kg.public_key).expect("group commitment");
+
+    let mut states = Vec::new();
+    let mut commits = Vec::new();
+    for (k, &idx) in subset.iter().enumerate() {
+        let mut r = new_deterministic_rng([0x78 ^ idx ^ (k as u8); 32]);
+        let (st, com) = sign_round1(idx, &mut r);
+        states.push(st);
+        commits.push(com);
+    }
+    let reveals: Vec<Round1Reveal> = states.iter().map(sign_round1_reveal).collect();
+    let w = aggregate_commitment(&commits, &reveals).expect("aggregate commitment");
+
+    let seeds = ZeroShareSeeds::setup(5, &mut rng);
+    let msg = b"duplicate-partial-attempt";
+    let partials: Vec<PartialSignature> = states
+        .into_iter()
+        .map(|st| {
+            let share = kg
+                .secret_shares
+                .iter()
+                .find(|s| s.index == st.index)
+                .expect("share");
+            sign_round2(st, share, &subset, &t, msg, &w, &seeds).expect("round2")
+        })
+        .collect();
+
+    // Party 1's partial in place of party 3's slot.
+    let mut dup_partials = partials.clone();
+    dup_partials[2] = partials[0].clone();
+
+    assert_eq!(
+        aggregate(&dup_partials, &subset, &t, msg, &w),
+        Err(RaccoonError::InvalidSignerSet),
+        "a partial set with a repeated index must be rejected, not double-counted"
     );
 }
