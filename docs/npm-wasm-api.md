@@ -126,7 +126,7 @@ Full sigma protocols, amortisation, and BLNS hooks are **Rust-only** (`lib-q-lat
 
 Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`).
 
-## `@lib-q/mac` (0.0.7)
+## `@lib-q/mac` (since 0.0.7, EXPERIMENTAL_NON_NIST)
 
 | JS name | Description |
 |---------|-------------|
@@ -136,7 +136,7 @@ Polynomial arithmetic, NTT, and module matrices are **Rust-only** (`lib_q_ring`)
 | `qcwMacSign` | Sign `(key, msg, ad)` → tag `Uint8Array` |
 | `qcwMacVerify` | Constant-time verify |
 
-## `@lib-q/blind-pcs` (0.0.7, EXPERIMENTAL_NON_NIST)
+## `@lib-q/blind-pcs` (since 0.0.7, EXPERIMENTAL_NON_NIST)
 
 | JS name | Description |
 |---------|-------------|
@@ -169,9 +169,11 @@ t_2a349708.
 
 There is no `@lib-q/fhe` package built from workspace `HEAD`; the former exports (`fheKeygen`,
 `fheEncrypt`, `fheEval`, `fheDecrypt`, `fheCiphertextToBytes`) are listed here only so old call
-sites can be identified and removed. Previously published `@lib-q/fhe` / `lib-q-fhe` artifacts
-(latest 0.0.9) remain installable pending an operator yank decision; do not rely on them for
-confidentiality — anyone who can see a ciphertext can recover the plaintext.
+sites can be identified and removed. The previously published `lib-q-fhe` crate versions
+(0.0.6–0.0.9) are yanked from crates.io at the 0.0.10 release, along with every other pre-0.0.10
+libQ version; the `@lib-q/fhe` npm package (latest 0.0.9) is deprecated separately. Until then they
+remain installable — do not rely on them for confidentiality, because anyone who can see a
+ciphertext can recover the plaintext.
 
 ## `@lib-q/threshold-kem` — REMOVED
 
@@ -226,10 +228,11 @@ TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross
 
 ## Versioning
 
-All packages share the workspace version (e.g. `0.0.5`) on release. Pin in production:
+All packages share the workspace version on release — currently **0.0.10** (the single source of
+truth is `version` under `[workspace.package]` in the root `Cargo.toml`). Pin in production:
 
 ```bash
-npm install @lib-q/core@0.0.5 @lib-q/zkp@0.0.5
+npm install @lib-q/core@0.0.10 @lib-q/zkp@0.0.10
 ```
 
 ## Security
