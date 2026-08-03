@@ -223,8 +223,38 @@ where
     ///
     /// # Panics:
     /// This function will panic if `degree` is not a power of 2 or `degree > (1 << Val::TWO_ADICITY)`.
+    /// Callers that cannot guarantee this (e.g. a verifier deriving `degree` from an
+    /// untrusted/adversarial proof) should use `try_natural_domain_for_degree` instead.
     fn natural_domain_for_degree(&self, degree: usize) -> Self::Domain {
-        TwoAdicMultiplicativeCoset::new(Val::ONE, log2_strict_usize(degree)).unwrap()
+        // NOTE: deliberately not implemented in terms of `try_natural_domain_for_degree` — calling
+        // one `Pcs<Challenge, Challenger>` trait method from another via `self.` inside this impl
+        // makes trait-method resolution ambiguous over the (otherwise-unconstrained-here)
+        // `Challenge`/`Challenger` params, since neither method's signature mentions them
+        // (rustc cannot infer which `Pcs<_, _>` instantiation's method to call). The two bodies
+        // are kept in sync by the `#[test]` in this module asserting they agree.
+        if !degree.is_power_of_two() {
+            panic!(
+                "natural_domain_for_degree: degree {degree} must be a power of two; use \
+                 try_natural_domain_for_degree to handle this without panicking"
+            );
+        }
+        TwoAdicMultiplicativeCoset::new(Val::ONE, log2_strict_usize(degree)).unwrap_or_else(|| {
+            panic!(
+                "natural_domain_for_degree: degree {degree} exceeds 1 << Val::TWO_ADICITY ({}); \
+                 use try_natural_domain_for_degree to handle this without panicking",
+                Val::TWO_ADICITY
+            )
+        })
+    }
+
+    /// Never panics; returns `None` exactly when `degree` is not a power of two or exceeds
+    /// `1 << Val::TWO_ADICITY` (the same conditions under which `natural_domain_for_degree` would
+    /// panic).
+    fn try_natural_domain_for_degree(&self, degree: usize) -> Option<Self::Domain> {
+        if !degree.is_power_of_two() {
+            return None;
+        }
+        TwoAdicMultiplicativeCoset::new(Val::ONE, log2_strict_usize(degree))
     }
 
     /// Commit to a collection of evaluation matrices.

@@ -138,7 +138,12 @@ pub fn mve_prove(
 
 /// Relay verification gate (mve-rekey-v0 §6): recipient-set/length checks + the consistency
 /// proof. Returns `true` iff the envelope is well-formed and the proof shows every wrap carries a
-/// single `K`. Never panics.
+/// single `K`. Never panics — including on a well-formed but adversarial `degree_bits` inside
+/// `envelope.proof` that would previously drive the underlying STARK verifier's domain
+/// construction past the field's two-adicity: `lib_q_stark::verifier` now rejects that with
+/// `Err(InvalidProofShape)` (mapped to `false` via `.is_ok()` below) instead of panicking. A
+/// 111-byte proof with `degree_bits = 30` used to panic this function (an unauthenticated remote
+/// DoS, since this is a relay-side verification gate).
 ///
 /// `key_commitment` and `update_pk_i` are part of the §7 `Verify` contract but are **not** used
 /// in-circuit: the commitment is the recipient-side binding (§4.3) and the KEM-ciphertext↔shared-

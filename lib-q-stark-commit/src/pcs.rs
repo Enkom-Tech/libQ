@@ -53,7 +53,26 @@ where
     const PREPROCESSED_TRACE_IDX: usize = Self::QUOTIENT_IDX + 1; // Note: not always present
 
     /// This should return a domain such that `Domain::next_point` returns `Some`.
+    ///
+    /// # Panics
+    /// Implementations backed by a two-adic domain (the only kind in this workspace today) will
+    /// panic if `degree` is not a power of two, or exceeds the field's two-adicity. Callers that
+    /// process untrusted/adversarial `degree` values (e.g. a proof verifier) MUST validate `degree`
+    /// themselves before calling this, or use [`try_natural_domain_for_degree`](Self::try_natural_domain_for_degree) instead.
     fn natural_domain_for_degree(&self, degree: usize) -> Self::Domain;
+
+    /// Fallible sibling of [`natural_domain_for_degree`](Self::natural_domain_for_degree), for
+    /// callers (such as proof verifiers) that must reject an out-of-range `degree` instead of
+    /// panicking. Returns `None` exactly under the conditions documented on
+    /// `natural_domain_for_degree`'s `# Panics` section.
+    ///
+    /// The default implementation simply delegates to the infallible method, so it is only
+    /// non-panicking for implementations that override it; `TwoAdicFriPcs` and `HidingFriPcs`
+    /// (the only implementations in this workspace, in `lib-q-stark-fri`) both override it with a
+    /// genuinely non-panicking check.
+    fn try_natural_domain_for_degree(&self, degree: usize) -> Option<Self::Domain> {
+        Some(self.natural_domain_for_degree(degree))
+    }
 
     /// Given a collection of evaluation matrices, produce a binding commitment to
     /// the polynomials defined by those evaluations. If `zk` is enabled, the evaluations are
