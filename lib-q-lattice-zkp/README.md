@@ -29,6 +29,15 @@ Downstream integrators copy the `tests/vectors/` tree into their own conformance
 
 ## Status
 
+> **Research-grade / pre-standard, not independently audited.** Module-lattice anonymous credentials
+> are not covered by any NIST standardization process, and no construction in this crate has been
+> reviewed or signed off by an independent cryptographer. The workspace classifies this crate as
+> **research** ([docs/npm-coverage.md](../docs/npm-coverage.md)); a frozen wire and passing KATs mean
+> the *encoding* is stable and conformance-testable, **not** that the *construction* is proven sound.
+> See [SECURITY.md](../SECURITY.md) §`lib-q-lattice-zkp` (wire v0) for the binding security
+> boundaries — in particular that this is "not a substitute for independent audit or side-channel
+> certification".
+
 Sigma protocols, issuer-keyed blind issuance, tokens, nullifiers, and PVTN membership ship on **wire v0** with frozen profiles, compact encodings, exportable KATs, and CI byte-budget gates. Fiat–Shamir uses a QROM committed-first-message transcript; PVTN hides Merkle position and clearance on the wire (see [DESIGN.md](DESIGN.md), [BLIND_ISSUANCE.md](BLIND_ISSUANCE.md)).
 
 Protocol notes: [DESIGN.md](DESIGN.md). Security boundaries: workspace [SECURITY.md](../SECURITY.md).

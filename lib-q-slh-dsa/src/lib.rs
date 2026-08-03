@@ -105,11 +105,14 @@ pub use verifying_key::{
 pub trait ParameterSet: ForsParams + SigningKeyLen + VerifyingKeyLen + SignatureLen {
     /// Human-readable name for parameter set, matching the FIPS-205 designations
     ///
+    /// FIPS 205 standardized only the *simple* instances; there are no `-Robust`
+    /// designations in the standard and none are produced here.
+    ///
     /// # Examples
     ///
-    /// - `"SLH-DSA-SHA256-128f-Robust"`
-    /// - `"SLH-DSA-SHAKE256-192f-Robust"`
-    /// - `"SLH-DSA-SHA256-256f-Robust"`
+    /// - `"SLH-DSA-SHA2-128f"`
+    /// - `"SLH-DSA-SHAKE-192f"`
+    /// - `"SLH-DSA-SHA2-256s"`
     const NAME: &'static str;
 
     /// Associated OID with the Parameter

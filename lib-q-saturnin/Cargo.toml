@@ -63,6 +63,11 @@ path = "tests/kat_tests.rs"
 required-features = ["alloc"]
 
 [[test]]
+name = "key_commitment"
+path = "tests/key_commitment.rs"
+required-features = ["alloc", "qcb"]
+
+[[test]]
 name = "constant_time"
 path = "tests/constant_time.rs"
 required-features = ["alloc", "aead"]
