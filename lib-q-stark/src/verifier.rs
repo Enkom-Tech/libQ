@@ -24,6 +24,7 @@ use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
+    TwoAdicField,
 };
 use lib_q_stark_fri::{
     FriInitialEval,
@@ -63,7 +64,37 @@ const MAX_COMMITMENTS: usize = 1 << 16; // ~65k commitments
 const MAX_OPENED_ELEMENTS: usize = 1 << 24; // ~16 million elements
 
 /// Maximum degree bits (2^30) to prevent memory exhaustion attacks.
+///
+/// This bound is field-independent and, on its own, is NOT sufficient to prevent panics: every
+/// concrete field used in this workspace has a two-adicity well below 30 (e.g. BabyBear's is 27),
+/// and domain construction (`Pcs::natural_domain_for_degree`, `PolynomialSpace::create_disjoint_domain`)
+/// panics once the requested log-size exceeds the field's two-adicity. See
+/// [`degree_fits_two_adicity`] for the actual (field-aware) bound that must be checked before any
+/// domain is constructed from an untrusted `degree_bits`.
 const MAX_DEGREE_BITS: usize = 30;
+
+/// Returns `true` iff every domain the verifier derives from `degree_bits` — the trace domain
+/// (`degree_bits`), the quotient domain (`degree_bits + log_num_quotient_chunks`), its per-chunk
+/// splits, and their zk-randomized re-domainings — fits within the field's two-adicity, i.e. none
+/// of the downstream `TwoAdicMultiplicativeCoset::new` calls (via `natural_domain_for_degree` /
+/// `create_disjoint_domain`) can fail.
+///
+/// This MUST be checked before constructing any domain from a `degree_bits` that came from
+/// untrusted proof bytes: `MAX_DEGREE_BITS` alone bounds `degree_bits` to `30`, but BabyBear's
+/// two-adicity is `27`, so a `degree_bits` anywhere in (roughly) `25..=30` combined with a
+/// nonzero `log_num_quotient_chunks` (or `is_zk`) already exceeds the field's two-adicity and
+/// panics `natural_domain_for_degree`/`create_disjoint_domain` — an unauthenticated,
+/// deserialization-only remote DoS (reproduced with an 84-byte proof).
+fn degree_fits_two_adicity<F: TwoAdicField>(
+    degree_bits: usize,
+    log_num_quotient_chunks: usize,
+    is_zk: usize,
+) -> bool {
+    degree_bits
+        .checked_add(log_num_quotient_chunks)
+        .and_then(|n| n.checked_add(is_zk))
+        .is_some_and(|n| n <= F::TWO_ADICITY)
+}
 
 /// Recomposes the quotient polynomial from its chunks evaluated at a point.
 ///
@@ -240,6 +271,7 @@ pub fn verify<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     verify_with_preprocessed(config, air, proof, public_values, None)
@@ -255,6 +287,7 @@ pub fn verify_with_preprocessed<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     // Input validation to prevent DoS and invalid states
@@ -290,10 +323,11 @@ where
     if degree == 0 {
         return Err(VerificationError::InvalidProofShape);
     }
-    let trace_domain = pcs.natural_domain_for_degree(degree);
+
     // Preprocessed commitment is extracted from the proof here. For setups where the preprocessed
     // commitment is known in advance, process_preprocessed_trace could accept a PreprocessedVk
-    // and skip extraction (optimization).
+    // and skip extraction (optimization). This does not construct any domain, so it is safe to run
+    // before the two-adicity guard below.
     let PreprocessedResult(preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), preprocessed_vk)?;
 
@@ -312,26 +346,18 @@ where
         config.is_zk(),
     );
     let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
-    let mut challenger = config.initialise_challenger();
-    let init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
 
-    let quotient_domain =
-        trace_domain.create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks));
-    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
-
-    let randomized_quotient_chunks_domains = quotient_chunks_domains
-        .iter()
-        .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
-        .collect_vec();
-    // Check that the random commitments are/are not present depending on the ZK setting.
-    // - If ZK is enabled, the prover should have random commitments.
-    // - If ZK is not enabled, the prover should not have random commitments.
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
-    {
-        return Err(VerificationError::RandomizationError);
+    // Reject BEFORE constructing any domain: `MAX_DEGREE_BITS` alone (30) is field-independent
+    // and does not keep `degree_bits + log_num_quotient_chunks + is_zk` under the field's
+    // two-adicity (e.g. BabyBear: 27) -- an attacker-chosen `degree_bits` in that gap used to
+    // panic `natural_domain_for_degree`/`create_disjoint_domain` below (an unauthenticated,
+    // deserialization-only remote DoS, reproduced with an 84-byte proof). See
+    // `degree_fits_two_adicity`.
+    if !degree_fits_two_adicity::<Val<SC>>(*degree_bits, log_num_quotient_chunks, config.is_zk()) {
+        return Err(VerificationError::InvalidProofShape);
     }
 
+    // Validate proof SHAPE next, before any (comparatively expensive) domain/field arithmetic.
     let air_width = A::width(air);
     let valid_shape = opened_values.trace_local.len() == air_width
         && opened_values.trace_next.len() == air_width
@@ -374,6 +400,39 @@ where
     if num_commitments > MAX_COMMITMENTS {
         return Err(VerificationError::InvalidProofShape);
     }
+
+    // Check that the random commitments are/are not present depending on the ZK setting.
+    // - If ZK is enabled, the prover should have random commitments.
+    // - If ZK is not enabled, the prover should not have random commitments.
+    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
+        (commitments.random.is_some() != SC::Pcs::ZK)
+    {
+        return Err(VerificationError::RandomizationError);
+    }
+
+    // Every shape/degree check above passed, so `degree_bits` (and every domain log-size derived
+    // from it) is now guaranteed to fit the field's two-adicity: none of the following domain
+    // constructions can panic. They still go through the fallible `try_*` variants and map a
+    // (should-be-unreachable) `None` to `InvalidProofShape` rather than an infallible call, as
+    // defense in depth should this guard ever be weakened by a future change.
+    let mut challenger = config.initialise_challenger();
+    let trace_domain = pcs
+        .try_natural_domain_for_degree(degree)
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let init_trace_domain = pcs
+        .try_natural_domain_for_degree(degree >> (config.is_zk()))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_domain = trace_domain
+        .try_create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
+    let randomized_quotient_chunks_domains = quotient_chunks_domains
+        .iter()
+        .map(|domain| {
+            pcs.try_natural_domain_for_degree(domain.size() << (config.is_zk()))
+                .ok_or(VerificationError::InvalidProofShape)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     // Observe the instance (must match prover: same order and encoding).
     challenger.observe(Val::<SC>::from_usize(proof.degree_bits));
@@ -504,6 +563,7 @@ pub fn initial_fri_eval_for_query<SC, A>(
 ) -> Result<SC::Challenge, VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     SC::Pcs: FriInitialEval<
             SC::Challenge,
             Proof = <<SC as StarkGenericConfig>::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Proof,
@@ -534,7 +594,8 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
 
-    let trace_domain = pcs.natural_domain_for_degree(degree);
+    // Shape/degree validation BEFORE any domain construction (see `verify_with_preprocessed` for
+    // the full rationale): this function had the identical unguarded pattern.
     let PreprocessedResult(preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), None)?;
 
@@ -545,20 +606,9 @@ where
         config.is_zk(),
     );
     let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
-    let _init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
 
-    let quotient_domain =
-        trace_domain.create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks));
-    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
-    let randomized_quotient_chunks_domains = quotient_chunks_domains
-        .iter()
-        .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
-        .collect_vec();
-
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
-    {
-        return Err(VerificationError::RandomizationError);
+    if !degree_fits_two_adicity::<Val<SC>>(*degree_bits, log_num_quotient_chunks, config.is_zk()) {
+        return Err(VerificationError::InvalidProofShape);
     }
 
     let air_width = A::width(air);
@@ -576,6 +626,32 @@ where
     if !valid_shape {
         return Err(VerificationError::InvalidProofShape);
     }
+
+    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
+        (commitments.random.is_some() != SC::Pcs::ZK)
+    {
+        return Err(VerificationError::RandomizationError);
+    }
+
+    // Shape is valid and `degree_bits` fits the field's two-adicity: safe to construct domains.
+    // Still routed through the fallible `try_*` variants as defense in depth.
+    let trace_domain = pcs
+        .try_natural_domain_for_degree(degree)
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let _init_trace_domain = pcs
+        .try_natural_domain_for_degree(degree >> (config.is_zk()))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_domain = trace_domain
+        .try_create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
+    let randomized_quotient_chunks_domains = quotient_chunks_domains
+        .iter()
+        .map(|domain| {
+            pcs.try_natural_domain_for_degree(domain.size() << (config.is_zk()))
+                .ok_or(VerificationError::InvalidProofShape)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut coms_to_verify = if let Some(random_commit) = &commitments.random {
         let random_values = opened_values
@@ -652,6 +728,7 @@ pub fn all_fri_reduced_openings_for_query<SC, A>(
 ) -> Result<Vec<(usize, SC::Challenge)>, VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     SC::Pcs: FriReducedOpenings<
             SC::Challenge,
             Proof = <SC::Pcs as Pcs<SC::Challenge, SC::Challenger>>::Proof,
@@ -682,7 +759,8 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
 
-    let trace_domain = pcs.natural_domain_for_degree(degree);
+    // Shape/degree validation BEFORE any domain construction (see `verify_with_preprocessed` for
+    // the full rationale): this function had the identical unguarded pattern.
     let PreprocessedResult(preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), None)?;
 
@@ -693,20 +771,9 @@ where
         config.is_zk(),
     );
     let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
-    let _init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
 
-    let quotient_domain =
-        trace_domain.create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks));
-    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
-    let randomized_quotient_chunks_domains = quotient_chunks_domains
-        .iter()
-        .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
-        .collect_vec();
-
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
-    {
-        return Err(VerificationError::RandomizationError);
+    if !degree_fits_two_adicity::<Val<SC>>(*degree_bits, log_num_quotient_chunks, config.is_zk()) {
+        return Err(VerificationError::InvalidProofShape);
     }
 
     let air_width = A::width(air);
@@ -724,6 +791,32 @@ where
     if !valid_shape {
         return Err(VerificationError::InvalidProofShape);
     }
+
+    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
+        (commitments.random.is_some() != SC::Pcs::ZK)
+    {
+        return Err(VerificationError::RandomizationError);
+    }
+
+    // Shape is valid and `degree_bits` fits the field's two-adicity: safe to construct domains.
+    // Still routed through the fallible `try_*` variants as defense in depth.
+    let trace_domain = pcs
+        .try_natural_domain_for_degree(degree)
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let _init_trace_domain = pcs
+        .try_natural_domain_for_degree(degree >> (config.is_zk()))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_domain = trace_domain
+        .try_create_disjoint_domain(1 << (degree_bits + log_num_quotient_chunks))
+        .ok_or(VerificationError::InvalidProofShape)?;
+    let quotient_chunks_domains = quotient_domain.split_domains(num_quotient_chunks);
+    let randomized_quotient_chunks_domains = quotient_chunks_domains
+        .iter()
+        .map(|domain| {
+            pcs.try_natural_domain_for_degree(domain.size() << (config.is_zk()))
+                .ok_or(VerificationError::InvalidProofShape)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut coms_to_verify = if let Some(random_commit) = &commitments.random {
         let random_values = opened_values
@@ -784,8 +877,16 @@ where
 
 /// Verifies a STARK proof from serialized bytes with size validation.
 ///
-/// This function provides DoS protection by validating the proof size before
-/// deserialization, preventing memory exhaustion attacks from maliciously large proofs.
+/// This function checks the raw serialized byte length before deserialization, which guards
+/// against maliciously huge byte blobs (e.g. a multi-gigabyte "proof" designed to exhaust memory
+/// during `postcard::from_bytes`). That is only the outer layer of DoS protection, though: byte
+/// size alone does NOT bound the value of small fixed-size fields *inside* a small, validly-shaped
+/// proof — notably `degree_bits`, which used to be able to drive the verifier's internal domain
+/// construction past the field's two-adicity and panic even from a proof of a few dozen bytes (see
+/// `degree_fits_two_adicity`). That class of validation happens after deserialization, inside the
+/// `verify()` call below, which is why `verify()`/`verify_with_preprocessed()` reject a malformed
+/// `degree_bits` with `Err(InvalidProofShape)` rather than relying on this function's byte-length
+/// check to have already ruled it out.
 ///
 /// # Arguments
 /// * `config` - STARK configuration including PCS and challenger
@@ -798,8 +899,12 @@ where
 /// * `Err(VerificationError)` if the proof is invalid or exceeds size limits
 ///
 /// # Security
-/// This function validates proof size before deserialization to prevent DoS attacks.
-/// Applications should use this function when receiving proofs over the network.
+/// This function rejects an oversized serialized blob before deserialization (DoS protection
+/// against huge byte payloads); full structural and field-value validation of the decoded proof —
+/// including the `degree_bits` two-adicity guard — happens in the subsequent `verify()` call, not
+/// here. Applications should use this function when receiving proofs over the network, and should
+/// treat any `Err` return (from either the size check or the inner `verify()`) as "reject the
+/// proof," not attempt to distinguish the two.
 #[instrument(skip_all)]
 pub fn verify_from_bytes<SC, A>(
     config: &SC,
@@ -809,6 +914,7 @@ pub fn verify_from_bytes<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     // Early size check before expensive deserialization

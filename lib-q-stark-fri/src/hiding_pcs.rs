@@ -123,6 +123,11 @@ where
             &self.inner, degree)
     }
 
+    fn try_natural_domain_for_degree(&self, degree: usize) -> Option<Self::Domain> {
+        <TwoAdicFriPcs<Val, Dft, InputMmcs, FriMmcs> as Pcs<Challenge, Challenger>>::try_natural_domain_for_degree(
+            &self.inner, degree)
+    }
+
     fn get_quotient_ldes(
         &self,
         evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val>)>,
