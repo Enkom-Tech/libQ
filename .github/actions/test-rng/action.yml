@@ -118,43 +118,63 @@ runs:
       shell: bash
       run: |
         echo "🎲 Running entropy validation tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test entropy_validation || echo "⚠️  entropy_validation test not available"
-        cargo test --features "${{ inputs.features }}" entropy::tests::test_entropy_quality_assessment
-        cargo test --features "${{ inputs.features }}" validation::tests::test_entropy_validation
+        # NOTE: there is no tests/entropy_validation.rs integration target in this crate (it was
+        # deleted here, not silently ignored) -- entropy validation is real unit-test coverage in
+        # validation.rs, run directly below. The phantom `--test entropy_validation` line that
+        # used to sit here always failed with "no test target" and was masked by `|| echo`,
+        # adding a fake step rather than real coverage.
+        #
+        # SECOND BUG FOUND WHILE FIXING THE FIRST: this line used to filter on
+        # `entropy::tests::test_entropy_quality_assessment`, but that test actually lives in
+        # `validation.rs` (`validation::tests::test_entropy_quality_assessment`) -- there is no
+        # `entropy::tests` module with that name. A cargo test name filter that matches nothing
+        # is not an error, so this ran 0 tests, reported success, and needed no `|| echo` to hide
+        # it. Confirmed locally: the wrong path scores 0 passed across every test binary in the
+        # crate; the corrected path below scores 1. The guard below now fails this step if that
+        # regresses again silently.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" validation::tests::test_entropy_quality_assessment
+        # Matches test_entropy_validation_empty_data + test_entropy_validation_insufficient_data
+        # by substring prefix (cargo test name filters are substrings, not exact paths) --
+        # verified locally to select exactly those 2 tests, 0 elsewhere.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" validation::tests::test_entropy_validation
         echo "✅ Entropy validation tests completed"
-    
+
     - name: Run security tests
       if: inputs.run-security-tests == 'true'
       shell: bash
       run: |
         echo "🔐 Running security tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test security_tests || echo "⚠️  security_tests not available"
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_tests
         cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_secure_creation
         cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_deterministic_consistency
         echo "✅ Security tests completed"
-    
+
     - name: Run constant-time verification
       if: inputs.run-constant-time == 'true'
       shell: bash
       run: |
         echo "⏱️  Running constant-time verification..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        
+
         # Install valgrind if not already available
         if ! command -v valgrind &> /dev/null; then
           sudo apt-get update
           sudo apt-get install -y valgrind
         fi
-        
+
         # Install cargo-valgrind if not already available
         if ! command -v cargo-valgrind &> /dev/null; then
           cargo install cargo-valgrind
         fi
-        
-        # Run constant-time tests for RNG operations
-        cargo test --features "${{ inputs.features }}" --test constant_time || echo "⚠️  constant_time test not available for lib-q-random"
+
+        # Run constant-time tests for RNG operations (tests/constant_time.rs: KT128
+        # seed-expansion timing -- see that file for what property this checks and why).
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test constant_time
         echo "✅ Constant-time verification completed"
     
     - name: Run benchmarks

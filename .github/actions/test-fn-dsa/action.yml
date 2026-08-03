@@ -167,9 +167,11 @@ runs:
       shell: bash
       run: |
         echo "⏱️ Verifying constant-time operations..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        # Run specific tests that verify constant-time behavior
-        cargo test --test security_tests --features "${{ inputs.features }}" -- constant_time || echo "⚠️  constant_time test not available"
+        # Run specific tests that verify constant-time behavior. A dead name filter here would
+        # otherwise exit 0 with 0 tests run (see the guard script for the proven repro).
+        bash "$GUARD" -- cargo test --test security_tests --features "${{ inputs.features }}" -- constant_time
         echo "✅ Constant-time verification completed"
     
     - name: Run benchmarks
@@ -207,16 +209,21 @@ runs:
       shell: bash
       run: |
         echo "🧠 Running memory safety validation..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        # Test for memory leaks and unsafe operations
-        cargo test --features "${{ inputs.features }}" --test security_tests -- memory_safety || echo "⚠️  memory_safety test not available"
+        # Test for memory leaks and unsafe operations. The filter is "memory", not
+        # "memory_safety" -- no test in security_tests.rs is named memory_safety*, so that
+        # filter matched 0 of 7 tests (silently, `|| echo` was hiding it) while "memory"
+        # matches test_memory_optimization_security + test_memory_zeroization.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_tests -- memory
         echo "✅ Memory safety validation completed"
-    
+
     - name: NIST compliance verification
       shell: bash
       run: |
         echo "📋 Verifying NIST compliance..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         # Verify that only NIST-approved algorithms are implemented
-        cargo test --features "${{ inputs.features }}" --test security_tests -- nist_compliance || echo "⚠️  nist_compliance test not available"
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_tests -- nist_compliance
         echo "✅ NIST compliance verification completed"
