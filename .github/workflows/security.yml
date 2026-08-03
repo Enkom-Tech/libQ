@@ -181,7 +181,7 @@ jobs:
           run-workspace-builds: "false"
       
       - name: Install cargo-outdated
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-outdated
       

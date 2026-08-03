@@ -40,7 +40,7 @@ jobs:
           key: ${{ runner.os }}-sec-cov-sig-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-tarpaulin
 
@@ -102,7 +102,7 @@ jobs:
           key: ${{ runner.os }}-sec-cov-tkeml-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-tarpaulin
 
