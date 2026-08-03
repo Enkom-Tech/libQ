@@ -158,29 +158,31 @@ impl<P: HqcParams> ReedSolomon<P> {
         self.generator_poly[..g].copy_from_slice(&temp[..g]);
     }
 
-    /// Galois field multiplication
+    /// Galois field multiplication.
+    ///
+    /// Delegates to [`ctgf::gf_mul`] (table-free, branch-free — see `lib-q-hqc/src/gf.rs`)
+    /// instead of the `gf_log`/`gf_exp` table lookup this used to do directly. The old body was
+    /// `if a == 0 || b == 0 { return 0 }` followed by two table loads (`gf_log[a]`, `gf_log[b]`)
+    /// and a third (`gf_exp[log_a + log_b]`) — a data-dependent branch plus secret-indexed loads
+    /// whenever either operand is secret. That matters here because [`Self::encode`]'s LFSR
+    /// (`gate_value = message[..] ^ ...`) calls this with a message byte as `a`, and `encode` is
+    /// itself on HQC's decapsulation re-encryption path (`Hqc::decapsulate` re-encrypts the
+    /// recovered plaintext to check it against the received ciphertext), so `a` there is
+    /// attacker-observable-timing-sensitive secret data. `self.gf_log`/`self.gf_exp` remain in
+    /// use elsewhere in this type only for public-index lookups (init-time table construction,
+    /// and indexing by public loop counters in decode), which is safe and unaffected by this
+    /// change.
     fn gf_multiply(&self, a: u8, b: u8) -> u8 {
-        if a == 0 || b == 0 {
-            return 0;
-        }
-        let log_a = self.gf_log[a as usize] as usize;
-        let log_b = self.gf_log[b as usize] as usize;
-        self.gf_exp[log_a + log_b]
+        ctgf::gf_mul(a, b)
     }
 
-    /// Galois field division
+    /// Galois field division. Delegates to [`ctgf::gf_mul`] + [`ctgf::gf_inverse`], both
+    /// table-free and branch-free, for the same reason as [`Self::gf_multiply`] above:
+    /// `ctgf::gf_inverse(0) == 0` by construction (see its doc comment), so `gf_mul(a, inv_b)`
+    /// already yields `0` whenever `a == 0` or `b == 0` without any explicit zero check.
     #[allow(dead_code)] // Required by HQC Reed-Solomon specification
     fn gf_divide(&self, a: u8, b: u8) -> u8 {
-        if a == 0 {
-            return 0;
-        }
-        if b == 0 {
-            return 0; // Division by zero
-        }
-        let log_a = self.gf_log[a as usize] as usize;
-        let log_b = self.gf_log[b as usize] as usize;
-        let result_log = (log_a + P::GF_MUL_ORDER - log_b) % P::GF_MUL_ORDER;
-        self.gf_exp[result_log]
+        ctgf::gf_mul(a, ctgf::gf_inverse(b))
     }
 
     /// Encode a message using Reed-Solomon code (LFSR-based systematic encoding)

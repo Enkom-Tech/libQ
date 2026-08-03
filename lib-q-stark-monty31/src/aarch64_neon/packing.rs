@@ -1119,3 +1119,32 @@ where
         _ => panic!("No exp function for given D"),
     }
 }
+
+/// Portable-vs-SIMD equivalence for the NEON backend, mirroring `x86_64_avx2/packing.rs`'s `tests`
+/// module (see that file's doc comment for what `test_vs_scalar` checks and why). This module did
+/// not exist before: unlike `x86_64_avx2`, nothing in this file was previously exercised by any
+/// test in this crate. Unlike the AVX-512 equivalence test added alongside this one, this one WAS
+/// verified to actually execute and pass:
+/// `CARGO_TARGET_DIR=target/m31-aarch64 cross test -p lib-q-stark-monty31 --target
+/// aarch64-unknown-linux-gnu --all-targets` runs under QEMU (via the `cross`/Docker toolchain
+/// already used elsewhere in this repo for aarch64 verification) because NEON, unlike AVX2/
+/// AVX-512F, is part of the mandatory AArch64 baseline ISA (`rustc --target
+/// aarch64-unknown-linux-gnu --print cfg` includes `target_feature="neon"` with no extra
+/// `RUSTFLAGS` needed), so `cross test`'s QEMU user-mode emulation actually implements it.
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_field_testing::test_packed_field;
+
+    use super::WIDTH;
+    use crate::test_utils::TestField;
+
+    const SPECIAL_VALS: [TestField; WIDTH] =
+        TestField::new_array([0x00000000, 0x00000001, 0x78000000, 0x3c000000]);
+
+    test_packed_field!(
+        crate::PackedMontyField31Neon<crate::test_utils::TestFP>,
+        &[crate::PackedMontyField31Neon::<crate::test_utils::TestFP>::ZERO],
+        &[crate::PackedMontyField31Neon::<crate::test_utils::TestFP>::ONE],
+        crate::PackedMontyField31Neon::<crate::test_utils::TestFP>(super::SPECIAL_VALS)
+    );
+}

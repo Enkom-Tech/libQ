@@ -31,7 +31,7 @@ use crate::params_correct::{
 /// Field degree `m` for GF(2^m). Fixed for all HQC parameter sets.
 pub const GF_M: u32 = 8;
 
-/// Irreducible polynomial defining GF(2^8): `x^8 + x^4 + x^3 + x + 1`.
+/// Irreducible polynomial defining GF(2^8): `x^8 + x^4 + x^3 + x^2 + 1`.
 pub const GF_POLY: u16 = 0x11D;
 
 // Pin the assumption that every HQC parameter set shares this exact field. A future parameter

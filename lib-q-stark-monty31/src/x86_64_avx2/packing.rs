@@ -1018,7 +1018,7 @@ fn neg<MPAVX2: MontyParametersAVX2>(val: __m256i) -> __m256i {
     // res = vpsignd(t, val) = t passes t through.
     unsafe {
         // Safety: If this code got compiled then AVX2 intrinsics are available.
-        let t = x86_64::_mm256_sub_epi32(val, MPAVX2::PACKED_P);
+        let t = x86_64::_mm256_sub_epi32(MPAVX2::PACKED_P, val);
         x86_64::_mm256_sign_epi32(t, val)
     }
 }
@@ -1323,9 +1323,13 @@ pub(crate) fn base_mul_packed<FP, const WIDTH: usize>(
 /// (`monty_mul`/`red_signed_to_canonical`/`signed_add_avx2`/...) would first disagree with the
 /// portable path: `0`, `1`, `P-1` (`0x78000000`), `P-2` (`0x77ffffff`), `~P/2` (`0x3c000000`), and
 /// three more scattered values. This is the test in this crate that would have caught the "arch-
-/// gated SIMD code nothing ever built or ran" class of defect this repo has shipped before — but
-/// only when this file is compiled with `+avx2` (see `scratchpad/monty31-simd-ci.md`); a default
-/// `cargo test` never selects this module at all.
+/// gated SIMD code nothing ever built or ran" class of defect this repo has shipped before — it
+/// caught a real one: `neg` below computed `val - P` instead of `P - val`, silently returning a
+/// non-canonical negative for every nonzero lane on any `+avx2` build, until fixed alongside this
+/// comment. That fix only matters when this file is actually compiled with `+avx2`: a default
+/// `cargo test` never selects this module, and **no CI workflow currently passes
+/// `-C target-feature=+avx2`**, so this equivalence suite is not yet exercised anywhere in CI (see
+/// `.github/workflows/ci.yml`, outside this crate, for where that job would need to be added).
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field_testing::test_packed_field;

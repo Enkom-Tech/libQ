@@ -219,6 +219,19 @@ mod tests {
 
     // -----------------------------------------------------------------
     // absorb_all
+    //
+    // NOTE ON WHAT THESE TWO TESTS ARE: `absorb_all`'s padding scheme is a custom construction
+    // (see the crate README: "the AEAD mode defined in this crate is custom... obtain independent
+    // review"), so there is no external known-answer/spec vector to check it against. Both tests
+    // below build their expected value from this same module's own `xor_into_rate`/`f1600`
+    // primitives — that makes them REGRESSION PINS of today's implementation, NOT an independent
+    // conformance check. What they DO catch: the padding-BOUNDARY logic (whether the trailing
+    // padding-only block is applied at all, and where the 0x01/0x80 bytes land), because each test
+    // asserts against a value assembled by hand from the padding rule in prose, and
+    // `absorb_all_exact_rate_boundary_adds_a_second_padding_only_block` additionally asserts
+    // `assert_ne!` against a plausible-but-wrong "skip the trailing block" alternative before
+    // asserting the real expected value — so a regression that silently dropped that block would
+    // be caught even though the test is self-referential.
     // -----------------------------------------------------------------
 
     #[test]
