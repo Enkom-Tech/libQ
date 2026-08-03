@@ -27,7 +27,7 @@ runs:
   using: composite
   steps:
     - name: Setup Rust toolchain
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
       with:
         toolchain: ${{ inputs.rust-version }}
         components: rustfmt, clippy, rust-src

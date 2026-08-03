@@ -26,9 +26,23 @@ updates:
       - dependency-name: "rand_core"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions
+  # GitHub Actions.
+  #
+  # `directories` (plural), not `directory`: with only "/" dependabot scans
+  # .github/workflows/ and does NOT see composite actions under
+  # .github/actions/*/action.yml. That blind spot is why
+  # .github/actions/rust-test/action.yml sat on `taiki-e/install-action@v2`
+  # while PR #87 bumped the four workflow-file references and left it behind.
+  #
+  # Third-party actions here are pinned to immutable commit SHAs with a trailing
+  # `# <tag>` comment; dependabot understands that form and bumps both together.
+  # Branch refs (`@master`, `@stable`, `@nightly`) must not be reintroduced --
+  # they let the action author push code into CI, including the CD job that
+  # holds a crates.io token.
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "weekly"
       day: "monday"

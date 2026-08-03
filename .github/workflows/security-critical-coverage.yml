@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
         with:
           toolchain: stable
           components: rust-src, llvm-tools-preview
@@ -40,7 +40,7 @@ jobs:
           key: ${{ runner.os }}-sec-cov-sig-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           tool: cargo-tarpaulin
 
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
         with:
           toolchain: stable
           components: rust-src, llvm-tools-preview
@@ -102,7 +102,7 @@ jobs:
           key: ${{ runner.os }}-sec-cov-tkeml-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           tool: cargo-tarpaulin
 
