@@ -54,7 +54,7 @@ fn test_psk_mode_context_setup() {
     let psk_id = b"test-psk-identifier";
 
     // Setup sender context with PSK mode
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
     let sender_ctx = setup_sender_with_mode(
         &mut kem_ctx,
         recipient_keypair.public_key(),
@@ -140,7 +140,7 @@ fn test_psk_mode_single_shot() {
     let info = b"test-info";
 
     // Encrypt with PSK mode
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
     let (encapsulated_key, ciphertext) = seal_with_mode(
         &mut kem_ctx,
         recipient_keypair.public_key(),
@@ -226,7 +226,7 @@ fn test_psk_mode_different_psks() {
     let psk_wire = HpkePskWireFormat::LibQCommitmentSuffix;
 
     // Encrypt with PSK 1
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
     let (encapsulated_key1, ciphertext1) = seal_with_mode(
         &mut kem_ctx,
         recipient_keypair.public_key(),
@@ -359,7 +359,7 @@ fn test_psk_mode_parameter_validation() {
 
     let psk = b"test-psk";
     let psk_id = b"test-psk-id";
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
 
     // Test missing PSK
     let result = setup_sender_with_mode(
@@ -443,7 +443,7 @@ fn test_psk_mode_different_cipher_suites() {
     let plaintext = b"Test message";
     let aad = b"aad";
     let info = b"info";
-    let mut rng = lib_q_hpke::security::prng::SimpleRng::new();
+    let mut rng = lib_q_hpke::security::test_rng::TestRng::new();
 
     // Test with ML-KEM-512 + HKDF-SHAKE256 + Saturnin-256
     let suite1 = HpkeCipherSuite::new(
