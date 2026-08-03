@@ -19,12 +19,16 @@
 //! unforgeability is proven by reduction to BDLOP binding + Module-LWE in `SECURITY_ANALYSIS.md` §7
 //! (with the Threshold-Raccoon TS-UF-1 mapping). See also `LIBQ_API.md` §3a/§7.
 //!
-//! **Abort-only (no identifiable abort, no robustness, no refresh):** neither aggregation step
-//! identifies a misbehaving party. [`aggregate_commitment`] rejects a bad round-1 opening with an
-//! index-free error, and [`aggregate`] does no per-party verification of round-3 partials — one
-//! corrupt partial yields an aggregate that fails [`crate::verify`] with no indication of who
-//! cheated. Shares are static (no proactive refresh), matching the static-corruption TS-UF-1
-//! model. Faithful to Threshold-Raccoon; see `LIBQ_API.md` §7 caveat 5.
+//! **Abort-only (no identifiable abort, no accountability, no robustness, no proactive refresh):**
+//! neither aggregation step identifies a misbehaving party. [`aggregate_commitment`] rejects a bad
+//! round-1 opening with an index-free error, and [`aggregate`] does no per-party verification of
+//! round-3 partials — one corrupt partial yields an aggregate that fails [`crate::verify`] with no
+//! indication of who cheated, and no broadcast is authenticated, so there is no after-the-fact way to
+//! hold a party accountable either. Shares are static (no proactive refresh), matching the
+//! static-corruption TS-UF-1 model. These four absences are verified properties of **this
+//! implementation** — this project has not read the cited construction closely enough to say whether
+//! it lacks them too, or whether this implementation simply omits properties the construction
+//! provides; a reader must not infer either. See `LIBQ_API.md` §7 caveat 5.
 
 extern crate alloc;
 
@@ -106,6 +110,15 @@ pub struct Round1State {
     w: Commitment,
 }
 
+impl Drop for Round1State {
+    fn drop(&mut self) {
+        self.y_s.coeffs.fill(0);
+        for r in &mut self.y_r {
+            r.coeffs.fill(0);
+        }
+    }
+}
+
 /// Round-1 broadcast: a hiding commitment to the party's first message `w_i` (prevents rushing).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Round1Commit {
@@ -166,6 +179,10 @@ pub fn aggregate_commitment(
     if commits.len() != reveals.len() || commits.is_empty() {
         return Err(RaccoonError::InvalidSignerSet);
     }
+    let reveal_indices: Vec<u8> = reveals.iter().map(|r| r.index).collect();
+    if crate::has_duplicate_index(&reveal_indices) {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
     let mut w = bdlop::commit_zero();
     for r in reveals {
         let c = commits
@@ -184,9 +201,66 @@ pub fn aggregate_commitment(
 ///
 /// `subset` is the signing set (all participating indices, including this party). `t` is the group
 /// key, `w` the aggregated first message from [`aggregate_commitment`].
+///
+/// **Consumes `state` by value — one-shot by construction.** `y_s`/`y_r` must never mask two
+/// messages: `z_s,i = y_s,i + c·λ_i·value_i` broadcasts `y_s,i` unmasked, so a second call on the
+/// same masking (even from an honest retry loop after a network timeout, not only a malicious
+/// caller) lets an observer difference the two `z_s,i` values, cancel `y_s,i`, and recover
+/// `value_i` — the party's secret share. Taking `state` by value makes reuse a compile error
+/// (`E0382: use of moved value`) rather than a runtime hazard; see the `compile_fail` example below.
+///
+/// The setup below is real (not `todo!()`) on purpose: code reachable only through a diverging
+/// placeholder is dead code, and rustc's move-checker does not analyze dead code — a `todo!()`-based
+/// version of this example would compile "successfully" for the wrong reason and silently stop
+/// proving anything.
+///
+/// ```compile_fail
+/// use lib_q_dkg::lattice::bdlop::{self, KAPPA};
+/// use lib_q_dkg::lattice::ring::RQ_BYTES;
+/// use lib_q_threshold_raccoon::SecretShare;
+/// use lib_q_threshold_raccoon::threshold::{ZeroShareSeeds, sign_round1, sign_round2};
+/// use zeroize::Zeroizing;
+///
+/// // A minimal deterministic `Rng` (blanket-implements `rand_core::Rng` + `CryptoRng` via
+/// // `TryRng`/`TryCryptoRng` with `Error = Infallible`) — avoids a dev-dependency in this doctest.
+/// struct DemoRng(u64);
+/// impl rand_core::TryRng for DemoRng {
+///     type Error = core::convert::Infallible;
+///     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+///         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+///         Ok((self.0 >> 32) as u32)
+///     }
+///     fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+///         self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+///         Ok(self.0)
+///     }
+///     fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+///         for chunk in dst.chunks_mut(8) {
+///             let v = self.try_next_u64()?.to_le_bytes();
+///             chunk.copy_from_slice(&v[..chunk.len()]);
+///         }
+///         Ok(())
+///     }
+/// }
+/// impl rand_core::TryCryptoRng for DemoRng {}
+///
+/// let (state, _commit) = sign_round1(1, &mut DemoRng(1));
+/// let seeds = ZeroShareSeeds::setup(3, &mut DemoRng(2));
+/// let t = bdlop::commit_zero();
+/// let w = bdlop::commit_zero();
+/// let subset = [1u8, 2, 3];
+/// let share = SecretShare {
+///     index: 1,
+///     threshold: 2,
+///     share_bytes: Zeroizing::new(vec![0u8; RQ_BYTES * (1 + KAPPA)]),
+/// };
+///
+/// let _first = sign_round2(state, &share, &subset, &t, b"msg-a", &w, &seeds);
+/// let _second = sign_round2(state, &share, &subset, &t, b"msg-b", &w, &seeds); // E0382
+/// ```
 #[allow(clippy::too_many_arguments)]
 pub fn sign_round2(
-    state: &Round1State,
+    state: Round1State,
     share: &SecretShare,
     subset: &[u8],
     t: &Commitment,
@@ -238,6 +312,10 @@ pub fn aggregate(
     w: &Commitment,
 ) -> Result<Signature, RaccoonError> {
     if partials.len() != subset.len() || partials.is_empty() {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
+    let partial_indices: Vec<u8> = partials.iter().map(|p| p.index).collect();
+    if crate::has_duplicate_index(&partial_indices) {
         return Err(RaccoonError::InvalidSignerSet);
     }
     let c = challenge(t, msg, w);

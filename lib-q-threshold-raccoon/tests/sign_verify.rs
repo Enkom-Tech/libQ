@@ -2,6 +2,7 @@
 
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_raccoon::{
+    RaccoonError,
     combine_opening,
     decode_signature,
     encode_signature,
@@ -59,5 +60,23 @@ fn too_few_shares_rejected() {
     assert!(
         combine_opening(&only_two).is_err(),
         "sub-threshold combine must error"
+    );
+}
+
+/// M0 item 2 (design §2.2): `error.rs` documents `InvalidSignerSet` as covering a "repeated/zero
+/// index", but nothing checked for a repeated one. A duplicated share index must be rejected, not
+/// silently combined into a wrong `(s, r)`.
+#[test]
+fn combine_opening_rejects_duplicate_shares() {
+    let profile = setup();
+    let mut rng = det(0x03);
+    let kg = keygen_shares(&profile, 3, 5, &mut rng).expect("keygen");
+    let share1 = kg.secret_shares[0].clone();
+    let share3 = kg.secret_shares[2].clone();
+    let duplicated = vec![share1.clone(), share1, share3];
+    assert_eq!(
+        combine_opening(&duplicated),
+        Err(RaccoonError::InvalidSignerSet),
+        "a duplicated share index must be rejected, not silently miscombined"
     );
 }
