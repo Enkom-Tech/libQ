@@ -1639,3 +1639,37 @@ pub(crate) fn base_mul_packed<FP, const WIDTH: usize>(
         _ => panic!("Unsupported binomial extension degree: {}", WIDTH),
     }
 }
+
+/// Portable-vs-SIMD equivalence for the AVX-512 backend, mirroring `x86_64_avx2/packing.rs`'s
+/// `tests` module (see that file's doc comment for what `test_vs_scalar` checks and why). This
+/// module did not exist before: unlike `x86_64_avx2`, nothing in this file was previously
+/// exercised by any test in this crate.
+///
+/// NOTE ON VERIFICATION: this crate's `cargo test` was run in this environment with
+/// `RUSTFLAGS="-C target-feature=+avx512f"` and the resulting binary COMPILES, but could not be
+/// EXECUTED here — the host CPU (AMD Ryzen 9 5900X, Zen 3) does not implement AVX-512F, so running
+/// any test binary built this way crashes immediately with `STATUS_ILLEGAL_INSTRUCTION`, before a
+/// single test name is printed. So this module is a real, compiling equivalence test, but its
+/// *results* are unverified in this environment; it needs to be run once on AVX-512-capable
+/// hardware (or under an emulator/binary translator that supports AVX-512F) before it can be
+/// trusted the way the AVX2 counterpart now is.
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_field_testing::test_packed_field;
+
+    use super::WIDTH;
+    use crate::test_utils::TestField;
+
+    const SPECIAL_VALS: [TestField; WIDTH] = TestField::new_array([
+        0x00000000, 0x00000001, 0x78000000, 0x77ffffff, 0x3c000000, 0x0ffffffe, 0x68000003,
+        0x70000002, 0x00000002, 0x00000003, 0x77fffffe, 0x1e000000, 0x28000000, 0x40000000,
+        0x10000000, 0x77000000,
+    ]);
+
+    test_packed_field!(
+        crate::PackedMontyField31AVX512<crate::test_utils::TestFP>,
+        &[crate::PackedMontyField31AVX512::<crate::test_utils::TestFP>::ZERO],
+        &[crate::PackedMontyField31AVX512::<crate::test_utils::TestFP>::ONE],
+        crate::PackedMontyField31AVX512::<crate::test_utils::TestFP>(super::SPECIAL_VALS)
+    );
+}

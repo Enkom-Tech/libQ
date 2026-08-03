@@ -113,9 +113,14 @@ where
 /// binomial_mul`, which for `MontyField31<FP>` dispatches to `quartic_mul_packed` — the
 /// portable version under the default (no_packing) build, and the SIMD version (`x86_64_avx2`/
 /// `x86_64_avx512`) when this crate is recompiled with the corresponding `target-feature`. Running
-/// this same test file under each `RUSTFLAGS` variant (see `scratchpad/monty31-simd-ci.md`) is what
-/// actually exercises and validates the SIMD binomial-multiplication code, which otherwise compiles
-/// under `#[cfg(...)]` but is never run by any test in this workspace.
+/// this same test file under each `RUSTFLAGS` variant (`-C target-feature=+avx2` / `+avx512f`, each
+/// in its own `CARGO_TARGET_DIR`) is what actually exercises and validates the SIMD binomial-
+/// multiplication code. As of this writing **no CI workflow does this**: the packed modules are
+/// `#[cfg(target_feature = "avx2"/"avx512f")]`-gated, so a default `cargo test` (all CI currently
+/// runs for this crate) never compiles them, let alone runs them. A prior AVX2 field-negation bug
+/// (`x86_64_avx2::packing::neg`) shipped and stayed green through CI for exactly this reason — the
+/// equivalence test that would have caught it was never built. Wiring an `+avx2`/`+avx512f` job
+/// into CI (`.github/workflows/ci.yml`, outside this crate) would close the gap.
 #[cfg(test)]
 mod ext4_tests {
     use lib_q_stark_field_testing::{

@@ -217,6 +217,62 @@ fn par_fold_reduce_on_empty_returns_identity() {
 }
 
 #[test]
+fn par_fold_reduce_with_non_identity_seed_diverges_by_design() {
+    // REGRESSION PIN, NOT a conformance/spec check: `-7` is deliberately NOT a real additive
+    // identity (only `0` is one for `+`), which `SharedExt::par_fold_reduce`'s own doc comment
+    // states is a misuse of the contract (`reduce_op(identity(), x) == x` must hold). This test
+    // exists to turn that doc-comment claim into something that actually runs and would go red if
+    // either backend's numeric behavior on non-conforming input silently changed — this is
+    // deliberately checking that the two backends DISAGREE by a specific, measured amount, not
+    // that they agree.
+    //
+    // Values were measured directly against this tree, not invented:
+    //   `cargo test -p lib-q-stark-rayon --features parallel -- --nocapture` on a temporary probe
+    //   printed -14 for an empty input and -36 for `[1, 2, 3]`, reproduced identically under
+    //   `RAYON_NUM_THREADS` in {1, 2, 4, 12} (stable because rayon's split structure for such tiny
+    //   inputs does not depend on the configured thread count). The serial backend's value follows
+    //   directly from its documented behavior (`fold(identity(), fold_op)`, `reduce_op` never
+    //   called): -7 for empty, -7+1+2+3=-1 for `[1,2,3]`.
+    //
+    //   IMPORTANT: this determinism does NOT extend to larger inputs. The same probe over
+    //   `1..=100_000` gave a DIFFERENT parallel-backend result under each `RAYON_NUM_THREADS`
+    //   value tried (5000049888 / 5000049524 / 5000047774 / 5000040802 for 1/2/4/12 threads) —
+    //   i.e. for a non-conforming "identity", the parallel result is not even deterministic across
+    //   machines/thread-pool sizes once real splitting kicks in, so no fixed constant could be
+    //   pinned there. That is exactly why this crate cannot "fix" the general divergence: matching
+    //   serial and parallel bit-for-bit under a contract violation would require the serial
+    //   fallback to replicate rayon's thread-count-dependent split tree, which is neither
+    //   deterministic nor something a `no_std`, single-threaded fallback can do. The two backends
+    //   are only guaranteed to agree when `identity`/`reduce_op` form a genuine monoid, exactly as
+    //   documented — see `par_fold_reduce_sum_matches_plain_sum` /
+    //   `par_fold_reduce_on_empty_returns_identity` / `par_fold_reduce_max_matches_plain_max` above
+    //   for the contract-respecting (and therefore backend-agnostic) usage.
+    let empty: Vec<i64> = vec![];
+    let three: Vec<i64> = vec![1, 2, 3];
+
+    let got_empty = empty
+        .into_par_iter()
+        .par_fold_reduce(|| -7i64, |acc, x| acc + x, |a, b| a + b);
+    let got_three = three
+        .into_par_iter()
+        .par_fold_reduce(|| -7i64, |acc, x| acc + x, |a, b| a + b);
+
+    #[cfg(feature = "parallel")]
+    {
+        assert_eq!(got_empty, -14, "parallel empty-input regression pin");
+        assert_eq!(got_three, -36, "parallel len-3 regression pin");
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        assert_eq!(
+            got_empty, -7,
+            "serial empty-input regression pin (fold_op never runs on 0 items; reduce_op ignored)"
+        );
+        assert_eq!(got_three, -1, "serial len-3 regression pin: -7 + 1 + 2 + 3");
+    }
+}
+
+#[test]
 fn par_fold_reduce_max_matches_plain_max() {
     let v: Vec<i64> = vec![3, -5, 42, 17, -100, 8];
     let expected: i64 = v.iter().copied().max().unwrap();

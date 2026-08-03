@@ -1097,4 +1097,52 @@ mod neon_shake256_incremental_keygen_repro {
             "squeezed block must not be all-zero"
         );
     }
+
+    /// Strengthens `keygen_incremental_shake256_x4_does_not_panic` above, which only asserts the
+    /// squeezed block is non-zero -- a non-panicking but *wrong* NEON incremental SHAKE256x4 (e.g.
+    /// a subtly broken lane, an off-by-one in the absorb/squeeze framing, or a state mix-up between
+    /// lanes) would still pass it. This drives the exact same incremental sequence
+    /// (`init_absorb_x4` -> `squeeze_first_block_x4` -> `squeeze_next_block_x4`) that ML-DSA
+    /// keygen's `sample_four_error_ring_elements` uses on both the NEON backend and the portable
+    /// scalar backend (`portable::Shake256X4`, already used as the cross-check oracle in
+    /// `neon_mask_shake_equiv` above for the one-shot `shake256_x4` API) and asserts byte-for-byte
+    /// equality across two squeezed blocks and four distinct, non-uniform seeds per lane -- so a
+    /// lane mix-up (e.g. lane 1's output leaking into lane 2) would also be caught, which uniform
+    /// per-lane seeds (as in the `_does_not_panic` test above) cannot detect.
+    #[test]
+    fn keygen_incremental_shake256_x4_matches_portable_oracle() {
+        use super::portable;
+
+        // Distinct, non-uniform per-lane seeds (unlike the uniform 0x11/0x22/0x33/0x44-repeated
+        // seeds above) so a lane-swap bug can't hide behind identical bytes.
+        let mut seed0 = [0u8; 66];
+        let mut seed1 = [0u8; 66];
+        let mut seed2 = [0u8; 66];
+        let mut seed3 = [0u8; 66];
+        for i in 0..66 {
+            seed0[i] = i as u8;
+            seed1[i] = (i as u8).wrapping_mul(3).wrapping_add(1);
+            seed2[i] = (i as u8).wrapping_mul(7).wrapping_add(2);
+            seed3[i] = 255u8.wrapping_sub(i as u8);
+        }
+
+        let mut neon_state =
+            super::neon::Shake256x4::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
+        let mut portable_state =
+            portable::Shake256X4::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
+
+        let neon_first = neon_state.squeeze_first_block_x4();
+        let portable_first = portable_state.squeeze_first_block_x4();
+        assert_eq!(
+            neon_first, portable_first,
+            "NEON incremental SHAKE256x4 first block diverges from the portable oracle"
+        );
+
+        let neon_next = neon_state.squeeze_next_block_x4();
+        let portable_next = portable_state.squeeze_next_block_x4();
+        assert_eq!(
+            neon_next, portable_next,
+            "NEON incremental SHAKE256x4 second block diverges from the portable oracle"
+        );
+    }
 }

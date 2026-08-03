@@ -1338,6 +1338,14 @@ mod tests {
     /// which panics via `.unwrap_or_else(|| panic!(...))` in
     /// `lib-q-stark-fri/src/two_adic_pcs.rs::natural_domain_for_degree`. This must reject with
     /// `Err(InvalidProofShape)`, not panic.
+    ///
+    /// NOTE: `degree_bits = 40` here is caught by the earlier, field-independent `MAX_DEGREE_BITS`
+    /// (`= 30`) check, not by [`degree_fits_two_adicity`] itself — deleting or inverting
+    /// `degree_fits_two_adicity` does not turn this test red, since `derive_challenges` never
+    /// reaches it for this input. That field-aware guard is exercised directly (in isolation, since
+    /// no test `Air` in this crate has a high enough constraint degree to reach the
+    /// `degree_bits <= 30 but degree_bits + log_num_quotient_chunks + is_zk > 32` gap end-to-end)
+    /// by `test_degree_fits_two_adicity_*` below.
     #[test]
     fn test_derive_challenges_rejects_degree_bits_exceeding_two_adicity() {
         let (air, mut proof, public_values) = sample_arithmetic_proof();
@@ -1353,7 +1361,9 @@ mod tests {
     }
 
     /// Same defect, same guard requirement, for `derive_query_positions`'s independent copy of the
-    /// domain-construction sequence (the second copy found in this file).
+    /// domain-construction sequence (the second copy found in this file). Same caveat as
+    /// `test_derive_challenges_rejects_degree_bits_exceeding_two_adicity` above: this exercises
+    /// `MAX_DEGREE_BITS`, not `degree_fits_two_adicity` itself.
     #[test]
     fn test_derive_query_positions_rejects_degree_bits_exceeding_two_adicity() {
         let (air, mut proof, public_values) = sample_arithmetic_proof();
@@ -1486,5 +1496,61 @@ mod tests {
         proof.opened_values.random = Some(vec![ConfigVal::ZERO]);
         let result = verifier.verify(&air, &proof, &public_values);
         assert!(matches!(result, Err(VerificationError::RandomizationError)));
+    }
+
+    // `degree_fits_two_adicity` direct unit tests.
+    //
+    // The two `test_derive_{challenges,query_positions}_rejects_degree_bits_exceeding_two_adicity`
+    // tests above use `degree_bits = 40`, which is rejected by the earlier, field-independent
+    // `MAX_DEGREE_BITS` (`= 30`) check before `derive_challenges`/`derive_query_positions` ever
+    // reach `degree_fits_two_adicity`. That leaves the function's actual job -- catching a
+    // `degree_bits` that is `<= MAX_DEGREE_BITS` on its own but still overflows the field's
+    // two-adicity once `log_num_quotient_chunks` and the zk offset are added in -- completely
+    // uncovered: deleting the function, or inverting its `<=` to `>`, leaves every existing test in
+    // this module green. `ConfigVal = Complex<Mersenne31>` has `TWO_ADICITY = 32`; these tests call
+    // `degree_fits_two_adicity::<ConfigVal>` directly (it's private to this module, reachable here
+    // via `use super::*`) since no `Air` in this crate has a high enough constraint degree to reach
+    // the gap through the public `derive_challenges`/`derive_query_positions` API (see the note on
+    // those two tests above).
+
+    #[test]
+    fn test_degree_fits_two_adicity_accepts_exact_boundary() {
+        // 30 + 1 + 1 == 32 == TWO_ADICITY: must fit.
+        assert!(degree_fits_two_adicity::<ConfigVal>(30, 1, 1));
+    }
+
+    #[test]
+    fn test_degree_fits_two_adicity_rejects_one_past_boundary() {
+        // 30 + 1 + 2 == 33 > 32 == TWO_ADICITY: must not fit.
+        assert!(!degree_fits_two_adicity::<ConfigVal>(30, 1, 2));
+    }
+
+    #[test]
+    fn test_degree_fits_two_adicity_rejects_degree_bits_within_max_degree_bits_but_over_field() {
+        // The exact gap `MAX_DEGREE_BITS` alone cannot see: `degree_bits = 30` passes
+        // `degree_bits > MAX_DEGREE_BITS` (30 is not > 30), yet
+        // `degree_bits + log_num_quotient_chunks + is_zk = 30 + 3 + 0 = 33 > 32 = TWO_ADICITY`, so
+        // this must still be rejected by `degree_fits_two_adicity`.
+        assert!(30 <= MAX_DEGREE_BITS, "test assumption: 30 must not trip MAX_DEGREE_BITS alone");
+        assert!(!degree_fits_two_adicity::<ConfigVal>(30, 3, 0));
+    }
+
+    #[test]
+    fn test_degree_fits_two_adicity_accepts_well_under_boundary() {
+        assert!(degree_fits_two_adicity::<ConfigVal>(10, 2, 1));
+    }
+
+    #[test]
+    fn test_degree_fits_two_adicity_rejects_zero_degree_bits_with_large_quotient_chunks() {
+        // Even degree_bits = 0 must reject once log_num_quotient_chunks alone exceeds TWO_ADICITY.
+        assert!(!degree_fits_two_adicity::<ConfigVal>(0, 33, 0));
+    }
+
+    #[test]
+    fn test_degree_fits_two_adicity_does_not_panic_on_usize_max() {
+        // `checked_add` must saturate to `None` (rejected), not overflow-panic, for adversarial
+        // inputs at the type's extreme.
+        assert!(!degree_fits_two_adicity::<ConfigVal>(usize::MAX, usize::MAX, usize::MAX));
+        assert!(!degree_fits_two_adicity::<ConfigVal>(usize::MAX, 0, 0));
     }
 }
