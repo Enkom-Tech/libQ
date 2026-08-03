@@ -153,3 +153,202 @@ pub fn tag_from_state(state: &[u64; PLEN]) -> [u8; TAG_BYTES] {
     }
     t
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------
+    // xor_into_rate / rate_to_bytes / set_rate_from_bytes
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn xor_into_rate_exact_multiple_of_8_has_no_remainder_lane_touched() {
+        let mut state = [0u64; PLEN];
+        state[3] = 0xDEAD_BEEF_0000_0000; // lane past the data we XOR in, must stay untouched
+        let data: Vec<u8> = (0u8..24).collect(); // 3 full 8-byte lanes, no remainder
+        xor_into_rate(&mut state, &data);
+        assert_eq!(state[0], u64::from_le_bytes(data[0..8].try_into().unwrap()));
+        assert_eq!(state[1], u64::from_le_bytes(data[8..16].try_into().unwrap()));
+        assert_eq!(
+            state[2],
+            u64::from_le_bytes(data[16..24].try_into().unwrap())
+        );
+        assert_eq!(state[3], 0xDEAD_BEEF_0000_0000, "untouched lane changed");
+    }
+
+    #[test]
+    fn xor_into_rate_remainder_is_xored_not_overwritten() {
+        // data.len() == 10 -> one full 8-byte lane (index 0) plus a 2-byte remainder that must be
+        // XORed into lane index 1 (zero-padded to 8 bytes), combining with whatever was already
+        // there rather than clobbering it.
+        let mut state = [0u64; PLEN];
+        state[1] = 0x0102_0304_0506_0708;
+        let mut data = vec![0u8; 10];
+        data[8] = 0xFF;
+        data[9] = 0x00;
+        xor_into_rate(&mut state, &data);
+        // lane 1 low 2 bytes (LE) XORed with 0x00FF, high 6 bytes untouched.
+        let expected_lane1 = 0x0102_0304_0506_0708u64 ^ 0x0000_0000_0000_00FFu64;
+        assert_eq!(state[1], expected_lane1);
+        assert_eq!(state[0], 0, "unrelated lane must stay zero");
+    }
+
+    #[test]
+    fn rate_roundtrip_preserves_bytes_and_leaves_capacity_alone() {
+        let mut state = [0u64; PLEN];
+        for (i, lane) in state.iter_mut().enumerate() {
+            *lane = (i as u64 + 1).wrapping_mul(0x1111_1111_1111_1111);
+        }
+        let capacity_before = state[17..PLEN].to_vec();
+
+        let mut bytes = [0u8; RATE_BYTES];
+        rate_to_bytes(&state, &mut bytes);
+
+        let mut state2 = [0u64; PLEN];
+        state2[17..PLEN].copy_from_slice(&capacity_before);
+        set_rate_from_bytes(&mut state2, &bytes);
+
+        assert_eq!(state2[..17], state[..17], "rate round-trip must be exact");
+        assert_eq!(
+            state2[17..PLEN],
+            capacity_before[..],
+            "set_rate_from_bytes must not touch capacity lanes"
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // absorb_all
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn absorb_all_empty_matches_manual_single_padded_block() {
+        let mut got = [0u64; PLEN];
+        absorb_all(&mut got, &[]);
+
+        // Manual reference: one all-padding rate block (0x01 at offset 0, 0x80 at the last byte)
+        // then one permutation — mirrors what the implementation does for `rest == 0`.
+        let mut want = [0u64; PLEN];
+        let mut block = [0u8; RATE_BYTES];
+        block[0] ^= 0x01;
+        block[RATE_BYTES - 1] ^= 0x80;
+        xor_into_rate(&mut want, &block);
+        f1600(&mut want);
+
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn absorb_all_exact_rate_boundary_adds_a_second_padding_only_block() {
+        // data.len() == RATE_BYTES: the main loop consumes exactly one full rate block (XOR + one
+        // permutation), then because `rest == 0` a SECOND, purely-padding block still gets
+        // absorbed (own XOR + own permutation). If that second block were skipped, this would
+        // equal the "one loop iteration only" reference instead.
+        let data = [0x5Au8; RATE_BYTES];
+
+        let mut got = [0u64; PLEN];
+        absorb_all(&mut got, &data);
+
+        let mut loop_only = [0u64; PLEN];
+        xor_into_rate(&mut loop_only, &data);
+        f1600(&mut loop_only);
+        assert_ne!(
+            got, loop_only,
+            "absorb_all must apply the trailing padding-only block even on an exact-rate input"
+        );
+
+        let mut want = loop_only;
+        let mut pad = [0u8; RATE_BYTES];
+        pad[0] ^= 0x01;
+        pad[RATE_BYTES - 1] ^= 0x80;
+        xor_into_rate(&mut want, &pad);
+        f1600(&mut want);
+        assert_eq!(got, want);
+    }
+
+    // -----------------------------------------------------------------
+    // init_key_nonce / duplex_encrypt_chunk / duplex_decrypt_chunk / tag_from_state
+    // -----------------------------------------------------------------
+
+    fn fresh_state() -> [u64; PLEN] {
+        let key = [0x42u8; KEY_BYTES];
+        let nonce = [0x24u8; NONCE_BYTES];
+        let mut state = [0u64; PLEN];
+        init_key_nonce(&mut state, &key, &nonce);
+        state
+    }
+
+    #[test]
+    fn init_key_nonce_is_deterministic_and_key_dependent() {
+        let a = fresh_state();
+        let b = fresh_state();
+        assert_eq!(a, b, "same key/nonce must give the same initial state");
+
+        let mut c = [0u64; PLEN];
+        init_key_nonce(&mut c, &[0x43u8; KEY_BYTES], &[0x24u8; NONCE_BYTES]);
+        assert_ne!(a, c, "different key must give a different initial state");
+    }
+
+    #[test]
+    fn duplex_chunk_roundtrip_full_rate() {
+        let mut enc_state = fresh_state();
+        let mut dec_state = fresh_state();
+        let pt = [0xABu8; RATE_BYTES];
+        let mut ct = [0u8; RATE_BYTES];
+        duplex_encrypt_chunk(&mut enc_state, &pt, &mut ct);
+        assert_ne!(ct.as_slice(), pt.as_slice(), "ciphertext must differ from plaintext");
+
+        let mut recovered = [0u8; RATE_BYTES];
+        duplex_decrypt_chunk(&mut dec_state, &ct, &mut recovered);
+        assert_eq!(recovered, pt);
+        assert_eq!(
+            enc_state, dec_state,
+            "encrypt/decrypt of matching data must leave the duplex states in sync"
+        );
+    }
+
+    #[test]
+    fn duplex_chunk_roundtrip_partial() {
+        for len in [1usize, 17, RATE_BYTES - 1] {
+            let mut enc_state = fresh_state();
+            let mut dec_state = fresh_state();
+            let pt: Vec<u8> = (0..len).map(|i| i as u8).collect();
+            let mut ct = vec![0u8; len];
+            duplex_encrypt_chunk(&mut enc_state, &pt, &mut ct);
+
+            let mut recovered = vec![0u8; len];
+            duplex_decrypt_chunk(&mut dec_state, &ct, &mut recovered);
+            assert_eq!(recovered, pt, "len={len}");
+            assert_eq!(enc_state, dec_state, "len={len}");
+        }
+    }
+
+    #[test]
+    fn duplex_chunk_roundtrip_empty_does_not_panic() {
+        let mut enc_state = fresh_state();
+        let mut dec_state = fresh_state();
+        let pt: [u8; 0] = [];
+        let mut ct: [u8; 0] = [];
+        duplex_encrypt_chunk(&mut enc_state, &pt, &mut ct);
+        let mut recovered: [u8; 0] = [];
+        duplex_decrypt_chunk(&mut dec_state, &ct, &mut recovered);
+        assert_eq!(enc_state, dec_state);
+    }
+
+    #[test]
+    fn tag_from_state_reads_first_four_lanes_little_endian() {
+        let mut state = [0u64; PLEN];
+        state[0] = 0x0102_0304_0506_0708;
+        state[1] = 0x1112_1314_1516_1718;
+        state[2] = 0x2122_2324_2526_2728;
+        state[3] = 0x3132_3334_3536_3738;
+        state[4] = 0x4142_4344_4546_4748; // must NOT be included in the tag
+        let tag = tag_from_state(&state);
+        let mut expected = [0u8; TAG_BYTES];
+        expected[0..8].copy_from_slice(&state[0].to_le_bytes());
+        expected[8..16].copy_from_slice(&state[1].to_le_bytes());
+        expected[16..24].copy_from_slice(&state[2].to_le_bytes());
+        expected[24..32].copy_from_slice(&state[3].to_le_bytes());
+        assert_eq!(tag, expected);
+    }
+}

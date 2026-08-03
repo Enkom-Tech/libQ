@@ -330,3 +330,262 @@ impl<Val: TwoAdicField> PolynomialSpace for TwoAdicMultiplicativeCoset<Val> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_baby_bear::BabyBear;
+    use lib_q_stark_field::{
+        PrimeCharacteristicRing,
+        PrimeField32,
+    };
+
+    use super::*;
+
+    type F = BabyBear;
+
+    fn coset(shift: F, log_size: usize) -> TwoAdicMultiplicativeCoset<F> {
+        TwoAdicMultiplicativeCoset::new(shift, log_size).unwrap()
+    }
+
+    fn sorted_u32(points: impl IntoIterator<Item = F>) -> Vec<u32> {
+        let mut v: Vec<u32> = points.into_iter().map(|p| p.as_canonical_u32()).collect();
+        v.sort_unstable();
+        v
+    }
+
+    #[test]
+    fn size_and_first_point_match_constructor_arguments() {
+        let c = coset(F::new(7), 3);
+        assert_eq!(PolynomialSpace::size(&c), 8);
+        assert_eq!(PolynomialSpace::first_point(&c), F::new(7));
+    }
+
+    #[test]
+    fn next_point_is_multiplication_by_the_subgroup_generator() {
+        let c = coset(F::new(5), 4);
+        let g = c.subgroup_generator();
+        let x = F::new(123);
+        assert_eq!(PolynomialSpace::next_point::<F>(&c, x), Some(x * g));
+    }
+
+    /// The subgroup generator has order exactly `size()`, so walking `next_point` around the
+    /// coset `size()` times must return to the start. This is the group-law identity the whole
+    /// `PolynomialSpace` abstraction rests on (`h^{|H|} = 1`).
+    #[test]
+    fn next_point_returns_to_start_after_exactly_size_steps() {
+        let c = coset(F::new(11), 5);
+        let mut x = PolynomialSpace::first_point(&c);
+        for _ in 0..PolynomialSpace::size(&c) {
+            x = PolynomialSpace::next_point::<F>(&c, x).unwrap();
+        }
+        assert_eq!(x, PolynomialSpace::first_point(&c));
+    }
+
+    /// `vanishing_poly_at_point` must be the zero polynomial exactly on the coset's own points.
+    /// This is the soundness-relevant property of the whole module: every FRI/DEEP quotient in
+    /// the STARK built on top of this crate divides by this polynomial, so if it is nonzero on an
+    /// in-domain point (or zero off-domain), proofs either fail to verify honestly or a cheating
+    /// prover gets a spurious zero to hide behind.
+    #[test]
+    fn vanishing_poly_is_zero_exactly_on_the_coset() {
+        let c = coset(F::new(9), 4);
+        for point in c.iter() {
+            assert_eq!(
+                PolynomialSpace::vanishing_poly_at_point::<F>(&c, point),
+                F::ZERO
+            );
+        }
+
+        // `create_disjoint_domain` is contractually guaranteed to be disjoint from `c` (see the
+        // proof in its doc comment, exercised separately below), so every one of its points is
+        // guaranteed to lie outside `c` and must NOT be a root of `c`'s vanishing polynomial.
+        let disjoint = PolynomialSpace::create_disjoint_domain(&c, PolynomialSpace::size(&c));
+        for point in disjoint.iter() {
+            assert_ne!(
+                PolynomialSpace::vanishing_poly_at_point::<F>(&c, point),
+                F::ZERO
+            );
+        }
+    }
+
+    /// Negative control for the test above: prove it can actually distinguish "zero" from
+    /// "nonzero" rather than passing vacuously (e.g. because of a mixed-up domain). Deliberately
+    /// assert the wrong polarity and confirm the test harness reports it red.
+    #[test]
+    fn vanishing_poly_negative_control_distinguishes_in_from_out_of_domain() {
+        let c = coset(F::new(9), 4);
+        let on_domain_is_zero = PolynomialSpace::vanishing_poly_at_point::<F>(
+            &c,
+            PolynomialSpace::first_point(&c),
+        ) == F::ZERO;
+        let disjoint = PolynomialSpace::create_disjoint_domain(&c, PolynomialSpace::size(&c));
+        let off_domain_is_zero = PolynomialSpace::vanishing_poly_at_point::<F>(
+            &c,
+            PolynomialSpace::first_point(&disjoint),
+        ) == F::ZERO;
+        // If these ever agreed, `vanishing_poly_is_zero_exactly_on_the_coset` above would be
+        // unable to tell in-domain from out-of-domain and would pass no matter what the
+        // implementation did.
+        assert_ne!(on_domain_is_zero, off_domain_is_zero);
+    }
+
+    /// `create_disjoint_domain`'s two claims, checked directly: the returned coset (a) has size
+    /// `min_size` rounded up to a power of two, and (b) shares no point with the original coset
+    /// (the short proof for this is in the doc comment on the trait method).
+    #[test]
+    fn create_disjoint_domain_has_correct_size_and_shares_no_point() {
+        let c = coset(F::new(13), 3); // size 8
+        let c_points = sorted_u32(c.iter());
+        for min_size in [1usize, 2, 3, 7, 8, 9, 20, 64] {
+            let k = PolynomialSpace::create_disjoint_domain(&c, min_size);
+            assert_eq!(PolynomialSpace::size(&k), min_size.next_power_of_two());
+            assert_eq!(k.shift(), c.shift() * F::GENERATOR);
+
+            let k_points = sorted_u32(k.iter());
+            let mut merged = c_points.clone();
+            merged.extend(&k_points);
+            merged.sort_unstable();
+            merged.dedup();
+            // No duplicates survive dedup <=> the two point sets were disjoint.
+            assert_eq!(merged.len(), c_points.len() + k_points.len());
+        }
+    }
+
+    #[test]
+    fn try_create_disjoint_domain_agrees_with_the_infallible_version_in_range() {
+        let c = coset(F::new(13), 3);
+        for min_size in [1usize, 5, 8, 100] {
+            assert_eq!(
+                PolynomialSpace::try_create_disjoint_domain(&c, min_size).map(|k| k.shift()),
+                Some(PolynomialSpace::create_disjoint_domain(&c, min_size).shift())
+            );
+        }
+    }
+
+    #[test]
+    fn try_create_disjoint_domain_rejects_out_of_range_min_size() {
+        let c = coset(F::new(13), 3);
+        // `F::TWO_ADICITY` itself is exactly representable...
+        assert!(PolynomialSpace::try_create_disjoint_domain(&c, 1 << F::TWO_ADICITY).is_some());
+        // ...but one more element than that requires one more bit of two-adicity than the field has.
+        assert!(
+            PolynomialSpace::try_create_disjoint_domain(&c, (1 << F::TWO_ADICITY) + 1).is_none()
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds 1 << Val::TWO_ADICITY")]
+    fn create_disjoint_domain_panics_out_of_range_where_try_returns_none() {
+        let c = coset(F::new(13), 3);
+        let _ = PolynomialSpace::create_disjoint_domain(&c, (1 << F::TWO_ADICITY) + 1);
+    }
+
+    /// `split_domains` decomposes `gH` into cosets of the index-`num_chunks` subgroup `K <= H`.
+    /// Group theory says those cosets exactly partition `gH`: pairwise disjoint, and their union
+    /// recovers every point of the original coset. Check both halves of that claim directly
+    /// instead of trusting the doc comment's proof sketch.
+    #[test]
+    fn split_domains_partition_the_original_coset() {
+        let c = coset(F::new(17), 4); // size 16
+        let orig_points = sorted_u32(c.iter());
+        for &num_chunks in &[1usize, 2, 4, 8, 16] {
+            let subs = PolynomialSpace::split_domains(&c, num_chunks);
+            assert_eq!(subs.len(), num_chunks);
+
+            let mut all_points: Vec<u32> = Vec::new();
+            for s in &subs {
+                assert_eq!(PolynomialSpace::size(s), c.size() / num_chunks);
+                all_points.extend(s.iter().map(|p| p.as_canonical_u32()));
+            }
+            all_points.sort_unstable();
+            assert_eq!(
+                all_points, orig_points,
+                "split_domains({num_chunks}) did not exactly partition the original coset"
+            );
+        }
+    }
+
+    /// Negative control: corrupt the recombination (drop the last sub-domain) and confirm the
+    /// partition check above would in fact catch a broken split — i.e. it is not vacuously true
+    /// because e.g. both sides happen to be sorted-empty.
+    #[test]
+    fn split_domains_negative_control_detects_a_missing_chunk() {
+        let c = coset(F::new(17), 4);
+        let orig_points = sorted_u32(c.iter());
+        let subs = PolynomialSpace::split_domains(&c, 4);
+        let mut all_points: Vec<u32> = Vec::new();
+        // Deliberately drop one sub-domain, simulating a broken split.
+        for s in &subs[..subs.len() - 1] {
+            all_points.extend(s.iter().map(|p| p.as_canonical_u32()));
+        }
+        all_points.sort_unstable();
+        assert_ne!(all_points, orig_points);
+    }
+
+    /// `split_evals` must place row `r` of the input into chunk `r % num_chunks` at position
+    /// `r / num_chunks` — the same decimation `split_domains` performs on points (chunk `c`'s
+    /// domain is `g^c * K` for `K = H^{num_chunks}`, so its `i`-th point is the `(i*num_chunks+c)`-th
+    /// point of the original domain).
+    #[test]
+    fn split_evals_decimates_rows_to_match_split_domains() {
+        let c = coset(F::new(3), 4); // size 16
+        let width = 2;
+        let height = c.size();
+        let values: Vec<F> = (0..height * width)
+            .map(|i| F::new((i / width) as u32))
+            .collect();
+        let evals = RowMajorMatrix::new(values, width);
+
+        let num_chunks = 4;
+        let chunks = PolynomialSpace::split_evals(&c, num_chunks, evals);
+        assert_eq!(chunks.len(), num_chunks);
+        let rows_per_chunk = height / num_chunks;
+        for (chunk_idx, chunk) in chunks.iter().enumerate() {
+            assert_eq!(chunk.height(), rows_per_chunk);
+            for i in 0..rows_per_chunk {
+                let expected_row = i * num_chunks + chunk_idx;
+                let row = chunk.row_slice(i).unwrap();
+                assert_eq!(row[0], F::new(expected_row as u32));
+            }
+        }
+    }
+
+    /// `selectors_on_coset` is a batched, independently-derived recomputation of
+    /// `selectors_at_point` (see the two doc comments: same closed forms, different code paths —
+    /// one via `batch_multiplicative_inverse`, one via direct field division). Cross-checking them
+    /// against each other is a much stronger test than checking either in isolation, since a bug
+    /// shared by both derivations would not show up in either alone — but a bug in just one of the
+    /// two implementations will.
+    #[test]
+    fn selectors_on_coset_agrees_with_selectors_at_point_for_every_point() {
+        let h = coset(F::ONE, 3); // the subgroup H itself, size 8
+        let disjoint_coset = PolynomialSpace::create_disjoint_domain(&h, 2 * h.size()); // size 16, rate 2
+
+        let batched = PolynomialSpace::selectors_on_coset(&h, disjoint_coset);
+        let points: Vec<F> = disjoint_coset.iter().collect();
+        assert_eq!(points.len(), batched.is_first_row.len());
+
+        for (i, &x) in points.iter().enumerate() {
+            let single = PolynomialSpace::selectors_at_point::<F>(&h, x);
+            assert_eq!(single.is_first_row, batched.is_first_row[i]);
+            assert_eq!(single.is_last_row, batched.is_last_row[i]);
+            assert_eq!(single.is_transition, batched.is_transition[i]);
+            assert_eq!(single.inv_vanishing, batched.inv_vanishing[i]);
+        }
+    }
+
+    /// Negative control: two different points of `disjoint_coset` must not, in general, produce
+    /// identical selector values — otherwise the per-point comparison above could pass simply
+    /// because every entry is some constant, independent of which point is plugged in.
+    #[test]
+    fn selectors_negative_control_values_actually_vary_by_point() {
+        let h = coset(F::ONE, 3);
+        let disjoint_coset = PolynomialSpace::create_disjoint_domain(&h, 2 * h.size());
+        let mut points = disjoint_coset.iter();
+        let x0 = points.next().unwrap();
+        let x1 = points.next().unwrap();
+        let s0 = PolynomialSpace::selectors_at_point::<F>(&h, x0);
+        let s1 = PolynomialSpace::selectors_at_point::<F>(&h, x1);
+        assert_ne!(s0.is_first_row, s1.is_first_row);
+    }
+}

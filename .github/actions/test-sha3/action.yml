@@ -24,7 +24,7 @@ inputs:
     default: "sha3-224,sha3-256,sha3-384,sha3-512,keccak224,keccak256,keccak384,keccak512,turboshake128,turboshake256"
     required: false
   run-benchmarks:
-    description: Whether to run benchmarks (requires nightly)
+    description: Whether to run benchmarks
     default: "false"
     required: false
 
@@ -172,12 +172,24 @@ runs:
         cargo hack test --feature-powerset --exclude-features default --skip asm
         echo "Feature powerset test completed"
         
-    - name: Run benchmarks (nightly only)
+    - name: Run benchmarks
       if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
       shell: bash
       run: |
         echo "Running SHA3 benchmarks..."
         rm -rf target/release
         cd ${{ inputs.working-directory }}
-        cargo bench --features "nightly" --bench sha3 || echo "No SHA3 benchmarks found"
+        # OBSERVED 2026-08-03: `[[bench]]` in lib-q-sha3/Cargo.toml is `name = "sha3_benchmarks"`,
+        # not "sha3" -- `cargo bench --bench sha3` always failed with "no bench target named
+        # `sha3`". lib-q-sha3 also has no `nightly` feature at all (`cargo bench -p lib-q-sha3
+        # --features nightly` errors with "the package 'lib-q-sha3' does not contain this
+        # feature"), and doesn't need one: the bench is criterion-based (`harness = false`), which
+        # runs on stable. The old `|| echo "No SHA3 benchmarks found"` made that permanent
+        # double-breakage indistinguishable from "benchmarks happen not to exist yet". Verified
+        # locally: `cargo bench --bench sha3_benchmarks -- --test` (no `--features` flag) exits 0
+        # and reports "Success" for every benchmark group. This step is currently unreachable
+        # anyway -- every caller of this action in ci.yml sets rust-version:"stable" -- so fixing
+        # the invocation carries no risk to the current green build; it only fixes what would
+        # happen the day someone enables this row.
+        cargo bench --bench sha3_benchmarks
         echo "SHA3 benchmarks completed"

@@ -165,6 +165,39 @@ type CommitmentRounds<C: StarkGenericConfig> = Vec<(
 type QuotientRounds<C: StarkGenericConfig> =
     Vec<(Domain<C>, Vec<(C::Challenge, Vec<C::Challenge>)>)>;
 
+/// Maximum degree bits (2^30), field-independent, to prevent memory-exhaustion attacks.
+///
+/// Mirrors `lib-q-stark/src/verifier.rs::MAX_DEGREE_BITS` (card t_00ab900a): on its own this bound
+/// is NOT sufficient to prevent panics, since every concrete field used in this workspace has a
+/// two-adicity well below 30 (e.g. `Complex<Mersenne31>`'s is 32, but combined with a nonzero
+/// `log_num_quotient_chunks` or `is_zk` offset the sum can still exceed it). See
+/// [`degree_fits_two_adicity`] for the actual (field-aware) bound that must be checked before any
+/// domain is constructed from an untrusted `degree_bits`.
+const MAX_DEGREE_BITS: usize = 30;
+
+/// Returns `true` iff every domain derived from `degree_bits` -- the trace domain (`degree_bits`),
+/// the quotient domain (`degree_bits + log_num_quotient_chunks`), and their zk-randomized
+/// re-domainings -- fits within the field's two-adicity, i.e. none of the downstream
+/// `Pcs::natural_domain_for_degree` / `PolynomialSpace::create_disjoint_domain` calls (which panic
+/// via `TwoAdicMultiplicativeCoset::new(..).unwrap()` once the requested log-size exceeds
+/// `F::TWO_ADICITY`) can fail.
+///
+/// This is the same check as `lib-q-stark/src/verifier.rs::degree_fits_two_adicity` (card
+/// t_00ab900a fixed the primary verifier's unauthenticated pre-verification DoS there); this is a
+/// second, independent copy for `StarkVerifier::derive_challenges` /
+/// `StarkVerifier::derive_query_positions`, which build the same domains from the same untrusted
+/// `proof.degree_bits` but are not exported from `lib_q_stark` for reuse here.
+fn degree_fits_two_adicity<F: TwoAdicField>(
+    degree_bits: usize,
+    log_num_quotient_chunks: usize,
+    is_zk: usize,
+) -> bool {
+    degree_bits
+        .checked_add(log_num_quotient_chunks)
+        .and_then(|n| n.checked_add(is_zk))
+        .is_some_and(|n| n <= F::TWO_ADICITY)
+}
+
 /// zk-STARK prover
 ///
 /// This is a high-level wrapper around the STARK proving functionality.
@@ -321,6 +354,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
     where
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
+        Val<C>: TwoAdicField,
         <<C as StarkGenericConfig>::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof:
             FriDataExtractor<Challenge = C::Challenge>,
         C::Challenger: CanObserve<Val<C>>
@@ -345,13 +379,21 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             return Err(VerificationError::InvalidProofShape);
         }
 
+        // Validate `degree_bits` before it is used in any shift/subtraction/domain construction:
+        // see `degree_fits_two_adicity` (card t_00ab900a's fix, mirrored here since
+        // `derive_challenges` carries its own copy of the same domain-construction sequence).
+        if degree_bits > MAX_DEGREE_BITS {
+            return Err(VerificationError::InvalidProofShape);
+        }
+        // Reject before any subtraction/shift by the zk offset would underflow/panic.
+        if degree_bits < config.is_zk() {
+            return Err(VerificationError::InvalidProofShape);
+        }
+
         let degree = 1 << degree_bits;
         if degree == 0 {
             return Err(VerificationError::InvalidProofShape);
         }
-
-        let trace_domain: Domain<C> = pcs.natural_domain_for_degree(degree);
-        let init_trace_domain = pcs.natural_domain_for_degree(degree >> config.is_zk());
 
         let log_num_quotient_chunks = get_log_num_quotient_chunks::<Val<C>, A>(
             air,
@@ -360,6 +402,18 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             config.is_zk(),
         );
         let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
+
+        // Reject BEFORE constructing any domain: `MAX_DEGREE_BITS` alone is field-independent and
+        // does not keep `degree_bits + log_num_quotient_chunks + is_zk` under the field's
+        // two-adicity, so an attacker-chosen `degree_bits` in that gap would otherwise panic
+        // `natural_domain_for_degree`/`create_disjoint_domain` below.
+        if !degree_fits_two_adicity::<Val<C>>(degree_bits, log_num_quotient_chunks, config.is_zk())
+        {
+            return Err(VerificationError::InvalidProofShape);
+        }
+
+        let trace_domain: Domain<C> = pcs.natural_domain_for_degree(degree);
+        let init_trace_domain = pcs.natural_domain_for_degree(degree >> config.is_zk());
 
         if (opened_values.random.is_some() != C::Pcs::ZK) ||
             (commitments.random.is_some() != C::Pcs::ZK)
@@ -482,6 +536,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
     where
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
+        Val<C>: TwoAdicField,
         <<C as StarkGenericConfig>::Pcs as Pcs<C::Challenge, C::Challenger>>::Proof:
             FriDataExtractor<Challenge = C::Challenge>,
         C::Challenger: CanObserve<Val<C>>
@@ -510,6 +565,17 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             return Err(VerificationError::InvalidProofShape);
         }
 
+        // Validate `degree_bits` before it is used in any shift/subtraction/domain construction:
+        // see `degree_fits_two_adicity` (card t_00ab900a's fix, mirrored here since
+        // `derive_query_positions` carries its own copy of the same domain-construction sequence).
+        if degree_bits > MAX_DEGREE_BITS {
+            return Err(VerificationError::InvalidProofShape);
+        }
+        // Reject before any subtraction/shift by the zk offset would underflow/panic.
+        if degree_bits < config.is_zk() {
+            return Err(VerificationError::InvalidProofShape);
+        }
+
         let degree = 1 << degree_bits;
         if degree == 0 {
             return Err(VerificationError::InvalidProofShape);
@@ -522,6 +588,12 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             config.is_zk(),
         );
         let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
+
+        // Reject BEFORE constructing any domain (see `derive_challenges` for the full rationale).
+        if !degree_fits_two_adicity::<Val<C>>(degree_bits, log_num_quotient_chunks, config.is_zk())
+        {
+            return Err(VerificationError::InvalidProofShape);
+        }
 
         if (opened_values.random.is_some() != C::Pcs::ZK) ||
             (commitments.random.is_some() != C::Pcs::ZK)
@@ -1255,6 +1327,52 @@ mod tests {
         proof.opened_values.quotient_chunks.clear();
         let result = verifier.derive_challenges(&air, &proof, &public_values);
         assert!(matches!(result, Err(VerificationError::InvalidProofShape)));
+    }
+
+    /// `StarkVerifier::derive_challenges` carried its own unguarded copy of the domain-construction
+    /// sequence fixed for the primary verifier in `lib-q-stark/src/verifier.rs` (card t_00ab900a /
+    /// `degree_fits_two_adicity`): it builds `trace_domain`/`init_trace_domain` via
+    /// `pcs.natural_domain_for_degree` from an attacker-tamperable `proof.degree_bits` BEFORE any
+    /// bound check. `DefaultConfig`'s field is `Complex<Mersenne31>` (`TWO_ADICITY = 32`), so a
+    /// `degree_bits` of 40 drives `TwoAdicMultiplicativeCoset::new` past the field's two-adicity,
+    /// which panics via `.unwrap_or_else(|| panic!(...))` in
+    /// `lib-q-stark-fri/src/two_adic_pcs.rs::natural_domain_for_degree`. This must reject with
+    /// `Err(InvalidProofShape)`, not panic.
+    #[test]
+    fn test_derive_challenges_rejects_degree_bits_exceeding_two_adicity() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+
+        proof.degree_bits = 40;
+        let result = verifier.derive_challenges(&air, &proof, &public_values);
+        assert!(
+            matches!(result, Err(VerificationError::InvalidProofShape)),
+            "degree_bits = 40 (> Complex<Mersenne31>::TWO_ADICITY = 32) must reject with \
+             InvalidProofShape, got: {result:?}"
+        );
+    }
+
+    /// Same defect, same guard requirement, for `derive_query_positions`'s independent copy of the
+    /// domain-construction sequence (the second copy found in this file).
+    #[test]
+    fn test_derive_query_positions_rejects_degree_bits_exceeding_two_adicity() {
+        let (air, mut proof, public_values) = sample_arithmetic_proof();
+        let verifier = StarkVerifier::new(default_config());
+        let (log_blowup, num_queries, proof_of_work_bits) = default_fri_params_for_tests();
+        let fri_params = FriQueryParams {
+            num_queries,
+            log_blowup,
+            log_final_poly_len: 0,
+            proof_of_work_bits,
+        };
+
+        proof.degree_bits = 40;
+        let result = verifier.derive_query_positions(&air, &proof, &public_values, &fri_params);
+        assert!(
+            matches!(result, Err(VerificationError::InvalidProofShape)),
+            "degree_bits = 40 (> Complex<Mersenne31>::TWO_ADICITY = 32) must reject with \
+             InvalidProofShape, got: {result:?}"
+        );
     }
 
     #[test]

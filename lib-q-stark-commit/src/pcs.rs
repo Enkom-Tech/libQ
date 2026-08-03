@@ -249,3 +249,129 @@ pub type OpenedValues<F> = Vec<OpenedValuesForRound<F>>;
 pub type OpenedValuesForRound<F> = Vec<OpenedValuesForMatrix<F>>;
 pub type OpenedValuesForMatrix<F> = Vec<OpenedValuesForPoint<F>>;
 pub type OpenedValuesForPoint<F> = Vec<F>;
+
+#[cfg(test)]
+mod tests {
+    use alloc::vec;
+    use core::marker::PhantomData;
+
+    use lib_q_stark_baby_bear::BabyBear;
+    use lib_q_stark_challenger::Shake128Challenger32;
+    use lib_q_stark_dft::NaiveDft;
+    use lib_q_stark_dft::TwoAdicSubgroupDft;
+    use lib_q_stark_field::PrimeCharacteristicRing;
+    use lib_q_stark_shake128::Shake128Hash;
+
+    use super::*;
+    use crate::testing::{
+        TrivialPcs,
+        eval_coeffs_at_pt,
+    };
+
+    type F = BabyBear;
+    type Challenge = F;
+    type Challenger = Shake128Challenger32<F>;
+
+    fn pcs(log_n: usize) -> TrivialPcs<F, NaiveDft> {
+        TrivialPcs {
+            dft: NaiveDft,
+            log_n,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn challenger() -> Challenger {
+        Challenger::from_hasher(Vec::new(), Shake128Hash)
+    }
+
+    /// Coefficients (one polynomial per column, low-degree-first down each column) for two
+    /// distinct small polynomials over an 8-element domain.
+    fn coeffs() -> RowMajorMatrix<F> {
+        RowMajorMatrix::new(
+            [1u32, 10, 2, 0, 3, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0]
+                .into_iter()
+                .map(F::new)
+                .collect(),
+            2,
+        )
+    }
+
+    /// `TrivialPcs::commit` is documented as "only commit on larger domain than natural": it takes
+    /// evaluations over a domain and recovers coefficients via an inverse DFT weighted by the
+    /// domain's shift. On the *natural* domain (shift = `ONE`, so the weighting is a no-op), this
+    /// must exactly invert the forward DFT used to build the evaluations in the first place.
+    #[test]
+    fn commit_recovers_the_original_coefficients_on_the_natural_domain() {
+        let p = pcs(3);
+        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let original = coeffs();
+        let evals = NaiveDft.dft_batch(original.clone());
+
+        let (_commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+        assert_eq!(prover_data[0], original);
+    }
+
+    /// End-to-end `commit` -> `open` -> `verify` round trip: the value produced by `open` for an
+    /// arbitrary (off-domain) evaluation point must be the true evaluation of the committed
+    /// polynomial there, and `verify` must accept that (correct) claim.
+    #[test]
+    fn open_and_verify_accept_an_honest_evaluation_claim() {
+        let p = pcs(3);
+        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let original = coeffs();
+        let evals = NaiveDft.dft_batch(original.clone());
+        let (commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+
+        let z = F::new(12345);
+        let expected = eval_coeffs_at_pt(&original, z);
+
+        let (opened, proof) = Pcs::<Challenge, Challenger>::open(
+            &p,
+            vec![(&prover_data, vec![vec![z]])],
+            &mut challenger(),
+        );
+        assert_eq!(opened[0][0][0], expected);
+
+        Pcs::<Challenge, Challenger>::verify(
+            &p,
+            vec![(commitment, vec![(domain, vec![(z, opened[0][0][0].clone())])])],
+            &proof,
+            &mut challenger(),
+        )
+        .expect("verify must accept the value `open` itself produced for an honest commitment");
+    }
+
+    /// Negative control for the round trip above: assert a claimed evaluation known to be wrong
+    /// and confirm `verify` does NOT accept it. `TrivialPcs` is a testing-only PCS that signals a
+    /// bad claim by panicking (`assert_eq!` internally, documented on `Pcs::verify`'s impl), so the
+    /// failure mode here is a panic rather than an `Err`.
+    #[test]
+    #[should_panic]
+    fn verify_rejects_a_tampered_evaluation_claim() {
+        let p = pcs(3);
+        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let original = coeffs();
+        let evals = NaiveDft.dft_batch(original.clone());
+        let (commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+
+        let z = F::new(12345);
+        let (_opened, proof) = Pcs::<Challenge, Challenger>::open(
+            &p,
+            vec![(&prover_data, vec![vec![z]])],
+            &mut challenger(),
+        );
+
+        let tampered_value = eval_coeffs_at_pt(&original, z)
+            .into_iter()
+            .map(|v| v + F::ONE)
+            .collect();
+
+        Pcs::<Challenge, Challenger>::verify(
+            &p,
+            vec![(commitment, vec![(domain, vec![(z, tampered_value)])])],
+            &proof,
+            &mut challenger(),
+        )
+        .ok();
+    }
+}

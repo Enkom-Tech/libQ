@@ -342,7 +342,8 @@ impl<P: HqcParams> ReedMuller<P> {
     /// Broadcast the least significant bit of x to a 32-bit mask (BIT0MASK from reference)
     /// Returns -1 if bit 0 is set, 0 otherwise (as int32_t)
     fn bit0mask(&self, x: i32) -> i32 {
-        if (x & 1) == 1 { -1i32 } else { 0i32 }
+        // Arithmetic mask, no branch: `x & 1` is 0 or 1; negating gives 0 or -1 (all-ones).
+        -(x & 1)
     }
 
     /// Expand and sum duplicated codewords as per reference implementation
@@ -406,27 +407,30 @@ impl<P: HqcParams> ReedMuller<P> {
         // Find the peak with highest absolute value - exact match to reference
         for (i, &t) in transform.iter().enumerate() {
             let t = t as i32;
-            let pos_mask = if t > 0 { -1i32 } else { 0i32 };
+            // pos_mask = -1 if t > 0, else 0. Arithmetic (sign-bit) mask, not `if`: for t > 0,
+            // `-t` is negative, so the arithmetic right shift by 31 sign-extends to all-ones; for
+            // t <= 0, `-t` is >= 0, so the shift yields 0.
+            let pos_mask = (-t) >> 31;
             let absolute = (pos_mask & t) | (!pos_mask & -t);
 
-            peak_value = if absolute > peak_abs_value {
-                t
-            } else {
-                peak_value
-            };
-            peak_pos = if absolute > peak_abs_value {
-                i as i32
-            } else {
-                peak_pos
-            };
-            peak_abs_value = if absolute > peak_abs_value {
-                absolute
-            } else {
-                peak_abs_value
-            };
+            // is_new_peak = -1 (all-ones) if absolute > peak_abs_value, else 0. Both operands are
+            // non-negative (they are absolute values), so comparing via unsigned wraparound —
+            // the same "difference wraps negative" idiom used throughout `reed_solomon.rs`'s
+            // `ct_mask_lt_u16` — is safe: `peak_abs_value < absolute` wraps
+            // `(peak_abs_value as u32).wrapping_sub(absolute as u32)` negative (top bit set) iff
+            // `absolute > peak_abs_value`.
+            let is_new_peak = 0i32.wrapping_sub(
+                (((peak_abs_value as u32).wrapping_sub(absolute as u32)) >> 31) as i32,
+            );
+
+            peak_value = (is_new_peak & t) | (!is_new_peak & peak_value);
+            peak_pos = (is_new_peak & (i as i32)) | (!is_new_peak & peak_pos);
+            peak_abs_value = (is_new_peak & absolute) | (!is_new_peak & peak_abs_value);
         }
 
-        // Set bit 7 if peak is positive - exact match to reference
+        // Set bit 7 if peak is positive - exact match to reference. `(peak_value > 0) as i32` is
+        // a comparison-to-flag, not a data-dependent branch, and matches the reference's own
+        // `peak_pos |= 128 * (peak_v > 0);` idiom verbatim, so it is left as-is.
         peak_pos |= 128 * (peak_value > 0) as i32;
 
         peak_pos

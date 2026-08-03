@@ -5,7 +5,57 @@
 
 use core::fmt;
 
+use crate::gf as ctgf;
 use crate::params_correct::HqcParams;
+
+/// Branch-free "not equal to zero" mask over `u8`: returns `0xFF` if `x != 0`, else `0x00`.
+/// Standard "is this word nonzero" trick via `wrapping_neg`, matching the idiom used throughout
+/// `reference/hqc/src/ref/reed_solomon.c` and `lib-q-hqc/src/gf.rs`'s `eq_select`.
+#[inline]
+fn ct_mask_nonzero_u8(x: u8) -> u8 {
+    (((x as u16).wrapping_neg()) >> 8) as u8
+}
+
+/// Branch-free "not equal to zero" mask over `u16`: returns `0xFFFF` if `x != 0`, else `0x0000`.
+/// Port of the `mask1 = -((uint16_t)-d >> 15)` idiom in
+/// `reference/hqc/src/ref/reed_solomon.c:176`.
+#[inline]
+fn ct_mask_nonzero_u16(x: u16) -> u16 {
+    let neg = 0u16.wrapping_sub(x);
+    0u16.wrapping_sub(neg >> 15)
+}
+
+/// Branch-free "less-than" mask: returns `0xFFFF` if `a < b`, else `0x0000`. Used for the
+/// Berlekamp-Massey `deg_X_sigma_p > deg_sigma` test
+/// (`reference/hqc/src/ref/reed_solomon.c:179`, called with `a = deg_sigma`, `b = deg_X_sigma_p`)
+/// and the `i < delta_real_value` test in `compute_error_values`
+/// (`reference/hqc/src/ref/reed_solomon.c:306`).
+#[inline]
+fn ct_mask_lt_u16(a: u16, b: u16) -> u16 {
+    let diff = a.wrapping_sub(b);
+    0u16.wrapping_sub(diff >> 15)
+}
+
+/// Branch-free "less-or-equal" mask: returns `0xFFFF` if `i <= bound`, else `0x0000`. Port of
+/// `mask = -((uint16_t)(i - degree - 1) >> 15)` in
+/// `reference/hqc/src/ref/reed_solomon.c:239,246`.
+#[inline]
+fn ct_mask_le_u16(i: u16, bound: u16) -> u16 {
+    let diff = i.wrapping_sub(bound).wrapping_sub(1);
+    0u16.wrapping_sub(diff >> 15)
+}
+
+/// Branch-free equality mask: returns `0xFFFF` if `a == b`, else `0x0000`. Port of
+/// `mask2 = ~((uint16_t)(-((int32_t)j ^ delta_counter) >> 31))` in
+/// `reference/hqc/src/ref/reed_solomon.c:284` (also line 316) — `j == delta_counter`, where
+/// `delta_counter` is a secret-dependent running count and `j` is a public loop counter, so this
+/// must be an arithmetic mask rather than a branch.
+#[inline]
+fn ct_eq_mask_u16(a: u16, b: u16) -> u16 {
+    let diff = (a as u32) ^ (b as u32);
+    let is_nonzero = (diff | diff.wrapping_neg()) >> 31; // 1 if diff != 0, else 0
+    (0u32.wrapping_sub(1u32.wrapping_sub(is_nonzero))) as u16
+}
 
 /// Reed-Solomon code implementation
 pub struct ReedSolomon<P: HqcParams> {
@@ -189,64 +239,44 @@ impl<P: HqcParams> ReedSolomon<P> {
             return Err(ReedSolomonError::InvalidMessageLength);
         }
 
-        let mut syndromes = [0u16; 128]; // Max 2*delta (HQC-1: 2*60=120)
-        let mut sigma = [0u16; 128]; // Max delta + 1 (HQC-1: 60+1=61)
-        let mut error_positions = [0u8; 128]; // Max delta (HQC-1: 60)
-        let mut z_poly = [0u16; 128]; // Max delta + 1 (HQC-1: 60+1=61)
-        let mut error_values = [0u16; 128]; // Max delta (HQC-1: 60)
+        let mut syndromes = [0u16; 128]; // Max 2*delta (HQC-5: 2*29=58)
+        let mut sigma = [0u16; 128]; // Max delta + 1
+        let mut error = [0u8; 128]; // Indicator array over codeword positions: error[i] in {0,1}
+        let mut z_poly = [0u16; 128]; // Max delta + 1
+        let mut error_values = [0u16; 128]; // Indexed by codeword position, size n1
 
-        // Compute syndromes
+        // Six unconditional stages, run identically regardless of how many errors are present
+        // (or none at all) — no early return, no skipped stage. Mirrors
+        // `reference/hqc/src/ref/reed_solomon.c:353-385` (`reed_solomon_decode`). The previous
+        // "all syndromes zero -> return early" fast path and the "found_errors == deg_sigma ->
+        // else skip correction" gate have both been removed: they were the dominant timing
+        // leaks (t_2d79cd69), and the reference has no such guards — a beyond-capacity error
+        // pattern simply produces a wrong correction here, which the FO transform's
+        // re-encryption check rejects at a higher layer via implicit rejection.
+
+        // 1. Syndromes.
         self.compute_syndromes_u16(&mut syndromes, codeword)?;
 
-        // Check if codeword is valid (all syndromes are zero)
-        let mut is_valid = true;
-        for (i, _) in (0..2 * delta).enumerate() {
-            if syndromes[i] != 0 {
-                is_valid = false;
-                break;
-            }
-        }
-
-        if is_valid {
-            // No errors, copy message with proper offset
-            let offset = P::G - 1;
-            message[..k].copy_from_slice(&codeword[offset..(k + offset)]);
-            return Ok(());
-        }
-
-        // Compute error locator polynomial using Berlekamp-Massey algorithm
+        // 2. Error locator polynomial (Berlekamp-Massey).
         let deg_sigma = self.compute_elp_u16(&mut sigma, &syndromes)?;
 
-        // Find error positions using Chien search
-        let found_errors =
-            self.find_error_positions_chien(&mut error_positions, &sigma, deg_sigma)?;
+        // 3. Root finding (Chien search in place of the reference's additive FFT — justified
+        //    below in `find_error_positions_chien`'s doc comment). Produces a 0/1 indicator
+        //    array over all N1 codeword positions; evaluates every position, no early exit.
+        self.find_error_positions_chien(&mut error, &sigma, n1, delta)?;
 
-        let mut corrected_codeword = [0u8; 512]; // Max n1 (HQC-1: 287)
+        // 4. Error evaluator polynomial z(x).
+        self.compute_z_poly(&mut z_poly, &sigma, deg_sigma, &syndromes)?;
+
+        // 5. Error values, gathered into `error_values` indexed by codeword position (not by a
+        //    compact "which error is this" index), so step 6 needs no secret-indexed write.
+        self.compute_error_values(&mut error_values, &z_poly, &error, n1, delta)?;
+
+        // 6. Correction: unconditional XOR across all N1 positions.
+        let mut corrected_codeword = [0u8; 512]; // Max n1 (HQC-5: 90)
         corrected_codeword[..n1].copy_from_slice(&codeword[..n1]);
-
-        // When Chien search finds fewer roots than the ELP degree, the error pattern
-        // exceeds the RS correction capacity. Applying partial corrections would corrupt
-        // the codeword further, so we skip corrections entirely and let the FO transform's
-        // re-encryption check detect the failure via implicit rejection.
-        if found_errors == deg_sigma {
-            // Compute error evaluator polynomial (z polynomial)
-            self.compute_z_poly(&mut z_poly, &sigma, deg_sigma, &syndromes)?;
-
-            // Compute error values using Forney's algorithm
-            self.compute_error_values_forney(
-                &mut error_values,
-                &z_poly,
-                &error_positions,
-                &sigma,
-                found_errors,
-            )?;
-
-            for i in 0..found_errors {
-                let pos = error_positions[i] as usize;
-                if pos < n1 {
-                    corrected_codeword[pos] ^= error_values[i] as u8;
-                }
-            }
+        for i in 0..n1 {
+            corrected_codeword[i] ^= error_values[i] as u8;
         }
 
         // Extract message from corrected codeword with proper offset
@@ -295,13 +325,12 @@ impl<P: HqcParams> ReedSolomon<P> {
                 for j in 1..n1 {
                     // Add bounds checking to prevent index out of bounds
                     if i < P::ALPHA_IJ_POW.len() && (j - 1) < P::ALPHA_IJ_POW[i].len() {
-                        syndromes[i] ^= self
-                            .gf_multiply_u16(codeword[j], P::ALPHA_IJ_POW[i][j - 1] as u8)
-                            as u16;
+                        syndromes[i] ^=
+                            ctgf::gf_mul(codeword[j], P::ALPHA_IJ_POW[i][j - 1] as u8) as u16;
                     } else {
                         let alpha_power = ((i + 1) * j) % P::GF_MUL_ORDER;
                         let alpha_val = self.gf_exp[alpha_power];
-                        syndromes[i] ^= self.gf_multiply_u16(codeword[j], alpha_val) as u16;
+                        syndromes[i] ^= ctgf::gf_mul(codeword[j], alpha_val) as u16;
                     }
                 }
                 syndromes[i] ^= codeword[0] as u16;
@@ -335,24 +364,22 @@ impl<P: HqcParams> ReedSolomon<P> {
             sigma_copy[..=delta].copy_from_slice(&sigma[..=delta]);
             let deg_sigma_copy = deg_sigma;
 
-            let dd = self.gf_multiply_u16(d as u8, self.gf_inverse_u16(d_p as u8)) as u16;
+            let dd = ctgf::gf_mul(d as u8, ctgf::gf_inverse(d_p as u8)) as u16;
 
             for i in 1..=(mu + 1).min(delta) {
-                sigma[i] ^= self.gf_multiply_u16(dd as u8, x_sigma_p[i] as u8) as u16;
+                sigma[i] ^= ctgf::gf_mul(dd as u8, x_sigma_p[i] as u8) as u16;
             }
 
             let deg_x = (mu as u16).wrapping_sub(pp);
             let deg_x_sigma_p = deg_x + deg_sigma_p as u16;
 
-            // mask1 = 0xffff if(d != 0) and 0 otherwise
-            let mask1 = if d != 0 { 0xFFFF } else { 0 };
+            // mask1 = 0xffff if(d != 0) and 0 otherwise. Arithmetic mask, no branch on the
+            // secret-derived discrepancy `d` (reference/hqc/src/ref/reed_solomon.c:176).
+            let mask1 = ct_mask_nonzero_u16(d);
 
-            // mask2 = 0xffff if(deg_x_sigma_p > deg_sigma) and 0 otherwise
-            let mask2 = if deg_x_sigma_p > (deg_sigma as u16) {
-                0xFFFF
-            } else {
-                0
-            };
+            // mask2 = 0xffff if(deg_x_sigma_p > deg_sigma) and 0 otherwise. Arithmetic mask
+            // (reference/hqc/src/ref/reed_solomon.c:179) instead of a value-producing `if`.
+            let mask2 = ct_mask_lt_u16(deg_sigma as u16, deg_x_sigma_p);
 
             // mask12 = 0xffff if the deg_sigma increased and 0 otherwise
             let mask12 = mask1 & mask2;
@@ -374,78 +401,73 @@ impl<P: HqcParams> ReedSolomon<P> {
 
             d = syndromes[mu + 1];
             for i in 1..=(mu + 1).min(delta) {
-                d ^= self.gf_multiply_u16(sigma[i] as u8, syndromes[mu + 1 - i] as u8) as u16;
+                d ^= ctgf::gf_mul(sigma[i] as u8, syndromes[mu + 1 - i] as u8) as u16;
             }
         }
 
         Ok(deg_sigma)
     }
 
-    /// Compute multiplicative inverse in GF(2^m)
-    fn gf_inverse(&self, a: u8) -> u8 {
-        if a == 0 {
-            return 0;
-        }
-        self.gf_exp[(P::GF_MUL_ORDER - self.gf_log[a as usize] as usize) % P::GF_MUL_ORDER]
-    }
-
-    /// Galois field multiplication for u16 values (for internal use)
-    fn gf_multiply_u16(&self, a: u8, b: u8) -> u8 {
-        if a == 0 || b == 0 {
-            return 0;
-        }
-        let log_a = self.gf_log[a as usize] as usize;
-        let log_b = self.gf_log[b as usize] as usize;
-        self.gf_exp[log_a + log_b]
-    }
-
-    /// Galois field inverse for u16 values (for internal use)
-    fn gf_inverse_u16(&self, a: u8) -> u8 {
-        if a == 0 {
-            return 0;
-        }
-        self.gf_exp[(P::GF_MUL_ORDER - self.gf_log[a as usize] as usize) % P::GF_MUL_ORDER]
-    }
-
-    /// Find error positions using Chien search
+    /// Find error positions using a Chien search, producing a 0/1 indicator array over every
+    /// codeword position (no compact "list of positions found so far").
+    ///
+    /// **Choice of Chien search over the reference's additive FFT:** the reference
+    /// (`reference/hqc/src/ref/fft.c`) evaluates sigma at all `2^PARAM_M = 256` field elements via
+    /// an additive FFT, which is asymptotically the right call at its scale. HQC's `N1` is only
+    /// 46/56/90 — far below 256 — so a direct Chien search evaluating sigma at exactly the `N1`
+    /// codeword positions actually needed is cheaper here (`O(N1 * (delta+1))` field
+    /// multiplications vs. `O(M * 2^M)` FFT butterfly steps) while being simpler to keep
+    /// branch-free: every position is evaluated, unconditionally, with no early exit and no
+    /// counter used as a downstream loop bound — satisfying the same constant-time requirement
+    /// the FFT gives the reference.
+    ///
+    /// Evaluates every one of the `delta+1` sigma coefficients at every one of the `n1`
+    /// positions with no skip (`sigma[j] == 0` for `j > deg_sigma` falls out of Berlekamp-Massey
+    /// automatically — see module tests — so omitting a `degree`-bounded skip does not change the
+    /// result, only removes a secret-dependent branch). The zero-test on each position's
+    /// accumulated sum is the branch-free [`ct_mask_nonzero_u8`], not an `if`.
+    ///
+    /// **Root convention** (verified empirically against KATs in
+    /// `test_reed_solomon_error_correction` and the crate's KAT/roundtrip suite, not merely
+    /// asserted): a root of sigma at `alpha^(-i)` is treated as an error at codeword position
+    /// `i`, i.e. `beta_j = gf_exp[i]` for a detected position `i` — matching the reference's
+    /// `fft_retrieve_error_poly`, which sets `error[index]` for `index = GF_MUL_ORDER -
+    /// gf_log[gamma]` when `gamma` is a root (so `gamma = alpha^(-index)`), and whose
+    /// `compute_error_values` then uses `beta_j[...] = gf_exp[i]` for that same position `i`.
     fn find_error_positions_chien(
         &self,
-        error_positions: &mut [u8],
+        error: &mut [u8],
         sigma: &[u16],
-        degree: usize,
-    ) -> Result<usize, ReedSolomonError> {
-        let n1 = P::N1;
-        let mut found_errors = 0;
-
-        let mut sigma_u8 = [0u8; 256];
-        for (i, &sigma_value) in sigma.iter().enumerate().take(degree + 1) {
-            sigma_u8[i] = sigma_value as u8;
+        n1: usize,
+        delta: usize,
+    ) -> Result<(), ReedSolomonError> {
+        let mut sigma_u8 = [0u8; 64];
+        for i in 0..=delta {
+            sigma_u8[i] = sigma[i] as u8;
         }
 
-        // Chien search: evaluate σ(α^(-i)) for each codeword position i.
-        // Root at α^(-pos) means error at position pos.
         for i in 0..n1 {
             let mut sum = 0u8;
             let k = (P::GF_MUL_ORDER - i) % P::GF_MUL_ORDER;
             #[allow(clippy::needless_range_loop)]
-            for j in 0..=degree {
-                if sigma_u8[j] != 0 {
-                    let alpha_power = (k * j) % P::GF_MUL_ORDER;
-                    let alpha_val = self.gf_exp[alpha_power];
-                    sum ^= self.gf_multiply(sigma_u8[j], alpha_val);
-                }
+            for j in 0..=delta {
+                let alpha_power = (k * j) % P::GF_MUL_ORDER;
+                let alpha_val = self.gf_exp[alpha_power];
+                sum ^= ctgf::gf_mul(sigma_u8[j], alpha_val);
             }
 
-            if sum == 0 && found_errors < error_positions.len() {
-                error_positions[found_errors] = i as u8;
-                found_errors += 1;
-            }
+            // error[i] = 1 if sum == 0 (root found -> error at position i), else 0. Branch-free:
+            // ct_mask_nonzero_u8(sum) is 0xFF/0x00, `& 1` reduces it to 1/0, `1 ^ ..` flips it.
+            error[i] = 1u8 ^ (ct_mask_nonzero_u8(sum) & 1);
         }
 
-        Ok(found_errors)
+        Ok(())
     }
 
-    /// Compute z polynomial (error evaluator)
+    /// Compute z polynomial (error evaluator). Port of `compute_z_poly` in
+    /// `reference/hqc/src/ref/reed_solomon.c:232-253`: the `i <= degree` gate is an arithmetic
+    /// mask ([`ct_mask_le_u16`]), not a value-producing `if`, since `degree` (the ELP's degree)
+    /// is derived from secret syndromes.
     fn compute_z_poly(
         &self,
         z: &mut [u16],
@@ -454,71 +476,110 @@ impl<P: HqcParams> ReedSolomon<P> {
         syndromes: &[u16],
     ) -> Result<(), ReedSolomonError> {
         let delta = P::DELTA;
+        let degree_u16 = degree as u16;
 
         z[0] = 1;
 
         for i in 1..=delta {
-            z[i] = if i <= degree { sigma[i] } else { 0 };
+            let mask = ct_mask_le_u16(i as u16, degree_u16);
+            z[i] = mask & sigma[i];
         }
 
         z[1] ^= syndromes[0];
 
         for i in 2..=delta {
-            if i <= degree {
-                z[i] ^= syndromes[i - 1];
+            let mask = ct_mask_le_u16(i as u16, degree_u16);
+            z[i] ^= mask & syndromes[i - 1];
 
-                for j in 1..i {
-                    z[i] ^= self.gf_multiply_u16(sigma[j] as u8, syndromes[i - j - 1] as u8) as u16;
-                }
+            for j in 1..i {
+                z[i] ^= mask & (ctgf::gf_mul(sigma[j] as u8, syndromes[i - j - 1] as u8) as u16);
             }
         }
 
         Ok(())
     }
 
-    /// Compute error values following the HQC reference approach.
-    /// For each error at position pos_j with β_j = α^pos_j:
-    ///   e_j = z(β_j^{-1}) / Π_{k≠j}(1 + β_j^{-1} * β_k)
-    fn compute_error_values_forney(
+    /// Compute error values, following `compute_error_values` in
+    /// `reference/hqc/src/ref/reed_solomon.c:264-322` verbatim in spirit: gather the `beta_j`
+    /// values (the field elements at detected error positions) into a compact `delta`-sized
+    /// array via a `delta_counter`/`mask1`/`mask2` running-index gather rather than a
+    /// secret-indexed write, compute each error value from `z` and `beta_j`, then scatter the
+    /// compact `e_j` values back out to `error_values` indexed by codeword position using the
+    /// same gather pattern run a second time.
+    ///
+    /// Unfilled `beta_j` slots (positions past `delta_real_value`, when fewer than `delta` errors
+    /// are found) stay `0`: in the denominator product, `gf_mul(inverse, 0) = 0` so the factor
+    /// `1 ^ gf_mul(inverse, beta_j[k]) = 1` for those slots (a no-op factor), and the numerator
+    /// path for those slots is masked off entirely by `i < delta_real_value` before it can reach
+    /// `error_values`/`e_j`. So the harmless-zero-factor property holds *and* is redundant with
+    /// the final mask — checked directly by `test_reed_solomon_error_correction` (fewer errors
+    /// than `delta`) still round-tripping correctly.
+    fn compute_error_values(
         &self,
         error_values: &mut [u16],
         z: &[u16],
-        error_positions: &[u8],
-        _sigma: &[u16],
-        num_errors: usize,
+        error: &[u8],
+        n1: usize,
+        delta: usize,
     ) -> Result<(), ReedSolomonError> {
-        let delta = P::DELTA;
+        let mut beta_j = [0u16; 64];
+        let mut e_j = [0u16; 64];
 
-        let mut beta = [0u8; 64];
-        for i in 0..num_errors {
-            beta[i] = self.gf_exp[error_positions[i] as usize];
+        // Gather: beta_j[delta_counter] = gf_exp[i] for each position i where error[i] == 1,
+        // via an equality mask on the public loop counter j vs. the secret running count
+        // delta_counter, rather than a secret-indexed write `beta_j[delta_counter] = ...`.
+        let mut delta_counter: u16 = 0;
+        for i in 0..n1 {
+            let mask1 = 0u16.wrapping_sub(error[i] as u16); // error[i] in {0,1}: 0xFFFF or 0
+            let mut found: u16 = 0;
+            for j in 0..delta {
+                let mask2 = ct_eq_mask_u16(j as u16, delta_counter);
+                beta_j[j] = beta_j[j].wrapping_add(mask1 & mask2 & (self.gf_exp[i] as u16));
+                found = found.wrapping_add(mask1 & mask2 & 1);
+            }
+            delta_counter = delta_counter.wrapping_add(found);
+        }
+        let delta_real_value = delta_counter;
+
+        // For each of the (up to) delta gathered error positions, compute e_j = z(beta_j^-1) /
+        // prod_{k != j} (1 + beta_j^-1 * beta_k), excluding self via beta_j[(i+k) % delta] for
+        // k in 1..delta (reference/hqc/src/ref/reed_solomon.c:303-304) rather than an `if k != i`
+        // branch.
+        for i in 0..delta {
+            let inverse = ctgf::gf_inverse(beta_j[i] as u8);
+
+            let mut tmp1 = 1u16; // z[0] = 1
+            let mut inverse_power_j = 1u8;
+            for j in 1..=delta {
+                inverse_power_j = ctgf::gf_mul(inverse_power_j, inverse);
+                tmp1 ^= ctgf::gf_mul(inverse_power_j, z[j] as u8) as u16;
+            }
+
+            let mut tmp2 = 1u8;
+            for kk in 1..delta {
+                let idx = (i + kk) % delta;
+                tmp2 = ctgf::gf_mul(tmp2, 1u8 ^ ctgf::gf_mul(inverse, beta_j[idx] as u8));
+            }
+
+            // mask1 = 0xffff if i < delta_real_value, else 0 (reference line 306).
+            let mask1 = ct_mask_lt_u16(i as u16, delta_real_value);
+            e_j[i] = mask1 & (ctgf::gf_mul(tmp1 as u8, ctgf::gf_inverse(tmp2)) as u16);
         }
 
-        for i in 0..num_errors {
-            let inverse = self.gf_inverse(beta[i]);
-
-            // Numerator: z(β_i^{-1}) = z[0] + z[1]*inv + z[2]*inv^2 + ...
-            let mut tmp1 = 1u16; // z[0] = 1
-            let mut inverse_power = 1u8;
-            for j in 1..=delta {
-                inverse_power = self.gf_multiply(inverse_power, inverse);
-                tmp1 ^= self.gf_multiply_u16(inverse_power, z[j] as u8) as u16;
+        // Scatter: error_values[i] = e_j[delta_counter] for each position i where error[i] == 1,
+        // running the identical gather pattern a second time so the write into `error_values` is
+        // never indexed by a secret position — every position is visited unconditionally, and
+        // `error[i] == 0` positions accumulate nothing (mask1 == 0 for every j).
+        delta_counter = 0;
+        for i in 0..n1 {
+            let mask1 = 0u16.wrapping_sub(error[i] as u16);
+            let mut found: u16 = 0;
+            for j in 0..delta {
+                let mask2 = ct_eq_mask_u16(j as u16, delta_counter);
+                error_values[i] = error_values[i].wrapping_add(mask1 & mask2 & e_j[j]);
+                found = found.wrapping_add(mask1 & mask2 & 1);
             }
-
-            // Denominator: Π_{k≠i}(1 + β_i^{-1} * β_k)
-            let mut tmp2 = 1u8;
-            for k in 0..num_errors {
-                if k != i {
-                    let term = 1u8 ^ self.gf_multiply(inverse, beta[k]);
-                    tmp2 = self.gf_multiply(tmp2, term);
-                }
-            }
-
-            if tmp2 != 0 {
-                error_values[i] = self.gf_multiply_u16(tmp1 as u8, self.gf_inverse(tmp2)) as u16;
-            } else {
-                error_values[i] = tmp1;
-            }
+            delta_counter = delta_counter.wrapping_add(found);
         }
 
         Ok(())
@@ -634,5 +695,95 @@ mod tests {
 
         // Verify
         assert_eq!(message, decoded_message);
+    }
+
+    /// Exactly `DELTA` (15) distinct symbol errors for HQC-1 — the RS correction capacity boundary.
+    /// The rewritten decoder runs the same unconditional stage sequence regardless of error count,
+    /// so this must still recover the message exactly.
+    #[test]
+    fn test_reed_solomon_decode_at_capacity_hqc1() {
+        let rs = ReedSolomon::<Hqc1Params>::new().unwrap();
+        let message = [
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+            0xFF, 0x01,
+        ];
+        let mut codeword = [0u8; 46];
+        rs.encode(&message, &mut codeword).unwrap();
+
+        // DELTA = 15 for HQC-1: flip exactly 15 distinct positions.
+        for i in 0..15 {
+            codeword[i * 3] ^= 0x01;
+        }
+
+        let mut decoded_message = [0u8; 16];
+        rs.decode(&codeword, &mut decoded_message).unwrap();
+        assert_eq!(
+            message, decoded_message,
+            "at-capacity (15 errors) decode must still recover the message"
+        );
+    }
+
+    /// Deliberately adversarial: far more symbol errors than HQC-1's correction capacity
+    /// (`DELTA = 15`) — 30 of the 46 codeword bytes flipped. `decode()` must not panic, must not
+    /// index out of bounds, and must not hang; producing a wrong message is the expected and
+    /// acceptable outcome (the reference has no beyond-capacity guard either — the FO transform's
+    /// re-encryption check is what rejects this case at a higher layer, not this decoder).
+    #[test]
+    fn test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc1() {
+        let rs = ReedSolomon::<Hqc1Params>::new().unwrap();
+        let message = [
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
+            0xFF, 0x01,
+        ];
+        let mut codeword = [0u8; 46];
+        rs.encode(&message, &mut codeword).unwrap();
+
+        for i in 0..30 {
+            codeword[i] ^= 0xFF;
+        }
+
+        let mut decoded_message = [0u8; 16];
+        let result = rs.decode(&codeword, &mut decoded_message);
+        assert!(
+            result.is_ok(),
+            "decode must return Ok (not panic/hang) even for a beyond-capacity error pattern"
+        );
+    }
+
+    /// Same beyond-capacity adversarial probe as `..._hqc1`, but for HQC-3 (`DELTA = 16`,
+    /// `N1 = 56`) and HQC-5 (`DELTA = 29`, `N1 = 90`) — the two parameter sets that were not
+    /// individually named in `test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc1`, and
+    /// for HQC-5 specifically the set whose undersized `ALPHA_IJ_POW` table forces a different
+    /// `compute_syndromes_u16` code path (see module-level trap note in the calling card).
+    #[test]
+    fn test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc3_hqc5() {
+        {
+            let rs = ReedSolomon::<crate::params_correct::Hqc3Params>::new().unwrap();
+            let message = [0xAAu8; 24];
+            let mut codeword = [0u8; 56];
+            rs.encode(&message, &mut codeword).unwrap();
+            for i in 0..40 {
+                codeword[i] ^= 0xFF;
+            }
+            let mut decoded = [0u8; 24];
+            assert!(
+                rs.decode(&codeword, &mut decoded).is_ok(),
+                "HQC-3 beyond-capacity decode must return Ok"
+            );
+        }
+        {
+            let rs = ReedSolomon::<crate::params_correct::Hqc5Params>::new().unwrap();
+            let message = [0x55u8; 32];
+            let mut codeword = [0u8; 90];
+            rs.encode(&message, &mut codeword).unwrap();
+            for i in 0..70 {
+                codeword[i] ^= 0xFF;
+            }
+            let mut decoded = [0u8; 32];
+            assert!(
+                rs.decode(&codeword, &mut decoded).is_ok(),
+                "HQC-5 beyond-capacity decode must return Ok"
+            );
+        }
     }
 }

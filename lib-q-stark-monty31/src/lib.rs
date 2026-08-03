@@ -8,6 +8,8 @@ mod extension;
 mod mds;
 mod monty_31;
 // mod poseidon2; // Removed: non-NIST hash
+#[cfg(test)]
+mod test_utils;
 mod utils;
 pub use data_traits::*;
 pub use mds::*;

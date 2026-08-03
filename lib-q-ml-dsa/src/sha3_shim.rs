@@ -550,22 +550,46 @@ pub mod neon {
             use super::super::super::incremental;
 
             /// The Keccak state for the incremental API
-            /// Uses portable implementation wrapped for x2 interface
+            /// Uses portable implementation wrapped for x2 interface.
+            ///
+            /// There is deliberately no `KeccakStateX2::new()` / generic `init()` that defaults to
+            /// one variant: card t_26d3b638 was exactly that defect -- a defaultable constructor
+            /// unconditionally built `Shake128`-variant inner states, so the `Shake256x4` keygen path
+            /// (`hash_functions.rs::neon::init_absorb_x4`, driving
+            /// `sample.rs::sample_four_error_ring_elements` for ML-DSA s1/s2 sampling) absorbed into a
+            /// Shake128 state and immediately tripped `incremental::shake256_absorb_final`'s
+            /// wrong-variant guard on first use ("Invalid state for SHAKE-256 operation" panic on
+            /// every keygen on aarch64+simd128). Two named constructors -- one per variant, mirroring
+            /// the crate-root `incremental::shake128_init`/`shake256_init` -- make the variant a
+            /// caller-visible choice with no wrong default to fall into.
             pub struct KeccakStateX2 {
                 states: [super::super::super::KeccakState; 2],
             }
 
             impl KeccakStateX2 {
-                pub fn new() -> Self {
+                /// Build a Shake128-variant state pair (for the `shake128_*` functions below).
+                pub fn new_shake128() -> Self {
                     Self {
                         states: [incremental::shake128_init(), incremental::shake128_init()],
                     }
                 }
+
+                /// Build a Shake256-variant state pair (for the `shake256_*` functions below).
+                pub fn new_shake256() -> Self {
+                    Self {
+                        states: [incremental::shake256_init(), incremental::shake256_init()],
+                    }
+                }
             }
 
-            // Add missing functions that libcrux API expects
-            pub fn init() -> KeccakStateX2 {
-                KeccakStateX2::new()
+            /// Create a Shake128-variant state pair.
+            pub fn shake128_init() -> KeccakStateX2 {
+                KeccakStateX2::new_shake128()
+            }
+
+            /// Create a Shake256-variant state pair.
+            pub fn shake256_init() -> KeccakStateX2 {
+                KeccakStateX2::new_shake256()
             }
 
             pub fn shake128_absorb_final(state: &mut KeccakStateX2, input0: &[u8], input1: &[u8]) {
@@ -864,7 +888,7 @@ mod tests {
         let mut outputs = [[0u8; 840]; 2]; // 5 blocks * 168 bytes
 
         // Use incremental SIMD API
-        let mut state = neon::x2::incremental::init();
+        let mut state = neon::x2::incremental::shake128_init();
         neon::x2::incremental::shake128_absorb_final(&mut state, inputs[0], inputs[1]);
         // Create separate arrays to avoid borrow checker issues
         let mut output0 = outputs[0];

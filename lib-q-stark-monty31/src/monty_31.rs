@@ -759,3 +759,53 @@ impl<FP: MontyParameters> Sum for MontyField31<FP> {
         Self::new_monty((sum % FP::PRIME as u64) as u32)
     }
 }
+
+/// Exercises the generic `MontyField31<FP>` arithmetic directly (field axioms, prime-field
+/// integer conversions, two-adicity, `sum_array`/`dot_product` special-casing, `mul_2exp_u64` /
+/// `div_2exp_u64`, ...) using the test-only `TestFP` parameters (see `crate::test_utils`).
+///
+/// This is the same macro-driven pattern `lib-q-stark-baby-bear` uses for the concrete BabyBear
+/// field, applied here so the *generic backend itself* — not just one downstream instantiation —
+/// has a test suite living in its own crate. Recompiling this file with `RUSTFLAGS=
+/// "-C target-feature=+avx2"` (or `+avx512f`) in a separate `CARGO_TARGET_DIR` re-runs every one
+/// of these tests against the SIMD-packed `dot_product`/`sum_array` special cases too, since
+/// `Field::Packing` and the packed-vs-scalar arithmetic dispatch are selected by the same
+/// `target_feature` cfgs as the rest of the crate.
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_field::PrimeCharacteristicRing;
+    use lib_q_stark_field_testing::{
+        test_field,
+        test_prime_field,
+        test_prime_field_32,
+        test_prime_field_64,
+        test_two_adic_field,
+    };
+    use num_bigint::BigUint;
+
+    use crate::test_utils::TestField;
+
+    // TestField (mirroring BabyBear) has a unique (canonical, < P) representation of zero/one.
+    const ZEROS: [TestField; 1] = [TestField::ZERO];
+    const ONES: [TestField; 1] = [TestField::ONE];
+
+    // Prime factorization of |F_p^*| = p - 1 = 2^27 * 3 * 5.
+    fn multiplicative_group_prime_factorization() -> [(BigUint, u32); 3] {
+        [
+            (BigUint::from(2u8), 27),
+            (BigUint::from(3u8), 1),
+            (BigUint::from(5u8), 1),
+        ]
+    }
+
+    test_field!(
+        crate::test_utils::TestField,
+        &super::ZEROS,
+        &super::ONES,
+        &super::multiplicative_group_prime_factorization()
+    );
+    test_prime_field!(crate::test_utils::TestField);
+    test_prime_field_64!(crate::test_utils::TestField, &super::ZEROS, &super::ONES);
+    test_prime_field_32!(crate::test_utils::TestField, &super::ZEROS, &super::ONES);
+    test_two_adic_field!(crate::test_utils::TestField);
+}

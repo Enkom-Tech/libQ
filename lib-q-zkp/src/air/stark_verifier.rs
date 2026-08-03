@@ -753,7 +753,7 @@ pub fn build_recursive_verification_input_from_proof<C, A>(
 ) -> Result<RecursiveStarkVerificationInput<Val<C>, Val<C>>, AirError>
 where
     C: StarkGenericConfig,
-    Val<C>: Field + serde::Serialize,
+    Val<C>: Field + serde::Serialize + TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<C>>>
         + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
     C::Challenger: lib_q_stark_challenger::CanObserve<Val<C>>
