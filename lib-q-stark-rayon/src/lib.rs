@@ -18,6 +18,14 @@ pub mod prelude {
         join,
     };
 
+    /// `identity()` MUST be a genuine identity element for `reduce_op`, i.e.
+    /// `reduce_op(identity(), x) == x` for every reachable `x` — the same contract
+    /// `rayon::iter::ParallelIterator::reduce` documents. On the real rayon backend an empty (or
+    /// unevenly split) input can still route a folded `identity()` leaf back through `reduce_op`,
+    /// so a non-identity "identity" silently diverges from the serial fallback (which ignores
+    /// `reduce_op` and simply returns a single `identity()`-seeded fold). Confirmed divergence:
+    /// with `reduce_op = |a, b| a + b` and `identity = || -7`, an empty input yields `-7` on the
+    /// serial backend but `reduce_op(-7, -7) == -14` on the parallel backend.
     pub trait SharedExt: ParallelIterator {
         fn par_fold_reduce<Acc, Id, F, R>(self, identity: Id, fold_op: F, reduce_op: R) -> Acc
         where
@@ -65,6 +73,15 @@ pub mod prelude {
 
     pub use super::serial::*;
 
+    /// `identity()` MUST be a genuine identity element for `reduce_op`, i.e.
+    /// `reduce_op(identity(), x) == x` for every reachable `x` — the same contract
+    /// `rayon::iter::ParallelIterator::reduce` documents. This serial fallback ignores
+    /// `reduce_op` entirely and just returns a single `identity()`-seeded fold, so it will not
+    /// itself notice a violation — but the real (`parallel`-feature) rayon backend can route a
+    /// folded `identity()` leaf back through `reduce_op` (e.g. on empty or unevenly split input),
+    /// which silently diverges from this fallback unless the contract holds. Confirmed divergence:
+    /// with `reduce_op = |a, b| a + b` and `identity = || -7`, an empty input yields `-7` here but
+    /// `reduce_op(-7, -7) == -14` on the parallel backend.
     pub trait SharedExt: ParallelIterator {
         fn par_fold_reduce<Acc, Id, F, R>(self, identity: Id, fold_op: F, reduce_op: R) -> Acc
         where

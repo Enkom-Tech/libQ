@@ -1759,9 +1759,16 @@ name = "lib-q-stark-commit"
 version = "0.0.10"
 dependencies = [
  "itertools 0.15.0",
+ "lib-q-stark-baby-bear",
+ "lib-q-stark-challenger",
+ "lib-q-stark-dft",
  "lib-q-stark-field",
  "lib-q-stark-matrix",
+ "lib-q-stark-merkle",
+ "lib-q-stark-shake128",
+ "lib-q-stark-symmetric",
  "lib-q-stark-util",
+ "rand 0.10.2",
  "serde",
 ]
 
@@ -1929,6 +1936,7 @@ dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-dft",
  "lib-q-stark-field",
+ "lib-q-stark-field-testing",
  "lib-q-stark-matrix",
  "lib-q-stark-mds",
  "lib-q-stark-rayon",

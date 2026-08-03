@@ -840,7 +840,10 @@ pub(crate) mod neon {
 
     /// Init the state and absorb 4 blocks in parallel.
     fn init_absorb(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake128x4 {
-        let mut state = [x2::incremental::init(), x2::incremental::init()];
+        let mut state = [
+            x2::incremental::shake128_init(),
+            x2::incremental::shake128_init(),
+        ];
         x2::incremental::shake128_absorb_final(&mut state[0], input0, input1);
         x2::incremental::shake128_absorb_final(&mut state[1], input2, input3);
         Shake128x4 { state }
@@ -910,7 +913,10 @@ pub(crate) mod neon {
     }
 
     fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Shake256x4 {
-        let mut state = [x2::incremental::init(), x2::incremental::init()];
+        let mut state = [
+            x2::incremental::shake256_init(),
+            x2::incremental::shake256_init(),
+        ];
         x2::incremental::shake256_absorb_final(&mut state[0], input0, input1);
         x2::incremental::shake256_absorb_final(&mut state[1], input2, input3);
         Shake256x4 { state }
@@ -1062,5 +1068,33 @@ mod neon_mask_shake_equiv {
             super::neon::Shake256x4::shake256_x4::<640>(&s0, &s1, &s2, &s3, n0, n1, n2, n3);
         }
         assert_eq!(p, n, "portable vs neon mask SHAKE256 diverge");
+    }
+}
+
+#[cfg(all(test, feature = "simd128", target_arch = "aarch64"))]
+mod neon_shake256_incremental_keygen_repro {
+    //! Card t_26d3b638: `sample_four_error_ring_elements` (ML-DSA **keygen** s1/s2 error-vector
+    //! sampling, `sample.rs`) drives the NEON incremental path via `XofX4::init_absorb_x4` +
+    //! `squeeze_first_block_x4` -- NOT the one-shot `shake256_x4` exercised by
+    //! `neon_mask_shake_equiv` above. `init_absorb_x4` builds its inner `KeccakStateX2` via
+    //! `sha3_shim::neon::x2::incremental::KeccakStateX2::new()`, which unconditionally initializes
+    //! both lanes as `KeccakState::Shake128`, then immediately calls `shake256_absorb_final` on
+    //! them. That forwards to the crate-root `incremental::shake256_absorb_final`, whose non-Shake256
+    //! match arm panics with "Invalid state for SHAKE-256 operation" -- so every ML-DSA key
+    //! generation on aarch64 with `simd128` enabled panics before producing a key pair.
+    use super::shake256::XofX4;
+
+    #[test]
+    fn keygen_incremental_shake256_x4_does_not_panic() {
+        let seed0 = [0x11u8; 66];
+        let seed1 = [0x22u8; 66];
+        let seed2 = [0x33u8; 66];
+        let seed3 = [0x44u8; 66];
+        let mut state = super::neon::Shake256x4::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
+        let (b0, _b1, _b2, _b3) = state.squeeze_first_block_x4();
+        assert!(
+            b0.iter().any(|&b| b != 0),
+            "squeezed block must not be all-zero"
+        );
     }
 }

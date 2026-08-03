@@ -1018,7 +1018,7 @@ fn neg<MPAVX2: MontyParametersAVX2>(val: __m256i) -> __m256i {
     // res = vpsignd(t, val) = t passes t through.
     unsafe {
         // Safety: If this code got compiled then AVX2 intrinsics are available.
-        let t = x86_64::_mm256_sub_epi32(MPAVX2::PACKED_P, val);
+        let t = x86_64::_mm256_sub_epi32(val, MPAVX2::PACKED_P);
         x86_64::_mm256_sign_epi32(t, val)
     }
 }
@@ -1313,4 +1313,35 @@ pub(crate) fn base_mul_packed<FP, const WIDTH: usize>(
         }
         _ => panic!("Unsupported binomial extension degree: {}", WIDTH),
     }
+}
+
+/// Portable-vs-SIMD equivalence: `test_vs_scalar` (inside `test_packed_field!`) computes every op
+/// (add/sub/mul/neg/exp_const_u64::<3,5,7>) BOTH on `PackedMontyField31AVX2<TestFP>` and lane-wise
+/// on the underlying scalar `MontyField31<TestFP>`, then asserts every lane agrees — for random
+/// inputs AND for `SPECIAL_VALS` below, chosen at exactly the boundaries where a Montgomery
+/// reduction or an unsigned-wraparound correction in the AVX2 intrinsics
+/// (`monty_mul`/`red_signed_to_canonical`/`signed_add_avx2`/...) would first disagree with the
+/// portable path: `0`, `1`, `P-1` (`0x78000000`), `P-2` (`0x77ffffff`), `~P/2` (`0x3c000000`), and
+/// three more scattered values. This is the test in this crate that would have caught the "arch-
+/// gated SIMD code nothing ever built or ran" class of defect this repo has shipped before — but
+/// only when this file is compiled with `+avx2` (see `scratchpad/monty31-simd-ci.md`); a default
+/// `cargo test` never selects this module at all.
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_field_testing::test_packed_field;
+
+    use super::WIDTH;
+    use crate::test_utils::TestField;
+
+    const SPECIAL_VALS: [TestField; WIDTH] = TestField::new_array([
+        0x00000000, 0x00000001, 0x78000000, 0x77ffffff, 0x3c000000, 0x0ffffffe, 0x68000003,
+        0x70000002,
+    ]);
+
+    test_packed_field!(
+        crate::PackedMontyField31AVX2<crate::test_utils::TestFP>,
+        &[crate::PackedMontyField31AVX2::<crate::test_utils::TestFP>::ZERO],
+        &[crate::PackedMontyField31AVX2::<crate::test_utils::TestFP>::ONE],
+        crate::PackedMontyField31AVX2::<crate::test_utils::TestFP>(super::SPECIAL_VALS)
+    );
 }

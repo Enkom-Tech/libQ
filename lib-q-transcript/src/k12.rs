@@ -125,3 +125,88 @@ impl DuplexTranscript for K12Transcript {
         out
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Finalize `h` into a fixed-size digest without touching the public [`K12Transcript`] API —
+    /// lets us test the private `start`/`absorb_lp` helpers directly and in isolation from the
+    /// chaining-value bookkeeping that wraps them.
+    fn finalize32(h: Kt128<'static>) -> [u8; 32] {
+        let mut out = [0u8; 32];
+        h.finalize_xof().read(&mut out);
+        out
+    }
+
+    #[test]
+    fn start_domain_tag_is_injected_and_distinguishes_domains() {
+        // `start` is private and only reachable from within this module; it is the one place the
+        // ABSORB/SQUEEZE/CHAIN one-byte domain separation is injected before any transcript state
+        // is mixed in, so this isolates that mechanism from everything built on top of it.
+        let a = finalize32(start(DOMAIN_ABSORB));
+        let b = finalize32(start(DOMAIN_SQUEEZE));
+        let c = finalize32(start(DOMAIN_CHAIN));
+        assert_ne!(a, b);
+        assert_ne!(b, c);
+        assert_ne!(a, c);
+
+        // Same domain tag, called twice, must be fully deterministic (no hidden entropy/state).
+        assert_eq!(finalize32(start(DOMAIN_ABSORB)), a);
+    }
+
+    #[test]
+    fn absorb_lp_boundary_is_injective() {
+        // Directly exercises the length-prefix encoder that makes ("x","ab") and ("xa","b")
+        // distinct absorbs; the equivalent property is checked end-to-end via `K12Transcript` in
+        // the integration suite (`k12_label_message_boundary_is_injective`), but this isolates the
+        // encoder itself from the chaining-value / domain-tag machinery around it.
+        let mut ha = start(DOMAIN_ABSORB);
+        absorb_lp(&mut ha, b"x");
+        absorb_lp(&mut ha, b"ab");
+
+        let mut hb = start(DOMAIN_ABSORB);
+        absorb_lp(&mut hb, b"xa");
+        absorb_lp(&mut hb, b"b");
+
+        assert_ne!(finalize32(ha), finalize32(hb));
+    }
+
+    #[test]
+    fn absorb_lp_empty_string_is_not_the_same_as_no_call() {
+        // lp("") = length-prefix(0) with no payload bytes; must still perturb the hash relative to
+        // not calling absorb_lp at all (otherwise an empty operand would be silently absorbable
+        // as "nothing", breaking the "absorbed sequence is encoded injectively" guarantee).
+        let mut with_empty = start(DOMAIN_ABSORB);
+        absorb_lp(&mut with_empty, b"");
+
+        let without = start(DOMAIN_ABSORB);
+
+        assert_ne!(finalize32(with_empty), finalize32(without));
+    }
+
+    #[test]
+    fn same_message_different_absorb_label_diverges() {
+        // The property the task calls out explicitly: absorbing the SAME bytes under two DIFFERENT
+        // labels must not collide. `k12_absorb_order_matters` (integration) covers reordering two
+        // absorbs under one shared label; this covers a single absorb whose label alone differs.
+        let mut a = K12Transcript::new(b"p");
+        a.absorb(b"label-a", b"same-payload");
+        let mut b = K12Transcript::new(b"p");
+        b.absorb(b"label-b", b"same-payload");
+        assert_ne!(a.challenge(b"c", 16), b.challenge(b"c", 16));
+    }
+
+    #[test]
+    fn new_domain_separates_from_absorb_of_the_same_bytes() {
+        // The `domain` argument to `new` and the `label` argument to `absorb` are absorbed through
+        // different code paths (`new`'s `\x00init` seed tag vs. `absorb`'s `DOMAIN_ABSORB` tag).
+        // Confirm they are not accidentally interchangeable: seeding with a domain equal to what
+        // would otherwise be absorbed must not reproduce the same chaining value as an empty-domain
+        // transcript that then absorbs that value as a message.
+        let mut a = K12Transcript::new(b"shared");
+        let mut b = K12Transcript::new(b"");
+        b.absorb(b"", b"shared");
+        assert_ne!(a.challenge(b"c", 16), b.challenge(b"c", 16));
+    }
+}

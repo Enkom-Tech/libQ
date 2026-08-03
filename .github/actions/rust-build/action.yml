@@ -174,7 +174,25 @@ runs:
               # cdylib crate-type requires std on native targets (allocator + panic handler + unwind)
               cargo build -p "$pkg" --no-default-features --features "std"
             else
-              cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no default features - expected"
+              # OBSERVED 2026-08-03: unreachable. The `grep -E` above admits exactly the 3 names
+              # `lib-q-core|lib-q-kem|lib-q-ml-kem` (confirmed against a real `cargo metadata`
+              # run: matched packages == ['lib-q-core', 'lib-q-kem', 'lib-q-ml-kem']), and both
+              # non-"lib-q-core" cases are already caught by the `elif` above -- there is no value
+              # of `$pkg` that reaches this branch. It previously read
+              # `cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no
+              # default features - expected"`, which is card t_1d516263's exact swallow pattern:
+              # if the grep filter or the branches above it ever drift out of sync (e.g. a 4th
+              # package added to the filter without a matching if/elif arm), this silently
+              # relabeled a real, novel no_std build break as "expected" instead of failing the
+              # job. Fail loudly instead -- this can only ever fire on a future drift, and it is
+              # provably unreachable today, so hardening it changes no current CI outcome.
+              #
+              # Also note: this entire step is gated behind `run-workspace-builds == 'true'`, and
+              # every caller of this action across cd.yml/ci.yml/pr.yml/security.yml (7/7,
+              # `grep -rn "run-workspace-builds" .github/`) pins it to "false" -- so today this
+              # whole no_std workspace-build path, not just this branch, never runs at all.
+              echo "::error::Package '$pkg' matched the no_std build filter but no if/elif branch handles it -- update this action's branches to cover it explicitly (do not silently swallow the build result)"
+              exit 1
             fi
           done
         elif [[ "$WORKING_DIR" == "lib-q-keccak" ]]; then

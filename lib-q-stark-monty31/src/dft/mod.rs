@@ -362,3 +362,33 @@ impl<MP: MontyParameters + FieldParameters + TwoAdicData> TwoAdicSubgroupDft<Mon
         RowMajorMatrix::new(output, ncols).bit_reverse_rows()
     }
 }
+
+/// Exercises `RecursiveDft` (forward/backward radix-2 FFT, `dft/forward.rs` + `dft/backward.rs`,
+/// 373 + 321 lines that had zero coverage before this) against `lib-q-stark-field-testing`'s
+/// `NaiveDft`-comparison suite: dft/idft/lde and their coset variants, both over the base field and
+/// over the `TestEF4` extension field ("algebra" variants), plus a dedicated dft/idft round-trip
+/// and a large-size (2^14..2^17 rows) round-trip check.
+///
+/// This is a real algorithmic cross-check (recursive/radix-2 FFT vs. `O(n^2)` naive DFT), not a
+/// "does not panic" test — a wrong twiddle, a bit-reversal off-by-one, or a wrong `inv_len` scale
+/// factor would all be caught by disagreement with `NaiveDft`.
+#[cfg(test)]
+mod tests {
+    use lib_q_stark_field_testing::{
+        test_field_dft,
+        test_field_dft_large,
+    };
+
+    test_field_dft!(
+        recur_dft,
+        crate::test_utils::TestField,
+        crate::test_utils::TestEF4,
+        crate::dft::RecursiveDft<crate::test_utils::TestField>
+    );
+    test_field_dft_large!(
+        recur_dft_large,
+        crate::test_utils::TestField,
+        crate::test_utils::TestEF4,
+        crate::dft::RecursiveDft<crate::test_utils::TestField>
+    );
+}

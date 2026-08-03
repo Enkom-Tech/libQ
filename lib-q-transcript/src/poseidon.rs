@@ -137,3 +137,95 @@ impl DuplexTranscript for PoseidonTranscript {
         out
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn byte_to_felt_is_injective_over_all_byte_values() {
+        // Every byte 0..=255 must map to a distinct field element; a collision here would silently
+        // break injectivity of every byte-encoded label/message in the transcript.
+        let mut seen = alloc::vec::Vec::with_capacity(256);
+        for b in 0u8..=255 {
+            seen.push(byte_to_felt(b));
+        }
+        for i in 0..seen.len() {
+            for j in (i + 1)..seen.len() {
+                assert_ne!(seen[i], seen[j], "byte_to_felt collided for {i} and {j}");
+            }
+        }
+    }
+
+    #[test]
+    fn push_lp_bytes_encodes_length_then_bytes() {
+        let mut stream = Vec::new();
+        push_lp_bytes(&mut stream, b"ab");
+        assert_eq!(stream.len(), 3);
+        assert_eq!(stream[0], count_to_felt(2));
+        assert_eq!(stream[1], byte_to_felt(b'a'));
+        assert_eq!(stream[2], byte_to_felt(b'b'));
+    }
+
+    #[test]
+    fn push_lp_bytes_boundary_is_injective() {
+        // Same property `absorb_lp` gives the K12 side, checked directly against the field-stream
+        // encoder rather than through the full `PoseidonTranscript::absorb` chaining.
+        let mut a = Vec::new();
+        push_lp_bytes(&mut a, b"x");
+        push_lp_bytes(&mut a, b"ab");
+
+        let mut b = Vec::new();
+        push_lp_bytes(&mut b, b"xa");
+        push_lp_bytes(&mut b, b"b");
+
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn push_lp_felts_encodes_length_then_elements() {
+        let elems = [byte_to_felt(1), byte_to_felt(2), byte_to_felt(3)];
+        let mut stream = Vec::new();
+        push_lp_felts(&mut stream, &elems);
+        assert_eq!(stream.len(), 4);
+        assert_eq!(stream[0], count_to_felt(3));
+        assert_eq!(&stream[1..], &elems);
+    }
+
+    #[test]
+    fn begin_domain_tags_distinguish_absorb_squeeze_chain() {
+        // `begin` is private and is the single place ABSORB/SQUEEZE/CHAIN domain separation is
+        // injected into the field stream before label/payload data is appended. Integration tests
+        // only ever observe the final challenge output; this checks the raw pre-hash stream itself.
+        let t = PoseidonTranscript::new(b"proto");
+        let a = t.begin(DOMAIN_ABSORB);
+        let s = t.begin(DOMAIN_SQUEEZE);
+        let c = t.begin(DOMAIN_CHAIN);
+        assert_ne!(a, s);
+        assert_ne!(s, c);
+        assert_ne!(a, c);
+        // Same cv, same tag => identical stream (deterministic).
+        assert_eq!(t.begin(DOMAIN_ABSORB), a);
+    }
+
+    #[test]
+    fn hash_to_cv_changes_with_the_input_stream() {
+        let s1 = [byte_to_felt(1), byte_to_felt(2)];
+        let s2 = [byte_to_felt(1), byte_to_felt(3)];
+        assert_ne!(hash_to_cv(&s1), hash_to_cv(&s2));
+        assert_eq!(hash_to_cv(&s1), hash_to_cv(&s1), "must be deterministic");
+    }
+
+    #[test]
+    fn same_message_different_absorb_label_diverges() {
+        // The property the task calls out explicitly: same payload, different label, must not
+        // collide. Integration tests already cover order-of-absorbs and message-content changes
+        // (`poseidon_message_matters`) but not a single absorb whose label alone differs.
+        let msg = [byte_to_felt(7), byte_to_felt(8)];
+        let mut a = PoseidonTranscript::new(b"p");
+        a.absorb(b"label-a", &msg);
+        let mut b = PoseidonTranscript::new(b"p");
+        b.absorb(b"label-b", &msg);
+        assert_ne!(a.challenge(b"c", 4), b.challenge(b"c", 4));
+    }
+}

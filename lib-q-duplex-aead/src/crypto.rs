@@ -150,6 +150,75 @@ pub fn decrypt(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const KEY: [u8; KEY_BYTES] = [0x11u8; KEY_BYTES];
+    const NONCE: [u8; NONCE_BYTES] = [0x22u8; NONCE_BYTES];
+
+    // -----------------------------------------------------------------
+    // decrypt_core — the pub(crate) primitive the public `decrypt`/`decrypt_semantic_outcome`
+    // wrap. Integration tests can only observe the wrappers' post-processing (zeroize-on-failure,
+    // `Err`-vs-`Ok(AuthenticationFailed)`); they cannot see `decrypt_core` return `Ok(false)` with
+    // the plaintext still written to `out`, which is the internal state transition the "always run
+    // the walk to completion" timing discipline documented on `decrypt_core` depends on.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn decrypt_core_rejects_ciphertext_shorter_than_tag() {
+        let mut out = [0u8; 8];
+        let err = decrypt_core(&KEY, &NONCE, b"", &[0u8; TAG_BYTES - 1], &mut out);
+        assert_eq!(err, Err(DuplexCryptoError));
+    }
+
+    #[test]
+    fn decrypt_core_rejects_output_buffer_too_small_for_body() {
+        let pt = b"attack at dawn";
+        let mut ct = vec![0u8; pt.len() + TAG_BYTES];
+        encrypt(&KEY, &NONCE, b"", pt, &mut ct).unwrap();
+
+        let mut out = vec![0u8; pt.len() - 1]; // one byte too short
+        let err = decrypt_core(&KEY, &NONCE, b"", &ct, &mut out);
+        assert_eq!(err, Err(DuplexCryptoError));
+    }
+
+    #[test]
+    fn decrypt_core_returns_ok_false_and_still_writes_plaintext_on_tag_mismatch() {
+        // This is the internal contract the public `decrypt()` wrapper relies on: the duplex walk
+        // runs to completion and recovers the real plaintext into `out` REGARDLESS of tag
+        // validity; only the caller decides whether to zeroize. `decrypt_core` itself must report
+        // `Ok(false)`, not `Err`, for a tag mismatch.
+        let ad = b"associated";
+        let pt = b"attack at dawn";
+        let mut ct = vec![0u8; pt.len() + TAG_BYTES];
+        encrypt(&KEY, &NONCE, ad, pt, &mut ct).unwrap();
+        let last = ct.len() - 1;
+        ct[last] ^= 0x01; // corrupt the tag only
+
+        let mut out = vec![0u8; pt.len()];
+        let tag_ok = decrypt_core(&KEY, &NONCE, ad, &ct, &mut out).expect("walk must still run");
+        assert!(!tag_ok, "corrupted tag must be reported as invalid");
+        assert_eq!(
+            out, pt,
+            "decrypt_core must still recover the real plaintext even when the tag is invalid"
+        );
+    }
+
+    #[test]
+    fn decrypt_core_returns_ok_true_on_valid_tag() {
+        let ad = b"ad";
+        let pt = b"message body";
+        let mut ct = vec![0u8; pt.len() + TAG_BYTES];
+        encrypt(&KEY, &NONCE, ad, pt, &mut ct).unwrap();
+
+        let mut out = vec![0u8; pt.len()];
+        let tag_ok = decrypt_core(&KEY, &NONCE, ad, &ct, &mut out).unwrap();
+        assert!(tag_ok);
+        assert_eq!(out, pt);
+    }
+}
+
 /// Layer B semantic decrypt: single shared [`decrypt_core`] (one duplex walk over the body).
 #[cfg(feature = "alloc")]
 pub(crate) fn decrypt_semantic_outcome(

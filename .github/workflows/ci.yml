@@ -1019,6 +1019,69 @@ jobs:
           cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --profile release-ci --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
+  # Card t_26d3b638 item 6: `cross-platform` above only cross-COMPILES aarch64/armv7 (its own
+  # "Build cross-compilation tests (without execution)" step says so explicitly) -- no job in this
+  # workflow has ever EXECUTED a single aarch64 instruction. That is the systemic reason three
+  # separate, unrelated aarch64-only defects (t_d707d46b, t_9ad8ef08, t_26d3b638) all shipped:
+  # every `#[cfg(target_arch = "aarch64")]` path in the workspace was unverified by construction.
+  #
+  # `docker/setup-qemu-action` registers binfmt_misc interpreters for foreign architectures on the
+  # runner; `cross` (rust-embedded/cross) then builds and runs the crate's real test suite inside a
+  # linux/arm64 container, where QEMU user-mode emulation genuinely executes the aarch64 machine
+  # code -- not a cross-compile-and-skip. Verified locally (Docker Desktop + `cross` on this same
+  # toolchain): this exact invocation reproduced the t_26d3b638 NEON `KeccakStateX2` panic
+  # ("Invalid state for SHAKE-256 operation" at lib-q-ml-dsa/src/sha3_shim.rs:247) against the
+  # pre-fix tree, and passes (120 lib tests + all 15 integration-test binaries + doctests, 0
+  # failures) against the fixed tree.
+  #
+  # `lib-q-ml-dsa`'s `simd128` feature is the only aarch64-gated SIMD path in the workspace with a
+  # documented, previously-shipped defect; no default feature set anywhere enables it (see
+  # t_26d3b638), so nothing else in this workflow reaches it. Deliberately NOT gated behind
+  # `if: github.event_name != 'pull_request'` -- matching `fn-dsa-emulated-float` below, whose own
+  # comment records that PR-skipping an arch-specific execution gate is exactly how a portable-path
+  # FN-DSA defect survived two months of green CI. Extend this row's package list if another
+  # aarch64-gated path is added elsewhere.
+  aarch64-qemu-execution:
+    name: aarch64 QEMU execution (lib-q-ml-dsa, simd128)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Match rust-toolchain.toml (directory override), same as cross-platform above.
+          toolchain: nightly
+          components: rust-src
+
+      - name: Set up QEMU (binfmt_misc interpreters for foreign architectures)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-aarch64-qemu-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-aarch64-qemu-
+
+      # Full lib + every integration-test binary + doctests, no name filter: a typo'd filter that
+      # matches zero tests exits 0 and silently stops covering anything (card t_1d516263's class of
+      # trap). No `|| echo`/`|| true` fallback either -- a real aarch64-only regression fails this
+      # step, full stop.
+      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU, via cross)
+        run: cross test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
+
   # Benchmark manifest validation (all events, including PRs).
   bench-shards-validate:
     name: Benchmark manifest
@@ -1392,6 +1455,20 @@ jobs:
           cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
           cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
 
+      # Card t_2d79cd69 item 3: Reed-Solomon `decode()` took a secret-dependent early-return
+      # branch on all-zero syndromes (fixed on this branch). `--release` is not optional here —
+      # timing tests are meaningless in a debug build (unoptimized codegen dominates the signal),
+      # so the test file itself `#[ignore]`s all three cases under `debug_assertions` with a loud
+      # reason string rather than passing vacuously; this step must never be run under a plain
+      # `cargo test` or that guard silently turns the whole gate into a no-op. No name filter is
+      # used, so a typo'd filter cannot quietly match zero tests and exit 0 either — all 3
+      # parameter sets (`hqc1`/`hqc3`/`hqc5`) run every time, and `test result:` from cargo itself
+      # is the count that matters, not a re-derived grep. No `|| echo`/`|| true` fallback (see card
+      # t_1d516263): a real leak fails this step, full stop.
+      - name: HQC Reed-Solomon decode constant-time gate (release, pinned Welch |t| threshold)
+        if: matrix.action == 'test-hqc'
+        run: cargo test -p lib-q-hqc --release --test reed_solomon_constant_time -- --nocapture
+
   # Portable (no_avx2) FN-DSA path — closes a CI blind spot: FN-DSA's field/keccak/poly/sampler
   # code is dispatched AVX2-vs-portable at *runtime* (`has_avx2()`), and every existing x86_64
   # runner in this workflow has AVX2, so no job anywhere ever compiled or executed the portable
@@ -1708,7 +1785,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, zkp-recursive, cross-platform, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

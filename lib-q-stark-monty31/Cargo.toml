@@ -33,6 +33,9 @@ spin = { workspace = true }
 tracing = { workspace = true }
 transpose = { workspace = true }
 
+[dev-dependencies]
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.10" }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

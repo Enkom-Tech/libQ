@@ -107,3 +107,33 @@ where
         }
     }
 }
+
+/// Degree-4 binomial extension tests (the FRI challenge field, in Plonky3's usual parameter
+/// regime). `test_extension_field!` drives multiplication through `BinomiallyExtendableAlgebra::
+/// binomial_mul`, which for `MontyField31<FP>` dispatches to `quartic_mul_packed` — the
+/// portable version under the default (no_packing) build, and the SIMD version (`x86_64_avx2`/
+/// `x86_64_avx512`) when this crate is recompiled with the corresponding `target-feature`. Running
+/// this same test file under each `RUSTFLAGS` variant (see `scratchpad/monty31-simd-ci.md`) is what
+/// actually exercises and validates the SIMD binomial-multiplication code, which otherwise compiles
+/// under `#[cfg(...)]` but is never run by any test in this workspace.
+#[cfg(test)]
+mod ext4_tests {
+    use lib_q_stark_field_testing::{
+        test_extension_field,
+        test_two_adic_extension_field,
+    };
+
+    test_extension_field!(crate::test_utils::TestField, crate::test_utils::TestEF4);
+    test_two_adic_extension_field!(crate::test_utils::TestField, crate::test_utils::TestEF4);
+}
+
+/// Degree-5 binomial extension tests — exercises `quintic_mul_packed` the same way `ext4_tests`
+/// exercises `quartic_mul_packed`. In its own module (as upstream does for BabyBear) because
+/// `test_two_adic_extension_field!`'s internal `test_two_adic_field` import would otherwise clash
+/// with `ext4_tests`'s.
+#[cfg(test)]
+mod ext5_tests {
+    use lib_q_stark_field_testing::test_extension_field;
+
+    test_extension_field!(crate::test_utils::TestField, crate::test_utils::TestEF5);
+}

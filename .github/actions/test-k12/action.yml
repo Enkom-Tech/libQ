@@ -15,7 +15,7 @@ inputs:
     default: "stable"
     required: false
   run-benchmarks:
-    description: Whether to run benchmarks (requires nightly)
+    description: Whether to run benchmarks
     default: "false"
     required: false
   test-algorithms:
@@ -168,14 +168,32 @@ runs:
         done
         echo "Feature combination tests completed"
     
-    - name: Run benchmarks (nightly only)
+    - name: Run benchmarks
       if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
       shell: bash
       run: |
         echo "Running K12 benchmarks..."
         rm -rf target/release
         cd ${{ inputs.working-directory }}
-        cargo bench --features "nightly" --bench k12 || echo "No K12 benchmarks found"
+        # OBSERVED 2026-08-03: no crate named the working-directory input's crate (default
+        # lib-q-hash) has ever had a `[[bench]] name = "k12"` target -- `grep -n '\[\[bench\]\]'
+        # lib-q-hash/Cargo.toml` matches nothing and there is no `lib-q-hash/benches/` directory.
+        # `cargo bench --features "nightly" --bench k12` therefore always failed with "no bench
+        # target named `k12`"; the old `|| echo "No K12 benchmarks found"` made that permanent
+        # breakage indistinguishable from "nothing to benchmark yet" and there is also no
+        # `nightly` feature on lib-q-hash (`cargo bench --features nightly` errors with "does not
+        # contain this feature" independent of the target name).
+        #
+        # The real K12 benchmark lives in the sibling crate `lib-q-k12` as
+        # `[[bench]] name = "k12_benchmarks"` (criterion, harness = false -- runs on stable, no
+        # nightly feature needed at all). `-p lib-q-k12` resolves it from cargo's workspace graph
+        # regardless of this step's cwd. Verified locally: `cargo bench -p lib-q-k12 --bench
+        # k12_benchmarks -- --test` exits 0 and reports "Success" for every benchmark group.
+        # This step is currently unreachable anyway -- every caller of this action in ci.yml sets
+        # run-benchmarks:"false" and/or rust-version:"stable" -- so fixing the invocation carries
+        # no risk to the current green build; it only fixes what would happen the day someone
+        # enables this row.
+        cargo bench -p lib-q-k12 --bench k12_benchmarks
         echo "K12 benchmarks completed"
     
     - name: Test K12 integration

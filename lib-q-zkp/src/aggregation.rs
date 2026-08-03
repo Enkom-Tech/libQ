@@ -598,6 +598,7 @@ where
     where
         A: Air<SymbolicAirBuilder<Val<C>>>
             + for<'a> Air<lib_q_stark::VerifierConstraintFolder<'a, C>>,
+        Val<C>: lib_q_stark_field::TwoAdicField,
         <<C as StarkGenericConfig>::Pcs as lib_q_stark_commit::Pcs<
             <C as StarkGenericConfig>::Challenge,
             <C as StarkGenericConfig>::Challenger,

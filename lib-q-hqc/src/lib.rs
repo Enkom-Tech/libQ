@@ -110,6 +110,7 @@ pub use lib_q_core::{
 pub mod concatenated_code;
 pub mod error;
 pub mod field;
+pub mod gf;
 pub mod hqc_correct;
 pub mod hqc_kem;
 pub mod hqc_pke;

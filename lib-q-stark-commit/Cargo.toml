@@ -17,11 +17,32 @@ lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
 itertools = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["alloc", "derive"] }
 
+# Optional: back the `testing` module (a trivial, non-hiding PCS used by downstream crates to
+# exercise the `Pcs`/`PolynomialSpace` traits in their own tests without depending on a real,
+# FRI-based PCS). Ported from upstream Plonky3's `p3-commit::testing`.
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.10", optional = true }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.10", optional = true }
+
+[dev-dependencies]
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.10" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.10" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.10" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.10" }
+lib-q-stark-shake128 = { path = "../lib-q-stark-shake128", version = "0.0.10" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.10" }
+rand = { workspace = true, default-features = false }
+
 [features]
 default = ["alloc"]
 std = ["alloc"]
 alloc = []
 no_std = []
+# Enables `pub mod testing` (a mock `TrivialPcs`), matching the sibling crates' convention
+# (e.g. lib-q-stark-baby-bear, lib-q-stark-mersenne31) of keeping test-support code behind an
+# opt-in, non-default feature rather than upstream p3-commit's `default = ["test-utils"]` — this
+# avoids pulling lib-q-stark-challenger/lib-q-stark-dft into every one of this crate's eight
+# downstream dependents by default.
+test-utils = ["dep:lib-q-stark-challenger", "dep:lib-q-stark-dft"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
