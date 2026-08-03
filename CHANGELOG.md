@@ -114,8 +114,10 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **Anyone who used this crate should treat any published, transmitted, logged, or persisted
   `ThresholdSigPublicKey` as full disclosure of the signing key and of every party's share**, and
   re-evaluate as unauthenticated any decision made on its output. Signatures it produced cannot be
-  validated retroactively. Versions 0.0.6–0.0.8 remain installable from crates.io and npm until
-  they are yanked.
+  validated retroactively. Versions **0.0.6, 0.0.7, 0.0.8 and 0.0.9** remain installable from
+  crates.io and npm until they are yanked — note that 0.0.9 is the version a fresh `cargo add` or
+  `npm i` resolves to, so a reader who checks a lockfile against a "0.0.6–0.0.8" range will wrongly
+  conclude they are unaffected.
 
 ### Fixed
 

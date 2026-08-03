@@ -201,8 +201,13 @@ were the private Shamir shares and its group key was the master secret recoverab
 data, so its verifier authenticated nothing. The defect was structural, so the crate was withdrawn
 in 0.0.10 (every entry point failing closed) and has since been deleted from the workspace.
 
-There is no `@lib-q/threshold-sig` package on npm and no `lib-q-threshold-sig` crate on crates.io;
-no version that ever existed was sound, so do not install one from history. The former exports
+**The previously published artifacts are still installable.** As of 2026-08-03,
+`lib-q-threshold-sig` 0.0.6, 0.0.7, 0.0.8 and 0.0.9 are all live and **unyanked** on crates.io, and
+`@lib-q/threshold-sig` 0.0.7-0.0.9 are on npm with `latest` pointing at 0.0.9 and no deprecation
+marker. No version that ever existed was sound. If any of them appears in your lockfile, remove it —
+do not rely on resolution failing. (Yanking and deprecation are tracked on board card `t_4d0a0662`;
+this paragraph is the pre-yank statement of fact and should be updated, not deleted, once they
+land.) The former exports
 (`thresholdSigSetup`, `thresholdSigKeygenShares`, `thresholdSigSignRound1/2`,
 `thresholdSigAggregate`, `thresholdSigVerify`, `thresholdSigIdentifyAbort`,
 `thresholdSigEncodeWireV1` / `thresholdSigDecodeWireV1`) are listed here only so old call sites can
