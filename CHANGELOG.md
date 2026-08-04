@@ -4,7 +4,12 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## 0.0.10
 
-> **Every libQ version prior to 0.0.10 is yanked from crates.io as of this release.**
+> **Every libQ version prior to 0.0.10 is being yanked from crates.io as part of this release.**
+>
+> The yank sweep is a credentialed step performed immediately after the tag is published, so there
+> is a short window in which this release exists and the older versions are not yet yanked. Read
+> this as a statement of intent for that window, not as a claim about registry state at the instant
+> you fetched it.
 >
 > This is deliberate and applies to all crates, not only the withdrawn ones. Releases 0.0.6-0.0.9
 > carry defects that this release fixes, including a non-constant-time HQC decapsulation path, an
@@ -211,6 +216,50 @@ All notable changes to this workspace are documented here. Versions follow the s
   nothing to ready a withdrawn, `publish = false` crate for). Left in place everywhere the
   withdrawal itself is being verified: the `test-matrix`, `wasm-validation`, and
   `wasm-bindgen-smoke` rows.
+
+### Known limitations of this release
+
+Recorded because each of these is a gap someone could reasonably mistake for coverage. None is a
+known defect; all are things this release did **not** verify.
+
+- **`lib-q-stark-monty31`'s AVX-512 backend has never been executed.** Its portable-vs-packed
+  equivalence test exists and compiles, but no machine available to this project has AVX-512F, so
+  the test has not run on any hardware. The AVX2 and NEON siblings *are* executed (natively and
+  under QEMU respectively), and the AVX2 one caught a real sign-inversion bug in `neg()` during
+  this cycle — which is precisely why the untested third copy is called out rather than assumed
+  correct by symmetry. Treat `+avx512f` builds of that crate as unverified.
+- **The HQC Reed-Solomon constant-time gate proves branch-freeness, not table-freeness.** The
+  committed dudect test (`|t| < 15` at n=8000) reliably catches control-flow leaks — it was
+  observed failing at `|t| = 28–194` against the pre-fix code. It would *not* catch a decoder that
+  removed the early return while retaining secret-indexed GF lookup tables, because that residual
+  cache signal is sub-nanosecond and both input classes execute identical operation counts. The
+  current implementation is table-free by construction and by review; the gate is what guards
+  against regression, and it is weaker than its green result suggests.
+- **The release pipeline (`cd.yml`) does not execute aarch64 code.** `ci.yml` gained a job that
+  genuinely runs aarch64 under QEMU — the absence of one is why four aarch64 defects shipped
+  previously. The tag-time pipeline has no equivalent, so publishing does not independently
+  re-verify the NEON paths.
+- **Line coverage is below the documented 70% policy floor for two measured crates.** Test *counts*
+  moved substantially this cycle — three crates went from zero declared tests to 63, 24 and 25 —
+  but a count is not coverage, so it was measured (cargo-tarpaulin, LLVM engine, Windows host;
+  CI's Linux figures will differ slightly):
+
+  | crate | measured | policy floor | |
+  |---|---|---|---|
+  | `lib-q-stark-rayon` | 84.44% (38/45) | 70% | pass |
+  | `lib-q-stark-commit` | 71.07% (140/197) | 70% | pass, by 1.07 points |
+  | `lib-q-stark-monty31` | 29.99% raw (600/2001) | 70% | see note |
+  | `lib-q-hqc` | 51.00% (1076/2110) | 70% | **below floor** |
+
+  `lib-q-stark-monty31`'s raw figure is a denominator artifact, not a real gap: its AVX2, AVX-512
+  and NEON trees are `target_feature`-gated and are not compiled in a default build, yet remain in
+  the measured denominator. Scoped to the code actually built, it is ~77.5% (600/774).
+  `lib-q-hqc` is genuinely under, and remains under after the same correction.
+
+  Neither is a regression introduced here, and neither gates the release: `cd.yml` runs no coverage
+  step, and `coverage.yml` does not sweep the `lib-q-stark-*` crates, so those floors were never
+  enforced for them. They are recorded because the numbers had never been measured before and
+  should not be discovered later as a surprise.
 - **Docs:** `README.md`, `docs/npm-coverage.md`, `docs/npm-packages.md`, and `docs/npm-wasm-api.md`
   no longer describe `lib-q-threshold-sig` / `@lib-q/threshold-sig` as a usable package; npm package
   counts updated accordingly (30 → 29 total, 29 → 28 wasm-pack bundles).
