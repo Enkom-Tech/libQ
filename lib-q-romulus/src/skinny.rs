@@ -305,7 +305,10 @@ mod tests {
         for i in 0..4 {
             for j in 0..4 {
                 if (i, j) != (0, 0) {
-                    assert_eq!(key_cells[1][i][j], 0, "unexpected nonzero cell at ({i},{j})");
+                    assert_eq!(
+                        key_cells[1][i][j], 0,
+                        "unexpected nonzero cell at ({i},{j})"
+                    );
                 }
             }
         }

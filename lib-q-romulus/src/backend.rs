@@ -448,7 +448,10 @@ mod tests {
             let old_bit0 = bit7 ^ bit6;
             let old_bits_7_1 = new & 0x7F;
             let recovered = (old_bits_7_1 << 1) | old_bit0;
-            assert_eq!(recovered, b, "g8a inverse formula failed to recover {b:#04x}");
+            assert_eq!(
+                recovered, b,
+                "g8a inverse formula failed to recover {b:#04x}"
+            );
         }
     }
 
@@ -543,8 +546,15 @@ mod tests {
             let mut s_dec = s0;
             irho(&mut m_rec, &c, &mut s_dec, len8, ver);
 
-            assert_eq!(&m_rec[..len8], m, "irho failed to recover plaintext at len8={len8}");
-            assert_eq!(s_dec, s_enc, "irho produced a different resulting state at len8={len8}");
+            assert_eq!(
+                &m_rec[..len8],
+                m,
+                "irho failed to recover plaintext at len8={len8}"
+            );
+            assert_eq!(
+                s_dec, s_enc,
+                "irho produced a different resulting state at len8={len8}"
+            );
         }
     }
 
@@ -563,8 +573,16 @@ mod tests {
         assert_eq!(kt[7], d, "domain byte must occupy byte 7");
         assert_eq!(&kt[8..16], &[0u8; 8], "bytes 8..16 must be zero-filled");
         assert_eq!(&kt[16..20], &t, "tweak bytes must follow at byte 16");
-        assert_eq!(&kt[20..36], &k, "key must immediately follow the tweak bytes");
-        assert_eq!(&kt[36..48], &[0u8; 12], "trailing bytes are untouched (zero-initialized)");
+        assert_eq!(
+            &kt[20..36],
+            &k,
+            "key must immediately follow the tweak bytes"
+        );
+        assert_eq!(
+            &kt[36..48],
+            &[0u8; 12],
+            "trailing bytes are untouched (zero-initialized)"
+        );
     }
 
     // ---- romulus_m_compute_w: Romulus-M's final MAC domain-separation byte ----

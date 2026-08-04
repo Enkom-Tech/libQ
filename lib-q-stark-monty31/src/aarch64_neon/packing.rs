@@ -1139,7 +1139,7 @@ mod tests {
     use crate::test_utils::TestField;
 
     const SPECIAL_VALS: [TestField; WIDTH] =
-        TestField::new_array([0x00000000, 0x00000001, 0x78000000, 0x3c000000]);
+        TestField::new_array([0x00000000, 0x00000001, 0x78000000, 0x3C000000]);
 
     test_packed_field!(
         crate::PackedMontyField31Neon<crate::test_utils::TestFP>,

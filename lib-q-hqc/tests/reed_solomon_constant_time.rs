@@ -22,7 +22,12 @@
 //!
 //!   cargo test --release -p lib-q-hqc --test reed_solomon_constant_time -- --nocapture
 
-use lib_q_hqc::params_correct::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
+use lib_q_hqc::params_correct::{
+    Hqc1Params,
+    Hqc3Params,
+    Hqc5Params,
+    HqcParams,
+};
 use lib_q_hqc::reed_solomon::ReedSolomon;
 use lib_q_sca_test::dudect::timing_t_statistic;
 
@@ -57,7 +62,9 @@ fn measure<P: HqcParams>(iters: usize) -> (f64, f64, f64) {
     let k = P::K;
     let n1 = P::N1;
 
-    let message: Vec<u8> = (0..k).map(|i| (i as u8).wrapping_mul(37).wrapping_add(11)).collect();
+    let message: Vec<u8> = (0..k)
+        .map(|i| (i as u8).wrapping_mul(37).wrapping_add(11))
+        .collect();
     let mut codeword = vec![0u8; n1];
     rs.encode(&message, &mut codeword).expect("encode");
 

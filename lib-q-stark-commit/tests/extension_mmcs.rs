@@ -63,7 +63,9 @@ fn honest_extension_opening_is_accepted_at_every_row() {
     for index in 0..height {
         let opening = mmcs.open_batch(index, &prover_data);
         mmcs.verify_batch(&commitment, &dims, index, BatchOpeningRef::from(&opening))
-            .unwrap_or_else(|e| panic!("honest extension opening at index {index} rejected: {e:?}"));
+            .unwrap_or_else(|e| {
+                panic!("honest extension opening at index {index} rejected: {e:?}")
+            });
     }
 }
 

@@ -414,10 +414,9 @@ mod tests {
     #[test]
     fn vanishing_poly_negative_control_distinguishes_in_from_out_of_domain() {
         let c = coset(F::new(9), 4);
-        let on_domain_is_zero = PolynomialSpace::vanishing_poly_at_point::<F>(
-            &c,
-            PolynomialSpace::first_point(&c),
-        ) == F::ZERO;
+        let on_domain_is_zero =
+            PolynomialSpace::vanishing_poly_at_point::<F>(&c, PolynomialSpace::first_point(&c)) ==
+                F::ZERO;
         let disjoint = PolynomialSpace::create_disjoint_domain(&c, PolynomialSpace::size(&c));
         let off_domain_is_zero = PolynomialSpace::vanishing_poly_at_point::<F>(
             &c,

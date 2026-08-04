@@ -169,7 +169,10 @@ mod tests {
         let data: Vec<u8> = (0u8..24).collect(); // 3 full 8-byte lanes, no remainder
         xor_into_rate(&mut state, &data);
         assert_eq!(state[0], u64::from_le_bytes(data[0..8].try_into().unwrap()));
-        assert_eq!(state[1], u64::from_le_bytes(data[8..16].try_into().unwrap()));
+        assert_eq!(
+            state[1],
+            u64::from_le_bytes(data[8..16].try_into().unwrap())
+        );
         assert_eq!(
             state[2],
             u64::from_le_bytes(data[16..24].try_into().unwrap())
@@ -309,7 +312,11 @@ mod tests {
         let pt = [0xABu8; RATE_BYTES];
         let mut ct = [0u8; RATE_BYTES];
         duplex_encrypt_chunk(&mut enc_state, &pt, &mut ct);
-        assert_ne!(ct.as_slice(), pt.as_slice(), "ciphertext must differ from plaintext");
+        assert_ne!(
+            ct.as_slice(),
+            pt.as_slice(),
+            "ciphertext must differ from plaintext"
+        );
 
         let mut recovered = [0u8; RATE_BYTES];
         duplex_decrypt_chunk(&mut dec_state, &ct, &mut recovered);
