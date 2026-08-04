@@ -357,6 +357,26 @@ do_clippy() {
     record "clippy" "fail" "${CHECK_MS[clippy]:-0}" "yes" "fix clippy warnings or run with guidance from cargo clippy"
     return 1
   fi
+
+  # SECOND PASS ON STABLE. rust-toolchain.toml pins nightly, so the run above uses nightly -- but
+  # the Security Validation workflow's rust-build action runs clippy on STABLE with -D warnings.
+  # Lints that exist on only one channel therefore fail CI while every local run is green, and
+  # nothing here would notice. That is not hypothetical: it kept Security Validation red from
+  # 2026-08-03 onward via two separate causes, `unknown_lints` on five nightly-only
+  # `#[allow(clippy::chunks_exact_to_as_chunks)]` in lib-q-slh-dsa, and `manual_repeat_n` in
+  # lib-q-stark-rayon's tests -- neither visible to a nightly-only check.
+  # Skipped (not failed) when the stable toolchain is not installed, so this cannot block a dev box
+  # that only has the pinned nightly; CI always has both.
+  if rustup toolchain list 2>/dev/null | grep -q '^stable'; then
+    if ! cargo +stable clippy "${CLIPPY_ARGS[@]}"; then
+      record "clippy" "fail" "${CHECK_MS[clippy]:-0}" "yes" \
+        "clippy passes on the pinned nightly but FAILS on stable, which is what Security Validation runs"
+      return 1
+    fi
+  else
+    echo "  note: stable toolchain absent; skipped the stable clippy pass that mirrors CI" >&2
+  fi
+
   record "clippy" "pass" "${CHECK_MS[clippy]:-0}" "yes" ""
   return 0
 }
