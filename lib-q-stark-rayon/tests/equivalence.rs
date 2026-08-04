@@ -304,7 +304,14 @@ fn current_num_threads_is_at_least_one() {
 // iter::repeat / iter::repeat_n
 // ---------------------------------------------------------------------------
 
+// `manual_repeat_n` fires on stable and tells us to use `repeat_n` instead. Following it would
+// delete the only test of `pariter::repeat`, which is a distinct function in the shim and is
+// exactly what this test exists to exercise — `repeat_n` already has its own test directly below.
+// Allowed deliberately: the lint's suggestion is wrong for this call site, not an unaddressed
+// warning. (Only fires on stable; rust-toolchain.toml pins nightly, so a nightly-only clippy run
+// does not see it — that mismatch is why this reached CI.)
 #[test]
+#[allow(clippy::manual_repeat_n)]
 fn repeat_take_n_matches_expected() {
     let got: Vec<i32> = pariter::repeat(9).take(4).collect();
     assert_eq!(got, vec![9, 9, 9, 9]);

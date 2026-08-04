@@ -63,7 +63,7 @@ impl<P: WotsParams> WotsSig<P> {
         debug_assert!(buf.len() == Self::SIZE, "WOTS+ serialize length mismatch");
 
         // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
-        #[allow(clippy::chunks_exact_to_as_chunks)]
+        #[allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
         buf.chunks_exact_mut(P::N::USIZE)
             .zip(self.0.iter())
             .for_each(|(buf, sig)| buf.copy_from_slice(sig.as_slice()));

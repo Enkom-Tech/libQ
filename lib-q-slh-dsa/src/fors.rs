@@ -42,7 +42,7 @@ impl<P: ForsParams> ForsMTSig<P> {
         );
 
         // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
-        #[allow(clippy::chunks_exact_to_as_chunks)]
+        #[allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
         slice
             .chunks_exact_mut(P::N::USIZE)
             .enumerate()
@@ -126,7 +126,7 @@ impl<P: ForsParams> ForsSignature<P> {
         );
 
         // size is a generic associated const; as_chunks const-generic needs generic_const_exprs
-        #[allow(clippy::chunks_exact_to_as_chunks)]
+        #[allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
         slice
             .chunks_exact_mut(ForsMTSig::<P>::SIZE)
             .enumerate()
