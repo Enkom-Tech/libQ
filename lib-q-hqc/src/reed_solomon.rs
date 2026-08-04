@@ -613,6 +613,65 @@ mod tests {
     use super::*;
     use crate::params_correct::Hqc1Params;
 
+    /// `ReedSolomonError::Display` is never invoked anywhere in the crate (no caller ever
+    /// formats one; production code only matches/propagates the enum), and
+    /// `DecodingFailed`/`InvalidParameters` are never constructed by any real code path (only
+    /// `InvalidMessageLength`/`InvalidCodewordLength` are, from `encode`/`decode`'s length
+    /// checks). Construct-and-check directly.
+    #[test]
+    fn test_reed_solomon_error_display_all_variants() {
+        assert_eq!(
+            ReedSolomonError::InvalidMessageLength.to_string(),
+            "Invalid message length"
+        );
+        assert_eq!(
+            ReedSolomonError::InvalidCodewordLength.to_string(),
+            "Invalid codeword length"
+        );
+        assert_eq!(
+            ReedSolomonError::DecodingFailed.to_string(),
+            "Reed-Solomon decoding failed"
+        );
+        assert_eq!(
+            ReedSolomonError::InvalidParameters.to_string(),
+            "Invalid Reed-Solomon parameters"
+        );
+    }
+
+    /// Real-path negative test: `encode`/`decode` must reject undersized buffers via the actual
+    /// length checks (not just construct the error type by hand).
+    #[test]
+    fn test_reed_solomon_rejects_undersized_buffers() {
+        let rs = ReedSolomon::<Hqc1Params>::new().unwrap();
+        let short_message = [0u8; 4]; // K = 16 for HQC-1
+        let mut codeword = [0u8; 46];
+        assert_eq!(
+            rs.encode(&short_message, &mut codeword).unwrap_err(),
+            ReedSolomonError::InvalidMessageLength
+        );
+
+        let message = [0u8; 16];
+        let mut short_codeword = [0u8; 4]; // N1 = 46 for HQC-1
+        assert_eq!(
+            rs.encode(&message, &mut short_codeword).unwrap_err(),
+            ReedSolomonError::InvalidCodewordLength
+        );
+
+        let codeword = [0u8; 46];
+        let mut short_message_out = [0u8; 4];
+        assert_eq!(
+            rs.decode(&codeword, &mut short_message_out).unwrap_err(),
+            ReedSolomonError::InvalidMessageLength
+        );
+
+        let short_codeword_in = [0u8; 4];
+        let mut message_out = [0u8; 16];
+        assert_eq!(
+            rs.decode(&short_codeword_in, &mut message_out).unwrap_err(),
+            ReedSolomonError::InvalidCodewordLength
+        );
+    }
+
     #[test]
     fn test_reed_solomon_creation() {
         let rs = ReedSolomon::<Hqc1Params>::new();

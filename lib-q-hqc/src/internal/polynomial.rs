@@ -329,6 +329,45 @@ mod tests {
     }
 
     #[test]
+    fn test_polynomial_multiplication() {
+        // (1 + x) * (1 + x) in GF(2)[x]/(x^4 - 1) = 1 + x^2 (cross terms 2*x cancel mod 2)
+        #[cfg(feature = "alloc")]
+        {
+            let a = Polynomial::from_coefficients(vec![1, 1, 0, 0]);
+            let b = Polynomial::from_coefficients(vec![1, 1, 0, 0]);
+            let result = a.multiply(&b).unwrap();
+            assert_eq!(result.coefficients(), &[1, 0, 1, 0]);
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            let a = Polynomial::from_coefficients(&[1, 1, 0, 0]);
+            let b = Polynomial::from_coefficients(&[1, 1, 0, 0]);
+            let result = a.multiply(&b).unwrap();
+            assert_eq!(result.coefficients(), &[1, 0, 1, 0]);
+        }
+    }
+
+    /// Negative path: `add`/`multiply` on mismatched degrees must reject with `InvalidSize`
+    /// rather than panicking or silently truncating.
+    #[test]
+    fn test_polynomial_degree_mismatch_is_rejected() {
+        #[cfg(feature = "alloc")]
+        {
+            let a = Polynomial::from_coefficients(vec![1, 0, 1, 0]);
+            let b = Polynomial::from_coefficients(vec![1, 0]);
+            assert!(matches!(a.add(&b), Err(HqcError::InvalidSize)));
+            assert!(matches!(a.multiply(&b), Err(HqcError::InvalidSize)));
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            let a = Polynomial::from_coefficients(&[1, 0, 1, 0]);
+            let b = Polynomial::from_coefficients(&[1, 0]);
+            assert!(matches!(a.add(&b), Err(HqcError::InvalidSize)));
+            assert!(matches!(a.multiply(&b), Err(HqcError::InvalidSize)));
+        }
+    }
+
+    #[test]
     fn test_polynomial_validity() {
         // Create a polynomial with non-zero coefficients to test validity
         #[cfg(feature = "alloc")]

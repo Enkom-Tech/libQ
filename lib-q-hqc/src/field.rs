@@ -182,5 +182,35 @@ mod tests {
         assert_eq!(a + b, FieldElement::ONE);
         assert_eq!(a - b, FieldElement::ONE);
         assert_eq!(a * b, FieldElement::ZERO);
+
+        // Exercise the `&FieldElement op &FieldElement` impls specifically (the block above
+        // uses owned `Copy` values, which resolve to the by-value impls instead). Bind the
+        // references to named variables first, rather than writing `&a + &b` inline: clippy's
+        // `op_ref` lint flags an inline `&x op &y` as a needless reference on a `Copy` type
+        // (correctly, in general -- `x op y` would use the same by-value impl and clippy can't
+        // tell this test wants the reference impl specifically), and `#[allow]`-ing it would
+        // silence a real lint crate-wide-in-spirit for a one-off. Pre-binding `ra`/`rb` as
+        // `&FieldElement` gets the same reference-impl call with no inline `&x`/`&y` for the
+        // lint to match.
+        let ra = &a;
+        let rb = &b;
+        assert_eq!(ra + rb, FieldElement::ONE);
+        assert_eq!(ra - rb, FieldElement::ONE);
+        assert_eq!(ra * rb, FieldElement::ZERO);
+        assert_eq!(ra + ra, FieldElement::ZERO); // 1 + 1 = 0 (XOR)
+        assert_eq!(ra * ra, FieldElement::ONE); // 1 * 1 = 1
+    }
+
+    /// `zeroize` is pulled in transitively by the default `random` feature. Verify it actually
+    /// clears the element rather than being a no-op stub.
+    #[test]
+    #[cfg(feature = "zeroize")]
+    fn test_field_element_zeroize() {
+        use zeroize::Zeroize;
+
+        let mut one = FieldElement::ONE;
+        assert!(one.is_one());
+        one.zeroize();
+        assert!(one.is_zero(), "zeroize() must clear the element to ZERO");
     }
 }

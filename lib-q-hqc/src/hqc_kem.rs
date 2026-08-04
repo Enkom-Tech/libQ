@@ -625,3 +625,174 @@ impl From<HqcPkeError> for HqcKemError {
         HqcKemError::PkeError(error)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! `HqcKem<P>` had no direct unit tests at all before this module: every existing test
+    //! reaches it only indirectly through `hqc_correct::{Hqc1, Hqc3, Hqc5}` or `provider.rs`,
+    //! which always go through `keygen()` (RNG-seeded) and `encapsulate()` (RNG-seeded m/salt).
+    //! `keygen_with_seed`, `encapsulate_with_m_salt`, `to_nist_bytes`, and `from_nist_bytes` are
+    //! never called anywhere else under default features (confirmed by grep) -- they're the KAT
+    //! / NIST-wire-format entry points, exercised only by `tests/nist_kem_kat.rs`, which is
+    //! gated behind `required-features = ["alloc", "hqc", "random"]` and so never builds under
+    //! this crate's default features. The tests below drive those entry points directly.
+
+    use super::*;
+    use crate::params_correct::{
+        Hqc1Params,
+        Hqc3Params,
+        Hqc5Params,
+    };
+
+    #[test]
+    fn test_keygen_with_seed_rejects_short_seed() {
+        let kem = HqcKem::<Hqc1Params>::new().unwrap();
+        let short_seed = [0u8; 47]; // one byte short of the required 48
+        assert_eq!(
+            kem.keygen_with_seed(&short_seed).unwrap_err(),
+            HqcKemError::InvalidInput
+        );
+    }
+
+    #[test]
+    fn test_keygen_with_seed_is_deterministic() {
+        let kem = HqcKem::<Hqc3Params>::new().unwrap();
+        let seed = [0x5Au8; 48];
+
+        let (pk1, _sk1) = kem.keygen_with_seed(&seed).unwrap();
+        let (pk2, _sk2) = kem.keygen_with_seed(&seed).unwrap();
+        assert_eq!(
+            pk1.as_bytes(),
+            pk2.as_bytes(),
+            "same seed must give same key"
+        );
+    }
+
+    /// `keygen_with_seed` + `encapsulate_with_m_salt` + `decapsulate` round trip, driven with
+    /// fixed `(m, salt)` (the NIST KAT calling convention) rather than RNG-sampled values, for
+    /// all three parameter sets.
+    #[test]
+    fn test_kat_style_round_trip_all_params() {
+        fn round_trip<P: HqcParams>(seed_byte: u8) {
+            let kem = HqcKem::<P>::new().unwrap();
+            let seed = [seed_byte; 48];
+            let (public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
+
+            let m = [0x11u8; 16];
+            let salt = [0x22u8; 16];
+            let (ciphertext, shared_secret) =
+                kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();
+
+            let decapsulated = kem.decapsulate(&secret_key, &ciphertext).unwrap();
+            assert_eq!(shared_secret.as_bytes(), decapsulated.as_bytes());
+        }
+
+        round_trip::<Hqc1Params>(0xA1);
+        round_trip::<Hqc3Params>(0xA3);
+        round_trip::<Hqc5Params>(0xA5);
+    }
+
+    /// `to_nist_bytes` / `from_nist_bytes`: the NIST secret-key wire layout must round-trip the
+    /// parts that matter for decapsulation (`ek_pke`, `dk_pke`, `sigma`); `seed_kem` is
+    /// documented as not part of that wire format and reconstructed as a zero placeholder.
+    #[test]
+    fn test_nist_secret_key_round_trip() {
+        let kem = HqcKem::<Hqc3Params>::new().unwrap();
+        let seed = [0x77u8; 48];
+        let (public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
+
+        let nist_bytes = secret_key.to_nist_bytes();
+        assert_eq!(nist_bytes.len(), Hqc3Params::NIST_SECRET_KEY_BYTES);
+
+        let restored = HqcKemSecretKey::<Hqc3Params>::from_nist_bytes(&nist_bytes).unwrap();
+
+        // Decapsulation must behave identically with the restored key.
+        let m = [0x33u8; 16];
+        let salt = [0x44u8; 16];
+        let (ciphertext, shared_secret) =
+            kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();
+        let decapsulated_original = kem.decapsulate(&secret_key, &ciphertext).unwrap();
+        let decapsulated_restored = kem.decapsulate(&restored, &ciphertext).unwrap();
+        assert_eq!(
+            decapsulated_original.as_bytes(),
+            decapsulated_restored.as_bytes()
+        );
+        assert_eq!(shared_secret.as_bytes(), decapsulated_original.as_bytes());
+    }
+
+    #[test]
+    fn test_from_nist_bytes_rejects_wrong_length() {
+        let too_short = alloc::vec![0u8; 10];
+        assert_eq!(
+            HqcKemSecretKey::<Hqc1Params>::from_nist_bytes(&too_short).unwrap_err(),
+            HqcKemError::InvalidKey
+        );
+
+        let too_long = alloc::vec![0u8; Hqc1Params::NIST_SECRET_KEY_BYTES + 1];
+        assert_eq!(
+            HqcKemSecretKey::<Hqc1Params>::from_nist_bytes(&too_long).unwrap_err(),
+            HqcKemError::InvalidKey
+        );
+    }
+
+    /// Negative path: corrupting a single byte of the ciphertext must not reproduce the
+    /// original shared secret (implicit rejection via the FO transform), and must not panic.
+    #[test]
+    fn test_decapsulate_corrupted_ciphertext_does_not_leak_secret() {
+        let kem = HqcKem::<Hqc5Params>::new().unwrap();
+        let seed = [0x99u8; 48];
+        let (public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
+
+        let m = [0x55u8; 16];
+        let salt = [0x66u8; 16];
+        let (ciphertext, shared_secret) =
+            kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();
+
+        // Flip one bit in the serialized ciphertext and rebuild a ciphertext from it.
+        let mut corrupted_bytes = ciphertext.as_bytes();
+        let last = corrupted_bytes.len() - 1;
+        corrupted_bytes[last] ^= 0x01;
+        let (c_pke_bytes, salt_bytes) = corrupted_bytes.split_at(corrupted_bytes.len() - 16);
+        let c_pke = HqcPkeCiphertext::<Hqc5Params>::new(c_pke_bytes.to_vec());
+        let mut salt_arr = [0u8; 16];
+        salt_arr.copy_from_slice(salt_bytes);
+        let corrupted_ct = HqcKemCiphertext::new(c_pke, salt_arr);
+
+        let mismatched = kem.decapsulate(&secret_key, &corrupted_ct).unwrap();
+        assert_ne!(
+            shared_secret.as_bytes(),
+            mismatched.as_bytes(),
+            "a corrupted ciphertext must not decapsulate to the original shared secret"
+        );
+    }
+
+    /// `HqcKemError::Display` is invoked nowhere in the crate, and `HashError`/
+    /// `InvalidCiphertext`/`DecryptionFailed` are never constructed by any real call site
+    /// (`HashError` in this file is theoretically reachable from `Shake256Xof::squeeze`/`init`
+    /// failing, but those never actually fail in this implementation; `InvalidCiphertext` and
+    /// `DecryptionFailed` are declared but unused). `impl From<HqcPkeError> for HqcKemError` is
+    /// likewise never invoked: `keygen`/`encapsulate`/`decapsulate` above all use
+    /// `.map_err(HqcKemError::PkeError)`, the constructor form, not the `From` impl.
+    #[test]
+    fn test_hqc_kem_error_display_all_variants_and_from_pke_error() {
+        use crate::hqc_pke::HqcPkeError;
+
+        assert_eq!(HqcKemError::HashError.to_string(), "Hash error");
+        assert_eq!(HqcKemError::InvalidKey.to_string(), "Invalid key");
+        assert_eq!(
+            HqcKemError::InvalidCiphertext.to_string(),
+            "Invalid ciphertext"
+        );
+        assert_eq!(
+            HqcKemError::DecryptionFailed.to_string(),
+            "Decryption failed"
+        );
+        assert_eq!(HqcKemError::InvalidInput.to_string(), "Invalid input");
+
+        let wrapped = HqcKemError::PkeError(HqcPkeError::InvalidKey);
+        assert_eq!(wrapped.to_string(), "PKE error: Invalid key");
+
+        let converted: HqcKemError = HqcPkeError::HashError.into();
+        assert_eq!(converted, HqcKemError::PkeError(HqcPkeError::HashError));
+    }
+}

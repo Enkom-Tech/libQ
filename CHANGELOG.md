@@ -250,23 +250,41 @@ known defect; all are things this release did **not** verify.
   | `lib-q-zkp` | 71.54% (3046/4258) | 65% | pass |
   | `lib-q-stark-commit` | 71.07% (140/197) | 70% | pass, by 1.07 points |
   | `lib-q-ml-dsa` | 68.67% (2558/3725) | 60% | pass |
-  | `lib-q-stark-monty31` | 29.99% raw (600/2001) | 70% | see note |
-  | `lib-q-hqc` | 51.00% (1076/2110) | 70% | **below floor** |
+  | `lib-q-stark-commit` (after) | 83.50% (172/206) | 70% | pass |
+  | `lib-q-stark-monty31` (after) | 77.32% (600/776) | 70% | pass |
+  | `lib-q-hqc` (after) | 70.71% (1412/1997) | 70% | pass |
 
-  `lib-q-stark-monty31`'s raw figure is a denominator artifact, not a real gap: 1225 of its 2001
-  measured lines are `target_feature`-gated AVX2/AVX-512/NEON code that a default build never
-  compiles, yet they stay in the denominator. Scoped to the code actually built it is ~77.5%
-  (600/774).
+  All three now clear the floor, by two different routes, and the distinction matters:
 
-  `lib-q-hqc` is a genuine gap. Applying the same correction — excluding the `avx2` directory and
-  `wasm.rs`, 114 always-zero lines behind off-by-default features — still gives only 53.9%
-  (1076/1996). Within it, `error.rs` is **0/73 covered** under default features, which is a real
-  untested surface rather than a measurement artifact and is tracked for follow-up.
+  **Scoping** (`lib-q-stark-monty31`, 30.65% → 77.32%). 1244 of its 2052 measured lines are the
+  `x86_64_avx2/`, `x86_64_avx512/` and `aarch64_neon/` trees, gated on `target_feature` in
+  `src/lib.rs` — a default build never compiles them, so they were inflating the denominator with
+  code the runner cannot execute. Excluded, with the same justification and precedent as the
+  existing `lib-q-keccak` and `lib-q-ml-dsa` entries. `no_packing/` stays measured: it *is*
+  compiled. No tests were added and none were needed.
 
-  Neither is a regression introduced here, and neither gates the release: `cd.yml` runs no coverage
-  step, and `coverage.yml` does not sweep the `lib-q-stark-*` crates, so those floors were never
-  enforced for them. They are recorded because the numbers had never been measured before and
-  should not be discovered later as a surprise.
+  **Real tests** (`lib-q-hqc` 51.00% → 70.71%, `lib-q-stark-commit` 70.87% → 83.50%). hqc gained
+  55 tests; `error.rs` went from 0/73, covered by driving the code paths that *produce* each error
+  rather than by constructing variants. stark-commit's `pcs.rs` went 0/20 → 20/20 after
+  investigation showed it was a genuine gap, not a tooling artifact: `TrivialPcs` left five
+  optional `Pcs` trait defaults un-overridden and no test called through them. Six of those default
+  bodies are now mutation-verified.
+
+  hqc's exclusion set is deliberately narrower than first proposed. `src/simd/avx2/` is gated on
+  `#[cfg(target_arch = "x86_64")]`, **not** on the `simd-avx2` feature, so on any x86_64 build —
+  including CI — those files are compiled and belong in the denominator. Only the two whose bodies
+  carry `#[target_feature(enable = "avx2", enable = "pclmulqdq")]` are excluded, plus the genuinely
+  feature-gated `wasm.rs`.
+
+  One caveat on how to read hqc's figure: five of the added tests cover the AVX2 *dispatch* arms in
+  the default (no `simd-avx2`) configuration, where those functions delegate to the portable
+  implementation. They cover compiled, reachable code and their negative controls were observed
+  failing, but they do not exercise SIMD instructions. Do not read 70.71% as "the AVX2 path is
+  tested". A related naming problem this surfaced is tracked separately.
+
+  Coverage still gates nothing on the release path: `cd.yml` runs no coverage step and
+  `coverage.yml` does not sweep the `lib-q-stark-*` crates. These numbers are recorded because they
+  had never been measured before.
 - **Docs:** `README.md`, `docs/npm-coverage.md`, `docs/npm-packages.md`, and `docs/npm-wasm-api.md`
   no longer describe `lib-q-threshold-sig` / `@lib-q/threshold-sig` as a usable package; npm package
   counts updated accordingly (30 → 29 total, 29 → 28 wasm-pack bundles).

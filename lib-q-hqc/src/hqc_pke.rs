@@ -1058,3 +1058,48 @@ pub fn schoolbook_vect_mul_mod_xnm1(
     output[vec_n_words - 1] &= (1u64 << mask_n) - 1;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    //! `hqc_pke.rs` had no `#[cfg(test)] mod` at all before this: its `keygen`/`encrypt`/
+    //! `decrypt` are already driven end-to-end (for all 3 parameter sets) via
+    //! `hqc_correct.rs`'s and `provider.rs`'s round-trip tests, so this module intentionally
+    //! does NOT duplicate that -- it targets `HqcPkeError`'s `Display`/`From` impls, which (like
+    //! every sibling error type in this crate) are never invoked by production code: `keygen`/
+    //! `encrypt`/`decrypt` use `.map_err(HqcPkeError::CodeError)`, the constructor form, not the
+    //! `From` impl, and nothing anywhere calls `.to_string()`/`format!("{}", ..)` on a
+    //! `HqcPkeError` (confirmed by grep across `lib-q-hqc/src`).
+    //!
+    //! Direct testing of `HqcPke::encrypt`/`decrypt` with hand-built messages was deliberately
+    //! NOT added here: `encrypt`'s `message: &[u64]` parameter has a non-obvious size contract
+    //! (see `HqcKem::bytes_to_u64_array`'s doc comment -- the array is sized to `P::K` u64
+    //! *words*, mostly zero-padded, not a tight `K`-byte packing) that is easy to get wrong in a
+    //! way that "passes" without exercising real semantics; the existing full-stack round trips
+    //! already exercise these functions correctly via that same conversion helper.
+
+    use super::*;
+    use crate::concatenated_code::ConcatenatedCodeError;
+
+    #[test]
+    fn test_hqc_pke_error_display_all_variants_and_from_code_error() {
+        assert_eq!(HqcPkeError::HashError.to_string(), "Hash error");
+        assert_eq!(HqcPkeError::InvalidKey.to_string(), "Invalid key");
+        assert_eq!(
+            HqcPkeError::InvalidCiphertext.to_string(),
+            "Invalid ciphertext"
+        );
+        assert_eq!(
+            HqcPkeError::DecryptionFailed.to_string(),
+            "Decryption failed"
+        );
+
+        let wrapped = HqcPkeError::CodeError(ConcatenatedCodeError::InvalidMessageLength);
+        assert_eq!(wrapped.to_string(), "Code error: Invalid message length");
+
+        let converted: HqcPkeError = ConcatenatedCodeError::InvalidCodewordLength.into();
+        assert_eq!(
+            converted,
+            HqcPkeError::CodeError(ConcatenatedCodeError::InvalidCodewordLength)
+        );
+    }
+}

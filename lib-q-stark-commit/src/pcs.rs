@@ -256,12 +256,19 @@ mod tests {
     use core::marker::PhantomData;
 
     use lib_q_stark_baby_bear::BabyBear;
-    use lib_q_stark_challenger::Shake128Challenger32;
+    use lib_q_stark_challenger::{
+        CanSample,
+        Shake128Challenger32,
+    };
     use lib_q_stark_dft::{
         NaiveDft,
         TwoAdicSubgroupDft,
     };
-    use lib_q_stark_field::PrimeCharacteristicRing;
+    use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
+    use lib_q_stark_field::{
+        PrimeCharacteristicRing,
+        TwoAdicField,
+    };
     use lib_q_stark_shake128::Shake128Hash;
 
     use super::*;
@@ -388,5 +395,290 @@ mod tests {
             &mut challenger(),
         )
         .ok();
+    }
+
+    // ---- Coverage of `Pcs`'s DEFAULT method bodies ----
+    //
+    // `TrivialPcs` (the only `Pcs` impl in this crate) overrides every required method plus
+    // `commit_quotient`, but deliberately leaves `try_natural_domain_for_degree`,
+    // `commit_preprocessing`, `open_with_preprocessing` and `get_opt_randomization_poly_commitment`
+    // on the trait's own default bodies (see `testing.rs`'s `impl Pcs for TrivialPcs`: those four
+    // methods are simply absent). So calling them through `TrivialPcs` exercises the DEFAULT body
+    // defined right here in `pcs.rs`, not an override elsewhere -- closing exactly the gap the
+    // 0/20-covered `pcs.rs` report pointed at.
+
+    /// `try_natural_domain_for_degree`'s default just wraps `natural_domain_for_degree` in `Some`.
+    #[test]
+    fn try_natural_domain_for_degree_default_wraps_the_infallible_version() {
+        let p = pcs(3);
+        let degree = 8;
+        let direct =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, degree,
+            );
+        let via_default = Pcs::<Challenge, Challenger>::try_natural_domain_for_degree(&p, degree);
+        // `TwoAdicMultiplicativeCoset` does not implement `PartialEq`; compare the two
+        // domain-identifying fields instead (shift and size uniquely determine a coset).
+        let via_default = via_default.expect("default must wrap in `Some`");
+        assert_eq!(via_default.shift(), direct.shift());
+        assert_eq!(via_default.log_size(), direct.log_size());
+    }
+
+    /// `commit_preprocessing`'s default is a pure passthrough to `commit`: same input must produce
+    /// the identical (commitment, prover_data) pair.
+    #[test]
+    fn commit_preprocessing_default_delegates_to_commit() {
+        let p = pcs(3);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals = NaiveDft.dft_batch(coeffs());
+
+        let (direct_commitment, direct_prover_data) =
+            Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals.clone())]);
+        let (default_commitment, default_prover_data) =
+            Pcs::<Challenge, Challenger>::commit_preprocessing(&p, [(domain, evals)]);
+
+        assert_eq!(default_commitment, direct_commitment);
+        assert_eq!(default_prover_data, direct_prover_data);
+    }
+
+    /// Negative control for the delegation test above: prove the two calls are not being compared
+    /// via some vacuously-equal placeholder by feeding `commit` a genuinely different polynomial
+    /// and confirming the two commitments then differ.
+    #[test]
+    fn commit_preprocessing_negative_control_distinct_input_gives_distinct_commitment() {
+        let p = pcs(3);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals_a = NaiveDft.dft_batch(coeffs());
+        let mut other = coeffs();
+        // Perturb one coefficient so the two polynomials are genuinely different.
+        other.values[0] += F::ONE;
+        let evals_b = NaiveDft.dft_batch(other);
+
+        let (commitment_a, _) =
+            Pcs::<Challenge, Challenger>::commit_preprocessing(&p, [(domain, evals_a)]);
+        let (commitment_b, _) =
+            Pcs::<Challenge, Challenger>::commit_preprocessing(&p, [(domain, evals_b)]);
+        assert_ne!(commitment_a, commitment_b);
+    }
+
+    /// `open_with_preprocessing`'s default ignores the `is_preprocessing` flag entirely and
+    /// delegates straight to `open`; check both flag values produce `open`'s own result.
+    #[test]
+    fn open_with_preprocessing_default_delegates_to_open_regardless_of_flag() {
+        let p = pcs(3);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals = NaiveDft.dft_batch(coeffs());
+        let (_commitment, prover_data) =
+            Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+        let z = F::new(999);
+
+        let (direct_opened, _) = Pcs::<Challenge, Challenger>::open(
+            &p,
+            vec![(&prover_data, vec![vec![z]])],
+            &mut challenger(),
+        );
+        for flag in [false, true] {
+            let (via_default, _) = Pcs::<Challenge, Challenger>::open_with_preprocessing(
+                &p,
+                vec![(&prover_data, vec![vec![z]])],
+                &mut challenger(),
+                flag,
+            );
+            assert_eq!(via_default, direct_opened);
+        }
+    }
+
+    /// `get_evaluations_on_domain_no_random`'s default is a pure passthrough to
+    /// `get_evaluations_on_domain`: same inputs must produce identical evaluations.
+    #[test]
+    fn get_evaluations_on_domain_no_random_default_delegates() {
+        let p = pcs(3);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals = NaiveDft.dft_batch(coeffs());
+        let (_commitment, prover_data) =
+            Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+
+        let direct =
+            Pcs::<Challenge, Challenger>::get_evaluations_on_domain(&p, &prover_data, 0, domain);
+        let via_default = Pcs::<Challenge, Challenger>::get_evaluations_on_domain_no_random(
+            &p,
+            &prover_data,
+            0,
+            domain,
+        );
+        assert_eq!(via_default, direct);
+    }
+
+    /// `get_opt_randomization_poly_commitment`'s default always returns `None`; nothing about a
+    /// non-hiding PCS like `TrivialPcs` should make it produce a randomization commitment.
+    #[test]
+    fn get_opt_randomization_poly_commitment_default_is_none() {
+        let p = pcs(3);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        assert!(
+            Pcs::<Challenge, Challenger>::get_opt_randomization_poly_commitment(&p, [domain])
+                .is_none()
+        );
+    }
+
+    /// Minimal wrapper around `TrivialPcs` that supplies real (if non-LDE) bodies for
+    /// `get_quotient_ldes`/`commit_ldes` -- `TrivialPcs`'s own versions are `unimplemented!()` --
+    /// and, crucially, does NOT re-override `commit_quotient`. That leaves `commit_quotient` on
+    /// the trait's own default body in `pcs.rs`, so calling it here runs that default end-to-end
+    /// instead of `TrivialPcs`'s override (see `testing.rs`, which DOES override `commit_quotient`).
+    struct QuotientDefaultPcs<Val: TwoAdicField, Dft: TwoAdicSubgroupDft<Val>>(
+        TrivialPcs<Val, Dft>,
+    );
+
+    impl<Val, Dft, Challenge, Challenger> Pcs<Challenge, Challenger> for QuotientDefaultPcs<Val, Dft>
+    where
+        Val: TwoAdicField,
+        Challenge: ExtensionField<Val>,
+        Challenger: CanSample<Challenge>,
+        Dft: TwoAdicSubgroupDft<Val>,
+        Vec<Vec<Val>>: Serialize + DeserializeOwned,
+    {
+        type Domain = TwoAdicMultiplicativeCoset<Val>;
+        type Commitment = Vec<Vec<Val>>;
+        type ProverData = Vec<RowMajorMatrix<Val>>;
+        type EvaluationsOnDomain<'a> = Dft::Evaluations;
+        type Proof = ();
+        type Error = ();
+        const ZK: bool = false;
+
+        fn natural_domain_for_degree(&self, degree: usize) -> Self::Domain {
+            Pcs::<Challenge, Challenger>::natural_domain_for_degree(&self.0, degree)
+        }
+
+        fn commit(
+            &self,
+            evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val>)>,
+        ) -> (Self::Commitment, Self::ProverData) {
+            Pcs::<Challenge, Challenger>::commit(&self.0, evaluations)
+        }
+
+        // Deliberately NOT overriding `commit_quotient`: that is the point of this type.
+
+        fn get_quotient_ldes(
+            &self,
+            evaluations: impl IntoIterator<Item = (Self::Domain, RowMajorMatrix<Val>)>,
+            _num_chunks: usize,
+        ) -> Vec<RowMajorMatrix<Val>> {
+            // Identity passthrough: this type exists only to observe `commit_quotient`'s default
+            // plumbing, not to compute an actual low-degree extension.
+            evaluations
+                .into_iter()
+                .map(|(_domain, evals)| evals)
+                .collect()
+        }
+
+        fn commit_ldes(
+            &self,
+            ldes: Vec<RowMajorMatrix<Val>>,
+        ) -> (Self::Commitment, Self::ProverData) {
+            (ldes.iter().map(|m| m.values.clone()).collect(), ldes)
+        }
+
+        fn get_evaluations_on_domain<'a>(
+            &self,
+            prover_data: &'a Self::ProverData,
+            idx: usize,
+            domain: Self::Domain,
+        ) -> Self::EvaluationsOnDomain<'a> {
+            Pcs::<Challenge, Challenger>::get_evaluations_on_domain(
+                &self.0,
+                prover_data,
+                idx,
+                domain,
+            )
+        }
+
+        fn open(
+            &self,
+            rounds: Vec<(&Self::ProverData, Vec<Vec<Challenge>>)>,
+            challenger: &mut Challenger,
+        ) -> (OpenedValues<Challenge>, Self::Proof) {
+            Pcs::<Challenge, Challenger>::open(&self.0, rounds, challenger)
+        }
+
+        #[allow(clippy::type_complexity)]
+        fn verify(
+            &self,
+            rounds: Vec<(
+                Self::Commitment,
+                Vec<(Self::Domain, Vec<(Challenge, Vec<Challenge>)>)>,
+            )>,
+            proof: &Self::Proof,
+            challenger: &mut Challenger,
+        ) -> Result<(), Self::Error> {
+            Pcs::<Challenge, Challenger>::verify(&self.0, rounds, proof, challenger)
+        }
+    }
+
+    /// `commit_quotient`'s default: split the quotient domain/evaluations into `num_chunks`
+    /// pieces, hand them to `get_quotient_ldes`, then commit the result via `commit_ldes`. Check
+    /// the whole default end-to-end against an independently-assembled expectation built from the
+    /// same `PolynomialSpace::split_evals` call the default itself must be using.
+    #[test]
+    fn commit_quotient_default_splits_then_delegates_to_get_quotient_ldes_and_commit_ldes() {
+        let p = QuotientDefaultPcs(pcs(2));
+        let quotient_domain =
+            <QuotientDefaultPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals = NaiveDft.dft_batch(coeffs());
+        let num_chunks = 2;
+
+        let (commitment, prover_data) = Pcs::<Challenge, Challenger>::commit_quotient(
+            &p,
+            quotient_domain,
+            evals.clone(),
+            num_chunks,
+        );
+
+        // Independently reconstruct what the default *should* produce: `get_quotient_ldes` here is
+        // an identity passthrough of the split evaluation chunks, and `commit_ldes` copies each
+        // chunk's raw values as the commitment -- so the expected prover data is exactly
+        // `split_evals`'s own output, in order.
+        let expected_ldes = PolynomialSpace::split_evals(&quotient_domain, num_chunks, evals);
+        let expected_commitment: Vec<Vec<F>> =
+            expected_ldes.iter().map(|m| m.values.clone()).collect();
+
+        assert_eq!(prover_data, expected_ldes);
+        assert_eq!(commitment, expected_commitment);
+    }
+
+    /// Negative control for the `commit_quotient` default test: corrupting `num_chunks` (splitting
+    /// into a different number of pieces than the default actually used) must produce a different
+    /// prover-data shape/content, proving the equality check above is not vacuous.
+    #[test]
+    fn commit_quotient_negative_control_wrong_num_chunks_disagrees() {
+        let p = QuotientDefaultPcs(pcs(2));
+        let quotient_domain =
+            <QuotientDefaultPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
+        let evals = NaiveDft.dft_batch(coeffs());
+
+        let (_commitment, prover_data) =
+            Pcs::<Challenge, Challenger>::commit_quotient(&p, quotient_domain, evals.clone(), 2);
+        // Split into 4 chunks instead of the 2 actually used above: different shape entirely.
+        let wrong_split = PolynomialSpace::split_evals(&quotient_domain, 4, evals);
+        assert_ne!(prover_data.len(), wrong_split.len());
     }
 }

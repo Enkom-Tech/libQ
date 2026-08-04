@@ -825,4 +825,17 @@ mod tests {
         assert_eq!(Hqc3Params::RS_POLY_COEFS.len(), Hqc3Params::G);
         assert_eq!(Hqc5Params::RS_POLY_COEFS.len(), Hqc5Params::G);
     }
+
+    /// `bitmask` is otherwise unused within the crate (`hqc_pke.rs` inlines its own equivalent
+    /// expression rather than calling it) -- exercise the standalone helper directly against
+    /// hand-computed values.
+    #[test]
+    fn test_bitmask() {
+        // bitmask(a, size) = (1 << (a % size)) - 1
+        assert_eq!(bitmask(0, 8), 0); // (1 << 0) - 1 = 0
+        assert_eq!(bitmask(3, 8), 0b0111); // (1 << 3) - 1 = 7
+        assert_eq!(bitmask(7, 8), 0b0111_1111); // (1 << 7) - 1 = 127
+        assert_eq!(bitmask(8, 8), 0); // 8 % 8 == 0 -> (1 << 0) - 1 = 0 (wraps)
+        assert_eq!(bitmask(10, 8), bitmask(2, 8)); // 10 % 8 == 2
+    }
 }
