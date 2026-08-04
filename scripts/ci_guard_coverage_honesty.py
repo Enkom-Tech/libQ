@@ -658,6 +658,24 @@ SRC_EXCLUDE_ALLOWLIST = {
     # Only one of these compiles per target architecture; the other cannot be executed at all.
     "lib-q-intrinsics/src/arm64.rs",
     "lib-q-intrinsics/src/avx2.rs",
+    # Function bodies carrying `#[target_feature(enable = "avx2", enable = "pclmulqdq")]`, plus the
+    # feature-gated wasm binding. NOTE the deliberately narrow scope: lib-q-hqc/src/simd/avx2/ is
+    # gated on `#[cfg(target_arch = "x86_64")]` (simd/mod.rs:35), NOT on the `simd-avx2` feature, so
+    # mod.rs / polynomial.rs / syndrome.rs / vector.rs ARE compiled in a default x86_64 build and
+    # stay in the denominator. Only the two files whose bodies the runner cannot execute are listed.
+    "lib-q-hqc/src/wasm.rs",
+    "lib-q-hqc/src/simd/avx2/gf2x.rs",
+    "lib-q-hqc/src/simd/avx2/gf2x_toom3.rs",
+    # Packed backends gated on `target_feature` ("avx2"/"avx512f"/"neon") in lib.rs -- not merely
+    # target_arch -- so a default build compiles only the `no_packing` scalar fallback. Measured at
+    # 1244 of 2052 lines, which reports a genuine 77.9% as 30.7%. `no_packing/` is deliberately NOT
+    # listed: it IS compiled by default and must stay in the denominator.
+    "lib-q-stark-monty31/src/x86_64_avx2/*",
+    "lib-q-stark-monty31/src/x86_64_avx2/**",
+    "lib-q-stark-monty31/src/x86_64_avx512/*",
+    "lib-q-stark-monty31/src/x86_64_avx512/**",
+    "lib-q-stark-monty31/src/aarch64_neon/*",
+    "lib-q-stark-monty31/src/aarch64_neon/**",
     # Experimental recursive-verifier internals, covered by dedicated long-running integration
     # suites rather than the default crate gate (see the comment in scripts/run-coverage.sh).
     "lib-q-zkp/src/aggregation.rs",

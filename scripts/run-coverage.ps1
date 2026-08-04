@@ -193,6 +193,26 @@ if (($PackageArg -eq $pkgLibQMldsa) -and (-not $enableSimdAcvp)) {
     $cmd += ' --exclude-files "lib-q-ml-dsa\src\simd\avx2' + [char]92 + '*' + '"'
     $cmd += ' --exclude-files "lib-q-ml-dsa/src/ml_dsa_generic/instantiations/avx2.rs" --exclude-files "lib-q-ml-dsa\src\ml_dsa_generic\instantiations\avx2.rs"'
 }
+# lib-q-hqc: only the two #[target_feature(avx2, pclmulqdq)] files plus the feature-gated wasm
+# binding. NOT the whole simd/avx2 directory -- that module is cfg(target_arch = "x86_64"), not
+# feature-gated, so its other four files ARE compiled by default and stay measured. Mirrors the
+# bash twin in run-coverage.sh.
+if ($PackageArg -eq "lib-q-hqc") {
+    $cmd += ' --exclude-files "lib-q-hqc/src/wasm.rs" --exclude-files "lib-q-hqc\src\wasm.rs"'
+    $cmd += ' --exclude-files "lib-q-hqc/src/simd/avx2/gf2x.rs" --exclude-files "lib-q-hqc\src\simd\avx2\gf2x.rs"'
+    $cmd += ' --exclude-files "lib-q-hqc/src/simd/avx2/gf2x_toom3.rs" --exclude-files "lib-q-hqc\src\simd\avx2\gf2x_toom3.rs"'
+}
+# lib-q-stark-monty31: packed backends are target_feature-gated (avx2 / avx512f / neon) in
+# src/lib.rs, so a default build compiles only the no_packing scalar fallback. Mirrors the bash
+# twin in run-coverage.sh; no_packing/ stays measured because it IS compiled by default.
+if ($PackageArg -eq "lib-q-stark-monty31") {
+    $cmd += ' --exclude-files "lib-q-stark-monty31/src/x86_64_avx2/' + '*' + '" --exclude-files "lib-q-stark-monty31/src/x86_64_avx2/' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-stark-monty31\src\x86_64_avx2' + [char]92 + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-stark-monty31/src/x86_64_avx512/' + '*' + '" --exclude-files "lib-q-stark-monty31/src/x86_64_avx512/' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-stark-monty31\src\x86_64_avx512' + [char]92 + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-stark-monty31/src/aarch64_neon/' + '*' + '" --exclude-files "lib-q-stark-monty31/src/aarch64_neon/' + '*' + '*' + '"'
+    $cmd += ' --exclude-files "lib-q-stark-monty31\src\aarch64_neon' + [char]92 + '*' + '"'
+}
 if ($PackageArg -eq "lib-q-zkp") {
     # lib-q-zkp: recursive verifier internals are experimental and exercised by
     # dedicated long-running integration suites; exclude them from default crate

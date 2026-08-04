@@ -453,6 +453,27 @@ runs:
           TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-ml-dsa\\\\src\\\\ml_dsa_generic\\\\instantiations\\\\avx2.rs\""
         fi
 
+        # HQC: only the two #[target_feature(avx2, pclmulqdq)] files plus the feature-gated wasm
+        # binding. NOT the whole simd/avx2 dir: it is cfg(target_arch = "x86_64"), not feature-gated,
+        # so mod/polynomial/syndrome/vector.rs ARE compiled here and stay in the denominator.
+        if [[ "$PACKAGE" == "lib-q-hqc" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hqc/src/wasm.rs\" --exclude-files \"lib-q-hqc\\\\src\\\\wasm.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hqc/src/simd/avx2/gf2x.rs\" --exclude-files \"lib-q-hqc\\\\src\\\\simd\\\\avx2\\\\gf2x.rs\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-hqc/src/simd/avx2/gf2x_toom3.rs\" --exclude-files \"lib-q-hqc\\\\src\\\\simd\\\\avx2\\\\gf2x_toom3.rs\""
+        fi
+
+        # monty31: packed backends are target_feature-gated (avx2/avx512f/neon) in src/lib.rs, so a
+        # default build compiles only the no_packing fallback; 1244 of 2052 measured lines are code
+        # the runner never builds. no_packing/ stays in — it IS compiled. See docs/coverage-scope.md.
+        if [[ "$PACKAGE" == "lib-q-stark-monty31" ]]; then
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31/src/x86_64_avx2/*\" --exclude-files \"lib-q-stark-monty31/src/x86_64_avx2/**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31\\\\src\\\\x86_64_avx2\\\\*\" --exclude-files \"lib-q-stark-monty31\\\\src\\\\x86_64_avx2\\\\**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31/src/x86_64_avx512/*\" --exclude-files \"lib-q-stark-monty31/src/x86_64_avx512/**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31\\\\src\\\\x86_64_avx512\\\\*\" --exclude-files \"lib-q-stark-monty31\\\\src\\\\x86_64_avx512\\\\**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31/src/aarch64_neon/*\" --exclude-files \"lib-q-stark-monty31/src/aarch64_neon/**\""
+          TARPAULIN_CMD="$TARPAULIN_CMD --exclude-files \"lib-q-stark-monty31\\\\src\\\\aarch64_neon\\\\*\" --exclude-files \"lib-q-stark-monty31\\\\src\\\\aarch64_neon\\\\**\""
+        fi
+
         if [[ "$PACKAGE" == "lib-q-intrinsics" ]]; then
           ARCH_RAW="$(uname -m 2>/dev/null || echo unknown)"
           ARCH_CLEAN="${ARCH_RAW%%[$'\r']}"

@@ -185,6 +185,34 @@ if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
 fi
 
+# lib-q-hqc: only the two files whose function bodies carry `#[target_feature(enable = "avx2",
+# enable = "pclmulqdq")]` are excluded, plus the feature-gated wasm binding.
+# NOT the whole simd/avx2 directory: that module is gated on `#[cfg(target_arch = "x86_64")]`
+# (simd/mod.rs:35), NOT on the `simd-avx2` feature, so mod.rs / polynomial.rs / syndrome.rs /
+# vector.rs ARE compiled in a default x86_64 build and must stay in the denominator. Excluding
+# them would hide compiled code rather than measure it, which is what
+# ci_guard_coverage_honesty.py's SRC_EXCLUDE_ALLOWLIST exists to prevent.
+if [[ "$CRATE" == "lib-q-hqc" ]]; then
+  CMD="$CMD --exclude-files 'lib-q-hqc/src/wasm.rs' --exclude-files 'lib-q-hqc\\src\\wasm.rs'"
+  CMD="$CMD --exclude-files 'lib-q-hqc/src/simd/avx2/gf2x.rs' --exclude-files 'lib-q-hqc\\src\\simd\\avx2\\gf2x.rs'"
+  CMD="$CMD --exclude-files 'lib-q-hqc/src/simd/avx2/gf2x_toom3.rs' --exclude-files 'lib-q-hqc\\src\\simd\\avx2\\gf2x_toom3.rs'"
+fi
+
+# lib-q-stark-monty31: the three packed backends are gated on `target_feature` ("avx2",
+# "avx512f", "neon") in src/lib.rs, NOT merely on target_arch, so a default build compiles only
+# the `no_packing` scalar fallback and these read 0/N however good the tests are. Measured: 1244
+# of 2052 lines, which drags a genuine 77.9% down to a reported 30.7%. Same argument and same
+# shape as the lib-q-keccak and lib-q-ml-dsa entries above.
+# `no_packing/` is deliberately NOT excluded — it IS compiled by default and must stay measured.
+if [[ "$CRATE" == "lib-q-stark-monty31" ]]; then
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31/src/x86_64_avx2/*' --exclude-files 'lib-q-stark-monty31/src/x86_64_avx2/**'"
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31\\src\\x86_64_avx2\\*'"
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31/src/x86_64_avx512/*' --exclude-files 'lib-q-stark-monty31/src/x86_64_avx512/**'"
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31\\src\\x86_64_avx512\\*'"
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31/src/aarch64_neon/*' --exclude-files 'lib-q-stark-monty31/src/aarch64_neon/**'"
+  CMD="$CMD --exclude-files 'lib-q-stark-monty31\\src\\aarch64_neon\\*'"
+fi
+
 # lib-q-zkp: recursive verifier internals are experimental and currently covered by dedicated
 # long-running integration suites. Exclude them from the default crate gate so coverage tracks
 # the stable high-level API and production paths.
