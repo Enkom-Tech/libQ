@@ -124,6 +124,10 @@ fn gf_inverse_zero_is_zero_matching_table_convention() {
 #[test]
 fn gf_inverse_is_multiplicative_inverse_for_all_nonzero_elements() {
     for a in 1u8..=255 {
-        assert_eq!(gf_mul(a, gf_inverse(a)), 1, "a * gf_inverse(a) != 1 for a={a}");
+        assert_eq!(
+            gf_mul(a, gf_inverse(a)),
+            1,
+            "a * gf_inverse(a) != 1 for a={a}"
+        );
     }
 }

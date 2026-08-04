@@ -247,14 +247,21 @@ known defect; all are things this release did **not** verify.
   | crate | measured | policy floor | |
   |---|---|---|---|
   | `lib-q-stark-rayon` | 84.44% (38/45) | 70% | pass |
+  | `lib-q-zkp` | 71.54% (3046/4258) | 65% | pass |
   | `lib-q-stark-commit` | 71.07% (140/197) | 70% | pass, by 1.07 points |
+  | `lib-q-ml-dsa` | 68.67% (2558/3725) | 60% | pass |
   | `lib-q-stark-monty31` | 29.99% raw (600/2001) | 70% | see note |
   | `lib-q-hqc` | 51.00% (1076/2110) | 70% | **below floor** |
 
-  `lib-q-stark-monty31`'s raw figure is a denominator artifact, not a real gap: its AVX2, AVX-512
-  and NEON trees are `target_feature`-gated and are not compiled in a default build, yet remain in
-  the measured denominator. Scoped to the code actually built, it is ~77.5% (600/774).
-  `lib-q-hqc` is genuinely under, and remains under after the same correction.
+  `lib-q-stark-monty31`'s raw figure is a denominator artifact, not a real gap: 1225 of its 2001
+  measured lines are `target_feature`-gated AVX2/AVX-512/NEON code that a default build never
+  compiles, yet they stay in the denominator. Scoped to the code actually built it is ~77.5%
+  (600/774).
+
+  `lib-q-hqc` is a genuine gap. Applying the same correction — excluding the `avx2` directory and
+  `wasm.rs`, 114 always-zero lines behind off-by-default features — still gives only 53.9%
+  (1076/1996). Within it, `error.rs` is **0/73 covered** under default features, which is a real
+  untested surface rather than a measurement artifact and is tracked for follow-up.
 
   Neither is a regression introduced here, and neither gates the release: `cd.yml` runs no coverage
   step, and `coverage.yml` does not sweep the `lib-q-stark-*` crates, so those floors were never

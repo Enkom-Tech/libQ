@@ -113,10 +113,7 @@ fn par_windows_matches_std_windows() {
     let data = [1, 2, 3, 4, 5];
     let expected: Vec<Vec<i32>> = data.windows(3).map(<[i32]>::to_vec).collect();
     let got: Vec<Vec<i32>> = data.par_windows(3).map(<[i32]>::to_vec).collect();
-    assert_eq!(
-        expected,
-        vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]]
-    );
+    assert_eq!(expected, vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]]);
     assert_eq!(got, expected);
 }
 
@@ -124,10 +121,7 @@ fn par_windows_matches_std_windows() {
 fn par_split_matches_std_split() {
     let data = [1, 2, 0, 3, 4, 0, 0, 5];
     let expected: Vec<Vec<i32>> = data.split(|x| *x == 0).map(<[i32]>::to_vec).collect();
-    let got: Vec<Vec<i32>> = data
-        .par_split(|x| *x == 0)
-        .map(<[i32]>::to_vec)
-        .collect();
+    let got: Vec<Vec<i32>> = data.par_split(|x| *x == 0).map(<[i32]>::to_vec).collect();
     assert_eq!(got, expected);
 }
 
@@ -135,14 +129,16 @@ fn par_split_matches_std_split() {
 fn par_chunks_mut_and_split_mut_match_std_mutation() {
     let mut a = [1, 2, 3, 4, 5, 6, 7];
     let mut b = a;
-    a.chunks_mut(3).for_each(|c| c.iter_mut().for_each(|x| *x *= 2));
+    a.chunks_mut(3)
+        .for_each(|c| c.iter_mut().for_each(|x| *x *= 2));
     b.par_chunks_mut(3)
         .for_each(|c| c.iter_mut().for_each(|x| *x *= 2));
     assert_eq!(a, b);
 
     let mut c = [1, 0, 2, 3, 0, 4];
     let mut d = c;
-    c.split_mut(|x| *x == 0).for_each(|s| s.iter_mut().for_each(|x| *x += 100));
+    c.split_mut(|x| *x == 0)
+        .for_each(|s| s.iter_mut().for_each(|x| *x += 100));
     d.par_split_mut(|x| *x == 0)
         .for_each(|s| s.iter_mut().for_each(|x| *x += 100));
     assert_eq!(c, d);
@@ -171,7 +167,10 @@ fn find_any_no_match_is_none() {
 fn flat_map_iter_matches_serial_reference() {
     let v = vec![1, 2, 3];
     let expected: Vec<i32> = v.iter().flat_map(|&x| vec![x, x * 10]).collect();
-    let got: Vec<i32> = v.into_par_iter().flat_map_iter(|x| vec![x, x * 10]).collect();
+    let got: Vec<i32> = v
+        .into_par_iter()
+        .flat_map_iter(|x| vec![x, x * 10])
+        .collect();
     assert_eq!(expected, vec![1, 10, 2, 20, 3, 30]);
     assert_eq!(got, expected);
 }

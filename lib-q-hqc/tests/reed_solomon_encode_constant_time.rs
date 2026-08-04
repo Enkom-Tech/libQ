@@ -28,7 +28,12 @@
 //!
 //!   cargo test --release -p lib-q-hqc --test reed_solomon_encode_constant_time -- --nocapture
 
-use lib_q_hqc::params_correct::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
+use lib_q_hqc::params_correct::{
+    Hqc1Params,
+    Hqc3Params,
+    Hqc5Params,
+    HqcParams,
+};
 use lib_q_hqc::reed_solomon::ReedSolomon;
 use lib_q_sca_test::dudect::timing_t_statistic;
 
@@ -67,11 +72,13 @@ fn measure<P: HqcParams>(iters: usize) -> (f64, f64, f64) {
 
     for _ in 0..iters {
         let start = std::time::Instant::now();
-        rs.encode(&zero_message, &mut codeword).expect("encode zero_message");
+        rs.encode(&zero_message, &mut codeword)
+            .expect("encode zero_message");
         zero_samples.push(start.elapsed().as_secs_f64());
 
         let start = std::time::Instant::now();
-        rs.encode(&nonzero_message, &mut codeword).expect("encode nonzero_message");
+        rs.encode(&nonzero_message, &mut codeword)
+            .expect("encode nonzero_message");
         nonzero_samples.push(start.elapsed().as_secs_f64());
     }
 

@@ -156,7 +156,9 @@ fn mixed_height_batch_round_trips_and_rejects_tampering() {
         let opening = mmcs.open_batch(index, &prover_data);
         assert_eq!(opening.opened_values.len(), 2);
         mmcs.verify_batch(&commitment, &dims, index, BatchOpeningRef::from(&opening))
-            .unwrap_or_else(|e| panic!("honest mixed-height opening at index {index} rejected: {e:?}"));
+            .unwrap_or_else(|e| {
+                panic!("honest mixed-height opening at index {index} rejected: {e:?}")
+            });
     }
 
     let mut tampered = mmcs.open_batch(0, &prover_data);

@@ -190,6 +190,7 @@ pub(crate) const fn monty_reduce_u128<MP: MontyParameters>(x: u128) -> u32 {
 /// primitives directly at their edges instead.
 #[cfg(test)]
 mod tests {
+    use crate::MontyParameters;
     use crate::test_utils::TestFP as FP;
     use crate::utils::{
         add,
@@ -204,7 +205,6 @@ mod tests {
         to_monty_64_signed,
         to_monty_signed,
     };
-    use crate::MontyParameters;
 
     const P: u32 = FP::PRIME;
 
@@ -245,7 +245,17 @@ mod tests {
     fn monty_round_trip_at_boundaries() {
         // from_monty(to_monty(x)) must recover x mod P for every u32 input, not just canonical
         // ones: to_monty has no precondition on its input range.
-        for x in [0u32, 1, 2, P - 1, P, P + 1, u32::MAX, 1 << 31, (1 << 31) - 1] {
+        for x in [
+            0u32,
+            1,
+            2,
+            P - 1,
+            P,
+            P + 1,
+            u32::MAX,
+            1 << 31,
+            (1 << 31) - 1,
+        ] {
             let expected = x % P;
             assert_eq!(
                 from_monty::<FP>(to_monty::<FP>(x)),
@@ -309,8 +319,15 @@ mod tests {
     fn large_monty_reduce_matches_monty_reduce_when_in_range() {
         // large_monty_reduce accepts a wider input range [0, 2*MONTY*P) but must agree with
         // monty_reduce wherever their domains overlap ([0, MONTY*P)).
-        for x in [to_monty::<FP>(1), to_monty::<FP>(P - 1), to_monty::<FP>(12345)] {
-            assert_eq!(monty_reduce::<FP>(x as u64), large_monty_reduce::<FP>(x as u64));
+        for x in [
+            to_monty::<FP>(1),
+            to_monty::<FP>(P - 1),
+            to_monty::<FP>(12345),
+        ] {
+            assert_eq!(
+                monty_reduce::<FP>(x as u64),
+                large_monty_reduce::<FP>(x as u64)
+            );
         }
         // Exercise the >= MONTY*P branch explicitly (the whole reason this function exists).
         let monty_p = (P as u64) << FP::MONTY_BITS;
@@ -322,6 +339,9 @@ mod tests {
     fn monty_reduce_u128_known_answers() {
         assert_eq!(monty_reduce_u128::<FP>(0), 0);
         // A u128 built the same way monty_reduce is exercised above, just widened.
-        assert_eq!(monty_reduce_u128::<FP>(to_monty::<FP>(P - 1) as u128), P - 1);
+        assert_eq!(
+            monty_reduce_u128::<FP>(to_monty::<FP>(P - 1) as u128),
+            P - 1
+        );
     }
 }

@@ -120,7 +120,10 @@ fn romulus_n_corrupted_ciphertext_body_fails() {
         .unwrap();
     buf[3] ^= 0x01;
     let err = cipher.decrypt_inout_detached(&nonce, b"ad", buf.as_mut_slice().into(), &tag);
-    assert!(err.is_err(), "corrupted ciphertext body must fail to decrypt");
+    assert!(
+        err.is_err(),
+        "corrupted ciphertext body must fail to decrypt"
+    );
     assert!(
         buf.iter().all(|&b| b == 0),
         "plaintext buffer must be cleared on failure"
@@ -138,7 +141,10 @@ fn romulus_m_corrupted_ciphertext_body_fails() {
         .unwrap();
     buf[3] ^= 0x01;
     let err = cipher.decrypt_inout_detached(&nonce, b"ad", buf.as_mut_slice().into(), &tag);
-    assert!(err.is_err(), "corrupted ciphertext body must fail to decrypt");
+    assert!(
+        err.is_err(),
+        "corrupted ciphertext body must fail to decrypt"
+    );
     assert!(
         buf.iter().all(|&b| b == 0),
         "plaintext buffer must be cleared on failure"

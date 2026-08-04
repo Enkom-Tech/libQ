@@ -257,8 +257,10 @@ mod tests {
 
     use lib_q_stark_baby_bear::BabyBear;
     use lib_q_stark_challenger::Shake128Challenger32;
-    use lib_q_stark_dft::NaiveDft;
-    use lib_q_stark_dft::TwoAdicSubgroupDft;
+    use lib_q_stark_dft::{
+        NaiveDft,
+        TwoAdicSubgroupDft,
+    };
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_shake128::Shake128Hash;
 
@@ -303,11 +305,15 @@ mod tests {
     #[test]
     fn commit_recovers_the_original_coefficients_on_the_natural_domain() {
         let p = pcs(3);
-        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
         let original = coeffs();
         let evals = NaiveDft.dft_batch(original.clone());
 
-        let (_commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
+        let (_commitment, prover_data) =
+            Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
         assert_eq!(prover_data[0], original);
     }
 
@@ -317,7 +323,10 @@ mod tests {
     #[test]
     fn open_and_verify_accept_an_honest_evaluation_claim() {
         let p = pcs(3);
-        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
         let original = coeffs();
         let evals = NaiveDft.dft_batch(original.clone());
         let (commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
@@ -334,7 +343,10 @@ mod tests {
 
         Pcs::<Challenge, Challenger>::verify(
             &p,
-            vec![(commitment, vec![(domain, vec![(z, opened[0][0][0].clone())])])],
+            vec![(
+                commitment,
+                vec![(domain, vec![(z, opened[0][0][0].clone())])],
+            )],
             &proof,
             &mut challenger(),
         )
@@ -349,7 +361,10 @@ mod tests {
     #[should_panic]
     fn verify_rejects_a_tampered_evaluation_claim() {
         let p = pcs(3);
-        let domain = <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(&p, 8);
+        let domain =
+            <TrivialPcs<F, NaiveDft> as Pcs<Challenge, Challenger>>::natural_domain_for_degree(
+                &p, 8,
+            );
         let original = coeffs();
         let evals = NaiveDft.dft_batch(original.clone());
         let (commitment, prover_data) = Pcs::<Challenge, Challenger>::commit(&p, [(domain, evals)]);
