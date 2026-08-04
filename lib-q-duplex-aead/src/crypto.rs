@@ -150,6 +150,28 @@ pub fn decrypt(
     }
 }
 
+/// Layer B semantic decrypt: single shared [`decrypt_core`] (one duplex walk over the body).
+#[cfg(feature = "alloc")]
+pub(crate) fn decrypt_semantic_outcome(
+    key: &[u8; KEY_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    ad: &[u8],
+    ct_in: &[u8],
+) -> Result<DecryptSemanticOutcome, DuplexCryptoError> {
+    if ct_in.len() < TAG_BYTES {
+        return Err(DuplexCryptoError);
+    }
+    let body_len = ct_in.len() - TAG_BYTES;
+    let mut pt = vec![0u8; body_len];
+    let tag_ok = decrypt_core(key, nonce, ad, ct_in, &mut pt)?;
+    if tag_ok {
+        Ok(DecryptSemanticOutcome::Success(Zeroizing::new(pt)))
+    } else {
+        pt.zeroize();
+        Ok(DecryptSemanticOutcome::AuthenticationFailed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,27 +238,5 @@ mod tests {
         let tag_ok = decrypt_core(&KEY, &NONCE, ad, &ct, &mut out).unwrap();
         assert!(tag_ok);
         assert_eq!(out, pt);
-    }
-}
-
-/// Layer B semantic decrypt: single shared [`decrypt_core`] (one duplex walk over the body).
-#[cfg(feature = "alloc")]
-pub(crate) fn decrypt_semantic_outcome(
-    key: &[u8; KEY_BYTES],
-    nonce: &[u8; NONCE_BYTES],
-    ad: &[u8],
-    ct_in: &[u8],
-) -> Result<DecryptSemanticOutcome, DuplexCryptoError> {
-    if ct_in.len() < TAG_BYTES {
-        return Err(DuplexCryptoError);
-    }
-    let body_len = ct_in.len() - TAG_BYTES;
-    let mut pt = vec![0u8; body_len];
-    let tag_ok = decrypt_core(key, nonce, ad, ct_in, &mut pt)?;
-    if tag_ok {
-        Ok(DecryptSemanticOutcome::Success(Zeroizing::new(pt)))
-    } else {
-        pt.zeroize();
-        Ok(DecryptSemanticOutcome::AuthenticationFailed)
     }
 }

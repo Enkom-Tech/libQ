@@ -32,8 +32,8 @@ fn build_tables() -> ([u8; 256], [u8; 256]) {
     let mut log = [0u8; 256];
     let mut elt: u16 = 1;
     let alpha: u16 = 2;
-    for i in 0..255usize {
-        exp[i] = elt as u8;
+    for (i, exp_i) in exp.iter_mut().enumerate().take(255) {
+        *exp_i = elt as u8;
         log[elt as usize] = i as u8;
         elt *= alpha;
         if elt >= 1 << GF_M {
