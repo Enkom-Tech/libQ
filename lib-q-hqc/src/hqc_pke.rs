@@ -1077,6 +1077,9 @@ mod tests {
     //! way that "passes" without exercising real semantics; the existing full-stack round trips
     //! already exercise these functions correctly via that same conversion helper.
 
+    #[cfg(feature = "alloc")]
+    use alloc::string::ToString;
+
     use super::*;
     use crate::concatenated_code::ConcatenatedCodeError;
 

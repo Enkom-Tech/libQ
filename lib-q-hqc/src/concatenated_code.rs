@@ -380,6 +380,9 @@ impl From<ReedMullerError> for ConcatenatedCodeError {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "alloc")]
+    use alloc::string::ToString;
+
     use super::*;
     use crate::params_correct::Hqc1Params;
 

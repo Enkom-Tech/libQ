@@ -516,6 +516,9 @@ mod tests {
     //! drives the three variants that ARE reachable through the actual polynomial/shake256
     //! code, per the task's preference for real error paths over direct construction.
 
+    #[cfg(feature = "alloc")]
+    use alloc::string::ToString;
+
     use super::*;
 
     /// Every `HqcError` variant's `Display` output, matched verbatim against `error.rs`'s own
@@ -592,6 +595,12 @@ mod tests {
 
     /// `std::error::Error` is implemented under `feature = "std"` (default-on); exercise the
     /// trait object path so the impl itself is driven, not just `Display`.
+    ///
+    /// Gated on `feature = "std"`: `Box<dyn std::error::Error>` requires `std` (not just
+    /// `alloc`), matching the `impl std::error::Error` this test drives, which is itself
+    /// `#[cfg(feature = "std")]`. Under `alloc`-only (no `std`) builds this test does not run;
+    /// `test_display_all_variants` above still covers `Display` for every variant there.
+    #[cfg(feature = "std")]
     #[test]
     fn test_std_error_trait_object() {
         let err: Box<dyn std::error::Error> = Box::new(HqcError::InternalError);

@@ -452,6 +452,9 @@ impl From<HqcKemError> for HqcError {
 // `tests/integration_test.rs`, but not HQC-5's encapsulate/decapsulate).
 #[cfg(all(test, feature = "random"))]
 mod tests {
+    #[cfg(feature = "alloc")]
+    use alloc::string::ToString;
+
     use lib_q_random::LibQRng;
 
     use super::*;
