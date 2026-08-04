@@ -1057,7 +1057,7 @@ jobs:
           components: rust-src
 
       - name: Set up QEMU (binfmt_misc interpreters for foreign architectures)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Install cross
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
