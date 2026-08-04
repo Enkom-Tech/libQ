@@ -461,6 +461,24 @@ mod tests {
     use crate::params_correct::Hqc1Params;
 
     #[cfg(feature = "alloc")]
+    /// `ReedMullerError::Display` is never invoked anywhere in the crate, and `DecodingFailed`
+    /// is never constructed by any real code path (only the two length-check variants are).
+    #[test]
+    fn test_reed_muller_error_display_all_variants() {
+        assert_eq!(
+            ReedMullerError::InvalidMessageLength.to_string(),
+            "Invalid message length"
+        );
+        assert_eq!(
+            ReedMullerError::InvalidCodewordLength.to_string(),
+            "Invalid codeword length"
+        );
+        assert_eq!(
+            ReedMullerError::DecodingFailed.to_string(),
+            "Reed-Muller decoding failed"
+        );
+    }
+
     #[test]
     fn test_reed_muller_creation() {
         let _rm = ReedMuller::<Hqc1Params>::new();
@@ -627,6 +645,49 @@ mod tests {
                 message[i], decoded_message[i]
             );
         }
+    }
+
+    /// `test_reed_muller_encode_decode_multiple_bytes` above only ever instantiates
+    /// `ReedMuller::<Hqc1Params>` (multiplicity = ceil(384/128) = 3); HQC-3 and HQC-5 both use
+    /// `N2 = 640` -> multiplicity = ceil(640/128) = 5, a different loop bound through the same
+    /// encode/decode code that is otherwise never exercised under default features (every other
+    /// Reed-Muller test in this file is Hqc1Params-only too).
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_reed_muller_encode_decode_roundtrip_hqc3_and_hqc5() {
+        use alloc::vec::Vec;
+
+        use crate::params_correct::{
+            Hqc3Params,
+            Hqc5Params,
+        };
+
+        // HQC-3: N1 = 56, multiplicity = ceil(640/128) = 5.
+        let rm3 = ReedMuller::<Hqc3Params>::new();
+        let message3: Vec<u8> = (0u8..56).collect();
+        let mut codeword3 = vec![0u8; 56 * 5 * 16];
+        rm3.encode(&message3, &mut codeword3).unwrap();
+        let mut decoded3 = vec![0u8; 56];
+        rm3.decode(&codeword3, &mut decoded3).unwrap();
+        assert_eq!(message3, decoded3, "HQC-3 Reed-Muller round trip mismatch");
+
+        // Flip one bit and confirm RM(1,7) still corrects it for this parameter set.
+        codeword3[200] ^= 0x01;
+        let mut decoded3_corrected = vec![0u8; 56];
+        rm3.decode(&codeword3, &mut decoded3_corrected).unwrap();
+        assert_eq!(
+            message3, decoded3_corrected,
+            "HQC-3 Reed-Muller must correct a single-bit error"
+        );
+
+        // HQC-5: N1 = 90, multiplicity = ceil(640/128) = 5.
+        let rm5 = ReedMuller::<Hqc5Params>::new();
+        let message5: Vec<u8> = (0u8..90).collect();
+        let mut codeword5 = vec![0u8; 90 * 5 * 16];
+        rm5.encode(&message5, &mut codeword5).unwrap();
+        let mut decoded5 = vec![0u8; 90];
+        rm5.decode(&codeword5, &mut decoded5).unwrap();
+        assert_eq!(message5, decoded5, "HQC-5 Reed-Muller round trip mismatch");
     }
 
     #[test]

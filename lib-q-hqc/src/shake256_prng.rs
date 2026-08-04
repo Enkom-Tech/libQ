@@ -127,3 +127,51 @@ pub fn create_shake256_prng_rng(entropy_input: [u8; 48]) -> lib_q_random::LibQRn
     let entropy_source = Shake256PrngEntropySource::new(entropy_input);
     lib_q_random::LibQRng::new_custom(entropy_source)
 }
+
+#[cfg(all(test, feature = "random"))]
+mod tests {
+    use rand_core::Rng;
+
+    use super::*;
+
+    #[test]
+    fn test_entropy_source_trait_metadata() {
+        let source = Shake256PrngEntropySource::new([7u8; 48]);
+        assert!(source.is_available());
+        assert_eq!(source.quality(), 0.95);
+        assert_eq!(source.name(), "SHAKE256 PRNG");
+        assert_eq!(source.source_type(), EntropySourceType::Deterministic);
+        assert_eq!(source.max_entropy_per_call(), None);
+    }
+
+    #[test]
+    fn test_get_entropy_produces_bytes_and_is_deterministic() {
+        let mut source_a = Shake256PrngEntropySource::new([9u8; 48]);
+        let mut out_a = [0u8; 32];
+        source_a
+            .get_entropy(&mut out_a)
+            .expect("get_entropy failed");
+
+        let mut source_b = Shake256PrngEntropySource::new([9u8; 48]);
+        let mut out_b = [0u8; 32];
+        source_b
+            .get_entropy(&mut out_b)
+            .expect("get_entropy failed");
+
+        assert_eq!(out_a, out_b, "same seed must yield the same entropy");
+        assert!(out_a.iter().any(|&b| b != 0));
+    }
+
+    #[test]
+    fn test_create_shake256_prng_rng_is_deterministic() {
+        let mut rng1 = create_shake256_prng_rng([3u8; 48]);
+        let mut rng2 = create_shake256_prng_rng([3u8; 48]);
+
+        let mut out1 = [0u8; 16];
+        let mut out2 = [0u8; 16];
+        rng1.fill_bytes(&mut out1);
+        rng2.fill_bytes(&mut out2);
+
+        assert_eq!(out1, out2);
+    }
+}

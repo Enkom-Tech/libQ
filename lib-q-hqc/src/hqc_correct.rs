@@ -441,103 +441,143 @@ impl From<HqcKemError> for HqcError {
     }
 }
 
-/*
-#[cfg(test)]
+// NOTE: an earlier version of this test module used a bare `[u8; 32]` as the RNG argument,
+// which does not implement `rand_core::CryptoRng` (the bound `HqcCore::generate_keypair`
+// requires) -- it never compiled and was commented out wholesale. The tests below are a
+// corrected replacement using `lib_q_random::LibQRng` (which gets `CryptoRng` via rand_core's
+// blanket impl over `TryCryptoRng`, matching how `provider.rs` drives the same trait). Their
+// purpose is unchanged: HQC-3 and HQC-5 (`Hqc192`/`Hqc256`) had no full generate/encapsulate/
+// decapsulate cycle exercised directly against `hqc_correct.rs` (HQC-1's cycle and HQC-3's
+// `derive_public_key`-only round trip are covered via `provider.rs`'s tests and
+// `tests/integration_test.rs`, but not HQC-5's encapsulate/decapsulate).
+#[cfg(all(test, feature = "random"))]
 mod tests {
+    use lib_q_random::LibQRng;
+
     use super::*;
-    // Note: Using a simple RNG for testing - in production use proper crypto RNG
 
     #[test]
     fn test_hqc1_full_cycle() {
-        // Simple test RNG - in production use proper crypto RNG
-        let mut rng = [42u8; 32];
+        let mut rng = LibQRng::new_deterministic([1u8; 32]);
 
-        // Generate key pair
         let (secret_key, public_key) = Hqc1::generate_keypair(&mut rng).unwrap();
-
-        // Encapsulate
         let (ciphertext, shared_secret) = Hqc1::encapsulate(&public_key, &mut rng).unwrap();
+        let decapsulated_secret = Hqc1::decapsulate::<LibQRng>(&secret_key, &ciphertext).unwrap();
 
-        // Decapsulate
-        let decapsulated_secret = Hqc1::decapsulate::<[u8; 32]>(&secret_key, &ciphertext).unwrap();
-
-        // Verify
         assert_eq!(shared_secret.as_bytes(), decapsulated_secret.as_bytes());
     }
 
     #[test]
     fn test_hqc3_full_cycle() {
-        // Simple test RNG - in production use proper crypto RNG
-        let mut rng = [42u8; 32];
+        let mut rng = LibQRng::new_deterministic([2u8; 32]);
 
-        // Generate key pair
         let (secret_key, public_key) = Hqc3::generate_keypair(&mut rng).unwrap();
-
-        // Encapsulate
         let (ciphertext, shared_secret) = Hqc3::encapsulate(&public_key, &mut rng).unwrap();
+        let decapsulated_secret = Hqc3::decapsulate::<LibQRng>(&secret_key, &ciphertext).unwrap();
 
-        // Decapsulate
-        let decapsulated_secret = Hqc3::decapsulate::<[u8; 32]>(&secret_key, &ciphertext).unwrap();
-
-        // Verify
         assert_eq!(shared_secret.as_bytes(), decapsulated_secret.as_bytes());
     }
 
     #[test]
     fn test_hqc5_full_cycle() {
-        // Simple test RNG - in production use proper crypto RNG
-        let mut rng = [42u8; 32];
+        let mut rng = LibQRng::new_deterministic([3u8; 32]);
 
-        // Generate key pair
         let (secret_key, public_key) = Hqc5::generate_keypair(&mut rng).unwrap();
-
-        // Encapsulate
         let (ciphertext, shared_secret) = Hqc5::encapsulate(&public_key, &mut rng).unwrap();
+        let decapsulated_secret = Hqc5::decapsulate::<LibQRng>(&secret_key, &ciphertext).unwrap();
 
-        // Decapsulate
-        let decapsulated_secret = Hqc5::decapsulate::<[u8; 32]>(&secret_key, &ciphertext).unwrap();
-
-        // Verify
         assert_eq!(shared_secret.as_bytes(), decapsulated_secret.as_bytes());
     }
 
     #[test]
-    fn test_derive_public_key() {
-        // Simple test RNG - in production use proper crypto RNG
-        let mut rng = [42u8; 32];
+    fn test_derive_public_key_hqc3_and_hqc5() {
+        let mut rng3 = LibQRng::new_deterministic([4u8; 32]);
+        let (secret_key3, original_pk3) = Hqc3::generate_keypair(&mut rng3).unwrap();
+        let derived_pk3 = Hqc3::derive_public_key(&secret_key3).unwrap();
+        assert_eq!(original_pk3.as_bytes(), derived_pk3.as_bytes());
 
-        // Generate key pair
-        let (secret_key, original_public_key) = Hqc1::generate_keypair(&mut rng).unwrap();
-
-        // Derive public key from secret key
-        let derived_public_key = Hqc1::derive_public_key(&secret_key).unwrap();
-
-        // Verify they match
-        assert_eq!(original_public_key.as_bytes(), derived_public_key.as_bytes());
+        let mut rng5 = LibQRng::new_deterministic([5u8; 32]);
+        let (secret_key5, original_pk5) = Hqc5::generate_keypair(&mut rng5).unwrap();
+        let derived_pk5 = Hqc5::derive_public_key(&secret_key5).unwrap();
+        assert_eq!(original_pk5.as_bytes(), derived_pk5.as_bytes());
     }
 
     #[test]
-    fn test_key_sizes() {
-        // Simple test RNG - in production use proper crypto RNG
-        let mut rng = [42u8; 32];
+    fn test_key_and_ciphertext_sizes_all_variants() {
+        let mut rng = LibQRng::new_deterministic([6u8; 32]);
 
-        // Test HQC-1 key sizes
         let (secret_key, public_key) = Hqc1::generate_keypair(&mut rng).unwrap();
         assert_eq!(public_key.as_bytes().len(), Hqc1Params::PUBLIC_KEY_BYTES);
         assert_eq!(secret_key.as_bytes().len(), Hqc1Params::SECRET_KEY_BYTES);
+        let (ct, _) = Hqc1::encapsulate(&public_key, &mut rng).unwrap();
+        assert_eq!(
+            ct.as_bytes().len(),
+            Hqc1Params::VEC_N_SIZE_BYTES + Hqc1Params::VEC_N1N2_SIZE_BYTES + 16
+        );
 
-        // Test HQC-3 key sizes
         let (secret_key, public_key) = Hqc3::generate_keypair(&mut rng).unwrap();
         assert_eq!(public_key.as_bytes().len(), Hqc3Params::PUBLIC_KEY_BYTES);
         assert_eq!(secret_key.as_bytes().len(), Hqc3Params::SECRET_KEY_BYTES);
 
-        // Test HQC-5 key sizes
         let (secret_key, public_key) = Hqc5::generate_keypair(&mut rng).unwrap();
         assert_eq!(public_key.as_bytes().len(), Hqc5Params::PUBLIC_KEY_BYTES);
         assert_eq!(secret_key.as_bytes().len(), Hqc5Params::SECRET_KEY_BYTES);
     }
+
+    /// Negative path: decapsulating with the WRONG secret key must not return the original
+    /// shared secret (implicit rejection), and must not panic.
+    #[test]
+    fn test_decapsulate_with_wrong_key_does_not_leak_secret() {
+        let mut rng = LibQRng::new_deterministic([7u8; 32]);
+        let (_correct_sk, public_key) = Hqc3::generate_keypair(&mut rng).unwrap();
+        let (wrong_sk, _wrong_pk) = Hqc3::generate_keypair(&mut rng).unwrap();
+
+        let (ciphertext, shared_secret) = Hqc3::encapsulate(&public_key, &mut rng).unwrap();
+        let mismatched = Hqc3::decapsulate::<LibQRng>(&wrong_sk, &ciphertext).unwrap();
+
+        assert_ne!(
+            shared_secret.as_bytes(),
+            mismatched.as_bytes(),
+            "decapsulating with an unrelated secret key must not reproduce the shared secret"
+        );
+    }
+
+    /// This file's local `HqcError` (distinct from `crate::error::HqcError` -- an explicit `pub
+    /// use error::HqcError` in `lib.rs` shadows this one for the crate's public glob re-export,
+    /// so this type is reachable only as `hqc_correct::HqcError`) has a `Display` impl and a
+    /// `From<HqcKemError>` impl that are never invoked anywhere in the crate: every
+    /// `HqcCore::generate_keypair`/`encapsulate`/`decapsulate` here uses
+    /// `.map_err(HqcError::KemError)` -- the enum variant used directly as a function pointer,
+    /// which does NOT go through `impl From<HqcKemError> for HqcError` -- and nothing ever
+    /// formats a `hqc_correct::HqcError` (confirmed: `grep -rn "hqc_correct::HqcError\.\|HqcError::from"
+    /// lib-q-hqc/src` outside this file finds nothing). Construct-and-check directly.
+    #[test]
+    fn test_local_hqc_error_display_and_from_hqc_kem_error() {
+        use crate::hqc_kem::HqcKemError;
+
+        assert_eq!(
+            HqcError::InvalidParameters.to_string(),
+            "Invalid parameters"
+        );
+        assert_eq!(HqcError::InvalidKey.to_string(), "Invalid key");
+        assert_eq!(
+            HqcError::InvalidCiphertext.to_string(),
+            "Invalid ciphertext"
+        );
+        assert_eq!(HqcError::DecryptionFailed.to_string(), "Decryption failed");
+
+        let wrapped = HqcError::KemError(HqcKemError::InvalidKey);
+        assert_eq!(wrapped.to_string(), "KEM error: Invalid key");
+
+        // The `From<HqcKemError>` impl specifically (not the `.map_err(HqcError::KemError)`
+        // idiom used everywhere else in this file, which bypasses it).
+        let converted: HqcError = HqcKemError::InvalidCiphertext.into();
+        assert_eq!(
+            converted,
+            HqcError::KemError(HqcKemError::InvalidCiphertext)
+        );
+    }
 }
-*/
 
 // Type aliases for convenience
 pub type Hqc128Kem = HqcKem<Hqc1Params>;

@@ -323,4 +323,72 @@ mod tests {
         let output2 = shake256_random(seed, 64).unwrap();
         assert_eq!(output, output2);
     }
+
+    #[test]
+    fn test_shake256_xof_default() {
+        let xof = Shake256Xof::default();
+        assert_eq!(xof.position, 0);
+        assert_eq!(xof.state, [0u64; 25]);
+    }
+
+    /// `squeeze_byte` must return exactly the byte that a plain `squeeze(&mut [u8; 1])` would
+    /// have produced from the same state -- a real cross-check, not a no-panic call.
+    #[test]
+    fn test_squeeze_byte_matches_squeeze() {
+        let input = b"squeeze byte cross-check";
+
+        let mut xof_a = Shake256Xof::new();
+        xof_a.init(input).unwrap();
+        let byte = xof_a.squeeze_byte().unwrap();
+
+        let mut xof_b = Shake256Xof::new();
+        xof_b.init(input).unwrap();
+        let mut raw = [0u8; 1];
+        xof_b.squeeze(&mut raw).unwrap();
+
+        assert_eq!(byte, raw[0]);
+    }
+
+    /// `squeeze_u64` must equal the little-endian reconstruction of 8 raw squeezed bytes from
+    /// an identically-initialized XOF.
+    #[test]
+    fn test_squeeze_u64_matches_squeeze() {
+        let input = b"squeeze u64 cross-check";
+
+        let mut xof_a = Shake256Xof::new();
+        xof_a.init(input).unwrap();
+        let word = xof_a.squeeze_u64().unwrap();
+
+        let mut xof_b = Shake256Xof::new();
+        xof_b.init(input).unwrap();
+        let mut raw = [0u8; 8];
+        xof_b.squeeze(&mut raw).unwrap();
+
+        assert_eq!(word, u64::from_le_bytes(raw));
+    }
+
+    /// `keccak_round` (`#[allow(dead_code)]`, not called by any production path under default
+    /// features -- see module doc) is a real permutation-shaped function; call it directly and
+    /// assert it actually mutates state deterministically. This is a regression pin on
+    /// otherwise-dead code, not a conformance check against any reference permutation.
+    #[test]
+    fn test_keccak_round_dead_code_direct_invocation() {
+        let mut xof = Shake256Xof::new();
+        xof.absorb(b"seed the state before permuting").unwrap();
+        let before = xof.state;
+
+        xof.keccak_round();
+        let after_one = xof.state;
+        assert_ne!(before, after_one, "keccak_round should change the state");
+
+        // Determinism: replaying from the same starting state produces the same output.
+        let mut xof2 = Shake256Xof::new();
+        xof2.absorb(b"seed the state before permuting").unwrap();
+        xof2.keccak_round();
+        assert_eq!(after_one, xof2.state);
+
+        // A second round should move the state again (not idempotent).
+        xof.keccak_round();
+        assert_ne!(after_one, xof.state);
+    }
 }

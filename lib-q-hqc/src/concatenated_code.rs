@@ -383,6 +383,52 @@ mod tests {
     use super::*;
     use crate::params_correct::Hqc1Params;
 
+    /// `ConcatenatedCodeError::Display` is never invoked anywhere in the crate. `DecodingFailed`
+    /// is never constructed by any real path; the two `*Error(inner)` wrapping variants and the
+    /// two length-check variants ARE reachable (via `?`-propagation from `ReedSolomon`/
+    /// `ReedMuller`, and the explicit length checks respectively) but nothing ever formats them.
+    #[test]
+    fn test_concatenated_code_error_display_all_variants() {
+        assert_eq!(
+            ConcatenatedCodeError::InvalidMessageLength.to_string(),
+            "Invalid message length"
+        );
+        assert_eq!(
+            ConcatenatedCodeError::InvalidCodewordLength.to_string(),
+            "Invalid codeword length"
+        );
+        assert_eq!(
+            ConcatenatedCodeError::DecodingFailed.to_string(),
+            "Concatenated code decoding failed"
+        );
+        assert_eq!(
+            ConcatenatedCodeError::ReedSolomonError(ReedSolomonError::InvalidMessageLength)
+                .to_string(),
+            "Reed-Solomon error: Invalid message length"
+        );
+        assert_eq!(
+            ConcatenatedCodeError::ReedMullerError(ReedMullerError::InvalidMessageLength)
+                .to_string(),
+            "Reed-Muller error: Invalid message length"
+        );
+
+        // The `From` impls specifically: `encode`/`decode` above reach this crate's own error
+        // via `.map_err(ConcatenatedCodeError::ReedSolomonError)` -- the variant used directly
+        // as a constructor, which does NOT go through `impl From<ReedSolomonError> for
+        // ConcatenatedCodeError` -- so, as with the sibling error types elsewhere in this crate,
+        // that `From` impl is otherwise never invoked. Drive it directly.
+        let from_rs: ConcatenatedCodeError = ReedSolomonError::InvalidCodewordLength.into();
+        assert_eq!(
+            from_rs,
+            ConcatenatedCodeError::ReedSolomonError(ReedSolomonError::InvalidCodewordLength)
+        );
+        let from_rm: ConcatenatedCodeError = ReedMullerError::InvalidCodewordLength.into();
+        assert_eq!(
+            from_rm,
+            ConcatenatedCodeError::ReedMullerError(ReedMullerError::InvalidCodewordLength)
+        );
+    }
+
     #[test]
     fn test_concatenated_code_creation() {
         let code = ConcatenatedCode::<Hqc1Params>::new();
@@ -434,6 +480,105 @@ mod tests {
 
         // Verify
         assert_eq!(message, decoded_message);
+    }
+
+    /// `encode_u64`/`decode_u64` (the u64-array wrapper API) have zero callers anywhere in the
+    /// crate under default features (`grep -rn "encode_u64\|decode_u64" lib-q-hqc/src` outside
+    /// this file returns nothing -- `hqc_pke.rs::encrypt`/`decrypt` call `code_encode`/
+    /// `code_decode` instead, a distinct pair of methods). Drive them directly: round trip, plus
+    /// a cross-check that they agree byte-for-byte with the `encode`/`decode` pair they wrap.
+    #[test]
+    fn test_concatenated_code_encode_u64_decode_u64_round_trip_and_cross_check() {
+        use alloc::vec;
+
+        let code = ConcatenatedCode::<Hqc1Params>::new().unwrap();
+        let k = Hqc1Params::K; // 16 bytes
+        let n1n2 = Hqc1Params::N1N2;
+
+        let message_bytes: [u8; 16] = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ];
+        let mut message_words = vec![0u64; k.div_ceil(8)];
+        for (i, word) in message_words.iter_mut().enumerate() {
+            let start = i * 8;
+            let mut bytes = [0u8; 8];
+            bytes.copy_from_slice(&message_bytes[start..start + 8]);
+            *word = u64::from_le_bytes(bytes);
+        }
+
+        let mut codeword_words = vec![0u64; n1n2.div_ceil(64)];
+        code.encode_u64(&message_words, &mut codeword_words)
+            .unwrap();
+
+        let mut decoded_words = vec![0u64; k.div_ceil(8)];
+        code.decode_u64(&codeword_words, &mut decoded_words)
+            .unwrap();
+        assert_eq!(
+            message_words, decoded_words,
+            "encode_u64/decode_u64 must round-trip"
+        );
+
+        // Cross-check: encode_u64's codeword, converted to bytes, must equal encode()'s direct
+        // byte-array output for the same message (both sized to the same n1n2.div_ceil(8), the
+        // actual minimum `encode()` validates against -- see `test_concatenated_code_error_handling`
+        // above, which uses the same 2208-byte figure; `test_concatenated_code_encode_decode`'s
+        // 3680-byte buffer is merely oversized headroom, not the real minimum).
+        let codeword_len_bytes = n1n2.div_ceil(8);
+        let mut codeword_bytes_reference = vec![0u8; codeword_len_bytes];
+        code.encode(&message_bytes, &mut codeword_bytes_reference)
+            .unwrap();
+        let mut codeword_bytes_from_u64 = vec![0u8; codeword_len_bytes];
+        for (i, &word) in codeword_words.iter().enumerate() {
+            let bytes = word.to_le_bytes();
+            let start = i * 8;
+            if start + 8 <= codeword_bytes_from_u64.len() {
+                codeword_bytes_from_u64[start..start + 8].copy_from_slice(&bytes);
+            }
+        }
+        assert_eq!(
+            codeword_bytes_reference, codeword_bytes_from_u64,
+            "encode_u64 must agree with encode() byte-for-byte"
+        );
+    }
+
+    /// Negative path: `encode_u64`/`decode_u64` must reject undersized buffers with the
+    /// documented length errors rather than panicking on out-of-bounds access.
+    #[test]
+    fn test_concatenated_code_u64_length_validation() {
+        use alloc::vec;
+
+        let code = ConcatenatedCode::<Hqc1Params>::new().unwrap();
+
+        let short_message = vec![0u64; 1]; // needs ceil(16/8) = 2
+        let mut codeword = vec![0u64; Hqc1Params::N1N2.div_ceil(64)];
+        assert_eq!(
+            code.encode_u64(&short_message, &mut codeword).unwrap_err(),
+            ConcatenatedCodeError::InvalidMessageLength
+        );
+
+        let message = vec![0u64; Hqc1Params::K.div_ceil(8)];
+        let mut short_codeword = vec![0u64; 1];
+        assert_eq!(
+            code.encode_u64(&message, &mut short_codeword).unwrap_err(),
+            ConcatenatedCodeError::InvalidCodewordLength
+        );
+
+        let short_codeword_for_decode = vec![0u64; 1];
+        let mut message_out = vec![0u64; Hqc1Params::K.div_ceil(8)];
+        assert_eq!(
+            code.decode_u64(&short_codeword_for_decode, &mut message_out)
+                .unwrap_err(),
+            ConcatenatedCodeError::InvalidCodewordLength
+        );
+
+        let codeword_ok = vec![0u64; Hqc1Params::N1N2.div_ceil(64)];
+        let mut short_message_out = vec![0u64; 1];
+        assert_eq!(
+            code.decode_u64(&codeword_ok, &mut short_message_out)
+                .unwrap_err(),
+            ConcatenatedCodeError::InvalidMessageLength
+        );
     }
 
     #[test]

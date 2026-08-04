@@ -239,6 +239,76 @@ mod tests {
         assert_eq!(output1, output2, "KAT PRNG is not deterministic");
     }
 
+    /// `Shake256KatPrng` has no callers anywhere else in the crate under default features
+    /// (`grep -rn "Shake256KatPrng" lib-q-hqc/src lib-q-hqc/tests` outside this file returns
+    /// nothing) -- it is exercised here directly as a regression pin on its own public API,
+    /// not through any production call site.
+    #[test]
+    fn test_shake256_kat_prng_deterministic_and_try_rng() {
+        let seed = [0x11u8; 48];
+        let mut rng1 = Shake256KatPrng::new(&seed);
+        let mut rng2 = Shake256KatPrng::new(&seed);
+
+        let a = rng1.try_next_u32().unwrap();
+        let b = rng2.try_next_u32().unwrap();
+        assert_eq!(a, b, "same seed must give the same try_next_u32 output");
+
+        let a64 = rng1.try_next_u64().unwrap();
+        let b64 = rng2.try_next_u64().unwrap();
+        assert_eq!(a64, b64, "same seed must give the same try_next_u64 output");
+
+        let mut buf_a = [0u8; 10];
+        let mut buf_b = [0u8; 10];
+        rng1.try_fill_bytes(&mut buf_a).unwrap();
+        rng2.try_fill_bytes(&mut buf_b).unwrap();
+        assert_eq!(buf_a, buf_b);
+    }
+
+    #[test]
+    fn test_shake256_kat_prng_skip_advances_stream() {
+        let seed = [0x22u8; 48];
+
+        let mut skipped = Shake256KatPrng::new(&seed);
+        skipped.skip(16);
+        let after_skip = skipped.try_next_u32().unwrap();
+
+        let mut unskipped = Shake256KatPrng::new(&seed);
+        let mut discard = [0u8; 16];
+        unskipped.try_fill_bytes(&mut discard).unwrap();
+        let after_manual_discard = unskipped.try_next_u32().unwrap();
+
+        assert_eq!(
+            after_skip, after_manual_discard,
+            "skip(n) must be equivalent to discarding n bytes via try_fill_bytes"
+        );
+    }
+
+    /// `KatPrng::try_next_u32`/`try_next_u64` (as opposed to `try_fill_bytes`, exercised by the
+    /// other tests here via `Rng::fill_bytes`) -- called directly so their own bodies run.
+    #[test]
+    fn test_kat_prng_try_next_u32_and_u64() {
+        let seed = [0x33u8; 48];
+        let mut rng_a = create_kat_prng_rng(seed);
+        let mut rng_b = create_kat_prng_rng(seed);
+
+        let u32_a = rng_a.try_next_u32().unwrap();
+        let mut raw = [0u8; 4];
+        rng_b.fill_bytes(&mut raw);
+        assert_eq!(u32_a, u32::from_le_bytes(raw));
+
+        let mut rng_c = create_kat_prng_rng(seed);
+        let mut discard = [0u8; 4];
+        rng_c.fill_bytes(&mut discard);
+        let u64_c = rng_c.try_next_u64().unwrap();
+
+        let mut rng_d = create_kat_prng_rng(seed);
+        let mut discard_d = [0u8; 4];
+        rng_d.fill_bytes(&mut discard_d);
+        let mut raw8 = [0u8; 8];
+        rng_d.fill_bytes(&mut raw8);
+        assert_eq!(u64_c, u64::from_le_bytes(raw8));
+    }
+
     #[test]
     fn test_kat_prng_exhausts_entropy() {
         let seed = [0x42u8; 48];

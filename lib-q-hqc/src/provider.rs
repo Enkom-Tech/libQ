@@ -663,6 +663,150 @@ mod tests {
         }
     }
 
+    /// Full generate/encapsulate/decapsulate round trip for HQC-256 THROUGH THE PROVIDER (not
+    /// just `hqc_correct::Hqc5` directly). Previously only `generate_keypair` +
+    /// `derive_public_key` were exercised for HQC-256 in this file, leaving `encapsulate`'s and
+    /// `decapsulate`'s `Algorithm::Hqc256` match arms (provider.rs's own secret-key/ciphertext
+    /// byte-slicing, not just the underlying `Hqc5` call) untested.
+    #[test]
+    fn test_hqc256_provider_round_trip() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+
+        let keypair = provider
+            .generate_keypair(Algorithm::Hqc256, None)
+            .expect("Failed to generate HQC-256 keypair");
+
+        let mut enc_seed = [0u8; 48];
+        enc_seed[0] = 0xF5;
+        let (ciphertext, shared_secret1) = provider
+            .encapsulate(Algorithm::Hqc256, &keypair.public_key, Some(&enc_seed))
+            .expect("Failed to encapsulate HQC-256");
+
+        let shared_secret2 = provider
+            .decapsulate(Algorithm::Hqc256, &keypair.secret_key, &ciphertext)
+            .expect("Failed to decapsulate HQC-256");
+
+        assert_eq!(
+            shared_secret1, shared_secret2,
+            "HQC-256 shared secrets must match through the provider round trip"
+        );
+    }
+
+    /// `encapsulate`/`decapsulate` must reject an unsupported algorithm the same way
+    /// `derive_public_key` already does (`test_derive_public_key_unsupported_algorithm`
+    /// covers that one).
+    #[test]
+    fn test_encapsulate_and_decapsulate_reject_unsupported_algorithm() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+
+        let keypair = provider
+            .generate_keypair(Algorithm::Hqc128, None)
+            .expect("Failed to generate keypair");
+
+        let result = provider.encapsulate(Algorithm::MlKem512, &keypair.public_key, None);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+
+        let result = provider.decapsulate(Algorithm::MlKem512, &keypair.secret_key, &[0u8; 16]);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    /// Negative path: `decapsulate` must reject a too-short secret key with `InvalidKeySize`
+    /// (never panic on an out-of-bounds slice) for every HQC variant.
+    #[test]
+    fn test_decapsulate_rejects_undersized_secret_key_all_variants() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+
+        for algorithm in [Algorithm::Hqc128, Algorithm::Hqc192, Algorithm::Hqc256] {
+            let too_short_sk = lib_q_core::KemSecretKey::new(alloc::vec![0u8; 4]);
+            let result = provider.decapsulate(algorithm, &too_short_sk, &[0u8; 16]);
+            assert!(
+                matches!(result, Err(Error::InvalidKeySize { .. })),
+                "expected InvalidKeySize for {algorithm:?}, got {result:?}"
+            );
+        }
+    }
+
+    /// Negative path: `decapsulate` must reject a too-short ciphertext with `InvalidKeySize`
+    /// (the size-mismatch variant this code path uses) once the secret key itself is
+    /// well-formed, rather than indexing past the end of the ciphertext slice.
+    #[test]
+    fn test_decapsulate_rejects_undersized_ciphertext_all_variants() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+
+        for algorithm in [Algorithm::Hqc128, Algorithm::Hqc192, Algorithm::Hqc256] {
+            let keypair = provider
+                .generate_keypair(algorithm, None)
+                .unwrap_or_else(|_| panic!("keygen failed for {algorithm:?}"));
+            let result = provider.decapsulate(algorithm, &keypair.secret_key, &[0u8; 4]);
+            assert!(
+                matches!(result, Err(Error::InvalidKeySize { .. })),
+                "expected InvalidKeySize for {algorithm:?}, got {result:?}"
+            );
+        }
+    }
+
+    /// `LibQHqcProvider::name`/`priority`/`capabilities`/`supports_algorithm` and `Default` are
+    /// simple accessors never called by any other test in this file.
+    #[test]
+    fn test_provider_accessors_and_default() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+        assert_eq!(provider.name(), "libQ HQC Provider");
+        assert_eq!(provider.priority(), 100);
+        assert_eq!(
+            provider.capabilities(),
+            alloc::vec![Algorithm::Hqc128, Algorithm::Hqc192, Algorithm::Hqc256]
+        );
+        assert!(provider.supports_algorithm(Algorithm::Hqc128));
+        assert!(provider.supports_algorithm(Algorithm::Hqc192));
+        assert!(provider.supports_algorithm(Algorithm::Hqc256));
+        assert!(!provider.supports_algorithm(Algorithm::MlKem512));
+
+        // `Default::default()` rather than `LibQHqcProvider::default()`: clippy's
+        // `default_constructed_unit_structs` sees a fieldless struct and suggests writing the
+        // struct literal directly instead of calling `::default()` -- correct advice for
+        // constructing a value, but wrong for this test's actual purpose, which is to exercise
+        // the hand-written `impl Default for LibQHqcProvider` itself (it calls through
+        // `Self::new().expect(..)`, not a derive, so it CAN fail/panic if that ever changes);
+        // writing the struct literal would skip the impl under test entirely. The generic
+        // `Default::default()` form still calls the same impl without matching the lint's
+        // `Type::default()` call-path pattern.
+        let default_provider: LibQHqcProvider = Default::default();
+        assert_eq!(default_provider, provider);
+    }
+
+    /// `CryptoProvider` trait accessors: `kem()` returns `Some`, the rest `None`.
+    #[test]
+    fn test_provider_crypto_provider_trait_accessors() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+        assert!(CryptoProvider::kem(&provider).is_some());
+        assert!(CryptoProvider::signature(&provider).is_none());
+        assert!(CryptoProvider::hash(&provider).is_none());
+        assert!(CryptoProvider::aead(&provider).is_none());
+    }
+
+    /// `generate_keypair` must reject an unsupported algorithm the same way `encapsulate`/
+    /// `decapsulate` already do (see `test_encapsulate_and_decapsulate_reject_unsupported_algorithm`).
+    #[test]
+    fn test_generate_keypair_rejects_unsupported_algorithm() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+        let result = provider.generate_keypair(Algorithm::MlKem512, None);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    /// `derive_public_key` must reject an undersized secret key for HQC-192 and HQC-256 too
+    /// (only HQC-128 was covered by `test_derive_public_key_invalid_key_size`).
+    #[test]
+    fn test_derive_public_key_invalid_key_size_hqc192_and_hqc256() {
+        let provider = LibQHqcProvider::new().expect("Failed to create provider");
+        let invalid_sk = lib_q_core::KemSecretKey::new(alloc::vec![0u8; 4]);
+
+        let result = provider.derive_public_key(Algorithm::Hqc192, &invalid_sk);
+        assert!(matches!(result, Err(Error::InvalidKeySize { .. })));
+
+        let result = provider.derive_public_key(Algorithm::Hqc256, &invalid_sk);
+        assert!(matches!(result, Err(Error::InvalidKeySize { .. })));
+    }
+
     #[test]
     fn test_derive_public_key_all_algorithms() {
         let provider = LibQHqcProvider::new().expect("Failed to create provider");
