@@ -445,7 +445,7 @@ jobs:
       # Same cache shape as the wasm-build action; without it this job cold-compiles the whole
       # workspace for wasm32 every run (the largest single compile in CI).
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -519,7 +519,7 @@ jobs:
           targets: wasm32-wasip1
 
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -615,7 +615,7 @@ jobs:
       # One shared cache blob across the matrix (first shard to finish saves it; the rest restore).
       # Mostly recovers the registry + shared lower-tier deps; without it every shard cold-builds.
       - name: Cache cargo
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -1122,7 +1122,7 @@ jobs:
 
       - name: Restore cache
         id: bench-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.cargo/registry
@@ -1137,7 +1137,7 @@ jobs:
 
       - name: Save cache
         if: success()
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             ~/.cargo/registry
