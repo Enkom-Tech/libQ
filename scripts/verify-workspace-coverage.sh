@@ -45,6 +45,7 @@ effective_threshold_for() {
     lib-q-hpke) echo 66 ;;
     lib-q-cb-kem) echo 68 ;;
     lib-q-zkp) echo 65 ;;
+    lib-q-fn-dsa) echo 68 ;; # match .github/workflows/coverage.yml:131 (keygen+sign+verify measured; calibrated backstop); absent from pr.yml's per-package selector
     *) echo "$t" ;;
   esac
 }

@@ -85,13 +85,64 @@ jobs:
           features: "std,all-algorithms"
           run-release-tests: "true"
 
+  # Real aarch64 execution gate (not cross-compilation). Mirrors ci.yml's `aarch64-qemu-execution`
+  # job (see .github/workflows/ci.yml) — cd.yml has NO workflow_run/required-status-check dependency
+  # on ci.yml (tag pushes don't trigger ci.yml's `push: branches:` trigger at all), so without this
+  # job the release path never re-verifies the aarch64/NEON path before publishing 77 crates plus
+  # npm/wasm packages. Four aarch64-only defects (t_d707d46b, t_3cf78cba, t_9ad8ef08, t_26d3b638)
+  # previously shipped this way — cross-compiling to aarch64 cannot see them; only real execution
+  # under QEMU can. Deliberately given NO `needs:` so it runs in parallel with the (multi-hour)
+  # pre-release-validation job rather than serializing after it — publish-rust-lib-q-types below
+  # gates on both, so this adds ~0 wall-clock time to the release critical path.
+  aarch64-qemu-execution:
+    name: aarch64 QEMU execution (lib-q-ml-dsa, simd128)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
+        with:
+          # Match rust-toolchain.toml (directory override), same as ci.yml's aarch64-qemu-execution.
+          toolchain: nightly
+          components: rust-src
+
+      - name: Set up QEMU (binfmt_misc interpreters for foreign architectures)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install cross
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: cross
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-aarch64-qemu-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-aarch64-qemu-
+
+      # Full lib + every integration-test binary + doctests, no name filter -- a typo'd filter that
+      # matches zero tests exits 0 and silently stops covering anything. No `|| echo`/`|| true`
+      # fallback either -- a real aarch64-only regression fails this step, full stop, which in turn
+      # blocks every downstream `publish-rust-*` / wasm / npm job via publish-rust-lib-q-types' needs:.
+      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU, via cross)
+        run: cross test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
+
   # Rust crate publishing in dependency order (each tier after the previous).
   # Uses crates.io Trusted Publishing (OIDC); per-crate Settings -> Trusted Publishing
   # (see https://crates.io/docs/trusted-publishing).
   # lib-q-core depends on lib-q-types; publish types first.
   publish-rust-lib-q-types:
     name: Publish lib-q-types
-    needs: pre-release-validation
+    # Gated on BOTH the (slow) comprehensive validation AND the real aarch64 execution check --
+    # if either fails, NOTHING publishes (every tier below chains off this job's needs:).
+    needs: [pre-release-validation, aarch64-qemu-execution]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -1328,7 +1379,7 @@ jobs:
   # Final CD summary
   cd-summary:
     name: CD Summary
-    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types, post-release, security-verification]
+    needs: [pre-release-validation, aarch64-qemu-execution, publish-rust-tier-17, publish-wasm-packages, publish-npm-types, post-release, security-verification]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -1339,6 +1390,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pipeline Status:" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-release validation: ${{ needs.pre-release-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- aarch64 QEMU execution: ${{ needs.aarch64-qemu-execution.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Rust crate publishing: ${{ needs.publish-rust-tier-17.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- WASM package publishing: ${{ needs.publish-wasm-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- @lib-q/types publishing: ${{ needs.publish-npm-types.result }}" >> $GITHUB_STEP_SUMMARY
@@ -1348,6 +1400,7 @@ jobs:
           
           # Check for critical failures
           if [[ "${{ needs.pre-release-validation.result }}" == "failure" ]] || \
+             [[ "${{ needs.aarch64-qemu-execution.result }}" == "failure" ]] || \
              [[ "${{ needs.publish-wasm-packages.result }}" == "failure" ]] || \
              [[ "${{ needs.publish-npm-types.result }}" == "failure" ]] || \
              [[ "${{ needs.post-release.result }}" == "failure" ]] || \
