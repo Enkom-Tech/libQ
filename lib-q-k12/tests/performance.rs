@@ -75,18 +75,31 @@ fn test_input_scaling_performance() {
         let _ = hasher.finalize_boxed(32);
     }
 
-    // Measure performance for each size
+    // Measure performance for each size, taking the MINIMUM over several repeats rather than a
+    // single sample. Scheduler preemption and co-tenant load on a shared CI runner can only ever
+    // ADD time to a measurement, never remove it, so the minimum is the best available estimator
+    // of the work's actual cost — a single sample is whatever the runner happened to allow.
+    //
+    // This is not hypothetical tuning: with one sample this test failed CI on 2026-08-04 with
+    // "Performance scaling too poor: 9.754139128336439x time for 4x size at index 1" while passing
+    // locally, against a threshold of 8.0. The scaling property being asserted is real and worth
+    // keeping; the single-sample estimator was what made it unreliable.
+    const REPEATS: usize = 5;
     for &size in &sizes {
         let data = vec![0x55u8; size];
-        let start = Instant::now();
-        for _ in 0..ITERATIONS {
-            let mut hasher = Kt128::default();
-            hasher.update(&data);
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
+        let mut best: Option<core::time::Duration> = None;
+        for _ in 0..REPEATS {
+            let start = Instant::now();
+            for _ in 0..ITERATIONS {
+                let mut hasher = Kt128::default();
+                hasher.update(&data);
+                let result = hasher.finalize_boxed(32);
+                std::hint::black_box(result);
+            }
+            let elapsed = start.elapsed();
+            best = Some(best.map_or(elapsed, |b: core::time::Duration| b.min(elapsed)));
         }
-        let elapsed = start.elapsed();
-        times.push(elapsed);
+        times.push(best.expect("REPEATS > 0"));
     }
 
     // Check that performance scales sub-linearly or linearly (not super-linearly)
