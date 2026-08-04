@@ -1,4 +1,9 @@
+#![cfg(not(target_arch = "wasm32"))]
 //! Dudect-style timing harness for `ReedSolomon::decode` (all HQC parameter sets).
+//!
+//! Gated off `wasm32` entirely: this file depends on `lib-q-sca-test`, which is a
+//! `[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]` dependency (it does not exist
+//! on wasm32), and wall-clock timing measurement is meaningless in a wasm host anyway.
 //!
 //! `ReedSolomon::decode` (lib-q-hqc/src/reed_solomon.rs) takes an early-return branch when the
 //! computed syndromes are all zero (the "no errors" case), skipping Berlekamp-Massey, Chien

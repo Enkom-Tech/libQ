@@ -637,6 +637,9 @@ mod tests {
     //! gated behind `required-features = ["alloc", "hqc", "random"]` and so never builds under
     //! this crate's default features. The tests below drive those entry points directly.
 
+    #[cfg(feature = "alloc")]
+    use alloc::string::ToString;
+
     use super::*;
     use crate::params_correct::{
         Hqc1Params,
