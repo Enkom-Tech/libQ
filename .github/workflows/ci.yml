@@ -71,6 +71,19 @@ jobs:
       - name: Guard publish-order scripts against cd.yml
         run: bash ./scripts/ci-guard-publish-order.sh
 
+      # The guard above checks WHAT publishes; this one checks WHETHER THE ORDER IS POSSIBLE.
+      # `cargo publish` resolves versioned normal/build dependencies against crates.io at package
+      # time, so a crate whose dependency publishes in a later tier fails mid-release. That is not
+      # theoretical: v0.0.10 (CD run 30883399439) shipped 51 crates and then died at tier 7 on
+      # `failed to select a version for the requirement lib-q-stark-challenger = "^0.0.10"`,
+      # skipping tiers 8-17 and all npm/wasm. crates.io versions are immutable, so a partial
+      # release can only be completed, never rolled back. The publish-order guard above reported
+      # PASS on that same tree minutes before the tag — it answers a different question.
+      # Also flags same-tier dependencies: matrix entries run in parallel, so those are races.
+      # Static and stdlib-only apart from one `cargo metadata` call; no network, no build.
+      - name: Guard cd.yml publish tiers against the dependency graph
+        run: bash ./scripts/ci-guard-publish-dependency-order.sh
+
       # Static (it never runs tarpaulin) and deliberately in core-validation rather than a coverage
       # job: it must run on EVERY PR, including the ones that never trigger a tarpaulin run. The
       # gaps it catches (a test-name filter shrinking the numerator, a package silently skipped,
