@@ -46,7 +46,7 @@ const T_THRESHOLD: f64 = 15.0;
 fn median(xs: &mut [f64]) -> f64 {
     xs.sort_by(|a, b| a.partial_cmp(b).expect("timings are finite"));
     let n = xs.len();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (xs[n / 2 - 1] + xs[n / 2]) / 2.0
     } else {
         xs[n / 2]

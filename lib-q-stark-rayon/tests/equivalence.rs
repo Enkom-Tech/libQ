@@ -73,9 +73,11 @@ fn par_chunks_uneven_matches_std_chunks() {
 #[test]
 fn par_chunks_exact_drops_uneven_tail() {
     let data = [1, 2, 3, 4, 5, 6, 7]; // length 7, chunk_size 3 -> exact chunks [1,2,3],[4,5,6], tail 7 dropped
-    let expected: Vec<Vec<i32>> = data.chunks_exact(3).map(<[i32]>::to_vec).collect();
+    // Hand-written rather than derived from `core::slice::chunks_exact`: an oracle written out by
+    // hand is independent of std, whereas deriving it from another std adapter only proves the two
+    // agree. The literal is what the previous version asserted `chunks_exact` equalled anyway.
+    let expected: Vec<Vec<i32>> = vec![vec![1, 2, 3], vec![4, 5, 6]];
     let got: Vec<Vec<i32>> = data.par_chunks_exact(3).map(<[i32]>::to_vec).collect();
-    assert_eq!(expected, vec![vec![1, 2, 3], vec![4, 5, 6]]);
     assert_eq!(
         got, expected,
         "par_chunks_exact must drop the tail exactly like core::slice::chunks_exact"

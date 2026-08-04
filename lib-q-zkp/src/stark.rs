@@ -1531,10 +1531,12 @@ mod tests {
         // `degree_bits > MAX_DEGREE_BITS` (30 is not > 30), yet
         // `degree_bits + log_num_quotient_chunks + is_zk = 30 + 3 + 0 = 33 > 32 = TWO_ADICITY`, so
         // this must still be rejected by `degree_fits_two_adicity`.
-        assert!(
-            30 <= MAX_DEGREE_BITS,
-            "test assumption: 30 must not trip MAX_DEGREE_BITS alone"
-        );
+        const {
+            assert!(
+                30 <= MAX_DEGREE_BITS,
+                "test assumption: 30 must not trip MAX_DEGREE_BITS alone"
+            )
+        };
         assert!(!degree_fits_two_adicity::<ConfigVal>(30, 3, 0));
     }
 

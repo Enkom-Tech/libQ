@@ -302,13 +302,13 @@ mod tests {
         );
         // Every other cell of the TK2 plane must remain zero: the permutation moves a
         // single nonzero byte to a single destination.
-        for i in 0..4 {
-            for j in 0..4 {
+        // Iterate the TK2 plane specifically. Clippy's needless_range_loop suggestion
+        // (`key_cells.iter().enumerate()`) would walk the PLANE dimension of this 3-D array,
+        // not the 4x4 cell grid within plane 1 — a different traversal entirely.
+        for (i, row) in key_cells[1].iter().enumerate() {
+            for (j, &cell) in row.iter().enumerate() {
                 if (i, j) != (0, 0) {
-                    assert_eq!(
-                        key_cells[1][i][j], 0,
-                        "unexpected nonzero cell at ({i},{j})"
-                    );
+                    assert_eq!(cell, 0, "unexpected nonzero cell at ({i},{j})");
                 }
             }
         }
@@ -337,10 +337,11 @@ mod tests {
 
         let expected = lfsr3_bit_array_reference(test_byte);
         assert_eq!(key_cells[2][0][0], expected);
-        for i in 0..4 {
-            for j in 0..4 {
+        // TK3 plane; same reasoning as the TK2 assertion above about clippy's suggestion.
+        for (i, row) in key_cells[2].iter().enumerate() {
+            for (j, &cell) in row.iter().enumerate() {
                 if (i, j) != (0, 0) {
-                    assert_eq!(key_cells[2][i][j], 0);
+                    assert_eq!(cell, 0, "unexpected nonzero cell at ({i},{j})");
                 }
             }
         }
