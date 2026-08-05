@@ -1,3 +1,6 @@
+# NIST PQC KEM KAT request file (PQCgenKAT seed chain) -- third-party, vendored historically in
+# this repo; not independently re-verified against a pinned upstream URL/hash this session. See
+# ../PROVENANCE.md.
 count = 0
 seed = 9EF877FDDBE8891C6E4E79EAF022E563DEFACA6B152161B9A423E8FE96A403E774B2D352CF74C934069C9DE74757F505
 pk =

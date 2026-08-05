@@ -92,7 +92,17 @@ jobs:
       # not measured on this Linux runner, but it is a repo walk plus one bash process.
       - name: Guard coverage-gate scope (numerator, selection, denominator)
         run: bash ./scripts/ci-guard-coverage-honesty.sh
-      
+
+      # Every committed KAT vector must say where it came from, and a self-generated vector must
+      # not be able to sit at a path called `official`/`nist`/`rfc`. lib-q-hqc shipped 9 KAT tests
+      # reading `kats/official/*.rsp` whose every response value was written by the code under
+      # test (formerly nist_kem_kat.rs:89-121); the module doc called the tree "authoritative".
+      # Static and stdlib-only: a repo walk, a TOML read and a SHA-256 per file. No cargo, no
+      # network. See kats-manifest.toml and scripts/ci_guard_kat_provenance.py for what is (and,
+      # deliberately, is not yet) in scope.
+      - name: Guard KAT vector provenance
+        run: bash ./scripts/ci-guard-kat-provenance.sh
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:
