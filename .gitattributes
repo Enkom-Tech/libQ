@@ -1,3 +1,12 @@
 # Shell used on Linux CI; CRLF breaks bash -e / shebang parsing on checkout.
 *.sh text eol=lf
 .githooks/* text eol=lf
+
+# KAT vectors are reference data pinned by SHA-256 in kats-manifest.toml and checked
+# by scripts/ci_guard_kat_provenance.py. Git must not rewrite their bytes per-platform:
+# with `core.autocrlf=true` a Windows clone holds CRLF while the blobs and CI hold LF,
+# so the same commit hashes two different ways and the provenance check fires on every
+# file for a reason unrelated to drift. `-text` disables all conversion.
+lib-q-hqc/kats/** -text
+*.rsp -text
+*.req -text

@@ -225,11 +225,22 @@ def check_coverage(discovered: dict[str, pathlib.Path], entries: list[dict]) -> 
 # CHECK 3 -- content hash
 # ---------------------------------------------------------------------------
 def sha256_of(path: pathlib.Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """SHA-256 of the file with CRLF line endings normalised to LF.
+
+    KAT vectors are text. Hashing the raw bytes makes this check depend on the
+    checkout's line-ending policy rather than on the content: a Windows clone with
+    `core.autocrlf=true` holds CRLF while the repository blobs and every Linux CI
+    checkout hold LF, so the same commit hashes two different ways and CHECK 3 fires
+    on all files at once for a reason that has nothing to do with drift. That is
+    exactly what happened when this guard first ran in CI.
+
+    `.gitattributes` now pins these paths to `-text` so git stops rewriting them, but
+    the normalisation stays: it makes the check correct by construction rather than
+    contingent on every clone being configured right, and it still catches real
+    change, since collapsing CRLF to LF alters nothing else about the bytes.
+    """
+    data = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
 
 
 def check_hashes(by_path: dict[str, dict]) -> None:
