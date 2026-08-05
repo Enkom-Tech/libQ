@@ -52,50 +52,25 @@ impl SaturninCore {
         })
     }
 
-    /// Generate round constants for the given number of rounds and domain
+    /// Generate round constants for the given number of rounds and domain.
+    ///
+    /// Always derived from the specification's LFSR — there are no special cases, and there must
+    /// not be.
+    ///
+    /// This function previously special-cased `(16, 7)` and `(16, 8)` with tables hand-copied
+    /// from the bit-sliced implementation "for hash compatibility". Those tables were
+    /// **transposed**: they held the packed bs32 form `(RC1 << 16) | RC0` flattened to `u16` as
+    /// `RC1[0], RC0[0], RC1[1], RC0[1], …`, while the round function below reads `rc[2i]` as RC0
+    /// and `rc[2i + 1]` as RC1. Those two configurations therefore computed a permutation that is
+    /// not Saturnin. The LFSR reproduces the designers' tables exactly, so the override never
+    /// bought the compatibility it was named for — it only introduced the divergence.
+    ///
+    /// Nothing shipped was affected: `SaturninCore` is never deployed at a hash domain (the hash
+    /// runs on [`crate::bs32_core::SaturninBs32Core`]), which is why every KAT stayed green.
+    /// See `tests/core_equivalence.rs`, which fails on both the transposition and the resulting
+    /// cross-core divergence.
     fn generate_round_constants(num_rounds: usize, domain: u8) -> Vec<u16> {
-        // Use hardcoded constants from bs32 implementation for hash compatibility
-        if num_rounds == 16 {
-            match domain {
-                7 => {
-                    #[cfg(feature = "alloc")]
-                    {
-                        use alloc::vec;
-                        vec![
-                            0x3FBA, 0x180C, 0x563A, 0xB9AB, 0x125E, 0xA5EF, 0x859D, 0xA26C, 0xB8CF,
-                            0x779B, 0x7D4D, 0xE793, 0x07EF, 0xB49F, 0x8D52, 0x5306, 0x1E08, 0xE6AB,
-                            0x4172, 0x9F87, 0x8C4A, 0xEF0A, 0x4AA0, 0xC9A7, 0xD93A, 0x95EF, 0xBB00,
-                            0xD2AF, 0xB62C, 0x5BF0, 0x386D, 0x94D8,
-                        ]
-                    }
-                    #[cfg(not(feature = "alloc"))]
-                    {
-                        // Fallback for no_std without alloc
-                        Self::generate_round_constants_lfsr(num_rounds, domain)
-                    }
-                }
-                8 => {
-                    #[cfg(feature = "alloc")]
-                    {
-                        use alloc::vec;
-                        vec![
-                            0x3C9B, 0x19A7, 0xA909, 0x8694, 0x23F8, 0x78DA, 0xA7B6, 0x47D3, 0x74FC,
-                            0x9D78, 0xEACA, 0xAE11, 0x2F31, 0xA677, 0x4CC8, 0xC054, 0x2F51, 0xCA05,
-                            0x5268, 0xF195, 0x4F5B, 0x8A2B, 0xF614, 0xB4AC, 0xF1D9, 0x5401, 0x764D,
-                            0x2568, 0x6A49, 0x3611, 0x8EEF, 0x9C3E,
-                        ]
-                    }
-                    #[cfg(not(feature = "alloc"))]
-                    {
-                        // Fallback for no_std without alloc
-                        Self::generate_round_constants_lfsr(num_rounds, domain)
-                    }
-                }
-                _ => Self::generate_round_constants_lfsr(num_rounds, domain),
-            }
-        } else {
-            Self::generate_round_constants_lfsr(num_rounds, domain)
-        }
+        Self::generate_round_constants_lfsr(num_rounds, domain)
     }
 
     /// Generate round constants using LFSR (original implementation)
