@@ -70,8 +70,8 @@ mod bearssl_kat {
         bytes
     }
 
-    /// Test vector from official NIST KAT files (HQC-1, count=0)
-    /// From: lib-q-hqc/kats/official/hqc-1/PQCkemKAT_2321.rsp
+    /// Test vector from this crate's self-generated regression-pin KAT files (HQC-1, count=0)
+    /// From: lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321_regression_pin.rsp
     mod hqc1_kat_vectors {
 """
 

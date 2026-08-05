@@ -1,0 +1,72 @@
+# Provenance manifest for committed KAT (Known-Answer-Test) vector files.
+#
+# Enforced by scripts/ci-guard-kat-provenance.sh / ci_guard_kat_provenance.py -- read that pair
+# for the full rationale. In short: every vector file discovered under a registered
+# `[scan].roots` directory must have exactly one `[[kat]]` entry below; the entry's `sha256` must
+# match the file's current content; an entry whose `origin` is not "upstream" may not sit at a
+# path or carry a filename containing "official", "nist", or "rfc" (case-insensitive); and the
+# file's own leading `#`-comment header must say what the manifest says. That combination is the
+# fix for card t_71d4f79a: lib-q-hqc shipped a KAT tree at `kats/official/` whose every response
+# value was written by the code under test, and nothing before this manifest could tell a reader
+# that from the file, the tree name, or a CI check.
+#
+# `origin` is one of:
+#   "upstream"       -- genuinely sourced from an external reference implementation. Requires
+#                        `upstream_url` and `upstream_sha256`.
+#   "self-generated" -- produced by this repo's own code under test. Requires `generator`
+#                        (which test/function produced it, and how to reproduce it).
+#   "third-party"     -- sourced from somewhere else (e.g. the NIST PQCgenKAT request-file
+#                        template) but not independently re-verified against a pinned upstream
+#                        URL/hash this session. Requires `source`.
+#
+# Initial rollout scope: lib-q-hqc only. Other crates ship KAT-shaped vector files too --
+# lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp is the one already known, `git ls-files | grep
+# -iE '\.(rsp|req)$'` finds no others -- but their provenance was NOT investigated by the lane
+# that wrote this guard (card t_71d4f79a, lane e-kat-provenance). Do NOT add a root below without
+# first doing the same per-file investigation performed for lib-q-hqc (a same-seed byte diff
+# against a genuine upstream source, or an honest admission that none exists and the file is a
+# pin). Fabricating an `origin` to satisfy this guard would be exactly the failure mode it exists
+# to catch, just moved one level up.
+
+[scan]
+roots = ["lib-q-hqc/kats"]
+# A file is in scope if its extension (case-insensitive, without the dot) is one of these...
+extensions = ["rsp", "req", "kat"]
+# ...or its filename (case-insensitive) ends with one of these suffixes.
+filename_suffixes = ["_kat.txt"]
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321.req"
+origin = "third-party"
+source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
+sha256 = "0652e9cf336e1f67f9563510b874e0a33d852add7124ea7d3aebf25d9222fea0"
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321_regression_pin.rsp"
+origin = "self-generated"
+generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
+sha256 = "653b2a497ee69113b4680b0016354fd6df03eeda4e096d4140c249a9a71a1e97"
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602.req"
+origin = "third-party"
+source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
+sha256 = "5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62"
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602_regression_pin.rsp"
+origin = "self-generated"
+generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
+sha256 = "bead77281b08dfba3202d6293c5f3ab5f51124a246001aeccb066a16defaceee"
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333.req"
+origin = "third-party"
+source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
+sha256 = "5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62"
+
+[[kat]]
+path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333_regression_pin.rsp"
+origin = "self-generated"
+generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
+sha256 = "984cad3df6b71e13ba8bae65612315a53366633f394b95c0d2d37143112f4f98"

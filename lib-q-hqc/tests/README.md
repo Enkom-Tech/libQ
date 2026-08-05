@@ -13,7 +13,7 @@ cargo test -p lib-q-hqc --features alloc,hqc
 |----------|-------|-------------------|
 | **KEM integration** | `integration_test.rs` | Full HQC-1/3/5 KEM round-trips (pinned seeds + many varied keypairs), error-correcting code encode/decode, asserted PKE encrypt/decrypt, repeated encaps/decaps |
 | **PKE round-trip** | `pke_roundtrip_basic.rs`, `pke_roundtrip_test.rs` | PKE encrypt/decrypt with asserted equality over distinct keypairs |
-| **KAT / PRNG** | `nist_kem_kat.rs`, `hardened_dudect_smoke.rs`, `shake256_prng_kat.rs`, `sha3_hqc_kat.rs`, … | Authoritative NIST KEM KAT (`kats/official/`, `pk`/`ct`/`ss`/`sk`); hardened decaps timing smoke |
+| **KAT / PRNG** | `nist_kem_kat.rs`, `hardened_dudect_smoke.rs`, `shake256_prng_kat.rs`, `sha3_hqc_kat.rs`, … | Self-generated regression-pin KEM KAT (`kats/regression-pins/`, `pk`/`ct`/`ss`/`sk` — NOT official HQC reference data, see `kats/regression-pins/PROVENANCE.md`); hardened decaps timing smoke |
 | **Parameter compliance** | `compliance_parameter_validation.rs`, `compliance/parameter_validation.rs` | Parameter constants vs `lib-q-types::hqc` and specification |
 | **SIMD** | `simd_correctness.rs`, `simd_unit_tests.rs`, `simd_infrastructure_test.rs`, `simd_debug_utils/` | AVX2 vs portable bit-exact equivalence |
 | **DRBG / AES** | `aes_ctr_drbg_test.rs`, `aes_verification.rs`, `bearssl_aes_verification.rs`, `bearssl_vs_rust_aes_comparison.rs`, `drbg_interop_tests.rs`, `prng_compatibility_test.rs` | DRBG backends and AES interoperability |
