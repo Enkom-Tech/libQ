@@ -57,7 +57,11 @@ fn pilot_opening() -> AjtaiOpening {
 }
 
 const PILOT_TAU: usize = 39;
-const PILOT_Z_INF: i32 = 20_000_000;
+// Historically a fourth independent copy of the legacy no-op bound (20_000_000, not a consumer
+// of `RingSigParams`); now tied to the shared audited constant. See
+// `lib_q_lattice_zkp::profile::V0_Z_INF_BOUND` for why any value >= q/2 (4_190_208) makes the
+// verifier's norm check unconditionally pass.
+const PILOT_Z_INF: i32 = lib_q_lattice_zkp::profile::V0_Z_INF_BOUND;
 const PILOT_MAX_ATTEMPTS: usize = 512;
 
 #[derive(Serialize, Deserialize)]

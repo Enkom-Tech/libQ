@@ -7,4 +7,6 @@ pub enum MacError {
     InvalidTagLength,
     /// Key material is malformed.
     InvalidKey,
+    /// Label exceeds `QPRF_MAX_LABEL_BYTES` (the single-byte length prefix cannot encode it).
+    LabelTooLong,
 }

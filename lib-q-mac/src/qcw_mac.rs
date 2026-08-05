@@ -13,6 +13,11 @@ use crate::qprf::qprf_tag;
 
 const MAC_LABEL: &[u8] = b"tag";
 
+// Compile-time guarantee that `QcwMac::sign`'s `.expect` on `qprf_tag` can never fire: the label
+// is a module-private constant, no caller can influence it, and this assert fails the build if it
+// ever grows past the qPRF's single-byte length-prefix cap.
+const _: () = assert!(MAC_LABEL.len() <= crate::qprf::QPRF_MAX_LABEL_BYTES);
+
 /// Secret key for qCW-MAC.
 #[derive(Clone, Zeroize)]
 #[zeroize(drop)]
@@ -50,7 +55,11 @@ impl QcwMac {
     #[must_use]
     pub fn sign(key: &QcwMacKey, msg: &[u8], ad: &[u8]) -> alloc::vec::Vec<u8> {
         let axu = epsilon_axu(&key.key, ad, msg);
-        qprf_tag(&key.key, MAC_LABEL, &axu).to_vec()
+        // Unreachable by construction: MAC_LABEL is a module-private 3-byte constant, checked
+        // against QPRF_MAX_LABEL_BYTES at compile time (see the `const _` assert above).
+        qprf_tag(&key.key, MAC_LABEL, &axu)
+            .expect("MAC_LABEL is a 3-byte constant, within QPRF_MAX_LABEL_BYTES")
+            .to_vec()
     }
 
     /// Constant-time tag verification.

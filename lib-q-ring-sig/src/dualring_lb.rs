@@ -212,7 +212,7 @@ mod tests {
     fn dualring_lb_ring_of_one_matches_opening_proof() {
         let key = pilot_crs();
         let tau = 39;
-        let z = 20_000_000;
+        let z = lib_q_lattice_zkp::profile::V0_Z_INF_BOUND;
         let max = 512;
         let o = AjtaiOpening {
             message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
@@ -231,7 +231,7 @@ mod tests {
     fn dualring_lb_wrong_message_rejected() {
         let key = pilot_crs();
         let tau = 39;
-        let z = 20_000_000;
+        let z = lib_q_lattice_zkp::profile::V0_Z_INF_BOUND;
         let max = 512;
         let mut o = AjtaiOpening {
             message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
@@ -255,7 +255,7 @@ mod tests {
     fn dualring_lb_wrong_ring_member_rejected() {
         let key = pilot_crs();
         let tau = 39;
-        let z = 20_000_000;
+        let z = lib_q_lattice_zkp::profile::V0_Z_INF_BOUND;
         let max = 512;
         let o_a = AjtaiOpening {
             message: ModuleVec(vec![Poly::zero(), Poly::zero()]),
