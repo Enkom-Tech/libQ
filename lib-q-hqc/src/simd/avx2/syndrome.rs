@@ -83,9 +83,12 @@ unsafe fn compute_syndrome_chunk(vector: __m256i, parity: __m256i) -> __m256i {
     unsafe { _mm256_xor_si256(vector, parity) }
 }
 
-/// AVX2-optimized error correction
+/// AVX2-optimized error correction (bench-only stand-in — see `SyndromeOps::correct_errors`'s doc)
 ///
-/// Attempts to correct errors using the syndrome vector.
+/// Combines `received` with `syndrome` (byte-wise XOR) into `corrected`. This is not real error
+/// correction and has nothing meaningful to report, so it does not return a success/failure flag
+/// (an earlier revision returned a `bool` documented as "`false` otherwise" that this
+/// implementation could never actually produce).
 ///
 /// # Safety
 ///
@@ -100,14 +103,11 @@ unsafe fn compute_syndrome_chunk(vector: __m256i, parity: __m256i) -> __m256i {
 /// should be performed before calling this function.
 ///
 /// # Arguments
-/// * `corrected` - Output corrected vector
+/// * `corrected` - Output vector (set to `received ^ syndrome`, byte-wise)
 /// * `received` - Received vector with errors
 /// * `syndrome` - Computed syndrome vector
-///
-/// # Returns
-/// `true` if correction was successful, `false` otherwise
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-pub fn correct_errors_avx2(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool {
+pub fn correct_errors_avx2(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) {
     unsafe {
         // Process 32-byte chunks
         let chunks = corrected.len() / 32;
@@ -135,8 +135,6 @@ pub fn correct_errors_avx2(corrected: &mut [u8], received: &[u8], syndrome: &[u8
                 corrected[offset + j] = received[offset + j] ^ syndrome[offset + j];
             }
         }
-
-        true
     }
 }
 
@@ -147,6 +145,6 @@ pub fn generate_syndrome_avx2(syndrome: &mut [u8], vector: &[u8], parity: &[u8])
 }
 
 #[cfg(not(all(target_arch = "x86_64", feature = "simd-avx2")))]
-pub fn correct_errors_avx2(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool {
+pub fn correct_errors_avx2(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) {
     super::super::portable::correct_errors_portable(corrected, received, syndrome)
 }

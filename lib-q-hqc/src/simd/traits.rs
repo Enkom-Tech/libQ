@@ -61,16 +61,19 @@ pub trait SyndromeOps {
     /// * `parity` - Parity check matrix
     fn generate_syndrome(syndrome: &mut [u8], vector: &[u8], parity: &[u8]);
 
-    /// Syndrome-based error correction
+    /// Combine a received vector with a syndrome (bench-only stand-in; see the trait doc above)
     ///
-    /// Attempts to correct errors using the syndrome vector.
+    /// This does not perform real error correction: it XORs `received` with `syndrome` into
+    /// `corrected` and has no way to detect or report a failed correction, because the
+    /// "syndrome" this trait works with is a synthetic XOR value, not a value derived from an
+    /// actual parity-check matrix that a real decoder could validate against. Earlier revisions
+    /// returned a `bool` that was documented as "`false` otherwise" but could never be anything
+    /// but `true` — that was a false contract, not a real success/failure signal, so the return
+    /// value was removed rather than kept as a promise the implementation cannot keep.
     ///
     /// # Arguments
-    /// * `corrected` - Output corrected vector
+    /// * `corrected` - Output vector (set to `received ^ syndrome`, byte-wise)
     /// * `received` - Received vector with errors
     /// * `syndrome` - Computed syndrome vector
-    ///
-    /// # Returns
-    /// `true` if correction was successful, `false` otherwise
-    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool;
+    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]);
 }

@@ -78,12 +78,21 @@ fn test_zst_dispatch() {
 
     Portable::generate_syndrome(&mut syndrome, &vector, &parity);
 
-    // Test error correction
+    // Test error correction. `correct_errors` has no success/failure signal to check (see its
+    // doc: it is a bench-only stand-in that XORs `received` with `syndrome` and cannot detect a
+    // bad correction) — so assert the one real, checkable contract it has: the output equals
+    // `received ^ syndrome`, byte for byte. This replaces a prior `assert!(result)` on a
+    // `bool` that was a compile-time constant `true` and could never fail.
     let mut corrected = [0u8; 32];
     let received = [5u8; 32];
-    let result = Portable::correct_errors(&mut corrected, &received, &syndrome);
-
-    assert!(result);
+    Portable::correct_errors(&mut corrected, &received, &syndrome);
+    for i in 0..corrected.len() {
+        assert_eq!(
+            corrected[i],
+            received[i] ^ syndrome[i],
+            "correct_errors must XOR received with syndrome at byte {i}"
+        );
+    }
 }
 
 /// Test CPUID detection
@@ -274,10 +283,9 @@ fn test_error_correction_equivalence() {
     let mut corrected_avx2 = [0u8; 64];
     let mut corrected_portable = [0u8; 64];
 
-    let result_avx2 = Avx2::correct_errors(&mut corrected_avx2, &received, &syndrome);
-    let result_portable = Portable::correct_errors(&mut corrected_portable, &received, &syndrome);
+    Avx2::correct_errors(&mut corrected_avx2, &received, &syndrome);
+    Portable::correct_errors(&mut corrected_portable, &received, &syndrome);
 
-    assert_eq!(result_avx2, result_portable);
     assert_eq!(corrected_avx2, corrected_portable);
 }
 

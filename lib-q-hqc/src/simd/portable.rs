@@ -37,7 +37,7 @@ impl SyndromeOps for Portable {
         generate_syndrome_portable(syndrome, vector, parity);
     }
 
-    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool {
+    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) {
         correct_errors_portable(corrected, received, syndrome)
     }
 }
@@ -224,19 +224,17 @@ pub fn generate_syndrome_portable(syndrome: &mut [u8], vector: &[u8], parity: &[
     }
 }
 
-/// Portable error correction
+/// Portable error correction (bench-only stand-in — see `SyndromeOps::correct_errors`'s doc)
 ///
-/// Attempts to correct errors using the syndrome vector.
-/// This is a simplified implementation that applies the syndrome as an error pattern.
+/// Combines `received` with `syndrome` (byte-wise XOR) into `corrected`. This is a simplified
+/// stand-in, not real error correction: it does not check whether the result is actually a valid
+/// codeword, so it has nothing meaningful to report and does not return a success/failure flag.
 ///
 /// # Arguments
-/// * `corrected` - Output corrected vector
+/// * `corrected` - Output vector (set to `received ^ syndrome`, byte-wise)
 /// * `received` - Received vector with errors
 /// * `syndrome` - Computed syndrome vector
-///
-/// # Returns
-/// `true` if correction was successful, `false` otherwise
-pub fn correct_errors_portable(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool {
+pub fn correct_errors_portable(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) {
     // Apply syndrome as error correction pattern
     // This is a simplified implementation - in practice, this would involve
     // more complex error correction algorithms based on the syndrome
@@ -245,8 +243,4 @@ pub fn correct_errors_portable(corrected: &mut [u8], received: &[u8], syndrome: 
             corrected[i] = recv ^ synd;
         }
     }
-
-    // For now, always return true (successful correction)
-    // In a real implementation, this would check if the correction was valid
-    true
 }

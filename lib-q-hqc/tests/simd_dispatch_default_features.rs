@@ -157,9 +157,11 @@ fn test_avx2_generate_syndrome_matches_portable() {
     );
 }
 
-/// `correct_errors`: checks both the boolean result and the corrected buffer. Length exceeds
-/// the AVX2 32-byte chunk threshold (originally 16 bytes, entirely below threshold — raised to
-/// 48 so this test actually covers the AVX2 chunk loop, not just the scalar tail).
+/// `correct_errors`: checks the corrected buffer. (`correct_errors` no longer returns a `bool` --
+/// the earlier "success flag" was a compile-time constant `true` on every implementation, an
+/// un-failable check; see `SyndromeOps::correct_errors`'s doc.) Length exceeds the AVX2 32-byte
+/// chunk threshold (originally 16 bytes, entirely below threshold — raised to 48 so this test
+/// actually covers the AVX2 chunk loop, not just the scalar tail).
 #[cfg(target_arch = "x86_64")]
 #[test]
 fn test_avx2_correct_errors_matches_portable() {
@@ -168,13 +170,9 @@ fn test_avx2_correct_errors_matches_portable() {
     let mut corrected_avx2 = [0u8; 48];
     let mut corrected_portable = [0u8; 48];
 
-    let ok_avx2 = Avx2::correct_errors(&mut corrected_avx2, &received, &syndrome);
-    let ok_portable = Portable::correct_errors(&mut corrected_portable, &received, &syndrome);
+    Avx2::correct_errors(&mut corrected_avx2, &received, &syndrome);
+    Portable::correct_errors(&mut corrected_portable, &received, &syndrome);
 
-    assert_eq!(
-        ok_avx2, ok_portable,
-        "success flag must agree with Portable"
-    );
     assert_eq!(
         corrected_avx2, corrected_portable,
         "Avx2::correct_errors must match Portable::correct_errors bit-for-bit"

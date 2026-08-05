@@ -88,24 +88,56 @@ impl SecurityConfig {
 }
 
 /// Global security configuration
-static mut SECURITY_CONFIG: SecurityConfig = SecurityConfig {
-    constant_time: true,
-    side_channel_protection: true,
-    secure_memory: true,
-    strict_validation: true,
-    timing_protection: true,
-    fault_injection_protection: true,
+///
+/// Guarded by a lock (`std::sync::RwLock` behind an `Arc`/`OnceLock` when `std` is
+/// available, `spin::Mutex` otherwise) so concurrent readers and writers from any thread
+/// (including bare-metal `no_std` cores) observe a consistent value — mirrors the
+/// `GLOBAL_VALIDATOR` pattern in `security::validation`. A `static mut` here would be
+/// undefined behaviour under concurrent access, which is exactly what this replaces.
+#[cfg(feature = "std")]
+use std::sync::{
+    Arc,
+    RwLock,
 };
+
+#[cfg(feature = "std")]
+static GLOBAL_SECURITY_CONFIG: std::sync::OnceLock<Arc<RwLock<SecurityConfig>>> =
+    std::sync::OnceLock::new();
+#[cfg(not(feature = "std"))]
+static GLOBAL_SECURITY_CONFIG: spin::LazyLock<spin::Mutex<SecurityConfig>> =
+    spin::LazyLock::new(|| spin::Mutex::new(SecurityConfig::default()));
 
 /// Get the current security configuration
 pub fn get_security_config() -> SecurityConfig {
-    unsafe { SECURITY_CONFIG }
+    #[cfg(feature = "std")]
+    {
+        GLOBAL_SECURITY_CONFIG
+            .get_or_init(|| Arc::new(RwLock::new(SecurityConfig::default())))
+            .read()
+            .map(|guard| *guard)
+            .unwrap_or_else(|_| SecurityConfig::default())
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        *GLOBAL_SECURITY_CONFIG.lock()
+    }
 }
 
 /// Set the security configuration
 pub fn set_security_config(config: SecurityConfig) {
-    unsafe {
-        SECURITY_CONFIG = config;
+    #[cfg(feature = "std")]
+    {
+        if let Some(global_config) = GLOBAL_SECURITY_CONFIG.get() {
+            if let Ok(mut global) = global_config.write() {
+                *global = config;
+            }
+        } else {
+            let _ = GLOBAL_SECURITY_CONFIG.set(Arc::new(RwLock::new(config)));
+        }
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        *GLOBAL_SECURITY_CONFIG.lock() = config;
     }
 }
 
@@ -178,12 +210,26 @@ impl SecurityContext {
     /// Generate a unique operation ID
     fn generate_operation_id() -> u64 {
         // Use a simple counter for now - in production, this should use
-        // cryptographically secure random number generation
-        static mut COUNTER: u64 = 0;
-        unsafe {
-            COUNTER += 1;
-            COUNTER
-        }
+        // cryptographically secure random number generation.
+        //
+        // `AtomicU64::fetch_add` (rather than a `static mut` read-modify-write) is what
+        // makes concurrent calls from multiple threads race-free; see `get_timestamp`
+        // below for the same type used for the same reason on the no_std/wasm path.
+        use core::sync::atomic::Ordering;
+
+        use portable_atomic::AtomicU64;
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        // Compile-time, non-flaky proof that this is really atomic and not a
+        // `static mut` read-modify-write: forming a shared reference to `COUNTER` and
+        // calling `fetch_add` through it only type-checks for an atomic type. Reverting
+        // to `static mut COUNTER: u64` makes this line fail to compile twice over --
+        // `u64` has no `fetch_add` method, and forming `&COUNTER` on a `static mut`
+        // outside `unsafe` is independently denied by `static_mut_refs` on this edition.
+        // A concurrency test was deliberately not used here: it would only be a
+        // probabilistic detector of already-UB behaviour, not a deterministic one (see
+        // progress.md for the 40x/0-failures run against the pre-fix code).
+        let counter: &AtomicU64 = &COUNTER;
+        counter.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     /// Get current timestamp with high-resolution timing
