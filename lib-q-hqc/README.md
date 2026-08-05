@@ -8,7 +8,8 @@ Enable from the KEM façade with **`hqc`** on [`lib-q-kem`](../lib-q-kem).
 
 Pure-Rust HQC KEM for parameter sets HQC-128, HQC-192, and HQC-256 (internal names
 HQC-1, HQC-3, HQC-5). The crate follows libQ provider patterns, supports `no_std` and
-WASM, and offers optional AVX2 acceleration with portable fallback.
+WASM, and offers optional AVX2 acceleration of the dense polynomial multiply, with a
+bit-exact portable fallback.
 
 ## Implementation status
 
@@ -39,7 +40,15 @@ Secret key layout: `ek_pke` ‖ `dk_pke` (32) ‖ `sigma` (16) ‖ `seed_kem` (4
 - libQ provider integration and typed key/ciphertext wrappers
 - `zeroize` for sensitive buffers; `no_std` and `wasm` targets
 - Pure Rust (no C/FFI); BearSSL-compatible and standard AES DRBG backends
-- Optional `simd-avx2` (runtime detection, bit-exact portable fallback)
+- Optional `simd-avx2` (x86_64 only, runtime CPU detection, bit-exact portable fallback).
+  **Accelerated:** the dense `GF(2)[x]/(x^N − 1)` multiply used by `vect_mul` (Toom-3 +
+  Karatsuba + PCLMUL, `src/simd/avx2/gf2x.rs`) and the vector XOR `vect_add` — the two
+  operations the KEM actually calls. **Not accelerated:** `simd::PolynomialOps::sparse_dense_mul`
+  has no AVX2 implementation and delegates to the portable code in every configuration; it is
+  not on the KEM path. `simd::PolynomialOps::shift_xor` uses AVX2 only when the shift distance
+  is a multiple of 64 bits and is scalar otherwise, by design. No measured speedup figure is
+  published for this crate; see `benches/performance_benchmarks.rs` for a reproducible
+  `simd-avx2`-vs-default comparison.
 
 ## Architecture
 

@@ -1,7 +1,28 @@
 //! SIMD performance benchmarks for HQC operations
 //!
-//! This module provides comprehensive benchmarks to measure the performance improvements
-//! from AVX2 SIMD optimizations compared to portable implementations.
+//! This module benchmarks the SIMD-dispatchable operations. Not every group below is a
+//! meaningful AVX2-vs-portable comparison:
+//!
+//! - `polynomial_multiplication`, `hqc_parameter_sets`, and `throughput` benchmark
+//!   `sparse_dense_mul`, which has **no AVX2 implementation** — `Avx2::sparse_dense_mul`
+//!   delegates to the portable code in every configuration (see
+//!   `src/simd/avx2/mod.rs`'s `impl PolynomialOps for Avx2`). These groups therefore only run
+//!   the portable implementation; there used to be a second "avx2" arm here that timed the same
+//!   function under a different label, which made these groups look like an avx2-vs-portable
+//!   comparison when they were actually the same code path timed twice. That arm has been
+//!   removed.
+//! - `vector_addition`, `syndrome_generation`, and `error_correction` are real comparisons —
+//!   their AVX2 arms use genuine intrinsics above a 32-byte-chunk threshold, and all tested sizes
+//!   here (64/256/1024/4096) exceed it.
+//! - `shift_xor`'s AVX2 arm is real, but only reaches the intrinsic path for the word-aligned
+//!   distances in its distance list (see the comment on `benchmark_shift_xor`).
+//! - `vect_mul_avx2_vs_schoolbook` is the one comparison that corresponds to what the HQC KEM
+//!   actually calls: `simd::avx2::gf2x::avx2_vect_mul_mod_xnm1` (Toom-3 + Karatsuba + PCLMUL)
+//!   versus its schoolbook fallback in `hqc_pke.rs`.
+//!
+//! No speedup percentage is published from these benchmarks; see
+//! `benches/performance_benchmarks.rs` for keygen/encapsulate/decapsulate comparisons and
+//! `docs/simd-architecture.md` for the reproducible procedure.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -28,7 +49,12 @@ use lib_q_hqc::simd::{
     },
 };
 
-/// Benchmark polynomial multiplication (sparse-dense)
+/// Benchmark polynomial multiplication (sparse-dense).
+///
+/// `sparse_dense_mul` has no AVX2 implementation (see module doc above), so this only measures
+/// the portable implementation. There is intentionally no "avx2" arm here — timing
+/// `Avx2::sparse_dense_mul` against `Portable::sparse_dense_mul` would time the same underlying
+/// code path twice, since the former delegates to the latter in every configuration.
 #[cfg(feature = "alloc")]
 fn benchmark_polynomial_multiplication(c: &mut Criterion) {
     let mut group = c.benchmark_group("polynomial_multiplication");
@@ -44,7 +70,6 @@ fn benchmark_polynomial_multiplication(c: &mut Criterion) {
             let mut output = vec![0u8; size];
             let n_bits = size * 8;
 
-            // Benchmark portable implementation
             group.bench_with_input(
                 BenchmarkId::new("portable", format!("size_{}_weight_{}", size, weight)),
                 &(size, weight),
@@ -60,26 +85,6 @@ fn benchmark_polynomial_multiplication(c: &mut Criterion) {
                     });
                 },
             );
-
-            // Benchmark AVX2 implementation (if available)
-            #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
-            {
-                group.bench_with_input(
-                    BenchmarkId::new("avx2", format!("size_{}_weight_{}", size, weight)),
-                    &(size, weight),
-                    |b, &(_size, weight)| {
-                        b.iter(|| {
-                            Avx2::sparse_dense_mul(
-                                black_box(&mut output),
-                                black_box(&sparse),
-                                black_box(&dense),
-                                black_box(weight),
-                                black_box(n_bits),
-                            );
-                        });
-                    },
-                );
-            }
         }
     }
 
@@ -119,7 +124,11 @@ fn benchmark_vector_addition(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark shift and XOR operations
+/// Benchmark shift and XOR operations.
+///
+/// Of the distances below, only `0` and `64` are multiples of 64 and take the AVX2 chunk-loop
+/// branch of `shift_xor_avx2`; all other distances (`1, 7, 8, 15, 16, 31, 32, 63`) run the scalar
+/// branch even in the "avx2" arm, by design (see `polynomial::shift_xor_avx2`'s doc comment).
 #[cfg(feature = "alloc")]
 fn benchmark_shift_xor(c: &mut Criterion) {
     let mut group = c.benchmark_group("shift_xor");
@@ -277,6 +286,9 @@ fn benchmark_hqc_parameter_sets(c: &mut Criterion) {
     group.finish();
 }
 
+/// `sparse_dense_mul` has no AVX2 implementation (see module doc above), so this only measures
+/// the portable implementation — no "avx2" arm here, for the same reason as
+/// `benchmark_polynomial_multiplication`.
 #[cfg(feature = "alloc")]
 fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
@@ -287,7 +299,6 @@ fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
     let dense = vec![0xCDu8; n_bytes];
     let mut output = vec![0u8; n_bytes];
 
-    // Benchmark portable implementation
     group.bench_with_input(BenchmarkId::new("portable", name), &name, |b, _| {
         b.iter(|| {
             Portable::sparse_dense_mul(
@@ -299,25 +310,13 @@ fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
             );
         });
     });
-
-    // Benchmark AVX2 implementation (if available)
-    #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
-    {
-        group.bench_with_input(BenchmarkId::new("avx2", name), &name, |b, _| {
-            b.iter(|| {
-                Avx2::sparse_dense_mul(
-                    black_box(&mut output),
-                    black_box(&sparse),
-                    black_box(&dense),
-                    black_box(P::OMEGA as u32),
-                    black_box(P::N),
-                );
-            });
-        });
-    }
 }
 
-/// Benchmark throughput measurements
+/// Benchmark throughput measurements.
+///
+/// `sparse_dense_mul` has no AVX2 implementation (see module doc above), so this only measures
+/// the portable implementation — no "avx2" arm here, for the same reason as
+/// `benchmark_polynomial_multiplication`.
 #[cfg(feature = "alloc")]
 fn benchmark_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("throughput");
@@ -331,7 +330,6 @@ fn benchmark_throughput(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(size as u64));
 
-    // Benchmark portable implementation
     group.bench_with_input(BenchmarkId::new("portable", "throughput"), &size, |b, _| {
         b.iter(|| {
             Portable::sparse_dense_mul(
@@ -344,21 +342,60 @@ fn benchmark_throughput(c: &mut Criterion) {
         });
     });
 
-    // Benchmark AVX2 implementation (if available)
-    #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
-    {
-        group.bench_with_input(BenchmarkId::new("avx2", "throughput"), &size, |b, _| {
-            b.iter(|| {
-                Avx2::sparse_dense_mul(
-                    black_box(&mut output),
-                    black_box(&sparse),
-                    black_box(&dense),
-                    black_box(100),
-                    black_box(n_bits),
-                );
-            });
+    group.finish();
+}
+
+/// Benchmark the AVX2 `gf2x` Toom-3/Karatsuba/PCLMUL multiply against its schoolbook fallback,
+/// at true HQC-128 sizes. Unlike the `sparse_dense_mul`-based groups above, this is the one
+/// comparison in this file that corresponds to what the KEM's `vect_mul` actually calls
+/// (`hqc_pke.rs:735-747`): `avx2_vect_mul_mod_xnm1` and `schoolbook_vect_mul_mod_xnm1` are two
+/// genuinely different implementations of the same ring product, not the same code path timed
+/// twice.
+#[cfg(all(feature = "simd-avx2", feature = "alloc", target_arch = "x86_64"))]
+fn benchmark_vect_mul_avx2_vs_schoolbook(c: &mut Criterion) {
+    use lib_q_hqc::hqc_pke::schoolbook_vect_mul_mod_xnm1;
+    use lib_q_hqc::params_correct::{
+        Hqc1Params,
+        HqcParams,
+    };
+    use lib_q_hqc::simd::avx2::gf2x::avx2_vect_mul_mod_xnm1;
+
+    let n = Hqc1Params::VEC_N_SIZE_64;
+    let a: Vec<u64> = (0..n)
+        .map(|i| (i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
+        .collect();
+    let b: Vec<u64> = (0..n)
+        .map(|i| {
+            (i as u64)
+                .wrapping_mul(0xC2B2_AE3D_27D4_EB4F)
+                .wrapping_add(1)
+        })
+        .collect();
+    let mut output = vec![0u64; n];
+
+    let mut group = c.benchmark_group("vect_mul");
+
+    group.bench_with_input(BenchmarkId::new("avx2", "HQC-128"), &n, |bch, _| {
+        bch.iter(|| {
+            let _ = avx2_vect_mul_mod_xnm1::<Hqc1Params>(
+                black_box(&mut output),
+                black_box(&a),
+                black_box(&b),
+            );
         });
-    }
+    });
+
+    group.bench_with_input(BenchmarkId::new("schoolbook", "HQC-128"), &n, |bch, _| {
+        bch.iter(|| {
+            let _ = schoolbook_vect_mul_mod_xnm1(
+                black_box(&mut output),
+                black_box(&a),
+                black_box(&b),
+                Hqc1Params::VEC_N_SIZE_64,
+                Hqc1Params::N,
+            );
+        });
+    });
 
     group.finish();
 }
@@ -376,8 +413,17 @@ criterion_group!(
     benchmark_throughput
 );
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "simd-avx2", target_arch = "x86_64"))]
+criterion_group!(vect_mul_benches, benchmark_vect_mul_avx2_vs_schoolbook);
+
+#[cfg(all(
+    feature = "alloc",
+    not(all(feature = "simd-avx2", target_arch = "x86_64"))
+))]
 criterion_main!(benches);
+
+#[cfg(all(feature = "alloc", feature = "simd-avx2", target_arch = "x86_64"))]
+criterion_main!(benches, vect_mul_benches);
 
 #[cfg(not(feature = "alloc"))]
 fn main() {

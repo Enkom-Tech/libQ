@@ -18,11 +18,15 @@
 //! use lib_q_hqc::simd::PolynomialOps;
 //!
 //! if has_avx2() {
-//!     // Use AVX2 optimized implementation
-//!     crate::simd::Avx2::sparse_dense_mul(output, a, b, weight, n_bits);
+//!     // Use the AVX2-backed implementation. Note: not every operation is
+//!     // vectorized — `sparse_dense_mul` in particular has no AVX2
+//!     // implementation and delegates to the portable code in every
+//!     // configuration; see `simd::avx2`'s module doc for what is and is
+//!     // not accelerated.
+//!     crate::simd::Avx2::vect_add(output, a, b);
 //! } else {
 //!     // Use portable implementation
-//!     crate::simd::Portable::sparse_dense_mul(output, a, b, weight, n_bits);
+//!     crate::simd::Portable::vect_add(output, a, b);
 //! }
 //! ```
 

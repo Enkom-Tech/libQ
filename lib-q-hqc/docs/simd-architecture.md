@@ -2,7 +2,7 @@
 
 ## Overview
 
-The HQC implementation includes optional AVX2 SIMD optimizations that provide 34-46% performance improvement for key operations. This document describes the architecture, design decisions, and implementation details.
+The HQC implementation includes optional AVX2 SIMD optimizations for some operations. Not every `*_avx2`-named function is actually accelerated — see "AVX2 Optimizations" below for which operations genuinely use AVX2 intrinsics, which are only conditionally accelerated, and which have no AVX2 implementation at all. No percentage speedup figure is published for this crate; see `benches/performance_benchmarks.rs` for a reproducible `simd-avx2`-vs-default comparison. This document describes the architecture, design decisions, and implementation details.
 
 PKE-layer vector semantics (sparse sampling, `xof_get_bytes`, schoolbook vs Toom multiply) are documented in [vector-operations.md](vector-operations.md).
 
@@ -109,36 +109,31 @@ pub fn detect_cpu_features() {
 
 ## AVX2 Optimizations
 
-### Sparse-Dense Polynomial Multiplication
+### The actual dense polynomial multiply — `gf2x` Toom-3/PCLMUL
 
-The most performance-critical operation in HQC:
+HQC's polynomial multiply (`HqcPke::vect_mul`) is the operation that matters for
+performance, and it is **not** `PolynomialOps::sparse_dense_mul`. It dispatches
+to `simd::avx2::gf2x::avx2_vect_mul_mod_xnm1`, a Toom-3 + Karatsuba + PCLMUL
+implementation carrying real `#[target_feature(enable = "avx2", enable =
+"pclmulqdq")]` attributes, with a schoolbook fallback when AVX2 is unavailable.
+See the "Dispatch Logic" section below for the real call site.
 
-```rust
-pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
-    unsafe {
-        // Convert sparse representation to bit positions
-        let mut positions = Vec::with_capacity(weight as usize);
-        
-        // Initialize result with AVX2 zeros
-        let chunks = output.len() / 32;
-        let zero = _mm256_setzero_si256();
-        for i in 0..chunks {
-            _mm256_storeu_si256(output.as_mut_ptr().add(i * 32) as *mut __m256i, zero);
-        }
-        
-        // For each sparse position, perform rotated XOR with AVX2
-        for &pos in &positions {
-            shift_xor_avx2_unsafe(output, dense, pos as usize);
-        }
-    }
-}
-```
+### `PolynomialOps::sparse_dense_mul` — no AVX2 implementation
 
-**Optimizations:**
-- 32-byte aligned processing with AVX2 vectors
-- Unaligned memory access for flexibility
-- Bit-level shift operations with AVX2 intrinsics
-- Efficient carry handling for bit shifts
+`sparse_dense_mul` is a separate, trait-only operation with **no AVX2
+implementation**. Its `Avx2` impl delegates to the portable code
+(`portable::sparse_dense_mul_portable`) in every build configuration —
+enabling `simd-avx2` changes nothing for this function. It has no production
+callers; it exists only for the `PolynomialOps` trait shape and
+cross-implementation equivalence tests. A previous revision of this document
+showed a fictional `sparse_dense_mul_avx2` implementation (calling a
+`shift_xor_avx2_unsafe` helper that has never existed in this crate) — that
+code sample was never accurate and has been removed.
+
+Vectorizing `sparse_dense_mul` for real would also be the wrong investment:
+its portable algorithm is `O(n_bits × weight)` bit-at-a-time cyclic shift-XOR,
+asymptotically worse than the Toom-3 approach `gf2x` already uses for the same
+ring product, and off the KEM's hot path entirely.
 
 ### Vector Operations
 
@@ -214,7 +209,7 @@ All unsafe operations are properly documented and contained:
 /// The function is safe to call when the above conditions are met and
 /// the `simd-avx2` feature is enabled. Runtime CPU feature detection
 /// should be performed before calling this function.
-pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], weight: u32) {
+pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
     unsafe {
         // Implementation...
     }
@@ -239,14 +234,33 @@ pub fn sparse_dense_mul_avx2(output: &mut [u8], sparse: &[u8], dense: &[u8], wei
 
 ### Benchmark Results
 
-Based on comprehensive benchmarking with Criterion:
+No measured speedup table is published for this crate. A previous revision of
+this document listed a "Sparse-Dense Multiplication ... 40% faster" figure;
+that row could not have been measured from this code, because the AVX2 and
+portable arms of `sparse_dense_mul` are byte-identical (see above) — enabling
+`simd-avx2` changes nothing for that function, so there is nothing to measure
+a speedup for. The other rows (keygen/encapsulation/decapsulation) were not
+independently verified and have been removed pending a reproducible number.
 
-| Operation | Portable | AVX2 | Improvement |
-|-----------|----------|------|-------------|
-| Sparse-Dense Multiplication | 100% | 60% | 40% faster |
-| Key Generation | 100% | 65% | 35% faster |
-| Encapsulation | 100% | 66% | 34% faster |
-| Decapsulation | 100% | 66% | 34% faster |
+For a reproducible `simd-avx2`-vs-default comparison on real HQC operations
+(keygen/encapsulate/decapsulate), run
+`lib-q-hqc/benches/performance_benchmarks.rs`, e.g.:
+
+```bash
+BENCH_CRITERION_FLAGS="--save-baseline portable --warm-up-time 3 --measurement-time 10" \
+  bash scripts/run-criterion-benches.sh -p lib-q-hqc -f "alloc,hqc128,random" -b performance_benchmarks
+
+BENCH_CRITERION_FLAGS="--save-baseline avx2 --warm-up-time 3 --measurement-time 10" \
+  bash scripts/run-criterion-benches.sh -p lib-q-hqc -f "alloc,hqc128,random,simd-avx2" -b performance_benchmarks
+
+cargo bench -p lib-q-hqc --bench performance_benchmarks \
+  --features "alloc,hqc128,random,simd-avx2" -- --load-baseline avx2 --baseline portable
+```
+
+The benchmark group name is suffixed with the backend string reported by
+`simd::runtime::get_best_implementation()` (`"avx2"` or `"portable"`), so a
+run that reports the same backend for both baselines is not a valid
+comparison.
 
 ### Optimization Strategies
 
@@ -263,19 +277,12 @@ Based on comprehensive benchmarking with Criterion:
 The HQC implementation automatically selects the best available implementation:
 
 ```rust
+// This is the real dispatch (hqc_pke.rs); it does not call `sparse_dense_mul`.
 fn vect_mul(&self, output: &mut [u64], a: &[u64], b: &[u64]) -> Result<(), HqcPkeError> {
-    #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
+    #[cfg(all(feature = "simd-avx2", target_arch = "x86_64", feature = "alloc"))]
     {
         if crate::simd::runtime::has_avx2() {
-            use crate::simd::{Avx2, PolynomialOps};
-            Avx2::sparse_dense_mul(
-                &mut output_bytes,
-                &a_bytes,
-                &b_bytes,
-                P::OMEGA as u32,
-                P::N,
-            );
-            return Ok(());
+            return crate::simd::avx2::gf2x::avx2_vect_mul_mod_xnm1::<P>(output, a, b);
         }
     }
     // Fallback: schoolbook GF(2)[x]/(x^n-1) multiply
@@ -297,19 +304,22 @@ Comprehensive test suite ensures AVX2 and portable implementations produce ident
 
 ```rust
 #[test]
-fn test_avx2_polynomial_mul_correctness() {
+fn test_avx2_vect_add_correctness() {
     let mut output_avx2 = [0u8; 128];
     let mut output_portable = [0u8; 128];
-    let sparse = [0xABu8; 128];
-    let dense = [0xCDu8; 128];
-    let n_bits = dense.len() * 8;
+    let a = [0xABu8; 128];
+    let b = [0xCDu8; 128];
 
-    Avx2::sparse_dense_mul(&mut output_avx2, &sparse, &dense, 10, n_bits);
-    Portable::sparse_dense_mul(&mut output_portable, &sparse, &dense, 10, n_bits);
+    Avx2::vect_add(&mut output_avx2, &a, &b);
+    Portable::vect_add(&mut output_portable, &a, &b);
 
     assert_eq!(output_avx2, output_portable);
 }
 ```
+
+(`sparse_dense_mul` has the same test shape, but for that operation the
+equality holds trivially: `Avx2::sparse_dense_mul` delegates to the portable
+implementation directly, in every configuration.)
 
 **Test Coverage:**
 - Large buffer operations (1KB, 4KB)
@@ -323,18 +333,23 @@ fn test_avx2_polynomial_mul_correctness() {
 Criterion benchmarks provide detailed performance analysis:
 
 ```rust
-fn bench_sparse_dense_mul_avx2(c: &mut Criterion) {
-    let mut group = c.benchmark_group("sparse_dense_mul");
-    
+// A meaningful avx2-vs-portable comparison must exercise two different code
+// paths. Timing `Avx2::sparse_dense_mul` against `Portable::sparse_dense_mul`
+// would time the same function twice (the former delegates to the latter) —
+// that is a defect this crate's benchmarks used to have and no longer do.
+// The comparison that corresponds to what the KEM actually calls is:
+fn bench_vect_mul_avx2_vs_schoolbook(c: &mut Criterion) {
+    let mut group = c.benchmark_group("vect_mul");
+
     group.bench_function("avx2", |b| {
         b.iter(|| {
-            Avx2::sparse_dense_mul(&mut output, &sparse, &dense, weight, n_bits);
+            avx2_vect_mul_mod_xnm1::<Hqc1Params>(&mut output, &a, &b_op);
         });
     });
-    
-    group.bench_function("portable", |b| {
+
+    group.bench_function("schoolbook", |b| {
         b.iter(|| {
-            Portable::sparse_dense_mul(&mut output, &sparse, &dense, weight, n_bits);
+            schoolbook_vect_mul_mod_xnm1(&mut output, &a, &b_op, vec_n_size_64, n);
         });
     });
 }
@@ -362,7 +377,10 @@ The architecture is designed for easy extension:
 
 The HQC SIMD architecture provides:
 
-- **High Performance**: 34-46% improvement over portable implementation
+- **Targeted acceleration**: real AVX2 intrinsics for the operations the KEM
+  actually calls (`gf2x` Toom-3/PCLMUL multiply, `vect_add`); no measured
+  speedup figure is published — see `benches/performance_benchmarks.rs` for a
+  reproducible comparison
 - **Safety**: Comprehensive safety documentation and runtime detection
 - **Flexibility**: Easy extension to new SIMD instruction sets
 - **Reliability**: Extensive testing and validation
