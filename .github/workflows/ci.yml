@@ -766,6 +766,7 @@ jobs:
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown, thumbv7em-none-eabi
+          components: clippy
 
       - name: lib-q-romulus (stack-only, no alloc)
         run: |
@@ -782,6 +783,18 @@ jobs:
           CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
         run: |
           cargo check -p lib-q-aead --no-default-features --features alloc,romulus --target thumbv7em-none-eabi
+
+      # The workspace's only `-D warnings` clippy pass (core-validation, above) runs
+      # `--all-features`, which turns `shake256` ON — so `#[cfg(not(feature = "shake256"))]` code
+      # (lib-q-aead's entropy-less fail-closed nonce path) is never compiled under that gate, and a
+      # warning-emitting regression there can land and stay invisible indefinitely (it did: see the
+      # nonce.rs history around the B4c fix). This step closes that gap for the one no_std/alloc
+      # feature combination this job already exercises above.
+      - name: Clippy -D warnings on the entropy-less lib-q-aead path (shake256 off)
+        env:
+          CARGO_TARGET_THUMBV7EM_NONE_EABI_RUSTFLAGS: '--cfg getrandom_backend="custom"'
+        run: |
+          cargo clippy -p lib-q-aead --no-default-features --features alloc,romulus --target thumbv7em-none-eabi -- -D warnings
 
       # DKG + threshold-KEM-lattice: true no_std+alloc graph on a bare-metal target (the cdylib
       # crate-type is dropped on *-none-* targets; on hosted targets a no_std cdylib would demand a

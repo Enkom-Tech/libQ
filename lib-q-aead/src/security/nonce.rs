@@ -3,6 +3,14 @@
 //! This module provides secure nonce generation and uniqueness checking for AEAD operations.
 //! It implements proper nonce management to prevent nonce reuse attacks.
 
+// Only used by the `not(shake256)` arm of `generate_secure_nonce` below. Gated (rather than an
+// unconditional import) because under `std` + `shake256` the unqualified `alloc::string::String`
+// path is already in scope via the std prelude, and `#![deny(unused_qualifications)]` at the
+// crate root flags the fully-qualified spelling as redundant on that combination — but an
+// unconditional import here would itself become an unused import under `shake256`-on builds,
+// where this arm doesn't compile at all.
+#[cfg(not(feature = "shake256"))]
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
 #[cfg(all(feature = "alloc", feature = "std"))]
@@ -52,11 +60,22 @@ impl NonceConfig {
     }
 
     /// Create a permissive nonce configuration
+    ///
+    /// SECURITY (B4c): this used to also set `secure_generation: false`, which routes
+    /// [`NonceManager::generate_nonce`] to a counter-derived nonce whose every byte is a
+    /// deterministic function of an `AtomicU64` counter that always starts at `0` — so two
+    /// independently constructed managers built from this config emitted an *identical* first
+    /// nonce in every process, with `check_uniqueness: false` on top so the collision was never
+    /// even detected. "Permissive" is kept scoped to what its sibling configs in this crate mean
+    /// by the word (`SecurityConfig::permissive()`, `TimingProtection::permissive()`,
+    /// `SideChannelProtection::permissive()`: skip extra bookkeeping/overhead, never weaken a core
+    /// cryptographic guarantee) — it now only disables nonce-uniqueness *tracking*, not secure
+    /// generation itself.
     pub fn permissive() -> Self {
         Self {
             check_uniqueness: false,
             max_tracked_nonces: 0,
-            secure_generation: false,
+            secure_generation: true,
             nonce_size: 16,
         }
     }
@@ -118,14 +137,33 @@ impl NonceManager {
     /// non-cryptographic generator when the `shake256` feature (which pulls in `lib-q-random`) is
     /// not enabled or the entropy source itself fails.
     fn generate_secure_nonce(&self) -> Result<Nonce> {
-        // Retained for diagnostics / `get_counter()` back-compat; the nonce bytes below come
-        // entirely from a real entropy source, never from this counter.
-        self.counter.fetch_add(1, Ordering::SeqCst);
-
-        let mut nonce_data = alloc::vec![0u8; self.config.nonce_size];
+        // The `not(shake256)` arm returns unconditionally, so it must come first and be the only
+        // thing that arm does: with the allocation and post-processing below it (as they used to
+        // be, pre-cfg-split), rustc correctly flags the collision/zero/all-ones code after it as
+        // unreachable, and `nonce_data` as unused/never-needs-`mut`, under that cfg. Splitting the
+        // function into two mutually exclusive tail expressions keeps both warning-free without
+        // weakening the fail-closed behaviour — the error value and message are unchanged.
+        #[cfg(not(feature = "shake256"))]
+        {
+            // Retained for diagnostics / `get_counter()` back-compat.
+            self.counter.fetch_add(1, Ordering::SeqCst);
+            Err(Error::RandomGenerationFailed {
+                operation: String::from(
+                    "lib-q-aead secure nonce generation requires the `shake256` feature (it \
+                     pulls in lib-q-random for OS/hardware entropy); there is no \
+                     non-cryptographic fallback",
+                ),
+            })
+        }
 
         #[cfg(feature = "shake256")]
         {
+            // Retained for diagnostics / `get_counter()` back-compat; the nonce bytes below come
+            // entirely from a real entropy source, never from this counter.
+            self.counter.fetch_add(1, Ordering::SeqCst);
+
+            let mut nonce_data = alloc::vec![0u8; self.config.nonce_size];
+
             lib_q_random::fill_entropy(&mut nonce_data).map_err(|e| {
                 Error::RandomGenerationFailed {
                     operation: alloc::format!(
@@ -133,33 +171,23 @@ impl NonceManager {
                     ),
                 }
             })?;
-        }
-        #[cfg(not(feature = "shake256"))]
-        {
-            return Err(Error::RandomGenerationFailed {
-                operation: alloc::string::String::from(
-                    "lib-q-aead secure nonce generation requires the `shake256` feature (it \
-                     pulls in lib-q-random for OS/hardware entropy); there is no \
-                     non-cryptographic fallback",
-                ),
-            });
-        }
 
-        // Check for collisions and regenerate if necessary
-        if self.is_nonce_used(&nonce_data)? {
-            // If collision detected, try again with different seed
-            return self.generate_secure_nonce();
-        }
+            // Check for collisions and regenerate if necessary
+            if self.is_nonce_used(&nonce_data)? {
+                // If collision detected, try again with different seed
+                return self.generate_secure_nonce();
+            }
 
-        // Ensure the nonce is not all zeros or all ones
-        if nonce_data.iter().all(|&b| b == 0) {
-            nonce_data[0] = 1; // Make it non-zero
-        }
-        if nonce_data.iter().all(|&b| b == 0xFF) {
-            nonce_data[0] = 0xFE; // Make it not all ones
-        }
+            // Ensure the nonce is not all zeros or all ones
+            if nonce_data.iter().all(|&b| b == 0) {
+                nonce_data[0] = 1; // Make it non-zero
+            }
+            if nonce_data.iter().all(|&b| b == 0xFF) {
+                nonce_data[0] = 0xFE; // Make it not all ones
+            }
 
-        Ok(Nonce::new(nonce_data))
+            Ok(Nonce::new(nonce_data))
+        }
     }
 
     /// Generate a counter-based nonce
@@ -468,8 +496,68 @@ mod tests {
         let config = NonceConfig::permissive();
         assert!(!config.check_uniqueness);
         assert_eq!(config.max_tracked_nonces, 0);
-        assert!(!config.secure_generation);
+        assert!(config.secure_generation);
         assert_eq!(config.nonce_size, 16);
+    }
+
+    /// RED-FIRST (B4c), sibling of B4: `NonceConfig::permissive()` used to set
+    /// `secure_generation: false`, which routes `generate_nonce` to `generate_counter_nonce` —
+    /// every output byte is a deterministic function of `self.counter`, and `with_config` always
+    /// starts `counter` at `AtomicU64::new(0)`. So two independently constructed `NonceManager`s
+    /// built from `permissive()` emitted an IDENTICAL first nonce in every process, and
+    /// `check_uniqueness: false` meant the collision was never even detected. Elsewhere in this
+    /// crate `permissive()` means "skip the extra bookkeeping cost" (`SecurityConfig::permissive()`,
+    /// `TimingProtection::permissive()`, `SideChannelProtection::permissive()` all disable
+    /// belt-and-braces checks, not core cryptographic guarantees) — a public constructor with that
+    /// name silently opting into a predictable nonce contradicted the crate's own convention as
+    /// well as its fail-closed posture since `32951b4`. Fixed by keeping `secure_generation: true`
+    /// in `permissive()`; only the uniqueness-tracking overhead is skipped now.
+    #[cfg(feature = "shake256")]
+    #[test]
+    fn test_permissive_config_first_nonces_differ() {
+        let a = NonceManager::with_config(NonceConfig::permissive());
+        let b = NonceManager::with_config(NonceConfig::permissive());
+
+        let nonce_a = a.generate_nonce().unwrap();
+        let nonce_b = b.generate_nonce().unwrap();
+
+        assert_ne!(
+            nonce_a.as_bytes(),
+            nonce_b.as_bytes(),
+            "NonceConfig::permissive() produced identical first nonces from two independent, \
+             freshly constructed NonceManagers — it must not route to the deterministic \
+             counter-derived nonce path"
+        );
+    }
+
+    /// The entropy-less build must FAIL CLOSED. `generate_nonce` has no non-cryptographic
+    /// fallback: without `shake256` (which pulls in lib-q-random / getrandom) it must return
+    /// `Error::RandomGenerationFailed`, never a counter- or clock-derived nonce. Before B4 this
+    /// path emitted an LCG stream seeded from an always-zero counter, so every process replayed
+    /// the same nonce sequence. This is the crate's entire fail-closed guarantee on
+    /// entropy-less builds, and until now it had zero test coverage.
+    #[cfg(not(feature = "shake256"))]
+    #[test]
+    fn test_secure_nonce_fails_closed_without_entropy_feature() {
+        let manager = NonceManager::new();
+        let err = manager
+            .generate_nonce()
+            .expect_err("entropy-less build must not produce a 'secure' nonce");
+        assert!(
+            matches!(err, Error::RandomGenerationFailed { .. }),
+            "expected RandomGenerationFailed, got {err:?}"
+        );
+    }
+
+    /// Mirror of `test_secure_nonce_fails_closed_without_entropy_feature` for the entropy-backed
+    /// build: with `shake256` on, the same call must SUCCEED. Together the pair proves the cfg
+    /// split is real and neither arm is dead — an `is_err()`/`is_ok()` check on a path that can
+    /// only ever return one outcome would be a can't-fail gate, not evidence.
+    #[cfg(feature = "shake256")]
+    #[test]
+    fn test_secure_nonce_succeeds_with_entropy_feature() {
+        let manager = NonceManager::new();
+        assert!(manager.generate_nonce().is_ok());
     }
 
     #[test]
@@ -485,6 +573,16 @@ mod tests {
         assert_eq!(manager.get_counter(), 0);
     }
 
+    // The five tests below all go through `NonceManager::new()` / the global manager, i.e. the
+    // default config with `secure_generation: true`, so they require the `shake256` feature to
+    // succeed at all (without it `generate_secure_nonce` fails closed — see
+    // `test_secure_nonce_fails_closed_without_entropy_feature` above). They were previously
+    // ungated, which was never caught because every CI job that compiles this crate's test suite
+    // also enables `shake256` (it's a `default` feature); the gap surfaced only when verifying
+    // that `--no-default-features --features alloc,std` (no `shake256`) is a viable way to
+    // actually execute the fail-closed test on a hosted target. Gating them is a test-only change;
+    // no production code path changes here.
+    #[cfg(feature = "shake256")]
     #[test]
     fn test_generate_secure_nonce() {
         let manager = NonceManager::new();
@@ -545,6 +643,7 @@ mod tests {
         assert!(manager.mark_nonce_used(&nonce).is_ok());
     }
 
+    #[cfg(feature = "shake256")]
     #[test]
     fn test_counter_operations() {
         let manager = NonceManager::new();
@@ -561,6 +660,7 @@ mod tests {
         assert_eq!(manager.get_counter(), 0);
     }
 
+    #[cfg(feature = "shake256")]
     #[test]
     fn test_global_nonce_functions() {
         let nonce1 = generate_nonce().unwrap();
@@ -603,6 +703,7 @@ mod tests {
     /// pre-fix generator, since the old std code's only entropy input, `SystemTime::now()`, rarely
     /// repeats across a tight loop here; see `test_secure_nonce_is_predictable_from_public_clock_and_counter`
     /// for the deterministic reproduction).
+    #[cfg(feature = "shake256")]
     #[test]
     fn test_fresh_nonce_managers_produce_different_first_nonce() {
         const DRAWS: usize = 2000;
@@ -632,7 +733,7 @@ mod tests {
     /// hash chain for every nanosecond in that window with counter fixed at 0, and checks whether
     /// any candidate reproduces the real output byte-for-byte. It does, today — recorded as the
     /// RED observation below — and must stop doing so once real entropy is used.
-    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+    #[cfg(all(feature = "std", feature = "shake256", not(target_arch = "wasm32")))]
     #[test]
     fn test_secure_nonce_is_predictable_from_public_clock_and_counter() {
         use std::collections::hash_map::DefaultHasher;
