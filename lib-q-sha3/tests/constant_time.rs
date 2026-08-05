@@ -167,49 +167,47 @@ fn test_sha3_256_constant_time() {
 #[test]
 fn test_hash_algorithm_timing_relationships() {
     let test_input = b"test input for timing analysis";
-    const ITERATIONS: usize = 1000;
 
-    // Test SHA3 variants
-
-    // Measure SHA3-224
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+    // Measure through `trimmed_mean_duration` rather than a single raw `Instant` span, for the
+    // same reason the two tests above do: it warms up first and discards the slowest and fastest
+    // of nine runs. A single un-warmed span charges all cold-start cost — allocator warmup, page
+    // faults, CPU frequency ramp — to whichever variant happens to be measured first, and that is
+    // SHA3-224, whose ratio against SHA3-256 carries the tightest bound in this test. On a shared
+    // CI runner that inflated `ratio_224_to_256` past 3.0 and failed the job.
+    //
+    // The bounds below are deliberately unchanged. This removes measurement noise, it does not
+    // widen what counts as acceptable: a variant genuinely 3x SHA3-256 still fails.
+    let sha3_224_time = trimmed_mean_duration(|| {
         let mut hasher = Sha3_224::new();
         hasher.update(test_input);
-        let _result = hasher.finalize();
-        let _ = std::hint::black_box(_result);
-    }
-    let sha3_224_time = start.elapsed();
+        std::hint::black_box(hasher.finalize());
+    });
 
-    // Measure SHA3-256
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+    let sha3_256_time = trimmed_mean_duration(|| {
         let mut hasher = Sha3_256::new();
         hasher.update(test_input);
-        let _result = hasher.finalize();
-        let _ = std::hint::black_box(_result);
-    }
-    let sha3_256_time = start.elapsed();
+        std::hint::black_box(hasher.finalize());
+    });
 
-    // Measure SHA3-384
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+    let sha3_384_time = trimmed_mean_duration(|| {
         let mut hasher = Sha3_384::new();
         hasher.update(test_input);
-        let _result = hasher.finalize();
-        let _ = std::hint::black_box(_result);
-    }
-    let sha3_384_time = start.elapsed();
+        std::hint::black_box(hasher.finalize());
+    });
 
-    // Measure SHA3-512
-    let start = Instant::now();
-    for _ in 0..ITERATIONS {
+    let sha3_512_time = trimmed_mean_duration(|| {
         let mut hasher = Sha3_512::new();
         hasher.update(test_input);
-        let _result = hasher.finalize();
-        let _ = std::hint::black_box(_result);
-    }
-    let sha3_512_time = start.elapsed();
+        std::hint::black_box(hasher.finalize());
+    });
+
+    eprintln!(
+        "timing relationships: 224={}ns 256={}ns 384={}ns 512={}ns",
+        sha3_224_time.as_nanos(),
+        sha3_256_time.as_nanos(),
+        sha3_384_time.as_nanos(),
+        sha3_512_time.as_nanos()
+    );
 
     // Verify that timing relationships are reasonable (order-of-magnitude sanity check only).
     // SHA3-512 uses a smaller sponge rate than SHA3-256 (72 vs 136 bytes), so it can be several
