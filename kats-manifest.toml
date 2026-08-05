@@ -39,34 +39,34 @@ filename_suffixes = ["_kat.txt"]
 path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321.req"
 origin = "third-party"
 source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
-sha256 = "0652e9cf336e1f67f9563510b874e0a33d852add7124ea7d3aebf25d9222fea0"
+sha256 = "7549a1a2ca4b2082cce2f89333fa90739a5bfaf58b6f57752bcd43c52adadfa7"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "653b2a497ee69113b4680b0016354fd6df03eeda4e096d4140c249a9a71a1e97"
+sha256 = "28affe7d6b807d3f0f7c9ef4cc2cc6452ec0230b09b484e074046fd98d005b02"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602.req"
 origin = "third-party"
 source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
-sha256 = "5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62"
+sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "bead77281b08dfba3202d6293c5f3ab5f51124a246001aeccb066a16defaceee"
+sha256 = "850b42ef63a71e7fc5cdc746426989e70538a12237e12c5546ec37dd6d59c791"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333.req"
 origin = "third-party"
 source = "NIST PQC KEM KAT request file (PQCgenKAT seed chain); vendored historically in this repo, not independently re-verified against a pinned upstream URL/hash this session"
-sha256 = "5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62"
+sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "984cad3df6b71e13ba8bae65612315a53366633f394b95c0d2d37143112f4f98"
+sha256 = "d102e734ddeaf6c926e8957302eb0c8813b9fb5d057f41309baafbf20579f6aa"
