@@ -64,7 +64,7 @@ Auth / AuthPSK encapsulation paths use RFC 9180–style KEM authentication plus 
 
 - Conformance and regression coverage live in `lib-q-hpke/tests/` (for example `rfc9180_compliance_tests.rs`, mode-specific suites, `auth_encap_validation_tests.rs`).
 - Negotiation fixtures and provenance are under `tests/fixtures/` (see `tests/fixtures/README.md`).
-- Fuzzing and side-channel–oriented harnesses are under `src/security/fuzzing.rs` and `tests/fuzzing/` where present.
+- Randomized property tests are under `tests/randomized_property_tests.rs`. There is currently no fuzz harness (`fuzz/` directory) for this crate; do not read the security module list as fuzz coverage.
 - Run `cargo test -p lib-q-hpke` (with the features you ship) as part of your release process.
 
 ## Operational checklist

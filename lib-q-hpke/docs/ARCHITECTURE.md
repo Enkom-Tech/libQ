@@ -52,7 +52,6 @@ src/
 │   ├── side_channel_protection.rs # Side-channel attack protection
 │   ├── side_channel.rs   # Additional side-channel utilities
 │   ├── prng.rs           # Pseudo-random number generation
-│   ├── fuzzing.rs        # Fuzzing support
 │   ├── key_rotation.rs   # Key rotation management
 │   └── test_rng.rs       # Test RNG implementation
 ├── providers/            # Cryptographic provider traits
@@ -111,7 +110,6 @@ The security module provides comprehensive security utilities:
 - Timing attack prevention
 
 #### Additional Security Features
-- **Fuzzing Support** (`security/fuzzing.rs`): Comprehensive fuzzing infrastructure
 - **Key Rotation** (`security/key_rotation.rs`): Key rotation management
 - **PRNG Security** (`security/prng.rs`): Secure random number generation
 
@@ -218,7 +216,6 @@ Comprehensive input validation with side-channel resistant checks:
 - **PSK validation**: Pre-shared key parameter consistency checks
 
 ### 4. Additional Security Features
-- **Fuzzing support**: Comprehensive fuzzing infrastructure for security testing
 - **Key rotation**: Secure key rotation management
 - **PRNG security**: Cryptographically secure random number generation
 

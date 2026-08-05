@@ -235,12 +235,11 @@ fn benchmark_error_correction(c: &mut Criterion) {
         // Benchmark portable implementation
         group.bench_with_input(BenchmarkId::new("portable", size), &size, |b, _| {
             b.iter(|| {
-                let result = Portable::correct_errors(
+                Portable::correct_errors(
                     black_box(&mut corrected),
                     black_box(&received),
                     black_box(&syndrome),
                 );
-                black_box(result);
             });
         });
 
@@ -249,12 +248,11 @@ fn benchmark_error_correction(c: &mut Criterion) {
         {
             group.bench_with_input(BenchmarkId::new("avx2", size), &size, |b, _| {
                 b.iter(|| {
-                    let result = Avx2::correct_errors(
+                    Avx2::correct_errors(
                         black_box(&mut corrected),
                         black_box(&received),
                         black_box(&syndrome),
                     );
-                    black_box(result);
                 });
             });
         }

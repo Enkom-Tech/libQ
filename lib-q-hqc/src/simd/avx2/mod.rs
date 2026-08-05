@@ -86,7 +86,7 @@ impl SyndromeOps for Avx2 {
         syndrome::generate_syndrome_avx2(syndrome, vector, parity);
     }
 
-    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool {
+    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) {
         syndrome::correct_errors_avx2(corrected, received, syndrome)
     }
 }

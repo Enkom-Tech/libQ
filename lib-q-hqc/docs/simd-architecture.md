@@ -45,7 +45,7 @@ pub trait PolynomialOps {
 
 pub trait SyndromeOps {
     fn generate_syndrome(syndrome: &mut [u8], vector: &[u8], parity: &[u8]);
-    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]) -> bool;
+    fn correct_errors(corrected: &mut [u8], received: &[u8], syndrome: &[u8]);
 }
 ```
 
