@@ -770,5 +770,13 @@ fn ring_sig_params_nist_category_profiles_distinct() {
     let c3 = RingSigParams::nist_security_category_3();
     let c5 = RingSigParams::nist_security_category_5();
     assert!(c1.tau < c3.tau && c3.tau < c5.tau);
-    assert!(c1.z_inf_bound < c3.z_inf_bound && c3.z_inf_bound < c5.z_inf_bound);
+    // The categories are distinguished by `tau` (and `max_prove_attempts`), NOT by
+    // `z_inf_bound`: the legacy per-category 20/30/40M bounds all exceeded `q/2 = 4_190_208`,
+    // which made the verifier's norm check unconditionally pass (soundness fix #5 in
+    // `lib-q-lattice-zkp`). All profiles now share the single audited verifier-side bound,
+    // which must stay below `q/2` for the gate to be able to reject at all.
+    for c in [&c1, &c3, &c5] {
+        assert_eq!(c.z_inf_bound, lib_q_lattice_zkp::profile::V0_Z_INF_BOUND);
+        assert!(c.z_inf_bound < 8_380_417 / 2);
+    }
 }

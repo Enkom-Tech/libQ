@@ -70,11 +70,12 @@ fn ring_sig_dualring_lb_pilot_wasm() {
     let ring = [com.clone()];
     let msg = b"wasm-smoke";
     let mut rng = new_deterministic_rng(test_deterministic_seed32(0xC0FFEE_u64));
+    let z_inf_bound = lib_q_lattice_zkp::profile::V0_Z_INF_BOUND;
     let sig =
-        sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, 39, 20_000_000, 512).expect("sign");
-    verify_dualring_lb(&key, &ring, msg, &sig, 39, 20_000_000).expect("verify");
+        sign_dualring_lb(&mut rng, &key, &o, &com, &ring, msg, 39, z_inf_bound, 512).expect("sign");
+    verify_dualring_lb(&key, &ring, msg, &sig, 39, z_inf_bound).expect("verify");
     assert!(
-        verify_dualring_lb(&key, &ring, b"other-message", &sig, 39, 20_000_000).is_err(),
+        verify_dualring_lb(&key, &ring, b"other-message", &sig, 39, z_inf_bound).is_err(),
         "verify must reject wrong message"
     );
 }

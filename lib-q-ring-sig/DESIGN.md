@@ -40,7 +40,7 @@ constants and is adequate for protocol-level CI smoke tests:
 | Field | Value | Source |
 |-------|-------|--------|
 | `tau` (challenge sparsity) | 39 | FIPS 204 ML-DSA-65 challenge ball |
-| `z_inf_bound` (||z||∞ abort) | 20_000_000 | Matches `lib-q-lattice-zkp` opening unit tests |
+| `z_inf_bound` (||z||∞ abort) | 1_500_000 (`lib_q_lattice_zkp::profile::V0_Z_INF_BOUND`) | Shared frozen bound from `lib-q-lattice-zkp`'s soundness fix #5 |
 | `max_prove_attempts` | 512 | Empirical rejection budget for the pilot CRS |
 
 Additional **NIST category–oriented** profiles (`nist_security_category_{1,3,5}`) freeze distinct
