@@ -1,7 +1,12 @@
 //! Performance benchmarks for HQC operations
 //!
-//! This module provides benchmarks to measure the performance improvements
-//! from FFT/NTT optimizations and other performance enhancements.
+//! This module benchmarks keygen/encapsulate/decapsulate for each HQC security level. The
+//! benchmark group name is suffixed with the backend string reported by
+//! `simd::runtime::get_best_implementation()` (`"avx2"` or `"portable"`), so a `simd-avx2` build
+//! and a default build land in differently-named groups and cannot be silently compared as if
+//! they were the same run. See `docs/simd-architecture.md` for the reproducible
+//! `simd-avx2`-vs-default procedure this is designed to support; no percentage speedup is
+//! hard-coded or asserted here.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -22,62 +27,66 @@ use lib_q_hqc::params_correct::{
     Hqc5Params,
 };
 
-/// Benchmark HQC KEM operations for different security levels
+/// Benchmark HQC KEM operations for different security levels.
+///
+/// Setup (RNG/KEM construction, keygen for the encapsulate/decapsulate benches) happens once per
+/// `bench_function` call, outside the timed `b.iter` closure — an earlier revision of this file
+/// ran a full `keygen()` inside the timed closure for `HQC-128_encapsulate`, so the reported
+/// number was keygen + encapsulate, not encapsulate alone.
 #[cfg(feature = "alloc")]
 fn benchmark_hqc_kem_operations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("hqc_kem_operations");
+    let backend = lib_q_hqc::simd::runtime::get_best_implementation();
+    let mut group = c.benchmark_group(format!("hqc_kem_operations/{backend}"));
 
-    // Test HQC-128
+    // --- Key generation ---
+
     group.bench_function("HQC-128_keygen", |b| {
-        b.iter(|| {
-            use lib_q_hqc::hqc_correct::Hqc128Kem;
-            use lib_q_random::LibQRng;
-            let mut rng = LibQRng::new_secure().unwrap();
-            let kem = Hqc128Kem::new().unwrap();
-            black_box(kem.keygen(&mut rng))
-        })
+        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_random::LibQRng;
+        let mut rng = LibQRng::new_secure().unwrap();
+        let kem = Hqc128Kem::new().unwrap();
+        b.iter(|| black_box(kem.keygen(&mut rng)))
     });
 
-    // Test HQC-192
     group.bench_function("HQC-192_keygen", |b| {
-        b.iter(|| {
-            use lib_q_hqc::hqc_correct::Hqc192Kem;
-            use lib_q_random::LibQRng;
-            let mut rng = LibQRng::new_secure().unwrap();
-            let kem = Hqc192Kem::new().unwrap();
-            black_box(kem.keygen(&mut rng))
-        })
+        use lib_q_hqc::hqc_correct::Hqc192Kem;
+        use lib_q_random::LibQRng;
+        let mut rng = LibQRng::new_secure().unwrap();
+        let kem = Hqc192Kem::new().unwrap();
+        b.iter(|| black_box(kem.keygen(&mut rng)))
     });
 
-    // Test HQC-256
     group.bench_function("HQC-256_keygen", |b| {
-        b.iter(|| {
-            use lib_q_hqc::hqc_correct::Hqc256Kem;
-            use lib_q_random::LibQRng;
-            let mut rng = LibQRng::new_secure().unwrap();
-            let kem = Hqc256Kem::new().unwrap();
-            black_box(kem.keygen(&mut rng))
-        })
+        use lib_q_hqc::hqc_correct::Hqc256Kem;
+        use lib_q_random::LibQRng;
+        let mut rng = LibQRng::new_secure().unwrap();
+        let kem = Hqc256Kem::new().unwrap();
+        b.iter(|| black_box(kem.keygen(&mut rng)))
     });
 
-    group.finish();
-}
+    // --- Encapsulation (keypair built once, outside the timed closure) ---
 
-/// Benchmark HQC encapsulation/decapsulation
-#[cfg(feature = "alloc")]
-fn benchmark_hqc_encapsulation(c: &mut Criterion) {
-    let mut group = c.benchmark_group("hqc_encapsulation");
-
-    // Test HQC-128 encapsulation
     group.bench_function("HQC-128_encapsulate", |b| {
-        b.iter(|| {
-            use lib_q_hqc::hqc_correct::Hqc128Kem;
-            use lib_q_random::LibQRng;
-            let mut rng = LibQRng::new_secure().unwrap();
-            let kem = Hqc128Kem::new().unwrap();
-            let (public_key, _) = kem.keygen(&mut rng).unwrap();
-            black_box(kem.encapsulate(&public_key, &mut rng))
-        })
+        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_random::LibQRng;
+        let mut rng = LibQRng::new_secure().unwrap();
+        let kem = Hqc128Kem::new().unwrap();
+        let (public_key, _secret_key) = kem.keygen(&mut rng).unwrap();
+        b.iter(|| black_box(kem.encapsulate(&public_key, &mut rng)))
+    });
+
+    // --- Decapsulation (keypair + one ciphertext built once, outside the timed closure) ---
+    // Previously unbenchmarked, despite decapsulation exercising `vect_mul` just like
+    // encapsulation.
+
+    group.bench_function("HQC-128_decapsulate", |b| {
+        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_random::LibQRng;
+        let mut rng = LibQRng::new_secure().unwrap();
+        let kem = Hqc128Kem::new().unwrap();
+        let (public_key, secret_key) = kem.keygen(&mut rng).unwrap();
+        let (ciphertext, _shared_secret) = kem.encapsulate(&public_key, &mut rng).unwrap();
+        b.iter(|| black_box(kem.decapsulate(&secret_key, &ciphertext)))
     });
 
     group.finish();
@@ -106,7 +115,6 @@ fn benchmark_memory_usage(c: &mut Criterion) {
 criterion_group!(
     benches,
     benchmark_hqc_kem_operations,
-    benchmark_hqc_encapsulation,
     benchmark_memory_usage
 );
 

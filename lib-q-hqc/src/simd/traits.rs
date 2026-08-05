@@ -8,7 +8,11 @@
 pub trait PolynomialOps {
     /// Sparse-dense polynomial multiplication in GF(2)\[x\]/(x^n - 1)
     ///
-    /// This is the primary performance bottleneck in HQC operations.
+    /// HQC's actual polynomial multiply is `gf2x::avx2_vect_mul_mod_xnm1`
+    /// (Toom-3 + Karatsuba + PCLMUL); this method is not on that path and has
+    /// no AVX2 specialization — the `Avx2` implementation delegates to the
+    /// portable code in every configuration. It is kept for the trait's
+    /// shape and its cross-implementation equivalence tests.
     /// The sparse polynomial has a fixed weight (number of non-zero coefficients).
     ///
     /// # Arguments
@@ -46,7 +50,10 @@ pub trait SyndromeOps {
     /// Generate syndrome for error correction
     ///
     /// Computes the syndrome vector used in tensor code decoding.
-    /// This is another performance-critical operation in HQC.
+    /// This trait is not wired into HQC's actual decoding path — real
+    /// decoding lives in `concatenated_code` / `reed_muller` /
+    /// `reed_solomon`. The portable implementation backing this trait is a
+    /// simplified stand-in kept for SIMD-equivalence testing.
     ///
     /// # Arguments
     /// * `syndrome` - Output syndrome vector
