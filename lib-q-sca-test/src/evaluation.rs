@@ -122,18 +122,14 @@ pub fn mldsa_sign_tvla_screen(samples: usize) -> Option<bool> {
 #[cfg(feature = "mlkem")]
 pub fn mlkem_decaps_dudect_screen(samples: usize, threshold: f64) -> bool {
     let (fixed, random) = mlkem_decaps_tvla_timings(samples);
-    let mut joined = fixed;
-    joined.extend(random);
-    crate::dudect::timing_passes_loose(threshold, &joined)
+    crate::dudect::timing_passes_loose(threshold, &fixed, &random)
 }
 
 /// CI-friendly dudect-style timing screen for ML-DSA signing.
 #[cfg(feature = "mldsa")]
 pub fn mldsa_sign_dudect_screen(samples: usize, threshold: f64) -> bool {
     let (fixed, random) = mldsa_sign_tvla_timings(samples);
-    let mut joined = fixed;
-    joined.extend(random);
-    crate::dudect::timing_passes_loose(threshold, &joined)
+    crate::dudect::timing_passes_loose(threshold, &fixed, &random)
 }
 
 /// Collect fixed-vs-random wall-clock timings for the hardened lattice-ZKP opening prover.
@@ -389,9 +385,7 @@ macro_rules! hqc_tvla_screen_impl {
 macro_rules! hqc_dudect_screen_impl {
     ($params:ty, $timings:ident, $samples:expr, $threshold:expr) => {{
         let (fixed, random) = $timings::<$params>($samples);
-        let mut joined = fixed;
-        joined.extend(random);
-        crate::dudect::timing_passes_loose($threshold, &joined)
+        crate::dudect::timing_passes_loose($threshold, &fixed, &random)
     }};
 }
 
@@ -486,9 +480,7 @@ pub fn hqc128_decapsulate_dudect_screen(samples: usize, threshold: f64) -> bool 
 #[cfg(feature = "lattice-zkp-hardened")]
 pub fn lattice_zkp_prove_opening_dudect_screen(samples: usize, threshold: f64) -> bool {
     let (fixed, random) = lattice_zkp_prove_opening_tvla_timings(samples);
-    let mut joined = fixed;
-    joined.extend(random);
-    crate::dudect::timing_passes_loose(threshold, &joined)
+    crate::dudect::timing_passes_loose(threshold, &fixed, &random)
 }
 
 #[cfg(test)]
