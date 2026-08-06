@@ -8,7 +8,7 @@ lib-Q is a cryptography library, which means security is paramount. All contribu
 
 ### 1. **Post-quantum asymmetric and SHA-3–aligned design**
 - **Do not** use **classical public-key** schemes (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the library’s PQC mission; follow [SECURITY.md](SECURITY.md).
-- **Do** use **NIST-track / standardized PQC** (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, HQC, CB-KEM family, etc.) for those roles.
+- **Do** use post-quantum primitives from the NIST PQC process for those roles: **ML-KEM, ML-DSA, SLH-DSA** are NIST-standardized; **FN-DSA, HQC** are NIST-selected but their FIPS documents are not yet published; the **CB-KEM family** (Classic McEliece) is a reviewed round-4 submission, not selected for standardization.
 - **Hashes / XOFs** in new cryptographic design should stay in the **SHA-3 family** (SHAKE, cSHAKE, and related workspace APIs). Symmetric choices follow existing crate patterns (e.g. Saturnin, SHAKE-based AEAD). Some standardized or infrastructure paths may use other primitives already under review—mirror existing crates rather than inventing new classical stacks.
 - **ZKP**: The production-facing transparent proof stack is **zk-STARK–based** (`lib-q-zkp` and related crates). **`lib-q-lattice-zkp`** is an explicit research path for module-lattice statements. Do not add pairing-based or classical-curve trusted-setup SNARKs as the primary PQ story without maintainer agreement.
 
@@ -95,7 +95,7 @@ CI runs Clippy with `-D warnings` (see `.github/workflows/ci.yml`); use the comm
 
 ### Review Checklist
 - [ ] No classical cryptographic algorithms used
-- [ ] Only NIST-approved post-quantum algorithms used
+- [ ] Only NIST-standardized or explicitly-marked pre-standard/reviewed-submission post-quantum algorithms used
 - [ ] Only SHA-3 family hash functions used (SHAKE256, SHAKE128, cSHAKE256)
 - [ ] Only post-quantum secure ZKP systems used (zk-STARKs)
 - [ ] All operations are constant-time
@@ -198,7 +198,7 @@ Brief description of changes
 
 ## Security Considerations
 - [ ] No classical crypto used
-- [ ] Only NIST-approved post-quantum algorithms used
+- [ ] Only NIST-standardized or explicitly-marked pre-standard/reviewed-submission post-quantum algorithms used
 - [ ] Constant-time operations verified
 - [ ] Memory safety ensured
 - [ ] Input validation complete

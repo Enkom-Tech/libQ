@@ -29,10 +29,12 @@
 //!
 //! ## Algorithm Support
 //!
-//! The provider supports all NIST-approved signature algorithms:
-//! - ML-DSA (CRYSTALS-ML-DSA): Levels 1, 3, 4
-//! - FN-DSA (FIPS 206): Levels 1, 5
-//! - SLH-DSA (SPHINCS+): Levels 1, 3, 5
+//! The provider supports three post-quantum signature families, not all of which are
+//! NIST-approved yet:
+//! - ML-DSA (CRYSTALS-ML-DSA): Levels 1, 3, 4 — **NIST-approved**, published as FIPS 204.
+//! - FN-DSA (Falcon): Levels 1, 5 — **NIST-selected** for standardization; FIPS 206 has **not
+//!   been published**, so there is no finalized standard to be compliant with yet.
+//! - SLH-DSA (SPHINCS+): Levels 1, 3, 5 — **NIST-approved**, published as FIPS 205.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

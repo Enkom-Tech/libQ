@@ -1,4 +1,4 @@
-//! FN-DSA (FIPS 206) Post-Quantum Digital Signatures
+//! FN-DSA Post-Quantum Digital Signatures (NIST-selected; FIPS 206 not yet published)
 //!
 //! This module provides the FN-DSA signature algorithm implementation.
 //! FN-DSA is a post-quantum digital signature scheme based on FALCON

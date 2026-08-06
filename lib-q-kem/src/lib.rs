@@ -8,13 +8,22 @@
 //! This implementation follows the lib-Q provider pattern:
 //! - **Provider Pattern**: Implements `KemOperations` trait for integration with lib-q-core
 //! - **Security Validation**: Comprehensive input validation and security checks
-//! - **Algorithm Support**: Full support for NIST-approved KEM algorithms
+//! - **Algorithm Support**: ML-KEM plus two non-standardized KEM families (see below)
 //! - **Memory Safety**: Automatic zeroization of sensitive data
 //! - **no_std Support**: Works in constrained environments
 //!
 //! ## Supported Algorithms
 //!
-//! - **ML-KEM**: CRYSTALS-ML-KEM (Levels 1, 3, 4)
+//! Standardization status differs per algorithm family — this crate does not claim NIST
+//! approval for all of them:
+//!
+//! - **ML-KEM** (feature `ml-kem`): CRYSTALS-ML-KEM (levels 512/768/1024) — **NIST-approved**,
+//!   published as FIPS 203.
+//! - **HQC** (feature `hqc`, levels 128/192/256) — **selected** by NIST for standardization
+//!   (NIST IR 8545, 2025-03-11), but no FIPS text has been published yet.
+//! - **Classic McEliece / CB-KEM** (feature `cb-kem`, parameter sets 348864/460896/6688128/
+//!   6960119/8192128) — a NIST PQC round-4 submission that was **not selected** for
+//!   standardization; there is no NIST/FIPS encoding for it.
 //!
 //! ## Feature Support
 //!

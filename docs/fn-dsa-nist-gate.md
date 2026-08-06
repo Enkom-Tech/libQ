@@ -2,7 +2,7 @@
 
 ## Current state
 
-`lib-q-fn-dsa` implements FN-DSA per **FIPS 206** (FN-DSA / Falcon family). The workspace tracks NIST parameter sets FN-DSA-512 and FN-DSA-1024 with integration tests and documented KAT verification (`lib-q-fn-dsa/docs/KAT_VERIFICATION.md`).
+`lib-q-fn-dsa` implements FN-DSA (the Falcon family), the algorithm NIST selected for what will become **FIPS 206**. **FIPS 206 has not been published** — there is no finalized standard, and no public draft, to implement "per". The workspace tracks parameter sets FN-DSA-512 and FN-DSA-1024 against the pre-standardization reference specification, with integration tests and documented KAT verification (`lib-q-fn-dsa/docs/KAT_VERIFICATION.md`).
 
 ## NIST gate
 

@@ -8,22 +8,25 @@
 //! This implementation follows the lib-Q provider pattern:
 //! - **Provider Pattern**: Implements `SignatureOperations` trait for integration with lib-q-core
 //! - **Security Validation**: Comprehensive input validation and security checks using `SecurityValidator`
-//! - **Algorithm Support**: Full support for NIST-approved signature algorithms
+//! - **Algorithm Support**: ML-DSA and SLH-DSA (both NIST-approved), plus FN-DSA (NIST-selected,
+//!   not yet published — see below)
 //! - **Memory Safety**: Automatic zeroization of sensitive data with secure memory management
 //! - **no_std Support**: Works in constrained environments with external randomness
 //! - **Context Integration**: Seamless integration with `SignatureContext` for unified API
 //!
 //! ## Supported Algorithms
 //!
-//! - **ML-DSA**: CRYSTALS-ML-DSA (Levels 1, 3, 4)
+//! - **ML-DSA**: CRYSTALS-ML-DSA (Levels 1, 3, 4) — **NIST-approved**, published as FIPS 204.
 //!   - ML-DSA-44: Level 1 security (128-bit)
 //!   - ML-DSA-65: Level 3 security (192-bit)
 //!   - ML-DSA-87: Level 4 security (256-bit)
-//! - **FN-DSA**: FIPS 206 FN-DSA (Levels 1, 5)
+//! - **FN-DSA** (Levels 1, 5): the Falcon-based scheme NIST **selected** for standardization
+//!   (intended to become FIPS 206). FIPS 206 has **not been published** — there is no finalized
+//!   standard, and no public draft, to be "compliant" with.
 //!   - FN-DSA: Level 1 security (128-bit)
 //!   - FN-DSA-512: Level 1 security (128-bit)
 //!   - FN-DSA-1024: Level 5 security (256-bit)
-//! - **SLH-DSA**: SPHINCS+ (Levels 1, 3, 5)
+//! - **SLH-DSA**: SPHINCS+ (Levels 1, 3, 5) — **NIST-approved**, published as FIPS 205.
 //!   - SLH-DSA-SHA256-128f-Robust: Level 1 security (128-bit)
 //!   - SLH-DSA-SHA256-192f-Robust: Level 3 security (192-bit)
 //!   - SLH-DSA-SHA256-256f-Robust: Level 5 security (256-bit)
@@ -209,7 +212,9 @@
 //!
 //! - **Input Validation**: All inputs are validated for correctness and security
 //! - **Memory Safety**: Sensitive data is automatically zeroized after use
-//! - **Algorithm Validation**: Only NIST-approved algorithms are supported
+//! - **Algorithm Validation**: Only the specific, named algorithms above are supported — ML-DSA
+//!   and SLH-DSA (NIST-approved, FIPS 204/205) and FN-DSA (NIST-selected, FIPS 206 not yet
+//!   published); no unvetted or unlisted algorithm is accepted
 //! - **Key Size Validation**: Keys are validated against expected sizes for each algorithm
 //! - **Randomness Validation**: Randomness inputs are validated for quality and size
 //! - **Error Handling**: Secure error messages that don't leak sensitive information

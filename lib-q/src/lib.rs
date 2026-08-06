@@ -1,14 +1,19 @@
 //! lib-Q - Post-Quantum Cryptography Library
 //!
-//! A modern, secure cryptography library built exclusively with NIST-approved
-//! post-quantum algorithms. Written in Rust with WASM compilation support.
+//! A modern, secure cryptography library built exclusively with post-quantum algorithms
+//! from the NIST PQC process (ML-KEM/FIPS 203, ML-DSA/FIPS 204, and SLH-DSA/FIPS 205 are
+//! finalized standards; FN-DSA and HQC are NIST-selected with no FIPS draft published yet;
+//! CB-KEM/Classic McEliece is a round-4 submission NIST did not select — see
+//! `docs/security.md` for the per-algorithm status). Written in Rust with WASM compilation
+//! support.
 //!
 //! # Architecture Principles
 //!
 //! - **Zero Dynamic Allocations**: Stack-only operations for constrained environments
 //! - **Memory Safety**: Automatic zeroization of sensitive data using `Zeroize` trait
 //! - **Constant-Time**: Operations designed to prevent timing attacks
-//! - **Post-Quantum Only**: NIST-approved algorithms for quantum resistance
+//! - **Post-Quantum Only**: algorithms tracked by the NIST PQC process for quantum
+//!   resistance (see `docs/security.md` for each algorithm's exact standardization status)
 //! - **Provider Pattern**: Pluggable cryptographic implementations
 //! - **Unified API**: Same interface for Rust crate and WASM usage
 //!

@@ -12,7 +12,9 @@
 //!
 //! The implementation uses **`Complex<Mersenne31>`** as the base field, which provides:
 //! - **TWO_ADICITY = 32**: Sufficient for FRI protocol and efficient FFT operations
-//! - **Post-quantum security**: All operations use NIST-approved primitives
+//! - **Post-quantum security**: soundness rests on hash and algebraic assumptions rather than
+//!   number-theoretic ones. Note that no ZK proof system is NIST-approved, and some AIR gadgets
+//!   in this crate use Poseidon/Poseidon2, which are not NIST-standardized primitives.
 //! - **Efficient arithmetic**: Optimized field operations for STARK proofs
 //!
 //! ## Example Usage
@@ -322,8 +324,12 @@ impl ZkpProof {
 
 /// Types of zero-knowledge proofs supported by lib-Q
 ///
-/// Only NIST-approved post-quantum proof systems are included.
-/// Classical schemes (SNARKs, Bulletproofs) are intentionally excluded.
+/// No zero-knowledge proof system is NIST-approved or NIST-standardized -- NIST has not
+/// standardized any ZK proof system, PQC or otherwise. Only hash-based, transparent-setup
+/// proof systems (believed post-quantum secure because they rely on collision-resistant
+/// hashing rather than number-theoretic assumptions) are included here. Classical
+/// pairing/discrete-log-based schemes (SNARKs, Bulletproofs) are intentionally excluded
+/// because those assumptions are broken by a quantum computer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "zkp", derive(serde::Serialize, serde::Deserialize))]
 pub enum ProofType {
@@ -1200,7 +1206,8 @@ mod tests {
     fn test_proof_type_only_stark_exists() {
         let _stark = ProofType::Stark;
         // ProofType::Snark and ProofType::Bulletproof have been removed.
-        // Only NIST-approved post-quantum proof systems are supported.
+        // Only transparent, hash-based proof systems believed post-quantum secure are
+        // supported (no ZK proof system is NIST-approved -- see `ProofType`).
     }
 
     #[cfg(feature = "zkp")]

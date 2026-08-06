@@ -28,7 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(signature_algorithms.contains(&Algorithm::SlhDsaShake256192fRobust));
     assert!(signature_algorithms.contains(&Algorithm::SlhDsaShake256256fRobust));
 
-    // FN-DSA (FIPS 206) — ids are registered; `fn-dsa` on `lib-q` wires the implementation crate
+    // FN-DSA (FIPS 206 not yet published) — ids are registered; `fn-dsa` on `lib-q` wires the
+    // implementation crate
     assert!(signature_algorithms.contains(&Algorithm::FnDsa));
     assert!(signature_algorithms.contains(&Algorithm::FnDsa512));
     assert!(signature_algorithms.contains(&Algorithm::FnDsa1024));

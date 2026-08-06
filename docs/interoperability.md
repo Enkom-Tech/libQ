@@ -4,7 +4,7 @@
 
 lib-Q targets **NIST post-quantum** algorithms and **SHA-3–family** XOFs/hashes with **Saturnin / SHAKE-centered** symmetric options (see [SECURITY.md](../SECURITY.md)). Interoperability in this repository means:
 
-1. **Canonical byte formats** — Keys, signatures, and ciphertexts match NIST/FIPS and RFC-defined encodings for the algorithms you enable (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, CB-KEM, HQC, HPKE per [RFC 9180](https://www.rfc-editor.org/rfc/rfc9180.html)).
+1. **Canonical byte formats** — Keys, signatures, and ciphertexts match NIST/FIPS and RFC-defined encodings for the algorithms you enable (ML-KEM/FIPS 203, ML-DSA/FIPS 204, SLH-DSA/FIPS 205; FN-DSA and HQC track their NIST-selected drafts, not-yet-published FIPS documents; CB-KEM follows its own Classic McEliece round-4 submission encoding, which NIST has not standardized; HPKE per [RFC 9180](https://www.rfc-editor.org/rfc/rfc9180.html)).
 2. **Cross-crate consistency** — `lib-q-types` algorithm IDs and `lib-q-core` provider/context APIs keep naming aligned across KEM, signature, hash, and AEAD crates.
 3. **Test vectors** — KATs, ACVP-style harnesses, and cross-implementation checks live in algorithm crates (for example ML-DSA: [lib-q-ml-dsa/docs/INTEROPERABILITY.md](../lib-q-ml-dsa/docs/INTEROPERABILITY.md)).
 

@@ -191,7 +191,7 @@ This implementation is based on the upstream `fn-dsa` reference implementation b
 
 This implementation includes security enhancements over the upstream reference:
 
-1. **Removed HASH_ID_ORIGINAL_FALCON**: The original Falcon design bypassed domain separation, creating a critical security vulnerability that could enable cross-protocol attacks. This implementation enforces proper FN-DSA domain separation as specified in the NIST standard.
+1. **Removed HASH_ID_ORIGINAL_FALCON**: The original Falcon design bypassed domain separation, creating a critical security vulnerability that could enable cross-protocol attacks. This implementation enforces proper FN-DSA domain separation as specified in the FN-DSA design NIST selected. (There is no published NIST standard for FN-DSA to specify it — see the note at the top of this file.)
 2. **Hardened hash_to_point**: The `hash_to_point` function no longer supports the insecure original Falcon mode, ensuring all operations use proper domain separation.
 
 ### API Compatibility Differences

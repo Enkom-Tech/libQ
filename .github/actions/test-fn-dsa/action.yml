@@ -224,6 +224,8 @@ runs:
         echo "📋 Verifying NIST compliance..."
         GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        # Verify that only NIST-approved algorithms are implemented
+        # Verify that only NIST PQC-process algorithms are implemented (FN-DSA is NIST-selected
+        # for future FIPS 206; FIPS 206 has not been published, so there is no standard to be
+        # "approved" against yet)
         bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_tests -- nist_compliance
         echo "✅ NIST compliance verification completed"

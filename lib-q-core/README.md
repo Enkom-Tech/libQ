@@ -92,7 +92,7 @@ let random_bytes = Utils::random_bytes(32); // Returns error
 
 ### Digital Signatures
 - ML-DSA (FIPS 204): ML-DSA-44, ML-DSA-65, ML-DSA-87 (see `lib-q-ml-dsa`, `lib-q-ring`)
-- FN-DSA (FIPS 206): FN-DSA-1, FN-DSA-5
+- FN-DSA (FIPS 206 not yet published): FN-DSA-1, FN-DSA-5
 - SLH-DSA (FIPS 205): SHA-2 and SHAKE parameter families (`lib-q-slh-dsa`, `lib-q-sig`)
 
 ### Hash Functions

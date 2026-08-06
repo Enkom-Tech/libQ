@@ -142,7 +142,7 @@ Every change must pass security review:
 
 ### Cryptographic Requirements
 
-Align with [SECURITY.md](SECURITY.md): **no classical public-key cryptography** (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the project’s PQC threat model. **Hashing and XOFs** in the cryptographic design target the **SHA-3 family** (SHAKE, cSHAKE, and related APIs exposed by workspace crates). **Post-quantum asymmetric** constructions follow NIST-standardized modules (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, HQC, CB-KEM family, etc.).
+Align with [SECURITY.md](SECURITY.md): **no classical public-key cryptography** (RSA, finite-field/ECC DH, ECDSA, Ed25519, etc.) for confidentiality, authenticity, or integrity in the project’s PQC threat model. **Hashing and XOFs** in the cryptographic design target the **SHA-3 family** (SHAKE, cSHAKE, and related APIs exposed by workspace crates). **Post-quantum asymmetric** constructions follow the NIST PQC process: ML-KEM, ML-DSA, and SLH-DSA are NIST-standardized; FN-DSA and HQC are NIST-selected with FIPS documents not yet published; the CB-KEM family (Classic McEliece) is a reviewed round-4 submission, not selected for standardization.
 
 Symmetric and ancillary primitives may appear inside **reviewed, standards-aligned paths** (for example Saturnin and SHAKE-based AEAD in HPKE tiers, or components required by specific NIST PQC or RNG constructions). Do not introduce classical asymmetric schemes as the primary security mechanism.
 

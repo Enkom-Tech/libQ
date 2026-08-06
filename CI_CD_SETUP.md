@@ -296,7 +296,7 @@ Per `cd.yml` `publish-wasm-packages` matrix (names and `out-dir` vary by crate).
 ### Digital signatures
 
 - **ML-DSA** (FIPS 204) — Module-Lattice Digital Signature Algorithm.
-- **FN-DSA** (FIPS 206) — Falcon-based Digital Signature Algorithm (naming per project/npm metadata).
+- **FN-DSA** (FIPS 206 not yet published) — Falcon-based Digital Signature Algorithm (naming per project/npm metadata).
 - **SLH-DSA** (FIPS 205) — Stateless Hash-Based Digital Signature Algorithm.
 
 ### Key encapsulation mechanisms (KEMs)

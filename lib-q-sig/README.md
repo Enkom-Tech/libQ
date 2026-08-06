@@ -10,7 +10,7 @@ Post-quantum **signature façade** for lib-Q: optional integrations with ML-DSA,
 | `slh-dsa` | `lib-q-slh-dsa` | FIPS 205; caller-supplied RNG for `no_std`-friendly tests. |
 | `slh-dsa-std` | above + `lib-q-random` | Implicit OS-backed RNG when APIs allow `None`. |
 | `slh-dsa-wasm` | above + WASM deps | Browser/JS-oriented builds. |
-| `fn-dsa` | `lib-q-fn-dsa` | FIPS 206. |
+| `fn-dsa` | `lib-q-fn-dsa` | FN-DSA. NIST-selected; FIPS 206 not yet published. |
 
 Default features: `alloc`, `ml-dsa`, `std`.
 

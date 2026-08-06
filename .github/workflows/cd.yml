@@ -1086,7 +1086,7 @@ jobs:
             out-dir: "pkg-utils"
           - working-directory: "lib-q-fn-dsa"
             package-name: "@lib-q/fn-dsa"
-            package-description: "FN-DSA (FIPS 206) post-quantum digital signatures for Node.js"
+            package-description: "FN-DSA post-quantum digital signatures for Node.js (NIST-selected; FIPS 206 not yet published)"
             package-keywords: "cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist"
             features: "wasm,std,rand"
             out-dir: "pkg"
@@ -1312,8 +1312,13 @@ jobs:
             
             ## Security
             
-            This release contains only NIST-approved post-quantum cryptographic algorithms.
-            All operations are constant-time and side-channel resistant.
+            This release contains post-quantum cryptographic algorithms tracked by the NIST PQC
+            process (ML-KEM/FIPS 203, ML-DSA/FIPS 204, and SLH-DSA/FIPS 205 are finalized
+            standards; FN-DSA and HQC are NIST-selected with no FIPS draft published yet;
+            CB-KEM/Classic McEliece is a round-4 submission NIST did not select — see
+            [docs/security.md](https://github.com/Enkom-Tech/libQ/blob/main/docs/security.md)
+            for the per-algorithm status). All operations are constant-time and side-channel
+            resistant.
             
             ## Documentation
             
