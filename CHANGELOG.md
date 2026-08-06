@@ -2,6 +2,49 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## Unreleased
+
+### Changed — BREAKING (wire format)
+
+- **HQC-192 and HQC-256 public keys shrink by 8 bytes**, to the sizes the specification requires:
+  `4522 → 4514` and `7245 → 7237`. HQC-128 is unaffected (already 2241).
+
+  The old sizes were the HQC **round-3 (2020)** values, which carried a 40-byte seed. HQC-128 was
+  migrated to the 2025 32-byte-seed format and the other two parameter sets were not, so
+  `hqc_pke.rs` derived the vector length from `PUBLIC_KEY_BYTES - 32` instead of
+  `VEC_N_SIZE_BYTES` and left 8 bytes of zero padding on the end of every key. The padding was
+  inert — it was never read — so this was an interoperability defect, not a correctness or
+  security one.
+
+  **What moves.** The whole public key is absorbed into `hash_h`, so this changes the public key,
+  the NIST secret key, the ciphertext **and the derived shared secret** for HQC-192/256. Keys
+  stored at rest convert losslessly by truncation (`pk[..4514]` / `pk[..7237]`); the removed bytes
+  are zeros. Live peers on either side of the change do not interoperate.
+
+  **What it buys.** libQ previously rejected any public key that was not 4522/7245 bytes, so it
+  could not read a conforming HQC key from any other implementation — there was no interoperability
+  to lose, only self-compatibility with previously stored libQ keys.
+
+  The sizes are now derived (`kem_public_key_bytes(n_bits) = 32 + n_bits.div_ceil(8)`) rather than
+  written as literals, and `lib-q-hqc/tests/pk_wire_length_conformance.rs` asserts the relation
+  against `VEC_N_SIZE_BYTES` instead of restating a constant. The previous guard in
+  `params_correct.rs` compared a constant to its own definition and passed when the value was
+  falsified to 9999.
+
+### Fixed
+
+- **`lib-q-hqc --features simd-avx2` no longer fails to compile off x86_64.** An AVX2-only import
+  was gated on the feature alone with no `target_arch` guard, so enabling it for `wasm32` or
+  `aarch64` produced `error[E0432]: unresolved import crate::simd::Avx2`. No CI job built that
+  combination — the wasm gate only checks default features — so a new `hqc-simd-avx2-arch-gate`
+  job builds both targets directly.
+
+- **`lib-q-saturnin`'s `SaturninCore` no longer computes a non-Saturnin permutation** at
+  `(rounds = 16, domain = 7 | 8)`. Hand-copied constant tables stored `RC0`/`RC1` transposed
+  relative to how the round function reads them. No shipped output was affected — those two
+  configurations are only ever used by the hash, which runs on a different core — and the fix is a
+  pure deletion in favour of the specification's LFSR. See `lib-q-saturnin/docs/HARDWARE.md`.
+
 ## 0.0.10
 
 > **Every libQ version prior to 0.0.10 is being yanked from crates.io as part of this release.**

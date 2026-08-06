@@ -753,7 +753,13 @@ mod tests {
         assert_eq!(Hqc1Params::N1N2, 17664); // Reference: 46 * 384
         assert_eq!(Hqc1Params::K, 16);
         assert_eq!(Hqc1Params::SECRET_KEY_BYTES, hqc::HQC128_SECRET_KEY_BYTES);
-        assert_eq!(Hqc1Params::PUBLIC_KEY_BYTES, hqc::HQC128_PUBLIC_KEY_BYTES);
+        // Card t_1558e72f: derived from VEC_N_SIZE_BYTES (independent of PUBLIC_KEY_BYTES's own
+        // definition), not compared to hqc::HQC128_PUBLIC_KEY_BYTES directly — that comparison
+        // was a gate-that-cannot-fail (a constant checked only against its own source).
+        assert_eq!(
+            Hqc1Params::PUBLIC_KEY_BYTES,
+            32 + Hqc1Params::VEC_N_SIZE_BYTES
+        );
         assert_eq!(Hqc1Params::CIPHERTEXT_BYTES, hqc::HQC128_CIPHERTEXT_BYTES);
         assert_eq!(Hqc1Params::SHARED_SECRET_BYTES, 32);
     }
@@ -766,7 +772,12 @@ mod tests {
         assert_eq!(Hqc3Params::N1N2, 35840);
         assert_eq!(Hqc3Params::K, 24);
         assert_eq!(Hqc3Params::SECRET_KEY_BYTES, hqc::HQC192_SECRET_KEY_BYTES);
-        assert_eq!(Hqc3Params::PUBLIC_KEY_BYTES, hqc::HQC192_PUBLIC_KEY_BYTES);
+        // Card t_1558e72f: same independent derivation as HQC-128 above. This is the assert that
+        // was previously falsified to 9999 as a positive control and confirmed to still pass.
+        assert_eq!(
+            Hqc3Params::PUBLIC_KEY_BYTES,
+            32 + Hqc3Params::VEC_N_SIZE_BYTES
+        );
         assert_eq!(Hqc3Params::CIPHERTEXT_BYTES, hqc::HQC192_CIPHERTEXT_BYTES);
         assert_eq!(Hqc3Params::SHARED_SECRET_BYTES, 32);
     }
@@ -779,7 +790,11 @@ mod tests {
         assert_eq!(Hqc5Params::N1N2, 57600);
         assert_eq!(Hqc5Params::K, 32);
         assert_eq!(Hqc5Params::SECRET_KEY_BYTES, hqc::HQC256_SECRET_KEY_BYTES);
-        assert_eq!(Hqc5Params::PUBLIC_KEY_BYTES, hqc::HQC256_PUBLIC_KEY_BYTES);
+        // Card t_1558e72f: same independent derivation as HQC-128/192 above.
+        assert_eq!(
+            Hqc5Params::PUBLIC_KEY_BYTES,
+            32 + Hqc5Params::VEC_N_SIZE_BYTES
+        );
         assert_eq!(Hqc5Params::CIPHERTEXT_BYTES, hqc::HQC256_CIPHERTEXT_BYTES);
         assert_eq!(Hqc5Params::SHARED_SECRET_BYTES, 32);
     }

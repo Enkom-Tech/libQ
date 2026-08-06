@@ -202,7 +202,9 @@ impl<P: HqcParams> HqcPke<P> {
         self.vect_add(&mut s, &x, &s_copy, P::VEC_N_SIZE_64)?;
 
         // NIST / reference `ek_kem` wire format: seed_ek (32) ‖ serialized s.
-        let s_len = P::PUBLIC_KEY_BYTES - 32;
+        // Derived from `VEC_N_SIZE_BYTES` (not `PUBLIC_KEY_BYTES - 32`) so a future drift in the
+        // published constant cannot silently zero-pad the tail again (card t_1558e72f).
+        let s_len = P::VEC_N_SIZE_BYTES;
         let mut public_key_data: Vec<u8> = vec![0u8; P::PUBLIC_KEY_BYTES];
         public_key_data[..32].copy_from_slice(&seed_ek);
         self.vect_to_bytes(&s, &mut public_key_data[32..32 + s_len])?;
@@ -755,7 +757,7 @@ impl<P: HqcParams> HqcPke<P> {
         b: &[u64],
         len: usize,
     ) -> Result<(), HqcPkeError> {
-        #[cfg(feature = "simd-avx2")]
+        #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
         {
             // Check if AVX2 is available at runtime
             if crate::simd::runtime::has_avx2() {
@@ -890,7 +892,9 @@ impl<P: HqcParams> HqcPkePublicKey<P> {
 
         let mut seed_ek = [0u8; 32];
         seed_ek.copy_from_slice(&self.data[..32]);
-        let s_len = P::PUBLIC_KEY_BYTES - 32;
+        // See the matching note in `keygen_with_seed`: derive from `VEC_N_SIZE_BYTES`, not
+        // `PUBLIC_KEY_BYTES - 32`.
+        let s_len = P::VEC_N_SIZE_BYTES;
         let pke = HqcPke::<P>::new().map_err(|_| HqcPkeError::HashError)?;
 
         let mut ek_xof = Shake256Xof::new();

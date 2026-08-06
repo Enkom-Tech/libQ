@@ -814,6 +814,30 @@ jobs:
           cargo check -p lib-q-dkg --no-default-features --target thumbv7em-none-eabi
           cargo check -p lib-q-threshold-kem-lattice --no-default-features --target thumbv7em-none-eabi
 
+  # Card t_121ec837: `lib-q-hqc --features simd-avx2` used to fail E0432 on wasm32 and aarch64
+  # because hqc_pke.rs:758 gated an AVX2-only code path on the `simd-avx2` FEATURE alone, with no
+  # `target_arch` guard — so enabling the feature on a non-x86_64 target imported a symbol
+  # (`crate::simd::Avx2`) that `src/simd/mod.rs` only exports under `target_arch = "x86_64"`.
+  # `wasm-workspace-gate` above only checks DEFAULT features, so this combination was never built
+  # anywhere in CI. This job builds it directly so a regression here cannot go invisible again.
+  hqc-simd-avx2-arch-gate:
+    name: lib-q-hqc simd-avx2 off-x86_64 arch gate
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown,aarch64-unknown-linux-gnu
+
+      - name: lib-q-hqc --features simd-avx2 (must compile cleanly off x86_64)
+        run: |
+          cargo check -p lib-q-hqc --features simd-avx2 --target wasm32-unknown-unknown
+          cargo check -p lib-q-hqc --features simd-avx2 --target aarch64-unknown-linux-gnu
+
   # K12: no_std + alloc + wasm32 + thumb (depends on lib-q-sha3 / lib-q-keccak without keccak `std`)
   k12-no-std-wasm:
     name: K12 no_std / wasm32 / thumb smoke
@@ -1271,6 +1295,7 @@ jobs:
       # truth; on failure run `python scripts/sync-readme-versions.py --fix`.
       - name: README version/MSRV sync
         run: python3 scripts/sync-readme-versions.py --check
+
 
   # Specialized algorithm testing - parallel execution
   algorithm-tests:
@@ -1823,7 +1848,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, hqc-simd-avx2-arch-gate, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

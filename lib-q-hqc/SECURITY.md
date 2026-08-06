@@ -23,8 +23,18 @@ and mirrored in `params_correct`:
 | Set | N1 | N2 | OMEGA | DELTA | Public key (B) | Ciphertext (B) |
 |-----|----|----|-------|-------|----------------|----------------|
 | HQC-128 | 46 | 384 | 66 | 15 | 2241 | 4433 |
-| HQC-192 | 56 | 640 | 103 | 16 | 4522 | 8978 |
-| HQC-256 | 90 | 640 | 134 | 29 | 7245 | 14421 |
+| HQC-192 | 56 | 640 | 103 | 16 | 4514 | 8978 |
+| HQC-256 | 90 | 640 | 134 | 29 | 7237 | 14421 |
+
+The HQC-192/256 public key sizes above were fixed from 4522/7245 (card `t_1558e72f`): those were
+the HQC round-3 (2020 submission) values, which used a 40-byte `seed_ek` (40 + 4482 = 4522,
+40 + 7205 = 7245); the v5.0.0 spec's 32-byte `seed_ek` gives 32 + 4482 = 4514 and 32 + 7205 = 7237.
+HQC-128 was already migrated (2249 → 2241); HQC-192/256 were not, and the extra 8 bytes were inert
+zero padding rather than data — a pure interop break, not a semantic divergence. **This is a
+breaking wire-format change**: the whole public key is absorbed into `hash_h` during encapsulation,
+so the ciphertext and shared secret change too for HQC-192/256; peers on `lib-q-types <= 0.0.10` do
+not interoperate. At-rest keys convert losslessly by truncation (`pk_new = pk_old[..4514]` resp.
+`[..7237]`) because the dropped bytes are provably zero and the retained prefix is byte-identical.
 
 Parameter validation tests in `tests/compliance_parameter_validation.rs` and
 `tests/compliance/parameter_validation.rs` check these constants against the
