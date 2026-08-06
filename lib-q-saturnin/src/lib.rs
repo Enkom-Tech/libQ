@@ -186,6 +186,11 @@ pub mod block_cipher;
 #[cfg(feature = "hash")]
 pub mod hash;
 
+// CTX committing-AEAD transform (Chan-Rogaway, ESORICS 2022), instantiated with Saturnin-Hash.
+// Requires `hash` — the `qcb` (and, in future, `aead`) feature enables it transitively.
+#[cfg(feature = "hash")]
+pub mod commit;
+
 // Saturnin-QCB: one-pass AEAD on the Saturnin tweakable block cipher (update note).
 #[cfg(feature = "qcb")]
 pub mod qcb;
@@ -202,6 +207,8 @@ pub use aead::SaturninAead;
 pub use aead_short::SaturninShortAead;
 #[cfg(feature = "block-cipher")]
 pub use block_cipher::SaturninBlockCipher;
+#[cfg(feature = "hash")]
+pub use commit::QCB_CTX_LABEL_V0;
 #[cfg(feature = "hash")]
 pub use hash::SaturninHash;
 #[cfg(feature = "qcb")]

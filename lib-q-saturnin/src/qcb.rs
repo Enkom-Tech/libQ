@@ -54,6 +54,23 @@
 //! vectors below remain **self-consistency** vectors derived from this implementation, not
 //! third-party KATs.
 //!
+//! # Key commitment — CTX transform (default-on)
+//!
+//! The tag emitted by [`Aead::encrypt`] and checked by [`Aead::decrypt`] / [`AeadDecryptSemantic`]
+//! is **not** Algorithm 1's raw tag `T`. It is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the
+//! **CTX** committing-AEAD transform (Chan and Rogaway, *On Committing Authenticated-Encryption*,
+//! ESORICS 2022; IACR ePrint 2022/1260, Fig. 2 / Theorem 2), instantiated with [`SaturninHash`
+//! ](crate::hash::SaturninHash). See `crate::commit` for the exact byte layout, the injectivity
+//! argument for why no length prefix is needed, and the three open cryptographer-sign-off
+//! obligations (H-1, S-2, Q-1) that keep this **RED** — claimed, not proven, CMT-4.
+//!
+//! This closes the CMT-1 break demonstrated in `tests/key_commitment.rs`: that test file retains
+//! the full attack (padding search + closed-form associated-data solve) as a regression test that
+//! now asserts the attack **fails**, and would go red again if this transform were removed.
+//! `T'` occupies the same 32-byte offset as the old `T`, so ciphertext length and the raw-body
+//! layout are unchanged; only the last 32 bytes carry a different value, and old ciphertexts
+//! (pre-CTX, and pre-`bae2717`) do not decrypt under this code.
+//!
 //! ## Note on the IV/index split inside the 256-bit tweak
 //!
 //! The paper says only that "the IV and the block number are simply concatenated", and its stated
@@ -112,6 +129,11 @@ use zeroize::{
     Zeroizing,
 };
 
+use crate::commit::{
+    QCB_CTX_LABEL_V0,
+    ctx_tag,
+};
+use crate::hash::SaturninHash;
 use crate::tbc::{
     SaturninTbc,
     TBC_BLOCK_BYTES,
@@ -133,14 +155,19 @@ const BLOCK: usize = TBC_BLOCK_BYTES;
 
 /// Saturnin-QCB AEAD.
 ///
-/// Holds pre-built tweakable block ciphers for the five domains used by the mode so that
-/// per-message work allocates no round constants.
+/// Holds pre-built tweakable block ciphers for the five domains used by the mode, plus a
+/// pre-built [`SaturninHash`] for the CTX commitment tag (`crate::commit`), so that per-message
+/// work allocates no round constants. Building a `SaturninHash` clocks the round-constant LFSR
+/// for both of its domains (see its own field docs) — hoisting it here, rather than inside
+/// `commit::ctx_tag`, is what keeps CTX's per-message overhead down to the permutation-call cost
+/// the design predicts instead of paying that setup on every `encrypt`/`decrypt` call.
 pub struct SaturninQcb {
     msg: SaturninTbc,
     msg_final: SaturninTbc,
     ad: SaturninTbc,
     ad_final: SaturninTbc,
     tag: SaturninTbc,
+    committer: SaturninHash,
 }
 
 impl SaturninQcb {
@@ -151,6 +178,7 @@ impl SaturninQcb {
             msg_final: SaturninTbc::new(DOMAIN_MESSAGE_FINAL).expect("domain 10 is valid"),
             ad: SaturninTbc::new(DOMAIN_AD).expect("domain 11 is valid"),
             ad_final: SaturninTbc::new(DOMAIN_AD_FINAL).expect("domain 12 is valid"),
+            committer: SaturninHash::new(),
             tag: SaturninTbc::new(DOMAIN_TAG).expect("domain 13 is valid"),
         }
     }
@@ -328,7 +356,18 @@ impl SaturninQcb {
         final_block.zeroize();
 
         let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
-        let expected_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
+        let base_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
+        // CTX verification: recompute T' from the base tag and compare against what was
+        // received. Computed unconditionally (before any comparison) so encrypt/decrypt cost
+        // stays symmetric and no early exit leaks well-formedness ahead of the tag check.
+        let expected_tag = ctx_tag(
+            &self.committer,
+            QCB_CTX_LABEL_V0,
+            &key_staged,
+            &nonce16[..],
+            &base_tag,
+            ad,
+        )?;
 
         let tag_valid = lib_q_core::Utils::constant_time_compare(&*expected_tag, received_tag);
 
@@ -403,8 +442,19 @@ impl Aead for SaturninQcb {
         final_block.zeroize();
 
         let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
-        let tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
-        output.extend_from_slice(&*tag);
+        let base_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
+        // CTX (Chan-Rogaway, ESORICS 2022): replace the base tag with
+        // T' = SaturninHash(label || K || N || T || A) at the same offset and width. See
+        // `crate::commit` for the byte layout and the open sign-off obligations.
+        let committed_tag = ctx_tag(
+            &self.committer,
+            QCB_CTX_LABEL_V0,
+            &key_staged,
+            &nonce16[..],
+            &base_tag,
+            ad,
+        )?;
+        output.extend_from_slice(&*committed_tag);
         Ok(output)
     }
 
@@ -547,9 +597,12 @@ mod tests {
     /// Pinned self-consistency vectors for this instantiation (key = 00..1f, nonce = 00..0f).
     ///
     /// These are **derived** from the construction in this module (Saturnin TBC + the documented
-    /// QCB instantiation), not official designer KATs — see the module-level instantiation note.
-    /// They lock the byte-level behavior so any accidental change to padding, tweak encoding,
-    /// domains, or AD folding is caught.
+    /// QCB instantiation + the CTX committing transform, `crate::commit`), not official designer
+    /// KATs — see the module-level instantiation note. They lock the byte-level behavior so any
+    /// accidental change to padding, tweak encoding, domains, AD folding, or the CTX tag is
+    /// caught. **Regenerated for CTX** (card `t_16ddf21c`): the first `body_len` bytes of each
+    /// ciphertext are unchanged from the pre-CTX vectors (the message/padding path is untouched);
+    /// only the last 32 bytes (the tag) differ, because they now carry `T'` instead of `T`.
     #[test]
     fn pinned_kat_vectors() -> Result<()> {
         let aead = SaturninQcb::new();
@@ -557,27 +610,27 @@ mod tests {
             (
                 "",
                 "",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a133118296df4f9f7b16675856fc24eb3be7a8de774704a90c3381b3c52575d16",
+                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a43ead5af07dd8584bf26c66f6108d158a405ce09ffc2ae90dd90acddb026cfb5",
             ),
             (
                 "",
                 "6173736f636961746564",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29ab173cda4ef86237d60db72575e8d881e3e31d1f7f7628569d82266487c47738a",
+                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a4cb54a56eb5210bf60d35e3b7d4f318b0e4a767347d6eb2fcbaf86c297fe4ff1",
             ),
             (
                 "616263",
                 "",
-                "f4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf08b6b6e38147a4ba2b1c3c9f55283cf5c685e414fdfb6d8c4422932934c2a453",
+                "f4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf7c8b3d483bfa34f0a7bff18c1dcb8655f13076de2718c3f2eeef9e9cb51de4cb",
             ),
             (
                 "0000000000000000000000000000000000000000000000000000000000000000",
                 "686472",
-                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a7718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a1a1d20b6f06c939cf3b4dbdb64c0535e213daefb93bcdcd0c1eadd7b99ed7752",
+                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a7718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29afbb45d2adaed3857a7fb65416c2255f9de2e5ecfb0f77561c4de67fce9d08010",
             ),
             (
                 "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f672121",
                 "61642d31",
-                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c68809248800e70f51a3ba933d3332dbe0d0b4f49c2eab471f2bf9370c582289efeb0129c8ff26116dc713af5af4b745237e3bd266afa22cf1d122f9afee189d7082d",
+                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c68809248800e70f51a3ba933d3332dbe0d0b4f49c2eab471f2bf9370c582289efeb0ec1107ab2a8caa1b6afdbfeb2cca665a197ee3cd1a98de6cde368d6c318d04c2",
             ),
         ];
         for (pt_hex, ad_hex, ct_hex) in cases {
