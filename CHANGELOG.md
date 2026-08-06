@@ -43,9 +43,31 @@ All notable changes to this workspace are documented here. Versions follow the s
 
   `tests/qcb_spec.rs` checks `SaturninQcb::encrypt` against an independent transcription of
   Algorithm 1 over a 63-case length sweep, and the five pinned self-consistency vectors in
-  `qcb::tests::pinned_kat_vectors` were regenerated. QCB is still **not key-committing** (the
-  CMT-1 break in `tests/key_commitment.rs` is untouched by this fix) and is still an OCB-family
-  mode, so nonce reuse remains catastrophic for confidentiality.
+  `qcb::tests::pinned_kat_vectors` were regenerated. QCB remains an OCB-family mode, so nonce
+  reuse remains catastrophic for confidentiality. At the time of this fix QCB was still not
+  key-committing; the CMT-1 break in `tests/key_commitment.rs` has since been closed in this same
+  unreleased cycle by the CTX transform (next entry).
+
+- **`lib-q-saturnin`: Saturnin-QCB tags are now key-committing via the CTX transform (RED,
+  pending cryptographer sign-off).** The demonstrated CMT-1 break (one ciphertext accepted under
+  two distinct keys; 200/200 instances broken in closed form) is closed by wrapping the tag:
+  `T' = SaturninHash(LABEL ‖ K ‖ N ‖ T ‖ A)`, `LABEL = b"libq.saturnin.qcb.ctx.v0"` — CTX (John
+  Chan and Phillip Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022, ePrint
+  2022/1260, Fig. 2 / Theorem 2), instantiated with Saturnin-Hash. **Breaking (wire format):**
+  every QCB tag changes; nothing produced by earlier code verifies under this code, and there is
+  no compatibility flag. **Claimed, not proven:** the target is CMT-4, capped by Saturnin-Hash's
+  designer-claimed collision resistance of 2^112 classical / ~2^75 quantum. That is the designers'
+  claimed *floor*, not the generic bound: the best-known generic classical cost is 2^128 by the
+  birthday bound (spec §5.4.1), and they claim below it for margin ("additional constant factors
+  that these bounds do not take into account, which is why our final security claims are reduced").
+  It is not a NIST-LWC floor. The
+  transform is proven but the instantiation is RED pending cryptographer sign-off on three named
+  obligations recorded in `lib-q-saturnin/src/commit.rs` (the published bound; Theorem 2's
+  length-preserving assumption versus QCB's `10*` padding; and whether CTX∘QCB preserves QCB's
+  Q2 security — CTX's proof is classical-ROM). The old CMT-1 attack is retained as a regression
+  test in `lib-q-saturnin/tests/key_commitment.rs` and was shown able to fail. `SaturninShortAead`
+  remains non-committing by design; `SaturninAead` (CTR-Cascade) is not covered. Details:
+  `lib-q-saturnin/CHANGELOG.md`.
 
 - **HQC-192 and HQC-256 public keys shrink by 8 bytes**, to the sizes the specification requires:
   `4522 → 4514` and `7245 → 7237`. HQC-128 is unaffected (already 2241).
@@ -72,7 +94,36 @@ All notable changes to this workspace are documented here. Versions follow the s
   `params_correct.rs` compared a constant to its own definition and passed when the value was
   falsified to 9999.
 
+- **`lib-q-zk-encryption-proof`: the narrow proof tiers now challenge on the whole statement, so
+  their proof bytes change.** `assemble_e_provenance_{prover,verifier}` and
+  `assemble_r3a_f_provenance_{prover,verifier}` derived the Fiat–Shamir challenge from the
+  ciphertext alone (`derive_zetas(ct)`), while the full tier derived it from `(pk_digest ‖ ct)`.
+  All six now use the shared `statement_zetas(pk_digest, ct)`, so the multi-target separation the
+  crate documents (the "H4 transcript half") holds for every tier rather than one of three.
+  **Breaking:** a proof produced by earlier code does not verify under this code and vice versa.
+  No KAT in this repo pinned the old transcript, and the crate is RED/unsigned and pre-1.0, so no
+  compatibility path is provided. `encryption_proof::tests::all_tiers_absorb_pk_digest_into_zeta`
+  pins the new derivation and was shown to fail against each of the four old call sites
+  individually. The older relation layer (`prove::{prove,verify}_relation_layer`) still derives
+  the challenge from the ciphertext alone; there the public key enters the verifier as an explicit
+  `t0` argument, and unifying it is tracked separately.
+
+### Changed — BREAKING (API)
+
+- **`lib-q-core`: `TimingValidator::constant_time_select`/`constant_time_assign` tighten their
+  generic bound from `T: Copy` to `T: subtle::ConditionallySelectable`**, which `subtle` implements
+  for the integer types but not for arbitrary `Copy` types. This is the visible half of the
+  constant-time fix below; no in-tree caller used these methods.
+
 ### Fixed
+
+- **`lib-q-core`: `TimingValidator::constant_time_select`/`constant_time_assign`/`constant_time_copy`
+  were a plain `if`/`else` — not constant time, despite the crate's docs and name claiming
+  otherwise, in the crate whose stated job is validating that property. Reimplemented branchlessly
+  on `subtle::ConditionallySelectable` (see the API break above). A dispatch-canary test
+  (`select_and_assign_dispatch_through_subtle_not_a_branch`) now pins the branchless path — it was
+  shown to fail against the old `if`/`else` bodies. The methods still take a `bool`, so the caller
+  is responsible for deriving that `bool` in constant time; the doc comments now say so.
 
 - **`lib-q-hqc --features simd-avx2` no longer fails to compile off x86_64.** An AVX2-only import
   was gated on the feature alone with no `target_arch` guard, so enabling it for `wasm32` or
