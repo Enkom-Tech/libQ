@@ -142,8 +142,11 @@
 //!   bounds do not take into account, which is why our final security claims are reduced"
 //!   (§5.4.1) — **not** because of a NIST-LWC floor. Never publish `2^112` without that reason,
 //!   never round it up to `2^128`, and never quote it against a *quantum* adversary — the quantum
-//!   figure is `~2^75` claimed (generic quantum collision cost is `2^85` with unrestricted qRAM,
-//!   `2^102` without; Chailloux–Naya-Plasencia–Schrottenloher, 2017).
+//!   figure is `~2^75` claimed. It sits below all three generic quantum collision costs at
+//!   `n = 256`: `2^85.3 = 2^(n/3)` with `2^85.3` qRAM (Brassard–Høyer–Tapp, LATIN '98);
+//!   `2^102.4 = 2^(2n/5)` with no qRAM but `2^51.2` classical memory
+//!   (Chailloux–Naya-Plasencia–Schrottenloher, 2017); `2^128` memoryless. The `2^85.3` figure is
+//!   BHT's, not CNS's, and CNS is qRAM-free rather than memory-free.
 //! - **S-2** — does **not** apply here; see above. (Stays open for `SaturninQcb` only.)
 //! - **Q-1′** (adapted from QCB's Q-1) — CTX's own nAE-preservation proof (Theorem 3) is in the
 //!   *classical* random-oracle model. The Saturnin LWC submission markets CTR-Cascade with
