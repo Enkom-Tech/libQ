@@ -59,8 +59,8 @@
 //! The tag emitted by [`Aead::encrypt`] and checked by [`Aead::decrypt`] / [`AeadDecryptSemantic`]
 //! is **not** Algorithm 1's raw tag `T`. It is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the
 //! **CTX** committing-AEAD transform (Chan and Rogaway, *On Committing Authenticated-Encryption*,
-//! ESORICS 2022; IACR ePrint 2022/1260, Fig. 2 / Theorem 2), instantiated with [`SaturninHash`
-//! ](crate::hash::SaturninHash). See `crate::commit` for the exact byte layout, the injectivity
+//! ESORICS 2022; IACR ePrint 2022/1260, Fig. 2 / Theorem 2), instantiated with
+//! [`SaturninHash`]. See `crate::commit` for the exact byte layout, the injectivity
 //! argument for why no length prefix is needed, and the three open cryptographer-sign-off
 //! obligations (H-1, S-2, Q-1) that keep this **RED** — claimed, not proven, CMT-4.
 //!
@@ -71,17 +71,45 @@
 //! layout are unchanged; only the last 32 bytes carry a different value, and old ciphertexts
 //! (pre-CTX, and pre-`bae2717`) do not decrypt under this code.
 //!
-//! ## Note on the IV/index split inside the 256-bit tweak
+//! ## Note on the IV/index split inside the 256-bit tweak — WE MAY BE ONE BYTE WRONG
 //!
-//! The paper says only that "the IV and the block number are simply concatenated", and its stated
-//! limits ("IVs of at most 160 bits", "up to `2^95` blocks of data") are simultaneously tight only
-//! under a 160/96 split, whereas this module splits 128/128. That difference is **not observable
-//! here**: with the 16-byte nonce this mode fixes, right-zero-padding the IV to 160 bits (Algorithm
-//! 1 line 1, "Pad the initialization vector if necessary") and writing a big-endian index into the
-//! low 96 bits gives `N ‖ 0x00·4 ‖ be96(i)`, which for every `i < 2^64` is byte-for-byte the
-//! `N ‖ 0x00·8 ‖ be64(i)` built below. The two readings only diverge if an implementation
-//! *left*-pads the IV or orders the index little-endian. Absent designer KATs this cannot be
-//! settled, but the layout used here is the one both readings agree on.
+//! The paper says only that "the IV and the block number are simply concatenated", and Algorithm 1
+//! line 1 says only "Pad the initialization vector if necessary" — with no padding direction, no
+//! field widths, and no endianness. (`endian` appears zero times in the whole paper; the counter's
+//! big-endian order is fixed instead by the Saturnin submission, which does state it.) There are no
+//! designer KATs: the round-2 NIST-LWC package ships ctr-cascade, short and hash, and no QCB at all.
+//!
+//! Two readings follow, and **they do not agree**:
+//!
+//! - **zero-pad** the IV to 160 bits, big-endian index in the low 96 → `N ‖ 0x00·8 ‖ be64(i)` for
+//!   every `i < 2^64`. This is what this module's private `tweak` fn builds. Byte 16 is `0x00`.
+//! - **`10*`-pad** the IV to 161 bits, 95-bit index → byte 16 is `0x80`. Differs from us in exactly
+//!   that one byte, on every TBC call of every message.
+//!
+//! **The second reading is the better-supported one, and this module implements the first.** The
+//! Saturnin submission states `10*` as the *general* rule for padding anything under 256 bits into a
+//! 256-bit block — "whenever our proposed modes … require padding a value of less than 256 bits into
+//! a 256-bit block" — and then works this exact shape byte by byte: "with a 128-bit nonce, the input
+//! … will consist in the 16 bytes of the nonce, followed by a byte of value `0x80` (first padding
+//! byte for the nonce), followed by 14 bytes of value `0x00`, followed by one byte of value `0x01`".
+//! That is a 161-bit padded nonce plus a 95-bit big-endian counter — the same 256-bit budget QCB
+//! restates as "IVs of at most 160 bits" and "up to `2^95` blocks".
+//!
+//! An earlier version of this note claimed those two limits "are simultaneously tight only under a
+//! 160/96 split". **That is backwards.** A 96-bit index field addresses `2^96`, so against a stated
+//! `2^95` bound it is slack by a factor of two; the split under which both published numbers are
+//! exactly tight is 161/95. The paper's own accounting for TRAX-QCB shows the pattern — "3 bits …
+//! for domain separation, 80 bits of IV and 45 bits of block numbering … at most `2^45 - 1` blocks",
+//! fields summing exactly to the tweak width with the bound's exponent equal to the index width.
+//! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
+//!
+//! Consequences, in order: **no interop impact** — this mode emits `T'`, not Algorithm 1's `T`, so
+//! it is wire-incompatible with paper-QCB by construction regardless (see above). **No security
+//! impact** — byte 16 is a constant under both readings and the tweak is XORed into the key, so the
+//! two differ by a fixed key offset, a bijection on the related-key family. **The cost is hardware**:
+//! silicon that bakes in `0x00` cannot be corrected if the designers confirm `0x80`. Changing it
+//! costs nearly nothing while QCB has no consumers and is opt-in. Decision: card `t_5d1460b7`; the
+//! question is put to the designers on card `t_7123c738`.
 //!
 //! ## Usage Example
 //!
