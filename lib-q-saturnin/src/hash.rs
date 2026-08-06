@@ -54,6 +54,15 @@ use crate::simd::simd_xor;
 /// and domain parameters 7 and 8 for different processing phases.
 pub struct SaturninHash {
     core: SaturninCore,
+    /// Pre-built bs32 core for domain 7 (non-final blocks), shared across every call to
+    /// [`SaturninHash::hash`]. Building `SaturninBs32Core` clocks the round-constant LFSR for
+    /// `num_super_rounds` super-rounds (see `bs32_core.rs::packed_round_constants`); hoisting it
+    /// here means that cost is paid once per `SaturninHash` instance instead of once per `hash()`
+    /// call — see the constructor for why the always-valid `(16, 7)` parameters make this
+    /// infallible in practice.
+    core_d1: SaturninBs32Core,
+    /// Pre-built bs32 core for domain 8 (the final block), analogous to `core_d1`.
+    core_d2: SaturninBs32Core,
 }
 
 impl SaturninHash {
@@ -61,7 +70,18 @@ impl SaturninHash {
     pub fn new() -> Self {
         // Use 16 super-rounds and domain 7 for the hash function
         let core = SaturninCore::new(16, 7).expect("Valid parameters");
-        Self { core }
+        // (16, 7) and (16, 8) are fixed, always-valid parameters (num_super_rounds=16 <= 31,
+        // domain 7/8 <= 15 — see `SaturninBs32Core::new`'s own range checks), so this can never
+        // actually fail; `.expect(...)` mirrors the identical, already-established pattern one
+        // line above for `SaturninCore::new`, rather than introducing a new error-handling style
+        // for what is the same class of "unreachable in practice" fallibility.
+        let core_d1 = SaturninBs32Core::new(16, 7).expect("Valid parameters");
+        let core_d2 = SaturninBs32Core::new(16, 8).expect("Valid parameters");
+        Self {
+            core,
+            core_d1,
+            core_d2,
+        }
     }
 
     /// Get the output size in bytes (256 bits = 32 bytes)
@@ -82,9 +102,10 @@ impl SaturninHash {
     /// # Returns
     /// 32-byte hash output
     pub fn hash(&self, data: &[u8]) -> Result<Vec<u8>> {
-        // Pre-allocate scalar cores to avoid repeated allocation overhead.
-        let core_d1 = SaturninBs32Core::new(16, 7)?;
-        let core_d2 = SaturninBs32Core::new(16, 8)?;
+        // `core_d1`/`core_d2` are built once in `new()`, not per call — see the field docs on
+        // `SaturninHash` for why.
+        let core_d1 = &self.core_d1;
+        let core_d2 = &self.core_d2;
 
         let mut r = [0u8; 32];
         let mut u = 0;
