@@ -40,9 +40,10 @@
 //! through a Matyas–Meyer–Oseas chain, which is not invertible in the data, so steering the
 //! running tag to a chosen value is a preimage problem. See `lib-q-aead/tests/key_commitment.rs`
 //! for the bounded search that covers it and the other registry AEADs — and for why a null
-//! search result there is **not** evidence that those modes commit. CTR-Cascade itself has not
-//! been given a committing transform by this change (see `lib-q-saturnin/README.md` and card
-//! `t_16ddf21c`'s follow-up note); it remains non-committing.
+//! search result there is **not** evidence that those modes commit. Plain `SaturninAead` itself
+//! is unchanged and remains non-committing; it now has an opt-in, wire-incompatible committing
+//! sibling, `SaturninAeadCtx` (CTX applied to CTR-Cascade, `src/aead_ctx.rs`), for callers that
+//! want the property — see that module and `lib-q-saturnin/README.md`'s Key commitment section.
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 
