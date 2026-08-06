@@ -177,6 +177,48 @@ Typical throughput on modern hardware:
 - Block cipher: ~150-300 MB/s
 - Stream cipher: ~250-450 MB/s
 
+### `SaturninQcb`'s CTX overhead (card `t_16ddf21c`)
+
+The CTX committing transform (see the Key commitment section below) adds a fixed number of
+Saturnin permutation calls per message — asymptotically free, but a real cost on small messages,
+where it is most of the total work. Measured with a scratch (non-`criterion`) timing harness
+(`std::time::Instant`, warmed up, geometric iteration doubling to a 300 ms floor per point) built
+against this crate as a path dependency — **not** the checked-in `benches/` suite, which does not
+yet have a QCB benchmark group (a separate open item):
+
+| message (AD=0) | before CTX | after CTX | overhead |
+|---|---|---|---|
+| 0 B | ~1.9 µs | ~3.4 µs | **+~80%** |
+| 32 B | ~1.9 µs | ~3.8 µs | **+~100%** |
+| 64 B | ~2.3 µs | ~4.6 µs | **+~95%** |
+| 1 KiB | ~19.3 µs | ~18.4 µs | within noise (~±5%) |
+| 10 KiB | ~149 µs | ~142 µs | within noise |
+| 100 KiB | ~1.58 ms | ~1.38 ms | within noise (single-run variance dominates at this size in this harness) |
+
+| associated data (message = 1 KiB) | before CTX | after CTX | overhead |
+|---|---|---|---|
+| 0 B | ~14.1 µs | ~15.6 µs | **+~11%** |
+| 16 B | ~13.6 µs | ~15.1 µs | **+~11%** |
+| 64 B | ~15.9 µs | ~16.9 µs | **+~6%** |
+| 256 B | ~16.9 µs | ~22.0 µs | **+~30%** |
+| 1 KiB | ~28.1 µs | ~39.2 µs | **+~39%** |
+| 4 KiB | ~63.8 µs | ~118.9 µs | **+~86%** |
+
+The AD-sweep growth is expected and not a bug: CTX hashes the associated data a **second** time
+(once in QCB's own AD pass, once again inside the CTX tag), so it is the one part of this
+transform's cost that is not O(1) in the associated-data length. If a deployment routinely carries
+large associated data on small messages, that tradeoff is worth re-examining — see `src/commit.rs`
+and the design discussion on card `t_16ddf21c` for the cheaper CMT-1-only variant this would
+motivate.
+
+**Caveat on these numbers:** this is a scratch measurement (single machine, single run per point,
+no outlier rejection, no isolation from other load on the machine), reported here because the
+checked-in benchmark suite does not yet cover QCB. Treat the *shape* (large relative overhead on
+tiny messages, converging to near-zero on messages ≥ 1 KiB, growing again with associated-data
+size) as the load-bearing claim; treat the exact percentages as approximate. Adding `qcb_throughput`
+and `qcb_ad_sweep` criterion benchmark groups to `benches/saturnin_criterion_benches.rs` remains an
+open item for whoever next owns that file.
+
 ## Testing
 
 ```bash
@@ -234,25 +276,31 @@ See the main [lib-q contributing guide](../CONTRIBUTING.md).
 
 ## Key commitment (CMT-1)
 
-**No libQ AEAD is key-committing, and none of them claims to be.** CMT-1 asks whether one
-ciphertext can be made to decrypt successfully under two *distinct* keys, with the nonce and
-associated data free on each side. That property is not part of the AEAD security goal these modes
-were designed for, and libQ does not provide it.
+**`SaturninQcb` now applies a committing transform (CTX); no other libQ AEAD is key-committing, and
+none of the rest claims to be.** CMT-1 asks whether one ciphertext can be made to decrypt
+successfully under two *distinct* keys, with the nonce and associated data free on each side. That
+property is not part of the AEAD security goal most of these modes were designed for; outside
+`SaturninQcb`, libQ does not provide it.
 
-**Do not use any libQ AEAD for multi-recipient encryption, key wrapping / envelope encryption, or
-password-based decryption as an identification or authorization signal without binding the key
-externally** — e.g. put `H(key ‖ context)` in the associated data, or carry an explicit key
-commitment beside the ciphertext (`lib-q-mve` does the latter: see `MVE_COMMIT_LABEL`).
+**Do not use any libQ AEAD other than `SaturninQcb` for multi-recipient encryption, key wrapping /
+envelope encryption, or password-based decryption as an identification or authorization signal
+without binding the key externally** — e.g. put `H(key ‖ context)` in the associated data, or carry
+an explicit key commitment beside the ciphertext (`lib-q-mve` does the latter: see
+`MVE_COMMIT_LABEL`). Even for `SaturninQcb`, treat this as **claimed, not proven**: see the table row
+and the sign-off obligations in `lib-q-saturnin/src/commit.rs`.
 
-Two modes have a **demonstrated** break: a test produces one ciphertext that decrypts successfully
-under two distinct keys. For the other seven a bounded search found nothing, which is **not**
-evidence that they commit — read the box under the table before quoting any row of it.
+One mode, `SaturninShortAead`, has a **demonstrated** break: a test produces one ciphertext that
+decrypts successfully under two distinct keys. `SaturninQcb` had a break of the same class; it is
+retained verbatim as a regression test (`lib-q-saturnin/tests/key_commitment.rs`) and now fails tag
+verification on every one of 200 independent instances (see the table). For the other seven a
+bounded search found nothing, which is **not** evidence that they commit — read the box under the
+table before quoting any row of it.
 
 | Mode | Key / tag | CMT-1 status |
 |---|---|---|
-| `SaturninQcb` | 256 / 256-bit | **BROKEN.** Cheap search then closed-form algebra. Measured over 200 independent key pairs, all of which broke: mean **270** padding-search tries ≈ **~546 Saturnin block calls** (median 191, min 2, max 2492), and **0** searches of the 256-bit tag. Cause: associated data enters the tag by plain XOR through a public keyed permutation, so side 2's associated data is *solved*, not searched. |
-| `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). |
-| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit** |
+| `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** (not 2^128) — and marked **RED**, pending human cryptographer sign-off on three named obligations (`lib-q-saturnin/src/commit.rs`). The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
+| `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). **Not committing and will not be made so:** any fix adds bytes, and a committing Short is size-dominated by `SaturninQcb` at the same ciphertext length with strictly more payload room (see `lib-q-saturnin/src/aead_short.rs`). |
+| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; not given a committing transform by this change (open follow-up, card `t_16ddf21c`) |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `DuplexSpongeAead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `TweakAead` | 256 / 256-bit | no cheap break found — **not shown to commit**. Its tag is a sponge hash of `key ‖ nonce ‖ ad ‖ ct`, which is the *shape* a committing mode has; that is an argument for looking here first, not a result. |
@@ -269,14 +317,17 @@ evidence that they commit — read the box under the table before quoting any ro
 >
 > Demonstrating the positive — that a mode *is* committing — is not achievable by search at these
 > tag sizes at all, however many trials are run. It needs a proof, or a committing transform (bind
-> `H(key ‖ nonce ‖ associated data)` into the tag) that changes the construction. libQ has neither,
-> which is why no row above reads "committing".
+> `H(key ‖ nonce ‖ associated data)` into the tag) that changes the construction. `SaturninQcb` now
+> has one (above — claimed, and RED pending sign-off); the rest of libQ does not, which is why no
+> other row above reads "committing".
 
 Reproduce (each prints its own measurements with `--nocapture`):
 
 ```sh
-# the two breaks, and the measured QCB attack cost
+# the retained (now-defeated) QCB attack, and the CTX byte-layout / binding gate
 cargo test -p lib-q-saturnin --test key_commitment -- --nocapture
+cargo test -p lib-q-saturnin --test qcb_ctx_spec -- --nocapture
+# the still-live SaturninShortAead break
 cargo test -p lib-q-saturnin --features aead-short --lib key_commitment_tests -- --nocapture
 # the bounded searches for the registry modes
 cargo test -p lib-q-aead \
@@ -284,7 +335,8 @@ cargo test -p lib-q-aead \
   --test key_commitment -- --nocapture
 ```
 
-Sources: `lib-q-saturnin/tests/key_commitment.rs`, `lib-q-saturnin/src/aead_short.rs`
+Sources: `lib-q-saturnin/src/commit.rs`, `lib-q-saturnin/tests/key_commitment.rs`,
+`lib-q-saturnin/tests/qcb_ctx_spec.rs`, `lib-q-saturnin/src/aead_short.rs`
 (`key_commitment_tests`), `lib-q-aead/tests/key_commitment.rs`. Card `t_16ddf21c`.
 
 ### Nonce extension (XChaCha-style) — evaluated and deliberately not pursued
@@ -295,23 +347,30 @@ birthday bound is already 2^64, beyond any realistic message volume. Nonce exten
 nothing here and is not planned — please do not re-raise it. The adjacent gap that *is* real is key
 and context commitment, above.
 
-### Saturnin specifics — who actually gets the broken modes
+### Saturnin specifics — who actually gets which mode
 
-`SaturninQcb` and `SaturninShortAead` are the two modes with a **demonstrated** break, both proven
-by tests in this crate. Their exposure is **not** symmetric:
+`SaturninQcb` and `SaturninShortAead` were the two modes with a **demonstrated** CMT-1 break, both
+proven by tests in this crate. `SaturninQcb`'s break is now closed by the CTX transform above (RED,
+pending sign-off); `SaturninShortAead`'s is not, and will not be (see the table). Their exposure is
+**not** symmetric:
 
 - **`aead-short` is opt-in.** `SaturninShortAead` is compiled only if you ask for it
   (`Cargo.toml:27`; not in `default`).
 - **`qcb` is a DEFAULT feature** (`Cargo.toml:21`: `default = ["std", "aead", "block-cipher",
-  "hash", "stream", "qcb", "alloc"]`). Any crate that depends on `lib-q-saturnin` without
-  `default-features = false` compiles `SaturninQcb` and can call it — no opt-in required. Inside
-  this workspace that is `lib-q-aead` (`Cargo.toml:24`) and `lib-q-hpke` (`Cargo.toml:45`), both of
-  which omit `default-features = false`; `cargo tree -p lib-q-aead --features saturnin -e features`
-  lists `lib-q-saturnin feature "qcb"`. (Neither crate re-exports the type, so the mode is compiled
-  but not reachable through their APIs.) `lib-q-random` (`Cargo.toml:28`) and GIP's
+  "hash", "stream", "qcb", "alloc"]`), and now **implies `hash`** (`Cargo.toml`: `qcb =
+  ["dep:zeroize", "hash"]`) because the CTX tag is computed with `SaturninHash`. Any crate that
+  depends on `lib-q-saturnin` without `default-features = false` compiles `SaturninQcb` (CTX
+  included) and can call it — no opt-in required. Inside this workspace that is `lib-q-aead`
+  (`Cargo.toml:24`) and `lib-q-hpke` (`Cargo.toml:45`), both of which omit
+  `default-features = false`; `cargo tree -p lib-q-aead --features saturnin -e features` lists
+  `lib-q-saturnin feature "qcb"`. (Neither crate re-exports the type, so the mode is compiled but
+  not reachable through their APIs.) `lib-q-random` (`Cargo.toml:28`) and GIP's
   `sdk/Cargo.toml:197` do pass `default-features = false` and are unaffected.
 
-**A decision on whether `qcb` should remain a default feature is open with the maintainers and has
-not been made** — the options on the table are deprecating the mode, moving it behind a non-default
-feature (a semver-visible change for anyone relying on the default set), or leaving the default and
-documenting the break, which is what this README currently does.
+**Superseded:** a prior revision of this README recorded an open decision on whether `qcb` should
+remain a default feature *because of the demonstrated break*. CTX closes that specific reachability
+risk — any crate compiling `SaturninQcb` by default now compiles the committing version — so that
+question is resolved for the break itself. A narrower question remains open: whether it is
+acceptable for a **RED** (unsigned) cryptographic claim to ship on a default feature path at all,
+pending the sign-off obligations in `lib-q-saturnin/src/commit.rs`. `SaturninShortAead` carries no
+such transform and stays opt-in and documented as non-committing.

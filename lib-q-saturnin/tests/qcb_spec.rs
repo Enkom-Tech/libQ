@@ -41,6 +41,19 @@
 //! explicitly (Section 5, *Avoiding Quantum Attacks*): "It is important to include the IV in the
 //! tweak when processing the AD. Otherwise, there is a quantum forgery attack based on Deutsch's
 //! algorithm."
+//!
+//! # CTX layer (card `t_16ddf21c`)
+//!
+//! `SaturninQcb::encrypt` no longer emits Algorithm 1's raw tag `T` as the last 32 bytes: it
+//! emits `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, the CTX committing transform (Chan-Rogaway,
+//! ESORICS 2022; see `crate::commit` in the implementation crate for the full writeup). The
+//! reference oracle below ([`qcb_reference_encrypt`]) now reproduces that final step too, built
+//! straight from the documented byte layout and the public [`SaturninHash`] API — **not** by
+//! importing `lib_q_saturnin::commit`, so this file still shares no code with the module under
+//! test for either the Algorithm-1 core or the CTX layer. That keeps every comparison below
+//! (`matches_algorithm_1_of_the_qcb_paper` etc.) a full-ciphertext, tag-included check: passing it
+//! for the many `(m_len, a_len)` pairs it sweeps is only possible if both the raw tag `T` *and*
+//! its CTX wrapping agree with the independent reconstruction.
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 
@@ -48,6 +61,7 @@ use lib_q_saturnin::{
     Aead,
     AeadKey,
     Nonce,
+    SaturninHash,
     SaturninQcb,
     SaturninTbc,
 };
@@ -61,6 +75,11 @@ const D_MSG_FINAL: u8 = 10;
 const D_AD_FULL: u8 = 11;
 const D_AD_FINAL: u8 = 12;
 const D_TAG: u8 = 13;
+
+/// `crate::commit::QCB_CTX_LABEL_V0`, hardcoded rather than imported (same policy as the domain
+/// separator consts above): this file must not depend on the implementation's own constants for
+/// what it independently checks.
+const CTX_LABEL: &[u8] = b"libq.saturnin.qcb.ctx.v0";
 
 /// `T = IV || i`: the 128-bit IV in the high half, the block index big-endian in the low half.
 fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; B] {
@@ -141,7 +160,17 @@ fn qcb_reference_encrypt(key: &[u8; 32], nonce: &[u8; 16], m: &[u8], a: &[u8]) -
     e13.encrypt_block(key, &tweak(nonce, l), &mut chk).unwrap();
     xor_into(&mut tag, &chk);
 
-    out.extend_from_slice(&tag);
+    // CTX (Chan-Rogaway, ESORICS 2022): T' = SaturninHash(label || K || N || T || A), built here
+    // purely from the documented byte layout, independent of `lib_q_saturnin::commit`.
+    let mut ctx_input = Vec::with_capacity(CTX_LABEL.len() + key.len() + nonce.len() + B + a.len());
+    ctx_input.extend_from_slice(CTX_LABEL);
+    ctx_input.extend_from_slice(key);
+    ctx_input.extend_from_slice(nonce);
+    ctx_input.extend_from_slice(&tag);
+    ctx_input.extend_from_slice(a);
+    let committed_tag = SaturninHash::new().hash(&ctx_input).unwrap();
+
+    out.extend_from_slice(&committed_tag);
     out
 }
 
@@ -213,6 +242,15 @@ fn matches_algorithm_1_of_the_qcb_paper() {
 /// Observable consequence if it does not: the AD's whole contribution to the tag is a function of
 /// the AD alone, so the tag difference produced by swapping `A -> A'` is identical under every
 /// nonce.
+///
+/// **Since the CTX transform (`t_16ddf21c`) now wraps the tag in a hash of `(K, N, A, T)`, this
+/// property is exhaustively checked at the raw-tag level by `matches_algorithm_1_of_the_qcb_paper`
+/// above** (which compares full ciphertexts, tag included, against an independent reference that
+/// always embeds the IV — a base-layer regression here would desync the CTX input and fail that
+/// comparison at any single nonce). This test now additionally exercises the deployed public API
+/// through the CTX wrapper, where nonce-dependence of the observed delta is also *separately*
+/// guaranteed by CTX hashing `N` directly, regardless of whether the base tweak still does. Do not
+/// read a pass here as evidence for the base D1 property in isolation — see the module docs.
 #[test]
 fn ad_contribution_to_the_tag_depends_on_the_nonce() {
     let aead = SaturninQcb::new();
@@ -246,6 +284,16 @@ fn ad_contribution_to_the_tag_depends_on_the_nonce() {
 /// so its coefficients fall out of one query). This harness has no quantum oracle, so it learns
 /// the same constant classically with two queries at `N1`; the transfer step — the part D1 breaks
 /// — uses a fresh nonce `N2` and is what this test asserts must fail.
+///
+/// **Post-CTX caveat (`t_16ddf21c`):** the tag transmitted today is `T' = H(K,N,A,T)`, not the
+/// raw XOR-composable `T` this attack targets, so this specific forgery is now *additionally*
+/// blocked by CTX itself — a delta computed on `T'` values is not the algebraic quantity the
+/// attack needs, independent of whether the base D1 fix still holds underneath. This test still
+/// asserts the forgery fails against the real public API (a true and worth-having statement), but
+/// a pass here no longer isolates D1 specifically; that isolation is `matches_algorithm_1_of_the_
+/// qcb_paper`'s job (see module docs). Whether CTX-of-QCB retains Q2 unforgeability in its own
+/// right is open obligation **Q-1** in `crate::commit`'s docs — this harness has no quantum
+/// oracle and cannot resolve it either way.
 #[test]
 fn ad_difference_does_not_transfer_across_nonces() {
     let aead = SaturninQcb::new();

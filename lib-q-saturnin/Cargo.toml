@@ -25,8 +25,10 @@ alloc = ["lib-q-core/alloc"]
 # Algorithm modes
 aead = ["dep:zeroize"]
 aead-short = ["dep:zeroize"]
-# Saturnin-QCB one-pass AEAD (tweakable-block-cipher mode from the update note)
-qcb = ["dep:zeroize"]
+# Saturnin-QCB one-pass AEAD (tweakable-block-cipher mode from the update note).
+# Implies `hash`: QCB's tag is the CTX committing transform (Chan-Rogaway, ESORICS 2022)
+# instantiated with Saturnin-Hash (see src/commit.rs) — the mode cannot compile without it.
+qcb = ["dep:zeroize", "hash"]
 block-cipher = []
 hash = []
 stream = ["dep:zeroize"]
@@ -70,6 +72,11 @@ required-features = ["alloc", "qcb"]
 [[test]]
 name = "qcb_spec"
 path = "tests/qcb_spec.rs"
+required-features = ["alloc", "qcb"]
+
+[[test]]
+name = "qcb_ctx_spec"
+path = "tests/qcb_ctx_spec.rs"
 required-features = ["alloc", "qcb"]
 
 [[test]]

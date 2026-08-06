@@ -1,45 +1,55 @@
-//! Key-commitment (CMT-1) tests for the Saturnin AEAD modes.
+//! Key-commitment (CMT-1) tests for Saturnin-QCB.
 //!
 //! CMT-1 asks: can one ciphertext be made to decrypt successfully under two *distinct* keys?
 //! The standard definition lets the adversary pick the nonce and associated data on each side
 //! (only the ciphertext string is shared), which is exactly the multi-recipient / envelope
 //! setting where each recipient's blob carries its own header.
 //!
-//! Result: **Saturnin-QCB is not key-committing.** The attack has two parts:
+//! # History (card `t_16ddf21c`) — the break, and the fix
+//!
+//! **Saturnin-QCB was not key-committing.** The attack had two parts:
 //!
 //! 1. a `1/256`-per-try search for a ciphertext body whose decryption carries valid `10*`
 //!    padding under *both* keys — expected `~2^8` tries, `2` Saturnin block calls each, and
 //!    2. a closed-form solve for the second side's associated data — `6` block calls, no search.
 //!
-//! Part 1 dominates and is what the cost figure in the crate READMEs quotes; it is measured over
-//! independent key pairs by [`qcb_cmt1_attack_cost_measured`], not read off a single lucky run.
-//! Neither part searches the 256-bit tag.
-//!
-//! The cause of part 2 is structural and is visible in `qcb.rs::compute_tag`:
+//! The cause of part 2 was structural and is still visible in `qcb.rs::compute_tag`, which
+//! computes the mode's *raw, pre-commitment* tag:
 //!
 //! ```text
-//! tag = TBC_13(K, tweak(N, l))(checksum)  XOR  ad_auth
+//! T = TBC_13(K, tweak(N, l))(checksum)  XOR  ad_auth
 //! ad_auth = XOR_i TBC_11(K, tweak(N, i))(A_i)  XOR  TBC_12(K, tweak(N, j))(pad(A_*))
 //! ```
 //!
-//! `ad_auth` enters the tag by plain XOR, and `TBC_11` / `TBC_12` are *public, invertible*
-//! permutations once the key is known. An adversary who holds both keys therefore solves for the
-//! second side's associated data in closed form instead of searching for it.
+//! `ad_auth` enters `T` by plain XOR, and `TBC_11` / `TBC_12` are *public, invertible*
+//! permutations once the key is known. An adversary who holds both keys could therefore solve for
+//! the second side's associated data in closed form instead of searching for it. Note this shape
+//! was unchanged by the QCB Algorithm-1 conformance fix (five domains, the IV in every tweak,
+//! unconditional absorption of `pad(A_*)`, commit `bae2717`): that fix closed a forgery, not
+//! CMT-1.
 //!
-//! Note this shape is unchanged by the QCB Algorithm-1 conformance fix (five domains, the IV in
-//! every tweak, unconditional absorption of `pad(A_*)`): that fix closes a forgery, not CMT-1.
+//! **The fix:** `qcb.rs::encrypt`/`decrypt_core` now emit/check `T' = SaturninHash(label ‖ K ‖ N
+//! ‖ T ‖ A)` instead of `T` — the **CTX** transform (Chan-Rogaway, ESORICS 2022; see
+//! `crate::commit`). `T'` does not XOR-decompose, so the closed-form solve below no longer steers
+//! it: [`qcb_ctx_defeats_the_closed_form_ad_solve`] asserts exactly that, and would go red again
+//! if the transform were removed (see the red-then-green evidence quoted on card `t_16ddf21c`).
+//! Every step of the original attack (the padding search, the closed-form algebra) is retained
+//! verbatim below — only the verdict changed, from "side 2 decrypts" to "side 2 must not decrypt".
 //!
 //! Saturnin-CTR-Cascade (`aead.rs`) does not have this shape: its associated data is folded
 //! through a Matyas–Meyer–Oseas chain, which is not invertible in the data, so steering the
 //! running tag to a chosen value is a preimage problem. See `lib-q-aead/tests/key_commitment.rs`
 //! for the bounded search that covers it and the other registry AEADs — and for why a null
-//! search result there is **not** evidence that those modes commit.
+//! search result there is **not** evidence that those modes commit. CTR-Cascade itself has not
+//! been given a committing transform by this change (see `lib-q-saturnin/README.md` and card
+//! `t_16ddf21c`'s follow-up note); it remains non-committing.
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 
 use lib_q_saturnin::{
     Aead,
     AeadKey,
+    Error,
     Nonce,
     SaturninQcb,
     SaturninTbc,
@@ -106,17 +116,27 @@ impl Rng {
     }
 }
 
-/// One completed CMT-1 break.
-struct Break {
+/// One completed run of the CMT-1 attack *attempt*. Pre-CTX, `side2` always succeeded (the
+/// break). Post-CTX, every step through the closed-form solve still runs unchanged — only the
+/// verdict is now a returned [`lib_q_saturnin::Result`] instead of an `.expect()` panic, so
+/// callers decide what a given outcome means instead of the attack function assuming it must
+/// succeed.
+struct AttackAttempt {
     /// Padding-search tries consumed (each costs [`BLOCK_CALLS_PER_TRIAL`] block calls).
     trials: u64,
+    /// `true` iff the 1/256 dual-padding search found a body within the trial bound — i.e. the
+    /// search half of the attack still works, independent of what the closed-form solve achieves.
+    search_found: bool,
     ciphertext: Vec<u8>,
     ad2: Vec<u8>,
-    pt1: Vec<u8>,
-    pt2: Vec<u8>,
+    /// Side 1 (empty AD, the honest recipient) — must always decrypt.
+    side1: lib_q_saturnin::Result<Vec<u8>>,
+    /// Side 2 (solved AD, distinct key) — pre-CTX this decrypted (the break); post-CTX it must
+    /// fail tag verification.
+    side2: lib_q_saturnin::Result<Vec<u8>>,
 }
 
-impl Break {
+impl AttackAttempt {
     fn block_calls(&self) -> u64 {
         self.trials * BLOCK_CALLS_PER_TRIAL + FIXED_BLOCK_CALLS
     }
@@ -131,7 +151,7 @@ impl Break {
 /// block the attacker chose. `qcb.rs::unpad_len` also accepts `0x80` followed by zeros, which is
 /// marginally cheaper for the attacker (`1/255` rather than `1/256`) but would break the
 /// reconstruction, so this harness does not use it.
-fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<Break> {
+fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<AttackAttempt> {
     let aead = SaturninQcb::new();
     let msg_tbc = SaturninTbc::new(DOMAIN_MESSAGE_FINAL).unwrap();
     let tag_tbc = SaturninTbc::new(DOMAIN_TAG).unwrap();
@@ -206,21 +226,17 @@ fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<Break> 
     ad2.extend_from_slice(&b1[..31]);
     assert_eq!(ad2.len(), 63);
 
-    // ---- verdict: both sides verified through the public API only --------------------------
-    let out1 = aead
-        .decrypt(&key1, &nonce, &ciphertext, None)
-        .expect("side 1 must decrypt");
-    let out2 = aead
-        .decrypt(&key2, &nonce, &ciphertext, Some(&ad2))
-        .expect("CMT-1 break failed: side 2 did not decrypt");
-    assert_ne!(out1, out2, "the two plaintexts should differ");
+    // ---- verdict: both sides attempted through the public API only, no panics here ----------
+    let side1 = aead.decrypt(&key1, &nonce, &ciphertext, None);
+    let side2 = aead.decrypt(&key2, &nonce, &ciphertext, Some(&ad2));
 
-    Some(Break {
+    Some(AttackAttempt {
         trials,
+        search_found: true,
         ciphertext,
         ad2,
-        pt1: out1,
-        pt2: out2,
+        side1,
+        side2,
     })
 }
 
@@ -244,45 +260,76 @@ fn qcb_decrypt_oracle_discriminates() {
     );
 }
 
-/// **CMT-1 break on Saturnin-QCB.** Produces one ciphertext that decrypts successfully under two
-/// distinct 256-bit keys, with the *same* nonce.
+/// **The CMT-1 break of card `t_16ddf21c`, retained verbatim, now expected to FAIL.**
+///
+/// Every step still runs: the 1/256 padding search still finds a dual-padding body, and the
+/// closed-form solve still produces the `ad2` that satisfied the pre-CTX tag equation
+/// `tag = TBC_13(cs) XOR ad_auth`. What changed is that the transmitted tag is now
+/// `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, which does not XOR-decompose, so `ad2` no longer
+/// steers it. This test would go red again if the CTX transform were removed — see the
+/// red-then-green evidence quoted on card `t_16ddf21c`.
+///
+/// Three assertions, in order, all required or the test is vacuous:
+/// 1. the search still works (the harness itself did not silently break);
+/// 2. side 1 (empty AD, the honest recipient) still decrypts (so side 2's "no" is meaningful);
+/// 3. side 2 (the attacker's solved key + AD) now fails tag verification.
 #[test]
-fn qcb_is_not_key_committing_ad_is_solvable_in_closed_form() {
-    let brk = qcb_cmt1_attack(&[0x11u8; 32], &[0x22u8; 32], &[0x33u8; 16])
+fn qcb_ctx_defeats_the_closed_form_ad_solve() {
+    let attempt = qcb_cmt1_attack(&[0x11u8; 32], &[0x22u8; 32], &[0x33u8; 16])
         .expect("no dual-padding body in 500k tries (expected ~256)");
+
+    assert!(
+        attempt.search_found,
+        "the 1/256 padding search itself failed to find a dual-padding body — that would make \
+         side 2's failure meaningless (the whole attack setup never got off the ground)"
+    );
+    assert!(
+        attempt.side1.is_ok(),
+        "side 1 (empty AD, honest recipient) failed to decrypt its own ciphertext — the harness \
+         is broken, not the attack"
+    );
+    assert!(
+        matches!(&attempt.side2, Err(Error::VerificationFailed { .. })),
+        "CMT-1 BREAK STILL WORKS: side 2 decrypted under the solved (key2, ad2) pair — the CTX \
+         transform is not doing its job. Got: {:?}",
+        attempt.side2.as_ref().map(Vec::len)
+    );
+
     println!(
-        "QCB CMT-1 break: 1 ciphertext ({} B) valid under 2 distinct keys; \
-         padding-search tries = {}, block calls = {}, tag searches = 0; \
-         pt1 = {} B, pt2 = {} B, ad2 = {} B",
-        brk.ciphertext.len(),
-        brk.trials,
-        brk.block_calls(),
-        brk.pt1.len(),
-        brk.pt2.len(),
-        brk.ad2.len()
+        "QCB CTX regression test: 1 ciphertext ({} B), padding-search tries = {}, \
+         block calls = {}; side 1 (honest) decrypts = {}, side 2 (attacker) decrypts = {} \
+         (must be false); ad2 = {} B",
+        attempt.ciphertext.len(),
+        attempt.trials,
+        attempt.block_calls(),
+        attempt.side1.is_ok(),
+        attempt.side2.is_ok(),
+        attempt.ad2.len()
     );
 }
 
-/// **The cost figure quoted in the crate READMEs is produced here.**
+/// **Inverted: the padding search still succeeds at the predicted rate, but the break itself must
+/// now fail on every one of [`INSTANCES`] independent `(k1, k2, nonce)` triples.**
 ///
-/// A single run of the attack is one sample from a geometric distribution with `p = 2^-8`, so it
-/// says almost nothing: consecutive honest runs land anywhere from a handful of tries to a few
-/// thousand. This test runs the *complete* attack — search, closed-form solve, and verification
-/// of both sides through the public API — over [`INSTANCES`] independent `(k1, k2, nonce)`
-/// triples and reports the distribution.
+/// Before CTX, this test measured the mean cost of a break that always succeeded (the padding
+/// search's `~2^8` tries dominate; see the CHANGELOG / README history). After CTX, the *search*
+/// half of the attack is unaffected by the fix — it is purely about `qcb.rs::pad_tail` /
+/// `unpad_len` at the message layer, which CTX does not touch — so it still finds a dual-padding
+/// body at the same rate. What must change is the *outcome*: side 2 must fail on every instance.
 ///
-/// Falsifiability: the asserted band on the mean is ~±4 standard errors around the predicted
-/// `2^8`. A build in which the padding check were removed would drive the mean to 1 and fail the
-/// lower bound; a build that added any further redundancy to the message block (say a second
-/// checked byte) would drive it to ~2^16 and fail the upper bound.
+/// A build that reports "0 breaks, 0 successful searches" must FAIL, not pass — that would be the
+/// harness silently doing nothing rather than the algorithm resisting the attack. The mean-tries
+/// assertion is retained as exactly that check: it fails if the search stops finding hits (e.g. a
+/// harness bug), independent of the break-count assertion.
 #[test]
-fn qcb_cmt1_attack_cost_measured() {
+fn qcb_cmt1_attack_no_longer_breaks_commitment() {
     /// Independent key/nonce triples attacked. 200 samples put the standard error of the mean at
     /// `2^8 / sqrt(200)` ~ 18 tries.
     const INSTANCES: usize = 200;
 
     let mut rng = Rng(0x0BAD_C0DE_0000_0001);
     let mut samples: Vec<u64> = Vec::with_capacity(INSTANCES);
+    let mut breaks = 0usize;
 
     for _ in 0..INSTANCES {
         let mut k1 = [0u8; 32];
@@ -291,11 +338,26 @@ fn qcb_cmt1_attack_cost_measured() {
         rng.fill(&mut k1);
         rng.fill(&mut k2);
         rng.fill(&mut n);
-        let brk = qcb_cmt1_attack(&k1, &k2, &n).expect("padding search exhausted 500k tries");
-        samples.push(brk.trials);
+        let attempt = qcb_cmt1_attack(&k1, &k2, &n).expect("padding search exhausted 500k tries");
+        assert!(
+            attempt.search_found,
+            "padding search failed for one instance — the search half of the harness broke"
+        );
+        assert!(
+            attempt.side1.is_ok(),
+            "side 1 (honest recipient) failed to decrypt its own ciphertext for one instance"
+        );
+        if attempt.side2.is_ok() {
+            breaks += 1;
+        }
+        samples.push(attempt.trials);
     }
 
-    assert_eq!(samples.len(), INSTANCES, "every instance must have broken");
+    assert_eq!(
+        samples.len(),
+        INSTANCES,
+        "every instance must have run the search to completion"
+    );
     let total: u64 = samples.iter().sum();
     #[allow(clippy::cast_precision_loss)]
     let mean_trials = total as f64 / INSTANCES as f64;
@@ -308,16 +370,24 @@ fn qcb_cmt1_attack_cost_measured() {
     let max = sorted[INSTANCES - 1];
 
     println!(
-        "QCB CMT-1 attack cost over {INSTANCES} independent (k1,k2,nonce) instances, \
-         all of which broke: padding-search tries mean={mean_trials:.1} median={median} \
-         min={min} max={max}; Saturnin block calls mean={mean_block_calls:.0} \
-         (= 2*tries + {FIXED_BLOCK_CALLS}); tag searches = 0"
+        "QCB CMT-1 attack, post-CTX, over {INSTANCES} independent (k1,k2,nonce) instances: \
+         breaks = {breaks} (must be 0); padding-search tries mean={mean_trials:.1} \
+         median={median} min={min} max={max} — the search itself still succeeds at the \
+         predicted rate (Saturnin block calls mean={mean_block_calls:.0} = 2*tries + \
+         {FIXED_BLOCK_CALLS}); it is only the closed-form tag solve that CTX now defeats."
     );
 
+    assert_eq!(
+        breaks, 0,
+        "{breaks} of {INSTANCES} instances broke commitment — the CTX transform is not \
+         defeating the closed-form AD solve"
+    );
     assert!(
         (170.0..=350.0).contains(&mean_trials),
         "mean padding-search tries {mean_trials:.1} is outside the predicted 2^8 band \
-         170..=350 — the attack model no longer matches the implementation"
+         170..=350 — the search half of the harness no longer matches the implementation (a \
+         report of 0 breaks alongside a search that has silently stopped finding hits would be \
+         worthless, not reassuring)"
     );
 }
 
