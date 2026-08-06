@@ -4,6 +4,8 @@ Functions below are exported by **wasm-bindgen** (names in **camelCase** in Type
 
 Packages ship **dual targets**: `web/` (bundlers) and `nodejs/` (Node). Import the package root; `package.json` `exports` selects the right glue.
 
+`exports` also declares an explicit subpath for every `.wasm` file the package ships (e.g. `./web/lib_q_aead_bg.wasm`, `./nodejs/lib_q_aead_bg.wasm`), plus `./integrity-manifest.json` and `./package.json`. Use these when you must reference the binary directly — self-hosting it on a CDN, a bundler `?url`/`file`-loader import, or a Worker/Deno runtime that does not follow the glue's module-relative `new URL(..., import.meta.url)` load. The default `import '@lib-q/x'` entry point does not need this: wasm-pack's glue resolves its own `.wasm` by a path relative to itself, not through `exports`, so ordinary consumers are unaffected either way. The glue JS files themselves (e.g. `./web/lib_q_aead.js`) are not separately exported — only the package root and the files listed above.
+
 ## `@lib-q/core`
 
 Umbrella crate (`lib-q`). Feature set in CD: `wasm`, `all-algorithms`, `ml-kem`. Exposes KEM, signature, hash, AEAD, and optional algorithm paths compiled into the build.

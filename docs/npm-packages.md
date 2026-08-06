@@ -56,6 +56,8 @@ Pin by version in production (`@lib-q/core@<version>`).
 
 CD runs `wasm-pack` twice into **`pkg/web`** (bundler / browser glue) and **`pkg/nodejs`** (Node glue) so artifacts are not overwritten. Published `package.json` sets conditional `exports`: **Node** resolves the `node` condition; browser bundlers use `browser` / `module` (see `scripts/npm-publish-annotate.mjs`).
 
+`exports` is not root-only: it also lists an explicit key for every `.wasm` file the package ships (e.g. `./web/lib_q_aead_bg.wasm`, `./nodejs/lib_q_aead_bg.wasm`), plus `./integrity-manifest.json` and `./package.json`. Those subpaths exist for consumers who must name the `.wasm` binary directly — self-hosting/CDN copies, a bundler `?url` import, or a Worker/Deno build — since a bundler or Node resolving strictly through `exports` cannot otherwise reach a file that is only present in the tarball. The default `import '@lib-q/x'` entry point never needed this: wasm-pack's own glue loads its `.wasm` by a path relative to itself (`new URL(..., import.meta.url)`), which bypasses `exports` entirely. `scripts/ci-guard-npm-exports.mjs` enforces (structurally and by a real `npm pack`+install+resolve probe) that every packaged `.wasm` and `./package.json` stays reachable this way.
+
 ## WASM size and CI
 
 `scripts/wasm-size-check.sh` enforces per-crate `.wasm` size budgets on the workspace wasm gate (see `docs/wasm-compilation.md`). Budgets are intentionally loose for STARK-heavy crates; tighten after profiling your release profile.
