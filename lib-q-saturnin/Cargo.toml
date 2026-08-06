@@ -18,7 +18,16 @@ lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = fa
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
-default = ["std", "aead", "block-cipher", "hash", "stream", "qcb", "alloc"]
+# `qcb` is deliberately NOT default. QCB is nonce-catastrophic — a single nonce repeat is a
+# universal forgery, not merely a keystream leak (tests/nonce_misuse.rs) — and as of
+# 2026-08-06 it has zero consumers: every product (GIP, uGrid, My-Grid, Bitlink) reaches
+# Saturnin through `SaturninAead` (CTR-Cascade), which degrades gracefully instead. A
+# default-on mode with that failure mode and no callers is liability, so it is opt-in.
+# The mode is kept, not deprecated: its rate-1 structure (one TBC call per block, and
+# tweaks that carry the block index so blocks are independent) is the reason it is a
+# candidate for the Saturnin hardware programme, where CTR-Cascade's serial MAC chain
+# caps throughput regardless of area.
+default = ["std", "aead", "block-cipher", "hash", "stream", "alloc"]
 std = ["alloc", "lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 
