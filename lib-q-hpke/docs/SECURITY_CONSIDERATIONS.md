@@ -40,7 +40,15 @@ Utilities such as `constant_time_eq`, `constant_time_select`, and `constant_time
 ### Zeroization
 
 - Schedule secrets in contexts use [`SecretBytes`](../src/types.rs) (`Zeroizing<Vec<u8>>`).
-- [`HpkePrivateKey`](../src/types.rs) (legacy HPKE key types in the same module) zeroes its backing `Vec` on `Drop`.
+- Key material on the HPKE entry points (`setup_sender`/`setup_receiver`/`seal`/`open`) is
+  `lib_q_core::KemPublicKey`/`KemSecretKey`. It is length-checked before use: `hpke_core` rejects a
+  recipient public key whose length does not match the cipher suite's KEM, and the KEM provider
+  re-validates public and secret keys ahead of every encapsulate/decapsulate.
+- `KemSecretKey` implements `Zeroize`. Wrap long-lived key material in `Zeroizing<_>`, or call
+  `.zeroize()` on it once you are finished with it, so its buffer is scrubbed at a point you
+  control.
+- The crate does not define its own HPKE key wrapper types; use the `lib_q_core` KEM key types
+  directly.
 - [`SecureKey` / `SecureBytes`](../src/security/memory_safety.rs) provide additional wrappers for application-side secret handling.
 
 ### Validation
