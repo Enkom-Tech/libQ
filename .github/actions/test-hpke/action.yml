@@ -97,16 +97,18 @@ runs:
       shell: bash
       run: |
         echo "Running tests with no default features (explicit minimal features)..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
+        bash "$GUARD" -- cargo test --no-default-features --features "alloc,hash,ml-kem,saturnin,shake256,secure-rng"
         echo "Tests completed"
-    
+
     - name: Run tests with all features
       shell: bash
       run: |
         echo "Running tests with features: ${{ inputs.features }}"
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}"
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}"
         echo "Tests with features completed"
     
     - name: Run documentation tests
@@ -121,32 +123,39 @@ runs:
       shell: bash
       run: |
         echo "Running unit tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test unit
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test unit
         echo "Unit tests completed"
-    
+
     - name: Run integration tests
       shell: bash
       run: |
         echo "Running integration tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test integration
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test integration
         echo "Integration tests completed"
-    
+
     - name: Run RFC 9180 compliance tests
       shell: bash
       run: |
         echo "Running RFC 9180 compliance tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test rfc9180_compliance_tests
+        # `rfc9180_compliance_tests.rs` is `#![cfg(feature = "std")]`-gated; without `std` in the
+        # matrix features this step compiled to an empty binary and reported "0 passed" / exit 0
+        # while its own name claimed RFC 9180 compliance was verified (t_9f13e8e5).
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test rfc9180_compliance_tests
         echo "RFC 9180 compliance tests completed"
-    
+
     - name: Run security validation tests
       shell: bash
       run: |
         echo "Running security validation tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test security_validation_comprehensive_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_validation_comprehensive_tests
         echo "Security validation tests completed"
     
     - name: Test WASM compatibility
@@ -173,21 +182,28 @@ runs:
       shell: bash
       run: |
         echo "Running security validation tests (lib-Q integration)..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         # Test libQ integration
         cd ..
-        cargo test --features "hpke" --package lib-q
+        bash "$GUARD" -- cargo test --features "hpke" --package lib-q
         echo "Security validation tests (lib-Q integration) completed"
-    
+
     - name: Run constant-time validation
       if: inputs.run-constant-time == 'true'
       shell: bash
       run: |
-        echo "Running constant-time validation..."
+        # This checks ct-eq correctness and memory-access-pattern invariants only. The 5 real
+        # statistical timing tests in side_channel_analysis_tests.rs are #[ignore]d as
+        # environment-specific (see the file for the Welch-t-style approach used elsewhere in
+        # this repo, e.g. lib-q-hqc/tests/reed_solomon_constant_time.rs) -- this step does NOT
+        # perform statistical timing validation. See t_9f13e8e5.
+        echo "Running constant-time correctness checks (ct-eq + memory-access patterns; statistical timing tests are #[ignore]d as environment-specific)..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         # HPKE operations should be constant-time
-        cargo test --features "${{ inputs.features }}" --test side_channel
-        echo "Constant-time validation completed"
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test side_channel
+        echo "Constant-time correctness checks completed"
     
     - name: Cross-compilation test (ARM64)
       shell: bash
@@ -202,27 +218,32 @@ runs:
       shell: bash
       run: |
         echo "Testing HPKE modes..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        
-        # Test different HPKE modes
-        cargo test --features "${{ inputs.features }}" --test psk_mode_tests
-        cargo test --features "${{ inputs.features }}" --test auth_mode_tests
-        cargo test --features "${{ inputs.features }}" --test authpsk_mode_comprehensive_tests
+
+        # Test different HPKE modes. psk_mode_tests / auth_mode_tests /
+        # authpsk_mode_comprehensive_tests are all `#![cfg(feature = "std")]`-gated -- see
+        # t_9f13e8e5.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test psk_mode_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test auth_mode_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test authpsk_mode_comprehensive_tests
         echo "HPKE modes tested successfully"
-    
+
     - name: Test algorithm agnostic functionality
       shell: bash
       run: |
         echo "Testing algorithm agnostic functionality..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test algorithm_agnostic_tests
-        cargo test --features "${{ inputs.features }}" --test comprehensive_algorithm_agnostic_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test algorithm_agnostic_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test comprehensive_algorithm_agnostic_tests
         echo "Algorithm agnostic tests completed"
-    
+
     - name: Test thread safety
       shell: bash
       run: |
         echo "Testing thread safety..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test thread_safety_tests
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test thread_safety_tests
         echo "Thread safety tests completed"
