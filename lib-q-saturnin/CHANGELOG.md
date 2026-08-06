@@ -139,8 +139,10 @@ crate in more detail than the root file carries.
   claim is held below it for margin — "additional constant factors that these bounds do not take
   into account, which is why our final security claims are reduced" — not because of a NIST-LWC
   floor. Replaced the gloss with that rationale plus the best-known generic quantum figures
-  (`2^85` with unrestricted qRAM, `2^102` without; Chailloux–Naya-Plasencia–Schrottenloher, 2017)
-  everywhere it appeared. Also corrected `src/block_cipher.rs`, `src/hash.rs`, `src/stream.rs` and
+  everywhere it appeared. (Those figures were themselves miscited at the time and were corrected
+  later: `2^85.3 = 2^(n/3)` with qRAM is **Brassard–Høyer–Tapp**, LATIN '98, not CNS; CNS 2017 is
+  the `2^102.4 = 2^(2n/5)` figure, and it is qRAM-free rather than memory-free, needing `2^51.2`
+  classical memory. The memoryless generic is `2^128`.) Also corrected `src/block_cipher.rs`, `src/hash.rs`, `src/stream.rs` and
   this crate's `README.md` "Security" section, which each claimed a flat "256-bit post-quantum
   security" — a level the Saturnin submission never claims, and one contradicted by its own
   block-cipher claim box (spec §2.1: no quantum attack in the single-key setting with

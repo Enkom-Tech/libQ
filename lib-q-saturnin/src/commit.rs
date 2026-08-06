@@ -33,9 +33,14 @@
 //! best-known generic classical collision cost for a 256-bit random function is `2^128` by the
 //! birthday bound (LWC spec §5.4.1); the designers claim below that bound for margin — "additional
 //! constant factors that these bounds do not take into account, which is why our final security
-//! claims are reduced" (§5.4.1) — **not** because of a NIST-LWC floor. (Best-known generic quantum
-//! collision cost: `2^85` with unrestricted qRAM, `2^102` without; Chailloux–Naya-Plasencia–
-//! Schrottenloher, 2017.) Do not round `2^112` up to `2^128` in any doc that cites it.
+//! claims are reduced" (§5.4.1) — **not** because of a NIST-LWC floor. Best-known generic quantum
+//! collision costs at `n = 256`, all three of which the `2^75` claim sits below:
+//! `2^85.3 = 2^(n/3)` with `2^85.3` qRAM (Brassard–Høyer–Tapp, LATIN '98); `2^102.4 = 2^(2n/5)`
+//! with no qRAM but `2^51.2 = 2^(n/5)` classical memory (Chailloux–Naya-Plasencia–Schrottenloher,
+//! 2017); and `2^128` memoryless. An earlier version of this note credited BOTH the first two
+//! figures to CNS and described the second as needing no memory at all; the first is BHT's, and
+//! CNS is qRAM-free rather than memory-free. Do not round `2^112` up to `2^128` in any doc that
+//! cites it.
 //!
 //! `H` is Saturnin-Hash rather than a Keccak-based hash (`lib-q-sha3` / `lib-q-k12`) so that a
 //! hardware implementation of Saturnin does not have to also implement Keccak-f\[1600\] solely to
