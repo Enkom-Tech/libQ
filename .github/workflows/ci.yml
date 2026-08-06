@@ -103,6 +103,23 @@ jobs:
       - name: Guard KAT vector provenance
         run: bash ./scripts/ci-guard-kat-provenance.sh
 
+      # Static analysis of .github/**/*.yml itself: catches a NEW `cargo test` call site landing
+      # in one of the three shapes proven in this repo to report green without doing what its name
+      # claims (R1 piped output, R2 unguarded dead name filter, R3 `|| true`/`|| echo` masking a
+      # cargo failure). Complements ci-guard-no-vacuous-tests.sh (the runtime guard wrapping
+      # individual call sites): that one catches a guarded filter going dead at RUN time; this one
+      # catches an UNguarded call site at review time. Static and stdlib-only, no cargo, no network.
+      - name: Guard vacuous-capable cargo test call shapes in .github/
+        run: bash ./scripts/ci-guard-vacuous-test-shapes.sh
+
+      # `#[cfg(any())]` is the always-disabled idiom (never true, no feature flag re-enables it) --
+      # the same defect class the guard above covers in CI workflow YAML, but this one looks inside
+      # Rust source itself, where a `cargo test -p <crate>` step can report "N passed" while an
+      # entire `mod tests { ... }` never compiled into that N. KNOWN_DEBT allowlist may only
+      # shrink. Static: a `git grep`, no cargo, no network.
+      - name: Guard against disabled (#[cfg(any())]) test modules
+        run: bash ./scripts/ci-guard-no-disabled-test-modules.sh
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:
@@ -337,7 +354,8 @@ jobs:
       - name: Run recursive aggregation test (release)
         run: |
           rm -rf target/release-ci
-          cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
             --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
             -- --test-threads=1
 
@@ -1381,7 +1399,11 @@ jobs:
           - name: "HPKE"
             action: test-hpke
             working-directory: lib-q-hpke
-            features: "ml-kem,saturnin,shake256,hash,secure-rng"
+            # 20 lib-q-hpke/tests/*.rs files carry `#![cfg(feature = "std")]` (grep -ln
+            # '#!\[cfg(feature = "std")\]' lib-q-hpke/tests/*.rs); without `std` here they compile
+            # to EMPTY binaries -- every one of those steps reported "0 passed" and still exited 0
+            # (t_9f13e8e5).
+            features: "std,ml-kem,saturnin,shake256,hash,secure-rng"
             rust-version: "stable"
             run-benchmarks: "false"
             run-security-tests: "true"
@@ -1518,9 +1540,10 @@ jobs:
       - name: SCA HQC timing smoke (dudect-style)
         if: matrix.action == 'test-hqc'
         run: |
-          cargo test -p lib-q-hqc --release --features hardened --test hardened_dudect_smoke -- --exact hardened_dudect_smoke_decapsulate
-          cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
-          cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-hqc --release --features hardened --test hardened_dudect_smoke -- --exact hardened_dudect_smoke_decapsulate
+          bash "$GUARD" -- cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
+          bash "$GUARD" -- cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
 
       # Card t_2d79cd69 item 3: Reed-Solomon `decode()` took a secret-dependent early-return
       # branch on all-zero syndromes (fixed on this branch). `--release` is not optional here —
@@ -1632,13 +1655,23 @@ jobs:
       - name: Run SIMD unit tests
         run: |
           cd lib-q-hqc
-          RUST_SIMD_DEBUG=1 cargo test --features "simd-avx2,alloc,hqc128" \
-            simd_unit_tests --verbose
-      
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # `simd_unit_tests` is the FILE name (tests/simd_unit_tests.rs), not a test function name
+          # -- the functions are `tests::test_shift_xor_*` / `tests::test_sparse_dense_mul_*` -- so
+          # the old bare positional filter matched nothing and reported "0 passed" at exit 0.
+          # Select the binary explicitly instead.
+          RUST_SIMD_DEBUG=1 bash "$GUARD" -- cargo test --features "simd-avx2,alloc,hqc128" \
+            --test simd_unit_tests --verbose
+
       - name: Run cross-implementation validation
         run: |
           cd lib-q-hqc
-          cargo test --features "simd-avx2,alloc,hqc128" cross_implementation --verbose
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # The `compliance` test target (which hosts `mod cross_implementation;`) declares
+          # `required-features = ["alloc", "hqc", "random"]`; this step's features carried
+          # `hqc128` (a parameter-set feature) but neither the bare `hqc` nor `random` feature, so
+          # Cargo silently never built that binary at all -- not a compile error, a silent skip.
+          bash "$GUARD" -- cargo test --features "simd-avx2,alloc,hqc128,hqc,random" cross_implementation --verbose
 
   # ML-DSA compliance testing
   ml-dsa-compliance:
@@ -1681,7 +1714,8 @@ jobs:
             --test interoperability_tests --test wire_format_tests
           cargo test -p lib-q-ml-dsa --features "hardened,random,mldsa44" --lib --verbose
           cargo test --features "hardened,random,mldsa44,mldsa65,mldsa87" --test nistkats --verbose
-          cargo test --test wire_format_tests test_against_saved_interop_vectors
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test --test wire_format_tests test_against_saved_interop_vectors
 
       # Push / schedule / manual: full script (tests, clippy, audit from workspace root, etc.).
       - name: ML-DSA full security audit
@@ -1756,10 +1790,16 @@ jobs:
         run: cargo test -p lib-q-sca-test --verbose
 
       - name: SCA lattice-zkp hardened prove smoke
-        run: cargo test -p lib-q-sca-test --features lattice-zkp-hardened lattice_zkp_hardened_prove_dudect_smoke --verbose
+        run: |
+          # `lattice_zkp_hardened_prove_dudect_smoke` verified live via `-- --list` in 2026-08.
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-sca-test --features lattice-zkp-hardened lattice_zkp_hardened_prove_dudect_smoke --verbose
 
       - name: SCA self-certification battery smoke
-        run: cargo test -p lib-q-sca-test --features lattice-zkp-hardened --test self_cert_report self_cert_smoke --verbose
+        run: |
+          # `self_cert_smoke` verified live via `-- --list --exact` in 2026-08.
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-sca-test --features lattice-zkp-hardened --test self_cert_report self_cert_smoke --verbose
 
       - name: Test ML-KEM integration
         run: |

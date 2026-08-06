@@ -122,6 +122,7 @@ runs:
       shell: bash
       run: |
         echo "🔗 Checking per-crate feature wiring (no cross-crate feature unification)..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd "${{ github.workspace }}"
         for p in lib-q-fn-dsa-comm lib-q-fn-dsa-kgen lib-q-fn-dsa-sign; do
           cargo check -p "$p" --features shake256x4
@@ -130,15 +131,15 @@ runs:
           cargo check -p "$p" --all-features
         done
         # Manifest-level guard for the same invariant (fails without building the broken config).
-        cargo test -p lib-q-fn-dsa-kgen --test feature_forwarding
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-kgen --test feature_forwarding
         # SHAKE256x4 must equal four 64-bit-interleaved SHAKE256 streams on BOTH dispatch
         # paths; x86_64 takes the AVX2 branch unless no_avx2 forces the portable one.
-        cargo test -p lib-q-fn-dsa-comm --features shake256x4 shake256x4
-        cargo test -p lib-q-fn-dsa-comm --features shake256x4,no_avx2 shake256x4
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-comm --features shake256x4 shake256x4
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-comm --features shake256x4,no_avx2 shake256x4
         # Exercises the feature through keygen/signing (gauss::sample_tv carries its own
         # shake256x4 test-vector set).
-        cargo test -p lib-q-fn-dsa-kgen --features shake256x4
-        cargo test -p lib-q-fn-dsa-sign --features shake256x4
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-kgen --features shake256x4
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-sign --features shake256x4
         echo "✅ Per-crate feature wiring verified"
 
     - name: Run quick FN-DSA smoke tests
@@ -146,11 +147,12 @@ runs:
       run: |
         echo "🧪 Running quick FN-DSA smoke tests (release)..."
         echo "Full keygen KAT + std degrees (manual / pre-release): cargo test -p lib-q-fn-dsa-kgen -- --ignored --release --test-threads=1"
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         rm -rf target/release-ci
         cd "${{ github.workspace }}"
-        cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
-        cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
-        cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "${{ inputs.features }}"
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "${{ inputs.features }}"
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "${{ inputs.features }}"
         echo "✅ Quick smoke tests completed"
     
     - name: Run security tests
@@ -162,17 +164,21 @@ runs:
         cargo test --test security_tests --features "${{ inputs.features }}" --verbose
         echo "✅ Security tests completed"
     
-    - name: Constant-time operation verification
+    - name: Statistical timing check (sign, Welch t)
       if: inputs.run-constant-time == 'true'
       shell: bash
       run: |
-        echo "⏱️ Verifying constant-time operations..."
+        echo "⏱️ Statistical timing check (sign, Welch t, release-ci build)..."
         GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
-        cd ${{ inputs.working-directory }}
-        # Run specific tests that verify constant-time behavior. A dead name filter here would
-        # otherwise exit 0 with 0 tests run (see the guard script for the proven repro).
-        bash "$GUARD" -- cargo test --test security_tests --features "${{ inputs.features }}" -- constant_time
-        echo "✅ Constant-time verification completed"
+        cd "${{ github.workspace }}"
+        # tests/constant_time.rs's two timing tests are #[cfg_attr(debug_assertions, ignore)] --
+        # without --profile release-ci both are ignored, this step reports 0 passed, and the
+        # guard fails loudly rather than reporting a silent pass (t_9d1766f3 profile-drop
+        # tripwire). See that file's module doc for exactly what this does and does not measure:
+        # mean wall-clock timing over n=1000 samples/class on message and key axes -- not
+        # cycle-accurate, single-trace, or microarchitectural evidence.
+        bash "$GUARD" -- cargo test -p lib-q-fn-dsa --profile release-ci --test constant_time --features "${{ inputs.features }}" -- --nocapture
+        echo "✅ Statistical timing check completed"
     
     - name: Run benchmarks
       if: inputs.run-benchmarks == 'true'

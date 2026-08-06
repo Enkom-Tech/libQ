@@ -149,8 +149,14 @@ runs:
         GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test security_tests
-        cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_secure_creation
-        cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_deterministic_consistency
+        # OBSERVED 2026-08: `provider::tests::test_libq_rng_secure_creation` does not exist
+        # anywhere in this repo (`grep -rln` over every tracked .rs file: no hits) -- this line
+        # matched 0 of every test binary's tests and reported green regardless. The closest
+        # surviving test asserting the same "secure" RNG capability is
+        # `test_libq_rng_provider_capabilities` (`assert!(caps.secure)`); run that instead,
+        # guarded.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_provider_capabilities
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" provider::tests::test_libq_rng_deterministic_consistency
         echo "✅ Security tests completed"
 
     - name: Run constant-time verification
@@ -220,10 +226,11 @@ runs:
       shell: bash
       run: |
         echo "Testing entropy source availability..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" entropy::tests::test_os_entropy_source_creation
-        cargo test --features "${{ inputs.features }}" entropy::tests::test_hardware_entropy_source_creation
-        cargo test --features "${{ inputs.features }}" entropy::tests::test_deterministic_entropy_source_creation
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" entropy::tests::test_os_entropy_source_creation
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" entropy::tests::test_hardware_entropy_source_creation
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" entropy::tests::test_deterministic_entropy_source_creation
         echo "✅ Entropy source availability tests completed"
     
     - name: RNG test summary
