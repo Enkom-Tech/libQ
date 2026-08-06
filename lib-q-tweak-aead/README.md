@@ -44,7 +44,7 @@ evidence that they commit — read the box under the table before quoting any ro
 
 | Mode | Key / tag | CMT-1 status |
 |---|---|---|
-| `SaturninQcb` | 256 / 256-bit | **BROKEN.** Cheap search then closed-form algebra. Measured over 200 independent key pairs, all of which broke: mean **249** padding-search tries ≈ **~500 Saturnin block calls** (median 201, min 1, max 1316), and **0** searches of the 256-bit tag. Cause: associated data enters the tag by plain XOR through a public keyed permutation, so side 2's associated data is *solved*, not searched. |
+| `SaturninQcb` | 256 / 256-bit | **BROKEN.** Cheap search then closed-form algebra. Measured over 200 independent key pairs, all of which broke: mean **270** padding-search tries ≈ **~546 Saturnin block calls** (median 191, min 2, max 2492), and **0** searches of the 256-bit tag. Cause: associated data enters the tag by plain XOR through a public keyed permutation, so side 2's associated data is *solved*, not searched. |
 | `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). |
 | `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |

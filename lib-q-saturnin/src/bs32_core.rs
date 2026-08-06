@@ -37,7 +37,7 @@ impl SaturninBs32Core {
             });
         }
 
-        let round_constants = Self::get_round_constants(num_super_rounds, domain);
+        let round_constants = Self::packed_round_constants(num_super_rounds, domain);
 
         Ok(Self {
             round_constants,
@@ -45,65 +45,49 @@ impl SaturninBs32Core {
         })
     }
 
-    /// Get round constants for the given number of super-rounds and domain
-    fn get_round_constants(num_super_rounds: usize, domain: u8) -> Vec<u32> {
-        // Use hardcoded constants from bs32 implementation
-        if num_super_rounds == 16 {
-            match domain {
-                7 => {
-                    #[cfg(feature = "alloc")]
-                    {
-                        use alloc::vec;
-                        vec![
-                            0x3FBA180C, 0x563AB9AB, 0x125EA5EF, 0x859DA26C, 0xB8CF779B, 0x7D4DE793,
-                            0x07EFB49F, 0x8D525306, 0x1E08E6AB, 0x41729F87, 0x8C4AEF0A, 0x4AA0C9A7,
-                            0xD93A95EF, 0xBB00D2AF, 0xB62C5BF0, 0x386D94D8,
-                        ]
-                    }
-                    #[cfg(not(feature = "alloc"))]
-                    {
-                        // Fallback for no_std without alloc
-                        Self::generate_round_constants_lfsr(num_super_rounds, domain)
-                    }
-                }
-                8 => {
-                    #[cfg(feature = "alloc")]
-                    {
-                        use alloc::vec;
-                        vec![
-                            0x3C9B19A7, 0xA9098694, 0x23F878DA, 0xA7B647D3, 0x74FC9D78, 0xEACAAE11,
-                            0x2F31A677, 0x4CC8C054, 0x2F51CA05, 0x5268F195, 0x4F5B8A2B, 0xF614B4AC,
-                            0xF1D95401, 0x764D2568, 0x6A493611, 0x8EEF9C3E,
-                        ]
-                    }
-                    #[cfg(not(feature = "alloc"))]
-                    {
-                        // Fallback for no_std without alloc
-                        Self::generate_round_constants_lfsr(num_super_rounds, domain)
-                    }
-                }
-                _ => Self::generate_round_constants_lfsr(num_super_rounds, domain),
-            }
-        } else {
-            Self::generate_round_constants_lfsr(num_super_rounds, domain)
-        }
+    /// The packed round constants this core was built with — `(RC1 << 16) | RC0` per
+    /// super-round. Mirrors [`crate::core::SaturninCore::round_constants`].
+    pub fn round_constants(&self) -> &[u32] {
+        &self.round_constants
     }
 
-    /// Generate round constants using LFSR (fallback for non-standard parameters)
-    fn generate_round_constants_lfsr(num_super_rounds: usize, domain: u8) -> Vec<u32> {
+    /// Generate the packed bs32 round constants for the given number of super-rounds and domain.
+    ///
+    /// Always derived from the specification's LFSR — there are no special cases, and there must
+    /// not be. `docs/HARDWARE.md` says this in as many words ("generate constants, don't ROM
+    /// them"): a ROM table is exactly the trap that lets a broken generator go unnoticed, which is
+    /// what happened here.
+    ///
+    /// This function previously special-cased `(16, 7)` and `(16, 8)` with tables hand-copied from
+    /// the designers' bit-sliced reference "for hash compatibility". The tables themselves were
+    /// correct — but the LFSR beneath them was not: it kept its shift-register state in a `u32`
+    /// that was never truncated back to the specification's 16 bits, and
+    /// `0x2D & (!(x0 >> 15).wrapping_add(1))` does not parse as the intended two's-complement mask
+    /// `0x2D & (-(x0 >> 15))` (method-call precedence binds `.wrapping_add(1)` before the `!`, so
+    /// the expression computes `!((x0 >> 15) + 1)` instead of `!(x0 >> 15) + 1`). The ROM tables
+    /// silently masked both bugs at exactly the two configurations the crate ships (Saturnin-Hash),
+    /// while every other `(rounds, domain)` pair — reachable through this same public API — got a
+    /// permutation that is not Saturnin. See `tests/bs32_lfsr_and_inverse.rs`, which fails on the
+    /// broken LFSR across a grid of non-hash-domain configurations (the two ROM configurations
+    /// alone cannot exercise this bug, precisely because the ROM was masking it).
+    ///
+    /// One derivation rule, one point of truth — the same precedent `core.rs` already adopted for
+    /// `SaturninCore`.
+    fn packed_round_constants(num_super_rounds: usize, domain: u8) -> Vec<u32> {
         let mut constants = Vec::with_capacity(num_super_rounds);
-        let mut x0 = (domain as u32)
-            .wrapping_add((num_super_rounds as u32) << 4)
+        let mut x0: u16 = (domain as u16)
+            .wrapping_add((num_super_rounds as u16) << 4)
             .wrapping_add(0xFE00);
-        let mut x1 = x0;
+        let mut x1: u16 = x0;
 
         for _ in 0..num_super_rounds {
-            // Generate 32 bits for each constant (combining two 16-bit values)
+            // Clock 16 times per super-round; state stays truncated to 16 bits every step
+            // (`u16` arithmetic), matching the specification's two 16-bit shift registers.
             for _ in 0..16 {
-                x0 = (x0 << 1) ^ (0x2D & (!(x0 >> 15).wrapping_add(1)));
-                x1 = (x1 << 1) ^ (0x53 & (!(x1 >> 15).wrapping_add(1)));
+                x0 = (x0 << 1) ^ (0x2D & (x0 >> 15).wrapping_neg());
+                x1 = (x1 << 1) ^ (0x53 & (x1 >> 15).wrapping_neg());
             }
-            constants.push((x1 << 16) | x0);
+            constants.push(((x1 as u32) << 16) | (x0 as u32));
         }
         constants
     }
@@ -223,53 +207,47 @@ impl SaturninBs32Core {
         let mut q = [0u32; 8];
         self.decode_block(block, &mut q);
 
-        // XOR with keybuf[0..8] (initial key)
-        for i in 0..8 {
-            q[i] ^= keybuf[i];
-        }
-
-        // Run rounds in reverse order (decryption)
-        for i in (0..self.num_super_rounds).rev().step_by(2) {
-            // Process two super-rounds per iteration (reverse order)
-
-            // Second super-round (odd round, r = 3 mod 4)
-            if i + 1 < self.num_super_rounds {
-                // XOR with keybuf[8..16] (rotated key)
+        // NOTE: no initial key XOR here. Encrypt's *first* action is
+        // `q[j] ^= keybuf[j]` (the normal key) before round 0 runs; that XOR is undone by the
+        // final `keybuf[0..8]` XOR below, symmetrically, only after every round has been undone
+        // in reverse order.
+        //
+        // Each super-round `i` (single-stepped, not paired — pairing the reverse loop by twos
+        // with `step_by(2)` is what silently dropped one super-round whenever
+        // `num_super_rounds` was even) is undone by first reversing the key/constant XOR that
+        // encrypt applies *after* that round's transform (rotated key on even `i`, normal key on
+        // odd `i` — see `encrypt_block`), then reversing the transform itself:
+        // `SR(forward); MDS_INV; SR_INV` mirrors encrypt's `SR; MDS; SR_INV` because MDS is the
+        // only non-involutory step in that triple, and finally undoing the leading/trailing S-box
+        // pair with the real `SBOX_INV`/`MDS_INV` circuits (S-box and MDS are emphatically not
+        // their own inverses in Saturnin).
+        for i in (0..self.num_super_rounds).rev() {
+            if i % 2 == 0 {
+                // Undo the rotated-key XOR encrypt applies after an even (slice) super-round.
                 for j in 0..8 {
                     q[j] ^= keybuf[j + 8];
                 }
-
-                // XOR with round constant
-                q[0] ^= self.round_constants[i + 1];
-                q[4] ^= self.round_constants[i + 1];
-
-                // Apply inverse operations
-                self.apply_shift_rows_sheet_inv(&mut q);
+                q[0] ^= self.round_constants[i];
+                self.apply_shift_rows_slice(&mut q);
                 self.apply_mds_inv(&mut q);
-                self.apply_shift_rows_sheet_inv(&mut q);
-                self.apply_sbox_inv(&mut q);
-            }
-
-            // First super-round (even round, r = 1 mod 4)
-            if i < self.num_super_rounds {
-                // XOR with keybuf[0..8] (normal key)
+                self.apply_shift_rows_slice_inv(&mut q);
+            } else {
+                // Undo the normal-key XOR encrypt applies after an odd (sheet) super-round.
                 for j in 0..8 {
                     q[j] ^= keybuf[j];
                 }
-
-                // XOR with round constant
                 q[0] ^= self.round_constants[i];
-                q[4] ^= self.round_constants[i];
-
-                // Apply inverse operations
-                self.apply_shift_rows_slice_inv(&mut q);
+                self.apply_shift_rows_sheet(&mut q);
                 self.apply_mds_inv(&mut q);
-                self.apply_shift_rows_slice_inv(&mut q);
-                self.apply_sbox_inv(&mut q);
+                self.apply_shift_rows_sheet_inv(&mut q);
             }
+
+            self.apply_sbox_inv(&mut q);
+            self.apply_mds_inv(&mut q);
+            self.apply_sbox_inv(&mut q);
         }
 
-        // Final XOR with keybuf[0..8]
+        // Undo encrypt's initial XOR with the normal key.
         for i in 0..8 {
             q[i] ^= keybuf[i];
         }
@@ -434,6 +412,26 @@ impl SaturninBs32Core {
         q[3] = tmp ^ q[0];
     }
 
+    /// Inverse of [`Self::mul_column_4_7`] (`MUL_INV` from the designers' bs32 reference,
+    /// `crypto_aead/saturninctrcascadev2/bs32/encrypt.c`). `mul_column_4_7` maps
+    /// `(a, b, c, d) -> (b, c, d, a^b)`; this maps that result back to `(a, b, c, d)`.
+    fn mul_column_4_7_inv(&self, q: &mut [u32; 8]) {
+        let (t0, t1, t2, t3) = (q[4], q[5], q[6], q[7]);
+        q[4] = t3 ^ t0;
+        q[5] = t0;
+        q[6] = t1;
+        q[7] = t2;
+    }
+
+    /// Inverse of [`Self::mul_column_0_3`] — see [`Self::mul_column_4_7_inv`].
+    fn mul_column_0_3_inv(&self, q: &mut [u32; 8]) {
+        let (t0, t1, t2, t3) = (q[0], q[1], q[2], q[3]);
+        q[0] = t3 ^ t0;
+        q[1] = t0;
+        q[2] = t1;
+        q[3] = t2;
+    }
+
     /// Swap words (SW operation)
     fn swap_words(&self, x: u32) -> u32 {
         x.rotate_left(16)
@@ -539,16 +537,68 @@ impl SaturninBs32Core {
             ((q[7] >> 12) & 0x000F0000);
     }
 
-    /// Apply inverse S-box transformation
+    /// Apply the inverse S-box transformation.
+    ///
+    /// Neither the S-box nor the MDS layer is its own inverse in Saturnin — the designers ship
+    /// distinct `SBOX_INV` / `MDS_INV` circuits in their own bs32 reference
+    /// (`crypto_aead/saturninctrcascadev2/bs32/encrypt.c:133-201`), which this and
+    /// [`Self::apply_mds_inv`] transliterate. (Refuted exhaustively: forward S-box applied twice,
+    /// and forward MDS applied twice, do not return the identity.)
     fn apply_sbox_inv(&self, q: &mut [u32; 8]) {
-        // S-box is its own inverse in Saturnin
-        self.apply_sbox(q);
+        // inv_sigma_0 on q0-q3
+        let (mut b, mut c, mut d, mut a) = (q[0], q[1], q[2], q[3]);
+        a ^= b | d;
+        b ^= a | c;
+        c ^= b & d;
+        d ^= b | c;
+        b ^= a | d;
+        a ^= b & c;
+        q[0] = a;
+        q[1] = b;
+        q[2] = c;
+        q[3] = d;
+
+        // inv_sigma_1 on q4-q7 — same six operations, different register wiring in/out.
+        let (mut d2, mut b2, mut a2, mut c2) = (q[4], q[5], q[6], q[7]);
+        a2 ^= b2 | d2;
+        b2 ^= a2 | c2;
+        c2 ^= b2 & d2;
+        d2 ^= b2 | c2;
+        b2 ^= a2 | d2;
+        a2 ^= b2 & c2;
+        q[4] = a2;
+        q[5] = b2;
+        q[6] = c2;
+        q[7] = d2;
     }
 
-    /// Apply inverse MDS transformation
+    /// Apply the inverse MDS transformation (`MDS_INV` — see [`Self::apply_sbox_inv`] for why
+    /// this is not just [`Self::apply_mds`] again).
     fn apply_mds_inv(&self, q: &mut [u32; 8]) {
-        // MDS is its own inverse in Saturnin
-        self.apply_mds(q);
+        q[4] ^= self.swap_words(q[0]);
+        q[5] ^= self.swap_words(q[1]);
+        q[6] ^= self.swap_words(q[2]);
+        q[7] ^= self.swap_words(q[3]);
+
+        q[0] ^= q[4];
+        q[1] ^= q[5];
+        q[2] ^= q[6];
+        q[3] ^= q[7];
+
+        self.mul_column_0_3_inv(q);
+        self.mul_column_0_3_inv(q);
+
+        q[4] ^= self.swap_words(q[0]);
+        q[5] ^= self.swap_words(q[1]);
+        q[6] ^= self.swap_words(q[2]);
+        q[7] ^= self.swap_words(q[3]);
+
+        self.mul_column_4_7_inv(q);
+
+        q[0] ^= q[4];
+        q[1] ^= q[5];
+        q[2] ^= q[6];
+        q[3] ^= q[7];
     }
 }
 
@@ -577,8 +627,11 @@ mod tests {
         core.encrypt_block(&key, &mut block).unwrap();
         assert_ne!(block, original);
 
-        // Note: We don't test decryption here since bs32 is primarily for hash
-        // and the round structure is different from the ref implementation
+        // decrypt_block is a real inverse of encrypt_block (see tests/bs32_lfsr_and_inverse.rs
+        // for the same property checked across the full (rounds, domain) grid, plus
+        // cross-checked against `crate::core::SaturninCore`).
+        core.decrypt_block(&key, &mut block).unwrap();
+        assert_eq!(block, original);
     }
 
     #[test]

@@ -117,6 +117,138 @@ fn test_aead_kat() -> Result<()> {
     Ok(())
 }
 
+/// Official LWC KAT file for `saturninctrcascadev2` (NIST LWC round-2 submission, the
+/// general Saturnin-CTR-Cascade AEAD tested via `test_aead_kat` above). Vendored under
+/// `tests/fixtures/`: a byte-for-byte copy of the reference distribution's
+/// `saturninctrcascadev2/LWC_AEAD_KAT_256_128.txt` (1089 vectors; plaintext and
+/// associated-data lengths each range 0..=32 bytes). Diffed against
+/// `reference/saturnin/...` on vendoring.
+///
+/// Provenance pin — upstream
+/// `reference/saturnin/Implementations/crypto_aead/saturninctrcascadev2/LWC_AEAD_KAT_256_128.txt`
+/// (NIST LWC round-2 Saturnin submission, gitignored in this repo) has
+/// `sha256 = 1bda041286ecb3e8f6356034d878f135a86361a15275b77bc93a530cc6c96aec`, and the vendored
+/// copy hashed identically at vendoring time. Re-verify with
+/// `sha256sum <upstream> lib-q-saturnin/tests/fixtures/LWC_AEAD_KAT_256_128_saturninctrcascadev2.txt`.
+/// The hash is over the upstream LF bytes; a Windows checkout with `core.autocrlf=true`
+/// materialises CRLF and will hash differently — compare with `diff --strip-trailing-cr` there.
+/// These bytes are the designers' own output and must never be regenerated from this crate.
+#[cfg(all(feature = "alloc", feature = "aead"))]
+const SATURNIN_AEAD_LWC_KAT: &str =
+    include_str!("fixtures/LWC_AEAD_KAT_256_128_saturninctrcascadev2.txt");
+
+/// One official AEAD KAT case: `(key, nonce, plaintext, associated_data, expected_ct)`.
+#[cfg(all(feature = "alloc", feature = "aead"))]
+type AeadKatCase = (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>);
+
+/// Parse `LWC_AEAD_KAT_256_128.txt` (ctr-cascade variant) blocks into
+/// `(key, nonce, pt, ad, expected_ct)` tuples. Unlike the Saturnin-Short parser,
+/// associated data is not required to be empty here.
+#[cfg(all(feature = "alloc", feature = "aead"))]
+fn parse_saturnin_aead_lwc_kat(data: &str) -> Vec<AeadKatCase> {
+    let mut out = Vec::new();
+    let mut key = Vec::new();
+    let mut nonce = Vec::new();
+    let mut pt = Vec::new();
+    let mut ad = Vec::new();
+    let mut ct = Vec::new();
+    let mut have_block = false;
+
+    for line in data.lines() {
+        // NOTE: do not `.trim()` this line — an empty-valued field is written as
+        // `"Field = "` (trailing space, nothing after); trimming it strips that
+        // trailing space too and `strip_prefix("Field = ")` then silently fails to
+        // match, dropping the whole record. `str::lines()` already strips the
+        // line terminator (including a trailing `\r`), so the raw line is safe to
+        // match against directly.
+        if line.is_empty() {
+            if have_block && key.len() == 32 && nonce.len() == 16 {
+                out.push((
+                    key.clone(),
+                    nonce.clone(),
+                    pt.clone(),
+                    ad.clone(),
+                    ct.clone(),
+                ));
+            }
+            key.clear();
+            nonce.clear();
+            pt.clear();
+            ad.clear();
+            ct.clear();
+            have_block = false;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("Key = ") {
+            key = hex_to_bytes(rest);
+            have_block = true;
+        } else if let Some(rest) = line.strip_prefix("Nonce = ") {
+            nonce = hex_to_bytes(rest);
+        } else if let Some(rest) = line.strip_prefix("PT = ") {
+            pt = hex_to_bytes(rest);
+        } else if let Some(rest) = line.strip_prefix("AD = ") {
+            ad = hex_to_bytes(rest);
+        } else if let Some(rest) = line.strip_prefix("CT = ") {
+            ct = hex_to_bytes(rest);
+        }
+    }
+    if have_block && key.len() == 32 && nonce.len() == 16 {
+        out.push((key, nonce, pt, ad, ct));
+    }
+    out
+}
+
+/// All 1089 vectors from the official reference `LWC_AEAD_KAT_256_128.txt`
+/// (`saturninctrcascadev2`).
+///
+/// This is the live enforcement of the provenance claim on the vendored fixture:
+/// previously `tests/kat_aead.txt` made the same claim but was never read by any
+/// test, and 3 of its 10 records (Count 8..10) turned out to be a fabricated filler
+/// pattern with metadata that didn't even match the real reference record at that
+/// Count. That file has been deleted; this test reads the real, diffed-verbatim
+/// reference file instead.
+#[cfg(all(feature = "alloc", feature = "aead"))]
+#[test]
+fn test_aead_kat_full_official_vectors() -> Result<()> {
+    let aead = SaturninAead::new();
+    let cases = parse_saturnin_aead_lwc_kat(SATURNIN_AEAD_LWC_KAT);
+    assert_eq!(
+        cases.len(),
+        1089,
+        "expected all 1089 official Saturnin-AEAD (ctr-cascade) KAT vectors"
+    );
+
+    for (count, (key_bytes, nonce_bytes, pt, ad, expected_ct)) in cases.into_iter().enumerate() {
+        let key = AeadKey::new(key_bytes);
+        let nonce = Nonce::new(nonce_bytes);
+        let ad_opt = if ad.is_empty() {
+            None
+        } else {
+            Some(ad.as_slice())
+        };
+
+        let ciphertext = aead.encrypt(&key, &nonce, &pt, ad_opt)?;
+        assert_eq!(
+            ciphertext,
+            expected_ct,
+            "encrypt mismatch at official KAT Count={} (pt len {}, ad len {})",
+            count + 1,
+            pt.len(),
+            ad.len()
+        );
+
+        let decrypted = aead.decrypt(&key, &nonce, &ciphertext, ad_opt)?;
+        assert_eq!(
+            decrypted,
+            pt,
+            "decrypt mismatch at official KAT Count={}",
+            count + 1
+        );
+    }
+
+    Ok(())
+}
+
 /// Official LWC KAT file for `saturninshortv2` (NIST LWC round-2 submission; AD always empty).
 /// Vendored under `tests/fixtures/`.
 #[cfg(all(feature = "alloc", feature = "aead-short"))]
@@ -139,7 +271,12 @@ fn parse_saturnin_short_lwc_kat(data: &str) -> Vec<ShortKatCase> {
     let mut have_block = false;
 
     for line in data.lines() {
-        let line = line.trim();
+        // NOTE: do not `.trim()` this line — an empty-valued field is written as
+        // `"Field = "` (trailing space, nothing after); trimming it strips that
+        // trailing space too and `strip_prefix("Field = ")` then silently fails to
+        // match, dropping the whole record. `str::lines()` already strips the
+        // line terminator (including a trailing `\r`), so the raw line is safe to
+        // match against directly.
         if line.is_empty() {
             if have_block && key.len() == 32 && nonce.len() == 16 && ct.len() == 32 {
                 assert!(
@@ -205,6 +342,97 @@ fn test_aead_short_kat() -> Result<()> {
 
         let decrypted = aead.decrypt(&key, &nonce, &ciphertext, None)?;
         assert_eq!(decrypted, plaintext);
+    }
+
+    Ok(())
+}
+
+/// Official LWC KAT file for `saturninhashv2` (NIST LWC round-2 submission).
+/// Vendored under `tests/fixtures/`: a byte-for-byte copy of the reference
+/// distribution's `saturninhashv2/LWC_HASH_KAT_256.txt` (1025 vectors, message
+/// lengths 0..=1024 bytes). Diffed against `reference/saturnin/...` on vendoring.
+///
+/// Provenance pin — upstream
+/// `reference/saturnin/Implementations/crypto_hash/saturninhashv2/LWC_HASH_KAT_256.txt`
+/// (NIST LWC round-2 Saturnin submission, gitignored in this repo) has
+/// `sha256 = c5d45e76325766f330070434cc24fb6ca7bab151df9707f2327247806acc7e52`, and the vendored
+/// copy hashed identically at vendoring time. Re-verify with
+/// `sha256sum <upstream> lib-q-saturnin/tests/fixtures/LWC_HASH_KAT_256_saturninhashv2.txt`.
+/// The hash is over the upstream LF bytes; a Windows checkout with `core.autocrlf=true`
+/// materialises CRLF and will hash differently — compare with `diff --strip-trailing-cr` there.
+/// These bytes are the designers' own output and must never be regenerated from this crate.
+#[cfg(all(feature = "alloc", feature = "hash"))]
+const SATURNIN_HASH_LWC_KAT: &str = include_str!("fixtures/LWC_HASH_KAT_256_saturninhashv2.txt");
+
+/// One official hash KAT case: `(message, expected_digest)`.
+#[cfg(all(feature = "alloc", feature = "hash"))]
+type HashKatCase = (Vec<u8>, Vec<u8>);
+
+/// Parse `LWC_HASH_KAT_256.txt` blocks into `(msg, expected_md)` tuples.
+#[cfg(all(feature = "alloc", feature = "hash"))]
+fn parse_saturnin_hash_lwc_kat(data: &str) -> Vec<HashKatCase> {
+    let mut out = Vec::new();
+    let mut msg = Vec::new();
+    let mut md = Vec::new();
+    let mut have_block = false;
+
+    for line in data.lines() {
+        // NOTE: do not `.trim()` this line — an empty-valued field is written as
+        // `"Field = "` (trailing space, nothing after); trimming it strips that
+        // trailing space too and `strip_prefix("Field = ")` then silently fails to
+        // match, dropping the whole record. `str::lines()` already strips the
+        // line terminator (including a trailing `\r`), so the raw line is safe to
+        // match against directly.
+        if line.is_empty() {
+            if have_block {
+                out.push((msg.clone(), md.clone()));
+            }
+            msg.clear();
+            md.clear();
+            have_block = false;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("Msg = ") {
+            msg = hex_to_bytes(rest);
+            have_block = true;
+        } else if let Some(rest) = line.strip_prefix("MD = ") {
+            md = hex_to_bytes(rest);
+        }
+        // "Count = N" lines are ignored; block order is preserved instead.
+    }
+    if have_block {
+        out.push((msg, md));
+    }
+    out
+}
+
+/// All 1025 vectors from the official reference `LWC_HASH_KAT_256.txt`.
+///
+/// This is the live enforcement of the provenance claim on the vendored fixture:
+/// previously `tests/kat_hash.txt` made the same claim but was never read by any
+/// test, and about 40% of its records (Count 13..20) turned out to be a fabricated
+/// filler pattern, not real digests. That file has been deleted; this test reads
+/// the real, diffed-verbatim reference file instead.
+#[cfg(all(feature = "alloc", feature = "hash"))]
+#[test]
+fn test_hash_kat_full_official_vectors() -> Result<()> {
+    let hash = SaturninHash::new();
+    let cases = parse_saturnin_hash_lwc_kat(SATURNIN_HASH_LWC_KAT);
+    assert_eq!(
+        cases.len(),
+        1025,
+        "expected all 1025 official Saturnin-Hash KAT vectors"
+    );
+
+    for (count, (msg, expected_md)) in cases.into_iter().enumerate() {
+        let digest = hash.hash(&msg)?;
+        assert_eq!(
+            digest,
+            expected_md,
+            "hash mismatch at official KAT Count={} (msg len {})",
+            count + 1,
+            msg.len()
+        );
     }
 
     Ok(())

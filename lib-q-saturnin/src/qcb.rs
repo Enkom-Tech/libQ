@@ -9,33 +9,62 @@
 //! quantum-security proof than Saturnin-CTR-Cascade, and every block can be processed
 //! independently (parallelized).
 //!
-//! # ⚠️ Instantiation note — not validated against designer test vectors
+//! # Domain separators and tweak encoding — normative source
 //!
-//! The update note gives only a **high-level** description of Saturnin-QCB (Section 5 and
-//! Figure 1); the full mode definition lives in the separate QCB paper `[BBC+20]`, which is not
-//! bundled with this repository, and **no official QCB known-answer test vectors are
-//! published**. The construction below faithfully follows everything the update note specifies,
-//! and fills the gaps it leaves open with explicit, documented choices:
+//! The "Update on Saturnin" note describes Saturnin-QCB only at a high level (Section 5 and a
+//! Figure 1 that is captioned "Saturnin-QCB, **encryption**" and covers only the message path);
+//! it does not give the tag or associated-data equations. The full mode is Algorithm 1 of the
+//! separate QCB paper — Bhaumik, Bonnetain, Chailloux, Leurent, Naya-Plasencia, Schrottenloher and
+//! Seurin, *QCB: Efficient Quantum-secure Authenticated Encryption*, ASIACRYPT 2021 (full version:
+//! IACR ePrint 2020/1304) — together with that paper's *Instantiation with Saturnin* paragraph,
+//! which is the source this module now follows:
 //!
-//! - **TBC** (unambiguous, from the note): `TBC_d(K,T)(M) = Saturnin16^d_{K⊕T}(M)`. See
-//!   [`crate::tbc`].
-//! - **Domains** (from Figure 1): message blocks use domain **9**, the tag uses domain **10**.
-//!   Associated-data blocks use domain **11** (the note states AD blocks also cost 16
-//!   super-rounds but Figure 1 omits AD layout — this domain choice is ours).
-//! - **Tweak encoding** (ours): `T = N (16 bytes) ‖ 0x00·8 ‖ block_index_be_u64 (8 bytes)`, a
-//!   256-bit value. AD-block tweaks use the same layout with the nonce field zeroed, so AD
-//!   authentication is nonce-independent (OCB tradition).
-//! - **Padding** (from the note: "the message is always padded with a 01* padding, so the
-//!   ciphertext can be up to 512 bits longer than the plaintext"): `10*` padding (`0x80` then
-//!   zeros) is **always** applied, adding a whole extra block when the input is already a block
-//!   multiple. This trades a little length for a simple, unambiguous, invertible mode.
-//! - **Checksum / AD folding** (ours): `checksum = ⊕ padded_message_blocks`;
-//!   `tag = TBC_10(K, tweak(N, last)) (checksum) ⊕ ⊕_j TBC_11(K, tweak_ad(j)) (A_j)`.
+//! - **TBC** (unambiguous, and the one part the note alone fixes):
+//!   `TBC_d(K,T)(M) = Saturnin16^d_{K⊕T}(M)`. See [`crate::tbc`].
+//! - **Domains** (QCB paper, *Instantiation with Saturnin*: "The other modes of operation of the
+//!   Saturnin submission use values from 0 to 8 included, so we use `D = 9, 10, 11, 12 and 13` in
+//!   Algorithm 1"), mapped onto Algorithm 1's `d = 0..4`:
+//!   - **9** — full message block `M_i` (Algorithm 1 line 5)
+//!   - **10** — final, padded message block `pad(M_*)` (line 7)
+//!   - **11** — full associated-data block `A_i` (line 10)
+//!   - **12** — final, padded associated-data block `pad(A_*)` (line 12)
+//!   - **13** — tag / message checksum (line 13)
+//! - **Tweak encoding** (QCB paper: `E~_{k,(D,IV,i)}(x) = Saturnin^D_16(k XOR (IV||i), x)`; "The
+//!   IV and the block number are simply concatenated"): `T = N (16 bytes) ‖ 0x00·8 ‖
+//!   block_index_be_u64 (8 bytes)`, a 256-bit value, used **identically for message and
+//!   associated-data tweaks** — the nonce is never zeroed. The QCB paper is explicit that omitting
+//!   it from the AD tweak breaks the mode (Section 5, *Avoiding Quantum Attacks*: "It is important
+//!   to include the IV in the tweak when processing the AD. Otherwise, there is a quantum forgery
+//!   attack based on Deutsch's algorithm.").
+//! - **Padding** (QCB paper: "We define the padding scheme `pad(M_*)` as appending `10*`"; "the
+//!   ciphertext `C` is always longer than the plaintext (by `n` bits at most)"): `10*` padding
+//!   (`0x80` then zeros) is **always** applied to the final block of both the message and the
+//!   associated data, adding a whole extra block when the input is already a block multiple
+//!   (including when it is empty) — this is faithful, not this module's invention.
+//! - **Checksum / AD folding** (Algorithm 1 lines 8-13, verbatim):
+//!   `tag = TBC_13(K, tweak(N, l)) (checksum) ⊕ ⊕_i TBC_11(K, tweak(N, i)) (A_i) ⊕
+//!   TBC_12(K, tweak(N, j)) (pad(A_*))`, where `checksum` is the XOR of every (padded) message
+//!   block, `l` is the index of the last full message block (or `0` if there is none), and `j` is
+//!   the index of the last full AD block (or `0` if there is none). The final AD block is
+//!   absorbed **unconditionally**, including when the associated data is empty.
 //!
-//! This module is therefore a **spec-faithful interpretation** suitable for experimentation and
-//! cross-checking, not a byte-compatible reference for an external Saturnin-QCB. It is verified
-//! by round-trip, tamper-detection, parallel-equivalence, and pinned self-consistency vectors —
-//! not by designer KATs. If/when official QCB vectors are published, pin them here.
+//! This module is verified against an independent transcription of Algorithm 1 in
+//! `tests/qcb_spec.rs`, in addition to round-trip, tamper-detection, and parallel-equivalence
+//! tests. There are still no designer-published Saturnin-QCB known-answer vectors, so the pinned
+//! vectors below remain **self-consistency** vectors derived from this implementation, not
+//! third-party KATs.
+//!
+//! ## Note on the IV/index split inside the 256-bit tweak
+//!
+//! The paper says only that "the IV and the block number are simply concatenated", and its stated
+//! limits ("IVs of at most 160 bits", "up to `2^95` blocks of data") are simultaneously tight only
+//! under a 160/96 split, whereas this module splits 128/128. That difference is **not observable
+//! here**: with the 16-byte nonce this mode fixes, right-zero-padding the IV to 160 bits (Algorithm
+//! 1 line 1, "Pad the initialization vector if necessary") and writing a big-endian index into the
+//! low 96 bits gives `N ‖ 0x00·4 ‖ be96(i)`, which for every `i < 2^64` is byte-for-byte the
+//! `N ‖ 0x00·8 ‖ be64(i)` built below. The two readings only diverge if an implementation
+//! *left*-pads the IV or orders the index little-endian. Absent designer KATs this cannot be
+//! settled, but the layout used here is the one both readings agree on.
 //!
 //! ## Usage Example
 //!
@@ -88,24 +117,30 @@ use crate::tbc::{
     TBC_BLOCK_BYTES,
 };
 
-/// Domain separator for message blocks (Figure 1).
+/// Domain separator for full message blocks (QCB paper Algorithm 1 line 5, `d=0`).
 const DOMAIN_MESSAGE: u8 = 9;
-/// Domain separator for the tag / checksum block (Figure 1).
-const DOMAIN_TAG: u8 = 10;
-/// Domain separator for associated-data blocks (this instantiation's choice).
+/// Domain separator for the final, padded message block (Algorithm 1 line 7, `d=1`).
+const DOMAIN_MESSAGE_FINAL: u8 = 10;
+/// Domain separator for full associated-data blocks (Algorithm 1 line 10, `d=2`).
 const DOMAIN_AD: u8 = 11;
+/// Domain separator for the final, padded associated-data block (Algorithm 1 line 12, `d=3`).
+const DOMAIN_AD_FINAL: u8 = 12;
+/// Domain separator for the tag / message checksum (Algorithm 1 line 13, `d=4`).
+const DOMAIN_TAG: u8 = 13;
 
 /// Block size in bytes (256-bit Saturnin block).
 const BLOCK: usize = TBC_BLOCK_BYTES;
 
 /// Saturnin-QCB AEAD.
 ///
-/// Holds pre-built tweakable block ciphers for the three domains used by the mode so that
+/// Holds pre-built tweakable block ciphers for the five domains used by the mode so that
 /// per-message work allocates no round constants.
 pub struct SaturninQcb {
     msg: SaturninTbc,
-    tag: SaturninTbc,
+    msg_final: SaturninTbc,
     ad: SaturninTbc,
+    ad_final: SaturninTbc,
+    tag: SaturninTbc,
 }
 
 impl SaturninQcb {
@@ -113,8 +148,10 @@ impl SaturninQcb {
     pub fn new() -> Self {
         Self {
             msg: SaturninTbc::new(DOMAIN_MESSAGE).expect("domain 9 is valid"),
-            tag: SaturninTbc::new(DOMAIN_TAG).expect("domain 10 is valid"),
+            msg_final: SaturninTbc::new(DOMAIN_MESSAGE_FINAL).expect("domain 10 is valid"),
             ad: SaturninTbc::new(DOMAIN_AD).expect("domain 11 is valid"),
+            ad_final: SaturninTbc::new(DOMAIN_AD_FINAL).expect("domain 12 is valid"),
+            tag: SaturninTbc::new(DOMAIN_TAG).expect("domain 13 is valid"),
         }
     }
 
@@ -133,7 +170,9 @@ impl SaturninQcb {
         BLOCK
     }
 
-    /// Build the 256-bit message/tag tweak `N ‖ 0·8 ‖ block_index_be`.
+    /// Build the 256-bit tweak `N ‖ 0·8 ‖ block_index_be` (QCB paper: "The IV and the block
+    /// number are simply concatenated"). Used identically for message and associated-data
+    /// tweaks — the nonce must never be zeroed (Section 5, *Avoiding Quantum Attacks*).
     fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; BLOCK] {
         let mut t = [0u8; BLOCK];
         t[0..16].copy_from_slice(nonce16);
@@ -141,42 +180,51 @@ impl SaturninQcb {
         t
     }
 
-    /// Build the 256-bit associated-data tweak (nonce field zeroed; AD is nonce-independent).
-    fn ad_tweak(block_index: u64) -> [u8; BLOCK] {
-        let mut t = [0u8; BLOCK];
-        t[24..32].copy_from_slice(&block_index.to_be_bytes());
-        t
+    /// The index of the last full block among `count` full blocks, or `0` if there are none
+    /// (Algorithm 1 leaves `l`/`j` undefined in that case; no tweak collision results — see the
+    /// module doc).
+    fn last_full_index(count: usize) -> u64 {
+        count.saturating_sub(1) as u64
     }
 
-    /// `10*`-pad `data` to a positive multiple of [`BLOCK`], always appending at least the `0x80`
-    /// marker (a whole extra block when `data` is already a block multiple, or when empty).
-    fn pad(data: &[u8]) -> Zeroizing<Vec<u8>> {
-        let padded_len = (data.len() / BLOCK + 1) * BLOCK;
-        let mut out = Zeroizing::new(Vec::with_capacity(padded_len));
-        out.extend_from_slice(data);
-        out.push(0x80);
-        out.resize(padded_len, 0u8);
+    /// `10*`-pad a partial (possibly empty) tail of length `< BLOCK` into exactly one block.
+    fn pad_tail(tail: &[u8]) -> [u8; BLOCK] {
+        debug_assert!(tail.len() < BLOCK);
+        let mut out = [0u8; BLOCK];
+        out[..tail.len()].copy_from_slice(tail);
+        out[tail.len()] = 0x80;
         out
     }
 
-    /// Authenticate associated data into a 256-bit accumulator (`0` when AD is empty).
-    fn absorb_ad(&self, key: &[u8; 32], ad: &[u8]) -> Result<Zeroizing<[u8; BLOCK]>> {
+    /// Authenticate associated data into a 256-bit accumulator.
+    ///
+    /// Algorithm 1 line 12 absorbs `pad(A_*)` unconditionally, so this always performs at least
+    /// one TBC call (domain 12) even when `ad` is empty.
+    fn absorb_ad(
+        &self,
+        key: &[u8; 32],
+        nonce16: &[u8; 16],
+        ad: &[u8],
+    ) -> Result<Zeroizing<[u8; BLOCK]>> {
         let mut auth = Zeroizing::new([0u8; BLOCK]);
-        if ad.is_empty() {
-            return Ok(auth);
-        }
-        let padded = Self::pad(ad);
-        let (padded_blocks, _rem) = padded.as_chunks::<BLOCK>();
-        for (j, chunk) in padded_blocks.iter().enumerate() {
-            let tweak = Self::ad_tweak(j as u64);
-            let mut block = [0u8; BLOCK];
-            block.copy_from_slice(chunk);
+        let (full_blocks, tail) = ad.as_chunks::<BLOCK>();
+        for (i, chunk) in full_blocks.iter().enumerate() {
+            let tweak = Self::tweak(nonce16, i as u64);
+            let mut block = *chunk;
             self.ad.encrypt_block(key, &tweak, &mut block)?;
-            for i in 0..BLOCK {
-                auth[i] ^= block[i];
+            for k in 0..BLOCK {
+                auth[k] ^= block[k];
             }
             block.zeroize();
         }
+        let j = Self::last_full_index(full_blocks.len());
+        let mut final_block = Self::pad_tail(tail);
+        self.ad_final
+            .encrypt_block(key, &Self::tweak(nonce16, j), &mut final_block)?;
+        for k in 0..BLOCK {
+            auth[k] ^= final_block[k];
+        }
+        final_block.zeroize();
         Ok(auth)
     }
 
@@ -245,6 +293,10 @@ impl SaturninQcb {
         let body = &ciphertext[..body_len];
         let received_tag = &ciphertext[body_len..];
         let m = body_len / BLOCK;
+        // The body is `mf` full message blocks (domain 9) plus exactly one final padded block
+        // (domain 10); `mf` is `m - 1` since the final block is always present.
+        let mf = m - 1;
+        let l = Self::last_full_index(mf);
 
         let mut key_staged = Zeroizing::new([0u8; 32]);
         key_staged.copy_from_slice(key.as_bytes());
@@ -256,10 +308,9 @@ impl SaturninQcb {
         let mut plain = Zeroizing::new(Vec::with_capacity(body_len));
         let mut checksum = Zeroizing::new([0u8; BLOCK]);
         let (body_blocks, _rem) = body.as_chunks::<BLOCK>();
-        for (i, chunk) in body_blocks.iter().enumerate() {
+        for (i, chunk) in body_blocks[..mf].iter().enumerate() {
             let tweak = Self::tweak(&nonce16, i as u64);
-            let mut block = [0u8; BLOCK];
-            block.copy_from_slice(chunk);
+            let mut block = *chunk;
             self.msg.decrypt_block(&key_staged, &tweak, &mut block)?;
             for k in 0..BLOCK {
                 checksum[k] ^= block[k];
@@ -267,10 +318,17 @@ impl SaturninQcb {
             plain.extend_from_slice(&block);
             block.zeroize();
         }
+        let mut final_block = body_blocks[mf];
+        self.msg_final
+            .decrypt_block(&key_staged, &Self::tweak(&nonce16, l), &mut final_block)?;
+        for k in 0..BLOCK {
+            checksum[k] ^= final_block[k];
+        }
+        plain.extend_from_slice(&final_block);
+        final_block.zeroize();
 
-        let ad_auth = self.absorb_ad(&key_staged, ad)?;
-        let expected_tag =
-            self.compute_tag(&key_staged, &nonce16, &checksum, (m - 1) as u64, &ad_auth)?;
+        let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
+        let expected_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
 
         let tag_valid = lib_q_core::Utils::constant_time_compare(&*expected_tag, received_tag);
 
@@ -319,26 +377,33 @@ impl Aead for SaturninQcb {
         nonce16.copy_from_slice(nonce.as_bytes());
         let ad = associated_data.unwrap_or(&[]);
 
-        let padded = Self::pad(plaintext);
-        let m = padded.len() / BLOCK;
+        let (full_blocks, tail) = plaintext.as_chunks::<BLOCK>();
+        let output_len = (full_blocks.len() + 2) * BLOCK;
 
-        let mut output = Vec::with_capacity(padded.len() + BLOCK);
+        let mut output = Vec::with_capacity(output_len);
         let mut checksum = Zeroizing::new([0u8; BLOCK]);
-        let (padded_blocks, _rem) = padded.as_chunks::<BLOCK>();
-        for (i, chunk) in padded_blocks.iter().enumerate() {
+        for (i, chunk) in full_blocks.iter().enumerate() {
             for k in 0..BLOCK {
                 checksum[k] ^= chunk[k];
             }
             let tweak = Self::tweak(&nonce16, i as u64);
-            let mut block = [0u8; BLOCK];
-            block.copy_from_slice(chunk);
+            let mut block = *chunk;
             self.msg.encrypt_block(&key_staged, &tweak, &mut block)?;
             output.extend_from_slice(&block);
             block.zeroize();
         }
+        let l = Self::last_full_index(full_blocks.len());
+        let mut final_block = Self::pad_tail(tail);
+        for k in 0..BLOCK {
+            checksum[k] ^= final_block[k];
+        }
+        self.msg_final
+            .encrypt_block(&key_staged, &Self::tweak(&nonce16, l), &mut final_block)?;
+        output.extend_from_slice(&final_block);
+        final_block.zeroize();
 
-        let ad_auth = self.absorb_ad(&key_staged, ad)?;
-        let tag = self.compute_tag(&key_staged, &nonce16, &checksum, (m - 1) as u64, &ad_auth)?;
+        let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
+        let tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
         output.extend_from_slice(&*tag);
         Ok(output)
     }
@@ -492,27 +557,27 @@ mod tests {
             (
                 "",
                 "",
-                "bd0abd723c4149718b458ac68f3a0a1e9e84e1e33c830a5894e48e6591a43a33718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a",
+                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a133118296df4f9f7b16675856fc24eb3be7a8de774704a90c3381b3c52575d16",
             ),
             (
                 "",
                 "6173736f636961746564",
-                "bd0abd723c4149718b458ac68f3a0a1e9e84e1e33c830a5894e48e6591a43a33a40976d18060823323aa163b2ab7bf306cbbaff29aa86a0a31b6ba5d826c9dca",
+                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29ab173cda4ef86237d60db72575e8d881e3e31d1f7f7628569d82266487c47738a",
             ),
             (
                 "616263",
                 "",
-                "52d715efbd6e430e4be8c2b682527e349a26fa62c69de5da978299c475f41c6df4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf",
+                "f4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf08b6b6e38147a4ba2b1c3c9f55283cf5c685e414fdfb6d8c4422932934c2a453",
             ),
             (
                 "0000000000000000000000000000000000000000000000000000000000000000",
                 "686472",
-                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a730c8e81de51c9573d449dada58a211595a47a6f72f9776fd21347d45696e7f6743f9d93a4663c3f210ee1e99333007d9ceebd632ac2d5dacb2c9251499caddf2",
+                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a7718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a1a1d20b6f06c939cf3b4dbdb64c0535e213daefb93bcdcd0c1eadd7b99ed7752",
             ),
             (
                 "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f672121",
                 "61642d31",
-                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c6880c10b857de55d457eff7ea96f9e4c0dc2f30180b2c037d52565e8895d48ae701ebd4ceb39dbeece08aafae995d41998ea656e1cedb4326176717a42d8b92693e4",
+                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c68809248800e70f51a3ba933d3332dbe0d0b4f49c2eab471f2bf9370c582289efeb0129c8ff26116dc713af5af4b745237e3bd266afa22cf1d122f9afee189d7082d",
             ),
         ];
         for (pt_hex, ad_hex, ct_hex) in cases {

@@ -646,36 +646,48 @@ mod tests {
         assert_eq!(core.round_constants.len(), 32); // 16 rounds * 2 constants per round
     }
 
+    /// The round constants must equal the designers' published table, not merely be non-zero.
+    ///
+    /// This test previously ran its own copy of the LFSR, printed the result, printed the core's
+    /// constants beside it, compared the two to *nothing*, and asserted `x0 != 0 || x1 != 0` under
+    /// the comment "For now, just verify the LFSR runs without panicking". It passed on every
+    /// possible input. Worse, its private copy carried the same precedence bug that was live in
+    /// `bs32_core.rs` — `0x2D & (!(x >> 15).wrapping_add(1))` parses as `0x2D & !((x >> 15) + 1)`,
+    /// so it XORed 0x2C where the tap should be 0x00 — meaning the one test named after the LFSR
+    /// was itself evidence of the defect while reporting green.
+    ///
+    /// The values below are transcribed from `RC_16_7`/`RC_16_8` in the designers' own
+    /// `crypto_hash/saturninhashv2/bs32/hash.c`, which pack a super-round as
+    /// `(RC1 << 16) | RC0`; this core stores the halves separately as `RC0, RC1` per super-round.
+    /// So `RC_16_7[0] == 0x3FBA180C` becomes `round_constants[0..2] == [0x180C, 0x3FBA]`.
     #[test]
-    fn test_lfsr_implementation() {
-        // Test LFSR implementation against reference values
-        // From reference: domain 7, 16 rounds
-        // Initial value: 7 + (16 << 4) + 0xFE00 = 0xFF07
+    fn round_constants_match_the_designers_published_table() {
+        // reference/saturnin/Implementations/crypto_hash/saturninhashv2/bs32/hash.c:387
+        const RC_16_7: [u32; 16] = [
+            0x3FBA180C, 0x563AB9AB, 0x125EA5EF, 0x859DA26C, 0xB8CF779B, 0x7D4DE793, 0x07EFB49F,
+            0x8D525306, 0x1E08E6AB, 0x41729F87, 0x8C4AEF0A, 0x4AA0C9A7, 0xD93A95EF, 0xBB00D2AF,
+            0xB62C5BF0, 0x386D94D8,
+        ];
+        // reference/saturnin/Implementations/crypto_hash/saturninhashv2/bs32/hash.c:394
+        const RC_16_8: [u32; 16] = [
+            0x3C9B19A7, 0xA9098694, 0x23F878DA, 0xA7B647D3, 0x74FC9D78, 0xEACAAE11, 0x2F31A677,
+            0x4CC8C054, 0x2F51CA05, 0x5268F195, 0x4F5B8A2B, 0xF614B4AC, 0xF1D95401, 0x764D2568,
+            0x6A493611, 0x8EEF9C3E,
+        ];
 
-        let mut x0 = 0xFF07u16;
-        let mut x1 = 0xFF07u16;
-
-        // Run LFSR for 16 iterations to get first round constant
-        for _ in 0..16 {
-            x0 = (x0 << 1) ^ (0x2D & (!(x0 >> 15).wrapping_add(1)));
-            x1 = (x1 << 1) ^ (0x53 & (!(x1 >> 15).wrapping_add(1)));
+        for (domain, packed) in [(7u8, &RC_16_7), (8u8, &RC_16_8)] {
+            let core = SaturninCore::new(16, domain).expect("16 super-rounds is a valid Saturnin");
+            for (super_round, &want) in packed.iter().enumerate() {
+                let got_rc0 = core.round_constants[super_round * 2];
+                let got_rc1 = core.round_constants[super_round * 2 + 1];
+                let got = ((got_rc1 as u32) << 16) | (got_rc0 as u32);
+                assert_eq!(
+                    got, want,
+                    "domain {domain}, super-round {super_round}: derived {got:08X} but the \
+                     designers' table says {want:08X} (RC0 {got_rc0:04X}, RC1 {got_rc1:04X})"
+                );
+            }
         }
-
-        #[cfg(feature = "std")]
-        eprintln!("LFSR result: x0={:04X}, x1={:04X}", x0, x1);
-
-        // These should match the first round constants from our implementation
-        #[cfg(feature = "std")]
-        {
-            let core = SaturninCore::new(16, 7).unwrap();
-            eprintln!(
-                "Core constants: x0={:04X}, x1={:04X}",
-                core.round_constants[0], core.round_constants[1]
-            );
-        }
-
-        // For now, just verify the LFSR runs without panicking
-        assert!(x0 != 0 || x1 != 0);
     }
 
     #[test]

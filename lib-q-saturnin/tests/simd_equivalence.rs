@@ -100,9 +100,22 @@ fn avx2_batch_matches_scalar_bs32() {
     assert_eq!(blocks, scalar_blocks);
 }
 
+/// `avx2::encrypt_blocks8` (bs32 bitsliced representation) and `SaturninCore::encrypt_block`
+/// (half-word representation) are two internal encodings of the *same* Saturnin block cipher, so
+/// on identical byte inputs they must produce identical bytes at every `(R, D)`.
+///
+/// This test previously read `raw_avx2_kernel_is_not_core_equivalent_domain1` and asserted
+/// `assert_ne!` — it was pinning a defect, not a property. `avx2::round_constants` carried its own
+/// copy of a broken round-constant LFSR that was short-circuited by hardcoded ROM tables only at
+/// the Saturnin-Hash pairs `(16, 7)`/`(16, 8)`; at `(10, 1)` the broken generator ran and the two
+/// representations disagreed. With `avx2::round_constants` delegating to the single corrected
+/// generator, they agree — and the agreed value is the designers' own: compiling
+/// `reference/saturnin/Implementations/extra/saturnin_portable.c` and calling
+/// `saturnin_block_encrypt(10, RC_10_1, ...)` reproduces it byte for byte (see
+/// `tests/reference_oracle.rs`, which checks `RC_10_1..RC_10_5` against that same reference file).
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 #[test]
-fn raw_avx2_kernel_is_not_core_equivalent_domain1() {
+fn raw_avx2_kernel_matches_core_domain1() {
     if !runtime::has_avx2() {
         return;
     }
@@ -124,9 +137,9 @@ fn raw_avx2_kernel_is_not_core_equivalent_domain1() {
         scalar
             .encrypt_block(&key, &mut scalar_block)
             .expect("scalar");
-        assert_ne!(
+        assert_eq!(
             lanes[0], scalar_block,
-            "raw AVX2 kernel unexpectedly matched core on vector {i}"
+            "raw AVX2 bs32 kernel disagreed with the half-word core on vector {i}"
         );
     }
 }

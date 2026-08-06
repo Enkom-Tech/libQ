@@ -17,15 +17,34 @@ ciphertext body is decrypted before the authentication outcome is mapped to `Ok`
 `Err(VerificationFailed)` (Layer A) / `AuthenticationFailed` (Layer B), matching the contract of
 the other Saturnin AEAD paths.
 
-**Interpretation caveat — read before relying on byte compatibility.** The update note specifies
-only the TBC and the high-level mode (domains 9/10 for message/tag, ΘCB-style checksum tag,
-"always 01\*-padded" message, up to 512 bits of expansion). The complete mode is defined in the
-separate QCB paper (`[BBC+20]`), which is **not** part of this repository, and **no official QCB
-known-answer test vectors exist**. The remaining details are documented, explicit choices in the
-`qcb` module: the tweak encoding (`N ‖ 0·8 ‖ block_index_be`), associated-data handling (domain
-11, nonce-independent, XOR-folded into the tag), and the always-pad rule. Consequently this
-module is a spec-faithful **interpretation** for experimentation and cross-checking, not a
-reference guaranteed to interoperate with another Saturnin-QCB implementation. If/when the
+**Mode definition.** The update note describes only the TBC and the encryption path (its Figure 1
+is captioned "Saturnin-QCB, *encryption*" and shows neither the tag nor the associated data). The
+complete mode is **Algorithm 1** of the QCB paper (Bhaumik, Bonnetain, Chailloux, Leurent,
+Naya-Plasencia, Schrottenloher and Seurin, *QCB: Efficient Quantum-secure Authenticated
+Encryption*, ASIACRYPT 2021; full version IACR ePrint 2020/1304), whose *Instantiation with
+Saturnin* paragraph fixes the five domain separators used here: **9** full message block, **10**
+final padded message block, **11** full associated-data block, **12** final padded
+associated-data block, **13** tag/checksum. `tests/qcb_spec.rs` checks `SaturninQcb::encrypt`
+against an independent transcription of Algorithm 1 over a 63-case length sweep.
+
+Every tweak carries the nonce, associated data included. The paper requires this explicitly
+(Section 5, *Avoiding Quantum Attacks*: "It is important to include the IV in the tweak when
+processing the AD. Otherwise, there is a quantum forgery attack based on Deutsch's algorithm.").
+Releases up to and including 0.0.8 zeroed the nonce in the AD tweak, which additionally allowed a
+purely classical cross-nonce associated-data-relabelling forgery under nonce reuse; both are
+closed, and the change is a **wire break** — no 0.0.8 QCB ciphertext decrypts under the current
+code.
+
+**Interpretation caveat — read before relying on byte compatibility.** **No official QCB
+known-answer test vectors exist.** One detail remains an explicit local choice: the paper says
+only that "the IV and the block number are simply concatenated" into the 256-bit tweak, and this
+module splits that 128/128 (`N ‖ 0·8 ‖ block_index_be`), whereas the paper's stated limits (IVs of
+at most 160 bits, up to 2^95 blocks) are simultaneously tight only under a 160/96 split. For the
+16-byte nonce this mode fixes, the two splits coincide: right-zero-padding the IV to 160 bits
+(Algorithm 1 line 1) and writing a big-endian index into the low 96 bits yields
+`N ‖ 0·4 ‖ be96(i)`, byte-identical to `N ‖ 0·8 ‖ be64(i)` for every `i < 2^64`. They diverge only
+for an implementation that *left*-pads the IV or orders the index little-endian. Byte
+compatibility with a third-party Saturnin-QCB is therefore **likely but unproven**. If/when the
 designers publish QCB KATs, they must be pinned and any divergence reconciled before this mode is
 treated as a standard.
 
