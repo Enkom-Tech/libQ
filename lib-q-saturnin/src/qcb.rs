@@ -30,9 +30,11 @@
 //!   - **12** — final, padded associated-data block `pad(A_*)` (line 12)
 //!   - **13** — tag / message checksum (line 13)
 //! - **Tweak encoding** (QCB paper: `E~_{k,(D,IV,i)}(x) = Saturnin^D_16(k XOR (IV||i), x)`; "The
-//!   IV and the block number are simply concatenated"): `T = N (16 bytes) ‖ 0x00·8 ‖
+//!   IV and the block number are simply concatenated"): `T = N (16 bytes) ‖ 0x80 ‖ 0x00·7 ‖
 //!   block_index_be_u64 (8 bytes)`, a 256-bit value, used **identically for message and
-//!   associated-data tweaks** — the nonce is never zeroed. The QCB paper is explicit that omitting
+//!   associated-data tweaks** — the nonce is never zeroed. Byte 16 is the `10*` pad bit closing the
+//!   161-bit IV field; see the note below for why, and for what is still unconfirmed about it. The
+//!   QCB paper is explicit that omitting
 //!   it from the AD tweak breaks the mode (Section 5, *Avoiding Quantum Attacks*: "It is important
 //!   to include the IV in the tweak when processing the AD. Otherwise, there is a quantum forgery
 //!   attack based on Deutsch's algorithm.").
@@ -71,7 +73,7 @@
 //! layout are unchanged; only the last 32 bytes carry a different value, and old ciphertexts
 //! (pre-CTX, and pre-`bae2717`) do not decrypt under this code.
 //!
-//! ## Note on the IV/index split inside the 256-bit tweak — WE MAY BE ONE BYTE WRONG
+//! ## Note on the IV/index split inside the 256-bit tweak
 //!
 //! The paper says only that "the IV and the block number are simply concatenated", and Algorithm 1
 //! line 1 says only "Pad the initialization vector if necessary" — with no padding direction, no
@@ -81,12 +83,11 @@
 //!
 //! Two readings follow, and **they do not agree**:
 //!
-//! - **zero-pad** the IV to 160 bits, big-endian index in the low 96 → `N ‖ 0x00·8 ‖ be64(i)` for
-//!   every `i < 2^64`. This is what this module's private `tweak` fn builds. Byte 16 is `0x00`.
-//! - **`10*`-pad** the IV to 161 bits, 95-bit index → byte 16 is `0x80`. Differs from us in exactly
-//!   that one byte, on every TBC call of every message.
+//! - **zero-pad** the IV to 160 bits, big-endian index in the low 96 → byte 16 is `0x00`.
+//! - **`10*`-pad** the IV to 161 bits, 95-bit index → byte 16 is `0x80`. Differs from the first in
+//!   exactly that one byte, on every TBC call of every message.
 //!
-//! **The second reading is the better-supported one, and this module implements the first.** The
+//! **This module implements the second**, as of 2026-08-06. It is the better-supported reading. The
 //! Saturnin submission states `10*` as the *general* rule for padding anything under 256 bits into a
 //! 256-bit block — "whenever our proposed modes … require padding a value of less than 256 bits into
 //! a 256-bit block" — and then works this exact shape byte by byte: "with a 128-bit nonce, the input
@@ -96,20 +97,24 @@
 //! restates as "IVs of at most 160 bits" and "up to `2^95` blocks".
 //!
 //! An earlier version of this note claimed those two limits "are simultaneously tight only under a
-//! 160/96 split". **That is backwards.** A 96-bit index field addresses `2^96`, so against a stated
+//! 160/96 split". **That was backwards.** A 96-bit index field addresses `2^96`, so against a stated
 //! `2^95` bound it is slack by a factor of two; the split under which both published numbers are
 //! exactly tight is 161/95. The paper's own accounting for TRAX-QCB shows the pattern — "3 bits …
 //! for domain separation, 80 bits of IV and 45 bits of block numbering … at most `2^45 - 1` blocks",
 //! fields summing exactly to the tweak width with the bound's exponent equal to the index width.
 //! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
 //!
-//! Consequences, in order: **no interop impact** — this mode emits `T'`, not Algorithm 1's `T`, so
-//! it is wire-incompatible with paper-QCB by construction regardless (see above). **No security
-//! impact** — byte 16 is a constant under both readings and the tweak is XORed into the key, so the
-//! two differ by a fixed key offset, a bijection on the related-key family. **The cost is hardware**:
-//! silicon that bakes in `0x00` cannot be corrected if the designers confirm `0x80`. Changing it
-//! costs nearly nothing while QCB has no consumers and is opt-in. Decision: card `t_5d1460b7`; the
-//! question is put to the designers on card `t_7123c738`.
+//! **This is still a reading, not a confirmed fact** — the designers have not been asked yet (card
+//! `t_7123c738`), and one sentence or one KAT from them could overturn it. It was changed now, at
+//! `0x80`, because the Saturnin hardware was at trace design: the switch costs nothing while QCB
+//! has no consumers and is opt-in, and cannot be made at all once silicon exists. Decision and its
+//! full evidence: card `t_5d1460b7`. The private `tweak` fn has its own unit test pinning the byte.
+//!
+//! Nothing else changed with it. **No interop impact** — this mode emits `T'`, not Algorithm 1's
+//! `T`, so it is wire-incompatible with paper-QCB by construction regardless (see above). **No
+//! security impact** — byte 16 is a constant under both readings and the tweak is XORed into the
+//! key, so the two differ by a fixed key offset, which is a bijection on the related-key family.
+//! Ciphertexts produced before this change do not decrypt under it; nothing had produced any.
 //!
 //! ## Usage Example
 //!
@@ -237,6 +242,15 @@ impl SaturninQcb {
     fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; BLOCK] {
         let mut t = [0u8; BLOCK];
         t[0..16].copy_from_slice(nonce16);
+        // `10*` padding of the 128-bit IV up to the 161-bit IV field, per the Saturnin
+        // submission's general rule for padding a sub-256-bit value into a 256-bit block. Its own
+        // worked example for exactly this shape — a 128-bit nonce and a counter in one 256-bit
+        // block — reads "the 16 bytes of the nonce, followed by a byte of value 0x80 (first
+        // padding byte for the nonce), followed by 14 bytes of value 0x00, followed by one byte
+        // of value 0x01". This byte is that 0x80. See the module docs for why this reading beats
+        // zero-padding (161 + 95 = 256 makes both of QCB's published limits exactly tight;
+        // 160 + 96 leaves the 2^95 bound slack by a factor of two).
+        t[16] = 0x80;
         t[24..32].copy_from_slice(&block_index.to_be_bytes());
         t
     }
@@ -645,6 +659,27 @@ mod tests {
         AeadKey::new((0..32u8).collect::<Vec<_>>())
     }
 
+    /// Pins the `10*` pad byte that closes the 161-bit IV field. This is the decision recorded on
+    /// card `t_5d1460b7`, taken on 2026-08-06 while the Saturnin hardware was still at trace
+    /// design — silicon that bakes the wrong byte here cannot be corrected later. The three
+    /// independent transcription gates in `tests/` would also catch a change (verified: flipping
+    /// this byte in production alone turned 3 of them red), but they check all of Algorithm 1 at
+    /// once; this states the one byte outright so the reason survives.
+    #[test]
+    fn tweak_carries_the_pad_bit_at_byte_16() {
+        let n: [u8; 16] = core::array::from_fn(|i| i as u8);
+        let t = SaturninQcb::tweak(&n, 1);
+
+        assert_eq!(&t[0..16], &n, "IV occupies the high 16 bytes");
+        assert_eq!(t[16], 0x80, "byte 16 is the 10* pad bit, not zero");
+        assert_eq!(&t[17..24], &[0u8; 7], "rest of the IV field is zero");
+        assert_eq!(
+            &t[24..32],
+            &1u64.to_be_bytes(),
+            "block index is big-endian, right-aligned in the counter field"
+        );
+    }
+
     fn nonce() -> Nonce {
         Nonce::new((0..16u8).collect::<Vec<_>>())
     }
@@ -743,9 +778,15 @@ mod tests {
     /// QCB instantiation + the CTX committing transform, `crate::commit`), not official designer
     /// KATs — see the module-level instantiation note. They lock the byte-level behavior so any
     /// accidental change to padding, tweak encoding, domains, AD folding, or the CTX tag is
-    /// caught. **Regenerated for CTX** (card `t_16ddf21c`): the first `body_len` bytes of each
-    /// ciphertext are unchanged from the pre-CTX vectors (the message/padding path is untouched);
-    /// only the last 32 bytes (the tag) differ, because they now carry `T'` instead of `T`.
+    /// caught.
+    ///
+    /// Regenerated twice. First **for CTX** (card `t_16ddf21c`), which changed only the last 32
+    /// bytes — the tag became `T'` instead of `T` and the message path was untouched. Then **for
+    /// the tweak's `10*` pad byte** on 2026-08-06 (card `t_5d1460b7`), which changed *every* byte:
+    /// the tweak feeds the key of every TBC call, so the message body moves too, not just the tag.
+    /// If both regenerations are ever in doubt, the independent transcription in
+    /// `tests/qcb_spec.rs` is the oracle — these vectors are downstream of this module, that file
+    /// is not.
     #[test]
     fn pinned_kat_vectors() -> Result<()> {
         let aead = SaturninQcb::new();
@@ -753,27 +794,27 @@ mod tests {
             (
                 "",
                 "",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a43ead5af07dd8584bf26c66f6108d158a405ce09ffc2ae90dd90acddb026cfb5",
+                "b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace528137767d797203c38ca8a2093a015cdba753c7fb14db5e99e5511c189efed9b54e3395",
             ),
             (
                 "",
                 "6173736f636961746564",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a4cb54a56eb5210bf60d35e3b7d4f318b0e4a767347d6eb2fcbaf86c297fe4ff1",
+                "b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace52813776599241e4e5492fe0398a3b2bb7fc7295857a79fb5b13e9a5e22c3a3ac5d2eac0",
             ),
             (
                 "616263",
                 "",
-                "f4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf7c8b3d483bfa34f0a7bff18c1dcb8655f13076de2718c3f2eeef9e9cb51de4cb",
+                "c0b62eebea0ed4a1ef69709725eb6dde0c0937cdc194c106857aaee75f1a8a8d6132069166ec9b024ad79dbb00812c3dbdf81285e4a9091bb40c4dd6c411c4dc",
             ),
             (
                 "0000000000000000000000000000000000000000000000000000000000000000",
                 "686472",
-                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a7718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29afbb45d2adaed3857a7fb65416c2255f9de2e5ecfb0f77561c4de67fce9d08010",
+                "73bbb5998dd8c577c84316aa339af10a5fab5b7c6b14ce5a24fa9aa57930bbd8b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace528137769a0f550b4266ee02a3211a523c57f7690ef00326e6dc0d3981d80ea64e1705c9",
             ),
             (
                 "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f672121",
                 "61642d31",
-                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c68809248800e70f51a3ba933d3332dbe0d0b4f49c2eab471f2bf9370c582289efeb0ec1107ab2a8caa1b6afdbfeb2cca665a197ee3cd1a98de6cde368d6c318d04c2",
+                "a74a684111f42d07b62934a5b427939dca6103c3f0e4fcb00c98f69a4423b9adb6b5f207fafc1db281b338d60ed0b9ea93d81ffc3d5e91f82ef49d4f784f480e84f613c130c4a84ecec60cebf1d979d5cfb411ac5ad51787b64d76a82b08e354",
             ),
         ];
         for (pt_hex, ad_hex, ct_hex) in cases {

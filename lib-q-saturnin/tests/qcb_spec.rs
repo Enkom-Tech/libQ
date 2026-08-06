@@ -81,10 +81,26 @@ const D_TAG: u8 = 13;
 /// what it independently checks.
 const CTX_LABEL: &[u8] = b"libq.saturnin.qcb.ctx.v0";
 
-/// `T = IV || i`: the 128-bit IV in the high half, the block index big-endian in the low half.
+/// `T = pad(IV) || i` — transcribed from the specifications, NOT from `src/qcb.rs`. Keeping this
+/// derivation independent is the whole point of the file: it is what turned red when production's
+/// byte 16 changed and this had not.
+///
+/// QCB (ePrint 2020/1304) says only "The IV and the block number are simply concatenated. We use
+/// IVs of at most 160 bits and authorize up to 2^95 blocks of data", and Algorithm 1 line 1 says
+/// only "Pad the initialization vector if necessary" — no direction, no widths, no endianness.
+/// The padding rule comes from the Saturnin submission, which states `10*` as its general rule
+/// "whenever our proposed modes … require padding a value of less than 256 bits into a 256-bit
+/// block" and works this exact shape byte by byte: with a 128-bit nonce the block is "the 16 bytes
+/// of the nonce, followed by a byte of value 0x80 (first padding byte for the nonce), followed by
+/// 14 bytes of value 0x00, followed by one byte of value 0x01" — i.e. a 161-bit padded IV field
+/// then a 95-bit big-endian counter. `161 + 95 = 256` makes both of QCB's published limits exactly
+/// tight, whereas `160 + 96` would leave the 2^95 bound slack by a factor of two.
+///
+/// Our `block_index` is a `u64` right-aligned in the counter field, comfortably inside its 95 bits.
 fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; B] {
     let mut t = [0u8; B];
     t[0..16].copy_from_slice(nonce16);
+    t[16] = 0x80;
     t[24..32].copy_from_slice(&block_index.to_be_bytes());
     t
 }
