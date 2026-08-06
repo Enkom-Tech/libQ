@@ -35,18 +35,34 @@ purely classical cross-nonce associated-data-relabelling forgery under nonce reu
 closed, and the change is a **wire break** — no 0.0.8 QCB ciphertext decrypts under the current
 code.
 
-**Interpretation caveat — read before relying on byte compatibility.** **No official QCB
-known-answer test vectors exist.** One detail remains an explicit local choice: the paper says
-only that "the IV and the block number are simply concatenated" into the 256-bit tweak, and this
-module splits that 128/128 (`N ‖ 0·8 ‖ block_index_be`), whereas the paper's stated limits (IVs of
-at most 160 bits, up to 2^95 blocks) are simultaneously tight only under a 160/96 split. For the
-16-byte nonce this mode fixes, the two splits coincide: right-zero-padding the IV to 160 bits
-(Algorithm 1 line 1) and writing a big-endian index into the low 96 bits yields
-`N ‖ 0·4 ‖ be96(i)`, byte-identical to `N ‖ 0·8 ‖ be64(i)` for every `i < 2^64`. They diverge only
-for an implementation that *left*-pads the IV or orders the index little-endian. Byte
-compatibility with a third-party Saturnin-QCB is therefore **likely but unproven**. If/when the
-designers publish QCB KATs, they must be pinned and any divergence reconciled before this mode is
-treated as a standard.
+**Interpretation caveat — we may be one byte wrong, and it is the tweak.** **No official QCB
+known-answer test vectors exist** (the round-2 NIST-LWC package ships ctr-cascade, short and hash,
+and no QCB). The paper says only that "the IV and the block number are simply concatenated" into
+the 256-bit tweak, and Algorithm 1 line 1 says only "Pad the initialization vector if necessary" —
+no padding direction, no field widths, no endianness stated anywhere in the document.
+
+This module builds `N ‖ 0·8 ‖ block_index_be`, i.e. **byte 16 = `0x00`**. Reading the padding as
+the Saturnin submission's `10*` rule instead gives a 161-bit IV field and a 95-bit index, i.e.
+**byte 16 = `0x80`** — a one-byte difference on every TBC call of every message. **That second
+reading is better supported than the one implemented here.** The Saturnin submission states `10*`
+as the general rule for padding any sub-256-bit value into a 256-bit block, covering "our proposed
+modes", and works this exact shape byte by byte: a 128-bit nonce gives "the 16 bytes of the nonce,
+followed by a byte of value `0x80` … followed by one byte of value `0x01`".
+
+An earlier version of this note said the paper's limits "are simultaneously tight only under a
+160/96 split". **That is backwards** — a 96-bit index field addresses 2^96, leaving the stated 2^95
+bound slack by a factor of two. Both numbers are exactly tight under 161/95. The paper's own
+TRAX-QCB accounting ("3 bits … for domain separation, 80 bits of IV and 45 bits of block numbering
+… at most 2^45 − 1 blocks") shows fields summing exactly to the tweak width; here 160 + 95 = 255
+leaves one bit unaccounted for, and the `10*` pad bit is exactly it.
+
+Byte compatibility with a paper-conformant Saturnin-QCB is therefore **unlikely, not "likely but
+unproven"** — and in any case unreachable, because this mode emits the CTX tag `T'` rather than
+Algorithm 1's `T`. There is no security consequence (byte 16 is constant either way, and the tweak
+is XORed into the key, so the readings differ by a fixed key offset). The consequence is for
+hardware: silicon that bakes in `0x00` cannot be corrected if the designers confirm `0x80`.
+Decision: card `t_5d1460b7`. Question to the designers: card `t_7123c738`. If/when they publish
+QCB KATs, pin them and reconcile before treating this mode as a standard.
 
 ## KAT validation
 
