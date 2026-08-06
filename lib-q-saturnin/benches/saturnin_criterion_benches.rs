@@ -125,7 +125,13 @@ fn bench_hash(c: &mut Criterion) {
         group.measurement_time(Duration::from_secs(6));
         group.sample_size(60);
         let hash = SaturninHash::new();
-        for size in [64usize, 1024, 10 * 1024, 100 * 1024, 1024 * 1024] {
+        // Short-message sizes (0/16/64/256/1024 bytes) are the point of this sweep: `hash()`
+        // does a fixed amount of per-call setup work (see `src/hash.rs::SaturninHash::hash`)
+        // before it ever touches a byte of input, and that fixed cost is invisible at large
+        // message sizes but dominates at these small ones. Card t_ae63f1ec's SUSPECTED-by-
+        // operation-counting estimate (~2 block-encryptions of fixed overhead per call) must be
+        // measured here, not assumed.
+        for size in [0usize, 16, 64, 256, 1024] {
             let input = data(size);
             group.throughput(Throughput::Bytes(size as u64));
             group.bench_with_input(BenchmarkId::new("hash", size), &input, |b, v| {
