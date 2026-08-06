@@ -1,6 +1,7 @@
 //! `lattice_zkp_wire_v0` canonical encodings (version byte + profile id + tagged payload).
 
 mod pack;
+mod reader;
 mod v0;
 
 pub use pack::{

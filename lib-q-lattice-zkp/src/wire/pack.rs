@@ -12,6 +12,7 @@ use lib_q_ring::encoding::{
 
 use crate::error::VerifyError;
 use crate::profile::RQ_COEFF_PACK_BITS;
+use crate::wire::reader::read_u16_counted;
 
 /// Canonical unsigned representative in `[0, q)`.
 #[must_use]
@@ -125,22 +126,17 @@ pub fn pack_rq_module(polys: &[Poly], modulus: i32, out: &mut Vec<u8>) -> Result
 }
 
 /// Unpack a module vector of `R_q` polynomials.
+///
+/// # Errors
+///
+/// Rejects any encoded element count that is not backed by the bytes actually present in `data`;
+/// peak allocation is bounded by a small multiple of `data.len()`, never by the untrusted count
+/// alone (see `wire::reader`).
 pub fn unpack_rq_module(data: &[u8], modulus: i32) -> Result<(Vec<Poly>, usize), VerifyError> {
-    if data.len() < 2 {
-        return Err(VerifyError::InvalidFormat);
-    }
-    let n = u16::from_le_bytes([data[0], data[1]]) as usize;
-    let mut off = 2;
-    let mut polys = Vec::with_capacity(n);
-    for _ in 0..n {
-        let (p, consumed) = unpack_rq_poly(&data[off..], modulus)?;
-        polys.push(p);
-        off = off.saturating_add(consumed);
-        if off > data.len() {
-            return Err(VerifyError::InvalidFormat);
-        }
-    }
-    Ok((polys, off))
+    let elem_len = simple_bit_pack_len(usize::from(RQ_COEFF_PACK_BITS));
+    read_u16_counted(data, elem_len, u16::MAX as usize, |chunk| {
+        unpack_rq_poly(chunk, modulus).map(|(p, _)| p)
+    })
 }
 
 /// Pack bounded `z` module vector.
@@ -162,24 +158,19 @@ pub fn pack_z_module(
 }
 
 /// Unpack bounded `z` module vector.
+///
+/// # Errors
+///
+/// Rejects any encoded element count that is not backed by the bytes actually present in `data`;
+/// peak allocation is bounded by a small multiple of `data.len()`, never by the untrusted count
+/// alone (see `wire::reader`).
 pub fn unpack_z_module(
     data: &[u8],
     bound: i32,
     pack_bits: u8,
 ) -> Result<(Vec<Poly>, usize), VerifyError> {
-    if data.len() < 2 {
-        return Err(VerifyError::InvalidFormat);
-    }
-    let n = u16::from_le_bytes([data[0], data[1]]) as usize;
-    let mut off = 2;
-    let mut polys = Vec::with_capacity(n);
-    for _ in 0..n {
-        let (p, consumed) = unpack_bounded_z_poly(&data[off..], bound, pack_bits)?;
-        polys.push(p);
-        off = off.saturating_add(consumed);
-        if off > data.len() {
-            return Err(VerifyError::InvalidFormat);
-        }
-    }
-    Ok((polys, off))
+    let elem_len = simple_bit_pack_len(usize::from(pack_bits));
+    read_u16_counted(data, elem_len, u16::MAX as usize, |chunk| {
+        unpack_bounded_z_poly(chunk, bound, pack_bits).map(|(p, _)| p)
+    })
 }
