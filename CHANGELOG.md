@@ -6,6 +6,47 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Changed — BREAKING (wire format)
 
+- **`lib-q-saturnin`: Saturnin-QCB now conforms to Algorithm 1 of the QCB paper.** Every QCB
+  ciphertext changes; nothing produced by 0.0.8 or earlier decrypts under this code, and there is
+  no compatibility flag (keeping the old construction reachable would keep the forgery below
+  reachable).
+
+  The mode was built from the "An Update on Saturnin" note alone. That note's Figure 1 is
+  captioned "Saturnin-QCB, **encryption**" and shows only the message path — the tag and the
+  associated data are in the QCB paper's Figure 3, which the note does not reproduce — so the
+  previous code inferred the tag and AD handling from a figure that does not contain them. The
+  normative source is Bhaumik, Bonnetain, Chailloux, Leurent, Naya-Plasencia, Schrottenloher and
+  Seurin, *QCB: Efficient Quantum-secure Authenticated Encryption*, ASIACRYPT 2021 (full version
+  IACR ePrint 2020/1304), Algorithm 1 plus its *Instantiation with Saturnin* paragraph.
+
+  Three divergences are fixed:
+
+  - **The nonce is back in the associated-data tweak.** AD tweaks previously zeroed the nonce
+    field, making the AD's whole contribution to the tag a nonce-independent constant. The paper
+    forbids exactly this (Section 5, *Avoiding Quantum Attacks*: "It is important to include the
+    IV in the tweak when processing the AD. Otherwise, there is a quantum forgery attack based on
+    Deutsch's algorithm."), which is the Q2 unforgeability QCB exists to provide over
+    Saturnin-CTR-Cascade. It also gave a **purely classical** forgery whenever a nonce repeated:
+    two encryptions under one nonce with associated data `A` and `A'` reveal
+    `Σ(A) ⊕ Σ(A')`, and XORing that offset into the tag of any later genuine ciphertext under any
+    fresh nonce relabels it from `A` to `A'` and verifies. Regression-tested end to end by
+    `tests/qcb_spec.rs::ad_difference_does_not_transfer_across_nonces`.
+  - **Five domain separators, not three.** The paper fixes `D = 9, 10, 11, 12, 13`; two of the
+    three libQ used were assigned to the wrong roles. Now: `9` full message block (line 5), `10`
+    final padded message block (line 7), `11` full AD block (line 10), `12` final padded AD block
+    (line 12), `13` tag/checksum (line 13). Previously `10` was the tag and `11` covered the final
+    padded AD block as well as the full ones. The final padded message block and the tag also move
+    to tweak index `l` (the last full block's index) as Algorithm 1 specifies.
+  - **Empty associated data now absorbs one padded block.** Algorithm 1 line 12 is unconditional,
+    so `pad(A_*) = 10*` is absorbed even when `A` is empty; the previous code short-circuited to
+    zero. This is the only throughput change in the fix (+1 Saturnin call per empty-AD message).
+
+  `tests/qcb_spec.rs` checks `SaturninQcb::encrypt` against an independent transcription of
+  Algorithm 1 over a 63-case length sweep, and the five pinned self-consistency vectors in
+  `qcb::tests::pinned_kat_vectors` were regenerated. QCB is still **not key-committing** (the
+  CMT-1 break in `tests/key_commitment.rs` is untouched by this fix) and is still an OCB-family
+  mode, so nonce reuse remains catastrophic for confidentiality.
+
 - **HQC-192 and HQC-256 public keys shrink by 8 bytes**, to the sizes the specification requires:
   `4522 → 4514` and `7245 → 7237`. HQC-128 is unaffected (already 2241).
 

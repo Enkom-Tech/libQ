@@ -1,6 +1,5 @@
 //! AVX2 kernels for Saturnin helpers.
 
-use alloc::vec;
 use alloc::vec::Vec;
 use core::arch::x86_64::{
     __m256i,
@@ -401,40 +400,25 @@ unsafe fn apply_shift_rows_sheet_inv(q: &mut [__m256i; 8]) {
     }
 }
 
+/// Packed bs32 round constants for `(num_super_rounds, domain)`.
+///
+/// Delegates to the single corrected generator in [`crate::bs32_core::SaturninBs32Core`] instead
+/// of keeping a second (previously third) copy of the round-constant LFSR in this SIMD backend.
+/// The AVX2 and NEON backends both used to carry a verbatim copy of `bs32_core`'s old generator —
+/// `u32` shift-register state that was never truncated back to 16 bits, plus a Rust precedence bug
+/// (`!(x >> 15).wrapping_add(1)` parses as `!((x >> 15) + 1)`, not the intended two's-complement
+/// `(!(x >> 15)).wrapping_add(1)`) — masked at the two configurations this crate ships
+/// (Saturnin-Hash: `(16, 7)`/`(16, 8)`) by hand-copied ROM tables, but wrong everywhere else on the
+/// same public API. Three copies of one algorithm is how that defect survived; one derivation rule,
+/// one point of truth. See `bs32_core.rs::packed_round_constants` for the corrected derivation and
+/// `tests/reference_oracle.rs` for cross-checks against the designers' own KAT vectors.
 fn round_constants(num_super_rounds: usize, domain: u8) -> Vec<u32> {
-    if num_super_rounds == 16 {
-        match domain {
-            7 => {
-                return vec![
-                    0x3FBA180C, 0x563AB9AB, 0x125EA5EF, 0x859DA26C, 0xB8CF779B, 0x7D4DE793,
-                    0x07EFB49F, 0x8D525306, 0x1E08E6AB, 0x41729F87, 0x8C4AEF0A, 0x4AA0C9A7,
-                    0xD93A95EF, 0xBB00D2AF, 0xB62C5BF0, 0x386D94D8,
-                ];
-            }
-            8 => {
-                return vec![
-                    0x3C9B19A7, 0xA9098694, 0x23F878DA, 0xA7B647D3, 0x74FC9D78, 0xEACAAE11,
-                    0x2F31A677, 0x4CC8C054, 0x2F51CA05, 0x5268F195, 0x4F5B8A2B, 0xF614B4AC,
-                    0xF1D95401, 0x764D2568, 0x6A493611, 0x8EEF9C3E,
-                ];
-            }
-            _ => {}
-        }
-    }
-
-    let mut out = Vec::with_capacity(num_super_rounds);
-    let mut x0 = (domain as u32)
-        .wrapping_add((num_super_rounds as u32) << 4)
-        .wrapping_add(0xFE00);
-    let mut x1 = x0;
-    for _ in 0..num_super_rounds {
-        for _ in 0..16 {
-            x0 = (x0 << 1) ^ (0x2D & (!(x0 >> 15).wrapping_add(1)));
-            x1 = (x1 << 1) ^ (0x53 & (!(x1 >> 15).wrapping_add(1)));
-        }
-        out.push((x1 << 16) | x0);
-    }
-    out
+    // `num_super_rounds`/`domain` are already range-checked by every caller before this runs
+    // (mirroring `SaturninBs32Core::new`'s own checks), so this cannot fail in practice.
+    crate::bs32_core::SaturninBs32Core::new(num_super_rounds, domain)
+        .expect("num_super_rounds/domain already validated by caller")
+        .round_constants()
+        .to_vec()
 }
 
 #[inline]

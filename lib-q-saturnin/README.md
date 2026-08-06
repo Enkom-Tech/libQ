@@ -43,9 +43,13 @@ fn main() -> Result<()> {
 ### Saturnin-QCB (one-pass AEAD)
 
 `SaturninQcb` is the one-pass, parallelizable AEAD from "An Update on Saturnin", built on the
-Saturnin tweakable block cipher (`SaturninTbc` = `Saturnin16^d_{K⊕T}`). Message blocks use domain
-9, the tag uses domain 10; each block is encrypted with a tweak binding the nonce and block index,
-so encryption is rate-one and embarrassingly parallel.
+Saturnin tweakable block cipher (`SaturninTbc` = `Saturnin16^d_{K⊕T}`). It follows Algorithm 1 of
+the QCB paper (Bhaumik et al., ASIACRYPT 2021; IACR ePrint 2020/1304) and that paper's
+*Instantiation with Saturnin* paragraph, which fixes the five domain separators: **9** full
+message block, **10** final padded message block, **11** full associated-data block, **12** final
+padded associated-data block, **13** tag/checksum. Every block — associated data included — is
+encrypted with a tweak binding the nonce and the block index, so encryption is rate-one and
+embarrassingly parallel.
 
 ```rust
 use lib_q_saturnin::{
@@ -246,7 +250,7 @@ evidence that they commit — read the box under the table before quoting any ro
 
 | Mode | Key / tag | CMT-1 status |
 |---|---|---|
-| `SaturninQcb` | 256 / 256-bit | **BROKEN.** Cheap search then closed-form algebra. Measured over 200 independent key pairs, all of which broke: mean **249** padding-search tries ≈ **~500 Saturnin block calls** (median 201, min 1, max 1316), and **0** searches of the 256-bit tag. Cause: associated data enters the tag by plain XOR through a public keyed permutation, so side 2's associated data is *solved*, not searched. |
+| `SaturninQcb` | 256 / 256-bit | **BROKEN.** Cheap search then closed-form algebra. Measured over 200 independent key pairs, all of which broke: mean **270** padding-search tries ≈ **~546 Saturnin block calls** (median 191, min 2, max 2492), and **0** searches of the 256-bit tag. Cause: associated data enters the tag by plain XOR through a public keyed permutation, so side 2's associated data is *solved*, not searched. |
 | `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). |
 | `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |

@@ -68,6 +68,11 @@ path = "tests/key_commitment.rs"
 required-features = ["alloc", "qcb"]
 
 [[test]]
+name = "qcb_spec"
+path = "tests/qcb_spec.rs"
+required-features = ["alloc", "qcb"]
+
+[[test]]
 name = "core_equivalence"
 path = "tests/core_equivalence.rs"
 required-features = ["alloc"]

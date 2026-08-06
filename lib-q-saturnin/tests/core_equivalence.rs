@@ -19,11 +19,13 @@
 //! the defect sat in a public API. The gap was that no test compared the two cores, and no test
 //! checked the constants against the rule that generates them. This is those two tests.
 //!
-//! Scope note: the cores are compared **only** at the hash domains. `SaturninBs32Core`'s own
-//! constant generator is separately broken outside `(16, 7)` and `(16, 8)` — its LFSR runs in a
-//! `u32` that never truncates to 16 bits, and `!(x >> 15).wrapping_add(1)` does not parse as the
-//! intended mask — so a whole-grid comparison would go red for an unrelated reason. Widen
-//! `HASH_CONFIGS` to the full grid once that is fixed.
+//! Scope note: this file compares the cores **only** at the hash domains, because that is the
+//! disagreement it was written for. It used to say a whole-grid comparison could not be written
+//! yet, because `SaturninBs32Core`'s own constant generator was separately broken outside
+//! `(16, 7)` / `(16, 8)` (its LFSR ran in a `u32` that never truncated to 16 bits, and
+//! `!(x >> 15).wrapping_add(1)` does not parse as the intended two's-complement mask). That is
+//! fixed; the whole-grid comparison — plus `SaturninBs32Core::decrypt_block`, which this file does
+//! not exercise at all — now lives in `tests/bs32_lfsr_and_inverse.rs`.
 
 #![cfg(feature = "alloc")]
 

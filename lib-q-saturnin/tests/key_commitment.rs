@@ -9,7 +9,7 @@
 //!
 //! 1. a `1/256`-per-try search for a ciphertext body whose decryption carries valid `10*`
 //!    padding under *both* keys — expected `~2^8` tries, `2` Saturnin block calls each, and
-//!    2. a closed-form solve for the second side's associated data — `5` block calls, no search.
+//!    2. a closed-form solve for the second side's associated data — `6` block calls, no search.
 //!
 //! Part 1 dominates and is what the cost figure in the crate READMEs quotes; it is measured over
 //! independent key pairs by [`qcb_cmt1_attack_cost_measured`], not read off a single lucky run.
@@ -18,13 +18,16 @@
 //! The cause of part 2 is structural and is visible in `qcb.rs::compute_tag`:
 //!
 //! ```text
-//! tag = TBC_10(K, tweak(N, last))(checksum)  XOR  ad_auth
-//! ad_auth = XOR_j TBC_11(K, ad_tweak(j))(pad(A)_j)
+//! tag = TBC_13(K, tweak(N, l))(checksum)  XOR  ad_auth
+//! ad_auth = XOR_i TBC_11(K, tweak(N, i))(A_i)  XOR  TBC_12(K, tweak(N, j))(pad(A_*))
 //! ```
 //!
-//! `ad_auth` enters the tag by plain XOR, and `TBC_11` is a *public, invertible* permutation
-//! once the key is known. An adversary who holds both keys therefore solves for the second
-//! side's associated data in closed form instead of searching for it.
+//! `ad_auth` enters the tag by plain XOR, and `TBC_11` / `TBC_12` are *public, invertible*
+//! permutations once the key is known. An adversary who holds both keys therefore solves for the
+//! second side's associated data in closed form instead of searching for it.
+//!
+//! Note this shape is unchanged by the QCB Algorithm-1 conformance fix (five domains, the IV in
+//! every tweak, unconditional absorption of `pad(A_*)`): that fix closes a forgery, not CMT-1.
 //!
 //! Saturnin-CTR-Cascade (`aead.rs`) does not have this shape: its associated data is folded
 //! through a Matyas–Meyer–Oseas chain, which is not invertible in the data, so steering the
@@ -44,33 +47,31 @@ use lib_q_saturnin::{
 
 /// Saturnin block size in bytes (256-bit block).
 const B: usize = 32;
-/// `qcb.rs::DOMAIN_MESSAGE`
-const DOMAIN_MESSAGE: u8 = 9;
-/// `qcb.rs::DOMAIN_TAG`
-const DOMAIN_TAG: u8 = 10;
-/// `qcb.rs::DOMAIN_AD`
+/// `qcb.rs::DOMAIN_MESSAGE_FINAL` — the 31-byte plaintexts this attack uses have no full block,
+/// so their single body block is the *final padded* one (Algorithm 1 line 7).
+const DOMAIN_MESSAGE_FINAL: u8 = 10;
+/// `qcb.rs::DOMAIN_AD` — full associated-data blocks (Algorithm 1 line 10).
 const DOMAIN_AD: u8 = 11;
+/// `qcb.rs::DOMAIN_AD_FINAL` — the final padded associated-data block (Algorithm 1 line 12).
+const DOMAIN_AD_FINAL: u8 = 12;
+/// `qcb.rs::DOMAIN_TAG` — the tag / message checksum (Algorithm 1 line 13).
+const DOMAIN_TAG: u8 = 13;
 
 /// Block calls the attack spends outside the padding search, counted against `qcb.rs`:
-/// `Aead::encrypt` of a one-block plaintext with empty associated data is 1 `msg.encrypt_block`
-/// plus 1 `tag.encrypt_block` (`absorb_ad` returns early on empty AD) = 2; the closed-form solve
-/// is 1 `tag.encrypt_block` + 1 `ad.encrypt_block` + 1 `ad.decrypt_block` = 3.
-const FIXED_BLOCK_CALLS: u64 = 5;
+/// `Aead::encrypt` of a 31-byte plaintext with empty associated data costs 3 (one `msg_final`,
+/// one `ad_final` — `absorb_ad` absorbs `pad(A_*)` unconditionally — and one `tag`); the
+/// closed-form solve costs 3 (one `tag.encrypt_block`, one `ad_final.encrypt_block`, one
+/// `ad.decrypt_block`).
+const FIXED_BLOCK_CALLS: u64 = 6;
 /// Block calls per padding-search try: one `encrypt_block` under `k2`, one `decrypt_block`
 /// under `k1`.
 const BLOCK_CALLS_PER_TRIAL: u64 = 2;
 
-/// `qcb.rs::SaturninQcb::tweak` — `N (16) || 0x00 * 8 || block_index_be_u64 (8)`.
+/// `qcb.rs::SaturninQcb::tweak` — `N (16) || 0x00 * 8 || block_index_be_u64 (8)`. Used for every
+/// domain, associated data included; the QCB paper requires the IV in the AD tweak too.
 fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; B] {
     let mut t = [0u8; B];
     t[0..16].copy_from_slice(nonce16);
-    t[24..32].copy_from_slice(&block_index.to_be_bytes());
-    t
-}
-
-/// `qcb.rs::SaturninQcb::ad_tweak` — same layout with the nonce field zeroed.
-fn ad_tweak(block_index: u64) -> [u8; B] {
-    let mut t = [0u8; B];
     t[24..32].copy_from_slice(&block_index.to_be_bytes());
     t
 }
@@ -132,9 +133,10 @@ impl Break {
 /// reconstruction, so this harness does not use it.
 fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<Break> {
     let aead = SaturninQcb::new();
-    let msg_tbc = SaturninTbc::new(DOMAIN_MESSAGE).unwrap();
+    let msg_tbc = SaturninTbc::new(DOMAIN_MESSAGE_FINAL).unwrap();
     let tag_tbc = SaturninTbc::new(DOMAIN_TAG).unwrap();
     let ad_tbc = SaturninTbc::new(DOMAIN_AD).unwrap();
+    let ad_final_tbc = SaturninTbc::new(DOMAIN_AD_FINAL).unwrap();
     assert_ne!(k1, k2, "the two keys must be distinct for this to be CMT-1");
 
     // ---- step 1: the search ----------------------------------------------------------------
@@ -163,9 +165,10 @@ fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<Break> 
     let (body, cs1, cs2) = found?;
 
     // ---- step 2: side 1 --------------------------------------------------------------------
-    // Side 1 uses empty associated data, so ad_auth1 == 0 and the tag is just the encrypted
-    // checksum. Take the whole ciphertext straight from the public encrypt API so the test
-    // cannot drift from the implementation.
+    // Side 1 uses empty associated data. Its tag is whatever the mode produces (with the
+    // Algorithm-1 fix that now includes TBC_12(k1, tweak(n,0))(10*), no longer zero) — the attack
+    // never needs to model it, because it takes the whole ciphertext straight from the public
+    // encrypt API so the test cannot drift from the implementation.
     let pt1 = cs1[..31].to_vec();
     let key1 = AeadKey::new(k1.to_vec());
     let key2 = AeadKey::new(k2.to_vec());
@@ -178,22 +181,25 @@ fn qcb_cmt1_attack(k1: &[u8; 32], k2: &[u8; 32], n: &[u8; 16]) -> Option<Break> 
     tag.copy_from_slice(&ciphertext[B..]);
 
     // ---- step 3: solve side 2's associated data in closed form -----------------------------
-    // Required: ad_auth2 == TBC_10(k2,..)(cs2) XOR tag.
+    // Required: ad_auth2 == TBC_13(k2,..)(cs2) XOR tag.
     let mut t2core = cs2;
     tag_tbc
         .encrypt_block(k2, &tweak(n, 0), &mut t2core)
         .unwrap();
     let want_ad_auth2 = xor32(&t2core, &tag);
 
-    // A two-block associated data gives one fully free block (`b0`) plus one block whose tail
-    // must hold the padding marker (`b1`). Fix b1, then invert TBC_11 for b0. No search.
+    // A 63-byte associated data splits into one full block (`b0`, domain 11, index 0) plus a
+    // 31-byte tail that pads to one final block (`b1`, domain 12, index j = 0). Fix b1, then
+    // invert TBC_11 for b0. No search.
     let mut b1 = [0u8; B];
-    b1[31] = 0x80; // pad(63-byte AD) == A2 || 0x80
+    b1[31] = 0x80; // pad(A_*) for a 31-byte tail == A_* || 0x80
     let mut v1 = b1;
-    ad_tbc.encrypt_block(k2, &ad_tweak(1), &mut v1).unwrap();
+    ad_final_tbc
+        .encrypt_block(k2, &tweak(n, 0), &mut v1)
+        .unwrap();
 
     let mut b0 = xor32(&want_ad_auth2, &v1);
-    ad_tbc.decrypt_block(k2, &ad_tweak(0), &mut b0).unwrap();
+    ad_tbc.decrypt_block(k2, &tweak(n, 0), &mut b0).unwrap();
 
     let mut ad2 = Vec::with_capacity(63);
     ad2.extend_from_slice(&b0);
@@ -322,7 +328,7 @@ fn qcb_cmt1_attack_cost_measured() {
 #[test]
 fn qcb_break_depends_on_the_associated_data_degree_of_freedom() {
     let aead = SaturninQcb::new();
-    let msg_tbc = SaturninTbc::new(DOMAIN_MESSAGE).unwrap();
+    let msg_tbc = SaturninTbc::new(DOMAIN_MESSAGE_FINAL).unwrap();
 
     let k1 = [0x11u8; 32];
     let k2 = [0x22u8; 32];
