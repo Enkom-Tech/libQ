@@ -1338,7 +1338,11 @@ jobs:
           - name: "Saturnin"
             action: test-saturnin
             working-directory: lib-q-saturnin
-            features: "aead,aead-short,block-cipher,hash,stream,alloc,simd-avx2"
+            # `qcb` must stay in this list. It was removed from the crate's default features
+            # on 2026-08-06, and tests/{key_commitment,qcb_spec,qcb_ctx_spec}.rs carry
+            # `required-features = ["alloc", "qcb"]` — so without it Cargo SKIPS those three
+            # targets silently and 15 tests vanish from CI with no failure.
+            features: "aead,aead-short,block-cipher,hash,stream,alloc,simd-avx2,qcb"
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: "aead,aead-short,block-cipher,hash,stream"
