@@ -50,6 +50,7 @@ impl<N: ArraySize> AsRef<[u8]> for PkSeed<N> {
     }
 }
 impl<N: ArraySize> From<&[u8]> for PkSeed<N> {
+    /// Panics if `slice` length differs from the public key seed size `N`.
     fn from(slice: &[u8]) -> Self {
         Self(array_u8_try_from_exact(slice).expect("slice length must equal public key seed size"))
     }

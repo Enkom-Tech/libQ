@@ -251,7 +251,8 @@ fn active_rows(trace: &RowMajorMatrix<ConfigVal>, width: usize) -> usize {
 /// `e`-sampler (`MU·N` coeffs), the `MU` `e_r` folds (byte-bound via join 2 at per-ring-element bases),
 /// the `g`/`encode(μ)`/quotient folds (fed directly), and the R3b relation receiving all `MU+3` folds
 /// (join 3). Returns the ciphertext, the [`EncProofShape`] the verifier needs, and the assembled
-/// instances. The Fiat–Shamir challenge is `ζ = derive_zetas(ct)[0]` — verifier-recomputable, never
+/// instances. The Fiat–Shamir challenge is `ζ = statement_zetas(pk_digest, ct)[0]` — the challenge is
+/// over the statement `(pk_digest ‖ ct)`, not the ciphertext alone — verifier-recomputable, never
 /// prover-supplied.
 ///
 /// # Errors
@@ -277,7 +278,7 @@ pub fn assemble_e_provenance_prover(
     let full_limbs = blocks * (RATE_BYTES / 2);
     let squeeze = generate_squeeze_byte_trace_partial(&input, full_limbs, consumed);
 
-    let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
+    let zeta = statement_zetas(&w.pk_digest, &ct, 1)[0];
 
     // R3b public coefficients + quotient (over the real witness).
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
@@ -358,17 +359,18 @@ pub fn assemble_e_provenance_prover(
     ))
 }
 
-/// **Verifier** assembly for `(t0, ct, shape)`: recomputes `ζ = derive_zetas(ct)[0]`, rebuilds every
-/// AIR from the public [`EncProofShape`], the sponge public values from `ct.pk_digest` (the
-/// load-bearing pk binding — NEVER prover-supplied), and the relation public coefficients from
-/// `(t0, ct, ζ)`. Rebuilds the lookups (deterministic, witness-free) in the SAME order as
-/// [`assemble_e_provenance_prover`]. Feed to `verify_batch`.
+/// **Verifier** assembly for `(t0, ct, shape)`: recomputes `ζ = statement_zetas(pk_digest, ct)[0]`
+/// over `pk_digest_of(t0)`, rebuilds every AIR from the public [`EncProofShape`], the sponge public
+/// values from `ct.pk_digest` (the load-bearing pk binding — NEVER prover-supplied), and the relation
+/// public coefficients from `(t0, ct, ζ)`. Rebuilds the lookups (deterministic, witness-free) in the
+/// SAME order as [`assemble_e_provenance_prover`]. Feed to `verify_batch`.
 pub fn assemble_e_provenance_verifier(
     t0: &[Rq],
     ct: &Ciphertext,
     shape: EncProofShape,
 ) -> EncProvenanceVerifier {
-    let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
+    let pk_digest = lib_q_threshold_kem_lattice::kem::pk_digest_of(t0);
+    let zeta = statement_zetas(&pk_digest, ct, 1)[0];
     let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
     let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
     let v_z = rq_coeffs_zq(&ct.v);
@@ -397,7 +399,6 @@ pub fn assemble_e_provenance_verifier(
     // pk_digest is rebuilt from `t0` — the verifier does NOT trust a prover-supplied value
     // (adversarial-review 2026-07-11: the single most important obligation). `ct` is bound because ζ,
     // v_z and the relation coefficients are all recomputed from it above.
-    let pk_digest = lib_q_threshold_kem_lattice::kem::pk_digest_of(t0);
     let rel_pubs = relation_public_values(&a, c);
     let public_values =
         e_provenance_public_values(&pk_digest, shape.num_e_coeffs, zeta, &a, c, &rel_pubs);
@@ -549,7 +550,7 @@ pub fn assemble_r3a_f_provenance_prover(
     let full_limbs = blocks * (RATE_BYTES / 2);
     let squeeze = generate_squeeze_byte_trace_partial(&input, full_limbs, total_consumed);
 
-    let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
+    let zeta = statement_zetas(&w.pk_digest, &ct, 1)[0];
 
     // Shared e_r folds (byte-bound to the ternary sampler).
     let e_lifts: Zeroizing<Vec<Vec<u64>>> = Zeroizing::new(w.e.iter().map(rq_coeffs_zq).collect());
@@ -653,7 +654,8 @@ pub fn assemble_r3a_f_provenance_verifier(
     ct: &Ciphertext,
     shape: &R3aProofShape,
 ) -> EncProvenanceVerifier {
-    let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
+    let pk_digest = lib_q_threshold_kem_lattice::kem::pk_digest_of(t0);
+    let zeta = statement_zetas(&pk_digest, ct, 1)[0];
     let b0 = key().b0();
     let rc = RelationCheckAir { num_terms: MU + 2 };
 
@@ -687,7 +689,6 @@ pub fn assemble_r3a_f_provenance_verifier(
     }
 
     let lookups = r3a_f_lookups(&shape.columns, shape.f_offset as u64, &rc);
-    let pk_digest = lib_q_threshold_kem_lattice::kem::pk_digest_of(t0);
     let public_values = r3a_f_public_values(
         &pk_digest,
         shape.e_num_coeffs,
@@ -835,7 +836,14 @@ pub struct FullProofShape {
 
 /// The `m` Fiat–Shamir challenges of the statement `(pk_digest ‖ ct)` — absorbing `pk_digest` gives
 /// multi-target separation (closes the H4 transcript half); the prover cannot supply these (the
-/// verifier recomputes them identically from `(t0, ct)`).
+/// verifier recomputes them identically from `(t0, ct)`). This is now the SHARED derivation for all
+/// three tiers (e-provenance, R3a+f, and full), so the H4 transcript-binding claim holds crate-wide.
+///
+/// // WIRE CHANGE (2026-08-06, card t_fe2722bf): the e-provenance and R3a+f tiers previously
+/// // derived ζ from the ciphertext alone (`derive_zetas(ct)[0]`); all six assemble functions now
+/// // absorb `pk_digest` via `statement_zetas`. Proofs produced by earlier code do NOT verify under
+/// // this code and vice versa. No KAT in this repo pins the old transcript; the crate is
+/// // RED/unsigned and pre-1.0.
 fn statement_zetas(pk_digest: &[u8; 32], ct: &Ciphertext, m: usize) -> Vec<u64> {
     let ct_bytes = ct.to_bytes();
     let mut stmt = Vec::with_capacity(32 + ct_bytes.len());
@@ -1958,5 +1966,46 @@ mod tests {
             matches!(refused, Err(EncProofError::ProofRejected)),
             "a composed proof that does not verify for this ciphertext must be refused by the gate"
         );
+    }
+
+    /// Regression for card t_fe2722bf: all four narrow-tier assemble functions must challenge on the
+    /// statement `(pk_digest ‖ ct)` via `statement_zetas`, not on `ct` alone via `derive_zetas`. On the
+    /// pre-fix code this failed (ζ was ct-only, so `wide` never appeared in `public_values`).
+    #[test]
+    fn all_tiers_absorb_pk_digest_into_zeta() {
+        let t0 = test_t0();
+        let mu = [0x6Bu8; 32];
+        let ct = encapsulate_derand(&t0, &mu);
+        let pkd = lib_q_threshold_kem_lattice::kem::pk_digest_of(&t0);
+        let wide = horner_public_values(statement_zetas(&pkd, &ct, 1)[0]);
+        let narrow = horner_public_values(derive_zetas(&ct.to_bytes(), 1)[0]);
+        assert_ne!(
+            wide, narrow,
+            "sanity: the two derivations must differ for this statement"
+        );
+
+        // e-provenance tier (verifier is witness-free; shape fields only size the AIRs).
+        let (ct_p, shape, prover) =
+            assemble_e_provenance_prover(&t0, &mu).expect("e-provenance prover assembly");
+        let verifier = assemble_e_provenance_verifier(&t0, &ct_p, shape);
+        for (name, pvs) in [
+            ("e-prov prover", &prover.public_values),
+            ("e-prov verifier", &verifier.public_values),
+        ] {
+            assert!(pvs.contains(&wide), "{name}: zeta must absorb pk_digest");
+            assert!(!pvs.contains(&narrow), "{name}: ct-only zeta must be gone");
+        }
+
+        // R3a+f tier.
+        let (ct_r, rshape, rprover) =
+            assemble_r3a_f_provenance_prover(&t0, &mu, &[0]).expect("R3a+f prover assembly");
+        let rverifier = assemble_r3a_f_provenance_verifier(&t0, &ct_r, &rshape);
+        for (name, pvs) in [
+            ("r3a_f prover", &rprover.public_values),
+            ("r3a_f verifier", &rverifier.public_values),
+        ] {
+            assert!(pvs.contains(&wide), "{name}: zeta must absorb pk_digest");
+            assert!(!pvs.contains(&narrow), "{name}: ct-only zeta must be gone");
+        }
     }
 }
