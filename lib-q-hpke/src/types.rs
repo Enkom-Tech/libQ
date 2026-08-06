@@ -264,94 +264,6 @@ impl HpkeCipherSuite {
     }
 }
 
-/// HPKE public key
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HpkePublicKey {
-    pub(crate) value: Vec<u8>,
-}
-
-impl HpkePublicKey {
-    /// Create from bytes
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self { value: bytes }
-    }
-
-    /// Get as byte slice
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.value
-    }
-
-    /// Convert to owned bytes
-    pub fn to_bytes(self) -> Vec<u8> {
-        self.value.clone()
-    }
-}
-
-/// HPKE private key
-#[derive(Clone)]
-pub struct HpkePrivateKey {
-    pub(crate) value: Vec<u8>,
-}
-
-impl HpkePrivateKey {
-    /// Create from bytes
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self { value: bytes }
-    }
-
-    /// Get as byte slice
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.value
-    }
-}
-
-impl HpkePrivateKey {
-    /// Convert to owned bytes
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.value.clone()
-    }
-}
-
-impl Drop for HpkePrivateKey {
-    fn drop(&mut self) {
-        self.value.iter_mut().for_each(|b| *b = 0);
-    }
-}
-
-/// HPKE key pair
-#[derive(Clone)]
-pub struct HpkeKeyPair {
-    /// Public key
-    pub public_key: HpkePublicKey,
-    /// Private key
-    pub private_key: HpkePrivateKey,
-}
-
-impl HpkeKeyPair {
-    /// Create from public and private keys
-    pub fn from_keys(public_key: HpkePublicKey, private_key: HpkePrivateKey) -> Self {
-        Self {
-            public_key,
-            private_key,
-        }
-    }
-
-    /// Get the public key
-    pub fn public_key(&self) -> &HpkePublicKey {
-        &self.public_key
-    }
-
-    /// Get the private key
-    pub fn private_key(&self) -> &HpkePrivateKey {
-        &self.private_key
-    }
-
-    /// Split into public and private keys
-    pub fn into_keys(self) -> (HpkePublicKey, HpkePrivateKey) {
-        (self.public_key, self.private_key)
-    }
-}
-
 /// Encapsulated key
 pub type EncapsulatedKey = Vec<u8>;
 
@@ -464,24 +376,5 @@ mod tests {
             HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfSha3_512, HpkeAead::Export);
         let id = suite.identifier();
         assert_eq!(id, vec![0x00, 0x23, 0x00, 0x07, 0xFF, 0xFF]);
-    }
-
-    #[test]
-    fn key_types_and_keypair_helpers() {
-        let public = HpkePublicKey::from_bytes(vec![1, 2, 3]);
-        assert_eq!(public.as_bytes(), &[1, 2, 3]);
-        assert_eq!(public.clone().to_bytes(), vec![1, 2, 3]);
-
-        let private = HpkePrivateKey::from_bytes(vec![4, 5, 6]);
-        assert_eq!(private.as_bytes(), &[4, 5, 6]);
-        assert_eq!(private.to_bytes(), vec![4, 5, 6]);
-
-        let keypair = HpkeKeyPair::from_keys(public.clone(), private.clone());
-        assert_eq!(keypair.public_key().as_bytes(), public.as_bytes());
-        assert_eq!(keypair.private_key().as_bytes(), private.as_bytes());
-
-        let (pub2, priv2) = keypair.into_keys();
-        assert_eq!(pub2.as_bytes(), public.as_bytes());
-        assert_eq!(priv2.as_bytes(), private.as_bytes());
     }
 }

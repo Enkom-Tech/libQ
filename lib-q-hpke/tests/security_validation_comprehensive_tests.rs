@@ -334,30 +334,39 @@ fn test_side_channel_resistance() {
     );
 }
 
-/// Test memory safety and zeroization
+/// Test that a KEM secret key round-trips its bytes and that an explicit `zeroize()` scrubs them.
+///
+/// This asserts only what is actually checkable here: `Zeroize` called by the holder clears the
+/// buffer. It deliberately does not assert anything about drop-time behaviour, which cannot be
+/// observed from safe code.
 #[test]
 fn test_memory_safety_and_zeroization() {
-    use lib_q_hpke::HpkePrivateKey;
+    use zeroize::Zeroize;
 
-    // Test that private keys are zeroed when dropped
+    // Constructing a key copies the caller's bytes; the caller's own vector is untouched.
     let key_data = vec![1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8];
     let key_data_clone = key_data.clone();
-
     {
-        let _private_key = HpkePrivateKey::from_bytes(key_data);
-        // Private key should be dropped here
+        let _secret_key = KemSecretKey::new(key_data);
     }
-
-    // The original data should still be intact (we didn't move it)
     assert_eq!(key_data_clone, vec![1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8]);
 
-    // Test that we can create and use private keys safely
-    let private_key = HpkePrivateKey::from_bytes(vec![9u8, 10u8, 11u8, 12u8]);
-    assert_eq!(private_key.as_bytes(), &[9u8, 10u8, 11u8, 12u8]);
+    // Secret keys round-trip their bytes...
+    let mut secret_key = KemSecretKey::new(vec![9u8, 10u8, 11u8, 12u8]);
+    assert_eq!(secret_key.as_bytes(), &[9u8, 10u8, 11u8, 12u8]);
 
-    // Test that we can convert to bytes safely
-    let bytes = private_key.to_bytes();
-    assert_eq!(bytes, vec![9u8, 10u8, 11u8, 12u8]);
+    // ...and an explicit zeroize() actually clears them.
+    secret_key.zeroize();
+    assert_ne!(
+        secret_key.as_bytes(),
+        [9u8, 10u8, 11u8, 12u8],
+        "explicit zeroize() left the key material intact"
+    );
+    assert!(
+        secret_key.as_bytes().iter().all(|b| *b == 0),
+        "explicit zeroize() left non-zero bytes: {:?}",
+        secret_key.as_bytes()
+    );
 }
 
 /// Test error handling security
