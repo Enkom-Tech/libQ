@@ -187,7 +187,7 @@ impl AlgorithmRegistry {
             category: AlgorithmCategory::Signature,
             security_level: 1,
             name: "FN-DSA",
-            description: "FN-DSA (FIPS 206) - Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm",
+            description: "FN-DSA (NIST-selected; FIPS 206 not yet published) - Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm",
             enabled: true,
         });
 

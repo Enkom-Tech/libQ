@@ -2,7 +2,7 @@
 
 ## Scope
 
-Memory behavior in lib-Q is **not uniform across the workspace**. Crates such as `lib-q-hpke`, `lib-q-zkp`, and protocol glue use **`alloc` / `Vec<u8>`** where RFCs or proof objects require variable-length buffers. Core KEM and signature **wire formats** are still fixed by NIST parameter sets (ML-KEM, ML-DSA, SLH-DSA, FN-DSA, CB-KEM, HQC), and hot paths are written to avoid unnecessary allocation where the API allows.
+Memory behavior in lib-Q is **not uniform across the workspace**. Crates such as `lib-q-hpke`, `lib-q-zkp`, and protocol glue use **`alloc` / `Vec<u8>`** where RFCs or proof objects require variable-length buffers. Core KEM and signature **wire formats** are still fixed by their respective parameter sets — NIST-standardized for ML-KEM, ML-DSA, and SLH-DSA; NIST-selected but not yet published as FIPS for FN-DSA and HQC; and the Classic McEliece round-4 submission's own encoding for CB-KEM, which NIST has not standardized — and hot paths are written to avoid unnecessary allocation where the API allows.
 
 This page describes **design goals and patterns**; for exact buffer sizes and stack behavior, follow the crate you compile (`lib-q-ml-kem`, `lib-q-ml-dsa`, `lib-q-hpke`, etc.) and its `README` / module documentation.
 

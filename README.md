@@ -2,7 +2,7 @@
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Enkom-Tech/libQ)
 
-A Rust cryptography workspace focused on **NIST-standardized post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are produced for the `@lib-q/*` packages listed below (see [docs/npm-packages.md](docs/npm-packages.md)). For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
+A Rust cryptography workspace focused on **NIST-selected post-quantum** key exchange and signatures, **SHA-3-family** hashes and XOFs, and a **transparent STARK**–based zero-knowledge stack. CI enforces `cargo check --workspace --exclude lib-q-examples --exclude lib-q-sca-test --target wasm32-unknown-unknown` (with the `getrandom` wasm_js cfg) so the **publishable library workspace** compiles for the WebAssembly target; npm bundles are produced for the `@lib-q/*` packages listed below (see [docs/npm-packages.md](docs/npm-packages.md)). For build modes, feature flags, and browser baselines, see [docs/wasm-compilation.md](docs/wasm-compilation.md).
 
 ## Mission
 
@@ -11,7 +11,7 @@ lib-Q provides a coherent Rust API surface over NIST-track post-quantum primitiv
 ## Key features
 
 - **Post-quantum first**: Post-quantum KEMs and signatures with tiered symmetric options
-- **Standards-aligned**: PQC KEMs and signatures track NIST-standardized modules (e.g. FIPS 203/204/205/206, HQC, Classic McEliece–family CB-KEM); hashes and XOFs use the SHA-3 family; symmetric design centers on Saturnin; ZKPs use a transparent STARK stack (complementary to the NIST PQC algorithm set)
+- **Standards-aligned**: PQC KEMs and signatures track NIST-selected algorithms (ML-KEM/FIPS 203, ML-DSA/FIPS 204, SLH-DSA/FIPS 205; FN-DSA is selected but FIPS 206 is not yet published; HQC is selected but its FIPS draft is not yet published; Classic McEliece–family CB-KEM was a round-4 submission, not selected); hashes and XOFs use the SHA-3 family; symmetric design centers on Saturnin; ZKPs use a transparent STARK stack (complementary to the NIST PQC algorithm set)
 - **Memory safe**: Built in Rust with zero-cost abstractions
 - **Cross-platform**: Native Rust + WASM compilation
 - **Intuitive API**: Clean, consistent interface designed for modern development
@@ -86,7 +86,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-blind-token`** | Post-quantum blind-signature token (homomorphic Module-lattice blind issuance) (**provisional / pre-standard**) |
 | **`lib-q-blind-pcs`** | Blind polynomial commitment sketch (**experimental / research**) |
 | **`lib-q-zk-encryption-proof`** | ZK-STARK proof of correct encryption (proof-of-knowledge of message μ) for `lib-q-threshold-kem-lattice` ciphertexts (**RED / research, pending sign-off**) |
-| **`lib-q-fn-dsa`** | FN-DSA (FIPS 206) |
+| **`lib-q-fn-dsa`** | FN-DSA (FIPS 206 not yet published) |
 | **`lib-q-slh-dsa`** | SLH-DSA (FIPS 205) |
 | **`lib-q-cb-kem`** | Classic McEliece–family CB-KEM |
 | **`lib-q-random`** | Randomness / entropy helpers |
@@ -129,7 +129,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 - **`@lib-q/ml-kem`** — ML-KEM (FIPS 203) only
 - **`@lib-q/kem`** — Post-quantum KEM façade
 - **`@lib-q/sig`** — Post-quantum signatures (ML-DSA path in CD)
-- **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206)
+- **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206 not yet published)
 - **`@lib-q/hash`** — SHA-3–family hash façade
 - **`@lib-q/utils`** — Utilities
 - **`@lib-q/aead`** — Post-quantum AEAD (Saturnin, Rocca-S, Romulus, duplex-sponge)
@@ -207,12 +207,12 @@ npm install @lib-q/aead @lib-q/hpke @lib-q/zkp @lib-q/random @lib-q/hqc @lib-q/s
 
 ### Key encapsulation mechanisms (KEMs)
 - **ML-KEM** (FIPS 203; security levels 1, 3, and 5)
-- **CB-KEM** (code-based KEM in the Classic McEliece family; five NIST parameter sets, selectable via crate features)
-- **HQC** (NIST-standardized code-based KEM; parameter sets HQC-128, HQC-192, and HQC-256, corresponding to levels 1, 3, and 5)
+- **CB-KEM** (code-based KEM in the Classic McEliece family; a NIST round-4 submission, not selected for standardization; five submission parameter sets, selectable via crate features)
+- **HQC** (code-based KEM selected by NIST for standardization; draft FIPS not yet published; parameter sets HQC-128, HQC-192, and HQC-256, corresponding to levels 1, 3, and 5)
 
 ### Digital signatures
 - **ML-DSA** (FIPS 204; levels 1, 3, and 5)
-- **FN-DSA** (FIPS 206; levels 1 and 5)
+- **FN-DSA** (FIPS 206 not yet published; levels 1 and 5)
 - **SLH-DSA** (FIPS 205; levels 1, 3, and 5)
 
 ### Hash functions
@@ -280,7 +280,7 @@ The table above is the authoritative crate list; the `[workspace].members` table
 
 ### Implemented capabilities
 - **ML-DSA** (FIPS 204; parameter sets ML-DSA-44, ML-DSA-65, ML-DSA-87) with provider-style integration
-- **FN-DSA** (FIPS 206) with CI coverage
+- **FN-DSA** (FIPS 206 not yet published) with CI coverage
 - **SLH-DSA** (FIPS 205) including all twelve SLH-DSA parameter sets
 - **ML-KEM** (FIPS 203; levels 1, 3, and 5)
 - **CB-KEM** (Classic McEliece–family; five parameter sets, feature-selected)

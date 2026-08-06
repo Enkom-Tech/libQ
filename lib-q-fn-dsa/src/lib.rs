@@ -1,8 +1,9 @@
 //! lib-Q FN-DSA - Post-Quantum Digital Signatures
 //!
-//! This crate provides a libQ-compatible wrapper around the FN-DSA (FIPS 206)
-//! post-quantum digital signature algorithm, which is based on FALCON with
-//! enhanced performance and compact signature sizes.
+//! This crate provides a libQ-compatible wrapper around the FN-DSA post-quantum digital
+//! signature algorithm, which is based on FALCON with enhanced performance and compact
+//! signature sizes. NIST selected FN-DSA for standardization as FIPS 206, which is not yet
+//! published.
 
 // Suppress clippy warnings in reference implementation code
 // These are external implementations that shouldn't be modified
@@ -25,7 +26,9 @@
 //!
 //! # Features
 //!
-//! - **NIST-Approved**: Implements NIST FIPS 206 (FN-DSA)
+//! - **NIST-Selected, pre-standard**: Implements FN-DSA, the algorithm NIST selected for
+//!   future FIPS 206 — FIPS 206 has not been published, so there is no finalized standard
+//!   (and no public draft) to be "compliant" with
 //! - **High Performance**: Optimized for both x86_64 and ARM64 architectures
 //! - **Compact Signatures**: Smaller signature sizes compared to other post-quantum schemes
 //! - **Security Levels**: Supports Level 1 (128-bit) and Level 5 (256-bit) security

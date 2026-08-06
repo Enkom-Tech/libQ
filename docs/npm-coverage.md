@@ -17,7 +17,7 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 | `@lib-q/ml-kem` | `lib-q-ml-kem` | ML-KEM (FIPS 203) |
 | `@lib-q/kem` | `lib-q-kem` | KEM façade |
 | `@lib-q/sig` | `lib-q-sig` | ML-DSA / SLH-DSA paths |
-| `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206) |
+| `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206 not yet published) |
 | `@lib-q/hash` | `lib-q-hash` | SHA-3 family façade |
 | `@lib-q/utils` | `lib-q-utils` | Shared helpers |
 | `@lib-q/aead` | `lib-q-aead` | AEAD (Saturnin, Rocca-S, Romulus, duplex-sponge) |

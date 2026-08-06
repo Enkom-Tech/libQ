@@ -36,11 +36,12 @@
 //!
 //! ## Standards alignment
 //!
-//! This crate targets **NIST FIPS 206** (FN-DSA). Key encodings, message
-//! pre-hashing, and domain separation follow the published standard. If NIST
-//! publishes errata or CAVP test-vector updates that affect wire
-//! interoperability, releases of this crate may adjust accordingly; consult
-//! release notes when upgrading.
+//! This crate implements FN-DSA, the signature scheme NIST **selected** for
+//! standardization as FIPS 206. FIPS 206 has **not been published** — there is no
+//! finalized standard, and no public draft, to be "compliant" with. Key encodings,
+//! message pre-hashing, and domain separation follow the FN-DSA design as tracked by
+//! the upstream `fn-dsa` reference implementation; if and when NIST publishes FIPS 206,
+//! releases of this crate may need to adjust for wire interoperability.
 //!
 //! ## Example usage
 //!

@@ -81,14 +81,17 @@ jobs:
       - name: Validate KEM algorithms
         run: |
           echo "🔑 Validating KEM algorithms..."
-          # Check that only NIST-approved KEMs are implemented
+          # Check that only NIST PQC-process KEMs are implemented (ML-KEM/FIPS 203 is
+          # standardized; HQC and CB-KEM track their own, distinct standardization status)
           echo "✅ KEM algorithm validation completed"
       
       - name: Validate signature algorithms
         run: |
           echo "✍️  Validating signature algorithms..."
-          # Check that only NIST-approved signatures are implemented
-          echo "Validating FN-DSA (FIPS 206) implementation..."
+          # Check that only NIST PQC-process signature schemes are implemented (ML-DSA/FIPS 204
+          # and SLH-DSA/FIPS 205 are standardized; FN-DSA is NIST-selected, FIPS 206 not yet
+          # published)
+          echo "Validating FN-DSA implementation (FIPS 206 not yet published)..."
           GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
           cd lib-q-fn-dsa
           bash "$GUARD" -- cargo test --test security_tests --features "std,rand" -- nist_compliance

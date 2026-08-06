@@ -8,7 +8,9 @@
 //! This implementation follows the lib-Q provider pattern:
 //! - **Provider Pattern**: Implements `KemOperations` trait for integration with lib-q-core
 //! - **Security Validation**: Comprehensive input validation and security checks
-//! - **Algorithm Support**: Full support for NIST-approved HQC algorithms
+//! - **Algorithm Support**: Full support for HQC (selected by NIST for standardization
+//!   on 2025-03-11; no FIPS draft has been published yet, so there is no standard to be
+//!   "approved" against)
 //! - **Memory Safety**: Automatic zeroization of sensitive data
 //! - **no_std Support**: Works in constrained environments
 //!

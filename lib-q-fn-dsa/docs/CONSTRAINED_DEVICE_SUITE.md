@@ -20,7 +20,7 @@ Sizes follow [`lib-q-core`](../lib-q-core/src/security/constants.rs) `get_expect
 
 ## Standards references
 
-- FN-DSA: NIST FIPS 206.
+- FN-DSA: NIST-selected; FIPS 206 not yet published.
 - ML-DSA: NIST FIPS 204.
 
 This document describes **library-level sizing and selection guidance** only. Product-specific `HandshakeSuitePolicy` or ACVP `sigid` metadata live in consuming systems and validation tooling.

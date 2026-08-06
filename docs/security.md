@@ -133,19 +133,15 @@ For **general-purpose** hashing and XOFs in KEM, signature, and AEAD-facing APIs
 **STARK / ZKP note:** `lib-q-zkp` also uses **Poseidon-128** inside specific AIR and Merkle gadgets where documented. That is an **in-circuit** primitive for arithmetization efficiency; it does not replace SHAKE256 as the default **Fiat-Shamir / Merkle** transcript hash in the recommended STARK configuration. Integrators with a strict "NIST-only inside the proved commitment" requirement should select the NIST preimage and NIST-hash AIR paths described in [ZKP Implementation](zkp-implementation.md).
 
 ### NIST PQC Standardization
-We only use algorithms that have been standardized or are in the final round of NIST's Post-Quantum Cryptography standardization process:
+Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Cryptography process; each one's exact status (published standard, selected-but-unpublished, or unselected submission) is called out below, and the emerging-algorithm family further down in this document is outside that process entirely:
 
 #### Standardized Algorithms
 - **ML-KEM**: NIST PQC Standard (FIPS 203)
 - **ML-DSA**: NIST PQC Standard (FIPS 204)
-- **FN-DSA**: NIST PQC Standard (FIPS 206)
-- **SLH-DSA**: NIST PQC Standard (FIPS 205)
+- **SLH-DSA**: NIST PQC Standard (FIPS 205; see [lib-q-slh-dsa/README.md](../lib-q-slh-dsa/README.md) — only the **simple** instances are standardized, the **robust** variants are not provided here)
 
-#### NIST FIPS Standards
-- **FIPS 206 / FN-DSA**: Fast Fourier Transform over NTRU-Lattice-Based Digital Signature Algorithm
-  - Official NIST designation for FALCON algorithm
-  - Compact signature sizes for bandwidth-constrained applications
-  - Suitable for root and intermediate certificates in PKI systems
+#### Selected; standard not yet published
+- **FN-DSA**: Selected by NIST for standardization (the FALCON algorithm). **FIPS 206 has not been published** — there is no finalized standard, and no public draft, to be "compliant" with. See [lib-q-fn-dsa/README.md](../lib-q-fn-dsa/README.md).
 
 #### Code-based KEMs (workspace implementations)
 - **CB-KEM** (Classic McEliece–family parameter sets) and **HQC** are implemented as **post-quantum KEMs** in this repository; track each crate’s README and NIST publications for the exact standardization status of the parameter sets you enable.

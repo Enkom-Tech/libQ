@@ -21,7 +21,7 @@ Manual ordered publish: [npm-publish.md](npm-publish.md) — `scripts/publish-np
 | `@lib-q/ml-kem` | `lib-q-ml-kem` | ML-KEM (FIPS 203); `wasm-pack` with `--features wasm` |
 | `@lib-q/kem` | `lib-q-kem` | KEM façade + ML-KEM |
 | `@lib-q/sig` | `lib-q-sig` | Signatures (ML-DSA path in CD) |
-| `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206) |
+| `@lib-q/fn-dsa` | `lib-q-fn-dsa` | FN-DSA (FIPS 206 not yet published) |
 | `@lib-q/hash` | `lib-q-hash` | SHA-3 family façade |
 | `@lib-q/utils` | `lib-q-utils` | Shared utilities |
 | `@lib-q/aead` | `lib-q-aead` | AEAD (`wasm` + Saturnin / Rocca-S / Romulus / duplex-sponge as configured in CD) |
@@ -64,7 +64,7 @@ CD runs `wasm-pack` twice into **`pkg/web`** (bundler / browser glue) and **`pkg
 
 ## Security
 
-All `@lib-q/*` packages follow the same policy as the Rust workspace: **NIST-approved post-quantum** algorithms for asymmetric cryptography; no classical RSA/ECC/X25519 as a primary security mechanism.
+All `@lib-q/*` packages follow the same policy as the Rust workspace: **NIST-track post-quantum** algorithms for asymmetric cryptography (ML-KEM/FIPS 203, ML-DSA/FIPS 204, and SLH-DSA/FIPS 205 are finalized standards; FN-DSA and HQC are NIST-selected with no FIPS draft published yet; CB-KEM/Classic McEliece was a round-4 submission NIST did not select — see [../README.md](../README.md#cryptographic-implementation) and [../docs/security.md](../docs/security.md) for the per-algorithm status); no classical RSA/ECC/X25519 as a primary security mechanism.
 
 ### `@lib-q/ml-kem` WASM API (secret return types)
 

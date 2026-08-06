@@ -15,11 +15,12 @@
 //!
 //! ## Standards alignment
 //!
-//! This crate targets **NIST FIPS 206** (FN-DSA). Key encodings, message
-//! pre-hashing, and domain separation follow the published standard. If NIST
-//! publishes errata or CAVP test-vector updates that affect wire
-//! interoperability, releases of this crate may adjust accordingly; consult
-//! release notes when upgrading.
+//! This crate implements FN-DSA, the signature scheme NIST **selected** for
+//! standardization as FIPS 206. FIPS 206 has **not been published** — there is no
+//! finalized standard, and no public draft, to be "compliant" with. Key encodings,
+//! message pre-hashing, and domain separation follow the FN-DSA design as tracked by
+//! the upstream `fn-dsa` reference implementation; if and when NIST publishes FIPS 206,
+//! releases of this crate may need to adjust for wire interoperability.
 //!
 //! ## Implementation notes
 //!
@@ -330,7 +331,9 @@ mod tests {
     // Signatures are cryptographically valid and verify correctly, but are not
     // byte-for-byte compatible with upstream reference implementations.
     // This does NOT affect interoperability: signatures from this implementation
-    // can be verified by any FIPS 206-compliant implementation, and vice versa.
+    // can be verified by any implementation of the same FN-DSA design, and vice
+    // versa. (FIPS 206 itself has not been published, so no implementation --
+    // this one included -- can claim conformance to it yet.)
     #[cfg(feature = "shake256x4")]
     const KAT: [[&str; 10]; 9] = [
         [

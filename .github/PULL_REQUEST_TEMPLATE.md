@@ -21,7 +21,7 @@ Brief description of changes made in this PR.
 
 ## Cryptographic Validation
 - [ ] No changes to cryptographic algorithms
-- [ ] Only uses NIST-approved post-quantum algorithms
+- [ ] Only uses post-quantum algorithms tracked by the NIST PQC process (see [docs/security.md](../docs/security.md) for each algorithm's exact standardization status — finalized FIPS, selected-but-no-FIPS-published-yet, or reviewed-but-not-selected)
 - [ ] Only uses SHA-3 family hash functions
 - [ ] All operations are constant-time
 - [ ] Proper memory zeroization implemented

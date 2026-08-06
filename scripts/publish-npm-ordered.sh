@@ -73,7 +73,7 @@ lib-q-kem|@lib-q/kem|Post-quantum Key Encapsulation Mechanisms for Node.js|crypt
 lib-q-sig|@lib-q/sig|Post-quantum Digital Signatures for Node.js|cryptography,post-quantum,signatures,digital-signatures,wasm|wasm,ml-dsa|pkg-sig|
 lib-q-hash|@lib-q/hash|Post-quantum Hash Functions for Node.js (SHA-3, SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash)|cryptography,post-quantum,hash,shake,kmac,tuplehash,parallelhash,wasm|alloc,oid|pkg-hash|
 lib-q-utils|@lib-q/utils|Utility functions for post-quantum cryptography|cryptography,post-quantum,utilities,helpers,wasm||pkg-utils|
-lib-q-fn-dsa|@lib-q/fn-dsa|FN-DSA (FIPS 206) post-quantum digital signatures for Node.js|cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist|wasm,std,rand|pkg|
+lib-q-fn-dsa|@lib-q/fn-dsa|FN-DSA post-quantum digital signatures for Node.js (NIST-selected; FIPS 206 not yet published)|cryptography,post-quantum,fn-dsa,falcon,signature,wasm,nist|wasm,std,rand|pkg|
 lib-q-aead|@lib-q/aead|Post-quantum AEAD (Saturnin, Romulus, Rocca-S, duplex-sponge) for Node.js|cryptography,post-quantum,aead,saturnin,romulus,rocca-s,wasm,nist|wasm,saturnin,romulus,rocca-s,duplex-sponge-aead|pkg|
 lib-q-hpke|@lib-q/hpke|Post-quantum HPKE (RFC 9180) for Node.js|cryptography,post-quantum,hpke,ml-kem,wasm|wasm,alloc,ml-kem,saturnin,shake256|pkg|
 lib-q-zkp|@lib-q/zkp|Post-quantum zero-knowledge proofs (STARK) for Node.js|cryptography,post-quantum,zkp,stark,wasm|wasm,zkp|pkg|

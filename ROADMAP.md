@@ -78,7 +78,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Signing/Verification
   - [x] Shared ring / NTT layer (`lib-q-ring`) for portable `R_q` arithmetic
   - [ ] Performance optimization
-- [x] FN-DSA (FIPS 206, Level 1, 5)
+- [x] FN-DSA (FIPS 206 not yet published, Level 1, 5)
   - [x] Core implementation
   - [x] Key generation
   - [x] Signing/Verification

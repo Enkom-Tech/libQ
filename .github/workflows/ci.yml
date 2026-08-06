@@ -1296,6 +1296,12 @@ jobs:
       - name: README version/MSRV sync
         run: python3 scripts/sync-readme-versions.py --check
 
+      # A crate README can be corrected to disclose its true standardization status
+      # (e.g. "FIPS 206 is not yet published") while a workspace-level doc keeps
+      # asserting the very claim that caveat retracts. Catches that drift class.
+      - name: Standards-claims consistency
+        run: bash ./scripts/ci-guard-standards-claims.sh
+
 
   # Specialized algorithm testing - parallel execution
   algorithm-tests:

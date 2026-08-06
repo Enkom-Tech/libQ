@@ -8,13 +8,15 @@
 //! This implementation follows the lib-Q provider pattern:
 //! - **Provider Pattern**: Implements `KemOperations` trait for integration with lib-q-core
 //! - **Security Validation**: Comprehensive input validation and security checks
-//! - **Algorithm Support**: Full support for NIST-approved Classical McEliece variants
+//! - **Algorithm Support**: Full support for Classic McEliece variants (a NIST round-4
+//!   submission that was reviewed but **not** selected for standardization; there is no
+//!   NIST/FIPS encoding for this algorithm)
 //! - **Memory Safety**: Automatic zeroization of sensitive data
 //! - **no_std Support**: Works in constrained environments
 //!
 //! ## Supported Algorithms
 //!
-//! - **Classical McEliece**: All NIST-approved variants (348864, 460896, 6688128, 6960119, 8192128)
+//! - **Classic McEliece**: All round-4 submission variants (348864, 460896, 6688128, 6960119, 8192128) — not NIST-selected or approved
 //! - **Hash Functions**: SHA3 (SHAKE256) support
 //!
 //! ## Feature Support
