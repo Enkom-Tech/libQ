@@ -72,3 +72,21 @@ Short mode uses a **single-block** integrity story (no separate tag; nonce bindi
 
 - Layer B does **not** claim mitigation of **remote** timing against verification outcome; that remains Layer C and deployment policy.
 - No public helpers that collapse secret-bearing state to `bool` without documenting timing implications (callers should `match` on `DecryptSemanticOutcome`).
+
+## Update (2026-08-06)
+
+`lib_q_saturnin::SaturninShortAead` stays in the Layer A error-variant table above: it is still
+shipped, opt-in (`aead-short` feature, not in `default`), and still exposes the same
+`Error::VerificationFailed` / `Error::InvalidCiphertextSize` decrypt-error contract this ADR
+documents for every other listed algorithm. Its row is a statement about **which `Result` variant
+its decrypt path returns**, not an endorsement of its security. It is not one: `lib-q-saturnin`'s
+README documents Short's key-commitment (CMT-1) break as **broken and not committing, and states it
+will not be made so** — a fix would add bytes, and a committing Short is size-dominated by
+`SaturninQcb` at the same ciphertext length. Nothing about that break changes which `Error` variant
+`decrypt` returns on tag/verification failure, which is the only thing this ADR's tables assert.
+
+`SaturninQcb` (the CTX-committing QCB mode) is **out of scope for this ADR.** It does not appear in
+the Layer A table, the Phase 2 inventory, or the HPKE section above, and this Update does not add
+it — QCB has no `AeadDecryptSemantic` mapping recorded here, and this document takes no position on
+one. See `lib-q-saturnin/src/commit.rs` and `lib-q-saturnin/README.md`'s key-commitment section for
+QCB's own (separately tracked, RED/unsigned) status.

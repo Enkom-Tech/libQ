@@ -152,7 +152,18 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
 
 ## Security
 
-- 256-bit post-quantum security
+- **Designers' security claims** (NIST LWC submission §1.2). These are the designers' *claimed
+  floors*, deliberately set below the best-known generic bounds for margin — not measured attack
+  costs, and not a flat "256-bit" level:
+  - Block cipher, single-key (§2.1): no classical attack with `T/p < 2^224`; no quantum attack
+    with `T/p < 2^112`.
+  - Saturnin-CTR-Cascade (§2.2) and Saturnin-Short (§2.3), single-key: no classical and no quantum
+    attack meeting the `2^224` bound of the respective claim box. The submission states verbatim:
+    "None of the AE schemes in Saturnin provides security in nonce-misuse, nonce repetition or
+    nonce-superposition scenarios."
+  - Saturnin-Hash (§2.4): no classical collision attack with `T < 2^112` and no classical preimage
+    attack with `T < 2^224`; no quantum collision attack with `T < ~2^75` and no quantum preimage
+    attack with `T < 2^112`.
 - Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
 - **No masked or threshold implementation.** Saturnin has no published DPA- or fault-resistant
   implementation and this crate does not provide one. Do not read "constant-time" as covering
@@ -181,43 +192,43 @@ Typical throughput on modern hardware:
 
 The CTX committing transform (see the Key commitment section below) adds a fixed number of
 Saturnin permutation calls per message — asymptotically free, but a real cost on small messages,
-where it is most of the total work. Measured with a scratch (non-`criterion`) timing harness
-(`std::time::Instant`, warmed up, geometric iteration doubling to a 300 ms floor per point) built
-against this crate as a path dependency — **not** the checked-in `benches/` suite, which does not
-yet have a QCB benchmark group (a separate open item):
+where it is most of the total work. It is measured by the checked-in
+`benches/qcb_ctx_overhead.rs` criterion suite, which compares the shipped committing path against
+a `#[doc(hidden)]`, bench-only uncommitted path. There is deliberately no Cargo feature that
+disables the commitment: a published crate with a "turn the security property off" flag is a
+footgun, so the two arms exist only inside the benchmark.
 
-| message (AD=0) | before CTX | after CTX | overhead |
-|---|---|---|---|
-| 0 B | ~1.9 µs | ~3.4 µs | **+~80%** |
-| 32 B | ~1.9 µs | ~3.8 µs | **+~100%** |
-| 64 B | ~2.3 µs | ~4.6 µs | **+~95%** |
-| 1 KiB | ~19.3 µs | ~18.4 µs | within noise (~±5%) |
-| 10 KiB | ~149 µs | ~142 µs | within noise |
-| 100 KiB | ~1.58 ms | ~1.38 ms | within noise (single-run variance dominates at this size in this harness) |
+**No percentage is published here, on purpose.** Two things reproduce and one does not:
 
-| associated data (message = 1 KiB) | before CTX | after CTX | overhead |
-|---|---|---|---|
-| 0 B | ~14.1 µs | ~15.6 µs | **+~11%** |
-| 16 B | ~13.6 µs | ~15.1 µs | **+~11%** |
-| 64 B | ~15.9 µs | ~16.9 µs | **+~6%** |
-| 256 B | ~16.9 µs | ~22.0 µs | **+~30%** |
-| 1 KiB | ~28.1 µs | ~39.2 µs | **+~39%** |
-| 4 KiB | ~63.8 µs | ~118.9 µs | **+~86%** |
+- **Reproduces — direction and separability at packet sizes.** At the networking shape (64 B
+  message, 16 B AD), every one of five independent runs put the committing arm above the
+  uncommitted arm with non-overlapping criterion confidence intervals. The effect is real and it
+  is measurable.
+- **Reproduces — no measurable cost at blob sizes.** At the data-at-rest shape (1 MiB message,
+  32 B AD) the two arms are *not* separable from noise; the sign of the difference flips between
+  runs. Read that as "below this harness's resolution", not as "zero".
+- **Does not reproduce — the magnitude.** Across those same five runs the encrypt overhead at the
+  networking shape ranged **+37% to +103%**, and decrypt **+28% to +123%**. Criterion's per-
+  benchmark interval measures variance *within* a sampling window and does not capture drift
+  *between* windows, which is why each individual run looks tight and the set of runs does not.
+  Any single number taken from one run — including the `+~95%` this section used to print — is
+  inside that envelope and is not evidence for a band.
 
-The AD-sweep growth is expected and not a bug: CTX hashes the associated data a **second** time
-(once in QCB's own AD pass, once again inside the CTX tag), so it is the one part of this
-transform's cost that is not O(1) in the associated-data length. If a deployment routinely carries
-large associated data on small messages, that tradeoff is worth re-examining — see `src/commit.rs`
-and the design discussion on card `t_16ddf21c` for the cheaper CMT-1-only variant this would
-motivate.
+The AD-sweep growth is structural, not a measurement artefact: CTX hashes the associated data a
+**second** time (once in QCB's own AD pass, once again inside the CTX tag), so it is the one part
+of this transform's cost that is not O(1) in the associated-data length.
 
-**Caveat on these numbers:** this is a scratch measurement (single machine, single run per point,
-no outlier rejection, no isolation from other load on the machine), reported here because the
-checked-in benchmark suite does not yet cover QCB. Treat the *shape* (large relative overhead on
-tiny messages, converging to near-zero on messages ≥ 1 KiB, growing again with associated-data
-size) as the load-bearing claim; treat the exact percentages as approximate. Adding `qcb_throughput`
-and `qcb_ad_sweep` criterion benchmark groups to `benches/saturnin_criterion_benches.rs` remains an
-open item for whoever next owns that file.
+Do **not** reach for the "cheap CMT-1-only variant" that earlier notes on card `t_16ddf21c`
+suggested this motivates. The obvious construction — one extra tweakable-Davies–Meyer Saturnin
+call for short AD — is refuted twice over: Saturnin's TBC is `Saturnin16^d_{K ⊕ T}`, so one call
+absorbs at most 512 bits while the hash input needs 80 bytes before any AD; and the `K ⊕ T`
+encoding is not injective, which combined with QCB's invertible tag is an O(1) CMT-4 break rather
+than the 2^128 it appears to offer.
+
+Also measured by the same suite, and relevant to any decision about which mode to default to:
+QCB is **slower than `SaturninAead` (CTR-Cascade) at packet sizes** and faster only from ~1 KiB
+up, before CTX is considered at all. Criterion reports throughput in MiB/s; do not re-label those
+figures MB/s when quoting them.
 
 ## Testing
 
@@ -298,7 +309,7 @@ table before quoting any row of it.
 
 | Mode | Key / tag | CMT-1 status |
 |---|---|---|
-| `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** (not 2^128) — and marked **RED**, pending human cryptographer sign-off on three named obligations (`lib-q-saturnin/src/commit.rs`). The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
+| `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** — the designers' claimed floor; best-known generic classical cost is 2^128 by the birthday bound (spec §5.4.1), claimed below that for margin ("additional constant factors that these bounds do not take into account, which is why our final security claims are reduced"), not a NIST-LWC floor; best-known generic quantum cost is 2^85 with unrestricted qRAM or 2^102 without (Chailloux–Naya-Plasencia–Schrottenloher, 2017) — and marked **RED**, pending human cryptographer sign-off on three named obligations (`lib-q-saturnin/src/commit.rs`). The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
 | `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). **Not committing and will not be made so:** any fix adds bytes, and a committing Short is size-dominated by `SaturninQcb` at the same ciphertext length with strictly more payload room (see `lib-q-saturnin/src/aead_short.rs`). |
 | `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; not given a committing transform by this change (open follow-up, card `t_16ddf21c`) |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
