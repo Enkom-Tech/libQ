@@ -130,7 +130,15 @@ runs:
         fi
         
         echo "NPM package prepared successfully"
-    
+
+    # Structural + behavioural check that every file the package actually ships (per `files[]` /
+    # `npm pack`) is reachable through `exports` — a bundler/Node consumer honouring `exports`
+    # cannot see a shipped file that isn't listed there, even though it's in the tarball.
+    - name: Verify npm exports reach every packaged file
+      shell: bash
+      run: |
+        node "$GITHUB_WORKSPACE/scripts/ci-guard-npm-exports.mjs" "${{ inputs.working-directory }}"
+
     - name: Publish NPM package
       shell: bash
       env:

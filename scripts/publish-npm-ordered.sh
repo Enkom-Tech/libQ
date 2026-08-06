@@ -205,6 +205,7 @@ EOF
       echo "Paths in \`integrity-manifest.json\` are relative to the package root."
     } >>"$readme_dst"
   fi
+  node "$ROOT/scripts/ci-guard-npm-exports.mjs" .
   popd >/dev/null
 }
 

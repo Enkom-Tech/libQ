@@ -48,6 +48,19 @@ function findWasmFiles() {
 const wasmFiles = findWasmFiles();
 const hasWasm = wasmFiles.length > 0;
 
+// Export every .wasm that is actually packaged, so consumers that must name the binary
+// themselves (self-hosting, CDN copy, `?url` imports, Worker/Deno bundlers) can reach it via
+// `exports` instead of only via wasm-pack's own glue-relative `new URL(..., import.meta.url)`
+// load, which never consults `exports`.
+function wasmSubpathExports() {
+  const map = {};
+  for (const f of wasmFiles.slice().sort()) {
+    const rel = `./${path.relative(cwd, f).split(path.sep).join("/")}`;
+    map[rel] = rel;
+  }
+  return map;
+}
+
 const dual =
   stem &&
   fs.existsSync(path.join(cwd, "web", `${stem}.js`)) &&
@@ -76,6 +89,9 @@ if (dual) {
       node: `./nodejs/${stem}.js`,
       default: `./web/${stem}.js`,
     },
+    ...wasmSubpathExports(),
+    ...(hasWasm ? { "./integrity-manifest.json": "./integrity-manifest.json" } : {}),
+    "./package.json": "./package.json",
   };
   if (hasWasm) {
     pkg.files = ["web", "nodejs", "README.md", "integrity-manifest.json"];
@@ -92,6 +108,9 @@ if (dual) {
       import: `./${stem}.js`,
       default: `./${stem}.js`,
     },
+    ...wasmSubpathExports(),
+    ...(hasWasm ? { "./integrity-manifest.json": "./integrity-manifest.json" } : {}),
+    "./package.json": "./package.json",
   };
   delete pkg.exports.require;
   if (hasWasm) {
@@ -109,6 +128,7 @@ if (dual) {
       import: "./index.js",
       default: "./index.js",
     },
+    "./package.json": "./package.json",
   };
   pkg.files = ["index.js", "index.d.ts", "README.md"];
 } else {
