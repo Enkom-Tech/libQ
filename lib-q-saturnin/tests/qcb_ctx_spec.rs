@@ -42,9 +42,13 @@ const D_TAG: u8 = 13;
 /// `crate::commit::QCB_CTX_LABEL_V0`, hardcoded (not imported — see module docs).
 const CTX_LABEL: &[u8] = b"libq.saturnin.qcb.ctx.v0";
 
+/// `pad(IV) || i`, transcribed from the specs rather than from `src/qcb.rs`. Byte 16 is the `10*`
+/// pad bit that closes the 161-bit IV field — see `tests/qcb_spec.rs::tweak` for the derivation
+/// and the quoted spec text.
 fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; B] {
     let mut t = [0u8; B];
     t[0..16].copy_from_slice(nonce16);
+    t[16] = 0x80;
     t[24..32].copy_from_slice(&block_index.to_be_bytes());
     t
 }

@@ -78,11 +78,14 @@ const FIXED_BLOCK_CALLS: u64 = 6;
 /// under `k1`.
 const BLOCK_CALLS_PER_TRIAL: u64 = 2;
 
-/// `qcb.rs::SaturninQcb::tweak` — `N (16) || 0x00 * 8 || block_index_be_u64 (8)`. Used for every
-/// domain, associated data included; the QCB paper requires the IV in the AD tweak too.
+/// `N (16) || 0x80 || 0x00 * 7 || block_index_be_u64 (8)`. Used for every domain, associated data
+/// included; the QCB paper requires the IV in the AD tweak too. Byte 16 is the `10*` pad bit that
+/// closes the 161-bit IV field — see `tests/qcb_spec.rs::tweak` for the derivation and the quoted
+/// spec text.
 fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; B] {
     let mut t = [0u8; B];
     t[0..16].copy_from_slice(nonce16);
+    t[16] = 0x80;
     t[24..32].copy_from_slice(&block_index.to_be_bytes());
     t
 }
