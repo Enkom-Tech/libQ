@@ -70,3 +70,28 @@ crate in more detail than the root file carries.
   top of QCB's own AD pass. See `lib-q-saturnin/README.md` for the numbers and the reproduction
   caveat (this crate's `benches/` suite does not yet have a QCB benchmark group; adding one is a
   separate open item, not owned by this change).
+
+### Fixed — documentation
+
+- **Corrected the rationale given for Saturnin-Hash's `2^112` classical / `~2^75` quantum
+  collision-resistance claim, repo-wide.** The numbers were always right and are unchanged; six
+  docs (`lib-q-aead/README.md`, `lib-q-duplex-aead/README.md`, `lib-q-rocca-s/README.md`,
+  `lib-q-romulus/SECURITY.md`, `lib-q-saturnin/README.md`, `lib-q-tweak-aead/README.md`) and
+  `src/commit.rs` glossed them as "not the naive `256/2 = 128` bits", implying `2^128` was never a
+  real generic bound. The Saturnin designers' own spec §5.4.1 gives `2^128` as the best-known
+  generic classical collision cost (birthday bound on a 256-bit random function) and states the
+  claim is held below it for margin — "additional constant factors that these bounds do not take
+  into account, which is why our final security claims are reduced" — not because of a NIST-LWC
+  floor. Replaced the gloss with that rationale plus the best-known generic quantum figures
+  (`2^85` with unrestricted qRAM, `2^102` without; Chailloux–Naya-Plasencia–Schrottenloher, 2017)
+  everywhere it appeared. Also corrected `src/block_cipher.rs`, `src/hash.rs`, `src/stream.rs` and
+  this crate's `README.md` "Security" section, which each claimed a flat "256-bit post-quantum
+  security" — a level the Saturnin submission never claims, and one contradicted by its own
+  block-cipher claim box (spec §2.1: no quantum attack in the single-key setting with
+  `T/p < 2^112`); replaced with the actual per-primitive claim boxes from LWC spec §2.1–§2.4. No
+  code, wire format or security decision changed.
+- **`docs/HARDWARE.md`: corrected the domain-separator accounting.** It previously said "fourteen
+  of sixteen domain values are spoken for" while listing QCB as domains 9–11; QCB in fact uses
+  9–13 (`qcb.rs`), and with the submission's own Table 2 (spec §2.5, domains 0–8) that leaves
+  exactly two values — 14 and 15 — unassigned. The same section now also records that the block
+  cipher and stream cipher run at domain 1 rather than claiming domains of their own.

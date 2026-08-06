@@ -33,7 +33,9 @@
 //! - **Output size**: 256 bits (32 bytes)
 //! - **Throughput**: ~200-800 MB/s on modern hardware
 //! - **Memory usage**: Constant, independent of input size
-//! - **Security level**: 256-bit post-quantum security
+//! - **Security claim** (LWC spec §2.4): no classical collision attack with `T < 2^112` or
+//!   preimage attack with `T < 2^224`; no quantum collision attack with `T < ~2^75` or preimage
+//!   attack with `T < 2^112`
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

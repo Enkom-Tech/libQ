@@ -159,12 +159,19 @@ fn bench_aead(c: &mut Criterion) {
         let aead = SaturninAead::new();
         let key = AeadKey::new(vec![0x11u8; 32]);
         let nonce = Nonce::new(vec![0x22u8; 16]);
+        // AD = 16 bytes, fixed: no real caller passes `None` here (every AEAD consumer in this
+        // workspace binds at least a header/context to the ciphertext), and 16 B is the
+        // networking-header shape used elsewhere in this bench suite. Numbers from before this
+        // change (which measured `AD = None`) are not comparable to numbers measured after it.
+        let ad = data(16);
         for size in [64usize, 1024, 10 * 1024] {
             let input = data(size);
             group.throughput(Throughput::Bytes(size as u64));
             group.bench_with_input(BenchmarkId::new("encrypt", size), &input, |b, v| {
                 b.iter(|| {
-                    let _ = aead.encrypt(&key, &nonce, v, None).expect("encrypt");
+                    let _ = aead
+                        .encrypt(&key, &nonce, v, Some(ad.as_slice()))
+                        .expect("encrypt");
                 });
             });
         }

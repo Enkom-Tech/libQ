@@ -35,10 +35,16 @@ the commitment stack lands on the same core too.
 > different functions. They did not disagree about Saturnin; one of them had a transposed constant
 > table. See §5.
 
-**Domains currently in use.** 1–5 CTR-Cascade, 6 Short, 7–8 Hash, 9–11 QCB (this crate's own
-choice; see §6). Fourteen of sixteen domain values are spoken for under the current profile. If the
-domain input is hard-wired to 4 bits, there is little headroom for a version bump, a KDF domain, or
-a second mode. Worth deciding deliberately rather than discovering late.
+**Domains currently in use.** 1–5 CTR-Cascade, 6 Short, 7–8 Hash, 9–13 QCB (five domains, one per
+Algorithm 1 sub-step: message, final message, AD, final AD, tag — see §6). That is **thirteen**
+values (1–13) spoken for under this crate's profile; the block cipher and the stream cipher both
+run at domain 1 (`block_cipher.rs` and `stream.rs` each construct `SaturninCore::new(10, 1)`)
+rather than burning one of their own. The submission's own domain table (spec §2.5, Table 2)
+additionally assigns domain 0 to the raw block cipher, so — counting the whole submission plus QCB
+together, not just this crate's thirteen — **14 of the 16 values are spoken for and only 14 and 15
+are left**, which is what `lib-q-saturnin/src/commit.rs` records. With the domain input hard-wired
+to 4 bits, that is almost no headroom for a version bump, a KDF domain, or a second mode. Worth
+deciding deliberately rather than discovering late.
 
 ---
 
@@ -121,6 +127,19 @@ Do not take the involution shortcut. `bs32_core.rs` did, with the comments *"S-b
 inverse in Saturnin"* and *"MDS is its own inverse in Saturnin"* — both false — and its
 `decrypt_block` consequently does not invert its own `encrypt_block`.
 
+> **Open question, not a decision: is the inverse datapath currently justified by any shipped
+> caller?** The claim above ("three shipped modes need the inverse permutation") is still true of
+> the mode inventory, but re-examined against what is actually *reachable* today: Saturnin-Short is
+> opt-in (not in `default`) and its key commitment is broken and will not be fixed (see this
+> crate's README); `SaturninQcb` has zero call sites outside `lib-q-saturnin` itself (no `.rs` or
+> `.toml` reference anywhere else in the workspace); and the HPKE default AEAD, in all four
+> `HpkeContext` constructors, is `SaturninAead` (CTR-Cascade), which is inverse-free by
+> construction. So the only default-reachable caller of Saturnin decryption today is the bare block
+> cipher's own `decrypt_block`. This does not mean the inverse datapath — the single largest area
+> commitment this document describes — is unjustified; it means the justification should be
+> re-examined against actual shipped callers before area is committed, not assumed from the mode
+> inventory alone. This document takes no position on the outcome.
+
 ---
 
 ## 5. The trap catalogue — what went wrong in software, so it does not recur in HDL
@@ -158,11 +177,24 @@ Concretely, the checks that would have caught all four:
 - **The AVX2 and NEON kernels in `src/simd/`** have never been compared against the reference
   oracle. Their constant code was read; their round functions were not. NEON has never been built
   or executed at all. Do not treat them as a second opinion on the round function.
-- **QCB's mode-level correctness.** The submission package contains no QCB KAT. This crate's QCB
-  additionally deviates from the QCB paper in two known ways — it zeroes the nonce in the
-  associated-data tweak (which the paper explicitly warns forfeits the mode's quantum-forgery
-  resistance) and it uses three domain separators where the specification fixes five. Neither is
-  settled in this tree yet.
+- **QCB's mode-level correctness.** The submission package contains no QCB KAT — that gap remains.
+  This crate's QCB previously deviated from the QCB paper in two known ways — it zeroed the nonce
+  in the associated-data tweak (which the paper explicitly warns forfeits the mode's
+  quantum-forgery resistance) and it used three domain separators where the specification fixes
+  five. **Both are fixed as of commit `bae2717`:** the nonce is now included in every
+  message/AD tweak and is never zeroed (see `qcb.rs`'s tweak-construction doc comment, "the nonce
+  must never be zeroed"), and the crate now uses the full five domain separators Algorithm 1 calls
+  for (9–13; see §1). The absence of a QCB KAT is still an open gap, independent of those two
+  fixes.
+- **QCB tweak layout is libQ-specific, not paper-conformant — OPEN, undecided.** `qcb.rs` builds
+  the tweak as a 128-bit nonce, 64 zero bits, then a 64-bit big-endian block counter. The QCB
+  paper's Saturnin instantiation budgets IVs of at most 160 bits and up to 2^95 blocks, which places
+  the block counter at a different byte offset. The two layouts produce different ciphertexts for
+  identical inputs, so a paper-faithful third-party implementation of QCB-over-Saturnin will **not**
+  interoperate with this crate's `SaturninQcb`. Neither layout is a security choice — 2^64 blocks
+  per nonce is 512 EiB, far beyond any realistic message size either way — so this is a pure
+  interop/roadmap question with no default answer here. It has not been decided, and nothing in
+  this document should be read as deciding it.
 - **Cryptographic strength of the RC-transposed permutation** at `(16,7)`/`(16,8)`: unknown. It was
   established only that it is not the standard. Relevant only if something reached it through the
   public API before the fix.
@@ -185,7 +217,12 @@ Concretely, the checks that would have caught all four:
   it.
 - **Parallelism depends on the mode, not the core.** CTR-Cascade's MAC is a sequential cascade
   (each block's output feeds the next block's key input), so it does not benefit from replicated
-  cores on the authentication pass. QCB's blocks carry independent tweaks and do parallelise. A
-  multi-core design is worth much more to QCB than to CTR-Cascade.
+  cores on the authentication pass. QCB's blocks carry independent tweaks and *could* parallelise.
+  A multi-core design would be worth much more to QCB than to CTR-Cascade — **if** that parallelism
+  were implemented. **It is not, in this crate.** `src/parallel.rs` is gated on a non-default
+  `parallel` Cargo feature (absent from `default`) and has no callers anywhere in this workspace —
+  it is dead code in every build this repo ships. So today, QCB's parallelism is a property of the
+  mode's tweak structure, not something a multi-core silicon design would actually exercise against
+  this codebase as it stands.
 - **Round-count parameterisation.** Modes in this crate use R = 10 (CTR-Cascade, Short, stream) and
   R = 16 (hash, QCB's TBC). Supporting both is a loop bound, not a second design.

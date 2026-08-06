@@ -13,9 +13,13 @@
 //! `H` is instantiated here with [`SaturninHash`] (LWC spec §2.4: Merkle–Damgård, MMO, IV = 0,
 //! domains 7/8, 16 super-rounds, `10*` padding — unmodified). The Saturnin designers claim no
 //! classical collision attack below `2^112` and no quantum collision attack below `~2^75`
-//! (LWC spec §1.2/§2.4); by Theorem 2 that is the CMT-4 bound this transform inherits, **not**
-//! the naive `256/2 = 128` bits a reader might assume from the tag width. Do not round this
-//! number up in any doc that cites it.
+//! (LWC spec §1.2/§2.4); by Theorem 2 that is the CMT-4 bound this transform inherits. The
+//! best-known generic classical collision cost for a 256-bit random function is `2^128` by the
+//! birthday bound (LWC spec §5.4.1); the designers claim below that bound for margin — "additional
+//! constant factors that these bounds do not take into account, which is why our final security
+//! claims are reduced" (§5.4.1) — **not** because of a NIST-LWC floor. (Best-known generic quantum
+//! collision cost: `2^85` with unrestricted qRAM, `2^102` without; Chailloux–Naya-Plasencia–
+//! Schrottenloher, 2017.) Do not round `2^112` up to `2^128` in any doc that cites it.
 //!
 //! `H` is Saturnin-Hash rather than a Keccak-based hash (`lib-q-sha3` / `lib-q-k12`) so that a
 //! hardware implementation of Saturnin does not have to also implement Keccak-f\[1600\] solely to
