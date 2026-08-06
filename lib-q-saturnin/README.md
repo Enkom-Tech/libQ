@@ -287,18 +287,20 @@ See the main [lib-q contributing guide](../CONTRIBUTING.md).
 
 ## Key commitment (CMT-1)
 
-**`SaturninQcb` now applies a committing transform (CTX); no other libQ AEAD is key-committing, and
-none of the rest claims to be.** CMT-1 asks whether one ciphertext can be made to decrypt
-successfully under two *distinct* keys, with the nonce and associated data free on each side. That
-property is not part of the AEAD security goal most of these modes were designed for; outside
-`SaturninQcb`, libQ does not provide it.
+**`SaturninQcb` and `SaturninAeadCtx` apply a committing transform (CTX); no other libQ AEAD is
+key-committing, and none of the rest claims to be.** CMT-1 asks whether one ciphertext can be made
+to decrypt successfully under two *distinct* keys, with the nonce and associated data free on each
+side. That property is not part of the AEAD security goal most of these modes were designed for;
+outside those two types, libQ does not provide it — and in particular plain `SaturninAead`
+(CTR-Cascade), the mode every real consumer uses, still does not provide it on its own.
 
-**Do not use any libQ AEAD other than `SaturninQcb` for multi-recipient encryption, key wrapping /
-envelope encryption, or password-based decryption as an identification or authorization signal
-without binding the key externally** — e.g. put `H(key ‖ context)` in the associated data, or carry
-an explicit key commitment beside the ciphertext (`lib-q-mve` does the latter: see
-`MVE_COMMIT_LABEL`). Even for `SaturninQcb`, treat this as **claimed, not proven**: see the table row
-and the sign-off obligations in `lib-q-saturnin/src/commit.rs`.
+**Do not use any libQ AEAD other than `SaturninQcb` or `SaturninAeadCtx` for multi-recipient
+encryption, key wrapping / envelope encryption, or password-based decryption as an identification
+or authorization signal without binding the key externally** — e.g. put `H(key ‖ context)` in the
+associated data, or carry an explicit key commitment beside the ciphertext (`lib-q-mve` does the
+latter: see `MVE_COMMIT_LABEL`). Even for `SaturninQcb`/`SaturninAeadCtx`, treat this as **claimed,
+not proven**: see the table rows and the sign-off obligations in `lib-q-saturnin/src/commit.rs`
+(shared H-1) and `lib-q-saturnin/src/aead_ctx.rs` (Q-1′, and why S-2 does not apply there).
 
 One mode, `SaturninShortAead`, has a **demonstrated** break: a test produces one ciphertext that
 decrypts successfully under two distinct keys. `SaturninQcb` had a break of the same class; it is
@@ -311,7 +313,8 @@ table before quoting any row of it.
 |---|---|---|
 | `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** — the designers' claimed floor; best-known generic classical cost is 2^128 by the birthday bound (spec §5.4.1), claimed below that for margin ("additional constant factors that these bounds do not take into account, which is why our final security claims are reduced"), not a NIST-LWC floor; best-known generic quantum cost is 2^85 with unrestricted qRAM or 2^102 without (Chailloux–Naya-Plasencia–Schrottenloher, 2017) — and marked **RED**, pending human cryptographer sign-off on three named obligations (`lib-q-saturnin/src/commit.rs`). The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
 | `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). **Not committing and will not be made so:** any fix adds bytes, and a committing Short is size-dominated by `SaturninQcb` at the same ciphertext length with strictly more payload room (see `lib-q-saturnin/src/aead_short.rs`). |
-| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; not given a committing transform by this change (open follow-up, card `t_16ddf21c`) |
+| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; wire format is **frozen** (data-at-rest: My-Grid vault, My-Grid recovery, GIP `bitlink-wrapkey-argon2id-v1` all decrypt through this type) and left unmodified. Its committing sibling is the opt-in `SaturninAeadCtx` (below), a *separate, wire-incompatible type* — never a flag on this one. |
+| `SaturninAeadCtx` (CTX on CTR-Cascade) | 256 / 256-bit | **CTX applied** (Chan and Rogaway, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` over CTR-Cascade's own tag `T`. **Claimed** CMT-4, bounded by the same Saturnin-Hash collision-resistance claim as `SaturninQcb` (2^112 classical, ~2^75 quantum) — **RED**, pending sign-off on **H-1** (shared with `SaturninQcb`) and **Q-1′** (CTX's nAE-preservation proof is classical-ROM; whether it preserves CTR-Cascade's own quantum-adversary claims is open). **S-2 does not apply to this instantiation**: CTR-Cascade is a stream mode (`|C| == |M|` exactly, no message padding), which satisfies Chan–Rogaway Theorem 2's length/bijectivity hypothesis natively — on that axis this instantiation rests on *firmer* ground than CTX-on-QCB. Ciphertext from this type is never interchangeable with plain `SaturninAead`'s (see `tests/cascade_ctx_spec.rs::cross_mode_ciphertexts_rejected`); adopting it for stored data means minting a new format tag, not switching the AEAD under an existing one. **The two types are wire-incompatible but not keystream-independent:** only the tag differs, and CTR-Cascade's keystream depends on `(K, N)` alone, so encrypting different plaintexts under the same key and nonce with the two types is a two-time pad. A migration re-encrypt MUST draw a **fresh nonce**. See `src/aead_ctx.rs` for the full argument. |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `DuplexSpongeAead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `TweakAead` | 256 / 256-bit | no cheap break found — **not shown to commit**. Its tag is a sponge hash of `key ‖ nonce ‖ ad ‖ ct`, which is the *shape* a committing mode has; that is an argument for looking here first, not a result. |
@@ -338,6 +341,9 @@ Reproduce (each prints its own measurements with `--nocapture`):
 # the retained (now-defeated) QCB attack, and the CTX byte-layout / binding gate
 cargo test -p lib-q-saturnin --test key_commitment -- --nocapture
 cargo test -p lib-q-saturnin --test qcb_ctx_spec -- --nocapture
+# the SaturninAead wire-format freeze guard, and the CTX-on-CTR-Cascade byte-layout / binding gate
+cargo test -p lib-q-saturnin --test aead_kat_pin --features aead -- --nocapture
+cargo test -p lib-q-saturnin --test cascade_ctx_spec --features "aead,hash" -- --nocapture
 # the still-live SaturninShortAead break
 cargo test -p lib-q-saturnin --features aead-short --lib key_commitment_tests -- --nocapture
 # the bounded searches for the registry modes
@@ -346,9 +352,11 @@ cargo test -p lib-q-aead \
   --test key_commitment -- --nocapture
 ```
 
-Sources: `lib-q-saturnin/src/commit.rs`, `lib-q-saturnin/tests/key_commitment.rs`,
-`lib-q-saturnin/tests/qcb_ctx_spec.rs`, `lib-q-saturnin/src/aead_short.rs`
-(`key_commitment_tests`), `lib-q-aead/tests/key_commitment.rs`. Card `t_16ddf21c`.
+Sources: `lib-q-saturnin/src/commit.rs`, `lib-q-saturnin/src/aead_ctx.rs`,
+`lib-q-saturnin/tests/key_commitment.rs`, `lib-q-saturnin/tests/qcb_ctx_spec.rs`,
+`lib-q-saturnin/tests/aead_kat_pin.rs`, `lib-q-saturnin/tests/cascade_ctx_spec.rs`,
+`lib-q-saturnin/src/aead_short.rs` (`key_commitment_tests`), `lib-q-aead/tests/key_commitment.rs`.
+Card `t_16ddf21c`.
 
 ### Nonce extension (XChaCha-style) — evaluated and deliberately not pursued
 

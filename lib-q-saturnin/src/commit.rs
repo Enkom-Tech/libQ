@@ -1,4 +1,20 @@
-//! CTX committing-AEAD transform for Saturnin-QCB.
+//! CTX committing-AEAD transform, shared by `SaturninQcb` and `SaturninAeadCtx`.
+//!
+//! `ctx_tag` (`pub(crate)`) is generic over the label and the base mode; it is instantiated twice in this
+//! crate, once per base AEAD, each with its own label so the two instantiations' hash inputs can
+//! never collide (see [`QCB_CTX_LABEL_V0`] / [`CASCADE_CTX_LABEL_V0`]):
+//!
+//! - **`SaturninQcb`** (`crate::qcb`) — the original instantiation. Its mode-specific security
+//!   posture (including the open S-2 obligation, which is specific to QCB's `10*`-padded core)
+//!   is documented on `crate::qcb` and below.
+//! - **`SaturninAeadCtx`** (`crate::aead_ctx`) — CTX applied to CTR-Cascade (`SaturninAead`,
+//!   `src/aead.rs`), the mode every real libQ consumer (GIP, uGrid, My-Grid, Bitlink) actually
+//!   uses. Its mode-specific security posture, including why S-2 does **not** apply to this
+//!   instantiation, is documented on `crate::aead_ctx`.
+//!
+//! The rest of this module's docs describe the shared construction, byte layout, and injectivity
+//! argument; they use `SaturninQcb` in examples for historical reasons (this module predates the
+//! cascade instantiation) but apply identically to both.
 //!
 //! # Construction
 //!
@@ -93,6 +109,17 @@ use crate::hash::SaturninHash;
 /// CTX label for Saturnin-QCB (§ module docs). 24 ASCII bytes, leading message prefix, empty
 /// customization (Saturnin-Hash has no customization input).
 pub const QCB_CTX_LABEL_V0: &[u8] = b"libq.saturnin.qcb.ctx.v0";
+
+/// CTX label for Saturnin CTR-Cascade (`SaturninAeadCtx`, `crate::aead_ctx`). 28 ASCII bytes,
+/// leading message prefix, empty customization (Saturnin-Hash has no customization input).
+///
+/// Shares the 14-byte prefix `libq.saturnin.` with [`QCB_CTX_LABEL_V0`] and then diverges at byte
+/// offset 14 (`'c'` = 0x63 vs `'q'` = 0x71). Because the two labels are the *leading* bytes of
+/// `H_input = LABEL ‖ K ‖ N ‖ T ‖ A`, every QCB-mode `H_input` differs from every cascade-mode
+/// `H_input` at that fixed absolute byte offset regardless of what `K, N, T, A` follow — a
+/// cross-mode tag collision is therefore a genuine Saturnin-Hash collision (covered by the H-1
+/// bound below), not a domain-separation gap.
+pub const CASCADE_CTX_LABEL_V0: &[u8] = b"libq.saturnin.cascade.ctx.v0";
 
 /// Compute the CTX commitment tag `T' = SaturninHash(label ‖ key ‖ nonce ‖ base_tag ‖ ad)`.
 ///

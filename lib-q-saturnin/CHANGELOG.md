@@ -6,6 +6,62 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
+### Added
+
+- **`SaturninAeadCtx`: CTX committing-AEAD transform on `SaturninAead` (CTR-Cascade).** A
+  2026-08-06 consumer survey found `SaturninQcb` (the only mode CTX had been wired to) has zero
+  real consumers, while every product (GIP, uGrid, My-Grid, Bitlink) reaches Saturnin through
+  `SaturninAead`. This adds the same CTX transform (Chan-Rogaway, ESORICS 2022; IACR ePrint
+  2022/1260) to CTR-Cascade, instantiated with `SaturninHash`, as a **new, separate, opt-in type**
+  — not a change to `SaturninAead`. `SaturninAead`'s wire output is byte-for-byte **unchanged**
+  (pinned by the new `tests/aead_kat_pin.rs`, generated from the pre-change tree); it is data
+  loss to change that format in place, since it already encrypts stored data (My-Grid vault,
+  My-Grid recovery, GIP's `bitlink-wrapkey-argon2id-v1`). `SaturninAeadCtx` ciphertext is a
+  wire-incompatible new format at the same layout offsets (`C ‖ T'`, `T'` at the same 32-byte tag
+  position `T` occupied) — never interchangeable with plain `SaturninAead`'s output (see
+  `tests/cascade_ctx_spec.rs::cross_mode_ciphertexts_rejected`).
+
+  **The two types are wire-incompatible but not keystream-independent.** CTX replaces only the
+  tag, so the ciphertext body is CTR-Cascade's in both cases, and CTR-Cascade's keystream is a
+  function of `(K, N)` alone (the AD does not enter it). Encrypting different plaintexts under the
+  same key and nonce with `SaturninAead` and `SaturninAeadCtx` is therefore a two-time pad —
+  `C_plain ⊕ C_ctx == M_plain ⊕ M_ctx` — and either plaintext reveals the other. **A migration
+  re-encrypt must draw a fresh nonce**; a distinct type protects the wire format, not the nonce
+  discipline. Documented in `src/aead_ctx.rs`, the README row, and on `create_saturnin`.
+
+  New label `CASCADE_CTX_LABEL_V0 = b"libq.saturnin.cascade.ctx.v0"` in `src/commit.rs`, alongside
+  the existing `QCB_CTX_LABEL_V0`; the two share a 14-byte prefix and diverge at a fixed byte
+  offset, so no cross-mode `H_input` can coincide without a genuine Saturnin-Hash collision. The
+  shared `commit::ctx_tag` function is reused, not forked. `src/aead.rs` gained two additive,
+  `pub(crate)`-only changes (no production-byte impact, guarded by the KAT pin): `ctr_encrypt`
+  widened from private, and a new `base_tag_over` helper that is a pure extraction of the tag
+  computation already present in `decrypt_core`/`encrypt_bytes`.
+
+  **S-2 does not apply to this instantiation** (unlike QCB, where it remains open): CTR-Cascade is
+  a stream mode with `|C| == |M|` exactly and no message padding, which satisfies Chan-Rogaway
+  Theorem 2's length/bijectivity hypothesis natively. **H-1** (is Saturnin-Hash's designer-claimed
+  collision bound the right number to publish) carries over verbatim, shared with `SaturninQcb`.
+  A new obligation, **Q-1′**, is opened: CTX's own nAE-preservation proof is classical-ROM only,
+  and whether it preserves CTR-Cascade's own quantum-adversary security claims is, as far as this
+  change's author could determine, not covered by published analysis. **The mode is marked RED**
+  — a claimed, not proven, CMT-4 construction — pending human cryptographer sign-off, same as
+  `SaturninQcb`. Full argument in `src/aead_ctx.rs` module docs.
+
+  Two new test files: `tests/aead_kat_pin.rs` (the `SaturninAead` wire-format freeze guard) and
+  `tests/cascade_ctx_spec.rs` (independent transcription gate + label/key/nonce/AD/base-tag
+  binding tests + cross-mode rejection + a pinned `SaturninAeadCtx` KAT), both landed red-first /
+  with built-in falsification. No fabricated CMT-1 attack test was added: no cheap CMT-1 break is
+  known for CTR-Cascade (a 256-bit tag over a 256-bit cascade state with no GHASH-like algebraic
+  structure), so — as with the existing `lib-q-aead/tests/key_commitment.rs` bounded searches — a
+  clean result would not be evidence of commitment; the new tests cover the transform's properties
+  instead.
+
+  No new Cargo feature: gated on `all(feature = "aead", feature = "hash")`, both already default
+  features, so the type is available with zero migration friction and no new string for CI/docs.rs
+  to forget. `src/lib.rs`'s `commit` module gate widened from `qcb` to
+  `any(qcb, all(aead, hash))` — the stale comment's stated plan, `any(qcb, aead)`, would not have
+  compiled (`aead` does not imply `hash`, and `commit.rs` needs `SaturninHash`).
+
 ### Changed — BREAKING (wire format)
 
 - **`SaturninQcb` now applies the CTX committing-AEAD transform.** The last 32 bytes of every

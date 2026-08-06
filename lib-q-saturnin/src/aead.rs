@@ -233,8 +233,44 @@ impl SaturninAead {
         Ok(())
     }
 
-    /// CTR encryption/decryption (optimized)
-    fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
+    /// Compute the raw CTR-Cascade tag `T` over associated data and a ciphertext body, without
+    /// touching the ciphertext body itself (no CTR pass).
+    ///
+    /// `pub(crate)`: this is a pure extraction of the tag computation already present verbatim in
+    /// [`Self::decrypt_core`] (`cascade_init` + `cascade(2,3,ad)` + `cascade(4,5,ct_body)`) and,
+    /// interleaved with the CTR pass, in [`Self::encrypt_bytes`]. It exists so
+    /// [`crate::aead_ctx::SaturninAeadCtx`] can recompute `T` on its decrypt path without
+    /// duplicating the cascade construction. Adding this method changes no production bytes of
+    /// `SaturninAead` itself — `decrypt_core`/`encrypt_bytes` are left untouched, and
+    /// `tests/aead_kat_pin.rs` pins that `SaturninAead`'s own output is unaffected.
+    ///
+    /// Gated on `hash`: `aead_ctx` (the sole caller) is `all(aead, hash)`, and this method lives
+    /// inside the `aead`-gated module, so `#[cfg(feature = "hash")]` here is exactly
+    /// `all(aead, hash)`. Without the gate, a `--no-default-features --features std,alloc,aead`
+    /// build compiles this method with nothing calling it — OBSERVED as
+    /// `warning: method `base_tag_over` is never used`, which is a hard error under any
+    /// `-D warnings` gate. (`ctr_encrypt` below needs no such gate: `encrypt_bytes` and
+    /// `decrypt_core` in this same module call it regardless of `hash`.)
+    #[cfg(feature = "hash")]
+    pub(crate) fn base_tag_over(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        ad: &[u8],
+        ct_body: &[u8],
+    ) -> Result<Zeroizing<[u8; 32]>> {
+        let mut tag = self.cascade_init(key, nonce)?;
+        self.cascade(&mut tag, 2, 3, ad)?;
+        self.cascade(&mut tag, 4, 5, ct_body)?;
+        Ok(tag)
+    }
+
+    /// CTR encryption/decryption (optimized).
+    ///
+    /// `pub(crate)` (widened from private) so [`crate::aead_ctx::SaturninAeadCtx`]'s decrypt path
+    /// can run CTR without re-implementing it — see that module for why this stays deliberately
+    /// pure delegation rather than a refactor of `encrypt_bytes`/`decrypt_core`.
+    pub(crate) fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
         let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
             expected: 32,
             actual: key.len(),

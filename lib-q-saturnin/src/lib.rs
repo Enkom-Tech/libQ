@@ -187,13 +187,22 @@ pub mod block_cipher;
 pub mod hash;
 
 // CTX committing-AEAD transform (Chan-Rogaway, ESORICS 2022), instantiated with Saturnin-Hash.
-// Needs `hash`, which `qcb` pulls in transitively. Gated on `qcb` rather than `hash` because
-// QCB is its only caller today: once `qcb` stopped being a default feature (2026-08-06) a
-// `hash`-only build compiled `ctx_tag` with nothing calling it, which is a dead-code warning.
-// Widen this to `any(feature = "qcb", feature = "aead")` when CTX lands on SaturninAead — that
-// is the mode every consumer actually uses, and it is the transform's real destination.
-#[cfg(feature = "qcb")]
+// Needs `hash` (`ctx_tag` calls `SaturninHash`). Two callers now exist: `qcb` (SaturninQcb) and
+// `aead_ctx` (SaturninAeadCtx, landed 2026-08-06 — CTX on CTR-Cascade, the mode every real
+// consumer, GIP/uGrid/My-Grid/Bitlink, actually uses). Gated on `any(qcb, all(aead, hash))`
+// rather than plain `hash` so a `hash`-only build (no `aead_ctx`, since that additionally needs
+// `aead`) does not compile `ctx_tag` with nothing calling it — that would be a dead-code warning.
+// NOTE: `any(feature = "qcb", feature = "aead")` (an earlier version of this comment's stated
+// plan) would NOT compile: `commit.rs` does `use crate::hash::SaturninHash`, and `mod hash` is
+// itself feature-gated; `aead` does not imply `hash` (`aead = ["dep:zeroize"]`), so a
+// `--no-default-features --features aead,alloc` build would break. `all(aead, hash)` is required.
+#[cfg(any(feature = "qcb", all(feature = "aead", feature = "hash")))]
 pub mod commit;
+
+// CTX committing-AEAD transform on Saturnin CTR-Cascade (`SaturninAead`). Needs `hash` for
+// `commit::ctx_tag` and `aead` for the base `SaturninAead` it wraps.
+#[cfg(all(feature = "aead", feature = "hash"))]
+pub mod aead_ctx;
 
 // Saturnin-QCB: one-pass AEAD on the Saturnin tweakable block cipher (update note).
 #[cfg(feature = "qcb")]
@@ -207,10 +216,14 @@ pub mod stream;
 // Re-export main implementations
 #[cfg(feature = "aead")]
 pub use aead::SaturninAead;
+#[cfg(all(feature = "aead", feature = "hash"))]
+pub use aead_ctx::SaturninAeadCtx;
 #[cfg(feature = "aead-short")]
 pub use aead_short::SaturninShortAead;
 #[cfg(feature = "block-cipher")]
 pub use block_cipher::SaturninBlockCipher;
+#[cfg(all(feature = "aead", feature = "hash"))]
+pub use commit::CASCADE_CTX_LABEL_V0;
 #[cfg(feature = "qcb")]
 pub use commit::QCB_CTX_LABEL_V0;
 #[cfg(feature = "hash")]
@@ -233,6 +246,9 @@ pub fn available_modes() -> Vec<&'static str> {
     #[cfg(feature = "aead")]
     modes.push("aead");
 
+    #[cfg(all(feature = "aead", feature = "hash"))]
+    modes.push("aead-ctx");
+
     #[cfg(feature = "aead-short")]
     modes.push("aead-short");
 
@@ -251,11 +267,24 @@ pub fn available_modes() -> Vec<&'static str> {
     modes
 }
 
-/// Create a Saturnin instance by mode name
+/// Create a Saturnin instance by mode name.
+///
+/// **Every arm here is a different, mutually incompatible wire format** — `"aead"`, `"aead-ctx"`,
+/// `"aead-short"` and `"qcb"` produce ciphertext that only the same mode can decrypt. Selecting
+/// the mode from a runtime string re-introduces, at the call site, exactly the format-flip footgun
+/// that `SaturninAeadCtx` is a distinct *type* in order to avoid (see `crate::aead_ctx` module
+/// docs): switching `"aead"` to `"aead-ctx"` in a config makes previously stored ciphertext
+/// undecryptable, and `SaturninAead` is the mode holding shipped data at rest (My-Grid vault,
+/// GIP `bitlink-wrapkey-argon2id-v1`). Prefer naming the concrete type at the call site; if you
+/// must dispatch on a string, bind that string to the stored record's own format tag rather than
+/// to a mutable setting, and note that `"aead"` and `"aead-ctx"` additionally share a keystream
+/// for a given `(key, nonce)` — never re-encrypt a record under the other mode with its old nonce.
 pub fn create_saturnin(mode: &str) -> Result<Box<dyn Aead>> {
     match mode {
         #[cfg(feature = "aead")]
         "aead" => Ok(Box::new(SaturninAead::new())),
+        #[cfg(all(feature = "aead", feature = "hash"))]
+        "aead-ctx" => Ok(Box::new(SaturninAeadCtx::new())),
         #[cfg(feature = "aead-short")]
         "aead-short" => Ok(Box::new(SaturninShortAead::new())),
         #[cfg(feature = "qcb")]

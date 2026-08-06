@@ -89,6 +89,16 @@ path = "tests/qcb_ctx_spec.rs"
 required-features = ["alloc", "qcb"]
 
 [[test]]
+name = "aead_kat_pin"
+path = "tests/aead_kat_pin.rs"
+required-features = ["alloc", "aead"]
+
+[[test]]
+name = "cascade_ctx_spec"
+path = "tests/cascade_ctx_spec.rs"
+required-features = ["alloc", "aead", "hash"]
+
+[[test]]
 name = "core_equivalence"
 path = "tests/core_equivalence.rs"
 required-features = ["alloc"]
