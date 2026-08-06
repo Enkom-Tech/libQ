@@ -234,9 +234,14 @@ fn test_vector_size_calculations() {
 fn test_key_size_calculations() {
     println!("=== Key Size Calculation Validation ===");
 
-    // Public key: `seed_ek` ‖ `s`. For HQC-1, `|s| = ceil(N/8) = VEC_N_SIZE_BYTES`.
-    // For HQC-3 / HQC-5 the NIST reference KEM serialization pads `s` by 8 bytes beyond
-    // that compact length (`hqc_pke` fills `public_key_data[SEED_BYTES..]` to `PUBLIC_KEY_BYTES`).
+    // Public key: `seed_ek` ‖ `s`, `|s| = ceil(N/8) = VEC_N_SIZE_BYTES`, for all three sets.
+    //
+    // Card t_1558e72f: HQC-3/HQC-5 previously carried 8 bytes of extra, always-zero padding here
+    // (a round-3/2020-submission `seed_ek` size of 40 bytes leaking into the 2025 v5.0.0 32-byte
+    // format: 40 + 4482 = 4522, 40 + 7205 = 7245) — this test used to assert `+ 8` and treat that
+    // padding as correct. It has been fixed at the source (`lib-q-types::hqc`); the `+ 8` here
+    // would now fail, which is the point: this assertion must be able to catch the regression if
+    // it is ever reintroduced.
     assert_eq!(
         Hqc1Params::PUBLIC_KEY_BYTES,
         Hqc1Params::SEED_BYTES + Hqc1Params::VEC_N_SIZE_BYTES,
@@ -244,12 +249,12 @@ fn test_key_size_calculations() {
     );
     assert_eq!(
         Hqc3Params::PUBLIC_KEY_BYTES,
-        Hqc3Params::SEED_BYTES + Hqc3Params::VEC_N_SIZE_BYTES + 8,
+        Hqc3Params::SEED_BYTES + Hqc3Params::VEC_N_SIZE_BYTES,
         "HQC-3 PUBLIC_KEY_BYTES"
     );
     assert_eq!(
         Hqc5Params::PUBLIC_KEY_BYTES,
-        Hqc5Params::SEED_BYTES + Hqc5Params::VEC_N_SIZE_BYTES + 8,
+        Hqc5Params::SEED_BYTES + Hqc5Params::VEC_N_SIZE_BYTES,
         "HQC-5 PUBLIC_KEY_BYTES"
     );
 

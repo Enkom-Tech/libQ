@@ -19,8 +19,9 @@ pub enum HqcError {
     ///
     /// **When it occurs:** A key (public or secret) has an incorrect size for the HQC parameter set.
     /// **Cause:** The key data provided doesn't match the expected size for the algorithm variant (HQC-128, HQC-192, or HQC-256).
-    /// **Resolution:** Ensure the key size matches the parameter set: HQC-128 (2249 bytes public, 2289 bytes secret),
-    /// HQC-192 (4522 bytes public, 4562 bytes secret), or HQC-256 (7245 bytes public, 7285 bytes secret).
+    /// **Resolution:** Ensure the key size matches the parameter set: HQC-128 (2241 bytes public),
+    /// HQC-192 (4514 bytes public), or HQC-256 (7237 bytes public); see
+    /// [`lib_q_types::hqc`](../../lib-q-types/src/hqc.rs) for the exact serialized secret-key lengths.
     InvalidKeySize { expected: usize, actual: usize },
 
     /// Invalid ciphertext size
