@@ -22,8 +22,10 @@
 #
 # See scripts/ci_guard_kat_provenance.py for the five checks (discovery, manifest coverage in
 # both directions, content hash, the official/nist/rfc naming ban, and the header/manifest
-# cross-check) and kats-manifest.toml for the manifest itself and its current, deliberately
-# narrow, rollout scope.
+# cross-check -- the last of these has a narrow exemption for byte-for-byte vendored `upstream`
+# files, whose own bytes would be falsified by adding the header comment; see that check's own
+# comment) and kats-manifest.toml for the manifest itself and its current, deliberately narrow,
+# rollout scope.
 #
 # WHAT THIS GUARD DOES NOT COVER
 # --------------------------------
