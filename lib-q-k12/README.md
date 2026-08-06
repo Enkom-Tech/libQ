@@ -97,8 +97,8 @@ Tree chunk size is 8192 bytes. Throughput depends on input length and CPU; see `
 
 ## Security
 
-- **Collision strength**: `U16` bytes (128-bit) for `Kt128`, `U32` bytes (256-bit) for `Kt256` — see RFC 9861 §7.7–7.8.
-- Use **KT256** when the application profile requires 256-bit collision security.
+- **Collision strength**: `U16` bytes (128-bit) for `Kt128`, `U32` bytes (256-bit) for `Kt256` — see RFC 9861 §7.7–7.8. Both figures are conditional on output length: they hold at output sizes of at least `2 * CollisionResistance` (32 bytes for `Kt128`, 64 bytes for `Kt256`), per this crate's `digest::CollisionResistance` contract. At a shorter output, collision resistance is `min(CollisionResistance, OutputSize / 2)` bytes — e.g. a 32-byte `Kt256` output gives 128-bit, not 256-bit, collision resistance.
+- Use **KT256** at a **≥64-byte** output when the application profile requires 256-bit collision security.
 
 ## Testing
 
