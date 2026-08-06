@@ -150,8 +150,20 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
 
 - 256-bit post-quantum security
 - Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
-- No side channels
-- Validated against reference implementation
+- **No masked or threshold implementation.** Saturnin has no published DPA- or fault-resistant
+  implementation and this crate does not provide one. Do not read "constant-time" as covering
+  power or EM side channels — it does not.
+- Validated against the designers' NIST LWC submission: the scalar core reproduces their generated
+  hash, CTR-Cascade and Short KAT vectors. The AVX2 and NEON backends have **not** been compared
+  against that reference — see [docs/HARDWARE.md](docs/HARDWARE.md) §6.
+
+## Implementing Saturnin in hardware
+
+[docs/HARDWARE.md](docs/HARDWARE.md) collects what building this twice taught us: the one-core /
+one-datapath property and its evidence, why the round constants must be generated rather than
+ROMed, the RC packing convention written as normative prose, the fact that the S-box and MDS are
+**not** involutions (so an inverse datapath is real area), and a catalogue of the four defects that
+survived a green test suite here.
 
 ## Performance
 
