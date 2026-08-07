@@ -10,3 +10,14 @@
 lib-q-hqc/kats/** -text
 *.rsp -text
 *.req -text
+
+# The NIST LWC fixtures are `.txt`, so none of the patterns above reached them and they were
+# checked out CRLF on Windows while the blob stayed LF. Demonstrated on
+# LWC_AEAD_KAT_256_128_saturninshortv2.txt: stored blob sha256 9936c724... which is exactly the
+# `upstream_sha256` in kats-manifest.toml, versus 9e9cc929... for the same file in the worktree.
+# The provenance guard normalises line endings so it passed either way, but a plain `sha256sum` on
+# a fresh clone contradicted the manifest -- which is precisely the kind of unexplained mismatch
+# that teaches people to distrust the check.
+lib-q-saturnin/tests/fixtures/** -text
+lib-q-romulus/tests/fixtures/** -text
+lib-q-mayo/tests/kats/** -text
