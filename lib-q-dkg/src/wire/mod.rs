@@ -26,10 +26,29 @@ use crate::lattice::ring::{
     rq_from_le_bytes,
     rq_to_le_bytes,
 };
-use crate::profile::PROFILE_ID_V1;
+use crate::profile::{
+    PROFILE_ID_V1,
+    PROFILE_MAX_PARTIES_V1,
+};
 
 /// Wire version byte.
 pub const WIRE_VERSION_V1: u8 = 1;
+
+/// Wire bytes occupied by one encoded BDLOP commitment (`MU + 1` ring elements).
+pub const COMMITMENT_WIRE_BYTES: usize = (MU + 1) * RQ_BYTES;
+
+/// Maximum number of coefficient commitments a round-1 broadcast may declare.
+///
+/// A round-1 broadcast carries exactly `threshold` commitments, and the threshold can never exceed
+/// [`PROFILE_MAX_PARTIES_V1`], so a larger declared count is malformed by construction.
+pub const MAX_ROUND1_COMMITMENTS: usize = PROFILE_MAX_PARTIES_V1 as usize;
+
+/// Maximum number of ring elements any length-prefixed `R_q` vector on the wire may declare.
+///
+/// The two wire-carried `R_q` vectors are the commitment randomness (`KAPPA` elements) and the
+/// proof response `z` (`threshold · KAPPA` elements, `threshold <= PROFILE_MAX_PARTIES_V1`); the
+/// larger of the two is the ceiling.
+pub const MAX_WIRE_RQ_VEC_LEN: usize = PROFILE_MAX_PARTIES_V1 as usize * KAPPA;
 
 /// Byte budget for an encoded round-1 commitment broadcast.
 ///
@@ -61,6 +80,18 @@ pub fn encode_round1_commitments(c: &CoeffCommitments) -> Result<Vec<u8>, DkgErr
 }
 
 /// Decode a round-1 commitment broadcast.
+///
+/// # Errors
+///
+/// Returns [`DkgError::BudgetExceeded`] if the payload is larger than
+/// [`WIRE_BUDGET_DKG_ROUND1_BYTES`], [`DkgError::WireVersionMismatch`] /
+/// [`DkgError::WireProfileMismatch`] on a foreign header, [`DkgError::InvalidThreshold`] if the
+/// declared commitment count exceeds [`MAX_ROUND1_COMMITMENTS`], [`DkgError::WireTruncated`] if the
+/// declared count does not match the bytes actually present, and [`DkgError::Encoding`] if a ring
+/// element is not canonically encoded.
+///
+/// The declared count is validated against both the protocol maximum and the remaining input length
+/// *before* anything is allocated, so a short hostile payload cannot induce a large allocation.
 pub fn decode_round1_commitments(wire: &[u8]) -> Result<CoeffCommitments, DkgError> {
     if wire.len() > WIRE_BUDGET_DKG_ROUND1_BYTES {
         return Err(DkgError::BudgetExceeded {
@@ -73,13 +104,25 @@ pub fn decode_round1_commitments(wire: &[u8]) -> Result<CoeffCommitments, DkgErr
     let party = read_u8(wire, &mut cur)?;
     let threshold = read_u8(wire, &mut cur)?;
     let n = usize::from(read_u16_le(wire, &mut cur)?);
-    let mut commitments = Vec::with_capacity(n);
-    for _ in 0..n {
-        commitments.push(read_commitment(wire, &mut cur)?);
+
+    // Bound the attacker-declared count BEFORE any allocation: (a) against the named protocol
+    // maximum, and (b) against the bytes actually present. `body` is the real remaining input, so
+    // the `chunks_exact` collect below can only ever size itself from bytes the caller supplied.
+    if n > MAX_ROUND1_COMMITMENTS {
+        return Err(DkgError::InvalidThreshold);
     }
+    let body = read_bytes(wire, &mut cur, n.saturating_mul(COMMITMENT_WIRE_BYTES))?;
     if cur != wire.len() {
         return Err(DkgError::WireTruncated);
     }
+    let commitments = body
+        .chunks_exact(COMMITMENT_WIRE_BYTES)
+        .map(|chunk| {
+            let mut inner = 0usize;
+            read_commitment(chunk, &mut inner)
+        })
+        .collect::<Result<Vec<Commitment>, DkgError>>()?;
+
     Ok(CoeffCommitments {
         party,
         threshold,
@@ -174,12 +217,14 @@ fn read_share_body(wire: &[u8], cur: &mut usize) -> Result<ShareEvaluation, DkgE
     let recipient = read_u8(wire, cur)?;
     let threshold = read_u8(wire, cur)?;
     let value = read_rq(wire, cur)?;
-    let rand = read_rq_vec(wire, cur)?;
+    // The randomness is exactly `KAPPA` ring elements; the response `z` is `threshold · KAPPA`,
+    // capped by `MAX_WIRE_RQ_VEC_LEN`. Each site passes its own named maximum.
+    let rand = read_rq_vec(wire, cur, KAPPA)?;
     if rand.len() != KAPPA {
         return Err(DkgError::Encoding);
     }
     let c = read_rq(wire, cur)?;
-    let z = read_rq_vec(wire, cur)?;
+    let z = read_rq_vec(wire, cur, MAX_WIRE_RQ_VEC_LEN)?;
     Ok(ShareEvaluation {
         dealer,
         recipient,
@@ -224,17 +269,20 @@ fn write_rq_vec(out: &mut Vec<u8>, v: &[Rq]) -> Result<(), DkgError> {
     Ok(())
 }
 
-fn read_rq_vec(wire: &[u8], cur: &mut usize) -> Result<Vec<Rq>, DkgError> {
+/// Read a length-prefixed `R_q` vector, refusing to allocate on an unvalidated count.
+///
+/// `max_len` is the caller's named protocol maximum for this particular field. The declared count
+/// is checked against it, and then the exact byte span is claimed from the remaining input, before
+/// any allocation happens — the returned `Vec` is sized from bytes that are actually present.
+fn read_rq_vec(wire: &[u8], cur: &mut usize, max_len: usize) -> Result<Vec<Rq>, DkgError> {
     let n = usize::try_from(read_u32_le(wire, cur)?).map_err(|_| DkgError::LengthOverflow)?;
-    // Guard against an absurd count before allocating.
-    if n.saturating_mul(RQ_BYTES) > WIRE_BUDGET_DKG_COMPLAINT_BYTES {
+    if n > max_len {
         return Err(DkgError::Encoding);
     }
-    let mut v = Vec::with_capacity(n);
-    for _ in 0..n {
-        v.push(read_rq(wire, cur)?);
-    }
-    Ok(v)
+    let body = read_bytes(wire, cur, n.saturating_mul(RQ_BYTES))?;
+    body.chunks_exact(RQ_BYTES)
+        .map(|chunk| rq_from_le_bytes(chunk).ok_or(DkgError::Encoding))
+        .collect()
 }
 
 fn expect_header(wire: &[u8], cur: &mut usize) -> Result<(), DkgError> {

@@ -13,6 +13,10 @@ use super::pack::{
     unpack_rq_poly,
     unpack_z_module,
 };
+use super::reader::{
+    read_u8_counted,
+    read_u16_counted,
+};
 use crate::blind::UnblindedIssuance;
 use crate::commitment::AjtaiCommitment;
 use crate::error::VerifyError;
@@ -215,6 +219,12 @@ pub fn encode_opening_proof_v0(
 }
 
 /// Decode [`OpeningProof`] from a v0 wire blob.
+///
+/// # Errors
+///
+/// Rejects any encoded module count that is not backed by the bytes actually present in `wire`;
+/// peak allocation is bounded by a small multiple of the input length, never by an untrusted count
+/// alone (see `wire::reader`).
 pub fn decode_opening_proof_v0(
     wire: &[u8],
 ) -> Result<(OpeningProof, LatticeZkpProfileV0), VerifyError> {
@@ -338,6 +348,12 @@ pub fn encode_private_membership_proof_v0(
 }
 
 /// Decode PVTN proof and attach the externally supplied credential commitment.
+///
+/// # Errors
+///
+/// Rejects any encoded Merkle depth or opening-body module count that is not backed by the bytes
+/// actually present in `wire`; peak allocation is bounded by a small multiple of the input length,
+/// never by an untrusted count alone (see `wire::reader`).
 pub fn decode_private_membership_proof_v0(
     wire: &[u8],
     min_clearance: u32,
@@ -435,6 +451,12 @@ pub fn encode_spending_proof_v0(
 }
 
 /// Decode token spending proof.
+///
+/// # Errors
+///
+/// Rejects any encoded opening-body module count that is not backed by the bytes actually present
+/// in `wire`; peak allocation is bounded by a small multiple of the input length, never by an
+/// untrusted count alone (see `wire::reader`).
 pub fn decode_spending_proof_v0(
     wire: &[u8],
 ) -> Result<(SpendingProof, LatticeZkpProfileV0), VerifyError> {
@@ -465,6 +487,12 @@ pub fn encode_linear_relation_proof_v0(
 }
 
 /// Decode linear relation proof.
+///
+/// # Errors
+///
+/// Rejects any encoded opening-body or `u`-module count that is not backed by the bytes actually
+/// present in `wire`; peak allocation is bounded by a small multiple of the input length, never by
+/// an untrusted count alone (see `wire::reader`).
 pub fn decode_linear_relation_proof_v0(
     wire: &[u8],
 ) -> Result<(LinearRelationProof, LatticeZkpProfileV0), VerifyError> {
@@ -500,6 +528,12 @@ pub fn encode_nullifier_opening_proof_v0(
 }
 
 /// Decode nullifier-bound opening proof.
+///
+/// # Errors
+///
+/// Rejects any encoded opening-body module count that is not backed by the bytes actually present
+/// in `wire`; peak allocation is bounded by a small multiple of the input length, never by an
+/// untrusted count alone (see `wire::reader`).
 pub fn decode_nullifier_opening_proof_v0(
     wire: &[u8],
 ) -> Result<(NullifierOpeningProof, LatticeZkpProfileV0), VerifyError> {
@@ -526,6 +560,12 @@ pub fn encode_witness_nullifier_opening_proof_v0(
 }
 
 /// Decode witness-nullifier opening proof.
+///
+/// # Errors
+///
+/// Rejects any encoded opening-body module count that is not backed by the bytes actually present
+/// in `wire`; peak allocation is bounded by a small multiple of the input length, never by an
+/// untrusted count alone (see `wire::reader`).
 pub fn decode_witness_nullifier_opening_proof_v0(
     wire: &[u8],
 ) -> Result<(WitnessNullifierOpeningProof, LatticeZkpProfileV0), VerifyError> {
@@ -570,42 +610,59 @@ pub fn encode_amortised_proof_v0(
 }
 
 /// Decode amortised aggregate proof.
+///
+/// # Errors
+///
+/// Rejects any encoded transcript length, `r_scalars` count, or module count that is not backed by
+/// the bytes actually present in `wire`. All offset arithmetic uses `checked_add` and `slice::get`
+/// rather than raw indexing, so a hostile length can only fail the decode — on every target width,
+/// including 32-bit — never wrap an offset or panic on an inverted slice range (see
+/// `wire::reader`). Peak allocation is bounded by a small multiple of the input length, never
+/// by an untrusted count alone.
 pub fn decode_amortised_proof_v0(
     wire: &[u8],
 ) -> Result<(AmortisedProof, LatticeZkpProfileV0), VerifyError> {
     let (body, profile) = unwrap_envelope(wire, ProofKindV0::AmortisedAggregate)?;
-    if body.len() < 4 + 2 {
-        return Err(VerifyError::InvalidFormat);
-    }
+    let tlen_bytes = body.get(..4).ok_or(VerifyError::InvalidFormat)?;
     let tlen = u32::from_le_bytes(
-        body[0..4]
+        tlen_bytes
             .try_into()
             .map_err(|_| VerifyError::InvalidFormat)?,
     ) as usize;
-    let mut off = 4;
-    if body.len() < off + tlen + 2 {
-        return Err(VerifyError::InvalidFormat);
-    }
-    let transcript = body[off..off + tlen].to_vec().into_boxed_slice();
-    off += tlen;
-    let n = u16::from_le_bytes([body[off], body[off + 1]]) as usize;
-    off += 2;
-    if body.len() < off + n * 4 {
-        return Err(VerifyError::InvalidFormat);
-    }
-    let mut r_scalars = Vec::with_capacity(n);
-    for _ in 0..n {
-        r_scalars.push(u32::from_le_bytes(
-            body[off..off + 4]
-                .try_into()
-                .map_err(|_| VerifyError::InvalidFormat)?,
-        ));
-        off += 4;
-    }
-    let (z_polys, n1) = unpack_z_module(&body[off..], profile.z_inf_bound, profile.z_pack_bits)?;
-    off += n1;
-    let (w_polys, n2) = unpack_rq_module(&body[off..], profile.modulus)?;
-    off += n2;
+    // `4 + tlen` on an untrusted `tlen` (up to `u32::MAX`) must not wrap `usize` on 32-bit
+    // targets; `checked_add` plus `slice::get` (which rejects both an out-of-range end AND a
+    // start > end) is what makes this safe everywhere `unsafe_code` is forbidden anyway.
+    let transcript_end = 4usize.checked_add(tlen).ok_or(VerifyError::InvalidFormat)?;
+    let transcript = body
+        .get(4..transcript_end)
+        .ok_or(VerifyError::InvalidFormat)?
+        .to_vec()
+        .into_boxed_slice();
+    let off = transcript_end;
+    let (r_scalars, consumed) = read_u16_counted(
+        body.get(off..).ok_or(VerifyError::InvalidFormat)?,
+        4,
+        u16::MAX as usize,
+        |chunk| {
+            Ok(u32::from_le_bytes(
+                chunk.try_into().map_err(|_| VerifyError::InvalidFormat)?,
+            ))
+        },
+    )?;
+    let off = off
+        .checked_add(consumed)
+        .ok_or(VerifyError::InvalidFormat)?;
+    let (z_polys, n1) = unpack_z_module(
+        body.get(off..).ok_or(VerifyError::InvalidFormat)?,
+        profile.z_inf_bound,
+        profile.z_pack_bits,
+    )?;
+    let off = off.checked_add(n1).ok_or(VerifyError::InvalidFormat)?;
+    let (w_polys, n2) = unpack_rq_module(
+        body.get(off..).ok_or(VerifyError::InvalidFormat)?,
+        profile.modulus,
+    )?;
+    let off = off.checked_add(n2).ok_or(VerifyError::InvalidFormat)?;
     if off != body.len() {
         return Err(VerifyError::InvalidFormat);
     }
@@ -646,6 +703,12 @@ pub fn encode_blind_issuance_v0(
 }
 
 /// Decode blind issuance attestation wire bundle.
+///
+/// # Errors
+///
+/// Rejects any encoded `issuer_com` or opening-body module count that is not backed by the bytes
+/// actually present in `wire`; peak allocation is bounded by a small multiple of the input length,
+/// never by an untrusted count alone (see `wire::reader`).
 pub fn decode_blind_issuance_v0(
     wire: &[u8],
 ) -> Result<(BlindIssuanceWireV0, LatticeZkpProfileV0), VerifyError> {
@@ -697,28 +760,27 @@ pub fn encode_dual_ring_opening_proof_v0(
 }
 
 /// Decode DualRing opening proof.
+///
+/// # Errors
+///
+/// Rejects any encoded ring length or `z`-module count that is not backed by the bytes actually
+/// present in `wire`; peak allocation is bounded by a small multiple of the input length, never by
+/// an untrusted count alone (see `wire::reader`).
 pub fn decode_dual_ring_opening_proof_v0(
     wire: &[u8],
 ) -> Result<(DualRingOpeningProof, LatticeZkpProfileV0), VerifyError> {
     let (body, profile) = unwrap_envelope(wire, ProofKindV0::DualRingOpening)?;
-    if body.is_empty() {
-        return Err(VerifyError::InvalidFormat);
-    }
-    let ring_len = usize::from(body[0]);
-    let mut off = 1;
-    let mut challenges = Vec::with_capacity(ring_len);
-    for _ in 0..ring_len {
-        let (poly, consumed) = unpack_rq_poly(&body[off..], profile.modulus)?;
-        challenges.push(poly);
-        off = off.saturating_add(consumed);
-        if off > body.len() {
-            return Err(VerifyError::InvalidFormat);
-        }
-    }
+    let modulus = profile.modulus;
+    let elem_len = simple_bit_pack_len(usize::from(RQ_COEFF_PACK_BITS));
+    let (challenges, off) = read_u8_counted(body, elem_len, u8::MAX as usize, |chunk| {
+        unpack_rq_poly(chunk, modulus).map(|(p, _)| p)
+    })?;
     let (z_polys, consumed) =
         unpack_z_module(&body[off..], profile.z_inf_bound, profile.z_pack_bits)?;
-    off = off.saturating_add(consumed);
-    if off != body.len() {
+    let total = off
+        .checked_add(consumed)
+        .ok_or(VerifyError::InvalidFormat)?;
+    if total != body.len() {
         return Err(VerifyError::InvalidFormat);
     }
     Ok((
