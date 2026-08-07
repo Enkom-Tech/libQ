@@ -9,8 +9,14 @@
 //!
 //! where:
 //!
-//! - `Saturnin16` is Saturnin run with **16 super-rounds** (the related-key-secure variant,
-//!   the same number of super-rounds used by `Saturnin-Hash`),
+//! - `Saturnin16` is Saturnin run with **16 super-rounds** — the variant for which the designers
+//!   *claim* related-key security, the same number of super-rounds used by `Saturnin-Hash`. Do
+//!   not read "related-key-secure" as established: the claim is scoped to related-key attacks
+//!   "involving a small number of keys" with `[BK03]`-conforming deriving functions (LWC spec
+//!   §1.2), this construction uses `Φ_⊕` over up to `2^95` tweaks, and the best published
+//!   related-key key recovery already reaches 10 of the 16 super-rounds. See
+//!   [`crate::qcb`] (*The underlying assumption is the thin one*) and obligation **RK-1**
+//!   in [`crate::commit`],
 //! - `d` is a **4-bit domain separator** (`0..=15`),
 //! - `K` is the 256-bit (32-byte) key,
 //! - `T` is a **256-bit (32-byte) tweak**, XORed into the key, and
@@ -23,6 +29,17 @@
 //! This primitive is unambiguously specified by the update note and is the only part of
 //! Saturnin-QCB that does not require interpreting the (separate) QCB mode paper. It is exposed
 //! publicly so it can be reused and independently tested.
+//!
+//! # Security model
+//!
+//! **Ideal cipher, classical tweaks.** The only published (S)TPRP result for key-tweak insertion
+//! is QCB's Proposition 1, proved in the ideal-cipher model against an adversary that
+//! *pre-declares a classical set of tweaks* (QCB §4.1). QCB's standard-model theorems are about
+//! an abstract TBC assumed (S)TPRP-secure and do not reach this construction. Querying tweaks in
+//! superposition is a total break, not a gap: the tweak here is the key offset, so QCB §4.2 notes
+//! that "the function `f(δ) = E_K(0) ⊕ E_{K⊕δ}(0)` admits `K` as a period" and Simon's algorithm
+//! recovers the key. Full statement and quotes: [`crate::qcb`] (*Security model*) and
+//! `SECURITY.md`. Do not describe this type as "provably secure" without naming the model.
 
 use lib_q_core::Result;
 use zeroize::Zeroize;

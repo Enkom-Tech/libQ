@@ -118,9 +118,9 @@
 //! CTX-on-QCB. (Register note: the code facts above are OBSERVED against this crate's source; that
 //! they satisfy Theorem 2's stated hypothesis is this module's reading of the theorem as
 //! transcribed in `crate::commit`'s module docs — pending confirmation as part of the human
-//! cryptographer sign-off below, alongside H-1 and Q-1′. There is no known structural gap of the
-//! S-2 kind for this instantiation.) S-2 remains open for `SaturninQcb` — closing it there is out
-//! of scope for this module.
+//! cryptographer sign-off below, alongside H-1, Q-1′, L-1 and Q-2. There is no known structural
+//! gap of the S-2 kind for this instantiation.) S-2 remains open for `SaturninQcb` — closing it
+//! there is out of scope for this module.
 //!
 //! # Security posture — RED
 //!
@@ -147,18 +147,73 @@
 //!   `2^102.4 = 2^(2n/5)` with no qRAM but `2^51.2` classical memory
 //!   (Chailloux–Naya-Plasencia–Schrottenloher, 2017); `2^128` memoryless. The `2^85.3` figure is
 //!   BHT's, not CNS's, and CNS is qRAM-free rather than memory-free.
-//! - **S-2** — does **not** apply here; see above. (Stays open for `SaturninQcb` only.)
-//! - **Q-1′** (adapted from QCB's Q-1) — CTX's own nAE-preservation proof (Theorem 3) is in the
-//!   *classical* random-oracle model. The Saturnin LWC submission markets CTR-Cascade with
-//!   quantum-adversary security claims; whether the CTX-composed scheme preserves that
-//!   quantum-adversary security is, as far as this module's author could determine, not covered
-//!   by any published analysis. Mitigation to keep in mind: against a *quantum* attacker the CMT
-//!   bound also degrades to the quantum collision claim (`~2^75` / generic `2^85`–`2^102`), not
-//!   the classical `2^112` figure.
+//! - **S-2** — does **not** apply here; see above. (Stays open for `SaturninQcb`, though it was
+//!   *narrowed* on 2026-08-07: Chan–Rogaway's proof turns out to consume only injectivity, not
+//!   the length-preserving bijectivity their §4 prose asserts — see `crate::commit`. The same
+//!   review surfaced a *second* Chan–Rogaway syntactic requirement QCB violates, "its expansion,
+//!   which is a constant `τ` such that `|E(K,N,A,M)| = |M| + τ`" (2022/1260 p.4). That one does
+//!   not arise here either: CTR-Cascade's expansion is exactly 32 bytes, the tag, for every
+//!   message length.)
+//! - **Q-1′** (adapted from QCB's Q-1, and **widened** on the 2026-08-07 source review — read the
+//!   Q-1 bullet in `crate::commit` first, its analysis is the normative one) — CTX's own
+//!   nAE-preservation proof (Theorem 3, IACR ePrint 2022/1260) is in the *classical*
+//!   random-oracle model, and the gap is **structural**: the authenticity reduction `B3` recovers
+//!   the base tag only by iterating a recorded table of the adversary's hash queries ("It then
+//!   iterates through all such entries", App. B), which no-cloning forbids under superposition
+//!   queries. The Saturnin LWC submission markets CTR-Cascade with quantum-adversary security
+//!   claims; no published QROM analysis of CTX was found — the committing-AE papers on file,
+//!   through 2026/1222, never use the words "quantum", "QROM" or "superposition". One sub-problem
+//!   *is* narrower here than for `SaturninQcb`: Q-1's sharpest leg is a counting mismatch between
+//!   Theorem 3's `qe + 1` reduction queries and QCB's BZ / plus-one notion, and CTR-Cascade makes
+//!   no BZ claim, so that specific off-by-one does not arise. That is narrower ground, not safe
+//!   ground — it means there is no Q2 *integrity* theorem here to preserve in the first place.
+//!   Mitigation to keep in mind: against a *quantum* attacker the CMT bound also degrades to the
+//!   quantum collision claim (`~2^75` / generic `2^85`–`2^102`), not the classical `2^112`
+//!   figure.
+//! - **L-1** (new 2026-08-07, shared with `SaturninQcb`; full statement in `crate::commit`) —
+//!   CTX's nAE-preservation proof is **single-user and single-verification-query**.
+//!   Bellare–Hoang, IACR ePrint 2024/875 p.12: "Chan and Rogaway \[16\] only consider a
+//!   restricted setting where the adversary attacks just a single user, and it can only make a
+//!   single verification query. Translating this result to the general setting via a hybrid
+//!   argument will lead to a very poor bound." Both instantiations inherit Theorem 3, so both
+//!   inherit this. It is orthogonal to S-2 (Theorem 2 has no oracles) and to Q-1′ (query counts,
+//!   not oracle model).
+//! - **Q-2** (new 2026-08-07; concerns the *base* mode, so it also lands on the frozen
+//!   `SaturninAead` — and does **not** apply to `SaturninQcb`, which is an integrated TBC mode
+//!   rather than a generic composition) — the Saturnin spec's IND-qCCA claim for CTR-Cascade
+//!   rests on a citation that has since been disproved. Spec §2.2: "we combine the counter mode …
+//!   and the Cascade construction \[BCK96\] for authentication, following the Encrypt-then-MAC
+//!   composition"; §4.3: the modes "are intended to provide quantum security against chosen
+//!   message superposition attacks and superposition verification queries (IND-qCCA security)";
+//!   and §4.3.1 supplies the load-bearing step: "Soukharev, Jao and Seshadri have revisited these
+//!   results \[SJS16\], and proved that the encrypt-then-MAC composition offers IND-qCCA
+//!   security, assuming that the encryption scheme is IND-qCPA, and the MAC is SUF-qCMA." IACR
+//!   ePrint 2025/387 disproves exactly that claim ("we disprove a claim made by Soukharev et al.
+//!   at PQCrypto 2016"; "\[SJS16, Theorem 3.6\] … is inconclusive"). **The conclusion looks
+//!   repairable, and that is the point of naming this rather than panicking:** 2025/387 §7 gives
+//!   a replacement criterion — "1. the generic composition is Encrypt-then-MAC,
+//!   Encrypt-and-MAC or Encrypt-and+then-MAC, 2. the underlying encryption scheme is IND-qCPA
+//!   secure, and 3. the underlying MAC is a qPRF" (formally its **Thm 3** — "The EatM composition
+//!   of an IND-qCPA\[LoR\] secure symmetric encryption scheme SE and a qPRF F (used as a MAC) is
+//!   IND-qCCA\[LoR\] secure" — carried across to EtM by Thm 4 and Cor 1. Cite all three: Thm 4 and
+//!   Cor 1 only say the three compositions stand or fall together and are vacuous without Thm 3
+//!   supplying the antecedent; §6.2 extends it to
+//!   nonce-based AE with associated data) — and the spec argues all three itself: EtM (§2.2), CTR
+//!   IND-qCPA via \[ATTU16\] (§4.3.3), and Cascade as a qPRF via "Theorem 5.1 in \[SY17\] … (if we
+//!   fix the number of message blocks as a constant)" (§4.3.3), which is the *stronger*
+//!   hypothesis, not the SUF-qCMA / plus-one one the counterexample defeats. What must be signed:
+//!   that the \[SJS16\] → 2025/387 Thm 3 + Thm 4 + Cor 1 citation swap actually goes through, given the
+//!   spec's own caveats (constant block count; "This proof seems not tight") and 2025/387's
+//!   caution "we are not aware of any practical MAC, which has been proven to be a qPRF" — its
+//!   authors did not consider Cascade / \[SY17\]. Until then, do not restate the spec's IND-qCCA
+//!   claim without this footnote.
 //!
-//! No new obligation is introduced beyond H-1 and Q-1′: this instantiation's inputs, layout, and
-//! hash are identical in shape to the QCB instantiation; the only differences (stream core, no
-//! unpadding branch) *remove* a QCB-specific hypothesis (S-2) rather than adding one.
+//! The 2026-08-07 review added L-1 and Q-2 to this instantiation's list; before it, the list was
+//! H-1 and Q-1′ only, on the reasoning that this instantiation's inputs, layout, and hash are
+//! identical in shape to the QCB instantiation and its only differences (stream core, no
+//! unpadding branch) *remove* a QCB-specific hypothesis (S-2) rather than adding one. That
+//! reasoning still holds for the *transform*: L-1 is inherited from CTX Theorem 3 and was simply
+//! never documented, and Q-2 is about the **base mode**, not about CTX.
 //!
 //! # Perf note
 //!

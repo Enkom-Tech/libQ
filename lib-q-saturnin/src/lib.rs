@@ -120,11 +120,23 @@
 //!
 //! ## Security Properties
 //!
-//! Saturnin provides post-quantum security through:
-//! - **Resistance to quantum attacks**: Designed to resist Shor's and Grover's algorithms
-//! - **AES-like security**: 256-bit security level
-//! - **Authenticated encryption**: Built-in integrity protection
-//! - **Provable security**: Based on well-studied cryptographic primitives
+//! Saturnin is *designed* for post-quantum security. These are design goals and designer
+//! *claims*, not proofs about this crate — read `SECURITY.md` and the per-mode module docs before
+//! quoting any of them:
+//! - **Resistance to quantum attacks**: designed against Grover-style search (Shor's algorithm
+//!   has no bearing on a symmetric cipher and is not part of the argument).
+//! - **AES-like design, 256-bit state and key**: the designers' claimed security level is
+//!   **224-bit**, not 256 — "There exists no classical attack in the single-key setting with
+//!   `T/p < 2^224`" (LWC spec §1.2) — and the hash claims are lower still (`2^112` classical
+//!   collision).
+//! - **Authenticated encryption**: built-in integrity protection. Not key-committing by default;
+//!   see the CMT-1 table in `README.md` and `src/commit.rs`.
+//! - **Security arguments, with their models named**: Saturnin-QCB's quantum results are
+//!   **ideal-cipher-model** results with classical, pre-declared tweaks (`src/qcb.rs`,
+//!   *Security model*); CTR-Cascade's IND-qCCA claim rests on a citation since disproved
+//!   (obligation **Q-2**, `src/aead.rs`); the CTX committing transform is **RED**, claimed and
+//!   not proven, pending five sign-off obligations (`src/commit.rs`). This crate does not offer
+//!   an unqualified "provable security" claim.
 //! - **Lightweight design**: Suitable for constrained environments
 
 #![cfg_attr(not(feature = "std"), no_std)]

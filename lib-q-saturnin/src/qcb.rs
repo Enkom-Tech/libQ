@@ -5,9 +5,96 @@
 //! block of plaintext is encrypted by one TBC call whose tweak binds a domain separator, the
 //! nonce, and the block number; the tag is produced by encrypting a checksum of the (padded)
 //! message under a distinct domain. Because nonce + block-number give every TBC call a unique
-//! tweak (when nonces are not reused), the mode achieves rate-one encryption with a tighter
-//! quantum-security proof than Saturnin-CTR-Cascade, and every block can be processed
-//! independently (parallelized).
+//! tweak (when nonces are not reused), the mode achieves rate-one encryption, and every block
+//! can be processed independently (parallelized). Unlike Saturnin-CTR-Cascade — for which the
+//! designers state a quantum security *claim* and no proof — QCB carries an actual quantum
+//! security *proof*. That proof is an **ideal-cipher-model** proof and it holds only against
+//! adversaries whose nonces and tweaks are classical and pre-declared. See *Security model*
+//! below; do not paraphrase this as "QCB is quantum-secure" without both qualifiers.
+//!
+//! # Security model — an ideal-cipher claim, with classical tweaks
+//!
+//! **This is not a standard-model construction and must never be described as one.** The
+//! Saturnin designers say so in the very note this module cites as its normative source ("An
+//! Update on Saturnin", Section 5): "*In the ideal-cipher model*, we can prove the
+//! indistinguishability and unforgeability of QCB under quantum chosen-plaintext attacks as
+//! defined in the specification of Saturnin. The proof assumes that nonces are not controlled by
+//! the adversary and not reused." The QCB paper is equally explicit — Section 4: "we will
+//! construct a TBC from a block cipher, and prove security in the ideal cipher model";
+//! Section 6.3: "the first statement holds in the standard model, the second in the ideal cipher
+//! model"; conclusion: "a construction based on a block cipher, in the ideal cipher model: the
+//! key-tweak insertion of Section 4."
+//!
+//! Concretely: QCB's Theorem 4 and Theorem 5 (first statement) are standard-model results **about
+//! an abstract TBC** assumed (S)TPRP-secure. They do not reach this crate on their own, because
+//! here the TBC is not abstract — it is [`crate::tbc`]'s key-tweak insertion `E(K ⊕ T, ·)`, and
+//! the only result covering *that* is QCB's Proposition 1, proved in the ideal cipher model;
+//! Corollary 2 and Theorem 5's second statement inherit that model.
+//!
+//! This is not the QCB authors declining to work harder. Mennink (*Insuperability of the Standard
+//! Versus Ideal Model Gap for Tweakable Blockcipher Security*, CRYPTO 2017; IACR ePrint 2017/474)
+//! argues the gap is structural for exactly this shape of TBC — Corollary 1: "If `2^{nl/(l+1)}` is
+//! the best one can get without tweak-rekeying, optimal `2^n` provable security with
+//! tweak-rekeying via the generic standard-to-ideal reduction is impossible." Mennink does not
+//! discuss QCB; the mapping is ours, and it is a *reading*, not a quoted result: key-tweak
+//! insertion looks like a tweak-rekeyable scheme of his Section 6 class (`σ = 0`, `ℓ = 1`,
+//! `B₁(k,t) = k ⊕ t`) with related-key-deriving set `Φ_⊕`, which is the case his Proposition 1
+//! discussion singles out as worst ("for `Φ = Φ_⊕` … can be pulled up to `q'r'/|K|`"; he also
+//! notes Bellare–Kohno's attack for `Φ_⊕` beats Proposition 1's). **Read the scope before
+//! quoting it**: Section 7 is explicitly "a heuristic argument", it rests on his Assumption 1, it
+//! rules out only *optimal* `2^n` security, and Mennink himself writes that "the result does not
+//! imply that the generic standard-to-ideal reduction is unavoidable, nor that optimal security
+//! cannot be achieved". It is a reason the ideal-cipher caveat is load-bearing, not an attack.
+//!
+//! ## Where the quantum (Q2) claim stops
+//!
+//! QCB's quantum results let the adversary put the **message** in superposition. They do **not**
+//! let it put the **tweak** in superposition: the proof's model (QCB Section 4.1) opens with a
+//! "Pre-Declaration Phase" fixing a set of *classical* tweaks, and the bound depends on the size
+//! `m` of that set. That restriction is not a proof convenience — it is the only thing between
+//! this mode and a polynomial-time total key recovery. Because the tweak here *is* the key
+//! offset, a superposition over tweaks is literally a superposition over related keys, and
+//! Rötteler and Steinwandt (*A note on quantum related-key attacks*, IACR ePrint 2013/378)
+//! recover `K` with Simon's algorithm in `O(k)` queries. The QCB paper names this in Section 4.2:
+//! "It admits a simple distinguisher based on Simon's algorithm if the tweaks are queried in
+//! superposition: this is the quantum related-key attack of \[31\]. Indeed, the function
+//! `f(δ) = E_K(0) ⊕ E_{K⊕δ}(0)` admits `K` as a period". The Saturnin claim box concedes the same
+//! for the bare cipher: "Saturnin does not provide security against related-key superposition
+//! attacks (as is the case of all known block ciphers)." This is generic to every block cipher,
+//! not a Saturnin defect — but it is where the claim ends, and any caller that could expose a
+//! nonce-choosing oracle to a quantum adversary has to know it.
+//!
+//! Separately, and further out: whether the **CTX tag** `T'` this mode actually transmits (see
+//! *Key commitment* below) preserves *any* of QCB's Q2 properties is open obligation **Q-1**, and
+//! the 2026-08-07 source review made it wider rather than narrower. Claim no Q2 property for
+//! `T'`; the results quoted here are QCB's own and cover the raw tag `T`.
+//!
+//! ## The underlying assumption is the thin one
+//!
+//! Even in the ideal-cipher model the instantiation needs the *real* Saturnin16 to be related-key
+//! secure. The QCB paper says so in *Instantiation with Saturnin*: "This construction motivates
+//! further inquiry of related-key attacks, as it needs Saturnin16 to be related-key secure." The
+//! designers' own follow-up (*A note on related-key attacks on Saturnin*, Note-RK-1) gives a
+//! classical related-key key recovery on **10 of Saturnin16's 16 super-rounds** — "The total
+//! complexity will be about `2 × γ × 2^128 = 2^236`" with `γ = 2^107` structures of `2^128`
+//! plaintexts — and Dong et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
+//! boundary with a quantum multi-collision distinguisher ("we successfully mount QMC
+//! distinguishing attack on 10-round Saturnin. It does not directly violate designers' claim
+//! above since ours are not key-recovery attack, however reaches the 10-round boundary"). Neither
+//! violates the `2^224` claim, but the related-key margin behind QCB is **6 super-rounds of 16**
+//! (10 attacked). Compare like with like — the Saturnin-Hash literature also counts in
+//! super-rounds of 16, and an earlier draft of this paragraph mis-stated it as "6 of 32 rounds":
+//! the best *in-model* attack on Saturnin-Hash is 6 of 16 super-rounds, i.e. a **10**-super-round
+//! margin, so QCB's related-key margin is the thinner of the two — but only in-model. Free-start
+//! collision attacks on the Saturnin-Hash compression function already reach 10 of 16 super-rounds
+//! (Chen et al., IACR ePrint 2022/731 §5.2), exactly QCB's depth; they are out of scope for
+//! Saturnin-Hash because MMO fixes `IV = 0`, and no analogous escape applies here. See
+//! [`crate::commit`], obligation H-1, for the full round-count table. Note also that the designers
+//! claim related-key security only "against
+//! related-key attacks involving a small number of keys", footnoted "with related-key deriving
+//! functions satisfying the conditions of \[BK03\]", while this mode's 95-bit block index admits
+//! up to `2^95` related keys under `Φ_⊕`. Whether `2^95` is "a small number of keys" is an open
+//! cryptographer question — obligation **RK-1**, tracked alongside H-1 in [`crate::commit`].
 //!
 //! # Domain separators and tweak encoding — normative source
 //!
@@ -63,8 +150,14 @@
 //! **CTX** committing-AEAD transform (Chan and Rogaway, *On Committing Authenticated-Encryption*,
 //! ESORICS 2022; IACR ePrint 2022/1260, Fig. 2 / Theorem 2), instantiated with
 //! [`SaturninHash`]. See `crate::commit` for the exact byte layout, the injectivity
-//! argument for why no length prefix is needed, and the three open cryptographer-sign-off
-//! obligations (H-1, S-2, Q-1) that keep this **RED** — claimed, not proven, CMT-4.
+//! argument for why no length prefix is needed, and the five open cryptographer-sign-off
+//! obligations (H-1, S-2, Q-1, L-1, RK-1) that keep this **RED** — claimed, not proven, CMT-4.
+//! Of those, the 2026-08-07 primary-source review **narrowed S-2** (Chan–Rogaway's Theorem 2
+//! consumes only injectivity, not the length-preserving bijectivity their §4 prose asserts) and
+//! **widened Q-1** (Theorem 3's authenticity reduction is classical transcript replay, not merely
+//! a classically-stated proof); **L-1** (Theorem 3 is single-user, single-verification-query) and
+//! **RK-1** (`Φ_⊕` over `2^95` tweaks vs the designers' "small number of keys" related-key claim)
+//! were added by it. Nothing was closed.
 //!
 //! This closes the CMT-1 break demonstrated in `tests/key_commitment.rs`: that test file retains
 //! the full attack (padding search + closed-form associated-data solve) as a regression test that
