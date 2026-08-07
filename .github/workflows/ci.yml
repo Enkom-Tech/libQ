@@ -355,8 +355,16 @@ jobs:
         run: |
           rm -rf target/release-ci
           GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # This used to pass the single name
+          # `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify`, which is
+          # `#[ignore]`d -- so libtest reported "0 passed; 1 ignored; 12 filtered out", exited 0,
+          # and the whole job asserted nothing. The vacuous-tests guard caught it. Worse, the
+          # filter was hiding two OTHER tests that fail from the same MerkleInclusionAir defect
+          # (card t_4333e4ea); they are now explicitly `#[ignore]`d with that reason, so the bug
+          # is visible in the source rather than only in a CI filter nobody reads.
+          # Run the whole target: 9 tests execute in ~5s, so there is no runtime reason to select.
           bash "$GUARD" -- cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
-            --test aggregation_tests test_recursive_verifier_trace_satisfies_constraints_then_prove_verify \
+            --test aggregation_tests \
             -- --test-threads=1
 
       # These targets sit behind non-default features that no other job enables, so before this
