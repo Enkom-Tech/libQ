@@ -14,7 +14,11 @@
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
-use subtle::ConstantTimeEq;
+use subtle::{
+    Choice,
+    ConditionallySelectable,
+    ConstantTimeEq,
+};
 
 use crate::error::Result;
 
@@ -70,7 +74,9 @@ impl TimingValidator {
     /// Constant-time selection between two values
     ///
     /// Returns `a` if `choice` is true, `b` if `choice` is false.
-    /// The selection is performed in constant time to prevent timing attacks.
+    /// Selection is branchless: a full-width mask is derived from `choice` via
+    /// `subtle::ConditionallySelectable` (no secret-dependent branch). Callers must derive
+    /// `choice` itself in constant time.
     ///
     /// # Arguments
     ///
@@ -81,28 +87,37 @@ impl TimingValidator {
     /// # Returns
     ///
     /// Returns the selected value in constant time.
-    pub fn constant_time_select<T: Copy>(&self, choice: bool, a: T, b: T) -> T {
-        if choice { a } else { b }
+    pub fn constant_time_select<T: ConditionallySelectable>(&self, choice: bool, a: T, b: T) -> T {
+        T::conditional_select(&b, &a, Choice::from(u8::from(choice)))
     }
 
     /// Constant-time conditional assignment
     ///
     /// Assigns `src` to `dst` if `choice` is true, otherwise leaves `dst` unchanged.
-    /// The assignment is performed in constant time.
+    /// Branchless: dispatches to `subtle::ConditionallySelectable::conditional_assign`, deriving a
+    /// full-width mask from `choice` instead of branching. Callers must derive `choice` itself in
+    /// constant time.
     ///
     /// # Arguments
     ///
     /// * `choice` - Boolean choice
     /// * `dst` - Destination to potentially assign to
     /// * `src` - Source value to assign
-    pub fn constant_time_assign<T: Copy>(&self, choice: bool, dst: &mut T, src: T) {
-        *dst = self.constant_time_select(choice, src, *dst);
+    pub fn constant_time_assign<T: ConditionallySelectable>(
+        &self,
+        choice: bool,
+        dst: &mut T,
+        src: T,
+    ) {
+        dst.conditional_assign(&src, Choice::from(u8::from(choice)));
     }
 
     /// Constant-time conditional copy
     ///
     /// Copies `src` to `dst` if `choice` is true, otherwise leaves `dst` unchanged.
-    /// The copy is performed in constant time.
+    /// Branchless: each byte is assigned via `subtle::ConditionallySelectable::conditional_assign`,
+    /// deriving a full-width mask from `choice` instead of branching. Callers must derive `choice`
+    /// itself in constant time.
     ///
     /// # Arguments
     ///
@@ -116,8 +131,9 @@ impl TimingValidator {
     pub fn constant_time_copy(&self, choice: bool, dst: &mut [u8], src: &[u8]) {
         assert_eq!(dst.len(), src.len(), "Slices must have the same length");
 
+        let choice = Choice::from(u8::from(choice));
         for (d, s) in dst.iter_mut().zip(src.iter()) {
-            *d = self.constant_time_select(choice, *s, *d);
+            d.conditional_assign(s, choice);
         }
     }
 
@@ -272,6 +288,38 @@ mod tests {
         // Test empty operation name
         let result = validator.validate_timing_safety("");
         assert!(result.is_err(), "Should reject empty operation name");
+    }
+
+    /// Marks its output when selected through the branchless `subtle` path — the if/else
+    /// implementation returns the operand unmarked, so this test fails on any branch-based select.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    struct SelectCanary(u32);
+    const CANARY_MARK: u32 = 0x8000_0000;
+    impl ConditionallySelectable for SelectCanary {
+        fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+            SelectCanary(u32::conditional_select(&a.0, &b.0, choice) | CANARY_MARK)
+        }
+    }
+
+    #[test]
+    fn select_and_assign_dispatch_through_subtle_not_a_branch() {
+        let v = TimingValidator::new().unwrap();
+        let r = v.constant_time_select(true, SelectCanary(1), SelectCanary(2));
+        assert_eq!(
+            r,
+            SelectCanary(1 | CANARY_MARK),
+            "constant_time_select must route through ConditionallySelectable (mask), not if/else"
+        );
+        let r = v.constant_time_select(false, SelectCanary(1), SelectCanary(2));
+        assert_eq!(r, SelectCanary(2 | CANARY_MARK));
+
+        let mut d = SelectCanary(7);
+        v.constant_time_assign(true, &mut d, SelectCanary(9));
+        assert_eq!(
+            d,
+            SelectCanary(9 | CANARY_MARK),
+            "constant_time_assign must route through conditional_assign"
+        );
     }
 
     #[test]
